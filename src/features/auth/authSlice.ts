@@ -20,6 +20,21 @@ const initialState: AuthState = {
       email: 'superadmin@example.com',
       role: 'SUPER_ADMIN',
     },
+    {
+      id: '2',
+      email: 'schooladmin@example.com',
+      role: 'SCHOOL_ADMIN',
+    },
+    {
+      id: '3',
+      email: 'teacher@example.com',
+      role: 'TEACHER',
+    },
+    {
+      id: '4',
+      email: 'student@example.com',
+      role: 'STUDENT',
+    },
   ],
 };
 

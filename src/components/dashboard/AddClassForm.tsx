@@ -21,7 +21,7 @@ import {
 import { format } from "date-fns";
 import { useState } from "react";
 import { DateRange } from "react-day-picker";
-export default function AddSchoolForm({
+export default function AddClassForm({
   onSubmit,
 }: {
   onSubmit: (data: SchoolFormValues) => void;
@@ -59,7 +59,7 @@ export default function AddSchoolForm({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {/* School Name */}
         <div>
-          <Label className="mb-1">School Name</Label>
+          <Label className="mb-1">Class Name</Label>
           <Input
             {...register("name", { required: "School name is required" })}
           />
@@ -68,12 +68,12 @@ export default function AddSchoolForm({
           )}
         </div>
 
-        {/* Contact Person */}
+        {/* AssignTeacher */}
         <div>
-          <Label className="mb-1">Contact Person</Label>
+          <Label className="mb-1">AssignTeacher</Label>
           <Input
             {...register("contactPerson", {
-              required: "Contact person is required",
+              required: "AssignTeacher is required",
             })}
           />
           {errors.contactPerson && (
@@ -82,77 +82,10 @@ export default function AddSchoolForm({
             </p>
           )}
         </div>
-
-        {/* Admin Email */}
-        <div>
-          <Label className="mb-1">Admin Email</Label>
-          <Input
-            type="email"
-            {...register("adminEmail", {
-              required: "Email is required",
-              pattern: {
-                value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                message: "Invalid email address",
-              },
-            })}
-          />
-          {errors.adminEmail && (
-            <p className="text-red-500 text-sm">{errors.adminEmail.message}</p>
-          )}
-        </div>
-
-        {/* Admin Password */}
-        <div>
-          <Label className="mb-1">Admin Password</Label>
-          <Input
-            type="password"
-            {...register("adminPassword", {
-              required: "Password is required",
-              minLength: {
-                value: 8,
-                message: "Password must be at least 8 characters",
-              },
-            })}
-          />
-          {errors.adminPassword && (
-            <p className="text-red-500 text-sm">
-              {errors.adminPassword.message}
-            </p>
-          )}
-        </div>
-
-        {/* Academic Year (Date Range Picker) */}
-        <div className="relative">
-          <Label className="mb-1">Academic Year</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className="w-full justify-start text-left font-normal"
-              >
-                {dateRange.from && dateRange.to
-                  ? `${format(dateRange.from, "yyyy")} - ${format(
-                      dateRange.to,
-                      "yyyy"
-                    )}`
-                  : "Select academic year"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <Calendar
-                initialFocus
-                mode="range"
-                selected={dateRange}
-                onSelect={handleDateChange}
-                numberOfMonths={2}
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
-
+      
         {/* Number of Terms */}
-        {/* <div className="w-full">
-          <Label>Number of Terms</Label>
+        <div className="w-full">
+          <Label className="mb-1">Number of Terms</Label>
           <Select
             onValueChange={(value) => setValue("terms", parseInt(value))}
             defaultValue="2"
@@ -165,11 +98,11 @@ export default function AddSchoolForm({
               <SelectItem value="3">Three Terms</SelectItem>
             </SelectContent>
           </Select>
-        </div> */}
+        </div>
       </div>
 
       <Button type="submit" className="w-full">
-        Create School
+        Create Class
       </Button>
     </form>
   );
