@@ -9,17 +9,21 @@ import {
   AcademicCapIcon,
   BookOpenIcon,
   Cog6ToothIcon,
+  ArrowLeftOnRectangleIcon,
 } from "@heroicons/react/24/outline";
 import { useState } from "react";
+import { useDispatch } from "react-redux";
+import { logout } from "@/features/auth/authSlice";
 
 const Sidebar = () => {
   const pathname = usePathname();
+  const dispatch = useDispatch();
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [isOpen, setIsOpen] = useState(true);
 
   const navigation = {
     SUPER_ADMIN: [
-      { name: "Dashboard", href: "/dashboard/super-admin", icon: HomeIcon },
+      { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
       {
         name: "Schools",
         href: "/dashboard/schools",
@@ -32,15 +36,20 @@ const Sidebar = () => {
       },
     ],
     SCHOOL_ADMIN: [
-      { name: "Dashboard", href: "/dashboard/school-admin", icon: HomeIcon },
+      { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
       {
-        name: "Classes",
+        name: "Manage Classes",
         href: "/dashboard/classes",
         icon: BookOpenIcon,
       },
       {
         name: "Teachers",
         href: "/dashboard/teachers",
+        icon: UserGroupIcon,
+      },
+      {
+        name: "Students",
+        href: "/dashboard/students",
         icon: UserGroupIcon,
       },
       {
@@ -75,6 +84,11 @@ const Sidebar = () => {
     ],
   };
 
+  const handleLogout = () => {
+    dispatch(logout());
+    window.location.href = "/";
+  };
+
   return (
     <div
       className={`h-screen bg-white shadow-lg ${
@@ -82,33 +96,36 @@ const Sidebar = () => {
       } transition-all duration-300`}
     >
       <div className="p-4 flex flex-col h-full">
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="mb-4 p-2 hover:bg-gray-100 rounded-lg self-end"
-        >
-          <svg
-            className="w-6 h-6"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+        <div className="w-full flex items-center justify-between mb-4">
+          {isOpen && <h2 className="font-semibold">{currentUser?.role}</h2>}
+          <button
+            onClick={() => setIsOpen(!isOpen)}
+            className="p-2 hover:bg-gray-100 rounded-lg"
           >
-            {isOpen ? (
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            ) : (
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5l7 7-7 7"
-              />
-            )}
-          </svg>
-        </button>
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              {isOpen ? (
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
+              ) : (
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              )}
+            </svg>
+          </button>
+        </div>
 
         <nav className="flex-1">
           {currentUser?.role &&
@@ -129,7 +146,15 @@ const Sidebar = () => {
               </Link>
             ))}
         </nav>
-
+        <button
+          onClick={handleLogout}
+          className={`flex items-center w-full p-3 mt-2 rounded-lg hover:bg-blue-50 text-gray-700`}
+        >
+          <ArrowLeftOnRectangleIcon
+            className={`h-6 w-6 ${isOpen ? "mr-3" : "mx-auto"}`}
+          />
+          {isOpen && <span className="text-sm">Logout</span>}
+        </button>
         {currentUser && (
           <div className="mt-auto border-t pt-4">
             <div className="flex items-center p-2">
