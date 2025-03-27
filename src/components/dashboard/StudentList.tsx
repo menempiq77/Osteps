@@ -6,6 +6,7 @@ import { useState } from "react";
 import { AddStudentModal } from "../modals/studentModals/AddStudentModal";
 import { EditStudentModal } from "../modals/studentModals/EditStudentModal";
 import { Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 // Types
 type Student = {
@@ -26,6 +27,7 @@ const studentsData: Student[] = [
 ];
 
 export default function StudentList() {
+  const router = useRouter();
   const [students, setStudents] = useState<Student[]>(studentsData);
   const [editStudent, setEditStudent] = useState<Student | null>(null);
   const [deleteStudent, setDeleteStudent] = useState<Student | null>(null);
@@ -58,6 +60,10 @@ export default function StudentList() {
     setIsAddStudentModalOpen(false);
   };
 
+  const handleStudentClick = (studentId: string) => {
+    router.push(`/dashboard/terms/${studentId}`);
+  };
+
   return (
     <>
       <div className="flex items-center justify-between mb-6">
@@ -88,7 +94,11 @@ export default function StudentList() {
             </thead>
             <tbody className="divide-y divide-gray-200">
               {students.map((student) => (
-                <tr key={student.id}>
+                <tr 
+                  key={student.id} 
+                  className="hover:bg-gray-50 cursor-pointer"
+                  onClick={() => handleStudentClick(student.id)}
+                >
                   <td className="px-6 py-4 whitespace-nowrap">{student.name}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{student.studentClass}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -100,11 +110,14 @@ export default function StudentList() {
                       {student.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                     <div className="flex space-x-2">
                       <Dialog.Root>
                         <Dialog.Trigger asChild>
-                          <Button variant="ghost" size="icon" title="Edit" onClick={() => setEditStudent(student)}>
+                          <Button variant="ghost" size="icon" title="Edit" onClick={(e) => {
+                            e.stopPropagation();
+                            setEditStudent(student);
+                          }}>
                             <Pencil2Icon className="h-4 w-4" />
                           </Button>
                         </Dialog.Trigger>
@@ -119,7 +132,10 @@ export default function StudentList() {
 
                       <Dialog.Root>
                         <Dialog.Trigger asChild>
-                          <Button variant="ghost" size="icon" title="Delete" onClick={() => setDeleteStudent(student)}>
+                          <Button variant="ghost" size="icon" title="Delete" onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteStudent(student);
+                          }}>
                             <Trash2 className="h-4 w-4 text-red-500" />
                           </Button>
                         </Dialog.Trigger>
