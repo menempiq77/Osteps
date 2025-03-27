@@ -61,12 +61,12 @@ const Sidebar = () => {
     TEACHER: [
       {
         name: "My Classes",
-        href: "/dashboard/teacher/classes",
+        href: "/dashboard/classes",
         icon: BookOpenIcon,
       },
       {
         name: "Students",
-        href: "/dashboard/teacher/students",
+        href: "/dashboard/students",
         icon: UserGroupIcon,
       },
     ],
