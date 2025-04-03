@@ -23,6 +23,7 @@
     "@radix-ui/themes": "^3.2.1",
     "@reduxjs/toolkit": "^2.6.1",
     "@types/react-redux": "^7.1.34",
+    "antd": "^5.24.6",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",

@@ -1,16 +1,10 @@
 "use client";
-import * as Stepper from "@radix-ui/react-progress";
-import { Card, Flex, Heading, Text, Button, Box, Grid } from "@radix-ui/themes";
-import {
-  ChevronLeftIcon,
-  CalendarIcon,
-  CheckCircledIcon,
-  ClockIcon,
-  CrossCircledIcon,
-} from "@radix-ui/react-icons";
+import React, { useState } from "react";
+import { Steps, Modal, Input, Button, Rate } from "antd";
+import { Card } from "@radix-ui/themes";
 import Link from "next/link";
+import { ChevronLeftIcon, CalendarIcon } from "@radix-ui/react-icons";
 
-// Mock data for terms
 const mockTerms = [
   {
     id: "1",
@@ -19,8 +13,7 @@ const mockTerms = [
     startDate: "Sep 1, 2023",
     endDate: "Dec 15, 2023",
     progress: 100,
-    courses: 5,
-    assignments: 12,
+    subjects: ["Math", "Science", "English"],
   },
   {
     id: "2",
@@ -29,8 +22,7 @@ const mockTerms = [
     startDate: "Jan 10, 2024",
     endDate: "Apr 20, 2024",
     progress: 65,
-    courses: 6,
-    assignments: 8,
+    subjects: ["Math", "History", "Biology"],
   },
   {
     id: "3",
@@ -39,185 +31,100 @@ const mockTerms = [
     startDate: "May 5, 2024",
     endDate: "Aug 15, 2024",
     progress: 0,
-    courses: 0,
-    assignments: 0,
+    subjects: [],
   },
 ];
 
-// Mock student data
-const mockStudents = {
-  "1": { name: "John Doe", class: "Grade 3", avatar: "/avatars/1.jpg" },
-  "2": { name: "Sarah Smith", class: "Grade 2", avatar: "/avatars/2.jpg" },
-  "3": { name: "Charlie Brown", class: "Grade 2", avatar: "/avatars/3.jpg" },
-  "4": { name: "David Wilson", class: "Grade 2", avatar: "/avatars/4.jpg" },
-  "5": { name: "Eve Johnson", class: "Grade 2", avatar: "/avatars/5.jpg" },
-};
+export default function TermPage({ params }: { params: { studentId: string } }) {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedSubject, setSelectedSubject] = useState("");
+  const [currentTermIndex, setCurrentTermIndex] = useState(0);
+  const [marks, setMarks] = useState("");
+  const [comments, setComments] = useState("");
+  const [fairness, setFairness] = useState(3);
 
-export default function TermPage({
-  params,
-}: {
-  params: { studentId: string };
-}) {
-  const student = mockStudents[
-    params.studentId as keyof typeof mockStudents
-  ] || { name: "Unknown Student", class: "Unknown Class", avatar: "" };
+  const handleOpenModal = (subject: string) => {
+    setSelectedSubject(subject);
+    setIsModalOpen(true);
+  };
 
-  const StatusIcon = ({ status }: { status: string }) => {
-    switch (status) {
-      case "completed":
-        return <CheckCircledIcon className="w-4 h-4 text-green-500" />;
-      case "in-progress":
-        return <ClockIcon className="w-4 h-4 text-blue-500" />;
-      default:
-        return <CrossCircledIcon className="w-4 h-4 text-gray-400" />;
+  const nextTerm = () => {
+    if (currentTermIndex < mockTerms.length - 1) {
+      setCurrentTermIndex(currentTermIndex + 1);
+    }
+  };
+
+  const prevTerm = () => {
+    if (currentTermIndex > 0) {
+      setCurrentTermIndex(currentTermIndex - 1);
     }
   };
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      {/* Header Section */}
-      <div className="mb-8">
-        <Link href="/students">
-          <Button variant="soft" className="mb-6 flex items-center gap-1">
-            <ChevronLeftIcon /> Back to Students
-          </Button>
-        </Link>
+    <div className="p-8 max-w-6xl mx-auto bg-gray-50 min-h-screen">
+      <Link href="/students">
+        <Button icon={<ChevronLeftIcon />} className="mb-6 text-gray-700 border border-gray-300 hover:bg-gray-100">
+          Back to Students
+        </Button>
+      </Link>
 
-        <div className="mb-4 flex gap-4 items-center">
-          {student.avatar && (
-            <div className="w-16 h-16 rounded-full bg-gray-100 overflow-hidden border-2 border-white shadow-sm">
-              {/* <img src={student.avatar} alt={student.name} className="w-full h-full object-cover" /> */}
-            </div>
-          )}
-          <div>
-            <Heading as="h1" size="7" weight="bold" className="text-gray-900">
-              {student.name}
-            </Heading>
-            <Text
-              as="p"
-              size="3"
-              color="gray"
-              className="flex items-center gap-1"
-            >
-              <span>{student.class}</span>
-              <span>•</span>
-              <span>Student ID: {params.studentId}</span>
-            </Text>
-          </div>
-        </div>
+      {/* Ant Design Stepper */}
+      <div className="py-6 mb-6">
+        <Steps current={currentTermIndex} size="small">
+          {mockTerms.map((term, index) => (
+            <Steps.Step key={index} title={term.name} description={term.status} />
+          ))}
+        </Steps>
       </div>
 
-      {/* Terms Grid */}
-      <Grid columns={{ initial: "1", sm: "2", lg: "3" }} gap="4">
-        {mockTerms.map((term) => (
-          <Card
-            key={term.id}
-            className="group mb-3 relative overflow-hidden border border-gray-200 rounded-xl bg-white transition-all hover:shadow-lg hover:border-gray-300"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-white to-gray-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+      {/* Current Term Display */}
+      <Card className="p-6 bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow">
+        <h3 className="text-xl font-semibold text-gray-900 mb-2">{mockTerms[currentTermIndex].name}</h3>
+        <p className="text-sm text-gray-600 flex items-center gap-1 mb-4">
+          <CalendarIcon className="w-4 h-4" /> {mockTerms[currentTermIndex].startDate} - {mockTerms[currentTermIndex].endDate}
+        </p>
+        <h4 className="mt-3 font-medium text-gray-800">Subjects</h4>
+        <ul className="mt-2">
+          {mockTerms[currentTermIndex].subjects.map((subject, index) => (
+            <li key={index} className="flex justify-between items-center py-2 border-b last:border-none">
+              <span className="text-gray-700 font-medium">{subject}</span>
+              <Button type="primary" onClick={() => handleOpenModal(subject)}>
+                Mark Assessment
+              </Button>
+            </li>
+          ))}
+        </ul>
+      </Card>
 
-            <div className="relative z-10 p-5 h-full flex flex-col">
-              {/* Term Header */}
-              <div className="flex justify-between items-start mb-3">
-                <h3 className="text-lg font-semibold text-gray-900 truncate max-w-[70%]">
-                  {term.name}
-                </h3>
-                <div className="flex items-center gap-2">
-                  <StatusIcon status={term.status} />
-                  <span
-                    className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-                      term.status === "completed"
-                        ? "bg-green-100/80 text-green-800 ring-1 ring-green-200"
-                        : term.status === "in-progress"
-                        ? "bg-blue-100/80 text-blue-800 ring-1 ring-blue-200"
-                        : "bg-gray-100/80 text-gray-800 ring-1 ring-gray-200"
-                    }`}
-                  >
-                    {term.status.split("-").join(" ")}
-                  </span>
-                </div>
-              </div>
+      {/* Navigation Buttons */}
+      <div className="flex justify-between mt-6">
+        <Button disabled={currentTermIndex === 0} onClick={prevTerm}>
+          Previous Term
+        </Button>
+        <Button disabled={currentTermIndex === mockTerms.length - 1} onClick={nextTerm}>
+          Next Term
+        </Button>
+      </div>
 
-              {/* Term Dates */}
-              <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
-                <CalendarIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                <span className="truncate">
-                  {term.startDate} - {term.endDate}
-                </span>
-              </div>
-
-              {/* Progress Bar */}
-              <div className="mb-5">
-                <div className="flex justify-between items-center mb-1.5">
-                  <span className="text-xs font-medium text-gray-500">
-                    Progress
-                  </span>
-                  <span
-                    className={`text-xs font-semibold ${
-                      term.status === "completed"
-                        ? "text-green-600"
-                        : term.status === "in-progress"
-                        ? "text-blue-600"
-                        : "text-gray-500"
-                    }`}
-                  >
-                    {term.progress}%
-                  </span>
-                </div>
-                <div className="relative w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className={`absolute top-0 left-0 h-full rounded-full ${
-                      term.status === "completed"
-                        ? "bg-green-500"
-                        : term.status === "in-progress"
-                        ? "bg-blue-500"
-                        : "bg-gray-300"
-                    }`}
-                    style={{
-                      width: `${term.progress}%`,
-                      transition: "width 0.6s cubic-bezier(0.65, 0, 0.35, 1)",
-                    }}
-                  ></div>
-                </div>
-              </div>
-
-              {/* Stats */}
-              <div className="grid grid-cols-2 gap-3 mb-5">
-                <div className="bg-gray-50/70 p-3 rounded-lg border border-gray-100">
-                  <p className="text-xs font-medium text-gray-500 mb-1">
-                    Courses
-                  </p>
-                  <p className="text-lg font-bold text-gray-900">
-                    {term.courses}
-                  </p>
-                </div>
-                <div className="bg-gray-50/70 p-3 rounded-lg border border-gray-100">
-                  <p className="text-xs font-medium text-gray-500 mb-1">
-                    Assignments
-                  </p>
-                  <p className="text-lg font-bold text-gray-900">
-                    {term.assignments}
-                  </p>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="mt-auto pt-2">
-                <div className="flex gap-3">
-                  <button className="flex-1 py-2 px-4 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors">
-                    View Details
-                  </button>
-                  {term.status === "in-progress" && (
-                    <button className="flex-1 py-2 px-4 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors">
-                      Continue
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </Grid>
+      {/* Modal for Marking Assessments */}
+      <Modal
+        title={`Marking Assessment for ${selectedSubject}`}
+        open={isModalOpen}
+        onCancel={() => setIsModalOpen(false)}
+        footer={null}
+      >
+        <div className="flex flex-col gap-4">
+          <Input placeholder="Enter marks" type="number" value={marks} onChange={(e) => setMarks(e.target.value)} className="p-2 border rounded" />
+          <Input.TextArea placeholder="Enter comments" value={comments} onChange={(e) => setComments(e.target.value)} className="p-2 border rounded" rows={3} />
+          <div className="flex items-center gap-2">
+            <span>Fairness:</span>
+            <Rate value={fairness} onChange={setFairness} />
+          </div>
+          <Button type="primary" block onClick={() => setIsModalOpen(false)}>
+            Submit
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }
