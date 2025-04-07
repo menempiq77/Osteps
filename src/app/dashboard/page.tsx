@@ -11,8 +11,23 @@ import {
   PieChart,
   Pie,
   Cell,
+  Legend,
+  CartesianGrid,
+  LabelList,
 } from "recharts";
 import { RootState } from "@/store/store";
+
+import {
+  School,
+  Users,
+  Activity,
+  BookOpen,
+  UserCog,
+  GraduationCap,
+  ClipboardList,
+  CheckCircle,
+  LayoutDashboard,
+} from "lucide-react";
 
 export default function DashboardPage() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
@@ -118,6 +133,36 @@ export default function DashboardPage() {
     }
   };
 
+  const statIcons = {
+    SUPER_ADMIN: {
+      "Total Schools": <School className="h-6 w-6" />,
+      "Total Admins": <UserCog className="h-6 w-6" />,
+      "Active Schools": <Activity className="h-6 w-6" />,
+    },
+    SCHOOL_ADMIN: {
+      "Total Classes": <LayoutDashboard className="h-6 w-6" />,
+      "Total Teachers": <Users className="h-6 w-6" />,
+      "Total Students": <GraduationCap className="h-6 w-6" />,
+    },
+    TEACHER: {
+      "My Classes": <BookOpen className="h-6 w-6" />,
+      "Total Students": <GraduationCap className="h-6 w-6" />,
+      "Pending Assignments": <ClipboardList className="h-6 w-6" />,
+    },
+    STUDENT: {
+      "My Classes": <BookOpen className="h-6 w-6" />,
+      "Active Assignments": <ClipboardList className="h-6 w-6" />,
+      "Completed Assignments": <CheckCircle className="h-6 w-6" />,
+    },
+  };
+
+  const colorSchemes = [
+    { bg: "bg-blue-50", text: "text-blue-600", border: "border-blue-100" },
+    { bg: "bg-green-50", text: "text-green-600", border: "border-green-100" },
+    { bg: "bg-purple-50", text: "text-purple-600", border: "border-purple-100" },
+    { bg: "bg-amber-50", text: "text-amber-600", border: "border-amber-100" },
+  ];
+
   const {
     stats,
     barChartData,
@@ -127,67 +172,148 @@ export default function DashboardPage() {
     barChartTitle,
   } = getDashboardData();
 
-  const COLORS = ["#3b82f6", "#f97316"];
+  const COLORS = ["#4f46e5", "#f59e0b", "#10b981", "#3b82f6", "#ef4444"];
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6 uppercase">
+    <div className="p-6 space-y-6">
+      <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
         {currentUser?.role.replace("_", " ")} Dashboard
       </h1>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        {stats.map((stat, index) => (
-          <Card key={index}>
-            <CardHeader>
-              <CardTitle>{stat.title}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold">{stat.value}</p>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {stats.map((stat, index) => {
+          const color = colorSchemes[index % colorSchemes.length];
+          const icon = currentUser?.role
+            ? (statIcons[currentUser.role] as Record<string, JSX.Element>)[stat.title]
+            : null;
+
+          return (
+            <Card
+              key={index}
+              className={`${color.border} hover:shadow-lg transition-all duration-200`}
+            >
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className={`text-sm font-medium ${color.text}`}>
+                  {stat.title}
+                </CardTitle>
+                <div className={`p-2 rounded-lg ${color.bg}`}>{icon}</div>
+              </CardHeader>
+              <CardContent>
+                <p className={`text-3xl font-bold ${color.text}`}>
+                  {stat.value}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  {index % 2 === 0
+                    ? "+12% from last month"
+                    : "+5% from last month"}
+                </p>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
-      {/* Charts Section - Only show if there's chart data */}
+      {/* Charts Section */}
       {barChartData.length > 0 && pieChartData.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Bar Chart */}
-          <div className="bg-white p-4 rounded-lg shadow">
-            <h2 className="text-lg font-bold mb-2">{barChartTitle}</h2>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={barChartData}>
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey={barChartKey} fill="#3b82f6" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          <Card className="p-6">
+            <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
+              {barChartTitle}
+            </h2>
+            <div className="h-[350px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={barChartData}
+                  margin={{ top: 20, right: 20, left: 0, bottom: 20 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                  <XAxis 
+                    dataKey="name" 
+                    tick={{ fill: '#6b7280' }}
+                    axisLine={{ stroke: '#d1d5db' }}
+                  />
+                  <YAxis 
+                    tick={{ fill: '#6b7280' }}
+                    axisLine={{ stroke: '#d1d5db' }}
+                  />
+                  <Tooltip 
+                    contentStyle={{
+                      backgroundColor: '#ffffff',
+                      borderRadius: '0.5rem',
+                      borderColor: '#e5e7eb',
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                    }}
+                  />
+                  <Legend />
+                  <Bar
+                    dataKey={barChartKey}
+                    name={barChartTitle.split(' per ')[0]}
+                    fill="#4f46e5"
+                    radius={[4, 4, 0, 0]}
+                  >
+                    <LabelList
+                      dataKey={barChartKey}
+                      position="top"
+                      className="text-xs fill-gray-600"
+                    />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
 
           {/* Pie Chart */}
-          <div className="bg-white p-4 rounded-lg shadow">
-            <h2 className="text-lg font-bold mb-2">{pieChartTitle}</h2>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={pieChartData}
-                  dataKey="value"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                >
-                  {pieChartData.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={COLORS[index % COLORS.length]}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
+          <Card className="p-6">
+            <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
+              {pieChartTitle}
+            </h2>
+            <div className="h-[350px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieChartData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={100}
+                    innerRadius={60}
+                    paddingAngle={5}
+                    label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                    labelLine={false}
+                  >
+                    {pieChartData.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={COLORS[index % COLORS.length]}
+                        stroke="#fff"
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    formatter={(value, name, props) => [
+                      value,
+                      name,
+                    ]}
+                    contentStyle={{
+                      backgroundColor: '#ffffff',
+                      borderRadius: '0.5rem',
+                      borderColor: '#e5e7eb',
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                    }}
+                  />
+                  <Legend 
+                    layout="horizontal"
+                    verticalAlign="bottom"
+                    align="center"
+                    wrapperStyle={{ paddingTop: '20px' }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
         </div>
       )}
     </div>

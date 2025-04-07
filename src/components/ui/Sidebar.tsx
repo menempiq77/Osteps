@@ -14,12 +14,14 @@ import {
 import { useState } from "react";
 import { useDispatch } from "react-redux";
 import { logout } from "@/features/auth/authSlice";
+import useMediaQuery from "@/hooks/useMediaQuery";
 
 const Sidebar = () => {
   const pathname = usePathname();
   const dispatch = useDispatch();
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [isOpen, setIsOpen] = useState(true);
+  const isMobile = useMediaQuery("(max-width: 768px)");
 
   const navigation = {
     SUPER_ADMIN: [
@@ -59,6 +61,7 @@ const Sidebar = () => {
       },
     ],
     TEACHER: [
+      { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
       {
         name: "My Classes",
         href: "/dashboard/classes",
@@ -71,6 +74,7 @@ const Sidebar = () => {
       },
     ],
     STUDENT: [
+      { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
       {
         name: "My Classes",
         href: "/dashboard/student/classes",
@@ -92,12 +96,14 @@ const Sidebar = () => {
   return (
     <div
       className={`h-screen bg-white shadow-lg ${
-        isOpen ? "w-64" : "w-20"
+        !isMobile ? "w-64" : "w-20"
       } transition-all duration-300`}
     >
       <div className="p-4 flex flex-col h-full">
         <div className="w-full flex items-center justify-between mb-4">
-          {isOpen && <h2 className="font-semibold">{currentUser?.role}</h2>}
+          <Link href="/">
+            {!isMobile && <h2 className="font-semibold">{currentUser?.role}</h2>}
+          </Link>
           <button
             onClick={() => setIsOpen(!isOpen)}
             className="p-2 hover:bg-gray-100 rounded-lg"
@@ -140,9 +146,9 @@ const Sidebar = () => {
                 }`}
               >
                 <item.icon
-                  className={`h-6 w-6 ${isOpen ? "mr-3" : "mx-auto"}`}
+                  className={`h-6 w-6 ${!isMobile ? "mr-3" : "mx-auto"}`}
                 />
-                {isOpen && <span className="text-sm">{item.name}</span>}
+                {!isMobile && <span className="text-sm">{item.name}</span>}
               </Link>
             ))}
         </nav>
@@ -151,9 +157,9 @@ const Sidebar = () => {
           className={`flex items-center w-full p-3 mt-2 rounded-lg hover:bg-blue-50 text-gray-700`}
         >
           <ArrowLeftOnRectangleIcon
-            className={`h-6 w-6 ${isOpen ? "mr-3" : "mx-auto"}`}
+            className={`h-6 w-6 ${!isMobile ? "mr-3" : "mx-auto"}`}
           />
-          {isOpen && <span className="text-sm">Logout</span>}
+          {!isMobile && <span className="text-sm">Logout</span>}
         </button>
         {currentUser && (
           <div className="mt-auto border-t pt-4">
@@ -163,7 +169,7 @@ const Sidebar = () => {
                   {currentUser.email[0].toUpperCase()}
                 </div>
               </div>
-              {isOpen && (
+              {!isMobile && (
                 <div className="ml-3">
                   <p className="text-sm font-medium text-gray-700">
                     {currentUser.email}
