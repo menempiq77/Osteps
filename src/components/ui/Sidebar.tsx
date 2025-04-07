@@ -40,11 +40,6 @@ const Sidebar = () => {
     SCHOOL_ADMIN: [
       { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
       {
-        name: "Manage Classes",
-        href: "/dashboard/classes",
-        icon: BookOpenIcon,
-      },
-      {
         name: "Teachers",
         href: "/dashboard/teachers",
         icon: UserGroupIcon,
@@ -53,6 +48,11 @@ const Sidebar = () => {
         name: "Students",
         href: "/dashboard/students",
         icon: UserGroupIcon,
+      },
+      {
+        name: "Manage Classes",
+        href: "/dashboard/classes",
+        icon: BookOpenIcon,
       },
       {
         name: "Settings",
