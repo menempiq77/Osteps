@@ -10,6 +10,7 @@ import {
   Cross2Icon,
 } from "@radix-ui/react-icons";
 import { useParams } from "next/navigation";
+import AssessmentDrawer from "@/components/ui/AssessmentDrawer";
 
 const mockTerms = [
   {
@@ -19,7 +20,13 @@ const mockTerms = [
     startDate: "Sep 1, 2023",
     endDate: "Dec 15, 2023",
     progress: 100,
-    subjects: ["Math", "Science", "English"],
+    subjects: [
+      "Memorisation",
+      "Tafseer",
+      "Extraction & Summarization",
+      "Recitation",
+      "Tajweed",
+    ],
   },
   {
     id: "2",
@@ -28,7 +35,13 @@ const mockTerms = [
     startDate: "Jan 10, 2024",
     endDate: "Apr 20, 2024",
     progress: 65,
-    subjects: ["Math", "History", "Biology"],
+    subjects: [
+      "Memorisation",
+      "Tafseer",
+      "Extraction & Summarization",
+      "Recitation",
+      "Tajweed",
+    ],
   },
   {
     id: "3",
@@ -92,6 +105,58 @@ const mockAssessments = [
   },
 ];
 
+const mockSubjectTasks = {
+  Memorisation: [
+    {
+      type: "pdf",
+      name: "Quran Memorisation Guide",
+      url: "https://www.africau.edu/images/default/sample.pdf",
+    },
+    {
+      type: "video",
+      name: "Surah Al-Fatiha Practice",
+      url: "https://www.w3schools.com/html/mov_bbb.mp4",
+    },
+  ],
+  Tafseer: [
+    {
+      type: "pdf",
+      name: "Tafseer Notes",
+      url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+    },
+    {
+      type: "audio",
+      name: "Tafseer Lecture",
+      url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+    },
+  ],
+  "Extraction & Summarization": [],
+  Recitation: [
+    {
+      type: "video",
+      name: "Recitation Practice",
+      url: "https://samplelib.com/lib/preview/mp4/sample-10s.mp4",
+    },
+    {
+      type: "audio",
+      name: "Correct Pronunciation",
+      url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+    },
+  ],
+  Tajweed: [
+    {
+      type: "pdf",
+      name: "Tajweed Rules",
+      url: "https://www.orimi.com/pdf-test.pdf",
+    },
+    {
+      type: "audio",
+      name: "Tajweed Practice",
+      url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
+    },
+  ],
+};
+
 export default function TermPage() {
   const { studentId } = useParams();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -102,6 +167,9 @@ export default function TermPage() {
   const [customFields, setCustomFields] = useState<
     { id: string; name: string; max: number }[]
   >([]);
+  const [expandedSubjectIndex, setExpandedSubjectIndex] = useState<
+    number | null
+  >(null);
 
   const handleOpenDrawer = (subject: string) => {
     setSelectedSubject(subject);
@@ -199,53 +267,54 @@ export default function TermPage() {
     setIsDrawerOpen(false);
   };
 
-  const addCustomField = () => {
-    const newField = {
-      id: Date.now().toString(),
-      name: "",
-      max: 10,
-      finalized: false,
-    };
-    setCustomFields([...customFields, newField]);
-  };
-  const finalizeCustomField = (id: string) => {
-    setCustomFields(
-      customFields.map((field) =>
-        field.id === id ? { ...field, finalized: true } : field
-      )
-    );
-  };
-
-  const removeCustomField = (id: string) => {
-    setCustomFields(customFields.filter((field) => field.id !== id));
-    form.setFieldsValue({ [`custom-${id}`]: undefined });
-    calculateTotal();
-  };
-
-  const updateCustomFieldName = (id: string, newName: string) => {
-    setCustomFields(
-      customFields.map((field) =>
-        field.id === id ? { ...field, name: newName } : field
-      )
-    );
-  };
-
-  const updateCustomFieldMax = (id: string, newMax: number) => {
-    setCustomFields(
-      customFields.map((field) =>
-        field.id === id ? { ...field, max: newMax } : field
-      )
-    );
-    const currentValue = form.getFieldValue(`custom-${id}`);
-    if (currentValue > newMax) {
-      form.setFieldsValue({ [`custom-${id}`]: newMax });
+  const renderTaskMedia = (task: { type: string; url: string; name: string }) => {
+    switch (task.type) {
+      case "pdf":
+        return (
+          <a
+            href={task.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 underline"
+          >
+            View PDF
+          </a>
+        );
+      case "video":
+        return (
+          <div className="mt-2 w-full aspect-video">
+            <video controls className="w-full h-full rounded-md border">
+              <source src={task.url} type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>
+          </div>
+        );
+      case "audio":
+        return (
+          <div className="mt-2 w-full">
+            <audio controls className="w-full">
+              <source src={task.url} type="audio/mpeg" />
+              Your browser does not support the audio element.
+            </audio>
+          </div>
+        );
+      default:
+        return (
+          <a
+            href={task.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 underline"
+          >
+            Download Resource
+          </a>
+        );
     }
-    calculateTotal();
   };
 
   return (
-    <div className="p-8 max-w-6xl mx-auto bg-gray-50 min-h-screen">
-      <Link href="/students">
+    <div className="p-3 md:p-6 max-w-6xl mx-auto bg-gray-50 min-h-screen">
+      <Link href="/dashboard/students">
         <Button
           icon={<ChevronLeftIcon />}
           className="mb-6 text-gray-700 border border-gray-300 hover:bg-gray-100"
@@ -280,14 +349,52 @@ export default function TermPage() {
         <h4 className="mt-3 font-medium text-gray-800">Subjects</h4>
         <ul className="mt-2">
           {mockTerms[currentTermIndex].subjects.map((subject, index) => (
-            <li
-              key={index}
-              className="flex justify-between items-center py-2 border-b last:border-none"
-            >
-              <span className="text-gray-700 font-medium">{subject}</span>
-              <Button type="primary" onClick={() => handleOpenDrawer(subject)}>
-                Mark Assessment
-              </Button>
+            <li key={index} className="border-b last:border-none pb-4 mb-4">
+              <div className="flex flex-col md:flex-row justify-between gap-2 items-center py-2">
+                <span className="text-gray-700 font-medium">{subject}</span>
+                <div className="flex flex-col md:flex-row gap-2 items-center">
+                  <Button
+                    type="primary"
+                    onClick={() => handleOpenDrawer(subject)}
+                  >
+                    Mark Assessment
+                  </Button>
+                  <Button
+                    type="default"
+                    onClick={() =>
+                      setExpandedSubjectIndex(
+                        index === expandedSubjectIndex ? null : index
+                      )
+                    }
+                  >
+                    {index === expandedSubjectIndex
+                      ? "Hide Tasks"
+                      : "Show Tasks"}
+                  </Button>
+                </div>
+              </div>
+
+              {index === expandedSubjectIndex && (
+                <div className="mt-4 bg-gray-100 rounded-lg p-4">
+                  {mockSubjectTasks[subject as keyof typeof mockSubjectTasks]
+                    ?.length ? (
+                    <ul className="space-y-4">
+                      {mockSubjectTasks[
+                        subject as keyof typeof mockSubjectTasks
+                      ]?.map((task, i) => (
+                        <li key={i}>
+                          <h5 className="text-md font-semibold">{task.name}</h5>
+                          {renderTaskMedia(task)}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-gray-600 italic">
+                      No tasks available for this subject.
+                    </p>
+                  )}
+                </div>
+              )}
             </li>
           ))}
         </ul>
@@ -307,169 +414,17 @@ export default function TermPage() {
       </div>
 
       {/* Drawer for Marking Assessments */}
-      <Drawer
-        title={`Marking Assessment for ${selectedSubject}`}
-        placement="right"
-        width={620}
+      <AssessmentDrawer
+        isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
-        open={isDrawerOpen}
-        footer={
-          <div style={{ textAlign: "right" }}>
-            <Button
-              onClick={() => setIsDrawerOpen(false)}
-              style={{ marginRight: 8 }}
-            >
-              Cancel
-            </Button>
-            <Button onClick={() => form.submit()} type="primary">
-              Submit
-            </Button>
-          </div>
-        }
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={onFinish}
-          onValuesChange={calculateTotal}
-        >
-          <div className="grid grid-cols-2 gap-4">
-            {/* Standard Fields */}
-            <Form.Item label="Written Test (Max: 40)" name="writtenTest">
-              <InputNumber
-                min={0}
-                max={40}
-                style={{ width: "100%" }}
-                placeholder="Enter marks"
-              />
-            </Form.Item>
-
-            <Form.Item label="Viva (Max: 20)" name="viva">
-              <InputNumber
-                min={0}
-                max={20}
-                style={{ width: "100%" }}
-                placeholder="Enter marks"
-              />
-            </Form.Item>
-
-            <Form.Item label="Assignment (Max: 15)" name="assignment">
-              <InputNumber
-                min={0}
-                max={15}
-                style={{ width: "100%" }}
-                placeholder="Enter marks"
-              />
-            </Form.Item>
-
-            <Form.Item label="Project (Max: 15)" name="project">
-              <InputNumber
-                min={0}
-                max={15}
-                style={{ width: "100%" }}
-                placeholder="Enter marks"
-              />
-            </Form.Item>
-
-            <Form.Item label="Attendance (Max: 10)" name="attendance">
-              <InputNumber
-                min={0}
-                max={10}
-                style={{ width: "100%" }}
-                placeholder="Enter marks"
-              />
-            </Form.Item>
-
-            {customFields?.map((field) =>
-              field.finalized ? (
-                <Form.Item
-                  label={`${field.name} (Max: ${field.max})`}
-                  name={`custom-${field.id}`}
-                  className="p-0"
-                  key={field.id}
-                >
-                  <div className="flex items-center gap-2">
-                    <InputNumber
-                      min={0}
-                      max={field.max}
-                      style={{ width: "100%" }}
-                      placeholder="Enter marks"
-                      value={form.getFieldValue(`custom-${field.id}`)}
-                      onChange={(value) =>
-                        form.setFieldsValue({ [`custom-${field.id}`]: value })
-                      }
-                    />
-                    <Button
-                      color="danger"
-                      variant="filled"
-                      onClick={() => removeCustomField(field.id)}
-                    >
-                      <Cross2Icon className="" />
-                    </Button>
-                  </div>
-                </Form.Item>
-              ) : (
-                <div key={field.id} className="flex items-center gap-3 mb-4">
-                  <Form.Item label="Label" className="m-0 w-1/2">
-                    <Input
-                      value={field.name}
-                      onChange={(e) =>
-                        updateCustomFieldName(field.id, e.target.value)
-                      }
-                      placeholder="Field name"
-                    />
-                  </Form.Item>
-                  <Form.Item label="Max" className="m-0 w-1/4">
-                    <InputNumber
-                      min={1}
-                      max={100}
-                      value={field.max}
-                      onChange={(val) =>
-                        updateCustomFieldMax(field.id, val || 10)
-                      }
-                      placeholder="Max"
-                      style={{ width: "100%" }}
-                    />
-                  </Form.Item>
-                  <Button
-                    type="primary"
-                    onClick={() => finalizeCustomField(field.id)}
-                    disabled={!field.name.trim()}
-                    className="mb-1"
-                  >
-                    Add
-                  </Button>
-                </div>
-              )
-            )}
-
-            {/* Add Custom Field Button */}
-            <div className="col-span-2">
-              <Button
-                type="dashed"
-                onClick={addCustomField}
-                block
-                icon={<PlusIcon />}
-              >
-                Add Custom Field
-              </Button>
-            </div>
-
-            {/* Total Marks */}
-            <Form.Item label="Total Marks" name="total" className="col-span-2">
-              <InputNumber
-                value={totalMarks}
-                style={{ width: "100%" }}
-                disabled
-              />
-            </Form.Item>
-          </div>
-
-          <Form.Item label="Comments" name="comments">
-            <Input.TextArea rows={3} placeholder="Additional comments" />
-          </Form.Item>
-        </Form>
-      </Drawer>
+        selectedSubject={selectedSubject}
+        form={form}
+        totalMarks={totalMarks}
+        customFields={customFields}
+        setCustomFields={setCustomFields}
+        onFinish={onFinish}
+        calculateTotal={calculateTotal}
+      />
     </div>
   );
 }
