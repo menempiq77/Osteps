@@ -35,7 +35,7 @@ export default function SchoolList() {
   };
 
   const handleAssignments = (classId: number) => {
-    router.push(`/dashboard/assignments`);
+    router.push(`/dashboard/classes/${classId}/terms`);
   };
 
   const handleDelete = (classId: number) => {
