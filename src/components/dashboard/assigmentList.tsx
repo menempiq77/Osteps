@@ -1,25 +1,29 @@
 "use client";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 
 export default function AssignmentList() {
   const router = useRouter();
   const { currentUser } = useSelector((state: RootState) => state.auth);
 
+  const params = useParams();
+  const classId = Number(params.classId);
+  console.log("Class id", classId);
+
   const assignmentsData = [
     {
       id: 1,
-      assignmentName: "Assignment 1",
+      assignmentName: "Term 1",
     },
     {
       id: 2,
-      assignmentName: "Assignment 2",
+      assignmentName: "Term 2",
     },
     {
       id: 3,
-      assignmentName: "Assignment 3",
+      assignmentName: "Term 3",
     },
   ];
 
@@ -33,20 +37,18 @@ export default function AssignmentList() {
   };
 
   const handleAssigment = (assignmentId: number) => {
-    router.push(`/dashboard/assignments/${assignmentId}`);
+    router.push(`/dashboard/classes/${classId}/terms/${assignmentId}`);
   };
 
   return (
     <div className="mt-8 bg-white rounded-lg shadow-md overflow-hidden">
-      <h3 className="text-lg font-semibold p-4 border-b">
-        Registered Assignments
-      </h3>
+      <h3 className="text-lg font-semibold p-4 border-b">Registered Terms</h3>
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Assignment Name
+                Asseements
               </th>
               {currentUser?.role !== "TEACHER" && (
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">

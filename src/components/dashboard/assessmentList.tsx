@@ -2,13 +2,20 @@
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import Link from "next/link";
 import { describe } from "node:test";
-
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select"; // Adjust the path as needed
 export default function AssessmentList() {
   const router = useRouter();
   const { currentUser } = useSelector((state: RootState) => state.auth);
-
+  const [selectedTerm, setSelectedTerm] = useState("Term 1");
   const assignmentsData = [
     {
       id: 1,
@@ -42,9 +49,19 @@ export default function AssessmentList() {
 
   return (
     <div className="mt-8 bg-white rounded-lg shadow-md overflow-hidden">
-      <h3 className="text-lg font-semibold p-4 border-b">
-        Registered Tasks
-      </h3>
+      <div className="flex items-center justify-between p-4 border-b">
+        <h3 className="text-lg font-semibold">Registered Tasks</h3>
+        <Select value={selectedTerm} onValueChange={setSelectedTerm}>
+          <SelectTrigger className="w-[150px]">
+            <SelectValue placeholder="Select Term" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Term 1">Term 1</SelectItem>
+            <SelectItem value="Term 2">Term 2</SelectItem>
+            <SelectItem value="Term 3">Term 3</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-50">
@@ -75,10 +92,7 @@ export default function AssessmentList() {
                   </button>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span
-                  >
-                    {assignment.description}
-                  </span>
+                  <span>{assignment.description}</span>
                 </td>
                 {currentUser?.role !== "TEACHER" && (
                   <td className="px-6 py-4 whitespace-nowrap">
