@@ -1,237 +1,244 @@
 "use client";
 import React, { useState } from "react";
-import { Drawer, Input, Form, InputNumber, Button } from "antd";
-import { PlusIcon, Cross2Icon } from "@radix-ui/react-icons";
+import { Drawer, Input, Button, Modal } from "antd";
+import { useForm } from "react-hook-form";
 
-interface CustomField {
-  id: string;
+interface Task {
+  id: number;
   name: string;
-  max: number;
-  finalized: boolean;
+  isAudio: boolean;
+  isVideo: boolean;
+  isPdf: boolean;
+  dueDate: string;
+  mark?: string;
+  comment?: string;
+  fileUrl?: string;
 }
 
 interface AssessmentDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   selectedSubject: string;
-  form: any;
-  totalMarks: number;
-  customFields: CustomField[];
-  setCustomFields: (fields: CustomField[]) => void;
-  onFinish: (values: any) => void;
-  calculateTotal: () => void;
 }
 
 export default function AssessmentDrawer({
   isOpen,
   onClose,
   selectedSubject,
-  form,
-  totalMarks,
-  customFields,
-  setCustomFields,
-  onFinish,
-  calculateTotal,
 }: AssessmentDrawerProps) {
-  const addCustomField = () => {
-    const newField = {
-      id: Date.now().toString(),
-      name: "",
-      max: 10,
-      finalized: false,
-    };
-    setCustomFields([...customFields, newField]);
+  const [tasks, setTasks] = useState<Task[]>([
+    {
+      id: 1,
+      name: "Memorisation",
+      isAudio: true,
+      isVideo: false,
+      isPdf: false,
+      dueDate: "2023-05-15",
+      fileUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+    },
+    {
+      id: 2,
+      name: "Extraction & Summarization",
+      isAudio: false,
+      isVideo: false,
+      isPdf: true,
+      dueDate: "2023-05-20",
+      fileUrl:
+        "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+    },
+    {
+      id: 3,
+      name: "Recitation",
+      isAudio: true,
+      isVideo: false,
+      isPdf: false,
+      dueDate: "2023-05-25",
+      fileUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+    },
+    {
+      id: 4,
+      name: "Tajweed",
+      isAudio: false,
+      isVideo: true,
+      isPdf: false,
+      dueDate: "2023-05-25",
+      fileUrl: "https://www.w3schools.com/html/mov_bbb.mp4",
+    },
+  ]);
+
+  const [assessmentOpenTaskId, setAssessmentOpenTaskId] = useState<
+    number | null
+  >(null);
+  const [viewingTask, setViewingTask] = useState<Task | null>(null);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    watch,
+    setValue,
+    reset,
+  } = useForm<Omit<Task, "id">>();
+
+  const toggleAssessment = (taskId: number) => {
+    setAssessmentOpenTaskId((prev) => (prev === taskId ? null : taskId));
   };
 
-  const finalizeCustomField = (id: string) => {
-    setCustomFields(
-      customFields.map((field) =>
-        field.id === id ? { ...field, finalized: true } : field
+  const updateTaskAssessment = (
+    taskId: number,
+    field: "mark" | "comment",
+    value: string
+  ) => {
+    setTasks((prev) =>
+      prev.map((task) =>
+        task.id === taskId ? { ...task, [field]: value } : task
       )
     );
   };
 
-  const removeCustomField = (id: string) => {
-    setCustomFields(customFields.filter((field) => field.id !== id));
-    form.setFieldsValue({ [`custom-${id}`]: undefined });
-    calculateTotal();
+  const getTaskTypeClass = (task: Task) => {
+    if (task.isAudio) return "bg-blue-100 text-blue-800";
+    if (task.isVideo) return "bg-purple-100 text-purple-800";
+    if (task.isPdf) return "bg-red-100 text-red-800";
+    return "bg-gray-100 text-gray-800";
   };
 
-  const updateCustomFieldName = (id: string, newName: string) => {
-    setCustomFields(
-      customFields.map((field) =>
-        field.id === id ? { ...field, name: newName } : field
-      )
-    );
-  };
-
-  const updateCustomFieldMax = (id: string, newMax: number) => {
-    setCustomFields(
-      customFields.map((field) =>
-        field.id === id ? { ...field, max: newMax } : field
-      )
-    );
-    const currentValue = form.getFieldValue(`custom-${id}`);
-    if (currentValue > newMax) {
-      form.setFieldsValue({ [`custom-${id}`]: newMax });
-    }
-    calculateTotal();
+  const getTaskTypeLabel = (task: Task) => {
+    if (task.isAudio) return "Audio";
+    if (task.isVideo) return "Video";
+    if (task.isPdf) return "PDF";
+    return "Other";
   };
 
   return (
-    <Drawer
-      title={`Marking Assessment for ${selectedSubject}`}
-      placement="right"
-      width={620}
-      onClose={onClose}
-      open={isOpen}
-      footer={
-        <div style={{ textAlign: "right" }}>
-          <Button onClick={onClose} style={{ marginRight: 8 }}>
-            Cancel
-          </Button>
-          <Button onClick={() => form.submit()} type="primary">
-            Submit
-          </Button>
-        </div>
-      }
-    >
-      <Form
-        form={form}
-        layout="vertical"
-        onFinish={onFinish}
-        onValuesChange={calculateTotal}
+    <>
+      <Drawer
+        title={
+          <div className="flex justify-between items-center">
+            <span>{selectedSubject}</span>
+          </div>
+        }
+        placement="right"
+        onClose={onClose}
+        open={isOpen}
+        width={500}
       >
-        <div className="grid grid-cols-2 gap-4">
-          {/* Standard Fields */}
-          <Form.Item label="Written Test (Max: 40)" name="writtenTest">
-            <InputNumber
-              min={0}
-              max={40}
-              style={{ width: "100%" }}
-              placeholder="Enter marks"
-            />
-          </Form.Item>
-
-          <Form.Item label="Viva (Max: 20)" name="viva">
-            <InputNumber
-              min={0}
-              max={20}
-              style={{ width: "100%" }}
-              placeholder="Enter marks"
-            />
-          </Form.Item>
-
-          <Form.Item label="Assignment (Max: 15)" name="assignment">
-            <InputNumber
-              min={0}
-              max={15}
-              style={{ width: "100%" }}
-              placeholder="Enter marks"
-            />
-          </Form.Item>
-
-          <Form.Item label="Project (Max: 15)" name="project">
-            <InputNumber
-              min={0}
-              max={15}
-              style={{ width: "100%" }}
-              placeholder="Enter marks"
-            />
-          </Form.Item>
-
-          <Form.Item label="Attendance (Max: 10)" name="attendance">
-            <InputNumber
-              min={0}
-              max={10}
-              style={{ width: "100%" }}
-              placeholder="Enter marks"
-            />
-          </Form.Item>
-
-          {customFields?.map((field) =>
-            field.finalized ? (
-              <Form.Item
-                label={`${field.name} (Max: ${field.max})`}
-                name={`custom-${field.id}`}
-                className="p-0"
-                key={field.id}
+        <div className="space-y-4">
+          <h3 className="font-medium text-gray-700">
+            Tasks for this assignment:
+          </h3>
+          <div className="space-y-2">
+            {tasks.map((task) => (
+              <div
+                key={task.id}
+                className="p-3 border rounded-lg hover:bg-gray-50"
               >
-                <div className="flex items-center gap-2">
-                  <InputNumber
-                    min={0}
-                    max={field.max}
-                    style={{ width: "100%" }}
-                    placeholder="Enter marks"
-                    value={form.getFieldValue(`custom-${field.id}`)}
-                    onChange={(value) =>
-                      form.setFieldsValue({ [`custom-${field.id}`]: value })
-                    }
-                  />
-                  <Button
-                    color="danger"
-                    variant="filled"
-                    onClick={() => removeCustomField(field.id)}
+                <div className="flex justify-between items-center">
+                  <span className="font-medium">{task.name}</span>
+                  <span
+                    className={`px-2 py-1 text-xs rounded-full ${getTaskTypeClass(
+                      task
+                    )}`}
                   >
-                    <Cross2Icon className="" />
+                    {getTaskTypeLabel(task)}
+                  </span>
+                </div>
+
+                <div className="mt-2 text-sm text-gray-500">
+                  Due: {new Date(task.dueDate).toLocaleDateString()}
+                </div>
+
+                <div className="mt-2 flex gap-4">
+                  <Button
+                    size="small"
+                    type="link"
+                    onClick={() => toggleAssessment(task.id)}
+                    className="p-0"
+                  >
+                    {assessmentOpenTaskId === task.id
+                      ? "Hide Assessment"
+                      : "Add Assessment"}
+                  </Button>
+
+                  <Button
+                    size="small"
+                    type="link"
+                    onClick={() => setViewingTask(task)}
+                    className="p-0"
+                  >
+                    View
                   </Button>
                 </div>
-              </Form.Item>
-            ) : (
-              <div key={field.id} className="flex items-center gap-3 mb-4">
-                <Form.Item label="Label" className="m-0 w-1/2">
-                  <Input
-                    value={field.name}
-                    onChange={(e) =>
-                      updateCustomFieldName(field.id, e.target.value)
-                    }
-                    placeholder="Field name"
-                  />
-                </Form.Item>
-                <Form.Item label="Max" className="m-0 w-1/4">
-                  <InputNumber
-                    min={1}
-                    max={100}
-                    value={field.max}
-                    onChange={(val) => updateCustomFieldMax(field.id, val || 10)}
-                    placeholder="Max"
-                    style={{ width: "100%" }}
-                  />
-                </Form.Item>
-                <Button
-                  type="primary"
-                  onClick={() => finalizeCustomField(field.id)}
-                  disabled={!field.name.trim()}
-                  className="mb-1"
-                >
-                  Add
-                </Button>
+
+                {assessmentOpenTaskId === task.id && (
+                  <div className="mt-3 space-y-2">
+                    <div className="mb-2">
+                      <Input
+                        placeholder="Enter mark"
+                        value={task.mark || ""}
+                        onChange={(e) =>
+                          updateTaskAssessment(task.id, "mark", e.target.value)
+                        }
+                      />
+                    </div>
+                    <Input.TextArea
+                      placeholder="Enter comment"
+                      value={task.comment || ""}
+                      rows={3}
+                      onChange={(e) =>
+                        updateTaskAssessment(task.id, "comment", e.target.value)
+                      }
+                    />
+                    <div className="flex justify-end pt-4">
+                      <Button type="primary">Submit Assessment</Button>
+                    </div>
+                  </div>
+                )}
               </div>
-            )
-          )}
-
-          {/* Add Custom Field Button */}
-          <div className="col-span-2">
-            <Button
-              type="dashed"
-              onClick={addCustomField}
-              block
-              icon={<PlusIcon />}
-            >
-              Add Custom Field
-            </Button>
+            ))}
           </div>
-
-          {/* Total Marks */}
-          <Form.Item label="Total Marks" name="total" className="col-span-2">
-            <InputNumber value={totalMarks} style={{ width: "100%" }} disabled />
-          </Form.Item>
         </div>
+      </Drawer>
 
-        <Form.Item label="Comments" name="comments">
-          <Input.TextArea rows={3} placeholder="Additional comments" />
-        </Form.Item>
-      </Form>
-    </Drawer>
+      {/* View Modal */}
+      <Modal
+        title={`View: ${viewingTask?.name}`}
+        open={!!viewingTask}
+        onCancel={() => setViewingTask(null)}
+        footer={null}
+        width={600}
+      >
+        {viewingTask?.isAudio && (
+          <audio controls className="w-full">
+            <source src={viewingTask.fileUrl} type="audio/mpeg" />
+            Your browser does not support the audio element.
+          </audio>
+        )}
+
+        {viewingTask?.isVideo && (
+          <video controls className="w-full mt-2" style={{ maxHeight: 400 }}>
+            <source src={viewingTask.fileUrl} type="video/mp4" />
+            Your browser does not support the video tag.
+          </video>
+        )}
+
+        {viewingTask?.isPdf && (
+          <div className="mt-4">
+            <p className="text-gray-700 mb-2">
+              Click below to download the PDF:
+            </p>
+            <a
+              href={viewingTask.fileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              download
+              className="text-blue-600 underline"
+            >
+              {viewingTask.fileUrl}
+            </a>
+          </div>
+        )}
+      </Modal>
+    </>
   );
 }

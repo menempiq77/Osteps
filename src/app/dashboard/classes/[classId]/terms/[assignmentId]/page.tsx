@@ -4,7 +4,7 @@ import { AppDispatch, RootState } from "@/store/store";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Cross2Icon } from "@radix-ui/react-icons";
 import { Button } from "@/components/ui/button";
-import AddAssigmentForm from "@/components/dashboard/AddAssigmentForm";
+import AddAssigmentForm from "@/components/dashboard/AddTermForm";
 import { useDispatch } from "react-redux";
 import { addClass } from "@/features/class/classSlice";
 import AssignmentList from "@/components/dashboard/assigmentList";
