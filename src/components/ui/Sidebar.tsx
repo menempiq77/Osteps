@@ -51,7 +51,7 @@ const Sidebar = () => {
       },
       {
         name: "Manage Classes",
-        href: "/dashboard/classes",
+        href: "/dashboard/years",
         icon: BookOpenIcon,
       },
       {
@@ -64,7 +64,7 @@ const Sidebar = () => {
       { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
       {
         name: "My Classes",
-        href: "/dashboard/classes",
+        href: "/dashboard/years",
         icon: BookOpenIcon,
       },
       {
