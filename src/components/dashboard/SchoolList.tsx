@@ -21,9 +21,6 @@ export default function SchoolList() {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                 Admin Email
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Terms
-              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
@@ -36,7 +33,6 @@ export default function SchoolList() {
                 <td className="px-6 py-4 whitespace-nowrap">
                   {school.adminEmail}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">{school.terms}</td>
               </tr>
             ))}
           </tbody>
