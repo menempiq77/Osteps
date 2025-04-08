@@ -13,19 +13,16 @@ export default function SchoolList() {
       id: 1,
       className: "Class A",
       numberOfTerms: 3,
-      assignedTeacher: "John Smith",
     },
     {
       id: 2,
       className: "Class B",
       numberOfTerms: 2,
-      assignedTeacher: "Sarah Johnson",
     },
     {
       id: 3,
       className: "Class C",
       numberOfTerms: 3,
-      assignedTeacher: "Michael Brown",
     },
   ];
 
@@ -63,9 +60,6 @@ export default function SchoolList() {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                 No. of Terms
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Assign Teacher
-              </th>
               {currentUser?.role !== "TEACHER" && (
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Actions
@@ -90,9 +84,6 @@ export default function SchoolList() {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   {cls.numberOfTerms}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {cls.assignedTeacher}
                 </td>
                 {currentUser?.role !== "TEACHER" && (
                   <td className="px-6 py-4 whitespace-nowrap">

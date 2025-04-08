@@ -21,7 +21,7 @@ import {
 import { format } from "date-fns";
 import { useState } from "react";
 import { DateRange } from "react-day-picker";
-export default function AddClassForm({
+export default function AddTermForm({
   onSubmit,
 }: {
   onSubmit: (data: SchoolFormValues) => void;
@@ -59,9 +59,9 @@ export default function AddClassForm({
       <div className="grid grid-cols-1 gap-4">
         {/* School Name */}
         <div>
-          <Label className="mb-1">Assigment Name</Label>
+          <Label className="mb-1">Term Name</Label>
           <Input
-            {...register("name", { required: "Assigment name is required" })}
+            {...register("name", { required: "Term name is required" })}
           />
           {errors.name && (
             <p className="text-red-500 text-sm">{errors.name.message}</p>
@@ -70,7 +70,7 @@ export default function AddClassForm({
       </div>
 
       <Button type="submit" className="w-auto float-right">
-        Create Assigment
+        Create Term
       </Button>
     </form>
   );
