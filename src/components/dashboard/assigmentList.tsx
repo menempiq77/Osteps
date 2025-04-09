@@ -2,7 +2,6 @@
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
 
 export default function AssignmentList() {
   const router = useRouter();
@@ -48,7 +47,7 @@ export default function AssignmentList() {
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Asseements
+                Terms
               </th>
               {currentUser?.role !== "TEACHER" && (
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">

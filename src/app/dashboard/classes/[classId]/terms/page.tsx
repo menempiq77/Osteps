@@ -1,29 +1,15 @@
 "use client";
 import React, { useState } from "react";
-import { AppDispatch, RootState } from "@/store/store";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Cross2Icon } from "@radix-ui/react-icons";
 import { Button } from "@/components/ui/button";
 import AddTermForm from "@/components/dashboard/AddTermForm";
-import { useDispatch } from "react-redux";
-import { addClass } from "@/features/class/classSlice";
 import AssignmentList from "@/components/dashboard/assigmentList";
 
 export default function page() {
-  const dispatch = useDispatch<AppDispatch>();
   const [open, setOpen] = useState(false);
 
-  const handleAddClass = (classData: {
-    name: string;
-    assignTeacher: string;
-    terms: number;
-  }) => {
-    const newClass = {
-      id: Date.now().toString(),
-      ...classData,
-    };
-
-    dispatch(addClass(newClass));
+  const handleAddClass = () => {
     setOpen(false);
   };
 

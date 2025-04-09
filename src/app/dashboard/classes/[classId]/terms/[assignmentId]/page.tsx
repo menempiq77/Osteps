@@ -1,30 +1,37 @@
 "use client";
 import React, { useState } from "react";
-import { AppDispatch, RootState } from "@/store/store";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Cross2Icon } from "@radix-ui/react-icons";
 import { Button } from "@/components/ui/button";
 import AddAssessmentForm from "@/components/dashboard/AddAssessmentForm";
-import { useDispatch } from "react-redux";
-import { addClass } from "@/features/class/classSlice";
 import AssessmentList from "@/components/dashboard/assessmentList";
 
-export default function page() {
-  const dispatch = useDispatch<AppDispatch>();
+interface Assessment {
+  id: string;
+  name: string;
+}
+
+export default function Page() {
   const [open, setOpen] = useState(false);
+  const [assessments, setAssessments] = useState<Assessment[]>([
+    { id: "1", name: "T1 Quran Diagnostic" },
+    { id: "2", name: "T1 Quran Assessment 1" },
+    { id: "3", name: "T1 Written Task 1" },
+    { id: "4", name: "T1 Class Work" },
+    { id: "5", name: "T1 Assessment" },
+  ]);
 
-  const handleAddClass = (classData: {
-    name: string;
-    assignTeacher: string;
-    terms: number;
-  }) => {
-    const newClass = {
+  const handleAddAssessment = (assessmentData: { name: string }) => {
+    const newAssessment = {
       id: Date.now().toString(),
-      ...classData,
+      name: assessmentData.name,
     };
-
-    dispatch(addClass(newClass));
+    setAssessments([...assessments, newAssessment]);
     setOpen(false);
+  };
+
+  const handleDeleteAssessment = (id: string) => {
+    setAssessments(assessments.filter(assessment => assessment.id !== id));
   };
 
   return (
@@ -41,7 +48,7 @@ export default function page() {
               <Dialog.Title className="text-lg font-bold mb-4">
                 Add New Assessment
               </Dialog.Title>
-              <AddAssessmentForm onSubmit={handleAddClass} />
+              <AddAssessmentForm onSubmit={handleAddAssessment} />
               <Dialog.Close asChild>
                 <button
                   className="text-gray-500 hover:text-gray-700 absolute top-[10px] right-[10px] inline-flex h-[25px] w-[25px] appearance-none items-center justify-center rounded-full focus:shadow-[0_0_0_2px] focus:outline-none"
@@ -54,7 +61,10 @@ export default function page() {
           </Dialog.Portal>
         </Dialog.Root>
       </div>
-      <AssessmentList />
+      <AssessmentList 
+        assessments={assessments} 
+        onDeleteAssessment={handleDeleteAssessment} 
+      />
     </div>
   );
 }
