@@ -1,20 +1,53 @@
 "use client";
 import React, { useState } from "react";
-import { AppDispatch, RootState } from "@/store/store";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Cross2Icon } from "@radix-ui/react-icons";
 import { Button } from "@/components/ui/button";
 import AddYearForm from "@/components/dashboard/AddYearForm";
-import { useDispatch } from "react-redux";
-import { addClass } from "@/features/class/classSlice";
 import YearsList from "@/components/dashboard/YearsList";
 
-export default function page() {
-  const dispatch = useDispatch<AppDispatch>();
-  const [open, setOpen] = useState(false);
+interface Year {
+  id: number;
+  yearName: string;
+  numberOfTerms: number;
+  assignedCoordinator?: string;
+}
 
-  const handleAddYear = () => {
-   
+export default function Page() {
+  const [open, setOpen] = useState(false);
+  const [years, setYears] = useState<Year[]>([
+    {
+      id: 1,
+      yearName: "Year 1",
+      numberOfTerms: 3,
+      assignedCoordinator: "Dr. James Wilson",
+    },
+    {
+      id: 2,
+      yearName: "Year 2",
+      numberOfTerms: 2,
+      assignedCoordinator: "Prof. Emily Davis",
+    },
+    {
+      id: 3,
+      yearName: "Year 3",
+      numberOfTerms: 3,
+      assignedCoordinator: "Dr. Robert Taylor",
+    },
+  ]);
+
+  const handleAddYear = (data: { name: string }) => {
+    const newYear: Year = {
+      id: years.length + 1,
+      yearName: data.name,
+      numberOfTerms: 2, // Default value
+    };
+    setYears([...years, newYear]);
+    setOpen(false);
+  };
+
+  const handleDeleteYear = (id: number) => {
+    setYears(years.filter(year => year.id !== id));
   };
 
   return (
@@ -44,7 +77,7 @@ export default function page() {
           </Dialog.Portal>
         </Dialog.Root>
       </div>
-      <YearsList />
+      <YearsList years={years} onDeleteYear={handleDeleteYear} />
     </div>
   );
 }

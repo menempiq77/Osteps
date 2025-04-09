@@ -12,15 +12,6 @@ import {
   SelectValue,
   SelectContent,
 } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { format } from "date-fns";
-import { useState } from "react";
-import { DateRange } from "react-day-picker";
 export default function AddClassForm({
   onSubmit,
 }: {
@@ -37,22 +28,6 @@ export default function AddClassForm({
       academicYear: "",
     },
   });
-
-  const [dateRange, setDateRange] = useState<DateRange>({
-    from: new Date(), // Ensure 'from' is always set
-    to: new Date(new Date().getFullYear() + 1, 5, 30), // Default to end of next academic year
-  });
-
-  // Update academic year on date change
-  const handleDateChange = (range: DateRange | undefined) => {
-    if (range?.from && range?.to) {
-      setDateRange(range);
-      setValue(
-        "academicYear",
-        `${format(range.from, "yyyy")}-${format(range.to, "yyyy")}`
-      );
-    }
-  };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="bg-white space-y-4">

@@ -1,17 +1,40 @@
 "use client";
 import React, { useState } from "react";
-import ClassesList from "@/components/dashboard/ClassesList";
-import { AppDispatch, RootState } from "@/store/store";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Cross2Icon } from "@radix-ui/react-icons";
 import { Button } from "@/components/ui/button";
 import AddClassForm from "@/components/dashboard/AddClassForm";
-import { useDispatch } from "react-redux";
-import { addClass } from "@/features/class/classSlice";
+import ClassesList from "@/components/dashboard/ClassesList";
 
-export default function page() {
-  const dispatch = useDispatch<AppDispatch>();
+interface Class {
+  id: string;
+  name: string;
+  assignTeacher: string;
+  terms: number;
+}
+
+export default function Page() {
   const [open, setOpen] = useState(false);
+  const [classes, setClasses] = useState<Class[]>([
+    {
+      id: "1",
+      name: "Class A",
+      assignTeacher: "Teacher 1",
+      terms: 3,
+    },
+    {
+      id: "2",
+      name: "Class B",
+      assignTeacher: "Teacher 2",
+      terms: 2,
+    },
+    {
+      id: "3",
+      name: "Class C",
+      assignTeacher: "Teacher 3",
+      terms: 3,
+    },
+  ]);
 
   const handleAddClass = (classData: {
     name: string;
@@ -22,9 +45,12 @@ export default function page() {
       id: Date.now().toString(),
       ...classData,
     };
-
-    dispatch(addClass(newClass));
+    setClasses([...classes, newClass]);
     setOpen(false);
+  };
+
+  const handleDeleteClass = (id: string) => {
+    setClasses(classes.filter(cls => cls.id !== id));
   };
 
   return (
@@ -54,7 +80,7 @@ export default function page() {
           </Dialog.Portal>
         </Dialog.Root>
       </div>
-      <ClassesList />
+      <ClassesList classes={classes} onDeleteClass={handleDeleteClass} />
     </div>
   );
 }

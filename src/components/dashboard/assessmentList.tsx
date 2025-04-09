@@ -1,6 +1,4 @@
 "use client";
-import { useSelector } from "react-redux";
-import { RootState } from "@/store/store";
 import { useState } from "react";
 import {
   Select,
@@ -11,20 +9,34 @@ import {
 } from "@/components/ui/select";
 import { AssessmentTasksDrawer } from "../ui/AssessmentTasksDrawer";
 
-type Task = {
+interface Task {
   id: number;
   name: string;
   isAudio: boolean;
   isVideo: boolean;
   isPdf: boolean;
   dueDate: string;
-};
+}
 
-export default function AssessmentList() {
-  const { currentUser } = useSelector((state: RootState) => state.auth);
+interface Assessment {
+  id: number;
+  name: string;
+}
+
+interface AssessmentListProps {
+  assessments: Assessment[];
+  onDeleteAssessment: (id: number) => void;
+  onEditAssessment: (id: number, newName: string) => void;
+}
+
+export default function AssessmentList({ 
+  assessments,
+  onDeleteAssessment,
+  onEditAssessment
+}: AssessmentListProps) {
   const [selectedTerm, setSelectedTerm] = useState("Term 1");
   const [drawerVisible, setDrawerVisible] = useState(false);
-  const [selectedAssignment, setSelectedAssignment] = useState<number | null>(null);
+  const [selectedAssessment, setSelectedAssessment] = useState<number | null>(null);
   const [tasks, setTasks] = useState<Task[]>([
     { id: 1, name: "Memorisation", isAudio: true, isVideo: false, isPdf: false, dueDate: "2023-05-15" },
     { id: 2, name: "Extraction & Summarization", isAudio: false, isVideo: false, isPdf: true, dueDate: "2023-05-20" },
@@ -32,34 +44,27 @@ export default function AssessmentList() {
     { id: 4, name: "Tajweed", isAudio: false, isVideo: true, isPdf: false, dueDate: "2023-05-25" },
   ]);
 
-  const assignmentsData = [
-    { id: 1, assignmentName: "T1 Quran Diagnostic" },
-    { id: 2, assignmentName: "T1 Quran Assessment 1" },
-    { id: 3, assignmentName: "T1 Written Task 1" },
-    { id: 4, assignmentName: "T1 Class Work" },
-    { id: 5, assignmentName: "T1 Assesment" },
-  ];
-
-  const handleEdit = (assignmentId: number) => {
-    console.log("Edit assignment:", assignmentId);
-  };
-
-  const handleDelete = (assignmentId: number) => {
-    console.log("Delete assignment:", assignmentId);
-  };
+  const [currentUserRole] = useState("ADMIN"); // Replace with your auth logic
 
   const handleAssignmentClick = (assignmentId: number) => {
-    setSelectedAssignment(assignmentId);
+    setSelectedAssessment(assignmentId);
     setDrawerVisible(true);
   };
 
   const onCloseDrawer = () => {
     setDrawerVisible(false);
-    setSelectedAssignment(null);
+    setSelectedAssessment(null);
   };
 
   const handleTasksChange = (updatedTasks: Task[]) => {
     setTasks(updatedTasks);
+  };
+
+  const handleEdit = (assignmentId: number) => {
+    const newName = prompt("Enter new assessment name:");
+    if (newName) {
+      onEditAssessment(assignmentId, newName);
+    }
   };
 
   return (
@@ -82,9 +87,9 @@ export default function AssessmentList() {
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-              Assessment Name
+                Assessment Name
               </th>
-              {currentUser?.role !== "TEACHER" && (
+              {currentUserRole !== "TEACHER" && (
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Actions
                 </th>
@@ -92,7 +97,7 @@ export default function AssessmentList() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-            {assignmentsData.map((assignment) => (
+            {assessments.map((assignment) => (
               <tr key={assignment.id}>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <button
@@ -100,10 +105,10 @@ export default function AssessmentList() {
                     onClick={() => handleAssignmentClick(assignment.id)}
                     className="text-blue-600 hover:text-blue-800 hover:underline"
                   >
-                    {assignment.assignmentName}
+                    {assignment.name}
                   </button>
                 </td>
-                {currentUser?.role !== "TEACHER" && (
+                {currentUserRole !== "TEACHER" && (
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-4">
                       <button
@@ -128,7 +133,7 @@ export default function AssessmentList() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleDelete(assignment.id)}
+                        onClick={() => onDeleteAssessment(assignment.id)}
                         className="text-gray-400 hover:text-red-600"
                         title="Delete"
                       >
@@ -159,7 +164,7 @@ export default function AssessmentList() {
         visible={drawerVisible}
         onClose={onCloseDrawer}
         assignmentName={
-          assignmentsData.find((a) => a.id === selectedAssignment)?.assignmentName || "Assignment"
+          assessments.find((a) => a.id === selectedAssessment)?.name || "Assignment"
         }
         initialTasks={tasks}
         onTasksChange={handleTasksChange}

@@ -1,49 +1,24 @@
 "use client";
-import { useSelector } from "react-redux";
-import { RootState } from "@/store/store";
 import { useRouter } from "next/navigation";
 
-export default function YearsList() {
-  const router = useRouter();
-  const { currentUser } = useSelector((state: RootState) => state.auth);
+interface Year {
+  id: number;
+  yearName: string;
+  numberOfTerms: number;
+  assignedCoordinator?: string;
+}
 
-  // Hardcoded data for years
-  const yearsData = [
-    {
-      id: 1,
-      yearName: "Year 1",
-      numberOfTerms: 3,
-      assignedCoordinator: "Dr. James Wilson",
-    },
-    {
-      id: 2,
-      yearName: "Year 2",
-      numberOfTerms: 2,
-      assignedCoordinator: "Prof. Emily Davis",
-    },
-    {
-      id: 3,
-      yearName: "Year 3",
-      numberOfTerms: 3,
-      assignedCoordinator: "Dr. Robert Taylor",
-    },
-  ];
+interface YearsListProps {
+  years: Year[];
+  onDeleteYear: (id: number) => void;
+}
+
+export default function YearsList({ years, onDeleteYear }: YearsListProps) {
+  const router = useRouter();
 
   // Handler functions for actions
   const handleEdit = (yearId: number) => {
     console.log("Edit year:", yearId);
-  };
-
-  const handleAssignments = (yearId: number) => {
-    router.push(`/dashboard/assignments`);
-  };
-
-  const handleDelete = (yearId: number) => {
-    console.log("Delete year:", yearId);
-  };
-
-  const handleAssign = (yearId: number) => {
-    router.push(`/dashboard/years/assign/${yearId}`);
   };
 
   const handleViewClasses = (yearId: number, yearName: string) => {
@@ -64,15 +39,13 @@ export default function YearsList() {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                 Year Name
               </th>
-              {currentUser?.role !== "TEACHER" && (
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Actions
-                </th>
-              )}
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-            {yearsData.map((year) => (
+            {years.map((year) => (
               <tr key={year.id}>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <button
@@ -82,51 +55,49 @@ export default function YearsList() {
                     {year.yearName}
                   </button>
                 </td>
-                {currentUser?.role !== "TEACHER" && (
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-4">
-                      <button
-                        type="button"
-                        onClick={() => handleEdit(year.id)}
-                        className="text-gray-400 hover:text-blue-600"
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center gap-4">
+                    <button
+                      type="button"
+                      onClick={() => handleEdit(year.id)}
+                      className="text-gray-400 hover:text-blue-600"
+                    >
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
                       >
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-                          />
-                        </svg>
-                      </button>
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                        />
+                      </svg>
+                    </button>
 
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(year.id)}
-                        className="text-gray-400 hover:text-red-600"
+                    <button
+                      type="button"
+                      onClick={() => onDeleteYear(year.id)}
+                      className="text-gray-400 hover:text-red-600"
+                    >
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
                       >
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                  </td>
-                )}
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>

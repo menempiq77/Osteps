@@ -125,7 +125,7 @@ export default function AssessmentDrawer({
       >
         <div className="space-y-4">
           <h3 className="font-medium text-gray-700">
-            Tasks for this assignment:
+            Tasks for this assesment:
           </h3>
           <div className="space-y-2">
             {tasks.map((task) => (
@@ -207,6 +207,7 @@ export default function AssessmentDrawer({
         onCancel={() => setViewingTask(null)}
         footer={null}
         width={600}
+        centered
       >
         {viewingTask?.isAudio && (
           <audio controls className="w-full">
