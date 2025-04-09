@@ -4,10 +4,9 @@ import { AppDispatch, RootState } from "@/store/store";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Cross2Icon } from "@radix-ui/react-icons";
 import { Button } from "@/components/ui/button";
-import AddAssigmentForm from "@/components/dashboard/AddTermForm";
+import AddAssessmentForm from "@/components/dashboard/AddAssessmentForm";
 import { useDispatch } from "react-redux";
 import { addClass } from "@/features/class/classSlice";
-import AssignmentList from "@/components/dashboard/assigmentList";
 import AssessmentList from "@/components/dashboard/assessmentList";
 
 export default function page() {
@@ -42,7 +41,7 @@ export default function page() {
               <Dialog.Title className="text-lg font-bold mb-4">
                 Add New Assessment
               </Dialog.Title>
-              <AddAssigmentForm onSubmit={handleAddClass} />
+              <AddAssessmentForm onSubmit={handleAddClass} />
               <Dialog.Close asChild>
                 <button
                   className="text-gray-500 hover:text-gray-700 absolute top-[10px] right-[10px] inline-flex h-[25px] w-[25px] appearance-none items-center justify-center rounded-full focus:shadow-[0_0_0_2px] focus:outline-none"
