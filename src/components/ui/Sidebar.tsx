@@ -77,12 +77,12 @@ const Sidebar = () => {
       { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
       {
         name: "My Classes",
-        href: "/dashboard/student/classes",
+        href: "/dashboard/years",
         icon: BookOpenIcon,
       },
       {
         name: "Assignments",
-        href: "/dashboard/student/assignments",
+        href: "/dashboard/students/assignments",
         icon: AcademicCapIcon,
       },
     ],
