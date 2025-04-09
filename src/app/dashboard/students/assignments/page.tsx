@@ -102,7 +102,7 @@ const mockAssignments = [
 
 export default function AssignmentsPage() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-    const [selectedTerm, setSelectedTerm] = useState("Term 1");
+  const [selectedTerm, setSelectedTerm] = useState("Term 1");
   const [selectedAssignment, setSelectedAssignment] = useState<any>(null);
   const [expandedAssignmentId, setExpandedAssignmentId] = useState<
     string | null
@@ -135,24 +135,24 @@ export default function AssignmentsPage() {
   return (
     <div className="p-3 md:p-6 max-w-6xl mx-auto bg-gray-50 min-h-screen">
       <div className="flex items-center justify-between">
-        <Link href="/dashboard">
-          <Button
-            icon={<ChevronLeftIcon />}
-            className="mb-6 text-gray-700 border border-gray-300 hover:bg-gray-100"
-          >
-            Back to Dashboard
-          </Button>
-        </Link>
-        <Select value={selectedTerm} onValueChange={setSelectedTerm}>
-          <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder="Select Term" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="Term 1">Term 1</SelectItem>
-            <SelectItem value="Term 2">Term 2</SelectItem>
-            <SelectItem value="Term 3">Term 3</SelectItem>
-          </SelectContent>
-        </Select>
+          <Link href="/dashboard">
+            <Button
+              icon={<ChevronLeftIcon />}
+              className="mb-6 text-gray-700 border border-gray-300 hover:bg-gray-100"
+            >
+              Back to Dashboard
+            </Button>
+          </Link>
+          <Select value={selectedTerm} onValueChange={setSelectedTerm}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Select Term" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Term 1">Term 1</SelectItem>
+              <SelectItem value="Term 2">Term 2</SelectItem>
+              <SelectItem value="Term 3">Term 3</SelectItem>
+            </SelectContent>
+          </Select>
       </div>
 
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Assignments</h1>
