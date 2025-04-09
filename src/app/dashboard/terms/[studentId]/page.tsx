@@ -11,7 +11,13 @@ import {
 } from "@radix-ui/react-icons";
 import { useParams } from "next/navigation";
 import AssessmentDrawer from "@/components/ui/AssessmentDrawer";
-
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 const mockTerms = [
   {
     id: "1",
@@ -104,6 +110,11 @@ const mockAssessments = [
     lastUpdated: "2024-02-20T09:45:00Z",
   },
 ];
+const mockStudents = [
+  { id: "1", name: "Ahmed Khan" },
+  { id: "2", name: "Fatima Ali" },
+  { id: "3", name: "Yusuf Ibrahim" },
+];
 const mockSubjectTasks = {
   Memorisation: [
     {
@@ -172,7 +183,17 @@ export default function TermPage() {
 
     form.resetFields();
   };
+  const handleTermChange = (value: string) => {
+    const index = mockTerms.findIndex((term) => term.id === value);
+    if (index !== -1) {
+      setCurrentTermIndex(index);
+    }
+  };
 
+  const handleStudentChange = (value: string) => {
+    // You would typically navigate to the new student's page
+    console.log("Selected student:", value);
+  };
   const nextTerm = () => {
     if (currentTermIndex < mockTerms.length - 1) {
       setCurrentTermIndex(currentTermIndex + 1);
@@ -197,16 +218,48 @@ export default function TermPage() {
       </Link>
 
       {/* Ant Design Stepper */}
-      <div className="py-6 mb-6">
-        <Steps current={currentTermIndex} size="small">
-          {mockTerms.map((term, index) => (
-            <Steps.Step
-              key={index}
-              title={term.name}
-              description={term.status}
-            />
-          ))}
-        </Steps>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Student
+          </label>
+          <Select
+            value={studentId as string}
+            onValueChange={handleStudentChange}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select student" />
+            </SelectTrigger>
+            <SelectContent>
+              {mockStudents.map((student) => (
+                <SelectItem key={student.id} value={student.id}>
+                  {student.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Term
+          </label>
+          <Select
+            value={mockTerms[currentTermIndex].id}
+            onValueChange={handleTermChange}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select term" />
+            </SelectTrigger>
+            <SelectContent>
+              {mockTerms.map((term) => (
+                <SelectItem key={term.id} value={term.id}>
+                  {term.name} ({term.status})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Current Term Display */}
