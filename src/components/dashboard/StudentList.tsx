@@ -86,26 +86,34 @@ export default function StudentList() {
   const handleStudentClick = (studentId: string) => {
     router.push(`/dashboard/terms/${studentId}`);
   };
+  const handleViewReports = () => {
+    router.push("/dashboard/students/reports");
+  };
 
   return (
     <>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Students</h1>
-        <Dialog.Root
-          open={isAddStudentModalOpen}
-          onOpenChange={setIsAddStudentModalOpen}
-        >
-          <Dialog.Trigger asChild>
-            <Button onClick={() => setIsAddStudentModalOpen(true)}>
-              Add Student
-            </Button>
-          </Dialog.Trigger>
-          <AddStudentModal
-            isOpen={isAddStudentModalOpen}
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleViewReports}>
+            View Reports
+          </Button>
+          <Dialog.Root
+            open={isAddStudentModalOpen}
             onOpenChange={setIsAddStudentModalOpen}
-            onAddStudent={handleAddNewStudent}
-          />
-        </Dialog.Root>
+          >
+            <Dialog.Trigger asChild>
+              <Button onClick={() => setIsAddStudentModalOpen(true)}>
+                Add Student
+              </Button>
+            </Dialog.Trigger>
+            <AddStudentModal
+              isOpen={isAddStudentModalOpen}
+              onOpenChange={setIsAddStudentModalOpen}
+              onAddStudent={handleAddNewStudent}
+            />
+          </Dialog.Root>
+        </div>
       </div>
 
       <div className="mt-8 bg-white rounded-lg shadow-md overflow-hidden">
