@@ -2,7 +2,7 @@
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import Sidebar from "@/components/ui/Sidebar";
-import { redirect } from "next/navigation";
+import { redirect, usePathname } from "next/navigation";
 
 export default function DashboardLayout({
   children,
@@ -10,17 +10,25 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const { currentUser } = useSelector((state: RootState) => state.auth);
+  const pathname = usePathname();
 
   if (!currentUser) {
     redirect("/");
   }
+  const shouldApplyMaxWidth = !pathname.startsWith(
+    "/dashboard/students/reports"
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <Sidebar />
 
       <div className="flex-1 h-screen overflow-y-auto">
-        <div className="p-6 mx-auto max-w-7xl">{children}</div>
+        <div
+          className={`mx-auto ${shouldApplyMaxWidth ? "max-w-7xl p-6" : ""}`}
+        >
+          {children}
+        </div>
       </div>
     </div>
   );

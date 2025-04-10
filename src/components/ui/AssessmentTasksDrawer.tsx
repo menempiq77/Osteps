@@ -12,6 +12,7 @@ type TaskFormData = {
   isAudio: boolean;
   isVideo: boolean;
   isPdf: boolean;
+  allocatedMarks: number;
 };
 
 type Task = {
@@ -21,6 +22,7 @@ type Task = {
   isVideo: boolean;
   isPdf: boolean;
   dueDate: string;
+  allocatedMarks: number;
 };
 
 type AssessmentTasksDrawerProps = {
@@ -41,16 +43,24 @@ export function AssessmentTasksDrawer({
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
 
-  const { register, handleSubmit, reset, formState: { errors }, watch, setValue } = useForm<TaskFormData>();
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+    watch,
+    setValue,
+  } = useForm<TaskFormData>();
 
   const onSubmitTask = (data: TaskFormData) => {
-    const newTask = {
-      id: tasks.length > 0 ? Math.max(...tasks.map(t => t.id)) + 1 : 1,
+    const newTask: Task = {
+      id: tasks.length > 0 ? Math.max(...tasks.map((t) => t.id)) + 1 : 1,
       name: data.name,
       isAudio: data.isAudio,
       isVideo: data.isVideo,
       isPdf: data.isPdf,
       dueDate: data.dueDate,
+      allocatedMarks: data.allocatedMarks,
     };
     const updatedTasks = [...tasks, newTask];
     setTasks(updatedTasks);
@@ -60,21 +70,22 @@ export function AssessmentTasksDrawer({
   };
 
   const handleRemoveTask = (taskId: number) => {
-    const updatedTasks = tasks.filter(task => task.id !== taskId);
+    const updatedTasks = tasks.filter((task) => task.id !== taskId);
     setTasks(updatedTasks);
     onTasksChange(updatedTasks);
   };
 
-  const getTaskTypeLabel = (task: { isAudio: boolean; isVideo: boolean; isPdf: boolean }) => {
+  const getTaskTypeLabel = (task: Task) => {
     if (task.isAudio) return "Audio";
     if (task.isVideo) return "Video";
     if (task.isPdf) return "PDF";
     return "Text";
   };
 
-  const getTaskTypeClass = (task: { isAudio: boolean; isVideo: boolean; isPdf: boolean }) => {
+  const getTaskTypeClass = (task: Task) => {
     if (task.isVideo) return "bg-green-100 text-green-800";
     if (task.isPdf) return "bg-blue-100 text-blue-800";
+    if (task.isAudio) return "bg-yellow-100 text-yellow-800";
     return "bg-gray-100 text-gray-800";
   };
 
@@ -102,6 +113,7 @@ export function AssessmentTasksDrawer({
         {showTaskForm && (
           <form onSubmit={handleSubmit(onSubmitTask)} className="p-4 border rounded-lg mb-4">
             <div className="space-y-4">
+              {/* Task Name */}
               <div>
                 <Label htmlFor="name">Task Name</Label>
                 <Input
@@ -114,6 +126,7 @@ export function AssessmentTasksDrawer({
                 )}
               </div>
 
+              {/* Due Date */}
               <div>
                 <Label htmlFor="dueDate">Due Date</Label>
                 <Input
@@ -127,6 +140,25 @@ export function AssessmentTasksDrawer({
                 )}
               </div>
 
+              {/* Allocated Marks */}
+              <div>
+                <Label htmlFor="allocatedMarks">Allocated Marks</Label>
+                <Input
+                  id="allocatedMarks"
+                  type="number"
+                  min={0}
+                  {...register("allocatedMarks", {
+                    required: "Allocated marks are required",
+                    valueAsNumber: true,
+                  })}
+                  className="mt-1"
+                />
+                {errors.allocatedMarks && (
+                  <p className="text-red-500 text-sm mt-1">{errors.allocatedMarks.message}</p>
+                )}
+              </div>
+
+              {/* Task Type Checkboxes */}
               <div>
                 <Label>Task Type</Label>
                 <div className="flex items-center space-x-4 mt-1">
@@ -160,14 +192,17 @@ export function AssessmentTasksDrawer({
                 )}
               </div>
 
+              {/* Form Actions */}
               <div className="flex justify-end space-x-2">
                 <Button onClick={() => setShowTaskForm(false)}>
                   Cancel
                 </Button>
-                <Button 
-                  type="primary" 
+                <Button
+                  type="primary"
                   htmlType="submit"
-                  disabled={!watch("isAudio") && !watch("isVideo") && !watch("isPdf")}
+                  disabled={
+                    !watch("isAudio") && !watch("isVideo") && !watch("isPdf")
+                  }
                 >
                   Save Task
                 </Button>
@@ -176,6 +211,7 @@ export function AssessmentTasksDrawer({
           </form>
         )}
 
+        {/* Task List */}
         <h3 className="font-medium text-gray-700">Tasks for this assessment:</h3>
         <div className="space-y-2">
           {tasks.map((task) => (
@@ -183,9 +219,7 @@ export function AssessmentTasksDrawer({
               <div className="flex justify-between items-center">
                 <div className="flex items-center space-x-2">
                   <span className="font-medium">{task.name}</span>
-                  <span
-                    className={`px-2 py-1 text-xs rounded-full ${getTaskTypeClass(task)}`}
-                  >
+                  <span className={`px-2 py-1 text-xs rounded-full ${getTaskTypeClass(task)}`}>
                     {getTaskTypeLabel(task)}
                   </span>
                 </div>
@@ -210,7 +244,7 @@ export function AssessmentTasksDrawer({
                 </button>
               </div>
               <div className="mt-2 text-sm text-gray-500">
-                Due: {task.dueDate}
+                Due: {task.dueDate} | Allocated Marks: <span className="font-medium">{task.allocatedMarks || "50"}</span>
               </div>
             </div>
           ))}

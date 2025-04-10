@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/store/store";
 import {
   HomeIcon,
@@ -11,8 +11,8 @@ import {
   Cog6ToothIcon,
   ArrowLeftOnRectangleIcon,
 } from "@heroicons/react/24/outline";
-import { useState } from "react";
-import { useDispatch } from "react-redux";
+import { ChartBarIcon, UserCircleIcon } from "lucide-react";
+import { useState, useEffect } from "react";
 import { logout } from "@/features/auth/authSlice";
 import useMediaQuery from "@/hooks/useMediaQuery";
 
@@ -20,40 +20,31 @@ const Sidebar = () => {
   const pathname = usePathname();
   const dispatch = useDispatch();
   const { currentUser } = useSelector((state: RootState) => state.auth);
-  const [isOpen, setIsOpen] = useState(true);
+
   const isMobile = useMediaQuery("(max-width: 768px)");
+  const [isOpen, setIsOpen] = useState(!isMobile);
+
+  useEffect(() => {
+    setIsOpen(!isMobile);
+  }, [isMobile]);
+
+  const handleLogout = () => {
+    dispatch(logout());
+    window.location.href = "/";
+  };
 
   const navigation = {
     SUPER_ADMIN: [
       { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
-      {
-        name: "Schools",
-        href: "/dashboard/schools",
-        icon: AcademicCapIcon,
-      },
-      {
-        name: "Admins",
-        href: "/dashboard/admins",
-        icon: UserGroupIcon,
-      },
+      { name: "Schools", href: "/dashboard/schools", icon: AcademicCapIcon },
+      { name: "Admins", href: "/dashboard/admins", icon: UserGroupIcon },
     ],
     SCHOOL_ADMIN: [
       { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
-      {
-        name: "Teachers",
-        href: "/dashboard/teachers",
-        icon: UserGroupIcon,
-      },
-      {
-        name: "Students",
-        href: "/dashboard/students",
-        icon: UserGroupIcon,
-      },
-      {
-        name: "Manage Classes",
-        href: "/dashboard/years",
-        icon: BookOpenIcon,
-      },
+      { name: "Teachers", href: "/dashboard/teachers", icon: UserCircleIcon },
+      { name: "Students", href: "/dashboard/students", icon: UserGroupIcon },
+      { name: "Manage Classes", href: "/dashboard/years", icon: BookOpenIcon },
+      { name: "Manage Grades", href: "/dashboard/grades", icon: ChartBarIcon },
       {
         name: "Settings",
         href: "/dashboard/school-admin/settings",
@@ -62,24 +53,12 @@ const Sidebar = () => {
     ],
     TEACHER: [
       { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
-      {
-        name: "My Classes",
-        href: "/dashboard/years",
-        icon: BookOpenIcon,
-      },
-      {
-        name: "Students",
-        href: "/dashboard/students",
-        icon: UserGroupIcon,
-      },
+      { name: "My Classes", href: "/dashboard/years", icon: BookOpenIcon },
+      { name: "Students", href: "/dashboard/students", icon: UserGroupIcon },
     ],
     STUDENT: [
       { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
-      {
-        name: "My Classes",
-        href: "/dashboard/years",
-        icon: BookOpenIcon,
-      },
+      { name: "My Classes", href: "/dashboard/years", icon: BookOpenIcon },
       {
         name: "Assignments",
         href: "/dashboard/students/assignments",
@@ -88,21 +67,20 @@ const Sidebar = () => {
     ],
   };
 
-  const handleLogout = () => {
-    dispatch(logout());
-    window.location.href = "/";
-  };
+  if (pathname.startsWith("/dashboard/students/reports")) {
+    return null;
+  }  
 
   return (
     <div
-      className={`h-screen bg-white shadow-lg ${
-        !isMobile ? "w-64" : "w-20"
-      } transition-all duration-300`}
+      className={`h-screen bg-white shadow-lg transition-all duration-300 ${
+        isOpen ? "w-64" : "w-20"
+      }`}
     >
       <div className="p-4 flex flex-col h-full">
         <div className="w-full flex items-center justify-between mb-4">
           <Link href="/">
-            {!isMobile && <h2 className="font-semibold">{currentUser?.role}</h2>}
+            {isOpen && <h2 className="font-semibold">{currentUser?.role}</h2>}
           </Link>
           <button
             onClick={() => setIsOpen(!isOpen)}
@@ -146,21 +124,23 @@ const Sidebar = () => {
                 }`}
               >
                 <item.icon
-                  className={`h-6 w-6 ${!isMobile ? "mr-3" : "mx-auto"}`}
+                  className={`h-6 w-6 ${isOpen ? "mr-3" : "mx-auto"}`}
                 />
-                {!isMobile && <span className="text-sm">{item.name}</span>}
+                {isOpen && <span className="text-sm">{item.name}</span>}
               </Link>
             ))}
         </nav>
+
         <button
           onClick={handleLogout}
-          className={`flex items-center w-full p-3 mt-2 rounded-lg hover:bg-blue-50 text-gray-700`}
+          className="flex items-center w-full p-3 mt-2 rounded-lg hover:bg-blue-50 text-gray-700"
         >
           <ArrowLeftOnRectangleIcon
-            className={`h-6 w-6 ${!isMobile ? "mr-3" : "mx-auto"}`}
+            className={`h-6 w-6 ${isOpen ? "mr-3" : "mx-auto"}`}
           />
-          {!isMobile && <span className="text-sm">Logout</span>}
+          {isOpen && <span className="text-sm">Logout</span>}
         </button>
+
         {currentUser && (
           <div className="mt-auto border-t pt-4">
             <div className="flex items-center p-2">
@@ -169,7 +149,7 @@ const Sidebar = () => {
                   {currentUser.email[0].toUpperCase()}
                 </div>
               </div>
-              {!isMobile && (
+              {isOpen && (
                 <div className="ml-3">
                   <p className="text-sm font-medium text-gray-700">
                     {currentUser.email}
