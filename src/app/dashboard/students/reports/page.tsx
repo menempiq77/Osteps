@@ -119,36 +119,6 @@ export default function ReportsPage() {
         </span>
       </div>
 
-      {/* <div className="mb-6 bg-gray-50 p-4 rounded-lg shadow">
-        <h3 className="font-medium mb-2">View worksheet:</h3>
-        <div className="flex flex-wrap items-center space-x-2 text-sm text-gray-600">
-          {[
-            { id: 1, name: "T1 Quan Assessment" },
-            { id: 2, name: "T1 Written Task" },
-            { id: 3, name: "T1 Classwork" },
-            { id: 4, name: "T1 Assessment" },
-            { id: 5, name: "T2 Written Task" },
-            { id: 6, name: "T2 Classwork" },
-            { id: 7, name: "T3 Quan Assessment" },
-            { id: 8, name: "T3 Written Task" },
-            { id: 9, name: "T3 Classwork" },
-            { id: 10, name: "T3 Assessment" },
-            { id: 11, name: "Total" },
-          ].map((item, index) => (
-            <React.Fragment key={item.id}>
-              <Button
-                type="text"
-                onClick={() => handleViewReportsDetail(item.id)} // Passing the id here
-                className="text-blue-600 hover:bg-blue-50"
-              >
-                {item.name}
-              </Button>
-              {index < 10 && <span>|</span>}{" "}
-            </React.Fragment>
-          ))}
-        </div>
-      </div> */}
-
       <div className="mb-6 flex gap-2 items-end">
         <h3 className="font-medium min-w-[120px]">View worksheet:</h3>
         <div className="flex flex-wrap items-center space-x-2 text-sm text-gray-600">
@@ -178,7 +148,7 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      <div className="bg-white  overflow-hidden">
+      <div className="bg-white overflow-hidden">
         <div className="py-4 flex justify-between items-center">
            <div className="relative ">
             <input
@@ -205,11 +175,11 @@ export default function ReportsPage() {
           </div>
         </div>
 
-        <div className="overflow-x-auto relative rounded-lg shadow-md">
-          <table className="w-full">
+        <div className="overflow-x-auto relative rounded-lg shadow-md ">
+          <table className="max-w-full table-fixed">
             <thead className="bg-[#f0f0f0]">
               <tr>
-                <th className="px-2 border py-3 text-left align-bottom text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-[#f0f0f0] z-10">
+                <th className="w-24 px-2 border py-3 text-left align-bottom text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-[#f0f0f0] z-10">
                   Student
                 </th>
                 {[
@@ -230,7 +200,7 @@ export default function ReportsPage() {
                 ].map((header, index) => (
                   <th
                     key={index}
-                    className="px-2 py-2 border text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    className="w-12 px-2 py-2 border text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
                     style={{
                       writingMode: "vertical-rl",
                       transform: "rotate(180deg)",
@@ -243,7 +213,7 @@ export default function ReportsPage() {
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-gray-200 bg-white">
               {filteredData.map((student, index) => (
                 <tr key={index} className="hover:bg-gray-50">
                   <td className="px-2 py-2 border whitespace-nowrap text-sm font-medium text-gray-900 sticky left-0 bg-white z-10">
@@ -255,7 +225,7 @@ export default function ReportsPage() {
                   <td className="px-2 py-2 border whitespace-nowrap text-sm text-gray-500">
                     {student.pitg}
                   </td>
-                  <td className="px-2 py-3 whitespace-nowrap text-sm font-medium text-center">
+                  <td className="px-2 py-3 border whitespace-nowrap text-sm font-medium text-center">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                       student.courseGrade === 'A-' ? 'bg-green-100 text-green-800' :
                       student.courseGrade === 'B+' ? 'bg-blue-100 text-blue-800' :
@@ -325,7 +295,7 @@ export default function ReportsPage() {
                       handleMarkChange(index, "t3Assessment", value)
                     }
                   />
-                  <td className="px-2 py-2 whitespace-nowrap text-sm text-gray-500 font-medium">
+                  <td className="px-2 py-2 border whitespace-nowrap text-sm text-gray-500 font-medium">
                     {student.total}
                   </td>
                 </tr>
@@ -351,7 +321,7 @@ const EditableCell = ({
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full max-w-12 bg-transparent border-none focus:ring-0 text-sm text-gray-500 p-0"
+        className="w-full max-w-8 bg-transparent border-none focus:ring-0 text-sm text-gray-500 p-0"
       />
     </td>
   );

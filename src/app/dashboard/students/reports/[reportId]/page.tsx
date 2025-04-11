@@ -80,7 +80,7 @@ export default function Page() {
   };
 
   return (
-    <div className="p-3 md:p-6 lg:p-12 mx-auto bg-gray-50 min-h-screen">
+    <div className="p-3 md:p-6 lg:p-12 mx-auto bg-white min-h-screen">
       <div className="flex items-center justify-between mb-6">
         <Link href="/dashboard">
           <Button
@@ -108,10 +108,10 @@ export default function Page() {
       </div>
 
       <div className="overflow-hidden">
-        <div className="py-2 border-b border-gray-100 flex justify-between items-center">
-        <div className="text-sm text-blue-500">
-          Marksheet: T3 Quran Assessment
-        </div>
+        <div className="py-2 flex flex-col gap-2">
+          <div className="text-sm text-blue-500">
+            Marksheet: T3 Quran Assessment
+          </div>
           <div className="relative w-64 ">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <svg
@@ -135,20 +135,20 @@ export default function Page() {
           </div>
         </div>
 
-        <div className="overflow-x-auto rounded-xl shadow-sm">
-          <table className="w-full divide-y divide-gray-200">
+        <div className="overflow-x-auto relative rounded-lg shadow-md">
+          <table className="table-fixed">
             <thead className="bg-[#f0f0f0]">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-[#f0f0f0] z-10 border">
+                <th className="w-24 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-[#f0f0f0] z-10 border">
                   Student
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border">
+                <th className="w-12 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border">
                   ID
                 </th>
                 {taskNames.map((taskName, index) => (
                   <th
                     key={index}
-                    className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border"
+                    className="w-12 px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border"
                     style={{
                       writingMode: "vertical-rl",
                       transform: "rotate(180deg)",
@@ -161,7 +161,7 @@ export default function Page() {
                 {["Total", "Grade"].map((label, index) => (
                   <th
                     key={`extra-${index}`}
-                    className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border"
+                    className="w-12px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border"
                     style={{
                       writingMode: "vertical-rl",
                       transform: "rotate(180deg)",
