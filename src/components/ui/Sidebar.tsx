@@ -11,7 +11,7 @@ import {
   Cog6ToothIcon,
   ArrowLeftOnRectangleIcon,
 } from "@heroicons/react/24/outline";
-import { ChartBarIcon, UserCircleIcon } from "lucide-react";
+import { ChartBarIcon, UserCircleIcon, BookTextIcon } from "lucide-react";
 import { useState, useEffect } from "react";
 import { logout } from "@/features/auth/authSlice";
 import useMediaQuery from "@/hooks/useMediaQuery";
@@ -45,6 +45,7 @@ const Sidebar = () => {
       { name: "Students", href: "/dashboard/students", icon: UserGroupIcon },
       { name: "Manage Classes", href: "/dashboard/years", icon: BookOpenIcon },
       { name: "Manage Grades", href: "/dashboard/grades", icon: ChartBarIcon },
+      { name: "Library", href: "/dashboard/library", icon: BookTextIcon },
       {
         name: "Settings",
         href: "/dashboard/school-admin/settings",
@@ -55,6 +56,7 @@ const Sidebar = () => {
       { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
       { name: "My Classes", href: "/dashboard/years", icon: BookOpenIcon },
       { name: "Students", href: "/dashboard/students", icon: UserGroupIcon },
+      { name: "Library", href: "/dashboard/library", icon: BookTextIcon },
     ],
     STUDENT: [
       { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
@@ -64,6 +66,7 @@ const Sidebar = () => {
         href: "/dashboard/students/assignments",
         icon: AcademicCapIcon,
       },
+      { name: "Library", href: "/dashboard/library", icon: BookTextIcon },
     ],
   };
 
