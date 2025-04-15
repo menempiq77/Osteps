@@ -12,7 +12,7 @@ import {
   MegaphoneIcon,
   ArrowLeftOnRectangleIcon,
 } from "@heroicons/react/24/outline";
-import { ChartBarIcon, UserCircleIcon, BookTextIcon } from "lucide-react";
+import { ChartBarIcon, UserCircleIcon, BookTextIcon, Building } from "lucide-react";
 import { useState, useEffect } from "react";
 import { logout } from "@/features/auth/authSlice";
 import useMediaQuery from "@/hooks/useMediaQuery";
@@ -48,6 +48,7 @@ const Sidebar = () => {
       { name: "Manage Classes", href: "/dashboard/years", icon: BookOpenIcon },
       { name: "Manage Grades", href: "/dashboard/grades", icon: ChartBarIcon },
       { name: "Library", href: "/dashboard/library", icon: BookTextIcon },
+      { name: "Trackers", href: "/dashboard/trackers", icon: Building },
       { name: "Announcements", href: "/dashboard/announcements", icon: MegaphoneIcon  },
       {
         name: "Settings",
@@ -60,6 +61,7 @@ const Sidebar = () => {
       { name: "My Classes", href: "/dashboard/years", icon: BookOpenIcon },
       { name: "Students", href: "/dashboard/students", icon: UserGroupIcon },
       { name: "Library", href: "/dashboard/library", icon: BookTextIcon },
+      { name: "Trackers", href: "/dashboard/trackers", icon: Building  },
       { name: "Announcements", href: "/dashboard/announcements", icon: MegaphoneIcon  },
     ],
     STUDENT: [
@@ -71,6 +73,7 @@ const Sidebar = () => {
         icon: AcademicCapIcon,
       },
       { name: "Library", href: "/dashboard/library", icon: BookTextIcon },
+      { name: "Trackers", href: "/dashboard/trackers", icon: Building },
       { name: "Announcements", href: "/dashboard/announcements", icon: MegaphoneIcon  },
     ],
   };

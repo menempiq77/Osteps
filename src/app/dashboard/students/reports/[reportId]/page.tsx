@@ -3,10 +3,11 @@ import React, { useState } from "react";
 import { Button } from "antd";
 import Link from "next/link";
 import { ChevronLeftIcon } from "@radix-ui/react-icons";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
 export default function Page() {
   const { reportId } = useParams();
+  const router = useRouter();
   const [assessmentData, setAssessmentData] = useState([
     {
       student: "Ahmed Mohamed",
@@ -82,14 +83,13 @@ export default function Page() {
   return (
     <div className="p-3 md:p-6 lg:p-12 mx-auto bg-white min-h-screen">
       <div className="flex items-center justify-between mb-6">
-        <Link href="/dashboard">
           <Button
             icon={<ChevronLeftIcon className="w-4 h-4" />}
+            onClick={() => router.back()}
             className="flex items-center text-gray-600 hover:text-gray-800 border border-gray-200 hover:border-gray-300 bg-white hover:bg-gray-50 rounded-lg px-4 py-2 text-sm font-medium transition-colors"
           >
-            Back to Dashboard
+            Back to Assessments
           </Button>
-        </Link>
       </div>
 
       <div className="mb-4">

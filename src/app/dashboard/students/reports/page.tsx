@@ -99,14 +99,13 @@ export default function ReportsPage() {
   return (
     <div className="p-3 md:p-6 lg:p-12 mx-auto bg-white min-h-screen">
       <div className="flex items-center justify-between mb-6">
-        <Link href="/dashboard">
           <Button
             icon={<ChevronLeftIcon />}
+            onClick={() => router.back()}
             className="text-gray-700 border border-gray-300 hover:bg-gray-100"
           >
-            Back to Dashboard
+            Back to Students
           </Button>
-        </Link>
       </div>
 
       <h1 className="text-2xl font-bold text-gray-900 mb-6">
