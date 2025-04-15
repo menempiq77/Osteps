@@ -1,16 +1,22 @@
 "use client";
 import React, { useState, useCallback } from "react";
-import { Drawer, Button, Form, message } from "antd";
-import { UploadOutlined, FileTextOutlined, PlayCircleOutlined, FilePdfOutlined } from '@ant-design/icons';
+import { Drawer, Button, Form, message, InputNumber } from "antd";
+import {
+  UploadOutlined,
+  FileTextOutlined,
+  PlayCircleOutlined,
+  FilePdfOutlined,
+} from "@ant-design/icons";
 
 interface Task {
   id: string;
   name: string;
-  type: 'audio' | 'video' | 'pdf';
+  type: "audio" | "video" | "pdf";
   url?: string;
   status: string;
   mark?: string;
   comment?: string;
+  selfAssessment?: number;
 }
 
 interface AssignmentDrawerProps {
@@ -52,7 +58,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
-    
+
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const droppedFile = e.dataTransfer.files[0];
       validateAndSetFile(droppedFile);
@@ -71,22 +77,24 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
 
     // Validate file type
     const validTypes = {
-      audio: ['audio/mpeg', 'audio/wav', 'audio/ogg'],
-      video: ['video/mp4', 'video/quicktime'],
-      pdf: ['application/pdf']
+      audio: ["audio/mpeg", "audio/wav", "audio/ogg"],
+      video: ["video/mp4", "video/quicktime"],
+      pdf: ["application/pdf"],
     };
 
     const isValidType = validTypes[selectedTask.type].includes(file.type);
-    
+
     if (!isValidType) {
-      message.error(`Invalid file type. Please upload a ${selectedTask.type} file.`);
+      message.error(
+        `Invalid file type. Please upload a ${selectedTask.type} file.`
+      );
       return;
     }
 
     // Validate file size (e.g., 10MB max)
     const maxSize = 10 * 1024 * 1024; // 10MB
     if (file.size > maxSize) {
-      message.error('File is too large. Maximum size is 10MB.');
+      message.error("File is too large. Maximum size is 10MB.");
       return;
     }
 
@@ -99,17 +107,21 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
 
   const handleSubmit = (values: any) => {
     if (!file) {
-      message.error('Please select a file to upload');
+      message.error("Please select a file to upload");
       return;
     }
 
     setIsSubmitting(true);
-    console.log('Submitting:', { ...values, file });
-    
+    console.log("Submitting:", {
+      ...values,
+      file,
+      selfAssessment: values.selfAssessment, // Include self-assessment
+    });
+
     // Simulate upload
     setTimeout(() => {
       setIsSubmitting(false);
-      message.success('Assignment submitted successfully!');
+      message.success("Assignment submitted successfully!");
       onClose();
     }, 1500);
   };
@@ -118,11 +130,11 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
     if (!selectedTask) return null;
 
     switch (selectedTask.type) {
-      case 'audio':
+      case "audio":
         return <PlayCircleOutlined className="text-blue-500 text-4xl" />;
-      case 'video':
+      case "video":
         return <PlayCircleOutlined className="text-purple-500 text-4xl" />;
-      case 'pdf':
+      case "pdf":
         return <FilePdfOutlined className="text-red-500 text-4xl" />;
       default:
         return <FileTextOutlined className="text-gray-500 text-4xl" />;
@@ -131,9 +143,9 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
 
   const renderFilePreview = () => {
     if (!selectedTask?.url) return null;
-    
+
     switch (selectedTask.type) {
-      case 'audio':
+      case "audio":
         return (
           <div className="mt-4 p-4 bg-gray-50 rounded-lg">
             <audio controls className="w-full">
@@ -142,7 +154,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
             </audio>
           </div>
         );
-      case 'video':
+      case "video":
         return (
           <div className="mt-4 p-4 bg-gray-50 rounded-lg">
             <video controls className="w-full" style={{ maxHeight: 400 }}>
@@ -151,7 +163,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
             </video>
           </div>
         );
-      case 'pdf':
+      case "pdf":
         return (
           <div className="mt-4 p-4 bg-gray-50 rounded-lg">
             <div className="flex items-center">
@@ -173,13 +185,15 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
   };
 
   const renderUploadArea = () => {
-    if (selectedTask?.status === 'completed') return null;
+    if (selectedTask?.status === "completed") return null;
 
     return (
       <div className="space-y-4">
-        <div 
+        <div
           className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-            isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400'
+            isDragging
+              ? "border-blue-500 bg-blue-50"
+              : "border-gray-300 hover:border-blue-400"
           }`}
           onDragEnter={handleDragEnter}
           onDragLeave={handleDragLeave}
@@ -190,13 +204,14 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
             {renderFileIcon()}
             <div className="text-center">
               <p className="font-medium text-gray-700">
-                {file ? file.name : `Drag & drop your ${selectedTask?.type} file here`}
+                {file
+                  ? file.name
+                  : `Drag & drop your ${selectedTask?.type} file here`}
               </p>
               <p className="text-sm text-gray-500 mt-1">
-                {file ? 
-                  `${(file.size / (1024 * 1024)).toFixed(2)} MB` : 
-                  `or click to browse files (${selectedTask?.type.toUpperCase()} only)`
-                }
+                {file
+                  ? `${(file.size / (1024 * 1024)).toFixed(2)} MB`
+                  : `or click to browse files (${selectedTask?.type.toUpperCase()} only)`}
               </p>
             </div>
           </div>
@@ -206,9 +221,11 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
             className="hidden"
             onChange={handleFileChange}
             accept={
-              selectedTask?.type === 'audio' ? 'audio/*' : 
-              selectedTask?.type === 'video' ? 'video/*' : 
-              'application/pdf'
+              selectedTask?.type === "audio"
+                ? "audio/*"
+                : selectedTask?.type === "video"
+                ? "video/*"
+                : "application/pdf"
             }
           />
           <div className="mt-4">
@@ -224,7 +241,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
             ) : (
               <Button
                 type="primary"
-                onClick={() => document.getElementById('file-upload')?.click()}
+                onClick={() => document.getElementById("file-upload")?.click()}
               >
                 <UploadOutlined /> Select File
               </Button>
@@ -253,19 +270,21 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
       }}
       open={isOpen}
       width={600}
-      footer={selectedTask?.status !== 'completed' ? (
-        <div className="flex justify-end">
-          <Button 
-            type="primary" 
-            onClick={() => form.submit()}
-            loading={isSubmitting}
-            disabled={!file}
-            className="w-full"
-          >
-            Submit Assignment
-          </Button>
-        </div>
-      ) : null}
+      footer={
+        selectedTask?.status !== "completed" ? (
+          <div className="flex justify-end">
+            <Button
+              type="primary"
+              onClick={() => form.submit()}
+              loading={isSubmitting}
+              disabled={!file}
+              className="w-full"
+            >
+              Submit Assignment
+            </Button>
+          </div>
+        ) : null
+      }
     >
       {selectedTask && (
         <div className="space-y-6 h-full flex flex-col">
@@ -274,20 +293,27 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
             <p className="text-gray-600">{selectedTask.name}</p>
           </div>
 
-          {selectedTask.status === 'completed' ? (
+          {selectedTask.status === "completed" ? (
             <>
               <div>
                 <h4 className="font-medium text-gray-800">Your Submission</h4>
                 {renderFilePreview()}
               </div>
-              
+
+              {selectedTask.selfAssessment && (
+                <div>
+                  <h4 className="font-medium text-gray-800">Self Assessment</h4>
+                  <p className="text-gray-600">{selectedTask.selfAssessment}</p>
+                </div>
+              )}
+
               {selectedTask.mark && (
                 <div>
                   <h4 className="font-medium text-gray-800">Grade</h4>
                   <p className="text-gray-600">{selectedTask.mark}</p>
                 </div>
               )}
-              
+
               {selectedTask.comment && (
                 <div>
                   <h4 className="font-medium text-gray-800">Feedback</h4>
@@ -296,18 +322,51 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
               )}
             </>
           ) : (
-            <Form form={form} layout="vertical" onFinish={handleSubmit} className="flex-1 flex flex-col">
+            // In the Form section of the AssignmentDrawer component
+            <Form
+              form={form}
+              layout="vertical"
+              onFinish={handleSubmit}
+              className="flex-1 flex flex-col"
+            >
               <div className="flex-1">
-                {renderUploadArea()}
+                <div className="mb-8">{renderUploadArea()}</div>
+
+                {/* Add self-assessment field */}
+                <Form.Item
+                  label="Self-Assessment (Rate your work out of 10)"
+                  name="selfAssessment"
+                  rules={[
+                    { required: true, message: "Please rate your work" },
+                    {
+                      type: "number",
+                      min: 0,
+                      max: 10,
+                      message: "Rating must be between 0 and 10",
+                    },
+                  ]}
+                  className="mt-4"
+                >
+                  <InputNumber
+                    min={0}
+                    max={10}
+                    step={0.5}
+                    className="w-full"
+                    placeholder="Enter your rating (0-10)"
+                    style={{
+                      width: "100%"}}
+                  />
+                </Form.Item>
+
                 <Form.Item
                   label="Additional Notes"
                   name="notes"
-                  className="mt-6"
+                  className="mt-4"
                 >
-                  <textarea 
-                    rows={4} 
+                  <textarea
+                    rows={3}
                     className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
-                    placeholder="Any additional comments about your submission..."
+                    placeholder="Explain your rating or add any comments..."
                   />
                 </Form.Item>
               </div>
