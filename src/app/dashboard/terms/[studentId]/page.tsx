@@ -9,7 +9,7 @@ import {
   PlusIcon,
   Cross2Icon,
 } from "@radix-ui/react-icons";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import AssessmentDrawer from "@/components/ui/AssessmentDrawer";
 import {
   Select,
@@ -159,6 +159,7 @@ const mockSubjectTasks = {
 
 export default function TermPage() {
   const { studentId } = useParams();
+  const router = useRouter();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState("");
   const [currentTermIndex, setCurrentTermIndex] = useState(0);
@@ -208,15 +209,14 @@ export default function TermPage() {
 
   return (
     <div className="p-3 md:p-6 max-w-6xl mx-auto bg-gray-50 min-h-screen">
-      <Link href="/students">
         <Button
           icon={<ChevronLeftIcon />}
+          onClick={() => router.back()}
           className="mb-6 text-gray-700 border border-gray-300 hover:bg-gray-100"
         >
           Back to Students
         </Button>
-      </Link>
-
+ 
       {/* Ant Design Stepper */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <div>

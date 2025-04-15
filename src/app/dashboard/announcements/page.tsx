@@ -13,12 +13,14 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Badge } from "antd";
+import { DeleteOutlined } from "@ant-design/icons";
 
 type Announcement = {
   id: string;
   title: string;
   content: string;
   author: string;
+  authorId?: string;
   date: string;
   type: "prayer" | "event" | "reminder" | "general";
   target: "all" | "teachers" | "students" | "staff";
@@ -35,7 +37,6 @@ export default function AnnouncementsPage() {
   });
   const [isCreating, setIsCreating] = useState(false);
 
-  // Islamic-themed mock data
   useEffect(() => {
     const islamicAnnouncements: Announcement[] = [
       {
@@ -44,6 +45,7 @@ export default function AnnouncementsPage() {
         content:
           "The Jumu'ah prayer will be held at 1:30 PM in the main musalla. All students and staff are encouraged to attend.",
         author: "Imam Abdullah",
+        authorId: "admin1", // Mock author ID
         date: new Date().toISOString().split("T")[0],
         type: "prayer",
         target: "all",
@@ -54,6 +56,7 @@ export default function AnnouncementsPage() {
         content:
           "Annual Quran memorization competition will be held next month. Registration opens next week.",
         author: "Principal",
+        authorId: "admin2", // Mock author ID
         date: "2023-06-10",
         type: "event",
         target: "students",
@@ -64,6 +67,7 @@ export default function AnnouncementsPage() {
         content:
           "All teachers are required to attend the Ramadan preparation meeting this Friday after Dhuhr prayer.",
         author: "School Admin",
+        authorId: "admin3", // Mock author ID
         date: "2023-03-01",
         type: "reminder",
         target: "teachers",
@@ -74,6 +78,7 @@ export default function AnnouncementsPage() {
         content:
           "Guest speaker Sheikh Ibrahim will deliver a seminar on 'The Golden Age of Islam' next Wednesday.",
         author: "Academic Dept",
+        authorId: "teacher1", // Mock author ID
         date: "2023-04-15",
         type: "event",
         target: "all",
@@ -90,6 +95,7 @@ export default function AnnouncementsPage() {
       title: newAnnouncement.title,
       content: newAnnouncement.content,
       author: currentUser?.email || "Unknown",
+      authorId: currentUser?.id, // Store the current user's ID
       date: new Date().toISOString().split("T")[0],
       type: newAnnouncement.type,
       target: newAnnouncement.target,
@@ -105,11 +111,24 @@ export default function AnnouncementsPage() {
     setIsCreating(false);
   };
 
+  const handleDeleteAnnouncement = (id: string) => {
+    setAnnouncements(announcements.filter((ann) => ann.id !== id));
+  };
+
   // Determine who can create announcements
   const canCreateAnnouncement =
     currentUser?.role === "SUPER_ADMIN" ||
     currentUser?.role === "SCHOOL_ADMIN" ||
     currentUser?.role === "TEACHER";
+
+  // Check if user can delete a specific announcement
+  const canDeleteAnnouncement = (announcement: Announcement) => {
+    return (
+      currentUser?.role === "SUPER_ADMIN" ||
+      currentUser?.role === "SCHOOL_ADMIN" ||
+      announcement.authorId === currentUser?.id
+    );
+  };
 
   // Filter announcements based on user role and target
   const filteredAnnouncements = announcements.filter((announcement) => {
@@ -149,13 +168,13 @@ export default function AnnouncementsPage() {
     prayer: "green",
     event: "blue",
     reminder: "gold",
-    general: "gray"
+    general: "gray",
   };
 
   return (
     <div className="container mx-auto p-3 md:p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Islamic Announcements</h1>
+        <h1 className="text-2xl font-bold">Announcements</h1>
         {canCreateAnnouncement && (
           <Button onClick={() => setIsCreating(!isCreating)}>
             {isCreating ? "Cancel" : "New Announcement"}
@@ -166,7 +185,7 @@ export default function AnnouncementsPage() {
       {isCreating && (
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>Create Islamic Announcement</CardTitle>
+            <CardTitle>Announcement</CardTitle>
             <CardDescription>
               Share important updates with the community
             </CardDescription>
@@ -243,32 +262,44 @@ export default function AnnouncementsPage() {
         ) : (
           filteredAnnouncements.map((announcement) => (
             <Badge.Ribbon
-            key={announcement.id}
-            text={announcement.type.charAt(0).toUpperCase() + announcement.type.slice(1)}
-            color={badgeRibbonColors[announcement.type]}
-          >
-            <Card className="hover:shadow-lg transition-shadow rounded-lg border border-gray-200">
-              <CardHeader>
-                <div className="flex justify-between items-start gap-2 flex-wrap">
-                  <CardTitle>{announcement.title}</CardTitle>
-                </div>
-                <CardDescription className="flex flex-wrap gap-2 items-center">
-                  <span>{announcement.date}</span>
-                  <span>•</span>
-                  <span>Posted by {announcement.author}</span>
-                  {announcement.target !== "all" && (
-                    <>
-                      <span>•</span>
-                      <span>For {announcement.target}</span>
-                    </>
-                  )}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="whitespace-pre-line text-gray-700">{announcement.content}</p>
-              </CardContent>
-            </Card>
-          </Badge.Ribbon>
+              key={announcement.id}
+              text={
+                announcement.type.charAt(0).toUpperCase() +
+                announcement.type.slice(1)
+              }
+              color={badgeRibbonColors[announcement.type]}
+            >
+              <Card className="hover:shadow-lg transition-shadow rounded-lg border border-gray-200 relative">
+                {canDeleteAnnouncement(announcement) && (
+                  <span
+                    onClick={() => handleDeleteAnnouncement(announcement.id)}
+                    className="absolute bottom-4 right-4 text-red-500 hover:text-red-700 transition-colors"
+                    aria-label="Delete announcement"
+                  >Delete</span>
+                )}
+                <CardHeader>
+                  <div className="flex justify-between items-start gap-2 flex-wrap">
+                    <CardTitle>{announcement.title}</CardTitle>
+                  </div>
+                  <CardDescription className="flex flex-wrap gap-2 items-center">
+                    <span>{announcement.date}</span>
+                    <span>•</span>
+                    <span>Posted by {announcement.author}</span>
+                    {announcement.target !== "all" && (
+                      <>
+                        <span>•</span>
+                        <span>For {announcement.target}</span>
+                      </>
+                    )}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="whitespace-pre-line text-gray-700">
+                    {announcement.content}
+                  </p>
+                </CardContent>
+              </Card>
+            </Badge.Ribbon>
           ))
         )}
       </div>
