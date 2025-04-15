@@ -9,6 +9,7 @@ import {
   AcademicCapIcon,
   BookOpenIcon,
   Cog6ToothIcon,
+  MegaphoneIcon,
   ArrowLeftOnRectangleIcon,
 } from "@heroicons/react/24/outline";
 import { ChartBarIcon, UserCircleIcon, BookTextIcon } from "lucide-react";
@@ -38,6 +39,7 @@ const Sidebar = () => {
       { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
       { name: "Schools", href: "/dashboard/schools", icon: AcademicCapIcon },
       { name: "Admins", href: "/dashboard/admins", icon: UserGroupIcon },
+      { name: "Announcements", href: "/dashboard/announcements", icon: MegaphoneIcon  },
     ],
     SCHOOL_ADMIN: [
       { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
@@ -46,6 +48,7 @@ const Sidebar = () => {
       { name: "Manage Classes", href: "/dashboard/years", icon: BookOpenIcon },
       { name: "Manage Grades", href: "/dashboard/grades", icon: ChartBarIcon },
       { name: "Library", href: "/dashboard/library", icon: BookTextIcon },
+      { name: "Announcements", href: "/dashboard/announcements", icon: MegaphoneIcon  },
       {
         name: "Settings",
         href: "/dashboard/school-admin/settings",
@@ -57,6 +60,7 @@ const Sidebar = () => {
       { name: "My Classes", href: "/dashboard/years", icon: BookOpenIcon },
       { name: "Students", href: "/dashboard/students", icon: UserGroupIcon },
       { name: "Library", href: "/dashboard/library", icon: BookTextIcon },
+      { name: "Announcements", href: "/dashboard/announcements", icon: MegaphoneIcon  },
     ],
     STUDENT: [
       { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
@@ -67,6 +71,7 @@ const Sidebar = () => {
         icon: AcademicCapIcon,
       },
       { name: "Library", href: "/dashboard/library", icon: BookTextIcon },
+      { name: "Announcements", href: "/dashboard/announcements", icon: MegaphoneIcon  },
     ],
   };
 
