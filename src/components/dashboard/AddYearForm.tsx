@@ -38,7 +38,7 @@ export default function AddYearForm({
         </div>
       </div>
 
-      <Button type="submit" className="w-auto float-right">
+      <Button type="submit" className="w-auto float-right cursor-pointer">
         Create Year
       </Button>
     </form>

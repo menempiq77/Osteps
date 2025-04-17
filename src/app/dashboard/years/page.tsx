@@ -56,7 +56,7 @@ export default function Page() {
         <h1 className="text-2xl font-bold">Years</h1>
         <Dialog.Root open={open} onOpenChange={setOpen}>
           <Dialog.Trigger asChild>
-            <Button>Add Year</Button>
+            <Button className="cursor-pointer">Add Year</Button>
           </Dialog.Trigger>
           <Dialog.Portal>
             <Dialog.Overlay className="bg-black/50 data-[state=open]:animate-overlayShow fixed inset-0" />

@@ -125,15 +125,15 @@ export function AddTrackerModal({
 
             <div className="mt-6 flex justify-end space-x-3">
               <Dialog.Close asChild>
-                <Button variant="outline">Cancel</Button>
+                <Button variant="outline" className="cursor-pointer">Cancel</Button>
               </Dialog.Close>
-              <Button type="submit">Add Tracker</Button>
+              <Button type="submit" className="cursor-pointer">Add Tracker</Button>
             </div>
           </form>
 
           <Dialog.Close asChild>
             <button
-              className="absolute top-4 right-4 p-1 rounded-full hover:bg-gray-100"
+              className="absolute top-4 right-4 p-1 rounded-full cursor-pointer hover:bg-gray-100"
               aria-label="Close"
             >
               <Cross2Icon className="h-4 w-4" />

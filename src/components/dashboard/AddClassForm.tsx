@@ -76,7 +76,7 @@ export default function AddClassForm({
         </div>
       </div>
 
-      <Button type="submit" className="w-full">
+      <Button type="submit" className="w-full cursor-pointer">
         Create Class
       </Button>
     </form>

@@ -56,7 +56,7 @@ export default function ClassesList({ classes, onDeleteClass }: ClassesListProps
                 <td className="px-6 py-4 whitespace-nowrap">
                   <button
                     onClick={() => handleViewStudents(cls.id)}
-                    className="text-blue-600 hover:text-blue-800 hover:underline"
+                    className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
                   >
                     {cls.name}
                   </button>
@@ -69,7 +69,7 @@ export default function ClassesList({ classes, onDeleteClass }: ClassesListProps
                     <button
                       type="button"
                       onClick={() => handleEdit(cls.id)}
-                      className="text-gray-400 hover:text-blue-600"
+                      className="text-gray-400 hover:text-blue-600 cursor-pointer"
                     >
                       <svg
                         className="w-5 h-5"
@@ -89,7 +89,7 @@ export default function ClassesList({ classes, onDeleteClass }: ClassesListProps
                     <button
                       type="button"
                       onClick={() => handleAssignments(cls.id)}
-                      className="text-gray-400 hover:text-green-600"
+                      className="text-gray-400 hover:text-green-600 cursor-pointer"
                     >
                       <svg
                         className="w-5 h-5"
@@ -109,7 +109,7 @@ export default function ClassesList({ classes, onDeleteClass }: ClassesListProps
                     <button
                       type="button"
                       onClick={() => onDeleteClass(cls.id)}
-                      className="text-gray-400 hover:text-red-600"
+                      className="text-gray-400 hover:text-red-600 cursor-pointer"
                     >
                       <svg
                         className="w-5 h-5"
@@ -129,7 +129,7 @@ export default function ClassesList({ classes, onDeleteClass }: ClassesListProps
                     <button
                       type="button"
                       onClick={() => handleAssign(cls.id)}
-                      className="text-gray-400 hover:text-purple-600"
+                      className="text-gray-400 hover:text-purple-600 cursor-pointer"
                     >
                       <svg
                         className="w-5 h-5"

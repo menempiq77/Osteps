@@ -59,7 +59,7 @@ export default function GradesList({ grades, onDeleteGrade }: GradesListProps) {
                     <button
                       type="button"
                       onClick={() => handleEdit(grade.id)}
-                      className="text-gray-400 hover:text-blue-600"
+                      className="text-gray-400 hover:text-blue-600 cursor-pointer"
                     >
                       <svg
                         className="w-5 h-5"
@@ -79,7 +79,7 @@ export default function GradesList({ grades, onDeleteGrade }: GradesListProps) {
                     <button
                       type="button"
                       onClick={() => onDeleteGrade(grade.id)}
-                      className="text-gray-400 hover:text-red-600"
+                      className="text-gray-400 hover:text-red-600 cursor-pointer"
                     >
                       <svg
                         className="w-5 h-5"

@@ -95,7 +95,7 @@ export default function StudentList() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Students</h1>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleViewReports}>
+          <Button variant="outline" onClick={handleViewReports} className="cursor-pointer">
             View Reports
           </Button>
           <Dialog.Root
@@ -103,7 +103,7 @@ export default function StudentList() {
             onOpenChange={setIsAddStudentModalOpen}
           >
             <Dialog.Trigger asChild>
-              <Button onClick={() => setIsAddStudentModalOpen(true)}>
+              <Button onClick={() => setIsAddStudentModalOpen(true)} className="cursor-pointer">
                 Add Student
               </Button>
             </Dialog.Trigger>
@@ -182,6 +182,7 @@ export default function StudentList() {
                                 e.stopPropagation();
                                 setEditStudent(student);
                               }}
+                              className="cursor-pointer"
                             >
                               <Pencil2Icon className="h-4 w-4" />
                             </Button>
@@ -205,6 +206,7 @@ export default function StudentList() {
                                 e.stopPropagation();
                                 setDeleteStudent(student);
                               }}
+                              className="cursor-pointer"
                             >
                               <Trash2 className="h-4 w-4 text-red-500" />
                             </Button>
