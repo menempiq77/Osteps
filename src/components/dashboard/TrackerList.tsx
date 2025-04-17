@@ -122,7 +122,7 @@ export default function TrackerList() {
           onOpenChange={setIsAddTrackerModalOpen}
         >
           <Dialog.Trigger asChild>
-            <Button>Add New Tracker</Button>
+            <Button className="cursor-pointer">Add New Tracker</Button>
           </Dialog.Trigger>
           <AddTrackerModal
             isOpen={isAddTrackerModalOpen}
@@ -216,6 +216,7 @@ export default function TrackerList() {
                             size="icon"
                             title="Edit"
                             onClick={() => setEditTracker(tracker)}
+                            className="cursor-pointer"
                           >
                             <Pencil2Icon className="h-4 w-4" />
                           </Button>
@@ -239,6 +240,7 @@ export default function TrackerList() {
                             size="icon"
                             title="Delete"
                             onClick={() => setDeleteTracker(tracker)}
+                            className="cursor-pointer"
                           >
                             <Trash2 className="h-4 w-4 text-red-500" />
                           </Button>

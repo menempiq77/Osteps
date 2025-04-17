@@ -77,7 +77,7 @@ export default function AddGradeForm({
         </div>
       </div>
 
-      <Button type="submit" className="w-auto float-right">
+      <Button type="submit" className="w-auto float-right cursor-pointer">
         Add Grade Range
       </Button>
     </form>

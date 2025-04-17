@@ -160,11 +160,11 @@ export const EditStudentModal = ({
 
         <div className="mt-[25px] flex justify-end">
           <Dialog.Close asChild>
-            <Button variant="outline" className="mr-2" onClick={onClose}>
+            <Button variant="outline" className="mr-2 cursor-pointer" onClick={onClose}>
               Cancel
             </Button>
           </Dialog.Close>
-          <Button onClick={() => onSave(name, studentClass, status)}>
+          <Button onClick={() => onSave(name, studentClass, status)} className="cursor-pointer">
             Save changes
           </Button>
         </div>

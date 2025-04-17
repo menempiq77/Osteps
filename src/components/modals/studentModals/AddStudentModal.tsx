@@ -133,11 +133,11 @@ export const AddStudentModal = ({
 
           <div className="mt-6 flex justify-end gap-2">
             <Dialog.Close asChild>
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
+              <Button variant="outline" onClick={() => onOpenChange(false)} className="cursor-pointer">
                 Cancel
               </Button>
             </Dialog.Close>
-            <Button onClick={handleSubmit} disabled={!name.trim()}>
+            <Button onClick={handleSubmit} disabled={!name.trim()} className="cursor-pointer">
               Add Student
             </Button>
           </div>

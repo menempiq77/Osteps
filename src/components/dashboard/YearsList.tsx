@@ -50,7 +50,7 @@ export default function YearsList({ years, onDeleteYear }: YearsListProps) {
                 <td className="px-6 py-4 whitespace-nowrap">
                   <button
                     onClick={() => handleViewClasses(year.id, year.yearName)}
-                    className="text-blue-600 hover:text-blue-800 hover:underline"
+                    className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
                   >
                     {year.yearName}
                   </button>
@@ -60,7 +60,7 @@ export default function YearsList({ years, onDeleteYear }: YearsListProps) {
                     <button
                       type="button"
                       onClick={() => handleEdit(year.id)}
-                      className="text-gray-400 hover:text-blue-600"
+                      className="text-gray-400 hover:text-blue-600 cursor-pointer"
                     >
                       <svg
                         className="w-5 h-5"
@@ -80,7 +80,7 @@ export default function YearsList({ years, onDeleteYear }: YearsListProps) {
                     <button
                       type="button"
                       onClick={() => onDeleteYear(year.id)}
-                      className="text-gray-400 hover:text-red-600"
+                      className="text-gray-400 hover:text-red-600 cursor-pointer"
                     >
                       <svg
                         className="w-5 h-5"

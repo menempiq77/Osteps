@@ -78,7 +78,7 @@ export default function TeacherList() {
           onOpenChange={setIsAddTeacherModalOpen}
         >
           <Dialog.Trigger asChild>
-            <Button>Add Teacher</Button>
+            <Button className="cursor-pointer">Add Teacher</Button>
           </Dialog.Trigger>
           <AddTeacherModal
             isOpen={isAddTeacherModalOpen}
@@ -137,6 +137,7 @@ export default function TeacherList() {
                             size="icon"
                             title="Edit"
                             onClick={() => setEditTeacher(teacher)}
+                            className="cursor-pointer"
                           >
                             <Pencil2Icon className="h-4 w-4" />
                           </Button>
@@ -158,6 +159,7 @@ export default function TeacherList() {
                             size="icon"
                             title="Delete"
                             onClick={() => setDeleteTeacher(teacher)}
+                            className="cursor-pointer"
                           >
                             <Trash2 className="h-4 w-4 text-red-500" />
                           </Button>

@@ -176,7 +176,7 @@ export default function AnnouncementsPage() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Announcements</h1>
         {canCreateAnnouncement && (
-          <Button onClick={() => setIsCreating(!isCreating)}>
+          <Button onClick={() => setIsCreating(!isCreating)} className="cursor-pointer">
             {isCreating ? "Cancel" : "New Announcement"}
           </Button>
         )}
@@ -247,7 +247,7 @@ export default function AnnouncementsPage() {
             </div>
           </CardContent>
           <CardFooter>
-            <Button onClick={handleCreateAnnouncement}>
+            <Button onClick={handleCreateAnnouncement} className="cursor-pointer">
               Publish Announcement
             </Button>
           </CardFooter>
@@ -273,7 +273,7 @@ export default function AnnouncementsPage() {
                 {canDeleteAnnouncement(announcement) && (
                   <span
                     onClick={() => handleDeleteAnnouncement(announcement.id)}
-                    className="absolute bottom-4 right-4 text-red-500 hover:text-red-700 transition-colors"
+                    className="absolute bottom-4 right-4 text-red-500 font-medium hover:text-red-700 transition-colors cursor-pointer"
                     aria-label="Delete announcement"
                   >Delete</span>
                 )}
