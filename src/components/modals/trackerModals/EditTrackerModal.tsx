@@ -7,10 +7,10 @@ import { useState, useEffect } from "react";
 type Tracker = {
   id: string;
   name: string;
-  type: "Quran" | "Hadees" | "Seerah";
+  type: string; // Changed from specific types to string
   progress: number;
   lastUpdated: string;
-  status: "Active" | "Paused" | "Completed";
+  status: string; // Changed from specific statuses to string
 };
 
 type EditTrackerModalProps = {
@@ -69,22 +69,17 @@ export function EditTrackerModal({
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Type
+                  Type (e.g., Quran, Hadees, Seerah)
                 </label>
-                <select
+                <input
+                  type="text"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   value={tracker.type}
                   onChange={(e) =>
-                    setTracker({
-                      ...tracker,
-                      type: e.target.value as Tracker["type"],
-                    })
+                    setTracker({ ...tracker, type: e.target.value })
                   }
-                >
-                  <option value="Quran">Quran</option>
-                  <option value="Hadees">Hadees</option>
-                  <option value="Seerah">Seerah</option>
-                </select>
+                  required
+                />
               </div>
 
               <div>
@@ -105,22 +100,17 @@ export function EditTrackerModal({
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Status
+                  Status (e.g., Active, Paused, Completed)
                 </label>
-                <select
+                <input
+                  type="text"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   value={tracker.status}
                   onChange={(e) =>
-                    setTracker({
-                      ...tracker,
-                      status: e.target.value as Tracker["status"],
-                    })
+                    setTracker({ ...tracker, status: e.target.value })
                   }
-                >
-                  <option value="Active">Active</option>
-                  <option value="Paused">Paused</option>
-                  <option value="Completed">Completed</option>
-                </select>
+                  required
+                />
               </div>
 
               <div>

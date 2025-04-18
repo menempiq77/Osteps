@@ -5,7 +5,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { useState } from "react";
 import { AddStudentModal } from "../modals/studentModals/AddStudentModal";
 import { EditStudentModal } from "../modals/studentModals/EditStudentModal";
-import { Trash2 } from "lucide-react";
+import { BarChart3, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
@@ -90,12 +90,20 @@ export default function StudentList() {
     router.push("/dashboard/students/reports");
   };
 
+  const handleViewTracker = (studentId: string) => {
+    router.push(`/dashboard/trackers/${studentId}`);
+  };
+
   return (
     <>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Students</h1>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleViewReports} className="cursor-pointer">
+          <Button
+            variant="outline"
+            onClick={handleViewReports}
+            className="cursor-pointer"
+          >
             View Reports
           </Button>
           <Dialog.Root
@@ -103,7 +111,10 @@ export default function StudentList() {
             onOpenChange={setIsAddStudentModalOpen}
           >
             <Dialog.Trigger asChild>
-              <Button onClick={() => setIsAddStudentModalOpen(true)} className="cursor-pointer">
+              <Button
+                onClick={() => setIsAddStudentModalOpen(true)}
+                className="cursor-pointer"
+              >
                 Add Student
               </Button>
             </Dialog.Trigger>
@@ -133,11 +144,9 @@ export default function StudentList() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Status
                 </th>
-                {currentUser?.role !== "TEACHER" && (
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                     Actions
                   </th>
-                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -166,12 +175,13 @@ export default function StudentList() {
                       {student.status}
                     </span>
                   </td>
-                  {currentUser?.role !== "TEACHER" && (
-                    <td
-                      className="px-6 py-4 whitespace-nowrap"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <div className="flex space-x-2">
+
+                  <td
+                    className="px-6 py-4 whitespace-nowrap"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex space-x-2">
+                      {currentUser?.role !== "TEACHER" && currentUser?.role !== "STUDENT" && (
                         <Dialog.Root>
                           <Dialog.Trigger asChild>
                             <Button
@@ -195,7 +205,8 @@ export default function StudentList() {
                             />
                           )}
                         </Dialog.Root>
-
+                      )}
+                      {currentUser?.role !== "TEACHER" && currentUser?.role !== "STUDENT" && (
                         <Dialog.Root>
                           <Dialog.Trigger asChild>
                             <Button
@@ -242,9 +253,22 @@ export default function StudentList() {
                             </Dialog.Portal>
                           )}
                         </Dialog.Root>
-                      </div>
-                    </td>
-                  )}
+                      )}
+
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title="Tracker"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewTracker(student.id);
+                        }}
+                        className="cursor-pointer"
+                      >
+                        <BarChart3 className="h-4 w-4 text-blue-500" />
+                      </Button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
