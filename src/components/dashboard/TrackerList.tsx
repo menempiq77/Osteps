@@ -24,9 +24,12 @@ type TrackerBasic = {
   progress: number;
   status: "Active" | "Paused" | "Completed";
 };
+type TrackerListProps = {
+  studentId: string;
+};
 
 // Main Component
-export default function TrackerList() {
+export default function TrackerList({ studentId }: TrackerListProps) {
   const router = useRouter();
   const [trackers, setTrackers] = useState<Tracker[]>([
     {
@@ -109,8 +112,11 @@ export default function TrackerList() {
     }
   };
 
-  const handleTrackerClick = (trackerId: string, type: "Quran" | "Hadees" | "Seerah") => {
-    router.push(`/dashboard/trackers/${type.toLowerCase()}/${trackerId}`);
+  const handleTrackerClick = (
+    trackerId: string,
+    type: "Quran" | "Hadees" | "Seerah"
+  ) => {
+    router.push(`/dashboard/trackers/${studentId}/${type.toLowerCase()}/${trackerId}`);
   };
 
   return (
@@ -142,9 +148,6 @@ export default function TrackerList() {
                   Tracker Name
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Type
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Progress
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -162,19 +165,10 @@ export default function TrackerList() {
               {trackers.map((tracker) => (
                 <tr key={tracker.id}>
                   <td
-                      onClick={() => handleTrackerClick(tracker.id, tracker.type)}
+                    onClick={() => handleTrackerClick(tracker.id, tracker.type)}
                     className="px-6 py-4 whitespace-nowrap cursor-pointer hover:underline text-blue-600 hover:text-blue-800"
                   >
                     {tracker.name}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${getTypeColor(
-                        tracker.type
-                      )}`}
-                    >
-                      {tracker.type}
-                    </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">

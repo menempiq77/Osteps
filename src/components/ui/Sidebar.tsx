@@ -48,7 +48,8 @@ const Sidebar = () => {
       { name: "Manage Classes", href: "/dashboard/years", icon: BookOpenIcon },
       { name: "Manage Grades", href: "/dashboard/grades", icon: ChartBarIcon },
       { name: "Library", href: "/dashboard/library", icon: BookTextIcon },
-      { name: "Trackers", href: "/dashboard/trackers", icon: Building },
+      // { name: "Trackers", href: "/dashboard/trackers", icon: Building },
+      { name: "Timetable", href: "/dashboard/timetable", icon: BookOpenIcon },
       { name: "Announcements", href: "/dashboard/announcements", icon: MegaphoneIcon  },
       {
         name: "Settings",
@@ -61,7 +62,8 @@ const Sidebar = () => {
       { name: "My Classes", href: "/dashboard/years", icon: BookOpenIcon },
       { name: "Students", href: "/dashboard/students", icon: UserGroupIcon },
       { name: "Library", href: "/dashboard/library", icon: BookTextIcon },
-      { name: "Trackers", href: "/dashboard/trackers", icon: Building  },
+      // { name: "Trackers", href: "/dashboard/trackers", icon: Building  },
+      { name: "Timetable", href: "/dashboard/timetable", icon: BookOpenIcon },
       { name: "Announcements", href: "/dashboard/announcements", icon: MegaphoneIcon  },
     ],
     STUDENT: [
@@ -72,8 +74,8 @@ const Sidebar = () => {
         href: "/dashboard/students/assignments",
         icon: AcademicCapIcon,
       },
+      { name: "Timetable", href: "/dashboard/timetable", icon: BookOpenIcon },
       { name: "Library", href: "/dashboard/library", icon: BookTextIcon },
-      { name: "Trackers", href: "/dashboard/trackers", icon: Building },
       { name: "Announcements", href: "/dashboard/announcements", icon: MegaphoneIcon  },
     ],
   };

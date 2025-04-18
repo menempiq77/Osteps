@@ -6,9 +6,9 @@ import { useState } from "react";
 
 type TrackerBasic = {
   name: string;
-  type: "Quran" | "Hadees" | "Seerah";
+  type: string; // Changed from specific types to string
   progress: number;
-  status: "Active" | "Paused" | "Completed";
+  status: string; // Changed from specific statuses to string
 };
 
 type AddTrackerModalProps = {
@@ -24,9 +24,9 @@ export function AddTrackerModal({
 }: AddTrackerModalProps) {
   const [tracker, setTracker] = useState<TrackerBasic>({
     name: "",
-    type: "Quran",
+    type: "",
     progress: 0,
-    status: "Active",
+    status: "",
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -34,9 +34,9 @@ export function AddTrackerModal({
     onAddTracker(tracker);
     setTracker({
       name: "",
-      type: "Quran",
+      type: "",
       progress: 0,
-      status: "Active",
+      status: "",
     });
   };
 
@@ -68,22 +68,17 @@ export function AddTrackerModal({
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Type
+                  Type (e.g., Quran, Hadees, Seerah)
                 </label>
-                <select
+                <input
+                  type="text"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   value={tracker.type}
                   onChange={(e) =>
-                    setTracker({
-                      ...tracker,
-                      type: e.target.value as TrackerBasic["type"],
-                    })
+                    setTracker({ ...tracker, type: e.target.value })
                   }
-                >
-                  <option value="Quran">Quran</option>
-                  <option value="Hadees">Hadees</option>
-                  <option value="Seerah">Seerah</option>
-                </select>
+                  required
+                />
               </div>
 
               <div>
@@ -104,22 +99,17 @@ export function AddTrackerModal({
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Status
+                  Status (e.g., Active, Paused, Completed)
                 </label>
-                <select
+                <input
+                  type="text"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   value={tracker.status}
                   onChange={(e) =>
-                    setTracker({
-                      ...tracker,
-                      status: e.target.value as TrackerBasic["status"],
-                    })
+                    setTracker({ ...tracker, status: e.target.value })
                   }
-                >
-                  <option value="Active">Active</option>
-                  <option value="Paused">Paused</option>
-                  <option value="Completed">Completed</option>
-                </select>
+                  required
+                />
               </div>
             </div>
 
