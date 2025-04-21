@@ -7,6 +7,8 @@ import {
   VideoCameraOutlined,
   FilePdfOutlined,
 } from "@ant-design/icons";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store/store";
 
 interface Task {
   id: number;
@@ -88,6 +90,7 @@ export default function AssessmentDrawer({
     number | null
   >(null);
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
+  const { currentUser } = useSelector((state: RootState) => state.auth);
 
   const toggleAssessment = (taskId: number) => {
     setAssessmentOpenTaskId((prev) => (prev === taskId ? null : taskId));
@@ -222,26 +225,32 @@ export default function AssessmentDrawer({
                       </span>
                     )}
                   </div>
-                  <Button
-                    type="text"
-                    size="small"
-                    onClick={() => toggleAssessment(task.id)}
-                    className={`text-sm ${
-                      assessmentOpenTaskId === task.id
-                        ? "text-gray-500"
-                        : "text-blue-600 hover:text-blue-800"
-                    }`}
-                  >
-                    {assessmentOpenTaskId === task.id ? (
-                      <span className="flex items-center gap-1">
-                        <span>Hide Assessment</span>
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1">
-                        <span>{task.mark ? "Update Assessment" : "Add Assessment"}</span>
-                      </span>
-                    )}
-                  </Button>
+                  {currentUser?.role !== "STUDENT" && (
+                    <Button
+                      type="text"
+                      size="small"
+                      onClick={() => toggleAssessment(task.id)}
+                      className={`text-sm ${
+                        assessmentOpenTaskId === task.id
+                          ? "text-gray-500"
+                          : "text-blue-600 hover:text-blue-800"
+                      }`}
+                    >
+                      {assessmentOpenTaskId === task.id ? (
+                        <span className="flex items-center gap-1">
+                          <span>Hide Assessment</span>
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1">
+                          <span>
+                            {task.mark
+                              ? "Update Assessment"
+                              : "Mark Assessment"}
+                          </span>
+                        </span>
+                      )}
+                    </Button>
+                  )}
                 </div>
 
                 {/* Assessment Form */}

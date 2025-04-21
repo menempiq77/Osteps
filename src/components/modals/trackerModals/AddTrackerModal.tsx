@@ -6,9 +6,14 @@ import { useState } from "react";
 
 type TrackerBasic = {
   name: string;
-  type: string; // Changed from specific types to string
-  progress: number;
-  status: string; // Changed from specific statuses to string
+  type: string;
+  // progress: number; // Commented out as requested
+  status: string;
+  recitation: boolean;
+  memorization: boolean;
+  tafsir: boolean;
+  studied: boolean;
+  recall: boolean;
 };
 
 type AddTrackerModalProps = {
@@ -25,9 +30,22 @@ export function AddTrackerModal({
   const [tracker, setTracker] = useState<TrackerBasic>({
     name: "",
     type: "",
-    progress: 0,
+    // progress: 0, // Commented out as requested
     status: "",
+    recitation: false,
+    memorization: false,
+    tafsir: false,
+    studied: false,
+    recall: false,
   });
+
+  const statusOptions = [
+    "Active",
+    "Paused",
+    "Completed",
+    "Not Started",
+    "Revision",
+  ];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,8 +53,20 @@ export function AddTrackerModal({
     setTracker({
       name: "",
       type: "",
-      progress: 0,
+      // progress: 0, // Commented out as requested
       status: "",
+      recitation: false,
+      memorization: false,
+      tafsir: false,
+      studied: false,
+      recall: false,
+    });
+  };
+
+  const handleCheckboxChange = (field: keyof TrackerBasic) => {
+    setTracker({
+      ...tracker,
+      [field]: !tracker[field],
     });
   };
 
@@ -81,7 +111,8 @@ export function AddTrackerModal({
                 />
               </div>
 
-              <div>
+              {/* Progress field commented out as requested */}
+              {/* <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Progress (%)
                 </label>
@@ -95,21 +126,99 @@ export function AddTrackerModal({
                     setTracker({ ...tracker, progress: parseInt(e.target.value) || 0 })
                   }
                 />
-              </div>
+              </div> */}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Status (e.g., Active, Paused, Completed)
+                  Status
                 </label>
-                <input
-                  type="text"
+                <select
                   className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   value={tracker.status}
                   onChange={(e) =>
                     setTracker({ ...tracker, status: e.target.value })
                   }
                   required
-                />
+                >
+                  <option value="">Select Status</option>
+                  {statusOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tracker Options
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="recitation"
+                      checked={tracker.recitation}
+                      onChange={() => handleCheckboxChange("recitation")}
+                      className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <label htmlFor="recitation" className="ml-2 text-sm text-gray-700">
+                      Recitation
+                    </label>
+                  </div>
+
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="memorization"
+                      checked={tracker.memorization}
+                      onChange={() => handleCheckboxChange("memorization")}
+                      className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <label htmlFor="memorization" className="ml-2 text-sm text-gray-700">
+                      Memorization
+                    </label>
+                  </div>
+
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="tafsir"
+                      checked={tracker.tafsir}
+                      onChange={() => handleCheckboxChange("tafsir")}
+                      className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <label htmlFor="tafsir" className="ml-2 text-sm text-gray-700">
+                      Tafsir
+                    </label>
+                  </div>
+
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="studied"
+                      checked={tracker.studied}
+                      onChange={() => handleCheckboxChange("studied")}
+                      className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <label htmlFor="studied" className="ml-2 text-sm text-gray-700">
+                      Studied
+                    </label>
+                  </div>
+
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="recall"
+                      checked={tracker.recall}
+                      onChange={() => handleCheckboxChange("recall")}
+                      className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <label htmlFor="recall" className="ml-2 text-sm text-gray-700">
+                      Recall
+                    </label>
+                  </div>
+                </div>
               </div>
             </div>
 

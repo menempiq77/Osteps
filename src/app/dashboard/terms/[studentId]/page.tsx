@@ -18,6 +18,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store/store";
 const mockTerms = [
   {
     id: "1",
@@ -160,6 +162,7 @@ const mockSubjectTasks = {
 export default function TermPage() {
   const { studentId } = useParams();
   const router = useRouter();
+  const { currentUser } = useSelector((state: RootState) => state.auth);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState("");
   const [currentTermIndex, setCurrentTermIndex] = useState(0);
@@ -209,36 +212,38 @@ export default function TermPage() {
 
   return (
     <div className="p-3 md:p-6 max-w-6xl mx-auto bg-gray-50 min-h-screen">
-        <Button
-          icon={<ChevronLeftIcon />}
-          onClick={() => router.back()}
-          className="mb-6 text-gray-700 border border-gray-300 hover:bg-gray-100"
-        >
-          Back to Students
-        </Button>
- 
+      <Button
+        icon={<ChevronLeftIcon />}
+        onClick={() => router.back()}
+        className="mb-6 text-gray-700 border border-gray-300 hover:bg-gray-100"
+      >
+        Back to Students
+      </Button>
+
       {/* Ant Design Stepper */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Student
-          </label>
-          <Select
-            value={studentId as string}
-            onValueChange={handleStudentChange}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select student" />
-            </SelectTrigger>
-            <SelectContent>
-              {mockStudents.map((student) => (
-                <SelectItem key={student.id} value={student.id}>
-                  {student.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {currentUser?.role !== "STUDENT" && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Student
+            </label>
+            <Select
+              value={studentId as string}
+              onValueChange={handleStudentChange}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select student" />
+              </SelectTrigger>
+              <SelectContent>
+                {mockStudents.map((student) => (
+                  <SelectItem key={student.id} value={student.id}>
+                    {student.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">

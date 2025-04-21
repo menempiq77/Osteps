@@ -98,7 +98,7 @@ export default function StudentList() {
     <>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Students</h1>
-        <div className="flex gap-2">
+       {currentUser?.role !== "STUDENT" && <div className="flex gap-2">
           <Button
             variant="outline"
             onClick={handleViewReports}
@@ -124,7 +124,7 @@ export default function StudentList() {
               onAddStudent={handleAddNewStudent}
             />
           </Dialog.Root>
-        </div>
+        </div>}
       </div>
 
       <div className="mt-8 bg-white rounded-lg shadow-md overflow-hidden">

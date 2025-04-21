@@ -147,9 +147,9 @@ export default function TrackerList({ studentId }: TrackerListProps) {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Tracker Name
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Progress
-                </th>
+                </th> */}
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Last Updated
                 </th>
@@ -170,7 +170,7 @@ export default function TrackerList({ studentId }: TrackerListProps) {
                   >
                     {tracker.name}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  {/* <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="w-full bg-gray-200 rounded-full h-2.5">
                         <div
@@ -188,7 +188,7 @@ export default function TrackerList({ studentId }: TrackerListProps) {
                         {tracker.progress}%
                       </span>
                     </div>
-                  </td>
+                  </td> */}
                   <td className="px-6 py-4 whitespace-nowrap">
                     {tracker.lastUpdated}
                   </td>

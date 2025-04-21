@@ -28,6 +28,7 @@ import {
   CheckCircle,
   LayoutDashboard,
 } from "lucide-react";
+import Link from "next/link";
 
 export default function DashboardPage() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
@@ -103,7 +104,7 @@ export default function DashboardPage() {
       case "STUDENT":
         return {
           stats: [
-            { title: "My Classes", value: 6 },
+            { title: "My Year", value: 6 },
             { title: "Active Assignments", value: 3 },
             { title: "Completed Assignments", value: 24 },
           ],
@@ -150,7 +151,7 @@ export default function DashboardPage() {
       "Pending Assignments": <ClipboardList className="h-6 w-6" />,
     },
     STUDENT: {
-      "My Classes": <BookOpen className="h-6 w-6" />,
+      "My Year": <BookOpen className="h-6 w-6" />,
       "Active Assignments": <ClipboardList className="h-6 w-6" />,
       "Completed Assignments": <CheckCircle className="h-6 w-6" />,
     },
@@ -159,7 +160,11 @@ export default function DashboardPage() {
   const colorSchemes = [
     { bg: "bg-blue-50", text: "text-blue-600", border: "border-blue-100" },
     { bg: "bg-green-50", text: "text-green-600", border: "border-green-100" },
-    { bg: "bg-purple-50", text: "text-purple-600", border: "border-purple-100" },
+    {
+      bg: "bg-purple-50",
+      text: "text-purple-600",
+      border: "border-purple-100",
+    },
     { bg: "bg-amber-50", text: "text-amber-600", border: "border-amber-100" },
   ];
 
@@ -185,7 +190,9 @@ export default function DashboardPage() {
         {stats.map((stat, index) => {
           const color = colorSchemes[index % colorSchemes.length];
           const icon = currentUser?.role
-            ? (statIcons[currentUser.role] as Record<string, JSX.Element>)[stat.title]
+            ? (statIcons[currentUser.role] as Record<string, JSX.Element>)[
+                stat.title
+              ]
             : null;
 
           return (
@@ -195,7 +202,13 @@ export default function DashboardPage() {
             >
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className={`text-sm font-medium ${color.text}`}>
-                  {stat.title}
+                  {/* {stat.title} */}
+                  {currentUser?.role === "STUDENT" &&
+                  stat.title === "My Years" ? (
+                    <Link href="/dashboard/years">{stat.title}</Link>
+                  ) : (
+                    <p> {stat.title}</p>
+                  )}
                 </CardTitle>
                 <div className={`p-2 rounded-lg ${color.bg}`}>{icon}</div>
               </CardHeader>
@@ -229,27 +242,27 @@ export default function DashboardPage() {
                   margin={{ top: 20, right: 20, left: 0, bottom: 20 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                  <XAxis 
-                    dataKey="name" 
-                    tick={{ fill: '#6b7280' }}
-                    axisLine={{ stroke: '#d1d5db' }}
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fill: "#6b7280" }}
+                    axisLine={{ stroke: "#d1d5db" }}
                   />
-                  <YAxis 
-                    tick={{ fill: '#6b7280' }}
-                    axisLine={{ stroke: '#d1d5db' }}
+                  <YAxis
+                    tick={{ fill: "#6b7280" }}
+                    axisLine={{ stroke: "#d1d5db" }}
                   />
-                  <Tooltip 
+                  <Tooltip
                     contentStyle={{
-                      backgroundColor: '#ffffff',
-                      borderRadius: '0.5rem',
-                      borderColor: '#e5e7eb',
-                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                      backgroundColor: "#ffffff",
+                      borderRadius: "0.5rem",
+                      borderColor: "#e5e7eb",
+                      boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
                     }}
                   />
                   <Legend />
                   <Bar
                     dataKey={barChartKey}
-                    name={barChartTitle.split(' per ')[0]}
+                    name={barChartTitle.split(" per ")[0]}
                     fill="#4f46e5"
                     radius={[4, 4, 0, 0]}
                   >
@@ -292,23 +305,20 @@ export default function DashboardPage() {
                       />
                     ))}
                   </Pie>
-                  <Tooltip 
-                    formatter={(value, name, props) => [
-                      value,
-                      name,
-                    ]}
+                  <Tooltip
+                    formatter={(value, name, props) => [value, name]}
                     contentStyle={{
-                      backgroundColor: '#ffffff',
-                      borderRadius: '0.5rem',
-                      borderColor: '#e5e7eb',
-                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                      backgroundColor: "#ffffff",
+                      borderRadius: "0.5rem",
+                      borderColor: "#e5e7eb",
+                      boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
                     }}
                   />
-                  <Legend 
+                  <Legend
                     layout="horizontal"
                     verticalAlign="bottom"
                     align="center"
-                    wrapperStyle={{ paddingTop: '20px' }}
+                    wrapperStyle={{ paddingTop: "20px" }}
                   />
                 </PieChart>
               </ResponsiveContainer>
