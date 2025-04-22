@@ -9,6 +9,7 @@ import {
   PencilIcon,
   TrashIcon,
   PlusIcon,
+  LinkIcon,
 } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -32,55 +33,44 @@ const timeSlots = [
   "3:00 - 4:00",
 ];
 
-// Sample teachers data
 const teachers = [
   "Sheikh Ahmed",
   "Sheikh Yusuf",
   "Sheikh Ibrahim",
   "Sheikh Mohammed",
 ];
-const years = [
-  "year 1",
-  "year 2",
-  "year 3"
-];
+const years = ["year 1", "year 2", "year 3"];
 
-// Sample classes data
 const classes = [
-  "Grade 1",
-  "Grade 2",
-  "Grade 3",
-  "Grade 4",
-  "Grade 5",
-  "Grade 6",
-  "Grade 7",
-  "Grade 8",
-  "Grade 9",
-  "Grade 10",
-  "Grade 11",
-  "Grade 12",
+  "Class 1",
+  "Class 2",
+  "Class 3",
+  "Class 4",
+  "Class 5",
 ];
 
-// Sample initial data
 const initialTimetable = {
   TEACHER: {
     Monday: {
       "8:00 - 9:00": {
         subject: "Islmiyat",
-        class: "Grade 10",
+        class: "Class 1",
         room: "Masjid",
+        zoomLink: "https://zoom.us/j/1234567890",
       },
       "9:00 - 10:00": {
         subject: "Islmiyat",
-        class: "Grade 11",
+        class: "Class 2",
         room: "Room 205",
+        zoomLink: "https://zoom.us/j/2345678901",
       },
     },
     Tuesday: {
       "10:00 - 11:00": { 
         subject: "Islmiyat", 
-        class: "Grade 12", 
-        room: "Lab 1" 
+        class: "Class 5", 
+        room: "Lab 1",
+        zoomLink: "https://zoom.us/j/3456789012",
       },
     },
   },
@@ -90,11 +80,13 @@ const initialTimetable = {
         subject: "Islmiyat",
         teacher: "Sheikh Ahmed",
         room: "Masjid",
+        zoomLink: "https://zoom.us/j/1234567890",
       },
       "9:00 - 10:00": {
         subject: "Islmiyat",
         teacher: "Sheikh Yusuf",
         room: "Room 205",
+        zoomLink: "https://zoom.us/j/2345678901",
       },
     },
     Tuesday: {
@@ -102,6 +94,7 @@ const initialTimetable = {
         subject: "Islmiyat",
         teacher: "Sheikh Mohammed",
         room: "Room 102",
+        zoomLink: "https://zoom.us/j/4567890123",
       },
     },
   },
@@ -112,28 +105,32 @@ const initialTimetable = {
         teacher: "Sheikh Ahmed",
         class: "Grade 10",
         room: "Masjid",
+        zoomLink: "https://zoom.us/j/1234567890",
       },
       "9:00 - 10:00": {
         subject: "Islmiyat",
         teacher: "Sheikh Yusuf",
         class: "Grade 11",
         room: "Room 205",
+        zoomLink: "https://zoom.us/j/2345678901",
       },
     },
     Tuesday: {
       "10:00 - 11:00": { 
-        subject: "Islmiyat", 
+        subject: "Seerah Assesment", 
         teacher: "Sheikh Ibrahim",
         class: "Grade 12", 
-        room: "Lab 1" 
+        room: "Lab 1",
+        zoomLink: "https://zoom.us/j/3456789012",
       },
     },
     Wednesday: {
       "8:00 - 9:00": {
-        subject: "Islmiyat",
+        subject: "Quran Assesment",
         teacher: "Sheikh Mohammed",
         class: "Grade 9",
         room: "Room 101",
+        zoomLink: "https://zoom.us/j/5678901234",
       },
     },
   },
@@ -153,14 +150,15 @@ export default function TimetablePage() {
     teacher: "",
     room: "",
     year: "",
+    zoomLink: "",
   });
   const [filters, setFilters] = useState({
     teacher: "",
     class: "",
+    year: "",
   });
 
   useEffect(() => {
-    // In a real app, you would fetch this data from your API
     if (currentUser?.role) {
       setTimetableData(
         JSON.parse(
@@ -185,7 +183,8 @@ export default function TimetablePage() {
     for (const [time, slot] of Object.entries(dayTimetable) as [string, any][]) {
       if (
         (filters.teacher === "" || slot.teacher === filters.teacher) &&
-        (filters.class === "" || slot.class === filters.class)
+        (filters.class === "" || slot.class === filters.class) &&
+        (filters.year === "" || slot.year === filters.year)
       ) {
         filtered[time] = slot;
       }
@@ -200,7 +199,7 @@ export default function TimetablePage() {
   };
 
   const getCurrentDayName = () => {
-    return days[new Date().getDay() - 1]; // Simple approximation
+    return days[new Date().getDay() - 1];
   };
 
   const handleEditSlot = (day: string, time: string) => {
@@ -212,6 +211,8 @@ export default function TimetablePage() {
       class: slot.class || "",
       teacher: slot.teacher || "",
       room: slot.room || "",
+      year: slot.year || "",
+      zoomLink: slot.zoomLink || "",
     });
     setIsModalOpen(true);
   };
@@ -220,7 +221,6 @@ export default function TimetablePage() {
     const updatedTimetable = { ...timetableData };
     if (updatedTimetable[day] && updatedTimetable[day][time]) {
       delete updatedTimetable[day][time];
-      // Clean up empty days
       if (Object.keys(updatedTimetable[day]).length === 0) {
         delete updatedTimetable[day];
       }
@@ -235,6 +235,8 @@ export default function TimetablePage() {
       class: "",
       teacher: "",
       room: "",
+      year: "",
+      zoomLink: "",
     });
     setIsModalOpen(true);
   };
@@ -250,12 +252,20 @@ export default function TimetablePage() {
 
     updatedTimetable[day][time] = {
       subject: formData.subject,
+      ...(formData.zoomLink && { zoomLink: formData.zoomLink }),
       ...(currentUser?.role === "TEACHER"
-        ? { class: formData.class, room: formData.room }
+        ? { 
+            class: formData.class, 
+            room: formData.room,
+            year: formData.year,
+          }
         : { 
-            ...(currentUser?.role === "SCHOOL_ADMIN" && { class: formData.class }),
+            ...(currentUser?.role === "SCHOOL_ADMIN" && { 
+              class: formData.class,
+              year: formData.year,
+            }),
             teacher: formData.teacher, 
-            room: formData.room 
+            room: formData.room,
           }),
     };
 
@@ -273,9 +283,7 @@ export default function TimetablePage() {
     }));
   };
 
-  const handleFilterChange = (
-    e: React.ChangeEvent<HTMLSelectElement>
-  ) => {
+  const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFilters(prev => ({
       ...prev,
@@ -284,7 +292,89 @@ export default function TimetablePage() {
   };
 
   const isAdmin = currentUser?.role === "SCHOOL_ADMIN";
-  const canEdit = isAdmin;
+  const isTeacher = currentUser?.role === "TEACHER";
+  const isStudent = currentUser?.role === "STUDENT";
+  const canEdit = isAdmin || isTeacher;
+
+  const renderZoomLinkPopup = (slot: any) => {
+    if (!isStudent || !slot.zoomLink) return null;
+    
+    return (
+      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100">
+        <div className="bg-white p-3 rounded-lg shadow-lg text-center max-w-[90%]">
+          <div className="font-medium mb-1">Online Class</div>
+          <a 
+            href={slot.zoomLink} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:underline text-sm break-all"
+            onClick={(e) => e.stopPropagation()}
+          >
+            Join Zoom Meeting
+          </a>
+        </div>
+      </div>
+    );
+  };
+
+  const renderSlotContent = (slot: any) => (
+    <>
+      <div className="font-medium text-green-800">
+        {slot.subject}
+      </div>
+      {slot.class && (
+        <div className="text-sm text-gray-600">
+          {slot.class}
+        </div>
+      )}
+      {slot.teacher && (
+        <div className="text-sm text-gray-600">
+          {slot.teacher}
+        </div>
+      )}
+      <div className="text-xs text-gray-500 mt-1">
+        {slot.room}
+      </div>
+      {/* Zoom link icon */}
+      {slot.zoomLink && (
+        <a
+          href={slot.zoomLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="absolute bottom-2 right-2 text-blue-600 hover:text-blue-800"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <LinkIcon className="h-4 w-4" />
+        </a>
+      )}
+    </>
+  );
+  
+
+  const renderEditButtons = (day: string, time: string) => (
+    canEdit && (
+      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-1">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleEditSlot(day, time);
+          }}
+          className="p-1 text-green-600 hover:text-green-800"
+        >
+          <PencilIcon className="h-4 w-4" />
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleDeleteSlot(day, time);
+          }}
+          className="p-1 text-red-600 hover:text-red-800"
+        >
+          <TrashIcon className="h-4 w-4" />
+        </button>
+      </div>
+    )
+  );
 
   return (
     <div className="p-6">
@@ -296,9 +386,7 @@ export default function TimetablePage() {
           <button
             onClick={() => setViewMode("day")}
             className={`px-4 py-2 rounded-lg ${
-              viewMode === "day"
-                ? "bg-green-600 text-white"
-                : "bg-gray-200 text-gray-700"
+              viewMode === "day" ? "bg-green-600 text-white" : "bg-gray-200 text-gray-700"
             }`}
           >
             Day View
@@ -306,9 +394,7 @@ export default function TimetablePage() {
           <button
             onClick={() => setViewMode("week")}
             className={`px-4 py-2 rounded-lg ${
-              viewMode === "week"
-                ? "bg-green-600 text-white"
-                : "bg-gray-200 text-gray-700"
+              viewMode === "week" ? "bg-green-600 text-white" : "bg-gray-200 text-gray-700"
             }`}
           >
             Week View
@@ -322,18 +408,8 @@ export default function TimetablePage() {
             onClick={() => navigateWeek("prev")}
             className="p-2 rounded-lg hover:bg-gray-200"
           >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
           <div className="flex items-center">
@@ -354,35 +430,25 @@ export default function TimetablePage() {
             onClick={() => navigateWeek("next")}
             className="p-2 rounded-lg hover:bg-gray-200"
           >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5l7 7-7 7"
-              />
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>
         </div>
 
         {isAdmin && viewMode === "week" && (
           <div className="flex space-x-4 p-4 bg-gray-50 border-b">
-            <div className="w-1/2">
+            <div className="w-1/3">
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Filter by year
+                Filter by Year
               </label>
               <select
-                name="teacher"
-                value={filters.teacher}
+                name="year"
+                value={filters.year}
                 onChange={handleFilterChange}
                 className="w-full p-2 border border-gray-300 rounded-md"
               >
-                <option value="">All years</option>
+                <option value="">All Years</option>
                 {years.map((year) => (
                   <option key={year} value={year}>
                     {year}
@@ -390,7 +456,7 @@ export default function TimetablePage() {
                 ))}
               </select>
             </div>
-            <div className="w-1/2">
+            <div className="w-1/3">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Filter by Teacher
               </label>
@@ -408,7 +474,7 @@ export default function TimetablePage() {
                 ))}
               </select>
             </div>
-            <div className="w-1/2">
+            <div className="w-1/3">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Filter by Class
               </label>
@@ -434,18 +500,11 @@ export default function TimetablePage() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Time
                   </th>
                   {days.map((day) => (
-                    <th
-                      key={day}
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
+                    <th key={day} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       {day}
                     </th>
                   ))}
@@ -465,59 +524,25 @@ export default function TimetablePage() {
                       const filteredTimetable = filterTimetable(dayTimetable);
                       const slot = filteredTimetable[time];
                       return (
-                        <td
-                          key={`${day}-${time}`}
-                          className="px-6 py-4 whitespace-nowrap"
-                        >
-                          {slot ? (
-                            <div className="p-3 bg-green-50 rounded-lg relative group">
-                              <div className="font-medium text-green-800">
-                                {slot.subject}
-                              </div>
-                              {slot.class && (
-                                <div className="text-sm text-gray-600">
-                                  {slot.class}
-                                </div>
-                              )}
-                              {slot.teacher && (
-                                <div className="text-sm text-gray-600">
-                                  {slot.teacher}
-                                </div>
-                              )}
-                              <div className="text-xs text-gray-500 mt-1">
-                                {slot.room}
-                              </div>
-
-                              {canEdit && (
-                                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-1">
-                                  <button
-                                    onClick={() => handleEditSlot(day, time)}
-                                    className="p-1 text-green-600 hover:text-green-800"
-                                  >
-                                    <PencilIcon className="h-4 w-4" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteSlot(day, time)}
-                                    className="p-1 text-red-600 hover:text-red-800"
-                                  >
-                                    <TrashIcon className="h-4 w-4" />
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="h-16 border border-dashed border-gray-200 rounded-lg relative">
-                              {canEdit && (
-                                <button
-                                  onClick={() => handleAddSlot(day, time)}
-                                  className="absolute inset-0 flex items-center justify-center text-gray-400 hover:text-green-600"
-                                >
-                                  <PlusIcon className="h-5 w-5" />
-                                </button>
-                              )}
-                            </div>
-                          )}
-                        </td>
+                        <td key={`${day}-${time}`} className="px-6 py-4 whitespace-nowrap">
+                        {slot ? (
+                          <div className="p-3 bg-green-50 rounded-lg relative group h-full min-h-[80px]">
+                            {renderSlotContent(slot)}
+                            {renderEditButtons(day, time)}
+                          </div>
+                        ) : (
+                          <div className="h-16 border border-dashed border-gray-200 rounded-lg relative">
+                            {canEdit && (
+                              <button
+                                onClick={() => handleAddSlot(day, time)}
+                                className="absolute inset-0 flex items-center justify-center text-gray-400 hover:text-green-600"
+                              >
+                                <PlusIcon className="h-5 w-5" />
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </td>
                       );
                     })}
                   </tr>
@@ -526,7 +551,6 @@ export default function TimetablePage() {
             </table>
           </div>
         ) : (
-          // Day View
           <div className="p-4">
             <h2 className="text-xl font-semibold mb-4">
               {getCurrentDayName()}
@@ -583,52 +607,15 @@ export default function TimetablePage() {
                       <span className="font-medium">{time}</span>
                     </div>
                     {slot ? (
-                      <div className="flex-1 p-4 bg-green-50 rounded-lg relative group">
-                        <div className="font-medium text-green-800">
-                          {slot.subject}
-                        </div>
-                        {slot.class && (
-                          <div className="text-sm text-gray-600">
-                            {slot.class}
-                          </div>
-                        )}
-                        {slot.teacher && (
-                          <div className="text-sm text-gray-600">
-                            {slot.teacher}
-                          </div>
-                        )}
-                        <div className="text-xs text-gray-500 mt-1">
-                          {slot.room}
-                        </div>
-
-                        {canEdit && (
-                          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-2">
-                            <button
-                              onClick={() =>
-                                handleEditSlot(getCurrentDayName(), time)
-                              }
-                              className="p-1 text-green-600 hover:text-green-800"
-                            >
-                              <PencilIcon className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() =>
-                                handleDeleteSlot(getCurrentDayName(), time)
-                              }
-                              className="p-1 text-red-600 hover:text-red-800"
-                            >
-                              <TrashIcon className="h-4 w-4" />
-                            </button>
-                          </div>
-                        )}
+                      <div className="flex-1 p-4 bg-green-50 rounded-lg relative group min-h-[80px]">
+                        {renderSlotContent(slot)}
+                        {renderEditButtons(getCurrentDayName(), time)}
                       </div>
                     ) : (
                       <div className="flex-1 h-16 border border-dashed border-gray-200 rounded-lg relative">
                         {canEdit && (
                           <button
-                            onClick={() =>
-                              handleAddSlot(getCurrentDayName(), time)
-                            }
+                            onClick={() => handleAddSlot(getCurrentDayName(), time)}
                             className="absolute inset-0 flex items-center justify-center text-gray-400 hover:text-green-600"
                           >
                             <PlusIcon className="h-5 w-5" />
@@ -644,7 +631,6 @@ export default function TimetablePage() {
         )}
       </div>
 
-      {/* Add to sidebar navigation */}
       {pathname.startsWith("/dashboard") && (
         <div className="mt-6">
           <Link
@@ -657,7 +643,6 @@ export default function TimetablePage() {
         </div>
       )}
 
-      {/* Modal for adding/editing slots */}
       <Modal
         open={isModalOpen}
         onCancel={() => setIsModalOpen(false)}
@@ -687,28 +672,30 @@ export default function TimetablePage() {
               />
             </div>
 
+            {(isAdmin || isTeacher) && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Year
+                </label>
+                <select
+                  name="year"
+                  value={formData.year}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border border-gray-300 rounded-md"
+                  required
+                >
+                  <option value="">Select a Year</option>
+                  {years.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {isAdmin && (
               <>
-              <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Teacher
-                  </label>
-                  <select
-                    name="teacher"
-                    value={formData.year}
-                    onChange={handleInputChange}
-                    className="w-full p-2 border border-gray-300 rounded-md"
-                    required
-                  >
-                    <option value="">Select a Year</option>
-                    {years.map((year) => (
-                      <option key={year} value={year}>
-                        {year}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Teacher
@@ -751,7 +738,7 @@ export default function TimetablePage() {
               </>
             )}
 
-            {currentUser?.role === "TEACHER" && (
+            {isTeacher && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Class
@@ -785,6 +772,20 @@ export default function TimetablePage() {
                 className="w-full p-2 border border-gray-300 rounded-md"
                 placeholder="e.g. Masjid or Room 101"
                 required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Zoom Link (optional)
+              </label>
+              <input
+                type="url"
+                name="zoomLink"
+                value={formData.zoomLink}
+                onChange={handleInputChange}
+                className="w-full p-2 border border-gray-300 rounded-md"
+                placeholder="https://zoom.us/j/..."
               />
             </div>
 
