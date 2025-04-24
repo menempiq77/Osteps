@@ -12,7 +12,12 @@ import {
   MegaphoneIcon,
   ArrowLeftOnRectangleIcon,
 } from "@heroicons/react/24/outline";
-import { ChartBarIcon, UserCircleIcon, BookTextIcon, Building } from "lucide-react";
+import {
+  ChartBarIcon,
+  UserCircleIcon,
+  BookTextIcon,
+  Building,
+} from "lucide-react";
 import { useState, useEffect } from "react";
 import { logout } from "@/features/auth/authSlice";
 import useMediaQuery from "@/hooks/useMediaQuery";
@@ -21,13 +26,26 @@ const Sidebar = () => {
   const pathname = usePathname();
   const dispatch = useDispatch();
   const { currentUser } = useSelector((state: RootState) => state.auth);
-
+  const [unreadAnnouncements, setUnreadAnnouncements] = useState(3);
   const isMobile = useMediaQuery("(max-width: 768px)");
   const [isOpen, setIsOpen] = useState(!isMobile);
 
   useEffect(() => {
     setIsOpen(!isMobile);
   }, [isMobile]);
+
+  useEffect(() => {
+    const fetchUnreadAnnouncements = async () => {
+      try {
+        // const response = await fetch('/api/announcements/unread-count');
+        setUnreadAnnouncements(3);
+      } catch (error) {
+        console.error("Failed to fetch unread announcements:", error);
+      }
+    };
+
+    fetchUnreadAnnouncements();
+  }, []);
 
   const handleLogout = () => {
     dispatch(logout());
@@ -39,7 +57,12 @@ const Sidebar = () => {
       { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
       { name: "Schools", href: "/dashboard/schools", icon: AcademicCapIcon },
       { name: "Admins", href: "/dashboard/admins", icon: UserGroupIcon },
-      { name: "Announcements", href: "/dashboard/announcements", icon: MegaphoneIcon  },
+      {
+        name: "Announcements",
+        href: "/dashboard/announcements",
+        icon: MegaphoneIcon,
+        badge: unreadAnnouncements > 0 ? unreadAnnouncements : null,
+      },
     ],
     SCHOOL_ADMIN: [
       { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
@@ -50,7 +73,12 @@ const Sidebar = () => {
       { name: "Library", href: "/dashboard/library", icon: BookTextIcon },
       // { name: "Trackers", href: "/dashboard/trackers", icon: Building },
       { name: "Timetable", href: "/dashboard/timetable", icon: BookOpenIcon },
-      { name: "Announcements", href: "/dashboard/announcements", icon: MegaphoneIcon  },
+      {
+        name: "Announcements",
+        href: "/dashboard/announcements",
+        icon: MegaphoneIcon,
+        badge: unreadAnnouncements > 0 ? unreadAnnouncements : null,
+      },
       {
         name: "Settings",
         href: "/dashboard/school-admin/settings",
@@ -64,25 +92,45 @@ const Sidebar = () => {
       { name: "Library", href: "/dashboard/library", icon: BookTextIcon },
       // { name: "Trackers", href: "/dashboard/trackers", icon: Building  },
       { name: "Timetable", href: "/dashboard/timetable", icon: BookOpenIcon },
-      { name: "Announcements", href: "/dashboard/announcements", icon: MegaphoneIcon  },
+      {
+        name: "Announcements",
+        href: "/dashboard/announcements",
+        icon: MegaphoneIcon,
+        badge: unreadAnnouncements > 0 ? unreadAnnouncements : null,
+      },
+      // {
+      //   name: "Settings",
+      //   href: "/dashboard/teachers/settings",
+      //   icon: Cog6ToothIcon,
+      // },
     ],
     STUDENT: [
       { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
-      { name: "My Classes", href: "/dashboard/years", icon: BookOpenIcon },
       {
-        name: "Assignments",
+        name: "Assesments",
         href: "/dashboard/students/assignments",
         icon: AcademicCapIcon,
       },
+      { name: "Trackers", href: "/dashboard/trackers/1", icon: Building },
       { name: "Timetable", href: "/dashboard/timetable", icon: BookOpenIcon },
       { name: "Library", href: "/dashboard/library", icon: BookTextIcon },
-      { name: "Announcements", href: "/dashboard/announcements", icon: MegaphoneIcon  },
+      {
+        name: "Announcements",
+        href: "/dashboard/announcements",
+        icon: MegaphoneIcon,
+        badge: unreadAnnouncements > 0 ? unreadAnnouncements : null,
+      },
+      // {
+      //   name: "Settings",
+      //   href: "/dashboard/students/settings",
+      //   icon: Cog6ToothIcon,
+      // },
     ],
   };
 
   if (pathname.startsWith("/dashboard/students/reports")) {
     return null;
-  }  
+  }
 
   return (
     <div
@@ -139,7 +187,16 @@ const Sidebar = () => {
                 <item.icon
                   className={`h-6 w-6 ${isOpen ? "mr-3" : "mx-auto"}`}
                 />
-                {isOpen && <span className="text-sm">{item.name}</span>}
+                {isOpen && (
+                  <div className="flex items-center justify-between w-full">
+                    <span className="text-sm">{item.name}</span>
+                    {item.badge && isOpen && (
+                      <span className="bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                        {item.badge}
+                      </span>
+                    )}
+                  </div>
+                )}
               </Link>
             ))}
         </nav>

@@ -44,18 +44,17 @@ type LibraryItem = {
   uploadedBy: string;
   uploadDate: string;
   size: string;
-  subject?: string;
+  category: "Quran" | "Hadees" | "Tafseer" | "Seerah" | "Fiqh" | "Dua";
   description?: string;
 };
 
 export default function LibraryPage() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
-  const [activeTab, setActiveTab] = React.useState<string>("all");
+  const [activeTypeTab, setActiveTypeTab] = React.useState<string>("all");
+  const [activeCategoryTab, setActiveCategoryTab] = React.useState<string>("all");
   const [isUploadModalOpen, setIsUploadModalOpen] = React.useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = React.useState(false);
-  const [currentItem, setCurrentItem] = React.useState<LibraryItem | null>(
-    null
-  );
+  const [currentItem, setCurrentItem] = React.useState<LibraryItem | null>(null);
   const [isEditing, setIsEditing] = React.useState(false);
   const [form] = Form.useForm();
   const screens = useBreakpoint();
@@ -73,9 +72,8 @@ export default function LibraryPage() {
       uploadedBy: "Islamic Studies Dept",
       uploadDate: "2023-01-15",
       size: "15MB",
-      subject: "Quran",
-      description:
-        "Complete Arabic text of the Holy Quran with proper formatting for easy reading.",
+      category: "Quran",
+      description: "Complete Arabic text of the Holy Quran.",
     },
     {
       id: "2",
@@ -85,21 +83,19 @@ export default function LibraryPage() {
       uploadedBy: "Hadith Research Center",
       uploadDate: "2023-03-22",
       size: "32MB",
-      subject: "Hadith",
-      description:
-        "Selected authentic hadith from Sahih Bukhari with English translation.",
+      category: "Hadees",
+      description: "Selected authentic hadith from Sahih Bukhari.",
     },
     {
       id: "3",
-      title: "Fiqh of Salah - Video Guide",
-      type: "video",
-      url: "https://www.w3schools.com/html/mov_bbb.mp4",
-      uploadedBy: "Islamic Education",
+      title: "Fiqh of Salah",
+      type: "book",
+      url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+      uploadedBy: "Fiqh Department",
       uploadDate: "2023-05-10",
-      size: "85MB",
-      subject: "Fiqh",
-      description:
-        "Step-by-step video guide on how to perform Salah correctly according to Quran and Sunnah.",
+      size: "18MB",
+      category: "Fiqh",
+      description: "Islamic jurisprudence regarding prayer.",
     },
     {
       id: "4",
@@ -109,40 +105,75 @@ export default function LibraryPage() {
       uploadedBy: "Tafseer Research",
       uploadDate: "2023-07-18",
       size: "8MB",
-      subject: "Tafseer",
-      description:
-        "Detailed explanation of Surah Al-Fatiha from Tafseer Ibn Kathir.",
+      category: "Tafseer",
+      description: "Explanation of Surah Al-Fatiha.",
     },
     {
       id: "5",
-      title: "Islamic History - The Prophet's Life",
+      title: "Life of Prophet Muhammad (PBUH)",
       type: "book",
       url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-      uploadedBy: "History Department",
+      uploadedBy: "Seerah Department",
       uploadDate: "2023-09-05",
-      size: "45MB",
-      subject: "Seerah",
-      description:
-        "Comprehensive biography of Prophet Muhammad (PBUH) from authentic sources.",
+      size: "22MB",
+      category: "Seerah",
+      description: "Biography of the Prophet Muhammad (PBUH).",
     },
     {
       id: "6",
-      title: "Dua Collection - Audio",
+      title: "Daily Dua Collection - Audio",
       type: "audio",
       url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
       uploadedBy: "Spiritual Guidance",
       uploadDate: "2023-11-30",
       size: "12MB",
-      subject: "Dua",
-      description:
-        "Collection of authentic duas from Quran and Sunnah with Arabic recitation and English translation.",
+      category: "Dua",
+      description: "Collection of authentic duas for daily life.",
+    },
+    {
+      id: "7",
+      title: "Fiqh of Salah - Video Guide",
+      type: "video",
+      url: "https://www.w3schools.com/html/mov_bbb.mp4",
+      uploadedBy: "Islamic Education",
+      uploadDate: "2023-05-10",
+      size: "85MB",
+      category: "Fiqh",
+      description: "Video guide on how to perform Salah.",
+    },
+    {
+      id: "8",
+      title: "Seerah Animation Series",
+      type: "video",
+      url: "https://www.w3schools.com/html/mov_bbb.mp4",
+      uploadedBy: "Seerah Department",
+      uploadDate: "2023-06-15",
+      size: "120MB",
+      category: "Seerah",
+      description: "Animated series about the Prophet's life.",
     },
   ]);
 
-  const filteredItems =
-    activeTab === "all"
-      ? libraryItems
-      : libraryItems.filter((item) => item.type === activeTab);
+  // Get all unique categories from the library items
+  const allCategories = Array.from(
+    new Set(libraryItems.map((item) => item.category))
+  ).sort();
+
+  // Get filtered items based on active tabs
+  const filteredItems = libraryItems.filter((item) => {
+    const typeMatch = activeTypeTab === "all" || item.type === activeTypeTab;
+    const categoryMatch = activeCategoryTab === "all" || item.category === activeCategoryTab;
+    return typeMatch && categoryMatch;
+  });
+
+  // Get categories available for the active type tab
+  const availableCategories = Array.from(
+    new Set(
+      libraryItems
+        .filter((item) => activeTypeTab === "all" || item.type === activeTypeTab)
+        .map((item) => item.category)
+    )
+  ).sort();
 
   const canUpload =
     currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "TEACHER";
@@ -158,9 +189,8 @@ export default function LibraryPage() {
                 ...item,
                 title: values.title,
                 type: values.type,
-                subject: values.subject,
+                category: values.category,
                 description: values.description,
-                // In a real app, you'd update the file here too
               }
             : item
         );
@@ -169,14 +199,14 @@ export default function LibraryPage() {
       } else {
         // Add new item
         const newItem: LibraryItem = {
-          id: Date.now().toString(), // Simple ID generation
+          id: Date.now().toString(),
           title: values.title,
           type: values.type,
-          url: "https://example.com/new-file", // In a real app, this would be the uploaded file URL
+          url: "https://example.com/new-file",
           uploadedBy: currentUser?.name || "Current User",
           uploadDate: new Date().toISOString().split("T")[0],
-          size: "10MB", // In a real app, you'd get this from the file
-          subject: values.subject,
+          size: "10MB",
+          category: values.category,
           description: values.description,
         };
         setLibraryItems([...libraryItems, newItem]);
@@ -190,9 +220,7 @@ export default function LibraryPage() {
       setIsEditing(false);
     } catch (error) {
       message.error(
-        `Failed to ${
-          isEditing ? "update" : "upload"
-        } resource. Please try again.`
+        `Failed to ${isEditing ? "update" : "upload"} resource. Please try again.`
       );
     } finally {
       setLoading(false);
@@ -207,24 +235,15 @@ export default function LibraryPage() {
       okType: "danger",
       cancelText: "Cancel",
       onOk() {
-        console.log("Deleting item with id:", id); // Debug log
-        console.log("Current items before delete:", libraryItems); // Debug log
-
-        const updatedItems = libraryItems.filter((item) => {
-          console.log(`Checking item ${item.id} against ${id}`); // Debug log
-          return item.id !== id;
-        });
-
-        console.log("Updated items after delete:", updatedItems); // Debug log
-
+        const updatedItems = libraryItems.filter((item) => item.id !== id);
         setLibraryItems(updatedItems);
         message.success("Resource deleted successfully");
       },
     });
   };
+
   const handleView = (item: LibraryItem) => {
     if (item.type === "pdf") {
-      // Open PDF in new tab
       window.open(item.url, "_blank");
       return;
     }
@@ -236,12 +255,10 @@ export default function LibraryPage() {
     setCurrentItem(item);
     setIsEditing(true);
     setIsUploadModalOpen(true);
-
-    // Pre-fill the form with the item's data
     form.setFieldsValue({
       title: item.title,
       type: item.type,
-      subject: item.subject,
+      category: item.category,
       description: item.description,
     });
   };
@@ -286,6 +303,18 @@ export default function LibraryPage() {
     );
   };
 
+  const getCategoryColor = (category: string) => {
+    const colorMap: Record<string, string> = {
+      Quran: "geekblue",
+      Hadees: "purple",
+      Tafseer: "cyan",
+      Seerah: "volcano",
+      Fiqh: "gold",
+      Dua: "lime",
+    };
+    return colorMap[category] || "default";
+  };
+
   return (
     <div className="p-6">
       <Space direction="vertical" size="large" style={{ width: "100%" }}>
@@ -298,29 +327,79 @@ export default function LibraryPage() {
               type="primary"
               icon={<UploadOutlined />}
               onClick={openUploadModal}
+              className="flex items-center"
             >
               {isMobile ? "Upload" : "Upload Resource"}
             </Button>
           )}
         </div>
 
-        <Tabs
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          tabBarStyle={{ marginBottom: 24 }}
-          items={[
-            { label: "All Resources", key: "all" },
-            { label: "Books", key: "book" },
-            { label: "Videos", key: "video" },
-            { label: "Audios", key: "audio" },
-            { label: "PDFs", key: "pdf" },
-          ]}
-        />
+        {/* Main Type Tabs - Modern Design */}
+        <div className="border-b border-gray-200">
+          <Tabs
+            activeKey={activeTypeTab}
+            onChange={(key) => {
+              setActiveTypeTab(key);
+              setActiveCategoryTab("all");
+            }}
+            tabBarStyle={{ 
+              marginBottom: 0,
+              border: 'none',
+            }}
+            tabBarGutter={24}
+            items={[
+              { label: <span className="font-medium">All Resources</span>, key: "all" },
+              { label: <span className="font-medium">Books</span>, key: "book" },
+              { label: <span className="font-medium">Videos</span>, key: "video" },
+              { label: <span className="font-medium">Audios</span>, key: "audio" },
+              { label: <span className="font-medium">PDFs</span>, key: "pdf" },
+            ]}
+          />
+        </div>
+
+        {/* Category Tabs - Modern Pill Design */}
+        {availableCategories.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-6">
+            <Button
+              size="middle"
+              type={activeCategoryTab === "all" ? "primary" : "default"}
+              shape="round"
+              onClick={() => setActiveCategoryTab("all")}
+              className={`transition-all ${
+                activeCategoryTab === "all" 
+                  ? 'bg-blue-600 hover:bg-blue-700 border-blue-600' 
+                  : 'bg-white hover:bg-gray-50 border-gray-200'
+              }`}
+            >
+              All
+            </Button>
+            
+            {availableCategories.map((category) => (
+              <Button
+                key={category}
+                size="middle"
+                type={activeCategoryTab === category ? "primary" : "default"}
+                shape="round"
+                onClick={() => setActiveCategoryTab(category)}
+                className={`transition-all ${
+                  activeCategoryTab === category 
+                    ? 'bg-blue-600 hover:bg-blue-700 border-blue-600' 
+                    : 'bg-white hover:bg-gray-50 border-gray-200'
+                }`}
+              >
+                {category}
+              </Button>
+            ))}
+          </div>
+        )}
 
         {filteredItems.length === 0 ? (
-          <Card className="shadow-sm">
-            <div className="text-center py-12 text-gray-500 text-lg">
-              No resources found in this category
+          <Card className="shadow-sm rounded-lg border-0">
+            <div className="text-center py-12">
+              <FileOutlined className="text-4xl text-gray-300 mb-4" />
+              <Typography.Text type="secondary" className="text-lg">
+                No resources found in this category
+              </Typography.Text>
             </div>
           </Card>
         ) : (
@@ -332,13 +411,13 @@ export default function LibraryPage() {
             {filteredItems.map((item) => (
               <Card
                 key={item.id}
-                className="hover:shadow-lg transition-shadow duration-300 border border-gray-100 rounded-lg overflow-hidden flex flex-col h-full"
+                className="hover:shadow-lg transition-all duration-300 border border-gray-100 rounded-xl overflow-hidden flex flex-col h-full"
                 hoverable
+                bodyStyle={{ padding: 0 }}
               >
-                {/* Enhanced Header with Icon */}
-                <div className="relative bg-gradient-to-br from-blue-50 to-gray-50 p-8">
-                  <div className="flex items-center justify-center h-24">
-                    <div className="text-4xl text-blue-500">
+                <div className="relative bg-gradient-to-br from-gray-50 to-gray-100 p-6">
+                  <div className="flex items-center justify-center h-20">
+                    <div className="text-3xl text-blue-500">
                       {getIconForType(item.type)}
                     </div>
                   </div>
@@ -348,55 +427,57 @@ export default function LibraryPage() {
                       <Button
                         shape="circle"
                         size="small"
-                        icon={<DeleteOutlined className="text-sm" />}
+                        icon={<DeleteOutlined className="text-xs" />}
                         danger
                         onClick={(e) => {
                           e.stopPropagation();
                           e.preventDefault();
                           handleDelete(item.id);
                         }}
-                        className="shadow-sm bg-white hover:bg-red-50"
+                        className="shadow-sm bg-white hover:bg-red-50 border-none"
                       />
                       <Button
                         shape="circle"
                         size="small"
-                        icon={<EditOutlined className="text-sm" />}
+                        icon={<EditOutlined className="text-xs" />}
                         onClick={() => handleEdit(item)}
-                        className="shadow-sm bg-white hover:bg-blue-50"
+                        className="shadow-sm bg-white hover:bg-blue-50 border-none"
                       />
                     </div>
                   )}
                 </div>
 
-                {/* Card Content */}
-                <div className="p-4 flex-grow flex flex-col">
-                  <h3 className="text-lg font-medium mb-2 line-clamp-2">
+                <div className="p-5 flex-grow flex flex-col">
+                  <h3 className="text-lg font-semibold mb-2 line-clamp-2 text-gray-800">
                     {item.title}
                   </h3>
 
-                  <div className="flex flex-wrap gap-2 mb-3">
+                  <div className="flex flex-wrap gap-2 mb-4">
                     {getTypeTag(item.type)}
-                    {item.subject && (
-                      <Tag color="purple" className="m-0">
-                        {item.subject}
-                      </Tag>
-                    )}
+                    <Tag 
+                      color={getCategoryColor(item.category)}
+                      className="m-0"
+                    >
+                      {item.category}
+                    </Tag>
                   </div>
 
                   <div className="mt-auto">
-                    <p className="text-gray-500 text-sm mb-2">{item.size}</p>
-                    <p className="text-gray-400 text-xs mb-3">
-                      Uploaded by {item.uploadedBy} on {item.uploadDate}
-                    </p>
+                    <div className="flex justify-between items-center mb-3">
+                      <span className="text-xs text-gray-500">{item.size}</span>
+                      <span className="text-xs text-gray-400">
+                        {item.uploadDate}
+                      </span>
+                    </div>
 
-                    <Divider className="my-2" />
+                    <Divider className="my-3" />
 
                     <div className="flex justify-between">
                       <Button
                         type="text"
                         icon={<EyeOutlined />}
                         onClick={() => handleView(item)}
-                        className="flex items-center text-blue-500 hover:text-blue-700 px-0"
+                        className="flex items-center text-blue-600 hover:text-blue-800 px-0 hover:bg-blue-50"
                       >
                         View
                       </Button>
@@ -404,7 +485,7 @@ export default function LibraryPage() {
                         <Button
                           type="text"
                           icon={<DownloadOutlined />}
-                          className="flex items-center text-green-500 hover:text-green-700 px-0"
+                          className="flex items-center text-green-600 hover:text-green-800 px-0 hover:bg-green-50"
                         >
                           Download
                         </Button>
@@ -418,7 +499,6 @@ export default function LibraryPage() {
         )}
       </Space>
 
-      {/* Upload/Edit Modal */}
       <UploadResourceModal
         open={isUploadModalOpen}
         onCancel={() => {
@@ -434,9 +514,8 @@ export default function LibraryPage() {
         isEditing={isEditing}
         fileList={fileList}
         setFileList={setFileList}
+        categories={allCategories}
       />
-
-      {/* View Modal (for videos and audio) */}
 
       <ViewResourceModal
         open={isViewModalOpen}

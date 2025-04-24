@@ -22,7 +22,7 @@ import AssignmentDrawer from "@/components/ui/AssignmentDrawer";
 const mockAssignments = [
   {
     id: "1",
-    title: "Quran Memorization Assignment",
+    title: "Quran Memorization Assessment",
     description: "Memorize Surah Al-Fatiha with proper tajweed",
     dueDate: "2023-12-15",
     status: "submitted",
@@ -53,7 +53,7 @@ const mockAssignments = [
   },
   {
     id: "2",
-    title: "Tafseer Assignment",
+    title: "Tafseer Assessment",
     description: "Write a summary of Surah Al-Ikhlas tafseer",
     dueDate: "2024-01-20",
     status: "in-progress",
@@ -103,185 +103,163 @@ const mockAssignments = [
       },
     ],
   },
+  {
+    id: "4",
+    title: "Quran Recitation Assessment",
+    description: "Record recitation of Surah Al-Kahf verses 1-10",
+    dueDate: "2024-02-10",
+    status: "pending",
+    grade: null,
+    feedback: null,
+    tasks: [
+      {
+        id: "1",
+        name: "Recitation Recording",
+        type: "audio",
+        url: null,
+        status: "not-started",
+        selfAssessment: null,
+        mark: null,
+        comment: null,
+      },
+    ],
+  },
+  {
+    id: "5",
+    title: "Quran Recitation Assessment",
+    description: "Record recitation of Surah Al-Kahf verses 1-10",
+    dueDate: "2024-02-10",
+    status: "overdue",
+    grade: null,
+    feedback: null,
+    tasks: [
+      {
+        id: "1",
+        name: "Recitation Recording",
+        type: "audio",
+        url: null,
+        status: "not-started",
+        selfAssessment: null,
+        mark: null,
+        comment: null,
+      },
+    ],
+  },
 ];
 
 export default function AssignmentsPage() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedTerm, setSelectedTerm] = useState("Term 1");
   const [selectedAssignment, setSelectedAssignment] = useState<any>(null);
-  const [expandedAssignmentId, setExpandedAssignmentId] = useState<
-    string | null
-  >(null);
 
-  const handleOpenDrawer = (assignment: any) => {
-    setSelectedAssignment(assignment);
+  const handleOpenDrawer = (assignment: any, task: any) => {
+    setSelectedAssignment({
+      ...assignment,
+      selectedTask: task,
+    });
     setIsDrawerOpen(true);
-  };
-
-  const toggleAssignmentExpand = (assignmentId: string) => {
-    setExpandedAssignmentId(
-      expandedAssignmentId === assignmentId ? null : assignmentId
-    );
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "submitted":
         return "bg-green-100 text-green-800";
+      case "pending":
+        return "bg-orange-100 text-orange-800";
       case "in-progress":
         return "bg-yellow-100 text-yellow-800";
       case "not-started":
         return "bg-gray-100 text-gray-800";
+      case "overdue":
+        return "bg-red-100 text-red-800";
       default:
         return "bg-blue-100 text-blue-800";
     }
   };
 
+  const getAssignmentStatus = (assignment: any) => {
+    const today = new Date();
+    const due = new Date(assignment.dueDate);
+
+    if (assignment.status === "submitted") return "submitted";
+    if (today > due) return "overdue";
+    return assignment.status || "not-started";
+  };
+
   return (
     <div className="p-3 md:p-6 max-w-6xl mx-auto bg-gray-50 min-h-screen">
-      <div className="flex items-center justify-between">
-          <Link href="/dashboard">
-            <Button
-              icon={<ChevronLeftIcon />}
-              className="mb-6 text-gray-700 border border-gray-300 hover:bg-gray-100"
-            >
-              Back to Dashboard
-            </Button>
-          </Link>
-          <Select value={selectedTerm} onValueChange={setSelectedTerm}>
-            <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="Select Term" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Term 1">Term 1</SelectItem>
-              <SelectItem value="Term 2">Term 2</SelectItem>
-              <SelectItem value="Term 3">Term 3</SelectItem>
-            </SelectContent>
-          </Select>
-      </div>
+    <div className="flex items-center justify-between">
+      <Link href="/dashboard">
+        <Button
+          icon={<ChevronLeftIcon />}
+          className="mb-6 text-gray-700 border border-gray-300 hover:bg-gray-100"
+        >
+          Back to Dashboard
+        </Button>
+      </Link>
+      <Select value={selectedTerm} onValueChange={setSelectedTerm}>
+        <SelectTrigger className="w-[150px]">
+          <SelectValue placeholder="Select Term" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="Term 1">Term 1</SelectItem>
+          <SelectItem value="Term 2">Term 2</SelectItem>
+          <SelectItem value="Term 3">Term 3</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
 
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Assignments</h1>
+    <h1 className="text-2xl font-bold text-gray-900 mb-6">Assessments</h1>
 
-      <div className="space-y-4">
-        {mockAssignments.map((assignment) => (
+    {/* Updated grid layout */}
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {mockAssignments.map((assignment) => {
+        const status = getAssignmentStatus(assignment);
+        return (
           <Card
             key={assignment.id}
-            className="p-6 bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow"
+            className="p-6 bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow h-full"
           >
-            <div className="flex justify-between items-start">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">
-                  {assignment.title}
-                </h3>
-                <p className="text-sm text-gray-600">
-                  {assignment.description}
-                </p>
-                <div className="flex items-center mt-2">
-                  <CalendarIcon className="w-4 h-4 mr-1" />
-                  <span className="text-sm text-gray-600">
-                    Due: {new Date(assignment.dueDate).toLocaleDateString()}
-                  </span>
-                </div>
-              </div>
-              <span
-                className={`px-3 py-1 text-xs rounded-full ${getStatusColor(
-                  assignment.status
-                )}`}
-              >
-                {assignment.status.replace("-", " ")}
-              </span>
-            </div>
-
-            <div className="mt-4">
-              <Button
-                type="primary"
-                onClick={() => toggleAssignmentExpand(assignment.id)}
-                className="text-sm"
-              >
-                {expandedAssignmentId === assignment.id
-                  ? "Hide Details"
-                  : "View Details"}
-              </Button>
-
-              {expandedAssignmentId === assignment.id && (
-                <div className="mt-4 space-y-4">
-                  <div className="border-t pt-4">
-                    <h4 className="font-medium text-gray-800 mb-3">Tasks</h4>
-                    <div className="space-y-3">
-                      {assignment.tasks.map((task) => (
-                        <div key={task.id} className="p-3 border rounded-lg">
-                          <div className="flex justify-between items-center">
-                            <span className="font-medium">{task.name}</span>
-                            <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-800">
-                              {task.type}
-                            </span>
-                          </div>
-
-                          {task.mark && (
-                            <div className="mt-1 text-sm">
-                              <span className="font-medium">Grade: </span>
-                              <span>{task.mark}</span>
-                            </div>
-                          )}
-
-                          {task.comment && (
-                            <div className="mt-1 text-sm">
-                              <span className="font-medium">Feedback: </span>
-                              <span>{task.comment}</span>
-                            </div>
-                          )}
-
-                          <div className="mt-2 flex justify-end">
-                            <Button
-                              size="small"
-                              onClick={() =>
-                                handleOpenDrawer({
-                                  ...assignment,
-                                  selectedTask: task,
-                                })
-                              }
-                            >
-                              {task.status === "completed"
-                                ? "View Submission"
-                                : "Submit Work"}
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+            <div className="flex flex-col h-full">
+              <div className="flex justify-between items-start flex-grow">
+                <Link
+                  href={`/dashboard/students/assignments/${assignment.id}`}
+                  className="flex-1"
+                >
+                  <h3 className="text-lg font-semibold text-gray-900 hover:text-blue-600 hover:underline">
+                    {assignment.title}
+                  </h3>
+                  <p className="text-sm text-gray-600 line-clamp-2">
+                    {assignment.description}
+                  </p>
+                  <div className="flex items-center mt-2">
+                    <CalendarIcon className="w-4 h-4 mr-1" />
+                    <span className="text-sm text-gray-600">
+                      Due: {new Date(assignment.dueDate).toLocaleDateString()}
+                    </span>
                   </div>
+                </Link>
+              </div>
 
-                  {assignment.grade && (
-                    <div className="border-t pt-4">
-                      <h4 className="font-medium text-gray-800">
-                        Overall Grade
-                      </h4>
-                      <p className="text-lg font-semibold">
-                        {assignment.grade}
-                      </p>
-                      {assignment.feedback && (
-                        <>
-                          <h4 className="font-medium text-gray-800 mt-2">
-                            Feedback
-                          </h4>
-                          <p>{assignment.feedback}</p>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
+              <div className="mt-4">
+                <Link href={`/dashboard/students/assignments/${assignment.id}`}>
+                  <Button type="primary" className="text-sm w-full md:w-auto">
+                    View Details
+                  </Button>
+                </Link>
+              </div>
             </div>
           </Card>
-        ))}
-      </div>
-
-      <AssignmentDrawer
-        isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-        selectedSubject={selectedAssignment?.title || ""}
-        selectedTask={selectedAssignment?.selectedTask}
-      />
+        );
+      })}
     </div>
+
+    <AssignmentDrawer
+      isOpen={isDrawerOpen}
+      onClose={() => setIsDrawerOpen(false)}
+      selectedSubject={selectedAssignment?.title || ""}
+      selectedTask={selectedAssignment?.selectedTask}
+    />
+  </div>
   );
 }

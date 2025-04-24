@@ -224,10 +224,8 @@ export default function AnnouncementsPage() {
                   })
                 }
               >
-                <option value="prayer">Prayer Announcement</option>
-                <option value="event">Islamic Event</option>
-                <option value="reminder">Important Reminder</option>
-                <option value="general">General Announcement</option>
+                <option value="event">Islamic Sudies</option>
+                <option value="reminder">General</option>
               </select>
               <select
                 className="border rounded-md p-2 flex-1"

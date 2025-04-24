@@ -7,6 +7,8 @@ import { Trash2 } from "lucide-react";
 import { AddTrackerModal } from "../modals/trackerModals/AddTrackerModal";
 import { EditTrackerModal } from "../modals/trackerModals/EditTrackerModal";
 import { useRouter } from "next/navigation";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store/store";
 
 // Types
 type Tracker = {
@@ -31,6 +33,7 @@ type TrackerListProps = {
 // Main Component
 export default function TrackerList({ studentId }: TrackerListProps) {
   const router = useRouter();
+  const { currentUser } = useSelector((state: RootState) => state.auth);
   const [trackers, setTrackers] = useState<Tracker[]>([
     {
       id: "1",
@@ -116,26 +119,30 @@ export default function TrackerList({ studentId }: TrackerListProps) {
     trackerId: string,
     type: "Quran" | "Hadees" | "Seerah"
   ) => {
-    router.push(`/dashboard/trackers/${studentId}/${type.toLowerCase()}/${trackerId}`);
+    router.push(
+      `/dashboard/trackers/${studentId}/${type.toLowerCase()}/${trackerId}`
+    );
   };
 
   return (
     <>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Trackers</h1>
-        <Dialog.Root
-          open={isAddTrackerModalOpen}
-          onOpenChange={setIsAddTrackerModalOpen}
-        >
-          <Dialog.Trigger asChild>
-            <Button className="cursor-pointer">Add New Tracker</Button>
-          </Dialog.Trigger>
-          <AddTrackerModal
-            isOpen={isAddTrackerModalOpen}
+        {currentUser?.role !== "STUDENT" && (
+          <Dialog.Root
+            open={isAddTrackerModalOpen}
             onOpenChange={setIsAddTrackerModalOpen}
-            onAddTracker={handleAddNewTracker}
-          />
-        </Dialog.Root>
+          >
+            <Dialog.Trigger asChild>
+              <Button className="cursor-pointer">Add New Tracker</Button>
+            </Dialog.Trigger>
+            <AddTrackerModal
+              isOpen={isAddTrackerModalOpen}
+              onOpenChange={setIsAddTrackerModalOpen}
+              onAddTracker={handleAddNewTracker}
+            />
+          </Dialog.Root>
+        )}
       </div>
 
       <div className="mt-8 bg-white rounded-lg shadow-md overflow-hidden">
@@ -156,9 +163,11 @@ export default function TrackerList({ studentId }: TrackerListProps) {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Actions
-                </th>
+                {currentUser?.role !== "STUDENT" && (
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Actions
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -201,77 +210,79 @@ export default function TrackerList({ studentId }: TrackerListProps) {
                       {tracker.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex space-x-2">
-                      <Dialog.Root>
-                        <Dialog.Trigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title="Edit"
-                            onClick={() => setEditTracker(tracker)}
-                            className="cursor-pointer"
-                          >
-                            <Pencil2Icon className="h-4 w-4" />
-                          </Button>
-                        </Dialog.Trigger>
-                        {editTracker?.id === tracker.id && (
-                          <EditTrackerModal
-                            tracker={editTracker}
-                            isOpen={!!editTracker}
-                            onOpenChange={(open) =>
-                              !open && setEditTracker(null)
-                            }
-                            onSave={handleSaveEdit}
-                          />
-                        )}
-                      </Dialog.Root>
+                  {currentUser?.role !== "STUDENT" && (
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex space-x-2">
+                        <Dialog.Root>
+                          <Dialog.Trigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Edit"
+                              onClick={() => setEditTracker(tracker)}
+                              className="cursor-pointer"
+                            >
+                              <Pencil2Icon className="h-4 w-4" />
+                            </Button>
+                          </Dialog.Trigger>
+                          {editTracker?.id === tracker.id && (
+                            <EditTrackerModal
+                              tracker={editTracker}
+                              isOpen={!!editTracker}
+                              onOpenChange={(open) =>
+                                !open && setEditTracker(null)
+                              }
+                              onSave={handleSaveEdit}
+                            />
+                          )}
+                        </Dialog.Root>
 
-                      <Dialog.Root>
-                        <Dialog.Trigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title="Delete"
-                            onClick={() => setDeleteTracker(tracker)}
-                            className="cursor-pointer"
-                          >
-                            <Trash2 className="h-4 w-4 text-red-500" />
-                          </Button>
-                        </Dialog.Trigger>
-                        {deleteTracker?.id === tracker.id && (
-                          <Dialog.Portal>
-                            <Dialog.Overlay className="fixed inset-0 bg-black/30" />
-                            <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-md">
-                              <Dialog.Title className="text-lg font-semibold">
-                                Confirm Deletion
-                              </Dialog.Title>
-                              <p className="mt-2 text-gray-600">
-                                Are you sure you want to delete{" "}
-                                <strong>{deleteTracker.name}</strong> tracker?
-                              </p>
-                              <div className="mt-4 flex justify-end space-x-2">
-                                <Button
-                                  variant="outline"
-                                  onClick={() => setDeleteTracker(null)}
-                                >
-                                  Cancel
-                                </Button>
-                                <Button
-                                  variant="destructive"
-                                  onClick={() =>
-                                    handleDeleteTracker(deleteTracker.id)
-                                  }
-                                >
-                                  Delete
-                                </Button>
-                              </div>
-                            </Dialog.Content>
-                          </Dialog.Portal>
-                        )}
-                      </Dialog.Root>
-                    </div>
-                  </td>
+                        <Dialog.Root>
+                          <Dialog.Trigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Delete"
+                              onClick={() => setDeleteTracker(tracker)}
+                              className="cursor-pointer"
+                            >
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </Dialog.Trigger>
+                          {deleteTracker?.id === tracker.id && (
+                            <Dialog.Portal>
+                              <Dialog.Overlay className="fixed inset-0 bg-black/30" />
+                              <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-md">
+                                <Dialog.Title className="text-lg font-semibold">
+                                  Confirm Deletion
+                                </Dialog.Title>
+                                <p className="mt-2 text-gray-600">
+                                  Are you sure you want to delete{" "}
+                                  <strong>{deleteTracker.name}</strong> tracker?
+                                </p>
+                                <div className="mt-4 flex justify-end space-x-2">
+                                  <Button
+                                    variant="outline"
+                                    onClick={() => setDeleteTracker(null)}
+                                  >
+                                    Cancel
+                                  </Button>
+                                  <Button
+                                    variant="destructive"
+                                    onClick={() =>
+                                      handleDeleteTracker(deleteTracker.id)
+                                    }
+                                  >
+                                    Delete
+                                  </Button>
+                                </div>
+                              </Dialog.Content>
+                            </Dialog.Portal>
+                          )}
+                        </Dialog.Root>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

@@ -65,19 +65,17 @@ const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
         </Form.Item>
 
         <Form.Item
-          name="subject"
-          label="Islamic Subject"
+          name="category"
+          label="Category"
           rules={[{ required: true, message: "Please select a subject!" }]}
         >
-          <Select placeholder="Select subject">
+          <Select placeholder="Select Category">
             <Select.Option value="Quran">Quran</Select.Option>
-            <Select.Option value="Hadith">Hadith</Select.Option>
-            <Select.Option value="Seerah">Seerah (Prophet's Life)</Select.Option>
-            <Select.Option value="Fiqh">Fiqh (Jurisprudence)</Select.Option>
-            <Select.Option value="Tafseer">Tafseer (Quran Exegesis)</Select.Option>
-            <Select.Option value="Dua">Dua (Supplications)</Select.Option>
-            <Select.Option value="History">Islamic History</Select.Option>
-            <Select.Option value="Aqeedah">Aqeedah (Creed)</Select.Option>
+            <Select.Option value="Hadees">Hadees</Select.Option>
+            <Select.Option value="Tafseer">Tafseer</Select.Option>
+            <Select.Option value="Seerah">Seerah</Select.Option>
+            <Select.Option value="Fiqh">Fiqh</Select.Option>
+            <Select.Option value="Dua">Dua</Select.Option>
           </Select>
         </Form.Item>
 
