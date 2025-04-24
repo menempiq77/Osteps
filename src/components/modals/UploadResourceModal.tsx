@@ -66,7 +66,7 @@ const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
 
         <Form.Item
           name="category"
-          label="Quran"
+          label="Category"
           rules={[{ required: true, message: "Please select a subject!" }]}
         >
           <Select placeholder="Select Category">

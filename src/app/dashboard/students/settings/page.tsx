@@ -1,9 +1,9 @@
-"use client";
+"use client"
 import React from 'react'
-import { Tabs, Form, Input, Button, Upload, message } from 'antd'
+import { Tabs, Form, Input, Button, Upload, message, Select } from 'antd'
 import { UploadOutlined } from '@ant-design/icons'
 
-const SchoolAdminSettings = () => {
+const StudentSettings = () => {
   const [form] = Form.useForm()
   const [fileList, setFileList] = React.useState([])
 
@@ -64,7 +64,7 @@ const SchoolAdminSettings = () => {
                 { type: 'email', message: 'Please enter a valid email!' },
               ]}
             >
-              <Input size="large" />
+              <Input size="large" disabled />
             </Form.Item>
 
             <Form.Item
@@ -73,6 +73,13 @@ const SchoolAdminSettings = () => {
               rules={[{ required: true, message: 'Please input your phone number!' }]}
             >
               <Input size="large" />
+            </Form.Item>
+
+            <Form.Item
+              label="Grade/Class"
+              name="grade"
+            >
+              <Input size="large" disabled />
             </Form.Item>
 
             <Form.Item label="Profile Picture">
@@ -98,66 +105,44 @@ const SchoolAdminSettings = () => {
     },
     {
       key: '2',
-      label: 'School Information',
+      label: 'Preferences',
       children: (
         <div className="max-w-2xl">
           <Form
-            name="school"
+            name="preferences"
             layout="vertical"
             onFinish={onFinish}
             onFinishFailed={onFinishFailed}
             autoComplete="off"
           >
             <Form.Item
-              label="School Name"
-              name="schoolName"
-              rules={[{ required: true, message: 'Please input school name!' }]}
+              label="Theme"
+              name="theme"
+              initialValue="light"
             >
-              <Input size="large" />
+              <Select size="large">
+                <Select.Option value="light">Light</Select.Option>
+                <Select.Option value="dark">Dark</Select.Option>
+                <Select.Option value="system">System Default</Select.Option>
+              </Select>
             </Form.Item>
 
             <Form.Item
-              label="School Address"
-              name="address"
-              rules={[{ required: true, message: 'Please input school address!' }]}
+              label="Notification Preferences"
+              name="notifications"
+              initialValue={['assignments', 'messages']}
             >
-              <Input.TextArea rows={4} />
-            </Form.Item>
-
-            <Form.Item
-              label="School Phone"
-              name="schoolPhone"
-              rules={[{ required: true, message: 'Please input school phone number!' }]}
-            >
-              <Input size="large" />
-            </Form.Item>
-
-            <Form.Item
-              label="School Email"
-              name="schoolEmail"
-              rules={[
-                { required: true, message: 'Please input school email!' },
-                { type: 'email', message: 'Please enter a valid email!' },
-              ]}
-            >
-              <Input size="large" />
-            </Form.Item>
-
-            <Form.Item label="School Logo">
-              <Upload
-                fileList={fileList}
-                onChange={handleUploadChange}
-                beforeUpload={() => false}
-                listType="picture"
-                maxCount={1}
-              >
-                <Button icon={<UploadOutlined />}>Upload Logo</Button>
-              </Upload>
+              <Select mode="multiple" size="large">
+                <Select.Option value="assignments">New Assignments</Select.Option>
+                <Select.Option value="grades">Grade Updates</Select.Option>
+                <Select.Option value="messages">Messages from Teachers</Select.Option>
+                <Select.Option value="announcements">School Announcements</Select.Option>
+              </Select>
             </Form.Item>
 
             <Form.Item>
               <Button type="primary" htmlType="submit" size="large">
-                Save School Information
+                Save Preferences
               </Button>
             </Form.Item>
           </Form>
@@ -224,10 +209,10 @@ const SchoolAdminSettings = () => {
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">School Settings</h1>
+      <h1 className="text-2xl font-bold mb-6">Student Settings</h1>
       <Tabs defaultActiveKey="1" items={items} tabPosition="left" />
     </div>
   )
 }
 
-export default SchoolAdminSettings
+export default StudentSettings
