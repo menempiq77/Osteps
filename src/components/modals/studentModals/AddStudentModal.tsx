@@ -3,7 +3,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { Button } from "@/components/ui/button";
 import { Cross2Icon, ChevronDownIcon } from "@radix-ui/react-icons";
 
-const classOptions = [1, 2, 3, 4, 5, 6, 7, 8];
+const classOptions = ['Class A', 'Class B', 'Class C'];
 const statusOptions = ['active', 'inactive', 'suspended'] as const;
 
 export const AddStudentModal = ({
@@ -13,18 +13,25 @@ export const AddStudentModal = ({
 }: {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  onAddStudent: (name: string, studentClass: number, status: 'active' | 'inactive' | 'suspended') => void;
+  onAddStudent: (
+    name: string, 
+    email: string,
+    studentClass: string, 
+    status: 'active' | 'inactive' | 'suspended'
+  ) => void;
 }) => {
   const [name, setName] = useState("");
-  const [selectedClass, setSelectedClass] = useState(1);
+  const [email, setEmail] = useState("");
+  const [selectedClass, setSelectedClass] = useState("Class A");
   const [selectedStatus, setSelectedStatus] = useState<'active' | 'inactive' | 'suspended'>('active');
   const [isClassDropdownOpen, setIsClassDropdownOpen] = useState(false);
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
 
   const handleSubmit = () => {
-    onAddStudent(name, selectedClass, selectedStatus);
+    onAddStudent(name, email, selectedClass, selectedStatus);
     setName("");
-    setSelectedClass(1);
+    setEmail("");
+    setSelectedClass("Class A");
     setSelectedStatus('active');
     onOpenChange(false);
   };
@@ -53,6 +60,23 @@ export const AddStudentModal = ({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Enter Student name"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="studentEmail"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Email
+              </label>
+              <input
+                id="studentEmail"
+                type="email"
+                className="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter Student email"
               />
             </div>
 
@@ -137,7 +161,11 @@ export const AddStudentModal = ({
                 Cancel
               </Button>
             </Dialog.Close>
-            <Button onClick={handleSubmit} disabled={!name.trim()} className="cursor-pointer">
+            <Button 
+              onClick={handleSubmit} 
+              disabled={!name.trim() || !email.trim()} 
+              className="cursor-pointer"
+            >
               Add Student
             </Button>
           </div>

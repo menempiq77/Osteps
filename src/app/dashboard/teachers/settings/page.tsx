@@ -38,7 +38,7 @@ const TeacherSettings = () => {
       key: '1',
       label: 'Profile',
       children: (
-        <div className="max-w-2xl">
+        <div className="w-full max-w-2xl px-2">
           <Form
             form={form}
             name="profile"
@@ -47,7 +47,7 @@ const TeacherSettings = () => {
             onFinishFailed={onFinishFailed}
             autoComplete="off"
           >
-            <div className="flex gap-6 mb-6">
+            <div className="flex flex-col md:flex-row gap-4 mb-4">
               <div className="flex-1">
                 <Form.Item
                   label="First Name"
@@ -113,7 +113,7 @@ const TeacherSettings = () => {
             </Form.Item>
 
             <Form.Item>
-              <Button type="primary" htmlType="submit" size="large">
+              <Button type="primary" htmlType="submit" size="large" block>
                 Update Profile
               </Button>
             </Form.Item>
@@ -125,7 +125,7 @@ const TeacherSettings = () => {
       key: '2',
       label: 'Class Preferences',
       children: (
-        <div className="max-w-2xl">
+        <div className="w-full max-w-2xl px-2">
           <Form
             name="preferences"
             layout="vertical"
@@ -159,7 +159,7 @@ const TeacherSettings = () => {
             </Form.Item>
 
             <Form.Item>
-              <Button type="primary" htmlType="submit" size="large">
+              <Button type="primary" htmlType="submit" size="large" block>
                 Save Preferences
               </Button>
             </Form.Item>
@@ -171,7 +171,7 @@ const TeacherSettings = () => {
       key: '3',
       label: 'Security',
       children: (
-        <div className="max-w-2xl">
+        <div className="w-full max-w-2xl px-2">
           <Form
             name="security"
             layout="vertical"
@@ -215,7 +215,7 @@ const TeacherSettings = () => {
             </Form.Item>
 
             <Form.Item>
-              <Button type="primary" htmlType="submit" size="large">
+              <Button type="primary" htmlType="submit" size="large" block>
                 Change Password
               </Button>
             </Form.Item>
@@ -226,9 +226,9 @@ const TeacherSettings = () => {
   ]
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Teacher Settings</h1>
-      <Tabs defaultActiveKey="1" items={items} tabPosition="left" />
+    <div className="p-4 sm:p-6">
+      <h1 className="text-xl sm:text-2xl font-bold mb-6">Teacher Settings</h1>
+      <Tabs defaultActiveKey="1" items={items} tabPosition="top" type="line" className="w-full" />
     </div>
   )
 }

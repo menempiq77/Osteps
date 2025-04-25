@@ -14,7 +14,8 @@ import { RootState } from "@/store/store";
 type Student = {
   id: string;
   name: string;
-  className: string;
+  email: string;
+  studentClass: string;
   teacher?: string;
   status: "active" | "inactive" | "suspended";
 };
@@ -24,21 +25,24 @@ const studentsData: Student[] = [
   {
     id: "1",
     name: "John",
-    className: "Class A",
+    email: "john@example.com",
+    studentClass: "Class A",
     teacher: "Alice",
     status: "active",
   },
   {
     id: "2",
     name: "Sarah",
-    className: "Class B",
+    email: "john@example.com",
+    studentClass: "Class B",
     teacher: "Bob",
     status: "active",
   },
   {
     id: "3",
     name: "Charlie",
-    className: "Class C",
+    email: "john@example.com",
+    studentClass: "Class C",
     teacher: "Alice",
     status: "inactive",
   },
@@ -69,13 +73,15 @@ export default function StudentList() {
 
   const handleAddNewStudent = (
     name: string,
-    className: string,
+    email: string,
+    studentClass: string,
     status: "active" | "inactive" | "suspended"
   ) => {
     const newStudent: Student = {
       id: Date.now().toString(),
       name,
-      className,
+      email,
+      studentClass,
       teacher: "",
       status,
     };
@@ -98,33 +104,35 @@ export default function StudentList() {
     <>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Students</h1>
-       {currentUser?.role !== "STUDENT" && <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={handleViewReports}
-            className="cursor-pointer"
-          >
-            View Reports
-          </Button>
-          <Dialog.Root
-            open={isAddStudentModalOpen}
-            onOpenChange={setIsAddStudentModalOpen}
-          >
-            <Dialog.Trigger asChild>
-              <Button
-                onClick={() => setIsAddStudentModalOpen(true)}
-                className="cursor-pointer"
-              >
-                Add Student
-              </Button>
-            </Dialog.Trigger>
-            <AddStudentModal
-              isOpen={isAddStudentModalOpen}
+        {currentUser?.role !== "STUDENT" && (
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handleViewReports}
+              className="cursor-pointer"
+            >
+              View Reports
+            </Button>
+            <Dialog.Root
+              open={isAddStudentModalOpen}
               onOpenChange={setIsAddStudentModalOpen}
-              onAddStudent={handleAddNewStudent}
-            />
-          </Dialog.Root>
-        </div>}
+            >
+              <Dialog.Trigger asChild>
+                <Button
+                  onClick={() => setIsAddStudentModalOpen(true)}
+                  className="cursor-pointer"
+                >
+                  Add Student
+                </Button>
+              </Dialog.Trigger>
+              <AddStudentModal
+                isOpen={isAddStudentModalOpen}
+                onOpenChange={setIsAddStudentModalOpen}
+                onAddStudent={handleAddNewStudent}
+              />
+            </Dialog.Root>
+          </div>
+        )}
       </div>
 
       <div className="mt-8 bg-white rounded-lg shadow-md overflow-hidden">
@@ -144,9 +152,9 @@ export default function StudentList() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Status
                 </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Actions
-                  </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -160,7 +168,7 @@ export default function StudentList() {
                     {student.name}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {student.className}
+                    {student.studentClass}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
@@ -181,79 +189,89 @@ export default function StudentList() {
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="flex space-x-2">
-                      {currentUser?.role !== "TEACHER" && currentUser?.role !== "STUDENT" && (
-                        <Dialog.Root>
-                          <Dialog.Trigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              title="Edit"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditStudent(student);
-                              }}
-                              className="cursor-pointer"
-                            >
-                              <Pencil2Icon className="h-4 w-4" />
-                            </Button>
-                          </Dialog.Trigger>
-                          {editStudent?.id === student.id && (
-                            <EditStudentModal
-                              student={editStudent}
-                              onClose={() => setEditStudent(null)}
-                              onSave={handleSaveEdit}
-                            />
-                          )}
-                        </Dialog.Root>
-                      )}
-                      {currentUser?.role !== "TEACHER" && currentUser?.role !== "STUDENT" && (
-                        <Dialog.Root>
-                          <Dialog.Trigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              title="Delete"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setDeleteStudent(student);
-                              }}
-                              className="cursor-pointer"
-                            >
-                              <Trash2 className="h-4 w-4 text-red-500" />
-                            </Button>
-                          </Dialog.Trigger>
-                          {deleteStudent?.id === student.id && (
-                            <Dialog.Portal>
-                              <Dialog.Overlay className="fixed inset-0 bg-black/30" />
-                              <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-md">
-                                <Dialog.Title className="text-lg font-semibold">
-                                  Confirm Deletion
-                                </Dialog.Title>
-                                <p className="mt-2 text-gray-600">
-                                  Are you sure you want to delete{" "}
-                                  <strong>{deleteStudent.name}</strong>?
-                                </p>
-                                <div className="mt-4 flex justify-end space-x-2">
-                                  <Button
-                                    variant="outline"
-                                    onClick={() => setDeleteStudent(null)}
-                                  >
-                                    Cancel
-                                  </Button>
-                                  <Button
-                                    variant="destructive"
-                                    onClick={() =>
-                                      handleDeleteStudent(deleteStudent.id)
-                                    }
-                                  >
-                                    Delete
-                                  </Button>
-                                </div>
-                              </Dialog.Content>
-                            </Dialog.Portal>
-                          )}
-                        </Dialog.Root>
-                      )}
+                      {currentUser?.role !== "TEACHER" &&
+                        currentUser?.role !== "STUDENT" && (
+                          <Dialog.Root>
+                            <Dialog.Trigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                title="Edit"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditStudent(student);
+                                }}
+                                className="cursor-pointer"
+                              >
+                                <Pencil2Icon className="h-4 w-4" />
+                              </Button>
+                            </Dialog.Trigger>
+                            {editStudent?.id === student.id && (
+                              <EditStudentModal
+                                student={editStudent}
+                                onClose={() => setEditStudent(null)}
+                                onSave={(name, email, studentClass, status) => {
+                                  handleSaveEdit({
+                                    ...editStudent,
+                                    name,
+                                    email,
+                                    studentClass,
+                                    status,
+                                  });
+                                }}
+                              />
+                            )}
+                          </Dialog.Root>
+                        )}
+                      {currentUser?.role !== "TEACHER" &&
+                        currentUser?.role !== "STUDENT" && (
+                          <Dialog.Root>
+                            <Dialog.Trigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                title="Delete"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDeleteStudent(student);
+                                }}
+                                className="cursor-pointer"
+                              >
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </Dialog.Trigger>
+                            {deleteStudent?.id === student.id && (
+                              <Dialog.Portal>
+                                <Dialog.Overlay className="fixed inset-0 bg-black/30" />
+                                <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-md">
+                                  <Dialog.Title className="text-lg font-semibold">
+                                    Confirm Deletion
+                                  </Dialog.Title>
+                                  <p className="mt-2 text-gray-600">
+                                    Are you sure you want to delete{" "}
+                                    <strong>{deleteStudent.name}</strong>?
+                                  </p>
+                                  <div className="mt-4 flex justify-end space-x-2">
+                                    <Button
+                                      variant="outline"
+                                      onClick={() => setDeleteStudent(null)}
+                                    >
+                                      Cancel
+                                    </Button>
+                                    <Button
+                                      variant="destructive"
+                                      onClick={() =>
+                                        handleDeleteStudent(deleteStudent.id)
+                                      }
+                                    >
+                                      Delete
+                                    </Button>
+                                  </div>
+                                </Dialog.Content>
+                              </Dialog.Portal>
+                            )}
+                          </Dialog.Root>
+                        )}
 
                       <Button
                         variant="ghost"
