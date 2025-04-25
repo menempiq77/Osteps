@@ -1,11 +1,15 @@
-"use client";
+"use client"
 import React from 'react'
 import { Tabs, Form, Input, Button, Upload, message } from 'antd'
 import { UploadOutlined } from '@ant-design/icons'
 
 const SchoolAdminSettings = () => {
-  const [form] = Form.useForm()
-  const [fileList, setFileList] = React.useState([])
+  const [profileForm] = Form.useForm()
+  const [schoolForm] = Form.useForm()
+  const [securityForm] = Form.useForm()
+
+  const [profileImage, setProfileImage] = React.useState([])
+  const [schoolLogo, setSchoolLogo] = React.useState([])
 
   const onFinish = (values) => {
     console.log('Success:', values)
@@ -17,25 +21,21 @@ const SchoolAdminSettings = () => {
     message.error('Please fill all required fields!')
   }
 
-  const handleUploadChange = ({ fileList }) => {
-    setFileList(fileList)
-  }
-
   const items = [
     {
       key: '1',
       label: 'Profile',
       children: (
-        <div className="max-w-2xl">
+        <div className="w-full max-w-3xl">
           <Form
-            form={form}
+            form={profileForm}
             name="profile"
             layout="vertical"
             onFinish={onFinish}
             onFinishFailed={onFinishFailed}
             autoComplete="off"
           >
-            <div className="flex gap-6 mb-6">
+            <div className="flex flex-col md:flex-row gap-4 mb-4">
               <div className="flex-1">
                 <Form.Item
                   label="First Name"
@@ -77,8 +77,8 @@ const SchoolAdminSettings = () => {
 
             <Form.Item label="Profile Picture">
               <Upload
-                fileList={fileList}
-                onChange={handleUploadChange}
+                fileList={profileImage}
+                onChange={({ fileList }) => setProfileImage(fileList)}
                 beforeUpload={() => false}
                 listType="picture"
                 maxCount={1}
@@ -88,7 +88,7 @@ const SchoolAdminSettings = () => {
             </Form.Item>
 
             <Form.Item>
-              <Button type="primary" htmlType="submit" size="large">
+              <Button type="primary" htmlType="submit" size="large" className="w-full md:w-auto">
                 Update Profile
               </Button>
             </Form.Item>
@@ -100,8 +100,9 @@ const SchoolAdminSettings = () => {
       key: '2',
       label: 'School Information',
       children: (
-        <div className="max-w-2xl">
+        <div className="w-full max-w-3xl">
           <Form
+            form={schoolForm}
             name="school"
             layout="vertical"
             onFinish={onFinish}
@@ -145,8 +146,8 @@ const SchoolAdminSettings = () => {
 
             <Form.Item label="School Logo">
               <Upload
-                fileList={fileList}
-                onChange={handleUploadChange}
+                fileList={schoolLogo}
+                onChange={({ fileList }) => setSchoolLogo(fileList)}
                 beforeUpload={() => false}
                 listType="picture"
                 maxCount={1}
@@ -156,7 +157,7 @@ const SchoolAdminSettings = () => {
             </Form.Item>
 
             <Form.Item>
-              <Button type="primary" htmlType="submit" size="large">
+              <Button type="primary" htmlType="submit" size="large" className="w-full md:w-auto">
                 Save School Information
               </Button>
             </Form.Item>
@@ -168,8 +169,9 @@ const SchoolAdminSettings = () => {
       key: '3',
       label: 'Security',
       children: (
-        <div className="max-w-2xl">
+        <div className="w-full max-w-3xl">
           <Form
+            form={securityForm}
             name="security"
             layout="vertical"
             onFinish={onFinish}
@@ -212,7 +214,7 @@ const SchoolAdminSettings = () => {
             </Form.Item>
 
             <Form.Item>
-              <Button type="primary" htmlType="submit" size="large">
+              <Button type="primary" htmlType="submit" size="large" className="w-full md:w-auto">
                 Change Password
               </Button>
             </Form.Item>
@@ -223,9 +225,15 @@ const SchoolAdminSettings = () => {
   ]
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">School Settings</h1>
-      <Tabs defaultActiveKey="1" items={items} tabPosition="left" />
+    <div className="p-4 md:p-6">
+      <h1 className="text-xl md:text-2xl font-bold mb-4 md:mb-6">School Settings</h1>
+      <Tabs
+        defaultActiveKey="1"
+        items={items}
+        tabPosition="top"
+        type="line"
+        className="w-full"
+      />
     </div>
   )
 }

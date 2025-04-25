@@ -98,11 +98,11 @@ const Sidebar = () => {
         icon: MegaphoneIcon,
         badge: unreadAnnouncements > 0 ? unreadAnnouncements : null,
       },
-      // {
-      //   name: "Settings",
-      //   href: "/dashboard/teachers/settings",
-      //   icon: Cog6ToothIcon,
-      // },
+      {
+        name: "Settings",
+        href: "/dashboard/teachers/settings",
+        icon: Cog6ToothIcon,
+      },
     ],
     STUDENT: [
       { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
@@ -120,11 +120,11 @@ const Sidebar = () => {
         icon: MegaphoneIcon,
         badge: unreadAnnouncements > 0 ? unreadAnnouncements : null,
       },
-      // {
-      //   name: "Settings",
-      //   href: "/dashboard/students/settings",
-      //   icon: Cog6ToothIcon,
-      // },
+      {
+        name: "Settings",
+        href: "/dashboard/students/settings",
+        icon: Cog6ToothIcon,
+      },
     ],
   };
 
