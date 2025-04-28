@@ -16,6 +16,7 @@ export default function ReportsPage() {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedClass, setSelectedClass] = useState("Class A");
+  const [selectedYear, setSelectedYear] = useState("Year 1");
 
   // Sample data matching the screenshot structure
   const [editableData, setEditableData] = useState([
@@ -115,6 +116,16 @@ export default function ReportsPage() {
         >
           Back to Students
         </Button>
+        <Select value={selectedYear} onValueChange={setSelectedYear}>
+          <SelectTrigger className="w-[150px] shadow-none">
+            <SelectValue placeholder="Select Term" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Year 1">Year 1</SelectItem>
+            <SelectItem value="Year 2">Year 2</SelectItem>
+            <SelectItem value="Year 3">Year 3</SelectItem>
+          </SelectContent>
+        </Select>
         <Select value={selectedClass} onValueChange={setSelectedClass}>
           <SelectTrigger className="w-[150px] shadow-none">
             <SelectValue placeholder="Select Term" />
