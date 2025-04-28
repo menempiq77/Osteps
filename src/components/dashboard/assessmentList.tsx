@@ -61,10 +61,10 @@ export default function AssessmentList({
   };
 
   const handleEdit = (assignmentId: number) => {
-    const newName = prompt("Enter new assessment name:");
-    if (newName) {
-      onEditAssessment(assignmentId, newName);
-    }
+    // const newName = prompt("Enter new assessment name:");
+    // if (newName) {
+    //   onEditAssessment(assignmentId, newName);
+    // }
   };
 
   return (

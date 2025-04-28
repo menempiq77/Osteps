@@ -296,27 +296,6 @@ export default function TimetablePage() {
   const isStudent = currentUser?.role === "STUDENT";
   const canEdit = isAdmin || isTeacher;
 
-  const renderZoomLinkPopup = (slot: any) => {
-    if (!isStudent || !slot.zoomLink) return null;
-    
-    return (
-      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100">
-        <div className="bg-white p-3 rounded-lg shadow-lg text-center max-w-[90%]">
-          <div className="font-medium mb-1">Online Class</div>
-          <a 
-            href={slot.zoomLink} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="text-blue-600 hover:underline text-sm break-all"
-            onClick={(e) => e.stopPropagation()}
-          >
-            Join Zoom Meeting
-          </a>
-        </div>
-      </div>
-    );
-  };
-
   const renderSlotContent = (slot: any) => (
     <>
       <div className="font-medium text-green-800">

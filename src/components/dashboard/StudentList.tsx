@@ -106,13 +106,6 @@ export default function StudentList() {
         <h1 className="text-2xl font-bold">Students</h1>
         {currentUser?.role !== "STUDENT" && (
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={handleViewReports}
-              className="cursor-pointer"
-            >
-              View Reports
-            </Button>
             <Dialog.Root
               open={isAddStudentModalOpen}
               onOpenChange={setIsAddStudentModalOpen}
