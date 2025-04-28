@@ -6,7 +6,7 @@ import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { AddTrackerModal } from "../modals/trackerModals/AddTrackerModal";
 import { EditTrackerModal } from "../modals/trackerModals/EditTrackerModal";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 
@@ -27,11 +27,12 @@ type TrackerBasic = {
   status: "Active" | "Paused" | "Completed";
 };
 type TrackerListProps = {
-  studentId: string;
+  classId: string;
 };
 
 // Main Component
-export default function TrackerList({ studentId }: TrackerListProps) {
+export default function TrackerList() {
+    const { classId } = useParams();
   const router = useRouter();
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [trackers, setTrackers] = useState<Tracker[]>([
@@ -120,7 +121,7 @@ export default function TrackerList({ studentId }: TrackerListProps) {
     type: "Quran" | "Hadees" | "Seerah"
   ) => {
     router.push(
-      `/dashboard/trackers/${studentId}/${type.toLowerCase()}/${trackerId}`
+      `/dashboard/trackers/${classId}/${type.toLowerCase()}/${trackerId}`
     );
   };
 

@@ -92,13 +92,6 @@ export default function StudentList() {
   const handleStudentClick = (studentId: string) => {
     router.push(`/dashboard/terms/${studentId}`);
   };
-  const handleViewReports = () => {
-    router.push("/dashboard/students/reports");
-  };
-
-  const handleViewTracker = (studentId: string) => {
-    router.push(`/dashboard/trackers/${studentId}`);
-  };
 
   return (
     <>
@@ -145,9 +138,12 @@ export default function StudentList() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Actions
-                </th>
+                {currentUser?.role !== "TEACHER" &&
+                  currentUser?.role !== "STUDENT" && (
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Actions
+                    </th>
+                  )}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -177,13 +173,13 @@ export default function StudentList() {
                     </span>
                   </td>
 
-                  <td
-                    className="px-6 py-4 whitespace-nowrap"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div className="flex space-x-2">
-                      {currentUser?.role !== "TEACHER" &&
-                        currentUser?.role !== "STUDENT" && (
+                  {currentUser?.role !== "TEACHER" &&
+                    currentUser?.role !== "STUDENT" && (
+                      <td
+                        className="px-6 py-4 whitespace-nowrap"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="flex space-x-2">
                           <Dialog.Root>
                             <Dialog.Trigger asChild>
                               <Button
@@ -215,9 +211,7 @@ export default function StudentList() {
                               />
                             )}
                           </Dialog.Root>
-                        )}
-                      {currentUser?.role !== "TEACHER" &&
-                        currentUser?.role !== "STUDENT" && (
+
                           <Dialog.Root>
                             <Dialog.Trigger asChild>
                               <Button
@@ -264,22 +258,9 @@ export default function StudentList() {
                               </Dialog.Portal>
                             )}
                           </Dialog.Root>
-                        )}
-
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        title="Tracker"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleViewTracker(student.id);
-                        }}
-                        className="cursor-pointer"
-                      >
-                        <BarChart3 className="h-4 w-4 text-blue-500" />
-                      </Button>
-                    </div>
-                  </td>
+                        </div>
+                      </td>
+                    )}
                 </tr>
               ))}
             </tbody>

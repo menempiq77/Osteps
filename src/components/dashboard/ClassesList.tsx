@@ -1,5 +1,7 @@
 "use client";
 import { RootState } from "@/store/store";
+import { Button } from "@/components/ui/button";
+import { BarChart3 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 
@@ -15,10 +17,13 @@ interface ClassesListProps {
   onDeleteClass: (id: string) => void;
 }
 
-export default function ClassesList({ classes, onDeleteClass }: ClassesListProps) {
+export default function ClassesList({
+  classes,
+  onDeleteClass,
+}: ClassesListProps) {
   const router = useRouter();
   const { currentUser } = useSelector((state: RootState) => state.auth);
-  
+
   // Check if current user is a student
   const isStudent = currentUser?.role === "STUDENT";
 
@@ -36,6 +41,9 @@ export default function ClassesList({ classes, onDeleteClass }: ClassesListProps
 
   const handleViewStudents = (classId: string) => {
     router.push(`/dashboard/students`);
+  };
+  const handleViewTracker = (classId: string) => {
+    router.push(`/dashboard/trackers/${classId}`);
   };
 
   return (
@@ -69,9 +77,7 @@ export default function ClassesList({ classes, onDeleteClass }: ClassesListProps
                     {cls.name}
                   </button>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {cls.terms}
-                </td>
+                <td className="px-6 py-4 whitespace-nowrap">{cls.terms}</td>
                 {!isStudent && (
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-4">
@@ -153,6 +159,18 @@ export default function ClassesList({ classes, onDeleteClass }: ClassesListProps
                             d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
                           />
                         </svg>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewTracker(cls.id);
+                        }}
+                        className="text-gray-400 hover:text-blue-500 cursor-pointer"
+                        title="Tracker"
+                      >
+                        <BarChart3 className="h-5 w-5" />
                       </button>
                     </div>
                   </td>
