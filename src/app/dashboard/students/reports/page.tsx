@@ -4,10 +4,19 @@ import { Button } from "antd";
 import Link from "next/link";
 import { ChevronLeftIcon } from "@radix-ui/react-icons";
 import { useRouter } from "next/navigation";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 
 export default function ReportsPage() {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedClass, setSelectedClass] = useState("Class A");
+
   // Sample data matching the screenshot structure
   const [editableData, setEditableData] = useState([
     {
@@ -60,7 +69,7 @@ export default function ReportsPage() {
     },
   ]);
 
-  const filteredData = editableData.filter(student =>
+  const filteredData = editableData.filter((student) =>
     student.student.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -98,14 +107,24 @@ export default function ReportsPage() {
   };
   return (
     <div className="p-3 md:p-6 lg:p-12 mx-auto bg-white min-h-screen">
-      <div className="flex items-center justify-between mb-6">
-          <Button
-            icon={<ChevronLeftIcon />}
-            onClick={() => router.back()}
-            className="text-gray-700 border border-gray-300 hover:bg-gray-100"
-          >
-            Back to Students
-          </Button>
+      <div className="flex items-center gap-4 mb-6">
+        <Button
+          icon={<ChevronLeftIcon />}
+          onClick={() => router.back()}
+          className="text-gray-700 border border-gray-300 hover:bg-gray-100"
+        >
+          Back to Students
+        </Button>
+        <Select value={selectedClass} onValueChange={setSelectedClass}>
+          <SelectTrigger className="w-[150px] shadow-none">
+            <SelectValue placeholder="Select Term" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Class A">Class A</SelectItem>
+            <SelectItem value="Class B">Class B</SelectItem>
+            <SelectItem value="Class C">Term C</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <h1 className="text-2xl font-bold text-gray-900 mb-6">
@@ -149,7 +168,7 @@ export default function ReportsPage() {
 
       <div className="bg-white overflow-hidden">
         <div className="py-4 flex justify-between items-center">
-           <div className="relative ">
+          <div className="relative ">
             <input
               type="text"
               placeholder="Search students..."
@@ -225,11 +244,15 @@ export default function ReportsPage() {
                     {student.pitg}
                   </td>
                   <td className="px-2 py-3 border whitespace-nowrap text-sm font-medium text-center">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      student.courseGrade === 'A-' ? 'bg-green-100 text-green-800' :
-                      student.courseGrade === 'B+' ? 'bg-blue-100 text-blue-800' :
-                      'bg-yellow-100 text-yellow-800'
-                    }`}>
+                    <span
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        student.courseGrade === "A-"
+                          ? "bg-green-100 text-green-800"
+                          : student.courseGrade === "B+"
+                          ? "bg-blue-100 text-blue-800"
+                          : "bg-yellow-100 text-yellow-800"
+                      }`}
+                    >
                       {student.courseGrade}
                     </span>
                   </td>

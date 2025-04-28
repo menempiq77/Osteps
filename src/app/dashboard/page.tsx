@@ -187,50 +187,98 @@ export default function DashboardPage() {
         {currentUser?.role.replace("_", " ")} Dashboard
       </h1>
       {currentUser?.role === "STUDENT" ? (
-       <div className="space-y-6 p-4">
-       {/* Enhanced Breadcrumb */}
-       <div className="flex items-center text-sm font-medium text-gray-600 dark:text-gray-300">
-         <span className="text-blue-600 dark:text-blue-400 font-semibold">Year 7</span>
-         <ChevronRight className="mx-2 h-4 w-4 text-gray-400" />
-         <span className="text-gray-800 dark:text-white">Class C</span>
-       </div>
-     
-       {/* Cards Grid */}
-       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-         <Link href="/dashboard/students/assignments">
-           <Card className="hover:shadow-lg transition-all duration-300 border border-gray-100 dark:border-gray-700 hover:border-blue-100 dark:hover:border-blue-900 group overflow-hidden">
-             <CardHeader className="flex flex-row items-center justify-between pb-3 space-y-0">
-               <div>
-                 <CardTitle className="text-lg font-semibold text-gray-800 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                   Islamic Studies
-                 </CardTitle>
-                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                   Assignment Due: Tomorrow
-                 </p>
-               </div>
-               <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-900/30 group-hover:bg-blue-100 dark:group-hover:bg-blue-900/50 transition-colors">
-                 <BookOpen className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-               </div>
-             </CardHeader>
-             <CardContent>
-               <div className="flex justify-between items-end">
-                 <div>
-                   <p className="text-base font-medium text-gray-700 dark:text-gray-200">
-                     Today's Lesson: Prayer
-                   </p>
-                   <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                     Updated 2 hours ago
-                   </p>
-                 </div>
-                 <Button color="default" variant="outlined" className="text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30">
-                   View
-                 </Button>
-               </div>
-             </CardContent>
-           </Card>
-         </Link>
-       </div>
-     </div>
+        <div className="space-y-6 p-4">
+          {/* Enhanced Breadcrumb */}
+          <div className="flex items-center text-sm font-medium text-gray-600 dark:text-gray-300">
+            <span className="text-blue-600 dark:text-blue-400 font-semibold">
+              Year 7
+            </span>
+            <ChevronRight className="mx-2 h-4 w-4 text-gray-400" />
+            <span className="text-gray-800 dark:text-white">Class C</span>
+          </div>
+
+          {/* Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <Link href="/dashboard/students/assignments">
+              <Card className="hover:shadow-lg transition-all duration-300 border border-gray-100 dark:border-gray-700 hover:border-blue-100 dark:hover:border-blue-900 group overflow-hidden">
+                <CardHeader className="flex flex-row items-center justify-between pb-3 space-y-0">
+                  <div>
+                    <CardTitle className="text-lg font-semibold text-gray-800 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                      Islamic Studies
+                    </CardTitle>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                      Assignment Due: Tomorrow
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-900/30 group-hover:bg-blue-100 dark:group-hover:bg-blue-900/50 transition-colors">
+                    <BookOpen className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex justify-between items-end">
+                    <div>
+                      <p className="text-base font-medium text-gray-700 dark:text-gray-200">
+                        Today's Lesson: Prayer
+                      </p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                        Updated 2 hours ago
+                      </p>
+                    </div>
+                    <Button
+                      color="default"
+                      variant="outlined"
+                      className="text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30"
+                    >
+                      View
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          </div>
+
+          {/* Progress Chart Section */}
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+            <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
+              Assesments Progress
+            </h2>
+            <div className="flex items-center justify-center">
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie
+                    data={[
+                      { name: "Completed", value: 24 },
+                      { name: "Pending", value: 3 },
+                    ]}
+                    dataKey="value"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    startAngle={90}
+                    endAngle={-270}
+                    paddingAngle={5}
+                    labelLine={false}
+                    label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                  >
+                    <Cell key="completed" fill="#10b981" />
+                    <Cell key="pending" fill="#f59e0b" />
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex justify-around mt-4 text-sm text-gray-600 dark:text-gray-300">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-green-500" />
+                Completed
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-amber-400" />
+                Pending
+              </div>
+            </div>
+          </div>
+        </div>
       ) : (
         <>
           {/* Stats Cards */}

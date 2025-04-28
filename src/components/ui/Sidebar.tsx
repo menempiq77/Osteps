@@ -90,6 +90,7 @@ const Sidebar = () => {
       { name: "My Classes", href: "/dashboard/years", icon: BookOpenIcon },
       { name: "Students", href: "/dashboard/students", icon: UserGroupIcon },
       { name: "Library", href: "/dashboard/library", icon: BookTextIcon },
+      { name: "Reports", href: "/dashboard/students/reports", icon: Building  },
       // { name: "Trackers", href: "/dashboard/trackers", icon: Building  },
       { name: "Timetable", href: "/dashboard/timetable", icon: BookOpenIcon },
       {
