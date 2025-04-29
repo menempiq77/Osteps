@@ -24,6 +24,8 @@ import {
   Divider,
   Drawer,
 } from "antd";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import { GripVertical } from "lucide-react";
 
 interface Book {
   id: number;
@@ -114,7 +116,10 @@ export default function HadeesTrackerPage() {
     setQuizzes(initialQuizzes);
   }, []);
 
-  const handleStatusChange = (bookId: number, type: "memorized" | "studied") => {
+  const handleStatusChange = (
+    bookId: number,
+    type: "memorized" | "studied"
+  ) => {
     setBooks((prev) =>
       prev.map((book) =>
         book.id === bookId && book.type !== "quiz"
@@ -259,7 +264,21 @@ export default function HadeesTrackerPage() {
     console.log("Submitting answers...");
   };
 
-  // Calculate progress statistics
+  const handleDragEnd = (result: any) => {
+    if (!result.destination) return;
+
+    const items = Array.from(books);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+
+    const updatedBooks = items.map((item, index) => ({
+      ...item,
+      id: index + 1,
+    }));
+
+    setBooks(updatedBooks);
+  };
+
   const totalBooks = books.length;
   const memorizedCount = books.filter(
     (b) => b.type !== "quiz" && b.status.memorized
@@ -354,10 +373,7 @@ export default function HadeesTrackerPage() {
               />
             </div>
             <div className="flex gap-2">
-              <Button
-                onClick={addNewBook}
-                className="flex items-center gap-1"
-              >
+              <Button onClick={addNewBook} className="flex items-center gap-1">
                 <Save size={16} />
                 Save
               </Button>
@@ -401,148 +417,185 @@ export default function HadeesTrackerPage() {
         )}
 
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="p-4 text-left border text-sm font-medium text-gray-500 uppercase tracking-wider">
-                  Book
-                </th>
-                <th className="p-4 text-center border text-sm font-medium text-gray-500 uppercase tracking-wider">
-                  <div className="flex items-center justify-center gap-1">
-                    <BrainCircuit size={16} className="text-blue-500" />
-                    <span>Memorized</span>
-                  </div>
-                </th>
-                <th className="p-4 text-center border text-sm font-medium text-gray-500 uppercase tracking-wider">
-                  <div className="flex items-center justify-center gap-1">
-                    <ScrollText size={16} className="text-blue-500" />
-                    <span>Studied</span>
-                  </div>
-                </th>
-                {canUpload && (
-                  <th className="p-4 text-center border text-sm font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                )}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {books.slice(0, visibleBooks).map((book) => (
-                <tr
-                  key={book.id}
-                  className={`hover:bg-gray-50 transition-colors ${
-                    book.type === "quiz" ? "cursor-pointer bg-blue-50" : ""
-                  }`}
-                  onClick={
-                    book.type === "quiz"
-                      ? (e) => {
-                          if (editingBook === null) {
-                            showQuizDrawer();
-                          }
-                        }
-                      : undefined
-                  }
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <Droppable droppableId="books">
+              {(provided) => (
+                <table
+                  className="w-full"
+                  ref={provided.innerRef}
+                  {...provided.droppableProps}
                 >
-                  <td className="p-4 border whitespace-nowrap">
-                    {editingBook === book.id ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <input
-                          type="text"
-                          value={newBookName}
-                          onChange={(e) => setNewBookName(e.target.value)}
-                          className="px-3 py-2 border border-gray-300 rounded-md"
-                        />
-                      </div>
-                    ) : (
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">
-                          {book.name}
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="p-4 text-left border text-sm font-medium text-gray-500 uppercase tracking-wider">
+                        Book
+                      </th>
+                      <th className="p-4 text-center border text-sm font-medium text-gray-500 uppercase tracking-wider">
+                        <div className="flex items-center justify-center gap-1">
+                          <BrainCircuit size={16} className="text-blue-500" />
+                          <span>Memorized</span>
                         </div>
-                        {book.type !== "quiz" && (
-                          <div className="text-sm text-gray-500">
-                            {book.author}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </td>
-                  <td className="p-4 border whitespace-nowrap text-center">
-                    {book.type !== "quiz" && (
-                      <input
-                        type="checkbox"
-                        checked={book.status.memorized}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          handleStatusChange(book.id, "memorized");
-                        }}
-                        className="h-5 w-5 text-blue-500 rounded border-gray-300 focus:ring-blue-500 transition"
-                      />
-                    )}
-                  </td>
-                  <td className="p-4 border whitespace-nowrap text-center">
-                    {book.type !== "quiz" && (
-                      <input
-                        type="checkbox"
-                        checked={book.status.studied}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          handleStatusChange(book.id, "studied");
-                        }}
-                        className="h-5 w-5 text-blue-500 rounded border-gray-300 focus:ring-blue-500 transition"
-                      />
-                    )}
-                  </td>
-                  {canUpload && (
-                    <td className="p-4 border whitespace-nowrap text-center">
-                      {editingBook === book.id ? (
-                        <div className="flex justify-center gap-2">
-                          <Button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              saveEdit();
-                            }}
-                            className="text-green-600 hover:text-green-800"
-                          >
-                            <Save size={16} />
-                          </Button>
-                          <Button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              cancelEdit();
-                            }}
-                            className="text-red-600 hover:text-red-800"
-                          >
-                            <X size={16} />
-                          </Button>
+                      </th>
+                      <th className="p-4 text-center border text-sm font-medium text-gray-500 uppercase tracking-wider">
+                        <div className="flex items-center justify-center gap-1">
+                          <ScrollText size={16} className="text-blue-500" />
+                          <span>Studied</span>
                         </div>
-                      ) : (
-                        <div className="flex justify-center gap-2">
-                          <Button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              startEditing(book.id);
-                            }}
-                            className="text-blue-600 hover:text-blue-800"
-                          >
-                            <Edit size={16} />
-                          </Button>
-                          <Button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteBook(book.id);
-                            }}
-                            className="text-red-600 hover:text-red-800"
-                          >
-                            <Trash2 size={16} />
-                          </Button>
-                        </div>
+                      </th>
+                      {canUpload && (
+                        <th className="p-4 text-center border text-sm font-medium text-gray-500 uppercase tracking-wider">
+                          Actions
+                        </th>
                       )}
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {books.slice(0, visibleBooks).map((book, index) => (
+                      <Draggable
+                        key={`book-${book.id}`}
+                        draggableId={book.id.toString()}
+                        index={index}
+                        isDragDisabled={editingBook !== null} // Disable drag when editing
+                      >
+                        {(provided) => (
+                          <tr
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            key={book.id}
+                            className={`hover:bg-gray-50 transition-colors ${
+                              book.type === "quiz"
+                                ? "cursor-pointer bg-blue-50"
+                                : ""
+                            }`}
+                            onClick={
+                              book.type === "quiz"
+                                ? (e) => {
+                                    if (editingBook === null) {
+                                      showQuizDrawer();
+                                    }
+                                  }
+                                : undefined
+                            }
+                          >
+                            <td className="p-4 border whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div
+                                  {...provided.dragHandleProps}
+                                  className="mr-2 cursor-move"
+                                >
+                                  <GripVertical
+                                    size={16}
+                                    className="text-gray-400"
+                                  />
+                                </div>
+
+                                {editingBook === book.id ? (
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <input
+                                      type="text"
+                                      value={newBookName}
+                                      onChange={(e) =>
+                                        setNewBookName(e.target.value)
+                                      }
+                                      className="px-3 py-2 border border-gray-300 rounded-md"
+                                    />
+                                  </div>
+                                ) : (
+                                  <div>
+                                    <div className="text-sm font-medium text-gray-900">
+                                      {book.name}
+                                    </div>
+                                    {book.type !== "quiz" && (
+                                      <div className="text-sm text-gray-500">
+                                        {book.author}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                            <td className="p-4 border whitespace-nowrap text-center">
+                              {book.type !== "quiz" && (
+                                <input
+                                  type="checkbox"
+                                  checked={book.status.memorized}
+                                  onChange={(e) => {
+                                    e.stopPropagation();
+                                    handleStatusChange(book.id, "memorized");
+                                  }}
+                                  className="h-5 w-5 text-blue-500 rounded border-gray-300 focus:ring-blue-500 transition"
+                                />
+                              )}
+                            </td>
+                            <td className="p-4 border whitespace-nowrap text-center">
+                              {book.type !== "quiz" && (
+                                <input
+                                  type="checkbox"
+                                  checked={book.status.studied}
+                                  onChange={(e) => {
+                                    e.stopPropagation();
+                                    handleStatusChange(book.id, "studied");
+                                  }}
+                                  className="h-5 w-5 text-blue-500 rounded border-gray-300 focus:ring-blue-500 transition"
+                                />
+                              )}
+                            </td>
+                            {canUpload && (
+                              <td className="p-4 border whitespace-nowrap text-center">
+                                {editingBook === book.id ? (
+                                  <div className="flex justify-center gap-2">
+                                    <Button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        saveEdit();
+                                      }}
+                                      className="text-green-600 hover:text-green-800"
+                                    >
+                                      <Save size={16} />
+                                    </Button>
+                                    <Button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        cancelEdit();
+                                      }}
+                                      className="text-red-600 hover:text-red-800"
+                                    >
+                                      <X size={16} />
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <div className="flex justify-center gap-2">
+                                    <Button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        startEditing(book.id);
+                                      }}
+                                      className="text-blue-600 hover:text-blue-800"
+                                    >
+                                      <Edit size={16} />
+                                    </Button>
+                                    <Button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        deleteBook(book.id);
+                                      }}
+                                      className="text-red-600 hover:text-red-800"
+                                    >
+                                      <Trash2 size={16} />
+                                    </Button>
+                                  </div>
+                                )}
+                              </td>
+                            )}
+                          </tr>
+                        )}
+                      </Draggable>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </Droppable>
+          </DragDropContext>
         </div>
 
         <div className="p-4 bg-gray-50 border-t border-gray-200">

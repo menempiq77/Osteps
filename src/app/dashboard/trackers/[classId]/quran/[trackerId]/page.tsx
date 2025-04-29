@@ -11,6 +11,7 @@ import {
   Edit,
   Save,
   X,
+  GripVertical,
 } from "lucide-react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
@@ -25,6 +26,7 @@ import {
   Divider,
   Drawer,
 } from "antd";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 
 interface Chapter {
   number: number;
@@ -257,6 +259,21 @@ export default function QuranTrackerAdminPage() {
     console.log("Submitting answers...");
   };
 
+  const handleDragEnd = (result: any) => {
+    if (!result.destination) return;
+
+    const items = Array.from(chapters);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+
+    const updatedChapters = items.map((item, index) => ({
+      ...item,
+      number: index + 1,
+    }));
+
+    setChapters(updatedChapters);
+  };
+
   const totalChapters = chapters.length;
   const readCount = chapters.filter((c) => c.status.read).length;
   const memorizedCount = chapters.filter((c) => c.status.memorized).length;
@@ -391,176 +408,222 @@ export default function QuranTrackerAdminPage() {
         )}
 
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="p-4 text-left border text-sm font-medium text-gray-500 uppercase tracking-wider">
-                  Surah
-                </th>
-                <th className="p-4 text-center border text-sm font-medium text-gray-500 uppercase tracking-wider">
-                  <div className="flex items-center justify-center gap-1">
-                    <BookOpen size={16} className="text-green-500" />
-                    <span>Read</span>
-                  </div>
-                </th>
-                <th className="p-4 text-center border text-sm font-medium text-gray-500 uppercase tracking-wider">
-                  <div className="flex items-center justify-center gap-1">
-                    <BrainCircuit size={16} className="text-blue-500" />
-                    <span>Memorized</span>
-                  </div>
-                </th>
-                <th className="p-4 text-center border text-sm font-medium text-gray-500 uppercase tracking-wider">
-                  <div className="flex items-center justify-center gap-1">
-                    <Languages size={16} className="text-purple-500" />
-                    <span>Tafsir</span>
-                  </div>
-                </th>
-                {canUpload && (
-                  <th className="p-4 text-center border text-sm font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                )}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {chapters.slice(0, visibleChapters).map((chapter) => (
-                <tr
-                  key={chapter.number}
-                  className={`hover:bg-gray-50 transition-colors ${
-                    chapter.type === "quiz" ? "cursor-pointer bg-blue-50" : ""
-                  }`}
-                  onClick={
-                    chapter.type === "quiz" 
-                      ? (e) => {
-                          if (editingChapter === null) {
-                            showQuizDrawer();
-                          }
-                        }
-                      : undefined
-                  }
-                >
-                  <td className="p-4 border whitespace-nowrap">
-                    {editingChapter === chapter.number ? (
-                      <input
-                        type="text"
-                        value={newChapterName}
-                        onChange={(e) => setNewChapterName(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                      />
-                    ) : (
-                      <div className="flex items-center">
-                        <div
-                          className={`flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-full ${
-                            chapter.type === "quiz"
-                              ? "bg-blue-100 text-blue-700"
-                              : "bg-gray-100 text-gray-700"
-                          } font-medium`}
-                        >
-                          {chapter.number}
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <Droppable droppableId="chapters">
+              {(provided) => (
+                <table className="w-full"           ref={provided.innerRef}
+                {...provided.droppableProps}
+      >
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="p-4 text-left border text-sm font-medium text-gray-500 uppercase tracking-wider">
+                        Surah
+                      </th>
+                      <th className="p-4 text-center border text-sm font-medium text-gray-500 uppercase tracking-wider">
+                        <div className="flex items-center justify-center gap-1">
+                          <BookOpen size={16} className="text-green-500" />
+                          <span>Read</span>
                         </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">
-                            {chapter.name.split(" (")[0]}
-                          </div>
-                          {chapter.type !== "quiz" && (
-                            <div className="text-sm text-gray-500">
-                              {chapter.name.match(/\((.*)\)/)?.[1]}
-                            </div>
-                          )}
+                      </th>
+                      <th className="p-4 text-center border text-sm font-medium text-gray-500 uppercase tracking-wider">
+                        <div className="flex items-center justify-center gap-1">
+                          <BrainCircuit size={16} className="text-blue-500" />
+                          <span>Memorized</span>
                         </div>
-                      </div>
-                    )}
-                  </td>
-                  <td className="p-4 border whitespace-nowrap text-center">
-                    {chapter.type !== "quiz" && (
-                      <input
-                        type="checkbox"
-                        checked={chapter.status.read}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          handleStatusChange(chapter.number, "read");
-                        }}
-                        className="h-5 w-5 text-green-500 rounded border-gray-300 focus:ring-green-500 transition"
-                      />
-                    )}
-                  </td>
-                  <td className="p-4 border whitespace-nowrap text-center">
-                    {chapter.type !== "quiz" && (
-                      <input
-                        type="checkbox"
-                        checked={chapter.status.memorized}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          handleStatusChange(chapter.number, "memorized");
-                        }}
-                        className="h-5 w-5 text-blue-500 rounded border-gray-300 focus:ring-blue-500 transition"
-                      />
-                    )}
-                  </td>
-                  <td className="p-4 border whitespace-nowrap text-center">
-                    {chapter.type !== "quiz" && (
-                      <input
-                        type="checkbox"
-                        checked={chapter.status.tafsir}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          handleStatusChange(chapter.number, "tafsir");
-                        }}
-                        className="h-5 w-5 text-purple-500 rounded border-gray-300 focus:ring-purple-500 transition"
-                      />
-                    )}
-                  </td>
-                  {canUpload && (
-                    <td className="p-4 border whitespace-nowrap text-center">
-                      {editingChapter === chapter.number ? (
-                        <div className="flex justify-center gap-2">
-                          <Button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              saveEdit();
-                            }}
-                            className="text-green-600 hover:text-green-800"
-                          >
-                            <Save size={16} />
-                          </Button>
-                          <Button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              cancelEdit();
-                            }}
-                            className="text-red-600 hover:text-red-800"
-                          >
-                            <X size={16} />
-                          </Button>
+                      </th>
+                      <th className="p-4 text-center border text-sm font-medium text-gray-500 uppercase tracking-wider">
+                        <div className="flex items-center justify-center gap-1">
+                          <Languages size={16} className="text-purple-500" />
+                          <span>Tafsir</span>
                         </div>
-                      ) : (
-                        <div className="flex justify-center gap-2">
-                          <Button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              startEditing(chapter.number);
-                            }}
-                            className="text-blue-600 hover:text-blue-800"
-                          >
-                            <Edit size={16} />
-                          </Button>
-                          <Button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteChapter(chapter.number);
-                            }}
-                            className="text-red-600 hover:text-red-800"
-                          >
-                            <Trash2 size={16} />
-                          </Button>
-                        </div>
+                      </th>
+                      {canUpload && (
+                        <th className="p-4 text-center border text-sm font-medium text-gray-500 uppercase tracking-wider">
+                          Actions
+                        </th>
                       )}
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    </tr>
+                  </thead>
+                  <tbody
+                    className="divide-y divide-gray-200"
+                  >
+                    {chapters
+                      .slice(0, visibleChapters)
+                      .map((chapter, index) => (
+                        <Draggable
+                        key={`chapter-${chapter.number}`}
+                          draggableId={chapter.number.toString()}
+                          index={index}
+                        >
+                          {(provided) => (
+                            <tr
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              key={chapter.number}
+                              className={`hover:bg-gray-50 transition-colors ${
+                                chapter.type === "quiz"
+                                  ? "cursor-pointer bg-blue-50"
+                                  : ""
+                              }`}
+                              onClick={
+                                chapter.type === "quiz"
+                                  ? (e) => {
+                                      if (editingChapter === null) {
+                                        showQuizDrawer();
+                                      }
+                                    }
+                                  : undefined
+                              }
+                            >
+                              <td className="p-4 border whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div
+                                  {...provided.dragHandleProps}
+                                  className="mr-2 cursor-move"
+                                >
+                                  <GripVertical
+                                    size={16}
+                                    className="text-gray-400"
+                                  />
+                                </div>
+                                {editingChapter === chapter.number ? (
+                                  <input
+                                    type="text"
+                                    value={newChapterName}
+                                    onChange={(e) =>
+                                      setNewChapterName(e.target.value)
+                                    }
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                  />
+                                ) : (
+                                  <div className="flex items-center">
+                                    <div
+                                      className={`flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-full ${
+                                        chapter.type === "quiz"
+                                          ? "bg-blue-100 text-blue-700"
+                                          : "bg-gray-100 text-gray-700"
+                                      } font-medium`}
+                                    >
+                                      {chapter.number}
+                                    </div>
+                                    <div className="ml-4">
+                                      <div className="text-sm font-medium text-gray-900">
+                                        {chapter.name.split(" (")[0]}
+                                      </div>
+                                      {chapter.type !== "quiz" && (
+                                        <div className="text-sm text-gray-500">
+                                          {chapter.name.match(/\((.*)\)/)?.[1]}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                                </div>
+                              </td>
+                              <td className="p-4 border whitespace-nowrap text-center">
+                                {chapter.type !== "quiz" && (
+                                  <input
+                                    type="checkbox"
+                                    checked={chapter.status.read}
+                                    onChange={(e) => {
+                                      e.stopPropagation();
+                                      handleStatusChange(
+                                        chapter.number,
+                                        "read"
+                                      );
+                                    }}
+                                    className="h-5 w-5 text-green-500 rounded border-gray-300 focus:ring-green-500 transition"
+                                  />
+                                )}
+                              </td>
+                              <td className="p-4 border whitespace-nowrap text-center">
+                                {chapter.type !== "quiz" && (
+                                  <input
+                                    type="checkbox"
+                                    checked={chapter.status.memorized}
+                                    onChange={(e) => {
+                                      e.stopPropagation();
+                                      handleStatusChange(
+                                        chapter.number,
+                                        "memorized"
+                                      );
+                                    }}
+                                    className="h-5 w-5 text-blue-500 rounded border-gray-300 focus:ring-blue-500 transition"
+                                  />
+                                )}
+                              </td>
+                              <td className="p-4 border whitespace-nowrap text-center">
+                                {chapter.type !== "quiz" && (
+                                  <input
+                                    type="checkbox"
+                                    checked={chapter.status.tafsir}
+                                    onChange={(e) => {
+                                      e.stopPropagation();
+                                      handleStatusChange(
+                                        chapter.number,
+                                        "tafsir"
+                                      );
+                                    }}
+                                    className="h-5 w-5 text-purple-500 rounded border-gray-300 focus:ring-purple-500 transition"
+                                  />
+                                )}
+                              </td>
+                              {canUpload && (
+                                <td className="p-4 border whitespace-nowrap text-center">
+                                  {editingChapter === chapter.number ? (
+                                    <div className="flex justify-center gap-2">
+                                      <Button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          saveEdit();
+                                        }}
+                                        className="text-green-600 hover:text-green-800"
+                                      >
+                                        <Save size={16} />
+                                      </Button>
+                                      <Button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          cancelEdit();
+                                        }}
+                                        className="text-red-600 hover:text-red-800"
+                                      >
+                                        <X size={16} />
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex justify-center gap-2">
+                                      <Button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          startEditing(chapter.number);
+                                        }}
+                                        className="text-blue-600 hover:text-blue-800"
+                                      >
+                                        <Edit size={16} />
+                                      </Button>
+                                      <Button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          deleteChapter(chapter.number);
+                                        }}
+                                        className="text-red-600 hover:text-red-800"
+                                      >
+                                        <Trash2 size={16} />
+                                      </Button>
+                                    </div>
+                                  )}
+                                </td>
+                              )}
+                            </tr>
+                          )}
+                        </Draggable>
+                      ))}
+                  </tbody>
+                </table>
+              )}
+            </Droppable>
+          </DragDropContext>
         </div>
 
         <div className="p-4 bg-gray-50 border-t border-gray-200">
