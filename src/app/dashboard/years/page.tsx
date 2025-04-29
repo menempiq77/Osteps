@@ -43,7 +43,7 @@ export default function Page() {
     const newYear: Year = {
       id: years.length + 1,
       yearName: data.name,
-      numberOfTerms: 2, // Default value
+      numberOfTerms: 2,
     };
     setYears([...years, newYear]);
     setOpen(false);
@@ -57,7 +57,7 @@ export default function Page() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Years</h1>
-        {currentUser?.role !== "STUDENT" && (
+        {currentUser?.role !== "STUDENT" && currentUser?.role !== "TEACHER" && (
           <Dialog.Root open={open} onOpenChange={setOpen}>
             <Dialog.Trigger asChild>
               <Button className="cursor-pointer">Add Year</Button>

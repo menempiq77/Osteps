@@ -60,7 +60,7 @@ export default function Page() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Classes</h1>
-        {currentUser?.role !== "STUDENT" && (
+        {currentUser?.role !== "STUDENT" && currentUser?.role !== "TEACHER" && (
           <Dialog.Root open={open} onOpenChange={setOpen}>
             <Dialog.Trigger asChild>
               <Button className="cursor-pointer">Add Class</Button>
