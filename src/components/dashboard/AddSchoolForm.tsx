@@ -1,30 +1,43 @@
 "use client";
 
 import { useForm } from "react-hook-form";
-import { SchoolFormValues } from "@/features/school/types";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "antd";
+import { useEffect } from "react";
 
 const { RangePicker } = DatePicker;
 
 export default function AddSchoolForm({
   onSubmit,
+  defaultValues,
 }: {
-  onSubmit: (data: SchoolFormValues) => void;
+  onSubmit: (data: any) => void;
+  defaultValues?: any;
 }) {
   const {
     register,
     handleSubmit,
     formState: { errors },
     setValue,
-  } = useForm<SchoolFormValues>({
+    reset,
+  } = useForm({
     defaultValues: {
+      name: "",
+      contactPerson: "",
+      adminEmail: "",
+      adminPassword: "",
       terms: 2,
       academicYear: "",
     },
   });
+
+  useEffect(() => {
+    if (defaultValues) {
+      reset(defaultValues);
+    }
+  }, [defaultValues, reset]);
 
   const handleAcademicYearChange = (dates: any) => {
     if (dates && dates[0] && dates[1]) {
@@ -35,55 +48,37 @@ export default function AddSchoolForm({
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="bg-white space-y-4">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {/* School Name */}
         <div>
-          <Label className="mb-1">School Name</Label>
-          <Input
-            {...register("name", { required: "School name is required" })}
-          />
-          {errors.name && (
-            <p className="text-red-500 text-sm">{errors.name.message}</p>
-          )}
+          <Label>School Name</Label>
+          <Input {...register("name", { required: "School name is required" })} />
+          {errors.name && <p className="text-red-500 text-sm">{errors.name.message}</p>}
         </div>
 
-        {/* Contact Person */}
         <div>
-          <Label className="mb-1">Contact Person</Label>
-          <Input
-            {...register("contactPerson", {
-              required: "Contact person is required",
-            })}
-          />
-          {errors.contactPerson && (
-            <p className="text-red-500 text-sm">
-              {errors.contactPerson.message}
-            </p>
-          )}
+          <Label>Contact Person</Label>
+          <Input {...register("contactPerson", { required: "Contact person is required" })} />
+          {errors.contactPerson && <p className="text-red-500 text-sm">{errors.contactPerson.message}</p>}
         </div>
 
-        {/* Admin Email */}
         <div>
-          <Label className="mb-1">Admin Email</Label>
+          <Label>Admin Email</Label>
           <Input
             type="email"
             {...register("adminEmail", {
               required: "Email is required",
               pattern: {
-                value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
                 message: "Invalid email address",
               },
             })}
           />
-          {errors.adminEmail && (
-            <p className="text-red-500 text-sm">{errors.adminEmail.message}</p>
-          )}
+          {errors.adminEmail && <p className="text-red-500 text-sm">{errors.adminEmail.message}</p>}
         </div>
 
-        {/* Admin Password */}
         <div>
-          <Label className="mb-1">Admin Password</Label>
+          <Label>Admin Password</Label>
           <Input
             type="password"
             {...register("adminPassword", {
@@ -94,27 +89,17 @@ export default function AddSchoolForm({
               },
             })}
           />
-          {errors.adminPassword && (
-            <p className="text-red-500 text-sm">
-              {errors.adminPassword.message}
-            </p>
-          )}
+          {errors.adminPassword && <p className="text-red-500 text-sm">{errors.adminPassword.message}</p>}
         </div>
 
-        {/* Academic Year (AntD RangePicker) */}
         <div>
-          <Label className="mb-1">Academic Year</Label>
-          <RangePicker
-            picker="year"
-            onChange={handleAcademicYearChange}
-            className="w-full"
-            placeholder={["From Year", "To Year"]}
-          />
+          <Label>Academic Year</Label>
+          <RangePicker picker="year" onChange={handleAcademicYearChange} className="w-full" />
         </div>
       </div>
 
-      <Button type="submit" className="w-full">
-        Create School
+      <Button type="submit" className="w-full cursor-pointer">
+        {defaultValues ? "Update School" : "Create School"}
       </Button>
     </form>
   );

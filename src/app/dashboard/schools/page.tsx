@@ -1,43 +1,64 @@
 "use client";
-import { useDispatch, useSelector } from "react-redux";
-import { AppDispatch, RootState } from "@/store/store";
+import { useState } from "react";
 import AddSchoolForm from "@/components/dashboard/AddSchoolForm";
-import { addSchool } from "@/features/school/schoolSlice";
-import { createSchoolAdmin } from "@/features/auth/authSlice";
 import SchoolList from "@/components/dashboard/SchoolList";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Cross2Icon } from "@radix-ui/react-icons";
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
 export default function SuperAdminDashboard() {
-  const dispatch = useDispatch<AppDispatch>();
-  const { schools } = useSelector((state: RootState) => state.school);
+  const [schools, setSchools] = useState<any[]>([
+    {
+      id: "1",
+      name: "Falcon High School",
+      contactPerson: "Sarah Johnson",
+      adminEmail: "sarah@gvhschool.edu",
+      adminPassword: "admin1234",
+      academicYear: "2024-2025",
+    },
+    {
+      id: "2",
+      name: "Sunrise School",
+      contactPerson: "Ahmed Khan",
+      adminEmail: "ahmed@sunrise.edu",
+      adminPassword: "admin5678",
+      academicYear: "2023-2024",
+    },
+  ]);
+
   const [open, setOpen] = useState(false);
+  const [editingSchool, setEditingSchool] = useState<any | null>(null);
 
-  const handleAddSchool = (schoolData: {
-    name: string;
-    contactPerson: string;
-    adminEmail: string;
-    terms: number;
-    academicYear: string;
-  }) => {
-    const newSchool = {
-      id: Date.now().toString(),
-      ...schoolData,
-    };
-
-    dispatch(addSchool(newSchool));
-    dispatch(
-      createSchoolAdmin({
+  const handleAddOrEditSchool = (schoolData: any) => {
+    if (editingSchool) {
+      // Update
+      setSchools((prev) =>
+        prev.map((school) =>
+          school.id === editingSchool.id
+            ? { ...editingSchool, ...schoolData }
+            : school
+        )
+      );
+    } else {
+      // Create
+      const newSchool = {
         id: Date.now().toString(),
-        email: schoolData.adminEmail,
-        role: "SCHOOL_ADMIN",
-        schoolId: newSchool.id,
-      })
-    );
-    
+        ...schoolData,
+      };
+      setSchools((prev) => [...prev, newSchool]);
+    }
+
     setOpen(false);
+    setEditingSchool(null);
+  };
+
+  const handleEdit = (school: any) => {
+    setEditingSchool(school);
+    setOpen(true);
+  };
+
+  const handleDelete = (id: string) => {
+    setSchools((prev) => prev.filter((school) => school.id !== id));
   };
 
   return (
@@ -46,20 +67,20 @@ export default function SuperAdminDashboard() {
         <h1 className="text-2xl font-bold">Schools</h1>
         <Dialog.Root open={open} onOpenChange={setOpen}>
           <Dialog.Trigger asChild>
-            <Button>Add School</Button>
+            <Button onClick={() => setEditingSchool(null)} className="cursor-pointer">Add School</Button>
           </Dialog.Trigger>
           <Dialog.Portal>
-            <Dialog.Overlay className="bg-black/50 data-[state=open]:animate-overlayShow fixed inset-0" />
-            <Dialog.Content className="data-[state=open]:animate-contentShow fixed top-[50%] left-[50%] max-h-[85vh] w-[90vw] max-w-[450px] translate-x-[-50%] translate-y-[-50%] rounded-[6px] bg-white p-[25px] shadow-[hsl(206_22%_7%_/_35%)_0px_10px_38px_-10px,_hsl(206_22%_7%_/_20%)_0px_10px_20px_-15px] focus:outline-none">
+            <Dialog.Overlay className="bg-black/50 fixed inset-0" />
+            <Dialog.Content className="fixed top-1/2 left-1/2 w-[90vw] max-w-[450px] -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded shadow">
               <Dialog.Title className="text-lg font-bold mb-4">
-                Add New School
+                {editingSchool ? "Edit School" : "Add New School"}
               </Dialog.Title>
-              <AddSchoolForm onSubmit={handleAddSchool} />
+              <AddSchoolForm
+                onSubmit={handleAddOrEditSchool}
+                defaultValues={editingSchool}
+              />
               <Dialog.Close asChild>
-                <button
-                  className="text-gray-500 hover:text-gray-700 absolute top-[10px] right-[10px] inline-flex h-[25px] w-[25px] appearance-none items-center justify-center rounded-full focus:shadow-[0_0_0_2px] focus:outline-none"
-                  aria-label="Close"
-                >
+                <button className="absolute top-2 right-2 text-gray-500 hover:text-gray-700">
                   <Cross2Icon />
                 </button>
               </Dialog.Close>
@@ -67,8 +88,12 @@ export default function SuperAdminDashboard() {
           </Dialog.Portal>
         </Dialog.Root>
       </div>
-      
-      <SchoolList />
+
+      <SchoolList
+        schools={schools}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+      />
     </div>
   );
 }
