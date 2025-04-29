@@ -424,27 +424,27 @@ export default function TimetablePage() {
         </div>
       </div>
 
-      {isAdmin && viewMode === "week" && (
+      {viewMode === "week" && (
         <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6">
           <h3 className="text-sm font-medium text-gray-700 mb-3">Filters</h3>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">
-                Teacher
+                Year
               </label>
               <Select
-                value={filters.teacher || undefined}
+                value={filters.year || undefined}
                 onChange={(value) =>
-                  handleFilterChange({ name: "teacher", value })
+                  handleFilterChange({ name: "year", value })
                 }
                 className="w-full"
-                placeholder="All Teachers"
+                placeholder="All Years"
                 allowClear
               >
-                {teachers.map((teacher) => (
-                  <Option key={teacher} value={teacher}>
-                    {teacher}
+                {years.map((year) => (
+                  <Option key={year} value={year}>
+                    {year}
                   </Option>
                 ))}
               </Select>
@@ -473,20 +473,20 @@ export default function TimetablePage() {
 
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">
-                Year
+                Teacher
               </label>
               <Select
-                value={filters.year || undefined}
+                value={filters.teacher || undefined}
                 onChange={(value) =>
-                  handleFilterChange({ name: "year", value })
+                  handleFilterChange({ name: "teacher", value })
                 }
                 className="w-full"
-                placeholder="All Years"
+                placeholder="All Teachers"
                 allowClear
               >
-                {years.map((year) => (
-                  <Option key={year} value={year}>
-                    {year}
+                {teachers.map((teacher) => (
+                  <Option key={teacher} value={teacher}>
+                    {teacher}
                   </Option>
                 ))}
               </Select>

@@ -69,6 +69,7 @@ export default function HadeesTrackerPage() {
 
   const canUpload =
     currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "TEACHER";
+  const isAdmin = currentUser?.role === "SCHOOL_ADMIN";
 
   // Initialize with sample data
   useEffect(() => {
@@ -479,15 +480,17 @@ export default function HadeesTrackerPage() {
                           >
                             <td className="p-4 border whitespace-nowrap">
                               <div className="flex items-center">
-                                <div
-                                  {...provided.dragHandleProps}
-                                  className="mr-2 cursor-move"
-                                >
-                                  <GripVertical
-                                    size={16}
-                                    className="text-gray-400"
-                                  />
-                                </div>
+                                {isAdmin && (
+                                  <div
+                                    {...provided.dragHandleProps}
+                                    className="mr-2 cursor-move"
+                                  >
+                                    <GripVertical
+                                      size={16}
+                                      className="text-gray-400"
+                                    />
+                                  </div>
+                                )}
 
                                 {editingBook === book.id ? (
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
