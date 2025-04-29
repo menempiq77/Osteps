@@ -69,7 +69,7 @@ export default function QuranTrackerAdminPage() {
 
   const canUpload =
     currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "TEACHER";
-
+  const isAdmin = currentUser?.role === "SCHOOL_ADMIN";
   // Initialize with sample data
   useEffect(() => {
     const initialChapters = [
@@ -411,9 +411,11 @@ export default function QuranTrackerAdminPage() {
           <DragDropContext onDragEnd={handleDragEnd}>
             <Droppable droppableId="chapters">
               {(provided) => (
-                <table className="w-full"           ref={provided.innerRef}
-                {...provided.droppableProps}
-      >
+                <table
+                  className="w-full"
+                  ref={provided.innerRef}
+                  {...provided.droppableProps}
+                >
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="p-4 text-left border text-sm font-medium text-gray-500 uppercase tracking-wider">
@@ -444,14 +446,12 @@ export default function QuranTrackerAdminPage() {
                       )}
                     </tr>
                   </thead>
-                  <tbody
-                    className="divide-y divide-gray-200"
-                  >
+                  <tbody className="divide-y divide-gray-200">
                     {chapters
                       .slice(0, visibleChapters)
                       .map((chapter, index) => (
                         <Draggable
-                        key={`chapter-${chapter.number}`}
+                          key={`chapter-${chapter.number}`}
                           draggableId={chapter.number.toString()}
                           index={index}
                         >
@@ -476,48 +476,54 @@ export default function QuranTrackerAdminPage() {
                               }
                             >
                               <td className="p-4 border whitespace-nowrap">
-                              <div className="flex items-center">
-                                <div
-                                  {...provided.dragHandleProps}
-                                  className="mr-2 cursor-move"
-                                >
-                                  <GripVertical
-                                    size={16}
-                                    className="text-gray-400"
-                                  />
-                                </div>
-                                {editingChapter === chapter.number ? (
-                                  <input
-                                    type="text"
-                                    value={newChapterName}
-                                    onChange={(e) =>
-                                      setNewChapterName(e.target.value)
-                                    }
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                                  />
-                                ) : (
-                                  <div className="flex items-center">
+                                <div className="flex items-center">
+                                  {isAdmin && (
                                     <div
-                                      className={`flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-full ${
-                                        chapter.type === "quiz"
-                                          ? "bg-blue-100 text-blue-700"
-                                          : "bg-gray-100 text-gray-700"
-                                      } font-medium`}
+                                      {...provided.dragHandleProps}
+                                      className="mr-2 cursor-move"
                                     >
-                                      {chapter.number}
+                                      <GripVertical
+                                        size={16}
+                                        className="text-gray-400"
+                                      />
                                     </div>
-                                    <div className="ml-4">
-                                      <div className="text-sm font-medium text-gray-900">
-                                        {chapter.name.split(" (")[0]}
+                                  )}
+                                  {editingChapter === chapter.number ? (
+                                    <input
+                                      type="text"
+                                      value={newChapterName}
+                                      onChange={(e) =>
+                                        setNewChapterName(e.target.value)
+                                      }
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                    />
+                                  ) : (
+                                    <div className="flex items-center">
+                                      <div
+                                        className={`flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-full ${
+                                          chapter.type === "quiz"
+                                            ? "bg-blue-100 text-blue-700"
+                                            : "bg-gray-100 text-gray-700"
+                                        } font-medium`}
+                                      >
+                                        {chapter.number}
                                       </div>
-                                      {chapter.type !== "quiz" && (
-                                        <div className="text-sm text-gray-500">
-                                          {chapter.name.match(/\((.*)\)/)?.[1]}
+                                      <div className="ml-4">
+                                        <div className="text-sm font-medium text-gray-900">
+                                          {chapter.name.split(" (")[0]}
                                         </div>
-                                      )}
+                                        {chapter.type !== "quiz" && (
+                                          <div className="text-sm text-gray-500">
+                                            {
+                                              chapter.name.match(
+                                                /\((.*)\)/
+                                              )?.[1]
+                                            }
+                                          </div>
+                                        )}
+                                      </div>
                                     </div>
-                                  </div>
-                                )}
+                                  )}
                                 </div>
                               </td>
                               <td className="p-4 border whitespace-nowrap text-center">

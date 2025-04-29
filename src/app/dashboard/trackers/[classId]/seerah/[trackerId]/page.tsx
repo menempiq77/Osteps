@@ -69,6 +69,7 @@ export default function SeerahTrackerPage() {
 
   const canUpload =
     currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "TEACHER";
+  const isAdmin = currentUser?.role === "SCHOOL_ADMIN";
 
   // Initialize with sample data
   useEffect(() => {
@@ -487,15 +488,17 @@ export default function SeerahTrackerPage() {
                           >
                             <td className="p-4 border whitespace-nowrap">
                               <div className="flex items-center">
-                                <div
-                                  {...provided.dragHandleProps}
-                                  className="mr-2 cursor-move"
-                                >
-                                  <GripVertical
-                                    size={16}
-                                    className="text-gray-400"
-                                  />
-                                </div>
+                                {isAdmin && (
+                                  <div
+                                    {...provided.dragHandleProps}
+                                    className="mr-2 cursor-move"
+                                  >
+                                    <GripVertical
+                                      size={16}
+                                      className="text-gray-400"
+                                    />
+                                  </div>
+                                )}
                                 {editingPeriod === period.id ? (
                                   <input
                                     type="text"
@@ -632,9 +635,7 @@ export default function SeerahTrackerPage() {
               {periods.length} Periods
             </div>
             {visiblePeriods < periods.length && (
-              <Button onClick={loadMorePeriods}>
-                Load More (5)
-              </Button>
+              <Button onClick={loadMorePeriods}>Load More (5)</Button>
             )}
           </div>
         </div>
