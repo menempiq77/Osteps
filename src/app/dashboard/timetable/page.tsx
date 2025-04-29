@@ -14,23 +14,15 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Modal } from "antd";
+import { Select } from "antd";
+const { Option } = Select;
 
-const days = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-];
+const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 const timeSlots = [
   "8:00 - 9:00",
   "9:00 - 10:00",
   "10:00 - 11:00",
   "11:00 - 12:00",
-  "12:00 - 1:00",
-  "1:00 - 2:00",
-  "2:00 - 3:00",
-  "3:00 - 4:00",
 ];
 
 const teachers = [
@@ -41,13 +33,7 @@ const teachers = [
 ];
 const years = ["year 1", "year 2", "year 3"];
 
-const classes = [
-  "Class 1",
-  "Class 2",
-  "Class 3",
-  "Class 4",
-  "Class 5",
-];
+const classes = ["Class 1", "Class 2", "Class 3", "Class 4", "Class 5"];
 
 const initialTimetable = {
   TEACHER: {
@@ -66,9 +52,9 @@ const initialTimetable = {
       },
     },
     Tuesday: {
-      "10:00 - 11:00": { 
-        subject: "Islmiyat", 
-        class: "Class 5", 
+      "10:00 - 11:00": {
+        subject: "Islmiyat",
+        class: "Class 5",
         room: "Lab 1",
         zoomLink: "https://zoom.us/j/3456789012",
       },
@@ -116,10 +102,10 @@ const initialTimetable = {
       },
     },
     Tuesday: {
-      "10:00 - 11:00": { 
-        subject: "Seerah Assesment", 
+      "10:00 - 11:00": {
+        subject: "Seerah Assesment",
         teacher: "Sheikh Ibrahim",
-        class: "Grade 12", 
+        class: "Grade 12",
         room: "Lab 1",
         zoomLink: "https://zoom.us/j/3456789012",
       },
@@ -178,9 +164,12 @@ export default function TimetablePage() {
 
   const filterTimetable = (dayTimetable: any) => {
     if (!isAdmin) return dayTimetable;
-    
+
     const filtered: any = {};
-    for (const [time, slot] of Object.entries(dayTimetable) as [string, any][]) {
+    for (const [time, slot] of Object.entries(dayTimetable) as [
+      string,
+      any
+    ][]) {
       if (
         (filters.teacher === "" || slot.teacher === filters.teacher) &&
         (filters.class === "" || slot.class === filters.class) &&
@@ -254,17 +243,17 @@ export default function TimetablePage() {
       subject: formData.subject,
       ...(formData.zoomLink && { zoomLink: formData.zoomLink }),
       ...(currentUser?.role === "TEACHER"
-        ? { 
-            class: formData.class, 
+        ? {
+            class: formData.class,
             room: formData.room,
             year: formData.year,
           }
-        : { 
-            ...(currentUser?.role === "SCHOOL_ADMIN" && { 
+        : {
+            ...(currentUser?.role === "SCHOOL_ADMIN" && {
               class: formData.class,
               year: formData.year,
             }),
-            teacher: formData.teacher, 
+            teacher: formData.teacher,
             room: formData.room,
           }),
     };
@@ -283,11 +272,16 @@ export default function TimetablePage() {
     }));
   };
 
-  const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFilters(prev => ({
+  const handleFilterChange = ({
+    name,
+    value,
+  }: {
+    name: string;
+    value: string;
+  }) => {
+    setFilters((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
@@ -298,29 +292,18 @@ export default function TimetablePage() {
 
   const renderSlotContent = (slot: any) => (
     <>
-      <div className="font-medium text-green-800">
-        {slot.subject}
-      </div>
-      {slot.class && (
-        <div className="text-sm text-gray-600">
-          {slot.class}
-        </div>
-      )}
+      <div className="font-medium text-gray-800">{slot.subject}</div>
+      {slot.class && <div className="text-sm text-gray-600">{slot.class}</div>}
       {slot.teacher && (
-        <div className="text-sm text-gray-600">
-          {slot.teacher}
-        </div>
+        <div className="text-sm text-gray-600">{slot.teacher}</div>
       )}
-      <div className="text-xs text-gray-500 mt-1">
-        {slot.room}
-      </div>
-      {/* Zoom link icon */}
+      <div className="text-xs text-gray-500 mt-1">{slot.room}</div>
       {slot.zoomLink && (
         <a
           href={slot.zoomLink}
           target="_blank"
           rel="noopener noreferrer"
-          className="absolute bottom-2 right-2 text-blue-600 hover:text-blue-800"
+          className="absolute bottom-2 right-2 text-blue-600 hover:text-blue-800 transition-colors"
           onClick={(e) => e.stopPropagation()}
         >
           <LinkIcon className="h-4 w-4" />
@@ -328,9 +311,8 @@ export default function TimetablePage() {
       )}
     </>
   );
-  
 
-  const renderEditButtons = (day: string, time: string) => (
+  const renderEditButtons = (day: string, time: string) =>
     canEdit && (
       <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-1">
         <button
@@ -338,152 +320,198 @@ export default function TimetablePage() {
             e.stopPropagation();
             handleEditSlot(day, time);
           }}
-          className="p-1 text-green-600 hover:text-green-800"
+          className="p-1 text-gray-500 hover:text-blue-600 transition-colors bg-white rounded-full shadow-sm"
         >
-          <PencilIcon className="h-4 w-4" />
+          <PencilIcon className="h-3 w-3" />
         </button>
         <button
           onClick={(e) => {
             e.stopPropagation();
             handleDeleteSlot(day, time);
           }}
-          className="p-1 text-red-600 hover:text-red-800"
+          className="p-1 text-gray-500 hover:text-red-600 transition-colors bg-white rounded-full shadow-sm"
         >
-          <TrashIcon className="h-4 w-4" />
+          <TrashIcon className="h-3 w-3" />
         </button>
       </div>
-    )
-  );
+    );
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">
-          Islamic School Timetable
-        </h1>
-        <div className="flex space-x-2">
+    <div className="p-3 md:p-6 max-w-7xl mx-auto">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Islamic School Timetable
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">
+            {viewMode === "week"
+              ? `Week of ${currentWeek.toLocaleDateString("en-US", {
+                  month: "long",
+                  day: "numeric",
+                  year: "numeric",
+                })}`
+              : `${getCurrentDayName()}, ${currentWeek.toLocaleDateString(
+                  "en-US",
+                  { month: "long", day: "numeric", year: "numeric" }
+                )}`}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setViewMode("day")}
-            className={`px-4 py-2 rounded-lg ${
-              viewMode === "day" ? "bg-green-600 text-white" : "bg-gray-200 text-gray-700"
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              viewMode === "day"
+                ? "bg-indigo-600 text-white shadow-md"
+                : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
             }`}
           >
             Day View
           </button>
           <button
             onClick={() => setViewMode("week")}
-            className={`px-4 py-2 rounded-lg ${
-              viewMode === "week" ? "bg-green-600 text-white" : "bg-gray-200 text-gray-700"
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              viewMode === "week"
+                ? "bg-indigo-600 text-white shadow-md"
+                : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
             }`}
           >
             Week View
           </button>
+          <div className="flex items-center bg-white border border-gray-300 rounded-lg overflow-hidden">
+            <button
+              onClick={() => navigateWeek("prev")}
+              className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-gray-50 transition-colors"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+            </button>
+            <div className="px-3 flex items-center gap-2 py-2 text-sm text-gray-600 border-x border-gray-300">
+              <CalendarIcon className="h-4 w-4 inline" />
+              {new Date().getMonth() === currentWeek.getMonth()
+                ? "This Week"
+                : "Selected Week"}
+            </div>
+            <button
+              onClick={() => navigateWeek("next")}
+              className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-gray-50 transition-colors"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <div className="flex items-center justify-between p-4 bg-gray-50 border-b">
-          <button
-            onClick={() => navigateWeek("prev")}
-            className="p-2 rounded-lg hover:bg-gray-200"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <div className="flex items-center">
-            <CalendarIcon className="h-5 w-5 mr-2 text-gray-500" />
-            <span className="font-medium">
-              {viewMode === "week"
-                ? `Week of ${currentWeek.toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                  })}`
-                : `${getCurrentDayName()}, ${currentWeek.toLocaleDateString(
-                    "en-US",
-                    { month: "short", day: "numeric", year: "numeric" }
-                  )}`}
-            </span>
-          </div>
-          <button
-            onClick={() => navigateWeek("next")}
-            className="p-2 rounded-lg hover:bg-gray-200"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        </div>
+      {isAdmin && viewMode === "week" && (
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6">
+          <h3 className="text-sm font-medium text-gray-700 mb-3">Filters</h3>
 
-        {isAdmin && viewMode === "week" && (
-          <div className="flex space-x-4 p-4 bg-gray-50 border-b">
-            <div className="w-1/3">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Filter by Year
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                Teacher
               </label>
-              <select
-                name="year"
-                value={filters.year}
-                onChange={handleFilterChange}
-                className="w-full p-2 border border-gray-300 rounded-md"
+              <Select
+                value={filters.teacher || undefined}
+                onChange={(value) =>
+                  handleFilterChange({ name: "teacher", value })
+                }
+                className="w-full"
+                placeholder="All Teachers"
+                allowClear
               >
-                <option value="">All Years</option>
-                {years.map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="w-1/3">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Filter by Teacher
-              </label>
-              <select
-                name="teacher"
-                value={filters.teacher}
-                onChange={handleFilterChange}
-                className="w-full p-2 border border-gray-300 rounded-md"
-              >
-                <option value="">All Teachers</option>
                 {teachers.map((teacher) => (
-                  <option key={teacher} value={teacher}>
+                  <Option key={teacher} value={teacher}>
                     {teacher}
-                  </option>
+                  </Option>
                 ))}
-              </select>
+              </Select>
             </div>
-            <div className="w-1/3">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Filter by Class
+
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                Class
               </label>
-              <select
-                name="class"
-                value={filters.class}
-                onChange={handleFilterChange}
-                className="w-full p-2 border border-gray-300 rounded-md"
+              <Select
+                value={filters.class || undefined}
+                onChange={(value) =>
+                  handleFilterChange({ name: "class", value })
+                }
+                className="w-full"
+                placeholder="All Classes"
+                allowClear
               >
-                <option value="">All Classes</option>
                 {classes.map((cls) => (
-                  <option key={cls} value={cls}>
+                  <Option key={cls} value={cls}>
                     {cls}
-                  </option>
+                  </Option>
                 ))}
-              </select>
+              </Select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                Year
+              </label>
+              <Select
+                value={filters.year || undefined}
+                onChange={(value) =>
+                  handleFilterChange({ name: "year", value })
+                }
+                className="w-full"
+                placeholder="All Years"
+                allowClear
+              >
+                {years.map((year) => (
+                  <Option key={year} value={year}>
+                    {year}
+                  </Option>
+                ))}
+              </Select>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         {viewMode === "week" ? (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Time
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-40">
+                    <div className="flex items-center">
+                      <ClockIcon className="h-4 w-4 mr-2 text-gray-400" />
+                      Time
+                    </div>
                   </th>
                   {days.map((day) => (
-                    <th key={day} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th
+                      key={day}
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    >
                       {day}
                     </th>
                   ))}
@@ -491,37 +519,37 @@ export default function TimetablePage() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {timeSlots.map((time) => (
-                  <tr key={time}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      <div className="flex items-center">
-                        <ClockIcon className="h-4 w-4 mr-2 text-gray-400" />
-                        {time}
-                      </div>
+                  <tr key={time} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 w-40">
+                      {time}
                     </td>
                     {days.map((day) => {
                       const dayTimetable = getDayTimetable(day);
                       const filteredTimetable = filterTimetable(dayTimetable);
                       const slot = filteredTimetable[time];
                       return (
-                        <td key={`${day}-${time}`} className="px-6 py-4 whitespace-nowrap">
-                        {slot ? (
-                          <div className="p-3 bg-green-50 rounded-lg relative group h-full min-h-[80px]">
-                            {renderSlotContent(slot)}
-                            {renderEditButtons(day, time)}
-                          </div>
-                        ) : (
-                          <div className="h-16 border border-dashed border-gray-200 rounded-lg relative">
-                            {canEdit && (
-                              <button
-                                onClick={() => handleAddSlot(day, time)}
-                                className="absolute inset-0 flex items-center justify-center text-gray-400 hover:text-green-600"
-                              >
-                                <PlusIcon className="h-5 w-5" />
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </td>
+                        <td
+                          key={`${day}-${time}`}
+                          className="px-6 py-4 whitespace-nowrap"
+                        >
+                          {slot ? (
+                            <div className="p-3 bg-indigo-50 rounded-lg relative group h-full min-h-[80px] border border-indigo-100 hover:border-indigo-200 transition-colors">
+                              {renderSlotContent(slot)}
+                              {renderEditButtons(day, time)}
+                            </div>
+                          ) : (
+                            <div className="h-16 border-2 border-dashed border-gray-200 rounded-lg relative hover:border-gray-300 transition-colors">
+                              {canEdit && (
+                                <button
+                                  onClick={() => handleAddSlot(day, time)}
+                                  className="absolute inset-0 flex items-center justify-center text-gray-400 hover:text-indigo-600 transition-colors"
+                                >
+                                  <PlusIcon className="h-5 w-5" />
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </td>
                       );
                     })}
                   </tr>
@@ -530,21 +558,18 @@ export default function TimetablePage() {
             </table>
           </div>
         ) : (
-          <div className="p-4">
-            <h2 className="text-xl font-semibold mb-4">
-              {getCurrentDayName()}
-            </h2>
-            {isAdmin && (
-              <div className="flex space-x-4 mb-4">
-                <div className="w-1/2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Filter by Teacher
-                  </label>
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-lg font-semibold text-gray-900">
+                {getCurrentDayName()}
+              </h2>
+              {isAdmin && (
+                <div className="flex space-x-3">
                   <select
                     name="teacher"
                     value={filters.teacher}
                     onChange={handleFilterChange}
-                    className="w-full p-2 border border-gray-300 rounded-md"
+                    className="text-sm p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500"
                   >
                     <option value="">All Teachers</option>
                     {teachers.map((teacher) => (
@@ -553,16 +578,11 @@ export default function TimetablePage() {
                       </option>
                     ))}
                   </select>
-                </div>
-                <div className="w-1/2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Filter by Class
-                  </label>
                   <select
                     name="class"
                     value={filters.class}
                     onChange={handleFilterChange}
-                    className="w-full p-2 border border-gray-300 rounded-md"
+                    className="text-sm p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500"
                   >
                     <option value="">All Classes</option>
                     {classes.map((cls) => (
@@ -572,30 +592,31 @@ export default function TimetablePage() {
                     ))}
                   </select>
                 </div>
-              </div>
-            )}
-            <div className="space-y-4">
+              )}
+            </div>
+            <div className="space-y-3">
               {timeSlots.map((time) => {
                 const dayTimetable = getDayTimetable(getCurrentDayName());
                 const filteredTimetable = filterTimetable(dayTimetable);
                 const slot = filteredTimetable[time];
                 return (
-                  <div key={time} className="flex items-start">
-                    <div className="w-32 flex-shrink-0 flex items-center">
-                      <ClockIcon className="h-4 w-4 mr-2 text-gray-400" />
-                      <span className="font-medium">{time}</span>
+                  <div key={time} className="flex items-start gap-4">
+                    <div className="w-24 flex-shrink-0 flex items-center justify-center bg-gray-50 p-3 rounded-lg border border-gray-200">
+                      <span className="font-medium text-gray-700">{time}</span>
                     </div>
                     {slot ? (
-                      <div className="flex-1 p-4 bg-green-50 rounded-lg relative group min-h-[80px]">
+                      <div className="flex-1 p-4 bg-indigo-50 rounded-lg relative group min-h-[80px] border border-indigo-100 hover:border-indigo-200 transition-colors">
                         {renderSlotContent(slot)}
                         {renderEditButtons(getCurrentDayName(), time)}
                       </div>
                     ) : (
-                      <div className="flex-1 h-16 border border-dashed border-gray-200 rounded-lg relative">
+                      <div className="flex-1 h-16 border-2 border-dashed border-gray-200 rounded-lg relative hover:border-gray-300 transition-colors">
                         {canEdit && (
                           <button
-                            onClick={() => handleAddSlot(getCurrentDayName(), time)}
-                            className="absolute inset-0 flex items-center justify-center text-gray-400 hover:text-green-600"
+                            onClick={() =>
+                              handleAddSlot(getCurrentDayName(), time)
+                            }
+                            className="absolute inset-0 flex items-center justify-center text-gray-400 hover:text-indigo-600 transition-colors"
                           >
                             <PlusIcon className="h-5 w-5" />
                           </button>
@@ -614,10 +635,10 @@ export default function TimetablePage() {
         <div className="mt-6">
           <Link
             href="/dashboard/timetable"
-            className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
           >
             <BookOpenIcon className="h-5 w-5 mr-2" />
-            View Timetable
+            View Full Timetable
           </Link>
         </div>
       )}
@@ -627,74 +648,97 @@ export default function TimetablePage() {
         onCancel={() => setIsModalOpen(false)}
         onOk={handleSubmit}
         footer={null}
-        title={
-          <h2 className="text-xl font-semibold">
-            {currentSlot && timetableData[currentSlot.day]?.[currentSlot.time]
-              ? "Edit"
-              : "Add"}{" "}
-            Class Slot
-          </h2>
-        }
+        centered
+        className="[&_.ant-modal-content]:rounded-xl [&_.ant-modal-content]:p-0"
       >
-        <form onSubmit={handleSubmit}>
-          <div className="space-y-4 mt-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Subject
-              </label>
-              <input
-                type="text"
-                name="subject"
-                value={formData.subject}
-                readOnly
-                className="w-full p-2 border border-gray-300 rounded-md bg-gray-100"
-              />
-            </div>
-
-            {(isAdmin || isTeacher) && (
+        <div className="p-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">
+            {currentSlot && timetableData[currentSlot.day]?.[currentSlot.time]
+              ? "Edit Class Slot"
+              : "Add New Class Slot"}
+          </h2>
+          <form onSubmit={handleSubmit}>
+            <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Year
+                  Subject
                 </label>
-                <select
-                  name="year"
-                  value={formData.year}
-                  onChange={handleInputChange}
-                  className="w-full p-2 border border-gray-300 rounded-md"
-                  required
-                >
-                  <option value="">Select a Year</option>
-                  {years.map((year) => (
-                    <option key={year} value={year}>
-                      {year}
-                    </option>
-                  ))}
-                </select>
+                <input
+                  type="text"
+                  name="subject"
+                  value={formData.subject}
+                  readOnly
+                  className="w-full p-2 text-sm border border-gray-300 rounded-lg bg-gray-50"
+                />
               </div>
-            )}
 
-            {isAdmin && (
-              <>
+              {(isAdmin || isTeacher) && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Teacher
+                    Year
                   </label>
                   <select
-                    name="teacher"
-                    value={formData.teacher}
+                    name="year"
+                    value={formData.year}
                     onChange={handleInputChange}
-                    className="w-full p-2 border border-gray-300 rounded-md"
+                    className="w-full p-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500"
                     required
                   >
-                    <option value="">Select a teacher</option>
-                    {teachers.map((teacher) => (
-                      <option key={teacher} value={teacher}>
-                        {teacher}
+                    <option value="">Select Year</option>
+                    {years.map((year) => (
+                      <option key={year} value={year}>
+                        {year}
                       </option>
                     ))}
                   </select>
                 </div>
+              )}
 
+              {isAdmin && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Teacher
+                    </label>
+                    <select
+                      name="teacher"
+                      value={formData.teacher}
+                      onChange={handleInputChange}
+                      className="w-full p-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500"
+                      required
+                    >
+                      <option value="">Select Teacher</option>
+                      {teachers.map((teacher) => (
+                        <option key={teacher} value={teacher}>
+                          {teacher}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Class
+                    </label>
+                    <select
+                      name="class"
+                      value={formData.class}
+                      onChange={handleInputChange}
+                      className="w-full p-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500"
+                      required
+                    >
+                      <option value="">Select Class</option>
+                      {classes.map((cls) => (
+                        <option key={cls} value={cls}>
+                          {cls}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
+
+              {isTeacher && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Class
@@ -703,10 +747,10 @@ export default function TimetablePage() {
                     name="class"
                     value={formData.class}
                     onChange={handleInputChange}
-                    className="w-full p-2 border border-gray-300 rounded-md"
+                    className="w-full p-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500"
                     required
                   >
-                    <option value="">Select a class</option>
+                    <option value="">Select Class</option>
                     {classes.map((cls) => (
                       <option key={cls} value={cls}>
                         {cls}
@@ -714,77 +758,55 @@ export default function TimetablePage() {
                     ))}
                   </select>
                 </div>
-              </>
-            )}
+              )}
 
-            {isTeacher && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Class
+                  Room/Location
                 </label>
-                <select
-                  name="class"
-                  value={formData.class}
+                <input
+                  type="text"
+                  name="room"
+                  value={formData.room}
                   onChange={handleInputChange}
-                  className="w-full p-2 border border-gray-300 rounded-md"
+                  className="w-full p-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500"
+                  placeholder="e.g. Masjid, Room 101, Lab 2"
                   required
-                >
-                  <option value="">Select a class</option>
-                  {classes.map((cls) => (
-                    <option key={cls} value={cls}>
-                      {cls}
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
-            )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Room
-              </label>
-              <input
-                type="text"
-                name="room"
-                value={formData.room}
-                onChange={handleInputChange}
-                className="w-full p-2 border border-gray-300 rounded-md"
-                placeholder="e.g. Masjid or Room 101"
-                required
-              />
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Zoom Link (optional)
+                </label>
+                <input
+                  type="url"
+                  name="zoomLink"
+                  value={formData.zoomLink}
+                  onChange={handleInputChange}
+                  className="w-full p-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500"
+                  placeholder="https://zoom.us/j/..."
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Zoom Link (optional)
-              </label>
-              <input
-                type="url"
-                name="zoomLink"
-                value={formData.zoomLink}
-                onChange={handleInputChange}
-                className="w-full p-2 border border-gray-300 rounded-md"
-                placeholder="https://zoom.us/j/..."
-              />
+              <div className="flex justify-end space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+                >
+                  Save Changes
+                </button>
+              </div>
             </div>
-
-            <div className="flex justify-end space-x-3 pt-4">
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-              >
-                Save
-              </button>
-            </div>
-          </div>
-        </form>
+          </form>
+        </div>
       </Modal>
     </div>
   );

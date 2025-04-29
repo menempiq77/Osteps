@@ -20,7 +20,7 @@ export default function YearsList({ years, onDeleteYear }: YearsListProps) {
   const { currentUser } = useSelector((state: RootState) => state.auth);
   
   // Check if current user is a student
-  const isStudent = currentUser?.role === "STUDENT";
+  const isStudent = currentUser?.role === "STUDENT" || currentUser?.role === "TEACHER";
 
   // Handler functions for actions
   const handleEdit = (yearId: number) => {

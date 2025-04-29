@@ -97,7 +97,7 @@ export default function StudentList() {
     <>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Students</h1>
-        {currentUser?.role !== "STUDENT" && (
+        {currentUser?.role !== "TEACHER" && currentUser?.role !== "STUDENT" && (
           <div className="flex gap-2">
             <Dialog.Root
               open={isAddStudentModalOpen}

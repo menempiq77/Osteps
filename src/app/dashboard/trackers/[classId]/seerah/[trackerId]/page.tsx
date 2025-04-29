@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
   BookOpen,
@@ -14,7 +13,19 @@ import {
 } from "lucide-react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { Modal, Input, Radio, Space, Form, Divider, Drawer, Select } from "antd";
+import {
+  Modal,
+  Input,
+  Radio,
+  Space,
+  Form,
+  Divider,
+  Drawer,
+  Select,
+  Button,
+} from "antd";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import { GripVertical } from "lucide-react";
 
 interface Period {
   id: number;
@@ -251,7 +262,20 @@ export default function SeerahTrackerPage() {
   const handleSubmitAnswers = () => {
     console.log("Submitting answers...");
   };
+  const handleDragEnd = (result: any) => {
+    if (!result.destination) return;
 
+    const items = Array.from(periods);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+
+    const updatedPeriods = items.map((item, index) => ({
+      ...item,
+      id: index + 1,
+    }));
+
+    setPeriods(updatedPeriods);
+  };
   // Calculate progress statistics
   const totalPeriods = periods.filter((p) => p.type !== "quiz").length;
   const studiedCount = periods.filter(
@@ -265,7 +289,6 @@ export default function SeerahTrackerPage() {
     <div className="p-4 md:p-8 max-w-7xl mx-auto bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
       <div className="flex flex-col md:flex-row justify-between items-center mb-8">
         <Button
-          variant="ghost"
           onClick={() => router.back()}
           className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
         >
@@ -349,7 +372,6 @@ export default function SeerahTrackerPage() {
             <div className="flex gap-2">
               <Button
                 onClick={addNewPeriod}
-                variant="default"
                 className="flex items-center gap-1"
               >
                 <Save size={16} />
@@ -361,7 +383,6 @@ export default function SeerahTrackerPage() {
                   setNewPeriodName("");
                   setNewPeriodDescription("");
                 }}
-                variant="outline"
               >
                 <X size={16} />
               </Button>
@@ -401,177 +422,207 @@ export default function SeerahTrackerPage() {
         )}
 
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="p-4 text-left border text-sm font-medium text-gray-500 uppercase tracking-wider">
-                  Period
-                </th>
-                <th className="p-4 text-left border text-sm font-medium text-gray-500 uppercase tracking-wider">
-                  Description
-                </th>
-                <th className="p-4 text-center border text-sm font-medium text-gray-500 uppercase tracking-wider">
-                  <div className="flex items-center justify-center gap-1">
-                    <BookOpen size={16} className="text-green-500" />
-                    <span>Studied</span>
-                  </div>
-                </th>
-                <th className="p-4 text-center border text-sm font-medium text-gray-500 uppercase tracking-wider">
-                  <div className="flex items-center justify-center gap-1">
-                    <Clock size={16} className="text-blue-500" />
-                    <span>Recall</span>
-                  </div>
-                </th>
-                {canUpload && (
-                  <th className="p-4 text-center border text-sm font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                )}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {periods.slice(0, visiblePeriods).map((period) => (
-                <tr
-                  key={period.id}
-                  className={`hover:bg-gray-50 transition-colors ${
-                    period.type === "quiz" ? "cursor-pointer bg-blue-50" : ""
-                  }`}
-                  onClick={
-                    period.type === "quiz"
-                      ? (e) => {
-                          if (editingPeriod === null) {
-                            showQuizDrawer();
-                          }
-                        }
-                      : undefined
-                  }
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <Droppable droppableId="periods">
+              {(provided) => (
+                <table
+                  className="w-full"
+                  ref={provided.innerRef}
+                  {...provided.droppableProps}
                 >
-                  <td className="p-4 border whitespace-nowrap">
-                    {editingPeriod === period.id ? (
-                      <input
-                        type="text"
-                        value={newPeriodName}
-                        onChange={(e) => setNewPeriodName(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                      />
-                    ) : (
-                      <div className="flex items-center">
-                        <div
-                          className={`flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-full ${
-                            period.type === "quiz"
-                              ? "bg-blue-100 text-blue-700"
-                              : "bg-gray-100 text-gray-700"
-                          } font-medium`}
-                        >
-                          {period.id}
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="p-4 text-left border text-sm font-medium text-gray-500 uppercase tracking-wider">
+                        Period
+                      </th>
+                      <th className="p-4 text-left border text-sm font-medium text-gray-500 uppercase tracking-wider">
+                        Description
+                      </th>
+                      <th className="p-4 text-center border text-sm font-medium text-gray-500 uppercase tracking-wider">
+                        <div className="flex items-center justify-center gap-1">
+                          <BookOpen size={16} className="text-green-500" />
+                          <span>Studied</span>
                         </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">
-                            {period.name}
-                          </div>
+                      </th>
+                      <th className="p-4 text-center border text-sm font-medium text-gray-500 uppercase tracking-wider">
+                        <div className="flex items-center justify-center gap-1">
+                          <Clock size={16} className="text-blue-500" />
+                          <span>Recall</span>
                         </div>
-                      </div>
-                    )}
-                  </td>
-                  <td className="p-4 border">
-                    {editingPeriod === period.id ? (
-                      <input
-                        type="text"
-                        value={newPeriodDescription}
-                        onChange={(e) => setNewPeriodDescription(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                      />
-                    ) : (
-                      <div className="text-sm text-gray-500">
-                        {period.description}
-                      </div>
-                    )}
-                  </td>
-                  <td className="p-4 border whitespace-nowrap text-center">
-                    {period.type !== "quiz" && (
-                      <input
-                        type="checkbox"
-                        checked={period.status.studied}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          handleStatusChange(period.id, "studied");
-                        }}
-                        className="h-5 w-5 text-green-500 rounded border-gray-300 focus:ring-green-500 transition"
-                      />
-                    )}
-                  </td>
-                  <td className="p-4 border whitespace-nowrap text-center">
-                    {period.type !== "quiz" && (
-                      <input
-                        type="checkbox"
-                        checked={period.status.recall}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          handleStatusChange(period.id, "recall");
-                        }}
-                        className="h-5 w-5 text-blue-500 rounded border-gray-300 focus:ring-blue-500 transition"
-                      />
-                    )}
-                  </td>
-                  {canUpload && (
-                    <td className="p-4 border whitespace-nowrap text-center">
-                      {editingPeriod === period.id ? (
-                        <div className="flex justify-center gap-2">
-                          <Button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              saveEdit();
-                            }}
-                            size="sm"
-                            variant="outline"
-                            className="text-green-600 hover:text-green-800"
-                          >
-                            <Save size={16} />
-                          </Button>
-                          <Button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              cancelEdit();
-                            }}
-                            size="sm"
-                            variant="outline"
-                            className="text-red-600 hover:text-red-800"
-                          >
-                            <X size={16} />
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="flex justify-center gap-2">
-                          <Button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              startEditing(period.id);
-                            }}
-                            size="sm"
-                            variant="outline"
-                            className="text-blue-600 hover:text-blue-800"
-                          >
-                            <Edit size={16} />
-                          </Button>
-                          <Button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deletePeriod(period.id);
-                            }}
-                            size="sm"
-                            variant="outline"
-                            className="text-red-600 hover:text-red-800"
-                          >
-                            <Trash2 size={16} />
-                          </Button>
-                        </div>
+                      </th>
+                      {canUpload && (
+                        <th className="p-4 text-center border text-sm font-medium text-gray-500 uppercase tracking-wider">
+                          Actions
+                        </th>
                       )}
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {periods.slice(0, visiblePeriods).map((period, index) => (
+                      <Draggable
+                        key={`period-${period.id}`}
+                        draggableId={period.id.toString()}
+                        index={index}
+                        isDragDisabled={editingPeriod !== null} // Disable drag when editing
+                      >
+                        {(provided) => (
+                          <tr
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            key={period.id}
+                            className={`hover:bg-gray-50 transition-colors ${
+                              period.type === "quiz"
+                                ? "cursor-pointer bg-blue-50"
+                                : ""
+                            }`}
+                            onClick={
+                              period.type === "quiz"
+                                ? (e) => {
+                                    if (editingPeriod === null) {
+                                      showQuizDrawer();
+                                    }
+                                  }
+                                : undefined
+                            }
+                          >
+                            <td className="p-4 border whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div
+                                  {...provided.dragHandleProps}
+                                  className="mr-2 cursor-move"
+                                >
+                                  <GripVertical
+                                    size={16}
+                                    className="text-gray-400"
+                                  />
+                                </div>
+                                {editingPeriod === period.id ? (
+                                  <input
+                                    type="text"
+                                    value={newPeriodName}
+                                    onChange={(e) =>
+                                      setNewPeriodName(e.target.value)
+                                    }
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                  />
+                                ) : (
+                                  <div className="flex items-center">
+                                    <div
+                                      className={`flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-full ${
+                                        period.type === "quiz"
+                                          ? "bg-blue-100 text-blue-700"
+                                          : "bg-gray-100 text-gray-700"
+                                      } font-medium`}
+                                    >
+                                      {period.id}
+                                    </div>
+                                    <div className="ml-4">
+                                      <div className="text-sm font-medium text-gray-900">
+                                        {period.name}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                            <td className="p-4 border">
+                              {editingPeriod === period.id ? (
+                                <input
+                                  type="text"
+                                  value={newPeriodDescription}
+                                  onChange={(e) =>
+                                    setNewPeriodDescription(e.target.value)
+                                  }
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                />
+                              ) : (
+                                <div className="text-sm text-gray-500">
+                                  {period.description}
+                                </div>
+                              )}
+                            </td>
+                            <td className="p-4 border whitespace-nowrap text-center">
+                              {period.type !== "quiz" && (
+                                <input
+                                  type="checkbox"
+                                  checked={period.status.studied}
+                                  onChange={(e) => {
+                                    e.stopPropagation();
+                                    handleStatusChange(period.id, "studied");
+                                  }}
+                                  className="h-5 w-5 text-green-500 rounded border-gray-300 focus:ring-green-500 transition"
+                                />
+                              )}
+                            </td>
+                            <td className="p-4 border whitespace-nowrap text-center">
+                              {period.type !== "quiz" && (
+                                <input
+                                  type="checkbox"
+                                  checked={period.status.recall}
+                                  onChange={(e) => {
+                                    e.stopPropagation();
+                                    handleStatusChange(period.id, "recall");
+                                  }}
+                                  className="h-5 w-5 text-blue-500 rounded border-gray-300 focus:ring-blue-500 transition"
+                                />
+                              )}
+                            </td>
+                            {canUpload && (
+                              <td className="p-4 border whitespace-nowrap text-center">
+                                {editingPeriod === period.id ? (
+                                  <div className="flex justify-center gap-2">
+                                    <Button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        saveEdit();
+                                      }}
+                                      className="text-green-600 hover:text-green-800"
+                                    >
+                                      <Save size={16} />
+                                    </Button>
+                                    <Button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        cancelEdit();
+                                      }}
+                                      className="text-red-600 hover:text-red-800"
+                                    >
+                                      <X size={16} />
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <div className="flex justify-center gap-2">
+                                    <Button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        startEditing(period.id);
+                                      }}
+                                      className="text-blue-600 hover:text-blue-800"
+                                    >
+                                      <Edit size={16} />
+                                    </Button>
+                                    <Button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        deletePeriod(period.id);
+                                      }}
+                                      className="text-red-600 hover:text-red-800"
+                                    >
+                                      <Trash2 size={16} />
+                                    </Button>
+                                  </div>
+                                )}
+                              </td>
+                            )}
+                          </tr>
+                        )}
+                      </Draggable>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </Droppable>
+          </DragDropContext>
         </div>
 
         <div className="p-4 bg-gray-50 border-t border-gray-200">
@@ -581,7 +632,7 @@ export default function SeerahTrackerPage() {
               {periods.length} Periods
             </div>
             {visiblePeriods < periods.length && (
-              <Button variant="outline" size="sm" onClick={loadMorePeriods}>
+              <Button onClick={loadMorePeriods}>
                 Load More (5)
               </Button>
             )}
