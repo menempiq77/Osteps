@@ -459,7 +459,6 @@ export default function QuranTrackerAdminPage() {
                             <tr
                               ref={provided.innerRef}
                               {...provided.draggableProps}
-                              key={chapter.number}
                               className={`hover:bg-gray-50 transition-colors ${
                                 chapter.type === "quiz"
                                   ? "cursor-pointer bg-blue-50"

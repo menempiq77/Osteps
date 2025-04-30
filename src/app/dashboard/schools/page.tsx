@@ -1,65 +1,134 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AddSchoolForm from "@/components/dashboard/AddSchoolForm";
 import SchoolList from "@/components/dashboard/SchoolList";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Cross2Icon } from "@radix-ui/react-icons";
 import { Button } from "@/components/ui/button";
+import {
+  fetchSchools,
+  addSchool,
+  updateSchool,
+  deleteSchool,
+} from "@/services/api";
 
 export default function SuperAdminDashboard() {
-  const [schools, setSchools] = useState<any[]>([
-    {
-      id: "1",
-      name: "Falcon High School",
-      contactPerson: "Sarah Johnson",
-      adminEmail: "sarah@gvhschool.edu",
-      adminPassword: "admin1234",
-      academicYear: "2024-2025",
-    },
-    {
-      id: "2",
-      name: "Sunrise School",
-      contactPerson: "Ahmed Khan",
-      adminEmail: "ahmed@sunrise.edu",
-      adminPassword: "admin5678",
-      academicYear: "2023-2024",
-    },
-  ]);
-
+  const [schools, setSchools] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [editingSchool, setEditingSchool] = useState<any | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const handleAddOrEditSchool = (schoolData: any) => {
-    if (editingSchool) {
-      // Update
-      setSchools((prev) =>
-        prev.map((school) =>
-          school.id === editingSchool.id
-            ? { ...editingSchool, ...schoolData }
-            : school
-        )
-      );
-    } else {
-      // Create
-      const newSchool = {
-        id: Date.now().toString(),
-        ...schoolData,
-      };
-      setSchools((prev) => [...prev, newSchool]);
-    }
+  useEffect(() => {
+    const loadSchools = async () => {
+      try {
+        const data = await fetchSchools();
+        setSchools(data);
+      } catch (err) {
+        setError("Failed to fetch schools");
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    setOpen(false);
-    setEditingSchool(null);
-  };
+    loadSchools();
+  }, []);
 
   const handleEdit = (school: any) => {
-    setEditingSchool(school);
+    setEditingSchool({
+      id: school.id,
+      name: school.name,
+      contactPerson: school.contactPerson,
+      adminEmail: school.email || school.adminEmail,
+      adminPassword: "", // Always empty for security
+      academicYear: school.year_structure || school.academicYear,
+    });
     setOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    setSchools((prev) => prev.filter((school) => school.id !== id));
+  const handleAddOrEditSchool = async (schoolData: any) => {
+    try {
+      if (editingSchool) {
+        // Update existing school
+        const updatedSchool = await updateSchool(editingSchool.id, {
+          name: schoolData.name,
+          contact: schoolData.contactPerson,
+          school_admin: schoolData.contactPerson,
+          email: schoolData.adminEmail,
+          password: schoolData.adminPassword,
+          year_structure: schoolData.academicYear,
+        });
+
+        setSchools((prev) =>
+          prev.map((school) =>
+            school.id === editingSchool.id
+              ? {
+                  ...school,
+                  ...updatedSchool.data,
+                  schoolAdmin: schoolData.contactPerson, // Ensure this matches your API response
+                  email: schoolData.adminEmail,
+                }
+              : school
+          )
+        );
+      } else {
+        // Add new school
+        const newSchool = await addSchool({
+          name: schoolData.name,
+          contact: schoolData.contactPerson,
+          school_admin: schoolData.contactPerson,
+          email: schoolData.adminEmail,
+          password: schoolData.adminPassword,
+          year_structure: schoolData.academicYear,
+        });
+
+        setSchools((prev) => [
+          ...prev,
+          {
+            ...newSchool.data,
+            schoolAdmin: schoolData.contactPerson,
+            email: schoolData.adminEmail,
+          },
+        ]);
+      }
+
+      setOpen(false);
+      setEditingSchool(null);
+    } catch (err) {
+      setError(
+        editingSchool ? "Failed to update school" : "Failed to add school"
+      );
+      console.error(err);
+    }
   };
+
+  const handleDelete = async (id: string) => {
+    setDeletingId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!deletingId) return;
+
+    try {
+      await deleteSchool(deletingId);
+      setSchools((prev) => prev.filter((school) => school.id !== deletingId));
+      setDeletingId(null);
+    } catch (err) {
+      setError("Failed to delete school");
+      console.error(err);
+      setDeletingId(null);
+    }
+  };
+
+  if (loading) {
+    return <div className="p-6">Loading schools...</div>;
+  }
+
+  if (error) {
+    return <div className="p-6 text-red-500">{error}</div>;
+  }
 
   return (
     <div className="p-6">
@@ -67,7 +136,12 @@ export default function SuperAdminDashboard() {
         <h1 className="text-2xl font-bold">Schools</h1>
         <Dialog.Root open={open} onOpenChange={setOpen}>
           <Dialog.Trigger asChild>
-            <Button onClick={() => setEditingSchool(null)} className="cursor-pointer">Add School</Button>
+            <Button
+              onClick={() => setEditingSchool(null)}
+              className="cursor-pointer"
+            >
+              Add School
+            </Button>
           </Dialog.Trigger>
           <Dialog.Portal>
             <Dialog.Overlay className="bg-black/50 fixed inset-0" />
@@ -90,10 +164,36 @@ export default function SuperAdminDashboard() {
       </div>
 
       <SchoolList
-        schools={schools}
+        schools={schools.map((school) => ({
+          id: school.id,
+          name: school.name,
+          adminEmail: school.email,
+          contactPerson: school.schoolAdmin,
+          academicYear: school.year_structure,
+        }))}
         onEdit={handleEdit}
         onDelete={handleDelete}
       />
+
+      {deletingId && (
+        <div className="fixed inset-0 bg-black/50 bg-opacity-50 flex items-center justify-center p-4">
+          <div className="bg-white p-6 rounded-lg max-w-md w-full">
+            <h3 className="text-lg font-bold mb-4">Confirm Deletion</h3>
+            <p className="mb-6">
+              Are you sure you want to delete this school? This action cannot be
+              undone.
+            </p>
+            <div className="flex justify-end space-x-4">
+              <Button variant="outline" onClick={() => setDeletingId(null)} className="cursor-pointer">
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={confirmDelete} className="cursor-pointer">
+                Delete
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

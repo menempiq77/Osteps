@@ -58,7 +58,7 @@ export default function AddSchoolForm({
 
         <div>
           <Label>Contact Person</Label>
-          <Input {...register("contactPerson", { required: "Contact person is required" })} />
+          <Input type="number" {...register("contactPerson", { required: "Contact person is required" })} />
           {errors.contactPerson && <p className="text-red-500 text-sm">{errors.contactPerson.message}</p>}
         </div>
 
@@ -84,8 +84,8 @@ export default function AddSchoolForm({
             {...register("adminPassword", {
               required: "Password is required",
               minLength: {
-                value: 8,
-                message: "Password must be at least 8 characters",
+                value: 6,
+                message: "Password must be at least 6 characters",
               },
             })}
           />
