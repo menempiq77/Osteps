@@ -1,59 +1,72 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { loginUser } from '@/services/api';
 import { User, AuthState } from './types';
-// interface User {
-//   id: string;
-//   email: string;
-//   role: 'SUPER_ADMIN' | 'SCHOOL_ADMIN' | 'TEACHER' | 'STUDENT';
-//   schoolId?: string;
-// }
-
-// interface AuthState {
-//   currentUser: User | null;
-//   users: User[];
-// }
 
 const initialState: AuthState = {
   currentUser: null,
-  users: [
-    {
-      id: '1',
-      email: 'superadmin@example.com',
-      role: 'SUPER_ADMIN',
-    },
-    {
-      id: '2',
-      email: 'schooladmin@example.com',
-      role: 'SCHOOL_ADMIN',
-    },
-    {
-      id: '3',
-      email: 'teacher@example.com',
-      role: 'TEACHER',
-    },
-    {
-      id: '4',
-      email: 'student@example.com',
-      role: 'STUDENT',
-    },
-  ],
+  users: [],
+  token: null,
+  status: 'idle',
+  error: null,
 };
+
+export const login = createAsyncThunk(
+  'auth/login',
+  async ({ email, password }: { email: string; password: string }, { rejectWithValue }) => {
+    try {
+      const response = await loginUser(email, password);
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Login failed');
+    }
+  }
+);
 
 const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    login(state, action: PayloadAction<{ email: string; password: string }>) {
-      const user = state.users.find(u => u.email === action.payload.email);
-      if (user) state.currentUser = user;
-    },
     logout(state) {
       state.currentUser = null;
+      state.token = null;
+      state.status = 'idle';
+      state.error = null;
     },
-    createSchoolAdmin(state, action: PayloadAction<User>) {
+    // Optional: Add user to users array if needed
+    addUser(state, action: PayloadAction<User>) {
       state.users.push(action.payload);
     },
   },
+  extraReducers: (builder) => {
+    builder
+      .addCase(login.pending, (state) => {
+        state.status = 'loading';
+        state.error = null;
+      })
+      .addCase(login.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.currentUser = {
+          id: action.payload.id.toString(),
+          email: action.payload.email,
+          role: action.payload.role,
+          schoolId: action.payload.schoolId,
+          token: action.payload.token,
+          name: action.payload.name,
+        };
+        state.token = action.payload.token;
+        
+        if (!state.users.some(user => user.id === action.payload.id.toString())) {
+          state.users.push(state.currentUser);
+        }
+      })
+      .addCase(login.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload as string;
+        state.currentUser = null;
+        state.token = null;
+      });
+  },
 });
 
-export const { login, logout, createSchoolAdmin } = authSlice.actions;
+export const { logout, addUser } = authSlice.actions;
 export default authSlice.reducer;

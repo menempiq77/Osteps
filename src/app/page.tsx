@@ -1,7 +1,8 @@
+// src/app/login/page.tsx
 "use client";
 import { useForm } from "react-hook-form";
-import { useDispatch } from "react-redux";
-import { AppDispatch } from "@/store/store";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "@/store/store";
 import { useRouter } from "next/navigation";
 import { login } from "@/features/auth/authSlice";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -17,16 +18,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEffect } from "react";
 
-// Form validation schema
 const formSchema = z.object({
   email: z.string().email("Invalid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
 export default function LoginPage() {
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
+  const { status, error, currentUser } = useSelector((state: RootState) => state.auth);
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -35,9 +37,29 @@ export default function LoginPage() {
     },
   });
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    dispatch(login({ email: values.email, password: values.password }));
-    router.push("/dashboard");
+  useEffect(() => {
+    if (currentUser) {
+      switch (currentUser.role) {
+        case 'SUPER_ADMIN':
+          router.push('/dashboard');
+          break;
+        case 'SCHOOL_ADMIN':
+          router.push('/dashboard');
+          break;
+        case 'TEACHER':
+          router.push('/dashboard');
+          break;
+        case 'STUDENT':
+          router.push('/dashboard');
+          break;
+        default:
+          router.push('/dashboard');
+      }
+    }
+  }, [currentUser, router]);
+
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    await dispatch(login(values));
   };
 
   return (
@@ -81,8 +103,12 @@ export default function LoginPage() {
                 )}
               />
 
-              <Button type="submit" className="w-full cursor-pointer">
-                Sign In
+              <Button 
+                type="submit" 
+                className="w-full"
+                disabled={status === 'loading'}
+              >
+                {status === 'loading' ? "Signing in..." : "Sign In"}
               </Button>
             </form>
           </Form>
