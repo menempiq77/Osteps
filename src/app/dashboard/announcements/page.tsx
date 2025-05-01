@@ -4,6 +4,7 @@ import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import * as Dialog from "@radix-ui/react-dialog";
 import {
   Card,
   CardHeader,
@@ -12,16 +13,17 @@ import {
   CardContent,
   CardFooter,
 } from "@/components/ui/card";
-import { Badge } from "antd";
-import { DeleteOutlined } from "@ant-design/icons";
+import { Alert, Badge, Spin } from "antd";
+import { deleteAnnouncement, fetchAnnouncements } from "@/services/api";
+import { Cross2Icon } from "@radix-ui/react-icons";
 
 type Announcement = {
   id: string;
   title: string;
-  content: string;
-  author: string;
+  description: string;
+  role: string;
   authorId?: string;
-  date: string;
+  created_at: string;
   type: "prayer" | "event" | "reminder" | "general";
   target: "all" | "teachers" | "students" | "staff";
 };
@@ -29,6 +31,11 @@ type Announcement = {
 export default function AnnouncementsPage() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [announcementToDelete, setAnnouncementToDelete] = useState<string | null>(null);
+
   const [newAnnouncement, setNewAnnouncement] = useState({
     title: "",
     content: "",
@@ -38,53 +45,18 @@ export default function AnnouncementsPage() {
   const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
-    const islamicAnnouncements: Announcement[] = [
-      {
-        id: "1",
-        title: "Jumu'ah Prayer Schedule",
-        content:
-          "The Jumu'ah prayer will be held at 1:30 PM in the main musalla. All students and staff are encouraged to attend.",
-        author: "Imam Abdullah",
-        authorId: "admin1", // Mock author ID
-        date: new Date().toISOString().split("T")[0],
-        type: "prayer",
-        target: "all",
-      },
-      {
-        id: "2",
-        title: "Quran Competition",
-        content:
-          "Annual Quran memorization competition will be held next month. Registration opens next week.",
-        author: "Principal",
-        authorId: "admin2", // Mock author ID
-        date: "2023-06-10",
-        type: "event",
-        target: "students",
-      },
-      {
-        id: "3",
-        title: "Ramadan Preparation Meeting",
-        content:
-          "All teachers are required to attend the Ramadan preparation meeting this Friday after Dhuhr prayer.",
-        author: "School Admin",
-        authorId: "admin3", // Mock author ID
-        date: "2023-03-01",
-        type: "reminder",
-        target: "teachers",
-      },
-      {
-        id: "4",
-        title: "Islamic History Seminar",
-        content:
-          "Guest speaker Sheikh Ibrahim will deliver a seminar on 'The Golden Age of Islam' next Wednesday.",
-        author: "Academic Dept",
-        authorId: "teacher1", // Mock author ID
-        date: "2023-04-15",
-        type: "event",
-        target: "all",
-      },
-    ];
-    setAnnouncements(islamicAnnouncements);
+    const loadGrades = async () => {
+      try {
+        const data = await fetchAnnouncements();
+        setAnnouncements(data);
+        setLoading(false);
+      } catch (err) {
+        setError("Failed to load grades");
+        setLoading(false);
+        console.error(err);
+      }
+    };
+    loadGrades();
   }, []);
 
   const handleCreateAnnouncement = () => {
@@ -93,10 +65,9 @@ export default function AnnouncementsPage() {
     const announcement: Announcement = {
       id: Date.now().toString(),
       title: newAnnouncement.title,
-      content: newAnnouncement.content,
-      author: currentUser?.email || "Unknown",
-      authorId: currentUser?.id, // Store the current user's ID
-      date: new Date().toISOString().split("T")[0],
+      description: newAnnouncement.content,
+      role: currentUser?.email || "Unknown",
+      authorId: currentUser?.id,
       type: newAnnouncement.type,
       target: newAnnouncement.target,
     };
@@ -111,10 +82,24 @@ export default function AnnouncementsPage() {
     setIsCreating(false);
   };
 
-  const handleDeleteAnnouncement = (id: string) => {
-    setAnnouncements(announcements.filter((ann) => ann.id !== id));
+  const handleDeleteAnnouncement = async () => {
+    if (!announcementToDelete) return;
+  
+    try {
+      await deleteAnnouncement(announcementToDelete);
+      setAnnouncements(announcements.filter((announcement) => announcement.id !== announcementToDelete));
+      setDeleteOpen(false);
+      setAnnouncementToDelete(null);
+    } catch (err) {
+      setError("Failed to delete Announcement");
+      console.error(err);
+    }
   };
-
+  
+  const confirmDelete = (id: string) => {
+    setAnnouncementToDelete(id);
+    setDeleteOpen(true);
+  };
   // Determine who can create announcements
   const canCreateAnnouncement =
     currentUser?.role === "SUPER_ADMIN" ||
@@ -171,12 +156,46 @@ export default function AnnouncementsPage() {
     general: "gray",
   };
 
+  function formatDate(dateString: string) {
+    return new Date(dateString).toLocaleString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
+  if (loading)
+    return (
+      <div className="p-3 md:p-6 flex justify-center items-center h-64">
+        <Spin size="large" />
+      </div>
+    );
+
+  if (error)
+    return (
+      <div className="p-3 md:p-6">
+        <Alert
+          message="Error"
+          description={error}
+          type="error"
+          showIcon
+          closable
+          onClose={() => setError(null)}
+        />
+      </div>
+    );
+
   return (
     <div className="container mx-auto p-3 md:p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Announcements</h1>
         {canCreateAnnouncement && (
-          <Button onClick={() => setIsCreating(!isCreating)} className="cursor-pointer">
+          <Button
+            onClick={() => setIsCreating(!isCreating)}
+            className="cursor-pointer"
+          >
             {isCreating ? "Cancel" : "New Announcement"}
           </Button>
         )}
@@ -245,7 +264,10 @@ export default function AnnouncementsPage() {
             </div>
           </CardContent>
           <CardFooter>
-            <Button onClick={handleCreateAnnouncement} className="cursor-pointer">
+            <Button
+              onClick={handleCreateAnnouncement}
+              className="cursor-pointer"
+            >
               Publish Announcement
             </Button>
           </CardFooter>
@@ -270,30 +292,26 @@ export default function AnnouncementsPage() {
               <Card className="hover:shadow-lg transition-shadow rounded-lg border border-gray-200 relative">
                 {canDeleteAnnouncement(announcement) && (
                   <span
-                    onClick={() => handleDeleteAnnouncement(announcement.id)}
+                    onClick={() => confirmDelete(announcement.id)}
                     className="absolute bottom-4 right-4 text-red-500 font-medium hover:text-red-700 transition-colors cursor-pointer"
                     aria-label="Delete announcement"
-                  >Delete</span>
+                  >
+                    Delete
+                  </span>
                 )}
                 <CardHeader>
                   <div className="flex justify-between items-start gap-2 flex-wrap">
                     <CardTitle>{announcement.title}</CardTitle>
                   </div>
                   <CardDescription className="flex flex-wrap gap-2 items-center">
-                    <span>{announcement.date}</span>
+                    <span>{formatDate(announcement.created_at)}</span>
                     <span>•</span>
-                    <span>Posted by {announcement.author}</span>
-                    {announcement.target !== "all" && (
-                      <>
-                        <span>•</span>
-                        <span>For {announcement.target}</span>
-                      </>
-                    )}
+                    <span>Posted by {announcement.role}</span>
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <p className="whitespace-pre-line text-gray-700">
-                    {announcement.content}
+                    {announcement.description}
                   </p>
                 </CardContent>
               </Card>
@@ -301,6 +319,40 @@ export default function AnnouncementsPage() {
           ))
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <Dialog.Root open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="bg-black/50 data-[state=open]:animate-overlayShow fixed inset-0" />
+          <Dialog.Content className="data-[state=open]:animate-contentShow fixed top-[50%] left-[50%] max-h-[85vh] w-[90vw] max-w-[450px] translate-x-[-50%] translate-y-[-50%] rounded-[6px] bg-white p-[25px] shadow-[hsl(206_22%_7%_/_35%)_0px_10px_38px_-10px,_hsl(206_22%_7%_/_20%)_0px_10px_20px_-15px] focus:outline-none">
+            <Dialog.Title className="text-lg font-bold mb-4">
+              Confirm Deletion
+            </Dialog.Title>
+            <p className="mb-6">
+              Are you sure you want to delete this announcement? This action
+              cannot be undone.
+            </p>
+
+            <div className="flex justify-end gap-4">
+              <Dialog.Close asChild>
+                <Button variant="outline">Cancel</Button>
+              </Dialog.Close>
+              <Button variant="destructive" onClick={handleDeleteAnnouncement}>
+                Delete
+              </Button>
+            </div>
+
+            <Dialog.Close asChild>
+              <button
+                className="text-gray-500 hover:text-gray-700 absolute top-[10px] right-[10px] inline-flex h-[25px] w-[25px] appearance-none items-center justify-center rounded-full focus:shadow-[0_0_0_2px] focus:outline-none"
+                aria-label="Close"
+              >
+                <Cross2Icon />
+              </button>
+            </Dialog.Close>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </div>
   );
 }

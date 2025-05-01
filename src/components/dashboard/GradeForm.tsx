@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { useEffect } from "react";
 
 interface GradeFormValues {
   gradeName: string;
@@ -11,17 +12,32 @@ interface GradeFormValues {
   description?: string;
 }
 
-export default function AddGradeForm({
-  onSubmit,
-}: {
+interface GradeFormProps {
   onSubmit: (data: GradeFormValues) => void;
-}) {
+  defaultValues?: GradeFormValues | null;
+  isOpen: boolean; // Add this prop
+}
+
+export default function GradeForm({ onSubmit, defaultValues, isOpen }: GradeFormProps) {
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors },
   } = useForm<GradeFormValues>();
 
+  // Reset form when defaultValues or isOpen changes
+  useEffect(() => {
+    if (isOpen) {
+      reset(defaultValues || {
+        gradeName: "",
+        minMark: 0,
+        maxMark: 100,
+        description: ""
+      });
+    }
+  }, [defaultValues, isOpen, reset]);
+  
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="bg-white space-y-4">
       <div className="grid grid-cols-1 gap-4">
@@ -77,9 +93,11 @@ export default function AddGradeForm({
         </div>
       </div>
 
-      <Button type="submit" className="w-auto float-right cursor-pointer">
-        Add Grade Range
-      </Button>
+      <div className="flex justify-end gap-2 pt-4">
+        <Button type="submit" className="cursor-pointer">
+          {defaultValues ? "Update Grade" : "Add Grade"}
+        </Button>
+      </div>
     </form>
   );
 }

@@ -1,26 +1,20 @@
 "use client";
-import { useRouter } from "next/navigation";
 
 interface Grade {
   id: number;
-  gradeName: string;
-  minMark: number;
-  maxMark: number;
-  description?: string;
+  grade: string;
+  min_percentage: string;
+  max_percentage: string;
+  description: string;
 }
 
 interface GradesListProps {
   grades: Grade[];
   onDeleteGrade: (id: number) => void;
+  onEditGrade: (grade: Grade) => void;
 }
 
-export default function GradesList({ grades, onDeleteGrade }: GradesListProps) {
-  const router = useRouter();
-
-  const handleEdit = (gradeId: number) => {
-    console.log("Edit grade:", gradeId);
-  };
-
+export default function GradesList({ grades, onDeleteGrade, onEditGrade }: GradesListProps) {
   return (
     <div className="mt-8 bg-white rounded-lg shadow-md overflow-hidden">
       <h3 className="text-lg font-semibold p-4 border-b">Grade Ranges</h3>
@@ -46,10 +40,10 @@ export default function GradesList({ grades, onDeleteGrade }: GradesListProps) {
             {grades.map((grade) => (
               <tr key={grade.id}>
                 <td className="px-6 py-4 whitespace-nowrap font-medium">
-                  {grade.gradeName}
+                  {grade.grade}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  {grade.minMark} - {grade.maxMark}
+                  {grade.min_percentage}% - {grade.max_percentage}%
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   {grade.description || "-"}
@@ -58,7 +52,7 @@ export default function GradesList({ grades, onDeleteGrade }: GradesListProps) {
                   <div className="flex items-center gap-4">
                     <button
                       type="button"
-                      onClick={() => handleEdit(grade.id)}
+                      onClick={() => onEditGrade(grade)}
                       className="text-gray-400 hover:text-blue-600 cursor-pointer"
                     >
                       <svg
