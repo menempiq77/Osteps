@@ -5,27 +5,20 @@ import { useSelector } from "react-redux";
 
 interface Year {
   id: number;
-  yearName: string;
-  numberOfTerms: number;
-  assignedCoordinator?: string;
+  name: string;
 }
 
 interface YearsListProps {
   years: Year[];
   onDeleteYear: (id: number) => void;
+  onEditYear: (id: number) => void;
 }
 
-export default function YearsList({ years, onDeleteYear }: YearsListProps) {
+export default function YearsList({ years, onDeleteYear, onEditYear  }: YearsListProps) {
   const router = useRouter();
   const { currentUser } = useSelector((state: RootState) => state.auth);
   
-  // Check if current user is a student
   const isStudent = currentUser?.role === "STUDENT" || currentUser?.role === "TEACHER";
-
-  // Handler functions for actions
-  const handleEdit = (yearId: number) => {
-    console.log("Edit year:", yearId);
-  };
 
   const handleViewClasses = (yearId: number, yearName: string) => {
     router.push(
@@ -54,13 +47,13 @@ export default function YearsList({ years, onDeleteYear }: YearsListProps) {
           </thead>
           <tbody className="divide-y divide-gray-200">
             {years.map((year) => (
-              <tr key={year.id}>
+              <tr key={`${year.id}-${year.name}`}>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <button
-                    onClick={() => handleViewClasses(year.id, year.yearName)}
+                    onClick={() => handleViewClasses(year.id, year.name)}
                     className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
                   >
-                    {year.yearName}
+                    {year.name}
                   </button>
                 </td>
                 {!isStudent && (
@@ -68,7 +61,7 @@ export default function YearsList({ years, onDeleteYear }: YearsListProps) {
                     <div className="flex items-center gap-4">
                       <button
                         type="button"
-                        onClick={() => handleEdit(year.id)}
+                        onClick={() => onEditYear(year.id)}
                         className="text-gray-400 hover:text-blue-600 cursor-pointer"
                       >
                         <svg

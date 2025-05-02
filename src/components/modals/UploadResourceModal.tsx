@@ -21,6 +21,7 @@ interface UploadResourceModalProps {
   isEditing: boolean;
   fileList: any[];
   setFileList: (files: any[]) => void;
+  categories: any[];
 }
 
 const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
@@ -31,6 +32,7 @@ const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
   loading,
   isEditing,
   fileList,
+  categories,
   setFileList,
 }) => {
   return (
@@ -67,15 +69,14 @@ const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
         <Form.Item
           name="category"
           label="Category"
-          rules={[{ required: true, message: "Please select a subject!" }]}
+          rules={[{ required: true, message: "Please select a Category!" }]}
         >
           <Select placeholder="Select Category">
-            <Select.Option value="Quran">Quran</Select.Option>
-            <Select.Option value="Hadees">Hadees</Select.Option>
-            <Select.Option value="Tafseer">Tafseer</Select.Option>
-            <Select.Option value="Seerah">Seerah</Select.Option>
-            <Select.Option value="Fiqh">Fiqh</Select.Option>
-            <Select.Option value="Dua">Dua</Select.Option>
+            {categories.map((category) => (
+              <Select.Option key={category.id} value={category.name}>
+                {category.name}
+              </Select.Option>
+            ))}
           </Select>
         </Form.Item>
 
@@ -114,7 +115,9 @@ const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
               accept=".pdf,.doc,.docx,.mp4,.mov,.avi,.mp3,.wav,.m4a"
             >
               <p className="ant-upload-drag-icon">
-                <UploadOutlined style={{ fontSize: "32px", color: "#1890ff" }} />
+                <UploadOutlined
+                  style={{ fontSize: "32px", color: "#1890ff" }}
+                />
               </p>
               <p className="ant-upload-text">
                 Click or drag file to this area to upload

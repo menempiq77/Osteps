@@ -4,24 +4,24 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { Cross2Icon } from "@radix-ui/react-icons";
 import { useEffect, useState } from "react";
 
-// Types
-type Teacher = {
-  id: string;
-  name: string;
-  phone: string;
-  email: string;
-  subject: string;
-};
+const subjectOptions = [
+  "Math",
+  "Science",
+  "English",
+  "History",
+  "Physics",
+  "Chemistry",
+] as const;
+
+type Subject = typeof subjectOptions[number];
 
 type TeacherBasic = {
   id: string;
   name: string;
   phone: string;
   email: string;
-  subject: string;
+  subjects: Subject[];
 };
-
-const subjects = ["Math", "Science", "English", "History", "Art"];
 
 export const EditTeacherModal = ({
   teacher,
@@ -37,16 +37,24 @@ export const EditTeacherModal = ({
   const [name, setName] = useState(teacher?.name || "");
   const [phone, setPhone] = useState(teacher?.phone || "");
   const [email, setEmail] = useState(teacher?.email || "");
-  const [subject, setSubject] = useState(teacher?.subject || "");
+  const [selectedSubjects, setSelectedSubjects] = useState<Subject[]>(teacher?.subjects || []);
 
   useEffect(() => {
     if (teacher) {
       setName(teacher.name);
       setPhone(teacher.phone);
       setEmail(teacher.email);
-      setSubject(teacher.subject);
+      setSelectedSubjects(teacher.subjects);
     }
   }, [teacher]);
+
+  const handleSubjectSelection = (subject: Subject) => {
+    setSelectedSubjects((prevSubjects) =>
+      prevSubjects.includes(subject)
+        ? prevSubjects.filter((s) => s !== subject)
+        : [...prevSubjects, subject]
+    );
+  };
 
   const handleSave = () => {
     if (!teacher) return;
@@ -56,7 +64,7 @@ export const EditTeacherModal = ({
       name,
       phone,
       email,
-      subject
+      subjects: selectedSubjects
     });
     onOpenChange(false);
   };
@@ -98,18 +106,19 @@ export const EditTeacherModal = ({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Subject</label>
-              <select
-                className="w-full p-2 border rounded-md"
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-              >
-                {subjects.map((sub) => (
-                  <option key={sub} value={sub}>
-                    {sub}
-                  </option>
+              <label className="block text-sm font-medium mb-1">Subjects</label>
+              <div className="grid grid-cols-2 gap-2">
+                {subjectOptions.map((subject) => (
+                  <label key={subject} className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedSubjects.includes(subject)}
+                      onChange={() => handleSubjectSelection(subject)}
+                    />
+                    <span>{subject}</span>
+                  </label>
                 ))}
-              </select>
+              </div>
             </div>
           </div>
 

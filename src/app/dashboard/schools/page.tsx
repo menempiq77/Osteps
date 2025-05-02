@@ -11,6 +11,7 @@ import {
   updateSchool,
   deleteSchool,
 } from "@/services/api";
+import { Alert, Spin } from "antd";
 
 export default function SuperAdminDashboard() {
   const [schools, setSchools] = useState<any[]>([]);
@@ -122,13 +123,23 @@ export default function SuperAdminDashboard() {
     }
   };
 
-  if (loading) {
-    return <div className="p-6">Loading schools...</div>;
-  }
-
-  if (error) {
-    return <div className="p-6 text-red-500">{error}</div>;
-  }
+  if (loading) return (
+    <div className="p-3 md:p-6 flex justify-center items-center h-64">
+      <Spin size="large" />
+    </div>
+  );
+  if (error) return (
+    <div className="p-3 md:p-6">
+      <Alert
+        message="Error"
+        description={error}
+        type="error"
+        showIcon
+        closable
+        onClose={() => setError(null)}
+      />
+    </div>
+  );
 
   return (
     <div className="p-6">

@@ -2,10 +2,17 @@
 import { Pencil2Icon } from "@radix-ui/react-icons";
 import { Button } from "@/components/ui/button";
 import * as Dialog from "@radix-ui/react-dialog";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AddTeacherModal } from "../modals/teacherModals/AddTeacherModal";
 import { EditTeacherModal } from "../modals/teacherModals/EditTeacherModal";
 import { Trash2 } from "lucide-react";
+import {
+  fetchTeachers,
+  addTeacher,
+  updateTeacher,
+  deleteTeacher as deleteTeacherApi 
+} from "@/services/api";
+import { Alert, Spin } from "antd";
 
 // Types
 type Teacher = {
@@ -26,48 +33,116 @@ type TeacherBasic = {
 
 // Main Component
 export default function TeacherList() {
-  const [teachers, setTeachers] = useState<Teacher[]>([
-    {
-      id: "1",
-      name: "Alice",
-      phone: "123-456-7890",
-      email: "alice@example.com",
-      subjects: ["Islamiyat"],
-    },
-    {
-      id: "2",
-      name: "Bob",
-      phone: "987-654-3210",
-      email: "bob@example.com",
-      subjects: ["Islamiyat"],
-    },
-  ]);
-  
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [editTeacher, setEditTeacher] = useState<TeacherBasic | null>(null);
   const [deleteTeacher, setDeleteTeacher] = useState<Teacher | null>(null);
   const [isAddTeacherModalOpen, setIsAddTeacherModalOpen] = useState(false);
 
-  const handleSaveEdit = (teacher: TeacherBasic) => {
-    console.log("Saved:", teacher);
-    setTeachers(teachers.map(t => t.id === teacher.id ? teacher : t));
-    setEditTeacher(null);
-  };
-
-  const handleDeleteTeacher = (teacherId: string) => {
-    console.log("Deleted Teacher ID:", teacherId);
-    setTeachers(teachers.filter(teacher => teacher.id !== teacherId));
-    setDeleteTeacher(null);
-  };
-
-  const handleAddNewTeacher = (teacher: TeacherBasic) => {
-    const newTeacher = {
-      ...teacher,
-      id: Math.random().toString(36).substring(2, 9), // Generate a simple ID
+  useEffect(() => {
+    const loadTeachers = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetchTeachers();
+        // Transform API data to match our frontend structure
+        const transformedTeachers = response.map((teacher: any) => ({
+          id: teacher.id.toString(),
+          name: teacher.teacher_name,
+          phone: teacher.phone,
+          email: teacher.email,
+          subjects: teacher.subjects.split(',').map((s: string) => s.trim()),
+        }));
+        setTeachers(transformedTeachers);
+      } catch (err) {
+        setError("Failed to fetch teachers");
+        console.error(err);
+      } finally {
+        setIsLoading(false);
+      }
     };
-    console.log("Adding new teacher:", newTeacher);
-    setTeachers([...teachers, newTeacher]);
-    setIsAddTeacherModalOpen(false);
+
+    loadTeachers();
+  }, []);
+
+  const handleSaveEdit = async (teacher: TeacherBasic) => {
+    try {
+      const response = await updateTeacher(teacher.id, {
+        teacher_name: teacher.name,
+        phone: teacher.phone,
+        email: teacher.email,
+        subjects: teacher.subjects.join(','),
+      });
+      
+      setTeachers(teachers.map(t => 
+        t.id === teacher.id ? {
+          ...teacher,
+          name: response.data.teacher_name,
+          phone: response.data.phone,
+          email: response.data.email,
+          subjects: response.data.subjects.split(',').map((s: string) => s.trim()),
+        } : t
+      ));
+      setEditTeacher(null);
+    } catch (err) {
+      console.error("Failed to update teacher:", err);
+      setError("Failed to update teacher");
+    }
   };
+
+  const handleDeleteTeacher = async (teacherId: string) => {
+    try {
+      await deleteTeacherApi(Number(teacherId));
+      setTeachers(teachers.filter(teacher => teacher.id !== teacherId));
+      setDeleteTeacher(null);
+    } catch (err) {
+      console.error("Failed to delete teacher:", err);
+      setError("Failed to delete teacher");
+    }
+  };
+
+  const handleAddNewTeacher = async (teacher: TeacherBasic) => {
+    try {
+      const response = await addTeacher({
+        teacher_name: teacher.name,
+        phone: teacher.phone,
+        email: teacher.email,
+        subjects: teacher.subjects.join(','),
+      });
+      
+      const newTeacher = {
+        id: response.data.id.toString(),
+        name: response.data.teacher_name,
+        phone: response.data.phone,
+        email: response.data.email,
+        subjects: response.data.subjects.split(',').map((s: string) => s.trim()),
+      };
+      
+      setTeachers([...teachers, newTeacher]);
+      setIsAddTeacherModalOpen(false);
+    } catch (err) {
+      console.error("Failed to add teacher:", err);
+      setError("Failed to add teacher");
+    }
+  };
+
+  if (isLoading) return (
+    <div className="p-3 md:p-6 flex justify-center items-center h-64">
+      <Spin size="large" />
+    </div>
+  );
+  if (error) return (
+    <div className="p-3 md:p-6">
+      <Alert
+        message="Error"
+        description={error}
+        type="error"
+        showIcon
+        closable
+        onClose={() => setError(null)}
+      />
+    </div>
+  );
 
   return (
     <>
@@ -184,9 +259,7 @@ export default function TeacherList() {
                                 </Button>
                                 <Button
                                   variant="destructive"
-                                  onClick={() =>
-                                    handleDeleteTeacher(deleteTeacher.id)
-                                  }
+                                  onClick={() => handleDeleteTeacher(deleteTeacher.id)}
                                 >
                                   Delete
                                 </Button>
