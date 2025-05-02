@@ -95,18 +95,84 @@ export const fetchClasses = async () => {
   return response.data.data;
 };
 // add Class
-export const addClass = async (classData: { name: string }) => {
+export const addClass = async (classData: { 
+  class_name: string;
+  teacher_id: number;
+  year_id: number;
+  number_of_terms: string;
+}) => {
   const response = await api.post('/add-class', classData);
   return response.data;
 };
 // edit Class
-export const updateClass = async (id: string, classData: any) => {
+export const updateClass = async (id: string, classData: {
+  class_name?: string;
+  teacher_id?: number;
+  number_of_terms?: string;
+}) => {
   const response = await api.post(`/update-class/${id}`, classData);
   return response.data;
 };
 // delete Class
 export const deleteClass = async (id: number) => {
   const response = await api.post(`/delete-class/${id}`);
+  return response.data;
+};
+
+//Teachers apis Started
+// fetch Teachers
+export const fetchTeachers = async () => {
+  const response = await api.get('/get-teacher');
+  return response.data.data;
+};
+// add Teacher
+export const addTeacher = async (teacherData: { name: string }) => {
+  const response = await api.post('/add-teacher', teacherData);
+  return response.data;
+};
+// edit Teacher
+export const updateTeacher = async (id: string, teacherData: any) => {
+  const response = await api.post(`/update-teacher/${id}`, teacherData);
+  return response.data;
+};
+// delete Teacher
+export const deleteTeacher = async (id: string | number) => {
+  const response = await api.post(`/delete-teacher/${id}`);
+  return response.data;
+};
+
+//Students apis Started
+// fetch Students
+export const fetchStudents= async () => {
+  const response = await api.get('/get-student');
+  return response.data.data;
+};
+// add Student
+export const addStudent = async (studentData: {
+  name: string;
+  email: string;
+  class: string;
+  status: 'active' | 'inactive' | 'suspended';
+}) => {
+  const response = await api.post('/add-student', studentData);
+  return response.data;
+};
+// edit Student
+export const updateStudent = async (
+  id: string,
+  studentData: {
+    name: string;
+    email: string;
+    class: string;
+    status: 'active' | 'inactive' | 'suspended';
+  }
+) => {
+  const response = await api.put(`/update-student/${id}`, studentData);
+  return response.data;
+};
+// delete Student
+export const deleteStudent = async (id: string | number) => {
+  const response = await api.post(`/delete-student/${id}`);
   return response.data;
 };
 
@@ -152,6 +218,13 @@ export const updateAnnouncement = async (id: string, announcementData: any) => {
 export const deleteAnnouncement = async (id: number) => {
   const response = await api.post(`/delete-announcement/${id}`);
   return response.data;
+};
+
+//Library Categories apis Started
+// fetch Categories
+export const fetchCategories = async () => {
+  const response = await api.get('/get-category');
+  return response.data.data;
 };
 
 

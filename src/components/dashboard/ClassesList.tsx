@@ -4,25 +4,33 @@ import { Button } from "@/components/ui/button";
 import { BarChart3 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
+import * as Dialog from "@radix-ui/react-dialog";
+import { useState } from "react";
 
 interface Class {
   id: string;
-  name: string;
-  assignTeacher: string;
-  terms: number;
+  class_name: string;
+  teacher_id: number;
+  year_id: number;
+  number_of_terms: string;
+  teacher_name?: string;
 }
 
 interface ClassesListProps {
   classes: Class[];
   onDeleteClass: (id: string) => void;
+  onEditClass: (cls: Class) => void; 
 }
 
 export default function ClassesList({
   classes,
   onDeleteClass,
+  onEditClass
 }: ClassesListProps) {
   const router = useRouter();
   const { currentUser } = useSelector((state: RootState) => state.auth);
+  const [classToDelete, setClassToDelete] = useState<Class | null>(null);
+
 
   const isStudent = currentUser?.role === "STUDENT";
   const isTeacher = currentUser?.role === "TEACHER";
@@ -44,6 +52,17 @@ export default function ClassesList({
   };
   const handleViewTracker = (classId: string) => {
     router.push(`/dashboard/trackers/${classId}`);
+  };
+
+  const handleDeleteClick = (cls: Class) => {
+    setClassToDelete(cls);
+  };
+
+  const confirmDelete = () => {
+    if (classToDelete) {
+      onDeleteClass(classToDelete.id);
+      setClassToDelete(null);
+    }
   };
 
   return (
@@ -74,17 +93,17 @@ export default function ClassesList({
                     onClick={() => handleViewStudents(cls.id)}
                     className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
                   >
-                    {cls.name}
+             {cls.class_name}
                   </button>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">{cls.terms}</td>
+                <td className="px-6 py-4 whitespace-nowrap">{cls.number_of_terms === 'two' ? 'Two Terms' : 'Three Terms'}</td>
                 {!isStudent && (
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-4">
                       {!isTeacher && (
                         <button
                           type="button"
-                          onClick={() => handleEdit(cls.id)}
+                          onClick={() => onEditClass(cls)}
                           className="text-gray-400 hover:text-blue-600 cursor-pointer"
                         >
                           <svg
@@ -126,7 +145,7 @@ export default function ClassesList({
                       {!isTeacher && (
                         <button
                           type="button"
-                          onClick={() => onDeleteClass(cls.id)}
+                          onClick={() => handleDeleteClick(cls)}
                           className="text-gray-400 hover:text-red-600 cursor-pointer"
                         >
                           <svg
@@ -186,6 +205,37 @@ export default function ClassesList({
           </tbody>
         </table>
       </div>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog.Root open={!!classToDelete} onOpenChange={(open) => !open && setClassToDelete(null)}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 bg-black/30" />
+          <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-md w-full max-w-md">
+            <Dialog.Title className="text-lg font-semibold">
+              Confirm Deletion
+            </Dialog.Title>
+            <p className="mt-2 text-gray-600">
+              Are you sure you want to delete the class{" "}
+              <strong>{classToDelete?.class_name}</strong>? This action cannot be undone.
+            </p>
+            <div className="mt-4 flex justify-end space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => setClassToDelete(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={confirmDelete}
+              >
+                Delete
+              </Button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+
     </div>
   );
 }

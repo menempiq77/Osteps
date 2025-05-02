@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import {
@@ -32,6 +32,7 @@ import {
 import useMediaQuery from "@/hooks/useMediaQuery";
 import UploadResourceModal from "@/components/modals/UploadResourceModal";
 import ViewResourceModal from "@/components/modals/ViewResourceModal";
+import { fetchCategories } from "@/services/api";
 
 const { Text, Title } = Typography;
 const { useBreakpoint } = Grid;
@@ -60,7 +61,25 @@ export default function LibraryPage() {
   const screens = useBreakpoint();
   const [fileList, setFileList] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(false);
-  const isMobile = useMediaQuery("(max-width: 768px)");
+  const isMobile = useMediaQuery("(max-width: 768px)"); 
+  const [categories, setCategories] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+      const loadCategories = async () => {
+        try {
+          const data = await fetchCategories();
+          setCategories(data);
+        } catch (err) {
+          setError("Failed to fetch categories");
+          console.error(err);
+        } finally {
+          setLoading(false);
+        }
+      };
+  
+      loadCategories();
+    }, []);
 
   // State for library items
   const [libraryItems, setLibraryItems] = React.useState<LibraryItem[]>([
@@ -514,7 +533,7 @@ export default function LibraryPage() {
         isEditing={isEditing}
         fileList={fileList}
         setFileList={setFileList}
-        categories={allCategories}
+        categories={categories}
       />
 
       <ViewResourceModal

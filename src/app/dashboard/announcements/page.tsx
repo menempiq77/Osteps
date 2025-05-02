@@ -14,7 +14,7 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Alert, Badge, Spin } from "antd";
-import { deleteAnnouncement, fetchAnnouncements } from "@/services/api";
+import { addAnnouncement, deleteAnnouncement, fetchAnnouncements } from "@/services/api";
 import { Cross2Icon } from "@radix-ui/react-icons";
 
 type Announcement = {
@@ -38,11 +38,12 @@ export default function AnnouncementsPage() {
 
   const [newAnnouncement, setNewAnnouncement] = useState({
     title: "",
-    content: "",
+    description: "",
     type: "general" as "prayer" | "event" | "reminder" | "general",
     target: "all" as "all" | "teachers" | "students" | "staff",
   });
   const [isCreating, setIsCreating] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const loadGrades = async () => {
@@ -59,27 +60,44 @@ export default function AnnouncementsPage() {
     loadGrades();
   }, []);
 
-  const handleCreateAnnouncement = () => {
-    if (!newAnnouncement.title || !newAnnouncement.content) return;
+  const handleCreateAnnouncement = async () => {
+    if (!newAnnouncement.title || !newAnnouncement.description) {
+      setError("Title and description are required");
+      return;
+    }
 
-    const announcement: Announcement = {
-      id: Date.now().toString(),
-      title: newAnnouncement.title,
-      description: newAnnouncement.content,
-      role: currentUser?.email || "Unknown",
-      authorId: currentUser?.id,
-      type: newAnnouncement.type,
-      target: newAnnouncement.target,
-    };
+    setIsSubmitting(true);
+    try {
+      const announcementData = {
+        name: newAnnouncement.title, // Assuming 'name' corresponds to the title
+        title: newAnnouncement.title,
+        description: newAnnouncement.description,
+        role: currentUser?.role || "SCHOOL_ADMIN", // Default role if not available
+        type: newAnnouncement.type,
+        target: newAnnouncement.target,
+        // Add other required fields if needed
+      };
 
-    setAnnouncements([announcement, ...announcements]);
-    setNewAnnouncement({
-      title: "",
-      content: "",
-      type: "general",
-      target: "all",
-    });
-    setIsCreating(false);
+      const response = await addAnnouncement(announcementData);
+      
+      // Assuming the API returns the created announcement
+      const createdAnnouncement = response.data;
+      
+      setAnnouncements([createdAnnouncement, ...announcements]);
+      setNewAnnouncement({
+        title: "",
+        description: "",
+        type: "general",
+        target: "all",
+      });
+      setIsCreating(false);
+      setError(null);
+    } catch (err) {
+      setError("Failed to create announcement");
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleDeleteAnnouncement = async () => {
@@ -223,11 +241,11 @@ export default function AnnouncementsPage() {
             <textarea
               className="w-full p-2 border rounded-md min-h-[100px]"
               placeholder="Content (e.g., 'The Taraweeh prayers will begin at 8:30 PM...')"
-              value={newAnnouncement.content}
+              value={newAnnouncement.description}
               onChange={(e) =>
                 setNewAnnouncement({
                   ...newAnnouncement,
-                  content: e.target.value,
+                  description: e.target.value,
                 })
               }
               rows={4}
@@ -268,7 +286,7 @@ export default function AnnouncementsPage() {
               onClick={handleCreateAnnouncement}
               className="cursor-pointer"
             >
-              Publish Announcement
+               {isSubmitting ? "Publishing..." : "Publish Announcement"}
             </Button>
           </CardFooter>
         </Card>
