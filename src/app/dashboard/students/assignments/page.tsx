@@ -16,8 +16,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { useParams } from "next/navigation";
-import AssignmentDrawer from "@/components/ui/AssignmentDrawer";
+import { useParams, useRouter } from "next/navigation";
 
 const mockAssignments = [
   {
@@ -145,37 +144,62 @@ const mockAssignments = [
       },
     ],
   },
+  {
+    id: "6",
+    title: "Quran Quiz - Surah Al-Fatiha",
+    description: "Test your understanding of Surah Al-Fatiha",
+    dueDate: "2024-02-10",
+    status: "not-started",
+    type: "quiz",
+    grade: null,
+    feedback: null,
+    questions: [
+      {
+        id: "1",
+        type: "mcq",
+        question: "How many verses are in Surah Al-Fatiha?",
+        options: ["5", "6", "7", "8"],
+        correctAnswer: "7",
+      },
+      {
+        id: "2",
+        type: "short",
+        question: "What is the meaning of 'Al-Fatiha'?",
+        correctAnswer: "The Opening",
+      },
+    ],
+  },
+  {
+    id: "7",
+    title: "Tajweed Rules Quiz",
+    description: "Test your knowledge of basic Tajweed rules",
+    dueDate: "2024-03-15",
+    status: "pending",
+    type: "quiz",
+    grade: null,
+    feedback: null,
+    questions: [
+      {
+        id: "1",
+        type: "mcq",
+        question: "What is the ruling of noon sakinah followed by a 'ya'?",
+        options: ["Izhar", "Idgham", "Iqlab", "Ikhfa"],
+        correctAnswer: "Ikhfa",
+      },
+      {
+        id: "2",
+        type: "checkbox",
+        question: "Which of these are letters of Qalqalah?",
+        options: ["ق", "ط", "ب", "ج", "د"],
+        correctAnswer: "ق,ط,ب,ج,د",
+      },
+    ],
+  },
 ];
 
 export default function AssignmentsPage() {
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedTerm, setSelectedTerm] = useState("Term 1");
-  const [selectedAssignment, setSelectedAssignment] = useState<any>(null);
-
-  const handleOpenDrawer = (assignment: any, task: any) => {
-    setSelectedAssignment({
-      ...assignment,
-      selectedTask: task,
-    });
-    setIsDrawerOpen(true);
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "submitted":
-        return "bg-green-100 text-green-800";
-      case "pending":
-        return "bg-orange-100 text-orange-800";
-      case "in-progress":
-        return "bg-yellow-100 text-yellow-800";
-      case "not-started":
-        return "bg-gray-100 text-gray-800";
-      case "overdue":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-blue-100 text-blue-800";
-    }
-  };
+  const router = useRouter();
 
   const getAssignmentStatus = (assignment: any) => {
     const today = new Date();
@@ -186,80 +210,111 @@ export default function AssignmentsPage() {
     return assignment.status || "not-started";
   };
 
+  const handleItemClick = (item: any) => {
+    if (item.type === "quiz") {
+      router.push(`/dashboard/students/assignments/${item.id}/quiz`);
+    } else {
+      router.push(`/dashboard/students/assignments/${item.id}`);
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    const statusClasses = {
+      submitted: "bg-green-100 text-green-800",
+      overdue: "bg-red-100 text-red-800",
+      "in-progress": "bg-yellow-100 text-yellow-800",
+      "not-started": "bg-gray-100 text-gray-800",
+      pending: "bg-blue-100 text-blue-800",
+    };
+
+    return (
+      <span
+        className={`text-xs px-2 py-1 rounded-full ${statusClasses[status as keyof typeof statusClasses] || "bg-gray-100"}`}
+      >
+        {status.replace("-", " ")}
+      </span>
+    );
+  };
+
   return (
-    <div className="p-3 md:p-6 max-w-6xl mx-auto bg-gray-50 min-h-screen">
-    <div className="flex items-center justify-between">
-      <Link href="/dashboard">
-        <Button
-          icon={<ChevronLeftIcon />}
-          className="mb-6 text-gray-700 border border-gray-300 hover:bg-gray-100"
-        >
-          Back to Dashboard
-        </Button>
-      </Link>
-      <Select value={selectedTerm} onValueChange={setSelectedTerm}>
-        <SelectTrigger className="w-[150px]">
-          <SelectValue placeholder="Select Term" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="Term 1">Term 1</SelectItem>
-          <SelectItem value="Term 2">Term 2</SelectItem>
-          <SelectItem value="Term 3">Term 3</SelectItem>
-        </SelectContent>
-      </Select>
-    </div>
-
-    <h1 className="text-2xl font-bold text-gray-900 mb-6">Assessments</h1>
-
-    {/* Updated grid layout */}
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {mockAssignments.map((assignment) => {
-        const status = getAssignmentStatus(assignment);
-        return (
-          <Card
-            key={assignment.id}
-            className="p-6 bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow h-full"
+    <div className="p-3 md:p-6 max-w-5xl mx-auto bg-gray-50 min-h-screen">
+      <div className="flex items-center justify-between">
+        <Link href="/dashboard">
+          <Button
+            icon={<ChevronLeftIcon />}
+            className="mb-6 text-gray-700 border border-gray-300 hover:bg-gray-100"
           >
-            <div className="flex flex-col h-full">
-              <div className="flex justify-between items-start flex-grow">
-                <Link
-                  href={`/dashboard/students/assignments/${assignment.id}`}
-                  className="flex-1"
-                >
-                  <h3 className="text-lg font-semibold text-gray-900 hover:text-blue-600 hover:underline">
-                    {assignment.title}
-                  </h3>
-                  <p className="text-sm text-gray-600 line-clamp-2">
-                    {assignment.description}
-                  </p>
-                  <div className="flex items-center mt-2">
-                    <CalendarIcon className="w-4 h-4 mr-1" />
-                    <span className="text-sm text-gray-600">
-                      Due: {new Date(assignment.dueDate).toLocaleDateString()}
-                    </span>
+            Back to Dashboard
+          </Button>
+        </Link>
+        <Select value={selectedTerm} onValueChange={setSelectedTerm}>
+          <SelectTrigger className="w-[150px]">
+            <SelectValue placeholder="Select Term" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Term 1">Term 1</SelectItem>
+            <SelectItem value="Term 2">Term 2</SelectItem>
+            <SelectItem value="Term 3">Term 3</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">Assessments</h1>
+
+      {/* Updated grid layout */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {mockAssignments.map((assignment) => {
+          const status = getAssignmentStatus(assignment);
+          return (
+            <Card
+              key={assignment.id}
+              className="p-6 bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow h-full cursor-pointer"
+              onClick={() => handleItemClick(assignment)}
+            >
+              <div className="flex flex-col h-full">
+                <div className="flex justify-between items-start flex-grow">
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start">
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        {assignment.title}
+                      </h3>
+                      {getStatusBadge(status)}
+                    </div>
+                    <p className="text-sm text-gray-600 line-clamp-2 mt-1">
+                      {assignment.description}
+                    </p>
+                    <div className="flex items-center mt-2">
+                      <CalendarIcon className="w-4 h-4 mr-1" />
+                      <span className="text-sm text-gray-600">
+                        Due: {new Date(assignment.dueDate).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <div className="mt-2">
+                      <span className="inline-block bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded">
+                        {assignment.type === "quiz" ? "Quiz" : "Assignment"}
+                      </span>
+                    </div>
                   </div>
-                </Link>
-              </div>
+                </div>
 
-              <div className="mt-4">
-                <Link href={`/dashboard/students/assignments/${assignment.id}`}>
-                  <Button type="primary" className="text-sm w-full md:w-auto">
-                    View Details
+                <div className="mt-4">
+                  <Button
+                    type="primary"
+                    className="text-sm w-full md:w-auto"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleItemClick(assignment);
+                    }}
+                  >
+                    {assignment.type === "quiz" ? "Take Quiz" : "View Details"}
                   </Button>
-                </Link>
+                </div>
               </div>
-            </div>
-          </Card>
-        );
-      })}
-    </div>
+            </Card>
+          );
+        })}
+      </div>
 
-    <AssignmentDrawer
-      isOpen={isDrawerOpen}
-      onClose={() => setIsDrawerOpen(false)}
-      selectedSubject={selectedAssignment?.title || ""}
-      selectedTask={selectedAssignment?.selectedTask}
-    />
-  </div>
+    </div>
   );
 }

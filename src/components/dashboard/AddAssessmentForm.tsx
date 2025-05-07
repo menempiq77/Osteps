@@ -1,41 +1,51 @@
 "use client";
-import { useForm } from "react-hook-form";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
+import { Dialog } from "@radix-ui/themes";
 
-interface AssessmentFormValues {
-  name: string;
+interface AddAssessmentFormProps {
+  onSubmit: (data: { name: string; type: "assessment" | "quiz" }) => void;
+  isQuiz?: boolean;
 }
 
-export default function AddAssessmentForm({
-  onSubmit,
-}: {
-  onSubmit: (data: AssessmentFormValues) => void;
-}) {
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<AssessmentFormValues>();
+export default function AddAssessmentForm({ onSubmit, isQuiz = false }: AddAssessmentFormProps) {
+  const [name, setName] = useState("");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit({
+      name,
+      type: isQuiz ? "quiz" : "assessment"
+    });
+    setName("");
+  };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="bg-white space-y-4">
-      <div className="grid grid-cols-1 gap-4">
-        <div>
-          <Label className="mb-1">Assessment Name</Label>
-          <Input
-            {...register("name", { required: "Assessment name is required" })}
-          />
-          {errors.name && (
-            <p className="text-red-500 text-sm">{errors.name.message}</p>
-          )}
-        </div>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="name">
+          {isQuiz ? "Quiz Name" : "Assessment Name"}
+        </Label>
+        <Input
+          id="name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder={isQuiz ? "Enter quiz name" : "Enter assessment name"}
+          required
+        />
       </div>
-
-      <Button type="submit" className="w-auto float-right">
-        Create Assessment
-      </Button>
+      <div className="flex justify-end gap-2">
+        <Dialog.Close asChild>
+          <Button type="button" variant="outline">
+            Cancel
+          </Button>
+        </Dialog.Close>
+        <Button type="submit">
+          {isQuiz ? "Add Quiz" : "Add Assessment"}
+        </Button>
+      </div>
     </form>
   );
 }

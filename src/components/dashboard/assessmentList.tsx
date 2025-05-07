@@ -8,6 +8,10 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { AssessmentTasksDrawer } from "../ui/AssessmentTasksDrawer";
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store/store";
 
 interface Task {
   id: number;
@@ -19,14 +23,15 @@ interface Task {
 }
 
 interface Assessment {
-  id: number;
+  id: string;
   name: string;
+  type: "assessment" | "quiz";
 }
 
 interface AssessmentListProps {
   assessments: Assessment[];
-  onDeleteAssessment: (id: number) => void;
-  onEditAssessment: (id: number, newName: string) => void;
+  onDeleteAssessment: (id: string) => void;
+  onEditAssessment?: (id: string, newName: string) => void;
 }
 
 export default function AssessmentList({ 
@@ -34,9 +39,12 @@ export default function AssessmentList({
   onDeleteAssessment,
   onEditAssessment
 }: AssessmentListProps) {
+  const router = useRouter();
+  const { classId } = useParams();
   const [selectedTerm, setSelectedTerm] = useState("Term 1");
   const [drawerVisible, setDrawerVisible] = useState(false);
-  const [selectedAssessment, setSelectedAssessment] = useState<number | null>(null);
+  const { currentUser } = useSelector((state: RootState) => state.auth);
+  const [selectedAssessment, setSelectedAssessment] = useState<string | null>(null);
   const [tasks, setTasks] = useState<Task[]>([
     { id: 1, name: "Memorisation", isAudio: true, isVideo: false, isPdf: false, dueDate: "2023-05-15" },
     { id: 2, name: "Extraction & Summarization", isAudio: false, isVideo: false, isPdf: true, dueDate: "2023-05-20" },
@@ -44,9 +52,16 @@ export default function AssessmentList({
     { id: 4, name: "Tajweed", isAudio: false, isVideo: true, isPdf: false, dueDate: "2023-05-25" },
   ]);
 
-  const [currentUserRole] = useState("ADMIN"); // Replace with your auth logic
+  const canUpload =
+  currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "TEACHER";
 
-  const handleAssignmentClick = (assignmentId: number) => {
+
+  const handleAssignmentClick = (assignmentId: string, type: "assessment" | "quiz") => {
+    if (type === "quiz") {
+      // Navigate to quiz page
+      router.push(`/dashboard/classes/${classId}/terms/${assignmentId}/quiz/${assignmentId}}`);
+      return;
+    }
     setSelectedAssessment(assignmentId);
     setDrawerVisible(true);
   };
@@ -58,13 +73,6 @@ export default function AssessmentList({
 
   const handleTasksChange = (updatedTasks: Task[]) => {
     setTasks(updatedTasks);
-  };
-
-  const handleEdit = (assignmentId: number) => {
-    // const newName = prompt("Enter new assessment name:");
-    // if (newName) {
-    //   onEditAssessment(assignmentId, newName);
-    // }
   };
 
   return (
@@ -89,7 +97,10 @@ export default function AssessmentList({
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                 Assessment Name
               </th>
-              {currentUserRole !== "TEACHER" && (
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                Type
+              </th>
+              {canUpload && (
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Actions
                 </th>
@@ -102,39 +113,30 @@ export default function AssessmentList({
                 <td className="px-6 py-4 whitespace-nowrap">
                   <button
                     type="button"
-                    onClick={() => handleAssignmentClick(assignment.id)}
-                    className="text-blue-600 hover:text-blue-800 hover:underline"
+                    onClick={() => handleAssignmentClick(assignment.id, assignment.type)}
+                    className={`text-blue-600 hover:text-blue-800 hover:underline cursor-pointer ${
+                      assignment.type === "quiz" ? "font-medium" : ""
+                    }`}
                   >
                     {assignment.name}
                   </button>
                 </td>
-                {currentUserRole !== "TEACHER" && (
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className={`px-2 py-1 text-xs rounded-full ${
+                    assignment.type === "quiz" 
+                      ? "bg-blue-100 text-blue-800" 
+                      : "bg-green-100 text-green-800"
+                  }`}>
+                    {assignment.type === "quiz" ? "Quiz" : "Assessment"}
+                  </span>
+                </td>
+                {canUpload && (
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-4">
                       <button
                         type="button"
-                        onClick={() => handleEdit(assignment.id)}
-                        className="text-gray-400 hover:text-blue-600"
-                        title="Edit"
-                      >
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-                          />
-                        </svg>
-                      </button>
-                      <button
-                        type="button"
                         onClick={() => onDeleteAssessment(assignment.id)}
-                        className="text-gray-400 hover:text-red-600"
+                        className="text-gray-400 hover:text-red-600 cursor-pointer"
                         title="Delete"
                       >
                         <svg
