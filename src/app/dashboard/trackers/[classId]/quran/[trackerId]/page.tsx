@@ -49,7 +49,7 @@ interface Quiz {
 }
 
 export default function QuranTrackerAdminPage() {
-  const { trackerId } = useParams();
+  const { trackerId, classId } = useParams();
   const router = useRouter();
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
@@ -333,7 +333,7 @@ export default function QuranTrackerAdminPage() {
                 className="flex items-center gap-2 cursor-pointer"
               >
                 <Plus size={16} />
-                Add Surah
+                Add Option
               </Button>
               <Button
                 onClick={() => {
@@ -356,7 +356,7 @@ export default function QuranTrackerAdminPage() {
               type="text"
               value={newChapterName}
               onChange={(e) => setNewChapterName(e.target.value)}
-              placeholder="Enter surah name (e.g., Al-Fatihah (the Opening))"
+              placeholder="Enter Option"
               className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
             />
             <div className="flex gap-2">
@@ -419,7 +419,7 @@ export default function QuranTrackerAdminPage() {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="p-4 text-left border text-sm font-medium text-gray-500 uppercase tracking-wider">
-                        Surah
+                        Topics
                       </th>
                       <th className="p-4 text-center border text-sm font-medium text-gray-500 uppercase tracking-wider">
                         <div className="flex items-center justify-center gap-1">
@@ -459,6 +459,7 @@ export default function QuranTrackerAdminPage() {
                             <tr
                               ref={provided.innerRef}
                               {...provided.draggableProps}
+                              key={chapter.number}
                               className={`hover:bg-gray-50 transition-colors ${
                                 chapter.type === "quiz"
                                   ? "cursor-pointer bg-blue-50"
@@ -468,7 +469,7 @@ export default function QuranTrackerAdminPage() {
                                 chapter.type === "quiz"
                                   ? (e) => {
                                       if (editingChapter === null) {
-                                        showQuizDrawer();
+                                        router.push(`${trackerId}/quiz/${chapter.number}`);
                                       }
                                     }
                                   : undefined
@@ -476,7 +477,7 @@ export default function QuranTrackerAdminPage() {
                             >
                               <td className="p-4 border whitespace-nowrap">
                                 <div className="flex items-center">
-                                  {isAdmin && (
+                                  {canUpload && (
                                     <div
                                       {...provided.dragHandleProps}
                                       className="mr-2 cursor-move"
@@ -635,7 +636,7 @@ export default function QuranTrackerAdminPage() {
           <div className="flex justify-between items-center">
             <div className="text-sm text-gray-500">
               Showing {Math.min(visibleChapters, chapters.length)} of{" "}
-              {chapters.length} Surahs
+              {chapters.length} Topics
             </div>
             {visibleChapters < chapters.length && (
               <Button onClick={loadMoreChapters}>Load More (10)</Button>
@@ -745,122 +746,6 @@ export default function QuranTrackerAdminPage() {
           )}
         </Form>
       </Modal>
-
-      {/* Quiz Drawer */}
-      <Drawer
-        title="Quran"
-        placement="right"
-        width={600}
-        onClose={closeQuizDrawer}
-        open={isQuizDrawerVisible}
-        extra={
-          canUpload && (
-            <Button type="primary" onClick={showQuizModal}>
-              Add New Question
-            </Button>
-          )
-        }
-        footer={
-          !canUpload && (
-            <div className="text-right">
-              <Button type="primary" onClick={handleSubmitAnswers}>
-                Submit Answers
-              </Button>
-            </div>
-          )
-        }
-      >
-        <div className="space-y-6">
-          {quizzes.length === 0 ? (
-            <div className="text-center text-gray-500 py-8">
-              No quizzes available. Click "Add New Quiz" to create one.
-            </div>
-          ) : (
-            quizzes.map((quiz) => (
-              <div
-                key={quiz.id}
-                className="bg-white p-4 rounded-lg shadow-sm border border-gray-200"
-              >
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <span className="font-medium text-gray-700">Question:</span>{" "}
-                    {quiz.question}
-                  </div>
-                  <Button
-                    onClick={() => deleteQuiz(quiz.id)}
-                    size="small"
-                    danger
-                    icon={<Trash2 size={14} />}
-                  />
-                </div>
-
-                {/* Solve Quiz Field */}
-                <div className="mt-4">
-                  {quiz.type === "mcq" && quiz.options && (
-                    <div className="space-y-2">
-                      {quiz.options.map((option, idx) => (
-                        <div key={idx} className="flex items-center">
-                          <input
-                            type="radio"
-                            id={`${quiz.id}-${idx}`}
-                            name={`quiz-${quiz.id}`}
-                            value={option}
-                            className="mr-2"
-                          />
-                          <label htmlFor={`${quiz.id}-${idx}`}>
-                            {String.fromCharCode(65 + idx)}. {option}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {quiz.type === "true_false" && (
-                    <div className="space-y-2">
-                      <div className="flex items-center">
-                        <input
-                          type="radio"
-                          id={`${quiz.id}-true`}
-                          name={`quiz-${quiz.id}`}
-                          value="True"
-                          className="mr-2"
-                        />
-                        <label htmlFor={`${quiz.id}-true`}>True</label>
-                      </div>
-                      <div className="flex items-center">
-                        <input
-                          type="radio"
-                          id={`${quiz.id}-false`}
-                          name={`quiz-${quiz.id}`}
-                          value="False"
-                          className="mr-2"
-                        />
-                        <label htmlFor={`${quiz.id}-false`}>False</label>
-                      </div>
-                    </div>
-                  )}
-
-                  {quiz.type === "writing" && (
-                    <div className="mt-2">
-                      <textarea
-                        placeholder="Write your answer here..."
-                        className="w-full border border-gray-300 rounded-lg p-2 resize-none focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        rows={4}
-                        name={`quiz-${quiz.id}`}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Show correct answer and type info */}
-                <div className="mt-3 text-xs text-gray-500">
-                  Type: {quiz.type.replace("_", " ").toUpperCase()}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </Drawer>
     </div>
   );
 }

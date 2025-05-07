@@ -429,7 +429,7 @@ export default function HadeesTrackerPage() {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="p-4 text-left border text-sm font-medium text-gray-500 uppercase tracking-wider">
-                        Book
+                        Topics
                       </th>
                       <th className="p-4 text-center border text-sm font-medium text-gray-500 uppercase tracking-wider">
                         <div className="flex items-center justify-center gap-1">
@@ -472,7 +472,7 @@ export default function HadeesTrackerPage() {
                               book.type === "quiz"
                                 ? (e) => {
                                     if (editingBook === null) {
-                                      showQuizDrawer();
+                                      router.push(`${trackerId}/quiz/${book.id}`);
                                     }
                                   }
                                 : undefined
@@ -480,7 +480,7 @@ export default function HadeesTrackerPage() {
                           >
                             <td className="p-4 border whitespace-nowrap">
                               <div className="flex items-center">
-                                {isAdmin && (
+                                {canUpload && (
                                   <div
                                     {...provided.dragHandleProps}
                                     className="mr-2 cursor-move"

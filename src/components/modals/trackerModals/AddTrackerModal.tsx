@@ -7,7 +7,6 @@ import { Select } from "antd";
 
 type TrackerBasic = {
   name: string;
-  type: string;
   status: string;
   options: string[];
 };
@@ -33,7 +32,6 @@ export function AddTrackerModal({
 }: AddTrackerModalProps) {
   const [tracker, setTracker] = useState<TrackerBasic>({
     name: "",
-    type: "",
     status: "",
     options: [],
   });
@@ -51,7 +49,6 @@ export function AddTrackerModal({
     onAddTracker(tracker);
     setTracker({
       name: "",
-      type: "",
       status: "",
       options: [],
     });
@@ -86,21 +83,6 @@ export function AddTrackerModal({
                   value={tracker.name}
                   onChange={(e) =>
                     setTracker({ ...tracker, name: e.target.value })
-                  }
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Type
-                </label>
-                <input
-                  type="text"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  value={tracker.type}
-                  onChange={(e) =>
-                    setTracker({ ...tracker, type: e.target.value })
                   }
                   required
                 />
