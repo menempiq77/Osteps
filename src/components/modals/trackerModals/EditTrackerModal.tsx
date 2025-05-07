@@ -7,7 +7,6 @@ import { useState, useEffect } from "react";
 type Tracker = {
   id: string;
   name: string;
-  type: string; // Changed from specific types to string
   progress: number;
   lastUpdated: string;
   status: string; // Changed from specific statuses to string
@@ -62,21 +61,6 @@ export function EditTrackerModal({
                   value={tracker.name}
                   onChange={(e) =>
                     setTracker({ ...tracker, name: e.target.value })
-                  }
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Type (e.g., Quran, Hadees, Seerah)
-                </label>
-                <input
-                  type="text"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  value={tracker.type}
-                  onChange={(e) =>
-                    setTracker({ ...tracker, type: e.target.value })
                   }
                   required
                 />

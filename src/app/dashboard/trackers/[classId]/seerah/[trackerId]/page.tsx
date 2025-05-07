@@ -434,7 +434,7 @@ export default function SeerahTrackerPage() {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="p-4 text-left border text-sm font-medium text-gray-500 uppercase tracking-wider">
-                        Period
+                        Topics
                       </th>
                       <th className="p-4 text-left border text-sm font-medium text-gray-500 uppercase tracking-wider">
                         Description
@@ -480,7 +480,7 @@ export default function SeerahTrackerPage() {
                               period.type === "quiz"
                                 ? (e) => {
                                     if (editingPeriod === null) {
-                                      showQuizDrawer();
+                                      router.push(`${trackerId}/quiz/${period.id}`);
                                     }
                                   }
                                 : undefined
@@ -488,7 +488,7 @@ export default function SeerahTrackerPage() {
                           >
                             <td className="p-4 border whitespace-nowrap">
                               <div className="flex items-center">
-                                {isAdmin && (
+                                {canUpload && (
                                   <div
                                     {...provided.dragHandleProps}
                                     className="mr-2 cursor-move"
