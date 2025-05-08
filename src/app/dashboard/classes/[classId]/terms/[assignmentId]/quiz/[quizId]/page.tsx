@@ -135,7 +135,7 @@ export default function QuranQuizPage() {
           className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
         >
           <ArrowLeft size={18} />
-          Back to Tracker
+          Back to Assements
         </Button>
       </div>
 

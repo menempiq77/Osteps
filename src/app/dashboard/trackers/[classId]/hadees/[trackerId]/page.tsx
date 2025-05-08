@@ -462,7 +462,6 @@ export default function HadeesTrackerPage() {
                           <tr
                             ref={provided.innerRef}
                             {...provided.draggableProps}
-                            key={book.id}
                             className={`hover:bg-gray-50 transition-colors ${
                               book.type === "quiz"
                                 ? "cursor-pointer bg-blue-50"

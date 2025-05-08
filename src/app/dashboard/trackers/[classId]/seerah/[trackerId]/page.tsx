@@ -470,7 +470,6 @@ export default function SeerahTrackerPage() {
                           <tr
                             ref={provided.innerRef}
                             {...provided.draggableProps}
-                            key={period.id}
                             className={`hover:bg-gray-50 transition-colors ${
                               period.type === "quiz"
                                 ? "cursor-pointer bg-blue-50"

@@ -1,10 +1,11 @@
 "use client";
 import React from "react";
-import { Button, Card } from "@radix-ui/themes";
+import { Card } from "@radix-ui/themes";
 import Link from "next/link";
 import { ChevronLeftIcon, CalendarIcon } from "@radix-ui/react-icons";
 import { notFound, useParams, useRouter } from "next/navigation";
 import AssignmentDrawer from "@/components/ui/AssignmentDrawer";
+import { Button } from "antd";
 
 const mockAssignments = [
   {
@@ -183,11 +184,14 @@ export default function AssignmentDetailPage() {
   }
 
   return (
-    <div className="p-3 md:p-6 max-w-4xl mx-auto bg-gray-50 min-h-screen">
+    <div className="p-3 md:p-6 max-w-5xl mx-auto bg-gray-50 min-h-screen">
       <Link href="/dashboard/students/assignments/">
-        <Button className="mb-6 text-gray-700 flex items-center gap-2 hover:text-gray-800 cursor-pointer">
-          <ChevronLeftIcon /> <span>Back to Assesments</span>
-        </Button>
+          <Button
+            icon={<ChevronLeftIcon />}
+            className="mb-6 text-gray-700 border border-gray-300 hover:bg-gray-100"
+          >
+            Back to Assesments
+          </Button>
       </Link>
 
       <Card className="p-6 bg-white rounded-xl shadow-md mb-6">
@@ -213,15 +217,18 @@ export default function AssignmentDetailPage() {
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Tasks</h2>
 
         {assignment.tasks.map((task) => (
-          <Card key={task.id} className="p-4 relative bg-white rounded-lg shadow-sm">
+          <Card
+            key={task.id}
+            className="p-4 relative bg-white rounded-lg shadow-sm"
+          >
             <div className="mb-3 ">
               <h3 className="font-medium text-lg">{task.name}</h3>
               <div className="flex items-center mb-2">
-              <CalendarIcon className="w-4 h-4 mr-1" />
-              <span className="text-sm text-gray-600">
-                Due: {new Date(assignment.dueDate).toLocaleDateString()}
-              </span>
-            </div>
+                <CalendarIcon className="w-4 h-4 mr-1" />
+                <span className="text-sm text-gray-600">
+                  Due: {new Date(assignment.dueDate).toLocaleDateString()}
+                </span>
+              </div>
               <span
                 className={`px-2 py-1 text-xs rounded-full absolute right-4 top-4 ${getStatusColor(
                   task.status
@@ -248,9 +255,9 @@ export default function AssignmentDetailPage() {
               </div>
             )}
 
-            <div className="mt-3">
+            <div className="absolute bottom-4 right-4">
               <Button
-                variant="surface"
+                variant="solid"
                 className="border px-3 py-1 rounded-md cursor-pointer"
                 onClick={() => handleOpenDrawer(task)}
               >

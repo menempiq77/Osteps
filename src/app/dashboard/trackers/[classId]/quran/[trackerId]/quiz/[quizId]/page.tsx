@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Trash2, Plus, X } from "lucide-react";
-import { Button, Form, Divider, Input, Select, Checkbox } from "antd";
+import { Button, Form, Divider, Input, Select, Checkbox, Space } from "antd";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 
@@ -85,6 +85,22 @@ export default function QuranQuizPage() {
     }
   };
 
+  const [optionCount, setOptionCount] = useState(4); // Start with 4 options
+
+  const addOption = () => {
+    setOptionCount(prev => prev + 1);
+  };
+
+  const removeOption = () => {
+    if (optionCount > 1) {
+      setOptionCount(prev => prev - 1);
+      // Remove the last option from form values
+      const values = quizForm.getFieldsValue();
+      delete values[`option${optionCount}`];
+      quizForm.setFieldsValue(values);
+    }
+  };
+
   const handleAddQuestion = () => {
     quizForm.validateFields().then((values) => {
       const newQuiz: Quiz = {
@@ -94,22 +110,25 @@ export default function QuranQuizPage() {
       };
 
       if (["mcq", "checkbox", "dropdown"].includes(values.type)) {
-        newQuiz.options = [
-          values.option1,
-          values.option2,
-          values.option3,
-          values.option4,
-        ].filter(Boolean);
+        // Collect all options that have values
+        const options = [];
+        for (let i = 1; i <= optionCount; i++) {
+          if (values[`option${i}`]) {
+            options.push(values[`option${i}`]);
+          }
+        }
+        newQuiz.options = options;
       }
 
       setQuizzes((prev) => [...prev, newQuiz]);
       setShowAddQuestion(false);
       quizForm.resetFields();
+      setOptionCount(4); // Reset to default 4 options
     });
   };
 
   return (
-    <div className="p-4 md:p-8 max-w-5xl mx-auto bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
+    <div className="p-3 md:p-6 max-w-5xl mx-auto bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
       <div className="mb-8">
         <Button
           onClick={() => router.back()}
@@ -166,18 +185,67 @@ export default function QuranQuizPage() {
               {["mcq", "checkbox", "dropdown"].includes(quizType) && (
                 <>
                   <Divider orientation="left">Options</Divider>
-                  <Form.Item name="option1" label="Option 1" rules={[{ required: true }]}>
-                    <Input placeholder="Option 1" />
-                  </Form.Item>
-                  <Form.Item name="option2" label="Option 2" rules={[{ required: true }]}>
-                    <Input placeholder="Option 2" />
-                  </Form.Item>
-                  <Form.Item name="option3" label="Option 3">
-                    <Input placeholder="Option 3" />
-                  </Form.Item>
-                  <Form.Item name="option4" label="Option 4">
-                    <Input placeholder="Option 4" />
-                  </Form.Item>
+                  
+                  {Array.from({ length: optionCount }).map((_, index) => (
+                    <Form.Item 
+                      key={index}
+                      name={`option${index + 1}`} 
+                      label={`Option ${index + 1}`} 
+                      rules={[{ required: index < 2, message: `Option ${index + 1} is required` }]}
+                    >
+                      <Input 
+                        placeholder={`Enter option ${index + 1}`} 
+                        suffix={
+                          index >= 2 && (
+                            <Button 
+                              type="text" 
+                              danger 
+                              size="small" 
+                              icon={<Trash2 size={14} />} 
+                              onClick={() => {
+                                // Remove specific option
+                                const values = quizForm.getFieldsValue();
+                                const updatedValues = {};
+                                let shiftIndex = 1;
+                                
+                                // Reorganize the options to fill the gap
+                                for (let i = 1; i <= optionCount; i++) {
+                                  if (i !== index + 1) {
+                                    updatedValues[`option${shiftIndex}`] = values[`option${i}`];
+                                    shiftIndex++;
+                                  }
+                                }
+                                
+                                quizForm.setFieldsValue(updatedValues);
+                                setOptionCount(prev => prev - 1);
+                              }}
+                              className="opacity-70 hover:opacity-100"
+                            />
+                          )
+                        }
+                      />
+                    </Form.Item>
+                  ))}
+
+                  <div className="flex justify-start gap-3 mt-2">
+                    <Button 
+                      type="dashed" 
+                      onClick={addOption}
+                      icon={<Plus size={14} />}
+                    >
+                      Add Option
+                    </Button>
+                    {optionCount > 2 && (
+                      <Button 
+                        type="dashed" 
+                        danger 
+                        onClick={removeOption}
+                        icon={<Trash2 size={14} />}
+                      >
+                        Remove Last Option
+                      </Button>
+                    )}
+                  </div>
                 </>
               )}
 
