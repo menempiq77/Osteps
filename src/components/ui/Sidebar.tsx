@@ -68,7 +68,7 @@ const Sidebar = () => {
     SCHOOL_ADMIN: [
       { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
       { name: "Teachers", href: "/dashboard/teachers", icon: UserCircleIcon },
-      { name: "Students", href: "/dashboard/students", icon: UserGroupIcon },
+      // { name: "Students", href: "/dashboard/students", icon: UserGroupIcon },
       { name: "Manage Classes", href: "/dashboard/years", icon: BookOpenIcon },
       { name: "Manage Grades", href: "/dashboard/grades", icon: ChartBarIcon },
       { name: "Library", href: "/dashboard/library", icon: BookTextIcon },
@@ -114,7 +114,7 @@ const Sidebar = () => {
         href: "/dashboard/students/assignments",
         icon: AcademicCapIcon,
       },
-      { name: "Trackers", href: "/dashboard/trackers/1", icon: Building },
+      { name: "Trackers", href: `/dashboard/trackers/${currentUser?.id}`, icon: Building },
       { name: "Timetable", href: "/dashboard/timetable", icon: BookOpenIcon },
       { name: "Library", href: "/dashboard/library", icon: BookTextIcon },
       {

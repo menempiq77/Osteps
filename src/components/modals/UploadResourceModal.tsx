@@ -22,6 +22,7 @@ interface UploadResourceModalProps {
   fileList: any[];
   setFileList: (files: any[]) => void;
   categories: any[];
+  resources: any[];
 }
 
 const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
@@ -33,6 +34,7 @@ const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
   isEditing,
   fileList,
   categories,
+  resources,
   setFileList,
 }) => {
   return (
@@ -59,10 +61,11 @@ const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
           rules={[{ required: true, message: "Please select a type!" }]}
         >
           <Select>
-            <Select.Option value="pdf">PDF Document</Select.Option>
-            <Select.Option value="book">Book</Select.Option>
-            <Select.Option value="video">Video</Select.Option>
-            <Select.Option value="audio">Audio</Select.Option>
+            {resources?.map((resource) => (
+              <Select.Option key={resource.id} value={resource.name}>
+                {resource.name}
+              </Select.Option>
+            ))}
           </Select>
         </Form.Item>
 
@@ -72,7 +75,7 @@ const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
           rules={[{ required: true, message: "Please select a Category!" }]}
         >
           <Select placeholder="Select Category">
-            {categories.map((category) => (
+            {categories?.map((category) => (
               <Select.Option key={category.id} value={category.name}>
                 {category.name}
               </Select.Option>

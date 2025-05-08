@@ -143,16 +143,18 @@ export const deleteTeacher = async (id: string | number) => {
 
 //Students apis Started
 // fetch Students
-export const fetchStudents= async () => {
-  const response = await api.get('/get-student');
+export const fetchStudents = async (classId: string | number) => {
+  const response = await api.post('/get-student', {
+    class_id: classId,
+  });
   return response.data.data;
 };
 // add Student
 export const addStudent = async (studentData: {
-  name: string;
+  student_name: string;
   email: string;
-  class: string;
-  status: 'active' | 'inactive' | 'suspended';
+  class_id: number;
+  status: string;
 }) => {
   const response = await api.post('/add-student', studentData);
   return response.data;
@@ -161,15 +163,16 @@ export const addStudent = async (studentData: {
 export const updateStudent = async (
   id: string,
   studentData: {
-    name: string;
+    student_name: string;
     email: string;
-    class: string;
+    class_id: number;
     status: 'active' | 'inactive' | 'suspended';
   }
 ) => {
-  const response = await api.put(`/update-student/${id}`, studentData);
+  const response = await api.post(`/update-student/${id}`, studentData);
   return response.data;
 };
+
 // delete Student
 export const deleteStudent = async (id: string | number) => {
   const response = await api.post(`/delete-student/${id}`);
@@ -226,6 +229,14 @@ export const fetchCategories = async () => {
   const response = await api.get('/get-category');
   return response.data.data;
 };
+
+//Library Resource apis Started
+// fetch Resources
+export const fetchResources = async () => {
+  const response = await api.get('/get-resources');
+  return response.data.data;
+};
+
 
 
 export default api;

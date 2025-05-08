@@ -3,36 +3,33 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { Button } from "@/components/ui/button";
 import { Cross2Icon, ChevronDownIcon } from "@radix-ui/react-icons";
 
-const classOptions = ['Class A', 'Class B', 'Class C'];
 const statusOptions = ['active', 'inactive', 'suspended'] as const;
 
 export const AddStudentModal = ({
   isOpen,
   onOpenChange,
   onAddStudent,
+  class_id
 }: {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onAddStudent: (
-    name: string, 
+    student_name: string, 
     email: string,
-    studentClass: string, 
-    status: 'active' | 'inactive' | 'suspended'
+    class_id: number, 
+    status: string
   ) => void;
 }) => {
-  const [name, setName] = useState("");
+  const [student_name, setStudentName] = useState("");
   const [email, setEmail] = useState("");
-  const [selectedClass, setSelectedClass] = useState("Class A");
-  const [selectedStatus, setSelectedStatus] = useState<'active' | 'inactive' | 'suspended'>('active');
-  const [isClassDropdownOpen, setIsClassDropdownOpen] = useState(false);
+  const [status, setStatus] = useState('active');
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
 
   const handleSubmit = () => {
-    onAddStudent(name, email, selectedClass, selectedStatus);
-    setName("");
+    onAddStudent(student_name, email, class_id, status);
+    setStudentName("");
     setEmail("");
-    setSelectedClass("Class A");
-    setSelectedStatus('active');
+    setStatus('active');
     onOpenChange(false);
   };
 
@@ -54,13 +51,13 @@ export const AddStudentModal = ({
                 Student Name
               </label>
               <input
-                id="studentName"
-                type="text"
-                className="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Enter Student name"
-              />
+  id="studentName"
+  type="text"
+  className="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+  value={student_name}
+  onChange={(e) => setStudentName(e.target.value)}
+  placeholder="Enter Student name"
+/>
             </div>
 
             <div>
@@ -82,43 +79,6 @@ export const AddStudentModal = ({
 
             <div>
               <label
-                htmlFor="studentsClass"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Class
-              </label>
-              <div className="relative">
-                <button
-                  id="studentsClass"
-                  className="w-full p-2 border rounded-md text-left flex justify-between items-center"
-                  onClick={() => setIsClassDropdownOpen(!isClassDropdownOpen)}
-                >
-                  <span>{selectedClass}</span>
-                  <ChevronDownIcon className={`h-4 w-4 transition-transform ${
-                    isClassDropdownOpen ? "rotate-180" : ""
-                  }`} />
-                </button>
-                {isClassDropdownOpen && (
-                  <div className="absolute z-10 mt-1 w-full bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
-                    {classOptions.map((item) => (
-                      <div
-                        key={item}
-                        className="p-2 hover:bg-gray-100 cursor-pointer"
-                        onClick={() => {
-                          setSelectedClass(item);
-                          setIsClassDropdownOpen(false);
-                        }}
-                      >
-                        {item}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div>
-              <label
                 htmlFor="studentStatus"
                 className="block text-sm font-medium text-gray-700 mb-1"
               >
@@ -130,7 +90,7 @@ export const AddStudentModal = ({
                   className="w-full p-2 border rounded-md text-left flex justify-between items-center"
                   onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
                 >
-                  <span>{selectedStatus}</span>
+                  <span>{status}</span>
                   <ChevronDownIcon className={`h-4 w-4 transition-transform ${
                     isStatusDropdownOpen ? "rotate-180" : ""
                   }`} />
@@ -142,7 +102,7 @@ export const AddStudentModal = ({
                         key={item}
                         className="p-2 hover:bg-gray-100 cursor-pointer"
                         onClick={() => {
-                          setSelectedStatus(item);
+                          setStatus(item);
                           setIsStatusDropdownOpen(false);
                         }}
                       >
@@ -163,7 +123,7 @@ export const AddStudentModal = ({
             </Dialog.Close>
             <Button 
               onClick={handleSubmit} 
-              disabled={!name.trim() || !email.trim()} 
+              disabled={!student_name.trim() || !email.trim()} 
               className="cursor-pointer"
             >
               Add Student
