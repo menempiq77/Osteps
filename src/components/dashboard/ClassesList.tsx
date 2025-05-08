@@ -58,6 +58,10 @@ export default function ClassesList({
     setClassToDelete(cls);
   };
 
+  const handleLeaderBoard = () => {
+    router.push(`/dashboard/leaderboard`);
+  };
+
   const confirmDelete = () => {
     if (classToDelete) {
       onDeleteClass(classToDelete.id);
@@ -121,6 +125,26 @@ export default function ClassesList({
                           </svg>
                         </button>
                       )}
+
+<button
+  type="button"
+  onClick={() => handleLeaderBoard(cls.id)}
+  className="text-gray-400 hover:text-green-600 cursor-pointer"
+>
+  <svg
+    className="w-5 h-5"
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M4 6h16M4 10h10M4 14h6M4 18h2"
+    />
+  </svg>
+</button>
 
                       <button
                         type="button"

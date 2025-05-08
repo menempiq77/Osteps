@@ -17,6 +17,7 @@ import {
   UserCircleIcon,
   BookTextIcon,
   Building,
+  HelpCircle
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { logout } from "@/features/auth/authSlice";
@@ -99,6 +100,7 @@ const Sidebar = () => {
         icon: MegaphoneIcon,
         badge: unreadAnnouncements > 0 ? unreadAnnouncements : null,
       },
+      { name: "Answer a Question", href: "/dashboard/questions", icon: HelpCircle },
       {
         name: "Settings",
         href: "/dashboard/teachers/settings",
@@ -121,6 +123,11 @@ const Sidebar = () => {
         icon: MegaphoneIcon,
         badge: unreadAnnouncements > 0 ? unreadAnnouncements : null,
       },
+      {
+        name: "Ask a Question",
+        href: "/dashboard/questions",
+        icon: HelpCircle,
+      },      
       {
         name: "Settings",
         href: "/dashboard/students/settings",
