@@ -3,6 +3,7 @@ import { Pencil2Icon } from "@radix-ui/react-icons";
 import { Button } from "@/components/ui/button";
 import * as Dialog from "@radix-ui/react-dialog";
 import { useState } from "react";
+import { Select } from "antd";
 import { Trash2 } from "lucide-react";
 import { AddTrackerModal } from "../modals/trackerModals/AddTrackerModal";
 import { EditTrackerModal } from "../modals/trackerModals/EditTrackerModal";
@@ -31,10 +32,12 @@ type TrackerListProps = {
 };
 
 // Main Component
-export default function TrackerList() {
+export default function ViewTrackerList() {
   const { classId } = useParams();
   const router = useRouter();
   const { currentUser } = useSelector((state: RootState) => state.auth);
+  const [selectedYear, setSelectedYear] = useState<string>("1");
+  const [selectedClass, setSelectedClass] = useState<string>("A");
   const [trackers, setTrackers] = useState<Tracker[]>([
     {
       id: "1",
@@ -113,16 +116,14 @@ export default function TrackerList() {
     trackerId: string,
     type: "Quran" | "Hadees" | "Seerah"
   ) => {
-    router.push(
-      `/dashboard/trackers/${classId}/${type.toLowerCase()}/${trackerId}`
-    );
+    router.push(`/dashboard/viewtrackers/${type.toLowerCase()}/${trackerId}`);
   };
 
   return (
     <>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Trackers</h1>
-        {currentUser?.role !== "STUDENT" && (
+        {/* {currentUser?.role !== "STUDENT" && (
           <Dialog.Root
             open={isAddTrackerModalOpen}
             onOpenChange={setIsAddTrackerModalOpen}
@@ -136,7 +137,36 @@ export default function TrackerList() {
               onAddTracker={handleAddNewTracker}
             />
           </Dialog.Root>
-        )}
+        )} */}
+        <div className="flex gap-4">
+          <div className="w-full min-w-[120px] lg:min-w-xs">
+            <Select
+              id="year-select"
+              value={selectedYear}
+              onChange={(value) => setSelectedYear(value)}
+              className="w-full"
+              options={[
+                { value: "1", label: "Year 1" },
+                { value: "2", label: "Year 2" },
+                { value: "3", label: "Year 3" },
+              ]}
+            />
+          </div>
+
+          <div className="w-full min-w-[120px] lg:min-w-xs">
+            <Select
+              id="class-select"
+              value={selectedClass}
+              onChange={(value) => setSelectedClass(value)}
+              className="w-full"
+              options={[
+                { value: "A", label: "Class A" },
+                { value: "B", label: "Class B" },
+                { value: "C", label: "Class C" },
+              ]}
+            />
+          </div>
+        </div>
       </div>
 
       <div className="mt-8 bg-white rounded-lg shadow-md overflow-hidden">
@@ -157,9 +187,9 @@ export default function TrackerList() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Actions
-                </th>
+                </th> */}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -202,8 +232,7 @@ export default function TrackerList() {
                       {tracker.status}
                     </span>
                   </td>
-
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  {/* <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex space-x-2">
                       <button
                         type="button"
@@ -224,6 +253,7 @@ export default function TrackerList() {
                           />
                         </svg>
                       </button>
+
                       {currentUser?.role !== "STUDENT" && (
                         <>
                           <Dialog.Root>
@@ -297,7 +327,7 @@ export default function TrackerList() {
                         </>
                       )}
                     </div>
-                  </td>
+                  </td> */}
                 </tr>
               ))}
             </tbody>

@@ -32,7 +32,7 @@ import {
 import useMediaQuery from "@/hooks/useMediaQuery";
 import UploadResourceModal from "@/components/modals/UploadResourceModal";
 import ViewResourceModal from "@/components/modals/ViewResourceModal";
-import { fetchCategories } from "@/services/api";
+import { fetchCategories, fetchResources } from "@/services/api";
 
 const { Text, Title } = Typography;
 const { useBreakpoint } = Grid;
@@ -63,6 +63,7 @@ export default function LibraryPage() {
   const [loading, setLoading] = React.useState(false);
   const isMobile = useMediaQuery("(max-width: 768px)"); 
   const [categories, setCategories] = useState<any[]>([]);
+  const [resources, setResources] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -79,6 +80,22 @@ export default function LibraryPage() {
       };
   
       loadCategories();
+    }, []);
+
+    useEffect(() => {
+      const loadResources = async () => {
+        try {
+          const data = await fetchResources();
+          setResources(data);
+        } catch (err) {
+          setError("Failed to fetch categories");
+          console.error(err);
+        } finally {
+          setLoading(false);
+        }
+      };
+  
+      loadResources();
     }, []);
 
   // State for library items
@@ -534,6 +551,7 @@ export default function LibraryPage() {
         fileList={fileList}
         setFileList={setFileList}
         categories={categories}
+        resources={resources}
       />
 
       <ViewResourceModal

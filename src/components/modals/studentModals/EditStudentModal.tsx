@@ -7,24 +7,21 @@ import { useEffect, useState } from "react";
 // Types
 type Student = {
   id: string;
-  name: string;
+  student_name: string;
   email: string;
-  studentClass: string;
-  teacher: string;
+  class_id: number;
+  class_name?: string;
   status: "active" | "inactive" | "suspended";
 };
 
 type StudentBasic = {
   id: string;
-  name: string;
+  student_name: string;
   email: string;
-  studentClass: string;
+  class_id: number;
+  class_name?: string;
   status: "active" | "inactive" | "suspended";
 };
-
-// Constants
-const classOptions = ['Class A', 'Class B', 'Class C'];
-const statusOptions = ["active", "inactive", "suspended"] as const;
 
 export const EditStudentModal = ({
   student,
@@ -34,26 +31,28 @@ export const EditStudentModal = ({
   student: StudentBasic | null;
   onClose: () => void;
   onSave: (
-    name: string,
+    id: string,
+    student_name: string,
     email: string,
-    studentClass: string,
+    class_id: number,
     status: "active" | "inactive" | "suspended"
   ) => void;
 }) => {
-  const [name, setName] = useState(student?.name || "");
+  const [name, setName] = useState(student?.student_name || "");
   const [email, setEmail] = useState(student?.email || "");
-  const [studentClass, setStudentClass] = useState(student?.studentClass || "Class A");
+  const [classId, setClassId] = useState(student?.class_id || 0);
   const [status, setStatus] = useState<"active" | "inactive" | "suspended">(
     student?.status || "active"
   );
-  const [isClassDropdownOpen, setIsClassDropdownOpen] = useState(false);
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+
+  const statusOptions = ["active", "inactive", "suspended"] as const;
 
   useEffect(() => {
     if (student) {
-      setName(student.name);
+      setName(student.student_name);
       setEmail(student.email);
-      setStudentClass(student.studentClass);
+      setClassId(student.class_id);
       setStatus(student.status);
     }
   }, [student]);
@@ -103,45 +102,6 @@ export const EditStudentModal = ({
           <fieldset className="mb-[15px]">
             <label
               className="block text-sm font-medium mb-1"
-              htmlFor="editStudentClass"
-            >
-              Class
-            </label>
-            <div className="relative">
-              <button
-                id="editStudentClass"
-                className="w-full p-2 border rounded-md text-left flex justify-between items-center"
-                onClick={() => setIsClassDropdownOpen(!isClassDropdownOpen)}
-              >
-                <span>{studentClass}</span>
-                <ChevronDownIcon
-                  className={`h-4 w-4 transition-transform ${
-                    isClassDropdownOpen ? "rotate-180" : ""
-                  }`}
-                />
-              </button>
-              {isClassDropdownOpen && (
-                <div className="absolute z-10 mt-1 w-full bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
-                  {classOptions.map((item) => (
-                    <div
-                      key={item}
-                      className="p-2 hover:bg-gray-100 cursor-pointer"
-                      onClick={() => {
-                        setStudentClass(item);
-                        setIsClassDropdownOpen(false);
-                      }}
-                    >
-                      {item}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </fieldset>
-
-          <fieldset className="mb-[15px]">
-            <label
-              className="block text-sm font-medium mb-1"
               htmlFor="editStudentStatus"
             >
               Status
@@ -186,7 +146,7 @@ export const EditStudentModal = ({
             </Button>
           </Dialog.Close>
           <Button 
-            onClick={() => onSave(name, email, studentClass, status)} 
+            onClick={() => onSave(student.id, name, email, classId, status)} 
             className="cursor-pointer"
             disabled={!name.trim() || !email.trim()}
           >

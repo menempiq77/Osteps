@@ -2,96 +2,148 @@
 import { Pencil2Icon } from "@radix-ui/react-icons";
 import { Button } from "@/components/ui/button";
 import * as Dialog from "@radix-ui/react-dialog";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AddStudentModal } from "../modals/studentModals/AddStudentModal";
 import { EditStudentModal } from "../modals/studentModals/EditStudentModal";
 import { BarChart3, Trash2 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
+import {
+  fetchStudents,
+  addStudent as apiAddStudent,
+  updateStudent as apiUpdateStudent,
+  deleteStudent as apiDeleteStudent,
+  fetchClasses,
+  updateStudent,
+} from "@/services/api";
+import { Alert, Spin } from "antd";
 
 // Types
 type Student = {
   id: string;
   name: string;
   email: string;
-  studentClass: string;
+  class: string;
   teacher?: string;
   status: "active" | "inactive" | "suspended";
 };
 
-// Initial Data
-const studentsData: Student[] = [
-  {
-    id: "1",
-    name: "John",
-    email: "john@example.com",
-    studentClass: "Class A",
-    teacher: "Alice",
-    status: "active",
-  },
-  {
-    id: "2",
-    name: "Sarah",
-    email: "john@example.com",
-    studentClass: "Class B",
-    teacher: "Bob",
-    status: "active",
-  },
-  {
-    id: "3",
-    name: "Charlie",
-    email: "john@example.com",
-    studentClass: "Class C",
-    teacher: "Alice",
-    status: "inactive",
-  },
-];
-
 export default function StudentList() {
   const router = useRouter();
+  const { classId } = useParams();
+
   const { currentUser } = useSelector((state: RootState) => state.auth);
-  const [students, setStudents] = useState<Student[]>(studentsData);
+  const [students, setStudents] = useState<Student[]>([]);
   const [editStudent, setEditStudent] = useState<Student | null>(null);
   const [deleteStudent, setDeleteStudent] = useState<Student | null>(null);
   const [isAddStudentModalOpen, setIsAddStudentModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSaveEdit = (updatedStudent: Student) => {
-    console.log("Updated Student in List:", updatedStudent);
-    setStudents((prevStudents) =>
-      prevStudents.map((student) =>
-        student.id === updatedStudent.id ? updatedStudent : student
-      )
-    );
-    setEditStudent(null);
+  const loadStudents = async () => {
+    try {
+      setIsLoading(true);
+      const studentsData = await fetchStudents(classId);
+      setStudents(studentsData);
+    } catch (err) {
+      setError("Failed to load students");
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleDeleteStudent = (studentId: string) => {
-    setStudents(students.filter((student) => student.id !== studentId));
-    setDeleteStudent(null);
-  };
+  useEffect(() => {
+    if (classId) {
+      loadStudents();
+    }
+  }, [classId]);
 
-  const handleAddNewStudent = (
-    name: string,
+  const handleSaveEdit = async (
+    id: string,
+    student_name: string,
     email: string,
-    studentClass: string,
+    class_id: number,
     status: "active" | "inactive" | "suspended"
   ) => {
-    const newStudent: Student = {
-      id: Date.now().toString(),
-      name,
-      email,
-      studentClass,
-      teacher: "",
-      status,
-    };
-    setStudents([...students, newStudent]);
-    setIsAddStudentModalOpen(false);
+    try {
+      const updatedStudent = await updateStudent(id, {
+        student_name,
+        email,
+        class_id,
+        status,
+      });
+
+      setStudents((prevStudents) =>
+        prevStudents.map((student) =>
+          student.id === id ? updatedStudent : student
+        )
+      );
+      await loadStudents();
+      setEditStudent(null);
+    } catch (err) {
+      console.error("Failed to update student:", err);
+      setError("Failed to update student");
+    }
+  };
+
+  const handleDeleteStudent = async (studentId: string) => {
+    try {
+      await apiDeleteStudent(studentId);
+      setStudents(students.filter((student) => student.id !== studentId));
+      setDeleteStudent(null);
+    } catch (err) {
+      console.error("Failed to delete student:", err);
+      setError("Failed to delete student");
+    }
+  };
+
+  const handleAddNewStudent = async (
+    student_name: string,
+    email: string,
+    class_id: number,
+    status: string
+  ) => {
+    try {
+      const newStudent = await apiAddStudent({
+        student_name,
+        email,
+        class_id: Number(classId),
+        status,
+      });
+      setStudents([...students, newStudent]);
+      await loadStudents();
+      setIsAddStudentModalOpen(false);
+    } catch (err) {
+      console.error("Failed to add student:", err);
+      setError("Failed to add student");
+    }
   };
 
   const handleStudentClick = (studentId: string) => {
     router.push(`/dashboard/terms/${studentId}`);
   };
+
+  if (isLoading)
+    return (
+      <div className="p-3 md:p-6 flex justify-center items-center h-64">
+        <Spin size="large" />
+      </div>
+    );
+  if (error)
+    return (
+      <div className="p-3 md:p-6">
+        <Alert
+          message="Error"
+          description={error}
+          type="error"
+          showIcon
+          closable
+          onClose={() => setError(null)}
+        />
+      </div>
+    );
 
   return (
     <>
@@ -115,6 +167,7 @@ export default function StudentList() {
                 isOpen={isAddStudentModalOpen}
                 onOpenChange={setIsAddStudentModalOpen}
                 onAddStudent={handleAddNewStudent}
+                class_id={Number(classId)}
               />
             </Dialog.Root>
           </div>
@@ -132,9 +185,9 @@ export default function StudentList() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Student Name
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Class
-                </th>
+                </th> */}
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Status
                 </th>
@@ -154,11 +207,11 @@ export default function StudentList() {
                   onClick={() => handleStudentClick(student.id)}
                 >
                   <td className="px-6 py-4 whitespace-nowrap text-blue-600 hover:text-blue-800 hover:underline">
-                    {student.name}
+                    {student.student_name}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {student.studentClass}
-                  </td>
+                  {/* <td className="px-6 py-4 whitespace-nowrap">
+                    {student.class_name || `Class ${student.class_id}`}
+                  </td> */}
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
                       className={`px-2 py-1 rounded-full text-xs ${
@@ -195,18 +248,18 @@ export default function StudentList() {
                                 <Pencil2Icon className="h-4 w-4" />
                               </Button>
                             </Dialog.Trigger>
-                            {editStudent?.id === student.id && (
+                            {editStudent && (
                               <EditStudentModal
                                 student={editStudent}
                                 onClose={() => setEditStudent(null)}
-                                onSave={(name, email, studentClass, status) => {
-                                  handleSaveEdit({
-                                    ...editStudent,
+                                onSave={(id, name, email, classId, status) => {
+                                  handleSaveEdit(
+                                    id,
                                     name,
                                     email,
-                                    studentClass,
-                                    status,
-                                  });
+                                    classId,
+                                    status
+                                  );
                                 }}
                               />
                             )}
@@ -236,7 +289,10 @@ export default function StudentList() {
                                   </Dialog.Title>
                                   <p className="mt-2 text-gray-600">
                                     Are you sure you want to delete{" "}
-                                    <strong>{deleteStudent.name}</strong>?
+                                    <strong>
+                                      {deleteStudent?.student_name}
+                                    </strong>
+                                    ?
                                   </p>
                                   <div className="mt-4 flex justify-end space-x-2">
                                     <Button
