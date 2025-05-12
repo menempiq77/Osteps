@@ -93,6 +93,7 @@ const Sidebar = () => {
       { name: "Library", href: "/dashboard/library", icon: BookTextIcon },
       { name: "Reports", href: "/dashboard/students/reports", icon: Building  },
       // { name: "Trackers", href: "/dashboard/trackers", icon: Building  },
+      { name: "View Trackers", href: "/dashboard/viewtrackers", icon: Building  },
       { name: "Timetable", href: "/dashboard/timetable", icon: BookOpenIcon },
       {
         name: "Announcements",

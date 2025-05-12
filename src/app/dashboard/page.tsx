@@ -207,7 +207,7 @@ export default function DashboardPage() {
                       Islamic Studies
                     </CardTitle>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                      Assignment Due: Tomorrow
+                      Assesments Due: Tomorrow
                     </p>
                   </div>
                   <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-900/30 group-hover:bg-blue-100 dark:group-hover:bg-blue-900/50 transition-colors">
