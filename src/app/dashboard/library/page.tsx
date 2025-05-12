@@ -28,11 +28,13 @@ import {
   Space,
   Grid,
   Typography,
+  Spin,
+  Alert,
 } from "antd";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import UploadResourceModal from "@/components/modals/UploadResourceModal";
 import ViewResourceModal from "@/components/modals/ViewResourceModal";
-import { fetchCategories, fetchResources } from "@/services/api";
+import { fetchCategories, fetchLibrary, fetchResources } from "@/services/api";
 
 const { Text, Title } = Typography;
 const { useBreakpoint } = Grid;
@@ -52,164 +54,91 @@ type LibraryItem = {
 export default function LibraryPage() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [activeTypeTab, setActiveTypeTab] = React.useState<string>("all");
-  const [activeCategoryTab, setActiveCategoryTab] = React.useState<string>("all");
+  const [activeCategoryTab, setActiveCategoryTab] =
+    React.useState<string>("all");
   const [isUploadModalOpen, setIsUploadModalOpen] = React.useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = React.useState(false);
-  const [currentItem, setCurrentItem] = React.useState<LibraryItem | null>(null);
+  const [currentItem, setCurrentItem] = React.useState<LibraryItem | null>(
+    null
+  );
   const [isEditing, setIsEditing] = React.useState(false);
   const [form] = Form.useForm();
   const screens = useBreakpoint();
   const [fileList, setFileList] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(false);
-  const isMobile = useMediaQuery("(max-width: 768px)"); 
+  const isMobile = useMediaQuery("(max-width: 768px)");
   const [categories, setCategories] = useState<any[]>([]);
   const [resources, setResources] = useState<any[]>([]);
+  const [libraryItems, setLibraryItems] = useState<any[]>([]);
+
   const [error, setError] = useState<string | null>(null);
 
+  console.log(categories, "categories");
+  console.log(resources, "resources");
+
   useEffect(() => {
-      const loadCategories = async () => {
-        try {
-          const data = await fetchCategories();
-          setCategories(data);
-        } catch (err) {
-          setError("Failed to fetch categories");
-          console.error(err);
-        } finally {
-          setLoading(false);
-        }
-      };
-  
-      loadCategories();
-    }, []);
+    const loadCategories = async () => {
+      try {
+        const data = await fetchCategories();
+        setCategories(data);
+      } catch (err) {
+        setError("Failed to fetch categories");
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    useEffect(() => {
-      const loadResources = async () => {
-        try {
-          const data = await fetchResources();
-          setResources(data);
-        } catch (err) {
-          setError("Failed to fetch categories");
-          console.error(err);
-        } finally {
-          setLoading(false);
-        }
-      };
-  
-      loadResources();
-    }, []);
+    loadCategories();
+  }, []);
 
-  // State for library items
-  const [libraryItems, setLibraryItems] = React.useState<LibraryItem[]>([
-    {
-      id: "1",
-      title: "Holy Quran - Arabic Text",
-      type: "pdf",
-      url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-      uploadedBy: "Islamic Studies Dept",
-      uploadDate: "2023-01-15",
-      size: "15MB",
-      category: "Quran",
-      description: "Complete Arabic text of the Holy Quran.",
-    },
-    {
-      id: "2",
-      title: "Sahih Bukhari - Selected Hadith",
-      type: "book",
-      url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-      uploadedBy: "Hadith Research Center",
-      uploadDate: "2023-03-22",
-      size: "32MB",
-      category: "Hadees",
-      description: "Selected authentic hadith from Sahih Bukhari.",
-    },
-    {
-      id: "3",
-      title: "Fiqh of Salah",
-      type: "book",
-      url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-      uploadedBy: "Fiqh Department",
-      uploadDate: "2023-05-10",
-      size: "18MB",
-      category: "Fiqh",
-      description: "Islamic jurisprudence regarding prayer.",
-    },
-    {
-      id: "4",
-      title: "Tafseer Ibn Kathir - Surah Al-Fatiha",
-      type: "pdf",
-      url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-      uploadedBy: "Tafseer Research",
-      uploadDate: "2023-07-18",
-      size: "8MB",
-      category: "Tafseer",
-      description: "Explanation of Surah Al-Fatiha.",
-    },
-    {
-      id: "5",
-      title: "Life of Prophet Muhammad (PBUH)",
-      type: "book",
-      url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-      uploadedBy: "Seerah Department",
-      uploadDate: "2023-09-05",
-      size: "22MB",
-      category: "Seerah",
-      description: "Biography of the Prophet Muhammad (PBUH).",
-    },
-    {
-      id: "6",
-      title: "Daily Dua Collection - Audio",
-      type: "audio",
-      url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-      uploadedBy: "Spiritual Guidance",
-      uploadDate: "2023-11-30",
-      size: "12MB",
-      category: "Dua",
-      description: "Collection of authentic duas for daily life.",
-    },
-    {
-      id: "7",
-      title: "Fiqh of Salah - Video Guide",
-      type: "video",
-      url: "https://www.w3schools.com/html/mov_bbb.mp4",
-      uploadedBy: "Islamic Education",
-      uploadDate: "2023-05-10",
-      size: "85MB",
-      category: "Fiqh",
-      description: "Video guide on how to perform Salah.",
-    },
-    {
-      id: "8",
-      title: "Seerah Animation Series",
-      type: "video",
-      url: "https://www.w3schools.com/html/mov_bbb.mp4",
-      uploadedBy: "Seerah Department",
-      uploadDate: "2023-06-15",
-      size: "120MB",
-      category: "Seerah",
-      description: "Animated series about the Prophet's life.",
-    },
-  ]);
+  useEffect(() => {
+    const loadResources = async () => {
+      try {
+        const data = await fetchResources();
+        setResources(data);
+      } catch (err) {
+        setError("Failed to fetch categories");
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  // Get all unique categories from the library items
-  const allCategories = Array.from(
-    new Set(libraryItems.map((item) => item.category))
-  ).sort();
+    loadResources();
+  }, []);
+
+  useEffect(() => {
+    const loadLibrary = async () => {
+      try {
+        const data = await fetchLibrary();
+        setLibraryItems(data);
+      } catch (err) {
+        setError("Failed to fetch Library Items");
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadLibrary();
+  }, []);
+
+  const typeTabItems = [
+    { label: <span className="font-medium">All Resources</span>, key: "all" },
+    ...resources?.map((type) => ({
+      label: <span className="font-medium">{type.name}</span>,
+      key: type.name.toLowerCase(),
+    })),
+  ];
 
   // Get filtered items based on active tabs
   const filteredItems = libraryItems.filter((item) => {
     const typeMatch = activeTypeTab === "all" || item.type === activeTypeTab;
-    const categoryMatch = activeCategoryTab === "all" || item.category === activeCategoryTab;
+    const categoryMatch =
+      activeCategoryTab === "all" || item.category === activeCategoryTab;
     return typeMatch && categoryMatch;
   });
-
-  // Get categories available for the active type tab
-  const availableCategories = Array.from(
-    new Set(
-      libraryItems
-        .filter((item) => activeTypeTab === "all" || item.type === activeTypeTab)
-        .map((item) => item.category)
-    )
-  ).sort();
 
   const canUpload =
     currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "TEACHER";
@@ -256,7 +185,9 @@ export default function LibraryPage() {
       setIsEditing(false);
     } catch (error) {
       message.error(
-        `Failed to ${isEditing ? "update" : "upload"} resource. Please try again.`
+        `Failed to ${
+          isEditing ? "update" : "upload"
+        } resource. Please try again.`
       );
     } finally {
       setLoading(false);
@@ -339,17 +270,38 @@ export default function LibraryPage() {
     );
   };
 
-  const getCategoryColor = (category: string) => {
-    const colorMap: Record<string, string> = {
-      Quran: "geekblue",
-      Hadees: "purple",
-      Tafseer: "cyan",
-      Seerah: "volcano",
-      Fiqh: "gold",
-      Dua: "lime",
-    };
-    return colorMap[category] || "default";
+  const getResourceName = (id: number) => {
+    const resource = resources.find((res) => res.id === id);
+    return resource?.name || "Unknown";
   };
+
+  const getCategoryName = (id: number) => {
+    const category = categories.find((cat) => cat.id === id);
+    return category?.name || "Unknown";
+  };
+
+  const getCategoryColor = (id: number) => {
+    const category = categories.find((cat) => cat.id === id);
+    return category?.color || "default";
+  };
+
+   if (loading) return (
+      <div className="p-3 md:p-6 flex justify-center items-center h-64">
+        <Spin size="large" />
+      </div>
+    );
+    if (error) return (
+      <div className="p-3 md:p-6">
+        <Alert
+          message="Error"
+          description={error}
+          type="error"
+          showIcon
+          closable
+          onClose={() => setError(null)}
+        />
+      </div>
+    );
 
   return (
     <div className="p-6">
@@ -378,23 +330,17 @@ export default function LibraryPage() {
               setActiveTypeTab(key);
               setActiveCategoryTab("all");
             }}
-            tabBarStyle={{ 
+            tabBarStyle={{
               marginBottom: 0,
-              border: 'none',
+              border: "none",
             }}
             tabBarGutter={24}
-            items={[
-              { label: <span className="font-medium">All Resources</span>, key: "all" },
-              { label: <span className="font-medium">Books</span>, key: "book" },
-              { label: <span className="font-medium">Videos</span>, key: "video" },
-              { label: <span className="font-medium">Audios</span>, key: "audio" },
-              { label: <span className="font-medium">PDFs</span>, key: "pdf" },
-            ]}
+            items={typeTabItems}
           />
         </div>
 
         {/* Category Tabs - Modern Pill Design */}
-        {availableCategories.length > 0 && (
+        {categories?.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-6">
             <Button
               size="middle"
@@ -402,28 +348,28 @@ export default function LibraryPage() {
               shape="round"
               onClick={() => setActiveCategoryTab("all")}
               className={`transition-all ${
-                activeCategoryTab === "all" 
-                  ? 'bg-blue-600 hover:bg-blue-700 border-blue-600' 
-                  : 'bg-white hover:bg-gray-50 border-gray-200'
+                activeCategoryTab === "all"
+                  ? "bg-blue-600 hover:bg-blue-700 border-blue-600"
+                  : "bg-white hover:bg-gray-50 border-gray-200"
               }`}
             >
               All
             </Button>
-            
-            {availableCategories.map((category) => (
+
+            {categories?.map((category) => (
               <Button
-                key={category}
+                key={category?.id}
                 size="middle"
                 type={activeCategoryTab === category ? "primary" : "default"}
                 shape="round"
                 onClick={() => setActiveCategoryTab(category)}
                 className={`transition-all ${
-                  activeCategoryTab === category 
-                    ? 'bg-blue-600 hover:bg-blue-700 border-blue-600' 
-                    : 'bg-white hover:bg-gray-50 border-gray-200'
+                  activeCategoryTab === category
+                    ? "bg-blue-600 hover:bg-blue-700 border-blue-600"
+                    : "bg-white hover:bg-gray-50 border-gray-200"
                 }`}
               >
-                {category}
+                {category?.name}
               </Button>
             ))}
           </div>
@@ -447,9 +393,8 @@ export default function LibraryPage() {
             {filteredItems.map((item) => (
               <Card
                 key={item.id}
-                className="hover:shadow-lg transition-all duration-300 border border-gray-100 rounded-xl overflow-hidden flex flex-col h-full"
+                className="hover:shadow-lg shadow-sm transition-all duration-300 border border-gray-100 rounded-xl overflow-hidden flex flex-col h-full"
                 hoverable
-                bodyStyle={{ padding: 0 }}
               >
                 <div className="relative bg-gradient-to-br from-gray-50 to-gray-100 p-6">
                   <div className="flex items-center justify-center h-20">
@@ -487,14 +432,15 @@ export default function LibraryPage() {
                   <h3 className="text-lg font-semibold mb-2 line-clamp-2 text-gray-800">
                     {item.title}
                   </h3>
+                  <p className="mb-2 text-gray-700 line-clamp-1">{item.description}</p>
 
                   <div className="flex flex-wrap gap-2 mb-4">
-                    {getTypeTag(item.type)}
-                    <Tag 
-                      color={getCategoryColor(item.category)}
+                    {getResourceName(item.library_resources_id)}
+                    <Tag
+                      color={getCategoryColor(item.library_categories_id)}
                       className="m-0"
                     >
-                      {item.category}
+                      {getCategoryName(item.library_categories_id)}
                     </Tag>
                   </div>
 
@@ -502,7 +448,11 @@ export default function LibraryPage() {
                     <div className="flex justify-between items-center mb-3">
                       <span className="text-xs text-gray-500">{item.size}</span>
                       <span className="text-xs text-gray-400">
-                        {item.uploadDate}
+                        {new Date(item.updated_at).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        })}
                       </span>
                     </div>
 

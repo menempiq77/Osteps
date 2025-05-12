@@ -12,7 +12,9 @@ type TaskFormData = {
   isAudio: boolean;
   isVideo: boolean;
   isPdf: boolean;
+    isUrl: boolean; 
   allocatedMarks: number;
+   url?: string;
 };
 
 type Task = {
@@ -21,8 +23,10 @@ type Task = {
   isAudio: boolean;
   isVideo: boolean;
   isPdf: boolean;
+    isUrl: boolean;
   dueDate: string;
   allocatedMarks: number;
+    url?: string;
 };
 
 type AssessmentTasksDrawerProps = {
@@ -61,6 +65,7 @@ export function AssessmentTasksDrawer({
       isPdf: data.isPdf,
       dueDate: data.dueDate,
       allocatedMarks: data.allocatedMarks,
+      url: data.url,
     };
     const updatedTasks = [...tasks, newTask];
     setTasks(updatedTasks);
@@ -79,6 +84,7 @@ export function AssessmentTasksDrawer({
     if (task.isAudio) return "Audio";
     if (task.isVideo) return "Video";
     if (task.isPdf) return "PDF";
+      if (task.isUrl) return "URL";
     return "Text";
   };
 
@@ -86,6 +92,7 @@ export function AssessmentTasksDrawer({
     if (task.isVideo) return "bg-green-100 text-green-800";
     if (task.isPdf) return "bg-blue-100 text-blue-800";
     if (task.isAudio) return "bg-yellow-100 text-yellow-800";
+     if (task.isUrl) return "bg-purple-100 text-purple-800";
     return "bg-gray-100 text-gray-800";
   };
 
@@ -186,10 +193,18 @@ export function AssessmentTasksDrawer({
                     />
                     <Label htmlFor="pdf">PDF</Label>
                   </div>
+                      <div className="flex items-center space-x-2">
+      <Checkbox
+        id="url"
+        checked={watch("isUrl")}
+        onCheckedChange={(checked) => setValue("isUrl", Boolean(checked))}
+      />
+      <Label htmlFor="url">URL</Label>
+    </div>
                 </div>
-                {(!watch("isAudio") && !watch("isVideo") && !watch("isPdf")) && (
-                  <p className="text-red-500 text-sm mt-1">Please select at least one task type</p>
-                )}
+              {(!watch("isAudio") && !watch("isVideo") && !watch("isPdf") && !watch("isUrl")) && (
+    <p className="text-red-500 text-sm mt-1">Please select at least one task type</p>
+  )}
               </div>
 
               {/* Form Actions */}
@@ -201,7 +216,7 @@ export function AssessmentTasksDrawer({
                   type="primary"
                   htmlType="submit"
                   disabled={
-                    !watch("isAudio") && !watch("isVideo") && !watch("isPdf")
+                    !watch("isAudio") && !watch("isVideo") && !watch("isPdf") && !watch("isUrl")
                   }
                 >
                   Save Task
