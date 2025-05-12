@@ -12,6 +12,7 @@ import {
   Save,
   X,
   GripVertical,
+  SendIcon,
 } from "lucide-react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
@@ -69,7 +70,7 @@ export default function QuranTrackerAdminPage() {
 
   const canUpload =
     currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "TEACHER";
-  const isAdmin = currentUser?.role === "SCHOOL_ADMIN";
+  const isStudent = currentUser?.role === "STUDENT";
   // Initialize with sample data
   useEffect(() => {
     const initialChapters = [
@@ -439,11 +440,10 @@ export default function QuranTrackerAdminPage() {
                           <span>Tafsir</span>
                         </div>
                       </th>
-                      {canUpload && (
-                        <th className="p-4 text-center border text-sm font-medium text-gray-500 uppercase tracking-wider">
-                          Actions
-                        </th>
-                      )}
+
+                      <th className="p-4 text-center border text-sm font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
@@ -468,7 +468,9 @@ export default function QuranTrackerAdminPage() {
                                 chapter.type === "quiz"
                                   ? (e) => {
                                       if (editingChapter === null) {
-                                        router.push(`${trackerId}/quiz/${chapter.number}`);
+                                        router.push(
+                                          `${trackerId}/quiz/${chapter.number}`
+                                        );
                                       }
                                     }
                                   : undefined
@@ -476,17 +478,18 @@ export default function QuranTrackerAdminPage() {
                             >
                               <td className="p-4 border whitespace-nowrap">
                                 <div className="flex items-center">
-                                  {canUpload && (
-                                    <div
-                                      {...provided.dragHandleProps}
-                                      className="mr-2 cursor-move"
-                                    >
+                                  <div
+                                    {...provided.dragHandleProps}
+                                    className="mr-2 cursor-move"
+                                  >
+                                    {canUpload && (
                                       <GripVertical
                                         size={16}
                                         className="text-gray-400"
                                       />
-                                    </div>
-                                  )}
+                                    )}
+                                  </div>
+
                                   {editingChapter === chapter.number ? (
                                     <input
                                       type="text"
@@ -573,53 +576,62 @@ export default function QuranTrackerAdminPage() {
                                   />
                                 )}
                               </td>
-                              {canUpload && (
-                                <td className="p-4 border whitespace-nowrap text-center">
-                                  {editingChapter === chapter.number ? (
-                                    <div className="flex justify-center gap-2">
-                                      <Button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          saveEdit();
-                                        }}
-                                        className="text-green-600 hover:text-green-800"
-                                      >
-                                        <Save size={16} />
-                                      </Button>
-                                      <Button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          cancelEdit();
-                                        }}
-                                        className="text-red-600 hover:text-red-800"
-                                      >
-                                        <X size={16} />
-                                      </Button>
-                                    </div>
-                                  ) : (
-                                    <div className="flex justify-center gap-2">
-                                      <Button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          startEditing(chapter.number);
-                                        }}
-                                        className="text-blue-600 hover:text-blue-800"
-                                      >
-                                        <Edit size={16} />
-                                      </Button>
-                                      <Button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          deleteChapter(chapter.number);
-                                        }}
-                                        className="text-red-600 hover:text-red-800"
-                                      >
-                                        <Trash2 size={16} />
-                                      </Button>
-                                    </div>
-                                  )}
-                                </td>
-                              )}
+                              <td className="p-4 border whitespace-nowrap text-center">
+                                {canUpload && (
+                                  <>
+                                    {editingChapter === chapter.number ? (
+                                      <div className="flex justify-center gap-2">
+                                        <Button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            saveEdit();
+                                          }}
+                                          className="text-green-600 hover:text-green-800"
+                                        >
+                                          <Save size={16} />
+                                        </Button>
+                                        <Button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            cancelEdit();
+                                          }}
+                                          className="text-red-600 hover:text-red-800"
+                                        >
+                                          <X size={16} />
+                                        </Button>
+                                      </div>
+                                    ) : (
+                                      <div className="flex justify-center gap-2">
+                                        <Button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            startEditing(chapter.number);
+                                          }}
+                                          className="text-blue-600 hover:text-blue-800"
+                                        >
+                                          <Edit size={16} />
+                                        </Button>
+
+                                        <Button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            deleteChapter(chapter.number);
+                                          }}
+                                          className="text-red-600 hover:text-red-800"
+                                        >
+                                          <Trash2 size={16} />
+                                        </Button>
+                                      </div>
+                                    )}
+                                  </>
+                                )}
+
+                                {chapter.type !== "quiz" && isStudent && (
+                                  <Button className="text-blue-600 hover:text-blue-800">
+                                    <SendIcon size={16} />
+                                  </Button>
+                                )}
+                              </td>
                             </tr>
                           )}
                         </Draggable>

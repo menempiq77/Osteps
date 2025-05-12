@@ -10,6 +10,7 @@ import {
   Edit,
   Save,
   X,
+  SendIcon,
 } from "lucide-react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
@@ -69,7 +70,7 @@ export default function HadeesTrackerPage() {
 
   const canUpload =
     currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "TEACHER";
-  const isAdmin = currentUser?.role === "SCHOOL_ADMIN";
+  const isStudent = currentUser?.role === "STUDENT";
 
   // Initialize with sample data
   useEffect(() => {
@@ -443,11 +444,11 @@ export default function HadeesTrackerPage() {
                           <span>Studied</span>
                         </div>
                       </th>
-                      {canUpload && (
+                    
                         <th className="p-4 text-center border text-sm font-medium text-gray-500 uppercase tracking-wider">
                           Actions
                         </th>
-                      )}
+                    
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
@@ -471,7 +472,9 @@ export default function HadeesTrackerPage() {
                               book.type === "quiz"
                                 ? (e) => {
                                     if (editingBook === null) {
-                                      router.push(`${trackerId}/quiz/${book.id}`);
+                                      router.push(
+                                        `${trackerId}/quiz/${book.id}`
+                                      );
                                     }
                                   }
                                 : undefined
@@ -479,18 +482,14 @@ export default function HadeesTrackerPage() {
                           >
                             <td className="p-4 border whitespace-nowrap">
                               <div className="flex items-center">
-                                {canUpload && (
+                            
                                   <div
                                     {...provided.dragHandleProps}
                                     className="mr-2 cursor-move"
                                   >
-                                    <GripVertical
-                                      size={16}
-                                      className="text-gray-400"
-                                    />
+                                   {canUpload && <GripVertical size={16} className="text-gray-400" />}
                                   </div>
-                                )}
-
+                            
                                 {editingBook === book.id ? (
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <input
@@ -542,53 +541,61 @@ export default function HadeesTrackerPage() {
                                 />
                               )}
                             </td>
-                            {canUpload && (
-                              <td className="p-4 border whitespace-nowrap text-center">
-                                {editingBook === book.id ? (
-                                  <div className="flex justify-center gap-2">
-                                    <Button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        saveEdit();
-                                      }}
-                                      className="text-green-600 hover:text-green-800"
-                                    >
-                                      <Save size={16} />
-                                    </Button>
-                                    <Button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        cancelEdit();
-                                      }}
-                                      className="text-red-600 hover:text-red-800"
-                                    >
-                                      <X size={16} />
-                                    </Button>
-                                  </div>
-                                ) : (
-                                  <div className="flex justify-center gap-2">
-                                    <Button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        startEditing(book.id);
-                                      }}
-                                      className="text-blue-600 hover:text-blue-800"
-                                    >
-                                      <Edit size={16} />
-                                    </Button>
-                                    <Button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        deleteBook(book.id);
-                                      }}
-                                      className="text-red-600 hover:text-red-800"
-                                    >
-                                      <Trash2 size={16} />
-                                    </Button>
-                                  </div>
-                                )}
-                              </td>
-                            )}
+                            <td className="p-4 border whitespace-nowrap text-center">
+                              {canUpload && (
+                                <>
+                                  {editingBook === book.id ? (
+                                    <div className="flex justify-center gap-2">
+                                      <Button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          saveEdit();
+                                        }}
+                                        className="text-green-600 hover:text-green-800"
+                                      >
+                                        <Save size={16} />
+                                      </Button>
+                                      <Button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          cancelEdit();
+                                        }}
+                                        className="text-red-600 hover:text-red-800"
+                                      >
+                                        <X size={16} />
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex justify-center gap-2">
+                                      <Button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          startEditing(book.id);
+                                        }}
+                                        className="text-blue-600 hover:text-blue-800"
+                                      >
+                                        <Edit size={16} />
+                                      </Button>
+                                      <Button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          deleteBook(book.id);
+                                        }}
+                                        className="text-red-600 hover:text-red-800"
+                                      >
+                                        <Trash2 size={16} />
+                                      </Button>
+                                    </div>
+                                  )}
+                                </>
+                              )}
+
+                              {book.type !== "quiz" && isStudent && (
+                                <Button className="text-blue-600 hover:text-blue-800">
+                                  <SendIcon size={16} />
+                                </Button>
+                              )}
+                            </td>
                           </tr>
                         )}
                       </Draggable>
@@ -714,124 +721,6 @@ export default function HadeesTrackerPage() {
           )}
         </Form>
       </Modal>
-
-      {/* Quiz Drawer */}
-      <Drawer
-        title="Hadith Quiz"
-        placement="right"
-        width={600}
-        onClose={closeQuizDrawer}
-        open={isQuizDrawerVisible}
-        extra={
-          canUpload && (
-            <Button type="primary" onClick={showQuizModal}>
-              Add New Question
-            </Button>
-          )
-        }
-        footer={
-          !canUpload && (
-            <div className="text-right">
-              <Button type="primary" onClick={handleSubmitAnswers}>
-                Submit Answers
-              </Button>
-            </div>
-          )
-        }
-      >
-        <div className="space-y-6">
-          {quizzes.length === 0 ? (
-            <div className="text-center text-gray-500 py-8">
-              No quizzes available. Click "Add New Quiz" to create one.
-            </div>
-          ) : (
-            quizzes.map((quiz) => (
-              <div
-                key={quiz.id}
-                className="bg-white p-4 rounded-lg shadow-sm border border-gray-200"
-              >
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <span className="font-medium text-gray-700">Question:</span>{" "}
-                    {quiz.question}
-                  </div>
-                  {canUpload && (
-                    <Button
-                      onClick={() => deleteQuiz(quiz.id)}
-                      size="small"
-                      danger
-                      icon={<Trash2 size={14} />}
-                    />
-                  )}
-                </div>
-
-                {/* Solve Quiz Field */}
-                <div className="mt-4">
-                  {quiz.type === "mcq" && quiz.options && (
-                    <div className="space-y-2">
-                      {quiz.options.map((option, idx) => (
-                        <div key={idx} className="flex items-center">
-                          <input
-                            type="radio"
-                            id={`${quiz.id}-${idx}`}
-                            name={`quiz-${quiz.id}`}
-                            value={option}
-                            className="mr-2"
-                          />
-                          <label htmlFor={`${quiz.id}-${idx}`}>
-                            {String.fromCharCode(65 + idx)}. {option}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {quiz.type === "true_false" && (
-                    <div className="space-y-2">
-                      <div className="flex items-center">
-                        <input
-                          type="radio"
-                          id={`${quiz.id}-true`}
-                          name={`quiz-${quiz.id}`}
-                          value="True"
-                          className="mr-2"
-                        />
-                        <label htmlFor={`${quiz.id}-true`}>True</label>
-                      </div>
-                      <div className="flex items-center">
-                        <input
-                          type="radio"
-                          id={`${quiz.id}-false`}
-                          name={`quiz-${quiz.id}`}
-                          value="False"
-                          className="mr-2"
-                        />
-                        <label htmlFor={`${quiz.id}-false`}>False</label>
-                      </div>
-                    </div>
-                  )}
-
-                  {quiz.type === "writing" && (
-                    <div className="mt-2">
-                      <textarea
-                        placeholder="Write your answer here..."
-                        className="w-full border border-gray-300 rounded-lg p-2 resize-none focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        rows={4}
-                        name={`quiz-${quiz.id}`}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Show correct answer and type info */}
-                <div className="mt-3 text-xs text-gray-500">
-                  Type: {quiz.type.replace("_", " ").toUpperCase()}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </Drawer>
     </div>
   );
 }

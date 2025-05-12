@@ -10,8 +10,13 @@ import {
   TrashIcon,
   PlusIcon,
   LinkIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
 } from "@heroicons/react/24/outline";
 import Link from "next/link";
+import { DatePicker } from "antd";
+import type { Dayjs } from "dayjs";
+import dayjs from "dayjs";
 import { usePathname } from "next/navigation";
 import { Modal } from "antd";
 import { Select } from "antd";
@@ -126,7 +131,8 @@ export default function TimetablePage() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const pathname = usePathname();
   const [currentWeek, setCurrentWeek] = useState(new Date());
-  const [viewMode, setViewMode] = useState<"day" | "week">("week");
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [viewMode, setViewMode] = useState<"day" | "week" | "month">("week");
   const [timetableData, setTimetableData] = useState<any>({});
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentSlot, setCurrentSlot] = useState<any>(null);
@@ -143,6 +149,25 @@ export default function TimetablePage() {
     class: "",
     year: "",
   });
+
+  const [showWeekPicker, setShowWeekPicker] = useState(false);
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
+  const [showDayPicker, setShowDayPicker] = useState(false);
+
+  const handleWeekChange = (date: Dayjs) => {
+    setCurrentWeek(date.toDate());
+    setShowWeekPicker(false);
+  };
+
+  const handleMonthChange = (date: Dayjs) => {
+    setCurrentMonth(date.toDate());
+    setShowMonthPicker(false);
+  };
+
+  const handleDayChange = (date: Dayjs) => {
+    setCurrentWeek(date.toDate());
+    setShowDayPicker(false);
+  };
 
   useEffect(() => {
     if (currentUser?.role) {
@@ -185,6 +210,12 @@ export default function TimetablePage() {
     const newDate = new Date(currentWeek);
     newDate.setDate(newDate.getDate() + (direction === "prev" ? -7 : 7));
     setCurrentWeek(newDate);
+  };
+
+  const navigateMonth = (direction: "prev" | "next") => {
+    const newDate = new Date(currentMonth);
+    newDate.setMonth(newDate.getMonth() + (direction === "prev" ? -1 : 1));
+    setCurrentMonth(newDate);
   };
 
   const getCurrentDayName = () => {
@@ -336,8 +367,102 @@ export default function TimetablePage() {
       </div>
     );
 
+  // Calendar view helpers
+  const getDaysInMonth = (year: number, month: number) => {
+    return new Date(year, month + 1, 0).getDate();
+  };
+
+  const getFirstDayOfMonth = (year: number, month: number) => {
+    return new Date(year, month, 1).getDay();
+  };
+
+  const renderCalendarDays = () => {
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    const daysInMonth = getDaysInMonth(year, month);
+    const firstDayOfMonth = getFirstDayOfMonth(year, month);
+    const startDay = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1; // Adjust for Monday start
+
+    const days = [];
+    const currentDate = new Date();
+
+    // Add empty cells for days before the first day of the month
+    for (let i = 0; i < startDay; i++) {
+      days.push(
+        <div key={`empty-${i}`} className="h-24 border border-gray-100"></div>
+      );
+    }
+
+    // Add cells for each day of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(year, month, day);
+      const dayOfWeek = date.getDay();
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      const isToday =
+        date.getDate() === currentDate.getDate() &&
+        date.getMonth() === currentDate.getMonth() &&
+        date.getFullYear() === currentDate.getFullYear();
+
+      const dayName = [
+        "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+      ][dayOfWeek];
+      const hasClasses =
+        timetableData[dayName] &&
+        Object.keys(timetableData[dayName]).length > 0;
+
+      days.push(
+        <div
+          key={`day-${day}`}
+          className={`h-24 border border-gray-200 p-1 overflow-hidden ${
+            isWeekend ? "bg-gray-50" : "bg-white"
+          } ${isToday ? "ring-2 ring-indigo-300" : ""}`}
+        >
+          <div className="flex justify-between items-start">
+            <span
+              className={`text-sm font-medium ${
+                isToday ? "text-indigo-700" : "text-gray-700"
+              }`}
+            >
+              {day}
+            </span>
+            {isToday && (
+              <span className="text-xs bg-indigo-100 text-indigo-800 px-1 rounded">
+                Today
+              </span>
+            )}
+          </div>
+          {!isWeekend && hasClasses && (
+            <div className="mt-1 space-y-1 overflow-y-auto max-h-16">
+              {Object.entries(timetableData[dayName] || {}).map(
+                ([time, slot]: [string, any]) => (
+                  <div
+                    key={`${day}-${time}`}
+                    className="text-xs bg-indigo-50 text-indigo-800 p-1 rounded truncate"
+                    title={`${time}: ${slot.subject} with ${
+                      slot.teacher || slot.class
+                    }`}
+                  >
+                    {time.split(" ")[0]} {slot.subject}
+                  </div>
+                )
+              )}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return days;
+  };
+
   return (
-    <div className="p-3 md:p-6 max-w-7xl mx-auto">
+    <div className="p-3 md:p-6 max-w-7xl mx-auto relative">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
@@ -348,6 +473,11 @@ export default function TimetablePage() {
               ? `Week of ${currentWeek.toLocaleDateString("en-US", {
                   month: "long",
                   day: "numeric",
+                  year: "numeric",
+                })}`
+              : viewMode === "month"
+              ? `${currentMonth.toLocaleDateString("en-US", {
+                  month: "long",
                   year: "numeric",
                 })}`
               : `${getCurrentDayName()}, ${currentWeek.toLocaleDateString(
@@ -377,52 +507,144 @@ export default function TimetablePage() {
           >
             Week View
           </button>
-          <div className="flex items-center bg-white border border-gray-300 rounded-lg overflow-hidden">
-            <button
-              onClick={() => navigateWeek("prev")}
-              className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-gray-50 transition-colors"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+          <button
+            onClick={() => setViewMode("month")}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              viewMode === "month"
+                ? "bg-indigo-600 text-white shadow-md"
+                : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+            }`}
+          >
+            Month View
+          </button>
+
+          {viewMode === "day" && (
+            <div className="flex items-center bg-white border border-gray-300 rounded-lg overflow-hidden">
+              <button
+                onClick={() => {
+                  const newDate = new Date(currentWeek);
+                  newDate.setDate(newDate.getDate() - 1);
+                  setCurrentWeek(newDate);
+                }}
+                className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-gray-50 transition-colors"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-            </button>
-            <div className="px-3 flex items-center gap-2 py-2 text-sm text-gray-600 border-x border-gray-300">
-              <CalendarIcon className="h-4 w-4 inline" />
-              {new Date().getMonth() === currentWeek.getMonth()
-                ? "This Week"
-                : "Selected Week"}
+                <ChevronLeftIcon className="w-5 h-5" />
+              </button>
+              <div
+                className="px-3 flex items-center gap-2 py-2 text-sm text-gray-600 border-x border-gray-300 cursor-pointer hover:bg-gray-50"
+                onClick={() => setShowDayPicker(true)}
+              >
+                <CalendarIcon className="h-4 w-4 inline" />
+                {currentWeek.toLocaleDateString("en-US", {
+                  weekday: "long",
+                  month: "long",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </div>
+              <button
+                onClick={() => {
+                  const newDate = new Date(currentWeek);
+                  newDate.setDate(newDate.getDate() + 1);
+                  setCurrentWeek(newDate);
+                }}
+                className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-gray-50 transition-colors"
+              >
+                <ChevronRightIcon className="w-5 h-5" />
+              </button>
             </div>
-            <button
-              onClick={() => navigateWeek("next")}
-              className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-gray-50 transition-colors"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+          )}
+
+          {viewMode === "week" && (
+            <div className="flex items-center bg-white border border-gray-300 rounded-lg overflow-hidden">
+              <button
+                onClick={() => navigateWeek("prev")}
+                className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-gray-50 transition-colors"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            </button>
-          </div>
+                <ChevronLeftIcon className="w-5 h-5" />
+              </button>
+              <div
+                className="px-3 flex items-center gap-2 py-2 text-sm text-gray-600 border-x border-gray-300 cursor-pointer hover:bg-gray-50"
+                onClick={() => setShowWeekPicker(true)}
+              >
+                <CalendarIcon className="h-4 w-4 inline" />
+                {new Date().getMonth() === currentWeek.getMonth() &&
+                new Date().getFullYear() === currentWeek.getFullYear()
+                  ? "This Week"
+                  : "Selected Week"}
+              </div>
+              <button
+                onClick={() => navigateWeek("next")}
+                className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-gray-50 transition-colors"
+              >
+                <ChevronRightIcon className="w-5 h-5" />
+              </button>
+            </div>
+          )}
+
+          {viewMode === "month" && (
+            <div className="flex items-center bg-white border border-gray-300 rounded-lg overflow-hidden">
+              <button
+                onClick={() => navigateMonth("prev")}
+                className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-gray-50 transition-colors"
+              >
+                <ChevronLeftIcon className="w-5 h-5" />
+              </button>
+              <div
+                className="px-3 flex items-center gap-2 py-2 text-sm text-gray-600 border-x border-gray-300 cursor-pointer hover:bg-gray-50"
+                onClick={() => setShowMonthPicker(true)}
+              >
+                <CalendarIcon className="h-4 w-4 inline" />
+                {new Date().getMonth() === currentMonth.getMonth() &&
+                new Date().getFullYear() === currentMonth.getFullYear()
+                  ? "This Month"
+                  : "Selected Month"}
+              </div>
+              <button
+                onClick={() => navigateMonth("next")}
+                className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-gray-50 transition-colors"
+              >
+                <ChevronRightIcon className="w-5 h-5" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
+
+      {showWeekPicker && (
+        <div className="absolute right-0-3 md:right-6 top-16 z-10 mt-2">
+          <DatePicker
+            open={showWeekPicker}
+            onOpenChange={setShowWeekPicker}
+            onChange={handleWeekChange}
+            picker="week"
+            defaultValue={dayjs(currentWeek)}
+          />
+        </div>
+      )}
+
+      {showMonthPicker && (
+        <div className="absolute right-0-3 md:right-6 top-16 z-10 mt-2">
+          <DatePicker
+            open={showMonthPicker}
+            onOpenChange={setShowMonthPicker}
+            onChange={handleMonthChange}
+            picker="month"
+            defaultValue={dayjs(currentMonth)}
+          />
+        </div>
+      )}
+
+      {showDayPicker && (
+        <div className="absolute right-0-3 md:right-6 top-16 z-10 mt-2">
+          <DatePicker
+            open={showDayPicker}
+            onOpenChange={setShowDayPicker}
+            onChange={handleDayChange}
+            defaultValue={dayjs(currentWeek)}
+          />
+        </div>
+      )}
 
       {viewMode === "week" && (
         <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6">
@@ -495,8 +717,26 @@ export default function TimetablePage() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        {viewMode === "week" ? (
+      {viewMode === "month" ? (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="grid grid-cols-7 gap-px bg-gray-200">
+            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
+              <div
+                key={day}
+                className={`bg-gray-100 py-2 text-center text-sm font-medium ${
+                  day === "Sat" || day === "Sun"
+                    ? "text-red-500"
+                    : "text-gray-700"
+                }`}
+              >
+                {day}
+              </div>
+            ))}
+            {renderCalendarDays()}
+          </div>
+        </div>
+      ) : viewMode === "week" ? (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -557,7 +797,9 @@ export default function TimetablePage() {
               </tbody>
             </table>
           </div>
-        ) : (
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="p-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg font-semibold text-gray-900">
@@ -568,7 +810,12 @@ export default function TimetablePage() {
                   <select
                     name="teacher"
                     value={filters.teacher}
-                    onChange={handleFilterChange}
+                    onChange={(e) =>
+                      handleFilterChange({
+                        name: "teacher",
+                        value: e.target.value,
+                      })
+                    }
                     className="text-sm p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500"
                   >
                     <option value="">All Teachers</option>
@@ -581,7 +828,12 @@ export default function TimetablePage() {
                   <select
                     name="class"
                     value={filters.class}
-                    onChange={handleFilterChange}
+                    onChange={(e) =>
+                      handleFilterChange({
+                        name: "class",
+                        value: e.target.value,
+                      })
+                    }
                     className="text-sm p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500"
                   >
                     <option value="">All Classes</option>
@@ -628,18 +880,6 @@ export default function TimetablePage() {
               })}
             </div>
           </div>
-        )}
-      </div>
-
-      {pathname.startsWith("/dashboard") && (
-        <div className="mt-6">
-          <Link
-            href="/dashboard/timetable"
-            className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
-          >
-            <BookOpenIcon className="h-5 w-5 mr-2" />
-            View Full Timetable
-          </Link>
         </div>
       )}
 
