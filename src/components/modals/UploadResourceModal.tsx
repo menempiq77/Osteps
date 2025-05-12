@@ -62,7 +62,7 @@ const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
         >
           <Select>
             {resources?.map((resource) => (
-              <Select.Option key={resource.id} value={resource.name}>
+              <Select.Option key={resource.id} value={resource.id}>
                 {resource.name}
               </Select.Option>
             ))}
@@ -76,7 +76,7 @@ const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
         >
           <Select placeholder="Select Category">
             {categories?.map((category) => (
-              <Select.Option key={category.id} value={category.name}>
+              <Select.Option key={category.id} value={category.id}>
                 {category.name}
               </Select.Option>
             ))}

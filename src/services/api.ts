@@ -237,6 +237,26 @@ export const fetchResources = async () => {
   return response.data.data;
 };
 
-
+//Library apis Started
+// fetch Library
+export const fetchLibrary = async () => {
+  const response = await api.get('/get-library');
+  return response.data.data;
+};
+// add Library
+export const addLibrary = async (libraryData: { name: string }) => {
+  const response = await api.post('/add-library', libraryData);
+  return response.data;
+};
+// edit Library
+export const updateLibrary = async (id: string, libraryData: any) => {
+  const response = await api.post(`/update-library/${id}`, libraryData);
+  return response.data;
+};
+// delete Library
+export const deleteLibrary = async (id: number) => {
+  const response = await api.post(`/delete-library/${id}`);
+  return response.data;
+};
 
 export default api;
