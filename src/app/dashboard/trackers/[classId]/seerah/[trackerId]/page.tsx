@@ -60,6 +60,7 @@ export default function SeerahTrackerPage() {
   const [isAddingPeriod, setIsAddingPeriod] = useState(false);
   const [isAddingQuiz, setIsAddingQuiz] = useState(false);
   const [newQuizName, setNewQuizName] = useState("");
+  const [selectedQuiz, setSelectedQuiz] = useState<string>("");
   const [isQuizModalVisible, setIsQuizModalVisible] = useState(false);
   const [isQuizDrawerVisible, setIsQuizDrawerVisible] = useState(false);
   const [quizForm] = Form.useForm();
@@ -117,6 +118,12 @@ export default function SeerahTrackerPage() {
     setPeriods(initialPeriods);
     setQuizzes(initialQuizzes);
   }, []);
+
+     const quizOptions = [
+    { value: "quiz1", label: "Quiz 1" },
+    { value: "quiz2", label: "Quiz 2" },
+    { value: "quiz3", label: "Quiz 3" },
+  ];
 
   const handleStatusChange = (periodId: number, type: "studied" | "recall") => {
     setPeriods((prev) =>
@@ -195,9 +202,13 @@ export default function SeerahTrackerPage() {
     const newPeriodId =
       periods.length > 0 ? Math.max(...periods.map((p) => p.id)) + 1 : 1;
 
+        const selectedQuizLabel = quizOptions.find(
+      (quiz) => quiz.value === selectedQuiz
+    )?.label;
+    
     const newQuizPeriod: Period = {
       id: newPeriodId,
-      name: newQuizName,
+      name: selectedQuizLabel || selectedQuiz,
       description: "Quiz about Seerah topics",
       status: { studied: false, recall: false },
       type: "quiz",
@@ -205,7 +216,7 @@ export default function SeerahTrackerPage() {
 
     setPeriods((prev) => [...prev, newQuizPeriod]);
     setIsAddingQuiz(false);
-    setNewQuizName("");
+    setSelectedQuiz("");
   };
 
   const deletePeriod = (periodId: number) => {
@@ -394,13 +405,13 @@ export default function SeerahTrackerPage() {
 
         {isAddingQuiz && (
           <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center gap-4">
-            <input
-              type="text"
-              value={newQuizName}
-              onChange={(e) => setNewQuizName(e.target.value)}
-              placeholder="Enter quiz title (e.g., Prophethood Quiz)"
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
-            />
+               <Select
+                      value={selectedQuiz}
+                      onChange={(value) => setSelectedQuiz(value)}
+                      placeholder="Select a quiz"
+                      style={{ width: '100%' }}
+                      options={quizOptions}
+                    />
             <div className="flex gap-2">
               <Button
                 onClick={addNewQuiz}

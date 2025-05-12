@@ -62,6 +62,7 @@ export default function QuranTrackerAdminPage() {
   const [newQuizName, setNewQuizName] = useState("");
   const [isQuizModalVisible, setIsQuizModalVisible] = useState(false);
   const [isQuizDrawerVisible, setIsQuizDrawerVisible] = useState(false);
+  const [selectedQuiz, setSelectedQuiz] = useState<string>("");
   const [quizForm] = Form.useForm();
   const [quizType, setQuizType] = useState<"mcq" | "true_false" | "writing">(
     "mcq"
@@ -113,6 +114,12 @@ export default function QuranTrackerAdminPage() {
     setChapters(initialChapters);
     setQuizzes(initialQuizzes);
   }, []);
+
+    const quizOptions = [
+    { value: "quiz1", label: "Quiz 1" },
+    { value: "quiz2", label: "Quiz 2" },
+    { value: "quiz3", label: "Quiz 3" },
+  ];
 
   const handleStatusChange = (
     chapterNumber: number,
@@ -181,24 +188,28 @@ export default function QuranTrackerAdminPage() {
   };
 
   const addNewQuiz = () => {
-    if (!newQuizName.trim()) {
-      console.log("Please enter a quiz title");
+    if (!selectedQuiz) {
+      console.log("Please select a quiz");
       return;
     }
 
     const newChapterNumber =
       chapters.length > 0 ? Math.max(...chapters.map((c) => c.number)) + 1 : 1;
 
+    const selectedQuizLabel = quizOptions.find(
+      (quiz) => quiz.value === selectedQuiz
+    )?.label;
+
     const newQuizChapter: Chapter = {
       number: newChapterNumber,
-      name: newQuizName,
+      name: selectedQuizLabel || selectedQuiz,
       status: { read: false, memorized: false, tafsir: false },
       type: "quiz",
     };
 
     setChapters((prev) => [...prev, newQuizChapter]);
     setIsAddingQuiz(false);
-    setNewQuizName("");
+    setSelectedQuiz("");
   };
 
   const deleteChapter = (chapterNumber: number) => {
@@ -384,13 +395,13 @@ export default function QuranTrackerAdminPage() {
 
         {isAddingQuiz && (
           <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center gap-4">
-            <input
-              type="text"
-              value={newQuizName}
-              onChange={(e) => setNewQuizName(e.target.value)}
-              placeholder="Enter quiz title (e.g., Juz 1 Quiz)"
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
-            />
+            <Select
+            value={selectedQuiz}
+            onChange={(value) => setSelectedQuiz(value)}
+            placeholder="Select a quiz"
+            style={{ width: '100%' }}
+            options={quizOptions}
+          />
             <div className="flex gap-2">
               <Button onClick={addNewQuiz} className="flex items-center gap-1">
                 <Save size={16} />
@@ -478,18 +489,14 @@ export default function QuranTrackerAdminPage() {
                             >
                               <td className="p-4 border whitespace-nowrap">
                                 <div className="flex items-center">
-                                  <div
-                                    {...provided.dragHandleProps}
-                                    className="mr-2 cursor-move"
-                                  >
-                                    {canUpload && (
-                                      <GripVertical
-                                        size={16}
-                                        className="text-gray-400"
-                                      />
-                                    )}
-                                  </div>
-
+                               
+                                    <div
+                                      {...provided.dragHandleProps}
+                                      className="mr-2 cursor-move"
+                                    >
+                                   {canUpload && <GripVertical size={16} className="text-gray-400" />}
+                                    </div>
+                                
                                   {editingChapter === chapter.number ? (
                                     <input
                                       type="text"

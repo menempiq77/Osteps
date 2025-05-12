@@ -156,7 +156,7 @@ export default function QuranQuizPage() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="p-6 border-b border-gray-200 flex justify-between items-center">
           <h1 className="text-2xl font-bold text-gray-900">Quiz</h1>
-          {/* {canUpload && (
+          {canUpload && (
             <Button
               type="primary"
               onClick={toggleAddQuestion}
@@ -164,7 +164,7 @@ export default function QuranQuizPage() {
             >
               {showAddQuestion ? "Cancel" : "Add Question"}
             </Button>
-          )} */}
+          )}
         </div>
 
         {showAddQuestion && (

@@ -19,6 +19,7 @@ interface Task {
   isAudio: boolean;
   isVideo: boolean;
   isPdf: boolean;
+  isUrl: bloolean;
   dueDate: string;
 }
 
@@ -46,10 +47,10 @@ export default function AssessmentList({
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [selectedAssessment, setSelectedAssessment] = useState<string | null>(null);
   const [tasks, setTasks] = useState<Task[]>([
-    { id: 1, name: "Memorisation", isAudio: true, isVideo: false, isPdf: false, dueDate: "2023-05-15" },
-    { id: 2, name: "Extraction & Summarization", isAudio: false, isVideo: false, isPdf: true, dueDate: "2023-05-20" },
-    { id: 3, name: "Recitation", isAudio: true, isVideo: false, isPdf: false, dueDate: "2023-05-25" },
-    { id: 4, name: "Tajweed", isAudio: false, isVideo: true, isPdf: false, dueDate: "2023-05-25" },
+    { id: 1, name: "Memorisation", isAudio: true, isVideo: false, isPdf: false, isUrl: false, dueDate: "2023-05-15" },
+    { id: 2, name: "Extraction & Summarization", isAudio: false, isVideo: false, isUrl: false, isPdf: true, dueDate: "2023-05-20" },
+    { id: 3, name: "Recitation", isAudio: true, isVideo: false, isPdf: false, isUrl: false, dueDate: "2023-05-25" },
+    { id: 4, name: "Tajweed", isAudio: false, isVideo: true, isPdf: false, isUrl: false, dueDate: "2023-05-25" },
   ]);
 
   const canUpload =

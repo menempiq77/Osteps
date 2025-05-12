@@ -60,6 +60,7 @@ export default function HadeesTrackerPage() {
   const [isAddingBook, setIsAddingBook] = useState(false);
   const [isAddingQuiz, setIsAddingQuiz] = useState(false);
   const [newQuizName, setNewQuizName] = useState("");
+    const [selectedQuiz, setSelectedQuiz] = useState<string>("");
   const [isQuizModalVisible, setIsQuizModalVisible] = useState(false);
   const [isQuizDrawerVisible, setIsQuizDrawerVisible] = useState(false);
   const [quizForm] = Form.useForm();
@@ -117,6 +118,12 @@ export default function HadeesTrackerPage() {
     setBooks(initialBooks);
     setQuizzes(initialQuizzes);
   }, []);
+
+      const quizOptions = [
+    { value: "quiz1", label: "Quiz 1" },
+    { value: "quiz2", label: "Quiz 2" },
+    { value: "quiz3", label: "Quiz 3" },
+  ];
 
   const handleStatusChange = (
     bookId: number,
@@ -394,13 +401,13 @@ export default function HadeesTrackerPage() {
 
         {isAddingQuiz && (
           <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center gap-4">
-            <input
-              type="text"
-              value={newQuizName}
-              onChange={(e) => setNewQuizName(e.target.value)}
-              placeholder="Enter quiz title (e.g., Hadith Basics Quiz)"
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
-            />
+                <Select
+                       value={selectedQuiz}
+                       onChange={(value) => setSelectedQuiz(value)}
+                       placeholder="Select a quiz"
+                       style={{ width: '100%' }}
+                       options={quizOptions}
+                     />
             <div className="flex gap-2">
               <Button onClick={addNewQuiz} className="flex items-center gap-1">
                 <Save size={16} />
