@@ -17,7 +17,8 @@ import {
   UserCircleIcon,
   BookTextIcon,
   Building,
-  HelpCircle
+  HelpCircle,
+  NotebookPen
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { logout } from "@/features/auth/authSlice";
@@ -130,7 +131,8 @@ const Sidebar = () => {
         name: "Ask a Question",
         href: "/dashboard/questions",
         icon: HelpCircle,
-      },      
+      },     
+      { name: "Behavior", href: `/dashboard/behavior/${currentUser?.id}`, icon: NotebookPen }, 
       {
         name: "Settings",
         href: "/dashboard/students/settings",
