@@ -1,10 +1,12 @@
 "use client";
 import { useState } from "react";
-import { Button, Drawer } from "antd";
+import { Button, Drawer, Select } from "antd";
 import { useForm } from "react-hook-form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+
+const { Option } = Select;
 
 type TaskFormData = {
   name: string;
@@ -12,9 +14,9 @@ type TaskFormData = {
   isAudio: boolean;
   isVideo: boolean;
   isPdf: boolean;
-    isUrl: boolean; 
+  isUrl: boolean;
   allocatedMarks: number;
-   url?: string;
+  url?: string;
 };
 
 type Task = {
@@ -23,10 +25,10 @@ type Task = {
   isAudio: boolean;
   isVideo: boolean;
   isPdf: boolean;
-    isUrl: boolean;
+  isUrl: boolean;
   dueDate: string;
   allocatedMarks: number;
-    url?: string;
+  url?: string;
 };
 
 type AssessmentTasksDrawerProps = {
@@ -44,7 +46,9 @@ export function AssessmentTasksDrawer({
   initialTasks,
   onTasksChange,
 }: AssessmentTasksDrawerProps) {
-  const [showTaskForm, setShowTaskForm] = useState(false);
+  const [selectedType, setSelectedType] = useState<"task" | "quiz" | null>(
+    null
+  );
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
 
   const {
@@ -54,7 +58,18 @@ export function AssessmentTasksDrawer({
     formState: { errors },
     watch,
     setValue,
-  } = useForm<TaskFormData>();
+  } = useForm<TaskFormData>({
+    defaultValues: {
+      name: "",
+      dueDate: "",
+      isAudio: false,
+      isVideo: false,
+      isPdf: false,
+      isUrl: false,
+      allocatedMarks: 0,
+      url: "",
+    },
+  });
 
   const onSubmitTask = (data: TaskFormData) => {
     const newTask: Task = {
@@ -63,6 +78,7 @@ export function AssessmentTasksDrawer({
       isAudio: data.isAudio,
       isVideo: data.isVideo,
       isPdf: data.isPdf,
+      isUrl: data.isUrl,
       dueDate: data.dueDate,
       allocatedMarks: data.allocatedMarks,
       url: data.url,
@@ -71,8 +87,13 @@ export function AssessmentTasksDrawer({
     setTasks(updatedTasks);
     onTasksChange(updatedTasks);
     reset();
-    setShowTaskForm(false);
+    setSelectedType(null);
   };
+
+  const quizes = [
+    { id: 1, name: "Quiz 1", type: "quiz" },
+    { id: 2, name: "Quiz 2", type: "quiz" },
+  ];
 
   const handleRemoveTask = (taskId: number) => {
     const updatedTasks = tasks.filter((task) => task.id !== taskId);
@@ -84,7 +105,7 @@ export function AssessmentTasksDrawer({
     if (task.isAudio) return "Audio";
     if (task.isVideo) return "Video";
     if (task.isPdf) return "PDF";
-      if (task.isUrl) return "URL";
+    if (task.isUrl) return "URL";
     return "Text";
   };
 
@@ -92,7 +113,7 @@ export function AssessmentTasksDrawer({
     if (task.isVideo) return "bg-green-100 text-green-800";
     if (task.isPdf) return "bg-blue-100 text-blue-800";
     if (task.isAudio) return "bg-yellow-100 text-yellow-800";
-     if (task.isUrl) return "bg-purple-100 text-purple-800";
+    if (task.isUrl) return "bg-purple-100 text-purple-800";
     return "bg-gray-100 text-gray-800";
   };
 
@@ -101,24 +122,33 @@ export function AssessmentTasksDrawer({
       title={
         <div className="flex justify-between items-center">
           <span>{assignmentName}</span>
-          <Button
-            type="primary"
-            size="middle"
-            onClick={() => setShowTaskForm(true)}
-            disabled={showTaskForm}
+          <Select
+            placeholder="Add"
+            onChange={(value: "task" | "quiz") => setSelectedType(value)}
+            value={selectedType || undefined}
+            style={{ width: 140 }}
           >
-            Create Task
-          </Button>
+            <Option value="task">Create Task</Option>
+            <Option value="quiz">Create Quiz</Option>
+          </Select>
         </div>
       }
       placement="right"
-      onClose={onClose}
+      onClose={() => {
+        onClose();
+        setSelectedType(null);
+        reset();
+      }}
       open={visible}
       width={500}
     >
       <div className="space-y-4">
-        {showTaskForm && (
-          <form onSubmit={handleSubmit(onSubmitTask)} className="p-4 border rounded-lg mb-4">
+        {/* Task Form */}
+        {selectedType === "task" && (
+          <form
+            onSubmit={handleSubmit(onSubmitTask)}
+            className="p-4 border rounded-lg mb-4"
+          >
             <div className="space-y-4">
               {/* Task Name */}
               <div>
@@ -129,7 +159,9 @@ export function AssessmentTasksDrawer({
                   className="mt-1"
                 />
                 {errors.name && (
-                  <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>
+                  <p className="text-red-500 text-sm mt-1">
+                    {errors.name.message}
+                  </p>
                 )}
               </div>
 
@@ -143,7 +175,9 @@ export function AssessmentTasksDrawer({
                   className="mt-1"
                 />
                 {errors.dueDate && (
-                  <p className="text-red-500 text-sm mt-1">{errors.dueDate.message}</p>
+                  <p className="text-red-500 text-sm mt-1">
+                    {errors.dueDate.message}
+                  </p>
                 )}
               </div>
 
@@ -161,7 +195,9 @@ export function AssessmentTasksDrawer({
                   className="mt-1"
                 />
                 {errors.allocatedMarks && (
-                  <p className="text-red-500 text-sm mt-1">{errors.allocatedMarks.message}</p>
+                  <p className="text-red-500 text-sm mt-1">
+                    {errors.allocatedMarks.message}
+                  </p>
                 )}
               </div>
 
@@ -169,55 +205,30 @@ export function AssessmentTasksDrawer({
               <div>
                 <Label>Task Type</Label>
                 <div className="flex items-center space-x-4 mt-1">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="audio"
-                      checked={watch("isAudio")}
-                      onCheckedChange={(checked) => setValue("isAudio", Boolean(checked))}
-                    />
-                    <Label htmlFor="audio">Audio</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="video"
-                      checked={watch("isVideo")}
-                      onCheckedChange={(checked) => setValue("isVideo", Boolean(checked))}
-                    />
-                    <Label htmlFor="video">Video</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="pdf"
-                      checked={watch("isPdf")}
-                      onCheckedChange={(checked) => setValue("isPdf", Boolean(checked))}
-                    />
-                    <Label htmlFor="pdf">PDF</Label>
-                  </div>
-                      <div className="flex items-center space-x-2">
-      <Checkbox
-        id="url"
-        checked={watch("isUrl")}
-        onCheckedChange={(checked) => setValue("isUrl", Boolean(checked))}
-      />
-      <Label htmlFor="url">URL</Label>
-    </div>
+                  {["Audio", "Video", "PDF", "URL"].map((type) => {
+                    const field = `is${type}` as keyof TaskFormData;
+                    return (
+                      <div key={type} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={type.toLowerCase()}
+                          checked={watch(field)}
+                          onCheckedChange={(checked) =>
+                            setValue(field, Boolean(checked))
+                          }
+                        />
+                        <Label htmlFor={type.toLowerCase()}>{type}</Label>
+                      </div>
+                    );
+                  })}
                 </div>
-              {(!watch("isAudio") && !watch("isVideo") && !watch("isPdf") && !watch("isUrl")) && (
-    <p className="text-red-500 text-sm mt-1">Please select at least one task type</p>
-  )}
               </div>
 
               {/* Form Actions */}
               <div className="flex justify-end space-x-2">
-                <Button onClick={() => setShowTaskForm(false)}>
-                  Cancel
-                </Button>
+                <Button onClick={() => setSelectedType(null)}>Cancel</Button>
                 <Button
                   type="primary"
                   htmlType="submit"
-                  disabled={
-                    !watch("isAudio") && !watch("isVideo") && !watch("isPdf") && !watch("isUrl")
-                  }
                 >
                   Save Task
                 </Button>
@@ -226,15 +237,67 @@ export function AssessmentTasksDrawer({
           </form>
         )}
 
+        {/* Quiz Form Placeholder */}
+        {selectedType === "quiz" && (
+          <div className="p-4 border rounded-lg mb-4">
+            <h3 className="font-medium text-lg mb-2">Add a Quiz</h3>
+            <Select
+              placeholder="Select Quiz"
+              className="w-full"
+              onChange={(quizId) => {
+                const selectedQuiz = quizes.find((q) => q.id === quizId);
+                if (selectedQuiz) {
+                  const newTask: Task = {
+                    id:
+                      tasks.length > 0
+                        ? Math.max(...tasks.map((t) => t.id)) + 1
+                        : 1,
+                    name: selectedQuiz.name,
+                    isAudio: false,
+                    isVideo: false,
+                    isPdf: false,
+                    isUrl: false,
+                    dueDate: new Date().toISOString().slice(0, 10), // default to today
+                    allocatedMarks: 0,
+                    url: undefined,
+                  };
+                  const updatedTasks = [...tasks, newTask];
+                  setTasks(updatedTasks);
+                  onTasksChange(updatedTasks);
+                  setSelectedType(null);
+                }
+              }}
+            >
+              {quizes.map((quiz) => (
+                <Option key={quiz.id} value={quiz.id}>
+                  {quiz.name}
+                </Option>
+              ))}
+            </Select>
+            <div className="flex justify-end mt-2">
+              <Button onClick={() => setSelectedType(null)}>Cancel</Button>
+            </div>
+          </div>
+        )}
+
         {/* Task List */}
-        <h3 className="font-medium text-gray-700">Tasks for this assessment:</h3>
+        <h3 className="font-medium text-gray-700">
+          Tasks for this assessment:
+        </h3>
         <div className="space-y-2">
           {tasks.map((task) => (
-            <div key={task.id} className="p-3 border rounded-lg hover:bg-gray-50">
+            <div
+              key={task.id}
+              className="p-3 border rounded-lg hover:bg-gray-50"
+            >
               <div className="flex justify-between items-center">
                 <div className="flex items-center space-x-2">
                   <span className="font-medium">{task.name}</span>
-                  <span className={`px-2 py-1 text-xs rounded-full ${getTaskTypeClass(task)}`}>
+                  <span
+                    className={`px-2 py-1 text-xs rounded-full ${getTaskTypeClass(
+                      task
+                    )}`}
+                  >
                     {getTaskTypeLabel(task)}
                   </span>
                 </div>
@@ -259,7 +322,10 @@ export function AssessmentTasksDrawer({
                 </button>
               </div>
               <div className="mt-2 text-sm text-gray-500">
-                Due: {task.dueDate} | Allocated Marks: <span className="font-medium">{task.allocatedMarks || "50"}</span>
+                Due: {task.dueDate} | Allocated Marks:{" "}
+                <span className="font-medium">
+                  {task.allocatedMarks || "50"}
+                </span>
               </div>
             </div>
           ))}
