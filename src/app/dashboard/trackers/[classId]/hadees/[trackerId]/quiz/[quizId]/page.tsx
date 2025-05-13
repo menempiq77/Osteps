@@ -86,7 +86,8 @@ export default function QuranQuizPage() {
 
   const handleSubmitAnswers = () => {
     console.log("Submitting answers...");
-    router.back();
+    // router.back();
+    router.push(`${quizId}/quiz-result`);
   };
 
   const toggleAddQuestion = () => {
