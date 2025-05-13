@@ -5,7 +5,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { useState, useEffect } from "react";
 import { AddStudentModal } from "../modals/studentModals/AddStudentModal";
 import { EditStudentModal } from "../modals/studentModals/EditStudentModal";
-import { BarChart3, Trash2 } from "lucide-react";
+import { BarChart3, NotebookPen, Trash2 } from "lucide-react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
@@ -124,6 +124,9 @@ export default function StudentList() {
   const handleStudentClick = (studentId: string) => {
     router.push(`/dashboard/terms/${studentId}`);
   };
+  const handleStudentBehavior = (studentId: string) => {
+    router.push(`/dashboard/behavior/${studentId}`);
+  };
 
   if (isLoading)
     return (
@@ -191,12 +194,10 @@ export default function StudentList() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Status
                 </th>
-                {currentUser?.role !== "TEACHER" &&
-                  currentUser?.role !== "STUDENT" && (
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Actions
-                    </th>
-                  )}
+
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -226,12 +227,12 @@ export default function StudentList() {
                     </span>
                   </td>
 
-                  {currentUser?.role !== "TEACHER" &&
-                    currentUser?.role !== "STUDENT" && (
-                      <td
-                        className="px-6 py-4 whitespace-nowrap"
-                        onClick={(e) => e.stopPropagation()}
-                      >
+                  <td
+                    className="px-6 py-4 whitespace-nowrap"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {currentUser?.role !== "TEACHER" &&
+                      currentUser?.role !== "STUDENT" && (
                         <div className="flex space-x-2">
                           <Dialog.Root>
                             <Dialog.Trigger asChild>
@@ -315,8 +316,17 @@ export default function StudentList() {
                             )}
                           </Dialog.Root>
                         </div>
-                      </td>
-                    )}
+                      )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="Behavior"
+                      className="cursor-pointer"
+                      onClick={() => handleStudentBehavior(student.id)}
+                    >
+                      <NotebookPen className="w-4 h-4 text-blue-600" />
+                    </Button>
+                  </td>
                 </tr>
               ))}
             </tbody>
