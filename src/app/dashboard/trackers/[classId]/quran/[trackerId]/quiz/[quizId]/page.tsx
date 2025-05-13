@@ -86,7 +86,8 @@ export default function QuranQuizPage() {
 
   const handleSubmitAnswers = () => {
     console.log("Submitting answers...");
-    router.back();
+    // router.back();
+    router.push(`${quizId}/quiz-result`);
   };
 
   const toggleAddQuestion = () => {
@@ -98,7 +99,7 @@ export default function QuranQuizPage() {
     }
   };
 
-  const [optionCount, setOptionCount] = useState(4); // Start with 4 options
+  const [optionCount, setOptionCount] = useState(4);
 
   const addOption = () => {
     setOptionCount((prev) => prev + 1);

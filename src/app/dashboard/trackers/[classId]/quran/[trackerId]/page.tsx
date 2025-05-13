@@ -18,14 +18,7 @@ import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import {
   Button,
-  Modal,
   Select,
-  Input,
-  Radio,
-  Space,
-  Form,
-  Divider,
-  Drawer,
 } from "antd";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 
@@ -38,6 +31,7 @@ interface Chapter {
     tafsir: boolean;
   };
   type?: "surah" | "quiz";
+  quizId?: string;
 }
 
 interface Quiz {
@@ -56,22 +50,24 @@ export default function QuranTrackerAdminPage() {
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [visibleChapters, setVisibleChapters] = useState(10);
   const [editingChapter, setEditingChapter] = useState<number | null>(null);
+  const [editingQuiz, setEditingQuiz] = useState<number | null>(null);
   const [newChapterName, setNewChapterName] = useState("");
   const [isAddingChapter, setIsAddingChapter] = useState(false);
   const [isAddingQuiz, setIsAddingQuiz] = useState(false);
-  const [newQuizName, setNewQuizName] = useState("");
-  const [isQuizModalVisible, setIsQuizModalVisible] = useState(false);
-  const [isQuizDrawerVisible, setIsQuizDrawerVisible] = useState(false);
   const [selectedQuiz, setSelectedQuiz] = useState<string>("");
-  const [quizForm] = Form.useForm();
-  const [quizType, setQuizType] = useState<"mcq" | "true_false" | "writing">(
-    "mcq"
-  );
+  const [editingQuizSelection, setEditingQuizSelection] = useState<string>("");
   const { currentUser } = useSelector((state: RootState) => state.auth);
 
   const canUpload =
     currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "TEACHER";
   const isStudent = currentUser?.role === "STUDENT";
+
+  const quizOptions = [
+    { value: "quiz1", label: "Quiz 1" },
+    { value: "quiz2", label: "Quiz 2" },
+    { value: "quiz3", label: "Quiz 3" },
+  ];
+
   // Initialize with sample data
   useEffect(() => {
     const initialChapters = [
@@ -89,22 +85,23 @@ export default function QuranTrackerAdminPage() {
       },
       {
         number: 3,
-        name: "Quiz",
+        name: "Quiz 1",
         status: { read: false, memorized: false, tafsir: false },
         type: "quiz",
+        quizId: "quiz1"
       },
     ].slice(0, 20);
 
     const initialQuizzes = [
       {
-        id: "1",
+        id: "quiz1",
         type: "mcq",
         question: "What is the meaning of Al-Fatihah?",
         options: ["The Opening", "The Cow", "The Light"],
         correctAnswer: "The Opening",
       },
       {
-        id: "2",
+        id: "quiz2",
         type: "true_false",
         question: "The Quran has 114 surahs.",
         correctAnswer: "true",
@@ -114,12 +111,6 @@ export default function QuranTrackerAdminPage() {
     setChapters(initialChapters);
     setQuizzes(initialQuizzes);
   }, []);
-
-    const quizOptions = [
-    { value: "quiz1", label: "Quiz 1" },
-    { value: "quiz2", label: "Quiz 2" },
-    { value: "quiz3", label: "Quiz 3" },
-  ];
 
   const handleStatusChange = (
     chapterNumber: number,
@@ -144,8 +135,13 @@ export default function QuranTrackerAdminPage() {
   const startEditing = (chapterNumber: number) => {
     const chapter = chapters.find((c) => c.number === chapterNumber);
     if (chapter) {
-      setEditingChapter(chapterNumber);
-      setNewChapterName(chapter.name);
+      if (chapter.type === "quiz") {
+        setEditingQuiz(chapterNumber);
+        setEditingQuizSelection(chapter.quizId || "");
+      } else {
+        setEditingChapter(chapterNumber);
+        setNewChapterName(chapter.name);
+      }
     }
   };
 
@@ -162,8 +158,30 @@ export default function QuranTrackerAdminPage() {
     }
   };
 
+  const saveQuizEdit = () => {
+    if (editingQuiz && editingQuizSelection) {
+      const selectedQuiz = quizOptions.find(q => q.value === editingQuizSelection);
+      
+      setChapters((prev) =>
+        prev.map((chapter) =>
+          chapter.number === editingQuiz
+            ? { 
+                ...chapter, 
+                name: selectedQuiz?.label || editingQuizSelection,
+                quizId: editingQuizSelection
+              }
+            : chapter
+        )
+      );
+      setEditingQuiz(null);
+      setEditingQuizSelection("");
+    }
+  };
+
   const cancelEdit = () => {
     setEditingChapter(null);
+    setEditingQuiz(null);
+    setEditingQuizSelection("");
   };
 
   const addNewChapter = () => {
@@ -205,6 +223,7 @@ export default function QuranTrackerAdminPage() {
       name: selectedQuizLabel || selectedQuiz,
       status: { read: false, memorized: false, tafsir: false },
       type: "quiz",
+      quizId: selectedQuiz
     };
 
     setChapters((prev) => [...prev, newQuizChapter]);
@@ -216,59 +235,6 @@ export default function QuranTrackerAdminPage() {
     setChapters((prev) =>
       prev.filter((chapter) => chapter.number !== chapterNumber)
     );
-  };
-
-  const showQuizModal = () => {
-    setIsQuizModalVisible(true);
-    quizForm.resetFields();
-    setQuizType("mcq");
-  };
-
-  const handleQuizOk = () => {
-    quizForm.validateFields().then((values) => {
-      const newQuiz: Quiz = {
-        id: Date.now().toString(),
-        type: values.type,
-        question: values.question,
-      };
-
-      if (values.type === "mcq") {
-        newQuiz.options = [
-          values.option1,
-          values.option2,
-          values.option3,
-          values.option4,
-        ].filter((opt) => opt);
-        newQuiz.correctAnswer = values.correctOption;
-      } else if (values.type === "true_false") {
-        newQuiz.correctAnswer = values.trueFalseAnswer;
-      }
-
-      setQuizzes((prev) => [...prev, newQuiz]);
-      setIsQuizModalVisible(false);
-      quizForm.resetFields();
-    });
-  };
-
-  const handleQuizCancel = () => {
-    setIsQuizModalVisible(false);
-    quizForm.resetFields();
-  };
-
-  const deleteQuiz = (quizId: string) => {
-    setQuizzes((prev) => prev.filter((q) => q.id !== quizId));
-  };
-
-  const showQuizDrawer = () => {
-    setIsQuizDrawerVisible(true);
-  };
-
-  const closeQuizDrawer = () => {
-    setIsQuizDrawerVisible(false);
-  };
-
-  const handleSubmitAnswers = () => {
-    console.log("Submitting answers...");
   };
 
   const handleDragEnd = (result: any) => {
@@ -293,6 +259,7 @@ export default function QuranTrackerAdminPage() {
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
+      {/* Header and stats remain the same */}
       <div className="flex flex-col md:flex-row justify-between items-center mb-8">
         <Button
           onClick={() => router.back()}
@@ -325,6 +292,7 @@ export default function QuranTrackerAdminPage() {
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        {/* Title and buttons remain the same */}
         <div className="p-6 border-b border-gray-200 flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
@@ -339,7 +307,7 @@ export default function QuranTrackerAdminPage() {
               <Button
                 onClick={() => {
                   setIsAddingChapter(true);
-                  setIsAddingQuiz(false); // Important
+                  setIsAddingQuiz(false);
                   setNewChapterName("");
                 }}
                 className="flex items-center gap-2 cursor-pointer"
@@ -350,8 +318,7 @@ export default function QuranTrackerAdminPage() {
               <Button
                 onClick={() => {
                   setIsAddingQuiz(true);
-                  setIsAddingChapter(false); // Important
-                  setNewQuizName("");
+                  setIsAddingChapter(false);
                 }}
                 className="flex items-center gap-2 cursor-pointer"
               >
@@ -362,6 +329,7 @@ export default function QuranTrackerAdminPage() {
           )}
         </div>
 
+        {/* Add chapter form remains the same */}
         {isAddingChapter && (
           <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center gap-4">
             <input
@@ -393,15 +361,16 @@ export default function QuranTrackerAdminPage() {
           </div>
         )}
 
+        {/* Add quiz form remains the same */}
         {isAddingQuiz && (
           <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center gap-4">
             <Select
-            value={selectedQuiz}
-            onChange={(value) => setSelectedQuiz(value)}
-            placeholder="Select a quiz"
-            style={{ width: '100%' }}
-            options={quizOptions}
-          />
+              value={selectedQuiz}
+              onChange={(value) => setSelectedQuiz(value)}
+              placeholder="Select a quiz"
+              style={{ width: '100%' }}
+              options={quizOptions}
+            />
             <div className="flex gap-2">
               <Button onClick={addNewQuiz} className="flex items-center gap-1">
                 <Save size={16} />
@@ -410,7 +379,6 @@ export default function QuranTrackerAdminPage() {
               <Button
                 onClick={() => {
                   setIsAddingQuiz(false);
-                  setNewQuizName("");
                 }}
               >
                 <X size={16} />
@@ -476,27 +444,26 @@ export default function QuranTrackerAdminPage() {
                                   : ""
                               }`}
                               onClick={
-                                chapter.type === "quiz"
+                                chapter.type === "quiz" && !editingQuiz
                                   ? (e) => {
-                                      if (editingChapter === null) {
-                                        router.push(
-                                          `${trackerId}/quiz/${chapter.number}`
-                                        );
-                                      }
+                                      router.push(
+                                        `${trackerId}/quiz/${chapter.number}`
+                                      );
                                     }
                                   : undefined
                               }
                             >
                               <td className="p-4 border whitespace-nowrap">
                                 <div className="flex items-center">
-                               
+                                  {canUpload && (
                                     <div
                                       {...provided.dragHandleProps}
                                       className="mr-2 cursor-move"
                                     >
-                                   {canUpload && <GripVertical size={16} className="text-gray-400" />}
+                                      <GripVertical size={16} className="text-gray-400" />
                                     </div>
-                                
+                                  )}
+                                  
                                   {editingChapter === chapter.number ? (
                                     <input
                                       type="text"
@@ -505,6 +472,14 @@ export default function QuranTrackerAdminPage() {
                                         setNewChapterName(e.target.value)
                                       }
                                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                    />
+                                  ) : editingQuiz === chapter.number ? (
+                                    <Select
+                                      value={editingQuizSelection}
+                                      onChange={(value) => setEditingQuizSelection(value)}
+                                      placeholder="Select a quiz"
+                                      style={{ width: '100%' }}
+                                      options={quizOptions}
                                     />
                                   ) : (
                                     <div className="flex items-center">
@@ -607,6 +582,27 @@ export default function QuranTrackerAdminPage() {
                                           <X size={16} />
                                         </Button>
                                       </div>
+                                    ) : editingQuiz === chapter.number ? (
+                                      <div className="flex justify-center gap-2">
+                                        <Button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            saveQuizEdit();
+                                          }}
+                                          className="text-green-600 hover:text-green-800"
+                                        >
+                                          <Save size={16} />
+                                        </Button>
+                                        <Button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            cancelEdit();
+                                          }}
+                                          className="text-red-600 hover:text-red-800"
+                                        >
+                                          <X size={16} />
+                                        </Button>
+                                      </div>
                                     ) : (
                                       <div className="flex justify-center gap-2">
                                         <Button
@@ -662,108 +658,6 @@ export default function QuranTrackerAdminPage() {
           </div>
         </div>
       </div>
-
-      {/* Quiz Modal */}
-      <Modal
-        title="Add New Question"
-        open={isQuizModalVisible}
-        onOk={handleQuizOk}
-        onCancel={handleQuizCancel}
-        width={600}
-        footer={[
-          <Button key="back" onClick={handleQuizCancel}>
-            Cancel
-          </Button>,
-          <Button key="submit" type="primary" onClick={handleQuizOk}>
-            Add Question
-          </Button>,
-        ]}
-      >
-        <Form form={quizForm} layout="vertical">
-          <Form.Item
-            name="type"
-            label="Quiz Type"
-            initialValue="mcq"
-            rules={[{ required: true, message: "Please select a quiz type" }]}
-          >
-            <Radio.Group onChange={(e) => setQuizType(e.target.value)}>
-              <Radio value="mcq">Multiple Choice</Radio>
-              <Radio value="true_false">True/False</Radio>
-              <Radio value="writing">Writing Question</Radio>
-            </Radio.Group>
-          </Form.Item>
-
-          <Form.Item
-            name="question"
-            label="Question"
-            rules={[{ required: true, message: "Please enter the question" }]}
-          >
-            <Input.TextArea rows={3} placeholder="Enter the question text" />
-          </Form.Item>
-
-          {quizType === "mcq" && (
-            <>
-              <Divider orientation="left">Options</Divider>
-              <Form.Item
-                name="option1"
-                label="Option 1"
-                rules={[{ required: true, message: "Please enter option 1" }]}
-              >
-                <Input placeholder="Enter option 1" />
-              </Form.Item>
-              <Form.Item
-                name="option2"
-                label="Option 2"
-                rules={[{ required: true, message: "Please enter option 2" }]}
-              >
-                <Input placeholder="Enter option 2" />
-              </Form.Item>
-              <Form.Item name="option3" label="Option 3">
-                <Input placeholder="Enter option 3 (optional)" />
-              </Form.Item>
-              <Form.Item name="option4" label="Option 4">
-                <Input placeholder="Enter option 4 (optional)" />
-              </Form.Item>
-              <Form.Item
-                name="correctOption"
-                label="Correct Answer"
-                rules={[
-                  {
-                    required: true,
-                    message: "Please select the correct answer",
-                  },
-                ]}
-              >
-                <Select placeholder="Select correct option">
-                  <Select.Option value="option1">Option 1</Select.Option>
-                  <Select.Option value="option2">Option 2</Select.Option>
-                  {quizForm.getFieldValue("option3") && (
-                    <Select.Option value="option3">Option 3</Select.Option>
-                  )}
-                  {quizForm.getFieldValue("option4") && (
-                    <Select.Option value="option4">Option 4</Select.Option>
-                  )}
-                </Select>
-              </Form.Item>
-            </>
-          )}
-
-          {quizType === "true_false" && (
-            <Form.Item
-              name="trueFalseAnswer"
-              label="Correct Answer"
-              rules={[
-                { required: true, message: "Please select the correct answer" },
-              ]}
-            >
-              <Radio.Group>
-                <Radio value="true">True</Radio>
-                <Radio value="false">False</Radio>
-              </Radio.Group>
-            </Form.Item>
-          )}
-        </Form>
-      </Modal>
     </div>
   );
 }
