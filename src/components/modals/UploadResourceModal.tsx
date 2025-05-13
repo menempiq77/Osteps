@@ -90,47 +90,43 @@ const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
           />
         </Form.Item>
 
-        {!isEditing && (
-          <Form.Item
+        <Form.Item
+          name="file"
+          label="File"
+          rules={[{ required: true, message: "Please upload a file!" }]}
+          valuePropName="fileList"
+          getValueFromEvent={(e) => {
+            if (Array.isArray(e)) {
+              return e;
+            }
+            return e?.fileList;
+          }}
+        >
+          <Upload.Dragger
             name="file"
-            label="File"
-            rules={[{ required: true, message: "Please upload a file!" }]}
-            valuePropName="fileList"
-            getValueFromEvent={(e) => {
-              if (Array.isArray(e)) {
-                return e;
-              }
-              return e?.fileList;
+            multiple={false}
+            fileList={fileList}
+            beforeUpload={(file) => {
+              setFileList([file]);
+              return false;
             }}
+            onRemove={() => {
+              setFileList([]);
+            }}
+            maxCount={1}
+            accept=".pdf,.doc,.docx,.mp4,.mov,.avi,.mp3,.wav,.m4a"
           >
-            <Upload.Dragger
-              name="file"
-              multiple={false}
-              fileList={fileList}
-              beforeUpload={(file) => {
-                setFileList([file]);
-                return false;
-              }}
-              onRemove={() => {
-                setFileList([]);
-              }}
-              maxCount={1}
-              accept=".pdf,.doc,.docx,.mp4,.mov,.avi,.mp3,.wav,.m4a"
-            >
-              <p className="ant-upload-drag-icon">
-                <UploadOutlined
-                  style={{ fontSize: "32px", color: "#1890ff" }}
-                />
-              </p>
-              <p className="ant-upload-text">
-                Click or drag file to this area to upload
-              </p>
-              <p className="ant-upload-hint">
-                Supports PDF, DOC, MP4, MP3 files (Max 100MB)
-              </p>
-            </Upload.Dragger>
-          </Form.Item>
-        )}
+            <p className="ant-upload-drag-icon">
+              <UploadOutlined style={{ fontSize: "32px", color: "#1890ff" }} />
+            </p>
+            <p className="ant-upload-text">
+              Click or drag file to this area to upload
+            </p>
+            <p className="ant-upload-hint">
+              Supports PDF, DOC, MP4, MP3 files (Max 100MB)
+            </p>
+          </Upload.Dragger>
+        </Form.Item>
 
         <Divider />
 

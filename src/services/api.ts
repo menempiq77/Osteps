@@ -244,15 +244,24 @@ export const fetchLibrary = async () => {
   return response.data.data;
 };
 // add Library
-export const addLibrary = async (libraryData: { name: string }) => {
-  const response = await api.post('/add-library', libraryData);
+export const addLibrary = async (libraryData: FormData): Promise<any> => {
+  const response = await api.post('/add-library', libraryData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
   return response.data;
 };
 // edit Library
-export const updateLibrary = async (id: string, libraryData: any) => {
-  const response = await api.post(`/update-library/${id}`, libraryData);
+export const updateLibrary = async (id: string, libraryData: FormData) => {
+  const response = await api.post(`/update-library/${id}`, libraryData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
   return response.data;
 };
+
 // delete Library
 export const deleteLibrary = async (id: number) => {
   const response = await api.post(`/delete-library/${id}`);

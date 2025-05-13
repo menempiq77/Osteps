@@ -34,7 +34,14 @@ import {
 import useMediaQuery from "@/hooks/useMediaQuery";
 import UploadResourceModal from "@/components/modals/UploadResourceModal";
 import ViewResourceModal from "@/components/modals/ViewResourceModal";
-import { fetchCategories, fetchLibrary, fetchResources } from "@/services/api";
+import {
+  addLibrary,
+  deleteLibrary,
+  fetchCategories,
+  fetchLibrary,
+  fetchResources,
+  updateLibrary,
+} from "@/services/api";
 
 const { Text, Title } = Typography;
 const { useBreakpoint } = Grid;
@@ -146,37 +153,27 @@ export default function LibraryPage() {
   const handleUpload = async (values: any) => {
     setLoading(true);
     try {
+      const formData = new FormData();
+      formData.append("title", values.title);
+      formData.append("library_resources_id", values.type);
+      formData.append("library_categories_id", values.category);
+      formData.append("description", values.description || "");
+
+      if (fileList.length > 0) {
+        formData.append("file_path", fileList[0]);
+      }
+
       if (isEditing && currentItem) {
-        // Update existing item
-        const updatedItems = libraryItems.map((item) =>
-          item.id === currentItem.id
-            ? {
-                ...item,
-                title: values.title,
-                type: values.type,
-                category: values.category,
-                description: values.description,
-              }
-            : item
-        );
-        setLibraryItems(updatedItems);
+        await updateLibrary(currentItem.id, formData);
         message.success("Resource updated successfully!");
       } else {
-        // Add new item
-        const newItem: LibraryItem = {
-          id: Date.now().toString(),
-          title: values.title,
-          type: values.type,
-          url: "https://example.com/new-file",
-          uploadedBy: currentUser?.name || "Current User",
-          uploadDate: new Date().toISOString().split("T")[0],
-          size: "10MB",
-          category: values.category,
-          description: values.description,
-        };
-        setLibraryItems([...libraryItems, newItem]);
+        await addLibrary(formData);
         message.success("Resource uploaded successfully!");
       }
+
+      // Refresh the library items
+      const data = await fetchLibrary();
+      setLibraryItems(data);
 
       setIsUploadModalOpen(false);
       form.resetFields();
@@ -194,17 +191,23 @@ export default function LibraryPage() {
     }
   };
 
-  const handleDelete = (id: string) => {
+  // Update the handleDelete function to use the API
+  const handleDelete = async (id: string) => {
     Modal.confirm({
       title: "Delete Resource",
       content: "Are you sure you want to delete this resource?",
       okText: "Delete",
       okType: "danger",
       cancelText: "Cancel",
-      onOk() {
-        const updatedItems = libraryItems.filter((item) => item.id !== id);
-        setLibraryItems(updatedItems);
-        message.success("Resource deleted successfully");
+      async onOk() {
+        try {
+          await deleteLibrary(id);
+          const updatedItems = libraryItems.filter((item) => item.id !== id);
+          setLibraryItems(updatedItems);
+          message.success("Resource deleted successfully");
+        } catch (error) {
+          message.error("Failed to delete resource. Please try again.");
+        }
       },
     });
   };
@@ -224,10 +227,23 @@ export default function LibraryPage() {
     setIsUploadModalOpen(true);
     form.setFieldsValue({
       title: item.title,
-      type: item.type,
-      category: item.category,
+      type: item.library_resources_id,
+      category: item.library_categories_id,
       description: item.description,
     });
+
+    setFileList(
+      item.file_path
+        ? [
+            {
+              uid: "-1",
+              name: item.title,
+              status: "done",
+              url: item.file_path,
+            },
+          ]
+        : []
+    );
   };
 
   const openUploadModal = () => {
@@ -255,21 +271,6 @@ export default function LibraryPage() {
     }
   };
 
-  const getTypeTag = (type: string) => {
-    const typeMap: Record<string, { color: string; text: string }> = {
-      book: { color: "blue", text: "Book" },
-      video: { color: "red", text: "Video" },
-      pdf: { color: "green", text: "PDF" },
-      audio: { color: "orange", text: "Audio" },
-    };
-
-    return (
-      <Tag color={typeMap[type]?.color || "default"}>
-        {typeMap[type]?.text || type}
-      </Tag>
-    );
-  };
-
   const getResourceName = (id: number) => {
     const resource = resources.find((res) => res.id === id);
     return resource?.name || "Unknown";
@@ -285,12 +286,14 @@ export default function LibraryPage() {
     return category?.color || "default";
   };
 
-   if (loading) return (
+  if (loading)
+    return (
       <div className="p-3 md:p-6 flex justify-center items-center h-64">
         <Spin size="large" />
       </div>
     );
-    if (error) return (
+  if (error)
+    return (
       <div className="p-3 md:p-6">
         <Alert
           message="Error"
@@ -432,7 +435,9 @@ export default function LibraryPage() {
                   <h3 className="text-lg font-semibold mb-2 line-clamp-2 text-gray-800">
                     {item.title}
                   </h3>
-                  <p className="mb-2 text-gray-700 line-clamp-1">{item.description}</p>
+                  <p className="mb-2 text-gray-700 line-clamp-1">
+                    {item.description}
+                  </p>
 
                   <div className="flex flex-wrap gap-2 mb-4">
                     {getResourceName(item.library_resources_id)}
