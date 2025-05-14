@@ -12,6 +12,7 @@ import {
   AudioOutlined,
   EyeOutlined,
   EditOutlined,
+  PlusOutlined,
 } from "@ant-design/icons";
 import {
   Button,
@@ -39,6 +40,8 @@ import {
   fetchResources,
   updateLibrary,
 } from "@/services/api";
+import { Plus } from "lucide-react";
+import Link from "next/link";
 const { useBreakpoint } = Grid;
 
 type LibraryItem = {
@@ -74,11 +77,7 @@ export default function LibraryPage() {
   const [libraryItems, setLibraryItems] = useState<any[]>([]);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
-
   const [error, setError] = useState<string | null>(null);
-
-  console.log(categories, "categories");
-  console.log(resources, "resources");
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -128,16 +127,28 @@ export default function LibraryPage() {
     loadLibrary();
   }, []);
 
+  const canUpload =
+    currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "TEACHER";
+
   const typeTabItems = [
     { label: <span className="font-medium">All Resources</span>, key: "all" },
     ...resources?.map((type) => ({
       label: <span className="font-medium">{type.name}</span>,
       key: type.name.toLowerCase(),
     })),
+    ...(canUpload
+      ? [
+          {
+            label: (
+              <span className="font-medium flex items-center text-blue-500">
+                <PlusOutlined className="mr-1" /> Add
+              </span>
+            ),
+            key: "add",
+          },
+        ]
+      : []),
   ];
-
-  const canUpload =
-    currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "TEACHER";
 
   const handleUpload = async (values: any) => {
     setLoading(true);
@@ -148,9 +159,18 @@ export default function LibraryPage() {
       formData.append("library_categories_id", values.category);
       formData.append("description", values.description || "");
 
-      if (fileList.length > 0) {
-        formData.append("file_path", fileList[0]);
-      }
+     if (fileList.length > 0) {
+      const fileToUpload = fileList[0].originFileObj || fileList[0];
+      
+      console.log("Uploading file:", {
+        name: fileToUpload.name,
+        type: fileToUpload.type,
+        size: fileToUpload.size,
+        file: fileToUpload,
+      });
+
+      formData.append("file_path", fileToUpload);
+    }
 
       if (isEditing && currentItem) {
         await updateLibrary(currentItem.id, formData);
@@ -196,12 +216,24 @@ export default function LibraryPage() {
     }
   };
 
-  const handleView = (item: LibraryItem) => {
-    if (item.type === "pdf") {
-      window.open(item.url, "_blank");
+  const handleView = (item: any) => {
+    if (getResourceName(item.library_resources_id).toLowerCase() === "pdf") {
+      window.open(item.file_path, "_blank");
       return;
     }
-    setCurrentItem(item);
+
+    setCurrentItem({
+      ...item,
+      type: getResourceName(item.library_resources_id).toLowerCase(),
+      url: item.file_path,
+      uploadedBy: item.uploaded_by || "Unknown",
+      uploadDate: new Date(item.updated_at).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      }),
+      size: item.size || "N/A",
+    });
     setIsViewModalOpen(true);
   };
 
@@ -328,6 +360,10 @@ export default function LibraryPage() {
           <Tabs
             activeKey={activeTypeTab}
             onChange={(key) => {
+              if (key === "add") {
+                window.location.href = "/dashboard/library/resourcestype";
+                return;
+              }
               setActiveTypeTab(key);
               setActiveCategoryTab("all");
             }}
@@ -379,6 +415,15 @@ export default function LibraryPage() {
                 {category?.name}
               </Button>
             ))}
+
+            {canUpload && (
+              <Link
+                href="/dashboard/library/librarycategory"
+                className="transition-all flex items-center gap-1 bg-white hover:bg-gray-50 border border-dashed rounded-full px-4 border-blue-600"
+              >
+                <Plus size={18} /> Add
+              </Link>
+            )}
           </div>
         )}
 
@@ -476,7 +521,13 @@ export default function LibraryPage() {
                       >
                         View
                       </Button>
-                      <a href={item.url} download className="flex">
+                      <a
+                        href={item.file_path}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        download
+                        className="flex"
+                      >
                         <Button
                           type="text"
                           icon={<DownloadOutlined />}
