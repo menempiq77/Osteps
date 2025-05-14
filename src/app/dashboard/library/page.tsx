@@ -19,9 +19,6 @@ import {
   Tabs,
   Modal,
   Form,
-  Input,
-  Select,
-  Upload,
   message,
   Divider,
   Tag,
@@ -42,8 +39,6 @@ import {
   fetchResources,
   updateLibrary,
 } from "@/services/api";
-
-const { Text, Title } = Typography;
 const { useBreakpoint } = Grid;
 
 type LibraryItem = {
@@ -77,6 +72,8 @@ export default function LibraryPage() {
   const [categories, setCategories] = useState<any[]>([]);
   const [resources, setResources] = useState<any[]>([]);
   const [libraryItems, setLibraryItems] = useState<any[]>([]);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -139,14 +136,6 @@ export default function LibraryPage() {
     })),
   ];
 
-  // Get filtered items based on active tabs
-  const filteredItems = libraryItems.filter((item) => {
-    const typeMatch = activeTypeTab === "all" || item.type === activeTypeTab;
-    const categoryMatch =
-      activeCategoryTab === "all" || item.category === activeCategoryTab;
-    return typeMatch && categoryMatch;
-  });
-
   const canUpload =
     currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "TEACHER";
 
@@ -191,25 +180,20 @@ export default function LibraryPage() {
     }
   };
 
-  // Update the handleDelete function to use the API
-  const handleDelete = async (id: string) => {
-    Modal.confirm({
-      title: "Delete Resource",
-      content: "Are you sure you want to delete this resource?",
-      okText: "Delete",
-      okType: "danger",
-      cancelText: "Cancel",
-      async onOk() {
-        try {
-          await deleteLibrary(id);
-          const updatedItems = libraryItems.filter((item) => item.id !== id);
-          setLibraryItems(updatedItems);
-          message.success("Resource deleted successfully");
-        } catch (error) {
-          message.error("Failed to delete resource. Please try again.");
-        }
-      },
-    });
+  const handleConfirmDelete = async () => {
+    if (!itemToDelete) return;
+
+    try {
+      const item = libraryItems.find((i) => i.id === itemToDelete);
+      await deleteLibrary(itemToDelete, item?.file_path);
+      setLibraryItems((prev) => prev.filter((i) => i.id !== itemToDelete));
+      message.success("Deleted successfully");
+    } catch (error) {
+      message.error("Delete failed");
+    } finally {
+      setDeleteModalVisible(false);
+      setItemToDelete(null);
+    }
   };
 
   const handleView = (item: LibraryItem) => {
@@ -285,6 +269,20 @@ export default function LibraryPage() {
     const category = categories.find((cat) => cat.id === id);
     return category?.color || "default";
   };
+
+  const filteredItems = libraryItems.filter((item) => {
+    const typeMatch =
+      activeTypeTab === "all" ||
+      getResourceName(item.library_resources_id).toLowerCase() ===
+        activeTypeTab;
+
+    const categoryMatch =
+      activeCategoryTab === "all" ||
+      getCategoryName(item.library_categories_id).toLowerCase() ===
+        activeCategoryTab.toLowerCase();
+
+    return typeMatch && categoryMatch;
+  });
 
   if (loading)
     return (
@@ -363,11 +361,17 @@ export default function LibraryPage() {
               <Button
                 key={category?.id}
                 size="middle"
-                type={activeCategoryTab === category ? "primary" : "default"}
+                type={
+                  activeCategoryTab === category.name.toLowerCase()
+                    ? "primary"
+                    : "default"
+                }
                 shape="round"
-                onClick={() => setActiveCategoryTab(category)}
+                onClick={() =>
+                  setActiveCategoryTab(category.name.toLowerCase())
+                }
                 className={`transition-all ${
-                  activeCategoryTab === category
+                  activeCategoryTab === category.name.toLowerCase()
                     ? "bg-blue-600 hover:bg-blue-700 border-blue-600"
                     : "bg-white hover:bg-gray-50 border-gray-200"
                 }`}
@@ -415,8 +419,8 @@ export default function LibraryPage() {
                         danger
                         onClick={(e) => {
                           e.stopPropagation();
-                          e.preventDefault();
-                          handleDelete(item.id);
+                          setItemToDelete(item.id);
+                          setDeleteModalVisible(true);
                         }}
                         className="shadow-sm bg-white hover:bg-red-50 border-none"
                       />
@@ -514,6 +518,17 @@ export default function LibraryPage() {
         onCancel={() => setIsViewModalOpen(false)}
         currentItem={currentItem}
       />
+
+      <Modal
+        title="Delete Resource"
+        open={deleteModalVisible}
+        onOk={handleConfirmDelete}
+        onCancel={() => setDeleteModalVisible(false)}
+        okText="Delete"
+        okButtonProps={{ danger: true }}
+      >
+        <p>Are you sure you want to delete this resource?</p>
+      </Modal>
     </div>
   );
 }

@@ -263,8 +263,12 @@ export const updateLibrary = async (id: string, libraryData: FormData) => {
 };
 
 // delete Library
-export const deleteLibrary = async (id: number) => {
-  const response = await api.post(`/delete-library/${id}`);
+export const deleteLibrary = async (id: number, filePath?: string) => {
+  const formData = new FormData();
+  if (filePath) {
+    formData.append('file_path', filePath);
+  }
+  const response = await api.post(`/delete-library/${id}`, formData);
   return response.data;
 };
 
