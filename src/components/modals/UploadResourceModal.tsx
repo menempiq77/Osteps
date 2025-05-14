@@ -83,7 +83,7 @@ const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
           </Select>
         </Form.Item>
 
-        <Form.Item name="description" label="Description (Optional)">
+        <Form.Item name="description" label="Description">
           <Input.TextArea
             rows={3}
             placeholder="Brief description of the resource"
@@ -121,9 +121,6 @@ const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
             </p>
             <p className="ant-upload-text">
               Click or drag file to this area to upload
-            </p>
-            <p className="ant-upload-hint">
-              Supports PDF, DOC, MP4, MP3 files (Max 100MB)
             </p>
           </Upload.Dragger>
         </Form.Item>
