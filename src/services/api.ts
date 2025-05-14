@@ -229,6 +229,21 @@ export const fetchCategories = async () => {
   const response = await api.get('/get-category');
   return response.data.data;
 };
+// add Category
+export const addCategory = async (categoryData: { name: string }) => {
+  const response = await api.post('/add-category', categoryData);
+  return response.data;
+};
+// edit Category
+export const updateCategory = async (id: string, categoryData: any) => {
+  const response = await api.post(`/update-category/${id}`, categoryData);
+  return response.data;
+};
+// delete Category
+export const deleteCategory = async (id: number) => {
+  const response = await api.post(`/delete-category/${id}`);
+  return response.data;
+};
 
 //Library Resource apis Started
 // fetch Resources
@@ -236,14 +251,29 @@ export const fetchResources = async () => {
   const response = await api.get('/get-resources');
   return response.data.data;
 };
+// add Resource
+export const addResource = async (resourcesData: { name: string }) => {
+  const response = await api.post('/add-resource', resourcesData);
+  return response.data;
+};
+// edit Resource
+export const updateResource = async (id: string, resourcesData: any) => {
+  const response = await api.post(`/update-resource/${id}`, resourcesData);
+  return response.data;
+};
+// delete Resource
+export const deleteResource = async (id: number) => {
+  const response = await api.post(`/delete-resource/${id}`);
+  return response.data;
+};
 
 //Library apis Started
-// fetch Library
+// fetch Library items
 export const fetchLibrary = async () => {
   const response = await api.get('/get-library');
   return response.data.data;
 };
-// add Library
+// add Library item
 export const addLibrary = async (libraryData: FormData): Promise<any> => {
   const response = await api.post('/add-library', libraryData, {
     headers: {
@@ -252,7 +282,7 @@ export const addLibrary = async (libraryData: FormData): Promise<any> => {
   });
   return response.data;
 };
-// edit Library
+// edit Library item
 export const updateLibrary = async (id: string, libraryData: FormData) => {
   const response = await api.post(`/update-library/${id}`, libraryData, {
     headers: {
@@ -262,7 +292,7 @@ export const updateLibrary = async (id: string, libraryData: FormData) => {
   return response.data;
 };
 
-// delete Library
+// delete Library item
 export const deleteLibrary = async (id: number, filePath?: string) => {
   const formData = new FormData();
   if (filePath) {
