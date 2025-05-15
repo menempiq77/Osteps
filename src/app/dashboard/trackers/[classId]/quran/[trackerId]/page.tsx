@@ -16,11 +16,9 @@ import {
 } from "lucide-react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import {
-  Button,
-  Select,
-} from "antd";
+import { Button, Select } from "antd";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import { fetchQuizes } from "@/services/api";
 
 interface Chapter {
   number: number;
@@ -57,16 +55,28 @@ export default function QuranTrackerAdminPage() {
   const [selectedQuiz, setSelectedQuiz] = useState<string>("");
   const [editingQuizSelection, setEditingQuizSelection] = useState<string>("");
   const { currentUser } = useSelector((state: RootState) => state.auth);
+  const [loading, setLoading] = useState(false);
 
   const canUpload =
     currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "TEACHER";
   const isStudent = currentUser?.role === "STUDENT";
 
-  const quizOptions = [
-    { value: "quiz1", label: "Quiz 1" },
-    { value: "quiz2", label: "Quiz 2" },
-    { value: "quiz3", label: "Quiz 3" },
-  ];
+  useEffect(() => {
+    loadQuizzes();
+  }, []);
+
+  const loadQuizzes = async () => {
+    try {
+      setLoading(true);
+      const response = await fetchQuizes();
+      setQuizzes(response);
+    } catch (error) {
+      console.error("Failed to load quizzes", error);
+      // message.error("Failed to load quizzes");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Initialize with sample data
   useEffect(() => {
@@ -88,7 +98,7 @@ export default function QuranTrackerAdminPage() {
         name: "Quiz 1",
         status: { read: false, memorized: false, tafsir: false },
         type: "quiz",
-        quizId: "quiz1"
+        quizId: "quiz1",
       },
     ].slice(0, 20);
 
@@ -111,6 +121,13 @@ export default function QuranTrackerAdminPage() {
     setChapters(initialChapters);
     setQuizzes(initialQuizzes);
   }, []);
+
+  const getQuizOptions = () => {
+  return quizzes.map(quiz => ({
+    value: quiz.id,
+    label: quiz.name,
+  }));
+};
 
   const handleStatusChange = (
     chapterNumber: number,
@@ -160,15 +177,15 @@ export default function QuranTrackerAdminPage() {
 
   const saveQuizEdit = () => {
     if (editingQuiz && editingQuizSelection) {
-      const selectedQuiz = quizOptions.find(q => q.value === editingQuizSelection);
-      
+      const selectedQuiz = quizzes.find((q) => q.id === editingQuizSelection);
+
       setChapters((prev) =>
         prev.map((chapter) =>
           chapter.number === editingQuiz
-            ? { 
-                ...chapter, 
-                name: selectedQuiz?.label || editingQuizSelection,
-                quizId: editingQuizSelection
+            ? {
+                ...chapter,
+                name: selectedQuiz?.name || editingQuizSelection,
+                quizId: editingQuizSelection,
               }
             : chapter
         )
@@ -214,16 +231,16 @@ export default function QuranTrackerAdminPage() {
     const newChapterNumber =
       chapters.length > 0 ? Math.max(...chapters.map((c) => c.number)) + 1 : 1;
 
-    const selectedQuizLabel = quizOptions.find(
-      (quiz) => quiz.value === selectedQuiz
-    )?.label;
+    const selectedQuizLabel = quizzes.find(
+      (quiz) => quiz.id === selectedQuiz
+    )?.name;
 
     const newQuizChapter: Chapter = {
       number: newChapterNumber,
       name: selectedQuizLabel || selectedQuiz,
       status: { read: false, memorized: false, tafsir: false },
       type: "quiz",
-      quizId: selectedQuiz
+      quizId: selectedQuiz,
     };
 
     setChapters((prev) => [...prev, newQuizChapter]);
@@ -368,8 +385,8 @@ export default function QuranTrackerAdminPage() {
               value={selectedQuiz}
               onChange={(value) => setSelectedQuiz(value)}
               placeholder="Select a quiz"
-              style={{ width: '100%' }}
-              options={quizOptions}
+              style={{ width: "100%" }}
+             options={getQuizOptions()}
             />
             <div className="flex gap-2">
               <Button onClick={addNewQuiz} className="flex items-center gap-1">
@@ -460,10 +477,13 @@ export default function QuranTrackerAdminPage() {
                                       {...provided.dragHandleProps}
                                       className="mr-2 cursor-move"
                                     >
-                                      <GripVertical size={16} className="text-gray-400" />
+                                      <GripVertical
+                                        size={16}
+                                        className="text-gray-400"
+                                      />
                                     </div>
                                   )}
-                                  
+
                                   {editingChapter === chapter.number ? (
                                     <input
                                       type="text"
@@ -476,10 +496,12 @@ export default function QuranTrackerAdminPage() {
                                   ) : editingQuiz === chapter.number ? (
                                     <Select
                                       value={editingQuizSelection}
-                                      onChange={(value) => setEditingQuizSelection(value)}
+                                      onChange={(value) =>
+                                        setEditingQuizSelection(value)
+                                      }
                                       placeholder="Select a quiz"
-                                      style={{ width: '100%' }}
-                                      options={quizOptions}
+                                      style={{ width: "100%" }}
+                                      options={getQuizOptions()} 
                                     />
                                   ) : (
                                     <div className="flex items-center">

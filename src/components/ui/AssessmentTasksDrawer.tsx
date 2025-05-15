@@ -45,6 +45,7 @@ export function AssessmentTasksDrawer({
   assignmentName,
   initialTasks,
   onTasksChange,
+  quizzes
 }: AssessmentTasksDrawerProps) {
   const [selectedType, setSelectedType] = useState<"task" | "quiz" | null>(
     null
@@ -89,11 +90,6 @@ export function AssessmentTasksDrawer({
     reset();
     setSelectedType(null);
   };
-
-  const quizes = [
-    { id: 1, name: "Quiz 1", type: "quiz" },
-    { id: 2, name: "Quiz 2", type: "quiz" },
-  ];
 
   const handleRemoveTask = (taskId: number) => {
     const updatedTasks = tasks.filter((task) => task.id !== taskId);
@@ -245,7 +241,7 @@ export function AssessmentTasksDrawer({
               placeholder="Select Quiz"
               className="w-full"
               onChange={(quizId) => {
-                const selectedQuiz = quizes.find((q) => q.id === quizId);
+                const selectedQuiz = quizzes.find((q) => q.id === quizId);
                 if (selectedQuiz) {
                   const newTask: Task = {
                     id:
@@ -268,7 +264,7 @@ export function AssessmentTasksDrawer({
                 }
               }}
             >
-              {quizes.map((quiz) => (
+              {quizzes.map((quiz) => (
                 <Option key={quiz.id} value={quiz.id}>
                   {quiz.name}
                 </Option>

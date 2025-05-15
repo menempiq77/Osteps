@@ -12,31 +12,43 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+interface Quiz {
+  id: number;
+  name: string;
+  created_at: string;
+  updated_at: string;
+}
 interface AddAssessmentFormProps {
-  onSubmit: (data: { name: string; type: "assessment" | "quiz" }) => void;
+  onSubmit: (data: {
+    name: string;
+    type: "assessment" | "quiz";
+    term_id: string;
+  }) => void;
   isQuiz?: boolean;
+  termId: string;
+  quizzes: Quiz[];
 }
 
-export default function AddAssessmentForm({ onSubmit, isQuiz = false }: AddAssessmentFormProps) {
+export default function AddAssessmentForm({
+  onSubmit,
+  isQuiz = false,
+  termId,
+  quizzes,
+}: AddAssessmentFormProps) {
   const [name, setName] = useState("");
   const [selectedQuiz, setSelectedQuiz] = useState("");
-
-  const quizOptions = [
-    { value: "quiz1", label: "Quiz 1" },
-    { value: "quiz2", label: "Quiz 2" },
-    { value: "quiz3", label: "Quiz 3" }
-  ];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const submittedName = isQuiz ? selectedQuiz : name;
     if (!submittedName) return;
-    
+
     onSubmit({
-      name: isQuiz 
-        ? quizOptions.find(q => q.value === selectedQuiz)?.label || selectedQuiz
+      name: isQuiz
+       ? quizzes.find(q => String(q.id) === selectedQuiz)?.name || selectedQuiz
         : name,
-      type: isQuiz ? "quiz" : "assessment"
+      term_id: termId,
+      type: isQuiz ? "quiz" : "assessment",
     });
     setName("");
     setSelectedQuiz("");
@@ -48,16 +60,16 @@ export default function AddAssessmentForm({ onSubmit, isQuiz = false }: AddAsses
         <Label htmlFor={isQuiz ? "quiz-select" : "name"}>
           {isQuiz ? "Select Quiz" : "Assessment Name"}
         </Label>
-        
+
         {isQuiz ? (
           <Select value={selectedQuiz} onValueChange={setSelectedQuiz} required>
             <SelectTrigger id="quiz-select" className="w-full">
               <SelectValue placeholder="Select a quiz" />
             </SelectTrigger>
             <SelectContent>
-              {quizOptions.map((quiz) => (
-                <SelectItem key={quiz.value} value={quiz.value}>
-                  {quiz.label}
+              {quizzes.map((quiz) => (
+                <SelectItem key={quiz.id} value={String(quiz.id)}>
+                  {quiz.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -73,7 +85,7 @@ export default function AddAssessmentForm({ onSubmit, isQuiz = false }: AddAsses
         )}
       </div>
       <div className="flex justify-end gap-2">
-        <Dialog.Close asChild>
+        <Dialog.Close>
           <Button type="button" variant="outline">
             Cancel
           </Button>
