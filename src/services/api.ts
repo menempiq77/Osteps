@@ -42,7 +42,6 @@ export const loginUser = async (email: string, password: string) => {
 };
 
 
-
 //Schools apis Started
 // fetche Schools
 export const fetchSchools = async () => {
@@ -299,6 +298,67 @@ export const deleteLibrary = async (id: number, filePath?: string) => {
     formData.append('file_path', filePath);
   }
   const response = await api.post(`/delete-library/${id}`, formData);
+  return response.data;
+};
+
+//assessment apis Started
+// fetch Assessment
+export const fetchAssessment = async () => {
+  const response = await api.get('/get-assessment');
+  return response.data.data;
+};
+// fetch Students Assessment
+export const fetchStudentsAssessment = async () => {
+  const response = await api.get('/get-student-assessment');
+  return response.data.data;
+};
+// add Assessment
+export const addAssessment = async (assessmentData: { name: string }) => {
+  const response = await api.post('/add-assessment', assessmentData);
+  return response.data;
+};
+// edit Assessment
+export const updateAssessment = async (id: string, assessmentData: any) => {
+  const response = await api.post(`/update-assessment/${id}`, assessmentData);
+  return response.data;
+};
+// delete Assessment
+export const deleteAssessment = async (id: number) => {
+  const response = await api.post(`/delete-assessment/${id}`);
+  return response.data;
+};
+
+//quiz apis Started
+// fetch quizes
+export const fetchQuizes = async () => {
+  const response = await api.get('/get-quiz');
+  return response.data.data;
+};
+// add Quiz
+export const addQuize = async (quizData: { name: string }) => {
+  const response = await api.post('/add-quiz', quizData);
+  return response.data;
+};
+// edit Quiz
+export const updateQuize = async (id: string, quizData: any) => {
+  const response = await api.post(`/update-quiz/${id}`, quizData);
+  return response.data;
+};
+// delete Quiz
+export const deleteQuize = async (id: number) => {
+  const response = await api.post(`/delete-quiz/${id}`);
+  return response.data;
+};
+
+//quiz-question apis Started
+// fetch quiz-question
+export const fetchQuizQuestion = async () => {
+  const response = await api.get('/get-quiz-question');
+  return response.data.data;
+};
+// add quiz-question
+export const addQuizQuestion = async (quizQuestionData: { name: string }) => {
+  const response = await api.post('/add-quiz-question', quizQuestionData);
   return response.data;
 };
 
