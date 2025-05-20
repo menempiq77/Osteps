@@ -37,26 +37,11 @@ export default function LoginPage() {
     },
   });
 
-  useEffect(() => {
-    if (currentUser) {
-      switch (currentUser.role) {
-        case 'SUPER_ADMIN':
-          router.push('/dashboard');
-          break;
-        case 'SCHOOL_ADMIN':
-          router.push('/dashboard');
-          break;
-        case 'TEACHER':
-          router.push('/dashboard');
-          break;
-        case 'STUDENT':
-          router.push('/dashboard');
-          break;
-        default:
-          router.push('/dashboard');
-      }
-    }
-  }, [currentUser, router]);
+ useEffect(() => {
+  if (currentUser) {
+    router.push('/dashboard');
+  }
+}, [currentUser, router]);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     await dispatch(login(values));

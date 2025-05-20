@@ -201,30 +201,120 @@ export function AssessmentTasksDrawer({
               <div>
                 <Label>Task Type</Label>
                 <div className="flex items-center space-x-4 mt-1">
-                  {["Audio", "Video", "PDF", "URL"].map((type) => {
-                    const field = `is${type}` as keyof TaskFormData;
-                    return (
-                      <div key={type} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={type.toLowerCase()}
-                          checked={watch(field)}
-                          onCheckedChange={(checked) =>
-                            setValue(field, Boolean(checked))
-                          }
-                        />
-                        <Label htmlFor={type.toLowerCase()}>{type}</Label>
-                      </div>
-                    );
-                  })}
+                  {/* Audio */}
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="audio"
+                      checked={Boolean(watch("isAudio"))}
+                      onCheckedChange={(checked) => {
+                        setValue("isAudio", Boolean(checked));
+                        console.log(`Checkbox Audio checked:`, checked);
+                        // Uncheck URL if Audio is checked
+                        if (checked) {
+                          setValue("isUrl", false);
+                        }
+                      }}
+                    />
+                    <Label htmlFor="audio">Audio</Label>
+                  </div>
+
+                  {/* Video */}
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="video"
+                      checked={Boolean(watch("isVideo"))}
+                      onCheckedChange={(checked) => {
+                        setValue("isVideo", Boolean(checked));
+                        console.log(`Checkbox Video checked:`, checked);
+                        // Uncheck URL if Video is checked
+                        if (checked) {
+                          setValue("isUrl", false);
+                        }
+                      }}
+                    />
+                    <Label htmlFor="video">Video</Label>
+                  </div>
+
+                  {/* PDF */}
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="pdf"
+                      checked={Boolean(watch("isPdf"))}
+                      onCheckedChange={(checked) => {
+                        setValue("isPdf", Boolean(checked));
+                        console.log(`Checkbox PDF checked:`, checked);
+                        // Uncheck URL if PDF is checked
+                        if (checked) {
+                          setValue("isUrl", false);
+                        }
+                      }}
+                    />
+                    <Label htmlFor="pdf">PDF</Label>
+                  </div>
+
+                  {/* URL */}
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="url"
+                      checked={Boolean(watch("isUrl"))}
+                      onCheckedChange={(checked) => {
+                        setValue("isUrl", Boolean(checked));
+                        console.log(`Checkbox URL checked:`, checked);
+                        // Uncheck other options when URL is checked
+                        if (checked) {
+                          setValue("isAudio", false);
+                          setValue("isVideo", false);
+                          setValue("isPdf", false);
+                        }
+                      }}
+                    />
+                    <Label htmlFor="url">URL</Label>
+                  </div>
                 </div>
+
+                {!watch("isAudio") &&
+                  !watch("isPdf") &&
+                  !watch("isVideo") &&
+                  !watch("isUrl") && (
+                    <p className="text-red-500 text-sm mt-1">
+                      Please select at least one task type
+                    </p>
+                  )}
               </div>
+
+              {/* URL Input (shown only when isUrl is checked) */}
+              {watch("isUrl") && (
+                <div>
+                  <Label htmlFor="url">URL</Label>
+                  <Input
+                    id="url"
+                    type="url"
+                    {...register("url", {
+                      required: "URL is required for URL tasks",
+                    })}
+                    className="mt-1"
+                    placeholder="https://example.com"
+                  />
+                  {errors.url && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.url.message}
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Form Actions */}
               <div className="flex justify-end space-x-2">
-                <Button onClick={() => setSelectedType(null)}>Cancel</Button>
+                <Button
+                  onClick={() => setSelectedType(null)}
+                  className="!bg-tranperant hover:!text-primary/90 hover:!border-primary/90"
+                >
+                  Cancel
+                </Button>
                 <Button
                   type="primary"
                   htmlType="submit"
+                  className="!bg-primary !border-primary hover:!bg-primary/90 hover:!border-primary/90"
                 >
                   Save Task
                 </Button>
@@ -264,7 +354,7 @@ export function AssessmentTasksDrawer({
                 }
               }}
             >
-              {quizzes.map((quiz) => (
+              {quizzes?.map((quiz) => (
                 <Option key={quiz.id} value={quiz.id}>
                   {quiz.name}
                 </Option>
@@ -319,10 +409,20 @@ export function AssessmentTasksDrawer({
               </div>
               <div className="mt-2 text-sm text-gray-500">
                 Due: {task.dueDate} | Allocated Marks:{" "}
-                <span className="font-medium">
-                  {task.allocatedMarks || "50"}
-                </span>
+                <span className="font-medium">{task.allocatedMarks}</span>
               </div>
+              {task.isUrl && task.url && (
+                <div className="mt-1 text-sm">
+                  <a
+                    href={task.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-500 hover:underline"
+                  >
+                    {task.url}
+                  </a>
+                </div>
+              )}
             </div>
           ))}
         </div>

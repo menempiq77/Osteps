@@ -49,9 +49,14 @@ const Sidebar = () => {
     fetchUnreadAnnouncements();
   }, []);
 
-  const handleLogout = () => {
-    dispatch(logout());
-    window.location.href = "/";
+  const handleLogout = async () => {
+    try {
+      await dispatch(logout());
+      window.localStorage.removeItem('persist:root');
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
   };
 
   const navigation = {

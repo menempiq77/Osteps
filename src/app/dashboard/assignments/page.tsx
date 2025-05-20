@@ -4,10 +4,10 @@ import { AppDispatch, RootState } from "@/store/store";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Cross2Icon } from "@radix-ui/react-icons";
 import { Button } from "@/components/ui/button";
-import AddAssigmentForm from "@/components/dashboard/AddTermForm";
+import AddAssigmentForm from "@/components/dashboard/TermForm";
 import { useDispatch } from "react-redux";
 import { addClass } from "@/features/class/classSlice";
-import AssignmentList from "@/components/dashboard/assigmentList";
+import AssignmentList from "@/components/dashboard/TermsList";
 
 export default function page() {
   const dispatch = useDispatch<AppDispatch>();

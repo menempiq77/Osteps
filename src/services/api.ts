@@ -118,6 +118,29 @@ export const deleteClass = async (id: number) => {
   return response.data;
 };
 
+//Terms apis Started
+// fetch Terms
+export const fetchTerm = async (classId: number) => {
+  const response = await api.get(`/get-term/${classId}`);
+  return response.data.data;
+};
+// add Term
+export const addTerm = async (classId: number, termData: { name: string }) => {
+  const response = await api.post('/add-term', { ...termData, class_id: classId });
+  return response.data;
+};
+// edit Term
+export const updateTerm = async (id: number, classId: number, termData: { name: string }) => {
+  const response = await api.post(`/update-term/${id}`, { ...termData, class_id: classId });
+  return response.data;
+};
+// delete Term
+export const deleteTerm = async (id: number) => {
+  const response = await api.post(`/delete-term/${id}`);
+  return response.data;
+};
+
+
 //Teachers apis Started
 // fetch Teachers
 export const fetchTeachers = async () => {
@@ -350,15 +373,42 @@ export const deleteQuize = async (id: number) => {
   return response.data;
 };
 
-//quiz-question apis Started
-// fetch quiz-question
-export const fetchQuizQuestion = async () => {
-  const response = await api.get('/get-quiz-question');
+//Quiz Question apis Started
+// fetch QuizQuestions
+export const fetchQuizQuestions = async (quizId: number) => {
+  const response = await api.get(`/get-quiz-questions/${quizId}`);
   return response.data.data;
 };
-// add quiz-question
-export const addQuizQuestion = async (quizQuestionData: { name: string }) => {
-  const response = await api.post('/add-quiz-question', quizQuestionData);
+// add QuizQuestions
+export const addQuizQuestion = async (quizId: number, quizQuestionData: { name: string }) => {
+  const response = await api.post('/add-quiz-question', { ...quizQuestionData, quiz_id: quizId });
+  return response.data;
+};
+
+// Ask Questions APIs
+// Fetch all Questions
+export const getAllAskQuestions = async () => {
+  const response = await api.get('/get-askQuestions');
+  return response.data.data;
+};
+// Add a new Questions
+export const createAskQuestion = async (questionData: { name: string }) => {
+  const response = await api.post('/askQuestion', questionData);
+  return response.data;
+};
+// Update a Questions
+export const updateAskQuestion = async (id: string, questionData: any) => {
+  const response = await api.post(`/update-askQuestion/${id}`, questionData);
+  return response.data;
+};
+// Delete a Questions
+export const deleteAskQuestion = async (id: number) => {
+  const response = await api.post(`/delete-askQuestion/${id}`);
+  return response.data;
+};
+// Add a new Questions
+export const submitAskQuestion = async (id: string, questionData: any) => {
+  const response = await api.post(`/submitAnswer/${id}`, questionData);
   return response.data;
 };
 
