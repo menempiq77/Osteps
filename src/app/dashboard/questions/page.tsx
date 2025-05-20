@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Card,
   Input,
@@ -14,6 +14,7 @@ import {
 import { UserOutlined, SendOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
+import { fetchClasses, fetchTeachers, fetchYears } from "@/services/api";
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -85,6 +86,56 @@ const AskQuestionPage = () => {
   const [activeQuestion, setActiveQuestion] = useState<string | null>(null);
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [teachers, setTeachers] = useState<any[]>([]);
+  const [years, setYears] = useState([]);
+  const [classes, setClasses] = useState([]);
+  
+  const loadTeachers = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetchTeachers();
+      console.log("Teachers response:", response); 
+      setTeachers(response);
+    } catch (err) {
+      setError("Failed to fetch teachers");
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  const loadYears = async () => {
+    try {
+      const data = await fetchYears();
+      console.log("Years response:", data); 
+      setYears(data);
+      setIsLoading(false);
+    } catch (err) {
+      setError("Failed to load years");
+      setIsLoading(false);
+      console.error(err);
+    }
+  };
+  const loadClasses = async () => {
+    try {
+      setIsLoading(true);
+      const data = await fetchClasses();
+      console.log("Classes response:", data); 
+
+      setClasses(data);
+    } catch (err) {
+      setError("Failed to fetch classes");
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  useEffect(() => {
+    loadYears();
+    loadClasses();
+    loadTeachers();
+  }, []);
 
   const handleQuestionSubmit = () => {
     if (!newQuestion.trim()) {
@@ -147,7 +198,9 @@ const AskQuestionPage = () => {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">{isStudent ? "Ask" : "Answer"} a Question</h1>
+      <h1 className="text-2xl font-bold mb-6">
+        {isStudent ? "Ask" : "Answer"} a Question
+      </h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Student View */}
@@ -160,9 +213,9 @@ const AskQuestionPage = () => {
                   onChange={(val) => setSelectedTeacher(val)}
                   placeholder="Select a teacher"
                 >
-                  {teachersList.map((teacher) => (
-                    <Option key={teacher} value={teacher}>
-                      {teacher}
+                  {teachers.map((teacher) => (
+                    <Option key={teacher.id} value={teacher.id}>
+                      {teacher.teacher_name}
                     </Option>
                   ))}
                 </Select>

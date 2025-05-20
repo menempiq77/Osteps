@@ -1,4 +1,4 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { loginUser } from '@/services/api';
 import { User, AuthState } from './types';
 
@@ -32,7 +32,6 @@ const authSlice = createSlice({
       state.status = 'idle';
       state.error = null;
     },
-    // Optional: Add user to users array if needed
     addUser(state, action: PayloadAction<User>) {
       state.users.push(action.payload);
     },
@@ -45,17 +44,20 @@ const authSlice = createSlice({
       })
       .addCase(login.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.currentUser = {
-          id: action.payload.id.toString(),
-          email: action.payload.email,
-          role: action.payload.role,
-          schoolId: action.payload.schoolId,
-          token: action.payload.token,
-          name: action.payload.name,
-        };
-        state.token = action.payload.token;
+        const { id, email, role, token, name, school } = action.payload;
         
-        if (!state.users.some(user => user.id === action.payload.id.toString())) {
+        state.currentUser = {
+          id: id.toString(),
+          email,
+          role,
+          school: school?.id || null,  // Handle both object and null cases
+          token,
+          name,
+        };
+        state.token = token;
+        
+        // Add to users array if not already present
+        if (!state.users.some(user => user.id === id.toString())) {
           state.users.push(state.currentUser);
         }
       })

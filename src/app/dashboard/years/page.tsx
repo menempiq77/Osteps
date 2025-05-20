@@ -53,7 +53,7 @@ export default function Page() {
   const handleSubmitYear = async (data: { name: string }) => {
     try {
       const yearData = currentUser?.role === "SCHOOL_ADMIN" 
-        ? { ...data, school_id: currentUser?.id }
+        ? { ...data, school_id: currentUser?.school }
         : data;
   
       if (currentYear) {
