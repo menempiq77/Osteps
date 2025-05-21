@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Select,
   SelectTrigger,
@@ -7,14 +7,12 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import {
-  EditOutlined,
-  DeleteOutlined,
-} from "@ant-design/icons";
+import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import { AssessmentTasksDrawer } from "../ui/AssessmentTasksDrawer";
 import { useParams, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
+import { fetchTasks } from "@/services/api";
 
 interface Task {
   id: number;
@@ -24,6 +22,8 @@ interface Task {
   isPdf: boolean;
   isUrl: boolean;
   dueDate: string;
+  allocatedMarks: number;
+  url?: string;
 }
 
 interface Assessment {
@@ -36,13 +36,14 @@ interface AssessmentListProps {
   assessments: Assessment[];
   onDeleteAssessment: (id: string) => void;
   onEditAssessment?: (id: string, newName: string) => void;
+  quizzes: any[];
 }
 
 export default function AssessmentList({
   assessments,
   onDeleteAssessment,
   onEditAssessment,
-  quizzes
+  quizzes,
 }: AssessmentListProps) {
   const router = useRouter();
   const { classId } = useParams();
@@ -52,44 +53,27 @@ export default function AssessmentList({
   const [selectedAssessment, setSelectedAssessment] = useState<string | null>(
     null
   );
-  const [tasks, setTasks] = useState<Task[]>([
-    {
-      id: 1,
-      name: "Memorisation",
-      isAudio: true,
-      isVideo: false,
-      isPdf: false,
-      isUrl: false,
-      dueDate: "2023-05-15",
-    },
-    {
-      id: 2,
-      name: "Extraction & Summarization",
-      isAudio: false,
-      isVideo: false,
-      isUrl: false,
-      isPdf: true,
-      dueDate: "2023-05-20",
-    },
-    {
-      id: 3,
-      name: "Recitation",
-      isAudio: true,
-      isVideo: false,
-      isPdf: false,
-      isUrl: false,
-      dueDate: "2023-05-25",
-    },
-    {
-      id: 4,
-      name: "Tajweed",
-      isAudio: false,
-      isVideo: true,
-      isPdf: false,
-      isUrl: false,
-      dueDate: "2023-05-25",
-    },
-  ]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (drawerVisible && selectedAssessment) {
+      loadTasks();
+    }
+  }, [drawerVisible, selectedAssessment]);
+
+  const loadTasks = async () => {
+    try {
+      setLoading(true);
+      if (!selectedAssessment) return;
+      const fetchedTasks = await fetchTasks(selectedAssessment);
+      setTasks(fetchedTasks);
+    } catch (error) {
+      console.error("Error loading tasks:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const canUpload =
     currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "TEACHER";
@@ -99,7 +83,6 @@ export default function AssessmentList({
     type: "assessment" | "quiz"
   ) => {
     if (type === "quiz") {
-      // Navigate to quiz page
       router.push(
         `/dashboard/classes/${classId}/terms/${assignmentId}/quiz/${assignmentId}`
       );
@@ -112,12 +95,12 @@ export default function AssessmentList({
   const onCloseDrawer = () => {
     setDrawerVisible(false);
     setSelectedAssessment(null);
+    setTasks([]);
   };
 
   const handleTasksChange = (updatedTasks: Task[]) => {
     setTasks(updatedTasks);
   };
-
   return (
     <div className="mt-8 bg-white rounded-lg shadow-md overflow-hidden">
       <div className="flex items-center justify-between p-4 border-b">
@@ -187,7 +170,7 @@ export default function AssessmentList({
                         <EditOutlined />
                       </button>
                       <button
-                       onClick={() => onDeleteAssessment(assignment.id)}
+                        onClick={() => onDeleteAssessment(assignment.id)}
                         className="text-red-500 hover:text-red-700 cursor-pointer"
                       >
                         <DeleteOutlined />
@@ -200,7 +183,6 @@ export default function AssessmentList({
           </tbody>
         </table>
       </div>
-
       <AssessmentTasksDrawer
         visible={drawerVisible}
         onClose={onCloseDrawer}
@@ -208,9 +190,11 @@ export default function AssessmentList({
           assessments.find((a) => a.id === selectedAssessment)?.name ||
           "Assignment"
         }
-        initialTasks={tasks}
+        assessmentId={selectedAssessment ? parseInt(selectedAssessment) : 0}
+          initialTasks={Array.isArray(tasks) ? tasks : []}
         onTasksChange={handleTasksChange}
         quizzes={quizzes}
+        loading={loading}
       />
     </div>
   );
