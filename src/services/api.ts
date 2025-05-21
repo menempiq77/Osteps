@@ -147,6 +147,11 @@ export const fetchTeachers = async () => {
   const response = await api.get('/get-teacher');
   return response.data.data;
 };
+// fetch TeachersByStudent
+export const fetchTeachersByStudent = async () => {
+  const response = await api.get('/getspecTeachers');
+  return response.data.data;
+};
 // add Teacher
 export const addTeacher = async (teacherData: { name: string }) => {
   const response = await api.post('/add-teacher', teacherData);
@@ -351,6 +356,28 @@ export const deleteAssessment = async (id: number) => {
   return response.data;
 };
 
+//Tasks apis Started
+// fetch Tasks
+export const fetchTasks = async (assessmentId: number) => {
+  const response = await api.get(`/get-tasks/${assessmentId}`);
+  return response.data.data;
+};
+// add Task
+export const addTask = async (taskData: { name: string }) => {
+  const response = await api.post('/add-task', taskData);
+  return response.data;
+};
+// edit Task
+export const updateTask = async (id: string, taskData: any) => {
+  const response = await api.post(`/update-task/${id}`, taskData);
+  return response.data;
+};
+// delete Task
+export const deleteTask = async (id: number) => {
+  const response = await api.post(`/delete-task/${id}`);
+  return response.data;
+};
+
 //quiz apis Started
 // fetch quizes
 export const fetchQuizes = async () => {
@@ -382,6 +409,11 @@ export const fetchQuizQuestions = async (quizId: number) => {
 // add QuizQuestions
 export const addQuizQuestion = async (quizId: number, quizQuestionData: { name: string }) => {
   const response = await api.post('/add-quiz-question', { ...quizQuestionData, quiz_id: quizId });
+  return response.data;
+};
+// delete QuizQuestions
+export const deleteQuizQuestion = async (id: number) => {
+  const response = await api.post(`/delete-quiz-question/${id}`);
   return response.data;
 };
 

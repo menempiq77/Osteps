@@ -1,5 +1,5 @@
 "use client";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
 interface Term {
   id: number;
@@ -14,9 +14,11 @@ interface TermsListProps {
 
 export default function TermsList({ terms, onEdit, onDelete }: TermsListProps) {
   const router = useRouter();
+  const params = useParams();
+  const classId = Number(params.classId);
 
   const handleTermClick = (termId: number) => {
-    router.push(`/dashboard/terms/${termId}`);
+    router.push(`/dashboard/classes/${classId}/terms/${termId}`);
   };
 
   return (

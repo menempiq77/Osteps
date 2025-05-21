@@ -14,20 +14,31 @@ import {
 import { UserOutlined, SendOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { fetchClasses, fetchTeachers, fetchYears } from "@/services/api";
+import { fetchClasses, fetchTeachersByStudent, fetchYears } from "@/services/api";
+import { 
+  getAllAskQuestions,
+  createAskQuestion,
+  updateAskQuestion,
+  deleteAskQuestion,
+  submitAskQuestion
+} from "@/services/api";
 
 const { TextArea } = Input;
 const { Option } = Select;
 
 type Question = {
-  id: string;
-  content: string;
-  studentName: string;
-  teacherName: string;
-  year: string;
-  class: string;
-  createdAt: string;
-  answers: Answer[];
+  id: number;
+  student_id: number;
+  teacher_id: number;
+  question: string;
+  answer: string;
+  created_at: string;
+  updated_at: string;
+  studentName?: string;
+  teacherName?: string;
+  year?: string;
+  class?: string;
+  answers?: Answer[];
 };
 
 type Answer = {
@@ -37,49 +48,13 @@ type Answer = {
   createdAt: string;
 };
 
-const teachersList = ["Mr. Smith", "Ms. Johnson", "Mrs. Lee"];
-const yearOptions = ["Year 1", "Year 2", "Year 3"];
-const classOptions = ["Class A", "Class B", "Class C"];
-
 const AskQuestionPage = () => {
   const { currentUser } = useSelector((state: RootState) => state.auth);
 
   const isStudent = currentUser?.role === "STUDENT";
   const isTeacher = currentUser?.role === "TEACHER";
 
-  const [questions, setQuestions] = useState<Question[]>([
-    {
-      id: "1",
-      content:
-        "How do I solve this math problem? The equation is x² + 2x - 3 = 0.",
-      studentName: "John Doe",
-      teacherName: "Mr. Smith",
-      year: "Year 1",
-      class: "Class A",
-      createdAt: "2023-05-15T10:30:00",
-      answers: [
-        {
-          id: "1-1",
-          content:
-            "You can solve this quadratic equation using the quadratic formula or by factoring.",
-          teacherName: "Mr. Smith",
-          createdAt: "2023-05-15T11:45:00",
-        },
-      ],
-    },
-    {
-      id: "2",
-      content:
-        "I need help understanding Shakespeare's Hamlet, specifically Act 3 Scene 1.",
-      studentName: "Jane Smith",
-      teacherName: "Ms. Johnson",
-      year: "Year 2",
-      class: "Class B",
-      createdAt: "2023-05-16T09:15:00",
-      answers: [],
-    },
-  ]);
-
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [newQuestion, setNewQuestion] = useState("");
   const [selectedTeacher, setSelectedTeacher] = useState("");
   const [newAnswers, setNewAnswers] = useState<Record<string, string>>({});
@@ -92,10 +67,40 @@ const AskQuestionPage = () => {
   const [years, setYears] = useState([]);
   const [classes, setClasses] = useState([]);
   
+  const loadQuestions = async () => {
+    try {
+      setIsLoading(true);
+      const response = await getAllAskQuestions();
+      // Transform the API response to match our frontend structure
+      const transformedQuestions = response.map((q: any) => ({
+        ...q,
+        id: q.id,
+        content: q.question,
+        studentName: `Student ${q.student_id}`,
+        teacherName: `Teacher ${q.teacher_id}`,
+        year: "Year 1", // Can be fetched from API if available
+        class: "Class A", // Can be fetched from API if available
+        createdAt: q.created_at,
+        answers: q.answer ? [{
+          id: `answer-${q.id}`,
+          content: q.answer,
+          teacherName: `Teacher ${q.teacher_id}`,
+          createdAt: q.updated_at
+        }] : []
+      }));
+      setQuestions(transformedQuestions);
+    } catch (err) {
+      setError("Failed to fetch questions");
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const loadTeachers = async () => {
     try {
       setIsLoading(true);
-      const response = await fetchTeachers();
+      const response = await fetchTeachersByStudent();
       console.log("Teachers response:", response); 
       setTeachers(response);
     } catch (err) {
@@ -105,6 +110,7 @@ const AskQuestionPage = () => {
       setIsLoading(false);
     }
   };
+  
   const loadYears = async () => {
     try {
       const data = await fetchYears();
@@ -117,12 +123,12 @@ const AskQuestionPage = () => {
       console.error(err);
     }
   };
+  
   const loadClasses = async () => {
     try {
       setIsLoading(true);
       const data = await fetchClasses();
       console.log("Classes response:", data); 
-
       setClasses(data);
     } catch (err) {
       setError("Failed to fetch classes");
@@ -131,13 +137,15 @@ const AskQuestionPage = () => {
       setIsLoading(false);
     }
   };
+
   useEffect(() => {
     loadYears();
     loadClasses();
     loadTeachers();
+    loadQuestions();
   }, []);
 
-  const handleQuestionSubmit = () => {
+  const handleQuestionSubmit = async () => {
     if (!newQuestion.trim()) {
       message.warning("Please enter a question");
       return;
@@ -148,44 +156,73 @@ const AskQuestionPage = () => {
       return;
     }
 
-    const question: Question = {
-      id: Date.now().toString(),
-      content: newQuestion,
-      studentName: currentUser?.name || "Current Student",
-      teacherName: selectedTeacher,
-      year: "2025", // Can be dynamic if needed
-      class: "Class A", // Can be dynamic if needed
-      createdAt: new Date().toISOString(),
-      answers: [],
-    };
+    try {
+      const questionData = {
+        student_id: Number(currentUser?.id),
+        teacher_id: selectedTeacher,
+        question: newQuestion,
+        answer: ""
+      };
 
-    setQuestions([question, ...questions]);
-    setNewQuestion("");
-    setSelectedTeacher("");
-    message.success("Question submitted successfully");
+      const response = await createAskQuestion(questionData);
+      
+      // Transform the new question to match our frontend structure
+      const newQuestionItem: Question = {
+        ...response.data,
+        id: response.data.id,
+        content: response.data.question,
+        studentName: currentUser?.name || `Student ${response.data.student_id}`,
+        teacherName: `Teacher ${response.data.teacher_id}`,
+        year: "2025",
+        class: "Class A",
+        createdAt: response.data.created_at,
+        answers: []
+      };
+
+      setQuestions([newQuestionItem, ...questions]);
+      setNewQuestion("");
+      setSelectedTeacher("");
+      message.success("Question submitted successfully");
+    } catch (err) {
+      message.error("Failed to submit question");
+      console.error(err);
+    }
   };
 
-  const handleAnswerSubmit = (questionId: string) => {
+  const handleAnswerSubmit = async (questionId: string) => {
     const answerText = newAnswers[questionId];
     if (!answerText?.trim()) {
       message.warning("Please enter an answer");
       return;
     }
 
-    const answer: Answer = {
-      id: `${questionId}-${Date.now()}`,
-      content: answerText,
-      teacherName: currentUser?.name || "Teacher",
-      createdAt: new Date().toISOString(),
-    };
+    try {
+      const response = await submitAskQuestion(questionId, {
+        answer: answerText
+      });
 
-    setQuestions(
-      questions.map((q) =>
-        q.id === questionId ? { ...q, answers: [...q.answers, answer] } : q
-      )
-    );
-    setNewAnswers({ ...newAnswers, [questionId]: "" });
-    message.success("Answer submitted successfully");
+      // Update the question with the new answer
+      setQuestions(
+        questions.map((q) =>
+          q.id.toString() === questionId ? { 
+            ...q, 
+            answer: answerText,
+            answers: [{
+              id: `answer-${Date.now()}`,
+              content: answerText,
+              teacherName: currentUser?.name || "Teacher",
+              createdAt: new Date().toISOString()
+            }]
+          } : q
+        )
+      );
+      
+      setNewAnswers({ ...newAnswers, [questionId]: "" });
+      message.success("Answer submitted successfully");
+    } catch (err) {
+      message.error("Failed to submit answer");
+      console.error(err);
+    }
   };
 
   const filteredQuestions = isTeacher
@@ -232,6 +269,7 @@ const AskQuestionPage = () => {
                 type="primary"
                 icon={<SendOutlined />}
                 onClick={handleQuestionSubmit}
+                className=" !bg-primary hover:bg-green-600 !text-white"
               >
                 Submit Question
               </Button>
@@ -250,9 +288,9 @@ const AskQuestionPage = () => {
                   allowClear
                   placeholder="Select year"
                 >
-                  {yearOptions.map((year) => (
-                    <Option key={year} value={year}>
-                      {year}
+                  {years?.map((year) => (
+                    <Option key={year.id} value={year.id}>
+                      {year.name}
                     </Option>
                   ))}
                 </Select>
@@ -264,9 +302,9 @@ const AskQuestionPage = () => {
                   allowClear
                   placeholder="Select class"
                 >
-                  {classOptions.map((cls) => (
-                    <Option key={cls} value={cls}>
-                      {cls}
+                  {classes?.map((cls) => (
+                    <Option key={cls.id} value={cls.id}>
+                      {cls.class_name}
                     </Option>
                   ))}
                 </Select>
@@ -296,6 +334,7 @@ const AskQuestionPage = () => {
                 type="primary"
                 icon={<SendOutlined />}
                 onClick={() => handleAnswerSubmit(activeQuestion)}
+                className="!bg-primary hover:bg-green-600 !text-white"
               >
                 Submit Answer
               </Button>
@@ -312,13 +351,14 @@ const AskQuestionPage = () => {
         itemLayout="vertical"
         size="large"
         dataSource={filteredQuestions}
+        loading={isLoading}
         renderItem={(question) => (
           <Card
             key={question.id}
             className={`mb-4 cursor-pointer transition-all ${
-              activeQuestion === question.id ? "border-blue-500 border-2" : ""
+              activeQuestion === question.id.toString() ? "border-blue-500 border-2" : ""
             }`}
-            onClick={() => setActiveQuestion(question.id)}
+            onClick={() => setActiveQuestion(question.id.toString())}
           >
             <div className="flex items-start gap-2">
               <Avatar icon={<UserOutlined />} className="mr-3 bg-blue-500" />
@@ -332,42 +372,35 @@ const AskQuestionPage = () => {
                     </p>
                   </div>
                   <span className="text-gray-500 text-sm">
-                    {new Date(question.createdAt).toLocaleString()}
+                    {new Date(question.created_at).toLocaleString()}
                   </span>
                 </div>
-                <p className="mt-1 mb-3">{question.content}</p>
+                <p className="mt-1 mb-3">{question.question}</p>
 
                 {/* Answers */}
-                {question.answers.length > 0 && (
+                {question.answer ? (
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <h4 className="font-medium mb-2">Answers:</h4>
-                    {question.answers.map((answer) => (
-                      <div
-                        key={answer.id}
-                        className="mb-3 pl-4 border-l-2 border-blue-200"
-                      >
-                        <div className="flex justify-between items-start gap-2">
-                          <div className="flex items-center gap-2">
-                            <Avatar
-                              icon={<UserOutlined />}
-                              className="mr-2 bg-green-500"
-                              size="small"
-                            />
-                            <span className="font-medium">
-                              {answer.teacherName}
-                            </span>
-                          </div>
-                          <span className="text-gray-500 text-sm">
-                            {new Date(answer.createdAt).toLocaleString()}
+                    <div className="mb-3 pl-4 border-l-2 border-blue-200">
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="flex items-center gap-2">
+                          <Avatar
+                            icon={<UserOutlined />}
+                            className="mr-2 bg-green-500"
+                            size="small"
+                          />
+                          <span className="font-medium">
+                            {question.teacherName}
                           </span>
                         </div>
-                        <p className="mt-1 ml-8">{answer.content}</p>
+                        <span className="text-gray-500 text-sm">
+                          {new Date(question.updated_at).toLocaleString()}
+                        </span>
                       </div>
-                    ))}
+                      <p className="mt-1 ml-8">{question.answer}</p>
+                    </div>
                   </div>
-                )}
-
-                {question.answers.length === 0 && (
+                ) : (
                   <p className="text-gray-500 italic">No answers yet</p>
                 )}
               </div>

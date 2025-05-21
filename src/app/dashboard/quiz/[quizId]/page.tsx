@@ -13,12 +13,14 @@ import {
   Radio,
   message,
   Skeleton,
+  Modal,
 } from "antd";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import {
   fetchQuizQuestions,
   addQuizQuestion,
+  deleteQuizQuestion,
 } from "@/services/api";
 
 interface Option {
@@ -79,14 +81,13 @@ export default function QuranQuizPage() {
   const [loading, setLoading] = useState(false);
   const [quizData, setQuizData] = useState<Quiz | null>(null);
   const [optionCount, setOptionCount] = useState(3);
-
-  console.log(quizData, "quiz_queston")
-  console.log(quizId, "quizId")
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [questionToDelete, setQuestionToDelete] = useState<number | null>(null);
 
   const canUpload =
     currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "TEACHER";
 
-  useEffect(() => { 
+  useEffect(() => {
     const loadQuizQuestions = async () => {
       try {
         setLoading(true);
@@ -102,13 +103,43 @@ export default function QuranQuizPage() {
     loadQuizQuestions();
   }, [quizId]);
 
-  const deleteQuiz = (questionId: number) => {
-    // TODO: Add API call to delete from backend
-    setQuizData(prev => prev ? {
-      ...prev,
-      quiz_queston: prev.quiz_queston.filter(q => q.id !== questionId)
-    } : null);
-    message.success("Question deleted (Note: Add delete API integration)");
+  const showDeleteModal = (questionId: number) => {
+    setQuestionToDelete(questionId);
+    setDeleteModalVisible(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!questionToDelete) return;
+
+    try {
+      setLoading(true);
+      await deleteQuizQuestion(questionToDelete);
+
+      setQuizData((prev) =>
+        prev
+          ? {
+              ...prev,
+              quiz_queston: prev.quiz_queston.filter(
+                (q) => q.id !== questionToDelete
+              ),
+            }
+          : null
+      );
+
+      message.success("Question deleted successfully");
+    } catch (error) {
+      message.error("Failed to delete question");
+      console.error("Error deleting question:", error);
+    } finally {
+      setLoading(false);
+      setDeleteModalVisible(false);
+      setQuestionToDelete(null);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteModalVisible(false);
+    setQuestionToDelete(null);
   };
 
   const toggleAddQuestion = () => {
@@ -121,12 +152,12 @@ export default function QuranQuizPage() {
   };
 
   const addOption = () => {
-    setOptionCount(prev => prev + 1);
+    setOptionCount((prev) => prev + 1);
   };
 
   const removeOption = () => {
     if (optionCount > 1) {
-      setOptionCount(prev => prev - 1);
+      setOptionCount((prev) => prev - 1);
       const values = quizForm.getFieldsValue();
       delete values[`option${optionCount}`];
       quizForm.setFieldsValue(values);
@@ -137,10 +168,10 @@ export default function QuranQuizPage() {
     try {
       await quizForm.validateFields();
       const values = quizForm.getFieldsValue();
-      
+
       let options: string[] = [];
       let correctAnswer: number | null = null;
-      
+
       if (["multiple_choice", "checkbox", "dropdown"].includes(values.type)) {
         // Collect all options that have values
         for (let i = 1; i <= optionCount; i++) {
@@ -165,11 +196,11 @@ export default function QuranQuizPage() {
       };
 
       const response = await addQuizQuestion(Number(quizId), questionData);
-      
+
       // Update local state with the new question
-      setQuizData(prev => {
+      setQuizData((prev) => {
         if (!prev) return null;
-        
+
         const newQuestion: QuizQuestion = {
           id: response.id,
           quiz_id: Number(quizId),
@@ -186,7 +217,7 @@ export default function QuranQuizPage() {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         };
-        
+
         return {
           ...prev,
           quiz_queston: [...prev.quiz_queston, newQuestion],
@@ -207,17 +238,24 @@ export default function QuranQuizPage() {
     if (question.type === "true_false") {
       return question.correct_answer === 1 ? "True" : "False";
     }
-    
+
     if (question.type === "multiple_choice" || question.type === "dropdown") {
-      const correctOption = question.options.find(opt => opt.is_correct === 1);
+      const correctOption = question.options.find(
+        (opt) => opt.is_correct === 1
+      );
       return correctOption ? correctOption.option_text : "Not specified";
     }
-    
+
     if (question.type === "checkbox") {
-      const correctOptions = question.options.filter(opt => opt.is_correct === 1);
-      return correctOptions.map(opt => opt.option_text).join(", ") || "Not specified";
+      const correctOptions = question.options.filter(
+        (opt) => opt.is_correct === 1
+      );
+      return (
+        correctOptions.map((opt) => opt.option_text).join(", ") ||
+        "Not specified"
+      );
     }
-    
+
     return question.correct_answer?.toString() || "Not specified";
   };
 
@@ -263,16 +301,23 @@ export default function QuranQuizPage() {
                   label="Question Type"
                   initialValue="short_answer"
                   rules={[
-                    { required: true, message: "Please select a question type" },
+                    {
+                      required: true,
+                      message: "Please select a question type",
+                    },
                   ]}
                 >
                   <Select
                     placeholder="Select question type"
                     onChange={(val) => setQuizType(val)}
                   >
-                    <Select.Option value="short_answer">Short Answer</Select.Option>
+                    <Select.Option value="short_answer">
+                      Short Answer
+                    </Select.Option>
                     <Select.Option value="paragraph">Paragraph</Select.Option>
-                    <Select.Option value="multiple_choice">Multiple Choice</Select.Option>
+                    <Select.Option value="multiple_choice">
+                      Multiple Choice
+                    </Select.Option>
                     <Select.Option value="checkbox">Checkboxes</Select.Option>
                     <Select.Option value="dropdown">Dropdown</Select.Option>
                     <Select.Option value="true_false">True/False</Select.Option>
@@ -309,7 +354,9 @@ export default function QuranQuizPage() {
                   </Form.Item>
                 )}
 
-                {["multiple_choice", "checkbox", "dropdown"].includes(quizType) && (
+                {["multiple_choice", "checkbox", "dropdown"].includes(
+                  quizType
+                ) && (
                   <>
                     <Divider orientation="left">Options</Divider>
 
@@ -348,7 +395,7 @@ export default function QuranQuizPage() {
                                   }
 
                                   quizForm.setFieldsValue(updatedValues);
-                                  setOptionCount(prev => prev - 1);
+                                  setOptionCount((prev) => prev - 1);
                                 }}
                                 className="opacity-70 hover:opacity-100"
                               />
@@ -388,32 +435,33 @@ export default function QuranQuizPage() {
                         },
                       ]}
                     >
-                      {quizType === "multiple_choice" || quizType === "dropdown" ? (
+                      {quizType === "multiple_choice" ||
+                      quizType === "dropdown" ? (
                         <Radio.Group>
                           <Space direction="vertical">
-                            {Array.from({ length: optionCount }).map((_, index) => (
-                              <Radio
-                                key={index}
-                                value={index}
-                              >
-                                {quizForm.getFieldValue(`option${index + 1}`) ||
-                                  `Option ${index + 1}`}
-                              </Radio>
-                            ))}
+                            {Array.from({ length: optionCount }).map(
+                              (_, index) => (
+                                <Radio key={index} value={index}>
+                                  {quizForm.getFieldValue(
+                                    `option${index + 1}`
+                                  ) || `Option ${index + 1}`}
+                                </Radio>
+                              )
+                            )}
                           </Space>
                         </Radio.Group>
                       ) : quizType === "checkbox" ? (
                         <Checkbox.Group>
                           <Space direction="vertical">
-                            {Array.from({ length: optionCount }).map((_, index) => (
-                              <Checkbox
-                                key={index}
-                                value={index}
-                              >
-                                {quizForm.getFieldValue(`option${index + 1}`) ||
-                                  `Option ${index + 1}`}
-                              </Checkbox>
-                            ))}
+                            {Array.from({ length: optionCount }).map(
+                              (_, index) => (
+                                <Checkbox key={index} value={index}>
+                                  {quizForm.getFieldValue(
+                                    `option${index + 1}`
+                                  ) || `Option ${index + 1}`}
+                                </Checkbox>
+                              )
+                            )}
                           </Space>
                         </Checkbox.Group>
                       ) : null}
@@ -449,10 +497,11 @@ export default function QuranQuizPage() {
                     </div>
                     {canUpload && (
                       <Button
-                        onClick={() => deleteQuiz(question.id)}
+                        onClick={() => showDeleteModal(question.id)}
                         size="small"
                         danger
                         icon={<Trash2 size={14} />}
+                        loading={loading}
                       />
                     )}
                   </div>
@@ -525,7 +574,8 @@ export default function QuranQuizPage() {
 
                   {canUpload && (
                     <div className="mt-3 text-xs text-gray-500">
-                      <strong>Correct Answer:</strong> {getCorrectAnswerText(question)}
+                      <strong>Correct Answer:</strong>{" "}
+                      {getCorrectAnswerText(question)}
                     </div>
                   )}
 
@@ -538,6 +588,18 @@ export default function QuranQuizPage() {
           </div>
         </div>
       )}
+
+      <Modal
+        title="Delete Question"
+        visible={deleteModalVisible}
+        onOk={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+        okText="Delete"
+        okType="danger"
+        cancelText="Cancel"
+      >
+        <p>Are you sure you want to delete this question?</p>
+      </Modal>
     </div>
   );
 }
