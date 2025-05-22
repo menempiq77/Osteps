@@ -280,10 +280,10 @@ export default function QuranTrackerAdminPage() {
       <div className="flex flex-col md:flex-row justify-between items-center mb-8">
         <Button
           onClick={() => router.back()}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+          className="flex items-center gap-2 text-gray-600 hover:!border-green-500  hover:!text-green-500"
         >
           <ArrowLeft size={18} />
-          Back to Dashboard
+          Back to Trackers
         </Button>
 
         <div className="flex gap-4">
@@ -415,29 +415,29 @@ export default function QuranTrackerAdminPage() {
                 >
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="p-4 text-left border text-sm font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="p-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
                         Topics
                       </th>
-                      <th className="p-4 text-center border text-sm font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="p-4 text-center text-sm font-medium text-gray-500 uppercase tracking-wider">
                         <div className="flex items-center justify-center gap-1">
                           <BookOpen size={16} className="text-green-500" />
                           <span>Read</span>
                         </div>
                       </th>
-                      <th className="p-4 text-center border text-sm font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="p-4 text-center text-sm font-medium text-gray-500 uppercase tracking-wider">
                         <div className="flex items-center justify-center gap-1">
                           <BrainCircuit size={16} className="text-blue-500" />
                           <span>Memorized</span>
                         </div>
                       </th>
-                      <th className="p-4 text-center border text-sm font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="p-4 text-center text-sm font-medium text-gray-500 uppercase tracking-wider">
                         <div className="flex items-center justify-center gap-1">
                           <Languages size={16} className="text-purple-500" />
                           <span>Tafsir</span>
                         </div>
                       </th>
 
-                      <th className="p-4 text-center border text-sm font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="p-4 text-center text-sm font-medium text-gray-500 uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
@@ -470,7 +470,7 @@ export default function QuranTrackerAdminPage() {
                                   : undefined
                               }
                             >
-                              <td className="p-4 border whitespace-nowrap">
+                              <td className="p-4 whitespace-nowrap">
                                 <div className="flex items-center">
                                   {canUpload && (
                                     <div
@@ -532,7 +532,7 @@ export default function QuranTrackerAdminPage() {
                                   )}
                                 </div>
                               </td>
-                              <td className="p-4 border whitespace-nowrap text-center">
+                              <td className="p-4 whitespace-nowrap text-center">
                                 {chapter.type !== "quiz" && (
                                   <input
                                     type="checkbox"
@@ -548,7 +548,7 @@ export default function QuranTrackerAdminPage() {
                                   />
                                 )}
                               </td>
-                              <td className="p-4 border whitespace-nowrap text-center">
+                              <td className="p-4 whitespace-nowrap text-center">
                                 {chapter.type !== "quiz" && (
                                   <input
                                     type="checkbox"
@@ -564,7 +564,7 @@ export default function QuranTrackerAdminPage() {
                                   />
                                 )}
                               </td>
-                              <td className="p-4 border whitespace-nowrap text-center">
+                              <td className="p-4 whitespace-nowrap text-center">
                                 {chapter.type !== "quiz" && (
                                   <input
                                     type="checkbox"
@@ -580,7 +580,7 @@ export default function QuranTrackerAdminPage() {
                                   />
                                 )}
                               </td>
-                              <td className="p-4 border whitespace-nowrap text-center">
+                              <td className="p-4 whitespace-nowrap text-center">
                                 {canUpload && (
                                   <>
                                     {editingChapter === chapter.number ? (

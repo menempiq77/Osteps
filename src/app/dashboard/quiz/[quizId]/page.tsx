@@ -260,14 +260,14 @@ export default function QuranQuizPage() {
   };
 
   return (
-    <div className="p-3 md:p-6 max-w-5xl mx-auto bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
+    <div className="p-3 md:p-6 max-w-5xl mx-auto min-h-screen">
       <div className="mb-8">
         <Button
           onClick={() => router.back()}
           className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
         >
           <ArrowLeft size={18} />
-          Back to Tracker
+          Back to Quizzes
         </Button>
       </div>
 
@@ -287,6 +287,7 @@ export default function QuranQuizPage() {
                 onClick={toggleAddQuestion}
                 icon={showAddQuestion ? <X size={16} /> : <Plus size={16} />}
                 loading={loading}
+                className="!bg-primary !border-primary hover:!bg-primary hover:!border-primary"
               >
                 {showAddQuestion ? "Cancel" : "Add Question"}
               </Button>
@@ -471,7 +472,7 @@ export default function QuranQuizPage() {
 
                 <div className="flex justify-end gap-2 mt-4">
                   <Button onClick={toggleAddQuestion}>Cancel</Button>
-                  <Button type="primary" onClick={handleAddQuestion}>
+                  <Button type="primary" onClick={handleAddQuestion} className="!bg-primary !border-primary hover:!bg-primary hover:!border-primary">
                     Add Question
                   </Button>
                 </div>
