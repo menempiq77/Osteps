@@ -16,8 +16,8 @@ import {
   deleteTracker as deleteTrackerAPI,
 } from "@/services/api";
 import { Alert, Spin } from "antd";
+import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 
-// Types
 type Tracker = {
   id: string;
   class_id: number;
@@ -33,10 +33,6 @@ type TrackerBasic = {
   type: string;
   status: string;
   progress: string[];
-};
-
-type TrackerListProps = {
-  classId: string;
 };
 
 export default function TrackerList() {
@@ -171,7 +167,7 @@ export default function TrackerList() {
     );
 
   return (
-    <>
+    <div className="overflow-auto h-screen">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Trackers</h1>
         <div className="flex items-center gap-2">
@@ -200,39 +196,45 @@ export default function TrackerList() {
         </div>
       </div>
 
-      <div className="mt-8 bg-white rounded-lg shadow-md overflow-hidden">
-        <h3 className="text-lg font-semibold p-4 border-b">Current Trackers</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Tracker Name
+      <div className="relative overflow-auto">
+        <div className="overflow-x-auto rounded-lg">
+          <table className="min-w-full bg-white border border-gray-300 mb-20">
+            <thead>
+              <tr className="bg-primary text-center text-xs md:text-sm font-thin text-white">
+                <th className="p-0">
+                  <span className="block py-2 px-3 border-r border-gray-300">
+                    Tracker Name
+                  </span>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Last Updated
+                <th className="p-0">
+                  <span className="block py-2 px-3 border-r border-gray-300">
+                    Last Updated
+                  </span>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Status
+                <th className="p-0">
+                  <span className="block py-2 px-3 border-r border-gray-300">
+                    Status
+                  </span>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Actions
-                </th>
+                {currentUser?.role !== "STUDENT" && (
+                  <th className="p-4 text-xs md:text-sm">Actions</th>
+                )}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody>
               {trackers.map((tracker) => (
-                <tr key={tracker.id}>
+                <tr
+                  key={tracker.id}
+                  className="border-b border-gray-300 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
+                >
                   <td
                     onClick={() => handleTrackerClick(tracker.id, tracker.type)}
-                    className="px-6 py-4 whitespace-nowrap cursor-pointer hover:underline text-blue-600 hover:text-blue-800"
+                    className="p-2 md:p-4 cursor-pointer hover:underline text-green-600 hover:text-green-800 font-medium"
                   >
                     {tracker.name}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {tracker.lastUpdated}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="p-2 md:p-4">{tracker.lastUpdated}</td>
+                  <td className="p-2 md:p-4">
                     <span
                       className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
                         tracker.status
@@ -241,88 +243,79 @@ export default function TrackerList() {
                       {tracker.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex space-x-2">
-                      {currentUser?.role !== "STUDENT" && (
-                        <>
-                          <Dialog.Root>
-                            <Dialog.Trigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                title="Edit"
-                                onClick={() => setEditTracker(tracker)}
-                                className="cursor-pointer"
-                              >
-                                <Pencil2Icon className="h-4 w-4" />
-                              </Button>
-                            </Dialog.Trigger>
-                            {editTracker?.id === tracker.id && (
-                              <EditTrackerModal
-                                tracker={editTracker}
-                                isOpen={!!editTracker}
-                                onOpenChange={(open) =>
-                                  !open && setEditTracker(null)
-                                }
-                                onSave={handleSaveEdit}
-                              />
-                            )}
-                          </Dialog.Root>
+                  {currentUser?.role !== "STUDENT" && (
+                    <td className="relative p-2 md:p-4 flex justify-center space-x-3">
+                      <Dialog.Root>
+                        <Dialog.Trigger asChild>
+                          <button
+                            onClick={() => setEditTracker(tracker)}
+                            className="text-green-500 hover:text-green-700 cursor-pointer"
+                            title="Edit"
+                          >
+                            <EditOutlined />
+                          </button>
+                        </Dialog.Trigger>
+                        {editTracker?.id === tracker.id && (
+                          <EditTrackerModal
+                            tracker={editTracker}
+                            isOpen={!!editTracker}
+                            onOpenChange={(open) =>
+                              !open && setEditTracker(null)
+                            }
+                            onSave={handleSaveEdit}
+                          />
+                        )}
+                      </Dialog.Root>
 
-                          <Dialog.Root>
-                            <Dialog.Trigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                title="Delete"
-                                onClick={() => setDeleteTracker(tracker)}
-                                className="cursor-pointer"
-                              >
-                                <Trash2 className="h-4 w-4 text-red-500" />
-                              </Button>
-                            </Dialog.Trigger>
-                            {deleteTracker?.id === tracker.id && (
-                              <Dialog.Portal>
-                                <Dialog.Overlay className="fixed inset-0 bg-black/30" />
-                                <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-md">
-                                  <Dialog.Title className="text-lg font-semibold">
-                                    Confirm Deletion
-                                  </Dialog.Title>
-                                  <p className="mt-2 text-gray-600">
-                                    Are you sure you want to delete{" "}
-                                    <strong>{deleteTracker.name}</strong>{" "}
-                                    tracker?
-                                  </p>
-                                  <div className="mt-4 flex justify-end space-x-2">
-                                    <Button
-                                      variant="outline"
-                                      onClick={() => setDeleteTracker(null)}
-                                    >
-                                      Cancel
-                                    </Button>
-                                    <Button
-                                      variant="destructive"
-                                      onClick={() =>
-                                        handleDeleteTracker(deleteTracker.id)
-                                      }
-                                    >
-                                      Delete
-                                    </Button>
-                                  </div>
-                                </Dialog.Content>
-                              </Dialog.Portal>
-                            )}
-                          </Dialog.Root>
-                        </>
-                      )}
-                    </div>
-                  </td>
+                      <Dialog.Root>
+                        <Dialog.Trigger asChild>
+                          <button
+                            onClick={() => setDeleteTracker(tracker)}
+                            className="text-red-500 hover:text-red-700 cursor-pointer"
+                            title="Delete"
+                          >
+                            <DeleteOutlined />
+                          </button>
+                        </Dialog.Trigger>
+                        {deleteTracker?.id === tracker.id && (
+                          <Dialog.Portal>
+                            <Dialog.Overlay className="fixed inset-0 bg-black/30" />
+                            <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-md w-full max-w-md">
+                              <Dialog.Title className="text-lg font-semibold">
+                                Confirm Deletion
+                              </Dialog.Title>
+                              <p className="mt-2 text-gray-600">
+                                Are you sure you want to delete{" "}
+                                <strong>{deleteTracker.name}</strong> tracker?
+                              </p>
+                              <div className="mt-4 flex justify-end space-x-2">
+                                <Button
+                                  variant="outline"
+                                  onClick={() => setDeleteTracker(null)}
+                                >
+                                  Cancel
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  onClick={() =>
+                                    handleDeleteTracker(deleteTracker.id)
+                                  }
+                                >
+                                  Delete
+                                </Button>
+                              </div>
+                            </Dialog.Content>
+                          </Dialog.Portal>
+                        )}
+                      </Dialog.Root>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
-    </>
+    </div>
   );
 }
