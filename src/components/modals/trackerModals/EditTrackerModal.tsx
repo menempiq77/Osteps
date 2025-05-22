@@ -3,41 +3,74 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { Cross2Icon } from "@radix-ui/react-icons";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
+import { Select } from "antd";
 
-type Tracker = {
-  id: string;
-  name: string;
-  progress: number;
-  lastUpdated: string;
-  status: string; // Changed from specific statuses to string
-};
+const trackerOptions = [
+  { value: "recitation", label: "Recitation" },
+  { value: "memorization", label: "Memorization" },
+  { value: "tafsir", label: "Tafsir" },
+  { value: "studied", label: "Studied" },
+  { value: "recall", label: "Recall" },
+];
 
-type EditTrackerModalProps = {
-  tracker: Tracker;
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSave: (tracker: Tracker) => void;
-};
+const typeOptions = [
+  { value: "topic", label: "Topic" },
+  { value: "chapter", label: "Chapter" },
+  { value: "verse", label: "Verse" },
+  { value: "hadith", label: "Hadith" },
+];
 
 export function EditTrackerModal({
   tracker: initialTracker,
   isOpen,
   onOpenChange,
   onSave,
-}: EditTrackerModalProps) {
-  const [tracker, setTracker] = useState<Tracker>(initialTracker);
+}: {
+  tracker: {
+    id: string;
+    name: string;
+    type: string;
+    status: string;
+    progress: string[];
+    lastUpdated?: string;
+  };
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSave: (tracker: {
+    id: string;
+    name: string;
+    type: string;
+    status: string;
+    progress: string[];
+    lastUpdated?: string;
+  }) => void;
+}) {
+  const [tracker, setTracker] = useState(initialTracker);
+  const [progressOptions, setProgressOptions] = useState<string[]>(initialTracker.progress);
 
   useEffect(() => {
     setTracker(initialTracker);
+    setProgressOptions(initialTracker.progress);
   }, [initialTracker]);
+
+  const statusOptions = [
+    "Active",
+    "Paused",
+    "Completed",
+    "Pending",
+  ];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const updatedTracker = {
+    onSave({
       ...tracker,
-      lastUpdated: new Date().toISOString().split("T")[0],
-    };
-    onSave(updatedTracker);
+      progress: progressOptions,
+      lastUpdated: new Date().toISOString().split('T')[0],
+    });
+  };
+
+  const handleOptionsChange = (value: string[]) => {
+    setProgressOptions(value);
   };
 
   return (
@@ -68,32 +101,56 @@ export function EditTrackerModal({
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Progress (%)
+                  Type
                 </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
+                <select
                   className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  value={tracker.progress}
+                  value={tracker.type}
                   onChange={(e) =>
-                    setTracker({ ...tracker, progress: parseInt(e.target.value) || 0 })
+                    setTracker({ ...tracker, type: e.target.value })
                   }
-                />
+                  required
+                >
+                  {typeOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Status (e.g., Active, Paused, Completed)
+                  Status
                 </label>
-                <input
-                  type="text"
+                <select
                   className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   value={tracker.status}
                   onChange={(e) =>
                     setTracker({ ...tracker, status: e.target.value })
                   }
                   required
+                >
+                  {statusOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Progress Options
+                </label>
+                <Select
+                  mode="tags"
+                  allowClear
+                  style={{ width: '100%' }}
+                  placeholder="Select progress options"
+                  value={progressOptions}
+                  onChange={handleOptionsChange}
+                  options={trackerOptions}
                 />
               </div>
 
@@ -104,7 +161,7 @@ export function EditTrackerModal({
                 <input
                   type="date"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  value={tracker.lastUpdated}
+                  value={tracker.lastUpdated || ''}
                   onChange={(e) =>
                     setTracker({ ...tracker, lastUpdated: e.target.value })
                   }

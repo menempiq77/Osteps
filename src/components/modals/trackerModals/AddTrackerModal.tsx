@@ -5,18 +5,6 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { Select } from "antd";
 
-type TrackerBasic = {
-  name: string;
-  status: string;
-  options: string[];
-};
-
-type AddTrackerModalProps = {
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
-  onAddTracker: (tracker: TrackerBasic) => void;
-};
-
 const trackerOptions = [
   { value: "recitation", label: "Recitation" },
   { value: "memorization", label: "Memorization" },
@@ -25,23 +13,39 @@ const trackerOptions = [
   { value: "recall", label: "Recall" },
 ];
 
+const typeOptions = [
+  { value: "topic", label: "Topic" },
+  { value: "chapter", label: "Chapter" },
+  { value: "verse", label: "Verse" },
+  { value: "hadith", label: "Hadith" },
+];
+
 export function AddTrackerModal({
   isOpen,
   onOpenChange,
   onAddTracker,
-}: AddTrackerModalProps) {
-  const [tracker, setTracker] = useState<TrackerBasic>({
+}: {
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  onAddTracker: (tracker: {
+    name: string;
+    type: string;
+    status: string;
+    progress: string[];
+  }) => void;
+}) {
+  const [tracker, setTracker] = useState({
     name: "",
+    type: "",
     status: "",
-    options: [],
+    progress: [] as string[],
   });
 
   const statusOptions = [
     "Active",
     "Paused",
     "Completed",
-    "Not Started",
-    "Revision",
+    "Pending",
   ];
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -49,15 +53,16 @@ export function AddTrackerModal({
     onAddTracker(tracker);
     setTracker({
       name: "",
+      type: "",
       status: "",
-      options: [],
+      progress: [],
     });
   };
 
   const handleOptionsChange = (value: string[]) => {
     setTracker({
       ...tracker,
-      options: value,
+      progress: value,
     });
   };
 
@@ -72,7 +77,6 @@ export function AddTrackerModal({
           
           <form onSubmit={handleSubmit}>
             <div className="space-y-4">
-              {/* Name and Type inputs remain the same */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Tracker Name
@@ -88,7 +92,27 @@ export function AddTrackerModal({
                 />
               </div>
 
-              {/* Status select remains the same */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Type
+                </label>
+                <select
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  value={tracker.type}
+                  onChange={(e) =>
+                    setTracker({ ...tracker, type: e.target.value })
+                  }
+                  required
+                >
+                  <option value="">Select Type</option>
+                  {typeOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Status
@@ -110,23 +134,18 @@ export function AddTrackerModal({
                 </select>
               </div>
 
-              {/* Fixed Select component */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tracker Options
+                  Progress Options
                 </label>
                 <Select
-                   mode="tags"  
+                  mode="tags"
                   allowClear
                   style={{ width: '100%' }}
-                  placeholder="Select options"
-                  value={tracker.options}
+                  placeholder="Select progress options"
+                  value={tracker.progress}
                   onChange={handleOptionsChange}
                   options={trackerOptions}
-                  showSearch
-                  filterOption={(input, option) =>
-                    (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-                  }
                 />
               </div>
             </div>

@@ -1,44 +1,19 @@
 "use client";
 
-import { useForm } from "react-hook-form";
+import { Form, Input, Button } from "antd";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/store/store";
 import { useRouter } from "next/navigation";
 import { login } from "@/features/auth/authSlice";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import Logo from "@/assets/images/Logo2.png";
 import LoginImg from "@/assets/images/LoginImg4.jpg";
 import { useEffect } from "react";
 
-const formSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-});
-
 export default function LoginPage() {
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
   const { status, error, currentUser } = useSelector((state: RootState) => state.auth);
-  
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-    },
-  });
 
   useEffect(() => {
     if (currentUser) {
@@ -46,7 +21,7 @@ export default function LoginPage() {
     }
   }, [currentUser, router]);
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+  const onFinish = async (values: { email: string; password: string }) => {
     await dispatch(login(values));
   };
 
@@ -71,67 +46,66 @@ export default function LoginPage() {
             </div>
 
             <div className="mt-8 w-full">
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-[16px] font-['Raleway']">Email</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Enter your email"
-                            className="focus:!border-green-500 hover:!border-green-400 font-['Raleway'] px-[16px] py-[14px]"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+              <Form layout="vertical" onFinish={onFinish}>
+                <Form.Item
+                  label="Email"
+                  name="email"
+                  rules={[
+                    { type: "email", message: "Invalid email address" },
+                    { required: true, message: "Please input your email" },
+                  ]}
+                  className="[&_.ant-form-item-label>label]:!text-[16px] [&_.ant-form-item-label>label]:font-['Raleway'] !mb-4"
+                >
+                  <Input
+                    placeholder="Enter your email"
+                    className="focus:!border-green-500 hover:!border-green-400 font-['Raleway'] !px-[16px] !py-[14px]"
+                    size="large"
                   />
+                </Form.Item>
 
-                  <FormField
-                    control={form.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <div className="flex justify-between items-center">
-                          <FormLabel className="text-[16px] font-['Raleway']">Password</FormLabel>
-                          <a
-                            href="#"
-                            className="text-sm text-green-600 hover:text-green-500 font-['Raleway']"
-                          >
-                            Forgot password?
-                          </a>
-                        </div>
-                        <FormControl>
-                          <Input
-                            type="password"
-                            placeholder="Enter your password"
-                            className="focus:!border-green-500 hover:!border-green-400 font-['Raleway'] px-[16px] py-[14px]"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                <Form.Item
+                  label="Password"
+                  name="password"
+                  rules={[
+                    { required: true, message: "Please input your password" },
+                    {
+                      min: 6,
+                      message: "Password must be at least 6 characters",
+                    },
+                  ]}
+                  extra={
+                    <a
+                      href="#"
+                      className="float-right text-sm !text-green-600 hover:!text-green-500 font-['Raleway']"
+                    >
+                      Forgot password?
+                    </a>
+                  }
+                  className="[&_.ant-form-item-label>label]:!text-[16px] [&_.ant-form-item-label>label]:font-['Raleway']"
+                >
+                  <Input.Password
+                    placeholder="Enter your password"
+                    className="focus:!border-green-500 hover:!border-green-400 font-['Raleway'] !px-[16px] !py-[14px]"
+                    size="large"
                   />
+                </Form.Item>
 
+                <Form.Item>
                   <Button
-                    type="submit"
-                    disabled={status === 'loading'}
-                    className="bg-green-600 hover:bg-green-700 w-full text-white text-[16px] font-semibold h-[49px] rounded-[66px] shadow-sm font-['Raleway']"
+                    type="primary"
+                    htmlType="submit"
+                    loading={status === 'loading'}
+                    className="!bg-green-600 hover:!bg-green-700 w-full text-white !text-[16px] !font-semibold !h-[49px] !rounded-[66px] shadow-sm font-['Raleway']"
                   >
                     {status === 'loading' ? "Signing in..." : "Sign In"}
                   </Button>
+                </Form.Item>
 
-                  {error && (
-                    <div className="text-red-500 text-center mt-4 font-['Raleway']">
-                      {error}
-                    </div>
-                  )}
-                </form>
+                {error && (
+                  <div className="text-red-500 text-center mt-4 font-['Raleway']">
+                    {error}
+                  </div>
+                )}
               </Form>
             </div>
           </div>
