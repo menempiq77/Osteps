@@ -87,8 +87,8 @@ const SchoolAdminSettings = () => {
               </Upload>
             </Form.Item>
 
-            <Form.Item>
-              <Button type="primary" htmlType="submit" size="large" className="w-full md:w-auto">
+            <Form.Item className='text-right'>
+              <Button type="primary" htmlType="submit" size="large" className="w-full md:w-auto !bg-primary !border-primary hover:!bg-primary hover:!border-primary">
                 Update Profile
               </Button>
             </Form.Item>
@@ -156,8 +156,8 @@ const SchoolAdminSettings = () => {
               </Upload>
             </Form.Item>
 
-            <Form.Item>
-              <Button type="primary" htmlType="submit" size="large" className="w-full md:w-auto">
+            <Form.Item className='text-right'>
+              <Button type="primary" htmlType="submit" size="large" className="w-full md:w-auto !bg-primary !border-primary hover:!bg-primary hover:!border-primary">
                 Save School Information
               </Button>
             </Form.Item>
@@ -213,8 +213,8 @@ const SchoolAdminSettings = () => {
               <Input.Password size="large" />
             </Form.Item>
 
-            <Form.Item>
-              <Button type="primary" htmlType="submit" size="large" className="w-full md:w-auto">
+            <Form.Item className='text-right'>
+              <Button type="primary" htmlType="submit" size="large" className="w-full md:w-auto !bg-primary !border-primary hover:!bg-primary hover:!border-primary">
                 Change Password
               </Button>
             </Form.Item>
