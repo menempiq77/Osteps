@@ -140,7 +140,7 @@ export default function LibraryPage() {
       ? [
           {
             label: (
-              <span className="font-medium flex items-center text-blue-500">
+              <span className="font-medium flex items-center text-green-500">
                 <PlusOutlined className="mr-1" /> Add
               </span>
             ),
@@ -348,7 +348,7 @@ export default function LibraryPage() {
               type="primary"
               icon={<UploadOutlined />}
               onClick={openUploadModal}
-              className="flex items-center"
+              className="flex items-center !bg-primary !border-primary"
             >
               {isMobile ? "Upload" : "Upload Resource"}
             </Button>
@@ -386,8 +386,8 @@ export default function LibraryPage() {
               onClick={() => setActiveCategoryTab("all")}
               className={`transition-all ${
                 activeCategoryTab === "all"
-                  ? "bg-blue-600 hover:bg-blue-700 border-blue-600"
-                  : "bg-white hover:bg-gray-50 border-gray-200"
+                  ? "!bg-primary !hover:bg-green-700"
+                  : "bg-white hover:bg-gray-50 hover:!border-green-600 hover:!text-green-600"
               }`}
             >
               All
@@ -408,8 +408,8 @@ export default function LibraryPage() {
                 }
                 className={`transition-all ${
                   activeCategoryTab === category.name.toLowerCase()
-                    ? "bg-blue-600 hover:bg-blue-700 border-blue-600"
-                    : "bg-white hover:bg-gray-50 border-gray-200"
+                    ? "!bg-primary !hover:bg-green-700"
+                    : "bg-white hover:bg-gray-50 border-gray-200 hover:!border-green-600 hover:!text-green-600"
                 }`}
               >
                 {category?.name}
@@ -419,7 +419,7 @@ export default function LibraryPage() {
             {canUpload && (
               <Link
                 href="/dashboard/library/librarycategory"
-                className="transition-all flex items-center gap-1 bg-white hover:bg-gray-50 border border-dashed rounded-full px-4 border-blue-600"
+                className="transition-all flex items-center gap-1 bg-white hover:bg-gray-50 border border-dashed rounded-full px-4 !text-green-600 border-green-600"
               >
                 <Plus size={18} /> Add
               </Link>

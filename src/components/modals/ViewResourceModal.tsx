@@ -91,6 +91,7 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
                 icon={<DownloadOutlined />}
                 href={currentItem.url}
                 target="_blank"
+                className="!bg-primary !border-primary"
               >
                 Download Book
               </Button>
@@ -118,6 +119,7 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
           icon={<DownloadOutlined />}
           href={currentItem?.url}
           download
+          className="!bg-primary !border-primary"
         >
           Download
         </Button>,

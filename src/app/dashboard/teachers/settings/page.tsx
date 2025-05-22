@@ -112,8 +112,8 @@ const TeacherSettings = () => {
               </Upload>
             </Form.Item>
 
-            <Form.Item>
-              <Button type="primary" htmlType="submit" size="large" block>
+            <Form.Item className='text-right'>
+              <Button type="primary" htmlType="submit" size="large" className="w-full md:w-auto !bg-primary !border-primary hover:!bg-primary hover:!border-primary">
                 Update Profile
               </Button>
             </Form.Item>
@@ -123,52 +123,6 @@ const TeacherSettings = () => {
     },
     {
       key: '2',
-      label: 'Class Preferences',
-      children: (
-        <div className="w-full max-w-2xl px-2">
-          <Form
-            name="preferences"
-            layout="vertical"
-            onFinish={onFinish}
-            onFinishFailed={onFinishFailed}
-            autoComplete="off"
-          >
-            <Form.Item
-              label="Default Class View"
-              name="defaultView"
-              initialValue="list"
-            >
-              <Select size="large">
-                <Select.Option value="list">List View</Select.Option>
-                <Select.Option value="grid">Grid View</Select.Option>
-                <Select.Option value="calendar">Calendar View</Select.Option>
-              </Select>
-            </Form.Item>
-
-            <Form.Item
-              label="Notification Preferences"
-              name="notifications"
-              initialValue={['assignments', 'messages']}
-            >
-              <Select mode="multiple" size="large">
-                <Select.Option value="assignments">New Assignments</Select.Option>
-                <Select.Option value="submissions">Assignment Submissions</Select.Option>
-                <Select.Option value="messages">Messages from Students</Select.Option>
-                <Select.Option value="announcements">School Announcements</Select.Option>
-              </Select>
-            </Form.Item>
-
-            <Form.Item>
-              <Button type="primary" htmlType="submit" size="large" block>
-                Save Preferences
-              </Button>
-            </Form.Item>
-          </Form>
-        </div>
-      ),
-    },
-    {
-      key: '3',
       label: 'Security',
       children: (
         <div className="w-full max-w-2xl px-2">
@@ -214,8 +168,8 @@ const TeacherSettings = () => {
               <Input.Password size="large" />
             </Form.Item>
 
-            <Form.Item>
-              <Button type="primary" htmlType="submit" size="large" block>
+            <Form.Item className='text-right'>
+              <Button type="primary" htmlType="submit" size="large" className="w-full md:w-auto !bg-primary !border-primary hover:!bg-primary hover:!border-primary">
                 Change Password
               </Button>
             </Form.Item>

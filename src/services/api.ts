@@ -408,6 +408,38 @@ export const deleteTracker = async (id: number) => {
   return response.data;
 };
 
+//get trackers topic apis Started
+// fetch trackers topic
+export const fetchTrackerTopics = async (trackerId: number) => {
+  const response = await api.get(`/get-topics-progress/${trackerId}`);
+  return response.data.data;
+};
+// add trackers topic
+export const addTrackerTopic = async (trackerId: number, title: string) => {
+  const response = await api.post('/add-topic', { tracker_id: trackerId, title });
+  return response.data;
+};
+
+// edit trackers topic
+export const updateTrackerTopic = async (topicId: number, title: string) => {
+  const response = await api.post(`/update-topic/${topicId}`, { title });
+  return response.data;
+};
+// delete trackers topic
+export const deleteTrackerTopic = async (topicId: number) => {
+  const response = await api.post(`/delete-topic/${topicId}`);
+  return response.data;
+};
+// toggle trackers topic status
+export const updateTopicStatus = async (topicId: number, statusId: number, isCompleted: boolean) => {
+  const response = await api.post('/add-toggleProgress', {
+    topic_id: topicId,
+    status_id: statusId,
+    is_completed: isCompleted ? 1 : 0
+  });
+  return response.data;
+};
+
 //quiz apis Started
 // fetch quizes
 export const fetchQuizes = async () => {

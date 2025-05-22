@@ -117,7 +117,7 @@ const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
             accept=".pdf,.doc,.docx,.mp4,.mov,.avi,.mp3,.wav,.m4a"
           >
             <p className="ant-upload-drag-icon">
-              <UploadOutlined style={{ fontSize: "32px", color: "#1890ff" }} />
+              <UploadOutlined style={{ fontSize: "32px", color: "#38C16C" }} />
             </p>
             <p className="ant-upload-text">
               Click or drag file to this area to upload
@@ -129,7 +129,7 @@ const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
 
         <Form.Item>
           <Space>
-            <Button type="primary" htmlType="submit" loading={loading}>
+            <Button type="primary" htmlType="submit" loading={loading} className="!bg-primary">
               {isEditing ? "Update" : "Upload"}
             </Button>
             <Button onClick={onCancel}>Cancel</Button>
