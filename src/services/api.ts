@@ -378,6 +378,36 @@ export const deleteTask = async (id: number) => {
   return response.data;
 };
 
+//Trackers apis Started
+// Trackers APIs
+export const fetchTrackers = async (classId: number) => {
+  const response = await api.get(`/get-trackers/${classId}`);
+  return response.data.data;
+};
+export const addTracker = async (trackerData: {
+  class_id: number;
+  name: string;
+  type: string;
+  status: string;
+  progress: string[];
+}) => {
+  const response = await api.post('/add-trackers', trackerData);
+  return response.data;
+};
+export const updateTracker = async (id: string, trackerData: {
+  name: string;
+  type: string;
+  status: string;
+  progress: string[];
+}) => {
+  const response = await api.post(`/update-trackers/${id}`, trackerData);
+  return response.data;
+};
+export const deleteTracker = async (id: number) => {
+  const response = await api.post(`/delete-trackers/${id}`);
+  return response.data;
+};
+
 //quiz apis Started
 // fetch quizes
 export const fetchQuizes = async () => {

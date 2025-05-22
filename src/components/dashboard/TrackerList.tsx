@@ -2,104 +2,141 @@
 import { Pencil2Icon } from "@radix-ui/react-icons";
 import { Button } from "@/components/ui/button";
 import * as Dialog from "@radix-ui/react-dialog";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Trash2 } from "lucide-react";
 import { AddTrackerModal } from "../modals/trackerModals/AddTrackerModal";
 import { EditTrackerModal } from "../modals/trackerModals/EditTrackerModal";
 import { useParams, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
+import {
+  fetchTrackers,
+  addTracker as addTrackerAPI,
+  updateTracker as updateTrackerAPI,
+  deleteTracker as deleteTrackerAPI,
+} from "@/services/api";
+import { Alert, Spin } from "antd";
 
 // Types
 type Tracker = {
   id: string;
+  class_id: number;
   name: string;
-  type: "Quran" | "Hadees" | "Seerah";
-  progress: number;
-  lastUpdated: string;
-  status: "Active" | "Paused" | "Completed";
+  type: string;
+  status: string;
+  progress: string[];
+  lastUpdated?: string;
 };
 
 type TrackerBasic = {
   name: string;
-  type: "Quran" | "Hadees" | "Seerah";
-  progress: number;
-  status: "Active" | "Paused" | "Completed";
+  type: string;
+  status: string;
+  progress: string[];
 };
+
 type TrackerListProps = {
   classId: string;
 };
 
-// Main Component
 export default function TrackerList() {
   const { classId } = useParams();
   const router = useRouter();
   const { currentUser } = useSelector((state: RootState) => state.auth);
-  const [trackers, setTrackers] = useState<Tracker[]>([
-    {
-      id: "1",
-      name: "Quran Memorization",
-      type: "Quran",
-      progress: 65,
-      lastUpdated: "2023-05-15",
-      status: "Active",
-    },
-    {
-      id: "2",
-      name: "Hadiths",
-      type: "Hadees",
-      progress: 22,
-      lastUpdated: "2023-05-10",
-      status: "Active",
-    },
-    {
-      id: "3",
-      name: "Seerah and stories",
-      type: "Seerah",
-      progress: 100,
-      lastUpdated: "2023-05-01",
-      status: "Completed",
-    },
-  ]);
+  const [trackers, setTrackers] = useState<Tracker[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [editTracker, setEditTracker] = useState<Tracker | null>(null);
   const [deleteTracker, setDeleteTracker] = useState<Tracker | null>(null);
   const [isAddTrackerModalOpen, setIsAddTrackerModalOpen] = useState(false);
 
-  const handleSaveEdit = (tracker: Tracker) => {
-    const updatedTracker = {
-      ...tracker,
-      lastUpdated: new Date().toISOString().split("T")[0], // Update lastUpdated date
-    };
-    setTrackers(
-      trackers.map((t) => (t.id === tracker.id ? updatedTracker : t))
-    );
-    setEditTracker(null);
+  const loadTrackers = async () => {
+    try {
+      setLoading(true);
+      const data = await fetchTrackers(Number(classId));
+      setTrackers(
+        data.map((tracker: any) => ({
+          ...tracker,
+          id: tracker.id.toString(),
+          lastUpdated: new Date().toISOString().split("T")[0],
+        }))
+      );
+    } catch (err) {
+      setError("Failed to fetch trackers");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDeleteTracker = (trackerId: string) => {
-    setTrackers(trackers.filter((tracker) => tracker.id !== trackerId));
-    setDeleteTracker(null);
+  useEffect(() => {
+    loadTrackers();
+  }, [classId]);
+
+  const handleSaveEdit = async (tracker: Tracker) => {
+    try {
+      await updateTrackerAPI(tracker.id, {
+        name: tracker.name,
+        type: tracker.type,
+        status: tracker.status,
+        progress: tracker.progress,
+      });
+
+      setTrackers(
+        trackers.map((t) =>
+          t.id === tracker.id
+            ? {
+                ...tracker,
+                lastUpdated: new Date().toISOString().split("T")[0],
+              }
+            : t
+        )
+      );
+      await loadTrackers();
+      setEditTracker(null);
+    } catch (err) {
+      console.error("Failed to update tracker:", err);
+    }
   };
 
-  const handleAddNewTracker = (tracker: TrackerBasic) => {
-    const newTracker = {
-      ...tracker,
-      id: Math.random().toString(36).substring(2, 9),
-      lastUpdated: new Date().toISOString().split("T")[0],
-    };
-    setTrackers([...trackers, newTracker]);
-    setIsAddTrackerModalOpen(false);
+  const handleDeleteTracker = async (trackerId: string) => {
+    try {
+      await deleteTrackerAPI(Number(trackerId));
+      setTrackers(trackers.filter((tracker) => tracker.id !== trackerId));
+      setDeleteTracker(null);
+    } catch (err) {
+      console.error("Failed to delete tracker:", err);
+    }
+  };
+
+  const handleAddNewTracker = async (tracker: TrackerBasic) => {
+    try {
+      await addTrackerAPI({
+        class_id: Number(classId),
+        name: tracker.name,
+        type: tracker.type,
+        status: tracker.status,
+        progress: tracker.progress,
+      });
+
+      setIsAddTrackerModalOpen(false);
+      await loadTrackers();
+    } catch (err) {
+      console.error("Failed to add tracker:", err);
+    }
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Active":
+    switch (status.toLowerCase()) {
+      case "active":
         return "bg-green-100 text-green-800";
-      case "Paused":
+      case "paused":
         return "bg-yellow-100 text-yellow-800";
-      case "Completed":
+      case "completed":
         return "bg-blue-100 text-blue-800";
+      case "pending":
+        return "bg-gray-100 text-gray-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
@@ -109,34 +146,58 @@ export default function TrackerList() {
     router.push(`/dashboard/leaderboard`);
   };
 
-  const handleTrackerClick = (
-    trackerId: string,
-    type: "Quran" | "Hadees" | "Seerah"
-  ) => {
-    router.push(
-      `/dashboard/trackers/${classId}/${type.toLowerCase()}/${trackerId}`
-    );
+  const handleTrackerClick = (trackerId: string, type: string) => {
+    router.push(`/dashboard/trackers/${classId}/${trackerId}`);
   };
+
+  if (loading)
+    return (
+      <div className="p-3 md:p-6 flex justify-center items-center h-64">
+        <Spin size="large" />
+      </div>
+    );
+  if (error)
+    return (
+      <div className="p-3 md:p-6">
+        <Alert
+          message="Error"
+          description={error}
+          type="error"
+          showIcon
+          closable
+          onClose={() => setError(null)}
+        />
+      </div>
+    );
 
   return (
     <>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Trackers</h1>
-        {currentUser?.role !== "STUDENT" && (
-          <Dialog.Root
-            open={isAddTrackerModalOpen}
-            onOpenChange={setIsAddTrackerModalOpen}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => handleLeaderBoard()}
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 cursor-pointer"
           >
-            <Dialog.Trigger asChild>
-              <Button className="cursor-pointer">Add New Tracker</Button>
-            </Dialog.Trigger>
-            <AddTrackerModal
-              isOpen={isAddTrackerModalOpen}
+            View Leaderboard
+          </Button>
+          {currentUser?.role !== "STUDENT" && (
+            <Dialog.Root
+              open={isAddTrackerModalOpen}
               onOpenChange={setIsAddTrackerModalOpen}
-              onAddTracker={handleAddNewTracker}
-            />
-          </Dialog.Root>
-        )}
+            >
+              <Dialog.Trigger asChild>
+                <Button className="cursor-pointer">Add New Tracker</Button>
+              </Dialog.Trigger>
+              <AddTrackerModal
+                isOpen={isAddTrackerModalOpen}
+                onOpenChange={setIsAddTrackerModalOpen}
+                onAddTracker={handleAddNewTracker}
+              />
+            </Dialog.Root>
+          )}
+        </div>
       </div>
 
       <div className="mt-8 bg-white rounded-lg shadow-md overflow-hidden">
@@ -148,9 +209,6 @@ export default function TrackerList() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Tracker Name
                 </th>
-                {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Progress
-                </th> */}
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Last Updated
                 </th>
@@ -171,25 +229,6 @@ export default function TrackerList() {
                   >
                     {tracker.name}
                   </td>
-                  {/* <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="w-full bg-gray-200 rounded-full h-2.5">
-                        <div
-                          className={`h-2.5 rounded-full ${
-                            tracker.progress < 30
-                              ? "bg-red-500"
-                              : tracker.progress < 70
-                              ? "bg-yellow-500"
-                              : "bg-green-500"
-                          }`}
-                          style={{ width: `${tracker.progress}%` }}
-                        ></div>
-                      </div>
-                      <span className="ml-2 text-sm text-gray-600">
-                        {tracker.progress}%
-                      </span>
-                    </div>
-                  </td> */}
                   <td className="px-6 py-4 whitespace-nowrap">
                     {tracker.lastUpdated}
                   </td>
@@ -202,28 +241,8 @@ export default function TrackerList() {
                       {tracker.status}
                     </span>
                   </td>
-
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex space-x-2">
-                      <button
-                        type="button"
-                        onClick={() => handleLeaderBoard(tracker.id)}
-                        className="text-gray-400 hover:text-green-600 cursor-pointer"
-                      >
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M4 6h16M4 10h10M4 14h6M4 18h2"
-                          />
-                        </svg>
-                      </button>
                       {currentUser?.role !== "STUDENT" && (
                         <>
                           <Dialog.Root>
