@@ -25,6 +25,7 @@ import {
   updateTrackerTopic,
   deleteTrackerTopic,
   updateTopicStatus,
+  fetchQuizes,
 } from "@/services/api";
 
 interface Status {
@@ -56,6 +57,14 @@ interface TrackerData {
   type: string;
   topics: Topic[];
 }
+interface Quiz {
+  id: string;
+  type: "mcq" | "true_false" | "writing";
+  question: string;
+  options?: string[];
+  correctAnswer?: string;
+  answer?: string;
+}
 
 export default function QuranTrackerAdminPage() {
   const { trackerId, classId } = useParams();
@@ -68,6 +77,9 @@ export default function QuranTrackerAdminPage() {
   const [isAddingTopic, setIsAddingTopic] = useState(false);
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [loading, setLoading] = useState(false);
+  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
+  const [isAddingQuiz, setIsAddingQuiz] = useState(false);
+  const [selectedQuiz, setSelectedQuiz] = useState<string>("");
 
   const canUpload =
     currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "TEACHER";
@@ -75,6 +87,7 @@ export default function QuranTrackerAdminPage() {
 
   useEffect(() => {
     loadTrackerData();
+    loadQuizzes();
   }, [trackerId]);
 
   const loadTrackerData = async () => {
@@ -89,6 +102,25 @@ export default function QuranTrackerAdminPage() {
     } finally {
       setLoading(false);
     }
+  };
+  const loadQuizzes = async () => {
+    try {
+      setLoading(true);
+      const response = await fetchQuizes();
+      setQuizzes(response);
+    } catch (error) {
+      console.error("Failed to load quizzes", error);
+      // message.error("Failed to load quizzes");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getQuizOptions = () => {
+    return quizzes.map((quiz) => ({
+      value: quiz.id,
+      label: quiz.name,
+    }));
   };
 
   const handleStatusChange = async (
@@ -260,16 +292,27 @@ export default function QuranTrackerAdminPage() {
             </h1>
           </div>
           {canUpload && (
-            <Button
-              onClick={() => {
-                setIsAddingTopic(true);
-                setNewTopicTitle("");
-              }}
-              className="flex items-center gap-2 cursor-pointer !bg-primary !text-white hover:!border-primary"
-            >
-              <Plus size={16} />
-              Add Topic
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => {
+                  setIsAddingTopic(true);
+                  setNewTopicTitle("");
+                }}
+                className="flex items-center gap-2 cursor-pointer !bg-primary !text-white hover:!border-primary"
+              >
+                <Plus size={16} />
+                Add Topic
+              </Button>
+              <Button
+                onClick={() => {
+                  setIsAddingQuiz(true);
+                }}
+                className="flex items-center gap-2 cursor-pointer"
+              >
+                <Plus size={16} />
+                Add Quiz
+              </Button>
+            </div>
           )}
         </div>
 
@@ -291,6 +334,30 @@ export default function QuranTrackerAdminPage() {
                 onClick={() => {
                   setIsAddingTopic(false);
                   setNewTopicTitle("");
+                }}
+              >
+                <X size={16} />
+              </Button>
+            </div>
+          </div>
+        )}
+        {isAddingQuiz && (
+          <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center gap-4">
+            <Select
+              value={selectedQuiz}
+              onChange={(value) => setSelectedQuiz(value)}
+              placeholder="Select a quiz"
+              style={{ width: "100%" }}
+              options={getQuizOptions()}
+            />
+            <div className="flex gap-2">
+              <Button className="flex items-center gap-1">
+                <Save size={16} />
+                Save
+              </Button>
+              <Button
+                onClick={() => {
+                  setIsAddingQuiz(false);
                 }}
               >
                 <X size={16} />

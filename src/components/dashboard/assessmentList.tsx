@@ -12,7 +12,7 @@ import { AssessmentTasksDrawer } from "../ui/AssessmentTasksDrawer";
 import { useParams, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { fetchTasks } from "@/services/api";
+import { fetchTasks, fetchTerm } from "@/services/api";
 
 interface Task {
   id: number;
@@ -55,6 +55,8 @@ export default function AssessmentList({
   );
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [terms, setTerms] = useState<any[]>([]);
 
   useEffect(() => {
     if (drawerVisible && selectedAssessment) {
@@ -74,6 +76,26 @@ export default function AssessmentList({
       setLoading(false);
     }
   };
+  const loadTerms = async () => {
+    try {
+      setLoading(true);
+      const response = await fetchTerm(Number(classId));
+      setTerms(response);
+      if (response.length > 0) {
+        setSelectedTerm(response[0].name);
+      }
+      setError(null);
+    } catch (err) {
+      setError("Failed to load terms");
+      console.error("Error loading terms:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadTerms();
+  }, []);
 
   const canUpload =
     currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "TEACHER";
@@ -102,32 +124,34 @@ export default function AssessmentList({
     setTasks(updatedTasks);
   };
   return (
-    <div className="mt-8 bg-white rounded-lg shadow-md overflow-hidden">
-      <div className="flex items-center justify-between p-4 border-b">
+    <div className="mt-8 overflow-hidden">
+      <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold">Registered Assessment</h3>
         <Select value={selectedTerm} onValueChange={setSelectedTerm}>
-          <SelectTrigger className="w-[150px]">
+          <SelectTrigger className="w-[150px] bg-white">
             <SelectValue placeholder="Select Term" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="Term 1">Term 1</SelectItem>
-            <SelectItem value="Term 2">Term 2</SelectItem>
-            <SelectItem value="Term 3">Term 3</SelectItem>
+            {terms.map((term) => (
+              <SelectItem key={term.id} value={term.name}>
+                {term.name}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto bg-white border border-gray-200 rounded-lg shadow-md">
         <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+          <thead>
+            <tr className="bg-primary">
+              <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase">
                 Assessment Name
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase">
                 Type
               </th>
               {canUpload && (
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase">
                   Actions
                 </th>
               )}
@@ -135,21 +159,24 @@ export default function AssessmentList({
           </thead>
           <tbody className="divide-y divide-gray-200">
             {assessments.map((assignment) => (
-              <tr key={assignment.id}>
-                <td className="px-6 py-4 whitespace-nowrap">
+              <tr
+                key={assignment.id}
+                className="text-xs md:text-sm text-center text-gray-800 even:bg-[#E9FAF1] odd:bg-white hover:bg-[#E9FAF1]"
+              >
+                <td className="p-2 md:p-4">
                   <button
                     type="button"
                     onClick={() =>
                       handleAssignmentClick(assignment.id, assignment.type)
                     }
-                    className={`text-blue-600 hover:text-blue-800 hover:underline cursor-pointer ${
+                    className={`text-green-600 hover:text-green-800 hover:underline cursor-pointer ${
                       assignment.type === "quiz" ? "font-medium" : ""
                     }`}
                   >
                     {assignment.name}
                   </button>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="p-2 md:p-4">
                   <span
                     className={`px-2 py-1 text-xs rounded-full ${
                       assignment.type === "quiz"
@@ -161,11 +188,11 @@ export default function AssessmentList({
                   </span>
                 </td>
                 {canUpload && (
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="p-2 md:p-4">
                     <div className="flex items-center gap-4">
                       <button
                         onClick={() => onEditAssessment?.(assignment)}
-                        className="text-blue-500 hover:text-blue-700 cursor-pointer"
+                        className="text-green-500 hover:text-green-700 cursor-pointer"
                       >
                         <EditOutlined />
                       </button>
@@ -191,10 +218,11 @@ export default function AssessmentList({
           "Assignment"
         }
         assessmentId={selectedAssessment ? parseInt(selectedAssessment) : 0}
-          initialTasks={Array.isArray(tasks) ? tasks : []}
+        initialTasks={Array.isArray(tasks) ? tasks : []}
         onTasksChange={handleTasksChange}
         quizzes={quizzes}
         loading={loading}
+        setLoading={setLoading}
       />
     </div>
   );
