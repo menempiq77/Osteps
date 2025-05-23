@@ -88,16 +88,12 @@ const loadStudents = async () => {
   try {
     setIsLoading(true);
     const studentsData = await fetchStudents(classId as string);
-    console.log("API Response:", studentsData);
-    
     setStudents(studentsData);
-    
-    // Use URL param if exists, otherwise first student
+
     const initialId = studentId || studentsData[0]?.id || "";
-    console.log("Initial ID:", initialId);
     setSelectedStudentId(initialId);
     
-    return studentsData; // Return for debugging
+    return studentsData;
   } catch (err) {
     setError("Failed to load students");
     console.error("Error loading students:", err);
@@ -364,7 +360,7 @@ const loadStudents = async () => {
                 style={{ width: 250 }}
                 placeholder="Select a student"
                 optionFilterProp="children"
-                value={selectedStudentId}
+                value={selectedStudentId ? student?.student_name : undefined}
                 onChange={(value) => setSelectedStudentId(value)}
                 filterOption={(input, option) =>
                   String(option?.label ?? "")
