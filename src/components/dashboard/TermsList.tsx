@@ -47,7 +47,7 @@ export default function TermsList({ terms, onEdit, onDelete }: TermsListProps) {
                     <button
                       type="button"
                       onClick={() => handleTermClick(term.id)}
-                      className="text-green-600 hover:text-green-800 font-medium hover:underline"
+                      className="text-green-600 hover:text-green-800 font-medium hover:underline cursor-pointer"
                     >
                       {term.name}
                     </button>

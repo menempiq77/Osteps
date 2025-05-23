@@ -120,7 +120,7 @@ export default function StudentList() {
   };
 
   const handleStudentBehavior = (studentId: string) => {
-    router.push(`/dashboard/behavior/${studentId}`);
+    router.push(`/dashboard/classes/${classId}/behavior/${studentId}`);
   };
 
   if (isLoading) return (

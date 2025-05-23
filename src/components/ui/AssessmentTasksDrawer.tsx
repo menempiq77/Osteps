@@ -57,6 +57,7 @@ export function AssessmentTasksDrawer({
   onTasksChange,
   quizzes,
   loading,
+  setLoading
 }: AssessmentTasksDrawerProps) {
   const [selectedType, setSelectedType] = useState<"task" | "quiz" | null>(
     null
