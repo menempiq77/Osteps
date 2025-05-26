@@ -128,7 +128,7 @@ const Sidebar = () => {
       },
       {
         name: "Trackers",
-        href: `/dashboard/trackers/${currentUser?.id}`,
+        href: `/dashboard/trackers/${currentUser?.student}`,
         icon: Building,
       },
       { name: "Timetable", href: "/dashboard/timetable", icon: BookOpenIcon },
@@ -146,7 +146,7 @@ const Sidebar = () => {
       },
       {
         name: "Behavior",
-        href: `/dashboard/behavior/${currentUser?.id}`,
+        href: `/dashboard/behavior/${currentUser?.student}`,
         icon: NotebookPen,
       },
       {

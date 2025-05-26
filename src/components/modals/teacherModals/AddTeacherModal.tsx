@@ -1,18 +1,24 @@
 import { useState } from "react";
-import * as Dialog from "@radix-ui/react-dialog";
-import { Button } from "@/components/ui/button";
-import { Cross2Icon } from "@radix-ui/react-icons";
+import { Modal, Form, Input, Button, Checkbox, message } from "antd";
+import type { CheckboxValueType } from "antd/es/checkbox/Group";
 
 const subjectOptions = [
-  "Math",
-  "Science",
-  "English",
-  "History",
-  "Physics",
-  "Chemistry",
-] as const;
+  { label: "Math", value: "Math" },
+  { label: "Science", value: "Science" },
+  { label: "English", value: "English" },
+  { label: "History", value: "History" },
+  { label: "Physics", value: "Physics" },
+  { label: "Chemistry", value: "Chemistry" },
+];
 
-type Subject = typeof subjectOptions[number];
+type Subject = typeof subjectOptions[number]["value"];
+
+interface TeacherFormValues {
+  name: string;
+  phone: string;
+  email: string;
+  subjects: Subject[];
+}
 
 interface AddTeacherModalProps {
   isOpen?: boolean;
@@ -32,131 +38,96 @@ export const AddTeacherModal = ({
   onAddTeacher,
   onClose,
 }: AddTeacherModalProps) => {
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [selectedSubjects, setSelectedSubjects] = useState<Subject[]>([]);
+  const [form] = Form.useForm();
+  const [confirmLoading, setConfirmLoading] = useState(false);
 
-  const handleSubjectSelection = (subject: Subject) => {
-    setSelectedSubjects((prevSubjects) =>
-      prevSubjects.includes(subject)
-        ? prevSubjects.filter((s) => s !== subject)
-        : [...prevSubjects, subject]
-    );
-  };
-
-  const handleSubmit = () => {
-    if (!name.trim() || !email.trim()) return;
-    
-    onAddTeacher({ 
-      name: name.trim(), 
-      phone: phone.trim(), 
-      email: email.trim(), 
-      subjects: selectedSubjects 
-    });
-    resetForm();
-    onClose?.();
-    onOpenChange?.(false);
-  };
-
-  const resetForm = () => {
-    setName("");
-    setPhone("");
-    setEmail("");
-    setSelectedSubjects([]);
+  const handleOk = async () => {
+    try {
+      setConfirmLoading(true);
+      const values = await form.validateFields();
+      onAddTeacher({
+        name: values.name.trim(),
+        phone: values.phone?.trim() || "",
+        email: values.email.trim(),
+        subjects: values.subjects || [],
+      });
+      handleClose();
+      message.success("Teacher added successfully");
+    } catch (error) {
+      console.error("Validation failed:", error);
+    } finally {
+      setConfirmLoading(false);
+    }
   };
 
   const handleClose = () => {
+    form.resetFields();
     onClose?.();
     onOpenChange?.(false);
   };
 
   return (
-    <Dialog.Root open={isOpen} onOpenChange={onOpenChange}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="bg-black/50 fixed inset-0" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-lg min-w-md max-w-md">
-          <Dialog.Title className="text-lg font-bold mb-4">
-            Add New Teacher
-          </Dialog.Title>
+    <Modal
+      title="Add New Teacher"
+      open={isOpen}
+      onOk={handleOk}
+      confirmLoading={confirmLoading}
+      onCancel={handleClose}
+      footer={[
+        <Button key="back" onClick={handleClose}>
+          Cancel
+        </Button>,
+        <Button
+          key="submit"
+          type="primary"
+          loading={confirmLoading}
+          onClick={handleOk}
+          className="!bg-primary hover:!bg-primary text-white"
+        >
+          Add Teacher
+        </Button>,
+      ]}
+    >
+      <Form form={form} layout="vertical">
+        <Form.Item
+          name="name"
+          label="Teacher Name"
+          rules={[
+            { required: true, message: "Please input the teacher name!" },
+            { whitespace: true, message: "Name cannot be just whitespace" },
+          ]}
+        >
+          <Input placeholder="Enter teacher name" />
+        </Form.Item>
 
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Teacher Name*
-              </label>
-              <input
-                type="text"
-                className="w-full p-2 border rounded-md"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Enter teacher name"
-                required
-              />
-            </div>
+        <Form.Item
+          name="phone"
+          label="Phone"
+          rules={[
+            {
+              pattern: /^[0-9+\- ]*$/,
+              message: "Please enter a valid phone number",
+            },
+          ]}
+        >
+          <Input placeholder="Enter phone number" />
+        </Form.Item>
 
-            <div>
-              <label className="block text-sm font-medium mb-1">Phone</label>
-              <input
-                type="tel"
-                className="w-full p-2 border rounded-md"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="Enter phone number"
-              />
-            </div>
+        <Form.Item
+          name="email"
+          label="Email"
+          rules={[
+            { required: true, message: "Please input the email!" },
+            { type: "email", message: "Please enter a valid email" },
+          ]}
+        >
+          <Input placeholder="Enter email" />
+        </Form.Item>
 
-            <div>
-              <label className="block text-sm font-medium mb-1">Email*</label>
-              <input
-                type="email"
-                className="w-full p-2 border rounded-md"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter email"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Subjects</label>
-              <div className="grid grid-cols-2 gap-2">
-                {subjectOptions.map((subject) => (
-                  <label key={subject} className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={selectedSubjects.includes(subject)}
-                      onChange={() => handleSubjectSelection(subject)}
-                    />
-                    <span>{subject}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-6 flex justify-end gap-2">
-            <Dialog.Close asChild>
-              <Button variant="outline" onClick={handleClose} className="cursor-pointer">
-                Cancel
-              </Button>
-            </Dialog.Close>
-            <Button onClick={handleSubmit} disabled={!name.trim() || !email.trim()} className="cursor-pointer">
-              Add Teacher
-            </Button>
-          </div>
-
-          <Dialog.Close asChild>
-            <button
-              className="absolute top-2 right-2"
-              aria-label="Close"
-              onClick={handleClose}
-            >
-              <Cross2Icon />
-            </button>
-          </Dialog.Close>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+        <Form.Item name="subjects" label="Subjects">
+          <Checkbox.Group options={subjectOptions} />
+        </Form.Item>
+      </Form>
+    </Modal>
   );
 };
