@@ -7,7 +7,7 @@ import { fetchTerm, addTerm, updateTerm, deleteTerm } from "@/services/api";
 import TermsList from "@/components/dashboard/TermsList";
 import { useParams } from "next/navigation";
 import TermForm from "@/components/dashboard/TermForm";
-import { Alert, Spin } from "antd";
+import { Alert, Modal, Spin } from "antd";
 
 export default function TermsPage() {
   const { classId } = useParams();
@@ -19,6 +19,8 @@ export default function TermsPage() {
     id: number | null;
     name: string;
   } | null>(null);
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+  const [termToDelete, setTermToDelete] = useState<number | null>(null);
 
   const loadTerms = async () => {
     try {
@@ -61,19 +63,27 @@ export default function TermsPage() {
     }
   };
 
-  const handleDeleteTerm = async (id: number) => {
+  const handleEditClick = (term: { id: number; name: string }) => {
+    setEditingTerm(term);
+    setOpen(true);
+  };
+  const handleDeleteClick = (id: number) => {
+    setTermToDelete(id);
+    setDeleteConfirmVisible(true);
+  };
+
+  const handleDeleteTerm = async () => {
+    if (!termToDelete) return;
     try {
-      await deleteTerm(id);
+      await deleteTerm(termToDelete);
       // Refetch terms after deleting
       await loadTerms();
     } catch (err) {
       console.error("Error deleting term:", err);
+    } finally {
+      setDeleteConfirmVisible(false);
+      setTermToDelete(null);
     }
-  };
-
-  const handleEditClick = (term: { id: number; name: string }) => {
-    setEditingTerm(term);
-    setOpen(true);
   };
 
   if (loading)
@@ -111,7 +121,7 @@ export default function TermsPage() {
           }}
         >
           <Dialog.Trigger asChild>
-            <Button>Add Term</Button>
+            <Button className="cursor-pointer">Add Term</Button>
           </Dialog.Trigger>
           <Dialog.Portal>
             <Dialog.Overlay className="bg-black/50 data-[state=open]:animate-overlayShow fixed inset-0" />
@@ -140,8 +150,20 @@ export default function TermsPage() {
       <TermsList
         terms={terms}
         onEdit={handleEditClick}
-        onDelete={handleDeleteTerm}
+        onDelete={handleDeleteClick}
       />
+
+      <Modal
+        title="Confirm Delete"
+        open={deleteConfirmVisible}
+        onOk={handleDeleteTerm}
+        onCancel={() => setDeleteConfirmVisible(false)}
+        okText="Delete"
+        cancelText="Cancel"
+        okButtonProps={{ danger: true }}
+      >
+        <p>Are you sure you want to delete this term?</p>
+      </Modal>
     </div>
   );
 }

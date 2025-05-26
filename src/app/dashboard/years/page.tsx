@@ -52,19 +52,20 @@ export default function Page() {
 
   const handleSubmitYear = async (data: { name: string }) => {
     try {
-      const yearData = currentUser?.role === "SCHOOL_ADMIN" 
-        ? { ...data, school_id: currentUser?.school }
-        : data;
-  
+      const yearData =
+        currentUser?.role === "SCHOOL_ADMIN"
+          ? { ...data, school_id: currentUser?.school }
+          : data;
+
       if (currentYear) {
         await updateYearApi(currentYear.id, yearData);
       } else {
         const newYear = await addYearApi(yearData);
-        setYears(prevYears => [...prevYears, newYear]);
+        setYears((prevYears) => [...prevYears, newYear]);
       }
       const updatedYears = await fetchYears();
       setYears(updatedYears);
-      
+
       setOpen(false);
       setCurrentYear(null);
     } catch (err) {
@@ -96,23 +97,25 @@ export default function Page() {
     }
   };
 
-  if (loading) return (
-    <div className="p-3 md:p-6 flex justify-center items-center h-64">
-      <Spin size="large" />
-    </div>
-  );
-  if (error) return (
-    <div className="p-3 md:p-6">
-      <Alert
-        message="Error"
-        description={error}
-        type="error"
-        showIcon
-        closable
-        onClose={() => setError(null)}
-      />
-    </div>
-  );
+  if (loading)
+    return (
+      <div className="p-3 md:p-6 flex justify-center items-center h-64">
+        <Spin size="large" />
+      </div>
+    );
+  if (error)
+    return (
+      <div className="p-3 md:p-6">
+        <Alert
+          message="Error"
+          description={error}
+          type="error"
+          showIcon
+          closable
+          onClose={() => setError(null)}
+        />
+      </div>
+    );
   return (
     <div className="p-3 md:p-6">
       <div className="flex items-center justify-between mb-6">
@@ -164,7 +167,7 @@ export default function Page() {
         )}
       </div>
       <YearsList
-       key={years.length}
+        key={years.length}
         years={years.map((year) => ({
           id: year.id,
           name: year.name,
@@ -193,9 +196,15 @@ export default function Page() {
 
             <div className="flex justify-end gap-4">
               <Dialog.Close asChild>
-                <Button variant="outline">Cancel</Button>
+                <Button variant="outline" className="cursor-pointer">
+                  Cancel
+                </Button>
               </Dialog.Close>
-              <Button variant="destructive" onClick={handleDeleteYear}>
+              <Button
+                variant="destructive"
+                onClick={handleDeleteYear}
+                className="cursor-pointer"
+              >
                 Delete
               </Button>
             </div>

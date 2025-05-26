@@ -260,10 +260,10 @@ export default function Page() {
               Are you sure you want to delete this assessment?
             </p>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+              <Button variant="outline" onClick={() => setDeleteOpen(false)} className="cursor-pointer">
                 Cancel
               </Button>
-              <Button variant="destructive" onClick={handleDeleteAssessment}>
+              <Button variant="destructive" onClick={handleDeleteAssessment} className="cursor-pointer">
                 Delete
               </Button>
             </div>

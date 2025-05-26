@@ -141,7 +141,7 @@ export default function LibraryPage() {
           {
             label: (
               <span className="font-medium flex items-center text-green-500">
-                <PlusOutlined className="mr-1" /> Add
+                <PlusOutlined className="mr-1" /> Add More
               </span>
             ),
             key: "add",
@@ -159,18 +159,18 @@ export default function LibraryPage() {
       formData.append("library_categories_id", values.category);
       formData.append("description", values.description || "");
 
-     if (fileList.length > 0) {
-      const fileToUpload = fileList[0].originFileObj || fileList[0];
-      
-      console.log("Uploading file:", {
-        name: fileToUpload.name,
-        type: fileToUpload.type,
-        size: fileToUpload.size,
-        file: fileToUpload,
-      });
+      if (fileList.length > 0) {
+        const fileToUpload = fileList[0].originFileObj || fileList[0];
 
-      formData.append("file_path", fileToUpload);
-    }
+        console.log("Uploading file:", {
+          name: fileToUpload.name,
+          type: fileToUpload.type,
+          size: fileToUpload.size,
+          file: fileToUpload,
+        });
+
+        formData.append("file_path", fileToUpload);
+      }
 
       if (isEditing && currentItem) {
         await updateLibrary(currentItem.id, formData);
@@ -421,7 +421,7 @@ export default function LibraryPage() {
                 href="/dashboard/library/librarycategory"
                 className="transition-all flex items-center gap-1 bg-white hover:bg-gray-50 border border-dashed rounded-full px-4 !text-green-600 border-green-600"
               >
-                <Plus size={18} /> Add
+                <Plus size={18} /> Add More
               </Link>
             )}
           </div>
@@ -447,37 +447,37 @@ export default function LibraryPage() {
                 key={item.id}
                 className="hover:shadow-lg shadow-sm transition-all duration-300 border border-gray-100 rounded-xl overflow-hidden flex flex-col h-full"
                 hoverable
+                bodyStyle={{ padding: 0 }}
               >
-                <div className="relative bg-gradient-to-br from-gray-50 to-gray-100 p-6">
-                  <div className="flex items-center justify-center h-20">
+                <div className="relative bg-gradient-to-br from-gray-50 to-gray-100 p-5">
+                  <div className="flex items-center justify-between h-4">
                     <div className="text-3xl text-blue-500">
                       {getIconForType(item.type)}
                     </div>
+                    {canUpload && (
+                      <div className="flex gap-2">
+                        <Button
+                          shape="circle"
+                          size="small"
+                          icon={<DeleteOutlined className="text-xs" />}
+                          danger
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setItemToDelete(item.id);
+                            setDeleteModalVisible(true);
+                          }}
+                          className="shadow-sm bg-white hover:bg-red-50 border-none"
+                        />
+                        <Button
+                          shape="circle"
+                          size="small"
+                          icon={<EditOutlined className="text-xs" />}
+                          onClick={() => handleEdit(item)}
+                          className="shadow-sm bg-white hover:bg-blue-50 border-none"
+                        />
+                      </div>
+                    )}
                   </div>
-
-                  {canUpload && (
-                    <div className="absolute top-3 right-3 flex gap-2">
-                      <Button
-                        shape="circle"
-                        size="small"
-                        icon={<DeleteOutlined className="text-xs" />}
-                        danger
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setItemToDelete(item.id);
-                          setDeleteModalVisible(true);
-                        }}
-                        className="shadow-sm bg-white hover:bg-red-50 border-none"
-                      />
-                      <Button
-                        shape="circle"
-                        size="small"
-                        icon={<EditOutlined className="text-xs" />}
-                        onClick={() => handleEdit(item)}
-                        className="shadow-sm bg-white hover:bg-blue-50 border-none"
-                      />
-                    </div>
-                  )}
                 </div>
 
                 <div className="p-5 flex-grow flex flex-col">
@@ -517,7 +517,7 @@ export default function LibraryPage() {
                         type="text"
                         icon={<EyeOutlined />}
                         onClick={() => handleView(item)}
-                        className="flex items-center text-blue-600 hover:text-blue-800 px-0 hover:bg-blue-50"
+                        className="flex items-center text-blue-600 hover:text-blue-800 !px-0 hover:bg-blue-50"
                       >
                         View
                       </Button>
@@ -531,7 +531,7 @@ export default function LibraryPage() {
                         <Button
                           type="text"
                           icon={<DownloadOutlined />}
-                          className="flex items-center text-green-600 hover:text-green-800 px-0 hover:bg-green-50"
+                          className="flex items-center text-green-600 hover:text-green-800 !px-0 hover:bg-green-50"
                         >
                           Download
                         </Button>

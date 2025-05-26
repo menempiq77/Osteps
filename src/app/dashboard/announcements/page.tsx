@@ -40,7 +40,7 @@ export default function AnnouncementsPage() {
     title: "",
     description: "",
     type: "general" as "prayer" | "event" | "reminder" | "general",
-    target: "all" as "all" | "teachers" | "students" | "staff",
+    role: "all" as "all" | "teachers" | "students" | "staff",
   });
   const [isCreating, setIsCreating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -74,7 +74,6 @@ export default function AnnouncementsPage() {
         description: newAnnouncement.description,
         role: currentUser?.role || "SCHOOL_ADMIN", // Default role if not available
         type: newAnnouncement.type,
-        target: newAnnouncement.target,
         // Add other required fields if needed
       };
 
@@ -88,7 +87,7 @@ export default function AnnouncementsPage() {
         title: "",
         description: "",
         type: "general",
-        target: "all",
+        role: "all",
       });
       setIsCreating(false);
       setError(null);
@@ -133,39 +132,27 @@ export default function AnnouncementsPage() {
     );
   };
 
-  // Filter announcements based on user role and target
-  const filteredAnnouncements = announcements.filter((announcement) => {
-    // Super admins can see everything
-    if (currentUser?.role === "SUPER_ADMIN") return true;
+ const filteredAnnouncements = announcements.filter((announcement) => {
+  if (currentUser?.role === "SUPER_ADMIN") return true;
 
-    // School admins can see all except super-admin specific announcements
-    if (currentUser?.role === "SCHOOL_ADMIN") {
-      return true; // School admins can see all announcements
-    }
+  if (currentUser?.role === "SCHOOL_ADMIN") return true;
 
-    // Teachers can see all, teachers-only, and general announcements
-    if (currentUser?.role === "TEACHER") {
-      return (
-        announcement.target === "all" ||
-        announcement.target === "teachers" ||
-        announcement.target === "staff"
-      );
-    }
+  if (currentUser?.role === "TEACHER") {
+    return true;
+  }
 
-    // Students can see all and students-only announcements
-    if (currentUser?.role === "STUDENT") {
-      return (
-        announcement.target === "all" || announcement.target === "students"
-      );
-    }
+  // Students can see announcements
+  if (currentUser?.role === "STUDENT") {
+    return true;
+  }
 
-    // Staff can see all and staff-only announcements
-    if (currentUser?.role === "STAFF") {
-      return announcement.target === "all" || announcement.target === "staff";
-    }
+  // Staff can see announcements
+  if (currentUser?.role === "STAFF") {
+    return true;
+  }
 
-    return false;
-  });
+  return false;
+});
 
   const badgeRibbonColors = {
     prayer: "green",
@@ -277,7 +264,6 @@ export default function AnnouncementsPage() {
                 <option value="all">Everyone</option>
                 <option value="teachers">Teachers Only</option>
                 <option value="students">Students Only</option>
-                <option value="staff">Staff Only</option>
               </select>
             </div>
           </CardContent>
@@ -353,9 +339,9 @@ export default function AnnouncementsPage() {
 
             <div className="flex justify-end gap-4">
               <Dialog.Close asChild>
-                <Button variant="outline">Cancel</Button>
+                <Button variant="outline" className="cursor-pointer">Cancel</Button>
               </Dialog.Close>
-              <Button variant="destructive" onClick={handleDeleteAnnouncement}>
+              <Button variant="destructive" onClick={handleDeleteAnnouncement} className="cursor-pointer">
                 Delete
               </Button>
             </div>

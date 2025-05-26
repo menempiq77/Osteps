@@ -196,9 +196,9 @@ export default function Page() {
 
             <div className="flex justify-end gap-4">
               <Dialog.Close asChild>
-                <Button variant="outline">Cancel</Button>
+                <Button variant="outline" className="cursor-pointer">Cancel</Button>
               </Dialog.Close>
-              <Button variant="destructive" onClick={handleDeleteGrade}>
+              <Button variant="destructive" onClick={handleDeleteGrade} className="cursor-pointer">
                 Delete
               </Button>
             </div>

@@ -201,23 +201,23 @@ export default function TrackerList() {
           <table className="min-w-full bg-white border border-gray-300 mb-20">
             <thead>
               <tr className="bg-primary text-center text-xs md:text-sm font-thin text-white">
-                <th className="p-0">
+                <th className="p-2 md:p-4">
                   <span className="block py-2 px-3 border-r border-gray-300">
                     Tracker Name
                   </span>
                 </th>
-                <th className="p-0">
+                <th className="p-2 md:p-4">
                   <span className="block py-2 px-3 border-r border-gray-300">
                     Last Updated
                   </span>
                 </th>
-                <th className="p-0">
-                  <span className="block py-2 px-3 border-r border-gray-300">
+                <th className="p-2 md:p-4">
+                  <span className={`block py-2 px-3 ${currentUser?.role !== "STUDENT" ? "border-r" : ""} border-gray-300`}>
                     Status
                   </span>
                 </th>
                 {currentUser?.role !== "STUDENT" && (
-                  <th className="p-4 text-xs md:text-sm">Actions</th>
+                  <th className="p-2 md:p-4 text-xs md:text-sm">Actions</th>
                 )}
               </tr>
             </thead>
@@ -292,6 +292,7 @@ export default function TrackerList() {
                                 <Button
                                   variant="outline"
                                   onClick={() => setDeleteTracker(null)}
+                                  className="cursor-pointer"
                                 >
                                   Cancel
                                 </Button>
@@ -300,6 +301,7 @@ export default function TrackerList() {
                                   onClick={() =>
                                     handleDeleteTracker(deleteTracker.id)
                                   }
+                                  className="cursor-pointer"
                                 >
                                   Delete
                                 </Button>

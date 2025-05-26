@@ -243,12 +243,14 @@ export default function TeacherList() {
                               <Button
                                 variant="outline"
                                 onClick={() => setDeleteTeacher(null)}
+                                className="cursor-pointer"
                               >
                                 Cancel
                               </Button>
                               <Button
                                 variant="destructive"
                                 onClick={() => handleDeleteTeacher(deleteTeacher.id)}
+                                className="cursor-pointer"
                               >
                                 Delete
                               </Button>

@@ -144,14 +144,14 @@ export default function AssessmentList({
         <table className="w-full">
           <thead>
             <tr className="bg-primary">
-              <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase">
+              <th className="px-6 py-3 text-xs font-medium text-white uppercase">
                 Assessment Name
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase">
+              <th className="px-6 py-3 text-xs font-medium text-white uppercase">
                 Type
               </th>
               {canUpload && (
-                <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase">
+                <th className="px-6 py-3 text-xs font-medium text-white uppercase">
                   Actions
                 </th>
               )}
@@ -189,7 +189,7 @@ export default function AssessmentList({
                 </td>
                 {canUpload && (
                   <td className="p-2 md:p-4">
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center justify-center gap-4">
                       <button
                         onClick={() => onEditAssessment?.(assignment)}
                         className="text-green-500 hover:text-green-700 cursor-pointer"

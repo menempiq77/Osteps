@@ -183,10 +183,10 @@ export default function ClassesList({
               be undone.
             </p>
             <div className="mt-4 flex justify-end space-x-2">
-              <Button variant="outline" onClick={() => setClassToDelete(null)}>
+              <Button variant="outline" onClick={() => setClassToDelete(null)} className="cursor-pointer">
                 Cancel
               </Button>
-              <Button variant="destructive" onClick={confirmDelete}>
+              <Button variant="destructive" onClick={confirmDelete} className="cursor-pointer">
                 Delete
               </Button>
             </div>
