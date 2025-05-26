@@ -1,4 +1,5 @@
 "use client";
+import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 
 export default function SchoolList({
   schools,
@@ -10,44 +11,60 @@ export default function SchoolList({
   onDelete: (id: string) => void;
 }) {
   return (
-    <div className="mt-8 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-      <div className="px-6 py-4 border-b border-gray-100">
-        <h3 className="text-lg font-semibold text-gray-800">Registered Schools</h3>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">School Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Admin Email</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact Person</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {schools?.map((school) => (
-              <tr key={school.id} className="hover:bg-gray-50 transition-colors duration-150">
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{school.name}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{school.adminEmail}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{school.contactPerson}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button 
-                    onClick={() => onEdit(school)} 
-                    className="text-indigo-600 hover:text-indigo-900 mr-4 transition-colors duration-150 cursor-pointer"
-                  >
-                    Edit
-                  </button>
-                  <button 
-                    onClick={() => onDelete(school.id)} 
-                    className="text-rose-600 hover:text-rose-900 transition-colors duration-150 cursor-pointer"
-                  >
-                    Delete
-                  </button>
-                </td>
+    <div className="overflow-auto h-screen">
+      <div className="relative overflow-auto">
+        <div className="overflow-x-auto rounded-lg">
+          <table className="min-w-full bg-white border border-gray-300 mb-20">
+            <thead>
+              <tr className="bg-primary text-center text-xs md:text-sm font-thin text-white">
+                <th className="p-0">
+                  <span className="block py-2 px-3 border-r border-gray-300">
+                    School Name
+                  </span>
+                </th>
+                <th className="p-0">
+                  <span className="block py-2 px-3 border-r border-gray-300">
+                    Admin Email
+                  </span>
+                </th>
+                <th className="p-0">
+                  <span className="block py-2 px-3 border-r border-gray-300">
+                    Contact Person
+                  </span>
+                </th>
+                <th className="p-4 text-xs md:text-sm">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {schools?.map((school) => (
+                <tr
+                  key={school.id}
+                  className="border-b border-gray-300 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
+                >
+                  <td className="p-2 md:p-4 font-medium">{school.name}</td>
+                  <td className="p-2 md:p-4">{school.adminEmail}</td>
+                  <td className="p-2 md:p-4">{school.contactPerson}</td>
+                  <td className="relative p-2 md:p-4 flex justify-center space-x-3">
+                    <button
+                      onClick={() => onEdit(school)}
+                      className="text-green-500 hover:text-green-700 cursor-pointer"
+                      title="Edit"
+                    >
+                      <EditOutlined />
+                    </button>
+                    <button
+                      onClick={() => onDelete(school.id)}
+                      className="text-red-500 hover:text-red-700 cursor-pointer"
+                      title="Delete"
+                    >
+                      <DeleteOutlined />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
