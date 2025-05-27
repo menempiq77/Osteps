@@ -2,7 +2,6 @@
 import axios from 'axios';
 import { store } from '@/store/store';
 import { API_BASE_URL } from '@/lib/config';
-import { logout } from '@/features/auth/authSlice';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -20,13 +19,16 @@ api.interceptors.request.use((config) => {
 // Response interceptor to handle errors
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     if (error.response?.status === 401) {
+      const { store } = await import("@/store/store");
+      const { logout } = await import("@/features/auth/authSlice");
       store.dispatch(logout());
     }
     return Promise.reject(error);
   }
 );
+
 
 export const loginUser = async (email: string, password: string) => {
   const formData = new FormData();
@@ -110,8 +112,8 @@ export const deleteYear = async (id: number) => {
 
 //Classes apis Started
 // fetch Classes
-export const fetchClasses = async () => {
-  const response = await api.get('/get-class');
+export const fetchClasses = async (yearId: number) => {
+  const response = await api.get(`/get-class/${yearId}`);
   return response.data.data;
 };
 // add Class

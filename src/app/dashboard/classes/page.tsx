@@ -7,9 +7,15 @@ import AddClassForm from "@/components/dashboard/AddClassForm";
 import ClassesList from "@/components/dashboard/ClassesList";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { fetchClasses, deleteClass, addClass, updateClass } from "@/services/api";
+import {
+  fetchClasses,
+  deleteClass,
+  addClass,
+  updateClass,
+} from "@/services/api";
 import { useSearchParams } from "next/navigation";
-import { Alert, Spin } from "antd";
+import { Alert, Breadcrumb, Spin } from "antd";
+import Link from "next/link";
 
 interface ApiClass {
   id: string;
@@ -35,7 +41,7 @@ export default function Page() {
     const loadClasses = async () => {
       try {
         setLoading(true);
-        const data = await fetchClasses();
+        const data = await fetchClasses(year_id);
         setClasses(data);
       } catch (err) {
         setError("Failed to fetch classes");
@@ -92,10 +98,12 @@ export default function Page() {
         ...classData,
         year_id: currentClass.year_id,
       });
-      
-      setClasses(classes.map(cls => 
-        cls.id === currentClass.id ? updatedClass.data : cls
-      ));
+
+      setClasses(
+        classes.map((cls) =>
+          cls.id === currentClass.id ? updatedClass.data : cls
+        )
+      );
       setCurrentClass(null);
       setOpen(false);
     } catch (err) {
@@ -135,16 +143,34 @@ export default function Page() {
     );
 
   return (
-    <div className="p-6">
+    <div className="p-3 md:p-6">
+      <Breadcrumb
+        items={[
+          {
+            title: <Link href="/">Dashboard</Link>,
+          },
+          {
+            title: <Link href="/dashboard/years">Academic Years</Link>,
+          },
+          {
+            title: <Link href="/classes">Classes</Link>,
+          },
+        ]}
+        className="!mb-2"
+      />
+
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Classes</h1>
         {currentUser?.role !== "STUDENT" && currentUser?.role !== "TEACHER" && (
-          <Dialog.Root open={open} onOpenChange={(isOpen) => {
-            if (!isOpen) {
-              setCurrentClass(null); // Reset current class when dialog closes
-            }
-            setOpen(isOpen);
-          }}>
+          <Dialog.Root
+            open={open}
+            onOpenChange={(isOpen) => {
+              if (!isOpen) {
+                setCurrentClass(null); // Reset current class when dialog closes
+              }
+              setOpen(isOpen);
+            }}
+          >
             <Dialog.Trigger asChild>
               <Button className="cursor-pointer">Add Class</Button>
             </Dialog.Trigger>
@@ -154,7 +180,7 @@ export default function Page() {
                 <Dialog.Title className="text-lg font-bold mb-4">
                   {currentClass ? "Edit Class" : "Add New Class"}
                 </Dialog.Title>
-                <AddClassForm 
+                <AddClassForm
                   onSubmit={currentClass ? handleEditClass : handleAddClass}
                   initialData={currentClass}
                 />

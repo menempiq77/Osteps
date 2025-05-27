@@ -10,7 +10,7 @@ import {
   updateTeacher,
   deleteTeacher as deleteTeacherApi,
 } from "@/services/api";
-import { Alert, Spin } from "antd";
+import { Alert, Spin, Modal } from "antd";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 
 type Teacher = {
@@ -36,6 +36,7 @@ export default function TeacherList() {
   const [editTeacher, setEditTeacher] = useState<TeacherBasic | null>(null);
   const [deleteTeacher, setDeleteTeacher] = useState<Teacher | null>(null);
   const [isAddTeacherModalOpen, setIsAddTeacherModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   useEffect(() => {
     const loadTeachers = async () => {
@@ -47,7 +48,7 @@ export default function TeacherList() {
           name: teacher.teacher_name,
           phone: teacher.phone,
           email: teacher.email,
-          subjects: teacher.subjects.split(',').map((s: string) => s.trim()),
+          subjects: teacher.subjects.split(",").map((s: string) => s.trim()),
         }));
         setTeachers(transformedTeachers);
       } catch (err) {
@@ -67,18 +68,24 @@ export default function TeacherList() {
         teacher_name: teacher.name,
         phone: teacher.phone,
         email: teacher.email,
-        subjects: teacher.subjects.join(','),
+        subjects: teacher.subjects.join(","),
       });
-      
-      setTeachers(teachers.map(t => 
-        t.id === teacher.id ? {
-          ...teacher,
-          name: response.data.teacher_name,
-          phone: response.data.phone,
-          email: response.data.email,
-          subjects: response.data.subjects.split(',').map((s: string) => s.trim()),
-        } : t
-      ));
+
+      setTeachers(
+        teachers.map((t) =>
+          t.id === teacher.id
+            ? {
+                ...teacher,
+                name: response.data?.teacher_name,
+                phone: response.data?.phone,
+                email: response.data?.email,
+                subjects: response.data?.subjects
+                  .split(",")
+                  .map((s: string) => s.trim()),
+              }
+            : t
+        )
+      );
       setEditTeacher(null);
     } catch (err) {
       console.error("Failed to update teacher:", err);
@@ -89,7 +96,8 @@ export default function TeacherList() {
   const handleDeleteTeacher = async (teacherId: string) => {
     try {
       await deleteTeacherApi(Number(teacherId));
-      setTeachers(teachers.filter(teacher => teacher.id !== teacherId));
+      setTeachers(teachers.filter((teacher) => teacher.id !== teacherId));
+      setIsDeleteModalOpen(false);
       setDeleteTeacher(null);
     } catch (err) {
       console.error("Failed to delete teacher:", err);
@@ -103,17 +111,19 @@ export default function TeacherList() {
         teacher_name: teacher.name,
         phone: teacher.phone,
         email: teacher.email,
-        subjects: teacher.subjects.join(','),
+        subjects: teacher.subjects.join(","),
       });
-      
+
       const newTeacher = {
         id: response.data.id.toString(),
-        name: response.data.teacher_name,
-        phone: response.data.phone,
-        email: response.data.email,
-        subjects: response.data.subjects.split(',').map((s: string) => s.trim()),
+        name: response.data?.teacher_name,
+        phone: response.data?.phone,
+        email: response.data?.email,
+        subjects: response.data?.subjects
+          .split(",")
+          .map((s: string) => s.trim()),
       };
-      
+
       setTeachers([...teachers, newTeacher]);
       setIsAddTeacherModalOpen(false);
     } catch (err) {
@@ -122,23 +132,25 @@ export default function TeacherList() {
     }
   };
 
-  if (isLoading) return (
-    <div className="p-3 md:p-6 flex justify-center items-center h-64">
-      <Spin size="large" />
-    </div>
-  );
-  if (error) return (
-    <div className="p-3 md:p-6">
-      <Alert
-        message="Error"
-        description={error}
-        type="error"
-        showIcon
-        closable
-        onClose={() => setError(null)}
-      />
-    </div>
-  );
+  if (isLoading)
+    return (
+      <div className="p-3 md:p-6 flex justify-center items-center h-64">
+        <Spin size="large" />
+      </div>
+    );
+  if (error)
+    return (
+      <div className="p-3 md:p-6">
+        <Alert
+          message="Error"
+          description={error}
+          type="error"
+          showIcon
+          closable
+          onClose={() => setError(null)}
+        />
+      </div>
+    );
 
   return (
     <div className="overflow-auto h-screen">
@@ -218,47 +230,16 @@ export default function TeacherList() {
                       )}
                     </Dialog.Root>
 
-                    <Dialog.Root>
-                      <Dialog.Trigger asChild>
-                        <button
-                          onClick={() => setDeleteTeacher(teacher)}
-                          className="text-red-500 hover:text-red-700 cursor-pointer"
-                          title="Delete"
-                        >
-                          <DeleteOutlined />
-                        </button>
-                      </Dialog.Trigger>
-                      {deleteTeacher?.id === teacher.id && (
-                        <Dialog.Portal>
-                          <Dialog.Overlay className="fixed inset-0 bg-black/30" />
-                          <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-md w-full max-w-md">
-                            <Dialog.Title className="text-lg font-semibold">
-                              Confirm Deletion
-                            </Dialog.Title>
-                            <p className="mt-2 text-gray-600">
-                              Are you sure you want to delete{" "}
-                              <strong>{deleteTeacher.name}</strong>?
-                            </p>
-                            <div className="mt-4 flex justify-end space-x-2">
-                              <Button
-                                variant="outline"
-                                onClick={() => setDeleteTeacher(null)}
-                                className="cursor-pointer"
-                              >
-                                Cancel
-                              </Button>
-                              <Button
-                                variant="destructive"
-                                onClick={() => handleDeleteTeacher(deleteTeacher.id)}
-                                className="cursor-pointer"
-                              >
-                                Delete
-                              </Button>
-                            </div>
-                          </Dialog.Content>
-                        </Dialog.Portal>
-                      )}
-                    </Dialog.Root>
+                    <button
+                      onClick={() => {
+                        setDeleteTeacher(teacher);
+                        setIsDeleteModalOpen(true);
+                      }}
+                      className="text-red-500 hover:text-red-700 cursor-pointer"
+                      title="Delete"
+                    >
+                      <DeleteOutlined />
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -266,6 +247,28 @@ export default function TeacherList() {
           </table>
         </div>
       </div>
+
+      {/* Ant Design Delete Confirmation Modal */}
+      <Modal
+        title="Confirm Deletion"
+        open={isDeleteModalOpen}
+        onOk={() => deleteTeacher && handleDeleteTeacher(deleteTeacher.id)}
+        onCancel={() => {
+          setIsDeleteModalOpen(false);
+          setDeleteTeacher(null);
+        }}
+        okText="Delete"
+        okButtonProps={{ danger: true }}
+        cancelText="Cancel"
+        centered
+      >
+        {deleteTeacher && (
+          <p>
+            Are you sure you want to delete teacher{" "}
+            <strong>{deleteTeacher.name}</strong>? This action cannot be undone.
+          </p>
+        )}
+      </Modal>
     </div>
   );
 }
