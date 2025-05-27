@@ -1,7 +1,7 @@
 "use client";
 import { Modal, Form, Input, Button, Checkbox, message } from "antd";
 import type { CheckboxValueType } from "antd/es/checkbox/Group";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 const subjectOptions = [
   { label: "Math", value: "Math" },
@@ -94,6 +94,7 @@ export const EditTeacherModal = ({
           type="primary"
           loading={confirmLoading}
           onClick={handleSave}
+          className="!bg-primary hover:!bg-primary text-white"
         >
           Save Changes
         </Button>,

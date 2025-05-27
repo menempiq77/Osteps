@@ -1,9 +1,7 @@
 "use client";
-import * as Dialog from "@radix-ui/react-dialog";
-import { Cross2Icon } from "@radix-ui/react-icons";
-import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { Select } from "antd";
+import { Modal, Select, Button, Form, Input } from "antd";
+import { Cross2Icon } from "@radix-ui/react-icons";
 
 const trackerOptions = [
   { value: "recitation", label: "Recitation" },
@@ -20,6 +18,13 @@ const typeOptions = [
   { value: "hadith", label: "Hadith" },
 ];
 
+const statusOptions = [
+  { value: "Active", label: "Active" },
+  { value: "Paused", label: "Paused" },
+  { value: "Completed", label: "Completed" },
+  { value: "Pending", label: "Pending" },
+];
+
 export function AddTrackerModal({
   isOpen,
   onOpenChange,
@@ -34,137 +39,98 @@ export function AddTrackerModal({
     progress: string[];
   }) => void;
 }) {
-  const [tracker, setTracker] = useState({
-    name: "",
-    type: "",
-    status: "",
-    progress: [] as string[],
-  });
+  const [form] = Form.useForm();
+  const [progressOptions, setProgressOptions] = useState<string[]>([]);
 
-  const statusOptions = [
-    "Active",
-    "Paused",
-    "Completed",
-    "Pending",
-  ];
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onAddTracker(tracker);
-    setTracker({
-      name: "",
-      type: "",
-      status: "",
-      progress: [],
-    });
+  const handleSubmit = (values: {
+    name: string;
+    type: string;
+    status: string;
+    progress: string[];
+  }) => {
+    onAddTracker(values);
+    form.resetFields();
+    setProgressOptions([]);
   };
 
-  const handleOptionsChange = (value: string[]) => {
-    setTracker({
-      ...tracker,
-      progress: value,
-    });
+  const handleCancel = () => {
+    onOpenChange(false);
+    form.resetFields();
+    setProgressOptions([]);
   };
 
   return (
-    <Dialog.Root open={isOpen} onOpenChange={onOpenChange}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/50" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-lg w-full max-w-md z-[1000]">
-          <Dialog.Title className="text-xl font-semibold mb-4">
-            Add New Tracker
-          </Dialog.Title>
-          
-          <form onSubmit={handleSubmit}>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tracker Name
-                </label>
-                <input
-                  type="text"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  value={tracker.name}
-                  onChange={(e) =>
-                    setTracker({ ...tracker, name: e.target.value })
-                  }
-                  required
-                />
-              </div>
+    <Modal
+      title="Add New Tracker"
+      open={isOpen}
+      onCancel={handleCancel}
+      footer={null}
+      closeIcon={<Cross2Icon className="h-4 w-4" />}
+      centered
+    >
+      <Form
+        form={form}
+        layout="vertical"
+        onFinish={handleSubmit}
+        initialValues={{ progress: [] }}
+      >
+        <Form.Item
+          label="Tracker Name"
+          name="name"
+          rules={[{ required: true, message: 'Please input the tracker name!' }]}
+        >
+          <Input placeholder="Enter tracker name" />
+        </Form.Item>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Type
-                </label>
-                <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  value={tracker.type}
-                  onChange={(e) =>
-                    setTracker({ ...tracker, type: e.target.value })
-                  }
-                  required
-                >
-                  <option value="">Select Type</option>
-                  {typeOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+        <Form.Item
+          label="Type"
+          name="type"
+          rules={[{ required: true, message: 'Please select the type!' }]}
+        >
+          <Select placeholder="Select type">
+            {typeOptions.map((option) => (
+              <Select.Option key={option.value} value={option.value}>
+                {option.label}
+              </Select.Option>
+            ))}
+          </Select>
+        </Form.Item>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Status
-                </label>
-                <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  value={tracker.status}
-                  onChange={(e) =>
-                    setTracker({ ...tracker, status: e.target.value })
-                  }
-                  required
-                >
-                  <option value="">Select Status</option>
-                  {statusOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </div>
+        <Form.Item
+          label="Status"
+          name="status"
+          rules={[{ required: true, message: 'Please select the status!' }]}
+        >
+          <Select placeholder="Select status">
+            {statusOptions.map((option) => (
+              <Select.Option key={option.value} value={option.value}>
+                {option.label}
+              </Select.Option>
+            ))}
+          </Select>
+        </Form.Item>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Progress Options
-                </label>
-                <Select
-                  mode="tags"
-                  allowClear
-                  style={{ width: '100%' }}
-                  placeholder="Select progress options"
-                  value={tracker.progress}
-                  onChange={handleOptionsChange}
-                  options={trackerOptions}
-                />
-              </div>
-            </div>
+        <Form.Item
+          label="Progress Options"
+          name="progress"
+        >
+          <Select
+            mode="tags"
+            allowClear
+            placeholder="Select progress options"
+            options={trackerOptions}
+          />
+        </Form.Item>
 
-            <div className="mt-6 flex justify-end space-x-3">
-              <Dialog.Close asChild>
-                <Button variant="outline">Cancel</Button>
-              </Dialog.Close>
-              <Button type="submit">Add Tracker</Button>
-            </div>
-          </form>
-
-          <Dialog.Close asChild>
-            <button className="absolute top-4 right-4 p-1 rounded-full hover:bg-gray-100">
-              <Cross2Icon className="h-4 w-4" />
-            </button>
-          </Dialog.Close>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+        <div className="flex justify-end space-x-3">
+          <Button onClick={handleCancel}>
+            Cancel
+          </Button>
+          <Button type="primary" htmlType="submit" className="!bg-primary border:!bg-primary">
+            Add Tracker
+          </Button>
+        </div>
+      </Form>
+    </Modal>
   );
 }

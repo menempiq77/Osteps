@@ -1,23 +1,13 @@
 // app/layout.tsx
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Raleway  } from "next/font/google";
+import { Raleway } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./provider";
 
-const raleway = Raleway ({
+const raleway = Raleway({
   variable: "--font-raleway",
   subsets: ["latin"],
   display: "swap",
-});
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
@@ -32,9 +22,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${raleway.variable}`}>
-      <body
-        className={`font-sans antialiased`}
-      >
+      <body className={`font-sans antialiased`} suppressHydrationWarning={true}>
         <Providers>{children}</Providers>
       </body>
     </html>

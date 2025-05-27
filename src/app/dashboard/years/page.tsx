@@ -14,7 +14,8 @@ import {
   updateYear as updateYearApi,
   fetchSchools,
 } from "@/services/api";
-import { Alert, Spin } from "antd";
+import { Alert, Breadcrumb, Spin } from "antd";
+import Link from "next/link";
 
 interface Year {
   id: number;
@@ -118,6 +119,17 @@ export default function Page() {
     );
   return (
     <div className="p-3 md:p-6">
+      <Breadcrumb
+        items={[
+          {
+            title: <Link href="/">Dashboard</Link>,
+          },
+          {
+            title: <Link href="/years">Academic Years</Link>,
+          },
+        ]}
+        className="!mb-2"
+      />
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Academic Years</h1>
         {currentUser?.role !== "STUDENT" && currentUser?.role !== "TEACHER" && (

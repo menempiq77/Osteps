@@ -1,9 +1,7 @@
 "use client";
-import { Pencil2Icon } from "@radix-ui/react-icons";
 import { Button } from "@/components/ui/button";
 import * as Dialog from "@radix-ui/react-dialog";
 import { useState, useEffect } from "react";
-import { Trash2 } from "lucide-react";
 import { AddTrackerModal } from "../modals/trackerModals/AddTrackerModal";
 import { EditTrackerModal } from "../modals/trackerModals/EditTrackerModal";
 import { useParams, useRouter } from "next/navigation";
@@ -15,7 +13,7 @@ import {
   updateTracker as updateTrackerAPI,
   deleteTracker as deleteTrackerAPI,
 } from "@/services/api";
-import { Alert, Spin } from "antd";
+import { Alert, Spin, Modal } from "antd";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 
 type Tracker = {
@@ -46,6 +44,7 @@ export default function TrackerList() {
   const [editTracker, setEditTracker] = useState<Tracker | null>(null);
   const [deleteTracker, setDeleteTracker] = useState<Tracker | null>(null);
   const [isAddTrackerModalOpen, setIsAddTrackerModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const loadTrackers = async () => {
     try {
@@ -96,11 +95,13 @@ export default function TrackerList() {
     }
   };
 
-  const handleDeleteTracker = async (trackerId: string) => {
+  const handleDeleteTracker = async () => {
+    if (!deleteTracker) return;
     try {
-      await deleteTrackerAPI(Number(trackerId));
-      setTrackers(trackers.filter((tracker) => tracker.id !== trackerId));
+      await deleteTrackerAPI(Number(deleteTracker.id));
+      setTrackers(trackers.filter((tracker) => tracker.id !== deleteTracker.id));
       setDeleteTracker(null);
+      setIsDeleteModalOpen(false);
     } catch (err) {
       console.error("Failed to delete tracker:", err);
     }
@@ -267,49 +268,16 @@ export default function TrackerList() {
                         )}
                       </Dialog.Root>
 
-                      <Dialog.Root>
-                        <Dialog.Trigger asChild>
-                          <button
-                            onClick={() => setDeleteTracker(tracker)}
-                            className="text-red-500 hover:text-red-700 cursor-pointer"
-                            title="Delete"
-                          >
-                            <DeleteOutlined />
-                          </button>
-                        </Dialog.Trigger>
-                        {deleteTracker?.id === tracker.id && (
-                          <Dialog.Portal>
-                            <Dialog.Overlay className="fixed inset-0 bg-black/30" />
-                            <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-md w-full max-w-md">
-                              <Dialog.Title className="text-lg font-semibold">
-                                Confirm Deletion
-                              </Dialog.Title>
-                              <p className="mt-2 text-gray-600">
-                                Are you sure you want to delete{" "}
-                                <strong>{deleteTracker.name}</strong> tracker?
-                              </p>
-                              <div className="mt-4 flex justify-end space-x-2">
-                                <Button
-                                  variant="outline"
-                                  onClick={() => setDeleteTracker(null)}
-                                  className="cursor-pointer"
-                                >
-                                  Cancel
-                                </Button>
-                                <Button
-                                  variant="destructive"
-                                  onClick={() =>
-                                    handleDeleteTracker(deleteTracker.id)
-                                  }
-                                  className="cursor-pointer"
-                                >
-                                  Delete
-                                </Button>
-                              </div>
-                            </Dialog.Content>
-                          </Dialog.Portal>
-                        )}
-                      </Dialog.Root>
+                      <button
+                        onClick={() => {
+                          setDeleteTracker(tracker);
+                          setIsDeleteModalOpen(true);
+                        }}
+                        className="text-red-500 hover:text-red-700 cursor-pointer"
+                        title="Delete"
+                      >
+                        <DeleteOutlined />
+                      </button>
                     </td>
                   )}
                 </tr>
@@ -318,6 +286,23 @@ export default function TrackerList() {
           </table>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        title="Confirm Deletion"
+        open={isDeleteModalOpen}
+        onOk={handleDeleteTracker}
+        onCancel={() => setIsDeleteModalOpen(false)}
+        okText="Delete"
+        okButtonProps={{ danger: true }}
+        cancelText="Cancel"
+        centered
+      >
+        <p>
+          Are you sure you want to delete the tracker{" "}
+          <strong>{deleteTracker?.name}</strong>? This action cannot be undone.
+        </p>
+      </Modal>
     </div>
   );
 }
