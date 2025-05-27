@@ -8,42 +8,42 @@ import { AssignTeacher, fetchTeachers, getAssignTeacher } from "@/services/api";
 export default function AssignPage() {
   const { classId } = useParams();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
-  const [assignedTeacher, setAssignedTeacher] = useState<any>(null);
+  const [assignedTeachers, setAssignedTeachers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAssigning, setIsAssigning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-useEffect(() => {
-  const loadData = async () => {
-    try {
-      setIsLoading(true);
-      const teachersResponse = await fetchTeachers();
-      const transformedTeachers = teachersResponse.map((teacher: any) => ({
-        id: teacher.id.toString(),
-        name: teacher.teacher_name,
-        phone: teacher.phone,
-        email: teacher.email,
-        subjects: teacher.subjects.split(",").map((s: string) => s.trim()),
-      }));
-      setTeachers(transformedTeachers);
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setIsLoading(true);
+        const teachersResponse = await fetchTeachers();
+        const transformedTeachers = teachersResponse.map((teacher: any) => ({
+          id: teacher.id.toString(),
+          name: teacher.teacher_name,
+          phone: teacher.phone,
+          email: teacher.email,
+          subjects: teacher.subjects.split(",").map((s: string) => s.trim()),
+        }));
+        setTeachers(transformedTeachers);
 
-      if (classId) {
-        const assignedResponse = await getAssignTeacher(classId as string);
-        if (assignedResponse.teachers_by_subject?.Islamiat?.length > 0) {
-          setAssignedTeacher(assignedResponse.teachers_by_subject.Islamiat[0]);
+        if (classId) {
+          const assignedResponse = await getAssignTeacher(classId as string);
+          if (assignedResponse.teachers_by_subject?.Islamiat?.length > 0) {
+            setAssignedTeachers(assignedResponse.teachers_by_subject.Islamiat); // Store all teachers
+          }
         }
+      } catch (err) {
+        setError("Failed to fetch data");
+        console.error(err);
+      } finally {
+        setIsLoading(false);
       }
-    } catch (err) {
-      setError("Failed to fetch data");
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
 
-  loadData();
-}, [classId]);
+    loadData();
+  }, [classId]);
 
   const [selectedTeachers, setSelectedTeachers] = useState<number[]>([]);
 
@@ -62,12 +62,12 @@ useEffect(() => {
       const teacherId = selectedTeachers[0];
       await AssignTeacher(classId as string, teacherId);
 
-      const assignedResponse = await getAssignTeacher(classId as string);
-      if (assignedResponse.teacher) {
-        setAssignedTeacher(assignedResponse.teacher);
-      }
+       const assignedResponse = await getAssignTeacher(classId as string);
+    if (assignedResponse.teachers_by_subject?.Islamiat?.length > 0) {
+      setAssignedTeachers(assignedResponse.teachers_by_subject.Islamiat);
+    }
 
-      setSuccessMessage(`Successfully assigned teacher to class ${classId}!`);
+      setSuccessMessage(`Successfully assigned teacher to class`);
       setSelectedTeachers([]);
     } catch (error) {
       console.error("Error assigning teacher:", error);
@@ -85,9 +85,7 @@ useEffect(() => {
           <h2 className="text-2xl font-bold text-gray-800">
             Teacher Assignment
           </h2>
-          <p className="text-sm text-gray-500">
-            Assign teachers to Class
-          </p>
+          <p className="text-sm text-gray-500">Assign teachers to Class</p>
         </div>
       </div>
 
@@ -139,22 +137,28 @@ useEffect(() => {
             </div>
 
             <div className="p-6">
-              {assignedTeacher ? (
-                <div className="border border-gray-100 rounded-xl overflow-hidden shadow-xs bg-white p-4">
-                  <div className="flex items-center gap-4">
-                    <div className="bg-blue-100 p-3 rounded-full">
-                      <Users className="w-5 h-5 text-blue-600" />
+              {assignedTeachers.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {assignedTeachers.map((teacher) => (
+                    <div
+                      key={teacher.id}
+                      className="border border-gray-100 rounded-xl overflow-hidden shadow-xs bg-white p-4"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="bg-blue-100 p-3 rounded-full">
+                          <Users className="w-5 h-5 text-blue-600" />
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-gray-800">
+                            {teacher.teacher_name}
+                          </h4>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Email: {teacher.email}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-800">
-                        {assignedTeacher.teacher_name}
-                      </h4>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Email:{" "}
-                        {assignedTeacher.email}
-                      </p>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               ) : (
                 <div className="text-center py-8 text-gray-500">
