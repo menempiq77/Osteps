@@ -1,14 +1,7 @@
 "use client";
-import React, { useState } from "react";
-import { Steps, Drawer, Input, Button, Form, InputNumber, Space } from "antd";
-import { Card } from "@radix-ui/themes";
-import Link from "next/link";
-import {
-  ChevronLeftIcon,
-  CalendarIcon,
-  PlusIcon,
-  Cross2Icon,
-} from "@radix-ui/react-icons";
+import React, { useEffect, useState } from "react";
+import { Button, Card } from "antd";
+import { ChevronLeftIcon, CalendarIcon } from "@radix-ui/react-icons";
 import {
   Select,
   SelectTrigger,
@@ -16,7 +9,10 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { fetchAssessmentByStudent, fetchTerm } from "@/services/api";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store/store";
 
 const mockAssignments = [
   {
@@ -200,6 +196,46 @@ const mockAssignments = [
 export default function AssignmentsPage() {
   const [selectedTerm, setSelectedTerm] = useState("Term 1");
   const router = useRouter();
+  const { currentUser } = useSelector((state: RootState) => state.auth);
+  const [terms, setTerms] = useState<any[]>([]);
+  const [assesments, setAssessments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  console.log(assesments, "assesments By Student");
+
+  const loadTerms = async () => {
+    try {
+      setLoading(true);
+      const response = await fetchTerm(Number(currentUser?.studentClass));
+      setTerms(response);
+      if (response.length > 0) {
+        setSelectedTerm(response[0].name);
+      }
+      setError(null);
+    } catch (err) {
+      setError("Failed to load terms");
+      console.error("Error loading terms:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const loadAssessment = async () => {
+    try {
+      const data = await fetchAssessmentByStudent(currentUser?.studentClass);
+      setAssessments(data);
+      setLoading(false);
+    } catch (err) {
+      setError("Failed to load Assessment");
+      setLoading(false);
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    loadAssessment();
+    loadTerms();
+  }, []);
 
   const getAssignmentStatus = (assignment: any) => {
     const today = new Date();
@@ -229,7 +265,9 @@ export default function AssignmentsPage() {
 
     return (
       <span
-        className={`text-xs px-2 py-1 rounded-full ${statusClasses[status as keyof typeof statusClasses] || "bg-gray-100"}`}
+        className={`text-xs px-2 py-1 rounded-full ${
+          statusClasses[status as keyof typeof statusClasses] || "bg-gray-100"
+        }`}
       >
         {status.replace("-", " ")}
       </span>
@@ -237,24 +275,25 @@ export default function AssignmentsPage() {
   };
 
   return (
-    <div className="p-3 md:p-6 max-w-5xl mx-auto bg-gray-50 min-h-screen">
+    <div className="p-3 md:p-6">
       <div className="flex items-center justify-between">
-        <Link href="/dashboard">
-          <Button
-            icon={<ChevronLeftIcon />}
-            className="mb-6 text-gray-700 border border-gray-300 hover:bg-gray-100"
-          >
-            Back to Dashboard
-          </Button>
-        </Link>
+        <Button
+          icon={<ChevronLeftIcon />}
+          onClick={() => router.back()}
+          className="mb-6 text-gray-700 border border-gray-300 hover:bg-gray-100"
+        >
+          Back to Dashboard
+        </Button>
         <Select value={selectedTerm} onValueChange={setSelectedTerm}>
-          <SelectTrigger className="w-[150px]">
+          <SelectTrigger className="w-[150px] bg-white">
             <SelectValue placeholder="Select Term" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="Term 1">Term 1</SelectItem>
-            <SelectItem value="Term 2">Term 2</SelectItem>
-            <SelectItem value="Term 3">Term 3</SelectItem>
+            {terms.map((term) => (
+              <SelectItem key={term.id} value={term.name}>
+                {term.name}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -300,7 +339,7 @@ export default function AssignmentsPage() {
                 <div className="mt-4">
                   <Button
                     type="primary"
-                    className="text-sm w-full md:w-auto"
+                    className="text-sm w-full md:w-auto !bg-primary"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleItemClick(assignment);
@@ -314,7 +353,6 @@ export default function AssignmentsPage() {
           );
         })}
       </div>
-
     </div>
   );
 }

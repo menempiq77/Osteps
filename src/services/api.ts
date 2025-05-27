@@ -180,6 +180,18 @@ export const addTeacher = async (teacherData: { name: string }) => {
   const response = await api.post('/add-teacher', teacherData);
   return response.data;
 };
+//assign teacher
+export const AssignTeacher = async (classId: string | number, teacherId: number) => {
+  const response = await api.post(`/assign-teacher/${classId}`, {
+    teacher_id: teacherId,
+  });
+  return response.data;
+};
+// Get assign teacher
+export const getAssignTeacher = async (classId: string | number) => {
+  const response = await api.get(`/get-assign-teacher/${classId}`);
+  return response.data;
+};
 // edit Teacher
 export const updateTeacher = async (id: string, teacherData: any) => {
   const response = await api.post(`/update-teacher/${id}`, teacherData);
@@ -354,6 +366,11 @@ export const deleteLibrary = async (id: number, filePath?: string) => {
 // fetch Assessment
 export const fetchAssessment = async () => {
   const response = await api.get('/get-assessment');
+  return response.data.data;
+};
+// fetch Assessment By Students
+export const fetchAssessmentByStudent = async (studentId: number) => {
+  const response = await api.get(`/get-student-assessment/${studentId}`);
   return response.data.data;
 };
 // fetch Students Assessment

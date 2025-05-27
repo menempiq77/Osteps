@@ -24,7 +24,7 @@ interface Assessment {
 }
 
 export default function Page() {
-  const { termId } = useParams();
+  const { termId, classId } = useParams();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -72,10 +72,12 @@ export default function Page() {
     name: string;
     type: "assessment" | "quiz";
     term_id: string;
+    class_id: string,
   }) => {
     try {
       const newAssessment = await addAssessment({
         name: assessmentData.name,
+        class_id: classId,
         term_id: termId,
         type: assessmentData.type,
       });
@@ -93,6 +95,7 @@ export default function Page() {
     name: string;
     type: "assessment" | "quiz";
     term_id: string;
+    class_id: string,
   }) => {
     if (!editingAssessment) return;
 
@@ -101,6 +104,7 @@ export default function Page() {
         name: assessmentData.name,
         type: assessmentData.type,
         term_id: termId,
+        class_id: classId,
       });
 
       setAssessments(

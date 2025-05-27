@@ -108,6 +108,7 @@ export default function StudentList() {
         status,
       });
       setStudents([...students, newStudent]);
+      await loadStudents();
       setIsAddStudentModalOpen(false);
     } catch (err) {
       console.error("Failed to add student:", err);
