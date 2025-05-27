@@ -1,177 +1,250 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Button } from "@/components/ui/button";
+import { Button, Card, Checkbox, Spin, Alert } from "antd";
+import { PlusCircle, Users, BookOpen } from "lucide-react";
+import { AssignTeacher, fetchTeachers, getAssignTeacher } from "@/services/api";
 
 export default function AssignPage() {
   const { classId } = useParams();
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [assignedTeacher, setAssignedTeacher] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const subjects = [
-    {
-      name: "Mathematics",
-      teachers: [
-        { id: 1, name: "John Doe" },
-        { id: 2, name: "Jane Smith" },
-      ],
-    },
-    {
-      name: "Islamiyat",
-      teachers: [
-        { id: 3, name: "Michael Brown" },
-        { id: 4, name: "Sarah Johnson" },
-        { id: 5, name: "Ali Ahmed" },
-      ],
-    },
-    {
-      name: "Science",
-      teachers: [
-        { id: 6, name: "David Wilson" },
-        { id: 7, name: "Emily Chen" },
-      ],
-    },
-  ];
+useEffect(() => {
+  const loadData = async () => {
+    try {
+      setIsLoading(true);
+      const teachersResponse = await fetchTeachers();
+      const transformedTeachers = teachersResponse.map((teacher: any) => ({
+        id: teacher.id.toString(),
+        name: teacher.teacher_name,
+        phone: teacher.phone,
+        email: teacher.email,
+        subjects: teacher.subjects.split(",").map((s: string) => s.trim()),
+      }));
+      setTeachers(transformedTeachers);
 
-  const students = [
-    { id: 101, name: "Alice Johnson" },
-    { id: 102, name: "Bob Williams" },
-    { id: 103, name: "Charlie Davis" },
-  ];
+      if (classId) {
+        const assignedResponse = await getAssignTeacher(classId as string);
+        if (assignedResponse.teachers_by_subject?.Islamiat?.length > 0) {
+          setAssignedTeacher(assignedResponse.teachers_by_subject.Islamiat[0]);
+        }
+      }
+    } catch (err) {
+      setError("Failed to fetch data");
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  loadData();
+}, [classId]);
 
   const [selectedTeachers, setSelectedTeachers] = useState<number[]>([]);
-  const [selectedStudents, setSelectedStudents] = useState<number[]>([]);
 
   const toggleTeacher = (id: number) => {
-    setSelectedTeachers((prev) =>
-      prev.includes(id) ? prev.filter((tid) => tid !== id) : [...prev, id]
-    );
+    setSelectedTeachers([id]);
   };
 
-  const toggleStudent = (id: number) => {
-    setSelectedStudents((prev) =>
-      prev.includes(id) ? prev.filter((sid) => sid !== id) : [...prev, id]
-    );
-  };
+  const handleAssignTeachers = async () => {
+    try {
+      if (!classId || selectedTeachers.length === 0) return;
 
-  const handleAssignTeachers = () => {
-    console.log("Assigned Teachers:", selectedTeachers);
-    alert(`Assigned ${selectedTeachers.length} teachers to Class ${classId}!`);
-  };
+      setIsAssigning(true);
+      setError(null);
+      setSuccessMessage(null);
 
-  const handleAssignStudents = () => {
-    console.log("Assigned Students:", selectedStudents);
-    alert(`Assigned ${selectedStudents.length} students to Class ${classId}!`);
+      const teacherId = selectedTeachers[0];
+      await AssignTeacher(classId as string, teacherId);
+
+      const assignedResponse = await getAssignTeacher(classId as string);
+      if (assignedResponse.teacher) {
+        setAssignedTeacher(assignedResponse.teacher);
+      }
+
+      setSuccessMessage(`Successfully assigned teacher to class ${classId}!`);
+      setSelectedTeachers([]);
+    } catch (error) {
+      console.error("Error assigning teacher:", error);
+      setError("Failed to assign teacher. Please try again.");
+    } finally {
+      setIsAssigning(false);
+    }
   };
 
   return (
-    <div className="max-w-5xl mx-auto mt-8 p-3 rounded-lg">
-      <h2 className="text-2xl font-semibold text-center mb-6">
-        Assign for Class ID: {classId}
-      </h2>
+    <div className="p-4 md:p-8 max-w-7xl mx-auto">
+      <div className="flex items-center gap-3 mb-6">
+        <BookOpen className="w-8 h-8 text-primary" />
+        <div>
+          <h2 className="text-2xl font-bold text-gray-800">
+            Teacher Assignment
+          </h2>
+          <p className="text-sm text-gray-500">
+            Assign teachers to Class
+          </p>
+        </div>
+      </div>
 
-      <div className="flex flex-col gap-8">
-        {/* Teachers Section */}
-        <Card className="w-full py-0">
-          <div className="bg-gray-50 rounded-t-lg p-4 border-b">
-            <CardTitle className="text-lg py-2">
-              Assign Teachers by Subject
-            </CardTitle>
-          </div>
-          <CardContent className="p-4">
-            <p className="text-sm text-gray-600 mb-4">
-              Select teachers to assign to this class.
-            </p>
+      {error && (
+        <Alert
+          message="Error"
+          description={error}
+          type="error"
+          showIcon
+          closable
+          className="mb-6"
+          onClose={() => setError(null)}
+        />
+      )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-              {subjects.map((subject) => (
-                <div
-                  key={subject.name}
-                  className="border rounded-lg p-0 overflow-hidden hover:shadow-md transition-shadow"
-                >
-                  <div className="bg-blue-50 px-4 py-3 border-b">
-                    <h3 className="font-semibold  text-lg">
-                      {subject.name}
-                    </h3>
-                    <p className="text-xs">Subject Teachers</p>
+      {successMessage && (
+        <Alert
+          message="Success"
+          description={successMessage}
+          type="success"
+          showIcon
+          closable
+          className="mb-6"
+          onClose={() => setSuccessMessage(null)}
+        />
+      )}
+
+      <Spin spinning={isLoading} tip="Loading...">
+        <div className="flex flex-col gap-6">
+          {/* Current Assignment Card */}
+          <Card className="w-full border-0 shadow-sm">
+            <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-t-lg p-6 mb-2">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h6 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
+                    <Users className="w-5 h-5" />
+                    Current Teacher Assignment
+                  </h6>
+                  <p className="text-sm text-gray-600 mt-1">
+                    View the currently assigned teacher for this class
+                  </p>
+                </div>
+                <div className="mt-3 md:mt-0">
+                  <span className="inline-block px-3 py-1 text-xs font-medium rounded-full bg-blue-100 text-purple-800">
+                    Current
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6">
+              {assignedTeacher ? (
+                <div className="border border-gray-100 rounded-xl overflow-hidden shadow-xs bg-white p-4">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-blue-100 p-3 rounded-full">
+                      <Users className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-800">
+                        {assignedTeacher.teacher_name}
+                      </h4>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Email:{" "}
+                        {assignedTeacher.email}
+                      </p>
+                    </div>
                   </div>
-                  <div className="p-4 space-y-2">
-                    {subject.teachers.map((teacher) => (
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  No teacher currently assigned to this class
+                </div>
+              )}
+            </div>
+          </Card>
+
+          {/* Assign Teacher Card */}
+          <Card className="w-full border-0 shadow-sm">
+            <div className="bg-gradient-to-r from-indigo-50 to-green-50 rounded-t-lg p-6 mb-2">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h6 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
+                    <Users className="w-5 h-5" />
+                    Assign Teachers by Subject
+                  </h6>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Select teachers to assign to this class from available
+                    subjects
+                  </p>
+                </div>
+                <div className="mt-3 md:mt-0">
+                  <span className="inline-block px-3 py-1 text-xs font-medium rounded-full bg-indigo-100 text-green-800">
+                    Subjects
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="border border-gray-100 rounded-xl overflow-hidden shadow-xs hover:shadow-md transition-all duration-200 bg-white">
+                  <div className="bg-primary px-5 py-4">
+                    <h3 className="font-semibold text-lg text-white flex items-center gap-2">
+                      <span className="bg-white/20 p-1 rounded-full">
+                        <BookOpen className="w-4 h-4" />
+                      </span>
+                      Islamiyat
+                    </h3>
+                  </div>
+                  <div className="p-4 space-y-3">
+                    {teachers?.map((teacher) => (
                       <div
                         key={teacher.id}
-                        className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded"
+                        className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
+                          selectedTeachers.includes(teacher.id)
+                            ? "bg-indigo-50"
+                            : "hover:bg-gray-50"
+                        }`}
                       >
                         <Checkbox
                           id={`teacher-${teacher.id}`}
                           checked={selectedTeachers.includes(teacher.id)}
-                          onCheckedChange={() => toggleTeacher(teacher.id)}
+                          onChange={() => toggleTeacher(teacher.id)}
+                          className="[&_.ant-checkbox-inner]:!border-gray-300 [&_.ant-checkbox-checked_.ant-checkbox-inner]:!bg-primary [&_.ant-checkbox-checked_.ant-checkbox-inner]:!border-primary"
                         />
                         <label
                           htmlFor={`teacher-${teacher.id}`}
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                          className="text-sm font-medium text-gray-700 cursor-pointer flex-1"
                         >
                           {teacher.name}
                         </label>
+                        {selectedTeachers.includes(teacher.id) && (
+                          <span className="text-xs px-2 py-1 rounded-full bg-indigo-100 text-green-800">
+                            Selected
+                          </span>
+                        )}
                       </div>
                     ))}
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
 
-            <div className="flex justify-end">
-              <Button
-                onClick={handleAssignTeachers}
-                className="w-full sm:w-auto px-6 py-2 text-md bg-blue-600 hover:bg-blue-700"
-                disabled={selectedTeachers.length === 0}
-              >
-                Assign Teachers ({selectedTeachers.length})
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Students Section */}
-        <Card className="w-full py-0">
-          <div className="bg-gray-50 rounded-t-lg p-4 border-b">
-            <CardTitle className="text-lg py-2">Assign Students</CardTitle>
-          </div>
-          <CardContent className="p-4">
-            <p className="text-sm text-gray-600 mb-4">
-              Select students to enroll in this class.
-            </p>
-            <div className="space-y-3 mb-6">
-              {students.map((student) => (
-                <div
-                  key={student.id}
-                  className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded"
+              <div className="mt-8 pt-5 border-t border-gray-100 flex justify-end">
+                <Button
+                  onClick={handleAssignTeachers}
+                  className="px-6 py-3 text-md !bg-primary hover:!bg-primary !text-white flex items-center gap-2"
+                  disabled={selectedTeachers.length === 0 || isAssigning}
+                  loading={isAssigning}
                 >
-                  <Checkbox
-                    id={`student-${student.id}`}
-                    checked={selectedStudents.includes(student.id)}
-                    onCheckedChange={() => toggleStudent(student.id)}
-                  />
-                  <label
-                    htmlFor={`student-${student.id}`}
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                  >
-                    {student.name}
-                  </label>
-                </div>
-              ))}
+                  {!isAssigning && <PlusCircle className="w-5 h-5" />}
+                  Assign Teachers
+                </Button>
+              </div>
             </div>
-            <div className="flex justify-end">
-              <Button
-                onClick={handleAssignStudents}
-                className="w-full sm:w-auto px-6 py-2 text-md bg-green-600 hover:bg-green-700"
-                disabled={selectedStudents.length === 0}
-              >
-                Assign Students ({selectedStudents.length})
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          </Card>
+        </div>
+      </Spin>
     </div>
   );
 }

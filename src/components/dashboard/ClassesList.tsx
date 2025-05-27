@@ -41,7 +41,7 @@ export default function ClassesList({
   const isStudent = currentUser?.role === "STUDENT";
   const isTeacher = currentUser?.role === "TEACHER";
 
-  const handleAssignments = (classId: string) => {
+  const handleAssesments = (classId: string) => {
     router.push(`/dashboard/classes/${classId}/terms`);
   };
 
@@ -120,9 +120,9 @@ export default function ClassesList({
                       )}
 
                       <button
-                        onClick={() => handleAssignments(cls.id)}
+                        onClick={() => handleAssesments(cls.id)}
                         className="text-blue-500 hover:text-blue-700 cursor-pointer"
-                        title="Assignments"
+                        title="Assessments"
                       >
                         <FileAddOutlined />
                       </button>
