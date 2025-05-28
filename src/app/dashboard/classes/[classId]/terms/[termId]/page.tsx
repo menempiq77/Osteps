@@ -2,7 +2,6 @@
 import React, { useEffect, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Cross2Icon } from "@radix-ui/react-icons";
-import { Button } from "@/components/ui/button";
 import AddAssessmentForm from "@/components/dashboard/AddAssessmentForm";
 import AssessmentList from "@/components/dashboard/assessmentList";
 import {
@@ -12,7 +11,7 @@ import {
   fetchQuizes,
   updateAssessment,
 } from "@/services/api";
-import { Alert, Spin } from "antd";
+import { Alert, Button, Spin } from "antd";
 import { useParams } from "next/navigation";
 import EditAssessmentForm from "@/components/dashboard/EditAssessmentForm";
 
@@ -179,11 +178,12 @@ export default function Page() {
           <Dialog.Root open={open} onOpenChange={setOpen}>
             <Dialog.Trigger asChild>
               <Button
-                variant="outline"
+                variant="outlined"
                 onClick={() => {
                   setIsAddingQuiz(false);
                   setEditingAssessment(null);
                 }}
+                className="!bg-white !border !border-gray-300"
               >
                 Add Assessment
               </Button>
@@ -241,8 +241,9 @@ export default function Page() {
               setOpen(true);
               setIsAddingQuiz(true);
             }}
+            className="!bg-primary !text-white"
           >
-            Add Quiz
+            Assign Quiz
           </Button>
         </div>
       </div>
@@ -264,10 +265,10 @@ export default function Page() {
               Are you sure you want to delete this assessment?
             </p>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setDeleteOpen(false)} className="cursor-pointer">
+              <Button variant="outlined" onClick={() => setDeleteOpen(false)} className="cursor-pointer">
                 Cancel
               </Button>
-              <Button variant="destructive" onClick={handleDeleteAssessment} className="cursor-pointer">
+              <Button variant="solid" danger onClick={handleDeleteAssessment} className="cursor-pointer">
                 Delete
               </Button>
             </div>

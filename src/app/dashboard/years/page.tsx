@@ -12,7 +12,6 @@ import {
   addYear as addYearApi,
   deleteYear as deleteYearApi,
   updateYear as updateYearApi,
-  fetchSchools,
 } from "@/services/api";
 import { Alert, Breadcrumb, Spin, Modal } from "antd";
 import Link from "next/link";

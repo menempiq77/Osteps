@@ -1,6 +1,5 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
 import AddClassForm from "@/components/dashboard/AddClassForm";
 import ClassesList from "@/components/dashboard/ClassesList";
 import { useSelector } from "react-redux";
@@ -12,7 +11,7 @@ import {
   updateClass,
 } from "@/services/api";
 import { useSearchParams } from "next/navigation";
-import { Alert, Breadcrumb, Spin, Modal } from "antd";
+import { Alert, Breadcrumb, Spin, Modal, Button } from "antd";
 import Link from "next/link";
 
 interface ApiClass {
@@ -155,7 +154,7 @@ export default function Page() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Classes</h1>
         {currentUser?.role !== "STUDENT" && currentUser?.role !== "TEACHER" && (
-          <Button className="cursor-pointer" onClick={() => setModalOpen(true)}>
+          <Button className="!bg-primary !text-white" onClick={() => setModalOpen(true)}>
             Add Class
           </Button>
         )}

@@ -369,8 +369,8 @@ export const fetchAssessment = async () => {
   return response.data.data;
 };
 // fetch Assessment By Students
-export const fetchAssessmentByStudent = async (studentId: number) => {
-  const response = await api.get(`/get-student-assessment/${studentId}`);
+export const fetchAssessmentByStudent = async (termId: number) => {
+  const response = await api.get(`/get-student-assessment/${termId}`);
   return response.data.data;
 };
 // fetch Students Assessment
