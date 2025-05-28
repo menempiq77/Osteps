@@ -1,9 +1,7 @@
 "use client";
 
 import { useForm } from "react-hook-form";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
+import { Form, Input, Button } from "antd";
 import { useEffect } from "react";
 
 interface YearFormValues {
@@ -19,49 +17,55 @@ interface YearFormProps {
 }
 
 export default function YearForm({ onSubmit, defaultValues }: YearFormProps) {
+  const [form] = Form.useForm();
   const {
-    register,
     handleSubmit,
     formState: { errors },
     reset,
     setValue,
+    register,
   } = useForm<YearFormValues>();
 
   // Reset form when defaultValues changes (for edit mode)
   useEffect(() => {
     if (defaultValues) {
-      reset({
+      form.setFieldsValue({
         name: defaultValues.name || "",
         school_id: defaultValues.school_id,
-        terms: defaultValues.terms || 2,
         ...(defaultValues.id && { id: defaultValues.id })
       });
     } else {
-      reset({
-        name: "",
-        terms: 2
+      form.resetFields();
+      form.setFieldsValue({
+        name: ""
       });
     }
-  }, [defaultValues, reset]);
+  }, [defaultValues, form]);
+
+  const onFinish = (values: YearFormValues) => {
+    onSubmit(values);
+  };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="bg-white space-y-4">
-      <div className="grid grid-cols-1 gap-4">
-        <div>
-          <Label htmlFor="name" className="mb-1">Year Name</Label>
-          <Input
-            id="name"
-            {...register("name", { required: "Year name is required" })}
-          />
-          {errors.name && (
-            <p className="text-red-500 text-sm">{errors.name.message}</p>
-          )}
-        </div>
-      </div>
+    <Form
+      form={form}
+      onFinish={onFinish}
+      layout="vertical"
+      className="bg-white space-y-4"
+    >
+      <Form.Item
+        label="Year Name"
+        name="name"
+        rules={[{ required: true, message: 'Year name is required' }]}
+      >
+        <Input />
+      </Form.Item>
 
-      <Button type="submit" className="w-auto float-right cursor-pointer">
-        {defaultValues?.id ? "Update Year" : "Create Year"}
-      </Button>
-    </form>
+      <Form.Item>
+        <Button type="primary" htmlType="submit" className="float-right !bg-primary !border-primary">
+          {defaultValues?.id ? "Update Year" : "Create Year"}
+        </Button>
+      </Form.Item>
+    </Form>
   );
 }

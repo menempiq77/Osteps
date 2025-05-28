@@ -10,7 +10,6 @@ import {
   EditOutlined,
   DeleteOutlined,
   FileAddOutlined,
-  UserOutlined,
   UsergroupAddOutlined
 } from "@ant-design/icons";
 
