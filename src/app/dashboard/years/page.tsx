@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Cross2Icon } from "@radix-ui/react-icons";
-import { Button } from "@/components/ui/button";
+import { Button } from "antd";
 import YearForm from "@/components/dashboard/YearForm";
 import YearsList from "@/components/dashboard/YearsList";
 import { useSelector } from "react-redux";
@@ -14,7 +14,7 @@ import {
   updateYear as updateYearApi,
   fetchSchools,
 } from "@/services/api";
-import { Alert, Breadcrumb, Spin } from "antd";
+import { Alert, Breadcrumb, Spin, Modal } from "antd";
 import Link from "next/link";
 
 interface Year {
@@ -29,7 +29,7 @@ interface Year {
 export default function Page() {
   const [open, setOpen] = useState(false);
   const [years, setYears] = useState<Year[]>([]);
-  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [yearToDelete, setYearToDelete] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -77,8 +77,9 @@ export default function Page() {
 
   const confirmDelete = (id: number) => {
     setYearToDelete(id);
-    setDeleteOpen(true);
+    setIsDeleteModalOpen(true);
   };
+  
   const handleEditClick = (year: Year) => {
     setCurrentYear(year);
     setOpen(true);
@@ -90,7 +91,7 @@ export default function Page() {
     try {
       await deleteYearApi(yearToDelete);
       setYears(years.filter((year) => year.id !== yearToDelete));
-      setDeleteOpen(false);
+      setIsDeleteModalOpen(false);
       setYearToDelete(null);
     } catch (err) {
       setError("Failed to delete year");
@@ -146,7 +147,8 @@ export default function Page() {
           >
             <Dialog.Trigger asChild>
               <Button
-                className="cursor-pointer"
+                type="primary"
+                className="!bg-primary !text-white"
                 onClick={() => {
                   setCurrentYear(null);
                   setOpen(true);
@@ -193,45 +195,27 @@ export default function Page() {
         }}
       />
 
-      {/* Delete Confirmation Modal */}
-      <Dialog.Root open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <Dialog.Portal>
-          <Dialog.Overlay className="bg-black/50 data-[state=open]:animate-overlayShow fixed inset-0" />
-          <Dialog.Content className="data-[state=open]:animate-contentShow fixed top-[50%] left-[50%] max-h-[85vh] w-[90vw] max-w-[450px] translate-x-[-50%] translate-y-[-50%] rounded-[6px] bg-white p-[25px] shadow-[hsl(206_22%_7%_/_35%)_0px_10px_38px_-10px,_hsl(206_22%_7%_/_20%)_0px_10px_20px_-15px] focus:outline-none">
-            <Dialog.Title className="text-lg font-bold mb-4">
-              Confirm Deletion
-            </Dialog.Title>
-            <p className="mb-6">
-              Are you sure you want to delete this year? This action cannot be
-              undone.
-            </p>
-
-            <div className="flex justify-end gap-4">
-              <Dialog.Close asChild>
-                <Button variant="outline" className="cursor-pointer">
-                  Cancel
-                </Button>
-              </Dialog.Close>
-              <Button
-                variant="destructive"
-                onClick={handleDeleteYear}
-                className="cursor-pointer"
-              >
-                Delete
-              </Button>
-            </div>
-
-            <Dialog.Close asChild>
-              <button
-                className="text-gray-500 hover:text-gray-700 absolute top-[10px] right-[10px] inline-flex h-[25px] w-[25px] appearance-none items-center justify-center rounded-full focus:shadow-[0_0_0_2px] focus:outline-none"
-                aria-label="Close"
-              >
-                <Cross2Icon />
-              </button>
-            </Dialog.Close>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
+      {/* Ant Design Delete Confirmation Modal */}
+      <Modal
+        title="Confirm Deletion"
+        open={isDeleteModalOpen}
+        onOk={handleDeleteYear}
+        onCancel={() => {
+          setIsDeleteModalOpen(false);
+          setYearToDelete(null);
+        }}
+        okText="Delete"
+        okButtonProps={{ danger: true }}
+        cancelText="Cancel"
+        centered
+      >
+        {yearToDelete && (
+          <p>
+            Are you sure you want to delete this year? This action cannot be
+            undone.
+          </p>
+        )}
+      </Modal>
     </div>
   );
 }

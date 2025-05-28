@@ -1,5 +1,4 @@
 "use client";
-import { Button } from "@/components/ui/button";
 import * as Dialog from "@radix-ui/react-dialog";
 import { useState, useEffect } from "react";
 import { AddTeacherModal } from "../modals/teacherModals/AddTeacherModal";
@@ -10,7 +9,7 @@ import {
   updateTeacher,
   deleteTeacher as deleteTeacherApi,
 } from "@/services/api";
-import { Alert, Spin, Modal } from "antd";
+import { Alert, Spin, Modal, Button } from "antd";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 
 type Teacher = {
@@ -161,7 +160,7 @@ export default function TeacherList() {
           onOpenChange={setIsAddTeacherModalOpen}
         >
           <Dialog.Trigger asChild>
-            <Button className="cursor-pointer">Add Teacher</Button>
+            <Button className="!bg-primary !text-white">Add Teacher</Button>
           </Dialog.Trigger>
           <AddTeacherModal
             isOpen={isAddTeacherModalOpen}
