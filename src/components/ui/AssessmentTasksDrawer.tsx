@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { addTask, updateTask, deleteTask } from "@/services/api";
+import TextArea from "antd/es/input/TextArea";
 
 const { Option } = Select;
 
@@ -57,7 +58,7 @@ export function AssessmentTasksDrawer({
   onTasksChange,
   quizzes,
   loading,
-  setLoading
+  setLoading,
 }: AssessmentTasksDrawerProps) {
   const [selectedType, setSelectedType] = useState<"task" | "quiz" | null>(
     null
@@ -156,22 +157,22 @@ export function AssessmentTasksDrawer({
     }
   };
 
-const handleEditTask = (task: Task) => {
-  setEditingTaskId(task.id);
-  setSelectedType("task");
-  
-  setValue("name", task.task_name);
-  setValue("dueDate", task.due_date);
-  
-  const taskType = task.task_type?.toLowerCase();
-  setValue("isAudio", taskType === "audio");
-  setValue("isVideo", taskType === "video");
-  setValue("isPdf", taskType === "pdf");
-  setValue("isUrl", taskType === "url");
-  
-  setValue("allocatedMarks", task.allocated_marks);
-  setValue("url", task.url || "");
-};
+  const handleEditTask = (task: Task) => {
+    setEditingTaskId(task.id);
+    setSelectedType("task");
+
+    setValue("name", task.task_name);
+    setValue("dueDate", task.due_date);
+
+    const taskType = task.task_type?.toLowerCase();
+    setValue("isAudio", taskType === "audio");
+    setValue("isVideo", taskType === "video");
+    setValue("isPdf", taskType === "pdf");
+    setValue("isUrl", taskType === "url");
+
+    setValue("allocatedMarks", task.allocated_marks);
+    setValue("url", task.url || "");
+  };
 
   const handleRemoveTask = async (taskId: number) => {
     try {
@@ -234,7 +235,7 @@ const handleEditTask = (task: Task) => {
             disabled={loading}
           >
             <Option value="task">Create Task</Option>
-            <Option value="quiz">Create Quiz</Option>
+            <Option value="quiz">Assign Quiz</Option>
           </Select>
         </div>
       }
@@ -272,6 +273,35 @@ const handleEditTask = (task: Task) => {
                     {errors.name.message}
                   </p>
                 )}
+              </div>
+
+              {/* Description */}
+              <div>
+                <Label htmlFor="description">Description</Label>
+                <TextArea
+                  id="description"
+                  {...register("description")}
+                  className="!mt-1"
+                  disabled={loading}
+                  rows={3}
+                  placeholder="Enter task description..."
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="file">Upload File (Optional)</Label>
+                <Input
+                  id="file"
+                  type="file"
+                  {...register("file")}
+                  className="mt-1 cursor-pointer"
+                  disabled={loading}
+                  onChange={(e) => {
+                    if (e.target.files) {
+                      setValue("file", e.target.files);
+                    }
+                  }}
+                />
               </div>
 
               {/* Due Date */}
@@ -440,7 +470,7 @@ const handleEditTask = (task: Task) => {
         {/* Quiz Form Placeholder */}
         {selectedType === "quiz" && (
           <div className="p-4 border rounded-lg mb-4">
-            <h3 className="font-medium text-lg mb-2">Add a Quiz</h3>
+            <h3 className="font-medium text-lg mb-2">Assign a Quiz</h3>
             <Select
               placeholder="Select Quiz"
               className="w-full"

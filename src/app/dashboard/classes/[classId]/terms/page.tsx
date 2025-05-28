@@ -21,7 +21,6 @@ export default function TermsPage() {
   } | null>(null);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [termToDelete, setTermToDelete] = useState<number | null>(null);
-
   const loadTerms = async () => {
     try {
       setLoading(true);

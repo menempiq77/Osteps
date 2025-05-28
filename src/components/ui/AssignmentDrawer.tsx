@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useCallback } from "react";
+import React, { useState } from "react";
 import { Drawer, Button, Form, message, InputNumber } from "antd";
 import {
   UploadOutlined,
@@ -17,6 +17,8 @@ interface Task {
   mark?: string;
   comment?: string;
   selfAssessment?: number;
+  allocated_marks: number;
+  task_type?: string;
 }
 
 interface AssignmentDrawerProps {
@@ -192,8 +194,8 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
         <div
           className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
             isDragging
-              ? "border-blue-500 bg-blue-50"
-              : "border-gray-300 hover:border-blue-400"
+              ? "border-green-500 bg-green-50"
+              : "border-gray-300 hover:border-green-400"
           }`}
           onDragEnter={handleDragEnter}
           onDragLeave={handleDragLeave}
@@ -206,12 +208,12 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
               <p className="font-medium text-gray-700">
                 {file
                   ? file.name
-                  : `Drag & drop your ${selectedTask?.type} file here`}
+                  : `Drag & drop your ${selectedTask?.task_type} file here`}
               </p>
               <p className="text-sm text-gray-500 mt-1">
                 {file
                   ? `${(file.size / (1024 * 1024)).toFixed(2)} MB`
-                  : `or click to browse files (${selectedTask?.type.toUpperCase()} only)`}
+                  : `or click to browse files (${selectedTask?.task_type?.toUpperCase()} only)`}
               </p>
             </div>
           </div>
@@ -242,6 +244,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
               <Button
                 type="primary"
                 onClick={() => document.getElementById("file-upload")?.click()}
+                className="!bg-primary !border-primary"
               >
                 <UploadOutlined /> Select File
               </Button>
@@ -334,27 +337,37 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
 
                 {/* Add self-assessment field */}
                 <Form.Item
-                  label="Self-Assessment (Rate your work out of 10)"
+                  label={`Self-Assessment (Rate your work out of ${selectedTask.allocated_marks})`}
                   name="selfAssessment"
                   rules={[
                     { required: true, message: "Please rate your work" },
                     {
                       type: "number",
                       min: 0,
-                      max: 10,
-                      message: "Rating must be between 0 and 10",
+                      max: selectedTask?.allocated_marks,
+                      message: `Rating must be between 0 and ${selectedTask.allocated_marks}`,
                     },
                   ]}
                   className="mt-4"
                 >
                   <InputNumber
                     min={0}
-                    max={10}
+                    max={selectedTask.allocated_marks}
                     step={0.5}
                     className="w-full"
-                    placeholder="Enter your rating (0-10)"
+                    placeholder={`Enter your rating (0-${selectedTask.allocated_marks})`}
                     style={{
-                      width: "100%"}}
+                      width: "100%",
+                    }}
+                    onKeyPress={(e) => {
+                      const value = parseFloat(e.currentTarget.value + e.key);
+                      if (
+                        isNaN(value) ||
+                        value > selectedTask.allocated_marks
+                      ) {
+                        e.preventDefault();
+                      }
+                    }}
                   />
                 </Form.Item>
 
@@ -365,7 +378,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
                 >
                   <textarea
                     rows={3}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
+                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-colors"
                     placeholder="Explain your rating or add any comments..."
                   />
                 </Form.Item>

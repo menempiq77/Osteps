@@ -91,7 +91,7 @@ export default function AddAssessmentForm({
           </Button>
         </Dialog.Close>
         <Button type="submit" disabled={isQuiz && !selectedQuiz}>
-          {isQuiz ? "Add Quiz" : "Add Assessment"}
+          {isQuiz ? "Assign Quiz" : "Add Assessment"}
         </Button>
       </div>
     </form>

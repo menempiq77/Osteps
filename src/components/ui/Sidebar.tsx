@@ -72,7 +72,7 @@ const Sidebar = () => {
       // { name: "Students", href: "/dashboard/students", icon: UserGroupIcon },
       { name: "Manage Classes", href: "/dashboard/years", icon: BookOpenIcon },
       { name: "Manage Grades", href: "/dashboard/grades", icon: ChartBarIcon },
-      { name: "Quiz", href: "/dashboard/quiz", icon: BookOpenIcon },
+      { name: "Manage Quiz", href: "/dashboard/quiz", icon: BookOpenIcon },
       { name: "Library", href: "/dashboard/library", icon: BookTextIcon },
       // { name: "Trackers", href: "/dashboard/trackers", icon: Building },
       { name: "Timetable", href: "/dashboard/timetable", icon: BookOpenIcon },
@@ -93,7 +93,7 @@ const Sidebar = () => {
       { name: "My Classes", href: "/dashboard/years", icon: BookOpenIcon },
       // { name: "Students", href: "/dashboard/students", icon: UserGroupIcon },
       { name: "Library", href: "/dashboard/library", icon: BookTextIcon },
-      { name: "Quiz", href: "/dashboard/quiz", icon: BookOpenIcon },
+      { name: "Manage Quiz", href: "/dashboard/quiz", icon: BookOpenIcon },
       { name: "Reports", href: "/dashboard/students/reports", icon: Building },
       // { name: "Trackers", href: "/dashboard/trackers", icon: Building  },
       {
