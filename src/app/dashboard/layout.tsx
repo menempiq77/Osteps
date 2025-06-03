@@ -1,8 +1,10 @@
 "use client";
+
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import Sidebar from "@/components/ui/Sidebar";
-import { redirect, usePathname } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+import { useEffect } from "react";
 
 export default function DashboardLayout({
   children,
@@ -11,10 +13,14 @@ export default function DashboardLayout({
 }) {
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const pathname = usePathname();
+  const router = useRouter();
 
-  if (!currentUser) {
-    redirect("/");
-  }
+  useEffect(() => {
+    if (!currentUser) {
+      router.push("/");
+    }
+  }, [currentUser]);
+
   const shouldApplyMaxWidth = !pathname.startsWith(
     "/dashboard/students/reports"
   );
