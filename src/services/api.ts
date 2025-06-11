@@ -401,13 +401,22 @@ export const fetchTasks = async (assessmentId: number) => {
   return response.data.data;
 };
 // add Task
-export const addTask = async (taskData: { name: string }) => {
-  const response = await api.post('/add-task', taskData);
+export const addTask = async (formData: FormData) => {
+  const response = await api.post('/add-task', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
   return response.data;
 };
-// edit Task
-export const updateTask = async (id: string, taskData: any) => {
-  const response = await api.post(`/update-task/${id}`, taskData);
+
+// update Task
+export const updateTask = async (id: string, formData: FormData) => {
+  const response = await api.post(`/update-task/${id}`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
   return response.data;
 };
 // delete Task

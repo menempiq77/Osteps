@@ -6,12 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { addTask, updateTask, deleteTask } from "@/services/api";
-import TextArea from "antd/es/input/TextArea";
+import { TextArea } from "./textarea";
 
 const { Option } = Select;
 
 type TaskFormData = {
   name: string;
+  description: string;
   dueDate: string;
   isAudio: boolean;
   isVideo: boolean;
@@ -19,6 +20,7 @@ type TaskFormData = {
   isUrl: boolean;
   allocatedMarks: number;
   url?: string;
+  file?: FileList;
 };
 
 type Task = {
@@ -75,6 +77,7 @@ export function AssessmentTasksDrawer({
   } = useForm<TaskFormData>({
     defaultValues: {
       name: "",
+      description: "",
       dueDate: "",
       isAudio: false,
       isVideo: false,
@@ -87,6 +90,8 @@ export function AssessmentTasksDrawer({
 
   const onSubmitTask = async (data: TaskFormData) => {
     try {
+      setLoading(true);
+
       // Determine task type based on selected checkboxes
       let taskType = "";
       if (data.isAudio) taskType = "audio";
@@ -98,27 +103,36 @@ export function AssessmentTasksDrawer({
         return;
       }
 
-      const taskData = {
-        assessment_id: assessmentId,
-        task_name: data.name,
-        due_date: data.dueDate,
-        allocated_marks: data.allocatedMarks,
-        task_type: taskType,
-        url: data.isUrl ? data.url : null, // Only include URL if task type is URL
-      };
+      const formData = new FormData();
+      formData.append("assessment_id", assessmentId.toString());
+      formData.append("task_name", data.name);
+      formData.append("description", data.description);
+      formData.append("due_date", data.dueDate);
+      formData.append("allocated_marks", data.allocatedMarks.toString());
+      formData.append("task_type", taskType);
+
+      if (data.isUrl && data.url) {
+        formData.append("url", data.url);
+      }
+
+      if (data.file && data.file.length > 0) {
+        formData.append("file_path", data.file[0]);
+      }
 
       let updatedTasks;
       if (editingTaskId) {
-        await updateTask(editingTaskId.toString(), taskData);
+        await updateTask(editingTaskId.toString(), formData);
         updatedTasks = initialTasks.map((task) =>
           task.id === editingTaskId
             ? {
                 ...task,
-                ...taskData,
-                name: taskData.task_name,
-                dueDate: taskData.due_date,
-                allocatedMarks: taskData.allocated_marks,
-                task_type: taskData.task_type,
+                task_name: data.name,
+                description: data.description,
+                due_date: data.dueDate,
+                allocated_marks: data.allocatedMarks,
+                task_type: taskType,
+                url: data.isUrl ? data.url : null,
+                file_path: data.file ? "updated-file-path" : task.file_path,
                 isAudio: taskType === "audio",
                 isVideo: taskType === "video",
                 isPdf: taskType === "pdf",
@@ -128,7 +142,7 @@ export function AssessmentTasksDrawer({
         );
         message.success("Task updated successfully");
       } else {
-        const newTask = await addTask(taskData);
+        const newTask = await addTask(formData);
         updatedTasks = [
           ...initialTasks,
           {
@@ -154,6 +168,8 @@ export function AssessmentTasksDrawer({
         editingTaskId ? "Failed to update task" : "Failed to add task"
       );
       console.error("Error submitting task:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -162,6 +178,7 @@ export function AssessmentTasksDrawer({
     setSelectedType("task");
 
     setValue("name", task.task_name);
+    setValue("description", task.description);
     setValue("dueDate", task.due_date);
 
     const taskType = task.task_type?.toLowerCase();
@@ -280,12 +297,19 @@ export function AssessmentTasksDrawer({
                 <Label htmlFor="description">Description</Label>
                 <TextArea
                   id="description"
-                  {...register("description")}
+                  {...register("description", {
+                    required: "Description is required",
+                  })}
                   className="!mt-1"
                   disabled={loading}
                   rows={3}
                   placeholder="Enter task description..."
                 />
+                {errors.description && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {errors.description.message}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -296,11 +320,6 @@ export function AssessmentTasksDrawer({
                   {...register("file")}
                   className="mt-1 cursor-pointer"
                   disabled={loading}
-                  onChange={(e) => {
-                    if (e.target.files) {
-                      setValue("file", e.target.files);
-                    }
-                  }}
                 />
               </div>
 
