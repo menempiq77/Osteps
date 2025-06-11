@@ -199,49 +199,61 @@ export default function TeacherList() {
               </tr>
             </thead>
             <tbody>
-              {teachers.map((teacher) => (
-                <tr
-                  key={teacher.id}
-                  className="border-b border-gray-300 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
-                >
-                  <td className="p-2 md:p-4 font-medium">{teacher.name}</td>
-                  <td className="p-2 md:p-4">{teacher.phone}</td>
-                  <td className="p-2 md:p-4">{teacher.email}</td>
-                  <td className="p-2 md:p-4">{teacher.subjects.join(", ")}</td>
-                  <td className="relative p-2 md:p-4 flex justify-center space-x-3">
-                    <Dialog.Root>
-                      <Dialog.Trigger asChild>
-                        <button
-                          onClick={() => setEditTeacher(teacher)}
-                          className="text-green-500 hover:text-green-700 cursor-pointer"
-                          title="Edit"
-                        >
-                          <EditOutlined />
-                        </button>
-                      </Dialog.Trigger>
-                      {editTeacher?.id === teacher.id && (
-                        <EditTeacherModal
-                          teacher={editTeacher}
-                          isOpen={!!editTeacher}
-                          onOpenChange={(open) => !open && setEditTeacher(null)}
-                          onSave={handleSaveEdit}
-                        />
-                      )}
-                    </Dialog.Root>
+              {teachers?.length > 0 ? (
+                teachers.map((teacher) => (
+                  <tr
+                    key={teacher.id}
+                    className="border-b border-gray-300 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
+                  >
+                    <td className="p-2 md:p-4 font-medium">{teacher.name}</td>
+                    <td className="p-2 md:p-4">{teacher.phone}</td>
+                    <td className="p-2 md:p-4">{teacher.email}</td>
+                    <td className="p-2 md:p-4">
+                      {teacher.subjects.join(", ")}
+                    </td>
+                    <td className="relative p-2 md:p-4 flex justify-center space-x-3">
+                      <Dialog.Root>
+                        <Dialog.Trigger asChild>
+                          <button
+                            onClick={() => setEditTeacher(teacher)}
+                            className="text-green-500 hover:text-green-700 cursor-pointer"
+                            title="Edit"
+                          >
+                            <EditOutlined />
+                          </button>
+                        </Dialog.Trigger>
+                        {editTeacher?.id === teacher.id && (
+                          <EditTeacherModal
+                            teacher={editTeacher}
+                            isOpen={!!editTeacher}
+                            onOpenChange={(open) =>
+                              !open && setEditTeacher(null)
+                            }
+                            onSave={handleSaveEdit}
+                          />
+                        )}
+                      </Dialog.Root>
 
-                    <button
-                      onClick={() => {
-                        setDeleteTeacher(teacher);
-                        setIsDeleteModalOpen(true);
-                      }}
-                      className="text-red-500 hover:text-red-700 cursor-pointer"
-                      title="Delete"
-                    >
-                      <DeleteOutlined />
-                    </button>
+                      <button
+                        onClick={() => {
+                          setDeleteTeacher(teacher);
+                          setIsDeleteModalOpen(true);
+                        }}
+                        className="text-red-500 hover:text-red-700 cursor-pointer"
+                        title="Delete"
+                      >
+                        <DeleteOutlined />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className="text-center p-4">
+                    No teachers found.
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>

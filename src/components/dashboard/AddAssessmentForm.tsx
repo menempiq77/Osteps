@@ -86,11 +86,11 @@ export default function AddAssessmentForm({
       </div>
       <div className="flex justify-end gap-2">
         <Dialog.Close>
-          <Button type="button" variant="outline">
+          <Button type="button" className="cursor-pointer" variant="outline">
             Cancel
           </Button>
         </Dialog.Close>
-        <Button type="submit" disabled={isQuiz && !selectedQuiz}>
+        <Button type="submit" className="cursor-pointer" disabled={isQuiz && !selectedQuiz}>
           {isQuiz ? "Assign Quiz" : "Add Assessment"}
         </Button>
       </div>

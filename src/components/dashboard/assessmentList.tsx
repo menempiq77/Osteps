@@ -158,55 +158,66 @@ export default function AssessmentList({
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-            {assessments.map((assignment) => (
-              <tr
-                key={assignment.id}
-                className="text-xs md:text-sm text-center text-gray-800 even:bg-[#E9FAF1] odd:bg-white hover:bg-[#E9FAF1]"
-              >
-                <td className="p-2 md:p-4">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleAssignmentClick(assignment.id, assignment.type)
-                    }
-                    className={`text-green-600 hover:text-green-800 hover:underline cursor-pointer ${
-                      assignment.type === "quiz" ? "font-medium" : ""
-                    }`}
-                  >
-                    {assignment.name}
-                  </button>
-                </td>
-                <td className="p-2 md:p-4">
-                  <span
-                    className={`px-2 py-1 text-xs rounded-full ${
-                      assignment.type === "quiz"
-                        ? "bg-blue-100 text-blue-800"
-                        : "bg-green-100 text-green-800"
-                    }`}
-                  >
-                    {assignment.type === "quiz" ? "Quiz" : "Assessment"}
-                  </span>
-                </td>
-                {canUpload && (
+            {assessments?.length > 0 ? (
+              assessments.map((assignment) => (
+                <tr
+                  key={assignment.id}
+                  className="text-xs md:text-sm text-center text-gray-800 even:bg-[#E9FAF1] odd:bg-white hover:bg-[#E9FAF1]"
+                >
                   <td className="p-2 md:p-4">
-                    <div className="flex items-center justify-center gap-4">
-                      <button
-                        onClick={() => onEditAssessment?.(assignment)}
-                        className="text-green-500 hover:text-green-700 cursor-pointer"
-                      >
-                        <EditOutlined />
-                      </button>
-                      <button
-                        onClick={() => onDeleteAssessment(assignment.id)}
-                        className="text-red-500 hover:text-red-700 cursor-pointer"
-                      >
-                        <DeleteOutlined />
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleAssignmentClick(assignment.id, assignment.type)
+                      }
+                      className={`text-green-600 hover:text-green-800 hover:underline cursor-pointer ${
+                        assignment.type === "quiz" ? "font-medium" : ""
+                      }`}
+                    >
+                      {assignment.name}
+                    </button>
                   </td>
-                )}
+                  <td className="p-2 md:p-4">
+                    <span
+                      className={`px-2 py-1 text-xs rounded-full ${
+                        assignment.type === "quiz"
+                          ? "bg-blue-100 text-blue-800"
+                          : "bg-green-100 text-green-800"
+                      }`}
+                    >
+                      {assignment.type === "quiz" ? "Quiz" : "Assessment"}
+                    </span>
+                  </td>
+                  {canUpload && (
+                    <td className="p-2 md:p-4">
+                      <div className="flex items-center justify-center gap-4">
+                        <button
+                          onClick={() => onEditAssessment?.(assignment)}
+                          className="text-green-500 hover:text-green-700 cursor-pointer"
+                        >
+                          <EditOutlined />
+                        </button>
+                        <button
+                          onClick={() => onDeleteAssessment(assignment.id)}
+                          className="text-red-500 hover:text-red-700 cursor-pointer"
+                        >
+                          <DeleteOutlined />
+                        </button>
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td
+                  colSpan={canUpload ? 3 : 2}
+                  className="p-4 text-center text-gray-500"
+                >
+                  No assessments available
+                </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>
