@@ -1,13 +1,9 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import * as Dialog from "@radix-ui/react-dialog";
-import { Cross2Icon } from "@radix-ui/react-icons";
-import { Button } from "@/components/ui/button";
 import { fetchTerm, addTerm, updateTerm, deleteTerm } from "@/services/api";
 import TermsList from "@/components/dashboard/TermsList";
 import { useParams } from "next/navigation";
-import TermForm from "@/components/dashboard/TermForm";
-import { Alert, Modal, Spin } from "antd";
+import { Alert, Modal, Spin, Form, Input, Button } from "antd";
 
 export default function TermsPage() {
   const { classId } = useParams();
@@ -21,6 +17,8 @@ export default function TermsPage() {
   } | null>(null);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [termToDelete, setTermToDelete] = useState<number | null>(null);
+  const [form] = Form.useForm();
+
   const loadTerms = async () => {
     try {
       setLoading(true);
@@ -42,9 +40,9 @@ export default function TermsPage() {
   const handleAddTerm = async (termData: { name: string }) => {
     try {
       await addTerm(Number(classId), termData);
-      // Refetch terms after adding
       await loadTerms();
       setOpen(false);
+      form.resetFields();
     } catch (err) {
       console.error("Error adding term:", err);
     }
@@ -54,9 +52,9 @@ export default function TermsPage() {
     if (!editingTerm?.id) return;
     try {
       await updateTerm(editingTerm.id, Number(classId), termData);
-      // Refetch terms after updating
       await loadTerms();
       setEditingTerm(null);
+      setOpen(false);
     } catch (err) {
       console.error("Error updating term:", err);
     }
@@ -64,8 +62,10 @@ export default function TermsPage() {
 
   const handleEditClick = (term: { id: number; name: string }) => {
     setEditingTerm(term);
+    form.setFieldsValue({ name: term.name });
     setOpen(true);
   };
+
   const handleDeleteClick = (id: number) => {
     setTermToDelete(id);
     setDeleteConfirmVisible(true);
@@ -75,7 +75,6 @@ export default function TermsPage() {
     if (!termToDelete) return;
     try {
       await deleteTerm(termToDelete);
-      // Refetch terms after deleting
       await loadTerms();
     } catch (err) {
       console.error("Error deleting term:", err);
@@ -83,6 +82,16 @@ export default function TermsPage() {
       setDeleteConfirmVisible(false);
       setTermToDelete(null);
     }
+  };
+
+  const handleModalCancel = () => {
+    setOpen(false);
+    setEditingTerm(null);
+    form.resetFields();
+  };
+
+  const handleModalOk = () => {
+    form.submit();
   };
 
   if (loading)
@@ -107,43 +116,15 @@ export default function TermsPage() {
     );
 
   return (
-    <div className="p-6">
+    <div className="p-3 md:p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Terms</h1>
-        <Dialog.Root
-          open={open}
-          onOpenChange={(isOpen) => {
-            if (!isOpen) {
-              setEditingTerm(null);
-            }
-            setOpen(isOpen);
-          }}
+        <Button
+          className="!bg-primary !text-white"
+          onClick={() => setOpen(true)}
         >
-          <Dialog.Trigger asChild>
-            <Button className="cursor-pointer">Add Term</Button>
-          </Dialog.Trigger>
-          <Dialog.Portal>
-            <Dialog.Overlay className="bg-black/50 data-[state=open]:animate-overlayShow fixed inset-0" />
-            <Dialog.Content className="data-[state=open]:animate-contentShow fixed top-[50%] left-[50%] max-h-[85vh] w-[90vw] max-w-[450px] translate-x-[-50%] translate-y-[-50%] rounded-[6px] bg-white p-[25px] shadow-[hsl(206_22%_7%_/_35%)_0px_10px_38px_-10px,_hsl(206_22%_7%_/_20%)_0px_10px_20px_-15px] focus:outline-none">
-              <Dialog.Title className="text-lg font-bold mb-4">
-                {editingTerm ? "Edit Term" : "Add New Term"}
-              </Dialog.Title>
-              <TermForm
-                onSubmitSuccess={() => setOpen(false)}
-                onSubmit={editingTerm ? handleUpdateTerm : handleAddTerm}
-                initialData={editingTerm || undefined}
-              />
-              <Dialog.Close asChild>
-                <button
-                  className="text-gray-500 hover:text-gray-700 absolute top-[10px] right-[10px] inline-flex h-[25px] w-[25px] appearance-none items-center justify-center rounded-full focus:shadow-[0_0_0_2px] focus:outline-none"
-                  aria-label="Close"
-                >
-                  <Cross2Icon />
-                </button>
-              </Dialog.Close>
-            </Dialog.Content>
-          </Dialog.Portal>
-        </Dialog.Root>
+          Add Term
+        </Button>
       </div>
 
       <TermsList
@@ -152,6 +133,35 @@ export default function TermsPage() {
         onDelete={handleDeleteClick}
       />
 
+      {/* Add/Edit Term Modal */}
+      <Modal
+        title={editingTerm ? "Edit Term" : "Add New Term"}
+        open={open}
+        onOk={handleModalOk}
+        onCancel={handleModalCancel}
+        okText={editingTerm ? "Update" : "Create"}
+        confirmLoading={loading}
+        centered
+        okButtonProps={{
+          className: "!bg-primary hover:bg-primary-hover text-white",
+        }}
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={editingTerm ? handleUpdateTerm : handleAddTerm}
+        >
+          <Form.Item
+            name="name"
+            label="Term Name"
+            rules={[{ required: true, message: "Please input the term name!" }]}
+          >
+            <Input />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
       <Modal
         title="Confirm Delete"
         open={deleteConfirmVisible}

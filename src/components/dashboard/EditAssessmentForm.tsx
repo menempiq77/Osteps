@@ -100,10 +100,10 @@ export default function EditAssessmentForm({
       )}
 
       <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button type="button" className="cursor-pointer" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit">Update Assessment</Button>
+        <Button type="submit" className="cursor-pointer">Update Assessment</Button>
       </div>
     </form>
   );

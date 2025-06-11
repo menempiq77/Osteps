@@ -38,40 +38,48 @@ export default function TermsList({ terms, onEdit, onDelete }: TermsListProps) {
               </tr>
             </thead>
             <tbody>
-              {terms.map((term) => (
-                <tr
-                  key={term.id}
-                  className="border-b border-gray-300 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
-                >
-                  <td className="p-2 md:p-4">
-                    <button
-                      type="button"
-                      onClick={() => handleTermClick(term.id)}
-                      className="text-green-600 hover:text-green-800 font-medium hover:underline cursor-pointer"
-                    >
-                      {term.name}
-                    </button>
-                  </td>
-                  <td className="relative p-2 md:p-4 flex justify-center space-x-3">
-                    <button
-                      type="button"
-                      onClick={() => onEdit(term)}
-                      className="text-green-500 hover:text-green-700 cursor-pointer"
-                      title="Edit"
-                    >
-                      <EditOutlined />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onDelete(term.id)}
-                      className="text-red-500 hover:text-red-700 cursor-pointer"
-                      title="Delete"
-                    >
-                      <DeleteOutlined />
-                    </button>
+              {terms?.length > 0 ? (
+                terms.map((term) => (
+                  <tr
+                    key={term.id}
+                    className="border-b border-gray-300 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
+                  >
+                    <td className="p-2 md:p-4">
+                      <button
+                        type="button"
+                        onClick={() => handleTermClick(term.id)}
+                        className="text-green-600 hover:text-green-800 font-medium hover:underline cursor-pointer"
+                      >
+                        {term.name}
+                      </button>
+                    </td>
+                    <td className="relative p-2 md:p-4 flex justify-center space-x-3">
+                      <button
+                        type="button"
+                        onClick={() => onEdit(term)}
+                        className="text-green-500 hover:text-green-700 cursor-pointer"
+                        title="Edit"
+                      >
+                        <EditOutlined />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onDelete(term.id)}
+                        className="text-red-500 hover:text-red-700 cursor-pointer"
+                        title="Delete"
+                      >
+                        <DeleteOutlined />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={4} className="text-center py-4 text-gray-500">
+                    No Terms Found
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>

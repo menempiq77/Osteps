@@ -157,85 +157,95 @@ export default function SuperAdminsList() {
                 </tr>
               </thead>
               <tbody>
-                {superAdmins.map((admin) => (
-                  <tr
-                    key={admin.id}
-                    className="border-b border-gray-200 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
-                  >
-                    <td className="p-2 md:p-4">{admin.name}</td>
-                    <td className="p-2 md:p-4">{admin.email}</td>
-                    <td className="p-2 md:p-4">{admin.role || "N/A"}</td>
-                    <td className="relative p-2 md:p-4 flex justify-center space-x-3">
-                      <Dialog.Root>
-                        <Dialog.Trigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title="Edit"
-                            onClick={() => setEditSuperAdmin(admin)}
-                            className="cursor-pointer text-green-500 hover:text-green-700"
-                          >
-                            <EditOutlined />
-                          </Button>
-                        </Dialog.Trigger>
-                        {editSuperAdmin?.id === admin.id && (
-                          <EditSuperAdminModal
-                            admin={editSuperAdmin}
-                            isOpen={!!editSuperAdmin}
-                            onOpenChange={(open) =>
-                              !open && setEditSuperAdmin(null)
-                            }
-                            onSave={handleSaveEdit}
-                          />
-                        )}
-                      </Dialog.Root>
+                {superAdmins?.length > 0 ? (
+                  superAdmins?.map((admin) => (
+                    <tr
+                      key={admin.id}
+                      className="border-b border-gray-200 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
+                    >
+                      <td className="p-2 md:p-4">{admin.name}</td>
+                      <td className="p-2 md:p-4">{admin.email}</td>
+                      <td className="p-2 md:p-4">{admin.role || "N/A"}</td>
+                      <td className="relative p-2 md:p-4 flex justify-center space-x-3">
+                        <Dialog.Root>
+                          <Dialog.Trigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Edit"
+                              onClick={() => setEditSuperAdmin(admin)}
+                              className="cursor-pointer text-green-500 hover:text-green-700"
+                            >
+                              <EditOutlined />
+                            </Button>
+                          </Dialog.Trigger>
+                          {editSuperAdmin?.id === admin.id && (
+                            <EditSuperAdminModal
+                              admin={editSuperAdmin}
+                              isOpen={!!editSuperAdmin}
+                              onOpenChange={(open) =>
+                                !open && setEditSuperAdmin(null)
+                              }
+                              onSave={handleSaveEdit}
+                            />
+                          )}
+                        </Dialog.Root>
 
-                      <Dialog.Root>
-                        <Dialog.Trigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title="Delete"
-                            onClick={() => setDeleteSuperAdmin(admin)}
-                            className="cursor-pointer text-red-500 hover:text-red-700"
-                          >
-                            <DeleteOutlined />
-                          </Button>
-                        </Dialog.Trigger>
-                        {deleteSuperAdmin?.id === admin.id && (
-                          <Dialog.Portal>
-                            <Dialog.Overlay className="fixed inset-0 bg-black/30" />
-                            <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-md">
-                              <Dialog.Title className="text-lg font-semibold">
-                                Confirm Deletion
-                              </Dialog.Title>
-                              <p className="mt-2 text-gray-600">
-                                Are you sure you want to delete{" "}
-                                <strong>{deleteSuperAdmin.name}</strong>?
-                              </p>
-                              <div className="mt-4 flex justify-end space-x-2">
-                                <Button
-                                  variant="outline"
-                                  onClick={() => setDeleteSuperAdmin(null)}
-                                >
-                                  Cancel
-                                </Button>
-                                <Button
-                                  variant="destructive"
-                                  onClick={() =>
-                                    handleDeleteSuperAdmin(deleteSuperAdmin.id)
-                                  }
-                                >
-                                  Delete
-                                </Button>
-                              </div>
-                            </Dialog.Content>
-                          </Dialog.Portal>
-                        )}
-                      </Dialog.Root>
+                        <Dialog.Root>
+                          <Dialog.Trigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Delete"
+                              onClick={() => setDeleteSuperAdmin(admin)}
+                              className="cursor-pointer text-red-500 hover:text-red-700"
+                            >
+                              <DeleteOutlined />
+                            </Button>
+                          </Dialog.Trigger>
+                          {deleteSuperAdmin?.id === admin.id && (
+                            <Dialog.Portal>
+                              <Dialog.Overlay className="fixed inset-0 bg-black/30" />
+                              <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-md">
+                                <Dialog.Title className="text-lg font-semibold">
+                                  Confirm Deletion
+                                </Dialog.Title>
+                                <p className="mt-2 text-gray-600">
+                                  Are you sure you want to delete{" "}
+                                  <strong>{deleteSuperAdmin.name}</strong>?
+                                </p>
+                                <div className="mt-4 flex justify-end space-x-2">
+                                  <Button
+                                    variant="outline"
+                                    onClick={() => setDeleteSuperAdmin(null)}
+                                  >
+                                    Cancel
+                                  </Button>
+                                  <Button
+                                    variant="destructive"
+                                    onClick={() =>
+                                      handleDeleteSuperAdmin(
+                                        deleteSuperAdmin.id
+                                      )
+                                    }
+                                  >
+                                    Delete
+                                  </Button>
+                                </div>
+                              </Dialog.Content>
+                            </Dialog.Portal>
+                          )}
+                        </Dialog.Root>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="text-center py-4 text-gray-500">
+                      No admins found
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
