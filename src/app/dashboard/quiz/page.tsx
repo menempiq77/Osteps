@@ -16,14 +16,29 @@ import {
   deleteQuize,
 } from "@/services/api";
 
+type Quiz = {
+  id: string;
+  name: string;
+};
+interface ShowDeleteConfirm {
+  (id: string): void;
+}
+interface EditQuizRecord {
+  id: string;
+  name: string;
+}
+interface QuizFormValues {
+  name: string;
+}
+
 export default function QuizPage() {
   const [form] = Form.useForm();
-  const [quizzes, setQuizzes] = useState([]);
+  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingId, setEditingId] = useState(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
-  const [quizToDelete, setQuizToDelete] = useState(null);
+  const [quizToDelete, setQuizToDelete] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -52,7 +67,7 @@ export default function QuizPage() {
     setEditingId(null);
   };
 
-  const onFinish = async (values) => {
+  const onFinish = async (values: QuizFormValues): Promise<void> => {
     try {
       if (editingId) {
         await updateQuize(editingId, values);
@@ -63,25 +78,25 @@ export default function QuizPage() {
       }
       loadQuizzes();
       handleCancel();
-    } catch (error) {
+    } catch (error: any) {
       message.error(error.response?.data?.message || "Operation failed");
     }
   };
 
-  const editQuiz = (record) => {
+  const editQuiz = (record: EditQuizRecord) => {
     form.setFieldsValue(record);
     setEditingId(record.id);
     setIsModalOpen(true);
   };
 
-  const showDeleteConfirm = (id) => {
+  const showDeleteConfirm: ShowDeleteConfirm = (id) => {
     setQuizToDelete(id);
     setDeleteConfirmVisible(true);
   };
 
   const handleDelete = async () => {
     try {
-      await deleteQuize(quizToDelete);
+      await deleteQuize(Number(quizToDelete));
       message.success("Quiz deleted successfully");
       loadQuizzes();
     } catch (error) {
@@ -145,38 +160,46 @@ export default function QuizPage() {
                 </tr>
               </thead>
               <tbody>
-                {quizzes.map((item) => (
-                  <tr
-                    key={item.id}
-                    className="border-b border-gray-300 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
-                  >
-                    <td className="p-2 md:p-4">{item.id}</td>
-                    <td className="p-2 md:p-4">
-                      <button
-                        onClick={() => handleViewQuiz(item.id)}
-                        className="text-green-600 hover:text-green-800 font-medium hover:underline cursor-pointer"
-                      >
-                        {item.name}
-                      </button>
-                    </td>
-                    <td className="relative p-2 md:p-4 flex justify-center space-x-3">
-                      <button
-                        onClick={() => editQuiz(item)}
-                        className="text-green-500 hover:text-green-700 cursor-pointer"
-                        title="Edit"
-                      >
-                        <EditOutlined />
-                      </button>
-                      <button
-                        onClick={() => showDeleteConfirm(item.id)}
-                        className="text-red-500 hover:text-red-700 cursor-pointer"
-                        title="Delete"
-                      >
-                        <DeleteOutlined />
-                      </button>
+                {quizzes?.length > 0 ? (
+                  quizzes.map((item) => (
+                    <tr
+                      key={item.id}
+                      className="border-b border-gray-300 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
+                    >
+                      <td className="p-2 md:p-4">{item.id}</td>
+                      <td className="p-2 md:p-4">
+                        <button
+                          onClick={() => handleViewQuiz(item.id)}
+                          className="text-green-600 hover:text-green-800 font-medium hover:underline cursor-pointer"
+                        >
+                          {item.name}
+                        </button>
+                      </td>
+                      <td className="relative p-2 md:p-4 flex justify-center space-x-3">
+                        <button
+                          onClick={() => editQuiz(item)}
+                          className="text-green-500 hover:text-green-700 cursor-pointer"
+                          title="Edit"
+                        >
+                          <EditOutlined />
+                        </button>
+                        <button
+                          onClick={() => showDeleteConfirm(item.id)}
+                          className="text-red-500 hover:text-red-700 cursor-pointer"
+                          title="Delete"
+                        >
+                          <DeleteOutlined />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={3} className="text-center p-4">
+                      No quizzes available
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
@@ -187,7 +210,7 @@ export default function QuizPage() {
           open={isModalOpen}
           onCancel={handleCancel}
           footer={null}
-          destroyOnClose
+          destroyOnHidden
         >
           <Form
             form={form}
@@ -206,10 +229,12 @@ export default function QuizPage() {
             </Form.Item>
 
             <div className="flex justify-end gap-2">
-              <Button onClick={handleCancel}>
-                Cancel
-              </Button>
-              <Button type="primary" htmlType="submit" className="!bg-primary !border-primary hover:!bg-primary hover:!border-primary">
+              <Button onClick={handleCancel}>Cancel</Button>
+              <Button
+                type="primary"
+                htmlType="submit"
+                className="!bg-primary !border-primary hover:!bg-primary hover:!border-primary"
+              >
                 {editingId ? "Update" : "Submit"}
               </Button>
             </div>
@@ -219,7 +244,9 @@ export default function QuizPage() {
         <Modal
           title={
             <>
-              <ExclamationCircleFilled style={{ color: "#ff4d4f", marginRight: 8 }} />
+              <ExclamationCircleFilled
+                style={{ color: "#ff4d4f", marginRight: 8 }}
+              />
               Confirm Delete
             </>
           }
@@ -228,6 +255,7 @@ export default function QuizPage() {
           onCancel={() => setDeleteConfirmVisible(false)}
           okText="Delete"
           okType="danger"
+          centered
         >
           <p>
             Are you sure you want to delete this quiz? This action cannot be

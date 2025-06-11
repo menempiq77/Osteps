@@ -11,6 +11,7 @@ interface Task {
   id: number;
   assessment_id: number;
   task_name: string;
+  description: string;
   allocated_marks: string;
   task_type: string;
   url: string | null;
@@ -120,7 +121,7 @@ export default function AssignmentDetailPage() {
           </div>
         ) : (
           <div className="grid gap-4">
-            {tasks.map((task) => (
+            {tasks?.map((task) => (
               <div
                 key={task.id}
                 className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200"
@@ -131,6 +132,9 @@ export default function AssignmentDetailPage() {
                       <h3 className="font-medium text-lg text-gray-900 mb-1">
                         {task.task_name}
                       </h3>
+                      <p className="font-normal text-base text-gray-700 mb-1">
+                        {task.description || "No description provided."}
+                      </p>
                       <div className="flex items-center text-sm text-gray-500 mb-2">
                         <CalendarIcon className="w-4 h-4 mr-1.5" />
                         <span>

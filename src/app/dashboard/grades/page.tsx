@@ -144,7 +144,7 @@ export default function Page() {
                 setCurrentGrade(null);
               }}
               footer={null}
-              destroyOnClose
+              destroyOnHidden
             >
               <GradeForm
                 onSubmit={handleSubmitGrade}

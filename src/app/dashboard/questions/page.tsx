@@ -14,14 +14,20 @@ import {
 import { UserOutlined, SendOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { fetchClasses, fetchTeachersByStudent, fetchYears } from "@/services/api";
-import { 
+import {
+  fetchClasses,
+  fetchTeachersByStudent,
+  fetchYears,
+} from "@/services/api";
+import {
   getAllAskQuestions,
   createAskQuestion,
   updateAskQuestion,
   deleteAskQuestion,
-  submitAskQuestion
+  submitAskQuestion,
 } from "@/services/api";
+import { ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -50,10 +56,9 @@ type Answer = {
 
 const AskQuestionPage = () => {
   const { currentUser } = useSelector((state: RootState) => state.auth);
-
+  const router = useRouter();
   const isStudent = currentUser?.role === "STUDENT";
   const isTeacher = currentUser?.role === "TEACHER";
-
   const [questions, setQuestions] = useState<Question[]>([]);
   const [newQuestion, setNewQuestion] = useState("");
   const [selectedTeacher, setSelectedTeacher] = useState("");
@@ -66,27 +71,30 @@ const AskQuestionPage = () => {
   const [teachers, setTeachers] = useState<any[]>([]);
   const [years, setYears] = useState([]);
   const [classes, setClasses] = useState([]);
-  
+
   const loadQuestions = async () => {
     try {
       setIsLoading(true);
       const response = await getAllAskQuestions();
-      // Transform the API response to match our frontend structure
       const transformedQuestions = response.map((q: any) => ({
         ...q,
         id: q.id,
         content: q.question,
         studentName: `Student ${q.student_id}`,
         teacherName: `Teacher ${q.teacher_id}`,
-        year: "Year 1", // Can be fetched from API if available
-        class: "Class A", // Can be fetched from API if available
+        year: "Year 1",
+        class: "Class A",
         createdAt: q.created_at,
-        answers: q.answer ? [{
-          id: `answer-${q.id}`,
-          content: q.answer,
-          teacherName: `Teacher ${q.teacher_id}`,
-          createdAt: q.updated_at
-        }] : []
+        answers: q.answer
+          ? [
+              {
+                id: `answer-${q.id}`,
+                content: q.answer,
+                teacherName: `Teacher ${q.teacher_id}`,
+                createdAt: q.updated_at,
+              },
+            ]
+          : [],
       }));
       setQuestions(transformedQuestions);
     } catch (err) {
@@ -101,7 +109,7 @@ const AskQuestionPage = () => {
     try {
       setIsLoading(true);
       const response = await fetchTeachersByStudent();
-      console.log("Teachers response:", response); 
+      console.log("Teachers response:", response);
       setTeachers(response);
     } catch (err) {
       setError("Failed to fetch teachers");
@@ -110,11 +118,11 @@ const AskQuestionPage = () => {
       setIsLoading(false);
     }
   };
-  
+
   const loadYears = async () => {
     try {
       const data = await fetchYears();
-      console.log("Years response:", data); 
+      console.log("Years response:", data);
       setYears(data);
       setIsLoading(false);
     } catch (err) {
@@ -123,12 +131,12 @@ const AskQuestionPage = () => {
       console.error(err);
     }
   };
-  
+
   const loadClasses = async () => {
     try {
       setIsLoading(true);
       const data = await fetchClasses();
-      console.log("Classes response:", data); 
+      console.log("Classes response:", data);
       setClasses(data);
     } catch (err) {
       setError("Failed to fetch classes");
@@ -161,11 +169,11 @@ const AskQuestionPage = () => {
         student_id: Number(currentUser?.id),
         teacher_id: selectedTeacher,
         question: newQuestion,
-        answer: ""
+        answer: "",
       };
 
       const response = await createAskQuestion(questionData);
-      
+
       // Transform the new question to match our frontend structure
       const newQuestionItem: Question = {
         ...response.data,
@@ -176,7 +184,7 @@ const AskQuestionPage = () => {
         year: "2025",
         class: "Class A",
         createdAt: response.data.created_at,
-        answers: []
+        answers: [],
       };
 
       setQuestions([newQuestionItem, ...questions]);
@@ -198,25 +206,29 @@ const AskQuestionPage = () => {
 
     try {
       const response = await submitAskQuestion(questionId, {
-        answer: answerText
+        answer: answerText,
       });
 
       // Update the question with the new answer
       setQuestions(
         questions.map((q) =>
-          q.id.toString() === questionId ? { 
-            ...q, 
-            answer: answerText,
-            answers: [{
-              id: `answer-${Date.now()}`,
-              content: answerText,
-              teacherName: currentUser?.name || "Teacher",
-              createdAt: new Date().toISOString()
-            }]
-          } : q
+          q.id.toString() === questionId
+            ? {
+                ...q,
+                answer: answerText,
+                answers: [
+                  {
+                    id: `answer-${Date.now()}`,
+                    content: answerText,
+                    teacherName: currentUser?.name || "Teacher",
+                    createdAt: new Date().toISOString(),
+                  },
+                ],
+              }
+            : q
         )
       );
-      
+
       setNewAnswers({ ...newAnswers, [questionId]: "" });
       message.success("Answer submitted successfully");
     } catch (err) {
@@ -234,7 +246,14 @@ const AskQuestionPage = () => {
     : questions;
 
   return (
-    <div>
+    <>
+      <Button
+        onClick={() => router.back()}
+        className="flex items-center gap-2 text-gray-600 hover:!border-green-500 hover:!text-green-500 mb-4"
+      >
+        <ArrowLeft size={18} />
+        Back to Dashboard
+      </Button>
       <h1 className="text-2xl font-bold mb-6">
         {isStudent ? "Ask" : "Answer"} a Question
       </h1>
@@ -356,7 +375,9 @@ const AskQuestionPage = () => {
           <Card
             key={question.id}
             className={`mb-4 cursor-pointer transition-all ${
-              activeQuestion === question.id.toString() ? "border-blue-500 border-2" : ""
+              activeQuestion === question.id.toString()
+                ? "border-blue-500 border-2"
+                : ""
             }`}
             onClick={() => setActiveQuestion(question.id.toString())}
           >
@@ -367,8 +388,8 @@ const AskQuestionPage = () => {
                   <div>
                     <h3 className="font-medium">{question.studentName}</h3>
                     <p className="text-sm text-gray-500">
-                      To: {question.teacherName} | {question.class},{" "}
-                      {question.year}
+                      To: {question.teacherName}
+                      {/* | {question.class},{question.year} */}
                     </p>
                   </div>
                   <span className="text-gray-500 text-sm">
@@ -408,7 +429,7 @@ const AskQuestionPage = () => {
           </Card>
         )}
       />
-    </div>
+    </>
   );
 };
 
