@@ -3,7 +3,6 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog } from "@radix-ui/themes";
 import {
   Select,
   SelectContent,
@@ -45,7 +44,8 @@ export default function AddAssessmentForm({
 
     onSubmit({
       name: isQuiz
-       ? quizzes.find(q => String(q.id) === selectedQuiz)?.name || selectedQuiz
+        ? quizzes.find((q) => String(q.id) === selectedQuiz)?.name ||
+          selectedQuiz
         : name,
       term_id: termId,
       type: isQuiz ? "quiz" : "assessment",
@@ -85,12 +85,14 @@ export default function AddAssessmentForm({
         )}
       </div>
       <div className="flex justify-end gap-2">
-        <Dialog.Close>
-          <Button type="button" className="cursor-pointer" variant="outline">
-            Cancel
-          </Button>
-        </Dialog.Close>
-        <Button type="submit" className="cursor-pointer" disabled={isQuiz && !selectedQuiz}>
+        <Button type="button" className="cursor-pointer" variant="outline">
+          Cancel
+        </Button>
+        <Button
+          type="submit"
+          className="cursor-pointer"
+          disabled={isQuiz && !selectedQuiz}
+        >
           {isQuiz ? "Assign Quiz" : "Add Assessment"}
         </Button>
       </div>

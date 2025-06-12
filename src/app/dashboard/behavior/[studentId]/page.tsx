@@ -1,24 +1,11 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  Card,
-  Tag,
-  Select,
-  List,
-  Avatar,
-  Statistic,
-} from "antd";
-import {
-  ArrowUpOutlined,
-  ArrowDownOutlined,
-} from "@ant-design/icons";
+import { Card, Tag, Select, List, Avatar, Statistic } from "antd";
+import { ArrowUpOutlined, ArrowDownOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { useParams } from "next/navigation";
-import {
-  fetchBehaviour,
-  fetchBehaviourType,
-} from "@/services/api";
+import { fetchBehaviour, fetchBehaviourType } from "@/services/api";
 
 const { Option } = Select;
 
@@ -161,11 +148,15 @@ const StudentBehaviorPage = () => {
       <Card
         title={
           <div className="flex items-center gap-2">
-            <Avatar src={currentUser?.avatar || ""} size="large" className="mr-4" />
+            <Avatar
+              src={currentUser?.avatar || null}
+              size="large"
+              className="mr-4"
+            >
+              {currentUser?.name?.charAt(0) || "U"}
+            </Avatar>
             <div>
-              <h2 className="text-lg font-semibold">
-                {currentUser?.name}
-              </h2>
+              <h2 className="text-lg font-semibold">{currentUser?.name}</h2>
               <p className="text-gray-500">{currentUser?.class || ""}</p>
             </div>
           </div>

@@ -145,7 +145,7 @@ export default function Page() {
             title: <Link href="/dashboard/years">Academic Years</Link>,
           },
           {
-            title: <Link href="/classes">Classes</Link>,
+            title: <span>Classes</span>,
           },
         ]}
         className="!mb-2"

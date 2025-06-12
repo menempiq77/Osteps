@@ -1,13 +1,9 @@
 "use client";
 import React, { useState } from "react";
-import { Steps, Drawer, Input, Button, Form, InputNumber, Space } from "antd";
-import { Card } from "@radix-ui/themes";
-import Link from "next/link";
+import { Button, Form, Card } from "antd";
 import {
   ChevronLeftIcon,
   CalendarIcon,
-  PlusIcon,
-  Cross2Icon,
 } from "@radix-ui/react-icons";
 import { useParams, useRouter } from "next/navigation";
 import AssessmentDrawer from "@/components/ui/AssessmentDrawer";
