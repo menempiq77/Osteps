@@ -592,7 +592,7 @@ export default function QuranQuizPage() {
 
       <Modal
         title="Delete Question"
-        visible={deleteModalVisible}
+        open={deleteModalVisible}
         onOk={handleDeleteConfirm}
         onCancel={handleDeleteCancel}
         okText="Delete"

@@ -31,7 +31,7 @@ export default function DashboardLayout({
 
       <div className="flex-1 h-screen overflow-y-auto">
         <div
-          className={`mx-auto ${shouldApplyMaxWidth ? "max-w-7xl p-6" : ""}`}
+          className={`mx-auto ${shouldApplyMaxWidth ? "max-w-7xl p-3 md:p-6" : ""}`}
         >
           {children}
         </div>
