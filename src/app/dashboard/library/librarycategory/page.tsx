@@ -177,7 +177,7 @@ export default function LibraryCategories() {
           open={isModalOpen}
           onCancel={handleCancel}
           footer={null}
-          destroyOnClose
+          destroyOnHidden
         >
           <Form
             form={form}
