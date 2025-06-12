@@ -3,21 +3,18 @@ import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import {
-  BookOpenIcon,
-  ClockIcon,
-  CalendarIcon,
-  PencilIcon,
-  TrashIcon,
-  PlusIcon,
-  LinkIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-} from "@heroicons/react/24/outline";
-import Link from "next/link";
-import { DatePicker } from "antd";
+  Clock,
+  Calendar,
+  Pencil,
+  Trash2,
+  Plus,
+  Link,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
+import { Button, DatePicker } from "antd";
 import type { Dayjs } from "dayjs";
 import dayjs from "dayjs";
-import { usePathname } from "next/navigation";
 import { Modal } from "antd";
 import { Select } from "antd";
 const { Option } = Select;
@@ -129,7 +126,6 @@ const initialTimetable = {
 
 export default function TimetablePage() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
-  const pathname = usePathname();
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [viewMode, setViewMode] = useState<"day" | "week" | "month">("week");
@@ -337,7 +333,7 @@ export default function TimetablePage() {
           className="absolute bottom-2 right-2 text-blue-600 hover:text-blue-800 transition-colors"
           onClick={(e) => e.stopPropagation()}
         >
-          <LinkIcon className="h-4 w-4" />
+          <Link className="h-4 w-4" />
         </a>
       )}
     </>
@@ -353,7 +349,7 @@ export default function TimetablePage() {
           }}
           className="p-1 text-gray-500 hover:text-blue-600 transition-colors bg-white rounded-full shadow-sm"
         >
-          <PencilIcon className="h-3 w-3" />
+          <Pencil className="h-3 w-3" />
         </button>
         <button
           onClick={(e) => {
@@ -362,7 +358,7 @@ export default function TimetablePage() {
           }}
           className="p-1 text-gray-500 hover:text-red-600 transition-colors bg-white rounded-full shadow-sm"
         >
-          <TrashIcon className="h-3 w-3" />
+          <Trash2 className="h-3 w-3" />
         </button>
       </div>
     );
@@ -487,39 +483,39 @@ export default function TimetablePage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button
+          <Button
             onClick={() => setViewMode("day")}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               viewMode === "day"
-                ? "bg-indigo-600 text-white shadow-md"
+                ? "bg-primary text-white shadow-md"
                 : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
             }`}
           >
             Day View
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => setViewMode("week")}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               viewMode === "week"
-                ? "bg-indigo-600 text-white shadow-md"
+                ? "!bg-primary !text-white shadow-md"
                 : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
             }`}
           >
             Week View
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => setViewMode("month")}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               viewMode === "month"
-                ? "bg-indigo-600 text-white shadow-md"
+                ? "bg-primary text-white shadow-md"
                 : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
             }`}
           >
             Month View
-          </button>
+          </Button>
 
           {viewMode === "day" && (
-            <div className="flex items-center bg-white border border-gray-300 rounded-lg overflow-hidden">
+            <div className="flex items-center bg-white border border-gray-300 h-8 rounded overflow-hidden">
               <button
                 onClick={() => {
                   const newDate = new Date(currentWeek);
@@ -528,13 +524,13 @@ export default function TimetablePage() {
                 }}
                 className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-gray-50 transition-colors"
               >
-                <ChevronLeftIcon className="w-5 h-5" />
+                <ChevronLeft className="w-5 h-5" />
               </button>
               <div
                 className="px-3 flex items-center gap-2 py-2 text-sm text-gray-600 border-x border-gray-300 cursor-pointer hover:bg-gray-50"
                 onClick={() => setShowDayPicker(true)}
               >
-                <CalendarIcon className="h-4 w-4 inline" />
+                <Calendar className="h-4 w-4 inline" />
                 {currentWeek.toLocaleDateString("en-US", {
                   weekday: "long",
                   month: "long",
@@ -550,24 +546,24 @@ export default function TimetablePage() {
                 }}
                 className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-gray-50 transition-colors"
               >
-                <ChevronRightIcon className="w-5 h-5" />
+                <ChevronRight className="w-5 h-5" />
               </button>
             </div>
           )}
 
           {viewMode === "week" && (
-            <div className="flex items-center bg-white border border-gray-300 rounded-lg overflow-hidden">
+            <div className="flex items-center bg-white border border-gray-300 h-8 rounded overflow-hidden">
               <button
                 onClick={() => navigateWeek("prev")}
                 className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-gray-50 transition-colors"
               >
-                <ChevronLeftIcon className="w-5 h-5" />
+                <ChevronLeft className="w-5 h-5" />
               </button>
               <div
                 className="px-3 flex items-center gap-2 py-2 text-sm text-gray-600 border-x border-gray-300 cursor-pointer hover:bg-gray-50"
                 onClick={() => setShowWeekPicker(true)}
               >
-                <CalendarIcon className="h-4 w-4 inline" />
+                <Calendar className="h-4 w-4 inline" />
                 {new Date().getMonth() === currentWeek.getMonth() &&
                 new Date().getFullYear() === currentWeek.getFullYear()
                   ? "This Week"
@@ -577,24 +573,24 @@ export default function TimetablePage() {
                 onClick={() => navigateWeek("next")}
                 className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-gray-50 transition-colors"
               >
-                <ChevronRightIcon className="w-5 h-5" />
+                <ChevronRight className="w-5 h-5" />
               </button>
             </div>
           )}
 
           {viewMode === "month" && (
-            <div className="flex items-center bg-white border border-gray-300 rounded-lg overflow-hidden">
+            <div className="flex items-center bg-white border border-gray-300 h-8 rounded overflow-hidden">
               <button
                 onClick={() => navigateMonth("prev")}
                 className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-gray-50 transition-colors"
               >
-                <ChevronLeftIcon className="w-5 h-5" />
+                <ChevronLeft className="w-5 h-5" />
               </button>
               <div
                 className="px-3 flex items-center gap-2 py-2 text-sm text-gray-600 border-x border-gray-300 cursor-pointer hover:bg-gray-50"
                 onClick={() => setShowMonthPicker(true)}
               >
-                <CalendarIcon className="h-4 w-4 inline" />
+                <Calendar className="h-4 w-4 inline" />
                 {new Date().getMonth() === currentMonth.getMonth() &&
                 new Date().getFullYear() === currentMonth.getFullYear()
                   ? "This Month"
@@ -604,7 +600,7 @@ export default function TimetablePage() {
                 onClick={() => navigateMonth("next")}
                 className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-gray-50 transition-colors"
               >
-                <ChevronRightIcon className="w-5 h-5" />
+                <ChevronRight className="w-5 h-5" />
               </button>
             </div>
           )}
@@ -743,7 +739,7 @@ export default function TimetablePage() {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-40">
                     <div className="flex items-center">
-                      <ClockIcon className="h-4 w-4 mr-2 text-gray-400" />
+                      <Clock className="h-4 w-4 mr-2 text-gray-400" />
                       Time
                     </div>
                   </th>
@@ -784,7 +780,7 @@ export default function TimetablePage() {
                                   onClick={() => handleAddSlot(day, time)}
                                   className="absolute inset-0 flex items-center justify-center text-gray-400 hover:text-indigo-600 transition-colors"
                                 >
-                                  <PlusIcon className="h-5 w-5" />
+                                  <Plus className="h-5 w-5" />
                                 </button>
                               )}
                             </div>
@@ -870,7 +866,7 @@ export default function TimetablePage() {
                             }
                             className="absolute inset-0 flex items-center justify-center text-gray-400 hover:text-indigo-600 transition-colors"
                           >
-                            <PlusIcon className="h-5 w-5" />
+                            <Plus className="h-5 w-5" />
                           </button>
                         )}
                       </div>
