@@ -1,6 +1,4 @@
 "use client";
-import { Button } from "@/components/ui/button";
-import * as Dialog from "@radix-ui/react-dialog";
 import { useState, useEffect } from "react";
 import { AddTrackerModal } from "../modals/trackerModals/AddTrackerModal";
 import { EditTrackerModal } from "../modals/trackerModals/EditTrackerModal";
@@ -13,8 +11,8 @@ import {
   updateTracker as updateTrackerAPI,
   deleteTracker as deleteTrackerAPI,
 } from "@/services/api";
-import { Alert, Spin, Modal } from "antd";
-import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
+import { Alert, Spin, Modal, Button } from "antd";
+import { EditOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 
 type Tracker = {
   id: string;
@@ -99,7 +97,9 @@ export default function TrackerList() {
     if (!deleteTracker) return;
     try {
       await deleteTrackerAPI(Number(deleteTracker.id));
-      setTrackers(trackers.filter((tracker) => tracker.id !== deleteTracker.id));
+      setTrackers(
+        trackers.filter((tracker) => tracker.id !== deleteTracker.id)
+      );
       setDeleteTracker(null);
       setIsDeleteModalOpen(false);
     } catch (err) {
@@ -143,7 +143,7 @@ export default function TrackerList() {
     router.push(`/dashboard/leaderboard`);
   };
 
-  const handleTrackerClick = (trackerId: string, type: string) => {
+  const handleTrackerClick = (trackerId: string) => {
     router.push(`/dashboard/trackers/${classId}/${trackerId}`);
   };
 
@@ -168,31 +168,33 @@ export default function TrackerList() {
     );
 
   return (
-    <div className="overflow-auto h-screen">
+    <>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Trackers</h1>
         <div className="flex items-center gap-2">
           <Button
-            variant="outline"
+            variant="outlined"
             onClick={() => handleLeaderBoard()}
             className="flex items-center gap-2 text-gray-600 hover:text-gray-900 cursor-pointer"
           >
             View Leaderboard
           </Button>
           {currentUser?.role !== "STUDENT" && (
-            <Dialog.Root
-              open={isAddTrackerModalOpen}
-              onOpenChange={setIsAddTrackerModalOpen}
-            >
-              <Dialog.Trigger asChild>
-                <Button className="cursor-pointer">Add New Tracker</Button>
-              </Dialog.Trigger>
+            <>
+              <Button
+                type="primary"
+                className="cursor-pointer !bg-primary !text-white"
+                icon={<PlusOutlined />}
+                onClick={() => setIsAddTrackerModalOpen(true)}
+              >
+                Add Tracker
+              </Button>
               <AddTrackerModal
                 isOpen={isAddTrackerModalOpen}
                 onOpenChange={setIsAddTrackerModalOpen}
                 onAddTracker={handleAddNewTracker}
               />
-            </Dialog.Root>
+            </>
           )}
         </div>
       </div>
@@ -213,7 +215,11 @@ export default function TrackerList() {
                   </span>
                 </th>
                 <th className="p-2 md:p-4">
-                  <span className={`block py-2 px-3 ${currentUser?.role !== "STUDENT" ? "border-r" : ""} border-gray-300`}>
+                  <span
+                    className={`block py-2 px-3 ${
+                      currentUser?.role !== "STUDENT" ? "border-r" : ""
+                    } border-gray-300`}
+                  >
                     Status
                   </span>
                 </th>
@@ -223,65 +229,74 @@ export default function TrackerList() {
               </tr>
             </thead>
             <tbody>
-              {trackers.map((tracker) => (
-                <tr
-                  key={tracker.id}
-                  className="border-b border-gray-300 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
-                >
-                  <td
-                    onClick={() => handleTrackerClick(tracker.id, tracker.type)}
-                    className="p-2 md:p-4 cursor-pointer hover:underline text-green-600 hover:text-green-800 font-medium"
+              {trackers?.length > 0 ? (
+                trackers.map((tracker) => (
+                  <tr
+                    key={tracker.id}
+                    className="border-b border-gray-300 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
                   >
-                    {tracker.name}
-                  </td>
-                  <td className="p-2 md:p-4">{tracker.lastUpdated}</td>
-                  <td className="p-2 md:p-4">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                        tracker.status
-                      )}`}
+                    <td
+                      onClick={() =>
+                        handleTrackerClick(tracker.id, tracker.type)
+                      }
+                      className="p-2 md:p-4 cursor-pointer hover:underline text-green-600 hover:text-green-800 font-medium"
                     >
-                      {tracker.status}
-                    </span>
-                  </td>
-                  {currentUser?.role !== "STUDENT" && (
-                    <td className="relative p-2 md:p-4 flex justify-center space-x-3">
-                      <Dialog.Root>
-                        <Dialog.Trigger asChild>
-                          <button
-                            onClick={() => setEditTracker(tracker)}
-                            className="text-green-500 hover:text-green-700 cursor-pointer"
-                            title="Edit"
-                          >
-                            <EditOutlined />
-                          </button>
-                        </Dialog.Trigger>
-                        {editTracker?.id === tracker.id && (
-                          <EditTrackerModal
-                            tracker={editTracker}
-                            isOpen={!!editTracker}
-                            onOpenChange={(open) =>
-                              !open && setEditTracker(null)
-                            }
-                            onSave={handleSaveEdit}
-                          />
-                        )}
-                      </Dialog.Root>
-
-                      <button
-                        onClick={() => {
-                          setDeleteTracker(tracker);
-                          setIsDeleteModalOpen(true);
-                        }}
-                        className="text-red-500 hover:text-red-700 cursor-pointer"
-                        title="Delete"
-                      >
-                        <DeleteOutlined />
-                      </button>
+                      {tracker.name}
                     </td>
-                  )}
+                    <td className="p-2 md:p-4">{tracker.lastUpdated}</td>
+                    <td className="p-2 md:p-4">
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                          tracker.status
+                        )}`}
+                      >
+                        {tracker.status}
+                      </span>
+                    </td>
+                    {currentUser?.role !== "STUDENT" && (
+                      <td className="relative p-2 md:p-4 flex justify-center space-x-3">
+                        <>
+                          <Button
+                            type="text"
+                            icon={<EditOutlined />}
+                            onClick={() => setEditTracker(tracker)}
+                            className="!text-green-500 hover:text-green-700"
+                          />
+                          <Button
+                            type="text"
+                            icon={<DeleteOutlined />}
+                            onClick={() => {
+                              setDeleteTracker(tracker);
+                              setIsDeleteModalOpen(true);
+                            }}
+                            className="!text-red-500 hover:text-red-700"
+                          />
+
+                          {editTracker?.id === tracker.id && (
+                            <EditTrackerModal
+                              tracker={editTracker}
+                              isOpen={!!editTracker}
+                              onOpenChange={(open) =>
+                                !open && setEditTracker(null)
+                              }
+                              onSave={handleSaveEdit}
+                            />
+                          )}
+                        </>
+                      </td>
+                    )}
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td
+                    colSpan={currentUser?.role !== "STUDENT" ? 4 : 3}
+                    className="p-4 text-center text-gray-500"
+                  >
+                    No trackers found.
+                  </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
@@ -303,6 +318,6 @@ export default function TrackerList() {
           <strong>{deleteTracker?.name}</strong>? This action cannot be undone.
         </p>
       </Modal>
-    </div>
+    </>
   );
 }

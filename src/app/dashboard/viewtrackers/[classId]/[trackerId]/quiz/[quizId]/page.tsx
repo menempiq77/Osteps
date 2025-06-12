@@ -2,7 +2,16 @@
 import React, { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Trash2, Plus, X } from "lucide-react";
-import { Button, Form, Divider, Input, Select, Checkbox, Space } from "antd";
+import {
+  Button,
+  Form,
+  Divider,
+  Input,
+  Select,
+  Checkbox,
+  Space,
+  Radio,
+} from "antd";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 
@@ -39,11 +48,14 @@ export default function QuranQuizPage() {
       id: "1",
       type: "short",
       question: "What is the meaning of Iman?",
+      correctAnswer: "Belief in Allah and His Messenger",
     },
     {
       id: "2",
       type: "paragraph",
       question: "Describe the importance of prayer in Islam.",
+      correctAnswer:
+        "Prayer is the pillar of religion and connects a believer with Allah.",
     },
     {
       id: "3",
@@ -74,7 +86,8 @@ export default function QuranQuizPage() {
 
   const handleSubmitAnswers = () => {
     console.log("Submitting answers...");
-    router.back();
+    // router.back();
+    router.push(`${quizId}/quiz-result`);
   };
 
   const toggleAddQuestion = () => {
@@ -82,18 +95,19 @@ export default function QuranQuizPage() {
     if (!showAddQuestion) {
       quizForm.resetFields();
       setQuizType("short");
+      setOptionCount(4);
     }
   };
 
-  const [optionCount, setOptionCount] = useState(4); // Start with 4 options
+  const [optionCount, setOptionCount] = useState(4);
 
   const addOption = () => {
-    setOptionCount(prev => prev + 1);
+    setOptionCount((prev) => prev + 1);
   };
 
   const removeOption = () => {
     if (optionCount > 1) {
-      setOptionCount(prev => prev - 1);
+      setOptionCount((prev) => prev - 1);
       // Remove the last option from form values
       const values = quizForm.getFieldsValue();
       delete values[`option${optionCount}`];
@@ -107,6 +121,7 @@ export default function QuranQuizPage() {
         id: Date.now().toString(),
         type: values.type,
         question: values.question,
+        correctAnswer: values.correctAnswer,
       };
 
       if (["mcq", "checkbox", "dropdown"].includes(values.type)) {
@@ -142,7 +157,7 @@ export default function QuranQuizPage() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="p-6 border-b border-gray-200 flex justify-between items-center">
           <h1 className="text-2xl font-bold text-gray-900">Quiz</h1>
-          {canUpload && (
+          {/* {canUpload && (
             <Button
               type="primary"
               onClick={toggleAddQuestion}
@@ -150,7 +165,7 @@ export default function QuranQuizPage() {
             >
               {showAddQuestion ? "Cancel" : "Add Question"}
             </Button>
-          )}
+          )} */}
         </div>
 
         {showAddQuestion && (
@@ -160,7 +175,9 @@ export default function QuranQuizPage() {
                 name="type"
                 label="Question Type"
                 initialValue="short"
-                rules={[{ required: true, message: "Please select a question type" }]}
+                rules={[
+                  { required: true, message: "Please select a question type" },
+                ]}
               >
                 <Select
                   placeholder="Select question type"
@@ -177,7 +194,9 @@ export default function QuranQuizPage() {
               <Form.Item
                 name="question"
                 label="Question"
-                rules={[{ required: true, message: "Please enter the question" }]}
+                rules={[
+                  { required: true, message: "Please enter the question" },
+                ]}
               >
                 <Input.TextArea rows={3} placeholder="Enter question" />
               </Form.Item>
@@ -185,39 +204,45 @@ export default function QuranQuizPage() {
               {["mcq", "checkbox", "dropdown"].includes(quizType) && (
                 <>
                   <Divider orientation="left">Options</Divider>
-                  
+
                   {Array.from({ length: optionCount }).map((_, index) => (
-                    <Form.Item 
+                    <Form.Item
                       key={index}
-                      name={`option${index + 1}`} 
-                      label={`Option ${index + 1}`} 
-                      rules={[{ required: index < 2, message: `Option ${index + 1} is required` }]}
+                      name={`option${index + 1}`}
+                      label={`Option ${index + 1}`}
+                      rules={[
+                        {
+                          required: index < 2,
+                          message: `Option ${index + 1} is required`,
+                        },
+                      ]}
                     >
-                      <Input 
-                        placeholder={`Enter option ${index + 1}`} 
+                      <Input
+                        placeholder={`Enter option ${index + 1}`}
                         suffix={
                           index >= 2 && (
-                            <Button 
-                              type="text" 
-                              danger 
-                              size="small" 
-                              icon={<Trash2 size={14} />} 
+                            <Button
+                              type="text"
+                              danger
+                              size="small"
+                              icon={<Trash2 size={14} />}
                               onClick={() => {
                                 // Remove specific option
                                 const values = quizForm.getFieldsValue();
                                 const updatedValues = {};
                                 let shiftIndex = 1;
-                                
+
                                 // Reorganize the options to fill the gap
                                 for (let i = 1; i <= optionCount; i++) {
                                   if (i !== index + 1) {
-                                    updatedValues[`option${shiftIndex}`] = values[`option${i}`];
+                                    updatedValues[`option${shiftIndex}`] =
+                                      values[`option${i}`];
                                     shiftIndex++;
                                   }
                                 }
-                                
+
                                 quizForm.setFieldsValue(updatedValues);
-                                setOptionCount(prev => prev - 1);
+                                setOptionCount((prev) => prev - 1);
                               }}
                               className="opacity-70 hover:opacity-100"
                             />
@@ -228,17 +253,17 @@ export default function QuranQuizPage() {
                   ))}
 
                   <div className="flex justify-start gap-3 mt-2">
-                    <Button 
-                      type="dashed" 
+                    <Button
+                      type="dashed"
                       onClick={addOption}
                       icon={<Plus size={14} />}
                     >
                       Add Option
                     </Button>
                     {optionCount > 2 && (
-                      <Button 
-                        type="dashed" 
-                        danger 
+                      <Button
+                        type="dashed"
+                        danger
                         onClick={removeOption}
                         icon={<Trash2 size={14} />}
                       >
@@ -247,6 +272,55 @@ export default function QuranQuizPage() {
                     )}
                   </div>
                 </>
+              )}
+
+              {["mcq", "checkbox", "dropdown"].includes(quizType) && (
+                <Form.Item
+                  name="correctAnswer"
+                  label="Correct Answer"
+                  rules={[
+                    {
+                      required: true,
+                      message: "Please specify the correct answer",
+                    },
+                  ]}
+                >
+                  {["mcq", "dropdown"].includes(quizType) ? (
+                    <Radio.Group>
+                      <Space direction="vertical">
+                        {Array.from({ length: optionCount }).map((_, index) => (
+                          <Radio
+                            key={index}
+                            value={
+                              quizForm.getFieldValue(`option${index + 1}`) ||
+                              `Option ${index + 1}`
+                            }
+                          >
+                            {quizForm.getFieldValue(`option${index + 1}`) ||
+                              `Option ${index + 1}`}
+                          </Radio>
+                        ))}
+                      </Space>
+                    </Radio.Group>
+                  ) : quizType === "checkbox" ? (
+                    <Checkbox.Group>
+                      <Space direction="vertical">
+                        {Array.from({ length: optionCount }).map((_, index) => (
+                          <Checkbox
+                            key={index}
+                            value={
+                              quizForm.getFieldValue(`option${index + 1}`) ||
+                              `Option ${index + 1}`
+                            }
+                          >
+                            {quizForm.getFieldValue(`option${index + 1}`) ||
+                              `Option ${index + 1}`}
+                          </Checkbox>
+                        ))}
+                      </Space>
+                    </Checkbox.Group>
+                  ) : null}
+                </Form.Item>
               )}
 
               <div className="flex justify-end gap-2 mt-4">
@@ -286,9 +360,7 @@ export default function QuranQuizPage() {
                 </div>
 
                 <div className="mt-4">
-                  {quiz.type === "short" && (
-                    <Input placeholder="Your answer" />
-                  )}
+                  {quiz.type === "short" && <Input placeholder="Your answer" />}
 
                   {quiz.type === "paragraph" && (
                     <Input.TextArea rows={4} placeholder="Your answer" />
@@ -316,7 +388,10 @@ export default function QuranQuizPage() {
                   )}
 
                   {quiz.type === "dropdown" && (
-                    <Select style={{ width: 200 }} placeholder="Select an answer">
+                    <Select
+                      style={{ width: 200 }}
+                      placeholder="Select an answer"
+                    >
                       {quiz.options?.map((opt, idx) => (
                         <Select.Option key={idx} value={opt}>
                           {opt}
@@ -326,7 +401,15 @@ export default function QuranQuizPage() {
                   )}
                 </div>
 
-                <div className="mt-3 text-xs text-gray-500">
+                {canUpload &&
+                  !["short", "paragraph"].includes(quiz.type) &&
+                  quiz.correctAnswer && (
+                    <div className="mt-3 text-xs text-gray-500">
+                      <strong>Correct Answer:</strong> {quiz.correctAnswer}
+                    </div>
+                  )}
+
+                <div className="mt-1 text-xs text-gray-500">
                   Type: {quizTypeLabels[quiz.type] || quiz.type}
                 </div>
               </div>

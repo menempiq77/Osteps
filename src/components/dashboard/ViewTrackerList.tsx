@@ -1,143 +1,146 @@
 "use client";
-import { Pencil2Icon } from "@radix-ui/react-icons";
-import { Button } from "@/components/ui/button";
-import * as Dialog from "@radix-ui/react-dialog";
-import { useState } from "react";
-import { Select } from "antd";
-import { Trash2 } from "lucide-react";
-import { AddTrackerModal } from "../modals/trackerModals/AddTrackerModal";
-import { EditTrackerModal } from "../modals/trackerModals/EditTrackerModal";
-import { useParams, useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
+import { fetchClasses, fetchTrackers, fetchYears } from "@/services/api";
+import { Spin, Select, Button } from "antd";
+import { ArrowLeft } from "lucide-react";
 
-// Types
 type Tracker = {
   id: string;
+  class_id: number;
   name: string;
-  type: "Quran" | "Hadees" | "Seerah";
-  progress: number;
-  lastUpdated: string;
-  status: "Active" | "Paused" | "Completed";
+  type: string;
+  status: string;
+  progress: string[];
+  lastUpdated?: string;
 };
 
-type TrackerBasic = {
-  name: string;
-  type: "Quran" | "Hadees" | "Seerah";
-  progress: number;
-  status: "Active" | "Paused" | "Completed";
-};
-type TrackerListProps = {
-  classId: string;
-};
-
-// Main Component
-export default function ViewTrackerList() {
-  const { classId } = useParams();
+export default function TrackerList() {
   const router = useRouter();
   const { currentUser } = useSelector((state: RootState) => state.auth);
-  const [selectedYear, setSelectedYear] = useState<string>("1");
-  const [selectedClass, setSelectedClass] = useState<string>("A");
-  const [trackers, setTrackers] = useState<Tracker[]>([
-    {
-      id: "1",
-      name: "Quran Memorization",
-      type: "Quran",
-      progress: 65,
-      lastUpdated: "2023-05-15",
-      status: "Active",
-    },
-    {
-      id: "2",
-      name: "Hadiths",
-      type: "Hadees",
-      progress: 22,
-      lastUpdated: "2023-05-10",
-      status: "Active",
-    },
-    {
-      id: "3",
-      name: "Seerah and stories",
-      type: "Seerah",
-      progress: 100,
-      lastUpdated: "2023-05-01",
-      status: "Completed",
-    },
-  ]);
+  const [trackers, setTrackers] = useState<Tracker[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedYear, setSelectedYear] = useState<string>("");
+  const [selectedClass, setSelectedClass] = useState<string>("");
+  const [years, setYears] = useState<any[]>([]);
+  const [classes, setClasses] = useState<any[]>([]);
 
-  const [editTracker, setEditTracker] = useState<Tracker | null>(null);
-  const [deleteTracker, setDeleteTracker] = useState<Tracker | null>(null);
-  const [isAddTrackerModalOpen, setIsAddTrackerModalOpen] = useState(false);
+  const loadTrackers = async () => {
+    if (!selectedClass) return;
 
-  const handleSaveEdit = (tracker: Tracker) => {
-    const updatedTracker = {
-      ...tracker,
-      lastUpdated: new Date().toISOString().split("T")[0], // Update lastUpdated date
-    };
-    setTrackers(
-      trackers.map((t) => (t.id === tracker.id ? updatedTracker : t))
-    );
-    setEditTracker(null);
+    try {
+      setLoading(true);
+      const data = await fetchTrackers(Number(selectedClass));
+      setTrackers(
+        data.map((tracker: any) => ({
+          ...tracker,
+          id: tracker.id.toString(),
+          lastUpdated: new Date().toISOString().split("T")[0],
+        }))
+      );
+    } catch (err) {
+      setError("Failed to fetch trackers");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDeleteTracker = (trackerId: string) => {
-    setTrackers(trackers.filter((tracker) => tracker.id !== trackerId));
-    setDeleteTracker(null);
+  const loadYears = async () => {
+    try {
+      setLoading(true);
+      const data = await fetchYears();
+      setYears(data);
+
+      // Set first year as default if available
+      if (data.length > 0) {
+        setSelectedYear(data[0].id.toString());
+      }
+    } catch (err) {
+      setError("Failed to load years");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleAddNewTracker = (tracker: TrackerBasic) => {
-    const newTracker = {
-      ...tracker,
-      id: Math.random().toString(36).substring(2, 9),
-      lastUpdated: new Date().toISOString().split("T")[0],
-    };
-    setTrackers([...trackers, newTracker]);
-    setIsAddTrackerModalOpen(false);
+  const loadClasses = async (yearId: string) => {
+    if (!yearId) return;
+
+    try {
+      setLoading(true);
+      const data = await fetchClasses(yearId);
+      setClasses(data);
+
+      // Set first class as default if available
+      if (data.length > 0) {
+        setSelectedClass(data[0].id.toString());
+      }
+    } catch (err) {
+      setError("Failed to fetch classes");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  useEffect(() => {
+    loadYears();
+  }, []);
+
+  useEffect(() => {
+    if (selectedYear) {
+      loadClasses(selectedYear);
+    }
+  }, [selectedYear]);
+
+  useEffect(() => {
+    if (selectedClass) {
+      loadTrackers();
+    }
+  }, [selectedClass]);
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Active":
+    switch (status.toLowerCase()) {
+      case "active":
         return "bg-green-100 text-green-800";
-      case "Paused":
+      case "paused":
         return "bg-yellow-100 text-yellow-800";
-      case "Completed":
+      case "completed":
         return "bg-blue-100 text-blue-800";
+      case "pending":
+        return "bg-gray-100 text-gray-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
   };
 
-  const handleLeaderBoard = () => {
-    router.push(`/dashboard/leaderboard`);
+  const handleTrackerClick = (trackerId: string) => {
+    router.push(`/dashboard/viewtrackers/${selectedClass}/${trackerId}`);
   };
 
-  const handleTrackerClick = (
-    trackerId: string,
-    type: "Quran" | "Hadees" | "Seerah"
-  ) => {
-    router.push(`/dashboard/viewtrackers/${type.toLowerCase()}/${trackerId}`);
-  };
+  if (loading && years.length === 0) {
+    return (
+      <div className="p-3 md:p-6 flex justify-center items-center h-64">
+        <Spin size="large" />
+      </div>
+    );
+  }
 
   return (
     <>
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6">
+      <Button
+        onClick={() => router.back()}
+        className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
+      >
+        <ArrowLeft size={18} />
+        Back to Dashboard
+      </Button>
+      <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Trackers</h1>
-        {/* {currentUser?.role !== "STUDENT" && (
-          <Dialog.Root
-            open={isAddTrackerModalOpen}
-            onOpenChange={setIsAddTrackerModalOpen}
-          >
-            <Dialog.Trigger asChild>
-              <Button className="cursor-pointer">Add New Tracker</Button>
-            </Dialog.Trigger>
-            <AddTrackerModal
-              isOpen={isAddTrackerModalOpen}
-              onOpenChange={setIsAddTrackerModalOpen}
-              onAddTracker={handleAddNewTracker}
-            />
-          </Dialog.Root>
-        )} */}
         <div className="flex gap-4">
           <div className="w-full min-w-[120px] lg:min-w-xs">
             <Select
@@ -145,11 +148,11 @@ export default function ViewTrackerList() {
               value={selectedYear}
               onChange={(value) => setSelectedYear(value)}
               className="w-full"
-              options={[
-                { value: "1", label: "Year 1" },
-                { value: "2", label: "Year 2" },
-                { value: "3", label: "Year 3" },
-              ]}
+              options={years.map((year) => ({
+                value: year.id.toString(),
+                label: year.name,
+              }))}
+              loading={years.length === 0}
             />
           </div>
 
@@ -159,177 +162,72 @@ export default function ViewTrackerList() {
               value={selectedClass}
               onChange={(value) => setSelectedClass(value)}
               className="w-full"
-              options={[
-                { value: "A", label: "Class A" },
-                { value: "B", label: "Class B" },
-                { value: "C", label: "Class C" },
-              ]}
+              options={classes?.map((cls) => ({
+                value: cls.id.toString(),
+                label: cls.class_name,
+              }))}
+              loading={classes.length === 0 && !!selectedYear}
             />
           </div>
         </div>
       </div>
 
-      <div className="mt-8 bg-white rounded-lg shadow-md overflow-hidden">
-        <h3 className="text-lg font-semibold p-4 border-b">Current Trackers</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Tracker Name
+      <div className="relative overflow-auto">
+        <div className="overflow-x-auto rounded-lg">
+          <table className="min-w-full bg-white border border-gray-300 mb-20">
+            <thead>
+              <tr className="bg-primary text-center text-xs md:text-sm font-thin text-white">
+                <th className="p-2 md:p-4">
+                  <span className="block py-2 px-3 border-r border-gray-300">
+                    Tracker Name
+                  </span>
                 </th>
-                {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Progress
-                </th> */}
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Last Updated
+                <th className="p-2 md:p-4">
+                  <span className="block py-2 px-3 border-r border-gray-300">
+                    Last Updated
+                  </span>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Status
+                <th className="p-2 md:p-4">
+                  <span className="block py-2 px-3">Status</span>
                 </th>
-                {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Actions
-                </th> */}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
-              {trackers.map((tracker) => (
-                <tr key={tracker.id}>
-                  <td
-                    onClick={() => handleTrackerClick(tracker.id, tracker.type)}
-                    className="px-6 py-4 whitespace-nowrap cursor-pointer hover:underline text-blue-600 hover:text-blue-800"
+            <tbody>
+              {trackers?.length > 0 ? (
+                trackers.map((tracker) => (
+                  <tr
+                    key={tracker.id}
+                    className="border-b border-gray-300 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
                   >
-                    {tracker.name}
-                  </td>
-                  {/* <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="w-full bg-gray-200 rounded-full h-2.5">
-                        <div
-                          className={`h-2.5 rounded-full ${
-                            tracker.progress < 30
-                              ? "bg-red-500"
-                              : tracker.progress < 70
-                              ? "bg-yellow-500"
-                              : "bg-green-500"
-                          }`}
-                          style={{ width: `${tracker.progress}%` }}
-                        ></div>
-                      </div>
-                      <span className="ml-2 text-sm text-gray-600">
-                        {tracker.progress}%
-                      </span>
-                    </div>
-                  </td> */}
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {tracker.lastUpdated}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                        tracker.status
-                      )}`}
+                    <td
+                      onClick={() =>
+                        handleTrackerClick(tracker.id, tracker.type)
+                      }
+                      className="p-2 md:p-4 cursor-pointer hover:underline text-green-600 hover:text-green-800 font-medium"
                     >
-                      {tracker.status}
-                    </span>
-                  </td>
-                  {/* <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex space-x-2">
-                      <button
-                        type="button"
-                        onClick={() => handleLeaderBoard(tracker.id)}
-                        className="text-gray-400 hover:text-green-600 cursor-pointer"
+                      {tracker.name}
+                    </td>
+                    <td className="p-2 md:p-4">{tracker.lastUpdated}</td>
+                    <td className="p-2 md:p-4">
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                          tracker.status
+                        )}`}
                       >
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M4 6h16M4 10h10M4 14h6M4 18h2"
-                          />
-                        </svg>
-                      </button>
-
-                      {currentUser?.role !== "STUDENT" && (
-                        <>
-                          <Dialog.Root>
-                            <Dialog.Trigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                title="Edit"
-                                onClick={() => setEditTracker(tracker)}
-                                className="cursor-pointer"
-                              >
-                                <Pencil2Icon className="h-4 w-4" />
-                              </Button>
-                            </Dialog.Trigger>
-                            {editTracker?.id === tracker.id && (
-                              <EditTrackerModal
-                                tracker={editTracker}
-                                isOpen={!!editTracker}
-                                onOpenChange={(open) =>
-                                  !open && setEditTracker(null)
-                                }
-                                onSave={handleSaveEdit}
-                              />
-                            )}
-                          </Dialog.Root>
-
-                          <Dialog.Root>
-                            <Dialog.Trigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                title="Delete"
-                                onClick={() => setDeleteTracker(tracker)}
-                                className="cursor-pointer"
-                              >
-                                <Trash2 className="h-4 w-4 text-red-500" />
-                              </Button>
-                            </Dialog.Trigger>
-                            {deleteTracker?.id === tracker.id && (
-                              <Dialog.Portal>
-                                <Dialog.Overlay className="fixed inset-0 bg-black/30" />
-                                <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-md">
-                                  <Dialog.Title className="text-lg font-semibold">
-                                    Confirm Deletion
-                                  </Dialog.Title>
-                                  <p className="mt-2 text-gray-600">
-                                    Are you sure you want to delete{" "}
-                                    <strong>{deleteTracker.name}</strong>{" "}
-                                    tracker?
-                                  </p>
-                                  <div className="mt-4 flex justify-end space-x-2">
-                                    <Button
-                                      variant="outline"
-                                      onClick={() => setDeleteTracker(null)}
-                                    >
-                                      Cancel
-                                    </Button>
-                                    <Button
-                                      variant="destructive"
-                                      onClick={() =>
-                                        handleDeleteTracker(deleteTracker.id)
-                                      }
-                                    >
-                                      Delete
-                                    </Button>
-                                  </div>
-                                </Dialog.Content>
-                              </Dialog.Portal>
-                            )}
-                          </Dialog.Root>
-                        </>
-                      )}
-                    </div>
-                  </td> */}
+                        {tracker.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={3} className="p-4 text-center text-gray-500">
+                    {selectedClass
+                      ? "No trackers found."
+                      : "Please select a class to view trackers."}
+                  </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
