@@ -4,21 +4,19 @@ import { usePathname } from "next/navigation";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/store/store";
 import {
-  HomeIcon,
-  UserGroupIcon,
-  AcademicCapIcon,
-  BookOpenIcon,
-  Cog6ToothIcon,
-  MegaphoneIcon,
-  ArrowLeftOnRectangleIcon,
-} from "@heroicons/react/24/outline";
-import {
-  ChartBarIcon,
-  UserCircleIcon,
-  BookTextIcon,
+  Home,
+  Users,
+  GraduationCap,
+  BookOpen,
+  Settings,
+  Megaphone,
+  BarChart2,
+  UserCircle,
+  BookText,
   Building,
   HelpCircle,
   NotebookPen,
+  LucideLogOut,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { logout } from "@/features/auth/authSlice";
@@ -54,46 +52,46 @@ const Sidebar = () => {
     window.location.href = "/";
   };
 
-  const navigation = {
+   const navigation = {
     SUPER_ADMIN: [
-      { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
-      { name: "Schools", href: "/dashboard/schools", icon: AcademicCapIcon },
-      { name: "Admins", href: "/dashboard/admins", icon: UserGroupIcon },
+      { name: "Dashboard", href: "/dashboard", icon: Home },
+      { name: "Schools", href: "/dashboard/schools", icon: GraduationCap },
+      { name: "Admins", href: "/dashboard/admins", icon: Users },
       {
         name: "Announcements",
         href: "/dashboard/announcements",
-        icon: MegaphoneIcon,
+        icon: Megaphone,
         badge: unreadAnnouncements > 0 ? unreadAnnouncements : null,
       },
     ],
     SCHOOL_ADMIN: [
-      { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
-      { name: "Teachers", href: "/dashboard/teachers", icon: UserCircleIcon },
-      // { name: "Students", href: "/dashboard/students", icon: UserGroupIcon },
-      { name: "Manage Classes", href: "/dashboard/years", icon: BookOpenIcon },
-      { name: "Manage Grades", href: "/dashboard/grades", icon: ChartBarIcon },
-      { name: "Manage Quiz", href: "/dashboard/quiz", icon: BookOpenIcon },
-      { name: "Library", href: "/dashboard/library", icon: BookTextIcon },
+      { name: "Dashboard", href: "/dashboard", icon: Home },
+      { name: "Teachers", href: "/dashboard/teachers", icon: UserCircle },
+      // { name: "Students", href: "/dashboard/students", icon: Users },
+      { name: "Manage Classes", href: "/dashboard/years", icon: BookOpen },
+      { name: "Manage Grades", href: "/dashboard/grades", icon: BarChart2 },
+      { name: "Manage Quiz", href: "/dashboard/quiz", icon: BookOpen },
+      { name: "Library", href: "/dashboard/library", icon: BookText },
       // { name: "Trackers", href: "/dashboard/trackers", icon: Building },
-      { name: "Timetable", href: "/dashboard/timetable", icon: BookOpenIcon },
+      { name: "Timetable", href: "/dashboard/timetable", icon: BookOpen },
       {
         name: "Announcements",
         href: "/dashboard/announcements",
-        icon: MegaphoneIcon,
+        icon: Megaphone,
         badge: unreadAnnouncements > 0 ? unreadAnnouncements : null,
       },
       {
         name: "Settings",
         href: "/dashboard/school-admin/settings",
-        icon: Cog6ToothIcon,
+        icon: Settings,
       },
     ],
     TEACHER: [
-      { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
-      { name: "My Classes", href: "/dashboard/years", icon: BookOpenIcon },
-      // { name: "Students", href: "/dashboard/students", icon: UserGroupIcon },
-      { name: "Library", href: "/dashboard/library", icon: BookTextIcon },
-      { name: "Manage Quiz", href: "/dashboard/quiz", icon: BookOpenIcon },
+      { name: "Dashboard", href: "/dashboard", icon: Home },
+      { name: "My Classes", href: "/dashboard/years", icon: BookOpen },
+      // { name: "Students", href: "/dashboard/students", icon: Users },
+      { name: "Library", href: "/dashboard/library", icon: BookText },
+      { name: "Manage Quiz", href: "/dashboard/quiz", icon: BookOpen },
       { name: "Reports", href: "/dashboard/students/reports", icon: Building },
       // { name: "Trackers", href: "/dashboard/trackers", icon: Building  },
       {
@@ -101,11 +99,11 @@ const Sidebar = () => {
         href: "/dashboard/viewtrackers",
         icon: Building,
       },
-      { name: "Timetable", href: "/dashboard/timetable", icon: BookOpenIcon },
+      { name: "Timetable", href: "/dashboard/timetable", icon: BookOpen },
       {
         name: "Announcements",
         href: "/dashboard/announcements",
-        icon: MegaphoneIcon,
+        icon: Megaphone,
         badge: unreadAnnouncements > 0 ? unreadAnnouncements : null,
       },
       {
@@ -116,27 +114,27 @@ const Sidebar = () => {
       {
         name: "Settings",
         href: "/dashboard/teachers/settings",
-        icon: Cog6ToothIcon,
+        icon: Settings,
       },
     ],
     STUDENT: [
-      { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
+      { name: "Dashboard", href: "/dashboard", icon: Home },
       {
         name: "Assesments",
         href: "/dashboard/students/assignments",
-        icon: AcademicCapIcon,
+        icon: GraduationCap,
       },
       {
         name: "Trackers",
         href: `/dashboard/trackers/${currentUser?.student}`,
         icon: Building,
       },
-      { name: "Timetable", href: "/dashboard/timetable", icon: BookOpenIcon },
-      { name: "Library", href: "/dashboard/library", icon: BookTextIcon },
+      { name: "Timetable", href: "/dashboard/timetable", icon: BookOpen },
+      { name: "Library", href: "/dashboard/library", icon: BookText },
       {
         name: "Announcements",
         href: "/dashboard/announcements",
-        icon: MegaphoneIcon,
+        icon: Megaphone,
         badge: unreadAnnouncements > 0 ? unreadAnnouncements : null,
       },
       {
@@ -152,7 +150,7 @@ const Sidebar = () => {
       {
         name: "Settings",
         href: "/dashboard/students/settings",
-        icon: Cog6ToothIcon,
+        icon: Settings,
       },
     ],
   };
@@ -259,7 +257,7 @@ const Sidebar = () => {
               !isOpen ? "justify-center" : ""
             }`}
           >
-            <ArrowLeftOnRectangleIcon className="h-5 w-5" />
+            <LucideLogOut className="h-5 w-5" />
             {isOpen && <span className="text-sm ml-3">Logout</span>}
           </button>
 
