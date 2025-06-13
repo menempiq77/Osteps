@@ -149,9 +149,14 @@ const AskQuestionPage = () => {
   useEffect(() => {
     loadYears();
     loadClasses();
-    loadTeachers();
     loadQuestions();
   }, []);
+
+ useEffect(() => {
+  if (isStudent && currentUser?.id) {
+    loadTeachers();
+  }
+}, [isStudent, currentUser?.id]);
 
   const handleQuestionSubmit = async () => {
     if (!newQuestion.trim()) {

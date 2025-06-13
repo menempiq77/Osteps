@@ -9,47 +9,34 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: true,
-  swcMinify: true,
-  compress: true,
-  optimizeFonts: true,
+  swcMinify: true, 
+  compress: process.env.NODE_ENV === 'production',
   output: 'standalone',
   productionBrowserSourceMaps: false,
   images: {
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 60,
   },
-  webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
+  webpack: (config, { dev, isServer, webpack }) => {
     config.resolve.alias = {
       ...config.resolve.alias,
       '@': path.resolve(__dirname, 'src'),
-      '@components': path.resolve(__dirname, 'src/components'),
-      '@services': path.resolve(__dirname, 'src/services'),
-      '@utils': path.resolve(__dirname, 'src/utils'),
-      '@styles': path.resolve(__dirname, 'src/styles'),
     };
 
     if (dev) {
-      config.cache = true;
-    }
-
-    if (!dev) {
-      config.plugins.push(
-        new webpack.IgnorePlugin({
-          resourceRegExp: /^\.\/locale$/,
-          contextRegExp: /moment$/,
-        })
-      );
+      config.cache = {
+        type: 'filesystem',
+        cacheDirectory: path.resolve(__dirname, '.next/cache/webpack'),
+        buildDependencies: {
+          config: [__filename],
+        },
+      };
     }
 
     return config;
   },
   experimental: {
     serverActions: {},
-    optimizePackageImports: [
-      'antd',
-      '@radix-ui/react-icons',
-      'lucide-react',
-    ],
   },
   async headers() {
     return [
