@@ -1,17 +1,16 @@
 "use client";
 import { RootState } from "@/store/store";
-import { Button } from "@/components/ui/button";
 import { BarChart3 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
-import * as Dialog from "@radix-ui/react-dialog";
 import { useState } from "react";
 import {
   EditOutlined,
   DeleteOutlined,
   FileAddOutlined,
-  UsergroupAddOutlined
+  UsergroupAddOutlined,
 } from "@ant-design/icons";
+import { Modal } from "antd";
 
 interface Class {
   id: string;
@@ -36,6 +35,7 @@ export default function ClassesList({
   const router = useRouter();
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [classToDelete, setClassToDelete] = useState<Class | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const isStudent = currentUser?.role === "STUDENT";
   const isTeacher = currentUser?.role === "TEACHER";
@@ -58,11 +58,13 @@ export default function ClassesList({
 
   const handleDeleteClick = (cls: Class) => {
     setClassToDelete(cls);
+    setIsDeleteModalOpen(true);
   };
 
   const confirmDelete = () => {
     if (classToDelete) {
       onDeleteClass(classToDelete.id);
+      setIsDeleteModalOpen(false);
       setClassToDelete(null);
     }
   };
@@ -104,7 +106,9 @@ export default function ClassesList({
                     </button>
                   </td>
                   <td className="p-2 md:p-4">
-                    {cls.number_of_terms === "two" ? "Two Terms" : "Three Terms"}
+                    {cls.number_of_terms === "two"
+                      ? "Two Terms"
+                      : "Three Terms"}
                   </td>
                   {!isStudent && (
                     <td className="relative p-2 md:p-4 flex justify-center space-x-3">
@@ -166,32 +170,27 @@ export default function ClassesList({
       </div>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog.Root
-        open={!!classToDelete}
-        onOpenChange={(open) => !open && setClassToDelete(null)}
+      <Modal
+        title="Confirm Deletion"
+        open={isDeleteModalOpen}
+        onOk={confirmDelete}
+        onCancel={() => {
+          setIsDeleteModalOpen(false);
+          setClassToDelete(null);
+        }}
+        okText="Delete"
+        okButtonProps={{ danger: true }}
+        cancelText="Cancel"
+        centered
       >
-        <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 bg-black/30" />
-          <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-md w-full max-w-md">
-            <Dialog.Title className="text-lg font-semibold">
-              Confirm Deletion
-            </Dialog.Title>
-            <p className="mt-2 text-gray-600">
-              Are you sure you want to delete the class{" "}
-              <strong>{classToDelete?.class_name}</strong>? This action cannot
-              be undone.
-            </p>
-            <div className="mt-4 flex justify-end space-x-2">
-              <Button variant="outline" onClick={() => setClassToDelete(null)} className="cursor-pointer">
-                Cancel
-              </Button>
-              <Button variant="destructive" onClick={confirmDelete} className="cursor-pointer">
-                Delete
-              </Button>
-            </div>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
+        {classToDelete && (
+          <p>
+            Are you sure you want to delete the class{" "}
+            <strong>{classToDelete.class_name}</strong>? This action cannot be
+            undone.
+          </p>
+        )}
+      </Modal>
     </div>
   );
 }

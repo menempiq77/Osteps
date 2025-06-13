@@ -1,168 +1,92 @@
-"use client";
-import { Button } from "@/components/ui/button";
-import * as Dialog from "@radix-ui/react-dialog";
-import { Cross2Icon, ChevronDownIcon } from "@radix-ui/react-icons";
-import { useEffect, useState } from "react";
+import { Modal, Form, Input, Select, Button } from "antd";
+import { Student } from "./types";
+import { useEffect } from "react";
 
-// Types
-type Student = {
-  id: string;
-  student_name: string;
-  email: string;
-  class_id: number;
-  class_name?: string;
-  status: "active" | "inactive" | "suspended";
-};
-
-type StudentBasic = {
-  id: string;
-  student_name: string;
-  email: string;
-  class_id: number;
-  class_name?: string;
-  status: "active" | "inactive" | "suspended";
+type EditStudentModalProps = {
+  open: boolean;
+  onCancel: () => void;
+  onOk: (values: Student) => void;
+  student: Student | null;
 };
 
 export const EditStudentModal = ({
+  open,
+  onCancel,
+  onOk,
   student,
-  onClose,
-  onSave,
-}: {
-  student: StudentBasic | null;
-  onClose: () => void;
-  onSave: (
-    id: string,
-    student_name: string,
-    email: string,
-    class_id: number,
-    status: "active" | "inactive" | "suspended"
-  ) => void;
-}) => {
-  const [name, setName] = useState(student?.student_name || "");
-  const [email, setEmail] = useState(student?.email || "");
-  const [classId, setClassId] = useState(student?.class_id || 0);
-  const [status, setStatus] = useState<"active" | "inactive" | "suspended">(
-    student?.status || "active"
-  );
-  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
-
-  const statusOptions = ["active", "inactive", "suspended"] as const;
+}: EditStudentModalProps) => {
+  const [form] = Form.useForm();
 
   useEffect(() => {
     if (student) {
-      setName(student.student_name);
-      setEmail(student.email);
-      setClassId(student.class_id);
-      setStatus(student.status);
+      form.setFieldsValue({
+        student_name: student.student_name,
+        email: student.email,
+        status: student.status,
+        class_id: student.class_id,
+      });
     }
-  }, [student]);
+  }, [student, form]);
 
-  if (!student) return null;
+  const handleSubmit = async () => {
+    try {
+      const values = await form.validateFields();
+      if (student) {
+        onOk({ ...values, id: student.id });
+      }
+    } catch (error) {
+      console.error("Validation failed:", error);
+    }
+  };
 
   return (
-    <Dialog.Portal>
-      <Dialog.Overlay className="bg-black/50 data-[state=open]:animate-overlayShow fixed inset-0" />
-      <Dialog.Content className="data-[state=open]:animate-contentShow fixed top-[50%] left-[50%] max-h-[85vh] w-[90vw] max-w-[450px] translate-x-[-50%] translate-y-[-50%] rounded-[6px] bg-white p-[25px] shadow-[hsl(206_22%_7%_/_35%)_0px_10px_38px_-10px,_hsl(206_22%_7%_/_20%)_0px_10px_20px_-15px] focus:outline-none">
-        <Dialog.Title className="text-lg font-bold mb-4">
-          Edit Student
-        </Dialog.Title>
+    <Modal
+      title="Edit Student"
+      open={open}
+      onCancel={onCancel}
+      onOk={handleSubmit}
+      footer={[
+        <Button key="back" onClick={onCancel}>
+          Cancel
+        </Button>,
+        <Button
+          key="submit"
+          type="primary"
+          className="!bg-primary !text-white hover:!bg-primary/90 !border-none"
+          onClick={handleSubmit}
+        >
+          Save Changes
+        </Button>,
+      ]}
+    >
+      <Form form={form} layout="vertical">
+        <Form.Item
+          name="student_name"
+          label="Student Name"
+          rules={[{ required: true, message: "Please input student name!" }]}
+        >
+          <Input />
+        </Form.Item>
 
-        <div className="space-y-4">
-          <fieldset className="mb-[15px]">
-            <label
-              className="block text-sm font-medium mb-1"
-              htmlFor="editStudentName"
-            >
-              Name
-            </label>
-            <input
-              className="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              id="editStudentName"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </fieldset>
+        <Form.Item
+          name="email"
+          label="Email"
+          rules={[
+            { required: true, message: "Please input email!" },
+            { type: "email", message: "Please enter a valid email!" },
+          ]}
+        >
+          <Input />
+        </Form.Item>
 
-          <fieldset className="mb-[15px]">
-            <label
-              className="block text-sm font-medium mb-1"
-              htmlFor="editStudentEmail"
-            >
-              Email
-            </label>
-            <input
-              className="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              id="editStudentEmail"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </fieldset>
-
-          <fieldset className="mb-[15px]">
-            <label
-              className="block text-sm font-medium mb-1"
-              htmlFor="editStudentStatus"
-            >
-              Status
-            </label>
-            <div className="relative">
-              <button
-                id="editStudentStatus"
-                className="w-full p-2 border rounded-md text-left flex justify-between items-center"
-                onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
-              >
-                <span>{status}</span>
-                <ChevronDownIcon
-                  className={`h-4 w-4 transition-transform ${
-                    isStatusDropdownOpen ? "rotate-180" : ""
-                  }`}
-                />
-              </button>
-              {isStatusDropdownOpen && (
-                <div className="absolute z-10 mt-1 w-full bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
-                  {statusOptions.map((item) => (
-                    <div
-                      key={item}
-                      className="p-2 hover:bg-gray-100 cursor-pointer"
-                      onClick={() => {
-                        setStatus(item);
-                        setIsStatusDropdownOpen(false);
-                      }}
-                    >
-                      {item}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </fieldset>
-        </div>
-
-        <div className="mt-6 flex justify-end gap-2">
-          <Dialog.Close asChild>
-            <Button variant="outline" className="cursor-pointer" onClick={onClose}>
-              Cancel
-            </Button>
-          </Dialog.Close>
-          <Button 
-            onClick={() => onSave(student.id, name, email, classId, status)} 
-            className="cursor-pointer"
-            disabled={!name.trim() || !email.trim()}
-          >
-            Save changes
-          </Button>
-        </div>
-        <Dialog.Close asChild>
-          <button
-            className="text-gray-500 hover:text-gray-700 absolute top-[10px] right-[10px] inline-flex h-[25px] w-[25px] appearance-none items-center justify-center rounded-full focus:shadow-[0_0_0_2px] focus:outline-none"
-            aria-label="Close"
-            onClick={onClose}
-          >
-            <Cross2Icon />
-          </button>
-        </Dialog.Close>
-      </Dialog.Content>
-    </Dialog.Portal>
+        <Form.Item name="status" label="Status" rules={[{ required: true }]}>
+          <Select>
+            <Select.Option value="active">Active</Select.Option>
+            <Select.Option value="inactive">Inactive</Select.Option>
+            <Select.Option value="suspended">Suspended</Select.Option>
+          </Select>
+        </Form.Item>
+      </Form>
+    </Modal>
   );
 };

@@ -1,7 +1,6 @@
 "use client";
 import { useState } from "react";
 import { Modal, Select, Button, Form, Input } from "antd";
-import { Cross2Icon } from "@radix-ui/react-icons";
 
 const trackerOptions = [
   { value: "recitation", label: "Recitation" },
@@ -65,7 +64,6 @@ export function AddTrackerModal({
       open={isOpen}
       onCancel={handleCancel}
       footer={null}
-      closeIcon={<Cross2Icon className="h-4 w-4" />}
       centered
     >
       <Form

@@ -1,5 +1,4 @@
 "use client";
-import * as Dialog from "@radix-ui/react-dialog";
 import { useState, useEffect } from "react";
 import { AddTeacherModal } from "../modals/teacherModals/AddTeacherModal";
 import { EditTeacherModal } from "../modals/teacherModals/EditTeacherModal";
@@ -9,8 +8,8 @@ import {
   updateTeacher,
   deleteTeacher as deleteTeacherApi,
 } from "@/services/api";
-import { Alert, Spin, Modal, Button } from "antd";
-import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
+import { Spin, Modal, Button } from "antd";
+import { EditOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 
 type Teacher = {
   id: string;
@@ -137,37 +136,19 @@ export default function TeacherList() {
         <Spin size="large" />
       </div>
     );
-  if (error)
-    return (
-      <div className="p-3 md:p-6">
-        <Alert
-          message="Error"
-          description={error}
-          type="error"
-          showIcon
-          closable
-          onClose={() => setError(null)}
-        />
-      </div>
-    );
 
   return (
     <div className="overflow-auto h-screen">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Teachers</h1>
-        <Dialog.Root
-          open={isAddTeacherModalOpen}
-          onOpenChange={setIsAddTeacherModalOpen}
+        <Button 
+          type="primary" 
+          icon={<PlusOutlined />}
+          onClick={() => setIsAddTeacherModalOpen(true)}
+          className="!bg-primary hover:bg-primary/90 !text-white !border-0"
         >
-          <Dialog.Trigger asChild>
-            <Button className="!bg-primary !text-white">Add Teacher</Button>
-          </Dialog.Trigger>
-          <AddTeacherModal
-            isOpen={isAddTeacherModalOpen}
-            onOpenChange={setIsAddTeacherModalOpen}
-            onAddTeacher={handleAddNewTeacher}
-          />
-        </Dialog.Root>
+          Add Teacher
+        </Button>
       </div>
 
       <div className="relative overflow-auto">
@@ -212,27 +193,13 @@ export default function TeacherList() {
                       {teacher.subjects.join(", ")}
                     </td>
                     <td className="relative p-2 md:p-4 flex justify-center space-x-3">
-                      <Dialog.Root>
-                        <Dialog.Trigger asChild>
-                          <button
-                            onClick={() => setEditTeacher(teacher)}
-                            className="text-green-500 hover:text-green-700 cursor-pointer"
-                            title="Edit"
-                          >
-                            <EditOutlined />
-                          </button>
-                        </Dialog.Trigger>
-                        {editTeacher?.id === teacher.id && (
-                          <EditTeacherModal
-                            teacher={editTeacher}
-                            isOpen={!!editTeacher}
-                            onOpenChange={(open) =>
-                              !open && setEditTeacher(null)
-                            }
-                            onSave={handleSaveEdit}
-                          />
-                        )}
-                      </Dialog.Root>
+                      <button
+                        onClick={() => setEditTeacher(teacher)}
+                        className="text-green-500 hover:text-green-700 cursor-pointer"
+                        title="Edit"
+                      >
+                        <EditOutlined />
+                      </button>
 
                       <button
                         onClick={() => {
@@ -259,7 +226,24 @@ export default function TeacherList() {
         </div>
       </div>
 
-      {/* Ant Design Delete Confirmation Modal */}
+      {/* Add Teacher Modal */}
+        <AddTeacherModal
+          isOpen={isAddTeacherModalOpen}
+          onOpenChange={setIsAddTeacherModalOpen}
+          onAddTeacher={handleAddNewTeacher}
+        />
+
+      {/* Edit Teacher Modal */}
+        {editTeacher && (
+          <EditTeacherModal
+            teacher={editTeacher}
+            isOpen={!!editTeacher}
+            onOpenChange={(open) => !open && setEditTeacher(null)}
+            onSave={handleSaveEdit}
+          />
+        )}
+
+      {/* Delete Confirmation Modal */}
       <Modal
         title="Confirm Deletion"
         open={isDeleteModalOpen}

@@ -1,15 +1,7 @@
 "use client";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Button, Form, Input, Select, message } from "antd";
+import type { SelectProps } from "antd";
 
 interface Quiz {
   id: number;
@@ -17,6 +9,7 @@ interface Quiz {
   created_at: string;
   updated_at: string;
 }
+
 interface AddAssessmentFormProps {
   onSubmit: (data: {
     name: string;
@@ -34,68 +27,76 @@ export default function AddAssessmentForm({
   termId,
   quizzes,
 }: AddAssessmentFormProps) {
-  const [name, setName] = useState("");
-  const [selectedQuiz, setSelectedQuiz] = useState("");
+  const [form] = Form.useForm();
+  const [selectedQuiz, setSelectedQuiz] = useState<string>("");
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const submittedName = isQuiz ? selectedQuiz : name;
-    if (!submittedName) return;
+  const handleSubmit = (values: { name?: string; quiz?: string }) => {
+    const submittedName = isQuiz ? selectedQuiz : values.name;
+    if (!submittedName) {
+      message.error("Please fill all required fields");
+      return;
+    }
 
     onSubmit({
       name: isQuiz
         ? quizzes.find((q) => String(q.id) === selectedQuiz)?.name ||
           selectedQuiz
-        : name,
+        : values.name || "",
       term_id: termId,
       type: isQuiz ? "quiz" : "assessment",
     });
-    setName("");
+    form.resetFields();
     setSelectedQuiz("");
   };
 
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor={isQuiz ? "quiz-select" : "name"}>
-          {isQuiz ? "Select Quiz" : "Assessment Name"}
-        </Label>
+  const quizOptions: SelectProps['options'] = quizzes.map((quiz) => ({
+    value: String(quiz.id),
+    label: quiz.name,
+  }));
 
+  return (
+    <Form
+      form={form}
+      layout="vertical"
+      onFinish={handleSubmit}
+      className="space-y-4"
+    >
+      <Form.Item
+        label={isQuiz ? "Select Quiz" : "Assessment Name"}
+        name={isQuiz ? "quiz" : "name"}
+        rules={[{ required: true, message: "This field is required" }]}
+      >
         {isQuiz ? (
-          <Select value={selectedQuiz} onValueChange={setSelectedQuiz} required>
-            <SelectTrigger id="quiz-select" className="w-full">
-              <SelectValue placeholder="Select a quiz" />
-            </SelectTrigger>
-            <SelectContent>
-              {quizzes.map((quiz) => (
-                <SelectItem key={quiz.id} value={String(quiz.id)}>
-                  {quiz.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : (
-          <Input
-            id="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Enter assessment name"
-            required
+          <Select
+            placeholder="Select a quiz"
+            options={quizOptions}
+            value={selectedQuiz}
+            onChange={(value) => setSelectedQuiz(value)}
           />
+        ) : (
+          <Input placeholder="Enter assessment name" />
         )}
-      </div>
+      </Form.Item>
+
       <div className="flex justify-end gap-2">
-        <Button type="button" className="cursor-pointer" variant="outline">
+        <Button
+          type="default"
+          onClick={() => {
+            form.resetFields();
+            setSelectedQuiz("");
+          }}
+        >
           Cancel
         </Button>
         <Button
-          type="submit"
-          className="cursor-pointer"
+          type="primary"
+          htmlType="submit"
           disabled={isQuiz && !selectedQuiz}
+          className="!bg-primary !text-white !border-none"
         >
           {isQuiz ? "Assign Quiz" : "Add Assessment"}
         </Button>
       </div>
-    </form>
+    </Form>
   );
 }

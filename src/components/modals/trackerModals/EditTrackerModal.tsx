@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
 import { Modal, Select, Button, Form, Input, DatePicker } from "antd";
-import { Cross2Icon } from "@radix-ui/react-icons";
 import dayjs from "dayjs";
 
 const trackerOptions = [
@@ -95,7 +94,6 @@ export function EditTrackerModal({
       open={isOpen}
       onCancel={handleCancel}
       footer={null}
-      closeIcon={<Cross2Icon className="h-4 w-4" />}
       centered
     >
       <Form

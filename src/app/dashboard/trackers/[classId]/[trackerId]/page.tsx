@@ -98,7 +98,6 @@ export default function QuranTrackerAdminPage() {
       setTopics(data.topics || []);
     } catch (error) {
       console.error("Failed to load tracker data", error);
-      message.error("Failed to load tracker data");
     } finally {
       setLoading(false);
     }

@@ -2,16 +2,13 @@
 import { useState, useEffect } from "react";
 import AddSchoolForm from "@/components/dashboard/AddSchoolForm";
 import SchoolList from "@/components/dashboard/SchoolList";
-import * as Dialog from "@radix-ui/react-dialog";
-import { Cross2Icon } from "@radix-ui/react-icons";
-import { Button } from "@/components/ui/button";
 import {
   fetchSchools,
   addSchool,
   updateSchool,
   deleteSchool,
 } from "@/services/api";
-import { Alert, Spin } from "antd";
+import { Spin, Modal, Button } from "antd";
 
 export default function SuperAdminDashboard() {
   const [schools, setSchools] = useState<any[]>([]);
@@ -43,7 +40,7 @@ export default function SuperAdminDashboard() {
       name: school.name,
       contactPerson: school.contactPerson,
       adminEmail: school.email || school.adminEmail,
-      adminPassword: "", // Always empty for security
+      adminPassword: "",
       academicYear: school.year_structure || school.academicYear,
     });
     setOpen(true);
@@ -68,7 +65,7 @@ export default function SuperAdminDashboard() {
               ? {
                   ...school,
                   ...updatedSchool.data,
-                  schoolAdmin: schoolData.contactPerson, // Ensure this matches your API response
+                  schoolAdmin: schoolData.contactPerson,
                   email: schoolData.adminEmail,
                 }
               : school
@@ -128,51 +125,37 @@ export default function SuperAdminDashboard() {
       <Spin size="large" />
     </div>
   );
-  if (error) return (
-    <div className="p-3 md:p-6">
-      <Alert
-        message="Error"
-        description={error}
-        type="error"
-        showIcon
-        closable
-        onClose={() => setError(null)}
-      />
-    </div>
-  );
 
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Schools</h1>
-        <Dialog.Root open={open} onOpenChange={setOpen}>
-          <Dialog.Trigger asChild>
-            <Button
-              onClick={() => setEditingSchool(null)}
-              className="cursor-pointer"
-            >
-              Add School
-            </Button>
-          </Dialog.Trigger>
-          <Dialog.Portal>
-            <Dialog.Overlay className="bg-black/50 fixed inset-0" />
-            <Dialog.Content className="fixed top-1/2 left-1/2 w-[90vw] max-w-[450px] -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded shadow">
-              <Dialog.Title className="text-lg font-bold mb-4">
-                {editingSchool ? "Edit School" : "Add New School"}
-              </Dialog.Title>
-              <AddSchoolForm
-                onSubmit={handleAddOrEditSchool}
-                defaultValues={editingSchool}
-              />
-              <Dialog.Close asChild>
-                <button className="absolute top-2 right-2 text-gray-500 hover:text-gray-700">
-                  <Cross2Icon />
-                </button>
-              </Dialog.Close>
-            </Dialog.Content>
-          </Dialog.Portal>
-        </Dialog.Root>
+        <Button
+          onClick={() => {
+            setEditingSchool(null);
+            setOpen(true);
+          }}
+          className="!bg-primary !text-white hover:!bg-primary/90 !border-0"
+        >
+          Add School
+        </Button>
       </div>
+
+      <Modal
+        title={editingSchool ? "Edit School" : "Add New School"}
+        open={open}
+        onCancel={() => {
+          setOpen(false);
+          setEditingSchool(null);
+        }}
+        footer={null}
+        destroyOnHidden
+      >
+        <AddSchoolForm
+          onSubmit={handleAddOrEditSchool}
+          defaultValues={editingSchool}
+        />
+      </Modal>
 
       <SchoolList
         schools={schools.map((school) => ({
@@ -186,25 +169,21 @@ export default function SuperAdminDashboard() {
         onDelete={handleDelete}
       />
 
-      {deletingId && (
-        <div className="fixed inset-0 bg-black/50 bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white p-6 rounded-lg max-w-md w-full">
-            <h3 className="text-lg font-bold mb-4">Confirm Deletion</h3>
-            <p className="mb-6">
-              Are you sure you want to delete this school? This action cannot be
-              undone.
-            </p>
-            <div className="flex justify-end space-x-4">
-              <Button variant="outline" onClick={() => setDeletingId(null)} className="cursor-pointer">
-                Cancel
-              </Button>
-              <Button variant="destructive" onClick={confirmDelete} className="cursor-pointer">
-                Delete
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        title="Confirm Deletion"
+        open={!!deletingId}
+        onOk={confirmDelete}
+        onCancel={() => setDeletingId(null)}
+        okText="Delete"
+        okButtonProps={{ danger: true }}
+        cancelText="Cancel"
+        centered
+      >
+        <p>
+          Are you sure you want to delete this school? This action cannot be
+          undone.
+        </p>
+      </Modal>
     </div>
   );
 }

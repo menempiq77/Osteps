@@ -1,11 +1,10 @@
 "use client";
 
 import { useForm } from "react-hook-form";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { DatePicker } from "antd";
+import { Button, DatePicker, Form, Input } from "antd";
 import { useEffect } from "react";
+import { Controller } from "react-hook-form";
+import dayjs from "dayjs";
 
 const { RangePicker } = DatePicker;
 
@@ -17,10 +16,9 @@ export default function AddSchoolForm({
   defaultValues?: any;
 }) {
   const {
-    register,
+    control,
     handleSubmit,
     formState: { errors },
-    setValue,
     reset,
   } = useForm({
     defaultValues: {
@@ -28,7 +26,6 @@ export default function AddSchoolForm({
       contactPerson: "",
       adminEmail: "",
       adminPassword: "",
-      terms: 2,
       academicYear: "",
     },
   });
@@ -39,66 +36,103 @@ export default function AddSchoolForm({
     }
   }, [defaultValues, reset]);
 
-  const handleAcademicYearChange = (dates: any) => {
-    if (dates && dates[0] && dates[1]) {
-      const from = dates[0].year();
-      const to = dates[1].year();
-      setValue("academicYear", `${from}-${to}`);
-    }
+   const parseAcademicYear = (yearString: string) => {
+    if (!yearString) return [null, null];
+    const [startYear, endYear] = yearString.split('-');
+    return [
+      dayjs(startYear, 'YYYY'),
+      dayjs(endYear, 'YYYY'),
+    ];
   };
+
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div>
-          <Label>School Name</Label>
-          <Input {...register("name", { required: "School name is required" })} />
-          {errors.name && <p className="text-red-500 text-sm">{errors.name.message}</p>}
-        </div>
-
-        <div>
-          <Label>Contact Person</Label>
-          <Input type="number" {...register("contactPerson", { required: "Contact person is required" })} />
-          {errors.contactPerson && <p className="text-red-500 text-sm">{errors.contactPerson.message}</p>}
-        </div>
-
-        <div>
-          <Label>Admin Email</Label>
-          <Input
-            type="email"
-            {...register("adminEmail", {
-              required: "Email is required",
-              pattern: {
-                value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                message: "Invalid email address",
-              },
-            })}
+        <Form.Item
+          label="School Name"
+          validateStatus={errors.name ? "error" : ""}
+          help={errors.name?.message as string}
+        >
+          <Controller
+            name="name"
+            control={control}
+            render={({ field }) => (
+              <Input {...field} />
+            )}
           />
-          {errors.adminEmail && <p className="text-red-500 text-sm">{errors.adminEmail.message}</p>}
-        </div>
+        </Form.Item>
 
-        <div>
-          <Label>Admin Password</Label>
-          <Input
-            type="password"
-            {...register("adminPassword", {
-              required: "Password is required",
-              minLength: {
-                value: 6,
-                message: "Password must be at least 6 characters",
-              },
-            })}
+        <Form.Item
+          label="Contact Person"
+          validateStatus={errors.contactPerson ? "error" : ""}
+          help={errors.contactPerson?.message as string}
+        >
+          <Controller
+            name="contactPerson"
+            control={control}
+            render={({ field }) => (
+              <Input {...field} />
+            )}
           />
-          {errors.adminPassword && <p className="text-red-500 text-sm">{errors.adminPassword.message}</p>}
-        </div>
+        </Form.Item>
 
-        <div>
-          <Label>Academic Year</Label>
-          <RangePicker picker="year" onChange={handleAcademicYearChange} className="w-full" />
-        </div>
+        <Form.Item
+          label="Admin Email"
+          validateStatus={errors.adminEmail ? "error" : ""}
+          help={errors.adminEmail?.message as string}
+        >
+          <Controller
+            name="adminEmail"
+            control={control}
+            render={({ field }) => (
+              <Input type="email" {...field} />
+            )}
+          />
+        </Form.Item>
+
+        <Form.Item
+          label="Admin Password"
+          validateStatus={errors.adminPassword ? "error" : ""}
+          help={errors.adminPassword?.message as string}
+        >
+          <Controller
+            name="adminPassword"
+            control={control}
+            render={({ field }) => (
+              <Input.Password {...field} />
+            )}
+          />
+        </Form.Item>
+
+         <Form.Item
+          label="Academic Year"
+          validateStatus={errors.academicYear ? "error" : ""}
+          help={errors.academicYear?.message as string}
+        >
+          <Controller
+            name="academicYear"
+            control={control}
+            render={({ field }) => (
+              <RangePicker
+                picker="year"
+                onChange={(dates) => {
+                  if (dates && dates[0] && dates[1]) {
+                    const value = `${dates[0].year()}-${dates[1].year()}`;
+                    field.onChange(value);
+                  } else {
+                    field.onChange('');
+                  }
+                }}
+                value={parseAcademicYear(field.value)}
+                style={{ width: '100%' }}
+              />
+            )}
+          />
+        </Form.Item>
       </div>
 
-      <Button type="submit" className="w-full cursor-pointer">
+      <Button htmlType="submit" className="w-full !bg-primary !text-white hover:!bg-primary/90 !border-0">
         {defaultValues ? "Update School" : "Create School"}
       </Button>
     </form>

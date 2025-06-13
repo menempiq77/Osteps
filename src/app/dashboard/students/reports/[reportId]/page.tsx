@@ -1,8 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import { Button } from "antd";
-import Link from "next/link";
-import { ChevronLeftIcon } from "@radix-ui/react-icons";
+import { ChevronLeft } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 
 export default function Page() {
@@ -84,7 +83,7 @@ export default function Page() {
     <div className="p-3 md:p-6 lg:p-12 mx-auto bg-white min-h-screen">
       <div className="flex items-center justify-between mb-6">
           <Button
-            icon={<ChevronLeftIcon className="w-4 h-4" />}
+            icon={<ChevronLeft className="w-4 h-4" />}
             onClick={() => router.back()}
             className="flex items-center text-gray-600 hover:text-gray-800 border border-gray-200 hover:border-gray-300 bg-white hover:bg-gray-50 rounded-lg px-4 py-2 text-sm font-medium transition-colors"
           >
