@@ -23,15 +23,13 @@ const nextConfig: NextConfig = {
       '@': path.resolve(__dirname, 'src'),
     };
 
-    if (dev) {
-      config.cache = {
-        type: 'filesystem',
-        cacheDirectory: path.resolve(__dirname, '.next/cache/webpack'),
-        buildDependencies: {
-          config: [__filename],
-        },
-      };
-    }
+  if (dev) {
+  config.cache = {
+    type: 'filesystem',
+    cacheDirectory: path.resolve(__dirname, '.next/cache/webpack'),
+  };
+}
+
 
     return config;
   },
