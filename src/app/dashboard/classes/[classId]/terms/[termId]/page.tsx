@@ -1,7 +1,5 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import * as Dialog from "@radix-ui/react-dialog";
-import { Cross2Icon } from "@radix-ui/react-icons";
 import AddAssessmentForm from "@/components/dashboard/AddAssessmentForm";
 import AssessmentList from "@/components/dashboard/assessmentList";
 import {
@@ -11,7 +9,7 @@ import {
   fetchQuizes,
   updateAssessment,
 } from "@/services/api";
-import { Alert, Button, Spin } from "antd";
+import { Button, Modal, Spin } from "antd";
 import { useParams } from "next/navigation";
 import EditAssessmentForm from "@/components/dashboard/EditAssessmentForm";
 
@@ -71,7 +69,7 @@ export default function Page() {
     name: string;
     type: "assessment" | "quiz";
     term_id: string;
-    class_id: string,
+    class_id: string;
   }) => {
     try {
       const newAssessment = await addAssessment({
@@ -94,7 +92,7 @@ export default function Page() {
     name: string;
     type: "assessment" | "quiz";
     term_id: string;
-    class_id: string,
+    class_id: string;
   }) => {
     if (!editingAssessment) return;
 
@@ -156,85 +154,21 @@ export default function Page() {
       </div>
     );
 
-  if (error)
-    return (
-      <div className="p-3 md:p-6">
-        <Alert
-          message="Error"
-          description={error}
-          type="error"
-          showIcon
-          closable
-          onClose={() => setError(null)}
-        />
-      </div>
-    );
-
   return (
     <div className="p-3 md:p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Assessment</h1>
         <div className="flex gap-2">
-          <Dialog.Root open={open} onOpenChange={setOpen}>
-            <Dialog.Trigger asChild>
-              <Button
-                variant="outlined"
-                onClick={() => {
-                  setIsAddingQuiz(false);
-                  setEditingAssessment(null);
-                }}
-                className="!bg-white !border !border-gray-300"
-              >
-                Add Assessment
-              </Button>
-            </Dialog.Trigger>
-            <Dialog.Portal>
-              <Dialog.Overlay className="bg-black/50 data-[state=open]:animate-overlayShow fixed inset-0" />
-
-              <Dialog.Content className="data-[state=open]:animate-contentShow fixed top-[50%] left-[50%] max-h-[85vh] w-[90vw] max-w-[450px] translate-x-[-50%] translate-y-[-50%] rounded-[6px] bg-white p-[25px] shadow-[hsl(206_22%_7%_/_35%)_0px_10px_38px_-10px,_hsl(206_22%_7%_/_20%)_0px_10px_20px_-15px] focus:outline-none">
-                <Dialog.Title className="text-lg font-bold mb-4">
-                  {editingAssessment
-                    ? "Edit Assessment"
-                    : isAddingQuiz
-                    ? "Add New Quiz"
-                    : "Add New Assessment"}
-                </Dialog.Title>
-                {editingAssessment ? (
-                  <EditAssessmentForm
-                    onSubmit={handleEditAssessment}
-                    onCancel={() => {
-                      setOpen(false);
-                      setEditingAssessment(null);
-                    }}
-                    quizzes={quizzes}
-                    initialData={{
-                      name: editingAssessment.name,
-                      type: editingAssessment.type,
-                      term_id: termId,
-                    }}
-                  />
-                ) : (
-                  <AddAssessmentForm
-                    onSubmit={handleAddAssessment}
-                    isQuiz={isAddingQuiz}
-                    termId={termId}
-                    quizzes={quizzes}
-                  />
-                )}
-                <Dialog.Close asChild>
-                  <button
-                    className="text-gray-500 hover:text-gray-700 absolute top-[10px] right-[10px] inline-flex h-[25px] w-[25px] appearance-none items-center justify-center rounded-full focus:shadow-[0_0_0_2px] focus:outline-none"
-                    aria-label="Close"
-                    onClick={() => {
-                      setEditingAssessment(null);
-                    }}
-                  >
-                    <Cross2Icon />
-                  </button>
-                </Dialog.Close>
-              </Dialog.Content>
-            </Dialog.Portal>
-          </Dialog.Root>
+          <Button
+            onClick={() => {
+              setIsAddingQuiz(false);
+              setEditingAssessment(null);
+              setOpen(true);
+            }}
+            className="!bg-white !border !border-gray-300"
+          >
+            Add Assessment
+          </Button>
 
           <Button
             onClick={() => {
@@ -247,6 +181,48 @@ export default function Page() {
           </Button>
         </div>
       </div>
+
+      {/* Add/Edit Assessment Modal */}
+      <Modal
+        title={
+          editingAssessment
+            ? "Edit Assessment"
+            : isAddingQuiz
+            ? "Add New Quiz"
+            : "Add New Assessment"
+        }
+        open={open}
+        onCancel={() => {
+          setOpen(false);
+          setEditingAssessment(null);
+        }}
+        footer={null}
+        centered
+      >
+        {editingAssessment ? (
+          <EditAssessmentForm
+            onSubmit={handleEditAssessment}
+            onCancel={() => {
+              setOpen(false);
+              setEditingAssessment(null);
+            }}
+            quizzes={quizzes}
+            initialData={{
+              name: editingAssessment.name,
+              type: editingAssessment.type,
+              term_id: termId,
+            }}
+          />
+        ) : (
+          <AddAssessmentForm
+            onSubmit={handleAddAssessment}
+            isQuiz={isAddingQuiz}
+            termId={termId}
+            quizzes={quizzes}
+          />
+        )}
+      </Modal>
+
       <AssessmentList
         assessments={assessments}
         onDeleteAssessment={confirmDelete}
@@ -254,27 +230,18 @@ export default function Page() {
         quizzes={quizzes}
       />
       {/* Delete Confirmation Dialog */}
-      <Dialog.Root open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <Dialog.Portal>
-          <Dialog.Overlay className="bg-black/50 data-[state=open]:animate-overlayShow fixed inset-0" />
-          <Dialog.Content className="data-[state=open]:animate-contentShow fixed top-[50%] left-[50%] max-h-[85vh] w-[90vw] max-w-[450px] translate-x-[-50%] translate-y-[-50%] rounded-[6px] bg-white p-[25px] shadow-[hsl(206_22%_7%_/_35%)_0px_10px_38px_-10px,_hsl(206_22%_7%_/_20%)_0px_10px_20px_-15px] focus:outline-none">
-            <Dialog.Title className="text-lg font-bold mb-4">
-              Confirm Delete
-            </Dialog.Title>
-            <p className="mb-4">
-              Are you sure you want to delete this assessment?
-            </p>
-            <div className="flex justify-end gap-2">
-              <Button variant="outlined" onClick={() => setDeleteOpen(false)} className="cursor-pointer">
-                Cancel
-              </Button>
-              <Button variant="solid" danger onClick={handleDeleteAssessment} className="cursor-pointer">
-                Delete
-              </Button>
-            </div>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
+      <Modal
+        title="Confirm Delete"
+        open={deleteOpen}
+        onOk={handleDeleteAssessment}
+        onCancel={() => setDeleteOpen(false)}
+        okText="Delete"
+        okButtonProps={{ danger: true }}
+        cancelText="Cancel"
+        centered
+      >
+        <p>Are you sure you want to delete this assessment?</p>
+      </Modal>
     </div>
   );
 }

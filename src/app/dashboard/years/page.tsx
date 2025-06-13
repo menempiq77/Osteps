@@ -1,7 +1,5 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import * as Dialog from "@radix-ui/react-dialog";
-import { Cross2Icon } from "@radix-ui/react-icons";
 import { Button } from "antd";
 import YearForm from "@/components/dashboard/YearForm";
 import YearsList from "@/components/dashboard/YearsList";
@@ -13,7 +11,7 @@ import {
   deleteYear as deleteYearApi,
   updateYear as updateYearApi,
 } from "@/services/api";
-import { Alert, Breadcrumb, Spin, Modal } from "antd";
+import { Breadcrumb, Spin, Modal } from "antd";
 import Link from "next/link";
 
 interface Year {
@@ -26,7 +24,7 @@ interface Year {
 }
 
 export default function Page() {
-  const [open, setOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [years, setYears] = useState<Year[]>([]);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [yearToDelete, setYearToDelete] = useState<number | null>(null);
@@ -66,7 +64,7 @@ export default function Page() {
       const updatedYears = await fetchYears();
       setYears(updatedYears);
 
-      setOpen(false);
+      setIsModalOpen(false);
       setCurrentYear(null);
     } catch (err) {
       setError(currentYear ? "Failed to update year" : "Failed to add year");
@@ -78,10 +76,10 @@ export default function Page() {
     setYearToDelete(id);
     setIsDeleteModalOpen(true);
   };
-  
+
   const handleEditClick = (year: Year) => {
     setCurrentYear(year);
-    setOpen(true);
+    setIsModalOpen(true);
   };
 
   const handleDeleteYear = async () => {
@@ -104,28 +102,16 @@ export default function Page() {
         <Spin size="large" />
       </div>
     );
-  if (error)
-    return (
-      <div className="p-3 md:p-6">
-        <Alert
-          message="Error"
-          description={error}
-          type="error"
-          showIcon
-          closable
-          onClose={() => setError(null)}
-        />
-      </div>
-    );
+
   return (
     <div className="p-3 md:p-6">
       <Breadcrumb
         items={[
           {
-            title: <Link href="/">Dashboard</Link>,
+            title: <Link href="/dashboard">Dashboard</Link>,
           },
           {
-            title: <Link href="/years">Academic Years</Link>,
+            title: <span>Academic Years</span>,
           },
         ]}
         className="!mb-2"
@@ -133,50 +119,16 @@ export default function Page() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Academic Years</h1>
         {currentUser?.role !== "STUDENT" && currentUser?.role !== "TEACHER" && (
-          <Dialog.Root
-            open={open}
-            onOpenChange={(isOpen) => {
-              setOpen(isOpen);
-              if (!isOpen) {
-                setCurrentYear(null);
-              } else if (!currentYear) {
-                setCurrentYear(null);
-              }
+          <Button
+            type="primary"
+            className="!bg-primary !text-white"
+            onClick={() => {
+              setCurrentYear(null);
+              setIsModalOpen(true);
             }}
           >
-            <Dialog.Trigger asChild>
-              <Button
-                type="primary"
-                className="!bg-primary !text-white"
-                onClick={() => {
-                  setCurrentYear(null);
-                  setOpen(true);
-                }}
-              >
-                Add Year
-              </Button>
-            </Dialog.Trigger>
-            <Dialog.Portal>
-              <Dialog.Overlay className="bg-black/50 data-[state=open]:animate-overlayShow fixed inset-0" />
-              <Dialog.Content className="data-[state=open]:animate-contentShow fixed top-[50%] left-[50%] max-h-[85vh] w-[90vw] max-w-[450px] translate-x-[-50%] translate-y-[-50%] rounded-[6px] bg-white p-[25px] shadow-[hsl(206_22%_7%_/_35%)_0px_10px_38px_-10px,_hsl(206_22%_7%_/_20%)_0px_10px_20px_-15px] focus:outline-none">
-                <Dialog.Title className="text-lg font-bold mb-4">
-                  {currentYear ? "Edit Year" : "Add New Year"}
-                </Dialog.Title>
-                <YearForm
-                  onSubmit={handleSubmitYear}
-                  defaultValues={currentYear || undefined}
-                />
-                <Dialog.Close asChild>
-                  <button
-                    className="text-gray-500 hover:text-gray-700 absolute top-[10px] right-[10px] inline-flex h-[25px] w-[25px] appearance-none items-center justify-center rounded-full focus:shadow-[0_0_0_2px] focus:outline-none"
-                    aria-label="Close"
-                  >
-                    <Cross2Icon />
-                  </button>
-                </Dialog.Close>
-              </Dialog.Content>
-            </Dialog.Portal>
-          </Dialog.Root>
+            Add Year
+          </Button>
         )}
       </div>
       <YearsList
@@ -194,7 +146,25 @@ export default function Page() {
         }}
       />
 
-      {/* Ant Design Delete Confirmation Modal */}
+      {/* Add/Edit Year Modal */}
+      <Modal
+        title={currentYear ? "Edit Year" : "Add New Year"}
+        open={isModalOpen}
+        onCancel={() => {
+          setIsModalOpen(false);
+          setCurrentYear(null);
+        }}
+        footer={null}
+        centered
+        destroyOnHidden
+      >
+        <YearForm
+          onSubmit={handleSubmitYear}
+          defaultValues={currentYear || undefined}
+        />
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
       <Modal
         title="Confirm Deletion"
         open={isDeleteModalOpen}

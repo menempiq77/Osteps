@@ -2,20 +2,15 @@
 import { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import * as Dialog from "@radix-ui/react-dialog";
+import { Card, Input, Select, Badge, Button, Modal, Spin } from "antd";
 import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
-} from "@/components/ui/card";
-import { Alert, Badge, Spin } from "antd";
-import { addAnnouncement, deleteAnnouncement, fetchAnnouncements } from "@/services/api";
-import { Cross2Icon } from "@radix-ui/react-icons";
+  addAnnouncement,
+  deleteAnnouncement,
+  fetchAnnouncements,
+} from "@/services/api";
+
+const { TextArea } = Input;
+const { Option } = Select;
 
 type Announcement = {
   id: string;
@@ -34,7 +29,9 @@ export default function AnnouncementsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [announcementToDelete, setAnnouncementToDelete] = useState<string | null>(null);
+  const [announcementToDelete, setAnnouncementToDelete] = useState<
+    string | null
+  >(null);
 
   const [newAnnouncement, setNewAnnouncement] = useState({
     title: "",
@@ -69,19 +66,16 @@ export default function AnnouncementsPage() {
     setIsSubmitting(true);
     try {
       const announcementData = {
-        name: newAnnouncement.title, // Assuming 'name' corresponds to the title
+        name: newAnnouncement.title,
         title: newAnnouncement.title,
         description: newAnnouncement.description,
-        role: currentUser?.role || "SCHOOL_ADMIN", // Default role if not available
+        role: currentUser?.role || "SCHOOL_ADMIN",
         type: newAnnouncement.type,
-        // Add other required fields if needed
       };
 
       const response = await addAnnouncement(announcementData);
-      
-      // Assuming the API returns the created announcement
       const createdAnnouncement = response.data;
-      
+
       setAnnouncements([createdAnnouncement, ...announcements]);
       setNewAnnouncement({
         title: "",
@@ -101,10 +95,14 @@ export default function AnnouncementsPage() {
 
   const handleDeleteAnnouncement = async () => {
     if (!announcementToDelete) return;
-  
+
     try {
       await deleteAnnouncement(announcementToDelete);
-      setAnnouncements(announcements.filter((announcement) => announcement.id !== announcementToDelete));
+      setAnnouncements(
+        announcements.filter(
+          (announcement) => announcement.id !== announcementToDelete
+        )
+      );
       setDeleteOpen(false);
       setAnnouncementToDelete(null);
     } catch (err) {
@@ -112,18 +110,16 @@ export default function AnnouncementsPage() {
       console.error(err);
     }
   };
-  
+
   const confirmDelete = (id: string) => {
     setAnnouncementToDelete(id);
     setDeleteOpen(true);
   };
-  // Determine who can create announcements
   const canCreateAnnouncement =
     currentUser?.role === "SUPER_ADMIN" ||
     currentUser?.role === "SCHOOL_ADMIN" ||
     currentUser?.role === "TEACHER";
 
-  // Check if user can delete a specific announcement
   const canDeleteAnnouncement = (announcement: Announcement) => {
     return (
       currentUser?.role === "SUPER_ADMIN" ||
@@ -132,27 +128,25 @@ export default function AnnouncementsPage() {
     );
   };
 
- const filteredAnnouncements = announcements.filter((announcement) => {
-  if (currentUser?.role === "SUPER_ADMIN") return true;
+  const filteredAnnouncements = announcements.filter((announcement) => {
+    if (currentUser?.role === "SUPER_ADMIN") return true;
 
-  if (currentUser?.role === "SCHOOL_ADMIN") return true;
+    if (currentUser?.role === "SCHOOL_ADMIN") return true;
 
-  if (currentUser?.role === "TEACHER") {
-    return true;
-  }
+    if (currentUser?.role === "TEACHER") {
+      return true;
+    }
 
-  // Students can see announcements
-  if (currentUser?.role === "STUDENT") {
-    return true;
-  }
+    if (currentUser?.role === "STUDENT") {
+      return true;
+    }
 
-  // Staff can see announcements
-  if (currentUser?.role === "STAFF") {
-    return true;
-  }
+    if (currentUser?.role === "STAFF") {
+      return true;
+    }
 
-  return false;
-});
+    return false;
+  });
 
   const badgeRibbonColors = {
     prayer: "green",
@@ -178,20 +172,6 @@ export default function AnnouncementsPage() {
       </div>
     );
 
-  if (error)
-    return (
-      <div className="p-3 md:p-6">
-        <Alert
-          message="Error"
-          description={error}
-          type="error"
-          showIcon
-          closable
-          onClose={() => setError(null)}
-        />
-      </div>
-    );
-
   return (
     <div className="container mx-auto p-3 md:p-6">
       <div className="flex justify-between items-center mb-6">
@@ -199,7 +179,7 @@ export default function AnnouncementsPage() {
         {canCreateAnnouncement && (
           <Button
             onClick={() => setIsCreating(!isCreating)}
-            className="cursor-pointer"
+            className="!bg-primary !text-white hover:!bg-primary/90 hover:!border-primary transition-colors"
           >
             {isCreating ? "Cancel" : "New Announcement"}
           </Button>
@@ -207,14 +187,16 @@ export default function AnnouncementsPage() {
       </div>
 
       {isCreating && (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Announcement</CardTitle>
-            <CardDescription>
+        <Card
+          title="Announcement"
+          className="!mb-6"
+          extra={
+            <span className="text-gray-500">
               Share important updates with the community
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+            </span>
+          }
+        >
+          <div className="space-y-4">
             <Input
               placeholder="Title (e.g., 'Ramadan Schedule')"
               value={newAnnouncement.title}
@@ -224,9 +206,10 @@ export default function AnnouncementsPage() {
                   title: e.target.value,
                 })
               }
+              className="!mb-2 hover:!border-primary focus:!border-primary focus:ring-1 focus:!ring-primary transition-colors"
             />
-            <textarea
-              className="w-full p-2 border rounded-md min-h-[100px]"
+
+            <TextArea
               placeholder="Content (e.g., 'The Taraweeh prayers will begin at 8:30 PM...')"
               value={newAnnouncement.description}
               onChange={(e) =>
@@ -236,45 +219,49 @@ export default function AnnouncementsPage() {
                 })
               }
               rows={4}
+              className="!mb-2 hover:!border-primary focus:!border-primary focus:ring-1 focus:!ring-primary transition-colors"
             />
+
             <div className="flex gap-4 flex-wrap">
-              <select
-                className="border rounded-md p-2 flex-1"
+              <Select
                 value={newAnnouncement.type}
-                onChange={(e) =>
+                onChange={(value) =>
                   setNewAnnouncement({
                     ...newAnnouncement,
-                    type: e.target.value as any,
+                    type: value as any,
                   })
                 }
+                className="flex-1 min-w-[150px] hover:!border-primary focus:!border-primary focus:ring-1 focus:!ring-primary transition-colors"
               >
-                <option value="event">Islamic Sudies</option>
-                <option value="reminder">General</option>
-              </select>
-              <select
-                className="border rounded-md p-2 flex-1"
+                <Option value="event">Islamic Studies</Option>
+                <Option value="reminder">General</Option>
+              </Select>
+
+              <Select
                 value={newAnnouncement.target}
-                onChange={(e) =>
+                onChange={(value) =>
                   setNewAnnouncement({
                     ...newAnnouncement,
-                    target: e.target.value as any,
+                    target: value as any,
                   })
                 }
+                className="flex-1 min-w-[150px] hover:!border-primary focus:!border-primary focus:ring-1 focus:!ring-primary transition-colors"
               >
-                <option value="all">Everyone</option>
-                <option value="teachers">Teachers Only</option>
-                <option value="students">Students Only</option>
-              </select>
+                <Option value="all">Everyone</Option>
+                <Option value="teachers">Teachers Only</Option>
+                <Option value="students">Students Only</Option>
+              </Select>
             </div>
-          </CardContent>
-          <CardFooter>
+
             <Button
+              type="primary"
               onClick={handleCreateAnnouncement}
-              className="cursor-pointer"
+              loading={isSubmitting}
+              className="!bg-primary !text-white hover:!bg-primary/90 hover:!border-primary transition-colors"
             >
-               {isSubmitting ? "Publishing..." : "Publish Announcement"}
+              {isSubmitting ? "Publishing..." : "Publish Announcement"}
             </Button>
-          </CardFooter>
+          </div>
         </Card>
       )}
 
@@ -303,21 +290,21 @@ export default function AnnouncementsPage() {
                     Delete
                   </span>
                 )}
-                <CardHeader>
+                <div>
                   <div className="flex justify-between items-start gap-2 flex-wrap">
-                    <CardTitle>{announcement.title}</CardTitle>
+                    <h3 className="font-medium mb-1">{announcement.title}</h3>
                   </div>
-                  <CardDescription className="flex flex-wrap gap-2 items-center">
+                  <div className="flex flex-wrap text-xs text-gray-500 gap-2 items-center mb-4">
                     <span>{formatDate(announcement.created_at)}</span>
                     <span>•</span>
                     <span>Posted by {announcement.role}</span>
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
+                  </div>
+                </div>
+                <div>
                   <p className="whitespace-pre-line text-gray-700">
                     {announcement.description}
                   </p>
-                </CardContent>
+                </div>
               </Card>
             </Badge.Ribbon>
           ))
@@ -325,38 +312,18 @@ export default function AnnouncementsPage() {
       </div>
 
       {/* Delete Confirmation Modal */}
-      <Dialog.Root open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <Dialog.Portal>
-          <Dialog.Overlay className="bg-black/50 data-[state=open]:animate-overlayShow fixed inset-0" />
-          <Dialog.Content className="data-[state=open]:animate-contentShow fixed top-[50%] left-[50%] max-h-[85vh] w-[90vw] max-w-[450px] translate-x-[-50%] translate-y-[-50%] rounded-[6px] bg-white p-[25px] shadow-[hsl(206_22%_7%_/_35%)_0px_10px_38px_-10px,_hsl(206_22%_7%_/_20%)_0px_10px_20px_-15px] focus:outline-none">
-            <Dialog.Title className="text-lg font-bold mb-4">
-              Confirm Deletion
-            </Dialog.Title>
-            <p className="mb-6">
-              Are you sure you want to delete this announcement? This action
-              cannot be undone.
-            </p>
-
-            <div className="flex justify-end gap-4">
-              <Dialog.Close asChild>
-                <Button variant="outline" className="cursor-pointer">Cancel</Button>
-              </Dialog.Close>
-              <Button variant="destructive" onClick={handleDeleteAnnouncement} className="cursor-pointer">
-                Delete
-              </Button>
-            </div>
-
-            <Dialog.Close asChild>
-              <button
-                className="text-gray-500 hover:text-gray-700 absolute top-[10px] right-[10px] inline-flex h-[25px] w-[25px] appearance-none items-center justify-center rounded-full focus:shadow-[0_0_0_2px] focus:outline-none"
-                aria-label="Close"
-              >
-                <Cross2Icon />
-              </button>
-            </Dialog.Close>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
+      <Modal
+        title="Confirm Deletion"
+        open={deleteOpen}
+        onCancel={() => setDeleteOpen(false)}
+        onOk={handleDeleteAnnouncement}
+        okText="Delete"
+        okButtonProps={{ danger: true }}
+        cancelText="Cancel"
+        centered
+      >
+        <p>Are you sure you want to delete.</p>
+      </Modal>
     </div>
   );
 }

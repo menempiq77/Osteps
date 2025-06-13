@@ -139,7 +139,7 @@ export default function Page() {
       <Breadcrumb
         items={[
           {
-            title: <Link href="/">Dashboard</Link>,
+            title: <Link href="/dashboard">Dashboard</Link>,
           },
           {
             title: <Link href="/dashboard/years">Academic Years</Link>,

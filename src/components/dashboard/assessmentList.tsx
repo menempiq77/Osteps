@@ -1,18 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import { AssessmentTasksDrawer } from "../ui/AssessmentTasksDrawer";
 import { useParams, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { fetchTasks, fetchTerm } from "@/services/api";
+import { Select } from "antd";
 
 interface Task {
   id: number;
@@ -127,17 +121,17 @@ export default function AssessmentList({
     <div className="mt-8 overflow-hidden">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold">Registered Assessment</h3>
-        <Select value={selectedTerm} onValueChange={setSelectedTerm}>
-          <SelectTrigger className="w-[150px] bg-white">
-            <SelectValue placeholder="Select Term" />
-          </SelectTrigger>
-          <SelectContent>
-            {terms.map((term) => (
-              <SelectItem key={term.id} value={term.name}>
-                {term.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
+        <Select
+          value={selectedTerm}
+          onChange={setSelectedTerm}
+          style={{ width: 150 }}
+          className="bg-white"
+        >
+          {terms.map((term) => (
+            <Select.Option key={term.id} value={term.name}>
+              {term.name}
+            </Select.Option>
+          ))}
         </Select>
       </div>
       <div className="overflow-x-auto bg-white border border-gray-200 rounded-lg shadow-md">

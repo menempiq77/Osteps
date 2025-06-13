@@ -1,15 +1,7 @@
 "use client";
-import { Button } from "@/components/ui/button";
-import * as Dialog from "@radix-ui/react-dialog";
-import { Cross2Icon } from "@radix-ui/react-icons";
 import { useEffect, useState } from "react";
-
-type SuperAdminBasic = {
-  id: string;
-  name: string;
-  email: string;
-  password?: string;
-};
+import { Modal, Form, Input, Button } from "antd";
+import type { SuperAdminBasic } from "./types"; // Assuming you have a types file
 
 export const EditSuperAdminModal = ({
   admin,
@@ -22,90 +14,109 @@ export const EditSuperAdminModal = ({
   onOpenChange: (open: boolean) => void;
   onSave: (admin: SuperAdminBasic) => void;
 }) => {
-  const [name, setName] = useState(admin?.name || "");
-  const [email, setEmail] = useState(admin?.email || "");
-  const [password, setPassword] = useState(admin?.password || "");
+  const [form] = Form.useForm();
+  const [confirmLoading, setConfirmLoading] = useState(false);
 
   useEffect(() => {
     if (admin) {
-      setName(admin.name);
-      setEmail(admin.email);
-      setPassword(admin.password);
+      form.setFieldsValue({
+        name: admin.name,
+        email: admin.email,
+        password: admin.password || '',
+      });
     }
-  }, [admin]);
+  }, [admin, form]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!admin) return;
 
-    onSave({
-      ...admin,
-      name,
-      email,
-      password,
-    });
+    try {
+      setConfirmLoading(true);
+      const values = await form.validateFields();
+      
+      onSave({
+        ...admin,
+        name: values.name.trim(),
+        email: values.email.trim(),
+        password: values.password.trim(),
+      });
+      
+      onOpenChange(false);
+    } finally {
+      setConfirmLoading(false);
+    }
+  };
+
+  const handleClose = () => {
+    form.resetFields();
     onOpenChange(false);
   };
 
   if (!admin) return null;
 
   return (
-    <Dialog.Root open={isOpen} onOpenChange={onOpenChange}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="bg-black/50 fixed inset-0" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-lg w-[90vw] max-w-[450px] max-h-[85vh] overflow-y-auto">
-          <Dialog.Title className="text-lg font-bold mb-4">
-            Edit Admin
-          </Dialog.Title>
+    <Modal
+      title="Edit Admin"
+      open={isOpen}
+      onOk={handleSave}
+      onCancel={handleClose}
+      confirmLoading={confirmLoading}
+      footer={[
+        <Button key="back" onClick={handleClose}>
+          Cancel
+        </Button>,
+        <Button 
+          key="submit" 
+          type="primary" 
+          onClick={handleSave}
+          className="!bg-primary !border-primary hover:!bg-primary/90 !text-white"
+          loading={confirmLoading}
+        >
+          Save Changes
+        </Button>,
+      ]}
+      width={450}
+    >
+      <Form
+        form={form}
+        layout="vertical"
+        autoComplete="off"
+      >
+        <Form.Item
+          label="Name"
+          name="name"
+          rules={[
+            { required: true, message: 'Please enter admin name' },
+            { whitespace: true, message: 'Name cannot be empty' }
+          ]}
+        >
+          <Input />
+        </Form.Item>
 
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Name</label>
-              <input
-                className="w-full p-2 border rounded-md"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Email</label>
-              <input
-                className="w-full p-2 border rounded-md"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Password*
-              </label>
-              <input
-                className="w-full p-2 border rounded-md"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter password"
-                required
-              />
-            </div>
-          </div>
+        <Form.Item
+          label="Email"
+          name="email"
+          rules={[
+            { required: true, message: 'Please enter email' },
+            { type: 'email', message: 'Please enter a valid email' },
+            { whitespace: true, message: 'Email cannot be empty' }
+          ]}
+        >
+          <Input />
+        </Form.Item>
 
-          <div className="mt-6 flex justify-end gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSave}>Save changes</Button>
-          </div>
-
-          <Dialog.Close asChild>
-            <button
-              className="absolute top-4 right-4"
-              aria-label="Close"
-              onClick={() => onOpenChange(false)}
-            >
-              <Cross2Icon />
-            </button>
-          </Dialog.Close>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+        <Form.Item
+          label="Password"
+          name="password"
+          rules={[
+            { required: true, message: 'Please enter password' },
+            { whitespace: true, message: 'Password cannot be empty' },
+            { min: 6, message: 'Password must be at least 6 characters' }
+          ]}
+        >
+          <Input.Password placeholder="Enter password" />
+        </Form.Item>
+      </Form>
+    </Modal>
   );
 };

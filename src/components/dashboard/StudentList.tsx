@@ -1,6 +1,4 @@
 "use client";
-import { Button } from "@/components/ui/button";
-import * as Dialog from "@radix-ui/react-dialog";
 import { useState, useEffect } from "react";
 import { AddStudentModal } from "../modals/studentModals/AddStudentModal";
 import { EditStudentModal } from "../modals/studentModals/EditStudentModal";
@@ -13,7 +11,7 @@ import {
   updateStudent as apiUpdateStudent,
   deleteStudent as apiDeleteStudent,
 } from "@/services/api";
-import { Alert, Spin } from "antd";
+import { Button, Modal, Spin, Form } from "antd";
 import { EditOutlined, DeleteOutlined, BookOutlined } from "@ant-design/icons";
 
 type Student = {
@@ -29,10 +27,12 @@ export default function StudentList() {
   const router = useRouter();
   const { classId } = useParams();
   const { currentUser } = useSelector((state: RootState) => state.auth);
+  const [form] = Form.useForm();
 
   const [students, setStudents] = useState<Student[]>([]);
   const [editStudent, setEditStudent] = useState<Student | null>(null);
-  const [deleteStudent, setDeleteStudent] = useState<Student | null>(null);
+  const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isAddStudentModalOpen, setIsAddStudentModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -56,60 +56,61 @@ export default function StudentList() {
     }
   }, [classId]);
 
-  const handleSaveEdit = async (
-    id: string,
-    student_name: string,
-    email: string,
-    class_id: number,
-    status: "active" | "inactive" | "suspended"
-  ) => {
+  const handleSaveEdit = async (values: any) => {
     try {
-      const updatedStudent = await apiUpdateStudent(id, {
-        student_name,
-        email,
-        class_id,
-        status,
+      const updatedStudent = await apiUpdateStudent(editStudent?.id || "", {
+        student_name: values.student_name,
+        email: values.email,
+        class_id: Number(classId),
+        status: values.status,
       });
 
       setStudents((prevStudents) =>
         prevStudents.map((student) =>
-          student.id === id ? updatedStudent : student
+          student.id === editStudent?.id ? updatedStudent : student
         )
       );
       setEditStudent(null);
+      await loadStudents(); 
     } catch (err) {
       console.error("Failed to update student:", err);
       setError("Failed to update student");
     }
   };
 
-  const handleDeleteStudent = async (studentId: string) => {
+  const showDeleteConfirm = (student: Student) => {
+    setStudentToDelete(student);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleDeleteStudent = async () => {
+    if (!studentToDelete) return;
+
     try {
-      await apiDeleteStudent(studentId);
-      setStudents(students.filter((student) => student.id !== studentId));
-      setDeleteStudent(null);
+      await apiDeleteStudent(studentToDelete.id);
+      setStudents(
+        students.filter((student) => student.id !== studentToDelete.id)
+      );
+      setIsDeleteModalOpen(false);
+      setStudentToDelete(null);
     } catch (err) {
       console.error("Failed to delete student:", err);
       setError("Failed to delete student");
     }
   };
 
-  const handleAddNewStudent = async (
-    student_name: string,
-    email: string,
-    class_id: number,
-    status: string
-  ) => {
+  const handleAddNewStudent = async (values: any) => {
     try {
       const newStudent = await apiAddStudent({
-        student_name,
-        email,
+        student_name: values.student_name,
+        email: values.email,
         class_id: Number(classId),
-        status,
+        status: values.status,
       });
       setStudents([...students, newStudent]);
-      await loadStudents();
+      form.resetFields();
       setIsAddStudentModalOpen(false);
+      await loadStudents();
     } catch (err) {
       console.error("Failed to add student:", err);
       setError("Failed to add student");
@@ -130,39 +131,19 @@ export default function StudentList() {
         <Spin size="large" />
       </div>
     );
-  if (error)
-    return (
-      <div className="p-3 md:p-6">
-        <Alert
-          message="Error"
-          description={error}
-          type="error"
-          showIcon
-          closable
-          onClose={() => setError(null)}
-        />
-      </div>
-    );
 
   return (
     <div className="overflow-auto h-screen">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Students</h1>
         {currentUser?.role !== "TEACHER" && currentUser?.role !== "STUDENT" && (
-          <Dialog.Root
-            open={isAddStudentModalOpen}
-            onOpenChange={setIsAddStudentModalOpen}
+          <Button
+            type="primary"
+            className="!bg-primary !text-white hover:!bg-primary/90 !border-none"
+            onClick={() => setIsAddStudentModalOpen(true)}
           >
-            <Dialog.Trigger asChild>
-              <Button className="cursor-pointer">Add Student</Button>
-            </Dialog.Trigger>
-            <AddStudentModal
-              isOpen={isAddStudentModalOpen}
-              onOpenChange={setIsAddStudentModalOpen}
-              onAddStudent={handleAddNewStudent}
-              class_id={Number(classId)}
-            />
-          </Dialog.Root>
+            Add Student
+          </Button>
         )}
       </div>
 
@@ -224,85 +205,27 @@ export default function StudentList() {
                     {currentUser?.role !== "TEACHER" &&
                       currentUser?.role !== "STUDENT" && (
                         <>
-                          <Dialog.Root>
-                            <Dialog.Trigger asChild>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setEditStudent(student);
-                                }}
-                                className="text-green-500 hover:text-green-700 cursor-pointer"
-                                title="Edit"
-                              >
-                                <EditOutlined />
-                              </button>
-                            </Dialog.Trigger>
-                            {editStudent?.id === student.id && (
-                              <EditStudentModal
-                                student={editStudent}
-                                onClose={() => setEditStudent(null)}
-                                onSave={(id, name, email, classId, status) => {
-                                  handleSaveEdit(
-                                    id,
-                                    name,
-                                    email,
-                                    classId,
-                                    status
-                                  );
-                                }}
-                              />
-                            )}
-                          </Dialog.Root>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditStudent(student);
+                            }}
+                            className="text-green-500 hover:text-green-700 cursor-pointer"
+                            title="Edit"
+                          >
+                            <EditOutlined />
+                          </button>
 
-                          <Dialog.Root>
-                            <Dialog.Trigger asChild>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setDeleteStudent(student);
-                                }}
-                                className="text-red-500 hover:text-red-700 cursor-pointer"
-                                title="Delete"
-                              >
-                                <DeleteOutlined />
-                              </button>
-                            </Dialog.Trigger>
-                            {deleteStudent?.id === student.id && (
-                              <Dialog.Portal>
-                                <Dialog.Overlay className="fixed inset-0 bg-black/30" />
-                                <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-md w-full max-w-md">
-                                  <Dialog.Title className="text-lg font-semibold">
-                                    Confirm Deletion
-                                  </Dialog.Title>
-                                  <p className="mt-2 text-gray-600">
-                                    Are you sure you want to delete{" "}
-                                    <strong>
-                                      {deleteStudent?.student_name}
-                                    </strong>
-                                    ?
-                                  </p>
-                                  <div className="mt-4 flex justify-end space-x-2">
-                                    <Button
-                                      variant="outline"
-                                      onClick={() => setDeleteStudent(null)}
-                                      className="cursor-pointer"
-                                    >
-                                      Cancel
-                                    </Button>
-                                    <Button
-                                      variant="destructive"
-                                      onClick={() =>
-                                        handleDeleteStudent(deleteStudent.id)
-                                      }
-                                      className="cursor-pointer"
-                                    >
-                                      Delete
-                                    </Button>
-                                  </div>
-                                </Dialog.Content>
-                              </Dialog.Portal>
-                            )}
-                          </Dialog.Root>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              showDeleteConfirm(student);
+                            }}
+                            className="text-red-500 hover:text-red-700 cursor-pointer"
+                            title="Delete"
+                          >
+                            <DeleteOutlined />
+                          </button>
                         </>
                       )}
                   </td>
@@ -312,6 +235,42 @@ export default function StudentList() {
           </table>
         </div>
       </div>
+
+      <AddStudentModal
+        open={isAddStudentModalOpen}
+        onCancel={() => setIsAddStudentModalOpen(false)}
+        onOk={handleAddNewStudent}
+        classId={Number(classId)}
+      />
+
+      <EditStudentModal
+        open={!!editStudent}
+        onCancel={() => setEditStudent(null)}
+        onOk={handleSaveEdit}
+        student={editStudent}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        title="Confirm Deletion"
+        open={isDeleteModalOpen}
+        onOk={handleDeleteStudent}
+        onCancel={() => {
+          setIsDeleteModalOpen(false);
+          setStudentToDelete(null);
+        }}
+        okText="Delete"
+        okButtonProps={{ danger: true }}
+        cancelText="Cancel"
+        centered
+      >
+        {studentToDelete && (
+          <p>
+            Are you sure you want to delete {studentToDelete.student_name}? This
+            action cannot be undone.
+          </p>
+        )}
+      </Modal>
     </div>
   );
 }

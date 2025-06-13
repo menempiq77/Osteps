@@ -1,10 +1,10 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronLeftIcon, CalendarIcon } from "@radix-ui/react-icons";
+import { ChevronLeft, Calendar } from "lucide-react";
 import { useParams } from "next/navigation";
 import AssignmentDrawer from "@/components/ui/AssignmentDrawer";
-import { Alert, Button, Card, Spin } from "antd";
+import { Button, Spin } from "antd";
 import { fetchTasks } from "@/services/api";
 
 interface Task {
@@ -81,25 +81,11 @@ export default function AssignmentDetailPage() {
       </div>
     );
 
-  if (error)
-    return (
-      <div className="p-3 md:p-6">
-        <Alert
-          message="Error"
-          description={error}
-          type="error"
-          showIcon
-          closable
-          onClose={() => setError(null)}
-        />
-      </div>
-    );
-
   return (
     <div className="p-3 md:p-6 max-w-5xl mx-auto">
       <Link href="/dashboard/students/assignments/">
         <Button
-          icon={<ChevronLeftIcon />}
+          icon={<ChevronLeft />}
           className="mb-6 text-gray-700 border border-gray-300 hover:bg-gray-100 flex items-center gap-1"
         >
           Back to Assessments
@@ -136,7 +122,7 @@ export default function AssignmentDetailPage() {
                         {task.description || "No description provided."}
                       </p>
                       <div className="flex items-center text-sm text-gray-500 mb-2">
-                        <CalendarIcon className="w-4 h-4 mr-1.5" />
+                        <Calendar className="w-4 h-4 mr-1.5" />
                         <span>
                           Due: {new Date(task.updated_at).toLocaleDateString()}
                         </span>

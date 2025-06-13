@@ -1,10 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import { Button, Form, Card } from "antd";
-import {
-  ChevronLeftIcon,
-  CalendarIcon,
-} from "@radix-ui/react-icons";
+import { ChevronLeft, Calendar } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import AssessmentDrawer from "@/components/ui/AssessmentDrawer";
 import {
@@ -209,7 +206,7 @@ export default function TermPage() {
   return (
     <div className="p-3 md:p-6 max-w-6xl mx-auto bg-gray-50 min-h-screen">
       <Button
-        icon={<ChevronLeftIcon />}
+        icon={<ChevronLeft />}
         onClick={() => router.back()}
         className="mb-6 text-gray-700 border border-gray-300 hover:bg-gray-100"
       >
@@ -269,7 +266,7 @@ export default function TermPage() {
           {mockTerms[currentTermIndex].name}
         </h3>
         <p className="text-sm text-gray-600 flex items-center gap-1 mb-4">
-          <CalendarIcon className="w-4 h-4" />{" "}
+          <Calendar className="w-4 h-4" />{" "}
           {mockTerms[currentTermIndex].startDate} -{" "}
           {mockTerms[currentTermIndex].endDate}
         </p>

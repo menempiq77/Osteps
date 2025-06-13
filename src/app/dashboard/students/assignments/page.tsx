@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { Button, Card, Spin } from "antd";
-import { ChevronLeftIcon, CalendarIcon } from "@radix-ui/react-icons";
+import { ChevronLeft, Calendar } from "lucide-react";
 import {
   Select,
   SelectTrigger,
@@ -329,7 +329,7 @@ export default function AssignmentsPage() {
     <div className="p-3 md:p-6">
       <div className="flex items-center justify-between">
         <Button
-          icon={<ChevronLeftIcon />}
+          icon={<ChevronLeft />}
           onClick={() => router.back()}
           className="mb-6 text-gray-700 border border-gray-300 hover:bg-gray-100"
         >
@@ -387,7 +387,7 @@ export default function AssignmentsPage() {
                       </p>
                       {assignment.tasks && assignment.tasks.length > 0 && (
                         <div className="flex items-center mt-2">
-                          <CalendarIcon className="w-4 h-4 mr-1" />
+                          <Calendar className="w-4 h-4 mr-1" />
                           <span className="text-sm text-gray-600">
                             Due:{" "}
                             {new Date(
