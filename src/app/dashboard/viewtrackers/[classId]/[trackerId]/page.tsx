@@ -2,10 +2,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import {
-  ArrowLeft,
-  GripVertical,
-} from "lucide-react";
+import { ArrowLeft, GripVertical } from "lucide-react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { Button, Input, Modal, Select, Spin, message } from "antd";
@@ -14,6 +11,7 @@ import {
   fetchTrackerTopics,
   fetchQuizes,
   fetchStudents,
+  addTopicMark,
 } from "@/services/api";
 
 interface Status {
@@ -54,6 +52,12 @@ interface Quiz {
   answer?: string;
 }
 
+interface Student {
+  id: number;
+  student_name: string;
+  // Add other student properties as needed
+}
+
 export default function QuranTrackerAdminPage() {
   const { trackerId, classId } = useParams();
   const router = useRouter();
@@ -67,8 +71,9 @@ export default function QuranTrackerAdminPage() {
   const [markModal, setMarkModal] = useState(false);
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
   const [marks, setMarks] = useState("");
-
-  const [selectedYear, setSelectedYear] = useState<string | null>(null);
+  const [selectedStudentId, setSelectedStudentId] = useState<number | null>(
+    null
+  );
 
   const canUpload =
     currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "TEACHER";
@@ -130,27 +135,84 @@ export default function QuranTrackerAdminPage() {
     // Note: You might want to add API call to save the new order
   };
 
-  const statusTypes = Array.from(
-    new Set(
-      topics?.flatMap((topic) =>
-        topic?.status_progress?.map((sp) => sp.status.name)
-      )
-    )
-  );
+  const statusTypes = React.useMemo(() => {
+    const types = new Set<string>();
+    trackerData?.topics?.forEach((topic) => {
+      topic.status_progress?.forEach((sp) => {
+        types.add(sp.status.name);
+      });
+    });
+    return Array.from(types);
+  }, [trackerData]);
+
+  const studentIdsInData = React.useMemo(() => {
+    const ids = new Set<number>();
+    trackerData?.topics?.forEach((topic) => {
+      topic.status_progress?.forEach((sp) => {
+        ids.add(sp.student_id);
+      });
+    });
+    return Array.from(ids);
+  }, [trackerData]);
+
+  // Match students from dropdown with those in data
+  const availableStudents = React.useMemo(() => {
+    return students.filter((student) => studentIdsInData.includes(student.id));
+  }, [students, studentIdsInData]);
+
+  // useEffect(() => {
+  //   if (currentUser?.role === "STUDENT" && students.length > 0) {
+  //     // If current user is a student, automatically select their ID
+  //     const student = students.find(s => s.id === currentUser.student);
+  //     if (student) {
+  //       setSelectedStudentId(student.id);
+  //     }
+  //   } else if (availableStudents.length > 0 && !selectedStudentId) {
+  //     // For teachers/admins, select the first available student by default
+  //     setSelectedStudentId(availableStudents[0].id);
+  //   }
+  // }, [availableStudents, currentUser]);
 
   const handleEnterMarks = (topic: Topic) => {
+    if (!selectedStudentId) {
+      message.warning("Please select a student first");
+      return;
+    }
     setSelectedTopic(topic);
     setMarkModal(true);
   };
-
-  const handleSubmitMarks = () => {
+  const handleSubmitMarks = async () => {
     if (!marks) {
       message.warning("Please enter marks");
       return;
     }
-    message.success(`Marks ${marks} submitted for ${selectedTopic?.title}`);
-    setMarkModal(false);
-    setMarks("");
+
+    if (!selectedTopic) {
+      message.warning("No topic selected");
+      return;
+    }
+
+    if (!selectedStudentId) {
+      message.warning("No student selected");
+      return;
+    }
+
+    try {
+      const marksValue = Number(marks);
+      if (isNaN(marksValue)) {
+        message.warning("Please enter valid marks");
+        return;
+      }
+
+      await addTopicMark(selectedTopic.id, marksValue, selectedStudentId);
+
+      message.success(`Marks ${marks} submitted for ${selectedTopic.title}`);
+      setMarkModal(false);
+      setMarks("");
+    } catch (error) {
+      message.error("Failed to submit marks");
+      console.error("Error submitting marks:", error);
+    }
   };
 
   if (loading)
@@ -179,19 +241,16 @@ export default function QuranTrackerAdminPage() {
           </h1>
 
           <Select
-            value={selectedYear || undefined}
-            onChange={(val) => setSelectedYear(val)}
-            allowClear
+            value={selectedStudentId || undefined}
+            onChange={(val) => setSelectedStudentId(val)}
             placeholder="Select Student"
             className="w-48"
             style={{ minWidth: "120px" }}
-          >
-            {students?.map((stud) => (
-              <Option key={stud.id} value={stud.id}>
-                {stud.student_name}
-              </Option>
-            ))}
-          </Select>
+            options={availableStudents.map((student) => ({
+              label: student.student_name,
+              value: student.id,
+            }))}
+          />
         </div>
 
         <div className="overflow-x-auto">
@@ -228,8 +287,8 @@ export default function QuranTrackerAdminPage() {
                   <tbody className="divide-y divide-gray-200">
                     {topics?.slice(0, visibleTopics)?.map((topic, index) => (
                       <Draggable
-                        key={`topic-${topic?.id}`}
-                        draggableId={topic?.id.toString()}
+                        key={`topic-${topic.id}`}
+                        draggableId={topic.id.toString()}
                         index={index}
                       >
                         {(provided) => (
@@ -239,45 +298,39 @@ export default function QuranTrackerAdminPage() {
                             className="hover:bg-gray-50 transition-colors"
                           >
                             <td className="p-4 whitespace-nowrap border-r border-gray-200">
-                              <div className="flex items-center">
-                                {canUpload && (
-                                  <div
-                                    {...provided.dragHandleProps}
-                                    className="mr-2 cursor-move"
-                                  >
-                                    <GripVertical
-                                      size={16}
-                                      className="text-gray-400"
-                                    />
-                                  </div>
-                                )}
-
-                                <div className="flex items-center">
-                                  <div className="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-full bg-gray-100 text-gray-700 font-medium">
-                                    {index + 1}
-                                  </div>
-                                  <div className="ml-4">
-                                    <div className="text-sm font-medium text-gray-900">
-                                      {topic?.title}
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
+                              {/* Topic title rendering */}
+                              {topic.title}
                             </td>
-                            {statusTypes?.map((statusName, index) => {
-                              const statusProgress =
-                                topic?.status_progress?.find(
-                                  (sp) => sp.status.name === statusName
+
+                            {statusTypes.map((statusName) => {
+                              if (!selectedStudentId)
+                                return (
+                                  <td
+                                    key={`${topic.id}-${statusName}`}
+                                    className="p-4 whitespace-nowrap text-center border-r border-gray-200"
+                                  >
+                                    -
+                                  </td>
+                                );
+
+                              const studentProgress =
+                                topic.status_progress.find(
+                                  (sp) =>
+                                    sp.status.name === statusName &&
+                                    sp.student_id === selectedStudentId
                                 );
 
                               return (
                                 <td
-                                  key={index}
+                                  key={`${topic.id}-${statusName}`}
                                   className="p-4 whitespace-nowrap text-center border-r border-gray-200"
                                 >
                                   <input
                                     type="checkbox"
-                                    checked={statusProgress?.is_completed === 1}
+                                    readOnly
+                                    checked={
+                                      studentProgress?.is_completed === 1
+                                    }
                                     className={`h-5 w-5 rounded border-gray-300 focus:ring-2 transition ${
                                       statusName === "memorization"
                                         ? "text-blue-500 focus:ring-blue-500"
@@ -289,10 +342,12 @@ export default function QuranTrackerAdminPage() {
                                 </td>
                               );
                             })}
+
                             <td className="p-4 whitespace-nowrap text-center">
                               <Button
                                 className="!text-primary"
                                 onClick={() => handleEnterMarks(topic)}
+                                disabled={!selectedStudentId}
                               >
                                 Enter Marks
                               </Button>
@@ -330,9 +385,12 @@ export default function QuranTrackerAdminPage() {
         onOk={handleSubmitMarks}
         onCancel={() => setMarkModal(false)}
         okText="Submit Marks"
+        okButtonProps={{ className: "!bg-primary !text-white" }}
+        centered
       >
         <div className="my-4">
           <Input
+            name="marks"
             type="number"
             placeholder="Enter marks (0-100)"
             min={0}

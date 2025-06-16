@@ -12,12 +12,21 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { Button, DatePicker } from "antd";
+import { Button, DatePicker, Input } from "antd";
 import type { Dayjs } from "dayjs";
 import dayjs from "dayjs";
 import { Modal } from "antd";
 import { Select } from "antd";
+import { fetchYears } from "@/services/api";
 const { Option } = Select;
+interface Year {
+  id: number;
+  name: string;
+  school_id?: number;
+  terms?: any;
+  created_at?: string;
+  updated_at?: string;
+}
 
 const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 const timeSlots = [
@@ -33,7 +42,7 @@ const teachers = [
   "Sheikh Ibrahim",
   "Sheikh Mohammed",
 ];
-const years = ["year 1", "year 2", "year 3"];
+// const years = ["year 1", "year 2", "year 3"];
 
 const classes = ["Class 1", "Class 2", "Class 3", "Class 4", "Class 5"];
 
@@ -145,6 +154,8 @@ export default function TimetablePage() {
     class: "",
     year: "",
   });
+  const [loading, setLoading] = useState(true);
+  const [years, setYears] = useState<Year[]>([]);
 
   const [showWeekPicker, setShowWeekPicker] = useState(false);
   const [showMonthPicker, setShowMonthPicker] = useState(false);
@@ -164,6 +175,22 @@ export default function TimetablePage() {
     setCurrentWeek(date.toDate());
     setShowDayPicker(false);
   };
+
+  useEffect(() => {
+      const loadYears = async () => {
+        try {
+          const data = await fetchYears();
+          setYears(data);
+          setLoading(false);
+        } catch (err) {
+          console.log("Failed to load years");
+          setLoading(false);
+          console.error(err);
+        }
+      };
+      loadYears();
+    }, []);
+  
 
   useEffect(() => {
     if (currentUser?.role) {
@@ -660,9 +687,9 @@ export default function TimetablePage() {
                 placeholder="All Years"
                 allowClear
               >
-                {years.map((year) => (
-                  <Option key={year} value={year}>
-                    {year}
+                {years?.map((year) => (
+                  <Option key={year.id} value={year.id}>
+                    {year.name}
                   </Option>
                 ))}
               </Select>
@@ -899,12 +926,11 @@ export default function TimetablePage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Subject
                 </label>
-                <input
-                  type="text"
+                <Input
                   name="subject"
                   value={formData.subject}
                   readOnly
-                  className="w-full p-2 text-sm border border-gray-300 rounded-lg bg-gray-50"
+                  className="w-full bg-gray-50"
                 />
               </div>
 
@@ -913,20 +939,22 @@ export default function TimetablePage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Year
                   </label>
-                  <select
+                  <Select
                     name="year"
                     value={formData.year}
-                    onChange={handleInputChange}
-                    className="w-full p-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500"
+                    onChange={(value) =>
+                      setFormData({ ...formData, year: value })
+                    }
+                    className="w-full"
                     required
                   >
-                    <option value="">Select Year</option>
-                    {years.map((year) => (
-                      <option key={year} value={year}>
-                        {year}
-                      </option>
+                    <Option value="">Select Year</Option>
+                    {years?.map((year) => (
+                      <Select.Option key={year.id} value={year.id}>
+                        {year?.name}
+                      </Select.Option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
               )}
 
@@ -936,40 +964,44 @@ export default function TimetablePage() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Teacher
                     </label>
-                    <select
+                    <Select
                       name="teacher"
                       value={formData.teacher}
-                      onChange={handleInputChange}
-                      className="w-full p-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500"
+                      onChange={(value) =>
+                        setFormData({ ...formData, teacher: value })
+                      }
+                      className="w-full"
                       required
                     >
-                      <option value="">Select Teacher</option>
+                      <Option value="">Select Teacher</Option>
                       {teachers.map((teacher) => (
-                        <option key={teacher} value={teacher}>
+                        <Option key={teacher} value={teacher}>
                           {teacher}
-                        </option>
+                        </Option>
                       ))}
-                    </select>
+                    </Select>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Class
                     </label>
-                    <select
+                    <Select
                       name="class"
                       value={formData.class}
-                      onChange={handleInputChange}
-                      className="w-full p-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500"
+                      onChange={(value) =>
+                        setFormData({ ...formData, class: value })
+                      }
+                      className="w-full"
                       required
                     >
-                      <option value="">Select Class</option>
+                      <Option value="">Select Class</Option>
                       {classes.map((cls) => (
-                        <option key={cls} value={cls}>
+                        <Option key={cls} value={cls}>
                           {cls}
-                        </option>
+                        </Option>
                       ))}
-                    </select>
+                    </Select>
                   </div>
                 </>
               )}
@@ -979,20 +1011,22 @@ export default function TimetablePage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Class
                   </label>
-                  <select
+                  <Select
                     name="class"
                     value={formData.class}
-                    onChange={handleInputChange}
-                    className="w-full p-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500"
+                    onChange={(value) =>
+                      setFormData({ ...formData, class: value })
+                    }
+                    className="w-full"
                     required
                   >
-                    <option value="">Select Class</option>
+                    <Option value="">Select Class</Option>
                     {classes.map((cls) => (
-                      <option key={cls} value={cls}>
+                      <Option key={cls} value={cls}>
                         {cls}
-                      </option>
+                      </Option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
               )}
 
@@ -1000,12 +1034,12 @@ export default function TimetablePage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Room/Location
                 </label>
-                <input
-                  type="text"
+                <Input
                   name="room"
                   value={formData.room}
-                  onChange={handleInputChange}
-                  className="w-full p-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500"
+                  onChange={(e) =>
+                    setFormData({ ...formData, room: e.target.value })
+                  }
                   placeholder="e.g. Masjid, Room 101, Lab 2"
                   required
                 />
@@ -1015,30 +1049,30 @@ export default function TimetablePage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Zoom Link (optional)
                 </label>
-                <input
-                  type="url"
+                <Input
                   name="zoomLink"
                   value={formData.zoomLink}
-                  onChange={handleInputChange}
-                  className="w-full p-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500"
+                  onChange={(e) =>
+                    setFormData({ ...formData, zoomLink: e.target.value })
+                  }
                   placeholder="https://zoom.us/j/..."
                 />
               </div>
 
               <div className="flex justify-end space-x-3 pt-4">
-                <button
-                  type="button"
+                <Button
                   onClick={() => setIsModalOpen(false)}
                   className="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
                 >
                   Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+                </Button>
+                <Button
+                  htmlType="submit"
+                  type="primary"
+                  className="px-4 py-2 text-sm rounded-lg shadow-sm"
                 >
                   Save Changes
-                </button>
+                </Button>
               </div>
             </div>
           </form>

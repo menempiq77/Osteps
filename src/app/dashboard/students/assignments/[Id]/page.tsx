@@ -217,6 +217,7 @@ export default function AssignmentDetailPage() {
         onClose={() => setIsDrawerOpen(false)}
         selectedSubject={selectedTask?.task_name || "Task"}
         selectedTask={selectedTask}
+        assessmentId={assignmentId}
       />
     </div>
   );
