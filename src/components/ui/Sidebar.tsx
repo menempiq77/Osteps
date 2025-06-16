@@ -126,7 +126,7 @@ const Sidebar = () => {
       },
       {
         name: "Trackers",
-        href: `/dashboard/trackers/${currentUser?.student}`,
+        href: `/dashboard/trackers/${currentUser?.studentClass}`,
         icon: Building,
       },
       { name: "Timetable", href: "/dashboard/timetable", icon: BookOpen },

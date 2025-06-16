@@ -409,7 +409,6 @@ export const addTask = async (formData: FormData) => {
   });
   return response.data;
 };
-
 // update Task
 export const updateTask = async (id: string, formData: FormData) => {
   const response = await api.post(`/update-task/${id}`, formData, {
@@ -422,6 +421,15 @@ export const updateTask = async (id: string, formData: FormData) => {
 // delete Task
 export const deleteTask = async (id: number) => {
   const response = await api.post(`/delete-task/${id}`);
+  return response.data;
+};
+// add Task
+export const uploadTaskByStudent = async (formData: FormData, assessmentId: number) => {
+  const response = await api.post(`/submit-student-assessment-tasks/${assessmentId}`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
   return response.data;
 };
 
@@ -461,6 +469,11 @@ export const fetchTrackerTopics = async (trackerId: number) => {
   const response = await api.get(`/get-topics-progress/${trackerId}`);
   return response.data.data;
 };
+// fetch trackers topic
+export const fetchTrackerStudentTopics = async (studentId: number, trackerId: number) => {
+  const response = await api.get(`/get-student-tracker-topics/${studentId}/${trackerId}`);
+  return response.data.data;
+};
 // add trackers topic
 export const addTrackerTopic = async (trackerId: number, title: string) => {
   const response = await api.post('/add-topic', { tracker_id: trackerId, title });
@@ -483,6 +496,14 @@ export const updateTopicStatus = async (topicId: number, statusId: number, isCom
     topic_id: topicId,
     status_id: statusId,
     is_completed: isCompleted ? 1 : 0
+  });
+  return response.data;
+};
+export const addTopicMark = async (topicId: number, marks: number, studentId: number) => {
+  const response = await api.post('/add-student-topic-marks', {
+    topic_id: topicId,
+    student_id: studentId,
+    marks: marks,
   });
   return response.data;
 };

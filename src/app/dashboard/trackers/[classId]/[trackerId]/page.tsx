@@ -13,7 +13,6 @@ import {
   Save,
   X,
   GripVertical,
-  SendIcon,
 } from "lucide-react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
@@ -26,6 +25,7 @@ import {
   deleteTrackerTopic,
   updateTopicStatus,
   fetchQuizes,
+  fetchTrackerStudentTopics,
 } from "@/services/api";
 
 interface Status {
@@ -86,7 +86,11 @@ export default function QuranTrackerAdminPage() {
   const isStudent = currentUser?.role === "STUDENT";
 
   useEffect(() => {
-    loadTrackerData();
+    if (isStudent) {
+      loadStudentTrackerData();
+    } else {
+      loadTrackerData();
+    }
     loadQuizzes();
   }, [trackerId]);
 
@@ -94,6 +98,7 @@ export default function QuranTrackerAdminPage() {
     try {
       setLoading(true);
       const data = await fetchTrackerTopics(Number(trackerId));
+
       setTrackerData(data);
       setTopics(data.topics || []);
     } catch (error) {
@@ -102,6 +107,32 @@ export default function QuranTrackerAdminPage() {
       setLoading(false);
     }
   };
+
+  const loadStudentTrackerData = async () => {
+    try {
+      setLoading(true);
+      const response = await fetchTrackerStudentTopics(
+        currentUser?.student,
+        Number(trackerId)
+      );
+
+      let trackerData;
+      if (Array.isArray(response)) {
+        trackerData = response[0] || { topics: [] };
+      } else {
+        trackerData = response || { topics: [] };
+      }
+
+      setTrackerData(trackerData);
+      setTopics(trackerData.topics || []);
+    } catch (error) {
+      console.error("Failed to load tracker data", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  console.log(trackerData, "trackerData");
+
   const loadQuizzes = async () => {
     try {
       setLoading(true);
@@ -132,12 +163,19 @@ export default function QuranTrackerAdminPage() {
       await updateTopicStatus(topicId, statusId, newStatus === 1);
 
       setTopics((prev) =>
-        prev.map((topic) => ({
-          ...topic,
-          status_progress: topic.status_progress.map((sp) =>
-            sp.status_id === statusId ? { ...sp, is_completed: newStatus } : sp
-          ),
-        }))
+        prev.map((topic) => {
+          if (topic.id === topicId) {
+            return {
+              ...topic,
+              status_progress: topic.status_progress.map((sp) =>
+                sp.status_id === statusId
+                  ? { ...sp, is_completed: newStatus }
+                  : sp
+              ),
+            };
+          }
+          return topic;
+        })
       );
     } catch (error) {
       console.error("Failed to update status", error);
@@ -403,7 +441,7 @@ export default function QuranTrackerAdminPage() {
                         </th>
                       ))}
                       <th className="p-4 text-center text-sm font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
+                        {isStudent ? "Marks" : "Action"}
                       </th>
                     </tr>
                   </thead>
@@ -470,6 +508,7 @@ export default function QuranTrackerAdminPage() {
                                 >
                                   <input
                                     type="checkbox"
+                                    disabled={!isStudent}
                                     checked={statusProgress?.is_completed === 1}
                                     onChange={(e) => {
                                       if (statusProgress) {
@@ -480,7 +519,7 @@ export default function QuranTrackerAdminPage() {
                                         );
                                       }
                                     }}
-                                    className={`h-5 w-5 rounded border-gray-300 focus:ring-2 transition ${
+                                    className={`h-5 w-5 rounded border-gray-300 focus:ring-2 transition checked:bg-primary ${
                                       statusName === "memorization"
                                         ? "text-blue-500 focus:ring-blue-500"
                                         : statusName === "Recall"
@@ -540,9 +579,12 @@ export default function QuranTrackerAdminPage() {
                                 </>
                               )}
                               {isStudent && (
-                                <Button className="text-blue-600 hover:text-blue-800">
-                                  <SendIcon size={16} />
-                                </Button>
+                                <span className="text-primary">
+                                  {topic.topic_mark?.find(
+                                    (m) => m.student_id === currentUser?.student
+                                  )?.marks || "0"}
+                                  /20
+                                </span>
                               )}
                             </td>
                           </tr>

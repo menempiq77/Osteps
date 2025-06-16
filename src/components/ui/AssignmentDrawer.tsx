@@ -7,6 +7,7 @@ import {
   PlayCircleOutlined,
   FilePdfOutlined,
 } from "@ant-design/icons";
+import { uploadTaskByStudent } from "@/services/api";
 
 interface Task {
   id: string;
@@ -26,6 +27,7 @@ interface AssignmentDrawerProps {
   onClose: () => void;
   selectedSubject: string;
   selectedTask?: Task | null;
+  assessmentId?: number;
 }
 
 const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
@@ -33,6 +35,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
   onClose,
   selectedSubject,
   selectedTask,
+  assessmentId,
 }) => {
   const [form] = Form.useForm();
   const [file, setFile] = useState<File | null>(null);
@@ -63,69 +66,50 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
 
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const droppedFile = e.dataTransfer.files[0];
-      validateAndSetFile(droppedFile);
+      setFile(droppedFile);
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const selectedFile = e.target.files[0];
-      validateAndSetFile(selectedFile);
+      console.log("Selected file:", selectedFile);
+      setFile(selectedFile)
     }
-  };
-
-  const validateAndSetFile = (file: File) => {
-    if (!selectedTask) return;
-
-    // Validate file type
-    const validTypes = {
-      audio: ["audio/mpeg", "audio/wav", "audio/ogg"],
-      video: ["video/mp4", "video/quicktime"],
-      pdf: ["application/pdf"],
-    };
-
-    const isValidType = validTypes[selectedTask.type].includes(file.type);
-
-    if (!isValidType) {
-      message.error(
-        `Invalid file type. Please upload a ${selectedTask.type} file.`
-      );
-      return;
-    }
-
-    // Validate file size (e.g., 10MB max)
-    const maxSize = 10 * 1024 * 1024; // 10MB
-    if (file.size > maxSize) {
-      message.error("File is too large. Maximum size is 10MB.");
-      return;
-    }
-
-    setFile(file);
   };
 
   const removeFile = () => {
     setFile(null);
   };
 
-  const handleSubmit = (values: any) => {
+  const handleSubmit = async (values: any) => {
     if (!file) {
-      message.error("Please select a file to upload");
+      message.error("Please upload a file before submitting.");
       return;
     }
 
     setIsSubmitting(true);
-    console.log("Submitting:", {
-      ...values,
-      file,
-      selfAssessment: values.selfAssessment, // Include self-assessment
-    });
 
-    // Simulate upload
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      const formData = new FormData();
+
+      formData.append("task_id", selectedTask?.id || "");
+      formData.append("self_assessment_mark", values.selfAssessment.toString());
+      formData.append("additional_notes", values.notes || "");
+      formData.append("file_path", file); // Ensure the file is appended
+
+      await uploadTaskByStudent(formData, assessmentId);
+
       message.success("Assignment submitted successfully!");
       onClose();
-    }, 1500);
+      form.resetFields(); // Reset form on success
+      setFile(null); // Reset file state
+    } catch (error) {
+      console.error("Error submitting assignment:", error);
+      message.error("Failed to submit assignment. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const renderFileIcon = () => {
@@ -280,8 +264,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
               type="primary"
               onClick={() => form.submit()}
               loading={isSubmitting}
-              disabled={!file}
-              className="w-full"
+              className="w-full !bg-primary !border-primary"
             >
               Submit Assignment
             </Button>
