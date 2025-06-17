@@ -299,7 +299,18 @@ export default function QuranTrackerAdminPage() {
                           >
                             <td className="p-4 whitespace-nowrap border-r border-gray-200">
                               {/* Topic title rendering */}
+                              <div className="flex gap-1 items-center">
+                                <div
+                                {...provided.dragHandleProps}
+                                className="mr-2 cursor-move"
+                              >
+                                <GripVertical
+                                  size={16}
+                                  className="text-gray-400"
+                                />
+                              </div>
                               {topic.title}
+                              </div>
                             </td>
 
                             {statusTypes.map((statusName) => {
@@ -331,13 +342,7 @@ export default function QuranTrackerAdminPage() {
                                     checked={
                                       studentProgress?.is_completed === 1
                                     }
-                                    className={`h-5 w-5 rounded border-gray-300 focus:ring-2 transition ${
-                                      statusName === "memorization"
-                                        ? "text-blue-500 focus:ring-blue-500"
-                                        : statusName === "Recall"
-                                        ? "text-green-500 focus:ring-green-500"
-                                        : "text-purple-500 focus:ring-purple-500"
-                                    }`}
+                                    className={`h-5 w-5 rounded border-gray-300 focus:ring-2 transition`}
                                   />
                                 </td>
                               );
@@ -380,7 +385,7 @@ export default function QuranTrackerAdminPage() {
 
       {/* Marks Modal */}
       <Modal
-        title={`Enter Marks for ${selectedTopic?.title || "Topic"}`}
+        title={`Enter Marks`}
         open={markModal}
         onOk={handleSubmitMarks}
         onCancel={() => setMarkModal(false)}

@@ -38,7 +38,7 @@ export default function Page() {
 
   const loadAssessment = async () => {
     try {
-      const data = await fetchAssessment();
+      const data = await fetchAssessment(termId);
       setAssessments(data);
       setLoading(false);
     } catch (err) {
