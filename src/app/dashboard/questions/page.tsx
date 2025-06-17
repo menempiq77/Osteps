@@ -55,19 +55,24 @@ type Answer = {
 };
 
 const AskQuestionPage = () => {
-  const { currentUser } = useSelector((state: RootState) => state.auth);
   const router = useRouter();
+  
+  const { currentUser } = useSelector((state: RootState) => state.auth);
   const isStudent = currentUser?.role === "STUDENT";
   const isTeacher = currentUser?.role === "TEACHER";
+
   const [questions, setQuestions] = useState<Question[]>([]);
   const [newQuestion, setNewQuestion] = useState("");
-  const [selectedTeacher, setSelectedTeacher] = useState("");
   const [newAnswers, setNewAnswers] = useState<Record<string, string>>({});
   const [activeQuestion, setActiveQuestion] = useState<string | null>(null);
-  const [selectedYear, setSelectedYear] = useState<string | null>(null);
-  const [selectedClass, setSelectedClass] = useState<string | null>(null);
+
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [selectedYear, setSelectedYear] = useState<string | null>(null);
+  const [selectedClass, setSelectedClass] = useState<string | null>(null);
+  const [selectedTeacher, setSelectedTeacher] = useState("");
+
   const [teachers, setTeachers] = useState<any[]>([]);
   const [years, setYears] = useState([]);
   const [classes, setClasses] = useState([]);
