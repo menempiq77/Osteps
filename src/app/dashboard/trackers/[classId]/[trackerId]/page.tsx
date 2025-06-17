@@ -327,7 +327,7 @@ export default function QuranTrackerAdminPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-md shadow-sm border border-gray-200 overflow-hidden">
         <div className="p-6 border-b border-gray-200 flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
@@ -364,15 +364,15 @@ export default function QuranTrackerAdminPage() {
             <div className="flex items-center gap-4">
               <Input
                 type="text"
-                value={newTopicTitle}
+                // value={newTopicTitle}
                 onChange={(e) => setNewTopicTitle(e.target.value)}
                 placeholder="Enter Topic Title"
                 className="flex-1"
               />
               <InputNumber
                 min={0}
-                value={newTopicMarks}
-                onChange={(value) => setNewTopicMarks(value || 0)}
+                // value={newTopicMarks}
+                onChange={(value) => setNewTopicMarks(value)}
                 placeholder="Enter Marks"
                 className="flex-grow"
               />
@@ -547,13 +547,23 @@ export default function QuranTrackerAdminPage() {
                                         );
                                       }
                                     }}
-                                    className={`h-5 w-5 rounded border-gray-300 focus:ring-2 transition checked:bg-primary ${
-                                      statusName === "memorization"
-                                        ? "text-blue-500 focus:ring-blue-500"
-                                        : statusName === "Recall"
-                                        ? "text-green-500 focus:ring-green-500"
-                                        : "text-purple-500 focus:ring-purple-500"
-                                    }`}
+                                    className={`
+                                                  h-5 w-5 !appearance-none rounded border border-gray-300 
+                                                  checked:!bg-primary checked:border-transparent 
+                                                  focus:ring-2 focus:ring-primary 
+                                                  transition duration-150 cursor-pointer 
+                                                  disabled:cursor-not-allowed disabled:opacity-50
+                                                  relative
+                                                  checked:after:content-['✔'] 
+                                                  checked:after:absolute 
+                                                  checked:after:text-white 
+                                                  checked:after:text-sm 
+                                                  checked:after:font-bold 
+                                                  checked:after:left-1/2 
+                                                  checked:after:top-1/2 
+                                                  checked:after:-translate-x-1/2 
+                                                  checked:after:-translate-y-1/2
+                                                `}
                                   />
                                 </td>
                               );

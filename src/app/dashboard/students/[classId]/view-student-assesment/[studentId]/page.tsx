@@ -103,8 +103,7 @@ export default function TermPage() {
       </Button>
 
       {/* Ant Design Stepper */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div>
+      <div className="max-w-xs mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Term
           </label>
@@ -120,7 +119,6 @@ export default function TermPage() {
               </Select.Option>
             ))}
           </Select>
-        </div>
       </div>
 
       {/* Current Term Display */}
