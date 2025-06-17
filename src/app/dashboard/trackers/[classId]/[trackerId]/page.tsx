@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { Button, Select, Spin, message } from "antd";
+import { Button, Input, InputNumber, Select, Spin, message } from "antd";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import {
   fetchTrackerTopics,
@@ -74,6 +74,7 @@ export default function QuranTrackerAdminPage() {
   const [visibleTopics, setVisibleTopics] = useState(10);
   const [editingTopic, setEditingTopic] = useState<number | null>(null);
   const [newTopicTitle, setNewTopicTitle] = useState("");
+  const [newTopicMarks, setNewTopicMarks] = useState<number>(0);
   const [isAddingTopic, setIsAddingTopic] = useState(false);
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [loading, setLoading] = useState(false);
@@ -188,17 +189,21 @@ export default function QuranTrackerAdminPage() {
     if (topic) {
       setEditingTopic(topicId);
       setNewTopicTitle(topic.title);
+      setNewTopicMarks(topic.marks);
     }
   };
 
   const saveEdit = async () => {
     if (editingTopic && newTopicTitle.trim()) {
       try {
-        await updateTrackerTopic(editingTopic, newTopicTitle.trim());
+        await updateTrackerTopic(editingTopic, {
+          title: newTopicTitle.trim(),
+          marks: newTopicMarks,
+        });
         setTopics((prev) =>
           prev.map((topic) =>
             topic.id === editingTopic
-              ? { ...topic, title: newTopicTitle.trim() }
+              ? { ...topic, title: newTopicTitle.trim(), marks: newTopicMarks }
               : topic
           )
         );
@@ -214,17 +219,19 @@ export default function QuranTrackerAdminPage() {
   const cancelEdit = () => {
     setEditingTopic(null);
     setNewTopicTitle("");
+    setNewTopicMarks(0);
   };
 
   const addNewTopic = async () => {
     if (newTopicTitle.trim() && trackerId) {
       try {
-        const response = await addTrackerTopic(
-          Number(trackerId),
-          newTopicTitle.trim()
-        );
+        const response = await addTrackerTopic(Number(trackerId), {
+          title: newTopicTitle.trim(),
+          marks: newTopicMarks,
+        });
         setTopics((prev) => [...prev, response.data]);
         setNewTopicTitle("");
+        setNewTopicMarks(0);
         setIsAddingTopic(false);
         message.success("Topic added successfully");
       } catch (error) {
@@ -233,7 +240,6 @@ export default function QuranTrackerAdminPage() {
       }
     }
   };
-
   const deleteTopic = async (topicId: number) => {
     try {
       await deleteTrackerTopic(topicId);
@@ -354,26 +360,36 @@ export default function QuranTrackerAdminPage() {
         </div>
 
         {isAddingTopic && (
-          <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center gap-4">
-            <input
-              type="text"
-              value={newTopicTitle}
-              onChange={(e) => setNewTopicTitle(e.target.value)}
-              placeholder="Enter Topic Title"
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
-            />
-            <div className="flex gap-2">
-              <Button onClick={addNewTopic} className="flex items-center gap-1">
-                <Save size={16} />
-                Save
-              </Button>
+          <div className="p-4 border-b border-gray-200 bg-gray-50 flex flex-col gap-4">
+            <div className="flex items-center gap-4">
+              <Input
+                type="text"
+                value={newTopicTitle}
+                onChange={(e) => setNewTopicTitle(e.target.value)}
+                placeholder="Enter Topic Title"
+                className="flex-1"
+              />
+              <InputNumber
+                min={0}
+                value={newTopicMarks}
+                onChange={(value) => setNewTopicMarks(value || 0)}
+                placeholder="Enter Marks"
+                className="flex-grow"
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
               <Button
                 onClick={() => {
                   setIsAddingTopic(false);
                   setNewTopicTitle("");
+                  setNewTopicMarks(0);
                 }}
               >
-                <X size={16} />
+                Cancel
+              </Button>
+              <Button onClick={addNewTopic} className="flex items-center gap-1">
+                <Save size={16} />
+                Save
               </Button>
             </div>
           </div>
@@ -473,14 +489,26 @@ export default function QuranTrackerAdminPage() {
                                 )}
 
                                 {editingTopic === topic?.id ? (
-                                  <input
-                                    type="text"
-                                    value={newTopicTitle}
-                                    onChange={(e) =>
-                                      setNewTopicTitle(e.target.value)
-                                    }
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                                  />
+                                  <div className="flex flex-col gap-1 w-full">
+                                    <Input
+                                      type="text"
+                                      value={newTopicTitle}
+                                      onChange={(e) =>
+                                        setNewTopicTitle(e.target.value)
+                                      }
+                                      placeholder="Enter Topic Title"
+                                      className="w-full"
+                                    />
+                                    <InputNumber
+                                      min={0}
+                                      value={newTopicMarks}
+                                      onChange={(value) =>
+                                        setNewTopicMarks(value || 0)
+                                      }
+                                      placeholder="Enter Marks"
+                                      className="!w-full"
+                                    />
+                                  </div>
                                 ) : (
                                   <div className="flex items-center">
                                     <div className="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-full bg-gray-100 text-gray-700 font-medium">
@@ -583,7 +611,7 @@ export default function QuranTrackerAdminPage() {
                                   {topic.topic_mark?.find(
                                     (m) => m.student_id === currentUser?.student
                                   )?.marks || "0"}
-                                  /20
+                                  / {topic.marks || "0"}
                                 </span>
                               )}
                             </td>

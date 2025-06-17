@@ -364,8 +364,8 @@ export const deleteLibrary = async (id: number, filePath?: string) => {
 
 //assessment apis Started
 // fetch Assessment
-export const fetchAssessment = async () => {
-  const response = await api.get('/get-assessment');
+export const fetchAssessment = async (termId: number) => {
+  const response = await api.get(`/get-assessment/${termId}`);
   return response.data.data;
 };
 // fetch Assessment By Students
@@ -400,6 +400,10 @@ export const fetchTasks = async (assessmentId: number) => {
   const response = await api.get(`/get-tasks/${assessmentId}`);
   return response.data.data;
 };
+export const fetchStudentTasks = async (assessmentId: number) => {
+  const response = await api.get(`/get-student-assessment-tasks/${assessmentId}`);
+  return response.data.data;
+};
 // add Task
 export const addTask = async (formData: FormData) => {
   const response = await api.post('/add-task', formData, {
@@ -423,13 +427,23 @@ export const deleteTask = async (id: number) => {
   const response = await api.post(`/delete-task/${id}`);
   return response.data;
 };
-// add Task
+// upload Task by student
 export const uploadTaskByStudent = async (formData: FormData, assessmentId: number) => {
   const response = await api.post(`/submit-student-assessment-tasks/${assessmentId}`, formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
   });
+  return response.data;
+};
+// add add-student-task-marks
+export const addStudentTaskMarks = async (studentId: number, taskData: {
+  assessment_id: number;
+  task_id: number;
+  teacher_assessment_marks: number;
+  teacher_assessment_feedback: string;
+}) => {
+  const response = await api.post(`/add-student-task-marks/${studentId}`, taskData);
   return response.data;
 };
 
@@ -475,14 +489,21 @@ export const fetchTrackerStudentTopics = async (studentId: number, trackerId: nu
   return response.data.data;
 };
 // add trackers topic
-export const addTrackerTopic = async (trackerId: number, title: string) => {
-  const response = await api.post('/add-topic', { tracker_id: trackerId, title });
+export const addTrackerTopic = async (trackerId: number, data: { title: string; marks: number }) => {
+  const response = await api.post('/add-topic', { 
+    tracker_id: trackerId, 
+    title: data.title, 
+    marks: data.marks 
+  });
   return response.data;
 };
 
 // edit trackers topic
-export const updateTrackerTopic = async (topicId: number, title: string) => {
-  const response = await api.post(`/update-topic/${topicId}`, { title });
+export const updateTrackerTopic = async (topicId: number, data: { title: string; marks: number }) => {
+  const response = await api.post(`/update-topic/${topicId}`, {  
+    title: data.title, 
+    marks: data.marks 
+  });
   return response.data;
 };
 // delete trackers topic

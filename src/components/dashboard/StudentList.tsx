@@ -71,7 +71,7 @@ export default function StudentList() {
         )
       );
       setEditStudent(null);
-      await loadStudents(); 
+      await loadStudents();
     } catch (err) {
       console.error("Failed to update student:", err);
       setError("Failed to update student");
@@ -118,7 +118,9 @@ export default function StudentList() {
   };
 
   const handleStudentClick = (studentId: string) => {
-    router.push(`/dashboard/terms/${studentId}`);
+    router.push(
+      `/dashboard/students/${classId}/view-student-assesment/${studentId}`
+    );
   };
 
   const handleStudentBehavior = (studentId: string) => {
@@ -133,7 +135,7 @@ export default function StudentList() {
     );
 
   return (
-    <div className="overflow-auto h-screen">
+    <div className="overflow-auto">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Students</h1>
         {currentUser?.role !== "TEACHER" && currentUser?.role !== "STUDENT" && (
