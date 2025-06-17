@@ -234,7 +234,7 @@ export default function QuranTrackerAdminPage() {
         </Button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-md shadow-sm border border-gray-200 overflow-hidden">
         <div className="p-6 border-b border-gray-200 flex justify-between items-center">
           <h1 className="text-2xl font-bold text-gray-900">
             {trackerData?.name || "Tracker Progress"}
@@ -342,7 +342,23 @@ export default function QuranTrackerAdminPage() {
                                     checked={
                                       studentProgress?.is_completed === 1
                                     }
-                                    className={`h-5 w-5 rounded border-gray-300 focus:ring-2 transition`}
+                                    className={`
+                                                  h-5 w-5 !appearance-none rounded border border-gray-300 
+                                                  checked:!bg-primary checked:border-transparent 
+                                                  focus:ring-2 focus:ring-primary 
+                                                  transition duration-150 cursor-pointer 
+                                                  disabled:cursor-not-allowed disabled:opacity-50
+                                                  relative
+                                                  checked:after:content-['✔'] 
+                                                  checked:after:absolute 
+                                                  checked:after:text-white 
+                                                  checked:after:text-sm 
+                                                  checked:after:font-bold 
+                                                  checked:after:left-1/2 
+                                                  checked:after:top-1/2 
+                                                  checked:after:-translate-x-1/2 
+                                                  checked:after:-translate-y-1/2
+                                                `}
                                   />
                                 </td>
                               );
