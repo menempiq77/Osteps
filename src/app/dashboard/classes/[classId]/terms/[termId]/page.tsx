@@ -4,6 +4,7 @@ import AddAssessmentForm from "@/components/dashboard/AddAssessmentForm";
 import AssessmentList from "@/components/dashboard/assessmentList";
 import {
   addAssessment,
+  assignAssesmentQuiz,
   deleteAssessment,
   fetchAssessment,
   fetchQuizes,
@@ -73,29 +74,40 @@ export default function Page() {
     }
   };
 
-  const handleAddAssessment = async (assessmentData: {
-    name: string;
-    type: "assessment" | "quiz";
-    term_id: string;
-    class_id: string;
-  }) => {
-    try {
-      const newAssessment = await addAssessment({
+ const handleAddAssessment = async (assessmentData: {
+  name: string;
+  type: "assessment" | "quiz";
+  term_id: string;
+  class_id: string;
+}) => {
+  try {
+    let newAssessment;
+    
+    if (assessmentData.type === "quiz") {
+      // Use the assign quiz API for quiz type
+      newAssessment = await assignAssesmentQuiz(
+        parseInt(termId as string),
+        parseInt(assessmentData.name) // assuming name contains quiz ID in this case
+      );
+    } else {
+      // Use the regular add assessment API for assessment type
+      newAssessment = await addAssessment({
         name: assessmentData.name,
         class_id: classId,
         term_id: termId,
         type: assessmentData.type,
       });
-      setAssessments([...assessments, newAssessment]);
-      await loadAssessment();
-      setOpen(false);
-      setIsAddingQuiz(false);
-    } catch (err) {
-      setError("Failed to add assessment");
-      console.error(err);
     }
-  };
-
+    
+    setAssessments([...assessments, newAssessment]);
+    await loadAssessment();
+    setOpen(false);
+    setIsAddingQuiz(false);
+  } catch (err) {
+    setError("Failed to add assessment");
+    console.error(err);
+  }
+};
   const handleEditAssessment = async (assessmentData: {
     name: string;
     type: "assessment" | "quiz";

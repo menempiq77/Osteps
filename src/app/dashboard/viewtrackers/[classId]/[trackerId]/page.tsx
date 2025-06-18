@@ -301,15 +301,33 @@ export default function QuranTrackerAdminPage() {
                               {/* Topic title rendering */}
                               <div className="flex gap-1 items-center">
                                 <div
-                                {...provided.dragHandleProps}
-                                className="mr-2 cursor-move"
-                              >
-                                <GripVertical
-                                  size={16}
-                                  className="text-gray-400"
-                                />
-                              </div>
-                              {topic.title}
+                                  {...provided.dragHandleProps}
+                                  className="mr-2 cursor-move"
+                                >
+                                  <GripVertical
+                                    size={16}
+                                    className="text-gray-400"
+                                  />
+                                </div>
+                                <button
+                                  className={`hover:bg-gray-50 transition-colors disabled:cursor-not-allowed ${
+                                    topic.type === "quiz"
+                                      ? "cursor-pointer hover:underline"
+                                      : ""
+                                  }`}
+                                  onClick={
+                                    topic.type === "quiz"
+                                      ? (e) => {
+                                          router.push(
+                                            `${trackerId}/quiz/${topic.quiz_id}`
+                                          );
+                                        }
+                                      : undefined
+                                  }
+                                   disabled={!selectedStudentId}
+                                >
+                                  {topic.title || topic?.quiz?.name}
+                                </button>
                               </div>
                             </td>
 
@@ -320,7 +338,7 @@ export default function QuranTrackerAdminPage() {
                                     key={`${topic.id}-${statusName}`}
                                     className="p-4 whitespace-nowrap text-center border-r border-gray-200"
                                   >
-                                    -
+                                    {topic?.type !== "quiz" && "-"}
                                   </td>
                                 );
 
@@ -336,7 +354,7 @@ export default function QuranTrackerAdminPage() {
                                   key={`${topic.id}-${statusName}`}
                                   className="p-4 whitespace-nowrap text-center border-r border-gray-200"
                                 >
-                                  <input
+                                  {topic?.type !== "quiz" && <input
                                     type="checkbox"
                                     readOnly
                                     checked={
@@ -359,7 +377,7 @@ export default function QuranTrackerAdminPage() {
                                                   checked:after:-translate-x-1/2 
                                                   checked:after:-translate-y-1/2
                                                 `}
-                                  />
+                                  />}
                                 </td>
                               );
                             })}

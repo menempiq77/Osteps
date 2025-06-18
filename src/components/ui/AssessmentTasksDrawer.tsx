@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Button, Drawer, Select, message } from "antd";
+import { Button, Card, Drawer, Select, message } from "antd";
 import { useForm } from "react-hook-form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -244,16 +244,19 @@ export function AssessmentTasksDrawer({
       title={
         <div className="flex justify-between items-center">
           <span>{assignmentName}</span>
-          <Select
+          <div className="border-2 border-primary rounded-lg overflow-hidden">
+            <Select
             placeholder="Add"
             onChange={(value: "task" | "quiz") => setSelectedType(value)}
             value={selectedType || undefined}
             style={{ width: 140 }}
             disabled={loading}
+            className=""
           >
             <Option value="task">Create Task</Option>
             <Option value="quiz">Assign Quiz</Option>
           </Select>
+          </div>
         </div>
       }
       placement="right"
@@ -539,7 +542,7 @@ export function AssessmentTasksDrawer({
 
         {/* Task List */}
         <h3 className="font-medium text-gray-700">
-          Tasks for this assessment:
+          Tasks for this {assignmentName}:
         </h3>
         {loading && !selectedType ? (
           <div className="text-center py-4">Loading tasks...</div>
@@ -550,15 +553,15 @@ export function AssessmentTasksDrawer({
         ) : (
           <div className="space-y-2">
             {initialTasks?.map((task, index) => (
-              <div
+              <Card
                 key={index}
-                className="p-3 border rounded-lg hover:bg-gray-50"
+                className="!bg-gray-50 !shadow !mb-2"
               >
                 <div className="flex justify-between items-center">
                   <div className="flex items-center space-x-2">
                     <span className="font-medium">{task.task_name}</span>
                     <span
-                      className={`px-2 py-1 text-xs rounded-full ${getTaskTypeClass(
+                      className={`px-2.5 py-0.5 text-xs rounded-full ${getTaskTypeClass(
                         task
                       )}`}
                     >
@@ -568,7 +571,7 @@ export function AssessmentTasksDrawer({
                   <div className="flex space-x-2">
                     <button
                       onClick={() => handleEditTask(task)}
-                      className="text-gray-400 hover:text-blue-500"
+                      className="text-gray-400 hover:text-blue-500 cursor-pointer"
                       title="Edit task"
                       disabled={loading}
                     >
@@ -588,7 +591,7 @@ export function AssessmentTasksDrawer({
                     </button>
                     <button
                       onClick={() => handleRemoveTask(task.id)}
-                      className="text-gray-400 hover:text-red-500"
+                      className="text-gray-400 hover:text-red-500 cursor-pointer"
                       title="Remove task"
                       disabled={loading}
                     >
@@ -624,7 +627,7 @@ export function AssessmentTasksDrawer({
                     </a>
                   </div>
                 )}
-              </div>
+              </Card>
             ))}
           </div>
         )}

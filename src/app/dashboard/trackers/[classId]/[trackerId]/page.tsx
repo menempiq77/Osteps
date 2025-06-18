@@ -26,6 +26,7 @@ import {
   updateTopicStatus,
   fetchQuizes,
   fetchTrackerStudentTopics,
+  assignTrackerQuiz,
 } from "@/services/api";
 
 interface Status {
@@ -150,7 +151,7 @@ export default function QuranTrackerAdminPage() {
   const getQuizOptions = () => {
     return quizzes.map((quiz) => ({
       value: quiz.id,
-      label: quiz.name,
+      label: quiz.name || `Quiz ${quiz.id}`,
     }));
   };
 
@@ -222,6 +223,27 @@ export default function QuranTrackerAdminPage() {
     setNewTopicMarks(0);
   };
 
+  const handleAssignQuiz = async () => {
+    if (!selectedQuiz || !trackerId) {
+      message.error("Please select a quiz first");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await assignTrackerQuiz(Number(trackerId), Number(selectedQuiz));
+      message.success("Quiz assigned successfully");
+      setIsAddingQuiz(false);
+      setSelectedQuiz("");
+      loadTrackerData();
+    } catch (error) {
+      console.error("Failed to assign quiz", error);
+      message.error("Failed to assign quiz");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const addNewTopic = async () => {
     if (newTopicTitle.trim() && trackerId) {
       try {
@@ -233,6 +255,7 @@ export default function QuranTrackerAdminPage() {
         setNewTopicTitle("");
         setNewTopicMarks(0);
         setIsAddingTopic(false);
+        loadTrackerData();
         message.success("Topic added successfully");
       } catch (error) {
         console.error("Failed to add topic", error);
@@ -404,13 +427,18 @@ export default function QuranTrackerAdminPage() {
               options={getQuizOptions()}
             />
             <div className="flex gap-2">
-              <Button className="flex items-center gap-1">
+              <Button
+                onClick={handleAssignQuiz}
+                className="flex items-center gap-1"
+                loading={loading}
+              >
                 <Save size={16} />
-                Save
+                Assign
               </Button>
               <Button
                 onClick={() => {
                   setIsAddingQuiz(false);
+                  setSelectedQuiz("");
                 }}
               >
                 <X size={16} />
@@ -472,7 +500,20 @@ export default function QuranTrackerAdminPage() {
                           <tr
                             ref={provided.innerRef}
                             {...provided.draggableProps}
-                            className="hover:bg-gray-50 transition-colors"
+                            className={`hover:bg-gray-50 transition-colors ${
+                              topic?.type === "quiz"
+                                ? "cursor-pointer bg-blue-50"
+                                : ""
+                            }`}
+                            onClick={
+                              topic?.type === "quiz"
+                                ? (e) => {
+                                    router.push(
+                                      `${trackerId}/quiz/${topic?.quiz_id}`
+                                    );
+                                  }
+                                : undefined
+                            }
                           >
                             <td className="p-4 whitespace-nowrap border-r border-gray-200">
                               <div className="flex items-center">
@@ -516,7 +557,7 @@ export default function QuranTrackerAdminPage() {
                                     </div>
                                     <div className="ml-4">
                                       <div className="text-sm font-medium text-gray-900">
-                                        {topic?.title}
+                                        {topic?.title || topic?.quiz?.name}
                                       </div>
                                     </div>
                                   </div>
@@ -534,20 +575,23 @@ export default function QuranTrackerAdminPage() {
                                   key={index}
                                   className="p-4 whitespace-nowrap text-center border-r border-gray-200"
                                 >
-                                  <input
-                                    type="checkbox"
-                                    disabled={!isStudent}
-                                    checked={statusProgress?.is_completed === 1}
-                                    onChange={(e) => {
-                                      if (statusProgress) {
-                                        handleStatusChange(
-                                          topic.id,
-                                          statusProgress.status_id,
-                                          statusProgress.is_completed
-                                        );
+                                  {topic?.type !== "quiz" && (
+                                    <input
+                                      type="checkbox"
+                                      disabled={!isStudent}
+                                      checked={
+                                        statusProgress?.is_completed === 1
                                       }
-                                    }}
-                                    className={`
+                                      onChange={(e) => {
+                                        if (statusProgress) {
+                                          handleStatusChange(
+                                            topic.id,
+                                            statusProgress.status_id,
+                                            statusProgress.is_completed
+                                          );
+                                        }
+                                      }}
+                                      className={`
                                                   h-5 w-5 !appearance-none rounded border border-gray-300 
                                                   checked:!bg-primary checked:border-transparent 
                                                   focus:ring-2 focus:ring-primary 
@@ -564,7 +608,8 @@ export default function QuranTrackerAdminPage() {
                                                   checked:after:-translate-x-1/2 
                                                   checked:after:-translate-y-1/2
                                                 `}
-                                  />
+                                    />
+                                  )}
                                 </td>
                               );
                             })}
@@ -599,6 +644,7 @@ export default function QuranTrackerAdminPage() {
                                           e.stopPropagation();
                                           startEditing(topic.id);
                                         }}
+                                        disabled={topic?.type === "quiz"}
                                         className="text-blue-600 hover:text-blue-800"
                                       >
                                         <Edit size={16} />

@@ -35,8 +35,8 @@ interface StudentAssessmentTask {
   file_path: string;
   created_at: string;
   updated_at: string;
-  teacher_assessment_marks?: string;
-  teacher_assessment_feedback?: string;
+  teacher_assessment_score?: string;
+  teacher_feedback?: string;
 }
 
 export default function AssessmentDrawer() {
@@ -159,6 +159,7 @@ export default function AssessmentDrawer() {
   return (
     <>
       <div className="max-w-4xl mx-auto p-3 md:p-6">
+        <h1 className="font-semibold mb-6">Tasks Submitted by Students</h1>
         <div className="max-w-xs mb-3">
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Students
@@ -250,21 +251,21 @@ export default function AssessmentDrawer() {
                     <span className="text-xs font-medium text-gray-700">
                       TEACHER
                     </span>
-                    {task.teacher_assessment_marks ? (
+                    {task.teacher_assessment_score ? (
                       <span className="text-sm font-semibold text-green-600">
-                        {task.teacher_assessment_marks}/{task.task.allocated_marks}
+                        {task.teacher_assessment_score}/{task.task.allocated_marks}
                       </span>
                     ) : (
                       <span className="text-xs text-gray-500">Pending</span>
                     )}
                   </div>
-                  {task.teacher_assessment_marks ? (
+                  {task.teacher_assessment_score ? (
                     <div className="w-full bg-green-100 rounded-full h-1.5">
                       <div
                         className="bg-green-500 h-1.5 rounded-full"
                         style={{
                           width: `${
-                            (parseInt(task.teacher_assessment_marks || "0") /
+                            (parseInt(task.teacher_assessment_score || "0") /
                             parseInt(task.task.allocated_marks)) *
                             100
                           }%`,

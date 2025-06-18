@@ -120,19 +120,6 @@ export default function Page() {
         <Spin size="large" />
       </div>
     );
-  if (error)
-    return (
-      <div className="p-3 md:p-6">
-        <Alert
-          message="Error"
-          description={error}
-          type="error"
-          showIcon
-          closable
-          onClose={() => setError(null)}
-        />
-      </div>
-    );
 
   return (
     <div className="p-3 md:p-6">

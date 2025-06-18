@@ -31,17 +31,18 @@ export default function AddAssessmentForm({
   const [selectedQuiz, setSelectedQuiz] = useState<string>("");
 
   const handleSubmit = (values: { name?: string; quiz?: string }) => {
-    const submittedName = isQuiz ? selectedQuiz : values.name;
-    if (!submittedName) {
-      message.error("Please fill all required fields");
+    if (isQuiz && !selectedQuiz) {
+      message.error("Please select a quiz");
+      return;
+    }
+
+    if (!isQuiz && !values.name) {
+      message.error("Please enter assessment name");
       return;
     }
 
     onSubmit({
-      name: isQuiz
-        ? quizzes.find((q) => String(q.id) === selectedQuiz)?.name ||
-          selectedQuiz
-        : values.name || "",
+      name: isQuiz ? selectedQuiz : values.name || "",
       term_id: termId,
       type: isQuiz ? "quiz" : "assessment",
     });

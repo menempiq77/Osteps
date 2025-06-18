@@ -373,11 +373,7 @@ export const fetchAssessmentByStudent = async (termId: number) => {
   const response = await api.get(`/get-student-assessment/${termId}`);
   return response.data.data;
 };
-// fetch Students Assessment
-export const fetchStudentsAssessment = async () => {
-  const response = await api.get('/get-student-assessment');
-  return response.data.data;
-};
+
 // add Assessment
 export const addAssessment = async (assessmentData: { name: string }) => {
   const response = await api.post('/add-assessment', assessmentData);
@@ -391,6 +387,14 @@ export const updateAssessment = async (id: string, assessmentData: any) => {
 // delete Assessment
 export const deleteAssessment = async (id: number) => {
   const response = await api.post(`/delete-assessment/${id}`);
+  return response.data;
+};
+// add assign Assesment Quiz
+export const assignAssesmentQuiz = async (termId: number, quizId: number) => {
+  const response = await api.post('/add-assign-term-quiz', {
+    term_id: termId, 
+    quiz_id: quizId, 
+  });
   return response.data;
 };
 
@@ -497,7 +501,6 @@ export const addTrackerTopic = async (trackerId: number, data: { title: string; 
   });
   return response.data;
 };
-
 // edit trackers topic
 export const updateTrackerTopic = async (topicId: number, data: { title: string; marks: number }) => {
   const response = await api.post(`/update-topic/${topicId}`, {  
@@ -525,6 +528,14 @@ export const addTopicMark = async (topicId: number, marks: number, studentId: nu
     topic_id: topicId,
     student_id: studentId,
     marks: marks,
+  });
+  return response.data;
+};
+// add assign tracker Quiz
+export const assignTrackerQuiz = async (trackerId: number, quizId: number) => {
+  const response = await api.post('/assign-tracker-quiz', {
+    tracker_id: trackerId, 
+    quiz_id: quizId, 
   });
   return response.data;
 };
