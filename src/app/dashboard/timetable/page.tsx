@@ -17,7 +17,7 @@ import type { Dayjs } from "dayjs";
 import dayjs from "dayjs";
 import { Modal } from "antd";
 import { Select } from "antd";
-import { fetchYears } from "@/services/api";
+import { fetchClasses, fetchTeachers, fetchYears } from "@/services/api";
 const { Option } = Select;
 interface Year {
   id: number;
@@ -35,16 +35,6 @@ const timeSlots = [
   "10:00 - 11:00",
   "11:00 - 12:00",
 ];
-
-const teachers = [
-  "Sheikh Ahmed",
-  "Sheikh Yusuf",
-  "Sheikh Ibrahim",
-  "Sheikh Mohammed",
-];
-// const years = ["year 1", "year 2", "year 3"];
-
-const classes = ["Class 1", "Class 2", "Class 3", "Class 4", "Class 5"];
 
 const initialTimetable = {
   TEACHER: {
@@ -154,12 +144,18 @@ export default function TimetablePage() {
     class: "",
     year: "",
   });
-  const [loading, setLoading] = useState(true);
-  const [years, setYears] = useState<Year[]>([]);
-
   const [showWeekPicker, setShowWeekPicker] = useState(false);
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [showDayPicker, setShowDayPicker] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [years, setYears] = useState<Year[]>([]);
+  const [classes, setClasses] = useState([]);
+  const [teachers, setTeachers] = useState<any[]>([]);
+
+  const [selectedYear, setSelectedYear] = useState<string | null>(null);
+  const [selectedClass, setSelectedClass] = useState<string | null>(null);
+  const [selectedTeacher, setSelectedTeacher] = useState("");
 
   const handleWeekChange = (date: Dayjs) => {
     setCurrentWeek(date.toDate());
@@ -177,20 +173,66 @@ export default function TimetablePage() {
   };
 
   useEffect(() => {
-      const loadYears = async () => {
-        try {
-          const data = await fetchYears();
-          setYears(data);
-          setLoading(false);
-        } catch (err) {
-          console.log("Failed to load years");
-          setLoading(false);
-          console.error(err);
+    const loadYears = async () => {
+      try {
+        const data = await fetchYears();
+        setYears(data);
+        if (data.length > 0) {
+          setSelectedYear(data[0].id);
         }
-      };
-      loadYears();
-    }, []);
-  
+        setLoading(false);
+      } catch (err) {
+        console.log("Failed to load years");
+        setLoading(false);
+        console.error(err);
+      }
+    };
+    loadYears();
+  }, []);
+
+  const loadClasses = async (yearId: string) => {
+    try {
+      setLoading(true);
+      const data = await fetchClasses(yearId);
+      console.log("Classes response:", data);
+      setClasses(data);
+      if (data.length > 0) {
+        setSelectedClass(data[0].id);
+      }
+    } catch (err) {
+      setError("Failed to fetch classes");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadTeachers = async () => {
+    try {
+      setLoading(true);
+      const response = await fetchTeachers();
+      console.log("Teachers response:", response);
+      setTeachers(response);
+      if (response.length > 0) {
+        setSelectedTeacher(response[0].id);
+      }
+    } catch (err) {
+      setError("Failed to fetch teachers");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadTeachers();
+  }, []);
+
+  useEffect(() => {
+    if (selectedYear) {
+      loadClasses(selectedYear);
+    }
+  }, [selectedYear]);
 
   useEffect(() => {
     if (currentUser?.role) {
@@ -484,6 +526,18 @@ export default function TimetablePage() {
     return days;
   };
 
+  const handleYearChange = (value: string) => {
+    setSelectedYear(value);
+  };
+
+  const handleClassChange = (value: string) => {
+    setSelectedClass(value);
+  };
+
+  const handleTeacherChange = (value: string) => {
+    setSelectedTeacher(value);
+  };
+
   return (
     <div className="p-3 md:p-6 max-w-7xl mx-auto relative">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
@@ -670,7 +724,7 @@ export default function TimetablePage() {
       )}
 
       {viewMode === "week" && (
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6">
+        <div className="bg-white p-4 rounded-md shadow-sm border border-gray-200 mb-6">
           <h3 className="text-sm font-medium text-gray-700 mb-3">Filters</h3>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -679,10 +733,8 @@ export default function TimetablePage() {
                 Year
               </label>
               <Select
-                value={filters.year || undefined}
-                onChange={(value) =>
-                  handleFilterChange({ name: "year", value })
-                }
+                value={selectedYear || undefined}
+                onChange={handleYearChange}
                 className="w-full"
                 placeholder="All Years"
                 allowClear
@@ -700,17 +752,15 @@ export default function TimetablePage() {
                 Class
               </label>
               <Select
-                value={filters.class || undefined}
-                onChange={(value) =>
-                  handleFilterChange({ name: "class", value })
-                }
+                // value={selectedClass || undefined}
+                onChange={handleClassChange}
                 className="w-full"
                 placeholder="All Classes"
                 allowClear
               >
-                {classes.map((cls) => (
-                  <Option key={cls} value={cls}>
-                    {cls}
+                {classes?.map((cls) => (
+                  <Option key={cls.id} value={cls.id}>
+                    {cls.class_name}
                   </Option>
                 ))}
               </Select>
@@ -721,17 +771,15 @@ export default function TimetablePage() {
                 Teacher
               </label>
               <Select
-                value={filters.teacher || undefined}
-                onChange={(value) =>
-                  handleFilterChange({ name: "teacher", value })
-                }
+                // value={selectedTeacher || undefined}
+                onChange={handleTeacherChange}
                 className="w-full"
                 placeholder="All Teachers"
                 allowClear
               >
-                {teachers.map((teacher) => (
-                  <Option key={teacher} value={teacher}>
-                    {teacher}
+                {teachers?.map((teacher) => (
+                  <Option key={teacher.id} value={teacher.id}>
+                    {teacher.teacher_name}
                   </Option>
                 ))}
               </Select>
@@ -759,7 +807,7 @@ export default function TimetablePage() {
           </div>
         </div>
       ) : viewMode === "week" ? (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-md shadow-sm border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -822,7 +870,7 @@ export default function TimetablePage() {
           </div>
         </div>
       ) : (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-md shadow-sm border border-gray-200 overflow-hidden">
           <div className="p-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg font-semibold text-gray-900">
@@ -974,9 +1022,9 @@ export default function TimetablePage() {
                       required
                     >
                       <Option value="">Select Teacher</Option>
-                      {teachers.map((teacher) => (
-                        <Option key={teacher} value={teacher}>
-                          {teacher}
+                      {teachers?.map((teacher) => (
+                        <Option key={teacher.id} value={teacher.id}>
+                          {teacher.teacher_name}
                         </Option>
                       ))}
                     </Select>
@@ -996,9 +1044,9 @@ export default function TimetablePage() {
                       required
                     >
                       <Option value="">Select Class</Option>
-                      {classes.map((cls) => (
-                        <Option key={cls} value={cls}>
-                          {cls}
+                      {classes?.map((cls) => (
+                        <Option key={cls.id} value={cls.id}>
+                          {cls.class_name}
                         </Option>
                       ))}
                     </Select>
@@ -1022,8 +1070,8 @@ export default function TimetablePage() {
                   >
                     <Option value="">Select Class</Option>
                     {classes.map((cls) => (
-                      <Option key={cls} value={cls}>
-                        {cls}
+                      <Option key={cls.id} value={cls.id}>
+                        {cls.class_name}
                       </Option>
                     ))}
                   </Select>
@@ -1069,7 +1117,7 @@ export default function TimetablePage() {
                 <Button
                   htmlType="submit"
                   type="primary"
-                  className="px-4 py-2 text-sm rounded-lg shadow-sm"
+                  className="px-4 py-2 text-sm !bg-primary !text-white !border-primary hover:!bg-primary/90 rounded-lg shadow-sm"
                 >
                   Save Changes
                 </Button>

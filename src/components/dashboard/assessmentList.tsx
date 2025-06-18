@@ -41,7 +41,6 @@ export default function AssessmentList({
 }: AssessmentListProps) {
   const router = useRouter();
   const { classId } = useParams();
-  const [selectedTerm, setSelectedTerm] = useState("Term 1");
   const [drawerVisible, setDrawerVisible] = useState(false);
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [selectedAssessment, setSelectedAssessment] = useState<string | null>(
@@ -50,6 +49,7 @@ export default function AssessmentList({
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedTerm, setSelectedTerm] = useState<{id: string, name: string} | null>(null);
   const [terms, setTerms] = useState<any[]>([]);
 
   useEffect(() => {
@@ -113,6 +113,13 @@ export default function AssessmentList({
     setSelectedAssessment(null);
     setTasks([]);
   };
+  const handleTermChange = async (termName: string) => {
+    setSelectedTerm(termName);
+    const selectedTermObj = terms.find((term) => term.name === termName);
+    if (selectedTermObj) {
+      router.push(`/dashboard/classes/${classId}/terms/${selectedTermObj.id}`);
+    }
+  };
 
   const handleTasksChange = (updatedTasks: Task[]) => {
     setTasks(updatedTasks);
@@ -120,10 +127,10 @@ export default function AssessmentList({
   return (
     <div className="mt-8 overflow-hidden">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold">Registered Assessment</h3>
+        {/* <h3 className="text-lg font-semibold">Registered Assessment</h3> */}
         <Select
           value={selectedTerm}
-          onChange={setSelectedTerm}
+          onChange={handleTermChange}
           style={{ width: 150 }}
           className="bg-white"
         >

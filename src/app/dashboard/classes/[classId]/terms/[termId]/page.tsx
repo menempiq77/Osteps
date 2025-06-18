@@ -22,6 +22,8 @@ interface Assessment {
 
 export default function Page() {
   const { termId, classId } = useParams();
+  const [currentTermId, setCurrentTermId] = useState(termId);
+
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -36,9 +38,13 @@ export default function Page() {
     null
   );
 
+    useEffect(() => {
+    setCurrentTermId(termId);
+  }, [termId]);
+
   const loadAssessment = async () => {
     try {
-      const data = await fetchAssessment(termId);
+      const data = await fetchAssessment(currentTermId);
       setAssessments(data);
       setLoading(false);
     } catch (err) {
@@ -49,9 +55,11 @@ export default function Page() {
   };
 
   useEffect(() => {
-    loadAssessment();
-    loadQuizzes();
-  }, [termId]);
+    if (currentTermId) {
+      loadAssessment();
+      loadQuizzes();
+    }
+  }, [currentTermId]); 
 
   const loadQuizzes = async () => {
     try {
