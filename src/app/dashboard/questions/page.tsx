@@ -56,7 +56,7 @@ type Answer = {
 
 const AskQuestionPage = () => {
   const router = useRouter();
-  
+
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const isStudent = currentUser?.role === "STUDENT";
   const isTeacher = currentUser?.role === "TEACHER";
@@ -85,8 +85,8 @@ const AskQuestionPage = () => {
         ...q,
         id: q.id,
         content: q.question,
-        studentName: `Student ${q.student_id}`,
-        teacherName: `Teacher ${q.teacher_id}`,
+        studentName: `${q.student?.student_name || "Anonymous"}`,
+        teacherName: `${q.teacher?.teacher_name || "Anonymous"}`,
         year: "Year 1",
         class: "Class A",
         createdAt: q.created_at,
@@ -137,10 +137,10 @@ const AskQuestionPage = () => {
     }
   };
 
-  const loadClasses = async () => {
+  const loadClasses = async (yearId: number) => {
     try {
       setIsLoading(true);
-      const data = await fetchClasses();
+      const data = await fetchClasses(yearId);
       console.log("Classes response:", data);
       setClasses(data);
     } catch (err) {
@@ -153,15 +153,18 @@ const AskQuestionPage = () => {
 
   useEffect(() => {
     loadYears();
-    loadClasses();
     loadQuestions();
   }, []);
 
- useEffect(() => {
-  if (isStudent && currentUser?.id) {
-    loadTeachers();
-  }
-}, [isStudent, currentUser?.id]);
+  useEffect(() => {
+    loadClasses(selectedYear);
+  }, [selectedYear]);
+
+  useEffect(() => {
+    if (isStudent && currentUser?.id) {
+      loadTeachers();
+    }
+  }, [isStudent, currentUser?.id]);
 
   const handleQuestionSubmit = async () => {
     if (!newQuestion.trim()) {
@@ -248,12 +251,12 @@ const AskQuestionPage = () => {
   };
 
   const filteredQuestions = isTeacher
-    ? questions.filter(
-        (q) =>
-          (!selectedYear || q.year === selectedYear) &&
-          (!selectedClass || q.class === selectedClass)
-      )
-    : questions;
+  ? questions.filter((q) => {
+      if (!selectedClass) return true;
+      const classMatch = !selectedClass || q.student?.class_id === Number(selectedClass);
+      return classMatch;
+    })
+  : questions;
 
   return (
     <>

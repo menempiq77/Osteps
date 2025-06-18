@@ -65,8 +65,9 @@ export default function AddClassForm({
         rules={[{ required: true, message: "Please select number of terms" }]}
       >
         <Select placeholder="Select terms">
-          <Select.Option value="two">Two Terms</Select.Option>
-          <Select.Option value="three">Three Terms</Select.Option>
+          <Select.Option value="first">First Term</Select.Option>
+          <Select.Option value="two">Second Term</Select.Option>
+          <Select.Option value="three">Third Term</Select.Option>
         </Select>
       </Form.Item>
 
