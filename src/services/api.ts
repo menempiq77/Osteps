@@ -650,4 +650,11 @@ export const deleteBehaviour = async (id: number) => {
   return response.data;
 };
 
+//Timetable apis Started
+// fetch Timetable data
+export const fetchTimetableData = async () => {
+  const response = await api.get(`/get-timeTable`);
+  return response.data.data;
+};
+
 export default api;

@@ -17,7 +17,7 @@ import type { Dayjs } from "dayjs";
 import dayjs from "dayjs";
 import { Modal } from "antd";
 import { Select } from "antd";
-import { fetchClasses, fetchTeachers, fetchYears } from "@/services/api";
+import { fetchClasses, fetchTeachers, fetchTimetableData, fetchYears } from "@/services/api";
 const { Option } = Select;
 interface Year {
   id: number;
@@ -224,8 +224,25 @@ export default function TimetablePage() {
     }
   };
 
+  const loadTimetableData = async () => {
+    try {
+      setLoading(true);
+      const response = await fetchTimetableData();
+      console.log("fetchTimetableData response:", response);
+
+    } catch (err) {
+      setError("Failed to fetch teachers");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  
+
   useEffect(() => {
     loadTeachers();
+    loadTimetableData();
   }, []);
 
   useEffect(() => {

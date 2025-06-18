@@ -160,9 +160,10 @@ export default function AssessmentList({
           </thead>
           <tbody className="divide-y divide-gray-200">
             {assessments?.length > 0 ? (
-              assessments.map((assignment) => (
+              assessments?.map((assignment, index) => (
                 <tr
-                  key={assignment.id}
+                  key={`${assignment.id}-${index}`}
+                  // key={assignment.id}
                   className="text-xs md:text-sm text-center text-gray-800 even:bg-[#E9FAF1] odd:bg-white hover:bg-[#E9FAF1]"
                 >
                   <td className="p-2 md:p-4">
@@ -175,7 +176,7 @@ export default function AssessmentList({
                         assignment.type === "quiz" ? "font-medium" : ""
                       }`}
                     >
-                      {assignment.name}
+                      {assignment.name || assignment?.quiz?.name || "Untitled"}
                     </button>
                   </td>
                   <td className="p-2 md:p-4">
