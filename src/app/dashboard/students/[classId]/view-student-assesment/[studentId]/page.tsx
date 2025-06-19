@@ -135,7 +135,7 @@ export default function TermPage() {
                   className="text-gray-700 cursor-pointer hover:underline font-medium"
                   onClick={() => handleOpenDrawer(assessment)}
                 >
-                  {assessment.name}
+                  {assessment.name ||  assessment?.quiz?.name || "Untitled Assessment"}
                 </button>
                 <span className="inline-block bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded">{assessment?.type}</span>
               </div>

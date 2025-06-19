@@ -53,24 +53,6 @@ const quizTypeLabels: Record<string, string> = {
   true_false: "True/False",
 };
 
-const apiToFrontendTypeMap: Record<string, string> = {
-  short_answer: "short",
-  paragraph: "paragraph",
-  multiple_choice: "mcq",
-  checkbox: "checkbox",
-  dropdown: "dropdown",
-  true_false: "truefalse",
-};
-
-const frontendToApiTypeMap: Record<string, string> = {
-  short: "short_answer",
-  paragraph: "paragraph",
-  mcq: "multiple_choice",
-  checkbox: "checkbox",
-  dropdown: "dropdown",
-  truefalse: "true_false",
-};
-
 export default function QuranQuizPage() {
   const { quizId } = useParams();
   const { currentUser } = useSelector((state: RootState) => state.auth);

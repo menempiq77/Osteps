@@ -178,7 +178,8 @@ export default function AssessmentDrawer() {
           </Select>
         </div>
         <div className="space-y-3">
-          {filteredTasks?.map((task) => (
+          {filteredTasks?.length > 0 ? (
+            filteredTasks?.map((task) => (
             <div
               key={task.id}
               className="p-5 border border-gray-200 rounded-lg bg-white shadow-sm hover:shadow-md transition-all duration-200"
@@ -364,7 +365,12 @@ export default function AssessmentDrawer() {
                 </div>
               )}
             </div>
-          ))}
+          ))
+          ) : (
+            <div className="text-center text-gray-500">
+              No tasks found for this student.
+            </div>
+          )}
         </div>
       </div>
 

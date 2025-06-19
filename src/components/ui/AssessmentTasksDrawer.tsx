@@ -4,9 +4,15 @@ import { Button, Card, Drawer, Select, message } from "antd";
 import { useForm } from "react-hook-form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { addTask, updateTask, deleteTask } from "@/services/api";
 import { TextArea } from "./textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  addTask,
+  updateTask,
+  deleteTask,
+  assignTaskQuiz,
+} from "@/services/api";
+import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
 
 const { Option } = Select;
 
@@ -49,6 +55,8 @@ type AssessmentTasksDrawerProps = {
   onTasksChange: (tasks: Task[]) => void;
   quizzes: any[];
   loading: boolean;
+  setLoading: (loading: boolean) => void;
+  selectedTermId: string | null;
 };
 
 export function AssessmentTasksDrawer({
@@ -61,11 +69,13 @@ export function AssessmentTasksDrawer({
   quizzes,
   loading,
   setLoading,
+  selectedTermId,
 }: AssessmentTasksDrawerProps) {
   const [selectedType, setSelectedType] = useState<"task" | "quiz" | null>(
     null
   );
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
+  const [selectedQuizId, setSelectedQuizId] = useState<number | null>(null);
 
   const {
     register,
@@ -87,6 +97,8 @@ export function AssessmentTasksDrawer({
       url: "",
     },
   });
+
+  console.log(selectedTermId, "selectedTermId");
 
   const onSubmitTask = async (data: TaskFormData) => {
     try {
@@ -172,7 +184,30 @@ export function AssessmentTasksDrawer({
       setLoading(false);
     }
   };
+  const handleAssignQuiz = async () => {
+    if (!selectedQuizId || !selectedTermId) {
+      message.error("Please select both a term and a quiz");
+      return;
+    }
 
+    try {
+      setLoading(true);
+      await assignTaskQuiz(
+        parseInt(selectedTermId),
+        selectedQuizId,
+        assessmentId
+      );
+      message.success("Quiz assigned successfully");
+      // You might want to refresh the task list or add the quiz to initialTasks
+      setSelectedType(null);
+      setSelectedQuizId(null);
+    } catch (error) {
+      message.error("Failed to assign quiz");
+      console.error("Error assigning quiz:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
   const handleEditTask = (task: Task) => {
     setEditingTaskId(task.id);
     setSelectedType("task");
@@ -244,18 +279,26 @@ export function AssessmentTasksDrawer({
       title={
         <div className="flex justify-between items-center">
           <span>{assignmentName}</span>
-          <div className="border-2 border-primary rounded-lg overflow-hidden">
+          <div style={{ "--antd-wave-shadow-color": "#38C16C" }}>
+            <style>{`
+                    .green-select .ant-select-selection-placeholder {
+                      color: #38C16C !important;
+                    }
+                    .green-select .ant-select-selector {
+                      border-color: #38C16C !important;
+                    }
+                  `}</style>
             <Select
-            placeholder="Add"
-            onChange={(value: "task" | "quiz") => setSelectedType(value)}
-            value={selectedType || undefined}
-            style={{ width: 140 }}
-            disabled={loading}
-            className=""
-          >
-            <Option value="task">Create Task</Option>
-            <Option value="quiz">Assign Quiz</Option>
-          </Select>
+              className="green-select"
+              placeholder="Add Task/Quiz"
+              onChange={(value: "task" | "quiz") => setSelectedType(value)}
+              value={selectedType || undefined}
+              style={{ width: 160 }}
+              disabled={loading}
+            >
+              <Option value="task">Create Task</Option>
+              <Option value="quiz">Assign Quiz</Option>
+            </Select>
           </div>
         </div>
       }
@@ -496,35 +539,9 @@ export function AssessmentTasksDrawer({
             <Select
               placeholder="Select Quiz"
               className="w-full"
-              onChange={async (quizId) => {
-                try {
-                  setLoading(true);
-                  const selectedQuiz = quizzes.find((q) => q.id === quizId);
-                  if (selectedQuiz) {
-                    const taskData = {
-                      name: selectedQuiz.name,
-                      isAudio: false,
-                      isVideo: false,
-                      isPdf: false,
-                      isUrl: false,
-                      dueDate: new Date().toISOString().slice(0, 10),
-                      allocatedMarks: 0,
-                      assessmentId: assessmentId,
-                    };
-
-                    await addTask(taskData);
-                    message.success("Quiz added as task successfully");
-                    await loadTasks();
-                    setSelectedType(null);
-                  }
-                } catch (error) {
-                  message.error("Failed to add quiz as task");
-                  console.error("Error adding quiz:", error);
-                } finally {
-                  setLoading(false);
-                }
-              }}
               disabled={loading}
+              onChange={(value) => setSelectedQuizId(value)}
+              value={selectedQuizId || undefined}
             >
               {quizzes?.map((quiz) => (
                 <Option key={quiz.id} value={quiz.id}>
@@ -532,9 +549,15 @@ export function AssessmentTasksDrawer({
                 </Option>
               ))}
             </Select>
-            <div className="flex justify-end mt-2">
-              <Button onClick={handleCancel} disabled={loading}>
-                Cancel
+            <div className="flex justify-end gap-1 mt-2">
+              <Button onClick={handleCancel}>Cancel</Button>
+              <Button
+                variant="solid"
+                className="!bg-primary !text-white hover:!bg-primary/90 !border-0"
+                disabled={loading || !selectedQuizId || !selectedTermId}
+                onClick={handleAssignQuiz}
+              >
+                Assign
               </Button>
             </div>
           </div>
@@ -553,68 +576,51 @@ export function AssessmentTasksDrawer({
         ) : (
           <div className="space-y-2">
             {initialTasks?.map((task, index) => (
-              <Card
-                key={index}
-                className="!bg-gray-50 !shadow !mb-2"
-              >
-                <div className="flex justify-between items-center">
+              <Card key={index} className="!bg-gray-50 !shadow !mb-2">
+                <div className="flex justify-between items-center mb-1">
                   <div className="flex items-center space-x-2">
-                    <span className="font-medium">{task.task_name}</span>
+                    <p className="font-medium">
+                      {task.task_name || task.quiz.name}
+                    </p>
+
                     <span
                       className={`px-2.5 py-0.5 text-xs rounded-full ${getTaskTypeClass(
                         task
                       )}`}
                     >
-                      {getTaskTypeLabel(task)}
+                      {task?.type !== "quiz" ? getTaskTypeLabel(task) : "Quiz"}
                     </span>
                   </div>
                   <div className="flex space-x-2">
-                    <button
-                      onClick={() => handleEditTask(task)}
-                      className="text-gray-400 hover:text-blue-500 cursor-pointer"
-                      title="Edit task"
-                      disabled={loading}
-                    >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
+                    {task?.type !== "quiz" && (
+                      <button
+                        onClick={() => handleEditTask(task)}
+                        className="text-green-500 hover:text-green-700 cursor-pointer"
+                        title="Edit task"
+                        disabled={loading}
                       >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                        />
-                      </svg>
-                    </button>
+                        <EditOutlined />
+                      </button>
+                    )}
                     <button
                       onClick={() => handleRemoveTask(task.id)}
-                      className="text-gray-400 hover:text-red-500 cursor-pointer"
+                      className="text-red-500 hover:text-red-700 cursor-pointer"
                       title="Remove task"
                       disabled={loading}
                     >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                        />
-                      </svg>
+                      <DeleteOutlined />
                     </button>
                   </div>
                 </div>
-                <div className="mt-2 text-sm text-gray-500">
-                  Due: {task.due_date} | Allocated Marks:{" "}
-                  <span className="font-medium">{task.allocated_marks}</span>
-                </div>
+                <p className="text-sm text-gray-600 mb-4">
+                  {task.description || "No description provided"}
+                </p>
+                {task?.type !== "quiz" && (
+                  <div className="mt-2 text-sm text-gray-500">
+                    Due: {task.due_date} | Allocated Marks:{" "}
+                    <span className="font-medium">{task.allocated_marks}</span>
+                  </div>
+                )}
                 {task.task_type === "url" && task.url && (
                   <div className="mt-1 text-sm">
                     <a
