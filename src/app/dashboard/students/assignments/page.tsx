@@ -14,185 +14,6 @@ import { fetchAssessmentByStudent, fetchTerm } from "@/services/api";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 
-const mockAssignments = [
-  {
-    id: "1",
-    title: "Quran Memorization Assessment",
-    description: "Memorize Surah Al-Fatiha with proper tajweed",
-    dueDate: "2023-12-15",
-    status: "submitted",
-    grade: "A",
-    feedback: "Excellent memorization and tajweed application",
-    tasks: [
-      {
-        id: "1",
-        name: "Memorisation",
-        type: "audio",
-        url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-        status: "completed",
-        mark: "9/10",
-        selfAssessment: 8,
-        comment: "Well done with proper makharij",
-      },
-      {
-        id: "2",
-        name: "Tajweed Practice",
-        type: "pdf",
-        url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-        status: "completed",
-        selfAssessment: 7,
-        mark: "8/10",
-        comment: "Good understanding of basic rules",
-      },
-    ],
-  },
-  {
-    id: "2",
-    title: "Tafseer Assessment",
-    description: "Write a summary of Surah Al-Ikhlas tafseer",
-    dueDate: "2024-01-20",
-    status: "in-progress",
-    grade: null,
-    feedback: null,
-    tasks: [
-      {
-        id: "1",
-        name: "Written Summary",
-        type: "pdf",
-        url: null,
-        status: "in-progress",
-        selfAssessment: null,
-        mark: null,
-        comment: null,
-      },
-      {
-        id: "2",
-        name: "Oral Presentation",
-        type: "video",
-        url: null,
-        status: "not-started",
-        selfAssessment: null,
-        mark: null,
-        comment: null,
-      },
-    ],
-  },
-  {
-    id: "3",
-    title: "Quran Recitation Assessment",
-    description: "Record recitation of Surah Al-Kahf verses 1-10",
-    dueDate: "2024-02-10",
-    status: "not-started",
-    grade: null,
-    feedback: null,
-    tasks: [
-      {
-        id: "1",
-        name: "Recitation Recording",
-        type: "audio",
-        url: null,
-        status: "not-started",
-        selfAssessment: null,
-        mark: null,
-        comment: null,
-      },
-    ],
-  },
-  {
-    id: "4",
-    title: "Quran Recitation Assessment",
-    description: "Record recitation of Surah Al-Kahf verses 1-10",
-    dueDate: "2024-02-10",
-    status: "pending",
-    grade: null,
-    feedback: null,
-    tasks: [
-      {
-        id: "1",
-        name: "Recitation Recording",
-        type: "audio",
-        url: null,
-        status: "not-started",
-        selfAssessment: null,
-        mark: null,
-        comment: null,
-      },
-    ],
-  },
-  {
-    id: "5",
-    title: "Quran Recitation Assessment",
-    description: "Record recitation of Surah Al-Kahf verses 1-10",
-    dueDate: "2024-02-10",
-    status: "overdue",
-    grade: null,
-    feedback: null,
-    tasks: [
-      {
-        id: "1",
-        name: "Recitation Recording",
-        type: "audio",
-        url: null,
-        status: "not-started",
-        selfAssessment: null,
-        mark: null,
-        comment: null,
-      },
-    ],
-  },
-  {
-    id: "6",
-    title: "Quran Quiz - Surah Al-Fatiha",
-    description: "Test your understanding of Surah Al-Fatiha",
-    dueDate: "2024-02-10",
-    status: "not-started",
-    type: "quiz",
-    grade: null,
-    feedback: null,
-    questions: [
-      {
-        id: "1",
-        type: "mcq",
-        question: "How many verses are in Surah Al-Fatiha?",
-        options: ["5", "6", "7", "8"],
-        correctAnswer: "7",
-      },
-      {
-        id: "2",
-        type: "short",
-        question: "What is the meaning of 'Al-Fatiha'?",
-        correctAnswer: "The Opening",
-      },
-    ],
-  },
-  {
-    id: "7",
-    title: "Tajweed Rules Quiz",
-    description: "Test your knowledge of basic Tajweed rules",
-    dueDate: "2024-03-15",
-    status: "pending",
-    type: "quiz",
-    grade: null,
-    feedback: null,
-    questions: [
-      {
-        id: "1",
-        type: "mcq",
-        question: "What is the ruling of noon sakinah followed by a 'ya'?",
-        options: ["Izhar", "Idgham", "Iqlab", "Ikhfa"],
-        correctAnswer: "Ikhfa",
-      },
-      {
-        id: "2",
-        type: "checkbox",
-        question: "Which of these are letters of Qalqalah?",
-        options: ["ق", "ط", "ب", "ج", "د"],
-        correctAnswer: "ق,ط,ب,ج,د",
-      },
-    ],
-  },
-];
-
 export default function AssignmentsPage() {
   const [selectedTerm, setSelectedTerm] = useState<string>("");
   const [selectedTermId, setSelectedTermId] = useState<number | null>(null);
@@ -262,11 +83,12 @@ export default function AssignmentsPage() {
     return assignment.status || "not-started";
   };
 
-  const handleItemClick = (item: any) => {
-    if (item.type === "quiz") {
-      router.push(`/dashboard/students/assignments/${item.id}/quiz`);
+  const handleItemClick = (assignment: any) => {
+    if (assignment.type === "quiz") {
+      router.push(`/dashboard/students/assignments/${assignment.id}/quiz/${assignment.quiz.id}`);
+    } else if (assignment.type === "assignment") {
     } else {
-      router.push(`/dashboard/students/assignments/${item.id}`);
+      router.push(`/dashboard/students/assignments/${assignment.id}`);
     }
   };
 
@@ -321,10 +143,6 @@ export default function AssignmentsPage() {
     });
   };
 
-  // Combine mock data with API data for demonstration
-  const displayAssignments =
-    assessments.length > 0 ? assessments : mockAssignments;
-
   return (
     <div className="p-3 md:p-6">
       <div className="flex items-center justify-between">
@@ -365,20 +183,20 @@ export default function AssignmentsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {displayAssignments?.map((assignment) => {
+          {assessments?.map((assignment) => {
             const status = getAssignmentStatus(assignment);
             return (
               <Card
                 key={assignment.id}
                 className="p-6 bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow h-full cursor-pointer"
-                onClick={() => handleItemClick(assignment)}
+                onClick={() => handleItemClick(assignment?.id)}
               >
                 <div className="flex flex-col h-full">
                   <div className="flex justify-between items-start flex-grow">
                     <div className="flex-1">
                       <div className="flex justify-between items-start">
                         <h3 className="text-lg font-semibold text-gray-900">
-                          {assignment.name || assignment.title}
+                          {assignment.name || assignment?.quiz?.name}
                         </h3>
                         {getStatusBadge(status)}
                       </div>

@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, Calendar } from "lucide-react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import AssignmentDrawer from "@/components/ui/AssignmentDrawer";
 import { Button, Spin } from "antd";
 import { fetchTasks } from "@/services/api";
@@ -24,6 +24,7 @@ interface Task {
 
 export default function AssignmentDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const assignmentId = params.Id as string;
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(false);
@@ -52,9 +53,15 @@ export default function AssignmentDetailPage() {
     loadTasks();
   }, [assignmentId]);
 
-  const handleOpenDrawer = (task: Task) => {
-    setSelectedTask(task);
-    setIsDrawerOpen(true);
+  const handleOpenDrawer = async (task: Task) => {
+    if (task.type === "quiz") {
+      await router.push(
+        `/dashboard/students/assignments/${task.id}/quiz/${task.quiz.id}`
+      );
+    } else {
+      setSelectedTask(task);
+      setIsDrawerOpen(true);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -116,17 +123,22 @@ export default function AssignmentDetailPage() {
                   <div className="flex justify-between items-start">
                     <div>
                       <h3 className="font-medium text-lg text-gray-900 mb-1">
-                        {task.task_name}
+                        {task.task_name || task?.quiz?.name || "Untitled Task"}
                       </h3>
-                      <p className="font-normal text-base text-gray-700 mb-1">
-                        {task.description || "No description provided."}
-                      </p>
-                      <div className="flex items-center text-sm text-gray-500 mb-2">
-                        <Calendar className="w-4 h-4 mr-1.5" />
-                        <span>
-                          Due: {new Date(task.updated_at).toLocaleDateString()}
-                        </span>
-                      </div>
+                      {task?.type !== "quiz" && (
+                        <p className="font-normal text-base text-gray-700 mb-1">
+                          {task.description || "No description provided."}
+                        </p>
+                      )}
+                      {task?.type !== "quiz" && (
+                        <div className="flex items-center text-sm text-gray-500 mb-2">
+                          <Calendar className="w-4 h-4 mr-1.5" />
+                          <span>
+                            Due:{" "}
+                            {new Date(task.updated_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                      )}
                     </div>
                     <span
                       className={`px-3 py-1 text-xs font-medium rounded-full capitalize ${getStatusColor(
@@ -140,7 +152,9 @@ export default function AssignmentDetailPage() {
                   <div className="grid grid-cols-2 gap-4 mt-3 text-sm">
                     <div>
                       <span className="text-gray-500">Type:</span>
-                      <span className="ml-2 font-medium">{task.task_type}</span>
+                      <span className="ml-2 font-medium">
+                        {task?.type !== "quiz" ? task.task_type : "Quiz"}
+                      </span>
                     </div>
                   </div>
 
@@ -203,7 +217,9 @@ export default function AssignmentDetailPage() {
                   >
                     {task.status === "completed"
                       ? "View Submission"
-                      : "Submit Work"}
+                      : `${
+                          task?.type !== "quiz" ? "Submit Work" : "View Quiz"
+                        }`}
                   </Button>
                 </div>
               </div>

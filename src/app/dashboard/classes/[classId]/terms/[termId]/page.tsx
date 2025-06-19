@@ -248,6 +248,7 @@ export default function Page() {
         onDeleteAssessment={confirmDelete}
         onEditAssessment={handleEditClick}
         quizzes={quizzes}
+        termId={termId}
       />
       {/* Delete Confirmation Dialog */}
       <Modal

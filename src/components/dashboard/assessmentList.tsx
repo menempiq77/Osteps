@@ -24,6 +24,7 @@ interface Assessment {
   id: string;
   name: string;
   type: "assessment" | "quiz";
+  quiz_id?: string; 
 }
 
 interface AssessmentListProps {
@@ -31,6 +32,7 @@ interface AssessmentListProps {
   onDeleteAssessment: (id: string) => void;
   onEditAssessment?: (id: string, newName: string) => void;
   quizzes: any[];
+  termId: number
 }
 
 export default function AssessmentList({
@@ -38,6 +40,7 @@ export default function AssessmentList({
   onDeleteAssessment,
   onEditAssessment,
   quizzes,
+  termId
 }: AssessmentListProps) {
   const router = useRouter();
   const { classId } = useParams();
@@ -50,6 +53,8 @@ export default function AssessmentList({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedTerm, setSelectedTerm] = useState<{id: string, name: string} | null>(null);
+  const [selectedTermId, setSelectedTermId] = useState<string | null>(null);
+
   const [terms, setTerms] = useState<any[]>([]);
 
   useEffect(() => {
@@ -76,7 +81,7 @@ export default function AssessmentList({
       const response = await fetchTerm(Number(classId));
       setTerms(response);
       if (response.length > 0) {
-        setSelectedTerm(response[0].name);
+        setSelectedTermId(response[0].id);
       }
       setError(null);
     } catch (err) {
@@ -96,11 +101,12 @@ export default function AssessmentList({
 
   const handleAssignmentClick = (
     assignmentId: string,
-    type: "assessment" | "quiz"
+    type: "assessment" | "quiz",
+    quizId?: string
   ) => {
     if (type === "quiz") {
       router.push(
-        `/dashboard/classes/${classId}/terms/${assignmentId}/quiz/${assignmentId}`
+        `/dashboard/classes/${classId}/terms/${selectedTermId}/quiz/${quizId}`
       );
       return;
     }
@@ -113,13 +119,14 @@ export default function AssessmentList({
     setSelectedAssessment(null);
     setTasks([]);
   };
-  const handleTermChange = async (termName: string) => {
-    setSelectedTerm(termName);
-    const selectedTermObj = terms.find((term) => term.name === termName);
-    if (selectedTermObj) {
-      router.push(`/dashboard/classes/${classId}/terms/${selectedTermObj.id}`);
-    }
-  };
+const handleTermChange = async (termId: string) => {
+  setSelectedTermId(termId);
+  const selectedTermObj = terms.find((term) => term.id === termId);
+  if (selectedTermObj) {
+    router.push(`/dashboard/classes/${classId}/terms/${selectedTermObj.id}`);
+  }
+};
+
 
   const handleTasksChange = (updatedTasks: Task[]) => {
     setTasks(updatedTasks);
@@ -129,13 +136,13 @@ export default function AssessmentList({
       <div className="flex items-center justify-between mb-4">
         {/* <h3 className="text-lg font-semibold">Registered Assessment</h3> */}
         <Select
-          value={selectedTerm}
+          value={selectedTermId}
           onChange={handleTermChange}
           style={{ width: 150 }}
           className="bg-white"
         >
           {terms.map((term) => (
-            <Select.Option key={term.id} value={term.name}>
+                <Select.Option key={term.id} value={term.id}>
               {term.name}
             </Select.Option>
           ))}
@@ -170,7 +177,7 @@ export default function AssessmentList({
                     <button
                       type="button"
                       onClick={() =>
-                        handleAssignmentClick(assignment.id, assignment.type)
+                        handleAssignmentClick(assignment.id, assignment.type, assignment.quiz_id)
                       }
                       className={`text-green-600 hover:text-green-800 hover:underline cursor-pointer ${
                         assignment.type === "quiz" ? "font-medium" : ""
@@ -236,6 +243,7 @@ export default function AssessmentList({
         quizzes={quizzes}
         loading={loading}
         setLoading={setLoading}
+         selectedTermId={selectedTermId}
       />
     </div>
   );

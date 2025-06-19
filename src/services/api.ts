@@ -450,6 +450,15 @@ export const addStudentTaskMarks = async (studentId: number, taskData: {
   const response = await api.post(`/add-student-task-marks/${studentId}`, taskData);
   return response.data;
 };
+// add assign Task Quiz
+export const assignTaskQuiz = async (termId: number, quizId: number, assessmentId: number) => {
+  const response = await api.post('/assign-task-quiz', {
+    term_id: termId, 
+    quiz_id: quizId, 
+    assessment_id: assessmentId,
+  });
+  return response.data;
+};
 
 //Trackers apis Started
 // Trackers APIs
@@ -559,6 +568,15 @@ export const updateQuize = async (id: string, quizData: any) => {
 // delete Quiz
 export const deleteQuize = async (id: number) => {
   const response = await api.post(`/delete-quiz/${id}`);
+  return response.data;
+};
+//submit quiz by student
+export const submitQuizByStudent = async (quizId: number, studentId: number, answers: any) => {
+  const response = await api.post('/submitQuizAnswers', {
+    quiz_id: quizId,
+    student_id: studentId,
+    answers: answers,
+  });
   return response.data;
 };
 
