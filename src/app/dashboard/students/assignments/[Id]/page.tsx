@@ -56,7 +56,7 @@ export default function AssignmentDetailPage() {
   const handleOpenDrawer = async (task: Task) => {
     if (task.type === "quiz") {
       await router.push(
-        `/dashboard/students/assignments/${task.id}/task-quiz/${task.quiz.id}`
+        `/dashboard/students/assignments/${assignmentId}/task-quiz/${task.quiz.id}`
       );
     } else {
       setSelectedTask(task);

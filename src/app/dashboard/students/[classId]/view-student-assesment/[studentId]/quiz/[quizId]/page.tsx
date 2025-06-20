@@ -117,7 +117,7 @@ export default function QuranQuizPage() {
     const loadStudents = async () => {
       try {
         setLoading(true);
-        const data = await fetchStudents(classId);
+        const data = await fetchStudents(Number(classId));
         setStudents(data);
         if (data.length > 0) setSelectedStudentId(data[0].id);
       } catch (err) {
@@ -258,7 +258,7 @@ export default function QuranQuizPage() {
 
                   {/* Submitted Answer */}
                   {(() => {
-                    const submitted = submittedAnswers.find(
+                    const submitted = submittedAnswers?.find(
                       (ans) => ans.question_id === question.id
                     );
                     const isCorrect = submitted?.is_correct === 1;
@@ -268,7 +268,7 @@ export default function QuranQuizPage() {
                         {submitted && (
                           <Tag
                             color={isCorrect ? "green" : "red"}
-                            className="mt-1 w-full"
+                            className="mt-1 w-full !py-2"
                           >
                         <div className="">
                           <strong>Submitted Answer:</strong>{" "}
