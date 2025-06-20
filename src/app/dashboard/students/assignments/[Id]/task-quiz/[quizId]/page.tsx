@@ -52,7 +52,7 @@ const quizTypeLabels: Record<string, string> = {
 };
 
 export default function QuranQuizPage() {
-  const { quizId } = useParams();
+  const { quizId, Id } = useParams();
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -164,6 +164,7 @@ export default function QuranQuizPage() {
       await submitQuizByStudent(
         quizData.id,
         currentUser.student,
+        Id,
         formattedAnswers,
         "task"
       );
