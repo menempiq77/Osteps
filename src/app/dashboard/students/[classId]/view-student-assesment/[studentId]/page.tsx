@@ -70,7 +70,7 @@ export default function TermPage() {
 
   const handleOpenDrawer = (assessment: any) => {
     if (assessment.type === "quiz") {
-      router.push(`/dashboard/students/${classId}/view-student-assesment/${studentId}/assesment-tasks/${assessment.id}/quiz`);
+      router.push(`/dashboard/students/${classId}/view-student-assesment/${studentId}/quiz/${assessment.quiz.id}`);
     } else {
       router.push(`/dashboard/students/${classId}/view-student-assesment/${studentId}/assesment-tasks/${assessment.id}`);
     }

@@ -581,6 +581,11 @@ export const submitQuizByStudent = async (quizId: number, studentId: number, ans
   return response.data;
 };
 
+export const fetchSubmittedQuizDetails = async (quizId: number, studentId: number, type: string) => {
+  const response = await api.get(`/get-SubmittedQuizDetails/${quizId}/${studentId}/${type}`);
+  return response.data.data;
+};
+
 //Quiz Question apis Started
 // fetch QuizQuestions
 export const fetchQuizQuestions = async (quizId: number) => {
