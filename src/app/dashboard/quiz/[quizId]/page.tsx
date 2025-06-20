@@ -48,8 +48,8 @@ const quizTypeLabels: Record<string, string> = {
   short_answer: "Short Answer",
   paragraph: "Paragraph",
   multiple_choice: "Multiple Choice",
-  checkbox: "Checkboxes",
-  dropdown: "Dropdown",
+  check_boxes: "Checkboxes",
+  drop_down: "Dropdown",
   true_false: "True/False",
 };
 
@@ -154,7 +154,7 @@ export default function QuranQuizPage() {
       let options: string[] = [];
       let correctAnswer: number | null = null;
 
-      if (["multiple_choice", "checkbox", "dropdown"].includes(values.type)) {
+      if (["multiple_choice", "check_boxes", "drop_down"].includes(values.type)) {
         // Collect all options that have values
         for (let i = 1; i <= optionCount; i++) {
           if (values[`option${i}`]) {
@@ -221,14 +221,14 @@ export default function QuranQuizPage() {
       return question.correct_answer === 1 ? "True" : "False";
     }
 
-    if (question.type === "multiple_choice" || question.type === "dropdown") {
+    if (question.type === "multiple_choice" || question.type === "drop_down") {
       const correctOption = question.options.find(
         (opt) => opt.is_correct === 1
       );
       return correctOption ? correctOption.option_text : "Not specified";
     }
 
-    if (question.type === "checkbox") {
+    if (question.type === "check_boxes") {
       const correctOptions = question.options.filter(
         (opt) => opt.is_correct === 1
       );
@@ -301,8 +301,8 @@ export default function QuranQuizPage() {
                     <Select.Option value="multiple_choice">
                       Multiple Choice
                     </Select.Option>
-                    <Select.Option value="checkbox">Checkboxes</Select.Option>
-                    <Select.Option value="dropdown">Dropdown</Select.Option>
+                    <Select.Option value="check_boxes">Checkboxes</Select.Option>
+                    <Select.Option value="drop_down">Dropdown</Select.Option>
                     <Select.Option value="true_false">True/False</Select.Option>
                   </Select>
                 </Form.Item>
@@ -337,7 +337,7 @@ export default function QuranQuizPage() {
                   </Form.Item>
                 )}
 
-                {["multiple_choice", "checkbox", "dropdown"].includes(
+                {["multiple_choice", "check_boxes", "drop_down"].includes(
                   quizType
                 ) && (
                   <>
@@ -419,7 +419,7 @@ export default function QuranQuizPage() {
                       ]}
                     >
                       {quizType === "multiple_choice" ||
-                      quizType === "dropdown" ? (
+                      quizType === "drop_down" ? (
                         <Radio.Group>
                           <Space direction="vertical">
                             {Array.from({ length: optionCount }).map(
@@ -433,7 +433,7 @@ export default function QuranQuizPage() {
                             )}
                           </Space>
                         </Radio.Group>
-                      ) : quizType === "checkbox" ? (
+                      ) : quizType === "check_boxes" ? (
                         <Checkbox.Group>
                           <Space direction="vertical">
                             {Array.from({ length: optionCount }).map(
@@ -517,7 +517,7 @@ export default function QuranQuizPage() {
                       </div>
                     )}
 
-                    {question.type === "checkbox" && (
+                    {question.type === "check_boxes" && (
                       <Checkbox.Group>
                         <Space direction="vertical">
                           {question.options?.map((option) => (
@@ -532,7 +532,7 @@ export default function QuranQuizPage() {
                       </Checkbox.Group>
                     )}
 
-                    {question.type === "dropdown" && (
+                    {question.type === "drop_down" && (
                       <Select
                         style={{ width: 200 }}
                         placeholder="Select an answer"

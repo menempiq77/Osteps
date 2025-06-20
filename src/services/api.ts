@@ -571,11 +571,12 @@ export const deleteQuize = async (id: number) => {
   return response.data;
 };
 //submit quiz by student
-export const submitQuizByStudent = async (quizId: number, studentId: number, answers: any) => {
+export const submitQuizByStudent = async (quizId: number, studentId: number, answers: any, type: string) => {
   const response = await api.post('/submitQuizAnswers', {
     quiz_id: quizId,
     student_id: studentId,
     answers: answers,
+    type: type
   });
   return response.data;
 };
