@@ -3,9 +3,10 @@ import React from "react";
 import { Tabs, Form, Input, Button, Upload, message } from "antd";
 import { UploadOutlined } from "@ant-design/icons";
 import { changePassword, updateSchoolAdminProfile } from "@/services/api";
-import { useSelector } from "react-redux";
-import { RootState } from "@/store/store";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "@/store/store";
 import { Phone } from "lucide-react";
+import { setCurrentUser } from "@/features/auth/authSlice";
 
 const SchoolAdminSettings = () => {
   const [profileForm] = Form.useForm();
@@ -16,6 +17,7 @@ const SchoolAdminSettings = () => {
   const [schoolLogo, setSchoolLogo] = React.useState([]);
   const [profileLoading, setProfileLoading] = React.useState(false);
   const { currentUser } = useSelector((state: RootState) => state.auth);
+  const dispatch = useDispatch<AppDispatch>();
 
   React.useEffect(() => {
     if (currentUser?.id) {
@@ -47,6 +49,14 @@ const SchoolAdminSettings = () => {
       }
 
       const response = await updateSchoolAdminProfile(formData);
+
+      const updatedUser = {
+        ...currentUser,
+        name: response?.name,
+        profile_path: response?.profile_photo,
+      };
+
+      dispatch(setCurrentUser(updatedUser));
 
       message.success("Profile updated successfully!");
       profileForm.setFieldsValue({
@@ -103,6 +113,57 @@ const SchoolAdminSettings = () => {
             onFinishFailed={onFinishFailed}
             autoComplete="off"
           >
+            <div className="flex items-center gap-4 mb-6">
+              <div className="flex-shrink-0">
+                {profileImage.length > 0 ? (
+                  <img
+                    src={URL.createObjectURL(profileImage[0].originFileObj)}
+                    alt="Profile"
+                    className="w-20 h-20 rounded-full object-cover"
+                  />
+                ) : currentUser?.profile_path ? (
+                  <img
+                    src={currentUser.profile_path}
+                    alt="Profile"
+                    className="w-20 h-20 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-20 h-20 rounded-full bg-gray-300 flex items-center justify-center">
+                    <span className="text-gray-500 text-xl">
+                      {currentUser?.name?.charAt(0).toUpperCase() || "U"}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <div>
+                <Form.Item label="Profile Picture" className="mb-0">
+                  <Upload
+                    fileList={profileImage}
+                    onChange={({ fileList }) => setProfileImage(fileList)}
+                    beforeUpload={() => false}
+                    listType="picture"
+                    maxCount={1}
+                    showUploadList={false}
+                  >
+                    <Button icon={<UploadOutlined />}>Change Photo</Button>
+                  </Upload>
+                  {profileImage.length > 0 && (
+                    <Button
+                      danger
+                      type="text"
+                      onClick={() => setProfileImage([])}
+                      className="ml-2"
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </Form.Item>
+                <div className="text-xs text-gray-500 mt-1">
+                  JPG, GIF or PNG. Max size of 2MB
+                </div>
+              </div>
+            </div>
+
             <div className="flex flex-col md:flex-row gap-4 mb-4">
               <div className="flex-1">
                 <Form.Item
@@ -139,7 +200,7 @@ const SchoolAdminSettings = () => {
                 { type: "email", message: "Please enter a valid email!" },
               ]}
             >
-              <Input size="large" disabled  />
+              <Input size="large" disabled />
             </Form.Item>
 
             <Form.Item
@@ -150,18 +211,6 @@ const SchoolAdminSettings = () => {
               ]}
             >
               <Input size="large" />
-            </Form.Item>
-
-            <Form.Item label="Profile Picture">
-              <Upload
-                fileList={profileImage}
-                onChange={({ fileList }) => setProfileImage(fileList)}
-                beforeUpload={() => false}
-                listType="picture"
-                maxCount={1}
-              >
-                <Button icon={<UploadOutlined />}>Upload Photo</Button>
-              </Upload>
             </Form.Item>
 
             <Form.Item className="text-right">
