@@ -1,37 +1,109 @@
-"use client"
-import React from 'react'
-import { Tabs, Form, Input, Button, Upload, message, Select } from 'antd'
-import { UploadOutlined } from '@ant-design/icons'
+"use client";
+import React from "react";
+import { Tabs, Form, Input, Button, Upload, message, Select } from "antd";
+import { UploadOutlined } from "@ant-design/icons";
+import { changePassword, updateStudentProfile } from "@/services/api";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store/store";
 
 const StudentSettings = () => {
-  const [form] = Form.useForm()
-  const [fileList, setFileList] = React.useState([])
+  const [profileForm] = Form.useForm();
+  const [securityForm] = Form.useForm();
+  const [fileList, setFileList] = React.useState([]);
+  const [loading, setLoading] = React.useState(false);
+  const [profileLoading, setProfileLoading] = React.useState(false);
+  const { currentUser } = useSelector((state: RootState) => state.auth);
 
-  const onFinish = (values) => {
-    console.log('Success:', values)
-    message.success('Settings updated successfully!')
+  React.useEffect(() => {
+  if (currentUser?.id) {
+    const nameParts = currentUser.name?.trim().split(' ') || [];
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || ''; 
+    
+    profileForm.setFieldsValue({
+      firstName: firstName,
+      lastName: lastName,
+      email: currentUser.email,
+    });
   }
+}, [currentUser, profileForm]);
+
+  const onProfileFinish = async (values) => {
+      try {
+        setProfileLoading(true);
+  
+        const formData = new FormData();
+  
+        formData.append("user_id", currentUser.id.toString());
+        formData.append("class_id", currentUser.studentClass.toString());
+  
+        formData.append("first_name", values.firstName);
+        formData.append("last_name", values.lastName);
+        formData.append("email", values.email);
+  
+        if (fileList.length > 0) {
+          formData.append("profile_path", fileList[0].originFileObj);
+        }
+  
+        const response = await updateStudentProfile(formData);
+  
+        message.success("Profile updated successfully!");
+        profileForm.setFieldsValue({
+          firstName: response.first_name,
+          lastName: response.last_name,
+          email: response.email,
+          phone: response.phone,
+        });
+      } catch (error) {
+        console.error("Profile update failed:", error);
+        message.error(
+          error.response?.data?.message || "Failed to update profile"
+        );
+      } finally {
+        setProfileLoading(false);
+      }
+    };
 
   const onFinishFailed = (errorInfo) => {
-    console.log('Failed:', errorInfo)
-    message.error('Please fill all required fields!')
-  }
+    console.log("Failed:", errorInfo);
+    message.error("Please fill all required fields!");
+  };
 
   const handleUploadChange = ({ fileList }) => {
-    setFileList(fileList)
-  }
+    setFileList(fileList);
+  };
+
+  const onSecurityFinish = async (values) => {
+    try {
+      setLoading(true);
+      await changePassword({
+        current_password: values.currentPassword,
+        new_password: values.newPassword,
+        new_password_confirmation: values.confirmPassword,
+      });
+      message.success("Password changed successfully!");
+      securityForm.resetFields();
+    } catch (error) {
+      console.error("Password change failed:", error);
+      message.error(
+        error.response?.data?.message || "Failed to change password"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const items = [
     {
-      key: '1',
-      label: 'Profile',
+      key: "1",
+      label: "Profile",
       children: (
         <div className="w-full max-w-2xl px-2">
           <Form
-            form={form}
+            form={profileForm}
             name="profile"
             layout="vertical"
-            onFinish={onFinish}
+            onFinish={onProfileFinish}
             onFinishFailed={onFinishFailed}
             autoComplete="off"
           >
@@ -40,7 +112,12 @@ const StudentSettings = () => {
                 <Form.Item
                   label="First Name"
                   name="firstName"
-                  rules={[{ required: true, message: 'Please input your first name!' }]}
+                  rules={[
+                    {
+                      required: true,
+                      message: "Please input your first name!",
+                    },
+                  ]}
                 >
                   <Input size="large" />
                 </Form.Item>
@@ -49,7 +126,9 @@ const StudentSettings = () => {
                 <Form.Item
                   label="Last Name"
                   name="lastName"
-                  rules={[{ required: true, message: 'Please input your last name!' }]}
+                  rules={[
+                    { required: true, message: "Please input your last name!" },
+                  ]}
                 >
                   <Input size="large" />
                 </Form.Item>
@@ -60,22 +139,10 @@ const StudentSettings = () => {
               label="Email"
               name="email"
               rules={[
-                { required: true, message: 'Please input your email!' },
-                { type: 'email', message: 'Please enter a valid email!' },
+                { required: true, message: "Please input your email!" },
+                { type: "email", message: "Please enter a valid email!" },
               ]}
             >
-              <Input size="large" disabled />
-            </Form.Item>
-
-            <Form.Item
-              label="Phone Number"
-              name="phone"
-              rules={[{ required: true, message: 'Please input your phone number!' }]}
-            >
-              <Input size="large" />
-            </Form.Item>
-
-            <Form.Item label="Grade/Class" name="grade">
               <Input size="large" disabled />
             </Form.Item>
 
@@ -91,8 +158,13 @@ const StudentSettings = () => {
               </Upload>
             </Form.Item>
 
-            <Form.Item className='text-right'>
-              <Button type="primary" htmlType="submit" size="large" className="w-full md:w-auto !bg-primary !border-primary hover:!bg-primary hover:!border-primary">
+            <Form.Item className="text-right">
+              <Button
+                type="primary"
+                htmlType="submit"
+                className="w-full md:w-auto !bg-primary !border-primary hover:!bg-primary hover:!border-primary"
+                loading={profileLoading}
+              >
                 Update Profile
               </Button>
             </Form.Item>
@@ -101,21 +173,27 @@ const StudentSettings = () => {
       ),
     },
     {
-      key: '2',
-      label: 'Security',
+      key: "2",
+      label: "Security",
       children: (
         <div className="w-full max-w-2xl px-2">
           <Form
+            form={securityForm}
             name="security"
             layout="vertical"
-            onFinish={onFinish}
+            onFinish={onSecurityFinish}
             onFinishFailed={onFinishFailed}
             autoComplete="off"
           >
             <Form.Item
               label="Current Password"
               name="currentPassword"
-              rules={[{ required: true, message: 'Please input your current password!' }]}
+              rules={[
+                {
+                  required: true,
+                  message: "Please input your current password!",
+                },
+              ]}
             >
               <Input.Password size="large" />
             </Form.Item>
@@ -123,7 +201,10 @@ const StudentSettings = () => {
             <Form.Item
               label="New Password"
               name="newPassword"
-              rules={[{ required: true, message: 'Please input new password!' }]}
+              rules={[
+                { required: true, message: "Please input new password!" },
+                { min: 8, message: "Password must be at least 8 characters!" },
+              ]}
             >
               <Input.Password size="large" />
             </Form.Item>
@@ -131,15 +212,17 @@ const StudentSettings = () => {
             <Form.Item
               label="Confirm New Password"
               name="confirmPassword"
-              dependencies={['newPassword']}
+              dependencies={["newPassword"]}
               rules={[
-                { required: true, message: 'Please confirm your password!' },
+                { required: true, message: "Please confirm your password!" },
                 ({ getFieldValue }) => ({
                   validator(_, value) {
-                    if (!value || getFieldValue('newPassword') === value) {
-                      return Promise.resolve()
+                    if (!value || getFieldValue("newPassword") === value) {
+                      return Promise.resolve();
                     }
-                    return Promise.reject(new Error('The two passwords do not match!'))
+                    return Promise.reject(
+                      new Error("The two passwords do not match!")
+                    );
                   },
                 }),
               ]}
@@ -147,8 +230,13 @@ const StudentSettings = () => {
               <Input.Password size="large" />
             </Form.Item>
 
-            <Form.Item className='text-right'>
-              <Button type="primary" htmlType="submit" size="large" className="w-full md:w-auto !bg-primary !border-primary hover:!bg-primary hover:!border-primary">
+            <Form.Item className="text-right">
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={loading}
+                className="w-full md:w-auto !bg-primary !border-primary hover:!bg-primary hover:!border-primary"
+              >
                 Change Password
               </Button>
             </Form.Item>
@@ -156,7 +244,7 @@ const StudentSettings = () => {
         </div>
       ),
     },
-  ]
+  ];
 
   return (
     <div className="p-4 sm:p-6">
@@ -169,7 +257,7 @@ const StudentSettings = () => {
         className="w-full"
       />
     </div>
-  )
-}
+  );
+};
 
-export default StudentSettings
+export default StudentSettings;
