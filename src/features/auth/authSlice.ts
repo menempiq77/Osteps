@@ -38,9 +38,15 @@ const authSlice = createSlice({
       state.users.push(action.payload);
     },
     setCurrentUser(state, action: PayloadAction<User>) {
-      state.currentUser = action.payload;
-      state.token = action.payload.token;
-    },
+  state.currentUser = {
+    ...state.currentUser,
+    ...action.payload, 
+    token: action.payload.token || state.currentUser?.token,
+  };
+  if (action.payload.token) {
+    state.token = action.payload.token;
+  }
+},
   },
   extraReducers: (builder) => {
     builder

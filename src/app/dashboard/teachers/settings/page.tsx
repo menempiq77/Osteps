@@ -1,10 +1,11 @@
 "use client";
 import React from "react";
 import { Tabs, Form, Input, Button, Upload, message, Select } from "antd";
-import { UploadOutlined } from "@ant-design/icons";
+import { UploadOutlined, UserOutlined } from "@ant-design/icons";
 import { changePassword, updateTeacherProfile } from "@/services/api";
-import { useSelector } from "react-redux";
-import { RootState } from "@/store/store";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "@/store/store";
+import { setCurrentUser } from "@/features/auth/authSlice";
 
 const TeacherSettings = () => {
   const [form] = Form.useForm();
@@ -13,29 +14,27 @@ const TeacherSettings = () => {
   const [loading, setLoading] = React.useState(false);
   const [profileLoading, setProfileLoading] = React.useState(false);
   const { currentUser } = useSelector((state: RootState) => state.auth);
+  const dispatch = useDispatch<AppDispatch>();
 
   React.useEffect(() => {
-  if (currentUser?.id) {
-    const nameParts = currentUser.name?.trim().split(' ') || [];
-    const firstName = nameParts[0] || '';
-    const lastName = nameParts.slice(1).join(' ') || ''; 
-    
-    profileForm.setFieldsValue({
-      firstName: firstName,
-      lastName: lastName,
-      email: currentUser.email,
-    });
-  }
-}, [currentUser, profileForm]);
+    if (currentUser?.id) {
+      const nameParts = currentUser.name?.trim().split(" ") || [];
+      const firstName = nameParts[0] || "";
+      const lastName = nameParts.slice(1).join(" ") || "";
+
+      profileForm.setFieldsValue({
+        firstName: firstName,
+        lastName: lastName,
+        email: currentUser.email,
+      });
+    }
+  }, [currentUser, profileForm]);
 
   const onProfileFinish = async (values) => {
     try {
       setProfileLoading(true);
-
       const formData = new FormData();
-
       formData.append("user_id", currentUser.id.toString());
-
       formData.append("first_name", values.firstName);
       formData.append("last_name", values.lastName);
       formData.append("email", values.email);
@@ -45,6 +44,15 @@ const TeacherSettings = () => {
       }
 
       const response = await updateTeacherProfile(formData);
+
+      
+          const updatedUser = {
+            ...currentUser,
+            name: response?.name,
+            profile_path: response?.profile_photo,
+          };
+      
+          dispatch(setCurrentUser(updatedUser));
 
       message.success("Profile updated successfully!");
       profileForm.setFieldsValue({
@@ -56,7 +64,7 @@ const TeacherSettings = () => {
     } catch (error) {
       console.error("Profile update failed:", error);
       message.error(
-        error.response?.data?.message || "Failed to update profile"
+        error.response?.message || "Failed to update profile"
       );
     } finally {
       setProfileLoading(false);
@@ -70,6 +78,9 @@ const TeacherSettings = () => {
 
   const handleUploadChange = ({ fileList }) => {
     setFileList(fileList);
+  };
+  const handleRemovePhoto = () => {
+    setFileList([]);
   };
 
   const onSecurityFinish = async (values) => {
@@ -106,6 +117,59 @@ const TeacherSettings = () => {
             onFinishFailed={onFinishFailed}
             autoComplete="off"
           >
+            <div className="flex items-center gap-6 mb-6">
+              <div className="flex-shrink-0">
+                {fileList.length > 0 ? (
+                  <img
+                    src={URL.createObjectURL(fileList[0].originFileObj)}
+                    alt="Profile"
+                    className="w-20 h-20 rounded-full object-cover"
+                  />
+                ) : currentUser?.profile_path ? (
+                  <img
+                    src={currentUser.profile_path}
+                    alt="Profile"
+                    className="w-20 h-20 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center">
+                    <UserOutlined className="text-gray-500 text-2xl" />
+                  </div>
+                )}
+              </div>
+              <div>
+                <Form.Item label="Profile Picture" className="mb-2">
+                  <Upload
+                    fileList={fileList}
+                    onChange={handleUploadChange}
+                    beforeUpload={() => false}
+                    listType="picture"
+                    maxCount={1}
+                    showUploadList={false}
+                  >
+                    <Button icon={<UploadOutlined />}>
+                      {fileList.length > 0 || currentUser?.profile_path
+                        ? "Change Photo"
+                        : "Upload Photo"}
+                    </Button>
+                  </Upload>
+                  {(fileList.length > 0 || currentUser?.profile_path) && (
+                    <Button
+                      danger
+                      type="text"
+                      onClick={handleRemovePhoto}
+                      className="ml-2"
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </Form.Item>
+                <div className="text-xs text-gray-500">
+                  JPG, PNG, or GIF. Max size 2MB
+                </div>
+              </div>
+            </div>
+
             <div className="flex flex-col md:flex-row gap-4 mb-4">
               <div className="flex-1">
                 <Form.Item
@@ -143,18 +207,6 @@ const TeacherSettings = () => {
               ]}
             >
               <Input size="large" disabled />
-            </Form.Item>
-
-            <Form.Item label="Profile Picture">
-              <Upload
-                fileList={fileList}
-                onChange={handleUploadChange}
-                beforeUpload={() => false}
-                listType="picture"
-                maxCount={1}
-              >
-                <Button icon={<UploadOutlined />}>Upload Photo</Button>
-              </Upload>
             </Form.Item>
 
             <Form.Item className="text-right">
