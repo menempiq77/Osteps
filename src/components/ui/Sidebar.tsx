@@ -30,6 +30,8 @@ const Sidebar = () => {
   const isMobile = useMediaQuery("(max-width: 768px)");
   const [isOpen, setIsOpen] = useState(!isMobile);
 
+  const profilePath = currentUser?.profile_path;
+
   useEffect(() => {
     setIsOpen(!isMobile);
   }, [isMobile]);
@@ -52,7 +54,7 @@ const Sidebar = () => {
     window.location.href = "/";
   };
 
-   const navigation = {
+  const navigation = {
     SUPER_ADMIN: [
       { name: "Dashboard", href: "/dashboard", icon: Home },
       { name: "Schools", href: "/dashboard/schools", icon: GraduationCap },
@@ -62,6 +64,11 @@ const Sidebar = () => {
         href: "/dashboard/announcements",
         icon: Megaphone,
         badge: unreadAnnouncements > 0 ? unreadAnnouncements : null,
+      },
+      {
+        name: "Settings",
+        href: "/dashboard/admins/settings",
+        icon: Settings,
       },
     ],
     SCHOOL_ADMIN: [
@@ -269,9 +276,17 @@ const Sidebar = () => {
               }`}
             >
               <div className="relative">
-                <div className="h-9 w-9 rounded-full bg-green-500 flex items-center justify-center text-white font-medium">
-                  {currentUser.email[0].toUpperCase()}
-                </div>
+                {profilePath ? (
+                  <img
+                    src={profilePath}
+                    alt="Profile"
+                    className="h-9 w-9 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="h-9 w-9 rounded-full bg-green-500 flex items-center justify-center text-white font-medium">
+                    {currentUser?.email?.[0]?.toUpperCase() || "U"}
+                  </div>
+                )}
                 <div className="absolute -bottom-1 -right-1 h-3 w-3 rounded-full bg-green-400 border-2 border-white"></div>
               </div>
               {isOpen && (

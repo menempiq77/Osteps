@@ -50,7 +50,7 @@ const authSlice = createSlice({
       })
       .addCase(login.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        const { id, email, role, token, name, school, student } = action.payload;
+        const { id, email, role, token, name, school, student, profile_path, contact } = action.payload;
 
         const currentUser: User = {
           id: id.toString(),
@@ -59,6 +59,8 @@ const authSlice = createSlice({
           school: school?.id || null,
           student: student?.id || null,
           studentClass: student?.class_id || null,
+          profile_path,
+          contact,
           token,
           name,
         };

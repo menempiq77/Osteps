@@ -2,58 +2,58 @@
 import React from "react";
 import { Tabs, Form, Input, Button, Upload, message } from "antd";
 import { UploadOutlined } from "@ant-design/icons";
-import { changePassword, updateSchoolAdminProfile } from "@/services/api";
+import { changePassword, updateTeacherProfile } from "@/services/api";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { Phone } from "lucide-react";
 
-const SchoolAdminSettings = () => {
+const AdminSettings = () => {
+  const [form] = Form.useForm();
   const [profileForm] = Form.useForm();
-  const [schoolForm] = Form.useForm();
-  const [securityForm] = Form.useForm();
+  const [fileList, setFileList] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
-  const [profileImage, setProfileImage] = React.useState([]);
-  const [schoolLogo, setSchoolLogo] = React.useState([]);
   const [profileLoading, setProfileLoading] = React.useState(false);
   const { currentUser } = useSelector((state: RootState) => state.auth);
 
   React.useEffect(() => {
-    if (currentUser?.id) {
-      const nameParts = currentUser.name?.trim().split(" ") || [];
-      const firstName = nameParts[0] || "";
-      const lastName = nameParts.slice(1).join(" ") || "";
+  if (currentUser?.id) {
+    const nameParts = currentUser.name?.trim().split(' ') || [];
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || ''; 
+    
+    profileForm.setFieldsValue({
+      firstName: firstName,
+      lastName: lastName,
+      email: currentUser.email,
+    });
+  }
+}, [currentUser, profileForm]);
 
-      profileForm.setFieldsValue({
-        firstName: firstName,
-        lastName: lastName,
-        email: currentUser.email,
-        contact: currentUser.contact || "",
-      });
-    }
-  }, [currentUser, profileForm]);
+  console.log("Current User Id:", currentUser?.id);
 
   const onProfileFinish = async (values) => {
     try {
       setProfileLoading(true);
+
       const formData = new FormData();
+
       formData.append("user_id", currentUser.id.toString());
+
       formData.append("first_name", values.firstName);
       formData.append("last_name", values.lastName);
       formData.append("email", values.email);
-      formData.append("contact", values.contact);
 
-      if (profileImage.length > 0) {
-        formData.append("profile_path", profileImage[0].originFileObj);
+      if (fileList.length > 0) {
+        formData.append("profile_path", fileList[0].originFileObj);
       }
 
-      const response = await updateSchoolAdminProfile(formData);
+      const response = await updateTeacherProfile(formData);
 
       message.success("Profile updated successfully!");
       profileForm.setFieldsValue({
         firstName: response.first_name,
         lastName: response.last_name,
         email: response.email,
-        contact: response.contact,
+        phone: response.phone,
       });
     } catch (error) {
       console.error("Profile update failed:", error);
@@ -64,9 +64,14 @@ const SchoolAdminSettings = () => {
       setProfileLoading(false);
     }
   };
+
   const onFinishFailed = (errorInfo) => {
     console.log("Failed:", errorInfo);
     message.error("Please fill all required fields!");
+  };
+
+  const handleUploadChange = ({ fileList }) => {
+    setFileList(fileList);
   };
 
   const onSecurityFinish = async (values) => {
@@ -78,7 +83,7 @@ const SchoolAdminSettings = () => {
         new_password_confirmation: values.confirmPassword,
       });
       message.success("Password changed successfully!");
-      securityForm.resetFields();
+      form.resetFields();
     } catch (error) {
       console.error("Password change failed:", error);
       message.error(
@@ -94,7 +99,7 @@ const SchoolAdminSettings = () => {
       key: "1",
       label: "Profile",
       children: (
-        <div className="w-full max-w-3xl">
+        <div className="w-full max-w-2xl px-2">
           <Form
             form={profileForm}
             name="profile"
@@ -139,23 +144,13 @@ const SchoolAdminSettings = () => {
                 { type: "email", message: "Please enter a valid email!" },
               ]}
             >
-              <Input size="large" disabled  />
-            </Form.Item>
-
-            <Form.Item
-              label="Phone Number"
-              name="contact"
-              rules={[
-                { required: true, message: "Please input your phone number!" },
-              ]}
-            >
               <Input size="large" />
             </Form.Item>
 
             <Form.Item label="Profile Picture">
               <Upload
-                fileList={profileImage}
-                onChange={({ fileList }) => setProfileImage(fileList)}
+                fileList={fileList}
+                onChange={handleUploadChange}
                 beforeUpload={() => false}
                 listType="picture"
                 maxCount={1}
@@ -178,94 +173,13 @@ const SchoolAdminSettings = () => {
         </div>
       ),
     },
-    // {
-    //   key: "2",
-    //   label: "School Information",
-    //   children: (
-    //     <div className="w-full max-w-3xl">
-    //       <Form
-    //         form={schoolForm}
-    //         name="school"
-    //         layout="vertical"
-    //         onFinish={onProfileFinish}
-    //         onFinishFailed={onFinishFailed}
-    //         autoComplete="off"
-    //       >
-    //         <Form.Item
-    //           label="School Name"
-    //           name="schoolName"
-    //           rules={[{ required: true, message: "Please input school name!" }]}
-    //         >
-    //           <Input size="large" />
-    //         </Form.Item>
-
-    //         <Form.Item
-    //           label="School Address"
-    //           name="address"
-    //           rules={[
-    //             { required: true, message: "Please input school address!" },
-    //           ]}
-    //         >
-    //           <Input.TextArea rows={4} />
-    //         </Form.Item>
-
-    //         <Form.Item
-    //           label="School Phone"
-    //           name="schoolPhone"
-    //           rules={[
-    //             {
-    //               required: true,
-    //               message: "Please input school phone number!",
-    //             },
-    //           ]}
-    //         >
-    //           <Input size="large" />
-    //         </Form.Item>
-
-    //         <Form.Item
-    //           label="School Email"
-    //           name="schoolEmail"
-    //           rules={[
-    //             { required: true, message: "Please input school email!" },
-    //             { type: "email", message: "Please enter a valid email!" },
-    //           ]}
-    //         >
-    //           <Input size="large" />
-    //         </Form.Item>
-
-    //         <Form.Item label="School Logo">
-    //           <Upload
-    //             fileList={schoolLogo}
-    //             onChange={({ fileList }) => setSchoolLogo(fileList)}
-    //             beforeUpload={() => false}
-    //             listType="picture"
-    //             maxCount={1}
-    //           >
-    //             <Button icon={<UploadOutlined />}>Upload Logo</Button>
-    //           </Upload>
-    //         </Form.Item>
-
-    //         <Form.Item className="text-right">
-    //           <Button
-    //             type="primary"
-    //             htmlType="submit"
-    //             size="large"
-    //             className="w-full md:w-auto !bg-primary !border-primary hover:!bg-primary hover:!border-primary"
-    //           >
-    //             Save School Information
-    //           </Button>
-    //         </Form.Item>
-    //       </Form>
-    //     </div>
-    //   ),
-    // },
     {
-      key: "3",
+      key: "2",
       label: "Security",
       children: (
         <div className="w-full max-w-2xl px-2">
           <Form
-            form={securityForm}
+            form={form}
             name="security"
             layout="vertical"
             onFinish={onSecurityFinish}
@@ -290,7 +204,6 @@ const SchoolAdminSettings = () => {
               name="newPassword"
               rules={[
                 { required: true, message: "Please input new password!" },
-                { min: 8, message: "Password must be at least 8 characters!" },
               ]}
             >
               <Input.Password size="large" />
@@ -334,10 +247,8 @@ const SchoolAdminSettings = () => {
   ];
 
   return (
-    <div className="p-4 md:p-6">
-      <h1 className="text-xl md:text-2xl font-bold mb-4 md:mb-6">
-        School Settings
-      </h1>
+    <div className="p-4 sm:p-6">
+      <h1 className="text-xl sm:text-2xl font-bold mb-6">Admin Settings</h1>
       <Tabs
         defaultActiveKey="1"
         items={items}
@@ -349,4 +260,4 @@ const SchoolAdminSettings = () => {
   );
 };
 
-export default SchoolAdminSettings;
+export default AdminSettings;
