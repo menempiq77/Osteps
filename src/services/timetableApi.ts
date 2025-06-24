@@ -1,0 +1,23 @@
+// src/services/timetableApi.ts
+import axios from 'axios';
+import { store } from '@/store/store';
+import { API_BASE_URL } from '@/lib/config';
+
+const api = axios.create({
+  baseURL: API_BASE_URL,
+});
+
+// Request interceptor to add auth token
+api.interceptors.request.use((config) => {
+  const token = store.getState().auth.token;
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// fetch Timetable data
+export const fetchTimetableData = async () => {
+  const response = await api.get(`/get-timeTable`);
+  return response.data.data;
+};

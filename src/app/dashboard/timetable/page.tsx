@@ -17,7 +17,8 @@ import type { Dayjs } from "dayjs";
 import dayjs from "dayjs";
 import { Modal } from "antd";
 import { Select } from "antd";
-import { fetchClasses, fetchTeachers, fetchTimetableData, fetchYears } from "@/services/api";
+import { fetchClasses, fetchTeachers, fetchYears } from "@/services/api";
+import { fetchTimetableData } from "@/services/timetableApi";
 const { Option } = Select;
 interface Year {
   id: number;

@@ -2,9 +2,9 @@
 import React from "react";
 import { Tabs, Form, Input, Button, Upload, message } from "antd";
 import { UploadOutlined } from "@ant-design/icons";
-import { changePassword, updateTeacherProfile } from "@/services/api";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
+import { changePassword, updateTeacherProfile } from "@/services/settingApi";
 
 const AdminSettings = () => {
   const [form] = Form.useForm();
