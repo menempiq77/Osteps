@@ -149,7 +149,6 @@ export default function QuranQuizPage() {
     try {
       setSubmitting(true);
 
-      // Prepare answers in the required format
       const formattedAnswers: Answer[] = quizData.quiz_queston.map(
         (question) => {
           const answer = answers[question.id] || "";
@@ -159,6 +158,14 @@ export default function QuranQuizPage() {
             answer: answer,
           };
         }
+      );
+
+      localStorage.setItem(
+        `quiz_${quizData.id}_answers`,
+        JSON.stringify({
+          answers: formattedAnswers,
+          submittedAt: new Date().toISOString(),
+        })
       );
 
       await submitQuizByStudent(

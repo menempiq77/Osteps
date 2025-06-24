@@ -1,8 +1,9 @@
 "use client";
-import React from "react";
-import { useRouter } from "next/navigation";
+import React, { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, XCircle, Trophy } from "lucide-react";
-import { Button, Progress } from "antd";
+import { Button, Progress, message } from "antd";
+import { fetchQuizQuestions } from "@/services/api";
 
 interface QuizResult {
   totalQuestions: number;
@@ -17,48 +18,170 @@ interface QuizResult {
   }[];
 }
 
+interface Option {
+  id: number;
+  option_text: string;
+  is_correct: number;
+}
+
+interface QuizQuestion {
+  id: number;
+  quiz_id: number;
+  question_text: string;
+  type: string;
+  correct_answer: string | null;
+  options: Option[];
+}
+
+interface Quiz {
+  id: number;
+  name: string;
+  quiz_queston: QuizQuestion[];
+}
+interface StoredAnswer {
+  question_id: number;
+  answer: string | number | boolean | number[];
+}
+
 export default function QuizResultPage() {
   const router = useRouter();
-  
-  // Mock data - in a real app, this would come from your API
-  const result: QuizResult = {
-    totalQuestions: 5,
-    correctAnswers: 3,
-    scorePercentage: 60,
-    timeTaken: "5:30",
-    quizDetails: [
-      {
-        question: "What is the meaning of Iman?",
-        userAnswer: "Belief in Allah",
-        correctAnswer: "Belief in Allah and His Messenger",
-        isCorrect: false,
-      },
-      {
-        question: "Describe the importance of prayer in Islam.",
-        userAnswer: "Prayer is the pillar of religion and connects a believer with Allah.",
-        correctAnswer: "Prayer is the pillar of religion and connects a believer with Allah.",
-        isCorrect: true,
-      },
-      {
-        question: "How many pillars of Islam are there?",
-        userAnswer: "Five",
-        correctAnswer: "Five",
-        isCorrect: true,
-      },
-      {
-        question: "Which of the following are prophets?",
-        userAnswer: "Isa,Pharaoh",
-        correctAnswer: "Isa,Musa,Yunus",
-        isCorrect: false,
-      },
-      {
-        question: "Select the first month of the Islamic calendar.",
-        userAnswer: "Muharram",
-        correctAnswer: "Muharram",
-        isCorrect: true,
-      },
-    ],
+  const { quizId } = useParams();
+  const [loading, setLoading] = useState(false);
+  const [quizData, setQuizData] = useState<Quiz | null>(null);
+ const [userAnswers, setUserAnswers] = useState<StoredAnswer[]>([]);
+
+  useEffect(() => {
+    const loadQuizQuestions = async () => {
+      try {
+        setLoading(true);
+        const response = await fetchQuizQuestions(Number(quizId));
+        setQuizData(response);
+        
+        // Retrieve stored answers from localStorage
+        const storedAnswers = localStorage.getItem(`quiz_${quizId}_answers`);
+        if (storedAnswers) {
+          const parsedAnswers = JSON.parse(storedAnswers);
+          setUserAnswers(parsedAnswers.answers || []);
+        }
+      } catch {
+        message.error("Failed to load quiz questions");
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadQuizQuestions();
+  }, [quizId]);
+
+  // Function to get user's answer text
+  const getUserAnswerText = (questionId: number): string => {
+    const answer = userAnswers.find(a => a.question_id === questionId);
+    if (!answer) return "Not answered";
+
+    const question = quizData?.quiz_queston.find(q => q.id === questionId);
+    if (!question) return "Not answered";
+
+    // Handle different question types
+    if (question.type === "multiple_choice" || question.type === "drop_down") {
+      const option = question.options.find(opt => opt.id === answer.answer);
+      return option?.option_text || "Not answered";
+    }
+
+    if (question.type === "check_boxes") {
+      const selectedOptions = question.options.filter(opt => 
+        Array.isArray(answer.answer) && answer.answer.includes(opt.id)
+      );
+      return selectedOptions.map(opt => opt.option_text).join(", ") || "Not answered";
+    }
+
+    if (question.type === "true_false") {
+      return answer.answer ? "True" : "False";
+    }
+
+    return answer.answer?.toString() || "Not answered";
   };
+
+  // Function to check if answer is correct
+  const isAnswerCorrect = (questionId: number): boolean => {
+    const answer = userAnswers.find(a => a.question_id === questionId);
+    if (!answer) return false;
+
+    const question = quizData?.quiz_queston.find(q => q.id === questionId);
+    if (!question) return false;
+
+    if (question.type === "multiple_choice" || question.type === "drop_down") {
+      const correctOption = question.options.find(opt => opt.is_correct === 1);
+      return correctOption?.id === answer.answer;
+    }
+
+    if (question.type === "check_boxes") {
+      const correctOptions = question.options.filter(opt => opt.is_correct === 1);
+      const correctOptionIds = correctOptions.map(opt => opt.id);
+      return (
+        Array.isArray(answer.answer) &&
+        correctOptionIds.length === answer.answer.length &&
+        correctOptionIds.every(id => answer.answer.includes(id))
+      );
+    }
+
+    if (question.type === "true_false") {
+      const correctAnswer = question.correct_answer === "1";
+      return answer.answer === correctAnswer;
+    }
+
+    // For short answer and paragraph, we can't automatically determine correctness
+    return false;
+  };
+
+  // Function to get correct answer text
+  const getCorrectAnswerText = (question: QuizQuestion): string => {
+    switch (question.type) {
+      case "multiple_choice":
+      case "drop_down":
+        const correctOption = question.options.find(opt => opt.is_correct === 1);
+        return correctOption ? correctOption.option_text : "No correct answer specified";
+      case "check_boxes":
+        const correctOptions = question.options.filter(opt => opt.is_correct === 1);
+        return correctOptions.map(opt => opt.option_text).join(", ") || "No correct answers specified";
+      case "true_false":
+        return question.correct_answer === "1" ? "True" : "False";
+      default:
+        return "No specific correct answer (subjective question)";
+    }
+  };
+
+  // Calculate results
+  const calculateResults = (): QuizResult => {
+    if (!quizData) {
+      return {
+        totalQuestions: 0,
+        correctAnswers: 0,
+        scorePercentage: 0,
+        timeTaken: "0:00",
+        quizDetails: [],
+      };
+    }
+
+    const totalQuestions = quizData.quiz_queston.length;
+    const correctAnswers = quizData.quiz_queston.reduce((count, question) => {
+      return count + (isAnswerCorrect(question.id) ? 1 : 0);
+    }, 0);
+    const scorePercentage = Math.round((correctAnswers / totalQuestions) * 100);
+
+    return {
+      totalQuestions,
+      correctAnswers,
+      scorePercentage,
+      timeTaken: "0:00", // You can store and retrieve the time taken if needed
+      quizDetails: quizData.quiz_queston.map(question => ({
+        question: question.question_text,
+        userAnswer: getUserAnswerText(question.id),
+        correctAnswer: getCorrectAnswerText(question),
+        isCorrect: isAnswerCorrect(question.id),
+      })),
+    };
+  };
+
+  const result = calculateResults();
 
   return (
     <div className="p-3 md:p-6 max-w-5xl mx-auto bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
@@ -75,6 +198,7 @@ export default function QuizResultPage() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="p-6 border-b border-gray-200">
           <h1 className="text-2xl font-bold text-gray-900">Quiz Results</h1>
+          <p className="text-gray-600 mt-1">{quizData?.name}</p>
         </div>
 
         <div className="p-6">
@@ -86,7 +210,8 @@ export default function QuizResultPage() {
                   Your Performance
                 </h2>
                 <p className="text-gray-600">
-                  You answered {result.correctAnswers} out of {result.totalQuestions} questions correctly.
+                  You answered {result.correctAnswers} out of{" "}
+                  {result.totalQuestions} questions correctly.
                 </p>
                 <p className="text-gray-600">Time taken: {result.timeTaken}</p>
               </div>
@@ -95,12 +220,12 @@ export default function QuizResultPage() {
                 <Progress
                   type="circle"
                   percent={result.scorePercentage}
-                  strokeColor="#4f46e5"
+                  strokeColor="#38C16C"
                   trailColor="#e0e7ff"
                   strokeWidth={10}
                   width={120}
                   format={(percent) => (
-                    <span className="text-2xl font-bold text-indigo-600">
+                    <span className="text-2xl font-bold text-primary">
                       {percent}%
                     </span>
                   )}
@@ -156,22 +281,16 @@ export default function QuizResultPage() {
                     <div className="mt-2">
                       <p className="text-sm">
                         <span className="font-medium">Your answer:</span>{" "}
-                        <span
-                          className={
-                            item.isCorrect ? "text-green-600" : "text-red-600"
-                          }
-                        >
-                          {item.userAnswer}
+                        <span className="text-gray-600">
+                          {item.userAnswer || "Not answered"}
                         </span>
                       </p>
-                      {!item.isCorrect && (
-                        <p className="text-sm">
-                          <span className="font-medium">Correct answer:</span>{" "}
-                          <span className="text-green-600">
-                            {item.correctAnswer}
-                          </span>
-                        </p>
-                      )}
+                      <p className="text-sm">
+                        <span className="font-medium">Correct answer:</span>{" "}
+                        <span className="text-green-600">
+                          {item.correctAnswer}
+                        </span>
+                      </p>
                     </div>
                   </div>
                   <div>
@@ -190,7 +309,7 @@ export default function QuizResultPage() {
             <Button
               type="primary"
               onClick={() => router.push("/dashboard")}
-              className="bg-indigo-600 hover:bg-indigo-700"
+              className="!bg-primary hover:!bg-primary/90"
             >
               Back to Dashboard
             </Button>
