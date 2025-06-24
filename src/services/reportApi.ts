@@ -21,3 +21,21 @@ export const fetchReportAssessments = async () => {
   const response = await api.get(`/get-report-assessments`);
   return response.data.data;
 };
+
+//assigned year classes api
+export const fetchAssignedYearClasses = async () => {
+  const response = await api.get(`/get-assigned-year-classes`);
+  return response.data.data;
+};
+
+//whole-assessments report api
+export const fetchWholeAssessmentsReport = async () => {
+  const response = await api.get(`/get-whole-assessments-report`);
+  return response.data.data;
+};
+
+//report specific assessment tasks api
+export const fetchReportSpecificAssessmentTasks = async (assessmentId: number) => {
+  const response = await api.get(`/get-report-specific-assessment-tasks/${assessmentId}`);
+  return response.data.data;
+};

@@ -1,113 +1,238 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { Button, Card, Select } from "antd";
+import { Button, Card, Select, Spin } from "antd";
 import { ChevronLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { fetchReportAssessments } from "@/services/reportApi";
+import {
+  fetchAssignedYearClasses,
+  fetchReportAssessments,
+  fetchWholeAssessmentsReport,
+} from "@/services/reportApi";
+
+interface Task {
+  student_id: number;
+  student_name: string;
+  task_id: number;
+  task_name: string;
+  assessment_id: number;
+  teacher_assessment_marks: number | null;
+  allocated_marks: string;
+}
+
+interface Assessment {
+  assessment_id: number;
+  assessment_name: string;
+  class_id: number;
+  term_id: number;
+  year_id: number;
+  tasks: Task[];
+}
+
+interface AssignedClass {
+  id: number;
+  class_id: number;
+  teacher_id: number;
+  subject: string;
+  classes: {
+    id: number;
+    school_id: number;
+    year_id: number;
+    class_name: string;
+    number_of_terms: string;
+    year: {
+      id: number;
+      school_id: number;
+      name: string;
+    };
+    term: Array<{
+      id: number;
+      class_id: number;
+      name: string;
+    }>;
+  };
+}
 
 export default function ReportsPage() {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedClass, setSelectedClass] = useState("Class A");
-  const [selectedYear, setSelectedYear] = useState("Year 1");
+  const [selectedClass, setSelectedClass] = useState<string | null>(null);
+  const [selectedYear, setSelectedYear] = useState<string | null>(null);
+  const [assesmentData, setAssesmentData] = useState([]);
+  const [wholeAssesmentData, setWholeAssesmentData] = useState<Assessment[]>(
+    []
+  );
+  const [assignedClasses, setAssignedClasses] = useState<AssignedClass[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Get unique years from assigned classes
+  const years = Array.from(
+    new Set(
+      assignedClasses?.map((item) => ({
+        id: item.classes.year.id,
+        name: item.classes.year.name,
+      }))
+    )
+  );
+
+  // Get classes filtered by selected year
+  const classes = assignedClasses
+    ?.filter(
+      (item) =>
+        !selectedYear || item.classes.year.id.toString() === selectedYear
+    )
+    ?.map((item) => ({
+      id: item.classes.id,
+      name: item.classes.class_name,
+    }));
 
   useEffect(() => {
     const fetchData = async () => {
       const reportData = await fetchReportAssessments();
-      console.log(reportData, "Report Data Fetched");
+      setAssesmentData(reportData);
     };
 
     fetchData();
   }, []);
 
-  // Sample data matching the screenshot structure
-  const [editableData, setEditableData] = useState([
-    {
-      student: "Ahmed Mohamed",
-      pitg: "7IA/Is",
-      courseGrade: "B+",
-      t1QuanAssessment: 85,
-      t1WrittenTask: 78,
-      t1Classwork: 82,
-      t1Assessment: 80,
-      t2WrittenTask: 84,
-      t2Classwork: 79,
-      t3QuanAssessment: 88,
-      t3WrittenTask: 76,
-      t3Classwork: 81,
-      t3Assessment: 83,
-      total: 816,
-    },
-    {
-      student: "Fatima Ali",
-      pitg: "7IA/Is",
-      courseGrade: "A-",
-      t1QuanAssessment: 90,
-      t1WrittenTask: 85,
-      t1Classwork: 88,
-      t1Assessment: 87,
-      t2WrittenTask: 89,
-      t2Classwork: 86,
-      t3QuanAssessment: 92,
-      t3WrittenTask: 84,
-      t3Classwork: 87,
-      t3Assessment: 90,
-      total: 888,
-    },
-    {
-      student: "Omar Hassan",
-      pitg: "7IA/Is",
-      courseGrade: "B",
-      t1QuanAssessment: 78,
-      t1WrittenTask: 72,
-      t1Classwork: 75,
-      t1Assessment: 74,
-      t2WrittenTask: 76,
-      t2Classwork: 73,
-      t3QuanAssessment: 80,
-      t3WrittenTask: 71,
-      t3Classwork: 74,
-      t3Assessment: 78,
-      total: 751,
-    },
-  ]);
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await fetchWholeAssessmentsReport();
+        setWholeAssesmentData(response);
+        setLoading(false);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        setLoading(false);
+      }
+    };
 
-  const filteredData = editableData.filter((student) =>
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await fetchAssignedYearClasses();
+        setAssignedClasses(response);
+
+        // Set initial selected year and class if available
+        if (response.data.length > 0) {
+          const firstYear = response.data[0].classes.year;
+          const firstClass = response.data[0].classes;
+
+          setSelectedYear(firstYear.id.toString());
+          setSelectedClass(firstClass.id.toString());
+        }
+
+        setLoading(false);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // Add this helper function to find the current class
+  const getCurrentClass = () => {
+    return assignedClasses.find(
+      (cls) => cls.classes.id.toString() === selectedClass
+    );
+  };
+
+  const currentClass = getCurrentClass();
+
+  // Transform API data into table format
+  const transformAssessmentData = () => {
+    if (!wholeAssesmentData?.length) return [];
+
+    // Group tasks by student
+    const studentsMap = new Map<number, any>();
+
+    wholeAssesmentData?.forEach((assessment) => {
+      assessment.tasks.forEach((task) => {
+        if (!studentsMap.has(task.student_id)) {
+          studentsMap.set(task.student_id, {
+            student_id: task.student_id,
+            student_name: task.student_name,
+            tasks: {},
+            totals: {},
+          });
+        }
+
+        const student = studentsMap.get(task.student_id);
+        if (!student.tasks[assessment.assessment_id]) {
+          student.tasks[assessment.assessment_id] = [];
+        }
+
+        student.tasks[assessment.assessment_id].push({
+          task_id: task.task_id,
+          task_name: task.task_name,
+          marks: task.teacher_assessment_marks,
+          allocated_marks: task.allocated_marks,
+        });
+      });
+    });
+
+    // Calculate totals for each student
+    const students = Array.from(studentsMap.values()).map((student) => {
+      const studentData: any = {
+        student: student.student_name,
+        student_id: student.student_id,
+        pitg: "7IA/Is", // You might need to get this from API
+        courseGrade: "B+", // You might need to calculate this
+        total: 0,
+      };
+
+      // Initialize all assessment fields to 0
+      wholeAssesmentData.forEach((assessment) => {
+        const assessmentKey = `assessment_${assessment.assessment_id}`;
+        studentData[assessmentKey] = 0;
+      });
+
+      // Calculate marks for each assessment
+      Object.entries(student.tasks).forEach(
+        ([assessmentId, tasks]: [string, any]) => {
+          const assessmentTotal = tasks.reduce((sum: number, task: any) => {
+            return sum + (task.marks || 0);
+          }, 0);
+
+          studentData[`assessment_${assessmentId}`] = assessmentTotal;
+          studentData.total += assessmentTotal;
+        }
+      );
+
+      return studentData;
+    });
+
+    return students;
+  };
+
+  const transformedData = transformAssessmentData();
+
+  const filteredData = transformedData.filter((student) =>
     student.student.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleMarkChange = (index: number, field: string, value: string) => {
-    const newData = [...editableData];
-    const numValue = value === "" ? 0 : parseInt(value, 10);
-
-    newData[index] = {
-      ...newData[index],
-      [field]: isNaN(numValue) ? 0 : numValue,
-    };
-
-    if (field !== "total") {
-      const student = newData[index];
-      const total =
-        (student.t1QuanAssessment || 0) +
-        (student.t1WrittenTask || 0) +
-        (student.t1Classwork || 0) +
-        (student.t1Assessment || 0) +
-        (student.t2WrittenTask || 0) +
-        (student.t2Classwork || 0) +
-        (student.t3QuanAssessment || 0) +
-        (student.t3WrittenTask || 0) +
-        (student.t3Classwork || 0) +
-        (student.t3Assessment || 0);
-
-      newData[index].total = total;
-    }
-
-    setEditableData(newData);
+    // You'll need to implement this based on your API structure
+    console.log("Mark change:", index, field, value);
+    // This would need to update the API data structure
   };
 
   const handleViewReportsDetail = (reportId: string) => {
     router.push(`/dashboard/students/reports/${reportId}`);
   };
+
+  if (loading) {
+    return (
+      <div className="p-3 md:p-6 flex justify-center items-center h-64">
+        <Spin size="large" />
+      </div>
+    );
+  }
+
   return (
     <div className="p-3 md:p-6 lg:p-12 mx-auto bg-white min-h-screen">
       <div className="flex items-center gap-4 mb-6">
@@ -120,61 +245,57 @@ export default function ReportsPage() {
         </Button>
         <Select
           value={selectedYear}
-          onChange={setSelectedYear}
+          onChange={(value) => {
+            setSelectedYear(value);
+            setSelectedClass(null); // Reset class when year changes
+          }}
           style={{ width: 150 }}
           placeholder="Select Year"
-        >
-          <Select.Option value="Year 1">Year 1</Select.Option>
-          <Select.Option value="Year 2">Year 2</Select.Option>
-          <Select.Option value="Year 3">Year 3</Select.Option>
-        </Select>
+          options={years?.map((year) => ({
+            value: year.id.toString(),
+            label: year.name,
+          }))}
+        />
 
         <Select
           value={selectedClass}
           onChange={setSelectedClass}
           style={{ width: 150 }}
           placeholder="Select Class"
-        >
-          <Select.Option value="Class A">Class A</Select.Option>
-          <Select.Option value="Class B">Class B</Select.Option>
-          <Select.Option value="Class C">Class C</Select.Option>
-        </Select>
+          disabled={!selectedYear}
+          options={classes?.map((cls) => ({
+            value: cls.id.toString(),
+            label: cls.name,
+          }))}
+        />
       </div>
 
       <h1 className="text-2xl font-bold text-gray-900 mb-6">
-        Year 7 Islamic Education, 7IA/Is
+        {currentClass?.subject || "Subject"}
       </h1>
       <div className="flex items-center space-x-4 mb-4 text-sm text-blue-500">
+        <span>Home &gt;</span>
         <span>
-          Home &gt; Year 7 &gt; Year 7 Islamic Education &gt;{" "}
-          <strong className="text-gray-900">Methods for 7IA/Is</strong>
+          {selectedYear
+            ? years.find((y) => y.id.toString() === selectedYear)?.name
+            : "Year"}
+            &gt;
         </span>
+        <span>{currentClass?.subject || "Subject"}</span>
       </div>
 
-      <div className="mb-6 flex gap-2 items-end">
+      <div className="mb-6 flex items-center gap-2">
         <h3 className="font-medium min-w-[120px]">View worksheet:</h3>
         <div className="flex flex-wrap items-center space-x-2 text-sm text-gray-600">
-          {[
-            { id: 1, name: "T1 Quan Assessment" },
-            { id: 2, name: "T1 Written Task" },
-            { id: 3, name: "T1 Classwork" },
-            { id: 4, name: "T1 Assessment" },
-            { id: 5, name: "T2 Written Task" },
-            { id: 6, name: "T2 Classwork" },
-            { id: 7, name: "T3 Quan Assessment" },
-            { id: 8, name: "T3 Written Task" },
-            { id: 9, name: "T3 Classwork" },
-            { id: 10, name: "T3 Assessment" },
-            { id: 11, name: "Total" },
-          ].map((item, index) => (
+          {assesmentData?.map((item) => (
             <React.Fragment key={item.id}>
               <span
-                onClick={() => handleViewReportsDetail(item.id)} // Passing the id here
+                onClick={() => handleViewReportsDetail(item.id)}
                 className="text-blue-500 cursor-pointer hover:underline"
               >
-                {item.name}
+                {item.name || item?.quiz?.name}
               </span>
-              {index < 10 && <span>|</span>}{" "}
+              <span>|</span>
             </React.Fragment>
           ))}
         </div>
@@ -216,19 +337,10 @@ export default function ReportsPage() {
                     Student
                   </th>
                   {[
-                    "Set",
-                    "PITG",
                     "Course Grade",
-                    "T1 Quan Assessment",
-                    "T1 Written Task",
-                    "T1 Classwork",
-                    "T1 Assessment",
-                    "T2 Written Task",
-                    "T2 Classwork",
-                    "T3 Quan Assessment",
-                    "T3 Written Task",
-                    "T3 Classwork",
-                    "T3 Assessment",
+                    ...(wholeAssesmentData?.map(
+                      (assessment) => assessment.assessment_name
+                    ) || []),
                     "Total",
                   ].map((header, index) => (
                     <th
@@ -247,16 +359,10 @@ export default function ReportsPage() {
               </thead>
 
               <tbody className="divide-y divide-gray-200 bg-white">
-                {filteredData.map((student, index) => (
+                {filteredData?.map((student, index) => (
                   <tr key={index} className="hover:bg-gray-50">
                     <td className="px-2 py-2 border whitespace-nowrap text-sm font-medium text-gray-900 sticky left-0 bg-white z-10">
                       {student.student}
-                    </td>
-                    <td className="px-2 py-2 border whitespace-nowrap text-sm text-gray-500">
-                      -
-                    </td>
-                    <td className="px-2 py-2 border whitespace-nowrap text-sm text-gray-500">
-                      {student.pitg}
                     </td>
                     <td className="px-2 py-3 border whitespace-nowrap text-sm font-medium text-center">
                       <span
@@ -271,67 +377,15 @@ export default function ReportsPage() {
                         {student.courseGrade}
                       </span>
                     </td>
-                    {/* Editable mark cells */}
-                    <EditableCell
-                      value={student.t1QuanAssessment}
-                      onChange={(value) =>
-                        handleMarkChange(index, "t1QuanAssessment", value)
-                      }
-                    />
-                    <EditableCell
-                      value={student.t1WrittenTask}
-                      onChange={(value) =>
-                        handleMarkChange(index, "t1WrittenTask", value)
-                      }
-                    />
-                    <EditableCell
-                      value={student.t1Classwork}
-                      onChange={(value) =>
-                        handleMarkChange(index, "t1Classwork", value)
-                      }
-                    />
-                    <EditableCell
-                      value={student.t1Assessment}
-                      onChange={(value) =>
-                        handleMarkChange(index, "t1Assessment", value)
-                      }
-                    />
-                    <EditableCell
-                      value={student.t2WrittenTask}
-                      onChange={(value) =>
-                        handleMarkChange(index, "t2WrittenTask", value)
-                      }
-                    />
-                    <EditableCell
-                      value={student.t2Classwork}
-                      onChange={(value) =>
-                        handleMarkChange(index, "t2Classwork", value)
-                      }
-                    />
-                    <EditableCell
-                      value={student.t3QuanAssessment}
-                      onChange={(value) =>
-                        handleMarkChange(index, "t3QuanAssessment", value)
-                      }
-                    />
-                    <EditableCell
-                      value={student.t3WrittenTask}
-                      onChange={(value) =>
-                        handleMarkChange(index, "t3WrittenTask", value)
-                      }
-                    />
-                    <EditableCell
-                      value={student.t3Classwork}
-                      onChange={(value) =>
-                        handleMarkChange(index, "t3Classwork", value)
-                      }
-                    />
-                    <EditableCell
-                      value={student.t3Assessment}
-                      onChange={(value) =>
-                        handleMarkChange(index, "t3Assessment", value)
-                      }
-                    />
+                    {/* Assessment marks */}
+                    {wholeAssesmentData?.map((assessment) => (
+                      <td
+                        key={assessment.assessment_id}
+                        className="px-2 py-2 border whitespace-nowrap text-sm text-gray-500 font-medium"
+                      >
+                        {student[`assessment_${assessment.assessment_id}`]}
+                      </td>
+                    ))}
                     <td className="px-2 py-2 border whitespace-nowrap text-sm text-gray-500 font-medium">
                       {student.total}
                     </td>
@@ -345,22 +399,3 @@ export default function ReportsPage() {
     </div>
   );
 }
-
-const EditableCell = ({
-  value,
-  onChange,
-}: {
-  value: number;
-  onChange: (value: string) => void;
-}) => {
-  return (
-    <td className="px-2 py-2 border text-center whitespace-nowrap">
-      <input
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full max-w-8 bg-transparent border-none focus:ring-0 text-sm text-gray-500 p-0"
-      />
-    </td>
-  );
-};
