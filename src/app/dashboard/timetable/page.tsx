@@ -18,7 +18,7 @@ import dayjs from "dayjs";
 import { Modal } from "antd";
 import { Select } from "antd";
 import { fetchClasses, fetchTeachers, fetchYears } from "@/services/api";
-import { fetchTimetableData } from "@/services/timetableApi";
+import { addTimetableSlot, fetchTimetableData } from "@/services/timetableApi";
 const { Option } = Select;
 interface Year {
   id: number;
@@ -158,6 +158,9 @@ export default function TimetablePage() {
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [selectedTeacher, setSelectedTeacher] = useState("");
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
   const handleWeekChange = (date: Dayjs) => {
     setCurrentWeek(date.toDate());
     setShowWeekPicker(false);
@@ -230,7 +233,6 @@ export default function TimetablePage() {
       setLoading(true);
       const response = await fetchTimetableData();
       console.log("fetchTimetableData response:", response);
-
     } catch (err) {
       setError("Failed to fetch teachers");
       console.error(err);
@@ -238,8 +240,6 @@ export default function TimetablePage() {
       setLoading(false);
     }
   };
-
-  
 
   useEffect(() => {
     loadTeachers();
@@ -344,36 +344,73 @@ export default function TimetablePage() {
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const { day, time } = currentSlot;
-    const updatedTimetable = { ...timetableData };
 
-    if (!updatedTimetable[day]) {
-      updatedTimetable[day] = {};
-    }
+    setIsSubmitting(true);
+    setSubmitError(null);
 
-    updatedTimetable[day][time] = {
-      subject: formData.subject,
-      ...(formData.zoomLink && { zoomLink: formData.zoomLink }),
-      ...(currentUser?.role === "TEACHER"
-        ? {
-            class: formData.class,
-            room: formData.room,
-            year: formData.year,
-          }
-        : {
-            ...(currentUser?.role === "SCHOOL_ADMIN" && {
+    try {
+      // Extract start and end time from the time slot
+      const [startTime, endTime] = time.split(" - ");
+
+      // Prepare the data for the API with proper formatting
+      const slotData = {
+        subject: formData.subject,
+        year: formData.year.toString(), // Ensure year is a string
+        teacher: formData.teacher,
+        class: formData.class.toString(), // Ensure class is a string
+        room: formData.room,
+        date: dayjs(currentWeek).format("YYYY-MM-DD"),
+        day: day,
+        start_time: startTime.length === 4 ? `0${startTime}` : startTime, // Ensure 2-digit hour
+        end_time: endTime.length === 4 ? `0${endTime}` : endTime, // Ensure 2-digit hour
+        zoom_link: formData.zoomLink || "",
+      };
+
+      // Log the data being sent for debugging
+      console.log("Submitting timetable slot:", slotData);
+
+      const response = await addTimetableSlot(slotData);
+      console.log("Slot added successfully:", response);
+
+      // Update local state
+      const updatedTimetable = { ...timetableData };
+
+      if (!updatedTimetable[day]) {
+        updatedTimetable[day] = {};
+      }
+
+      updatedTimetable[day][time] = {
+        subject: formData.subject,
+        ...(formData.zoomLink && { zoomLink: formData.zoomLink }),
+        ...(currentUser?.role === "TEACHER"
+          ? {
               class: formData.class,
+              room: formData.room,
               year: formData.year,
+            }
+          : {
+              ...(currentUser?.role === "SCHOOL_ADMIN" && {
+                class: formData.class,
+                year: formData.year,
+              }),
+              teacher: formData.teacher,
+              room: formData.room,
             }),
-            teacher: formData.teacher,
-            room: formData.room,
-          }),
-    };
+      };
 
-    setTimetableData(updatedTimetable);
-    setIsModalOpen(false);
+      setTimetableData(updatedTimetable);
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error("Error adding timetable slot:", error);
+      setSubmitError(
+        "Failed to add timetable slot. Please check all fields and try again."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleInputChange = (
@@ -770,7 +807,7 @@ export default function TimetablePage() {
                 Class
               </label>
               <Select
-                // value={selectedClass || undefined}
+                value={selectedClass || undefined}
                 onChange={handleClassChange}
                 className="w-full"
                 placeholder="All Classes"
@@ -1136,8 +1173,10 @@ export default function TimetablePage() {
                   htmlType="submit"
                   type="primary"
                   className="px-4 py-2 text-sm !bg-primary !text-white !border-primary hover:!bg-primary/90 rounded-lg shadow-sm"
+                  loading={isSubmitting}
+                  disabled={isSubmitting}
                 >
-                  Save Changes
+                  {isSubmitting ? "Saving..." : "Save Changes"}
                 </Button>
               </div>
             </div>
