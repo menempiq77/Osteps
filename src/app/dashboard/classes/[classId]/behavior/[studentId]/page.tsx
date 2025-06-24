@@ -71,8 +71,10 @@ const StudentBehaviorPage = () => {
     behaviour_id: string;
     description: string;
     date: string;
-    teacher?: string;
     points: number;
+    teacher?: {
+      teacher_name?: string;
+    };
   };
 
   type Student = {
@@ -499,7 +501,7 @@ const StudentBehaviorPage = () => {
                         </Tag>
                         <p className="mt-2 font-medium">{item.description}</p>
                         <p className="text-sm text-gray-500">
-                          Recorded by {item.teacher || "Teacher"} on {item.date}
+                          Recorded by {item?.teacher?.teacher_name || "Teacher"} on {item.date}
                         </p>
                       </>
                     );

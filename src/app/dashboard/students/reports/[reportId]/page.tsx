@@ -1,83 +1,96 @@
 "use client";
-import React, { useState } from "react";
-import { Button } from "antd";
+import React, { useEffect, useState } from "react";
+import { Button, Card, Spin } from "antd";
 import { ChevronLeft } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
+import { fetchReportSpecificAssessmentTasks } from "@/services/reportApi";
+
+interface Task {
+  id: number;
+  task_id: number;
+  task_name: string;
+  allocated_marks: string;
+  teacher_assessment_marks: number | null;
+}
+
+interface StudentData {
+  student_id: number;
+  student_name: string;
+  tasks: Task[];
+}
 
 export default function Page() {
   const { reportId } = useParams();
   const router = useRouter();
-  const [assessmentData, setAssessmentData] = useState([
-    {
-      student: "Ahmed Mohamed",
-      id: "001",
-      tasks: [
-        { name: "Recitation", marks: 22, max: 25 },
-        { name: "Memorization", marks: 18, max: 20 },
-        { name: "Tajweed", marks: 20, max: 25 },
-        { name: "Understanding", marks: 25, max: 30 },
-      ],
-      total: 85,
-      grade: "A",
-    },
-    {
-      student: "Fatima Ali",
-      id: "002",
-      tasks: [
-        { name: "Recitation", marks: 25, max: 25 },
-        { name: "Memorization", marks: 20, max: 20 },
-        { name: "Tajweed", marks: 23, max: 25 },
-        { name: "Understanding", marks: 28, max: 30 },
-      ],
-      total: 96,
-      grade: "A+",
-    },
-    {
-      student: "Omar Hassan",
-      id: "003",
-      tasks: [
-        { name: "Recitation", marks: 20, max: 25 },
-        { name: "Memorization", marks: 16, max: 20 },
-        { name: "Tajweed", marks: 18, max: 25 },
-        { name: "Understanding", marks: 22, max: 30 },
-      ],
-      total: 76,
-      grade: "B",
-    },
-  ]);
+  const [apiData, setApiData] = useState<StudentData[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const taskNames = assessmentData[0]?.tasks.map((task) => task.name) || [];
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await fetchReportSpecificAssessmentTasks(Number(reportId));
+        setApiData(response);
+        setLoading(false);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [reportId]);
 
   const handleMarkChange = (
     studentIndex: number,
     taskIndex: number,
     value: string
   ) => {
-    const newData = [...assessmentData];
+    const newData = [...apiData];
     const numValue = value === "" ? 0 : parseInt(value, 10);
 
-    newData[studentIndex].tasks[taskIndex].marks = isNaN(numValue)
-      ? 0
+    newData[studentIndex].tasks[taskIndex].teacher_assessment_marks = isNaN(numValue)
+      ? null
       : numValue;
 
-    const student = newData[studentIndex];
-    const newTotal = student.tasks.reduce(
-      (sum, task) => sum + (task.marks || 0),
-      0
-    );
-    student.total = newTotal;
-
-    const maxPossible = student.tasks.reduce((sum, task) => sum + task.max, 0);
-    const percentage = (newTotal / maxPossible) * 100;
-
-    if (percentage >= 90) student.grade = "A+";
-    else if (percentage >= 80) student.grade = "A";
-    else if (percentage >= 70) student.grade = "B";
-    else if (percentage >= 60) student.grade = "C";
-    else student.grade = "D";
-
-    setAssessmentData(newData);
+    setApiData(newData);
   };
+
+  // Get unique task names from the first student (assuming all students have same tasks)
+  const taskNames = apiData[0]?.tasks.map((task) => task.task_name) || [];
+
+  // Calculate totals for each student
+  const studentsWithTotals = apiData.map(student => {
+    const total = student.tasks.reduce((sum, task) => {
+      return sum + (task.teacher_assessment_marks || 0);
+    }, 0);
+    
+    const maxPossible = student.tasks.reduce((sum, task) => {
+      return sum + parseInt(task.allocated_marks);
+    }, 0);
+    
+    const percentage = maxPossible > 0 ? (total / maxPossible) * 100 : 0;
+    
+    let grade = "D";
+    if (percentage >= 90) grade = "A+";
+    else if (percentage >= 80) grade = "A";
+    else if (percentage >= 70) grade = "B";
+    else if (percentage >= 60) grade = "C";
+    
+    return {
+      ...student,
+      total,
+      grade,
+      maxPossible
+    };
+  });
+
+  if (loading) {
+    return (
+      <div className="p-3 md:p-6 flex justify-center items-center h-64">
+        <Spin size="large" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-3 md:p-6 lg:p-12 mx-auto bg-white min-h-screen">
@@ -93,15 +106,11 @@ export default function Page() {
 
       <div className="mb-4">
         <h1 className="text-2xl font-semibold text-gray-800 mb-4">
-          Year 7 Islamic Education, 7IA/Is, T3 Quran Assessment
+          Islamic Education
         </h1>
         <div className="text-sm text-blue-500">
           <span className="hover:text-blue-600 transition-colors">
-            Home &gt; Year 7 &gt; Year 7 Islamic Education &gt; Markbook for
-            7IA/Is &gt;{" "}
-            <span className="font-medium text-gray-700">
-              T3 Quran Assessment
-            </span>
+            Home &gt; Year 7 &gt; Year 7 Islamic Education
           </span>
         </div>
       </div>
@@ -129,13 +138,13 @@ export default function Page() {
             <input
               type="text"
               placeholder="Search students..."
-              className="block w-full pl-10 pr-3 py-2 border bg-white rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              className="block w-full pl-10 pr-3 py-2 border border-gray-200 bg-white rounded-lg text-sm focus:outline-none"
             />
           </div>
         </div>
 
-        <div className="overflow-x-auto relative rounded-lg shadow-md">
-          <table className="table-fixed">
+        <Card className="overflow-x-auto relative w-fit">
+          <table className="table-fixed ">
             <thead className="bg-[#f0f0f0]">
               <tr>
                 <th className="w-24 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-[#f0f0f0] z-10 border">
@@ -173,13 +182,13 @@ export default function Page() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {assessmentData.map((student, studentIndex) => (
+              {studentsWithTotals.map((student, studentIndex) => (
                 <tr key={studentIndex} className="hover:bg-gray-50">
                   <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border sticky left-0 bg-white z-10">
-                    {student.student}
+                    {student.student_name}
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 border">
-                    {student.id}
+                    {student.student_id}
                   </td>
                   {student.tasks.map((task, taskIndex) => (
                     <td
@@ -188,7 +197,7 @@ export default function Page() {
                     >
                       <input
                         type="text"
-                        value={task.marks}
+                        value={task.teacher_assessment_marks || ""}
                         onChange={(e) =>
                           handleMarkChange(
                             studentIndex,
@@ -199,7 +208,7 @@ export default function Page() {
                         className="w-12 text-center bg-gray-50 border border-gray-200 rounded-md px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                       />
                       <span className="text-xs text-gray-400 ml-1">
-                        / {task.max}
+                        / {task.allocated_marks}
                       </span>
                     </td>
                   ))}
@@ -213,7 +222,9 @@ export default function Page() {
                           ? "bg-green-100 text-green-800"
                           : student.grade === "A"
                           ? "bg-blue-100 text-blue-800"
-                          : "bg-yellow-100 text-yellow-800"
+                          : student.grade === "B"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : "bg-red-100 text-red-800"
                       }`}
                     >
                       {student.grade}
@@ -223,7 +234,7 @@ export default function Page() {
               ))}
             </tbody>
           </table>
-        </div>
+        </Card>
       </div>
     </div>
   );

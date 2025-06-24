@@ -32,6 +32,7 @@ const StudentBehaviorPage = () => {
     date: string;
     teacher?: string;
     points: number;
+    teacher_name: string;
   };
 
   const loadBehaviorTypes = async () => {
@@ -194,7 +195,7 @@ const StudentBehaviorPage = () => {
                         </Tag>
                         <p className="mt-2 font-medium">{item.description}</p>
                         <p className="text-sm text-gray-500">
-                          Recorded by {item.teacher || "Teacher"} on {item.date}
+                          Recorded by {item.teacher?.teacher_name || "Teacher"} on {item.date}
                         </p>
                       </>
                     );
