@@ -23,7 +23,7 @@ export default function TermsList({ terms, onEdit, onDelete }: TermsListProps) {
   };
 
   return (
-    <div className="overflow-auto h-screen">
+    <div className="overflow-auto">
       <div className="relative overflow-auto">
         <div className="overflow-x-auto rounded-lg">
           <table className="min-w-full bg-white border border-gray-300 mb-20">

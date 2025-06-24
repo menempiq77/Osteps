@@ -2,11 +2,11 @@
 import React from "react";
 import { Tabs, Form, Input, Button, Upload, message } from "antd";
 import { UploadOutlined } from "@ant-design/icons";
-import { changePassword, updateSchoolAdminProfile } from "@/services/api";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/store/store";
 import { Phone } from "lucide-react";
 import { setCurrentUser } from "@/features/auth/authSlice";
+import { changePassword, updateSchoolAdminProfile } from "@/services/settingApi";
 
 const SchoolAdminSettings = () => {
   const [profileForm] = Form.useForm();

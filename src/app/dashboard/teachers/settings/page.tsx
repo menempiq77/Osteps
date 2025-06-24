@@ -2,10 +2,10 @@
 import React from "react";
 import { Tabs, Form, Input, Button, Upload, message, Select } from "antd";
 import { UploadOutlined, UserOutlined } from "@ant-design/icons";
-import { changePassword, updateTeacherProfile } from "@/services/api";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/store/store";
 import { setCurrentUser } from "@/features/auth/authSlice";
+import { changePassword, updateTeacherProfile } from "@/services/settingApi";
 
 const TeacherSettings = () => {
   const [form] = Form.useForm();

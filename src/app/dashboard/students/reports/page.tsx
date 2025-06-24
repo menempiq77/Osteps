@@ -1,21 +1,24 @@
 "use client";
-import React, { useState } from "react";
-import { Button } from "antd";
+import React, { useEffect, useState } from "react";
+import { Button, Card, Select } from "antd";
 import { ChevronLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
+import { fetchReportAssessments } from "@/services/reportApi";
 
 export default function ReportsPage() {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedClass, setSelectedClass] = useState("Class A");
   const [selectedYear, setSelectedYear] = useState("Year 1");
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const reportData = await fetchReportAssessments();
+      console.log(reportData, "Report Data Fetched");
+    };
+
+    fetchData();
+  }, []);
 
   // Sample data matching the screenshot structure
   const [editableData, setEditableData] = useState([
@@ -115,25 +118,26 @@ export default function ReportsPage() {
         >
           Back to Students
         </Button>
-        <Select value={selectedYear} onValueChange={setSelectedYear}>
-          <SelectTrigger className="w-[150px] shadow-none">
-            <SelectValue placeholder="Select Term" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="Year 1">Year 1</SelectItem>
-            <SelectItem value="Year 2">Year 2</SelectItem>
-            <SelectItem value="Year 3">Year 3</SelectItem>
-          </SelectContent>
+        <Select
+          value={selectedYear}
+          onChange={setSelectedYear}
+          style={{ width: 150 }}
+          placeholder="Select Year"
+        >
+          <Select.Option value="Year 1">Year 1</Select.Option>
+          <Select.Option value="Year 2">Year 2</Select.Option>
+          <Select.Option value="Year 3">Year 3</Select.Option>
         </Select>
-        <Select value={selectedClass} onValueChange={setSelectedClass}>
-          <SelectTrigger className="w-[150px] shadow-none">
-            <SelectValue placeholder="Select Term" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="Class A">Class A</SelectItem>
-            <SelectItem value="Class B">Class B</SelectItem>
-            <SelectItem value="Class C">Term C</SelectItem>
-          </SelectContent>
+
+        <Select
+          value={selectedClass}
+          onChange={setSelectedClass}
+          style={{ width: 150 }}
+          placeholder="Select Class"
+        >
+          <Select.Option value="Class A">Class A</Select.Option>
+          <Select.Option value="Class B">Class B</Select.Option>
+          <Select.Option value="Class C">Class C</Select.Option>
         </Select>
       </div>
 
@@ -184,7 +188,7 @@ export default function ReportsPage() {
               placeholder="Search students..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 border border-gray-300 bg-white rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="pl-10 pr-4 py-2 border border-gray-300 bg-white rounded-md text-sm focus:outline-none"
             />
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <svg
@@ -203,137 +207,139 @@ export default function ReportsPage() {
           </div>
         </div>
 
-        <div className="overflow-x-auto relative rounded-lg shadow-md ">
-          <table className="max-w-full table-fixed">
-            <thead className="bg-[#f0f0f0]">
-              <tr>
-                <th className="w-24 px-2 border py-3 text-left align-bottom text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-[#f0f0f0] z-10">
-                  Student
-                </th>
-                {[
-                  "Set",
-                  "PITG",
-                  "Course Grade",
-                  "T1 Quan Assessment",
-                  "T1 Written Task",
-                  "T1 Classwork",
-                  "T1 Assessment",
-                  "T2 Written Task",
-                  "T2 Classwork",
-                  "T3 Quan Assessment",
-                  "T3 Written Task",
-                  "T3 Classwork",
-                  "T3 Assessment",
-                  "Total",
-                ].map((header, index) => (
-                  <th
-                    key={index}
-                    className="w-12 px-2 py-2 border text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    style={{
-                      writingMode: "vertical-rl",
-                      transform: "rotate(180deg)",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {header}
+        <div className="overflow-x-auto relative rounded-lg shadow-md">
+          <Card className="w-fit">
+            <table className="max-w-full table-fixed">
+              <thead className="bg-[#f0f0f0]">
+                <tr>
+                  <th className="w-24 px-2 border py-3 text-left align-bottom text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-[#f0f0f0] z-10">
+                    Student
                   </th>
-                ))}
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-gray-200 bg-white">
-              {filteredData.map((student, index) => (
-                <tr key={index} className="hover:bg-gray-50">
-                  <td className="px-2 py-2 border whitespace-nowrap text-sm font-medium text-gray-900 sticky left-0 bg-white z-10">
-                    {student.student}
-                  </td>
-                  <td className="px-2 py-2 border whitespace-nowrap text-sm text-gray-500">
-                    -
-                  </td>
-                  <td className="px-2 py-2 border whitespace-nowrap text-sm text-gray-500">
-                    {student.pitg}
-                  </td>
-                  <td className="px-2 py-3 border whitespace-nowrap text-sm font-medium text-center">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        student.courseGrade === "A-"
-                          ? "bg-green-100 text-green-800"
-                          : student.courseGrade === "B+"
-                          ? "bg-blue-100 text-blue-800"
-                          : "bg-yellow-100 text-yellow-800"
-                      }`}
+                  {[
+                    "Set",
+                    "PITG",
+                    "Course Grade",
+                    "T1 Quan Assessment",
+                    "T1 Written Task",
+                    "T1 Classwork",
+                    "T1 Assessment",
+                    "T2 Written Task",
+                    "T2 Classwork",
+                    "T3 Quan Assessment",
+                    "T3 Written Task",
+                    "T3 Classwork",
+                    "T3 Assessment",
+                    "Total",
+                  ].map((header, index) => (
+                    <th
+                      key={index}
+                      className="w-12 px-2 py-2 border text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      style={{
+                        writingMode: "vertical-rl",
+                        transform: "rotate(180deg)",
+                        whiteSpace: "nowrap",
+                      }}
                     >
-                      {student.courseGrade}
-                    </span>
-                  </td>
-                  {/* Editable mark cells */}
-                  <EditableCell
-                    value={student.t1QuanAssessment}
-                    onChange={(value) =>
-                      handleMarkChange(index, "t1QuanAssessment", value)
-                    }
-                  />
-                  <EditableCell
-                    value={student.t1WrittenTask}
-                    onChange={(value) =>
-                      handleMarkChange(index, "t1WrittenTask", value)
-                    }
-                  />
-                  <EditableCell
-                    value={student.t1Classwork}
-                    onChange={(value) =>
-                      handleMarkChange(index, "t1Classwork", value)
-                    }
-                  />
-                  <EditableCell
-                    value={student.t1Assessment}
-                    onChange={(value) =>
-                      handleMarkChange(index, "t1Assessment", value)
-                    }
-                  />
-                  <EditableCell
-                    value={student.t2WrittenTask}
-                    onChange={(value) =>
-                      handleMarkChange(index, "t2WrittenTask", value)
-                    }
-                  />
-                  <EditableCell
-                    value={student.t2Classwork}
-                    onChange={(value) =>
-                      handleMarkChange(index, "t2Classwork", value)
-                    }
-                  />
-                  <EditableCell
-                    value={student.t3QuanAssessment}
-                    onChange={(value) =>
-                      handleMarkChange(index, "t3QuanAssessment", value)
-                    }
-                  />
-                  <EditableCell
-                    value={student.t3WrittenTask}
-                    onChange={(value) =>
-                      handleMarkChange(index, "t3WrittenTask", value)
-                    }
-                  />
-                  <EditableCell
-                    value={student.t3Classwork}
-                    onChange={(value) =>
-                      handleMarkChange(index, "t3Classwork", value)
-                    }
-                  />
-                  <EditableCell
-                    value={student.t3Assessment}
-                    onChange={(value) =>
-                      handleMarkChange(index, "t3Assessment", value)
-                    }
-                  />
-                  <td className="px-2 py-2 border whitespace-nowrap text-sm text-gray-500 font-medium">
-                    {student.total}
-                  </td>
+                      {header}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+
+              <tbody className="divide-y divide-gray-200 bg-white">
+                {filteredData.map((student, index) => (
+                  <tr key={index} className="hover:bg-gray-50">
+                    <td className="px-2 py-2 border whitespace-nowrap text-sm font-medium text-gray-900 sticky left-0 bg-white z-10">
+                      {student.student}
+                    </td>
+                    <td className="px-2 py-2 border whitespace-nowrap text-sm text-gray-500">
+                      -
+                    </td>
+                    <td className="px-2 py-2 border whitespace-nowrap text-sm text-gray-500">
+                      {student.pitg}
+                    </td>
+                    <td className="px-2 py-3 border whitespace-nowrap text-sm font-medium text-center">
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          student.courseGrade === "A-"
+                            ? "bg-green-100 text-green-800"
+                            : student.courseGrade === "B+"
+                            ? "bg-blue-100 text-blue-800"
+                            : "bg-yellow-100 text-yellow-800"
+                        }`}
+                      >
+                        {student.courseGrade}
+                      </span>
+                    </td>
+                    {/* Editable mark cells */}
+                    <EditableCell
+                      value={student.t1QuanAssessment}
+                      onChange={(value) =>
+                        handleMarkChange(index, "t1QuanAssessment", value)
+                      }
+                    />
+                    <EditableCell
+                      value={student.t1WrittenTask}
+                      onChange={(value) =>
+                        handleMarkChange(index, "t1WrittenTask", value)
+                      }
+                    />
+                    <EditableCell
+                      value={student.t1Classwork}
+                      onChange={(value) =>
+                        handleMarkChange(index, "t1Classwork", value)
+                      }
+                    />
+                    <EditableCell
+                      value={student.t1Assessment}
+                      onChange={(value) =>
+                        handleMarkChange(index, "t1Assessment", value)
+                      }
+                    />
+                    <EditableCell
+                      value={student.t2WrittenTask}
+                      onChange={(value) =>
+                        handleMarkChange(index, "t2WrittenTask", value)
+                      }
+                    />
+                    <EditableCell
+                      value={student.t2Classwork}
+                      onChange={(value) =>
+                        handleMarkChange(index, "t2Classwork", value)
+                      }
+                    />
+                    <EditableCell
+                      value={student.t3QuanAssessment}
+                      onChange={(value) =>
+                        handleMarkChange(index, "t3QuanAssessment", value)
+                      }
+                    />
+                    <EditableCell
+                      value={student.t3WrittenTask}
+                      onChange={(value) =>
+                        handleMarkChange(index, "t3WrittenTask", value)
+                      }
+                    />
+                    <EditableCell
+                      value={student.t3Classwork}
+                      onChange={(value) =>
+                        handleMarkChange(index, "t3Classwork", value)
+                      }
+                    />
+                    <EditableCell
+                      value={student.t3Assessment}
+                      onChange={(value) =>
+                        handleMarkChange(index, "t3Assessment", value)
+                      }
+                    />
+                    <td className="px-2 py-2 border whitespace-nowrap text-sm text-gray-500 font-medium">
+                      {student.total}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
         </div>
       </div>
     </div>
