@@ -5,7 +5,7 @@ import { ArrowUpOutlined, ArrowDownOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { useParams } from "next/navigation";
-import { fetchBehaviour, fetchBehaviourType } from "@/services/api";
+import { fetchBehaviour, fetchBehaviourType } from "@/services/behaviorApi";
 
 const { Option } = Select;
 
@@ -194,7 +194,7 @@ const StudentBehaviorPage = () => {
                         </Tag>
                         <p className="mt-2 font-medium">{item.description}</p>
                         <p className="text-sm text-gray-500">
-                          Recorded by {item.teacher || "Unknown"} on {item.date}
+                          Recorded by {item.teacher || "Teacher"} on {item.date}
                         </p>
                       </>
                     );

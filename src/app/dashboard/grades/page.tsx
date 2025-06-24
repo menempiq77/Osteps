@@ -4,13 +4,8 @@ import GradeForm from "@/components/dashboard/GradeForm";
 import GradesList from "@/components/dashboard/GradesList";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import {
-  fetchGrades,
-  addGrade,
-  deleteGrade,
-  updateGrade,
-} from "@/services/api";
 import { Alert, Button, Modal, Spin } from "antd";
+import { addGrade, deleteGrade, fetchGrades, updateGrade } from "@/services/gradesApi";
 
 interface Grade {
   id: number;

@@ -26,6 +26,7 @@ import { RootState } from "@/store/store";
 import BehaviorModal from "@/components/modals/behaviorModals/BehaviorModal";
 import BehaviorTypeModal from "@/components/modals/behaviorModals/BehaviorTypeModal";
 import { useParams } from "next/navigation";
+import { fetchStudents } from "@/services/api";
 import {
   addBehaviour,
   addBehaviourType,
@@ -33,10 +34,9 @@ import {
   deleteBehaviourType,
   fetchBehaviour,
   fetchBehaviourType,
-  fetchStudents,
   updateBehaviour,
   updateBehaviourType,
-} from "@/services/api";
+} from "@/services/behaviorApi";
 
 const { Option } = Select;
 
@@ -84,27 +84,27 @@ const StudentBehaviorPage = () => {
     avatar?: string;
   };
 
-const loadStudents = async () => {
-  try {
-    setIsLoading(true);
-    const studentsData = await fetchStudents(classId as string);
-    setStudents(studentsData);
+  const loadStudents = async () => {
+    try {
+      setIsLoading(true);
+      const studentsData = await fetchStudents(classId as string);
+      setStudents(studentsData);
 
-    const initialId = studentId || studentsData[0]?.id || "";
-    setSelectedStudentId(initialId);
-    
-    return studentsData;
-  } catch (err) {
-    setError("Failed to load students");
-    console.error("Error loading students:", err);
-    return [];
-  } finally {
-    setIsLoading(false);
-  }
-};
+      const initialId = studentId || studentsData[0]?.id || "";
+      setSelectedStudentId(initialId);
+
+      return studentsData;
+    } catch (err) {
+      setError("Failed to load students");
+      console.error("Error loading students:", err);
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
+  };
   useEffect(() => {
     loadStudents();
-  }, [classId, studentId]); 
+  }, [classId, studentId]);
 
   const loadBehaviorTypes = async () => {
     try {
@@ -137,27 +137,27 @@ const loadStudents = async () => {
   }, [selectedStudentId]);
 
   const student = useMemo(() => {
-  if (!students.length || !selectedStudentId) {
-    console.log("No students or no selected ID");
-    return null;
-  }
-  
-  // Case-insensitive and type-agnostic comparison
-  const found = students.find(s => 
-    String(s.id).toLowerCase() === String(selectedStudentId).toLowerCase()
-  );
-  
-  if (!found) {
-    console.error("Student not found", {
-      lookingFor: selectedStudentId,
-      availableIds: students.map(s => s.id),
-      allStudents: students
-    });
-  }
-  
-  return found || null;
-}, [students, selectedStudentId]);
+    if (!students.length || !selectedStudentId) {
+      console.log("No students or no selected ID");
+      return null;
+    }
 
+    // Case-insensitive and type-agnostic comparison
+    const found = students.find(
+      (s) =>
+        String(s.id).toLowerCase() === String(selectedStudentId).toLowerCase()
+    );
+
+    if (!found) {
+      console.error("Student not found", {
+        lookingFor: selectedStudentId,
+        availableIds: students.map((s) => s.id),
+        allStudents: students,
+      });
+    }
+
+    return found || null;
+  }, [students, selectedStudentId]);
 
   const showBehaviorModal = (behavior?: Behavior | null) => {
     setEditingBehavior(behavior);
@@ -376,9 +376,7 @@ const loadStudents = async () => {
                     label={student.student_name}
                   >
                     <div className="flex items-center">
-                      <span>
-                        {student.student_name}
-                      </span>
+                      <span>{student.student_name}</span>
                     </div>
                   </Option>
                 ))}
@@ -501,7 +499,7 @@ const loadStudents = async () => {
                         </Tag>
                         <p className="mt-2 font-medium">{item.description}</p>
                         <p className="text-sm text-gray-500">
-                          Recorded by {item.teacher || "Unknown"} on {item.date}
+                          Recorded by {item.teacher || "Teacher"} on {item.date}
                         </p>
                       </>
                     );

@@ -163,7 +163,6 @@ export const deleteTerm = async (id: number) => {
   return response.data;
 };
 
-
 //Teachers apis Started
 // fetch Teachers
 export const fetchTeachers = async () => {
@@ -236,28 +235,6 @@ export const updateStudent = async (
 // delete Student
 export const deleteStudent = async (id: string | number) => {
   const response = await api.post(`/delete-student/${id}`);
-  return response.data;
-};
-
-//Grades apis Started
-// fetch Grades
-export const fetchGrades = async () => {
-  const response = await api.get('/get-grades');
-  return response.data.data;
-};
-// add Grade
-export const addGrade = async (gradeData: { name: string }) => {
-  const response = await api.post('/add-grades', gradeData);
-  return response.data;
-};
-// edit Grade
-export const updateGrade = async (id: string, gradeData: any) => {
-  const response = await api.post(`/update-grades/${id}`, gradeData);
-  return response.data;
-};
-// delete Grade
-export const deleteGrade = async (id: number) => {
-  const response = await api.post(`/delete-grades/${id}`);
   return response.data;
 };
 
@@ -630,49 +607,4 @@ export const submitAskQuestion = async (id: string, questionData: any) => {
   const response = await api.post(`/submitAnswer/${id}`, questionData);
   return response.data;
 };
-
-//behaviourType apis Started
-// fetch BehaviourType
-export const fetchBehaviourType = async () => {
-  const response = await api.get('/get-behaviour');
-  return response.data.data;
-};
-// add BehaviourType
-export const addBehaviourType = async (behaviourTypeData: { name: string }) => {
-  const response = await api.post('/add-behaviour', behaviourTypeData);
-  return response.data;
-};
-// edit BehaviourType
-export const updateBehaviourType = async (id: string, behaviourTypeData: any) => {
-  const response = await api.put(`/update-behaviour/${id}`, behaviourTypeData);
-  return response.data;
-};
-// delete BehaviourType
-export const deleteBehaviourType = async (id: number) => {
-  const response = await api.delete(`/delete-behaviour/${id}`);
-  return response.data;
-};
-
-//behaviour apis Started
-// fetch behaviour
-export const fetchBehaviour = async (studentId: number) => {
-  const response = await api.get(`/get-studentBehaviour/${studentId}`);
-  return response.data.data;
-};
-// add behaviour
-export const addBehaviour = async (behaviourData: { name: string }) => {
-  const response = await api.post('/add-studentBehaviour', behaviourData);
-  return response.data;
-};
-// edit behaviour
-export const updateBehaviour = async (id: string, behaviourData: any) => {
-  const response = await api.put(`/update-studentBehaviour/${id}`, behaviourData);
-  return response.data;
-};
-// delete behaviour
-export const deleteBehaviour = async (id: number) => {
-  const response = await api.delete(`/delete-studentBehaviour/${id}`);
-  return response.data;
-};
-
 export default api;
