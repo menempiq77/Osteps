@@ -80,7 +80,7 @@ const Sidebar = () => {
       { name: "Manage Quiz", href: "/dashboard/quiz", icon: BookOpen },
       { name: "Library", href: "/dashboard/library", icon: BookText },
       // { name: "Trackers", href: "/dashboard/trackers", icon: Building },
-      { name: "Timetable", href: "/dashboard/timetable", icon: BookOpen },
+      { name: "Timetable", href: "/dashboard/time_table", icon: BookOpen },
       {
         name: "Announcements",
         href: "/dashboard/announcements",
@@ -106,7 +106,7 @@ const Sidebar = () => {
         href: "/dashboard/viewtrackers",
         icon: Building,
       },
-      { name: "Timetable", href: "/dashboard/timetable", icon: BookOpen },
+      { name: "Timetable", href: "/dashboard/time_table", icon: BookOpen },
       {
         name: "Announcements",
         href: "/dashboard/announcements",
@@ -136,7 +136,7 @@ const Sidebar = () => {
         href: `/dashboard/trackers/${currentUser?.studentClass}`,
         icon: Building,
       },
-      { name: "Timetable", href: "/dashboard/timetable", icon: BookOpen },
+      { name: "Timetable", href: "/dashboard/time_table", icon: BookOpen },
       { name: "Library", href: "/dashboard/library", icon: BookText },
       {
         name: "Announcements",
