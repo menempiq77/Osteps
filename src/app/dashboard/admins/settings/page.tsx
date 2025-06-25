@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import { Tabs, Form, Input, Button, Upload, message } from "antd";
-import { UploadOutlined } from "@ant-design/icons";
+import { UploadOutlined, UserOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { changePassword, updateSuperAdminProfile } from "@/services/settingApi";
@@ -15,18 +15,18 @@ const AdminSettings = () => {
   const { currentUser } = useSelector((state: RootState) => state.auth);
 
   React.useEffect(() => {
-  if (currentUser?.id) {
-    const nameParts = currentUser.name?.trim().split(' ') || [];
-    const firstName = nameParts[0] || '';
-    const lastName = nameParts.slice(1).join(' ') || ''; 
-    
-    profileForm.setFieldsValue({
-      firstName: firstName,
-      lastName: lastName,
-      email: currentUser.email,
-    });
-  }
-}, [currentUser, profileForm]);
+    if (currentUser?.id) {
+      const nameParts = currentUser.name?.trim().split(" ") || [];
+      const firstName = nameParts[0] || "";
+      const lastName = nameParts.slice(1).join(" ") || "";
+
+      profileForm.setFieldsValue({
+        firstName: firstName,
+        lastName: lastName,
+        email: currentUser.email,
+      });
+    }
+  }, [currentUser, profileForm]);
 
   console.log("Current User Id:", currentUser?.id);
 
@@ -73,6 +73,9 @@ const AdminSettings = () => {
   const handleUploadChange = ({ fileList }) => {
     setFileList(fileList);
   };
+   const handleRemovePhoto = () => {
+    setFileList([]);
+  };
 
   const onSecurityFinish = async (values) => {
     try {
@@ -108,6 +111,57 @@ const AdminSettings = () => {
             onFinishFailed={onFinishFailed}
             autoComplete="off"
           >
+            <div className="flex items-center gap-6 mb-6">
+              <div className="flex-shrink-0">
+                {fileList.length > 0 ? (
+                  <img
+                    src={URL.createObjectURL(fileList[0].originFileObj)}
+                    alt="Profile"
+                    className="w-20 h-20 rounded-full object-cover"
+                  />
+                ) : currentUser?.profile_path ? (
+                  <img
+                    src={currentUser.profile_path}
+                    alt="Profile"
+                    className="w-20 h-20 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center">
+                    <UserOutlined className="text-gray-500 text-2xl" />
+                  </div>
+                )}
+              </div>
+              <div>
+                <Form.Item label="Profile Picture" className="mb-2">
+                  <Upload
+                    fileList={fileList}
+                    onChange={handleUploadChange}
+                    beforeUpload={() => false}
+                    listType="picture"
+                    maxCount={1}
+                    showUploadList={false}
+                  >
+                    <Button icon={<UploadOutlined />}>
+                      {fileList.length > 0 || currentUser?.profile_path
+                        ? "Change Photo"
+                        : "Upload Photo"}
+                    </Button>
+                  </Upload>
+                  {(fileList.length > 0 || currentUser?.profile_path) && (
+                    <Button
+                      danger
+                      type="text"
+                      onClick={handleRemovePhoto}
+                      className="ml-2"
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </Form.Item>
+                <div className="text-xs text-gray-500">JPG, PNG, or GIF.</div>
+              </div>
+            </div>
+
             <div className="flex flex-col md:flex-row gap-4 mb-4">
               <div className="flex-1">
                 <Form.Item
@@ -145,18 +199,6 @@ const AdminSettings = () => {
               ]}
             >
               <Input size="large" />
-            </Form.Item>
-
-            <Form.Item label="Profile Picture">
-              <Upload
-                fileList={fileList}
-                onChange={handleUploadChange}
-                beforeUpload={() => false}
-                listType="picture"
-                maxCount={1}
-              >
-                <Button icon={<UploadOutlined />}>Upload Photo</Button>
-              </Upload>
             </Form.Item>
 
             <Form.Item className="text-right">

@@ -167,7 +167,7 @@ const StudentSettings = () => {
                   )}
                 </Form.Item>
                 <div className="text-xs text-gray-500">
-                  JPG, PNG, or GIF. Max size 2MB
+                  JPG, PNG, or GIF.
                 </div>
               </div>
             </div>

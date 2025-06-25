@@ -36,6 +36,7 @@ interface QuizQuestion {
   type: string;
   correct_answer: number | null;
   options: Option[];
+  marks: number;
 }
 
 interface Quiz {
@@ -154,7 +155,9 @@ export default function QuranQuizPage() {
       let options: string[] = [];
       let correctAnswer: number | null = null;
 
-      if (["multiple_choice", "check_boxes", "drop_down"].includes(values.type)) {
+      if (
+        ["multiple_choice", "check_boxes", "drop_down"].includes(values.type)
+      ) {
         // Collect all options that have values
         for (let i = 1; i <= optionCount; i++) {
           if (values[`option${i}`]) {
@@ -174,6 +177,7 @@ export default function QuranQuizPage() {
         question_text: values.question_text,
         type: values.type,
         correct_answer: correctAnswer,
+        marks: values.marks,
         options: options.length > 0 ? options : undefined,
       };
 
@@ -189,6 +193,7 @@ export default function QuranQuizPage() {
           question_text: values.question_text,
           type: values.type,
           correct_answer: correctAnswer,
+          marks: values.marks,
           options: options.map((opt, index) => ({
             id: index + 1, // Temporary ID until we get real IDs from backend
             option_text: opt,
@@ -301,7 +306,9 @@ export default function QuranQuizPage() {
                     <Select.Option value="multiple_choice">
                       Multiple Choice
                     </Select.Option>
-                    <Select.Option value="check_boxes">Checkboxes</Select.Option>
+                    <Select.Option value="check_boxes">
+                      Checkboxes
+                    </Select.Option>
                     <Select.Option value="drop_down">Dropdown</Select.Option>
                     <Select.Option value="true_false">True/False</Select.Option>
                   </Select>
@@ -317,6 +324,23 @@ export default function QuranQuizPage() {
                   <Input.TextArea rows={3} placeholder="Enter question" />
                 </Form.Item>
 
+                <Form.Item
+                  name="marks"
+                  label="Marks"
+                  initialValue={1}
+                  rules={[
+                    {
+                      required: true,
+                      message: "Please enter marks for this question",
+                    }
+                  ]}
+                >
+                  <Input
+                    type="number"
+                    min={1}
+                    placeholder="Enter marks for this question"
+                  />
+                </Form.Item>
                 {quizType === "true_false" && (
                   <Form.Item
                     name="correctAnswer"
@@ -454,7 +478,11 @@ export default function QuranQuizPage() {
 
                 <div className="flex justify-end gap-2 mt-4">
                   <Button onClick={toggleAddQuestion}>Cancel</Button>
-                  <Button type="primary" onClick={handleAddQuestion} className="!bg-primary !border-primary hover:!bg-primary hover:!border-primary">
+                  <Button
+                    type="primary"
+                    onClick={handleAddQuestion}
+                    className="!bg-primary !border-primary hover:!bg-primary hover:!border-primary"
+                  >
                     Add Question
                   </Button>
                 </div>
@@ -563,7 +591,8 @@ export default function QuranQuizPage() {
                   )}
 
                   <div className="mt-1 text-xs text-gray-500">
-                    Type: {quizTypeLabels[question.type] || question.type}
+                    Type: {quizTypeLabels[question.type] || question.type} |
+                    Marks: {question.marks || "N/A"}
                   </div>
                 </div>
               ))

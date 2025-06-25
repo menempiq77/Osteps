@@ -45,6 +45,7 @@ function Timetable() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
 
   const isStudent = currentUser?.role === "STUDENT";
+  const isTeacher = currentUser?.role === "TEACHER";
 
   const [years, setYears] = useState<Year[]>([]);
   const [classes, setClasses] = useState([]);
@@ -191,7 +192,7 @@ function Timetable() {
       const formattedData = {
         subject: values.subject,
         year: selectedYearObj?.name || values.year, // Send the name as string
-        teacher: selectedTeacherObj?.teacher_name || values.teacher, // Send the name as string
+        teacher: selectedTeacherObj?.teacher_name || values.teacher || currentUser?.name, // Send the name as string
         class: selectedClassObj?.class_name || values.class, // Send the name as string
         room: values.room,
         date: date,
@@ -344,7 +345,7 @@ function Timetable() {
       <div className="bg-white p-4 rounded-md shadow-sm border border-gray-200 mb-6">
         <h3 className="text-sm font-medium text-gray-700 mb-3">Filters</h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className={`grid grid-cols-1 ${isTeacher ? "md:grid-cols-2" : "md:grid-cols-3"} gap-4`}>
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">
               Year
@@ -383,24 +384,26 @@ function Timetable() {
             </Select>
           </div>
 
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">
-              Teacher
-            </label>
-            <Select
-              // value={selectedTeacher || undefined}
-              onChange={handleTeacherChange}
-              className="w-full"
-              placeholder="All Teachers"
-              allowClear
-            >
-              {teachers?.map((teacher) => (
-                <Option key={teacher.id} value={teacher.id}>
-                  {teacher.teacher_name}
-                </Option>
-              ))}
-            </Select>
-          </div>
+          {!isTeacher && (
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                Teacher
+              </label>
+              <Select
+                // value={selectedTeacher || undefined}
+                onChange={handleTeacherChange}
+                className="w-full"
+                placeholder="All Teachers"
+                allowClear
+              >
+                {teachers?.map((teacher) => (
+                  <Option key={teacher.id} value={teacher.id}>
+                    {teacher.teacher_name}
+                  </Option>
+                ))}
+              </Select>
+            </div>
+          )}
         </div>
       </div>
       <FullCalendar
@@ -504,21 +507,23 @@ function Timetable() {
                   </Select>
                 </Form.Item>
 
-                <Form.Item
-                  name="teacher"
-                  label="Teacher"
-                  rules={[
-                    { required: true, message: "Please select the teacher!" },
-                  ]}
-                >
-                  <Select placeholder="Select teacher" loading={loading}>
-                    {teachers?.map((teacher) => (
-                      <Option key={teacher.id} value={teacher.id}>
-                        {teacher.teacher_name}
-                      </Option>
-                    ))}
-                  </Select>
-                </Form.Item>
+                {!isTeacher && (
+                  <Form.Item
+                    name="teacher"
+                    label="Teacher"
+                    rules={[
+                      { required: true, message: "Please select the teacher!" },
+                    ]}
+                  >
+                    <Select placeholder="Select teacher" loading={loading}>
+                      {teachers?.map((teacher) => (
+                        <Option key={teacher.id} value={teacher.id}>
+                          {teacher.teacher_name}
+                        </Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
+                )}
 
                 <Form.Item
                   name="room"
@@ -528,6 +533,10 @@ function Timetable() {
                   ]}
                 >
                   <Input placeholder="Room" />
+                </Form.Item>
+
+                <Form.Item name="zoom_link" label="Zoom Link">
+                  <Input placeholder="Zoom meeting link (optional)" />
                 </Form.Item>
               </Col>
 
@@ -577,13 +586,6 @@ function Timetable() {
                   ]}
                 >
                   <TimePicker format="HH:mm" style={{ width: "100%" }} />
-                </Form.Item>
-              </Col>
-            </Row>
-            <Row>
-              <Col xs={24} md={12}>
-                <Form.Item name="zoom_link" label="Zoom Link">
-                  <Input placeholder="Zoom meeting link (optional)" />
                 </Form.Item>
               </Col>
             </Row>

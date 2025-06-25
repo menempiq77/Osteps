@@ -159,7 +159,7 @@ const SchoolAdminSettings = () => {
                   )}
                 </Form.Item>
                 <div className="text-xs text-gray-500 mt-1">
-                  JPG, GIF or PNG. Max size of 2MB
+                  JPG, GIF or PNG.
                 </div>
               </div>
             </div>
