@@ -48,3 +48,13 @@ export const updateSchoolAdminProfile = async (formData: FormData) => {
   });
   return response.data.data;
 }
+
+// Super Admin profile api
+export const updateSuperAdminProfile = async (formData: FormData) => {
+  const response = await api.post('/update-superAdmin-profile', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data.data;
+}

@@ -4,7 +4,7 @@ import { Tabs, Form, Input, Button, Upload, message } from "antd";
 import { UploadOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { changePassword, updateTeacherProfile } from "@/services/settingApi";
+import { changePassword, updateSuperAdminProfile } from "@/services/settingApi";
 
 const AdminSettings = () => {
   const [form] = Form.useForm();
@@ -46,7 +46,7 @@ const AdminSettings = () => {
         formData.append("profile_path", fileList[0].originFileObj);
       }
 
-      const response = await updateTeacherProfile(formData);
+      const response = await updateSuperAdminProfile(formData);
 
       message.success("Profile updated successfully!");
       profileForm.setFieldsValue({

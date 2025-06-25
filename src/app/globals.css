@@ -148,3 +148,9 @@
   display: none; /* Chrome, Safari, Opera */
 }
  
+.fc-event{
+  background: transparent !important;
+}
+.fc-v-event{
+  border: none !important;
+}
