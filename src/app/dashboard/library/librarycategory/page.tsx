@@ -8,13 +8,8 @@ import {
   ExclamationCircleFilled,
 } from "@ant-design/icons";
 import { useRouter } from "next/navigation";
-import {
-  fetchCategories,
-  addCategory,
-  updateCategory,
-  deleteCategory as deleteCategoryApi,
-} from "@/services/api";
 import { ChevronLeftIcon } from "lucide-react";
+import { addCategory, fetchCategories, updateCategory, deleteCategory as deleteCategoryApi, } from "@/services/libraryApi";
 
 export default function LibraryCategories() {
   const [form] = Form.useForm();

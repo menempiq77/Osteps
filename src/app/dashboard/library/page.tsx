@@ -32,16 +32,9 @@ import {
 import useMediaQuery from "@/hooks/useMediaQuery";
 import UploadResourceModal from "@/components/modals/UploadResourceModal";
 import ViewResourceModal from "@/components/modals/ViewResourceModal";
-import {
-  addLibrary,
-  deleteLibrary,
-  fetchCategories,
-  fetchLibrary,
-  fetchResources,
-  updateLibrary,
-} from "@/services/api";
 import { Plus } from "lucide-react";
 import Link from "next/link";
+import { addLibrary, deleteLibrary, fetchCategories, fetchLibrary, fetchResources, updateLibrary } from "@/services/libraryApi";
 const { useBreakpoint } = Grid;
 
 type LibraryItem = {

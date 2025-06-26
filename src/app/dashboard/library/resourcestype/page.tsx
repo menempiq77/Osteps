@@ -8,13 +8,8 @@ import {
   ExclamationCircleFilled,
 } from "@ant-design/icons";
 import { useRouter } from "next/navigation";
-import {
-  fetchResources,
-  addResource,
-  updateResource,
-  deleteResource as deleteResourceApi,
-} from "@/services/api";
 import { ChevronLeftIcon } from "lucide-react";
+import { addResource, fetchResources, updateResource, deleteResource as deleteResourceApi, } from "@/services/libraryApi";
 
 export default function ResourcesType() {
   const [form] = Form.useForm();
