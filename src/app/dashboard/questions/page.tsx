@@ -19,15 +19,9 @@ import {
   fetchTeachersByStudent,
   fetchYears,
 } from "@/services/api";
-import {
-  getAllAskQuestions,
-  createAskQuestion,
-  updateAskQuestion,
-  deleteAskQuestion,
-  submitAskQuestion,
-} from "@/services/api";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { createAskQuestion, getAllAskQuestions, submitAskQuestion } from "@/services/askQuestionApi";
 
 const { TextArea } = Input;
 const { Option } = Select;

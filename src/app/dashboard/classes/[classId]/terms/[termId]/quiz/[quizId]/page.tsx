@@ -36,6 +36,7 @@ interface QuizQuestion {
   type: string;
   correct_answer: number | null;
   options: Option[];
+  marks: number;
 }
 
 interface Quiz {
@@ -264,15 +265,16 @@ export default function QuranQuizPage() {
               {quizData?.name || "Quiz"}
             </h1>
             {canUpload && (
-              <Button
-                type="primary"
-                onClick={toggleAddQuestion}
-                icon={showAddQuestion ? <X size={16} /> : <Plus size={16} />}
-                loading={loading}
-                className="!bg-primary !border-primary hover:!bg-primary hover:!border-primary"
-              >
-                {showAddQuestion ? "Cancel" : "Add Question"}
-              </Button>
+              // <Button
+              //   type="primary"
+              //   onClick={toggleAddQuestion}
+              //   icon={showAddQuestion ? <X size={16} /> : <Plus size={16} />}
+              //   loading={loading}
+              //   className="!bg-primary !border-primary hover:!bg-primary hover:!border-primary"
+              // >
+              //   {showAddQuestion ? "Cancel" : "Add Question"}
+              // </Button>
+              <></>
             )}
           </div>
 
@@ -478,7 +480,7 @@ export default function QuranQuizPage() {
                       <span className="font-medium text-gray-700">Q:</span>{" "}
                       {question.question_text}
                     </div>
-                    {canUpload && (
+                    {/* {canUpload && (
                       <Button
                         onClick={() => showDeleteModal(question.id)}
                         size="small"
@@ -486,7 +488,7 @@ export default function QuranQuizPage() {
                         icon={<Trash2 size={14} />}
                         loading={loading}
                       />
-                    )}
+                    )} */}
                   </div>
 
                   <div className="mt-4">
@@ -562,8 +564,9 @@ export default function QuranQuizPage() {
                     </div>
                   )}
 
-                  <div className="mt-1 text-xs text-gray-500">
-                    Type: {quizTypeLabels[question.type] || question.type}
+                  <div className="mt-1 text-xs text-gray-500 flex justify-between">
+                    <span>Type: {quizTypeLabels[question.type] || question.type}</span>
+                    <span>Marks: {question.marks || "N/A"}</span>
                   </div>
                 </div>
               ))

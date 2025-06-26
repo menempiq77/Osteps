@@ -590,9 +590,9 @@ export default function QuranQuizPage() {
                     </div>
                   )}
 
-                  <div className="mt-1 text-xs text-gray-500">
-                    Type: {quizTypeLabels[question.type] || question.type} |
-                    Marks: {question.marks || "N/A"}
+                  <div className="mt-1 text-xs text-gray-500 flex justify-between">
+                    <span>Type: {quizTypeLabels[question.type] || question.type}</span>
+                    <span>Marks: {question.marks || "N/A"}</span>
                   </div>
                 </div>
               ))

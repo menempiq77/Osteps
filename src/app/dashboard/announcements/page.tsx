@@ -3,11 +3,7 @@ import { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { Card, Input, Select, Badge, Button, Modal, Spin } from "antd";
-import {
-  addAnnouncement,
-  deleteAnnouncement,
-  fetchAnnouncements,
-} from "@/services/api";
+import { addAnnouncement, deleteAnnouncement, fetchAnnouncements } from "@/services/announcementApi";
 
 const { TextArea } = Input;
 const { Option } = Select;

@@ -37,6 +37,7 @@ interface QuizQuestion {
   type: string;
   correct_answer: number | null;
   options: Option[];
+  marks: number;
 }
 
 interface Quiz {
@@ -349,7 +350,7 @@ export default function QuranQuizPage() {
             <h1 className="text-2xl font-bold text-gray-900">
               {quizData?.name || "Quiz"}
             </h1>
-            {canUpload && (
+            {/* {canUpload && (
               <Button
                 type="primary"
                 onClick={toggleAddQuestion}
@@ -359,7 +360,7 @@ export default function QuranQuizPage() {
               >
                 {showAddQuestion ? "Cancel" : "Add Question"}
               </Button>
-            )}
+            )} */}
           </div>
 
           {showAddQuestion && (
@@ -684,8 +685,9 @@ export default function QuranQuizPage() {
                     </div>
                   )}
 
-                  <div className="mt-1 text-xs text-gray-500">
-                    Type: {quizTypeLabels[question.type] || question.type}
+                 <div className="mt-1 text-xs text-gray-500 flex justify-between">
+                    <span>Type: {quizTypeLabels[question.type] || question.type}</span>
+                    <span>Marks: {question.marks || "N/A"}</span>
                   </div>
                 </div>
               ))

@@ -29,7 +29,6 @@ api.interceptors.response.use(
   }
 );
 
-
 export const loginUser = async (email: string, password: string) => {
   const formData = new FormData();
   formData.append('email', email);
@@ -235,107 +234,6 @@ export const updateStudent = async (
 // delete Student
 export const deleteStudent = async (id: string | number) => {
   const response = await api.post(`/delete-student/${id}`);
-  return response.data;
-};
-
-//Announcemens apis Started
-// fetch Announcements
-export const fetchAnnouncements = async () => {
-  const response = await api.get('/get-announcement');
-  return response.data.data;
-};
-// add Announcement
-export const addAnnouncement = async (announcementData: { name: string }) => {
-  const response = await api.post('/add-announcement', announcementData);
-  return response.data;
-};
-// edit Announcement
-export const updateAnnouncement = async (id: string, announcementData: any) => {
-  const response = await api.post(`/update-announcement/${id}`, announcementData);
-  return response.data;
-};
-// delete Announcement
-export const deleteAnnouncement = async (id: number) => {
-  const response = await api.post(`/delete-announcement/${id}`);
-  return response.data;
-};
-
-//Library Categories apis Started
-// fetch Categories
-export const fetchCategories = async () => {
-  const response = await api.get('/get-category');
-  return response.data.data;
-};
-// add Category
-export const addCategory = async (categoryData: { name: string }) => {
-  const response = await api.post('/add-category', categoryData);
-  return response.data;
-};
-// edit Category
-export const updateCategory = async (id: string, categoryData: any) => {
-  const response = await api.post(`/update-category/${id}`, categoryData);
-  return response.data;
-};
-// delete Category
-export const deleteCategory = async (id: number) => {
-  const response = await api.post(`/delete-category/${id}`);
-  return response.data;
-};
-
-//Library Resource apis Started
-// fetch Resources
-export const fetchResources = async () => {
-  const response = await api.get('/get-resources');
-  return response.data.data;
-};
-// add Resource
-export const addResource = async (resourcesData: { name: string }) => {
-  const response = await api.post('/add-resource', resourcesData);
-  return response.data;
-};
-// edit Resource
-export const updateResource = async (id: string, resourcesData: any) => {
-  const response = await api.post(`/update-resource/${id}`, resourcesData);
-  return response.data;
-};
-// delete Resource
-export const deleteResource = async (id: number) => {
-  const response = await api.post(`/delete-resource/${id}`);
-  return response.data;
-};
-
-//Library apis Started
-// fetch Library items
-export const fetchLibrary = async () => {
-  const response = await api.get('/get-library');
-  return response.data.data;
-};
-// add Library item
-export const addLibrary = async (libraryData: FormData): Promise<any> => {
-  const response = await api.post('/add-library', libraryData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
-  return response.data;
-};
-// edit Library item
-export const updateLibrary = async (id: string, libraryData: FormData) => {
-  const response = await api.post(`/update-library/${id}`, libraryData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
-  return response.data;
-};
-
-// delete Library item
-export const deleteLibrary = async (id: number, filePath?: string) => {
-  const formData = new FormData();
-  if (filePath) {
-    formData.append('file_path', filePath);
-  }
-  const response = await api.post(`/delete-library/${id}`, formData);
   return response.data;
 };
 
@@ -578,33 +476,6 @@ export const addQuizQuestion = async (quizId: number, quizQuestionData: { name: 
 // delete QuizQuestions
 export const deleteQuizQuestion = async (id: number) => {
   const response = await api.post(`/delete-quiz-question/${id}`);
-  return response.data;
-};
-
-// Ask Questions APIs
-// Fetch all Questions
-export const getAllAskQuestions = async () => {
-  const response = await api.get('/get-askQuestions');
-  return response.data.data;
-};
-// Add a new Questions
-export const createAskQuestion = async (questionData: { name: string }) => {
-  const response = await api.post('/askQuestion', questionData);
-  return response.data;
-};
-// Update a Questions
-export const updateAskQuestion = async (id: string, questionData: any) => {
-  const response = await api.post(`/update-askQuestion/${id}`, questionData);
-  return response.data;
-};
-// Delete a Questions
-export const deleteAskQuestion = async (id: number) => {
-  const response = await api.post(`/delete-askQuestion/${id}`);
-  return response.data;
-};
-// Add a new Questions
-export const submitAskQuestion = async (id: string, questionData: any) => {
-  const response = await api.post(`/submitAnswer/${id}`, questionData);
   return response.data;
 };
 export default api;
