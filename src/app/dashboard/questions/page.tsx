@@ -10,8 +10,9 @@ import {
   Form,
   Select,
   message,
+  Modal,
 } from "antd";
-import { UserOutlined, SendOutlined } from "@ant-design/icons";
+import { UserOutlined, SendOutlined, DeleteOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import {
@@ -21,7 +22,12 @@ import {
 } from "@/services/api";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { createAskQuestion, getAllAskQuestions, submitAskQuestion } from "@/services/askQuestionApi";
+import {
+  createAskQuestion,
+  deleteAskQuestion,
+  getAllAskQuestions,
+  submitAskQuestion,
+} from "@/services/askQuestionApi";
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -54,6 +60,7 @@ const AskQuestionPage = () => {
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const isStudent = currentUser?.role === "STUDENT";
   const isTeacher = currentUser?.role === "TEACHER";
+  const isAdmin = currentUser?.role === "SCHOOL_ADMIN";
 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [newQuestion, setNewQuestion] = useState("");
@@ -70,6 +77,33 @@ const AskQuestionPage = () => {
   const [teachers, setTeachers] = useState<any[]>([]);
   const [years, setYears] = useState([]);
   const [classes, setClasses] = useState([]);
+
+  const [questionToDelete, setQuestionToDelete] = useState(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+
+  const handleDeleteClick = (question) => {
+    setQuestionToDelete(question);
+    setIsDeleteModalOpen(true);
+  };
+
+const confirmDelete = async () => {
+  if (!questionToDelete) return;
+  
+  try {
+    setIsLoading(true);
+    await deleteAskQuestion(questionToDelete.id);
+    
+    setQuestions(questions.filter(q => q.id !== questionToDelete.id));
+    message.success("Question deleted successfully");
+  } catch (err) {
+    message.error("Failed to delete question");
+    console.error(err);
+  } finally {
+    setIsLoading(false);
+    setIsDeleteModalOpen(false);
+    setQuestionToDelete(null);
+  }
+};
 
   const loadQuestions = async () => {
     try {
@@ -89,7 +123,7 @@ const AskQuestionPage = () => {
               {
                 id: `answer-${q.id}`,
                 content: q.answer,
-                teacherName: `Teacher ${q.teacher_id}`,
+                teacherName: `${q.teacher?.teacher_name || "Anonymous"}`,
                 createdAt: q.updated_at,
               },
             ]
@@ -187,7 +221,7 @@ const AskQuestionPage = () => {
         id: response.data.id,
         content: response.data.question,
         studentName: currentUser?.name || `Student ${response.data.student_id}`,
-        teacherName: `Teacher ${response.data.teacher_id}`,
+        teacherName: `${response.data.teacher_name}`,
         year: "2025",
         class: "Class A",
         createdAt: response.data.created_at,
@@ -245,12 +279,13 @@ const AskQuestionPage = () => {
   };
 
   const filteredQuestions = isTeacher
-  ? questions.filter((q) => {
-      if (!selectedClass) return true;
-      const classMatch = !selectedClass || q.student?.class_id === Number(selectedClass);
-      return classMatch;
-    })
-  : questions;
+    ? questions.filter((q) => {
+        if (!selectedClass) return true;
+        const classMatch =
+          !selectedClass || q.student?.class_id === Number(selectedClass);
+        return classMatch;
+      })
+    : questions;
 
   return (
     <>
@@ -432,10 +467,37 @@ const AskQuestionPage = () => {
                   <p className="text-gray-500 italic">No answers yet</p>
                 )}
               </div>
+
+              {isAdmin && (
+                <button
+                  onClick={() => handleDeleteClick(question)}
+                  className="text-red-500 hover:text-red-700 bg-red-100 py-1 px-2 rounded cursor-pointer absolute right-2 bottom-1"
+                  title="Delete"
+                >
+                  <DeleteOutlined />
+                </button>
+              )}
             </div>
           </Card>
         )}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Modal
+        title="Confirm Deletion"
+        open={isDeleteModalOpen}
+        onOk={confirmDelete}
+        onCancel={() => {
+          setIsDeleteModalOpen(false);
+          setQuestionToDelete(null);
+        }}
+        okText="Delete"
+        okButtonProps={{ danger: true }}
+        cancelText="Cancel"
+        centered
+      >
+        <p>Are you sure you want to delete.</p>
+      </Modal>
     </>
   );
 };

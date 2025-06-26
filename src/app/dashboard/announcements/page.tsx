@@ -170,19 +170,17 @@ export default function AnnouncementsPage() {
  const filteredAnnouncements = announcements.filter((announcement) => {
   if (currentUser?.role === "SUPER_ADMIN") return true;
   if (currentUser?.role === "SCHOOL_ADMIN") {
-    // School admins can see announcements for school admins and general announcements
-    return announcement.role === "SCHOOL_ADMIN" || !announcement.role;
+    return true;
   }
   if (currentUser?.role === "TEACHER") {
-    // Teachers can see announcements for teachers and general announcements
     return announcement.role === "TEACHER" || !announcement.role;
   }
   if (currentUser?.role === "STUDENT") {
-    // Students can only see announcements for students and general announcements
     return announcement.role === "STUDENT" || !announcement.role;
   }
   return false;
 });
+
   const badgeRibbonColors = {
     prayer: "green",
     event: "blue",
