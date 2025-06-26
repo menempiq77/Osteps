@@ -2,8 +2,8 @@
 import { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { Card, Input, Select, Badge, Button, Modal, Spin } from "antd";
-import { addAnnouncement, deleteAnnouncement, fetchAnnouncements } from "@/services/announcementApi";
+import { Card, Input, Select, Badge, Button, Modal, Spin, message } from "antd";
+import { addAnnouncement, deleteAnnouncement, fetchAnnouncements, updateAnnouncement } from "@/services/announcementApi";
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -16,7 +16,7 @@ type Announcement = {
   authorId?: string;
   created_at: string;
   type: "prayer" | "event" | "reminder" | "general";
-  target: "all" | "teachers" | "students" | "staff";
+  target?: "School Admins" | "teachers" | "students";
 };
 
 export default function AnnouncementsPage() {
@@ -25,36 +25,35 @@ export default function AnnouncementsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [announcementToDelete, setAnnouncementToDelete] = useState<
-    string | null
-  >(null);
+  const [announcementToDelete, setAnnouncementToDelete] = useState<string | null>(null);
 
-  const [newAnnouncement, setNewAnnouncement] = useState({
+  const [announcementForm, setAnnouncementForm] = useState({
+    id: null as string | null,
     title: "",
     description: "",
-    type: "general" as "prayer" | "event" | "reminder" | "general",
-    role: "all" as "all" | "teachers" | "students" | "staff",
+    type: "",
+    target: "",
   });
-  const [isCreating, setIsCreating] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    const loadGrades = async () => {
+    const loadAnnouncements = async () => {
       try {
         const data = await fetchAnnouncements();
         setAnnouncements(data);
         setLoading(false);
       } catch (err) {
-        setError("Failed to load grades");
+        setError("Failed to load announcements");
         setLoading(false);
         console.error(err);
       }
     };
-    loadGrades();
+    loadAnnouncements();
   }, []);
 
-  const handleCreateAnnouncement = async () => {
-    if (!newAnnouncement.title || !newAnnouncement.description) {
+  const handleSubmitAnnouncement = async () => {
+    if (!announcementForm.title || !announcementForm.description) {
       setError("Title and description are required");
       return;
     }
@@ -62,31 +61,65 @@ export default function AnnouncementsPage() {
     setIsSubmitting(true);
     try {
       const announcementData = {
-        name: newAnnouncement.title,
-        title: newAnnouncement.title,
-        description: newAnnouncement.description,
-        role: currentUser?.role || "SCHOOL_ADMIN",
-        type: newAnnouncement.type,
+        title: announcementForm.title,
+        description: announcementForm.description,
+        type: announcementForm.type,
+        role: announcementForm.target,
       };
 
-      const response = await addAnnouncement(announcementData);
-      const createdAnnouncement = response.data;
+      let response;
+      if (announcementForm.id) {
+        response = await updateAnnouncement(announcementForm.id, announcementData);
+        setAnnouncements(announcements.map(ann => 
+          ann.id === announcementForm.id ? response.data : ann
+        ));
+        message.success("Announcement updated successfully");
+      } else {
+        response = await addAnnouncement({
+          ...announcementData,
+          authorId: currentUser?.id,
+        });
+        setAnnouncements([response.data, ...announcements]);
+        message.success("Announcement created successfully");
+      }
 
-      setAnnouncements([createdAnnouncement, ...announcements]);
-      setNewAnnouncement({
-        title: "",
-        description: "",
-        type: "general",
-        role: "all",
-      });
-      setIsCreating(false);
-      setError(null);
+      resetForm();
     } catch (err) {
-      setError("Failed to create announcement");
+      setError(announcementForm.id 
+        ? "Failed to update announcement" 
+        : "Failed to create announcement");
       console.error(err);
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const resetForm = () => {
+    setAnnouncementForm({
+      id: null,
+      title: "",
+      description: "",
+      type: "general",
+      target: "",
+    });
+    setIsFormOpen(false);
+    setError(null);
+  };
+
+  const handleEditAnnouncement = (announcement: Announcement) => {
+    setAnnouncementForm({
+      id: announcement.id,
+      title: announcement.title,
+      description: announcement.description,
+      type: announcement.type,
+      target: announcement.role,
+    });
+    setIsFormOpen(true);
+  };
+
+  const handleNewAnnouncement = () => {
+    resetForm();
+    setIsFormOpen(true);
   };
 
   const handleDeleteAnnouncement = async () => {
@@ -101,6 +134,7 @@ export default function AnnouncementsPage() {
       );
       setDeleteOpen(false);
       setAnnouncementToDelete(null);
+      message.success("Announcement deleted successfully");
     } catch (err) {
       setError("Failed to delete Announcement");
       console.error(err);
@@ -111,6 +145,7 @@ export default function AnnouncementsPage() {
     setAnnouncementToDelete(id);
     setDeleteOpen(true);
   };
+
   const canCreateAnnouncement =
     currentUser?.role === "SUPER_ADMIN" ||
     currentUser?.role === "SCHOOL_ADMIN" ||
@@ -124,26 +159,30 @@ export default function AnnouncementsPage() {
     );
   };
 
-  const filteredAnnouncements = announcements.filter((announcement) => {
-    if (currentUser?.role === "SUPER_ADMIN") return true;
+  const canEditAnnouncement = (announcement: Announcement) => {
+    return (
+      currentUser?.role === "SUPER_ADMIN" ||
+      currentUser?.role === "SCHOOL_ADMIN" ||
+      announcement.authorId === currentUser?.id
+    );
+  };
 
-    if (currentUser?.role === "SCHOOL_ADMIN") return true;
-
-    if (currentUser?.role === "TEACHER") {
-      return true;
-    }
-
-    if (currentUser?.role === "STUDENT") {
-      return true;
-    }
-
-    if (currentUser?.role === "STAFF") {
-      return true;
-    }
-
-    return false;
-  });
-
+ const filteredAnnouncements = announcements.filter((announcement) => {
+  if (currentUser?.role === "SUPER_ADMIN") return true;
+  if (currentUser?.role === "SCHOOL_ADMIN") {
+    // School admins can see announcements for school admins and general announcements
+    return announcement.role === "SCHOOL_ADMIN" || !announcement.role;
+  }
+  if (currentUser?.role === "TEACHER") {
+    // Teachers can see announcements for teachers and general announcements
+    return announcement.role === "TEACHER" || !announcement.role;
+  }
+  if (currentUser?.role === "STUDENT") {
+    // Students can only see announcements for students and general announcements
+    return announcement.role === "STUDENT" || !announcement.role;
+  }
+  return false;
+});
   const badgeRibbonColors = {
     prayer: "green",
     event: "blue",
@@ -174,17 +213,17 @@ export default function AnnouncementsPage() {
         <h1 className="text-2xl font-bold">Announcements</h1>
         {canCreateAnnouncement && (
           <Button
-            onClick={() => setIsCreating(!isCreating)}
+            onClick={handleNewAnnouncement}
             className="!bg-primary !text-white hover:!bg-primary/90 hover:!border-primary transition-colors"
           >
-            {isCreating ? "Cancel" : "New Announcement"}
+            New Announcement
           </Button>
         )}
       </div>
 
-      {isCreating && (
+      {isFormOpen && (
         <Card
-          title="Announcement"
+          title={announcementForm.id ? "Edit Announcement" : "New Announcement"}
           className="!mb-6"
           extra={
             <span className="text-gray-500">
@@ -195,10 +234,10 @@ export default function AnnouncementsPage() {
           <div className="space-y-4">
             <Input
               placeholder="Title (e.g., 'Ramadan Schedule')"
-              value={newAnnouncement.title}
+              value={announcementForm.title}
               onChange={(e) =>
-                setNewAnnouncement({
-                  ...newAnnouncement,
+                setAnnouncementForm({
+                  ...announcementForm,
                   title: e.target.value,
                 })
               }
@@ -207,10 +246,10 @@ export default function AnnouncementsPage() {
 
             <TextArea
               placeholder="Content (e.g., 'The Taraweeh prayers will begin at 8:30 PM...')"
-              value={newAnnouncement.description}
+              value={announcementForm.description}
               onChange={(e) =>
-                setNewAnnouncement({
-                  ...newAnnouncement,
+                setAnnouncementForm({
+                  ...announcementForm,
                   description: e.target.value,
                 })
               }
@@ -220,43 +259,61 @@ export default function AnnouncementsPage() {
 
             <div className="flex gap-4 flex-wrap">
               <Select
-                value={newAnnouncement.type}
+                value={announcementForm.type}
                 onChange={(value) =>
-                  setNewAnnouncement({
-                    ...newAnnouncement,
+                  setAnnouncementForm({
+                    ...announcementForm,
                     type: value as any,
                   })
                 }
                 className="flex-1 min-w-[150px] hover:!border-primary focus:!border-primary focus:ring-1 focus:!ring-primary transition-colors"
               >
-                <Option value="event">Islamic Studies</Option>
-                <Option value="reminder">General</Option>
+                <Option value="event">Event</Option>
+                <Option value="reminder">Reminder</Option>
+                <Option value="general">General</Option>
               </Select>
 
               <Select
-                value={newAnnouncement.target}
+                value={announcementForm.role}
                 onChange={(value) =>
-                  setNewAnnouncement({
-                    ...newAnnouncement,
+                  setAnnouncementForm({
+                    ...announcementForm,
                     target: value as any,
                   })
                 }
+                placeholder="Target Audience"
                 className="flex-1 min-w-[150px] hover:!border-primary focus:!border-primary focus:ring-1 focus:!ring-primary transition-colors"
               >
-                <Option value="all">Everyone</Option>
-                <Option value="teachers">Teachers Only</Option>
-                <Option value="students">Students Only</Option>
+                <Option value="SCHOOL_ADMIN">School Admins</Option>
+                <Option value="TEACHER">Teachers</Option>
+                <Option value="STUDENT">Students</Option>
               </Select>
             </div>
 
-            <Button
-              type="primary"
-              onClick={handleCreateAnnouncement}
-              loading={isSubmitting}
-              className="!bg-primary !text-white hover:!bg-primary/90 hover:!border-primary transition-colors"
-            >
-              {isSubmitting ? "Publishing..." : "Publish Announcement"}
-            </Button>
+            {error && <div className="text-red-500">{error}</div>}
+
+            <div className="flex gap-3">
+              <Button
+                type="primary"
+                onClick={handleSubmitAnnouncement}
+                loading={isSubmitting}
+                className="!bg-primary !text-white hover:!bg-primary/90 hover:!border-primary transition-colors"
+              >
+                {isSubmitting 
+                  ? announcementForm.id 
+                    ? "Updating..." 
+                    : "Publishing..."
+                  : announcementForm.id 
+                    ? "Update Announcement" 
+                    : "Publish Announcement"}
+              </Button>
+              <Button
+                onClick={resetForm}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+            </div>
           </div>
         </Card>
       )}
@@ -277,15 +334,26 @@ export default function AnnouncementsPage() {
               color={badgeRibbonColors[announcement.type]}
             >
               <Card className="hover:shadow-lg transition-shadow rounded-lg border border-gray-200 relative">
-                {canDeleteAnnouncement(announcement) && (
-                  <span
-                    onClick={() => confirmDelete(announcement.id)}
-                    className="absolute bottom-4 right-4 text-red-500 font-medium hover:text-red-700 transition-colors cursor-pointer"
-                    aria-label="Delete announcement"
-                  >
-                    Delete
-                  </span>
-                )}
+                <div className="absolute bottom-4 right-4 flex gap-3">
+                  {canEditAnnouncement(announcement) && (
+                    <span
+                      onClick={() => handleEditAnnouncement(announcement)}
+                      className="text-primary font-medium hover:text-primary/70 transition-colors cursor-pointer"
+                      aria-label="Edit announcement"
+                    >
+                      Edit
+                    </span>
+                  )}
+                  {canDeleteAnnouncement(announcement) && (
+                    <span
+                      onClick={() => confirmDelete(announcement.id)}
+                      className="text-red-500 font-medium hover:text-red-700 transition-colors cursor-pointer"
+                      aria-label="Delete announcement"
+                    >
+                      Delete
+                    </span>
+                  )}
+                </div>
                 <div>
                   <div className="flex justify-between items-start gap-2 flex-wrap">
                     <h3 className="font-medium mb-1">{announcement.title}</h3>
@@ -293,7 +361,7 @@ export default function AnnouncementsPage() {
                   <div className="flex flex-wrap text-xs text-gray-500 gap-2 items-center mb-4">
                     <span>{formatDate(announcement.created_at)}</span>
                     <span>•</span>
-                    <span>Posted by {announcement.role}</span>
+                    <span>Posted For {announcement.role}</span>
                   </div>
                 </div>
                 <div>
@@ -318,7 +386,7 @@ export default function AnnouncementsPage() {
         cancelText="Cancel"
         centered
       >
-        <p>Are you sure you want to delete.</p>
+        <p>Are you sure you want to delete this announcement?</p>
       </Modal>
     </div>
   );

@@ -1,18 +1,20 @@
 "use client";
 import React from "react";
-import { Tabs, Form, Input, Button, Upload, message } from "antd";
+import { Tabs, Form, Input, Button, Upload, message, Select } from "antd";
 import { UploadOutlined, UserOutlined } from "@ant-design/icons";
-import { useSelector } from "react-redux";
-import { RootState } from "@/store/store";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "@/store/store";
+import { setCurrentUser } from "@/features/auth/authSlice";
 import { changePassword, updateSuperAdminProfile } from "@/services/settingApi";
 
-const AdminSettings = () => {
+const TeacherSettings = () => {
   const [form] = Form.useForm();
   const [profileForm] = Form.useForm();
   const [fileList, setFileList] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
   const [profileLoading, setProfileLoading] = React.useState(false);
   const { currentUser } = useSelector((state: RootState) => state.auth);
+  const dispatch = useDispatch<AppDispatch>();
 
   React.useEffect(() => {
     if (currentUser?.id) {
@@ -28,16 +30,11 @@ const AdminSettings = () => {
     }
   }, [currentUser, profileForm]);
 
-  console.log("Current User Id:", currentUser?.id);
-
   const onProfileFinish = async (values) => {
     try {
       setProfileLoading(true);
-
       const formData = new FormData();
-
       formData.append("user_id", currentUser.id.toString());
-
       formData.append("first_name", values.firstName);
       formData.append("last_name", values.lastName);
       formData.append("email", values.email);
@@ -47,6 +44,15 @@ const AdminSettings = () => {
       }
 
       const response = await updateSuperAdminProfile(formData);
+
+      
+          const updatedUser = {
+            ...currentUser,
+            name: response?.name,
+            profile_path: response?.profile_path,
+          };
+      
+          dispatch(setCurrentUser(updatedUser));
 
       message.success("Profile updated successfully!");
       profileForm.setFieldsValue({
@@ -58,7 +64,7 @@ const AdminSettings = () => {
     } catch (error) {
       console.error("Profile update failed:", error);
       message.error(
-        error.response?.data?.message || "Failed to update profile"
+        error.response?.message || "Failed to update profile"
       );
     } finally {
       setProfileLoading(false);
@@ -73,7 +79,7 @@ const AdminSettings = () => {
   const handleUploadChange = ({ fileList }) => {
     setFileList(fileList);
   };
-   const handleRemovePhoto = () => {
+  const handleRemovePhoto = () => {
     setFileList([]);
   };
 
@@ -158,7 +164,9 @@ const AdminSettings = () => {
                     </Button>
                   )}
                 </Form.Item>
-                <div className="text-xs text-gray-500">JPG, PNG, or GIF.</div>
+                <div className="text-xs text-gray-500">
+                  JPG, PNG, or GIF.
+                </div>
               </div>
             </div>
 
@@ -198,7 +206,7 @@ const AdminSettings = () => {
                 { type: "email", message: "Please enter a valid email!" },
               ]}
             >
-              <Input size="large" />
+              <Input size="large" disabled />
             </Form.Item>
 
             <Form.Item className="text-right">
@@ -302,4 +310,4 @@ const AdminSettings = () => {
   );
 };
 
-export default AdminSettings;
+export default TeacherSettings;
