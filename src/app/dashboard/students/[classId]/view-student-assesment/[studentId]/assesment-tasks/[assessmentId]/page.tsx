@@ -169,9 +169,10 @@ export default function AssessmentDrawer() {
     (task) => task.student_id === Number(selectedStudentId)
   );
 
-  
   const handleViewQuiz = (task: any) => {
-      router.push(`/dashboard/students/${classId}/view-student-assesment/${selectedStudentId}/quiz/${task.quiz.id}`);
+    router.push(
+      `/dashboard/students/${classId}/view-student-assesment/${selectedStudentId}/quiz/${task.quiz.id}`
+    );
   };
 
   return (
@@ -215,7 +216,10 @@ export default function AssessmentDrawer() {
                         </h3>
                       )}
                       {task?.submission_type === "quiz" && (
-                        <h3 onClick={()=>handleViewQuiz(task)} className="text-base font-semibold text-gray-800 cursor-pointer hover:underline">
+                        <h3
+                          onClick={() => handleViewQuiz(task)}
+                          className="text-base font-semibold text-gray-800 cursor-pointer hover:underline"
+                        >
                           {task?.quiz?.name}
                         </h3>
                       )}
@@ -336,20 +340,16 @@ export default function AssessmentDrawer() {
                         className={`text-sm ${
                           assessmentOpenTaskId === task.id
                             ? "text-gray-500"
-                            : "text-blue-600 hover:text-blue-800"
+                            : "text-green-600 hover:text-green-800"
                         }`}
                       >
                         {assessmentOpenTaskId === task.id ? (
-                          <span className="flex items-center gap-1">
-                            <span>Hide Assessment</span>
-                          </span>
+                          <span>Hide</span>
                         ) : (
-                          <span className="flex items-center gap-1">
-                            <span>
-                              {task?.teacher_assessment_marks
-                                ? "Update Assessment"
-                                : "Mark Assessment"}
-                            </span>
+                          <span>
+                            {task?.teacher_assessment_score !== null
+                              ? "Update Marks"
+                              : "Mark Assessment"}
                           </span>
                         )}
                       </Button>
@@ -406,7 +406,7 @@ export default function AssessmentDrawer() {
                         className="!bg-primary hover:bg-primary/90 !text-white !border-0"
                         onClick={() => handleAssessmentSubmit(task.id)}
                       >
-                        Submit Assessment
+                        Submit
                       </Button>
                     </div>
                   </div>
