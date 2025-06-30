@@ -8,6 +8,8 @@ import {
   message,
   Skeleton,
   Tag,
+  Input,
+  InputNumber,
 } from "antd";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
@@ -15,6 +17,7 @@ import {
   fetchQuizQuestions,
   fetchStudents,
   fetchSubmittedQuizDetails,
+  quizAnswerMarks,
 } from "@/services/api";
 
 interface Option {
@@ -30,6 +33,7 @@ interface QuizQuestion {
   type: string;
   correct_answer: number | null;
   options: Option[];
+  marks: number;
 }
 
 interface Quiz {
@@ -46,6 +50,7 @@ interface SubmittedAnswer {
   submitted_answer: any;
   is_correct: number;
   correct_answer: string | null;
+  marks: number;
 }
 
 interface Student {
@@ -74,6 +79,10 @@ export default function QuranQuizPage() {
   const [submittedAnswers, setSubmittedAnswers] = useState<SubmittedAnswer[]>(
     []
   );
+  const [customMarks, setCustomMarks] = useState<Record<number, number>>({});
+  const [loadingStates, setLoadingStates] = useState<Record<number, boolean>>(
+    {}
+  );
 
   const canUpload =
     currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "TEACHER";
@@ -101,9 +110,16 @@ export default function QuranQuizPage() {
         const response = await fetchSubmittedQuizDetails(
           Number(quizId),
           Number(selectedStudentId),
-          "tracker"
+          "assessment"
         );
         setSubmittedAnswers(response);
+
+        // Initialize custom marks with existing marks from submitted answers
+        const marksMap: Record<number, number> = {};
+        response.forEach((ans) => {
+          marksMap[ans.question_id] = ans.marks;
+        });
+        setCustomMarks(marksMap);
       } catch {
         message.error("Failed to load submitted answers");
       } finally {
@@ -190,6 +206,49 @@ export default function QuranQuizPage() {
     }
   };
 
+  const handleCustomMarkChange = (questionId: number, value: number | null) => {
+    if (value === null) return;
+    setCustomMarks((prev) => ({
+      ...prev,
+      [questionId]: value,
+    }));
+  };
+
+  const markAnswer = async (
+    answerId: number,
+    isCorrect: boolean,
+    questionId: number,
+    maxMarks: number
+  ) => {
+    try {
+      setLoadingStates((prev) => ({ ...prev, [questionId]: true }));
+
+      const question = quizData?.quiz_queston.find((q) => q.id === questionId);
+      const isTextType =
+        question?.type === "short_answer" || question?.type === "paragraph";
+
+      const marksToUse = isTextType
+        ? customMarks[questionId] ?? 0
+        : isCorrect
+        ? maxMarks
+        : 0;
+
+      await quizAnswerMarks(answerId, isCorrect ? 1 : 0, marksToUse);
+      message.success("Answer marked successfully");
+
+      const response = await fetchSubmittedQuizDetails(
+        Number(quizId),
+        Number(selectedStudentId),
+        "assessment"
+      );
+      setSubmittedAnswers(response);
+    } catch (error) {
+      message.error("Failed to mark answer");
+    } finally {
+      setLoadingStates((prev) => ({ ...prev, [questionId]: false }));
+    }
+  };
+
   return (
     <div className="p-3 md:p-6 max-w-5xl mx-auto min-h-screen">
       <div className="mb-8 flex justify-between items-center">
@@ -251,7 +310,9 @@ export default function QuranQuizPage() {
                   {/* Correct Answer */}
                   {canUpload && (
                     <div className="my-2 text-xs text-green-600">
-                      <strong className="text-black font-medium">Correct Answer:</strong>{" "}
+                      <strong className="text-black font-medium">
+                        Correct Answer:
+                      </strong>{" "}
                       {getCorrectAnswerText(question)}
                     </div>
                   )}
@@ -262,26 +323,111 @@ export default function QuranQuizPage() {
                       (ans) => ans.question_id === question.id
                     );
                     const isCorrect = submitted?.is_correct === 1;
+                    const isTextType =
+                      question.type === "short_answer" ||
+                      question.type === "paragraph";
 
                     return (
                       <div className="mt-2 text-sm">
                         {submitted && (
-                          <Tag
-                            color={isCorrect ? "green" : "red"}
-                            className="mt-1 w-full !py-2"
-                          >
-                        <div className="">
-                          <strong>Submitted Answer:</strong>{" "}
-                          {renderSubmittedAnswer(question)}
-                        </div>
-                          </Tag>
+                          <>
+                            <Tag
+                              color={isCorrect ? "green" : "red"}
+                              className="mt-1 w-full !py-2"
+                            >
+                              <div className="">
+                                <strong>Submitted Answer:</strong>{" "}
+                                {renderSubmittedAnswer(question)}
+                              </div>
+                            </Tag>
+
+                            {canUpload && (
+                              <div className="mt-4">
+                                <div className="flex items-center gap-4 flex-wrap">
+                                  {isTextType ? (
+                                    <>
+                                      <InputNumber
+                                        min={0}
+                                        max={question.marks}
+                                        value={
+                                          customMarks[question.id] ??
+                                          submitted.marks
+                                        }
+                                        onChange={(value) =>
+                                          handleCustomMarkChange(
+                                            question.id,
+                                            value
+                                          )
+                                        }
+                                        className="w-24"
+                                      />
+                                      <span className="text-sm text-gray-600">
+                                        / {question.marks}
+                                      </span>
+                                      <Button
+                                        size="small"
+                                        type="primary"
+                                        onClick={() =>
+                                          markAnswer(
+                                            submitted.id,
+                                            true,
+                                            question.id,
+                                            question.marks
+                                          )
+                                        }
+                                        loading={loadingStates[question.id]}
+                                      >
+                                        Save Marks
+                                      </Button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Button
+                                        size="small"
+                                        type={isCorrect ? "primary" : "default"}
+                                        onClick={() =>
+                                          markAnswer(
+                                            submitted.id,
+                                            true,
+                                            question.id,
+                                            question.marks
+                                          )
+                                        }
+                                        loading={loadingStates[question.id]}
+                                      >
+                                        Correct
+                                      </Button>
+                                      <Button
+                                        size="small"
+                                        danger={!isCorrect}
+                                        onClick={() =>
+                                          markAnswer(
+                                            submitted.id,
+                                            false,
+                                            question.id,
+                                            question.marks
+                                          )
+                                        }
+                                        loading={loadingStates[question.id]}
+                                      >
+                                        Incorrect
+                                      </Button>
+                                    </>
+                                  )}
+                                  <span className="text-sm text-gray-600">
+                                    Marks: {submitted.marks || 0}/
+                                    {question.marks}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                          </>
                         )}
                       </div>
                     );
                   })()}
-
                   <div className="mt-1 text-xs text-white bg-primary inline-block px-2 py-1 rounded absolute top-2 right-2">
-                     {quizTypeLabels[question.type] || question.type}
+                    {quizTypeLabels[question.type] || question.type}
                   </div>
                 </div>
               ))

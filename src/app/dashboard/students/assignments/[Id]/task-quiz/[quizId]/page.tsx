@@ -14,7 +14,7 @@ import {
 } from "antd";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { fetchQuizQuestions, submitQuizByStudent } from "@/services/api";
+import { fetchQuizQuestions, submitTaskQuizByStudent } from "@/services/api";
 
 interface Option {
   id: number;
@@ -168,7 +168,7 @@ export default function QuranQuizPage() {
         })
       );
 
-      await submitQuizByStudent(
+      await submitTaskQuizByStudent(
         quizData.id,
         currentUser.student,
         Id,

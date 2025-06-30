@@ -324,7 +324,7 @@ export default function QuranTrackerAdminPage() {
                                         }
                                       : undefined
                                   }
-                                   disabled={!selectedStudentId}
+                                  disabled={!selectedStudentId}
                                 >
                                   {topic.title || topic?.quiz?.name}
                                 </button>
@@ -354,13 +354,14 @@ export default function QuranTrackerAdminPage() {
                                   key={`${topic.id}-${statusName}`}
                                   className="p-4 whitespace-nowrap text-center border-r border-gray-200"
                                 >
-                                  {topic?.type !== "quiz" && <input
-                                    type="checkbox"
-                                    readOnly
-                                    checked={
-                                      studentProgress?.is_completed === 1
-                                    }
-                                    className={`
+                                  {topic?.type !== "quiz" && (
+                                    <input
+                                      type="checkbox"
+                                      readOnly
+                                      checked={
+                                        studentProgress?.is_completed === 1
+                                      }
+                                      className={`
                                                   h-5 w-5 !appearance-none rounded border border-gray-300 
                                                   checked:!bg-primary checked:border-transparent 
                                                   focus:ring-2 focus:ring-primary 
@@ -377,19 +378,22 @@ export default function QuranTrackerAdminPage() {
                                                   checked:after:-translate-x-1/2 
                                                   checked:after:-translate-y-1/2
                                                 `}
-                                  />}
+                                    />
+                                  )}
                                 </td>
                               );
                             })}
 
                             <td className="p-4 whitespace-nowrap text-center">
-                              <Button
-                                className="!text-primary"
-                                onClick={() => handleEnterMarks(topic)}
-                                disabled={!selectedStudentId}
-                              >
-                                Enter Marks
-                              </Button>
+                              {topic.type !== "quiz" && (
+                                <Button
+                                  className="!text-primary"
+                                  onClick={() => handleEnterMarks(topic)}
+                                  disabled={!selectedStudentId}
+                                >
+                                  Enter Marks
+                                </Button>
+                              )}
                             </td>
                           </tr>
                         )}

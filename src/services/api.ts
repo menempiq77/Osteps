@@ -446,7 +446,17 @@ export const deleteQuize = async (id: number) => {
   return response.data;
 };
 //submit quiz by student
-export const submitQuizByStudent = async (quizId: number, studentId: number, assessmentId: number, answers: any, type: string) => {
+export const submitQuizByStudent = async (quizId: number, studentId: number, answers: any, type: string) => {
+  const response = await api.post('/submitQuizAnswers', {
+    quiz_id: quizId,
+    student_id: studentId,
+    answers: answers,
+    type: type
+  });
+  return response.data;
+};
+//submit task quiz by student
+export const submitTaskQuizByStudent = async (quizId: number, studentId: number, assessmentId: number, answers: any, type: string) => {
   const response = await api.post('/submitQuizAnswers', {
     quiz_id: quizId,
     student_id: studentId,
@@ -478,4 +488,14 @@ export const deleteQuizQuestion = async (id: number) => {
   const response = await api.post(`/delete-quiz-question/${id}`);
   return response.data;
 };
+
+// Quiz answer marks
+export const quizAnswerMarks = async (answerId: number, isCorrect: number, marks: number) => {
+  const response = await api.post(`/quiz-answer/${answerId}`, {
+    is_correct: isCorrect,
+    marks: marks
+  });
+  return response.data;
+};
+
 export default api;
