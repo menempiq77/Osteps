@@ -11,7 +11,7 @@ import {
   updateTracker as updateTrackerAPI,
   deleteTracker as deleteTrackerAPI,
 } from "@/services/api";
-import { Alert, Spin, Modal, Button } from "antd";
+import { Spin, Modal, Button } from "antd";
 import { EditOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 
 type Tracker = {
@@ -151,19 +151,6 @@ export default function TrackerList() {
     return (
       <div className="p-3 md:p-6 flex justify-center items-center h-64">
         <Spin size="large" />
-      </div>
-    );
-  if (error)
-    return (
-      <div className="p-3 md:p-6">
-        <Alert
-          message="Error"
-          description={error}
-          type="error"
-          showIcon
-          closable
-          onClose={() => setError(null)}
-        />
       </div>
     );
 

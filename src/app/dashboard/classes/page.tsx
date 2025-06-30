@@ -11,7 +11,7 @@ import {
   updateClass,
 } from "@/services/api";
 import { useSearchParams } from "next/navigation";
-import { Alert, Breadcrumb, Spin, Modal, Button } from "antd";
+import { Breadcrumb, Spin, Modal, Button } from "antd";
 import Link from "next/link";
 
 interface ApiClass {

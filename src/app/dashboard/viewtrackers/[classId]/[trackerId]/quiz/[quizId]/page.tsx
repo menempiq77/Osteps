@@ -116,7 +116,7 @@ export default function QuranQuizPage() {
 
         // Initialize custom marks with existing marks from submitted answers
         const marksMap: Record<number, number> = {};
-        response.forEach((ans) => {
+        response.forEach((ans: SubmittedAnswer) => {
           marksMap[ans.question_id] = ans.marks;
         });
         setCustomMarks(marksMap);

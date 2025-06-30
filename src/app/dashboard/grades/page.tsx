@@ -4,7 +4,7 @@ import GradeForm from "@/components/dashboard/GradeForm";
 import GradesList from "@/components/dashboard/GradesList";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { Alert, Button, Modal, Spin } from "antd";
+import { Button, Modal, Spin } from "antd";
 import { addGrade, deleteGrade, fetchGrades, updateGrade } from "@/services/gradesApi";
 
 interface Grade {
@@ -98,20 +98,6 @@ export default function Page() {
     return (
       <div className="p-3 md:p-6 flex justify-center items-center h-64">
         <Spin size="large" />
-      </div>
-    );
-
-  if (error)
-    return (
-      <div className="p-3 md:p-6">
-        <Alert
-          message="Error"
-          description={error}
-          type="error"
-          showIcon
-          closable
-          onClose={() => setError(null)}
-        />
       </div>
     );
 

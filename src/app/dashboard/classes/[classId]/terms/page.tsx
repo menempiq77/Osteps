@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { fetchTerm, addTerm, updateTerm, deleteTerm } from "@/services/api";
 import TermsList from "@/components/dashboard/TermsList";
 import { useParams } from "next/navigation";
-import { Alert, Modal, Spin, Form, Input, Button } from "antd";
+import { Modal, Spin, Form, Input, Button } from "antd";
 
 export default function TermsPage() {
   const { classId } = useParams();

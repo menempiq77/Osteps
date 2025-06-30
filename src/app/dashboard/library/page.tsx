@@ -27,7 +27,6 @@ import {
   Grid,
   Typography,
   Spin,
-  Alert,
 } from "antd";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import UploadResourceModal from "@/components/modals/UploadResourceModal";
@@ -313,19 +312,6 @@ export default function LibraryPage() {
     return (
       <div className="p-3 md:p-6 flex justify-center items-center h-64">
         <Spin size="large" />
-      </div>
-    );
-  if (error)
-    return (
-      <div className="p-3 md:p-6">
-        <Alert
-          message="Error"
-          description={error}
-          type="error"
-          showIcon
-          closable
-          onClose={() => setError(null)}
-        />
       </div>
     );
 

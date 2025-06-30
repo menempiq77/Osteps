@@ -66,6 +66,9 @@ export default function QuranQuizPage() {
   const [optionCount, setOptionCount] = useState(3);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [questionToDelete, setQuestionToDelete] = useState<number | null>(null);
+  const [deletingQuestionId, setDeletingQuestionId] = useState<number | null>(
+    null
+  );
 
   const canUpload =
     currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "TEACHER";
@@ -95,7 +98,7 @@ export default function QuranQuizPage() {
     if (!questionToDelete) return;
 
     try {
-      setLoading(true);
+      setDeletingQuestionId(questionToDelete);
       await deleteQuizQuestion(questionToDelete);
 
       setQuizData((prev) =>
@@ -114,7 +117,7 @@ export default function QuranQuizPage() {
       message.error("Failed to delete question");
       console.error("Error deleting question:", error);
     } finally {
-      setLoading(false);
+      setDeletingQuestionId(null);
       setDeleteModalVisible(false);
       setQuestionToDelete(null);
     }
@@ -332,7 +335,7 @@ export default function QuranQuizPage() {
                     {
                       required: true,
                       message: "Please enter marks for this question",
-                    }
+                    },
                   ]}
                 >
                   <Input
@@ -512,7 +515,7 @@ export default function QuranQuizPage() {
                         size="small"
                         danger
                         icon={<Trash2 size={14} />}
-                        loading={loading}
+                        loading={deletingQuestionId === question.id}
                       />
                     )}
                   </div>
@@ -591,7 +594,9 @@ export default function QuranQuizPage() {
                   )}
 
                   <div className="mt-1 text-xs text-gray-500 flex justify-between">
-                    <span>Type: {quizTypeLabels[question.type] || question.type}</span>
+                    <span>
+                      Type: {quizTypeLabels[question.type] || question.type}
+                    </span>
                     <span>Marks: {question.marks || "N/A"}</span>
                   </div>
                 </div>

@@ -5,7 +5,7 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { EventContentArg } from "@fullcalendar/core";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   deleteTimetableSlot,
   fetchTimetableData,
@@ -55,6 +55,24 @@ function Timetable() {
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [selectedTeacher, setSelectedTeacher] = useState("");
 
+  const filteredEvents = useMemo(() => {
+    return events.filter((event) => {
+      const eventProps = event.extendedProps;
+
+      if (!selectedYear && !selectedClass && !selectedTeacher) {
+        return true;
+      }
+
+      const yearMatch = !selectedYear || eventProps.year_id === selectedYear;
+      const classMatch =
+        !selectedClass || eventProps.class_id === selectedClass;
+      const teacherMatch =
+        !selectedTeacher || eventProps.teacher_id === selectedTeacher;
+
+      return yearMatch && classMatch && teacherMatch;
+    });
+  }, [events, selectedYear, selectedClass, selectedTeacher]);
+
   useEffect(() => {
     loadTimetableData();
   }, []);
@@ -69,9 +87,12 @@ function Timetable() {
         end: `${item.date}T${item.end_time}`,
         extendedProps: {
           id: item.id,
-          teacher: item.teacher || "N/A",
+          teacher: item?.teacher?.teacher_name || "N/A",
+          teacher_id: item?.teacher_id || null, // Add teacher_id
           room: item.room || "N/A",
-          zoomLink: item.zoom_link,
+          zoomLink: item?.zoom_link,
+          year_id: item?.year_id || null, // Add year_id
+          class_id: item?.class_id || null, // Add class_id
         },
       }));
       setEvents(formattedEvents);
@@ -210,14 +231,12 @@ function Timetable() {
       loadTimetableData();
     } catch (error) {
       console.error("Failed to save event:", error);
-      if (error.response?.data?.message) {
-        message.error(error.response.data.message);
-      } else {
-        message.error(`Failed to ${isEditMode ? "update" : "add"} event`);
-      }
+      message.error(
+        error.response?.data?.message ||
+          `Failed to ${isEditMode ? "update" : "add"} event`
+      );
     }
   };
-
   const handleDeleteEvent = (event: any) => {
     setEventToDelete(event);
     setIsDeleteModalVisible(true);
@@ -239,32 +258,23 @@ function Timetable() {
   };
 
   const handleEditEvent = (event: any) => {
-    // Find the corresponding IDs for the current values
-    const yearId =
-      years.find((y) => y.name === event.extendedProps.year)?.id ||
-      selectedYear;
-    const teacherId = teachers.find(
-      (t) => t.teacher_name === event.extendedProps.teacher
-    )?.id;
-    const classId =
-      classes.find((c) => c.class_name === event.extendedProps.class)?.id ||
-      selectedClass;
+    const eventProps = event.extendedProps;
 
     const eventData = {
       subject: event.title,
-      year: yearId,
-      teacher: teacherId,
-      class: classId,
-      room: event.extendedProps.room,
+      year: eventProps.year_id,
+      teacher: eventProps.teacher_id,
+      class: eventProps.class_id,
+      room: eventProps.room,
       date: dayjs(event.startStr.split("T")[0]),
       start_time: dayjs(event.startStr.split("T")[1], "HH:mm:ss"),
       end_time: dayjs(event.endStr.split("T")[1], "HH:mm:ss"),
-      zoom_link: event.extendedProps.zoomLink || "",
+      zoom_link: eventProps.zoomLink || "",
     };
 
     form.setFieldsValue(eventData);
     setIsEditMode(true);
-    setCurrentEventId(event.extendedProps.id);
+    setCurrentEventId(eventProps.id);
     setIsModalVisible(true);
   };
 
@@ -411,7 +421,7 @@ function Timetable() {
           center: "title",
           right: "dayGridMonth,timeGridWeek,timeGridDay",
         }}
-        events={events}
+        events={filteredEvents}
         eventContent={renderEventContent}
         editable={true}
         selectable={true}
@@ -472,14 +482,11 @@ function Timetable() {
         >
           <Form form={form} layout="vertical">
             <Row gutter={16}>
-              {/* First column */}
               <Col xs={24} md={12}>
                 <Form.Item
                   name="subject"
                   label="Subject"
-                  rules={[
-                    { required: true, message: "Please input the subject!" },
-                  ]}
+                  rules={[{ required: true }]}
                 >
                   <Input placeholder="Subject" />
                 </Form.Item>
@@ -487,11 +494,9 @@ function Timetable() {
                 <Form.Item
                   name="year"
                   label="Year"
-                  rules={[
-                    { required: true, message: "Please select the year!" },
-                  ]}
+                  rules={[{ required: true }]}
                 >
-                  <Select placeholder="Select year" onChange={handleYearChange}>
+                  <Select placeholder="Select year">
                     {years?.map((year) => (
                       <Option key={year.id} value={year.id}>
                         {year.name}
@@ -503,11 +508,9 @@ function Timetable() {
                 <Form.Item
                   name="class"
                   label="Class"
-                  rules={[
-                    { required: true, message: "Please select the class!" },
-                  ]}
+                  rules={[{ required: true }]}
                 >
-                  <Select placeholder="Select class" loading={loading}>
+                  <Select placeholder="Select class">
                     {classes?.map((cls) => (
                       <Option key={cls.id} value={cls.id}>
                         {cls.class_name}
@@ -520,11 +523,9 @@ function Timetable() {
                   <Form.Item
                     name="teacher"
                     label="Teacher"
-                    rules={[
-                      { required: true, message: "Please select the teacher!" },
-                    ]}
+                    rules={[{ required: true }]}
                   >
-                    <Select placeholder="Select teacher" loading={loading}>
+                    <Select placeholder="Select teacher">
                       {teachers?.map((teacher) => (
                         <Option key={teacher.id} value={teacher.id}>
                           {teacher.teacher_name}
@@ -539,14 +540,11 @@ function Timetable() {
                 </Form.Item>
               </Col>
 
-              {/* Second column */}
               <Col xs={24} md={12}>
                 <Form.Item
                   name="room"
                   label="Room"
-                  rules={[
-                    { required: true, message: "Please input the room!" },
-                  ]}
+                  rules={[{ required: true }]}
                 >
                   <Input placeholder="Room" />
                 </Form.Item>
@@ -554,9 +552,7 @@ function Timetable() {
                 <Form.Item
                   name="date"
                   label="Date"
-                  rules={[
-                    { required: true, message: "Please select the date!" },
-                  ]}
+                  rules={[{ required: true }]}
                 >
                   <DatePicker style={{ width: "100%" }} />
                 </Form.Item>
@@ -564,9 +560,7 @@ function Timetable() {
                 <Form.Item
                   name="start_time"
                   label="Start Time"
-                  rules={[
-                    { required: true, message: "Please select start time!" },
-                  ]}
+                  rules={[{ required: true }]}
                 >
                   <TimePicker format="HH:mm" style={{ width: "100%" }} />
                 </Form.Item>
@@ -574,9 +568,7 @@ function Timetable() {
                 <Form.Item
                   name="end_time"
                   label="End Time"
-                  rules={[
-                    { required: true, message: "Please select end time!" },
-                  ]}
+                  rules={[{ required: true }]}
                 >
                   <TimePicker format="HH:mm" style={{ width: "100%" }} />
                 </Form.Item>
