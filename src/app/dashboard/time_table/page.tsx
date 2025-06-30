@@ -182,18 +182,11 @@ function Timetable() {
       ];
       const dayName = days[values.date.day()];
 
-      // Get the selected year, teacher, and class names
-      const selectedYearObj = years.find((year) => year.id === values.year);
-      const selectedTeacherObj = teachers.find(
-        (teacher) => teacher.id === values.teacher
-      );
-      const selectedClassObj = classes.find((cls) => cls.id === values.class);
-
       const formattedData = {
         subject: values.subject,
-        year: selectedYearObj?.name || values.year, // Send the name as string
-        teacher: selectedTeacherObj?.teacher_name || values.teacher || currentUser?.name, // Send the name as string
-        class: selectedClassObj?.class_name || values.class, // Send the name as string
+        year_id: values.year,
+        teacher_id: values.teacher || currentUser?.id,
+        class_id: values.class,
         room: values.room,
         date: date,
         day: dayName,
@@ -345,7 +338,11 @@ function Timetable() {
       <div className="bg-white p-4 rounded-md shadow-sm border border-gray-200 mb-6">
         <h3 className="text-sm font-medium text-gray-700 mb-3">Filters</h3>
 
-        <div className={`grid grid-cols-1 ${isTeacher ? "md:grid-cols-2" : "md:grid-cols-3"} gap-4`}>
+        <div
+          className={`grid grid-cols-1 ${
+            isTeacher ? "md:grid-cols-2" : "md:grid-cols-3"
+          } gap-4`}
+        >
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">
               Year
@@ -471,7 +468,7 @@ function Timetable() {
               {isEditMode ? "Update" : "Add"} Event
             </Button>,
           ]}
-          width={800} // Increase modal width for better two-column layout
+          width={800}
         >
           <Form form={form} layout="vertical">
             <Row gutter={16}>
@@ -494,14 +491,26 @@ function Timetable() {
                     { required: true, message: "Please select the year!" },
                   ]}
                 >
-                  <Select
-                    placeholder="Select year"
-                    onChange={handleYearChange}
-                    loading={loading}
-                  >
+                  <Select placeholder="Select year" onChange={handleYearChange}>
                     {years?.map((year) => (
                       <Option key={year.id} value={year.id}>
                         {year.name}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+
+                <Form.Item
+                  name="class"
+                  label="Class"
+                  rules={[
+                    { required: true, message: "Please select the class!" },
+                  ]}
+                >
+                  <Select placeholder="Select class" loading={loading}>
+                    {classes?.map((cls) => (
+                      <Option key={cls.id} value={cls.id}>
+                        {cls.class_name}
                       </Option>
                     ))}
                   </Select>
@@ -525,16 +534,6 @@ function Timetable() {
                   </Form.Item>
                 )}
 
-                <Form.Item
-                  name="room"
-                  label="Room"
-                  rules={[
-                    { required: true, message: "Please input the room!" },
-                  ]}
-                >
-                  <Input placeholder="Room" />
-                </Form.Item>
-
                 <Form.Item name="zoom_link" label="Zoom Link">
                   <Input placeholder="Zoom meeting link (optional)" />
                 </Form.Item>
@@ -543,19 +542,13 @@ function Timetable() {
               {/* Second column */}
               <Col xs={24} md={12}>
                 <Form.Item
-                  name="class"
-                  label="Class"
+                  name="room"
+                  label="Room"
                   rules={[
-                    { required: true, message: "Please select the class!" },
+                    { required: true, message: "Please input the room!" },
                   ]}
                 >
-                  <Select placeholder="Select class" loading={loading}>
-                    {classes?.map((cls) => (
-                      <Option key={cls.id} value={cls.id}>
-                        {cls.class_name}
-                      </Option>
-                    ))}
-                  </Select>
+                  <Input placeholder="Room" />
                 </Form.Item>
 
                 <Form.Item

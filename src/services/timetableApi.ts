@@ -37,3 +37,5 @@ export const deleteTimetableSlot = async (id: number) => {
   const response = await api.post(`/delete-timeTable/${id}`);
   return response.data;
 };
+
+export default api;
