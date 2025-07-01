@@ -85,7 +85,9 @@ export default function AssignmentsPage() {
 
   const handleItemClick = (assignment: any) => {
     if (assignment.type === "quiz") {
-      router.push(`/dashboard/students/assignments/${assignment.id}/quiz/${assignment.quiz.id}`);
+      router.push(
+        `/dashboard/students/assignments/${assignment.id}/quiz/${assignment.quiz.id}`
+      );
     } else if (assignment.type === "assignment") {
     } else {
       router.push(`/dashboard/students/assignments/${assignment.id}`);
@@ -189,7 +191,6 @@ export default function AssignmentsPage() {
               <Card
                 key={assignment.id}
                 className="p-6 bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow h-full cursor-pointer"
-                onClick={() => handleItemClick(assignment?.id)}
               >
                 <div className="flex flex-col h-full">
                   <div className="flex justify-between items-start flex-grow">

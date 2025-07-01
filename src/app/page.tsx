@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { login } from "@/features/auth/authSlice";
 import Image from "next/image";
 import Logo from "@/assets/images/Logo2.png";
-import LoginImg from "@/assets/images/LoginImg4.jpg";
+import LoginImg from "@/assets/images/LoginImg.png";
 import { useEffect } from "react";
 
 export default function LoginPage() {

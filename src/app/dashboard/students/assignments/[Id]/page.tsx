@@ -56,7 +56,7 @@ export default function AssignmentDetailPage() {
   const handleOpenDrawer = async (task: Task) => {
     if (task.type === "quiz") {
       await router.push(
-        `/dashboard/students/assignments/${assignmentId}/task-quiz/${task.quiz.id}`
+        `/dashboard/students/assignments/${assignmentId}/task-quiz/${task?.quiz?.id}`
       );
     } else {
       setSelectedTask(task);
@@ -103,12 +103,12 @@ export default function AssignmentDetailPage() {
         <div className="border-b pb-4">
           <h2 className="text-2xl font-semibold text-gray-800">Tasks</h2>
           <p className="text-gray-500 text-sm mt-1">
-            {tasks.length} task{tasks.length !== 1 ? "s" : ""} in this
+            {tasks?.length} task{tasks?.length !== 1 ? "s" : ""} in this
             assessment
           </p>
         </div>
 
-        {tasks.length === 0 ? (
+        {tasks?.length === 0 ? (
           <div className="bg-white rounded-lg border p-8 text-center shadow-sm">
             <p className="text-gray-500">No tasks found for this assessment</p>
           </div>
@@ -123,7 +123,7 @@ export default function AssignmentDetailPage() {
                   <div className="flex justify-between items-start">
                     <div>
                       <h3 className="font-medium text-lg text-gray-900 mb-1">
-                        {task.task_name || task?.quiz?.name || "Untitled Task"}
+                        {task?.task_name || task?.quiz?.name || "Untitled Task"}
                       </h3>
                       {task?.type !== "quiz" && (
                         <p className="font-normal text-base text-gray-700 mb-1">
@@ -142,10 +142,10 @@ export default function AssignmentDetailPage() {
                     </div>
                     <span
                       className={`px-3 py-1 text-xs font-medium rounded-full capitalize ${getStatusColor(
-                        task.status || "not-started"
+                        task?.status || "not-started"
                       )}`}
                     >
-                      {(task.status || "not-started")?.replace("-", " ")}
+                      {(task?.status || "not-started")?.replace("-", " ")}
                     </span>
                   </div>
 
@@ -153,7 +153,7 @@ export default function AssignmentDetailPage() {
                     <div>
                       <span className="text-gray-500">Type:</span>
                       <span className="ml-2 font-medium">
-                        {task?.type !== "quiz" ? task.task_type : "Quiz"}
+                        {task?.type !== "quiz" ? task?.task_type : "Quiz"}
                       </span>
                     </div>
                   </div>
@@ -185,19 +185,19 @@ export default function AssignmentDetailPage() {
                     </div>
                   )}
 
-                  {(task.mark || task.comment) && (
+                  {(task?.mark || task?.comment) && (
                     <div className="mt-4 pt-4 border-t border-gray-100">
                       {task.mark && (
                         <div className="mb-2">
                           <span className="text-gray-500">Grade:</span>
-                          <span className="ml-2 font-medium">{task.mark}</span>
+                          <span className="ml-2 font-medium">{task?.mark}</span>
                         </div>
                       )}
-                      {task.comment && (
+                      {task?.comment && (
                         <div>
                           <span className="text-gray-500">Feedback:</span>
                           <p className="mt-1 text-gray-700 bg-gray-50 p-2 rounded">
-                            {task.comment}
+                            {task?.comment}
                           </p>
                         </div>
                       )}
