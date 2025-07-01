@@ -134,7 +134,7 @@ export function AssessmentTasksDrawer({
       let updatedTasks;
       if (editingTaskId) {
         await updateTask(editingTaskId.toString(), formData);
-        updatedTasks = initialTasks.map((task) =>
+        updatedTasks = initialTasks?.map((task) =>
           task.id === editingTaskId
             ? {
                 ...task,
@@ -580,7 +580,7 @@ export function AssessmentTasksDrawer({
                 <div className="flex justify-between items-center mb-1">
                   <div className="flex items-center space-x-2">
                     <p className="font-medium">
-                      {task.task_name || task.quiz.name}
+                      {task?.task_name || task?.quiz?.name}
                     </p>
 
                     <span
@@ -613,23 +613,23 @@ export function AssessmentTasksDrawer({
                   </div>
                 </div>
                 <p className="text-sm text-gray-600 mb-4">
-                  {task.description || "No description provided"}
+                  {task?.description || "No description provided"}
                 </p>
                 {task?.type !== "quiz" && (
                   <div className="mt-2 text-sm text-gray-500">
-                    Due: {task.due_date} | Allocated Marks:{" "}
-                    <span className="font-medium">{task.allocated_marks}</span>
+                    Due: {task?.due_date} | Allocated Marks:{" "}
+                    <span className="font-medium">{task?.allocated_marks}</span>
                   </div>
                 )}
-                {task.task_type === "url" && task.url && (
+                {task?.task_type === "url" && task?.url && (
                   <div className="mt-1 text-sm">
                     <a
-                      href={task.url}
+                      href={task?.url}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-500 hover:underline"
                     >
-                      {task.url}
+                      {task?.url}
                     </a>
                   </div>
                 )}

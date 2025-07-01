@@ -238,7 +238,7 @@ const handleTermChange = async (termId: string) => {
           "Assignment"
         }
         assessmentId={selectedAssessment ? parseInt(selectedAssessment) : 0}
-        initialTasks={Array.isArray(tasks) ? tasks : []}
+        initialTasks={Array?.isArray(tasks) ? tasks : []}
         onTasksChange={handleTasksChange}
         quizzes={quizzes}
         loading={loading}
