@@ -2,8 +2,24 @@
 import { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { Card, Input, Select, Badge, Button, Modal, Spin, message } from "antd";
-import { addAnnouncement, deleteAnnouncement, fetchAnnouncements, updateAnnouncement } from "@/services/announcementApi";
+import {
+  Card,
+  Input,
+  Select,
+  Badge,
+  Button,
+  Modal,
+  Spin,
+  message,
+  Breadcrumb,
+} from "antd";
+import {
+  addAnnouncement,
+  deleteAnnouncement,
+  fetchAnnouncements,
+  updateAnnouncement,
+} from "@/services/announcementApi";
+import Link from "next/link";
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -25,7 +41,9 @@ export default function AnnouncementsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [announcementToDelete, setAnnouncementToDelete] = useState<string | null>(null);
+  const [announcementToDelete, setAnnouncementToDelete] = useState<
+    string | null
+  >(null);
 
   const [announcementForm, setAnnouncementForm] = useState({
     id: null as string | null,
@@ -69,10 +87,15 @@ export default function AnnouncementsPage() {
 
       let response;
       if (announcementForm.id) {
-        response = await updateAnnouncement(announcementForm.id, announcementData);
-        setAnnouncements(announcements.map(ann => 
-          ann.id === announcementForm.id ? response.data : ann
-        ));
+        response = await updateAnnouncement(
+          announcementForm.id,
+          announcementData
+        );
+        setAnnouncements(
+          announcements.map((ann) =>
+            ann.id === announcementForm.id ? response.data : ann
+          )
+        );
         message.success("Announcement updated successfully");
       } else {
         response = await addAnnouncement({
@@ -85,9 +108,11 @@ export default function AnnouncementsPage() {
 
       resetForm();
     } catch (err) {
-      setError(announcementForm.id 
-        ? "Failed to update announcement" 
-        : "Failed to create announcement");
+      setError(
+        announcementForm.id
+          ? "Failed to update announcement"
+          : "Failed to create announcement"
+      );
       console.error(err);
     } finally {
       setIsSubmitting(false);
@@ -167,19 +192,19 @@ export default function AnnouncementsPage() {
     );
   };
 
- const filteredAnnouncements = announcements.filter((announcement) => {
-  if (currentUser?.role === "SUPER_ADMIN") return true;
-  if (currentUser?.role === "SCHOOL_ADMIN") {
-    return true;
-  }
-  if (currentUser?.role === "TEACHER") {
-    return announcement.role === "TEACHER" || !announcement.role;
-  }
-  if (currentUser?.role === "STUDENT") {
-    return announcement.role === "STUDENT" || !announcement.role;
-  }
-  return false;
-});
+  const filteredAnnouncements = announcements.filter((announcement) => {
+    if (currentUser?.role === "SUPER_ADMIN") return true;
+    if (currentUser?.role === "SCHOOL_ADMIN") {
+      return true;
+    }
+    if (currentUser?.role === "TEACHER") {
+      return announcement.role === "TEACHER" || !announcement.role;
+    }
+    if (currentUser?.role === "STUDENT") {
+      return announcement.role === "STUDENT" || !announcement.role;
+    }
+    return false;
+  });
 
   const badgeRibbonColors = {
     prayer: "green",
@@ -206,7 +231,18 @@ export default function AnnouncementsPage() {
     );
 
   return (
-    <div className="container mx-auto p-3 md:p-6">
+    <div className="max-w-7xl mx-auto p-3 md:p-6">
+      <Breadcrumb
+        items={[
+          {
+            title: <Link href="/dashboard">Dashboard</Link>,
+          },
+          {
+            title: <span>Announcements</span>,
+          },
+        ]}
+        className="!mb-2"
+      />
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Announcements</h1>
         {canCreateAnnouncement && (
@@ -297,18 +333,15 @@ export default function AnnouncementsPage() {
                 loading={isSubmitting}
                 className="!bg-primary !text-white hover:!bg-primary/90 hover:!border-primary transition-colors"
               >
-                {isSubmitting 
-                  ? announcementForm.id 
-                    ? "Updating..." 
+                {isSubmitting
+                  ? announcementForm.id
+                    ? "Updating..."
                     : "Publishing..."
-                  : announcementForm.id 
-                    ? "Update Announcement" 
-                    : "Publish Announcement"}
+                  : announcementForm.id
+                  ? "Update Announcement"
+                  : "Publish Announcement"}
               </Button>
-              <Button
-                onClick={resetForm}
-                disabled={isSubmitting}
-              >
+              <Button onClick={resetForm} disabled={isSubmitting}>
                 Cancel
               </Button>
             </div>

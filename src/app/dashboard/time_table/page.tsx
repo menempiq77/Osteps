@@ -22,12 +22,14 @@ import {
   message,
   Row,
   Col,
+  Breadcrumb,
 } from "antd";
 import api, { fetchClasses, fetchTeachers, fetchYears } from "@/services/api";
 import dayjs from "dayjs";
 import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
+import Link from "next/link";
 
 const { Option } = Select;
 
@@ -345,6 +347,17 @@ function Timetable() {
   }
   return (
     <div className="p-3 md:p-6">
+      <Breadcrumb
+        items={[
+          {
+            title: <Link href="/dashboard">Dashboard</Link>,
+          },
+          {
+            title: <span>Timetable</span>,
+          },
+        ]}
+        className="!mb-2"
+      />
       <div className="bg-white p-4 rounded-md shadow-sm border border-gray-200 mb-6">
         <h3 className="text-sm font-medium text-gray-700 mb-3">Filters</h3>
 

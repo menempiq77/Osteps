@@ -8,8 +8,9 @@ import {
   updateTeacher,
   deleteTeacher as deleteTeacherApi,
 } from "@/services/api";
-import { Spin, Modal, Button } from "antd";
+import { Spin, Modal, Button, Breadcrumb } from "antd";
 import { EditOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
+import Link from "next/link";
 
 type Teacher = {
   id: string;
@@ -138,11 +139,22 @@ export default function TeacherList() {
     );
 
   return (
-    <div className="overflow-auto h-screen">
+    <div className="overflow-auto p-3 md:p-6">
+      <Breadcrumb
+        items={[
+          {
+            title: <Link href="/dashboard">Dashboard</Link>,
+          },
+          {
+            title: <span>Teachers</span>,
+          },
+        ]}
+        className="!mb-2"
+      />
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Teachers</h1>
-        <Button 
-          type="primary" 
+        <Button
+          type="primary"
           icon={<PlusOutlined />}
           onClick={() => setIsAddTeacherModalOpen(true)}
           className="!bg-primary hover:bg-primary/90 !text-white !border-0"
@@ -227,21 +239,21 @@ export default function TeacherList() {
       </div>
 
       {/* Add Teacher Modal */}
-        <AddTeacherModal
-          isOpen={isAddTeacherModalOpen}
-          onOpenChange={setIsAddTeacherModalOpen}
-          onAddTeacher={handleAddNewTeacher}
-        />
+      <AddTeacherModal
+        isOpen={isAddTeacherModalOpen}
+        onOpenChange={setIsAddTeacherModalOpen}
+        onAddTeacher={handleAddNewTeacher}
+      />
 
       {/* Edit Teacher Modal */}
-        {editTeacher && (
-          <EditTeacherModal
-            teacher={editTeacher}
-            isOpen={!!editTeacher}
-            onOpenChange={(open) => !open && setEditTeacher(null)}
-            onSave={handleSaveEdit}
-          />
-        )}
+      {editTeacher && (
+        <EditTeacherModal
+          teacher={editTeacher}
+          isOpen={!!editTeacher}
+          onOpenChange={(open) => !open && setEditTeacher(null)}
+          onSave={handleSaveEdit}
+        />
+      )}
 
       {/* Delete Confirmation Modal */}
       <Modal

@@ -9,7 +9,6 @@ import {
   fetchWholeAssessmentsReport,
 } from "@/services/reportApi";
 import { fetchGrades } from "@/services/gradesApi";
-
 interface Task {
   student_id: number;
   student_name: string;
@@ -19,7 +18,6 @@ interface Task {
   teacher_assessment_marks: number | null;
   allocated_marks: string;
 }
-
 interface Assessment {
   assessment_id: number;
   assessment_name: string;
@@ -28,7 +26,6 @@ interface Assessment {
   year_id: number;
   tasks: Task[];
 }
-
 interface AssignedClass {
   id: number;
   class_id: number;
@@ -51,6 +48,13 @@ interface AssignedClass {
       name: string;
     }>;
   };
+}
+interface Grade {
+  id: number;
+  grade: string;
+  min_percentage: string;
+  max_percentage: string;
+  description: string;
 }
 
 export default function ReportsPage() {
@@ -83,7 +87,6 @@ export default function ReportsPage() {
     loadGrades();
   }, []);
 
-  // Get unique years from assigned classes
   const years = Array.from(
     new Set(
       assignedClasses?.map((item) => ({
@@ -93,7 +96,6 @@ export default function ReportsPage() {
     )
   );
 
-  // Get classes filtered by selected year
   const classes = assignedClasses
     ?.filter(
       (item) =>
@@ -109,7 +111,6 @@ export default function ReportsPage() {
       const reportData = await fetchReportAssessments();
       setAssesmentData(reportData);
     };
-
     fetchData();
   }, []);
 
@@ -124,7 +125,6 @@ export default function ReportsPage() {
         setLoading(false);
       }
     };
-
     fetchData();
   }, [selectedYear, selectedClass]);
 
@@ -133,27 +133,22 @@ export default function ReportsPage() {
       try {
         const response = await fetchAssignedYearClasses();
         setAssignedClasses(response);
+        if (response?.length > 0) {
+          const firstYear = response[0]?.classes?.year;
+          const firstClass = response[0]?.classes;
 
-        // Set initial selected year and class if available
-        if (response.length > 0) {
-          const firstYear = response[0].classes.year;
-          const firstClass = response[0].classes;
-
-          setSelectedYear(firstYear.id.toString());
-          setSelectedClass(firstClass.id.toString());
+          setSelectedYear(firstYear?.id?.toString());
+          setSelectedClass(firstClass?.id?.toString());
         }
-
         setLoading(false);
       } catch (error) {
         console.error("Error fetching data:", error);
         setLoading(false);
       }
     };
-
     fetchData();
   }, []);
 
-  // Add this helper function to find the current class
   const getCurrentClass = () => {
     return assignedClasses.find(
       (cls) => cls.classes.id.toString() === selectedClass
@@ -162,7 +157,6 @@ export default function ReportsPage() {
 
   const currentClass = getCurrentClass();
 
-  // Transform API data into table format
   const transformAssessmentData = () => {
     if (!wholeAssesmentData?.length) return [];
 
@@ -176,7 +170,6 @@ export default function ReportsPage() {
 
     if (!filteredAssessments.length) return [];
 
-    // Calculate the maximum possible total marks
     const maxPossibleTotal = filteredAssessments.reduce((sum, assessment) => {
       const assessmentTotal = assessment.tasks.reduce((taskSum, task) => {
         return taskSum + Number(task.allocated_marks);
@@ -184,7 +177,6 @@ export default function ReportsPage() {
       return sum + assessmentTotal;
     }, 0);
 
-    // Group tasks by student
     const studentsMap = new Map<number, any>();
 
     filteredAssessments?.forEach((assessment) => {
@@ -212,23 +204,20 @@ export default function ReportsPage() {
       });
     });
 
-    // Calculate totals for each student and determine their grade
     const students = Array.from(studentsMap.values()).map((student) => {
       const studentData: any = {
         student: student.student_name,
         student_id: student.student_id,
         total: 0,
-        maxPossibleTotal, // Add this to the student data
-        courseGrade: "N/A", // Default grade
+        maxPossibleTotal,
+        courseGrade: "N/A",
       };
 
-      // Initialize all assessment fields to 0
       wholeAssesmentData.forEach((assessment) => {
         const assessmentKey = `assessment_${assessment.assessment_id}`;
         studentData[assessmentKey] = 0;
       });
 
-      // Calculate marks for each assessment
       Object.entries(student.tasks).forEach(
         ([assessmentId, tasks]: [string, any]) => {
           const assessmentTotal = tasks.reduce((sum: number, task: any) => {
@@ -240,24 +229,18 @@ export default function ReportsPage() {
         }
       );
 
-      // Calculate percentage and determine grade
       if (maxPossibleTotal > 0) {
         const percentage = (studentData.total / maxPossibleTotal) * 100;
         studentData.percentage = percentage.toFixed(2);
-
-        // Find the appropriate grade based on percentage
         const studentGrade = grades.find(
           (grade) =>
             percentage >= parseInt(grade.min_percentage) &&
             percentage <= parseInt(grade.max_percentage)
         );
-
         studentData.courseGrade = studentGrade ? studentGrade.grade : "N/A";
       }
-
       return studentData;
     });
-
     return students;
   };
 
@@ -287,7 +270,7 @@ export default function ReportsPage() {
           onClick={() => router.back()}
           className="text-gray-700 border border-gray-300 hover:bg-gray-100"
         >
-          Back to Students
+          Back to Dashboard
         </Button>
       </div>
 
