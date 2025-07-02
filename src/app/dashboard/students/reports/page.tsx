@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { Button, Card, Select, Spin } from "antd";
+import { Button, Card, Input, Select, Spin } from "antd";
 import { ChevronLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
@@ -8,6 +8,7 @@ import {
   fetchReportAssessments,
   fetchWholeAssessmentsReport,
 } from "@/services/reportApi";
+import { fetchGrades } from "@/services/gradesApi";
 
 interface Task {
   student_id: number;
@@ -63,6 +64,24 @@ export default function ReportsPage() {
   );
   const [assignedClasses, setAssignedClasses] = useState<AssignedClass[]>([]);
   const [loading, setLoading] = useState(true);
+  const [grades, setGrades] = useState<Grade[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadGrades = async () => {
+      try {
+        const data = await fetchGrades();
+        const sortedGrades = [...data].sort(
+          (a, b) => parseInt(b.min_percentage) - parseInt(a.min_percentage)
+        );
+        setGrades(sortedGrades);
+      } catch (err) {
+        setError("Failed to load grades");
+        console.error(err);
+      }
+    };
+    loadGrades();
+  }, []);
 
   // Get unique years from assigned classes
   const years = Array.from(
@@ -107,7 +126,7 @@ export default function ReportsPage() {
     };
 
     fetchData();
-  }, []);
+  }, [selectedYear, selectedClass]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -116,9 +135,9 @@ export default function ReportsPage() {
         setAssignedClasses(response);
 
         // Set initial selected year and class if available
-        if (response.data.length > 0) {
-          const firstYear = response.data[0].classes.year;
-          const firstClass = response.data[0].classes;
+        if (response.length > 0) {
+          const firstYear = response[0].classes.year;
+          const firstClass = response[0].classes;
 
           setSelectedYear(firstYear.id.toString());
           setSelectedClass(firstClass.id.toString());
@@ -147,10 +166,28 @@ export default function ReportsPage() {
   const transformAssessmentData = () => {
     if (!wholeAssesmentData?.length) return [];
 
+    const filteredAssessments = wholeAssesmentData.filter((assessment) => {
+      const classMatch =
+        !selectedClass || assessment.class_id.toString() === selectedClass;
+      const yearMatch =
+        !selectedYear || assessment.year_id.toString() === selectedYear;
+      return classMatch && yearMatch;
+    });
+
+    if (!filteredAssessments.length) return [];
+
+    // Calculate the maximum possible total marks
+    const maxPossibleTotal = filteredAssessments.reduce((sum, assessment) => {
+      const assessmentTotal = assessment.tasks.reduce((taskSum, task) => {
+        return taskSum + Number(task.allocated_marks);
+      }, 0);
+      return sum + assessmentTotal;
+    }, 0);
+
     // Group tasks by student
     const studentsMap = new Map<number, any>();
 
-    wholeAssesmentData?.forEach((assessment) => {
+    filteredAssessments?.forEach((assessment) => {
       assessment.tasks.forEach((task) => {
         if (!studentsMap.has(task.student_id)) {
           studentsMap.set(task.student_id, {
@@ -169,20 +206,20 @@ export default function ReportsPage() {
         student.tasks[assessment.assessment_id].push({
           task_id: task.task_id,
           task_name: task.task_name,
-          marks: task.teacher_assessment_marks,
-          allocated_marks: task.allocated_marks,
+          marks: Number(task.teacher_assessment_marks),
+          allocated_marks: Number(task.allocated_marks),
         });
       });
     });
 
-    // Calculate totals for each student
+    // Calculate totals for each student and determine their grade
     const students = Array.from(studentsMap.values()).map((student) => {
       const studentData: any = {
         student: student.student_name,
         student_id: student.student_id,
-        pitg: "7IA/Is", // You might need to get this from API
-        courseGrade: "B+", // You might need to calculate this
         total: 0,
+        maxPossibleTotal, // Add this to the student data
+        courseGrade: "N/A", // Default grade
       };
 
       // Initialize all assessment fields to 0
@@ -203,6 +240,21 @@ export default function ReportsPage() {
         }
       );
 
+      // Calculate percentage and determine grade
+      if (maxPossibleTotal > 0) {
+        const percentage = (studentData.total / maxPossibleTotal) * 100;
+        studentData.percentage = percentage.toFixed(2);
+
+        // Find the appropriate grade based on percentage
+        const studentGrade = grades.find(
+          (grade) =>
+            percentage >= parseInt(grade.min_percentage) &&
+            percentage <= parseInt(grade.max_percentage)
+        );
+
+        studentData.courseGrade = studentGrade ? studentGrade.grade : "N/A";
+      }
+
       return studentData;
     });
 
@@ -214,12 +266,6 @@ export default function ReportsPage() {
   const filteredData = transformedData.filter((student) =>
     student.student.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  const handleMarkChange = (index: number, field: string, value: string) => {
-    // You'll need to implement this based on your API structure
-    console.log("Mark change:", index, field, value);
-    // This would need to update the API data structure
-  };
 
   const handleViewReportsDetail = (reportId: string) => {
     router.push(`/dashboard/students/reports/${reportId}`);
@@ -243,31 +289,6 @@ export default function ReportsPage() {
         >
           Back to Students
         </Button>
-        <Select
-          value={selectedYear}
-          onChange={(value) => {
-            setSelectedYear(value);
-            setSelectedClass(null); // Reset class when year changes
-          }}
-          style={{ width: 150 }}
-          placeholder="Select Year"
-          options={years?.map((year) => ({
-            value: year.id.toString(),
-            label: year.name,
-          }))}
-        />
-
-        <Select
-          value={selectedClass}
-          onChange={setSelectedClass}
-          style={{ width: 150 }}
-          placeholder="Select Class"
-          disabled={!selectedYear}
-          options={classes?.map((cls) => ({
-            value: cls.id.toString(),
-            label: cls.name,
-          }))}
-        />
       </div>
 
       <h1 className="text-2xl font-bold text-gray-900 mb-6">
@@ -279,7 +300,7 @@ export default function ReportsPage() {
           {selectedYear
             ? years.find((y) => y.id.toString() === selectedYear)?.name
             : "Year"}
-            &gt;
+          &gt;
         </span>
         <span>{currentClass?.subject || "Subject"}</span>
       </div>
@@ -288,12 +309,12 @@ export default function ReportsPage() {
         <h3 className="font-medium min-w-[120px]">View worksheet:</h3>
         <div className="flex flex-wrap items-center space-x-2 text-sm text-gray-600">
           {assesmentData?.map((item) => (
-            <React.Fragment key={item.id}>
+            <React.Fragment key={item?.id}>
               <span
                 onClick={() => handleViewReportsDetail(item.id)}
                 className="text-blue-500 cursor-pointer hover:underline"
               >
-                {item.name || item?.quiz?.name}
+                {item?.name || item?.quiz?.name}
               </span>
               <span>|</span>
             </React.Fragment>
@@ -302,50 +323,59 @@ export default function ReportsPage() {
       </div>
 
       <div className="bg-white overflow-hidden">
-        <div className="py-4 flex justify-between items-center">
-          <div className="relative ">
-            <input
-              type="text"
-              placeholder="Search students..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 border border-gray-300 bg-white rounded-md text-sm focus:outline-none"
-            />
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg
-                className="h-5 w-5 text-gray-400"
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </div>
-          </div>
-        </div>
-
         <div className="overflow-x-auto relative rounded-lg shadow-md">
-          <Card className="w-fit">
+          <Card>
+            <p className="font-medium">Filters</p>
+            <div className="mb-6 flex flex-wrap gap-2">
+              <Input
+                type="text"
+                placeholder="Search students..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-4 py-2 max-w-[200px] border border-gray-300 bg-white rounded-md text-sm focus:outline-none"
+              />
+              <Select
+                value={selectedYear}
+                onChange={(value) => {
+                  setSelectedYear(value);
+                  setSelectedClass(null);
+                }}
+                style={{ width: 200 }}
+                placeholder="Select Year"
+                options={years?.map((year) => ({
+                  value: year.id.toString(),
+                  label: year.name,
+                }))}
+              />
+
+              <Select
+                value={selectedClass}
+                onChange={setSelectedClass}
+                style={{ width: 200 }}
+                placeholder="Select Class"
+                disabled={!selectedYear}
+                options={classes?.map((cls) => ({
+                  value: cls.id.toString(),
+                  label: cls.name,
+                }))}
+              />
+            </div>
             <table className="max-w-full table-fixed">
               <thead className="bg-[#f0f0f0]">
                 <tr>
-                  <th className="w-24 px-2 border py-3 text-left align-bottom text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-[#f0f0f0] z-10">
+                  <th className="w-24 px-2 border border-gray-300 py-3 text-left align-bottom text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-[#f0f0f0] z-10">
                     Student
                   </th>
                   {[
-                    "Course Grade",
                     ...(wholeAssesmentData?.map(
                       (assessment) => assessment.assessment_name
                     ) || []),
                     "Total",
+                    "Grade",
                   ].map((header, index) => (
                     <th
                       key={index}
-                      className="w-12 px-2 py-2 border text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      className="w-12 px-2 py-2 border border-gray-300 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
                       style={{
                         writingMode: "vertical-rl",
                         transform: "rotate(180deg)",
@@ -361,33 +391,41 @@ export default function ReportsPage() {
               <tbody className="divide-y divide-gray-200 bg-white">
                 {filteredData?.map((student, index) => (
                   <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-2 py-2 border whitespace-nowrap text-sm font-medium text-gray-900 sticky left-0 bg-white z-10">
+                    <td className="px-2 py-2 border border-gray-300 whitespace-nowrap text-sm font-medium text-gray-900 sticky left-0 bg-white z-10">
                       {student.student}
-                    </td>
-                    <td className="px-2 py-3 border whitespace-nowrap text-sm font-medium text-center">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          student.courseGrade === "A-"
-                            ? "bg-green-100 text-green-800"
-                            : student.courseGrade === "B+"
-                            ? "bg-blue-100 text-blue-800"
-                            : "bg-yellow-100 text-yellow-800"
-                        }`}
-                      >
-                        {student.courseGrade}
-                      </span>
                     </td>
                     {/* Assessment marks */}
                     {wholeAssesmentData?.map((assessment) => (
                       <td
                         key={assessment.assessment_id}
-                        className="px-2 py-2 border whitespace-nowrap text-sm text-gray-500 font-medium"
+                        className="px-2 py-2 border border-gray-300 whitespace-nowrap text-sm text-gray-500 font-medium"
                       >
                         {student[`assessment_${assessment.assessment_id}`]}
                       </td>
                     ))}
-                    <td className="px-2 py-2 border whitespace-nowrap text-sm text-gray-500 font-medium">
-                      {student.total}
+                    <td className="px-2 py-2 border border-gray-300 whitespace-nowrap text-sm text-gray-500 font-medium">
+                      {student.total} / {student.maxPossibleTotal}
+                      <span className="block text-xs text-gray-400">
+                        {student.percentage}%
+                      </span>
+                    </td>
+                    <td className="px-2 py-3 border border-gray-300 whitespace-nowrap text-sm font-medium text-center">
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          student.courseGrade === "A"
+                            ? "bg-green-100 text-green-800"
+                            : student.courseGrade === "B"
+                            ? "bg-blue-100 text-blue-800"
+                            : student.courseGrade === "C"
+                            ? "bg-yellow-100 text-yellow-800"
+                            : student.courseGrade === "D" ||
+                              student.courseGrade === "E"
+                            ? "bg-orange-100 text-orange-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {student.courseGrade}
+                      </span>
                     </td>
                   </tr>
                 ))}
