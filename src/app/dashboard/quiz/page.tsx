@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { Modal, Form, Input, message, Spin, Button } from "antd";
+import { Modal, Form, Input, message, Spin, Button, Breadcrumb } from "antd";
 import {
   EditOutlined,
   DeleteOutlined,
@@ -15,6 +15,7 @@ import {
   updateQuize,
   deleteQuize,
 } from "@/services/api";
+import Link from "next/link";
 
 type Quiz = {
   id: string;
@@ -119,16 +120,19 @@ export default function QuizPage() {
   }
 
   return (
-    <div className="overflow-auto h-screen p-3 md:p-6">
-      <div className="max-w-6xl mx-auto">
-        <Button
-          icon={<ChevronLeftIcon size={24} className="align-middle" />}
-          onClick={() => router.back()}
-          className="mb-6 text-gray-700 border border-gray-300 hover:bg-gray-100 leading-none"
-        >
-          Back to Dashboard
-        </Button>
-
+    <div className="overflow-auto p-3 md:p-6">
+      <Breadcrumb
+        items={[
+          {
+            title: <Link href="/dashboard">Dashboard</Link>,
+          },
+          {
+            title: <span>Quizes</span>,
+          },
+        ]}
+        className="!mb-2"
+      />
+      <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold">Quizzes</h2>
           <Button

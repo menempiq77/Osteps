@@ -4,8 +4,9 @@ import GradeForm from "@/components/dashboard/GradeForm";
 import GradesList from "@/components/dashboard/GradesList";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { Button, Modal, Spin } from "antd";
+import { Breadcrumb, Button, message, Modal, Spin } from "antd";
 import { addGrade, deleteGrade, fetchGrades, updateGrade } from "@/services/gradesApi";
+import Link from "next/link";
 
 interface Grade {
   id: number;
@@ -24,6 +25,7 @@ export default function Page() {
   const [gradeToDelete, setGradeToDelete] = useState<number | null>(null);
   const [currentGrade, setCurrentGrade] = useState<Grade | null>(null);
   const { currentUser } = useSelector((state: RootState) => state.auth);
+  const [messageApi, contextHolder] = message.useMessage();
 
   useEffect(() => {
     const loadGrades = async () => {
@@ -35,6 +37,7 @@ export default function Page() {
         setError("Failed to load grades");
         setLoading(false);
         console.error(err);
+        messageApi.error("Failed to load grades");
       }
     };
     loadGrades();
@@ -56,8 +59,10 @@ export default function Page() {
 
       if (currentGrade) {
         await updateGrade(currentGrade.id.toString(), gradeData);
+        messageApi.success("Grade updated successfully");
       } else {
         await addGrade(gradeData);
+         messageApi.success("Grade added successfully");
       }
 
       const updatedGrades = await fetchGrades();
@@ -65,8 +70,10 @@ export default function Page() {
       setOpen(false);
       setCurrentGrade(null);
     } catch (err) {
-      setError(currentGrade ? "Failed to update grade" : "Failed to add grade");
+      const errorMessage = currentGrade ? "Failed to update grade" : "Failed to add grade";
+      setError(errorMessage);
       console.error(err);
+      messageApi.error(errorMessage);
     }
   };
 
@@ -88,9 +95,11 @@ export default function Page() {
       setGrades(grades.filter((grade) => grade.id !== gradeToDelete));
       setDeleteOpen(false);
       setGradeToDelete(null);
+      messageApi.success("Grade deleted successfully");
     } catch (err) {
       setError("Failed to delete grade");
       console.error(err);
+      messageApi.error("Failed to delete grade");
     }
   };
 
@@ -103,6 +112,18 @@ export default function Page() {
 
   return (
     <div className="p-3 md:p-6">
+      {contextHolder}
+       <Breadcrumb
+        items={[
+          {
+            title: <Link href="/dashboard">Dashboard</Link>,
+          },
+          {
+            title: <span>Grades</span>,
+          },
+        ]}
+        className="!mb-2"
+      />
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Grade Ranges</h1>
         {currentUser?.role !== "STUDENT" && currentUser?.role !== "TEACHER" && (

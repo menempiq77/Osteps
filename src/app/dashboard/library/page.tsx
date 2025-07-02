@@ -27,13 +27,21 @@ import {
   Grid,
   Typography,
   Spin,
+  Breadcrumb,
 } from "antd";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import UploadResourceModal from "@/components/modals/UploadResourceModal";
 import ViewResourceModal from "@/components/modals/ViewResourceModal";
 import { Plus } from "lucide-react";
 import Link from "next/link";
-import { addLibrary, deleteLibrary, fetchCategories, fetchLibrary, fetchResources, updateLibrary } from "@/services/libraryApi";
+import {
+  addLibrary,
+  deleteLibrary,
+  fetchCategories,
+  fetchLibrary,
+  fetchResources,
+  updateLibrary,
+} from "@/services/libraryApi";
 const { useBreakpoint } = Grid;
 
 type LibraryItem = {
@@ -316,7 +324,19 @@ export default function LibraryPage() {
     );
 
   return (
-    <div className="p-6">
+    <div className="p-3 md:p-6">
+      <Breadcrumb
+        items={[
+          {
+            title: <Link href="/dashboard">Dashboard</Link>,
+          },
+          {
+            title: <span>Library</span>,
+          },
+        ]}
+        className="!mb-2"
+      />
+
       <Space direction="vertical" size="large" style={{ width: "100%" }}>
         <div className="flex justify-between items-center">
           <Typography.Title level={3} style={{ margin: 0 }}>

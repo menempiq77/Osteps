@@ -125,10 +125,11 @@ export default function Page() {
     return matchedGrade ? matchedGrade.grade : "F";
   };
 
-   const studentsWithTotals = apiData
-    .filter((student) => 
-      student.student_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.student_id.toString().includes(searchTerm)
+  const studentsWithTotals = apiData
+    .filter(
+      (student) =>
+        student.student_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        student.student_id.toString().includes(searchTerm)
     )
     .map((student) => {
       const total = student.tasks.reduce((sum, task) => {
@@ -202,15 +203,11 @@ export default function Page() {
       </div>
 
       <div className="overflow-hidden">
-        <div className="py-2 flex flex-col gap-2">
-          <div className="text-sm text-blue-500">
-            Marksheet: T3 Quran Assessment
-          </div>
-        </div>
+        <div className="py-2 text-sm text-blue-500">Marksheet: Assessment</div>
 
         <Card className="overflow-x-auto relative w-fit">
           <div className="relative max-w-[200px] mb-6">
-              <Input
+            <Input
               type="text"
               placeholder="Search students..."
               value={searchTerm}
