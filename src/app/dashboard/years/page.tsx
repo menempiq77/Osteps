@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { Button } from "antd";
+import { Button, message } from "antd";
 import YearForm from "@/components/dashboard/YearForm";
 import YearsList from "@/components/dashboard/YearsList";
 import { useSelector } from "react-redux";
@@ -32,6 +32,7 @@ export default function Page() {
   const [error, setError] = useState<string | null>(null);
   const [currentYear, setCurrentYear] = useState<Year | null>(null);
   const { currentUser } = useSelector((state: RootState) => state.auth);
+  const [messageApi, contextHolder] = message.useMessage();
 
   useEffect(() => {
     const loadYears = async () => {
@@ -66,9 +67,11 @@ export default function Page() {
 
       setIsModalOpen(false);
       setCurrentYear(null);
+      messageApi.success(currentYear ? "Year updated successfully" : "Year added successfully");
     } catch (err) {
       setError(currentYear ? "Failed to update year" : "Failed to add year");
       console.error(err);
+      messageApi.success(currentYear ? "Failed to update year" : "Failed to add year");
     }
   };
 
@@ -90,9 +93,11 @@ export default function Page() {
       setYears(years.filter((year) => year.id !== yearToDelete));
       setIsDeleteModalOpen(false);
       setYearToDelete(null);
+      messageApi.success("Year deleted successfully");
     } catch (err) {
       setError("Failed to delete year");
       console.error(err);
+      messageApi.error("Failed to delete Year");
     }
   };
 
@@ -105,6 +110,7 @@ export default function Page() {
 
   return (
     <div className="p-3 md:p-6">
+      {contextHolder}
       <Breadcrumb
         items={[
           {

@@ -8,7 +8,7 @@ import {
   updateTeacher,
   deleteTeacher as deleteTeacherApi,
 } from "@/services/api";
-import { Spin, Modal, Button, Breadcrumb } from "antd";
+import { Spin, Modal, Button, Breadcrumb, message } from "antd";
 import { EditOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 import Link from "next/link";
 
@@ -36,6 +36,7 @@ export default function TeacherList() {
   const [deleteTeacher, setDeleteTeacher] = useState<Teacher | null>(null);
   const [isAddTeacherModalOpen, setIsAddTeacherModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [messageApi, contextHolder] = message.useMessage();
 
   useEffect(() => {
     const loadTeachers = async () => {
@@ -86,9 +87,11 @@ export default function TeacherList() {
         )
       );
       setEditTeacher(null);
+      messageApi.success("Teacher updated successfully");
     } catch (err) {
       console.error("Failed to update teacher:", err);
       setError("Failed to update teacher");
+      messageApi.error("Failed to update teacher");
     }
   };
 
@@ -98,9 +101,11 @@ export default function TeacherList() {
       setTeachers(teachers.filter((teacher) => teacher.id !== teacherId));
       setIsDeleteModalOpen(false);
       setDeleteTeacher(null);
+      messageApi.success("Teacher deleted successfully");
     } catch (err) {
       console.error("Failed to delete teacher:", err);
       setError("Failed to delete teacher");
+      messageApi.error("Failed to delete teacher");
     }
   };
 
@@ -125,9 +130,11 @@ export default function TeacherList() {
 
       setTeachers([...teachers, newTeacher]);
       setIsAddTeacherModalOpen(false);
+      messageApi.success("Teacher added successfully");
     } catch (err) {
       console.error("Failed to add teacher:", err);
       setError("Failed to add teacher");
+      messageApi.error("Failed to add teacher");
     }
   };
 
@@ -140,6 +147,7 @@ export default function TeacherList() {
 
   return (
     <div className="overflow-auto p-3 md:p-6">
+       {contextHolder}
       <Breadcrumb
         items={[
           {

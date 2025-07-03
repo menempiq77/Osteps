@@ -118,7 +118,6 @@ export const fetchClasses = async (yearId: number) => {
 // add Class
 export const addClass = async (classData: { 
   class_name: string;
-  teacher_id: number;
   year_id: number;
   number_of_terms: string;
 }) => {
@@ -128,7 +127,6 @@ export const addClass = async (classData: {
 // edit Class
 export const updateClass = async (id: string, classData: {
   class_name?: string;
-  teacher_id?: number;
   number_of_terms?: string;
 }) => {
   const response = await api.post(`/update-class/${id}`, classData);

@@ -27,11 +27,11 @@ export default function YearsList({
   const isStudent =
     currentUser?.role === "STUDENT" || currentUser?.role === "TEACHER";
 
-  const handleViewClasses = (yearId: number, yearName: string) => {
+  const handleViewClasses = (yearId: number) => {
+    localStorage.setItem("selectedYearId", yearId.toString());
+    
     router.push(
-      `/dashboard/classes?year=${yearId}&yearName=${encodeURIComponent(
-        yearName
-      )}`
+      `/dashboard/classes?year=${yearId}`
     );
   };
 

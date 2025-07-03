@@ -20,6 +20,7 @@ export default function LibraryCategories() {
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState(null);
   const router = useRouter();
+  const [messageApi, contextHolder] = message.useMessage();
 
   useEffect(() => {
     loadCategories();
@@ -31,7 +32,7 @@ export default function LibraryCategories() {
       const response = await fetchCategories();
       setData(response);
     } catch (error) {
-      message.error("Failed to load categories");
+      messageApi.error("Failed to load categories");
     } finally {
       setLoading(false);
     }
@@ -51,15 +52,15 @@ export default function LibraryCategories() {
     try {
       if (editingId) {
         await updateCategory(editingId, values);
-        message.success("Category updated successfully");
+        messageApi.success("Category updated successfully");
       } else {
         await addCategory(values);
-        message.success("Category added successfully");
+        messageApi.success("Category added successfully");
       }
       loadCategories();
       handleCancel();
     } catch (error) {
-      message.error(error.response?.data?.message || "Operation failed");
+      messageApi.error(error.response?.data?.message || "Operation failed");
     }
   };
 
@@ -77,10 +78,10 @@ export default function LibraryCategories() {
   const handleDelete = async () => {
     try {
       await deleteCategoryApi(categoryToDelete);
-      message.success("Category deleted successfully");
+      messageApi.success("Category deleted successfully");
       loadCategories();
     } catch (error) {
-      message.error(
+      messageApi.error(
         error.response?.data?.message || "Failed to delete category"
       );
     } finally {
@@ -96,8 +97,9 @@ export default function LibraryCategories() {
     );
 
   return (
-    <div className="overflow-auto h-screen p-3 md:p-6">
-      <div className="max-w-6xl mx-auto">
+    <div className="p-3 md:p-6">
+      {contextHolder}
+      <div className="max-w-7xl mx-auto">
         <Button
           icon={<ChevronLeftIcon size={24} className="align-middle" />}
           onClick={() => router.back()}
@@ -202,17 +204,13 @@ export default function LibraryCategories() {
         </Modal>
 
         <Modal
-          title={
-            <>
-              <ExclamationCircleFilled style={{ color: "#ff4d4f", marginRight: 8 }} />
-              Confirm Delete
-            </>
-          }
+          title="Confirm Delettion"
           open={deleteConfirmVisible}
           onOk={handleDelete}
           onCancel={() => setDeleteConfirmVisible(false)}
           okText="Delete"
-          okType="danger"
+           okButtonProps={{ danger: true }}
+          centered
         >
           <p>
             Are you sure you want to delete this category? This action cannot be
