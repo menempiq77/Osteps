@@ -1,12 +1,15 @@
 "use client";
 import React from "react";
-import { Tabs, Form, Input, Button, Upload, message } from "antd";
+import { Tabs, Form, Input, Button, Upload, message, Breadcrumb } from "antd";
 import { UploadOutlined } from "@ant-design/icons";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/store/store";
-import { Phone } from "lucide-react";
 import { setCurrentUser } from "@/features/auth/authSlice";
-import { changePassword, updateSchoolAdminProfile } from "@/services/settingApi";
+import {
+  changePassword,
+  updateSchoolAdminProfile,
+} from "@/services/settingApi";
+import Link from "next/link";
 
 const SchoolAdminSettings = () => {
   const [profileForm] = Form.useForm();
@@ -18,6 +21,7 @@ const SchoolAdminSettings = () => {
   const [profileLoading, setProfileLoading] = React.useState(false);
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const dispatch = useDispatch<AppDispatch>();
+  const [messageApi, contextHolder] = message.useMessage();
 
   React.useEffect(() => {
     if (currentUser?.id) {
@@ -54,20 +58,21 @@ const SchoolAdminSettings = () => {
         ...currentUser,
         name: response?.name,
         profile_path: response?.profile_photo,
+        contact: response.phone_number,
       };
 
       dispatch(setCurrentUser(updatedUser));
 
-      message.success("Profile updated successfully!");
+      messageApi.success("Profile updated successfully!");
       profileForm.setFieldsValue({
         firstName: response.first_name,
         lastName: response.last_name,
         email: response.email,
-        contact: response.contact,
+        contact: response.phone_number,
       });
     } catch (error) {
       console.error("Profile update failed:", error);
-      message.error(
+      messageApi.error(
         error.response?.data?.message || "Failed to update profile"
       );
     } finally {
@@ -76,7 +81,7 @@ const SchoolAdminSettings = () => {
   };
   const onFinishFailed = (errorInfo) => {
     console.log("Failed:", errorInfo);
-    message.error("Please fill all required fields!");
+    messageApi.error("Please fill all required fields!");
   };
 
   const onSecurityFinish = async (values) => {
@@ -87,11 +92,11 @@ const SchoolAdminSettings = () => {
         new_password: values.newPassword,
         new_password_confirmation: values.confirmPassword,
       });
-      message.success("Password changed successfully!");
+      messageApi.success("Password changed successfully!");
       securityForm.resetFields();
     } catch (error) {
       console.error("Password change failed:", error);
-      message.error(
+      messageApi.error(
         error.response?.data?.message || "Failed to change password"
       );
     } finally {
@@ -384,6 +389,18 @@ const SchoolAdminSettings = () => {
 
   return (
     <div className="p-4 md:p-6">
+      {contextHolder}
+      <Breadcrumb
+        items={[
+          {
+            title: <Link href="/dashboard">Dashboard</Link>,
+          },
+          {
+            title: <span>School Settings</span>,
+          },
+        ]}
+        className="!mb-2"
+      />
       <h1 className="text-xl md:text-2xl font-bold mb-4 md:mb-6">
         School Settings
       </h1>

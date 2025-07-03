@@ -41,6 +41,7 @@ export default function QuizPage() {
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [quizToDelete, setQuizToDelete] = useState<string | null>(null);
   const router = useRouter();
+  const [messageApi, contextHolder] = message.useMessage();
 
   useEffect(() => {
     loadQuizzes();
@@ -52,7 +53,7 @@ export default function QuizPage() {
       const response = await fetchQuizes();
       setQuizzes(response);
     } catch (error) {
-      message.error("Failed to load quizzes");
+      messageApi.error("Failed to load quizzes");
     } finally {
       setLoading(false);
     }
@@ -72,15 +73,21 @@ export default function QuizPage() {
     try {
       if (editingId) {
         await updateQuize(editingId, values);
-        message.success("Quiz updated successfully");
+        messageApi.success("Quiz updated successfully");
+        setQuizzes((prev) =>
+          prev.map((quiz) =>
+            quiz.id === editingId ? { ...quiz, ...values } : quiz
+          )
+        );
       } else {
-        await addQuize(values);
-        message.success("Quiz added successfully");
+        const newQuiz = await addQuize(values);
+        messageApi.success("Quiz added successfully");
+        setQuizzes((prev) => [...prev, newQuiz]);
+        await loadQuizzes();
       }
-      loadQuizzes();
       handleCancel();
     } catch (error: any) {
-      message.error(error.response?.data?.message || "Operation failed");
+      messageApi.error(error.response?.data?.message || "Operation failed");
     }
   };
 
@@ -98,10 +105,12 @@ export default function QuizPage() {
   const handleDelete = async () => {
     try {
       await deleteQuize(Number(quizToDelete));
-      message.success("Quiz deleted successfully");
-      loadQuizzes();
+      messageApi.success("Quiz deleted successfully");
+      setQuizzes((prev) => prev.filter((quiz) => quiz.id !== quizToDelete));
     } catch (error) {
-      message.error(error.response?.data?.message || "Failed to delete quiz");
+      messageApi.error(
+        error.response?.data?.message || "Failed to delete quiz"
+      );
     } finally {
       setDeleteConfirmVisible(false);
     }
@@ -121,6 +130,7 @@ export default function QuizPage() {
 
   return (
     <div className="overflow-auto p-3 md:p-6">
+      {contextHolder}
       <Breadcrumb
         items={[
           {
@@ -246,19 +256,12 @@ export default function QuizPage() {
         </Modal>
 
         <Modal
-          title={
-            <>
-              <ExclamationCircleFilled
-                style={{ color: "#ff4d4f", marginRight: 8 }}
-              />
-              Confirm Delete
-            </>
-          }
+          title="Confirm Deletion"
           open={deleteConfirmVisible}
           onOk={handleDelete}
           onCancel={() => setDeleteConfirmVisible(false)}
           okText="Delete"
-          okType="danger"
+          okButtonProps={{ danger: true }}
           centered
         >
           <p>

@@ -54,6 +54,7 @@ export default function AnnouncementsPage() {
   });
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [messageApi, contextHolder] = message.useMessage();
 
   useEffect(() => {
     const loadAnnouncements = async () => {
@@ -96,14 +97,14 @@ export default function AnnouncementsPage() {
             ann.id === announcementForm.id ? response.data : ann
           )
         );
-        message.success("Announcement updated successfully");
+        messageApi.success("Announcement updated successfully");
       } else {
         response = await addAnnouncement({
           ...announcementData,
           authorId: currentUser?.id,
         });
         setAnnouncements([response.data, ...announcements]);
-        message.success("Announcement created successfully");
+        messageApi.success("Announcement created successfully");
       }
 
       resetForm();
@@ -159,10 +160,11 @@ export default function AnnouncementsPage() {
       );
       setDeleteOpen(false);
       setAnnouncementToDelete(null);
-      message.success("Announcement deleted successfully");
+      messageApi.success("Announcement deleted successfully");
     } catch (err) {
       setError("Failed to delete Announcement");
       console.error(err);
+      messageApi.error("Announcement deleted Failed");
     }
   };
 
@@ -232,6 +234,7 @@ export default function AnnouncementsPage() {
 
   return (
     <div className="max-w-7xl mx-auto p-3 md:p-6">
+      {contextHolder}
       <Breadcrumb
         items={[
           {

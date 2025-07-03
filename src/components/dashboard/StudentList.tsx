@@ -11,8 +11,9 @@ import {
   updateStudent as apiUpdateStudent,
   deleteStudent as apiDeleteStudent,
 } from "@/services/api";
-import { Button, Modal, Spin, Form } from "antd";
+import { Button, Modal, Spin, Form, Breadcrumb } from "antd";
 import { EditOutlined, DeleteOutlined, BookOutlined } from "@ant-design/icons";
+import Link from "next/link";
 
 type Student = {
   id: string;
@@ -36,6 +37,7 @@ export default function StudentList() {
   const [isAddStudentModalOpen, setIsAddStudentModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
 
   const loadStudents = async () => {
     try {
@@ -53,6 +55,10 @@ export default function StudentList() {
   useEffect(() => {
     if (classId) {
       loadStudents();
+    }
+    const savedYearId = localStorage.getItem("selectedYearId");
+    if (savedYearId) {
+      setSelectedYearId(Number(savedYearId));
     }
   }, [classId]);
 
@@ -135,7 +141,30 @@ export default function StudentList() {
     );
 
   return (
-    <div className="overflow-auto">
+    <>
+      <Breadcrumb
+        items={[
+          {
+            title: <Link href="/dashboard">Dashboard</Link>,
+          },
+          {
+            title: <Link href="/dashboard/years">Academic Years</Link>,
+          },
+          {
+            title: selectedYearId ? (
+              <Link href={`/dashboard/classes?year=${selectedYearId}`}>
+                Classes (Year {selectedYearId})
+              </Link>
+            ) : (
+              <Link href="/dashboard/classes">Classes</Link>
+            ),
+          },
+          {
+            title: <span>Students</span>,
+          },
+        ]}
+        className="!mb-2"
+      />
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Students</h1>
         {currentUser?.role !== "TEACHER" && currentUser?.role !== "STUDENT" && (
@@ -273,6 +302,6 @@ export default function StudentList() {
           </p>
         )}
       </Modal>
-    </div>
+    </>
   );
 }

@@ -11,7 +11,7 @@ import {
   updateClass,
 } from "@/services/api";
 import { useSearchParams } from "next/navigation";
-import { Breadcrumb, Spin, Modal, Button } from "antd";
+import { Breadcrumb, Spin, Modal, Button, message } from "antd";
 import Link from "next/link";
 
 interface ApiClass {
@@ -33,6 +33,7 @@ export default function Page() {
   const [error, setError] = useState<string | null>(null);
   const [currentClass, setCurrentClass] = useState<ApiClass | null>(null);
   const { currentUser } = useSelector((state: RootState) => state.auth);
+  const [messageApi, contextHolder] = message.useMessage();
 
   useEffect(() => {
     const loadClasses = async () => {
@@ -71,9 +72,11 @@ export default function Page() {
       });
       setClasses([...classes, response.data]);
       setModalOpen(false);
+      messageApi.success("Class added successfully");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to add class");
       console.error(err);
+      messageApi.error("Failed to delete Class");
     }
   };
 
@@ -98,9 +101,11 @@ export default function Page() {
       );
       setCurrentClass(null);
       setModalOpen(false);
+      messageApi.success("Class Update successfully");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update class");
       console.error(err);
+      messageApi.error("Failed to Update Class");
     }
   };
 
@@ -108,9 +113,11 @@ export default function Page() {
     try {
       await deleteClass(parseInt(id));
       setClasses(classes.filter((cls) => cls.id !== id));
+      messageApi.success("Class deleted successfully");
     } catch (err) {
       setError("Failed to delete class");
       console.error(err);
+      messageApi.error("Failed to delete Class");
     }
   };
 
@@ -123,6 +130,7 @@ export default function Page() {
 
   return (
     <div className="p-3 md:p-6">
+      {contextHolder}
       <Breadcrumb
         items={[
           {

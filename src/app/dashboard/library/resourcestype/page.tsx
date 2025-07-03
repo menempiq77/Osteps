@@ -5,11 +5,15 @@ import {
   EditOutlined,
   DeleteOutlined,
   PlusOutlined,
-  ExclamationCircleFilled,
 } from "@ant-design/icons";
 import { useRouter } from "next/navigation";
 import { ChevronLeftIcon } from "lucide-react";
-import { addResource, fetchResources, updateResource, deleteResource as deleteResourceApi, } from "@/services/libraryApi";
+import {
+  addResource,
+  fetchResources,
+  updateResource,
+  deleteResource as deleteResourceApi,
+} from "@/services/libraryApi";
 
 export default function ResourcesType() {
   const [form] = Form.useForm();
@@ -20,6 +24,7 @@ export default function ResourcesType() {
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [resourceToDelete, setResourceToDelete] = useState(null);
   const router = useRouter();
+  const [messageApi, contextHolder] = message.useMessage();
 
   useEffect(() => {
     loadResources();
@@ -31,7 +36,7 @@ export default function ResourcesType() {
       const response = await fetchResources();
       setData(response);
     } catch (error) {
-      message.error("Failed to load resources");
+      messageApi.error("Failed to load resources");
     } finally {
       setLoading(false);
     }
@@ -51,15 +56,15 @@ export default function ResourcesType() {
     try {
       if (editingId) {
         await updateResource(editingId, values);
-        message.success("Resource updated successfully");
+        messageApi.success("Resource updated successfully");
       } else {
         await addResource(values);
-        message.success("Resource added successfully");
+        messageApi.success("Resource added successfully");
       }
       loadResources();
       handleCancel();
     } catch (error) {
-      message.error(error.response?.data?.message || "Operation failed");
+      messageApi.error(error.response?.data?.message || "Operation failed");
     }
   };
 
@@ -77,10 +82,10 @@ export default function ResourcesType() {
   const handleDelete = async () => {
     try {
       await deleteResourceApi(resourceToDelete);
-      message.success("Resource deleted successfully");
+      messageApi.success("Resource deleted successfully");
       loadResources();
     } catch (error) {
-      message.error(
+      messageApi.error(
         error.response?.data?.message || "Failed to delete resource"
       );
     } finally {
@@ -96,8 +101,9 @@ export default function ResourcesType() {
     );
 
   return (
-    <div className="overflow-auto h-screen p-3 md:p-6">
-      <div className="max-w-6xl mx-auto">
+    <div className="p-3 md:p-6">
+      {contextHolder}
+      <div className="max-w-7xl mx-auto">
         <Button
           icon={<ChevronLeftIcon size={24} className="align-middle" />}
           onClick={() => router.back()}
@@ -184,17 +190,22 @@ export default function ResourcesType() {
               label="Resource Type Name"
               name="name"
               rules={[
-                { required: true, message: "Please input the resource type name!" },
+                {
+                  required: true,
+                  message: "Please input the resource type name!",
+                },
               ]}
             >
               <Input />
             </Form.Item>
 
             <div className="flex justify-end gap-2">
-              <Button onClick={handleCancel}>
-                Cancel
-              </Button>
-              <Button type="primary" htmlType="submit" className="!bg-primary !border-primary hover:!bg-primary hover:!border-primary">
+              <Button onClick={handleCancel}>Cancel</Button>
+              <Button
+                type="primary"
+                htmlType="submit"
+                className="!bg-primary !border-primary hover:!bg-primary hover:!border-primary"
+              >
                 {editingId ? "Update" : "Submit"}
               </Button>
             </div>
@@ -202,21 +213,17 @@ export default function ResourcesType() {
         </Modal>
 
         <Modal
-          title={
-            <>
-              <ExclamationCircleFilled style={{ color: "#ff4d4f", marginRight: 8 }} />
-              Confirm Delete
-            </>
-          }
+          title="Confirm Delettion"
           open={deleteConfirmVisible}
           onOk={handleDelete}
           onCancel={() => setDeleteConfirmVisible(false)}
           okText="Delete"
-          okType="danger"
+          okButtonProps={{ danger: true }}
+          centered
         >
           <p>
-            Are you sure you want to delete this resource type? This action cannot be
-            undone.
+            Are you sure you want to delete this resource type? This action
+            cannot be undone.
           </p>
         </Modal>
       </div>
