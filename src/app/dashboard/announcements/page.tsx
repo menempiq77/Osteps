@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import {
@@ -20,6 +20,7 @@ import {
   updateAnnouncement,
 } from "@/services/announcementApi";
 import Link from "next/link";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -37,9 +38,7 @@ type Announcement = {
 
 export default function AnnouncementsPage() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [announcementToDelete, setAnnouncementToDelete] = useState<
     string | null
@@ -53,70 +52,91 @@ export default function AnnouncementsPage() {
     target: "",
   });
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
 
-  useEffect(() => {
-    const loadAnnouncements = async () => {
-      try {
-        const data = await fetchAnnouncements();
-        setAnnouncements(data);
-        setLoading(false);
-      } catch (err) {
-        setError("Failed to load announcements");
-        setLoading(false);
-        console.error(err);
-      }
-    };
-    loadAnnouncements();
-  }, []);
+  // Fetch announcements with React Query
+  const {
+    data: announcements = [],
+    isLoading,
+    error,
+    refetch
+  } = useQuery<Announcement[]>({
+    queryKey: ["announcements"],
+    queryFn: fetchAnnouncements,
+  });
+
+  // Mutations for CRUD operations
+  const addMutation = useMutation({
+    mutationFn: addAnnouncement,
+    onSuccess: (data) => {
+      queryClient.setQueryData(
+        ["announcements"],
+        (old: Announcement[] = []) => [data, ...old]
+      );
+      messageApi.success("Announcement created successfully");
+      resetForm();
+      refetch();
+    },
+    onError: () => {
+      messageApi.error("Failed to create announcement");
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) =>
+      updateAnnouncement(id, data),
+    onSuccess: (data) => {
+      queryClient.setQueryData(["announcements"], (old: Announcement[] = []) =>
+        old.map((ann) => (ann.id === data.id ? data : ann))
+      );
+      messageApi.success("Announcement updated successfully");
+      resetForm();
+      refetch();
+    },
+    onError: () => {
+      messageApi.error("Failed to update announcement");
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteAnnouncement,
+    onSuccess: (_, id) => {
+      queryClient.setQueryData(["announcements"], (old: Announcement[] = []) =>
+        old.filter((ann) => ann.id !== id)
+      );
+      messageApi.success("Announcement deleted successfully");
+      setDeleteOpen(false);
+      setAnnouncementToDelete(null);
+    },
+    onError: () => {
+      messageApi.error("Failed to delete announcement");
+    },
+  });
 
   const handleSubmitAnnouncement = async () => {
     if (!announcementForm.title || !announcementForm.description) {
-      setError("Title and description are required");
+      messageApi.error("Title and description are required");
       return;
     }
 
-    setIsSubmitting(true);
-    try {
-      const announcementData = {
-        title: announcementForm.title,
-        description: announcementForm.description,
-        type: announcementForm.type,
-        role: announcementForm.target,
-      };
+    const announcementData = {
+      title: announcementForm.title,
+      description: announcementForm.description,
+      type: announcementForm.type,
+      role: announcementForm.target,
+    };
 
-      let response;
-      if (announcementForm.id) {
-        response = await updateAnnouncement(
-          announcementForm.id,
-          announcementData
-        );
-        setAnnouncements(
-          announcements.map((ann) =>
-            ann.id === announcementForm.id ? response.data : ann
-          )
-        );
-        messageApi.success("Announcement updated successfully");
-      } else {
-        response = await addAnnouncement({
-          ...announcementData,
-          authorId: currentUser?.id,
-        });
-        setAnnouncements([response.data, ...announcements]);
-        messageApi.success("Announcement created successfully");
-      }
-
-      resetForm();
-    } catch (err) {
-      setError(
-        announcementForm.id
-          ? "Failed to update announcement"
-          : "Failed to create announcement"
-      );
-      console.error(err);
-    } finally {
-      setIsSubmitting(false);
+    if (announcementForm.id) {
+      updateMutation.mutate({
+        id: announcementForm.id,
+        data: announcementData,
+      });
+      
+    } else {
+      addMutation.mutate({
+        ...announcementData,
+        authorId: currentUser?.id,
+      });
     }
   };
 
@@ -129,7 +149,6 @@ export default function AnnouncementsPage() {
       target: "",
     });
     setIsFormOpen(false);
-    setError(null);
   };
 
   const handleEditAnnouncement = (announcement: Announcement) => {
@@ -150,22 +169,7 @@ export default function AnnouncementsPage() {
 
   const handleDeleteAnnouncement = async () => {
     if (!announcementToDelete) return;
-
-    try {
-      await deleteAnnouncement(announcementToDelete);
-      setAnnouncements(
-        announcements.filter(
-          (announcement) => announcement.id !== announcementToDelete
-        )
-      );
-      setDeleteOpen(false);
-      setAnnouncementToDelete(null);
-      messageApi.success("Announcement deleted successfully");
-    } catch (err) {
-      setError("Failed to delete Announcement");
-      console.error(err);
-      messageApi.error("Announcement deleted Failed");
-    }
+    deleteMutation.mutate(announcementToDelete);
   };
 
   const confirmDelete = (id: string) => {
@@ -225,7 +229,7 @@ export default function AnnouncementsPage() {
     });
   }
 
-  if (loading)
+  if (isLoading)
     return (
       <div className="p-3 md:p-6 flex justify-center items-center h-64">
         <Spin size="large" />
@@ -329,23 +333,27 @@ export default function AnnouncementsPage() {
 
             {error && <div className="text-red-500">{error}</div>}
 
-            <div className="flex gap-3">
+            <div className="flex justify-end gap-3">
+              <Button onClick={resetForm}>
+                Cancel
+              </Button>
               <Button
                 type="primary"
                 onClick={handleSubmitAnnouncement}
-                loading={isSubmitting}
+                loading={
+                  announcementForm.id
+                    ? updateMutation.isPending
+                    : addMutation.isPending
+                }
                 className="!bg-primary !text-white hover:!bg-primary/90 hover:!border-primary transition-colors"
               >
-                {isSubmitting
-                  ? announcementForm.id
+                {announcementForm.id
+                  ? updateMutation.isPending
                     ? "Updating..."
-                    : "Publishing..."
-                  : announcementForm.id
-                  ? "Update Announcement"
+                    : "Update Announcement"
+                  : addMutation.isPending
+                  ? "Publishing..."
                   : "Publish Announcement"}
-              </Button>
-              <Button onClick={resetForm} disabled={isSubmitting}>
-                Cancel
               </Button>
             </div>
           </div>
@@ -358,12 +366,12 @@ export default function AnnouncementsPage() {
             No announcements yet. Check back later for updates.
           </p>
         ) : (
-          filteredAnnouncements.map((announcement) => (
+          filteredAnnouncements?.map((announcement, index) => (
             <Badge.Ribbon
-              key={announcement.id}
+              key={announcement.id || `announcement-${index}`}
               text={
-                announcement.type.charAt(0).toUpperCase() +
-                announcement.type.slice(1)
+                announcement?.type?.charAt(0)?.toUpperCase() +
+                announcement?.type?.slice(1)
               }
               color={badgeRibbonColors[announcement.type]}
             >

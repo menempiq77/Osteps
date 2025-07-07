@@ -17,8 +17,7 @@ import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import {
   fetchClasses,
-  fetchTeachersByStudent,
-  fetchYears,
+  fetchTeachersByStudent
 } from "@/services/api";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -28,6 +27,7 @@ import {
   getAllAskQuestions,
   submitAskQuestion,
 } from "@/services/askQuestionApi";
+import { fetchYears } from "@/services/yearsApi";
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -142,7 +142,6 @@ const confirmDelete = async () => {
     try {
       setIsLoading(true);
       const response = await fetchTeachersByStudent();
-      console.log("Teachers response:", response);
       setTeachers(response);
     } catch (err) {
       setError("Failed to fetch teachers");
@@ -155,7 +154,6 @@ const confirmDelete = async () => {
   const loadYears = async () => {
     try {
       const data = await fetchYears();
-      console.log("Years response:", data);
       setYears(data);
       setIsLoading(false);
     } catch (err) {
@@ -169,7 +167,6 @@ const confirmDelete = async () => {
     try {
       setIsLoading(true);
       const data = await fetchClasses(yearId);
-      console.log("Classes response:", data);
       setClasses(data);
     } catch (err) {
       setError("Failed to fetch classes");

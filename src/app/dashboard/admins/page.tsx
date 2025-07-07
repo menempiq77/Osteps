@@ -3,13 +3,8 @@ import { useState, useEffect } from "react";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import { AddSuperAdminModal } from "@/components/modals/superAdminModals/AddSuperAdminModal";
 import { EditSuperAdminModal } from "@/components/modals/superAdminModals/EditSuperAdminModal";
-import {
-  addAdmin,
-  deleteAdmin,
-  fetchAdmins,
-  updateAdmin,
-} from "@/services/api";
 import { Button, Spin, Modal } from "antd";
+import { addAdmin, deleteAdmin, fetchAdmins, updateAdmin } from "@/services/adminsApi";
 
 // Types
 type SuperAdmin = {

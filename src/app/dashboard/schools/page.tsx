@@ -2,13 +2,8 @@
 import { useState, useEffect } from "react";
 import AddSchoolForm from "@/components/dashboard/AddSchoolForm";
 import SchoolList from "@/components/dashboard/SchoolList";
-import {
-  fetchSchools,
-  addSchool,
-  updateSchool,
-  deleteSchool,
-} from "@/services/api";
 import { Spin, Modal, Button } from "antd";
+import { addSchool, deleteSchool, fetchSchools, updateSchool } from "@/services/schoolApi";
 
 export default function SuperAdminDashboard() {
   const [schools, setSchools] = useState<any[]>([]);
