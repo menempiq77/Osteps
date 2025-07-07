@@ -78,6 +78,7 @@ export default function LibraryPage() {
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [messageApi, contextHolder] = message.useMessage();
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -174,10 +175,10 @@ export default function LibraryPage() {
 
       if (isEditing && currentItem) {
         await updateLibrary(currentItem.id, formData);
-        message.success("Resource updated successfully!");
+        messageApi.success("Resource updated successfully!");
       } else {
         await addLibrary(formData);
-        message.success("Resource uploaded successfully!");
+        messageApi.success("Resource uploaded successfully!");
       }
 
       // Refresh the library items
@@ -190,7 +191,7 @@ export default function LibraryPage() {
       setCurrentItem(null);
       setIsEditing(false);
     } catch (error) {
-      message.error(
+      messageApi.error(
         `Failed to ${
           isEditing ? "update" : "upload"
         } resource. Please try again.`
@@ -207,9 +208,9 @@ export default function LibraryPage() {
       const item = libraryItems.find((i) => i.id === itemToDelete);
       await deleteLibrary(itemToDelete, item?.file_path);
       setLibraryItems((prev) => prev.filter((i) => i.id !== itemToDelete));
-      message.success("Deleted successfully");
+      messageApi.success("Deleted successfully");
     } catch (error) {
-      message.error("Delete failed");
+      messageApi.error("Delete failed");
     } finally {
       setDeleteModalVisible(false);
       setItemToDelete(null);
@@ -325,6 +326,7 @@ export default function LibraryPage() {
 
   return (
     <div className="p-3 md:p-6">
+      {contextHolder}
       <Breadcrumb
         items={[
           {

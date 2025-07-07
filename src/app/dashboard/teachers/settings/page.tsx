@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { Tabs, Form, Input, Button, Upload, message, Select } from "antd";
+import { Tabs, Form, Input, Button, Upload, message } from "antd";
 import { UploadOutlined, UserOutlined } from "@ant-design/icons";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/store/store";
@@ -15,6 +15,7 @@ const TeacherSettings = () => {
   const [profileLoading, setProfileLoading] = React.useState(false);
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const dispatch = useDispatch<AppDispatch>();
+  const [messageApi, contextHolder] = message.useMessage();
 
   React.useEffect(() => {
     if (currentUser?.id) {
@@ -54,7 +55,7 @@ const TeacherSettings = () => {
       
           dispatch(setCurrentUser(updatedUser));
 
-      message.success("Profile updated successfully!");
+      messageApi.success("Profile updated successfully!");
       profileForm.setFieldsValue({
         firstName: response.first_name,
         lastName: response.last_name,
@@ -63,7 +64,7 @@ const TeacherSettings = () => {
       });
     } catch (error) {
       console.error("Profile update failed:", error);
-      message.error(
+      messageApi.error(
         error.response?.message || "Failed to update profile"
       );
     } finally {
@@ -73,7 +74,7 @@ const TeacherSettings = () => {
 
   const onFinishFailed = (errorInfo) => {
     console.log("Failed:", errorInfo);
-    message.error("Please fill all required fields!");
+    messageApi.error("Please fill all required fields!");
   };
 
   const handleUploadChange = ({ fileList }) => {
@@ -91,11 +92,11 @@ const TeacherSettings = () => {
         new_password: values.newPassword,
         new_password_confirmation: values.confirmPassword,
       });
-      message.success("Password changed successfully!");
+      messageApi.success("Password changed successfully!");
       form.resetFields();
     } catch (error) {
       console.error("Password change failed:", error);
-      message.error(
+      messageApi.error(
         error.response?.data?.message || "Failed to change password"
       );
     } finally {
@@ -298,6 +299,7 @@ const TeacherSettings = () => {
 
   return (
     <div className="p-4 sm:p-6">
+      {contextHolder}
       <h1 className="text-xl sm:text-2xl font-bold mb-6">Teacher Settings</h1>
       <Tabs
         defaultActiveKey="1"

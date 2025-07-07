@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Trash2, Plus, X } from "lucide-react";
 import {
@@ -17,7 +17,11 @@ import {
 } from "antd";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { addQuizQuestion, deleteQuizQuestion, fetchQuizQuestions } from "@/services/quizApi";
+import {
+  addQuizQuestion,
+  deleteQuizQuestion,
+  fetchQuizQuestions,
+} from "@/services/quizApi";
 
 interface Option {
   id: number;
@@ -60,11 +64,18 @@ export default function QuranQuizPage() {
   const [loading, setLoading] = useState(false);
   const [quizData, setQuizData] = useState<Quiz | null>(null);
   const [optionCount, setOptionCount] = useState(3);
-  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
-  const [questionToDelete, setQuestionToDelete] = useState<number | null>(null);
-  const [deletingQuestionId, setDeletingQuestionId] = useState<number | null>(
-    null
-  );
+
+  const [deleteState, setDeleteState] = useState<{
+    visible: boolean;
+    questionId: number | null;
+    loading: boolean;
+  }>({
+    visible: false,
+    questionId: null,
+    loading: false,
+  });
+
+  const [messageApi, contextHolder] = message.useMessage();
 
   const canUpload =
     currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "TEACHER";
@@ -76,7 +87,7 @@ export default function QuranQuizPage() {
         const response = await fetchQuizQuestions(Number(quizId));
         setQuizData(response);
       } catch (error) {
-        message.error("Failed to load quiz questions");
+        messageApi.error("Failed to load quiz questions");
       } finally {
         setLoading(false);
       }
@@ -86,42 +97,45 @@ export default function QuranQuizPage() {
   }, [quizId]);
 
   const showDeleteModal = (questionId: number) => {
-    setQuestionToDelete(questionId);
-    setDeleteModalVisible(true);
+    setDeleteState({
+      visible: true,
+      questionId,
+      loading: false,
+    });
   };
 
   const handleDeleteConfirm = async () => {
-    if (!questionToDelete) return;
+    const currentQuestionId = deleteState.questionId;
+    if (!currentQuestionId) {
+      messageApi.warning("No question selected for deletion");
+      return;
+    }
 
     try {
-      setDeletingQuestionId(questionToDelete);
-      await deleteQuizQuestion(questionToDelete);
+      setDeleteState((prev) => ({ ...prev, loading: true }));
+      await deleteQuizQuestion(currentQuestionId);
 
-      setQuizData((prev) =>
-        prev
-          ? {
-              ...prev,
-              quiz_queston: prev.quiz_queston.filter(
-                (q) => q.id !== questionToDelete
-              ),
-            }
-          : null
-      );
+      setQuizData((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          quiz_queston: prev.quiz_queston.filter(
+            (q) => q.id !== currentQuestionId
+          ),
+        };
+      });
 
-      message.success("Question deleted successfully");
+      messageApi.success("Question deleted successfully");
     } catch (error) {
-      message.error("Failed to delete question");
+      messageApi.error("Failed to delete question");
       console.error("Error deleting question:", error);
     } finally {
-      setDeletingQuestionId(null);
-      setDeleteModalVisible(false);
-      setQuestionToDelete(null);
+      setDeleteState({
+        visible: false,
+        questionId: null,
+        loading: false,
+      });
     }
-  };
-
-  const handleDeleteCancel = () => {
-    setDeleteModalVisible(false);
-    setQuestionToDelete(null);
   };
 
   const toggleAddQuestion = () => {
@@ -213,9 +227,9 @@ export default function QuranQuizPage() {
       setShowAddQuestion(false);
       quizForm.resetFields();
       setOptionCount(3);
-      message.success("Question added successfully");
+      messageApi.success("Question added successfully");
     } catch (error) {
-      message.error("Failed to add question");
+      messageApi.error("Failed to add question");
       console.error("Error adding question:", error);
     }
   };
@@ -246,7 +260,8 @@ export default function QuranQuizPage() {
   };
 
   return (
-    <div className="p-3 md:p-6 max-w-5xl mx-auto min-h-screen">
+    <div className="p-3 md:p-6 max-w-5xl mx-auto">
+      {contextHolder}
       <div className="mb-8">
         <Button
           onClick={() => router.back()}
@@ -507,11 +522,17 @@ export default function QuranQuizPage() {
                     </div>
                     {canUpload && (
                       <Button
-                        onClick={() => showDeleteModal(question.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          showDeleteModal(question.id);
+                        }}
                         size="small"
                         danger
                         icon={<Trash2 size={14} />}
-                        loading={deletingQuestionId === question.id}
+                        loading={
+                          deleteState.loading &&
+                          deleteState.questionId === question.id
+                        }
                       />
                     )}
                   </div>
@@ -604,12 +625,13 @@ export default function QuranQuizPage() {
 
       <Modal
         title="Delete Question"
-        open={deleteModalVisible}
+        open={deleteState.visible}
         onOk={handleDeleteConfirm}
-        onCancel={handleDeleteCancel}
+        onCancel={() => setDeleteState((prev) => ({ ...prev, visible: false }))}
         okText="Delete"
-        okType="danger"
+        okButtonProps={{ danger: true }}
         cancelText="Cancel"
+        confirmLoading={deleteState.loading}
       >
         <p>Are you sure you want to delete this question?</p>
       </Modal>
