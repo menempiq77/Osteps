@@ -12,7 +12,6 @@ import { RootState } from "@/store/store";
 import { useParams, useRouter } from "next/navigation";
 import {
   addStudentTaskMarks,
-  fetchStudents,
   fetchStudentTasks,
 } from "@/services/api";
 
@@ -88,7 +87,7 @@ export default function AssessmentDrawer() {
   const loadStudents = async () => {
     try {
       setLoading(true);
-      const studentsData = await fetchStudents(classId);
+      const studentsData = await fetchStudents](classId);
       setStudents(studentsData);
       if (studentsData.length > 0) {
         setSelectedStudentId(studentsData[0].id);

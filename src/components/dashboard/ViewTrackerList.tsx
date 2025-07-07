@@ -1,12 +1,11 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useSelector } from "react-redux";
-import { RootState } from "@/store/store";
-import { fetchClasses, fetchTrackers } from "@/services/api";
+import { fetchTrackers } from "@/services/api";
 import { Spin, Select, Button } from "antd";
 import { ArrowLeft } from "lucide-react";
 import { fetchYears } from "@/services/yearsApi";
+import { fetchClasses } from "@/services/classesApi";
 
 type Tracker = {
   id: string;

@@ -13,12 +13,8 @@ import {
 } from "antd";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import {
-  fetchQuizQuestions,
-  fetchStudents,
-  fetchSubmittedQuizDetails,
-  quizAnswerMarks,
-} from "@/services/api";
+import { fetchStudents } from "@/services/studentsApi";
+import { fetchQuizQuestions, fetchSubmittedQuizDetails, quizAnswerMarks } from "@/services/quizApi";
 
 interface Option {
   id: number;

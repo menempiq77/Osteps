@@ -17,18 +17,12 @@ import {
 } from "antd";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import {
-  fetchQuizQuestions,
-  addQuizQuestion,
-  deleteQuizQuestion,
-} from "@/services/api";
-
+import { addQuizQuestion, deleteQuizQuestion, fetchQuizQuestions } from "@/services/quizApi";
 interface Option {
   id: number;
   option_text: string;
   is_correct: number;
 }
-
 interface QuizQuestion {
   id: number;
   quiz_id: number;
@@ -38,7 +32,6 @@ interface QuizQuestion {
   options: Option[];
   marks: number;
 }
-
 interface Quiz {
   id: number;
   name: string;

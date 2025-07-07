@@ -10,9 +10,10 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { useRouter } from "next/navigation";
-import { fetchAssessmentByStudent, fetchTerm } from "@/services/api";
+import { fetchAssessmentByStudent } from "@/services/api";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
+import { fetchTerm } from "@/services/termsApi";
 
 export default function AssignmentsPage() {
   const [selectedTerm, setSelectedTerm] = useState<string>("");

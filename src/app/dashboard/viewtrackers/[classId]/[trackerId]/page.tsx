@@ -3,16 +3,14 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, GripVertical } from "lucide-react";
-import { useSelector } from "react-redux";
-import { RootState } from "@/store/store";
 import { Button, Input, Modal, Select, Spin, message } from "antd";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import {
   fetchTrackerTopics,
-  fetchQuizes,
-  fetchStudents,
   addTopicMark,
 } from "@/services/api";
+import { fetchStudents } from "@/services/studentsApi";
+import { fetchQuizes } from "@/services/quizApi";
 
 interface Status {
   id: number;
@@ -64,7 +62,6 @@ export default function QuranTrackerAdminPage() {
   const [trackerData, setTrackerData] = useState<TrackerData | null>(null);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [visibleTopics, setVisibleTopics] = useState(10);
-  const { currentUser } = useSelector((state: RootState) => state.auth);
   const [loading, setLoading] = useState(false);
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
@@ -74,10 +71,6 @@ export default function QuranTrackerAdminPage() {
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(
     null
   );
-
-  const canUpload =
-    currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "TEACHER";
-  const isStudent = currentUser?.role === "STUDENT";
 
   const loadStudents = async () => {
     try {

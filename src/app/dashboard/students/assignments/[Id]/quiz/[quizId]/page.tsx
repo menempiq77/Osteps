@@ -14,8 +14,7 @@ import {
 } from "antd";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { fetchQuizQuestions, submitQuizByStudent } from "@/services/api";
-
+import { fetchQuizQuestions, submitQuizByStudent } from "@/services/quizApi";
 interface Option {
   id: number;
   option_text: string;

@@ -24,13 +24,15 @@ import {
   Col,
   Breadcrumb,
 } from "antd";
-import api, { fetchClasses, fetchTeachers } from "@/services/api";
+import api from "@/services/api";
 import dayjs from "dayjs";
 import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import Link from "next/link";
 import { fetchYears } from "@/services/yearsApi";
+import { fetchClasses } from "@/services/classesApi";
+import { fetchTeachers } from "@/services/teacherApi";
 
 const { Option } = Select;
 

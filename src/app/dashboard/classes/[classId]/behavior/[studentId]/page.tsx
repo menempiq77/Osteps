@@ -26,7 +26,6 @@ import { RootState } from "@/store/store";
 import BehaviorModal from "@/components/modals/behaviorModals/BehaviorModal";
 import BehaviorTypeModal from "@/components/modals/behaviorModals/BehaviorTypeModal";
 import { useParams } from "next/navigation";
-import { fetchStudents } from "@/services/api";
 import {
   addBehaviour,
   addBehaviourType,
@@ -37,6 +36,7 @@ import {
   updateBehaviour,
   updateBehaviourType,
 } from "@/services/behaviorApi";
+import { fetchStudents } from "@/services/studentsApi";
 
 const { Option } = Select;
 

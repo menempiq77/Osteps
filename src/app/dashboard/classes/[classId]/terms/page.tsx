@@ -1,9 +1,9 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { fetchTerm, addTerm, updateTerm, deleteTerm } from "@/services/api";
 import TermsList from "@/components/dashboard/TermsList";
 import { useParams } from "next/navigation";
 import { Modal, Spin, Form, Input, Button } from "antd";
+import { addTerm, deleteTerm, fetchTerm, updateTerm } from "@/services/termsApi";
 
 export default function TermsPage() {
   const { classId } = useParams();

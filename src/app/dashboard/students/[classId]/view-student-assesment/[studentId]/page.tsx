@@ -1,16 +1,12 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { Button, Form, Card, Select, Spin } from "antd";
+import { Button, Card, Select, Spin } from "antd";
 import { ChevronLeft } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import AssessmentDrawer from "@/components/ui/AssessmentDrawer";
-import { useSelector } from "react-redux";
-import { RootState } from "@/store/store";
 import {
-  fetchAssessment,
-  fetchStudents,
-  fetchTerm,
+  fetchAssessment
 } from "@/services/api";
+import { fetchTerm } from "@/services/termsApi";
 
 export default function TermPage() {
   const { classId, studentId } = useParams();
@@ -18,8 +14,6 @@ export default function TermPage() {
   const [terms, setTerms] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { currentUser } = useSelector((state: RootState) => state.auth);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [assessments, setAssessments] = useState<any[]>([]);
   const [selectedTerm, setSelectedTerm] = useState<string>("");
   const [selectedTermId, setSelectedTermId] = useState<number | null>(null);
@@ -143,13 +137,6 @@ export default function TermPage() {
           ))}
         </ul>
       </Card>
-
-      {/* Drawer for Marking Assessments */}
-      {/* <AssessmentDrawer
-        isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-        selectedSubject={selectedSubject}
-      /> */}
     </div>
   );
 }

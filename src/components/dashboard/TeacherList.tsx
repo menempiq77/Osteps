@@ -2,15 +2,15 @@
 import { useState, useEffect } from "react";
 import { AddTeacherModal } from "../modals/teacherModals/AddTeacherModal";
 import { EditTeacherModal } from "../modals/teacherModals/EditTeacherModal";
+import { Spin, Modal, Button, Breadcrumb, message } from "antd";
+import { EditOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
+import Link from "next/link";
 import {
   fetchTeachers,
   addTeacher,
   updateTeacher,
   deleteTeacher as deleteTeacherApi,
-} from "@/services/api";
-import { Spin, Modal, Button, Breadcrumb, message } from "antd";
-import { EditOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
-import Link from "next/link";
+} from "@/services/teacherApi";
 
 type Teacher = {
   id: string;
@@ -147,7 +147,7 @@ export default function TeacherList() {
 
   return (
     <div className="overflow-auto p-3 md:p-6">
-       {contextHolder}
+      {contextHolder}
       <Breadcrumb
         items={[
           {

@@ -9,10 +9,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   addTask,
   updateTask,
-  deleteTask,
-  assignTaskQuiz,
+  deleteTask
 } from "@/services/api";
 import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
+import { assignTaskQuiz } from "@/services/quizApi";
 
 const { Option } = Select;
 

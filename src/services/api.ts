@@ -42,132 +42,6 @@ export const loginUser = async (email: string, password: string) => {
   return response.data;
 };
 
-//Classes apis Started
-// fetch Classes
-export const fetchClasses = async (yearId: number) => {
-  const response = await api.get(`/get-class/${yearId}`);
-  return response.data.data;
-};
-// add Class
-export const addClass = async (classData: { 
-  class_name: string;
-  year_id: number;
-  number_of_terms: string;
-}) => {
-  const response = await api.post('/add-class', classData);
-  return response.data;
-};
-// edit Class
-export const updateClass = async (id: string, classData: {
-  class_name?: string;
-  number_of_terms?: string;
-}) => {
-  const response = await api.post(`/update-class/${id}`, classData);
-  return response.data;
-};
-// delete Class
-export const deleteClass = async (id: number) => {
-  const response = await api.post(`/delete-class/${id}`);
-  return response.data;
-};
-
-//Terms apis Started
-// fetch Terms
-export const fetchTerm = async (classId: number) => {
-  const response = await api.get(`/get-term/${classId}`);
-  return response.data.data;
-};
-// add Term
-export const addTerm = async (classId: number, termData: { name: string }) => {
-  const response = await api.post('/add-term', { ...termData, class_id: classId });
-  return response.data;
-};
-// edit Term
-export const updateTerm = async (id: number, classId: number, termData: { name: string }) => {
-  const response = await api.post(`/update-term/${id}`, { ...termData, class_id: classId });
-  return response.data;
-};
-// delete Term
-export const deleteTerm = async (id: number) => {
-  const response = await api.post(`/delete-term/${id}`);
-  return response.data;
-};
-
-//Teachers apis Started
-// fetch Teachers
-export const fetchTeachers = async () => {
-  const response = await api.get('/get-teacher');
-  return response.data.data;
-};
-// fetch TeachersByStudent
-export const fetchTeachersByStudent = async () => {
-  const response = await api.get('/getspecTeachers');
-  return response.data.data;
-};
-// add Teacher
-export const addTeacher = async (teacherData: { name: string }) => {
-  const response = await api.post('/add-teacher', teacherData);
-  return response.data;
-};
-//assign teacher
-export const AssignTeacher = async (classId: string | number, teacherId: number) => {
-  const response = await api.post(`/assign-teacher/${classId}`, {
-    teacher_id: teacherId,
-  });
-  return response.data;
-};
-// Get assign teacher
-export const getAssignTeacher = async (classId: string | number) => {
-  const response = await api.get(`/get-assign-teacher/${classId}`);
-  return response.data;
-};
-// edit Teacher
-export const updateTeacher = async (id: string, teacherData: any) => {
-  const response = await api.post(`/update-teacher/${id}`, teacherData);
-  return response.data;
-};
-// delete Teacher
-export const deleteTeacher = async (id: string | number) => {
-  const response = await api.post(`/delete-teacher/${id}`);
-  return response.data;
-};
-
-//Students apis Started
-// fetch Students
-export const fetchStudents = async (classId: string | number) => {
-  const response = await api.get(`/get-student/${classId}`);
-  return response.data.data;
-};
-// add Student
-export const addStudent = async (studentData: {
-  student_name: string;
-  email: string;
-  class_id: number;
-  status: string;
-}) => {
-  const response = await api.post('/add-student', studentData);
-  return response.data;
-};
-// edit Student
-export const updateStudent = async (
-  id: string,
-  studentData: {
-    student_name: string;
-    email: string;
-    class_id: number;
-    status: 'active' | 'inactive' | 'suspended';
-  }
-) => {
-  const response = await api.post(`/update-student/${id}`, studentData);
-  return response.data;
-};
-
-// delete Student
-export const deleteStudent = async (id: string | number) => {
-  const response = await api.post(`/delete-student/${id}`);
-  return response.data;
-};
-
 //assessment apis Started
 // fetch Assessment
 export const fetchAssessment = async (termId: number) => {
@@ -192,14 +66,6 @@ export const updateAssessment = async (id: string, assessmentData: any) => {
 // delete Assessment
 export const deleteAssessment = async (id: number) => {
   const response = await api.post(`/delete-assessment/${id}`);
-  return response.data;
-};
-// add assign Assesment Quiz
-export const assignAssesmentQuiz = async (termId: number, quizId: number) => {
-  const response = await api.post('/add-assign-term-quiz', {
-    term_id: termId, 
-    quiz_id: quizId, 
-  });
   return response.data;
 };
 
@@ -253,15 +119,6 @@ export const addStudentTaskMarks = async (studentId: number, taskData: {
   teacher_assessment_feedback: string;
 }) => {
   const response = await api.post(`/add-student-task-marks/${studentId}`, taskData);
-  return response.data;
-};
-// add assign Task Quiz
-export const assignTaskQuiz = async (termId: number, quizId: number, assessmentId: number) => {
-  const response = await api.post('/assign-task-quiz', {
-    term_id: termId, 
-    quiz_id: quizId, 
-    assessment_id: assessmentId,
-  });
   return response.data;
 };
 
@@ -345,87 +202,6 @@ export const addTopicMark = async (topicId: number, marks: number, studentId: nu
     topic_id: topicId,
     student_id: studentId,
     marks: marks,
-  });
-  return response.data;
-};
-// add assign tracker Quiz
-export const assignTrackerQuiz = async (trackerId: number, quizId: number) => {
-  const response = await api.post('/assign-tracker-quiz', {
-    tracker_id: trackerId, 
-    quiz_id: quizId, 
-  });
-  return response.data;
-};
-
-//quiz apis Started
-// fetch quizes
-export const fetchQuizes = async () => {
-  const response = await api.get('/get-quiz');
-  return response.data.data;
-};
-// add Quiz
-export const addQuize = async (quizData: { name: string }) => {
-  const response = await api.post('/add-quiz', quizData);
-  return response.data;
-};
-// edit Quiz
-export const updateQuize = async (id: string, quizData: any) => {
-  const response = await api.post(`/update-quiz/${id}`, quizData);
-  return response.data;
-};
-// delete Quiz
-export const deleteQuize = async (id: number) => {
-  const response = await api.post(`/delete-quiz/${id}`);
-  return response.data;
-};
-//submit quiz by student
-export const submitQuizByStudent = async (quizId: number, studentId: number, answers: any, type: string) => {
-  const response = await api.post('/submitQuizAnswers', {
-    quiz_id: quizId,
-    student_id: studentId,
-    answers: answers,
-    type: type
-  });
-  return response.data;
-};
-//submit task quiz by student
-export const submitTaskQuizByStudent = async (quizId: number, studentId: number, assessmentId: number, answers: any, type: string) => {
-  const response = await api.post('/submitQuizAnswers', {
-    quiz_id: quizId,
-    student_id: studentId,
-    assessment_id: assessmentId,
-    answers: answers,
-    type: type
-  });
-  return response.data;
-};
-
-export const fetchSubmittedQuizDetails = async (quizId: number, studentId: number, type: string) => {
-  const response = await api.get(`/get-SubmittedQuizDetails/${quizId}/${studentId}/${type}`);
-  return response.data.data;
-};
-
-//Quiz Question apis Started
-// fetch QuizQuestions
-export const fetchQuizQuestions = async (quizId: number) => {
-  const response = await api.get(`/get-quiz-questions/${quizId}`);
-  return response.data.data;
-};
-// add QuizQuestions
-export const addQuizQuestion = async (quizId: number, quizQuestionData: { name: string }) => {
-  const response = await api.post('/add-quiz-question', { ...quizQuestionData, quiz_id: quizId });
-  return response.data;
-};
-// delete QuizQuestions
-export const deleteQuizQuestion = async (id: number) => {
-  const response = await api.post(`/delete-quiz-question/${id}`);
-  return response.data;
-};
-// Quiz answer marks
-export const quizAnswerMarks = async (answerId: number, isCorrect: number, marks: number) => {
-  const response = await api.post(`/quiz-answer/${answerId}`, {
-    is_correct: isCorrect,
-    marks: marks
   });
   return response.data;
 };
