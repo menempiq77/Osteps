@@ -24,10 +24,9 @@ import {
   updateTrackerTopic,
   deleteTrackerTopic,
   updateTopicStatus,
-  fetchQuizes,
   fetchTrackerStudentTopics,
-  assignTrackerQuiz,
 } from "@/services/api";
+import { assignTrackerQuiz, fetchQuizes } from "@/services/quizApi";
 
 interface Status {
   id: number;

@@ -5,17 +5,10 @@ import {
   EditOutlined,
   DeleteOutlined,
   PlusOutlined,
-  ExclamationCircleFilled,
 } from "@ant-design/icons";
-import { ChevronLeftIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
-import {
-  fetchQuizes,
-  addQuize,
-  updateQuize,
-  deleteQuize,
-} from "@/services/api";
 import Link from "next/link";
+import { addQuize, deleteQuize, fetchQuizes, updateQuize } from "@/services/quizApi";
 
 type Quiz = {
   id: string;

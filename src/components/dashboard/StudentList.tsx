@@ -5,15 +5,15 @@ import { EditStudentModal } from "../modals/studentModals/EditStudentModal";
 import { useRouter, useParams } from "next/navigation";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
+import { Button, Modal, Spin, Form, Breadcrumb } from "antd";
+import { EditOutlined, DeleteOutlined, BookOutlined } from "@ant-design/icons";
+import Link from "next/link";
 import {
   fetchStudents,
   addStudent as apiAddStudent,
   updateStudent as apiUpdateStudent,
   deleteStudent as apiDeleteStudent,
-} from "@/services/api";
-import { Button, Modal, Spin, Form, Breadcrumb } from "antd";
-import { EditOutlined, DeleteOutlined, BookOutlined } from "@ant-design/icons";
-import Link from "next/link";
+} from "@/services/studentsApi";
 
 type Student = {
   id: string;

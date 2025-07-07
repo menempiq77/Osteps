@@ -15,10 +15,6 @@ import {
 import { UserOutlined, SendOutlined, DeleteOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import {
-  fetchClasses,
-  fetchTeachersByStudent
-} from "@/services/api";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
@@ -28,6 +24,8 @@ import {
   submitAskQuestion,
 } from "@/services/askQuestionApi";
 import { fetchYears } from "@/services/yearsApi";
+import { fetchClasses } from "@/services/classesApi";
+import { fetchTeachersByStudent } from "@/services/teacherApi";
 
 const { TextArea } = Input;
 const { Option } = Select;

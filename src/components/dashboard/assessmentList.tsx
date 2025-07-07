@@ -5,8 +5,9 @@ import { AssessmentTasksDrawer } from "../ui/AssessmentTasksDrawer";
 import { useParams, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { fetchTasks, fetchTerm } from "@/services/api";
+import { fetchTasks } from "@/services/api";
 import { Select } from "antd";
+import { fetchTerm } from "@/services/termsApi";
 
 interface Task {
   id: number;
@@ -52,7 +53,6 @@ export default function AssessmentList({
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedTerm, setSelectedTerm] = useState<{id: string, name: string} | null>(null);
   const [selectedTermId, setSelectedTermId] = useState<string | null>(null);
 
   const [terms, setTerms] = useState<any[]>([]);

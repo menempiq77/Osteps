@@ -4,15 +4,14 @@ import AddAssessmentForm from "@/components/dashboard/AddAssessmentForm";
 import AssessmentList from "@/components/dashboard/assessmentList";
 import {
   addAssessment,
-  assignAssesmentQuiz,
   deleteAssessment,
   fetchAssessment,
-  fetchQuizes,
   updateAssessment,
 } from "@/services/api";
 import { Button, Modal, Spin } from "antd";
 import { useParams } from "next/navigation";
 import EditAssessmentForm from "@/components/dashboard/EditAssessmentForm";
+import { assignAssesmentQuiz, fetchQuizes } from "@/services/quizApi";
 
 interface Assessment {
   id: string;
@@ -84,13 +83,11 @@ export default function Page() {
     let newAssessment;
     
     if (assessmentData.type === "quiz") {
-      // Use the assign quiz API for quiz type
       newAssessment = await assignAssesmentQuiz(
         parseInt(termId as string),
-        parseInt(assessmentData.name) // assuming name contains quiz ID in this case
+        parseInt(assessmentData.name)
       );
     } else {
-      // Use the regular add assessment API for assessment type
       newAssessment = await addAssessment({
         name: assessmentData.name,
         class_id: classId,

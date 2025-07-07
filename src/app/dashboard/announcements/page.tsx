@@ -21,6 +21,7 @@ import {
 } from "@/services/announcementApi";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Megaphone } from "lucide-react";
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -32,7 +33,7 @@ type Announcement = {
   role: string;
   authorId?: string;
   created_at: string;
-  type: "prayer" | "event" | "reminder" | "general";
+  type: "event" | "reminder" | "general";
   target?: "School Admins" | "teachers" | "students";
 };
 
@@ -59,7 +60,7 @@ export default function AnnouncementsPage() {
     data: announcements = [],
     isLoading,
     error,
-    refetch
+    refetch,
   } = useQuery<Announcement[]>({
     queryKey: ["announcements"],
     queryFn: fetchAnnouncements,
@@ -131,7 +132,6 @@ export default function AnnouncementsPage() {
         id: announcementForm.id,
         data: announcementData,
       });
-      
     } else {
       addMutation.mutate({
         ...announcementData,
@@ -213,7 +213,6 @@ export default function AnnouncementsPage() {
   });
 
   const badgeRibbonColors = {
-    prayer: "green",
     event: "blue",
     reminder: "gold",
     general: "gray",
@@ -251,7 +250,10 @@ export default function AnnouncementsPage() {
         className="!mb-2"
       />
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Announcements</h1>
+        <h1 className="text-2xl font-medium flex items-center gap-3">
+          <Megaphone />
+          Announcements
+        </h1>
         {canCreateAnnouncement && (
           <Button
             onClick={handleNewAnnouncement}
@@ -274,7 +276,7 @@ export default function AnnouncementsPage() {
         >
           <div className="space-y-4">
             <Input
-              placeholder="Title (e.g., 'Ramadan Schedule')"
+              placeholder="Title (e.g., 'Exam Schedule')"
               value={announcementForm.title}
               onChange={(e) =>
                 setAnnouncementForm({
@@ -286,7 +288,7 @@ export default function AnnouncementsPage() {
             />
 
             <TextArea
-              placeholder="Content (e.g., 'The Taraweeh prayers will begin at 8:30 PM...')"
+              placeholder="Content (e.g., 'The exam will begin at 8:30 PM...')"
               value={announcementForm.description}
               onChange={(e) =>
                 setAnnouncementForm({
@@ -334,9 +336,7 @@ export default function AnnouncementsPage() {
             {error && <div className="text-red-500">{error}</div>}
 
             <div className="flex justify-end gap-3">
-              <Button onClick={resetForm}>
-                Cancel
-              </Button>
+              <Button onClick={resetForm}>Cancel</Button>
               <Button
                 type="primary"
                 onClick={handleSubmitAnnouncement}

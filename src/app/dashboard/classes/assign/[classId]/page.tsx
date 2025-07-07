@@ -3,7 +3,15 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Button, Card, Checkbox, Spin, Alert } from "antd";
 import { PlusCircle, Users, BookOpen } from "lucide-react";
-import { AssignTeacher, fetchTeachers, getAssignTeacher } from "@/services/api";
+import { AssignTeacher, fetchTeachers, getAssignTeacher } from "@/services/teacherApi";
+
+interface Teacher {
+  id: number | string;
+  name: string;
+  phone: string;
+  email: string;
+  subjects: string[];
+}
 
 export default function AssignPage() {
   const { classId } = useParams();

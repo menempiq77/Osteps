@@ -4,15 +4,10 @@ import AddClassForm from "@/components/dashboard/AddClassForm";
 import ClassesList from "@/components/dashboard/ClassesList";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import {
-  fetchClasses,
-  deleteClass,
-  addClass,
-  updateClass,
-} from "@/services/api";
 import { useSearchParams } from "next/navigation";
 import { Breadcrumb, Spin, Modal, Button, message } from "antd";
 import Link from "next/link";
+import { addClass, deleteClass, fetchClasses, updateClass } from "@/services/classesApi";
 
 interface ApiClass {
   id: string;
