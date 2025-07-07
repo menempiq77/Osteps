@@ -1,41 +1,52 @@
 // src/services/announcementApi.ts
-import axios from 'axios';
-import { store } from '@/store/store';
 import { API_BASE_URL } from '@/lib/config';
+import { store } from '@/store/store';
 
-const api = axios.create({
-  baseURL: API_BASE_URL,
-});
-
-// Request interceptor to add auth token
-api.interceptors.request.use((config) => {
+const getAuthHeader = () => {
   const token = store.getState().auth.token;
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
 
-//Announcemens apis Started
-// fetch Announcements
 export const fetchAnnouncements = async () => {
-  const response = await api.get('/get-announcement');
-  return response.data.data;
-};
-// add Announcement
-export const addAnnouncement = async (announcementData: { name: string }) => {
-  const response = await api.post('/add-announcement', announcementData);
-  return response.data;
-};
-// edit Announcement
-export const updateAnnouncement = async (id: string, announcementData: any) => {
-  const response = await api.post(`/update-announcement/${id}`, announcementData);
-  return response.data;
-};
-// delete Announcement
-export const deleteAnnouncement = async (id: number) => {
-  const response = await api.post(`/delete-announcement/${id}`);
-  return response.data;
+  const response = await fetch(`${API_BASE_URL}/get-announcement`, {
+    headers: getAuthHeader(),
+  });
+  if (!response.ok) throw new Error('Failed to fetch announcements');
+  const data = await response.json();
+  return data.data;
 };
 
-export default api;
+export const addAnnouncement = async (announcementData: { name: string }) => {
+  const response = await fetch(`${API_BASE_URL}/add-announcement`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify(announcementData),
+  });
+  if (!response.ok) throw new Error('Failed to add announcement');
+  return response.json();
+};
+
+export const updateAnnouncement = async (id: string, announcementData: any) => {
+  const response = await fetch(`${API_BASE_URL}/update-announcement/${id}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify(announcementData),
+  });
+  if (!response.ok) throw new Error('Failed to update announcement');
+  return response.json();
+};
+
+export const deleteAnnouncement = async (id: number) => {
+  const response = await fetch(`${API_BASE_URL}/delete-announcement/${id}`, {
+    method: 'POST',
+    headers: getAuthHeader(),
+  });
+  if (!response.ok) throw new Error('Failed to delete announcement');
+  return response.json();
+};

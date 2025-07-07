@@ -24,12 +24,13 @@ import {
   Col,
   Breadcrumb,
 } from "antd";
-import api, { fetchClasses, fetchTeachers, fetchYears } from "@/services/api";
+import api, { fetchClasses, fetchTeachers } from "@/services/api";
 import dayjs from "dayjs";
 import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import Link from "next/link";
+import { fetchYears } from "@/services/yearsApi";
 
 const { Option } = Select;
 
@@ -128,7 +129,6 @@ function Timetable() {
     try {
       setLoading(true);
       const data = await fetchClasses(yearId);
-      console.log("Classes response:", data);
       setClasses(data);
       if (data.length > 0) {
         setSelectedClass(data[0].id);
@@ -145,7 +145,6 @@ function Timetable() {
     try {
       setLoading(true);
       const response = await fetchTeachers();
-      console.log("Teachers response:", response);
       setTeachers(response);
       if (response.length > 0) {
         setSelectedTeacher(response[0].id);

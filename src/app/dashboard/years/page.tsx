@@ -5,14 +5,14 @@ import YearForm from "@/components/dashboard/YearForm";
 import YearsList from "@/components/dashboard/YearsList";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
+import { Breadcrumb, Spin, Modal } from "antd";
+import Link from "next/link";
 import {
   fetchYears,
   addYear as addYearApi,
   deleteYear as deleteYearApi,
   updateYear as updateYearApi,
-} from "@/services/api";
-import { Breadcrumb, Spin, Modal } from "antd";
-import Link from "next/link";
+} from "@/services/yearsApi";
 
 interface Year {
   id: number;
@@ -67,11 +67,15 @@ export default function Page() {
 
       setIsModalOpen(false);
       setCurrentYear(null);
-      messageApi.success(currentYear ? "Year updated successfully" : "Year added successfully");
+      messageApi.success(
+        currentYear ? "Year updated successfully" : "Year added successfully"
+      );
     } catch (err) {
       setError(currentYear ? "Failed to update year" : "Failed to add year");
       console.error(err);
-      messageApi.success(currentYear ? "Failed to update year" : "Failed to add year");
+      messageApi.success(
+        currentYear ? "Failed to update year" : "Failed to add year"
+      );
     }
   };
 

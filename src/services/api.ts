@@ -42,73 +42,6 @@ export const loginUser = async (email: string, password: string) => {
   return response.data;
 };
 
-//admins apis Started
-// fetche admins
-export const fetchAdmins = async () => {
-  const response = await api.get('/get-admin');
-  return response.data.data;
-};
-// add admin
-export const addAdmin = async (adminData: any) => {
-  const response = await api.post('/add-admin', adminData);
-  return response.data;
-};
-// edit admin
-export const updateAdmin = async (id: string, adminData: any) => {
-  const response = await api.post(`/update-admin/${id}`, adminData);
-  return response.data;
-};
-// delete admin
-export const deleteAdmin = async (id: string) => {
-  const response = await api.post(`/delete-admin/${id}`);
-  return response.data;
-};
-
-//Schools apis Started
-// fetche Schools
-export const fetchSchools = async () => {
-  const response = await api.get('/get-school');
-  return response.data.data;
-};
-// add Schools
-export const addSchool = async (schoolData: any) => {
-  const response = await api.post('/add-school', schoolData);
-  return response.data;
-};
-// edit Schools
-export const updateSchool = async (id: string, schoolData: any) => {
-  const response = await api.post(`/update-school/${id}`, schoolData);
-  return response.data;
-};
-// delete Schools
-export const deleteSchool = async (id: string) => {
-  const response = await api.post(`/delete-school/${id}`);
-  return response.data;
-};
-
-//Years apis Started
-// fetch Years
-export const fetchYears = async () => {
-  const response = await api.get('/get-year');
-  return response.data.data;
-};
-// add Year
-export const addYear = async (yearData: { name: string }) => {
-  const response = await api.post('/add-year', yearData);
-  return response.data;
-};
-// edit Year
-export const updateYear = async (id: string, yearData: any) => {
-  const response = await api.post(`/update-year/${id}`, yearData);
-  return response.data;
-};
-// delete Year
-export const deleteYear = async (id: number) => {
-  const response = await api.post(`/delete-year/${id}`);
-  return response.data;
-};
-
-
 //Classes apis Started
 // fetch Classes
 export const fetchClasses = async (yearId: number) => {
@@ -246,7 +179,6 @@ export const fetchAssessmentByStudent = async (termId: number) => {
   const response = await api.get(`/get-student-assessment/${termId}`);
   return response.data.data;
 };
-
 // add Assessment
 export const addAssessment = async (assessmentData: { name: string }) => {
   const response = await api.post('/add-assessment', assessmentData);
@@ -334,11 +266,12 @@ export const assignTaskQuiz = async (termId: number, quizId: number, assessmentI
 };
 
 //Trackers apis Started
-// Trackers APIs
+// fetch trackers
 export const fetchTrackers = async (classId: number) => {
   const response = await api.get(`/get-trackers/${classId}`);
   return response.data.data;
 };
+// add tracker
 export const addTracker = async (trackerData: {
   class_id: number;
   name: string;
@@ -349,6 +282,7 @@ export const addTracker = async (trackerData: {
   const response = await api.post('/add-trackers', trackerData);
   return response.data;
 };
+// update tracker
 export const updateTracker = async (id: string, trackerData: {
   name: string;
   type: string;
@@ -358,6 +292,7 @@ export const updateTracker = async (id: string, trackerData: {
   const response = await api.post(`/update-trackers/${id}`, trackerData);
   return response.data;
 };
+// Delete tracker
 export const deleteTracker = async (id: number) => {
   const response = await api.post(`/delete-trackers/${id}`);
   return response.data;
@@ -486,7 +421,6 @@ export const deleteQuizQuestion = async (id: number) => {
   const response = await api.post(`/delete-quiz-question/${id}`);
   return response.data;
 };
-
 // Quiz answer marks
 export const quizAnswerMarks = async (answerId: number, isCorrect: number, marks: number) => {
   const response = await api.post(`/quiz-answer/${answerId}`, {

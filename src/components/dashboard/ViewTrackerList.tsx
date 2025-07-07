@@ -3,9 +3,10 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { fetchClasses, fetchTrackers, fetchYears } from "@/services/api";
+import { fetchClasses, fetchTrackers } from "@/services/api";
 import { Spin, Select, Button } from "antd";
 import { ArrowLeft } from "lucide-react";
+import { fetchYears } from "@/services/yearsApi";
 
 type Tracker = {
   id: string;
@@ -19,7 +20,6 @@ type Tracker = {
 
 export default function TrackerList() {
   const router = useRouter();
-  const { currentUser } = useSelector((state: RootState) => state.auth);
   const [trackers, setTrackers] = useState<Tracker[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
