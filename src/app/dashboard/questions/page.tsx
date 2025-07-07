@@ -78,6 +78,7 @@ const AskQuestionPage = () => {
 
   const [questionToDelete, setQuestionToDelete] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [messageApi, contextHolder] = message.useMessage();
 
   const handleDeleteClick = (question) => {
     setQuestionToDelete(question);
@@ -92,9 +93,9 @@ const confirmDelete = async () => {
     await deleteAskQuestion(questionToDelete.id);
     
     setQuestions(questions.filter(q => q.id !== questionToDelete.id));
-    message.success("Question deleted successfully");
+    messageApi.success("Question deleted successfully");
   } catch (err) {
-    message.error("Failed to delete question");
+    messageApi.error("Failed to delete question");
     console.error(err);
   } finally {
     setIsLoading(false);
@@ -191,12 +192,12 @@ const confirmDelete = async () => {
 
   const handleQuestionSubmit = async () => {
     if (!newQuestion.trim()) {
-      message.warning("Please enter a question");
+      messageApi.warning("Please enter a question");
       return;
     }
 
     if (!selectedTeacher) {
-      message.warning("Please select a teacher");
+      messageApi.warning("Please select a teacher");
       return;
     }
 
@@ -226,9 +227,9 @@ const confirmDelete = async () => {
       setQuestions([newQuestionItem, ...questions]);
       setNewQuestion("");
       setSelectedTeacher("");
-      message.success("Question submitted successfully");
+      messageApi.success("Question submitted successfully");
     } catch (err) {
-      message.error("Failed to submit question");
+      messageApi.error("Failed to submit question");
       console.error(err);
     }
   };
@@ -236,7 +237,7 @@ const confirmDelete = async () => {
   const handleAnswerSubmit = async (questionId: string) => {
     const answerText = newAnswers[questionId];
     if (!answerText?.trim()) {
-      message.warning("Please enter an answer");
+      messageApi.warning("Please enter an answer");
       return;
     }
 
@@ -266,9 +267,9 @@ const confirmDelete = async () => {
       );
 
       setNewAnswers({ ...newAnswers, [questionId]: "" });
-      message.success("Answer submitted successfully");
+      messageApi.success("Answer submitted successfully");
     } catch (err) {
-      message.error("Failed to submit answer");
+      messageApi.error("Failed to submit answer");
       console.error(err);
     }
   };
@@ -284,6 +285,7 @@ const confirmDelete = async () => {
 
   return (
     <>
+    {contextHolder}
       <Button
         onClick={() => router.back()}
         className="flex items-center gap-2 text-gray-600 hover:!border-green-500 hover:!text-green-500 mb-4"
@@ -466,10 +468,10 @@ const confirmDelete = async () => {
               {isAdmin && (
                 <button
                   onClick={() => handleDeleteClick(question)}
-                  className="text-red-500 hover:text-red-700 bg-red-100 py-1 px-2 rounded cursor-pointer absolute right-2 bottom-1"
+                  className="text-red-500 hover:text-red-700 cursor-pointer absolute right-2 top-1"
                   title="Delete"
                 >
-                  <DeleteOutlined />
+                  <DeleteOutlined size={12} />
                 </button>
               )}
             </div>

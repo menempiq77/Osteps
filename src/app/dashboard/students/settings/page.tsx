@@ -15,6 +15,7 @@ const StudentSettings = () => {
   const [profileLoading, setProfileLoading] = React.useState(false);
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const dispatch = useDispatch<AppDispatch>();
+  const [messageApi, contextHolder] = message.useMessage();
 
   React.useEffect(() => {
     if (currentUser?.id) {
@@ -62,10 +63,10 @@ const StudentSettings = () => {
       email: response.email,
     });
 
-    message.success("Profile updated successfully!");
+    messageApi.success("Profile updated successfully!");
   } catch (error) {
     console.error("Profile update failed:", error);
-    message.error(
+    messageApi.error(
       error.response?.message || "Failed to update profile"
     );
   } finally {
@@ -75,7 +76,7 @@ const StudentSettings = () => {
 
   const onFinishFailed = (errorInfo) => {
     console.log("Failed:", errorInfo);
-    message.error("Please fill all required fields!");
+    messageApi.error("Please fill all required fields!");
   };
 
   const handleUploadChange = ({ fileList }) => {
@@ -93,11 +94,11 @@ const StudentSettings = () => {
         new_password: values.newPassword,
         new_password_confirmation: values.confirmPassword,
       });
-      message.success("Password changed successfully!");
+      messageApi.success("Password changed successfully!");
       securityForm.resetFields();
     } catch (error) {
       console.error("Password change failed:", error);
-      message.error(
+      messageApi.error(
         error.response?.data?.message || "Failed to change password"
       );
     } finally {
@@ -301,6 +302,7 @@ const StudentSettings = () => {
 
   return (
     <div className="p-4 sm:p-6">
+      {contextHolder}
       <h1 className="text-xl sm:text-2xl font-bold mb-6">Student Settings</h1>
       <Tabs
         defaultActiveKey="1"
