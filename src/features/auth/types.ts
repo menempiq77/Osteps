@@ -7,6 +7,9 @@ export interface User {
   schoolId?: string;
   token?: string;
   name?: string;
+  profile_path?: string;
+  studentClass?:number;
+  student?:number;
 }
 
 export interface AuthState {
