@@ -1,5 +1,4 @@
 "use client";
-
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
@@ -7,6 +6,7 @@ import interactionPlugin from "@fullcalendar/interaction";
 import { EventContentArg } from "@fullcalendar/core";
 import { useEffect, useMemo, useState } from "react";
 import {
+  addTimetableSlot,
   deleteTimetableSlot,
   fetchTimetableData,
   updateTimetableSlot,
@@ -23,8 +23,8 @@ import {
   Row,
   Col,
   Breadcrumb,
+  Spin,
 } from "antd";
-import api from "@/services/api";
 import dayjs from "dayjs";
 import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
@@ -33,14 +33,15 @@ import Link from "next/link";
 import { fetchYears } from "@/services/yearsApi";
 import { fetchClasses } from "@/services/classesApi";
 import { fetchTeachers } from "@/services/teacherApi";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 const { Option } = Select;
 
 function Timetable() {
-  const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [form] = Form.useForm();
+  const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
   const [eventToDelete, setEventToDelete] = useState<any>(null);
@@ -48,17 +49,35 @@ function Timetable() {
   const [currentEventId, setCurrentEventId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { currentUser } = useSelector((state: RootState) => state.auth);
-
   const isStudent = currentUser?.role === "STUDENT";
   const isTeacher = currentUser?.role === "TEACHER";
-
-  const [years, setYears] = useState<Year[]>([]);
+  const [years, setYears] = useState<any[]>([]);
   const [classes, setClasses] = useState([]);
   const [teachers, setTeachers] = useState<any[]>([]);
-
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [selectedTeacher, setSelectedTeacher] = useState("");
+  const [messageApi, contextHolder] = message.useMessage();
+
+  const { data: events = [], isLoading: isTimetableLoading } = useQuery({
+    queryKey: ["timetable"],
+    queryFn: fetchTimetableData,
+    select: (data) =>
+      Object.values(data).map((item: any) => ({
+        title: item.subject,
+        start: `${item.date}T${item.start_time}`,
+        end: `${item.date}T${item.end_time}`,
+        extendedProps: {
+          id: item.id,
+          teacher: item?.teacher?.teacher_name || "N/A",
+          teacher_id: item?.teacher_id || null,
+          room: item.room || "N/A",
+          zoomLink: item?.zoom_link,
+          year_id: item?.year_id || null,
+          class_id: item?.class_id || null,
+        },
+      })),
+  });
 
   const filteredEvents = useMemo(() => {
     return events.filter((event) => {
@@ -77,37 +96,6 @@ function Timetable() {
       return yearMatch && classMatch && teacherMatch;
     });
   }, [events, selectedYear, selectedClass, selectedTeacher]);
-
-  useEffect(() => {
-    loadTimetableData();
-  }, []);
-
-  const loadTimetableData = async () => {
-    try {
-      setLoading(true);
-      const timetableData = await fetchTimetableData();
-      const formattedEvents = Object.values(timetableData).map((item: any) => ({
-        title: item.subject,
-        start: `${item.date}T${item.start_time}`,
-        end: `${item.date}T${item.end_time}`,
-        extendedProps: {
-          id: item.id,
-          teacher: item?.teacher?.teacher_name || "N/A",
-          teacher_id: item?.teacher_id || null, // Add teacher_id
-          room: item.room || "N/A",
-          zoomLink: item?.zoom_link,
-          year_id: item?.year_id || null, // Add year_id
-          class_id: item?.class_id || null, // Add class_id
-        },
-      }));
-      setEvents(formattedEvents);
-    } catch (error) {
-      console.error("Failed to fetch timetable data:", error);
-      message.error("Failed to load timetable data");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
     const loadYears = async () => {
@@ -169,18 +157,58 @@ function Timetable() {
     }
   }, [selectedYear]);
 
+  const addMutation = useMutation({
+    mutationFn: addTimetableSlot,
+    onSuccess: () => {
+      messageApi.success("Event added successfully");
+      queryClient.invalidateQueries(["timetable"]);
+      setIsModalVisible(false);
+      form.resetFields();
+    },
+    onError: (error: any) => {
+      messageApi.error(error.response?.data?.message || "Failed to add event");
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) =>
+      updateTimetableSlot(id, data),
+    onSuccess: () => {
+      messageApi.success("Event updated successfully");
+      queryClient.invalidateQueries(["timetable"]);
+      setIsModalVisible(false);
+      form.resetFields();
+      setIsEditMode(false);
+      setCurrentEventId(null);
+    },
+    onError: (error: any) => {
+      messageApi.error(
+        error.response?.data?.message || "Failed to update event"
+      );
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteTimetableSlot,
+    onSuccess: () => {
+      messageApi.success("Event deleted successfully");
+      queryClient.invalidateQueries(["timetable"]);
+      setIsDeleteModalVisible(false);
+    },
+    onError: () => {
+      messageApi.error("Failed to delete event");
+    },
+  });
+
   const handleYearChange = (value: string) => {
     setSelectedYear(value);
   };
-
   const handleClassChange = (value: string) => {
     setSelectedClass(value);
   };
-
   const handleTeacherChange = (value: string) => {
     setSelectedTeacher(value);
   };
-
   const handleDateSelect = (selectInfo: any) => {
     setSelectedDate(selectInfo.startStr.split("T")[0]);
     form.setFieldsValue({
@@ -190,7 +218,6 @@ function Timetable() {
     });
     setIsModalVisible(true);
   };
-
   const handleAddEvent = async () => {
     try {
       const values = await form.validateFields();
@@ -220,44 +247,22 @@ function Timetable() {
       };
 
       if (isEditMode && currentEventId) {
-        await updateTimetableSlot(currentEventId, formattedData);
-        message.success("Event updated successfully");
+        updateMutation.mutate({ id: currentEventId, data: formattedData });
       } else {
-        await api.post("/add-timeTable", formattedData);
-        message.success("Event added successfully");
+        addMutation.mutate(formattedData);
       }
-
-      setIsModalVisible(false);
-      form.resetFields();
-      setIsEditMode(false);
-      setCurrentEventId(null);
-      loadTimetableData();
     } catch (error) {
-      console.error("Failed to save event:", error);
-      message.error(
-        error.response?.data?.message ||
-          `Failed to ${isEditMode ? "update" : "add"} event`
-      );
+      console.error("Validation failed:", error);
     }
   };
   const handleDeleteEvent = (event: any) => {
     setEventToDelete(event);
     setIsDeleteModalVisible(true);
   };
-
   const confirmDelete = async () => {
-    try {
-      if (!eventToDelete) return;
-
-      const eventId = eventToDelete.extendedProps.id || eventToDelete.id;
-      await deleteTimetableSlot(eventId);
-      message.success("Event deleted successfully");
-      setIsDeleteModalVisible(false);
-      loadTimetableData();
-    } catch (error) {
-      console.error("Failed to delete event:", error);
-      message.error("Failed to delete event");
-    }
+    if (!eventToDelete) return;
+    const eventId = eventToDelete.extendedProps.id || eventToDelete.id;
+    deleteMutation.mutate(eventId);
   };
 
   const handleEditEvent = (event: any) => {
@@ -280,7 +285,6 @@ function Timetable() {
     setCurrentEventId(eventProps.id);
     setIsModalVisible(true);
   };
-
   const renderEventContent = (eventInfo: EventContentArg) => (
     <div className="p-2 overflow-auto bg-primary">
       <div className="flex justify-between items-start">
@@ -342,12 +346,14 @@ function Timetable() {
   if (loading) {
     return (
       <div className="p-3 md:p-6 flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        <Spin size="large" />
       </div>
     );
   }
+
   return (
     <div className="p-3 md:p-6">
+      {contextHolder}
       <Breadcrumb
         items={[
           {

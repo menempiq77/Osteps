@@ -5,7 +5,7 @@ import { EditStudentModal } from "../modals/studentModals/EditStudentModal";
 import { useRouter, useParams } from "next/navigation";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { Button, Modal, Spin, Form, Breadcrumb } from "antd";
+import { Button, Modal, Spin, Form, Breadcrumb, message } from "antd";
 import { EditOutlined, DeleteOutlined, BookOutlined } from "@ant-design/icons";
 import Link from "next/link";
 import {
@@ -29,7 +29,6 @@ export default function StudentList() {
   const { classId } = useParams();
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [form] = Form.useForm();
-
   const [students, setStudents] = useState<Student[]>([]);
   const [editStudent, setEditStudent] = useState<Student | null>(null);
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
@@ -38,6 +37,7 @@ export default function StudentList() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
+  const [messageApi, contextHolder] = message.useMessage();
 
   const loadStudents = async () => {
     try {
@@ -78,9 +78,11 @@ export default function StudentList() {
       );
       setEditStudent(null);
       await loadStudents();
+      messageApi?.success("Student Update Successfully!")
     } catch (err) {
       console.error("Failed to update student:", err);
       setError("Failed to update student");
+      messageApi?.error("Failed to update student!")
     }
   };
 
@@ -99,9 +101,11 @@ export default function StudentList() {
       );
       setIsDeleteModalOpen(false);
       setStudentToDelete(null);
+      messageApi?.success("Student Deleted Successfully!")
     } catch (err) {
       console.error("Failed to delete student:", err);
       setError("Failed to delete student");
+      messageApi?.error("Failed to delete student!")
     }
   };
 
@@ -117,9 +121,11 @@ export default function StudentList() {
       form.resetFields();
       setIsAddStudentModalOpen(false);
       await loadStudents();
+      messageApi?.success("Student Added Successfully!")
     } catch (err) {
       console.error("Failed to add student:", err);
       setError("Failed to add student");
+      messageApi?.error("Failed to add student!")
     }
   };
 
@@ -142,6 +148,7 @@ export default function StudentList() {
 
   return (
     <>
+      {contextHolder}
       <Breadcrumb
         items={[
           {

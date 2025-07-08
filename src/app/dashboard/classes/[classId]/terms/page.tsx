@@ -2,15 +2,19 @@
 import React, { useState, useEffect } from "react";
 import TermsList from "@/components/dashboard/TermsList";
 import { useParams } from "next/navigation";
-import { Modal, Spin, Form, Input, Button } from "antd";
-import { addTerm, deleteTerm, fetchTerm, updateTerm } from "@/services/termsApi";
+import { Modal, Spin, Form, Input, Button, Breadcrumb, message } from "antd";
+import {
+  addTerm,
+  deleteTerm,
+  fetchTerm,
+  updateTerm,
+} from "@/services/termsApi";
+import Link from "next/link";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export default function TermsPage() {
   const { classId } = useParams();
   const [open, setOpen] = useState(false);
-  const [terms, setTerms] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [editingTerm, setEditingTerm] = useState<{
     id: number | null;
     name: string;
@@ -18,46 +22,80 @@ export default function TermsPage() {
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [termToDelete, setTermToDelete] = useState<number | null>(null);
   const [form] = Form.useForm();
+  const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
+  const [messageApi, contextHolder] = message.useMessage();
+  const queryClient = useQueryClient();
 
-  const loadTerms = async () => {
-    try {
-      setLoading(true);
-      const response = await fetchTerm(Number(classId));
-      setTerms(response);
-      setError(null);
-    } catch (err) {
-      setError("Failed to load terms");
-      console.error("Error loading terms:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Fetch terms with React Query
+  const {
+    data: terms = [],
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["terms", classId],
+    queryFn: () => fetchTerm(Number(classId)),
+    enabled: !!classId,
+  });
 
   useEffect(() => {
-    loadTerms();
+    const savedYearId = localStorage.getItem("selectedYearId");
+    if (savedYearId) {
+      setSelectedYearId(Number(savedYearId));
+    }
   }, [classId]);
 
-  const handleAddTerm = async (termData: { name: string }) => {
-    try {
-      await addTerm(Number(classId), termData);
-      await loadTerms();
+  const addMutation = useMutation({
+    mutationFn: (termData: { name: string }) =>
+      addTerm(Number(classId), termData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["terms", classId] });
+      messageApi.success("Term added successfully");
       setOpen(false);
       form.resetFields();
-    } catch (err) {
-      console.error("Error adding term:", err);
-    }
+    },
+    onError: () => {
+      messageApi.error("Failed to add term");
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({
+      id,
+      termData,
+    }: {
+      id: number;
+      termData: { name: string };
+    }) => updateTerm(id, Number(classId), termData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["terms", classId] });
+      messageApi.success("Term updated successfully");
+      setEditingTerm(null);
+      setOpen(false);
+    },
+    onError: () => {
+      messageApi.error("Failed to update term");
+    },
+  });
+  const deleteMutation = useMutation({
+    mutationFn: deleteTerm,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["terms", classId] });
+      messageApi.success("Term deleted successfully");
+      setDeleteConfirmVisible(false);
+      setTermToDelete(null);
+    },
+    onError: () => {
+      messageApi.error("Failed to delete term");
+    },
+  });
+
+  const handleAddTerm = async (termData: { name: string }) => {
+    addMutation.mutate(termData);
   };
 
   const handleUpdateTerm = async (termData: { name: string }) => {
     if (!editingTerm?.id) return;
-    try {
-      await updateTerm(editingTerm.id, Number(classId), termData);
-      await loadTerms();
-      setEditingTerm(null);
-      setOpen(false);
-    } catch (err) {
-      console.error("Error updating term:", err);
-    }
+    updateMutation.mutate({ id: editingTerm.id, termData });
   };
 
   const handleEditClick = (term: { id: number; name: string }) => {
@@ -73,15 +111,7 @@ export default function TermsPage() {
 
   const handleDeleteTerm = async () => {
     if (!termToDelete) return;
-    try {
-      await deleteTerm(termToDelete);
-      await loadTerms();
-    } catch (err) {
-      console.error("Error deleting term:", err);
-    } finally {
-      setDeleteConfirmVisible(false);
-      setTermToDelete(null);
-    }
+    deleteMutation.mutate(termToDelete);
   };
 
   const handleModalCancel = () => {
@@ -94,7 +124,7 @@ export default function TermsPage() {
     form.submit();
   };
 
-  if (loading)
+  if (isLoading)
     return (
       <div className="p-3 md:p-6 flex justify-center items-center h-64">
         <Spin size="large" />
@@ -103,6 +133,30 @@ export default function TermsPage() {
 
   return (
     <div className="p-3 md:p-6">
+      {contextHolder}
+      <Breadcrumb
+        items={[
+          {
+            title: <Link href="/dashboard">Dashboard</Link>,
+          },
+          {
+            title: <Link href="/dashboard/years">Academic Years</Link>,
+          },
+          {
+            title: selectedYearId ? (
+              <Link href={`/dashboard/classes?year=${selectedYearId}`}>
+                Classes (Year {selectedYearId})
+              </Link>
+            ) : (
+              <Link href="/dashboard/classes">Classes</Link>
+            ),
+          },
+          {
+            title: <span>Terms</span>,
+          },
+        ]}
+        className="!mb-2"
+      />
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Terms</h1>
         <Button
@@ -126,7 +180,7 @@ export default function TermsPage() {
         onOk={handleModalOk}
         onCancel={handleModalCancel}
         okText={editingTerm ? "Update" : "Create"}
-        confirmLoading={loading}
+        confirmLoading={addMutation.isPending || updateMutation.isPending}
         centered
         okButtonProps={{
           className: "!bg-primary hover:bg-primary-hover text-white",
@@ -156,6 +210,8 @@ export default function TermsPage() {
         okText="Delete"
         cancelText="Cancel"
         okButtonProps={{ danger: true }}
+        confirmLoading={deleteMutation.isPending}
+        centered
       >
         <p>Are you sure you want to delete this term?</p>
       </Modal>

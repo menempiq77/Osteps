@@ -80,19 +80,18 @@ export default function QuranQuizPage() {
   const canUpload =
     currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "TEACHER";
 
+  const loadQuizQuestions = async () => {
+    try {
+      setLoading(true);
+      const response = await fetchQuizQuestions(Number(quizId));
+      setQuizData(response);
+    } catch (error) {
+      messageApi.error("Failed to load quiz questions");
+    } finally {
+      setLoading(false);
+    }
+  };
   useEffect(() => {
-    const loadQuizQuestions = async () => {
-      try {
-        setLoading(true);
-        const response = await fetchQuizQuestions(Number(quizId));
-        setQuizData(response);
-      } catch (error) {
-        messageApi.error("Failed to load quiz questions");
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadQuizQuestions();
   }, [quizId]);
 
@@ -171,7 +170,6 @@ export default function QuranQuizPage() {
       if (
         ["multiple_choice", "check_boxes", "drop_down"].includes(values.type)
       ) {
-        // Collect all options that have values
         for (let i = 1; i <= optionCount; i++) {
           if (values[`option${i}`]) {
             options.push(values[`option${i}`]);
@@ -196,26 +194,11 @@ export default function QuranQuizPage() {
 
       const response = await addQuizQuestion(Number(quizId), questionData);
 
-      // Update local state with the new question
       setQuizData((prev) => {
         if (!prev) return null;
-
-        const newQuestion: QuizQuestion = {
-          id: response.id,
-          quiz_id: Number(quizId),
-          question_text: values.question_text,
-          type: values.type,
-          correct_answer: correctAnswer,
-          marks: values.marks,
-          options: options.map((opt, index) => ({
-            id: index + 1, // Temporary ID until we get real IDs from backend
-            option_text: opt,
-            is_correct: index === correctAnswer ? 1 : 0,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })),
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+        const newQuestion = {
+          ...response,
+          options: response.options || [],
         };
 
         return {
@@ -227,6 +210,7 @@ export default function QuranQuizPage() {
       setShowAddQuestion(false);
       quizForm.resetFields();
       setOptionCount(3);
+      await loadQuizQuestions();
       messageApi.success("Question added successfully");
     } catch (error) {
       messageApi.error("Failed to add question");
@@ -510,9 +494,9 @@ export default function QuranQuizPage() {
                 No questions available.
               </div>
             ) : (
-              quizData.quiz_queston.map((question) => (
+              quizData?.quiz_queston?.map((question) => (
                 <div
-                  key={question.id}
+                  key={question?.id}
                   className="bg-white p-4 rounded-lg shadow-sm border border-gray-200"
                 >
                   <div className="flex justify-between items-start mb-2">

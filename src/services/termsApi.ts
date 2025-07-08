@@ -1,39 +1,52 @@
 // src/services/termsApi.ts
-import axios from 'axios';
-import { store } from '@/store/store';
 import { API_BASE_URL } from '@/lib/config';
+import { store } from '@/store/store';
 
-const api = axios.create({
-  baseURL: API_BASE_URL,
-});
-
-// Request interceptor to add auth token
-api.interceptors.request.use((config) => {
+const getAuthHeader = (): Record<string, string> => {
   const token = store.getState().auth.token;
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
 
-// fetch Terms
 export const fetchTerm = async (classId: number) => {
-  const response = await api.get(`/get-term/${classId}`);
-  return response.data.data;
+  const response = await fetch(`${API_BASE_URL}/get-term/${classId}`, {
+    headers: getAuthHeader(),
+  });
+  if (!response.ok) throw new Error('Failed to fetch terms');
+  const data = await response.json();
+  return data.data;
 };
-// add Term
+
 export const addTerm = async (classId: number, termData: { name: string }) => {
-  const response = await api.post('/add-term', { ...termData, class_id: classId });
-  return response.data;
+  const response = await fetch(`${API_BASE_URL}/add-term`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify({ ...termData, class_id: classId }),
+  });
+  if (!response.ok) throw new Error('Failed to add term');
+  return response.json();
 };
-// edit Term
+
 export const updateTerm = async (id: number, classId: number, termData: { name: string }) => {
-  const response = await api.post(`/update-term/${id}`, { ...termData, class_id: classId });
-  return response.data;
+  const response = await fetch(`${API_BASE_URL}/update-term/${id}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify({ ...termData, class_id: classId }),
+  });
+  if (!response.ok) throw new Error('Failed to update term');
+  return response.json();
 };
-// delete Term
+
 export const deleteTerm = async (id: number) => {
-  const response = await api.post(`/delete-term/${id}`);
-  return response.data;
+  const response = await fetch(`${API_BASE_URL}/delete-term/${id}`, {
+    method: 'POST',
+    headers: getAuthHeader(),
+  });
+  if (!response.ok) throw new Error('Failed to delete term');
+  return response.json();
 };
-export default api;
