@@ -1,20 +1,21 @@
 "use client";
 import { useState } from "react";
-import { Button, Card, Drawer, Select, message } from "antd";
-import { useForm } from "react-hook-form";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { TextArea } from "./textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
-  addTask,
-  updateTask,
-  deleteTask
-} from "@/services/api";
+  Button,
+  Card,
+  Drawer,
+  Select,
+  message,
+  Input as AntdInput,
+  Checkbox,
+} from "antd";
+import { Controller, useForm } from "react-hook-form";
+import { addTask, updateTask, deleteTask } from "@/services/api";
 import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { assignTaskQuiz } from "@/services/quizApi";
 
 const { Option } = Select;
+const { TextArea: AntdTextArea } = AntdInput;
 
 type TaskFormData = {
   name: string;
@@ -32,6 +33,7 @@ type TaskFormData = {
 type Task = {
   id: number;
   task_name: string;
+  description: string;
   task_type: string;
   due_date: string;
   allocated_marks: number;
@@ -44,6 +46,8 @@ type Task = {
   isVideo?: boolean;
   isPdf?: boolean;
   isUrl?: boolean;
+  file_path?: string;
+  type?: string;
 };
 
 type AssessmentTasksDrawerProps = {
@@ -84,6 +88,7 @@ export function AssessmentTasksDrawer({
     formState: { errors },
     watch,
     setValue,
+    control,
   } = useForm<TaskFormData>({
     defaultValues: {
       name: "",
@@ -324,12 +329,20 @@ export function AssessmentTasksDrawer({
 
               {/* Task Name */}
               <div>
-                <Label htmlFor="name">Task Name</Label>
-                <Input
-                  id="name"
-                  {...register("name", { required: "Task name is required" })}
-                  className="mt-1"
-                  disabled={loading}
+                <p className="font-medium">Task Name</p>
+                <Controller
+                  name="name"
+                  control={control}
+                  rules={{ required: "Task name is required" }}
+                  render={({ field }) => (
+                    <AntdInput
+                      {...field}
+                      id="name"
+                      className="!mt-1"
+                      disabled={loading}
+                      status={errors.name ? "error" : ""}
+                    />
+                  )}
                 />
                 {errors.name && (
                   <p className="text-red-500 text-sm mt-1">
@@ -340,16 +353,22 @@ export function AssessmentTasksDrawer({
 
               {/* Description */}
               <div>
-                <Label htmlFor="description">Description</Label>
-                <TextArea
-                  id="description"
-                  {...register("description", {
-                    required: "Description is required",
-                  })}
-                  className="!mt-1"
-                  disabled={loading}
-                  rows={3}
-                  placeholder="Enter task description..."
+                <p className="font-medium">Description</p>
+                <Controller
+                  name="description"
+                  control={control}
+                  rules={{ required: "Description is required" }}
+                  render={({ field }) => (
+                    <AntdTextArea
+                      {...field}
+                      id="description"
+                      className="!mt-1"
+                      disabled={loading}
+                      rows={3}
+                      placeholder="Enter task description..."
+                      status={errors.description ? "error" : ""}
+                    />
+                  )}
                 />
                 {errors.description && (
                   <p className="text-red-500 text-sm mt-1">
@@ -359,25 +378,39 @@ export function AssessmentTasksDrawer({
               </div>
 
               <div>
-                <Label htmlFor="file">Upload File (Optional)</Label>
-                <Input
-                  id="file"
-                  type="file"
-                  {...register("file")}
-                  className="mt-1 cursor-pointer"
-                  disabled={loading}
+                <p className="font-medium">Upload File (Optional)</p>
+                <Controller
+                  name="file"
+                  control={control}
+                  render={({ field }) => (
+                    <AntdInput
+                      type="file"
+                      id="file"
+                      className="!mt-1"
+                      disabled={loading}
+                      onChange={(e) => field.onChange(e.target.files)}
+                    />
+                  )}
                 />
               </div>
 
               {/* Due Date */}
               <div>
-                <Label htmlFor="dueDate">Due Date</Label>
-                <Input
-                  id="dueDate"
-                  type="date"
-                  {...register("dueDate", { required: "Due date is required" })}
-                  className="mt-1"
-                  disabled={loading}
+                <p className="font-medium">Due Date</p>
+                <Controller
+                  name="dueDate"
+                  control={control}
+                  rules={{ required: "Due date is required" }}
+                  render={({ field }) => (
+                    <AntdInput
+                      {...field}
+                      id="dueDate"
+                      type="date"
+                      className="!mt-1"
+                      disabled={loading}
+                      status={errors.dueDate ? "error" : ""}
+                    />
+                  )}
                 />
                 {errors.dueDate && (
                   <p className="text-red-500 text-sm mt-1">
@@ -388,17 +421,25 @@ export function AssessmentTasksDrawer({
 
               {/* Allocated Marks */}
               <div>
-                <Label htmlFor="allocatedMarks">Allocated Marks</Label>
-                <Input
-                  id="allocatedMarks"
-                  type="number"
-                  min={0}
-                  {...register("allocatedMarks", {
+                <p className="font-medium">Allocated Marks</p>
+                <Controller
+                  name="allocatedMarks"
+                  control={control}
+                  rules={{
                     required: "Allocated marks are required",
-                    valueAsNumber: true,
-                  })}
-                  className="mt-1"
-                  disabled={loading}
+                  }}
+                  render={({ field }) => (
+                    <AntdInput
+                      {...field}
+                      id="allocatedMarks"
+                      type="number"
+                      min={0}
+                      className="!mt-1"
+                      disabled={loading}
+                      status={errors.allocatedMarks ? "error" : ""}
+                      onChange={(e) => field.onChange(Number(e.target.value))}
+                    />
+                  )}
                 />
                 {errors.allocatedMarks && (
                   <p className="text-red-500 text-sm mt-1">
@@ -409,72 +450,100 @@ export function AssessmentTasksDrawer({
 
               {/* Task Type Checkboxes */}
               <div>
-                <Label>Task Type</Label>
+                <p className="font-medium">Task Type</p>
                 <div className="flex items-center space-x-4 mt-1">
                   {/* Audio */}
                   <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="audio"
-                      checked={Boolean(watch("isAudio"))}
-                      onCheckedChange={(checked) => {
-                        setValue("isAudio", Boolean(checked));
-                        if (checked) {
-                          setValue("isUrl", false);
-                        }
-                      }}
-                      disabled={loading}
+                    <Controller
+                      name="isAudio"
+                      control={control}
+                      render={({ field }) => (
+                        <Checkbox
+                          id="audio"
+                          checked={field.value}
+                          onChange={(e) => {
+                            field.onChange(e.target.checked);
+                            if (e.target.checked) {
+                              setValue("isUrl", false);
+                            }
+                          }}
+                          disabled={loading}
+                        >
+                          Audio
+                        </Checkbox>
+                      )}
                     />
-                    <Label htmlFor="audio">Audio</Label>
                   </div>
 
                   {/* Video */}
                   <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="video"
-                      checked={Boolean(watch("isVideo"))}
-                      onCheckedChange={(checked) => {
-                        setValue("isVideo", Boolean(checked));
-                        if (checked) {
-                          setValue("isUrl", false);
-                        }
-                      }}
-                      disabled={loading}
+                    <Controller
+                      name="isVideo"
+                      control={control}
+                      render={({ field }) => (
+                        <Checkbox
+                          id="video"
+                          checked={field.value}
+                          onChange={(e) => {
+                            field.onChange(e.target.checked);
+                            if (e.target.checked) {
+                              setValue("isUrl", false);
+                            }
+                          }}
+                          disabled={loading}
+                        >
+                          Video
+                        </Checkbox>
+                      )}
                     />
-                    <Label htmlFor="video">Video</Label>
                   </div>
 
                   {/* PDF */}
                   <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="pdf"
-                      checked={Boolean(watch("isPdf"))}
-                      onCheckedChange={(checked) => {
-                        setValue("isPdf", Boolean(checked));
-                        if (checked) {
-                          setValue("isUrl", false);
-                        }
-                      }}
-                      disabled={loading}
+                    <Controller
+                      name="isPdf"
+                      control={control}
+                      render={({ field }) => (
+                        <Checkbox
+                          id="pdf"
+                          checked={field.value}
+                          onChange={(e) => {
+                            field.onChange(e.target.checked);
+                            if (e.target.checked) {
+                              setValue("isUrl", false);
+                            }
+                          }}
+                          disabled={loading}
+                        >
+                          PDF
+                        </Checkbox>
+                      )}
                     />
-                    <Label htmlFor="pdf">PDF</Label>
                   </div>
 
                   {/* URL */}
                   <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="url"
-                      checked={Boolean(watch("isUrl"))}
-                      onCheckedChange={(checked) => {
-                        setValue("isUrl", Boolean(checked));
-                        if (checked) {
-                          setValue("isAudio", false);
-                          setValue("isVideo", false);
-                          setValue("isPdf", false);
-                        }
-                      }}
-                      disabled={loading}
+                    <Controller
+                      name="isUrl"
+                      control={control}
+                      render={({ field }) => (
+                        <Checkbox
+                          id="url"
+                          checked={field.value}
+                          onChange={(e) => {
+                            field.onChange(e.target.checked);
+                            if (e.target.checked) {
+                              setValue("isAudio", false);
+                              setValue("isVideo", false);
+                              setValue("isPdf", false);
+                            }
+                          }}
+                          disabled={loading}
+                        >
+                          URL
+                        </Checkbox>
+                      )}
                     />
-                    <Label htmlFor="url">URL</Label>
                   </div>
                 </div>
 
@@ -491,16 +560,29 @@ export function AssessmentTasksDrawer({
               {/* URL Input (shown only when isUrl is checked) */}
               {watch("isUrl") && (
                 <div>
-                  <Label htmlFor="url">URL</Label>
-                  <Input
-                    id="url"
-                    type="url"
-                    {...register("url", {
+                  <p>URL</p>
+                  <Controller
+                    name="url"
+                    control={control}
+                    rules={{
                       required: "URL is required for URL tasks",
-                    })}
-                    className="mt-1"
-                    placeholder="https://example.com"
-                    disabled={loading}
+                      pattern: {
+                        value: /^https?:\/\/.+/,
+                        message:
+                          "Please enter a valid URL starting with http:// or https://",
+                      },
+                    }}
+                    render={({ field }) => (
+                      <AntdInput
+                        {...field}
+                        id="url"
+                        type="url"
+                        className="!mt-1"
+                        placeholder="https://example.com"
+                        disabled={loading}
+                        status={errors.url ? "error" : ""}
+                      />
+                    )}
                   />
                   {errors.url && (
                     <p className="text-red-500 text-sm mt-1">

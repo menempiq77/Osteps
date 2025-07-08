@@ -229,7 +229,7 @@ const Sidebar = () => {
                   className="absolute inset-y-0 left-0 w-1 bg-green-500 transition-all duration-300 
                        transform -translate-x-full group-hover:translate-x-0"
                 />
-
+ 
                 {/* Icon with subtle animation */}
                 <item.icon
                   className={`h-5 w-5 flex-shrink-0 transition-transform duration-200 ${
