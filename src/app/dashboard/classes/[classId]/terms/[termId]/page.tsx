@@ -8,10 +8,11 @@ import {
   fetchAssessment,
   updateAssessment,
 } from "@/services/api";
-import { Button, Modal, Spin } from "antd";
+import { Breadcrumb, Button, Modal, Spin } from "antd";
 import { useParams } from "next/navigation";
 import EditAssessmentForm from "@/components/dashboard/EditAssessmentForm";
 import { assignAssesmentQuiz, fetchQuizes } from "@/services/quizApi";
+import Link from "next/link";
 
 interface Assessment {
   id: string;
@@ -23,7 +24,6 @@ interface Assessment {
 export default function Page() {
   const { termId, classId } = useParams();
   const [currentTermId, setCurrentTermId] = useState(termId);
-
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,10 +37,18 @@ export default function Page() {
   const [editingAssessment, setEditingAssessment] = useState<Assessment | null>(
     null
   );
+  const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
 
-    useEffect(() => {
+  useEffect(() => {
     setCurrentTermId(termId);
   }, [termId]);
+
+  useEffect(() => {
+    const savedYearId = localStorage.getItem("selectedYearId");
+    if (savedYearId) {
+      setSelectedYearId(Number(savedYearId));
+    }
+  }, [classId]);
 
   const loadAssessment = async () => {
     try {
@@ -59,7 +67,7 @@ export default function Page() {
       loadAssessment();
       loadQuizzes();
     }
-  }, [currentTermId]); 
+  }, [currentTermId]);
 
   const loadQuizzes = async () => {
     try {
@@ -73,38 +81,38 @@ export default function Page() {
     }
   };
 
- const handleAddAssessment = async (assessmentData: {
-  name: string;
-  type: "assessment" | "quiz";
-  term_id: string;
-  class_id: string;
-}) => {
-  try {
-    let newAssessment;
-    
-    if (assessmentData.type === "quiz") {
-      newAssessment = await assignAssesmentQuiz(
-        parseInt(termId as string),
-        parseInt(assessmentData.name)
-      );
-    } else {
-      newAssessment = await addAssessment({
-        name: assessmentData.name,
-        class_id: classId,
-        term_id: termId,
-        type: assessmentData.type,
-      });
+  const handleAddAssessment = async (assessmentData: {
+    name: string;
+    type: "assessment" | "quiz";
+    term_id: string;
+    class_id: string;
+  }) => {
+    try {
+      let newAssessment;
+
+      if (assessmentData.type === "quiz") {
+        newAssessment = await assignAssesmentQuiz(
+          parseInt(termId as string),
+          parseInt(assessmentData.name)
+        );
+      } else {
+        newAssessment = await addAssessment({
+          name: assessmentData.name,
+          class_id: classId,
+          term_id: termId,
+          type: assessmentData.type,
+        });
+      }
+
+      setAssessments([...assessments, newAssessment]);
+      await loadAssessment();
+      setOpen(false);
+      setIsAddingQuiz(false);
+    } catch (err) {
+      setError("Failed to add assessment");
+      console.error(err);
     }
-    
-    setAssessments([...assessments, newAssessment]);
-    await loadAssessment();
-    setOpen(false);
-    setIsAddingQuiz(false);
-  } catch (err) {
-    setError("Failed to add assessment");
-    console.error(err);
-  }
-};
+  };
   const handleEditAssessment = async (assessmentData: {
     name: string;
     type: "assessment" | "quiz";
@@ -173,6 +181,34 @@ export default function Page() {
 
   return (
     <div className="p-3 md:p-6">
+      <Breadcrumb
+        items={[
+          {
+            title: <Link href="/dashboard">Dashboard</Link>,
+          },
+          {
+            title: <Link href="/dashboard/years">Academic Years</Link>,
+          },
+          {
+            title: selectedYearId ? (
+              <Link href={`/dashboard/classes?year=${selectedYearId}`}>
+                Classes (Year {selectedYearId})
+              </Link>
+            ) : (
+              <Link href="/dashboard/classes">Classes</Link>
+            ),
+          },
+          {
+            title: (
+              <Link href={`/dashboard/classes/${classId}/terms`}>Terms</Link>
+            ),
+          },
+          {
+            title: <span>Assesments</span>,
+          },
+        ]}
+        className="!mb-2"
+      />
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Assessment</h1>
         <div className="flex gap-2">

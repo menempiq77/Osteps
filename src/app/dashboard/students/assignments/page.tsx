@@ -1,14 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { Button, Card, Spin } from "antd";
+import { Button, Card, Select, Spin } from "antd";
 import { ChevronLeft, Calendar } from "lucide-react";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
 import { useRouter } from "next/navigation";
 import { fetchAssessmentByStudent } from "@/services/api";
 import { useSelector } from "react-redux";
@@ -156,34 +149,32 @@ export default function AssignmentsPage() {
         >
           Back to Dashboard
         </Button>
-        {terms.length > 0 && (
-          <Select value={selectedTerm} onValueChange={handleTermChange}>
-            <SelectTrigger className="w-[150px] bg-white">
-              <SelectValue placeholder="Select Term" />
-            </SelectTrigger>
-            <SelectContent>
-              {terms.map((term) => (
-                <SelectItem key={term.id} value={term.name}>
-                  {term.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
+        {terms?.length > 0 && (
+          <Select
+            value={selectedTerm}
+            onChange={handleTermChange}
+            style={{ width: 200 }}
+            className="bg-white"
+          >
+            {terms?.map((term) => (
+              <Select.Option key={term.id} value={term.name}>
+                {term.name}
+              </Select.Option>
+            ))}
           </Select>
         )}
       </div>
 
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Assessments</h1>
 
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          {error}
-        </div>
-      )}
-
       {loading ? (
         <div className="flex justify-center items-center h-64">
           <Spin size="large" />
         </div>
+      ) : assessments?.length <= 0 ? (
+        <Card className="text-center py-10">
+          <p>No assessments found for this term</p>
+        </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {assessments?.map((assignment) => {

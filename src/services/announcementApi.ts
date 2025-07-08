@@ -2,7 +2,7 @@
 import { API_BASE_URL } from '@/lib/config';
 import { store } from '@/store/store';
 
-const getAuthHeader = () => {
+const getAuthHeader = (): Record<string, string> => {
   const token = store.getState().auth.token;
   return token ? { Authorization: `Bearer ${token}` } : {};
 };

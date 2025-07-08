@@ -8,6 +8,7 @@ import { RootState } from "@/store/store";
 import { fetchTasks } from "@/services/api";
 import { Select } from "antd";
 import { fetchTerm } from "@/services/termsApi";
+import { useQuery } from "@tanstack/react-query";
 
 interface Task {
   id: number;
@@ -25,7 +26,7 @@ interface Assessment {
   id: string;
   name: string;
   type: "assessment" | "quiz";
-  quiz_id?: string; 
+  quiz_id?: string;
 }
 
 interface AssessmentListProps {
@@ -33,7 +34,7 @@ interface AssessmentListProps {
   onDeleteAssessment: (id: string) => void;
   onEditAssessment?: (id: string, newName: string) => void;
   quizzes: any[];
-  termId: number
+  termId: number;
 }
 
 export default function AssessmentList({
@@ -41,7 +42,7 @@ export default function AssessmentList({
   onDeleteAssessment,
   onEditAssessment,
   quizzes,
-  termId
+  termId,
 }: AssessmentListProps) {
   const router = useRouter();
   const { classId } = useParams();
@@ -53,10 +54,24 @@ export default function AssessmentList({
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedTermId, setSelectedTermId] = useState<string | null>(null);
-
-  const [terms, setTerms] = useState<any[]>([]);
-
+  const [selectedTermId, setSelectedTermId] = useState<string | null>(
+    termId ? termId.toString() : null
+  );
+  const {
+    data: terms = [],
+    isLoading: isTermsLoading,
+    error: termsError,
+  } = useQuery({
+    queryKey: ["terms", classId],
+    queryFn: () => fetchTerm(Number(classId)),
+    enabled: !!classId,
+    select: (data) => data || [],
+    onSuccess: (data) => {
+      if (data.length > 0 && !selectedTermId) {
+        setSelectedTermId(data[0].id.toString());
+      }
+    },
+  });
   useEffect(() => {
     if (drawerVisible && selectedAssessment) {
       loadTasks();
@@ -119,14 +134,10 @@ export default function AssessmentList({
     setSelectedAssessment(null);
     setTasks([]);
   };
-const handleTermChange = async (termId: string) => {
-  setSelectedTermId(termId);
-  const selectedTermObj = terms.find((term) => term.id === termId);
-  if (selectedTermObj) {
-    router.push(`/dashboard/classes/${classId}/terms/${selectedTermObj.id}`);
-  }
-};
-
+  const handleTermChange = (termId: string) => {
+    setSelectedTermId(termId);
+    router.push(`/dashboard/classes/${classId}/terms/${termId}`);
+  };
 
   const handleTasksChange = (updatedTasks: Task[]) => {
     setTasks(updatedTasks);
@@ -134,15 +145,15 @@ const handleTermChange = async (termId: string) => {
   return (
     <div className="mt-8 overflow-hidden">
       <div className="flex items-center justify-between mb-4">
-        {/* <h3 className="text-lg font-semibold">Registered Assessment</h3> */}
         <Select
           value={selectedTermId}
           onChange={handleTermChange}
           style={{ width: 150 }}
           className="bg-white"
+          loading={isTermsLoading}
         >
           {terms.map((term) => (
-                <Select.Option key={term.id} value={term.id}>
+            <Select.Option key={term.id} value={term.id.toString()}>
               {term.name}
             </Select.Option>
           ))}
@@ -177,7 +188,11 @@ const handleTermChange = async (termId: string) => {
                     <button
                       type="button"
                       onClick={() =>
-                        handleAssignmentClick(assignment.id, assignment.type, assignment.quiz_id)
+                        handleAssignmentClick(
+                          assignment.id,
+                          assignment.type,
+                          assignment.quiz_id
+                        )
                       }
                       className={`text-green-600 hover:text-green-800 hover:underline cursor-pointer ${
                         assignment.type === "quiz" ? "font-medium" : ""
@@ -243,7 +258,7 @@ const handleTermChange = async (termId: string) => {
         quizzes={quizzes}
         loading={loading}
         setLoading={setLoading}
-         selectedTermId={selectedTermId}
+        selectedTermId={selectedTermId}
       />
     </div>
   );
