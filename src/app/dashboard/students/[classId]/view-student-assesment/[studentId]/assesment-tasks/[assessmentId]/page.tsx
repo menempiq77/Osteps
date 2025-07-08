@@ -14,6 +14,7 @@ import {
   addStudentTaskMarks,
   fetchStudentTasks,
 } from "@/services/api";
+import { fetchStudents } from "@/services/studentsApi";
 
 interface Task {
   id: number;
@@ -87,7 +88,7 @@ export default function AssessmentDrawer() {
   const loadStudents = async () => {
     try {
       setLoading(true);
-      const studentsData = await fetchStudents](classId);
+      const studentsData = await fetchStudents(classId);
       setStudents(studentsData);
       if (studentsData.length > 0) {
         setSelectedStudentId(studentsData[0].id);
