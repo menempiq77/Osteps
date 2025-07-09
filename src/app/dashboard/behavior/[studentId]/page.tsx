@@ -10,7 +10,6 @@ import { fetchBehaviour, fetchBehaviourType } from "@/services/behaviorApi";
 const { Option } = Select;
 
 const StudentBehaviorPage = () => {
-  const { studentId } = useParams();
   const [filter, setFilter] = useState("all");
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [behaviorTypes, setBehaviorTypes] = useState<BehaviorType[]>([]);
@@ -50,7 +49,7 @@ const StudentBehaviorPage = () => {
   const loadBehavior = async () => {
     try {
       setIsLoading(true);
-      const behaviourData = await fetchBehaviour(studentId);
+      const behaviourData = await fetchBehaviour(currentUser?.student);
       setBehaviors(behaviourData);
     } catch (err) {
       setError("Failed to load behaviour");
@@ -63,7 +62,7 @@ const StudentBehaviorPage = () => {
   useEffect(() => {
     loadBehavior();
     loadBehaviorTypes();
-  }, [studentId]);
+  }, [currentUser?.student]);
 
   const filteredBehaviors = behaviors?.filter((behavior) => {
     if (filter === "positive") return behavior.points > 0;

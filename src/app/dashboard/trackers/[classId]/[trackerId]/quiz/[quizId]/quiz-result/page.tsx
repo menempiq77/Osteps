@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, XCircle, Trophy } from "lucide-react";
 import { Button, Progress, message } from "antd";
-import { fetchQuizQuestions } from "@/services/api";
+import { fetchQuizQuestions } from "@/services/quizApi";
 
 interface QuizResult {
   totalQuestions: number;
