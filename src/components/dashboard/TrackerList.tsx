@@ -71,8 +71,8 @@ export default function TrackerList() {
     try {
       await updateTrackerAPI(tracker.id, {
         name: tracker.name,
-        type: tracker.type,
-        status: tracker.status,
+        type: "topic",
+        status: "Active",
         progress: tracker.progress,
       });
 
@@ -112,8 +112,8 @@ export default function TrackerList() {
       await addTrackerAPI({
         class_id: Number(classId),
         name: tracker.name,
-        type: tracker.type,
-        status: tracker.status,
+        type: "topic",
+        status: "Active",
         progress: tracker.progress,
       });
 
@@ -243,22 +243,23 @@ export default function TrackerList() {
                     {currentUser?.role !== "STUDENT" && (
                       <td className="relative p-2 md:p-4 flex justify-center space-x-3">
                         <>
-                          <Button
-                            type="text"
-                            icon={<EditOutlined />}
+                          <button
                             onClick={() => setEditTracker(tracker)}
-                            className="!text-green-500 hover:text-green-700"
-                          />
-                          <Button
-                            type="text"
-                            icon={<DeleteOutlined />}
+                            className="text-green-500 hover:text-green-700 cursor-pointer"
+                            title="Edit"
+                          >
+                            <EditOutlined />
+                          </button>
+                          <button
                             onClick={() => {
                               setDeleteTracker(tracker);
                               setIsDeleteModalOpen(true);
                             }}
-                            className="!text-red-500 hover:text-red-700"
-                          />
-
+                            className="text-red-500 hover:text-red-700 cursor-pointer"
+                            title="Delete"
+                          >
+                            <DeleteOutlined />
+                          </button>
                           {editTracker?.id === tracker.id && (
                             <EditTrackerModal
                               tracker={editTracker}

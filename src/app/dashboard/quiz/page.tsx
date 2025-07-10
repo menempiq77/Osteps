@@ -1,14 +1,15 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { Modal, Form, Input, message, Spin, Button, Breadcrumb } from "antd";
-import {
-  EditOutlined,
-  DeleteOutlined,
-  PlusOutlined,
-} from "@ant-design/icons";
+import { EditOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { addQuize, deleteQuize, fetchQuizes, updateQuize } from "@/services/quizApi";
+import {
+  addQuize,
+  deleteQuize,
+  fetchQuizes,
+  updateQuize,
+} from "@/services/quizApi";
 
 type Quiz = {
   id: string;
@@ -35,6 +36,7 @@ export default function QuizPage() {
   const [quizToDelete, setQuizToDelete] = useState<string | null>(null);
   const router = useRouter();
   const [messageApi, contextHolder] = message.useMessage();
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     loadQuizzes();
@@ -63,7 +65,9 @@ export default function QuizPage() {
   };
 
   const onFinish = async (values: QuizFormValues): Promise<void> => {
+    if (submitting) return;
     try {
+      setSubmitting(true);
       if (editingId) {
         await updateQuize(editingId, values);
         messageApi.success("Quiz updated successfully");
@@ -81,6 +85,8 @@ export default function QuizPage() {
       handleCancel();
     } catch (error: any) {
       messageApi.error(error.response?.data?.message || "Operation failed");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -241,6 +247,8 @@ export default function QuizPage() {
                 type="primary"
                 htmlType="submit"
                 className="!bg-primary !border-primary hover:!bg-primary hover:!border-primary"
+                loading={submitting}
+                disabled={submitting}
               >
                 {editingId ? "Update" : "Submit"}
               </Button>

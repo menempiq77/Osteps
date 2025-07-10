@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Modal,
   Form,
@@ -37,6 +37,31 @@ const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
   resources,
   setFileList,
 }) => {
+    const [selectedResourceType, setSelectedResourceType] = useState<string | null>(null);
+
+  const getAcceptedFileTypes = () => {
+    if (!selectedResourceType) return "";
+    
+    const resource = resources.find(r => r.id === selectedResourceType);
+    if (!resource) return "";
+    
+    const resourceName = resource.name.toLowerCase();
+    
+    switch (resourceName) {
+      case 'video':
+        return '.mp4,.mov,.avi,.mkv,.webm';
+      case 'audio':
+        return '.mp3,.wav,.m4a,.ogg,.aac';
+      case 'pdf':
+        return '.pdf';
+      case 'book':
+      case 'document':
+        return '.pdf,.doc,.docx,.txt,.epub';
+      default:
+        return "";
+    }
+  };
+
   return (
     <Modal
       title={isEditing ? "Edit Resource" : "Upload New Islamic Resource"}
@@ -55,12 +80,17 @@ const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
           <Input placeholder="Enter resource title" />
         </Form.Item>
 
-        <Form.Item
+       <Form.Item
           name="type"
           label="Resource Type"
           rules={[{ required: true, message: "Please select a type!" }]}
         >
-          <Select>
+          <Select 
+            onChange={(value) => {
+              setSelectedResourceType(value);
+              setFileList([]);
+            }}
+          >
             {resources?.map((resource) => (
               <Select.Option key={resource.id} value={resource.id}>
                 {resource.name}
@@ -90,6 +120,7 @@ const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
           />
         </Form.Item>
 
+      
         <Form.Item
           name="file"
           label="File"
@@ -114,13 +145,19 @@ const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
               setFileList([]);
             }}
             maxCount={1}
-            accept=".pdf,.doc,.docx,.mp4,.mov,.avi,.mp3,.wav,.m4a"
+            accept={getAcceptedFileTypes()}
+            disabled={!selectedResourceType}
           >
             <p className="ant-upload-drag-icon">
               <UploadOutlined style={{ fontSize: "32px", color: "#38C16C" }} />
             </p>
             <p className="ant-upload-text">
               Click or drag file to this area to upload
+            </p>
+            <p className="ant-upload-hint">
+              {selectedResourceType 
+                ? `Supported formats: ${getAcceptedFileTypes().replace(/,/g, ', ')}`
+                : "Please select a resource type first"}
             </p>
           </Upload.Dragger>
         </Form.Item>

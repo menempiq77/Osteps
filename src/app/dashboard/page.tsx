@@ -46,18 +46,18 @@ export default function DashboardPage() {
           stats: [
             { title: "Total Schools", value: 15 },
             { title: "Total Admins", value: 32 },
-            { title: "Active Schools", value: 14 },
+            { title: "Total Annoucements", value: 32 },
           ],
           barChartData: [
-            { name: "School A", admins: 3 },
-            { name: "School B", admins: 2 },
-            { name: "School C", admins: 4 },
-            { name: "School D", admins: 1 },
-            { name: "School E", admins: 2 },
+            // { name: "School A", admins: 3 },
+            // { name: "School B", admins: 2 },
+            // { name: "School C", admins: 4 },
+            // { name: "School D", admins: 1 },
+            // { name: "School E", admins: 2 },
           ],
           pieChartData: [
-            { name: "Active Schools", value: 14 },
-            { name: "Inactive Schools", value: 1 },
+            // { name: "Active Schools", value: 14 },
+            // { name: "Inactive Schools", value: 1 },
           ],
           barChartKey: "admins",
           pieChartTitle: "School Status",
@@ -71,15 +71,15 @@ export default function DashboardPage() {
             { title: "Total Students", value: 800 },
           ],
           barChartData: [
-            { name: "Grade 1", students: 120 },
-            { name: "Grade 2", students: 115 },
-            { name: "Grade 3", students: 105 },
-            { name: "Grade 4", students: 95 },
-            { name: "Grade 5", students: 90 },
+            // { name: "Grade 1", students: 120 },
+            // { name: "Grade 2", students: 115 },
+            // { name: "Grade 3", students: 105 },
+            // { name: "Grade 4", students: 95 },
+            // { name: "Grade 5", students: 90 },
           ],
           pieChartData: [
-            { name: "Active Teachers", value: 42 },
-            { name: "Inactive Teachers", value: 3 },
+            // { name: "Active Teachers", value: 42 },
+            // { name: "Inactive Teachers", value: 3 },
           ],
           barChartKey: "students",
           pieChartTitle: "Teacher Status",
@@ -90,17 +90,17 @@ export default function DashboardPage() {
           stats: [
             { title: "My Classes", value: 4 },
             { title: "Total Students", value: 120 },
-            { title: "Pending Assignments", value: 15 },
+            // { title: "Pending Assignments", value: 15 },
           ],
           barChartData: [
-            { name: "Class A", students: 30 },
-            { name: "Class B", students: 28 },
-            { name: "Class C", students: 32 },
-            { name: "Class D", students: 30 },
+            // { name: "Class A", students: 30 },
+            // { name: "Class B", students: 28 },
+            // { name: "Class C", students: 32 },
+            // { name: "Class D", students: 30 },
           ],
           pieChartData: [
-            { name: "Submitted Assignments", value: 85 },
-            { name: "Pending Assignments", value: 15 },
+            // { name: "Submitted Assignments", value: 85 },
+            // { name: "Pending Assignments", value: 15 },
           ],
           barChartKey: "students",
           pieChartTitle: "Assignment Status",
@@ -110,18 +110,18 @@ export default function DashboardPage() {
         return {
           stats: [
             { title: "My Classes", value: 6 },
-            { title: "Active Assignments", value: 3 },
-            { title: "Completed Assignments", value: 24 },
+            // { title: "Active Assignments", value: 3 },
+            // { title: "Completed Assignments", value: 24 },
           ],
           barChartData: [
-            { name: "Math", score: 85 },
-            { name: "Science", score: 78 },
-            { name: "English", score: 92 },
-            { name: "History", score: 88 },
+            // { name: "Math", score: 85 },
+            // { name: "Science", score: 78 },
+            // { name: "English", score: 92 },
+            // { name: "History", score: 88 },
           ],
           pieChartData: [
-            { name: "Completed Assignments", value: 24 },
-            { name: "Pending Assignments", value: 3 },
+            // { name: "Completed Assignments", value: 24 },
+            // { name: "Pending Assignments", value: 3 },
           ],
           barChartKey: "score",
           pieChartTitle: "Assignments Progress",
@@ -215,7 +215,7 @@ export default function DashboardPage() {
           <div className="flex items-start justify-between">
             <div>
               <h1 className="text-2xl font-semibold text-gray-800 mb-1">
-                Welcome, {currentUser?.role.replace("_", " ")}!
+                Welcome, {currentUser?.name.replace("_", " ")}!
               </h1>
               <p className="text-lg text-gray-600 mb-3">
                 We're glad to have you back!
@@ -311,7 +311,7 @@ export default function DashboardPage() {
           </Row>
 
           {/* Progress Chart Section */}
-          <Card className="shadow-sm">
+          {/* <Card className="shadow-sm">
             <h2 className="text-lg font-semibold text-gray-800 mb-4">
               Assessments Progress
             </h2>
@@ -353,7 +353,7 @@ export default function DashboardPage() {
                 </div>
               </div>
             </div>
-          </Card>
+          </Card> */}
         </div>
       ) : (
         <>

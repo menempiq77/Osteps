@@ -11,7 +11,7 @@ export default function SchoolList({
   onDelete: (id: string) => void;
 }) {
   return (
-    <div className="overflow-auto h-screen">
+    <>
       <div className="relative overflow-auto">
         <div className="overflow-x-auto rounded-lg">
           <table className="min-w-full bg-white border border-gray-300 mb-20">
@@ -66,6 +66,6 @@ export default function SchoolList({
           </table>
         </div>
       </div>
-    </div>
+    </>
   );
 }

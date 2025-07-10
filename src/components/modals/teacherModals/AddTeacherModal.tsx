@@ -45,11 +45,14 @@ export const AddTeacherModal = ({
     try {
       setConfirmLoading(true);
       const values = await form.validateFields();
+
+       const subjects = [...(values.subjects || []), "Islamiyat"];
+
       onAddTeacher({
         name: values.name.trim(),
         phone: values.phone?.trim() || "",
         email: values.email.trim(),
-        subjects: values.subjects || [],
+        subjects: subjects,
       });
       handleClose();
       message.success("Teacher added successfully");
@@ -124,9 +127,9 @@ export const AddTeacherModal = ({
           <Input placeholder="Enter email" />
         </Form.Item>
 
-        <Form.Item name="subjects" label="Subjects">
+        {/* <Form.Item name="subjects" label="Subjects">
           <Checkbox.Group options={subjectOptions} />
-        </Form.Item>
+        </Form.Item> */}
       </Form>
     </Modal>
   );

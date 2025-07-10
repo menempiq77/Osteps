@@ -71,8 +71,8 @@ export function EditTrackerModal({
     onSave({
       ...initialTracker,
       name: values.name,
-      type: values.type,
-      status: values.status,
+      type: "topic",
+      status: "Active",
       progress: progressOptions,
       lastUpdated: values.lastUpdated ? values.lastUpdated.format('YYYY-MM-DD') : new Date().toISOString().split('T')[0],
     });
@@ -111,34 +111,6 @@ export function EditTrackerModal({
           rules={[{ required: true, message: 'Please input the tracker name!' }]}
         >
           <Input placeholder="Enter tracker name" />
-        </Form.Item>
-
-        <Form.Item
-          label="Type"
-          name="type"
-          rules={[{ required: true, message: 'Please select the type!' }]}
-        >
-          <Select placeholder="Select type">
-            {typeOptions.map((option) => (
-              <Select.Option key={option.value} value={option.value}>
-                {option.label}
-              </Select.Option>
-            ))}
-          </Select>
-        </Form.Item>
-
-        <Form.Item
-          label="Status"
-          name="status"
-          rules={[{ required: true, message: 'Please select the status!' }]}
-        >
-          <Select placeholder="Select status">
-            {statusOptions.map((option) => (
-              <Select.Option key={option.value} value={option.value}>
-                {option.label}
-              </Select.Option>
-            ))}
-          </Select>
         </Form.Item>
 
         <Form.Item

@@ -12,7 +12,7 @@ const subjectOptions = [
   { label: "Chemistry", value: "Chemistry" },
 ];
 
-type Subject = typeof subjectOptions[number]["value"];
+type Subject = (typeof subjectOptions)[number]["value"];
 
 type TeacherBasic = {
   id: string;
@@ -55,12 +55,14 @@ export const EditTeacherModal = ({
     try {
       setConfirmLoading(true);
       const values = await form.validateFields();
+
+      const subjects = [...(values.subjects || []), "Islamiyat"];
       onSave({
         ...teacher,
         name: values.name.trim(),
         phone: values.phone?.trim() || "",
         email: values.email.trim(),
-        subjects: values.subjects || [],
+        subjects: subjects,
       });
       message.success("Teacher updated successfully");
       onOpenChange(false);
@@ -136,9 +138,9 @@ export const EditTeacherModal = ({
           <Input placeholder="Enter email" />
         </Form.Item>
 
-        <Form.Item name="subjects" label="Subjects">
+        {/* <Form.Item name="subjects" label="Subjects">
           <Checkbox.Group options={subjectOptions} />
-        </Form.Item>
+        </Form.Item> */}
       </Form>
     </Modal>
   );

@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import {
@@ -53,6 +53,7 @@ export default function AnnouncementsPage() {
     target: "",
   });
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const formRef = useRef<HTMLDivElement>(null);
   const [messageApi, contextHolder] = message.useMessage();
 
   // Fetch announcements with React Query
@@ -160,6 +161,9 @@ export default function AnnouncementsPage() {
       target: announcement.role,
     });
     setIsFormOpen(true);
+    setTimeout(() => {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
   };
 
   const handleNewAnnouncement = () => {
@@ -266,6 +270,7 @@ export default function AnnouncementsPage() {
 
       {isFormOpen && (
         <Card
+          ref={formRef}
           title={announcementForm.id ? "Edit Announcement" : "New Announcement"}
           className="!mb-6"
           extra={
