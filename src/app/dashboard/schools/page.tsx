@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import AddSchoolForm from "@/components/dashboard/AddSchoolForm";
 import SchoolList from "@/components/dashboard/SchoolList";
-import { Spin, Modal, Button } from "antd";
+import { Spin, Modal, Button, message } from "antd";
 import { addSchool, deleteSchool, fetchSchools, updateSchool } from "@/services/schoolApi";
 
 export default function SuperAdminDashboard() {
@@ -12,20 +12,20 @@ export default function SuperAdminDashboard() {
   const [open, setOpen] = useState(false);
   const [editingSchool, setEditingSchool] = useState<any | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [messageApi, contextHolder] = message.useMessage();
 
+  const loadSchools = async () => {
+    try {
+      const data = await fetchSchools();
+      setSchools(data);
+    } catch (err) {
+      setError("Failed to fetch schools");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
   useEffect(() => {
-    const loadSchools = async () => {
-      try {
-        const data = await fetchSchools();
-        setSchools(data);
-      } catch (err) {
-        setError("Failed to fetch schools");
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadSchools();
   }, []);
 
@@ -86,7 +86,8 @@ export default function SuperAdminDashboard() {
           },
         ]);
       }
-
+      await loadSchools();
+      messageApi?.success(editingSchool ? "Updated school Successfully!" : "Added school Successfully!")
       setOpen(false);
       setEditingSchool(null);
     } catch (err) {
@@ -94,6 +95,7 @@ export default function SuperAdminDashboard() {
         editingSchool ? "Failed to update school" : "Failed to add school"
       );
       console.error(err);
+      messageApi?.error(editingSchool ? "Failed to update school" : "Failed to add school")
     }
   };
 
@@ -108,8 +110,10 @@ export default function SuperAdminDashboard() {
       await deleteSchool(deletingId);
       setSchools((prev) => prev.filter((school) => school.id !== deletingId));
       setDeletingId(null);
+      messageApi?.success("Deleted school Successfully!")
     } catch (err) {
       setError("Failed to delete school");
+      messageApi?.error("Failed to delete school")
       console.error(err);
       setDeletingId(null);
     }
@@ -122,7 +126,8 @@ export default function SuperAdminDashboard() {
   );
 
   return (
-    <div className="p-6">
+    <div className="p-3 md:p-6">
+      {contextHolder}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Schools</h1>
         <Button

@@ -10,20 +10,6 @@ const trackerOptions = [
   { value: "recall", label: "Recall" },
 ];
 
-const typeOptions = [
-  { value: "topic", label: "Topic" },
-  { value: "chapter", label: "Chapter" },
-  { value: "verse", label: "Verse" },
-  { value: "hadith", label: "Hadith" },
-];
-
-const statusOptions = [
-  { value: "Active", label: "Active" },
-  { value: "Paused", label: "Paused" },
-  { value: "Completed", label: "Completed" },
-  { value: "Pending", label: "Pending" },
-];
-
 export function AddTrackerModal({
   isOpen,
   onOpenChange,
@@ -78,34 +64,6 @@ export function AddTrackerModal({
           rules={[{ required: true, message: 'Please input the tracker name!' }]}
         >
           <Input placeholder="Enter tracker name" />
-        </Form.Item>
-
-        <Form.Item
-          label="Type"
-          name="type"
-          rules={[{ required: true, message: 'Please select the type!' }]}
-        >
-          <Select placeholder="Select type">
-            {typeOptions.map((option) => (
-              <Select.Option key={option.value} value={option.value}>
-                {option.label}
-              </Select.Option>
-            ))}
-          </Select>
-        </Form.Item>
-
-        <Form.Item
-          label="Status"
-          name="status"
-          rules={[{ required: true, message: 'Please select the status!' }]}
-        >
-          <Select placeholder="Select status">
-            {statusOptions.map((option) => (
-              <Select.Option key={option.value} value={option.value}>
-                {option.label}
-              </Select.Option>
-            ))}
-          </Select>
         </Form.Item>
 
         <Form.Item

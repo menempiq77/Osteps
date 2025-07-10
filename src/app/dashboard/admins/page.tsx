@@ -3,8 +3,13 @@ import { useState, useEffect } from "react";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import { AddSuperAdminModal } from "@/components/modals/superAdminModals/AddSuperAdminModal";
 import { EditSuperAdminModal } from "@/components/modals/superAdminModals/EditSuperAdminModal";
-import { Button, Spin, Modal } from "antd";
-import { addAdmin, deleteAdmin, fetchAdmins, updateAdmin } from "@/services/adminsApi";
+import { Button, Spin, Modal, message } from "antd";
+import {
+  addAdmin,
+  deleteAdmin,
+  fetchAdmins,
+  updateAdmin,
+} from "@/services/adminsApi";
 
 // Types
 type SuperAdmin = {
@@ -39,6 +44,7 @@ export default function SuperAdminsList() {
   const [isAddSuperAdminModalOpen, setIsAddSuperAdminModalOpen] =
     useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [messageApi, contextHolder] = message.useMessage();
 
   const loadAdmins = async () => {
     try {
@@ -61,8 +67,10 @@ export default function SuperAdminsList() {
       await updateAdmin(id, adminData);
       setSuperAdmins(superAdmins.map((t) => (t.id === admin.id ? admin : t)));
       setEditSuperAdmin(null);
+      messageApi?.success("Admin Update Successfully!")
     } catch (error) {
       console.error("Failed to update admin:", error);
+      messageApi?.error("Failed to Update Successfully!")
     }
   };
 
@@ -72,8 +80,10 @@ export default function SuperAdminsList() {
       setSuperAdmins(superAdmins.filter((admin) => admin.id !== adminId));
       setDeleteSuperAdmin(null);
       setIsDeleteModalOpen(false);
+      messageApi?.success("Admin Deleted Successfully!")
     } catch (error) {
       console.error("Failed to delete admin:", error);
+      messageApi?.error("Failed to delete Successfully!")
     }
   };
 
@@ -96,8 +106,10 @@ export default function SuperAdminsList() {
       setSuperAdmins([...superAdmins, newAdmin]);
       await loadAdmins();
       setIsAddSuperAdminModalOpen(false);
+      messageApi?.success("Admin Added Successfully!")
     } catch (error) {
       console.error("Failed to add admin:", error);
+      messageApi?.error("Failed to add Successfully!")
     }
   };
 
@@ -109,11 +121,12 @@ export default function SuperAdminsList() {
     );
 
   return (
-    <>
+    <div className="p-3 md:p-6 max-w-7xl mx-auto">
+      {contextHolder}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Sub Admins</h1>
-        <Button 
-          type="primary" 
+        <Button
+          type="primary"
           className="!bg-primary !text-white !border-none"
           onClick={() => setIsAddSuperAdminModalOpen(true)}
         >
@@ -121,70 +134,68 @@ export default function SuperAdminsList() {
         </Button>
       </div>
 
-      <div className="overflow-auto h-screen">
-        <div className="relative overflow-auto">
-          <div className="overflow-x-auto rounded-lg">
-            <table className="min-w-full bg-white border border-gray-200 mb-20">
-              <thead>
-                <tr className="bg-primary text-center text-xs md:text-sm font-thin text-white">
-                  <th className="p-0">
-                    <span className="block py-2 px-3 border-r border-gray-300">
-                      Admin Name
-                    </span>
-                  </th>
-                  <th className="p-0">
-                    <span className="block py-2 px-3 border-r border-gray-300">
-                      Email
-                    </span>
-                  </th>
-                  <th className="p-0">
-                    <span className="block py-2 px-3 border-r border-gray-300">
-                      Role
-                    </span>
-                  </th>
-                  <th className="p-4 text-xs md:text-sm">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {superAdmins?.length > 0 ? (
-                  superAdmins?.map((admin) => (
-                    <tr
-                      key={admin.id}
-                      className="border-b border-gray-200 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
-                    >
-                      <td className="p-2 md:p-4">{admin.name}</td>
-                      <td className="p-2 md:p-4">{admin.email}</td>
-                      <td className="p-2 md:p-4">{admin.role || "N/A"}</td>
-                      <td className="relative p-2 md:p-4 flex justify-center space-x-3">
-                        <Button
-                          title="Edit"
-                          onClick={() => setEditSuperAdmin(admin)}
-                          className="!text-green-500 hover:!text-green-700 !border-none !shadow-none "
-                          icon={<EditOutlined />}
-                        />
+      <div className="relative overflow-auto">
+        <div className="overflow-x-auto rounded-lg">
+          <table className="min-w-full bg-white border border-gray-200 mb-20">
+            <thead>
+              <tr className="bg-primary text-center text-xs md:text-sm font-thin text-white">
+                <th className="p-0">
+                  <span className="block py-2 px-3 border-r border-gray-300">
+                    Admin Name
+                  </span>
+                </th>
+                <th className="p-0">
+                  <span className="block py-2 px-3 border-r border-gray-300">
+                    Email
+                  </span>
+                </th>
+                <th className="p-0">
+                  <span className="block py-2 px-3 border-r border-gray-300">
+                    Role
+                  </span>
+                </th>
+                <th className="p-4 text-xs md:text-sm">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {superAdmins?.length > 0 ? (
+                superAdmins?.map((admin) => (
+                  <tr
+                    key={admin.id}
+                    className="border-b border-gray-200 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
+                  >
+                    <td className="p-2 md:p-4">{admin.name}</td>
+                    <td className="p-2 md:p-4">{admin.email}</td>
+                    <td className="p-2 md:p-4">{admin.role || "N/A"}</td>
+                    <td className="relative p-2 md:p-4 flex justify-center space-x-3">
+                      <Button
+                        title="Edit"
+                        onClick={() => setEditSuperAdmin(admin)}
+                        className="!text-green-500 hover:!text-green-700 !border-none !shadow-none "
+                        icon={<EditOutlined />}
+                      />
 
-                        <Button
-                          title="Delete"
-                          onClick={() => {
-                            setDeleteSuperAdmin(admin);
-                            setIsDeleteModalOpen(true);
-                          }}
-                          className="!text-red-500 hover:!text-red-700 !border-none !shadow-none "
-                          icon={<DeleteOutlined />}
-                        />
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={4} className="text-center py-4 text-gray-500">
-                      No admins found
+                      <Button
+                        title="Delete"
+                        onClick={() => {
+                          setDeleteSuperAdmin(admin);
+                          setIsDeleteModalOpen(true);
+                        }}
+                        className="!text-red-500 hover:!text-red-700 !border-none !shadow-none "
+                        icon={<DeleteOutlined />}
+                      />
                     </td>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={4} className="text-center py-4 text-gray-500">
+                    No admins found
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -206,7 +217,9 @@ export default function SuperAdminsList() {
       <Modal
         title="Confirm Deletion"
         open={isDeleteModalOpen}
-        onOk={() => deleteSuperAdmin && handleDeleteSuperAdmin(deleteSuperAdmin.id)}
+        onOk={() =>
+          deleteSuperAdmin && handleDeleteSuperAdmin(deleteSuperAdmin.id)
+        }
         onCancel={() => {
           setDeleteSuperAdmin(null);
           setIsDeleteModalOpen(false);
@@ -216,9 +229,10 @@ export default function SuperAdminsList() {
         okButtonProps={{ danger: true }}
       >
         <p>
-          Are you sure you want to delete <strong>{deleteSuperAdmin?.name}</strong>?
+          Are you sure you want to delete{" "}
+          <strong>{deleteSuperAdmin?.name}</strong>?
         </p>
       </Modal>
-    </>
+    </div>
   );
 }
