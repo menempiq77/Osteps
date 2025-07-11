@@ -40,6 +40,7 @@ export default function AssignmentDetailPage() {
         ...task,
         status: task.status || "not-started",
       }));
+      console.log(tasksWithStatus, "tasksWithStatus")
       setTasks(tasksWithStatus);
     } catch (error) {
       console.error("Error loading tasks:", error);
@@ -140,13 +141,13 @@ export default function AssignmentDetailPage() {
                         </div>
                       )}
                     </div>
-                    <span
+                    {/* <span
                       className={`px-3 py-1 text-xs font-medium rounded-full capitalize ${getStatusColor(
                         task?.status || "not-started"
                       )}`}
                     >
                       {(task?.status || "not-started")?.replace("-", " ")}
-                    </span>
+                    </span> */}
                   </div>
 
                   <div className="grid grid-cols-2 gap-4 mt-3 text-sm">

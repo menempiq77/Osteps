@@ -10,10 +10,7 @@ import {
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { useParams, useRouter } from "next/navigation";
-import {
-  addStudentTaskMarks,
-  fetchStudentTasks,
-} from "@/services/api";
+import { addStudentTaskMarks, fetchStudentTasks } from "@/services/api";
 import { fetchStudents } from "@/services/studentsApi";
 
 interface Task {
@@ -62,6 +59,8 @@ export default function AssessmentDrawer() {
   const [assementTasks, setAssesmentTasks] = useState<StudentAssessmentTask[]>(
     []
   );
+  const [inputError, setInputError] = useState(false);
+
   const [formValues, setFormValues] = useState<{
     marks: string;
     feedback: string;
@@ -364,19 +363,36 @@ export default function AssessmentDrawer() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Marks
                       </label>
-                      <div className="flex items-center gap-3">
                         <Input
                           placeholder={`0-${task.task.allocated_marks}`}
                           value={formValues.marks}
-                          onChange={(e) =>
-                            handleInputChange("marks", e.target.value)
-                          }
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (
+                              value === "" ||
+                              (Number(value) >= 0 &&
+                                Number(value) <=
+                                  Number(task.task.allocated_marks))
+                            ) {
+                              handleInputChange("marks", value);
+                              setInputError(false);
+                            } else {
+                              setInputError(true);
+                              setTimeout(() => setInputError(false), 2000);
+                            }
+                          }}
                           type="number"
                           min="0"
                           max={task.task.allocated_marks}
-                          className="w-20"
+                          className={`w-20 ${
+                            inputError ? "border-red-500" : ""
+                          }`}
                         />
-                      </div>
+                        {inputError && (
+                          <p className="text-red-500 text-xs mt-1">
+                            Marks cannot exceed {task.task.allocated_marks}
+                          </p>
+                        )}
                     </div>
 
                     <div>
@@ -414,7 +430,7 @@ export default function AssessmentDrawer() {
               </div>
             ))
           ) : (
-            <div className="text-center text-gray-500">
+            <div className="text-center text-gray-500 w-full p-4 shadow border border-gray-200">
               No tasks found for this student.
             </div>
           )}

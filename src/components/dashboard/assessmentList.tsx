@@ -139,20 +139,31 @@ export default function AssessmentList({
     router.push(`/dashboard/classes/${classId}/terms/${termId}`);
   };
 
-  const handleTasksChange = (updatedTasks: Task[]) => {
-    setTasks(updatedTasks);
+  const handleTasksChange = async (updatedTasks: Task[]) => {
+    try {
+      setLoading(true);
+      if (selectedAssessment) {
+        const freshTasks = await fetchTasks(selectedAssessment);
+        setTasks(freshTasks);
+      }
+    } catch (error) {
+      console.error("Error refreshing tasks:", error);
+    } finally {
+      setLoading(false);
+    }
   };
+
   return (
     <div className="mt-8 overflow-hidden">
       <div className="flex items-center justify-between mb-4">
         <Select
           value={selectedTermId}
           onChange={handleTermChange}
-          style={{ width: 150 }}
+          style={{ width: 200 }}
           className="bg-white"
           loading={isTermsLoading}
         >
-          {terms.map((term) => (
+          {terms?.map((term) => (
             <Select.Option key={term.id} value={term.id.toString()}>
               {term.name}
             </Select.Option>

@@ -5,6 +5,7 @@ import AssessmentList from "@/components/dashboard/assessmentList";
 import {
   addAssessment,
   deleteAssessment,
+  deleteAssignTermQuiz,
   fetchAssessment,
   updateAssessment,
 } from "@/services/api";
@@ -156,22 +157,28 @@ export default function Page() {
     setDeleteOpen(true);
   };
 
-  const handleDeleteAssessment = async () => {
-    if (!assessmentToDelete) return;
+ const handleDeleteAssessment = async () => {
+  if (!assessmentToDelete) return;
 
-    try {
+  try {
+    const assessment = assessments.find(a => a.id === assessmentToDelete);
+    
+    if (assessment?.type === "quiz") {
+      await deleteAssignTermQuiz(assessmentToDelete);
+    } else {
       await deleteAssessment(assessmentToDelete);
-      setAssessments(
-        assessments.filter((assessment) => assessment.id !== assessmentToDelete)
-      );
-      setDeleteOpen(false);
-      setAssessmentToDelete(null);
-    } catch (err) {
-      setError("Failed to delete assessment");
-      console.error(err);
     }
-  };
-
+    setAssessments(
+      assessments.filter((assessment) => assessment.id !== assessmentToDelete)
+    );
+    setDeleteOpen(false);
+    setAssessmentToDelete(null);
+  } catch (err) {
+    setError("Failed to delete assessment");
+    console.error(err);
+  }
+};
+  
   if (loading)
     return (
       <div className="p-3 md:p-6 flex justify-center items-center h-64">
@@ -192,7 +199,7 @@ export default function Page() {
           {
             title: selectedYearId ? (
               <Link href={`/dashboard/classes?year=${selectedYearId}`}>
-                Classes (Year {selectedYearId})
+                Classes
               </Link>
             ) : (
               <Link href="/dashboard/classes">Classes</Link>

@@ -91,79 +91,97 @@ export default function ClassesList({
                 )}
               </tr>
             </thead>
-            <tbody>
-              {classes.map((cls) => (
-                <tr
-                  key={cls.id}
-                  className="border-b border-gray-300 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
-                >
-                  <td className="p-2 md:p-4">
-                    <button
-                      onClick={() => handleViewStudents(cls.id)}
-                      className="text-green-600 hover:text-green-800 font-medium hover:underline cursor-pointer"
-                    >
-                      {cls.class_name}
-                    </button>
+              <tbody>
+              {classes?.length === 0 ? (
+                <tr>
+                  <td 
+                    colSpan={!isStudent ? 3 : 2}
+                    className="p-8 text-center text-gray-500"
+                  >
+                    <div className="flex flex-col items-center justify-center">
+                      <div className="text-lg mb-2">No classes found</div>
+                      {!isStudent && (
+                        <p className="text-sm text-gray-400">
+                          Click the 'Add Class' button to create a new class
+                        </p>
+                      )}
+                    </div>
                   </td>
-                  <td className="p-2 md:p-4">
-                    {cls.number_of_terms === "two"
-                      ? "Two Terms"
-                      : "Three Terms"}
-                  </td>
-                  {!isStudent && (
-                    <td className="relative p-2 md:p-4 flex justify-center space-x-3">
-                      {!isTeacher && (
-                        <button
-                          onClick={() => onEditClass(cls)}
-                          className="text-green-500 hover:text-green-700 cursor-pointer"
-                          title="Edit"
-                        >
-                          <EditOutlined />
-                        </button>
-                      )}
-
-                      <button
-                        onClick={() => handleAssesments(cls.id)}
-                        className="text-blue-500 hover:text-blue-700 cursor-pointer"
-                        title="Assessments"
-                      >
-                        <FileAddOutlined />
-                      </button>
-
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleViewTracker(cls.id);
-                        }}
-                        className="text-purple-500 hover:text-purple-700 cursor-pointer"
-                        title="Tracker"
-                      >
-                        <BarChart3 className="h-4 w-4" />
-                      </button>
-
-                      {!isTeacher && (
-                        <button
-                          onClick={() => handleAssign(cls.id)}
-                          className="text-orange-500 hover:text-orange-700 cursor-pointer"
-                          title="Assign Teacher"
-                        >
-                          <UsergroupAddOutlined />
-                        </button>
-                      )}
-
-                      {!isTeacher && (
-                        <button
-                          onClick={() => handleDeleteClick(cls)}
-                          className="text-red-500 hover:text-red-700 cursor-pointer"
-                          title="Delete"
-                        >
-                          <DeleteOutlined />
-                        </button>
-                      )}
-                    </td>
-                  )}
                 </tr>
-              ))}
+              ) : (
+                classes?.map((cls) => (
+                  <tr
+                    key={cls.id}
+                    className="border-b border-gray-300 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
+                  >
+                    <td className="p-2 md:p-4">
+                      <button
+                        onClick={() => handleViewStudents(cls.id)}
+                        className="text-green-600 hover:text-green-800 font-medium hover:underline cursor-pointer"
+                      >
+                        {cls.class_name}
+                      </button>
+                    </td>
+                    <td className="p-2 md:p-4">
+                      {cls.number_of_terms === "two"
+                        ? "Two Terms"
+                        : "Three Terms"}
+                    </td>
+                    {!isStudent && (
+                      <td className="relative p-2 md:p-4 flex justify-center space-x-3">
+                        {!isTeacher && (
+                          <button
+                            onClick={() => onEditClass(cls)}
+                            className="text-green-500 hover:text-green-700 cursor-pointer"
+                            title="Edit"
+                          >
+                            <EditOutlined />
+                          </button>
+                        )}
+
+                        <button
+                          onClick={() => handleAssesments(cls.id)}
+                          className="text-blue-500 hover:text-blue-700 cursor-pointer"
+                          title="Assessments"
+                        >
+                          <FileAddOutlined />
+                        </button>
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleViewTracker(cls.id);
+                          }}
+                          className="text-purple-500 hover:text-purple-700 cursor-pointer"
+                          title="Tracker"
+                        >
+                          <BarChart3 className="h-4 w-4" />
+                        </button>
+
+                        {!isTeacher && (
+                          <button
+                            onClick={() => handleAssign(cls.id)}
+                            className="text-orange-500 hover:text-orange-700 cursor-pointer"
+                            title="Assign Teacher"
+                          >
+                            <UsergroupAddOutlined />
+                          </button>
+                        )}
+
+                        {!isTeacher && (
+                          <button
+                            onClick={() => handleDeleteClick(cls)}
+                            className="text-red-500 hover:text-red-700 cursor-pointer"
+                            title="Delete"
+                          >
+                            <DeleteOutlined />
+                          </button>
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
