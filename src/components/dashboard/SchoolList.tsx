@@ -36,32 +36,40 @@ export default function SchoolList({
               </tr>
             </thead>
             <tbody>
-              {schools?.map((school) => (
-                <tr
-                  key={school.id}
-                  className="border-b border-gray-300 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
-                >
-                  <td className="p-2 md:p-4 font-medium">{school.name}</td>
-                  <td className="p-2 md:p-4">{school.adminEmail}</td>
-                  <td className="p-2 md:p-4">{school.contactPerson}</td>
-                  <td className="relative p-2 md:p-4 flex justify-center space-x-3">
-                    <button
-                      onClick={() => onEdit(school)}
-                      className="text-green-500 hover:text-green-700 cursor-pointer"
-                      title="Edit"
-                    >
-                      <EditOutlined />
-                    </button>
-                    <button
-                      onClick={() => onDelete(school.id)}
-                      className="text-red-500 hover:text-red-700 cursor-pointer"
-                      title="Delete"
-                    >
-                      <DeleteOutlined />
-                    </button>
+              {schools?.length > 0 ? (
+                schools?.map((school) => (
+                  <tr
+                    key={school?.id}
+                    className="border-b border-gray-300 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
+                  >
+                    <td className="p-2 md:p-4 font-medium">{school.name}</td>
+                    <td className="p-2 md:p-4">{school.adminEmail}</td>
+                    <td className="p-2 md:p-4">{school.contactPerson}</td>
+                    <td className="relative p-2 md:p-4 flex justify-center space-x-3">
+                      <button
+                        onClick={() => onEdit(school)}
+                        className="text-green-500 hover:text-green-700 cursor-pointer"
+                        title="Edit"
+                      >
+                        <EditOutlined />
+                      </button>
+                      <button
+                        onClick={() => onDelete(school.id)}
+                        className="text-red-500 hover:text-red-700 cursor-pointer"
+                        title="Delete"
+                      >
+                        <DeleteOutlined />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="4" className="p-4 text-center text-gray-500">
+                    No schools found
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>

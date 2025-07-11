@@ -58,6 +58,11 @@ const authSlice = createSlice({
         state.status = 'succeeded';
         const { id, email, role, token, name, school, student, profile_path, contact } = action.payload;
 
+         const processedProfilePath = profile_path && 
+                             profile_path !== 'https://dashboard.osteps.com/storage' 
+                             ? profile_path 
+                             : null;
+
         const currentUser: User = {
           id: id.toString(),
           email,
@@ -65,7 +70,7 @@ const authSlice = createSlice({
           school: school?.id || null,
           student: student?.id || null,
           studentClass: student?.class_id || null,
-          profile_path,
+          profile_path: processedProfilePath,
           contact: school?.contact,
           token,
           name,

@@ -169,7 +169,6 @@ function Timetable() {
       messageApi.error(error.response?.data?.message || "Failed to add event");
     },
   });
-
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) =>
       updateTimetableSlot(id, data),
@@ -187,7 +186,6 @@ function Timetable() {
       );
     },
   });
-
   const deleteMutation = useMutation({
     mutationFn: deleteTimetableSlot,
     onSuccess: () => {
@@ -199,7 +197,6 @@ function Timetable() {
       messageApi.error("Failed to delete event");
     },
   });
-
   const handleYearChange = (value: string) => {
     setSelectedYear(value);
   };
@@ -264,7 +261,6 @@ function Timetable() {
     const eventId = eventToDelete.extendedProps.id || eventToDelete.id;
     deleteMutation.mutate(eventId);
   };
-
   const handleEditEvent = (event: any) => {
     const eventProps = event.extendedProps;
 
@@ -285,6 +281,7 @@ function Timetable() {
     setCurrentEventId(eventProps.id);
     setIsModalVisible(true);
   };
+  
   const renderEventContent = (eventInfo: EventContentArg) => (
     <div className="p-2 overflow-auto bg-primary">
       <div className="flex justify-between items-start">

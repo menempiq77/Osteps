@@ -29,6 +29,9 @@ import {
   ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { fetchSchools } from "@/services/schoolApi";
+import { fetchAdmins } from "@/services/adminsApi";
 
 // Custom theme colors
 const THEME_COLOR = "#38C16C";
@@ -37,6 +40,37 @@ const THEME_COLOR_DARK = "#2E7D32";
 
 export default function DashboardPage() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
+  const [schools, setSchools] = useState<any[]>([]);
+  const [superAdmins, setSuperAdmins] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadAdmins = async () => {
+    try {
+      const admins = await fetchAdmins();
+      setSuperAdmins(admins);
+    } catch (error) {
+      console.error("Failed to fetch admins:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadSchools = async () => {
+    try {
+      const data = await fetchSchools();
+      setSchools(data);
+    } catch (err) {
+      setError("Failed to fetch schools");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => {
+    loadSchools();
+    loadAdmins();
+  }, []);
 
   // Role-based data
   const getDashboardData = () => {
@@ -44,9 +78,8 @@ export default function DashboardPage() {
       case "SUPER_ADMIN":
         return {
           stats: [
-            { title: "Total Schools", value: 15 },
-            { title: "Total Admins", value: 32 },
-            { title: "Total Annoucements", value: 32 },
+            { title: "Total Schools", value: schools?.length || 0 },
+            { title: "Total Admins", value: superAdmins?.length || 0 },
           ],
           barChartData: [
             // { name: "School A", admins: 3 },
@@ -68,7 +101,6 @@ export default function DashboardPage() {
           stats: [
             { title: "Total Classes", value: 24 },
             { title: "Total Teachers", value: 45 },
-            { title: "Total Students", value: 800 },
           ],
           barChartData: [
             // { name: "Grade 1", students: 120 },
@@ -261,7 +293,7 @@ export default function DashboardPage() {
 
           {/* Cards Grid */}
           <Row gutter={[16, 16]}>
-            <Col xs={24} md={12} lg={8}>
+            <Col xs={24} md={12}>
               <Link href="/dashboard/students/assignments">
                 <Card
                   hoverable
@@ -367,7 +399,7 @@ export default function DashboardPage() {
                 : null;
 
               return (
-                <Col key={index} xs={24} md={12} lg={8}>
+                <Col key={index} xs={24} md={12}>
                   <Card className="border-0 shadow-sm hover:shadow-md transition-all">
                     <Statistic
                       title={
