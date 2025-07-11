@@ -160,7 +160,7 @@ export default function StudentList() {
           {
             title: selectedYearId ? (
               <Link href={`/dashboard/classes?year=${selectedYearId}`}>
-                Classes (Year {selectedYearId})
+                Classes
               </Link>
             ) : (
               <Link href="/dashboard/classes">Classes</Link>

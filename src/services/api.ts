@@ -68,6 +68,11 @@ export const deleteAssessment = async (id: number) => {
   const response = await api.post(`/delete-assessment/${id}`);
   return response.data;
 };
+// delete deleteAssignTermQuiz
+export const deleteAssignTermQuiz = async (id: number) => {
+  const response = await api.delete(`/delete-assign-term-quiz/${id}`);
+  return response.data;
+};
 
 //Tasks apis Started
 // fetch Tasks

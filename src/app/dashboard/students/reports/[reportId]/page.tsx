@@ -301,7 +301,7 @@ export default function Page() {
                     );
                   })}
                   <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border border-gray-300">
-                    {student.total}
+                    {student.total} / {student.maxPossible}
                     <div className="text-xs text-gray-500 mt-1">
                       {student.percentage.toFixed(1)}%
                     </div>

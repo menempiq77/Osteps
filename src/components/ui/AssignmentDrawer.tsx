@@ -1,8 +1,7 @@
 "use client";
 import React, { useState } from "react";
-import { Drawer, Button, Form, message, InputNumber } from "antd";
+import { Drawer, Button, Form, message, InputNumber, Upload, UploadFile } from "antd";
 import {
-  UploadOutlined,
   FileTextOutlined,
   PlayCircleOutlined,
   FilePdfOutlined,
@@ -38,53 +37,38 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
   assessmentId,
 }) => {
   const [form] = Form.useForm();
-  const [file, setFile] = useState<File | null>(null);
+  const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
+  const [messageApi, contextHolder] = message.useMessage();
+  const [inputError, setInputError] = useState(false);
 
-  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
+  const handleFileChange = (info: any) => {
+    let newFileList = [...info.fileList];
+    newFileList = newFileList.slice(-1);
+    newFileList = newFileList.map(file => {
+      if (file.response) {
+        file.url = file.response.url;
+      }
+      return file;
+    });
+
+    setFileList(newFileList);
   };
 
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const droppedFile = e.dataTransfer.files[0];
-      setFile(droppedFile);
-    }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const selectedFile = e.target.files[0];
-      console.log("Selected file:", selectedFile);
-      setFile(selectedFile)
-    }
-  };
-
-  const removeFile = () => {
-    setFile(null);
+  const beforeUpload = (file: File) => {
+    // Reset file list to only include the new file
+    setFileList([{
+      uid: file.name,
+      name: file.name,
+      status: 'done',
+      originFileObj: file,
+    }]);
+    return false;
   };
 
   const handleSubmit = async (values: any) => {
-    if (!file) {
-      message.error("Please upload a file before submitting.");
+    if (fileList.length === 0) {
+      messageApi.error("Please upload a file before submitting.");
       return;
     }
 
@@ -92,21 +76,24 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
 
     try {
       const formData = new FormData();
+      const file = fileList[0].originFileObj;
 
       formData.append("task_id", selectedTask?.id || "");
       formData.append("self_assessment_mark", values.selfAssessment.toString());
       formData.append("additional_notes", values.notes || "");
-      formData.append("file_path", file); // Ensure the file is appended
+      if (file) {
+        formData.append("file_path", file);
+      }
 
       await uploadTaskByStudent(formData, assessmentId);
 
-      message.success("Assignment submitted successfully!");
+      messageApi.success("Task submitted successfully!");
       onClose();
-      form.resetFields(); // Reset form on success
-      setFile(null); // Reset file state
+      form.resetFields();
+      setFileList([]);
     } catch (error) {
-      console.error("Error submitting assignment:", error);
-      message.error("Failed to submit assignment. Please try again.");
+      console.error("Error submitting Task:", error);
+      messageApi.error("Failed to submit Task. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -173,204 +160,195 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
   const renderUploadArea = () => {
     if (selectedTask?.status === "completed") return null;
 
+    const acceptType = selectedTask?.type === "audio" 
+      ? "audio/*" 
+      : selectedTask?.type === "video" 
+      ? "video/*" 
+      : "application/pdf";
+
+    const hasFile = fileList.length > 0;
+    const file = hasFile ? fileList[0] : null;
+
     return (
       <div className="space-y-4">
-        <div
-          className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-            isDragging
-              ? "border-green-500 bg-green-50"
-              : "border-gray-300 hover:border-green-400"
-          }`}
-          onDragEnter={handleDragEnter}
-          onDragLeave={handleDragLeave}
-          onDragOver={handleDragOver}
-          onDrop={handleDrop}
+        <Upload.Dragger
+          name="file"
+          multiple={false}
+          fileList={fileList}
+          beforeUpload={beforeUpload}
+          onChange={handleFileChange}
+          accept={acceptType}
+          className="p-8"
         >
           <div className="flex flex-col items-center justify-center space-y-2">
             {renderFileIcon()}
             <div className="text-center">
               <p className="font-medium text-gray-700">
-                {file
-                  ? file.name
+                {hasFile
+                  ? file?.name
                   : `Drag & drop your ${selectedTask?.task_type} file here`}
               </p>
               <p className="text-sm text-gray-500 mt-1">
-                {file
+                {hasFile && file?.size
                   ? `${(file.size / (1024 * 1024)).toFixed(2)} MB`
                   : `or click to browse files (${selectedTask?.task_type?.toUpperCase()} only)`}
               </p>
             </div>
           </div>
-          <input
-            type="file"
-            id="file-upload"
-            className="hidden"
-            onChange={handleFileChange}
-            accept={
-              selectedTask?.type === "audio"
-                ? "audio/*"
-                : selectedTask?.type === "video"
-                ? "video/*"
-                : "application/pdf"
-            }
-          />
-          <div className="mt-4">
-            {file ? (
-              <Button
-                type="default"
-                danger
-                onClick={removeFile}
-                className="mr-2"
-              >
-                Remove File
-              </Button>
-            ) : (
-              <Button
-                type="primary"
-                onClick={() => document.getElementById("file-upload")?.click()}
-                className="!bg-primary !border-primary"
-              >
-                <UploadOutlined /> Select File
-              </Button>
-            )}
-          </div>
-        </div>
+        </Upload.Dragger>
       </div>
     );
   };
 
   return (
-    <Drawer
-      title={
-        <div className="flex justify-between items-center">
-          <span className="font-medium">{selectedSubject}</span>
-          <span className="text-sm font-normal text-gray-500">
-            {selectedTask?.name}
-          </span>
-        </div>
-      }
-      placement="right"
-      onClose={() => {
-        form.resetFields();
-        setFile(null);
-        onClose();
-      }}
-      open={isOpen}
-      width={600}
-      footer={
-        selectedTask?.status !== "completed" ? (
-          <div className="flex justify-end">
-            <Button
-              type="primary"
-              onClick={() => form.submit()}
-              loading={isSubmitting}
-              className="w-full !bg-primary !border-primary"
-            >
-              Submit Assignment
-            </Button>
+    <>
+      {contextHolder}
+      <Drawer
+        title={
+          <div className="flex justify-between items-center">
+            <span className="font-medium">{selectedSubject}</span>
+            <span className="text-sm font-normal text-gray-500">
+              {selectedTask?.name}
+            </span>
           </div>
-        ) : null
-      }
-    >
-      {selectedTask && (
-        <div className="space-y-6 h-full flex flex-col">
-          <div>
-            <h4 className="font-medium text-gray-800">Task Description</h4>
-            <p className="text-gray-600">{selectedTask.name}</p>
+        }
+        placement="right"
+        onClose={() => {
+          form.resetFields();
+          setFileList([]);
+          onClose();
+        }}
+        open={isOpen}
+        width={600}
+        footer={
+          selectedTask?.status !== "completed" ? (
+            <div className="flex justify-end">
+              <Button
+                type="primary"
+                onClick={() => form.submit()}
+                loading={isSubmitting}
+                className="w-full !bg-primary !border-primary"
+              >
+                Submit Assignment
+              </Button>
+            </div>
+          ) : null
+        }
+      >
+        {selectedTask && (
+          <div className="space-y-6 h-full flex flex-col">
+            <div>
+              <h4 className="font-medium text-gray-800">Task Description</h4>
+              <p className="text-gray-600">{selectedTask.name}</p>
+            </div>
+
+            {selectedTask.status === "completed" ? (
+              <>
+                <div>
+                  <h4 className="font-medium text-gray-800">Your Submission</h4>
+                  {renderFilePreview()}
+                </div>
+
+                {selectedTask.selfAssessment && (
+                  <div>
+                    <h4 className="font-medium text-gray-800">
+                      Self Assessment
+                    </h4>
+                    <p className="text-gray-600">
+                      {selectedTask.selfAssessment}
+                    </p>
+                  </div>
+                )}
+
+                {selectedTask.mark && (
+                  <div>
+                    <h4 className="font-medium text-gray-800">Grade</h4>
+                    <p className="text-gray-600">{selectedTask.mark}</p>
+                  </div>
+                )}
+
+                {selectedTask.comment && (
+                  <div>
+                    <h4 className="font-medium text-gray-800">Feedback</h4>
+                    <p className="text-gray-600">{selectedTask.comment}</p>
+                  </div>
+                )}
+              </>
+            ) : (
+              <Form
+                form={form}
+                layout="vertical"
+                onFinish={handleSubmit}
+                className="flex-1 flex flex-col"
+              >
+                <div className="flex-1">
+                  <div className="mb-8">{renderUploadArea()}</div>
+
+                   <Form.Item
+                    label={`Self-Assessment (Rate your work out of ${selectedTask.allocated_marks})`}
+                    name="selfAssessment"
+                    rules={[
+                      { required: true, message: "Please rate your work" },
+                    ]}
+                    className="mt-4"
+                  >
+                    <div>
+                      <InputNumber
+                        min={0}
+                        max={selectedTask.allocated_marks}
+                        step={0.5}
+                        className={`w-full ${inputError ? "border-red-500" : ""}`}
+                        placeholder={`Enter your rating (0-${selectedTask.allocated_marks})`}
+                        style={{ width: "100%" }}
+                        onChange={(value) => {
+                          if (value === null || 
+                              (value >= 0 && value <= selectedTask.allocated_marks)) {
+                            form.setFieldsValue({ selfAssessment: value });
+                            setInputError(false);
+                          } else {
+                            setInputError(true);
+                            setTimeout(() => setInputError(false), 2000);
+                          }
+                        }}
+                        onKeyPress={(e) => {
+                          const currentValue = form.getFieldValue('selfAssessment') || 0;
+                          const newValue = parseFloat(currentValue.toString() + e.key);
+                          if (
+                            isNaN(newValue) ||
+                            newValue > selectedTask.allocated_marks
+                          ) {
+                            e.preventDefault();
+                            setInputError(true);
+                            setTimeout(() => setInputError(false), 2000);
+                          }
+                        }}
+                      />
+                      {inputError && (
+                        <p className="text-red-500 text-xs mt-1">
+                          Rating must be between 0 and {selectedTask.allocated_marks}
+                        </p>
+                      )}
+                    </div>
+                  </Form.Item>
+
+                  <Form.Item
+                    label="Additional Notes"
+                    name="notes"
+                    className="mt-4"
+                  >
+                    <textarea
+                      rows={3}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-colors"
+                      placeholder="Explain your rating or add any comments..."
+                    />
+                  </Form.Item>
+                </div>
+              </Form>
+            )}
           </div>
-
-          {selectedTask.status === "completed" ? (
-            <>
-              <div>
-                <h4 className="font-medium text-gray-800">Your Submission</h4>
-                {renderFilePreview()}
-              </div>
-
-              {selectedTask.selfAssessment && (
-                <div>
-                  <h4 className="font-medium text-gray-800">Self Assessment</h4>
-                  <p className="text-gray-600">{selectedTask.selfAssessment}</p>
-                </div>
-              )}
-
-              {selectedTask.mark && (
-                <div>
-                  <h4 className="font-medium text-gray-800">Grade</h4>
-                  <p className="text-gray-600">{selectedTask.mark}</p>
-                </div>
-              )}
-
-              {selectedTask.comment && (
-                <div>
-                  <h4 className="font-medium text-gray-800">Feedback</h4>
-                  <p className="text-gray-600">{selectedTask.comment}</p>
-                </div>
-              )}
-            </>
-          ) : (
-            // In the Form section of the AssignmentDrawer component
-            <Form
-              form={form}
-              layout="vertical"
-              onFinish={handleSubmit}
-              className="flex-1 flex flex-col"
-            >
-              <div className="flex-1">
-                <div className="mb-8">{renderUploadArea()}</div>
-
-                {/* Add self-assessment field */}
-                <Form.Item
-                  label={`Self-Assessment (Rate your work out of ${selectedTask.allocated_marks})`}
-                  name="selfAssessment"
-                  rules={[
-                    { required: true, message: "Please rate your work" },
-                    {
-                      type: "number",
-                      min: 0,
-                      max: selectedTask?.allocated_marks,
-                      message: `Rating must be between 0 and ${selectedTask.allocated_marks}`,
-                    },
-                  ]}
-                  className="mt-4"
-                >
-                  <InputNumber
-                    min={0}
-                    max={selectedTask.allocated_marks}
-                    step={0.5}
-                    className="w-full"
-                    placeholder={`Enter your rating (0-${selectedTask.allocated_marks})`}
-                    style={{
-                      width: "100%",
-                    }}
-                    onKeyPress={(e) => {
-                      const value = parseFloat(e.currentTarget.value + e.key);
-                      if (
-                        isNaN(value) ||
-                        value > selectedTask.allocated_marks
-                      ) {
-                        e.preventDefault();
-                      }
-                    }}
-                  />
-                </Form.Item>
-
-                <Form.Item
-                  label="Additional Notes"
-                  name="notes"
-                  className="mt-4"
-                >
-                  <textarea
-                    rows={3}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-colors"
-                    placeholder="Explain your rating or add any comments..."
-                  />
-                </Form.Item>
-              </div>
-            </Form>
-          )}
-        </div>
-      )}
-    </Drawer>
+        )}
+      </Drawer>
+    </>
   );
 };
 
