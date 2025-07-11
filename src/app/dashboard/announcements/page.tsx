@@ -367,9 +367,9 @@ export default function AnnouncementsPage() {
 
       <div className="space-y-4">
         {filteredAnnouncements.length === 0 ? (
-          <p className="text-gray-500 text-center py-8">
+          <Card className="text-gray-500 text-center py-8">
             No announcements yet. Check back later for updates.
-          </p>
+          </Card>
         ) : (
           filteredAnnouncements?.map((announcement, index) => (
             <Badge.Ribbon

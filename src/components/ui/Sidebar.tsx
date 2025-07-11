@@ -21,33 +21,31 @@ import {
 import { useState, useEffect } from "react";
 import { logout } from "@/features/auth/authSlice";
 import useMediaQuery from "@/hooks/useMediaQuery";
+import { useQuery } from "@tanstack/react-query";
+import { fetchAnnouncements } from "@/services/announcementApi";
 
 const Sidebar = () => {
   const pathname = usePathname();
   const dispatch = useDispatch();
   const { currentUser } = useSelector((state: RootState) => state.auth);
-  const [unreadAnnouncements, setUnreadAnnouncements] = useState(3);
   const isMobile = useMediaQuery("(max-width: 768px)");
   const [isOpen, setIsOpen] = useState(!isMobile);
+  const { data: announcements = [] } = useQuery({
+    queryKey: ["announcements", currentUser?.role],
+    queryFn: fetchAnnouncements,
+    enabled: !!currentUser?.role,
+  });
+
+  const filteredAnnouncements = announcements?.filter(
+    (announcement: any) => announcement?.role === currentUser?.role
+  );
+  const unreadCount = filteredAnnouncements?.length || 0;
 
   const profilePath = currentUser?.profile_path;
 
   useEffect(() => {
     setIsOpen(!isMobile);
   }, [isMobile]);
-
-  useEffect(() => {
-    const fetchUnreadAnnouncements = async () => {
-      try {
-        // const response = await fetch('/api/announcements/unread-count');
-        setUnreadAnnouncements(3);
-      } catch (error) {
-        console.error("Failed to fetch unread announcements:", error);
-      }
-    };
-
-    fetchUnreadAnnouncements();
-  }, []);
 
   const handleLogout = () => {
     dispatch(logout());
@@ -63,7 +61,7 @@ const Sidebar = () => {
         name: "Announcements",
         href: "/dashboard/announcements",
         icon: Megaphone,
-        badge: unreadAnnouncements > 0 ? unreadAnnouncements : null,
+        badge: unreadCount,
       },
       {
         name: "Settings",
@@ -85,7 +83,7 @@ const Sidebar = () => {
         name: "Announcements",
         href: "/dashboard/announcements",
         icon: Megaphone,
-        badge: unreadAnnouncements > 0 ? unreadAnnouncements : null,
+        badge: unreadCount,
       },
       {
         name: "Settings",
@@ -111,7 +109,7 @@ const Sidebar = () => {
         name: "Announcements",
         href: "/dashboard/announcements",
         icon: Megaphone,
-        badge: unreadAnnouncements > 0 ? unreadAnnouncements : null,
+        badge: unreadCount,
       },
       {
         name: "Answer a Question",
@@ -142,7 +140,7 @@ const Sidebar = () => {
         name: "Announcements",
         href: "/dashboard/announcements",
         icon: Megaphone,
-        badge: unreadAnnouncements > 0 ? unreadAnnouncements : null,
+        badge: unreadCount,
       },
       {
         name: "Ask a Question",
@@ -229,7 +227,7 @@ const Sidebar = () => {
                   className="absolute inset-y-0 left-0 w-1 bg-green-500 transition-all duration-300 
                        transform -translate-x-full group-hover:translate-x-0"
                 />
- 
+
                 {/* Icon with subtle animation */}
                 <item.icon
                   className={`h-5 w-5 flex-shrink-0 transition-transform duration-200 ${
@@ -244,7 +242,7 @@ const Sidebar = () => {
                     <span className="text-sm transition-all duration-200 group-hover:translate-x-1">
                       {item.name}
                     </span>
-                    {item.badge && isOpen && (
+                    {"badge" in item && (
                       <span className="bg-[#38C16C] text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
                         {item.badge}
                       </span>
@@ -276,11 +274,16 @@ const Sidebar = () => {
               }`}
             >
               <div className="relative">
-                {profilePath ? (
+                {currentUser.profile_path &&
+                currentUser.profile_path !==
+                  "https://dashboard.osteps.com/storage" ? (
                   <img
-                    src={profilePath}
+                    src={currentUser.profile_path}
                     alt="Profile"
                     className="h-9 w-9 rounded-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = "none";
+                    }}
                   />
                 ) : (
                   <div className="h-9 w-9 rounded-full bg-green-500 flex items-center justify-center text-white font-medium">
