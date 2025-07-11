@@ -148,9 +148,22 @@
   display: none; /* Chrome, Safari, Opera */
 }
  
+
+/* Time table style start */
 .fc-event{
   background: transparent !important;
 }
 .fc-v-event{
   border: none !important;
 }
+
+/* styles/globals.css */
+.fc .fc-timegrid-slot {
+  height: 60px !important;
+}
+
+.fc .fc-timegrid-event {
+  min-height: 60px !important;
+  padding: 6px;
+}
+/* Time table style end... */
