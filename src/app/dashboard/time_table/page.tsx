@@ -292,7 +292,7 @@ function Timetable() {
           <b>{eventInfo.event.title}</b>
           <div>{eventInfo.event.extendedProps.teacher}</div>
           <div>{eventInfo.event.extendedProps.room}</div>
-          <div className="text-xs text-gray-800">
+          <div className="text-[10px] text-gray-800">
             {formatTime(eventInfo.event.start)} -{" "}
             {formatTime(eventInfo.event.end)}
           </div>
@@ -327,7 +327,7 @@ function Timetable() {
           href={eventInfo.event.extendedProps.zoomLink}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-blue-500 hover:underline text-sm"
+          className="text-blue-500 hover:underline text-xs"
         >
           Join Zoom
         </a>
