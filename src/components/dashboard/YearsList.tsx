@@ -29,10 +29,8 @@ export default function YearsList({
 
   const handleViewClasses = (yearId: number) => {
     localStorage.setItem("selectedYearId", yearId.toString());
-    
-    router.push(
-      `/dashboard/classes?year=${yearId}`
-    );
+
+    router.push(`/dashboard/classes?year=${yearId}`);
   };
 
   return (
@@ -44,7 +42,7 @@ export default function YearsList({
               <tr className="bg-primary text-center text-xs md:text-sm font-thin text-white">
                 <th className="p-0">
                   <span className="block py-2 px-3 border-r border-gray-300">
-                    ID
+                    S. No.
                   </span>
                 </th>
                 <th className="p-0">
@@ -59,12 +57,12 @@ export default function YearsList({
             </thead>
             <tbody>
               {years?.length > 0 ? (
-                years?.map((year) => (
+                years?.map((year, idx) => (
                   <tr
                     key={`${year.id}-${year.name}`}
                     className="border-b border-gray-300 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
                   >
-                    <td className="p-2 md:p-4">{year.id}</td>
+                    <td className="p-2 md:p-4">{idx === 0 ? "1" : idx + 1}</td>
                     <td className="p-2 md:p-4">
                       <button
                         onClick={() => handleViewClasses(year.id, year.name)}

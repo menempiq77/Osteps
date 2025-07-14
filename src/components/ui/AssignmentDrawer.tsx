@@ -160,9 +160,9 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
   const renderUploadArea = () => {
     if (selectedTask?.status === "completed") return null;
 
-    const acceptType = selectedTask?.type === "audio" 
+    const acceptType = selectedTask?.task_type === "audio" 
       ? "audio/*" 
-      : selectedTask?.type === "video" 
+      : selectedTask?.task_type === "video" 
       ? "video/*" 
       : "application/pdf";
 
