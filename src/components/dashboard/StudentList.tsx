@@ -78,11 +78,11 @@ export default function StudentList() {
       );
       setEditStudent(null);
       await loadStudents();
-      messageApi?.success("Student Update Successfully!")
+      messageApi?.success("Student Update Successfully!");
     } catch (err) {
       console.error("Failed to update student:", err);
       setError("Failed to update student");
-      messageApi?.error("Failed to update student!")
+      messageApi?.error("Failed to update student!");
     }
   };
 
@@ -101,11 +101,11 @@ export default function StudentList() {
       );
       setIsDeleteModalOpen(false);
       setStudentToDelete(null);
-      messageApi?.success("Student Deleted Successfully!")
+      messageApi?.success("Student Deleted Successfully!");
     } catch (err) {
       console.error("Failed to delete student:", err);
       setError("Failed to delete student");
-      messageApi?.error("Failed to delete student!")
+      messageApi?.error("Failed to delete student!");
     }
   };
 
@@ -121,11 +121,11 @@ export default function StudentList() {
       form.resetFields();
       setIsAddStudentModalOpen(false);
       await loadStudents();
-      messageApi?.success("Student Added Successfully!")
+      messageApi?.success("Student Added Successfully!");
     } catch (err) {
       console.error("Failed to add student:", err);
       setError("Failed to add student");
-      messageApi?.error("Failed to add student!")
+      messageApi?.error("Failed to add student!");
     }
   };
 
@@ -204,71 +204,79 @@ export default function StudentList() {
               </tr>
             </thead>
             <tbody>
-              {students.map((student) => (
-                <tr
-                  key={student.id}
-                  className="border-b border-gray-300 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
-                >
-                  <td
-                    onClick={() => handleStudentClick(student.id)}
-                    className="p-2 md:p-4 cursor-pointer hover:underline text-green-600 hover:text-green-800 font-medium"
+              {students?.length > 0 ? (
+                students?.map((student) => (
+                  <tr
+                    key={student.id}
+                    className="border-b border-gray-300 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
                   >
-                    {student.student_name}
-                  </td>
-                  <td className="p-2 md:p-4">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs ${
-                        student.status === "active"
-                          ? "bg-green-100 text-green-800"
-                          : student.status === "inactive"
-                          ? "bg-yellow-100 text-yellow-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
+                    <td
+                      onClick={() => handleStudentClick(student.id)}
+                      className="p-2 md:p-4 cursor-pointer hover:underline text-green-600 hover:text-green-800 font-medium"
                     >
-                      {student.status}
-                    </span>
-                  </td>
-                  <td
-                    className="relative p-2 md:p-4 flex justify-center space-x-3"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <button
-                      onClick={() => handleStudentBehavior(student.id)}
-                      className="text-blue-500 hover:text-blue-700 cursor-pointer"
-                      title="Behavior"
+                      {student.student_name}
+                    </td>
+                    <td className="p-2 md:p-4">
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs ${
+                          student.status === "active"
+                            ? "bg-green-100 text-green-800"
+                            : student.status === "inactive"
+                            ? "bg-yellow-100 text-yellow-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {student.status}
+                      </span>
+                    </td>
+                    <td
+                      className="relative p-2 md:p-4 flex justify-center space-x-3"
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      <BookOutlined />
-                    </button>
+                      <button
+                        onClick={() => handleStudentBehavior(student.id)}
+                        className="text-blue-500 hover:text-blue-700 cursor-pointer"
+                        title="Behavior"
+                      >
+                        <BookOutlined />
+                      </button>
 
-                    {currentUser?.role !== "TEACHER" &&
-                      currentUser?.role !== "STUDENT" && (
-                        <>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditStudent(student);
-                            }}
-                            className="text-green-500 hover:text-green-700 cursor-pointer"
-                            title="Edit"
-                          >
-                            <EditOutlined />
-                          </button>
+                      {currentUser?.role !== "TEACHER" &&
+                        currentUser?.role !== "STUDENT" && (
+                          <>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditStudent(student);
+                              }}
+                              className="text-green-500 hover:text-green-700 cursor-pointer"
+                              title="Edit"
+                            >
+                              <EditOutlined />
+                            </button>
 
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              showDeleteConfirm(student);
-                            }}
-                            className="text-red-500 hover:text-red-700 cursor-pointer"
-                            title="Delete"
-                          >
-                            <DeleteOutlined />
-                          </button>
-                        </>
-                      )}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                showDeleteConfirm(student);
+                              }}
+                              className="text-red-500 hover:text-red-700 cursor-pointer"
+                              title="Delete"
+                            >
+                              <DeleteOutlined />
+                            </button>
+                          </>
+                        )}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="3" className="text-center p-4 text-gray-500">
+                    No students found
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>

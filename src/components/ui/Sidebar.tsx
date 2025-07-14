@@ -41,8 +41,6 @@ const Sidebar = () => {
   );
   const unreadCount = filteredAnnouncements?.length || 0;
 
-  const profilePath = currentUser?.profile_path;
-
   useEffect(() => {
     setIsOpen(!isMobile);
   }, [isMobile]);

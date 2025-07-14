@@ -32,6 +32,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { fetchSchools } from "@/services/schoolApi";
 import { fetchAdmins } from "@/services/adminsApi";
+import { fetchTeachers } from "@/services/teacherApi";
 
 // Custom theme colors
 const THEME_COLOR = "#38C16C";
@@ -42,6 +43,7 @@ export default function DashboardPage() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [schools, setSchools] = useState<any[]>([]);
   const [superAdmins, setSuperAdmins] = useState<any[]>([]);
+  const [teachers, setTeachers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,7 +57,6 @@ export default function DashboardPage() {
       setLoading(false);
     }
   };
-
   const loadSchools = async () => {
     try {
       const data = await fetchSchools();
@@ -67,9 +68,23 @@ export default function DashboardPage() {
       setLoading(false);
     }
   };
+  const loadTeachers = async () => {
+    try {
+      setLoading(true);
+      const response = await fetchTeachers();
+      setTeachers(response);
+    } catch (err) {
+      setError("Failed to fetch teachers");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadSchools();
     loadAdmins();
+    loadTeachers();
   }, []);
 
   // Role-based data
@@ -99,8 +114,8 @@ export default function DashboardPage() {
       case "SCHOOL_ADMIN":
         return {
           stats: [
-            { title: "Total Classes", value: 24 },
-            { title: "Total Teachers", value: 45 },
+            { title: "Total Classes", value: 2 },
+            { title: "Total Teachers", value: teachers?.length || 0 },
           ],
           barChartData: [
             // { name: "Grade 1", students: 120 },
@@ -121,7 +136,7 @@ export default function DashboardPage() {
         return {
           stats: [
             { title: "My Classes", value: 4 },
-            { title: "Total Students", value: 120 },
+            { title: "Total Students", value: 60 },
             // { title: "Pending Assignments", value: 15 },
           ],
           barChartData: [
