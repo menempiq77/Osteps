@@ -17,6 +17,7 @@ type Teacher = {
   name: string;
   phone: string;
   email: string;
+  role: string;
   subjects: string[];
 };
 
@@ -25,6 +26,7 @@ type TeacherBasic = {
   name: string;
   phone: string;
   email: string;
+  role: string;
   subjects: string[];
 };
 
@@ -48,6 +50,7 @@ export default function TeacherList() {
           name: teacher.teacher_name,
           phone: teacher.phone,
           email: teacher.email,
+          role: teacher.role,
           subjects: teacher.subjects.split(",").map((s: string) => s.trim()),
         }));
         setTeachers(transformedTeachers);
@@ -68,7 +71,8 @@ export default function TeacherList() {
         teacher_name: teacher.name,
         phone: teacher.phone,
         email: teacher.email,
-        subjects: teacher.subjects.join(","),
+        subjects: teacher.subjects?.join(","),
+        role: teacher.role,
       });
 
       setTeachers(
@@ -79,6 +83,7 @@ export default function TeacherList() {
                 name: response.data?.teacher_name,
                 phone: response.data?.phone,
                 email: response.data?.email,
+                role: response.data?.role,
                 subjects: response.data?.subjects
                   .split(",")
                   .map((s: string) => s.trim()),
@@ -87,11 +92,10 @@ export default function TeacherList() {
         )
       );
       setEditTeacher(null);
-      messageApi.success("Teacher updated successfully");
+      messageApi?.success("Teacher updated successfully");
     } catch (err) {
       console.error("Failed to update teacher:", err);
-      setError("Failed to update teacher");
-      messageApi.error("Failed to update teacher");
+      messageApi?.error("Failed to update teacher");
     }
   };
 
@@ -115,7 +119,8 @@ export default function TeacherList() {
         teacher_name: teacher.name,
         phone: teacher.phone,
         email: teacher.email,
-        subjects: teacher.subjects.join(","),
+        role: teacher?.role,
+        subjects: teacher.subjects?.join(","),
       });
 
       const newTeacher = {
@@ -123,6 +128,7 @@ export default function TeacherList() {
         name: response.data?.teacher_name,
         phone: response.data?.phone,
         email: response.data?.email,
+        role: response.data?.role,
         subjects: response.data?.subjects
           .split(",")
           .map((s: string) => s.trim()),
@@ -130,11 +136,10 @@ export default function TeacherList() {
 
       setTeachers([...teachers, newTeacher]);
       setIsAddTeacherModalOpen(false);
-      messageApi.success("Teacher added successfully");
+      messageApi?.success("Teacher added successfully");
     } catch (err) {
       console.error("Failed to add teacher:", err);
-      setError("Failed to add teacher");
-      messageApi.error("Failed to add teacher");
+      messageApi?.error("Failed to add teacher");
     }
   };
 
@@ -160,14 +165,14 @@ export default function TeacherList() {
         className="!mb-2"
       />
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Teachers</h1>
+        <h1 className="text-2xl font-bold uppercase">Teachers</h1>
         <Button
           type="primary"
           icon={<PlusOutlined />}
           onClick={() => setIsAddTeacherModalOpen(true)}
-          className="!bg-primary hover:bg-primary/90 !text-white !border-0"
+          className="!bg-primary hover:bg-primary/90 !text-white !border-0 uppercase"
         >
-          Add Teacher
+          Teacher / HOD
         </Button>
       </div>
 
@@ -196,22 +201,28 @@ export default function TeacherList() {
                     Subjects
                   </span>
                 </th>
+                <th className="p-0">
+                  <span className="block py-2 px-3 border-r border-gray-300">
+                    Role
+                  </span>
+                </th>
                 <th className="p-4 text-xs md:text-sm">Actions</th>
               </tr>
             </thead>
             <tbody>
               {teachers?.length > 0 ? (
-                teachers.map((teacher) => (
+                teachers?.map((teacher) => (
                   <tr
                     key={teacher.id}
                     className="border-b border-gray-300 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
                   >
-                    <td className="p-2 md:p-4 font-medium">{teacher.name}</td>
-                    <td className="p-2 md:p-4">{teacher.phone}</td>
-                    <td className="p-2 md:p-4">{teacher.email}</td>
+                    <td className="p-2 md:p-4 font-medium">{teacher.name || "N/A"}</td>
+                    <td className="p-2 md:p-4">{teacher.phone || "N/A"}</td>
+                    <td className="p-2 md:p-4">{teacher.email || "N/A"}</td>
                     <td className="p-2 md:p-4">
-                      {teacher.subjects.join(", ")}
+                      {teacher.subjects?.join(", ") || "N/A"}
                     </td>
+                    <td className="p-2 md:p-4">{teacher.role || "N/A"}</td>
                     <td className="relative p-2 md:p-4 flex justify-center space-x-3">
                       <button
                         onClick={() => setEditTeacher(teacher)}
