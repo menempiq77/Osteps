@@ -21,7 +21,7 @@ export default function LoginPage() {
     }
   }, [currentUser, router]);
 
-  const onFinish = async (values: { email: string; password: string }) => {
+  const onFinish = async (values: { login: string; password: string }) => {
     await dispatch(login(values));
   };
 
@@ -48,16 +48,16 @@ export default function LoginPage() {
             <div className="mt-8 w-full">
               <Form layout="vertical" onFinish={onFinish}>
                 <Form.Item
-                  label="Email"
-                  name="email"
+                  label="Email Or Username"
+                  name="login"
                   rules={[
-                    { type: "email", message: "Invalid email address" },
-                    { required: true, message: "Please input your email" },
+                    { type: "text", message: "Invalid email address or username" },
+                    { required: true, message: "Please input your email or username" },
                   ]}
                   className="[&_.ant-form-item-label>label]:!text-[16px] [&_.ant-form-item-label>label]:font-['Raleway'] !mb-4"
                 >
                   <Input
-                    placeholder="Enter your email"
+                    placeholder="Enter your email or username"
                     className="focus:!border-green-500 hover:!border-green-400 font-['Raleway'] !px-[16px] !py-[14px]"
                     size="large"
                   />

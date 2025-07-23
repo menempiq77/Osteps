@@ -18,6 +18,7 @@ import {
 type Student = {
   id: string;
   student_name: string;
+  user_name: string;
   email: string;
   class_id: number;
   class_name?: string;
@@ -67,7 +68,9 @@ export default function StudentList() {
       const updatedStudent = await apiUpdateStudent(editStudent?.id || "", {
         student_name: values.student_name,
         email: values.email,
+        user_name: values.user_name,
         class_id: Number(classId),
+        password: values.password,
         status: values.status,
       });
 
@@ -114,7 +117,9 @@ export default function StudentList() {
       const newStudent = await apiAddStudent({
         student_name: values.student_name,
         email: values.email,
+        user_name: values.user_name,
         class_id: Number(classId),
+        password: values.password,
         status: values.status,
       });
       setStudents([...students, newStudent]);
@@ -197,6 +202,11 @@ export default function StudentList() {
                 </th>
                 <th className="p-0">
                   <span className="block py-2 px-3 border-r border-gray-300">
+                    Username
+                  </span>
+                </th>
+                <th className="p-0">
+                  <span className="block py-2 px-3 border-r border-gray-300">
                     Status
                   </span>
                 </th>
@@ -215,6 +225,13 @@ export default function StudentList() {
                       className="p-2 md:p-4 cursor-pointer hover:underline text-green-600 hover:text-green-800 font-medium"
                     >
                       {student.student_name}
+                    </td>
+                     <td className="p-2 md:p-4">
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs`}
+                      >
+                        {student.user_name || "N/A"}
+                      </span>
                     </td>
                     <td className="p-2 md:p-4">
                       <span

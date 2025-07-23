@@ -1,24 +1,9 @@
 import { useState } from "react";
-import { Modal, Form, Input, Button, Checkbox, message } from "antd";
-import type { CheckboxValueType } from "antd/es/checkbox/Group";
+import { Modal, Form, Input, Button, message, Select } from "antd";
 
-const subjectOptions = [
-  { label: "Math", value: "Math" },
-  { label: "Science", value: "Science" },
-  { label: "English", value: "English" },
-  { label: "History", value: "History" },
-  { label: "Physics", value: "Physics" },
-  { label: "Chemistry", value: "Chemistry" },
-];
+const subjectOptions = [{ label: "Islamiyat", value: "Islamiyat" }];
 
-type Subject = typeof subjectOptions[number]["value"];
-
-interface TeacherFormValues {
-  name: string;
-  phone: string;
-  email: string;
-  subjects: Subject[];
-}
+type Subject = (typeof subjectOptions)[number]["value"];
 
 interface AddTeacherModalProps {
   isOpen?: boolean;
@@ -28,6 +13,7 @@ interface AddTeacherModalProps {
     phone: string;
     email: string;
     subjects: Subject[];
+    role: "Teacher" | "HOD";
   }) => void;
   onClose?: () => void;
 }
@@ -46,13 +32,14 @@ export const AddTeacherModal = ({
       setConfirmLoading(true);
       const values = await form.validateFields();
 
-       const subjects = [...(values.subjects || []), "Islamiyat"];
+      const subjects = [...(values.subjects || []), "Islamiyat"];
 
       onAddTeacher({
         name: values.name.trim(),
         phone: values.phone?.trim() || "",
         email: values.email.trim(),
         subjects: subjects,
+        role: values.role,
       });
       handleClose();
       message.success("Teacher added successfully");
@@ -71,7 +58,7 @@ export const AddTeacherModal = ({
 
   return (
     <Modal
-      title="Add New Teacher"
+      title="Add New Teacher / HOD"
       open={isOpen}
       onOk={handleOk}
       confirmLoading={confirmLoading}
@@ -87,33 +74,32 @@ export const AddTeacherModal = ({
           onClick={handleOk}
           className="!bg-primary hover:!bg-primary text-white"
         >
-          Add Teacher
+          Add Teacher / HOD
         </Button>,
       ]}
     >
       <Form form={form} layout="vertical">
         <Form.Item
+          name="role"
+          label="Role"
+          rules={[{ required: true, message: "Please select a role" }]}
+          initialValue="Teacher"
+        >
+          <Select>
+            <Select.Option value="Teacher">Teacher</Select.Option>
+            <Select.Option value="HOD">HOD</Select.Option>
+          </Select>
+        </Form.Item>
+
+        <Form.Item
           name="name"
-          label="Teacher Name"
+          label="Name"
           rules={[
             { required: true, message: "Please input the teacher name!" },
             { whitespace: true, message: "Name cannot be just whitespace" },
           ]}
         >
           <Input placeholder="Enter teacher name" />
-        </Form.Item>
-
-        <Form.Item
-          name="phone"
-          label="Phone"
-          rules={[
-            {
-              pattern: /^[0-9+\- ]*$/,
-              message: "Please enter a valid phone number",
-            },
-          ]}
-        >
-          <Input placeholder="Enter phone number" />
         </Form.Item>
 
         <Form.Item
@@ -125,6 +111,35 @@ export const AddTeacherModal = ({
           ]}
         >
           <Input placeholder="Enter email" />
+        </Form.Item>
+
+        <Form.Item
+          name="phone"
+          label="Phone"
+          rules={[
+            {
+              required: true,
+              message: "Phone number is required",
+            },
+            {
+              pattern: /^[0-9+\- ]*$/,
+              message: "Please enter a valid phone number",
+            },
+            {
+              validator: (_, value) => {
+                if (!value) return Promise.resolve();
+                const digits = value.replace(/\D/g, "");
+                if (digits.length < 6 || digits.length > 12) {
+                  return Promise.reject(
+                    new Error("Phone number must be between 6 and 12 digits")
+                  );
+                }
+                return Promise.resolve();
+              },
+            },
+          ]}
+        >
+          <Input placeholder="Enter phone number" />
         </Form.Item>
 
         {/* <Form.Item name="subjects" label="Subjects">

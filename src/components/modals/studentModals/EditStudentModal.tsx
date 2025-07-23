@@ -1,11 +1,20 @@
 import { Modal, Form, Input, Select, Button } from "antd";
-import { Student } from "./types";
 import { useEffect } from "react";
+
+type Student = {
+  id: number;
+  student_name: string;
+  username: string;
+  email?: string;
+  password: string;
+  status: string;
+  class_id?: number;
+};
 
 type EditStudentModalProps = {
   open: boolean;
   onCancel: () => void;
-  onOk: (values: Student) => void;
+  onOk: (values: any) => void;
   student: Student | null;
 };
 
@@ -19,11 +28,13 @@ export const EditStudentModal = ({
 
   useEffect(() => {
     if (student) {
-      form.setFieldsValue({
-        student_name: student.student_name,
-        email: student.email,
-        status: student.status,
-        class_id: student.class_id,
+      form?.setFieldsValue({
+        student_name: student?.student_name,
+        user_name: student?.user_name,
+        email: student?.email,
+        password: student?.password,
+        status: student?.status,
+        class_id: student?.class_id,
       });
     }
   }, [student, form]);
@@ -69,14 +80,27 @@ export const EditStudentModal = ({
         </Form.Item>
 
         <Form.Item
-          name="email"
-          label="Email"
-          rules={[
-            { required: true, message: "Please input email!" },
-            { type: "email", message: "Please enter a valid email!" },
-          ]}
+          name="user_name"
+          label="Username"
+          rules={[{ required: true, message: "Please input username!" }]}
         >
           <Input />
+        </Form.Item>
+
+        <Form.Item
+          name="email"
+          label="Email (Optional)"
+          rules={[{ type: "email", message: "Please enter a valid email!" }]}
+        >
+          <Input />
+        </Form.Item>
+
+        <Form.Item
+          name="password"
+          label="Password"
+          rules={[{ required: true, message: "Please input password!" }]}
+        >
+          <Input.Password />
         </Form.Item>
 
         <Form.Item name="status" label="Status" rules={[{ required: true }]}>

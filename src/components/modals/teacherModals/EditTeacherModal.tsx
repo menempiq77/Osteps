@@ -1,16 +1,8 @@
 "use client";
-import { Modal, Form, Input, Button, Checkbox, message } from "antd";
-import type { CheckboxValueType } from "antd/es/checkbox/Group";
+import { Modal, Form, Input, Button, message, Select } from "antd";
 import { useEffect, useState } from "react";
 
-const subjectOptions = [
-  { label: "Math", value: "Math" },
-  { label: "Science", value: "Science" },
-  { label: "English", value: "English" },
-  { label: "History", value: "History" },
-  { label: "Physics", value: "Physics" },
-  { label: "Chemistry", value: "Chemistry" },
-];
+const subjectOptions = [{ label: "Islamiyat", value: "Islamiyat" }];
 
 type Subject = (typeof subjectOptions)[number]["value"];
 
@@ -19,6 +11,7 @@ type TeacherBasic = {
   name: string;
   phone: string;
   email: string;
+  role: string;
   subjects: Subject[];
 };
 
@@ -42,6 +35,7 @@ export const EditTeacherModal = ({
         name: teacher.name,
         phone: teacher.phone,
         email: teacher.email,
+        role: teacher.role,
         subjects: teacher.subjects,
       });
     } else {
@@ -62,6 +56,7 @@ export const EditTeacherModal = ({
         name: values.name.trim(),
         phone: values.phone?.trim() || "",
         email: values.email.trim(),
+        role: values.role.trim(),
         subjects: subjects,
       });
       message.success("Teacher updated successfully");
@@ -103,6 +98,18 @@ export const EditTeacherModal = ({
       ]}
     >
       <Form form={form} layout="vertical">
+         <Form.Item
+          name="role"
+          label="Role"
+          rules={[{ required: true, message: "Please select a role" }]}
+          initialValue="Teacher"
+        >
+          <Select>
+            <Select.Option value="Teacher">Teacher</Select.Option>
+            <Select.Option value="HOD">HOD</Select.Option>
+          </Select>
+        </Form.Item>
+
         <Form.Item
           name="name"
           label="Name"
@@ -119,8 +126,24 @@ export const EditTeacherModal = ({
           label="Phone"
           rules={[
             {
+              required: true,
+              message: "Phone number is required",
+            },
+            {
               pattern: /^[0-9+\- ]*$/,
               message: "Please enter a valid phone number",
+            },
+            {
+              validator: (_, value) => {
+                if (!value) return Promise.resolve();
+                const digits = value.replace(/\D/g, "");
+                if (digits.length < 6 || digits.length > 12) {
+                  return Promise.reject(
+                    new Error("Phone number must be between 6 and 12 digits")
+                  );
+                }
+                return Promise.resolve();
+              },
             },
           ]}
         >

@@ -54,15 +54,30 @@ export const AddStudentModal = ({
           <Input />
         </Form.Item>
 
+          <Form.Item
+          name="user_name"
+          label="Username"
+          rules={[{ required: true, message: "Please input username!" }]}
+        >
+          <Input />
+        </Form.Item>
+
         <Form.Item
           name="email"
-          label="Email"
+          label="Email (Optional)"
           rules={[
-            { required: true, message: "Please input email!" },
             { type: "email", message: "Please enter a valid email!" },
           ]}
         >
           <Input />
+        </Form.Item>
+
+         <Form.Item
+          name="password"
+          label="Password"
+          rules={[{ required: true, message: "Please input password!" }]}
+        >
+          <Input.Password />
         </Form.Item>
 
         <Form.Item

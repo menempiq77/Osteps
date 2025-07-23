@@ -29,9 +29,9 @@ api.interceptors.response.use(
   }
 );
 
-export const loginUser = async (email: string, password: string) => {
+export const loginUser = async (login: string, password: string) => {
   const formData = new FormData();
-  formData.append('email', email);
+  formData.append('login', login);
   formData.append('password', password);
 
   const response = await api.post('/login', formData, {
