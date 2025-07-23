@@ -14,6 +14,8 @@ import { useParams } from "next/navigation";
 import EditAssessmentForm from "@/components/dashboard/EditAssessmentForm";
 import { assignAssesmentQuiz, fetchQuizes } from "@/services/quizApi";
 import Link from "next/link";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store/store";
 
 interface Assessment {
   id: string;
@@ -39,6 +41,8 @@ export default function Page() {
     null
   );
   const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
+  const { currentUser } = useSelector((state: RootState) => state.auth);
+  const isTeacher = currentUser?.role === "TEACHER";
 
   useEffect(() => {
     setCurrentTermId(termId);
@@ -157,28 +161,28 @@ export default function Page() {
     setDeleteOpen(true);
   };
 
- const handleDeleteAssessment = async () => {
-  if (!assessmentToDelete) return;
+  const handleDeleteAssessment = async () => {
+    if (!assessmentToDelete) return;
 
-  try {
-    const assessment = assessments.find(a => a.id === assessmentToDelete);
-    
-    if (assessment?.type === "quiz") {
-      await deleteAssignTermQuiz(assessmentToDelete);
-    } else {
-      await deleteAssessment(assessmentToDelete);
+    try {
+      const assessment = assessments.find((a) => a.id === assessmentToDelete);
+
+      if (assessment?.type === "quiz") {
+        await deleteAssignTermQuiz(assessmentToDelete);
+      } else {
+        await deleteAssessment(assessmentToDelete);
+      }
+      setAssessments(
+        assessments.filter((assessment) => assessment.id !== assessmentToDelete)
+      );
+      setDeleteOpen(false);
+      setAssessmentToDelete(null);
+    } catch (err) {
+      setError("Failed to delete assessment");
+      console.error(err);
     }
-    setAssessments(
-      assessments.filter((assessment) => assessment.id !== assessmentToDelete)
-    );
-    setDeleteOpen(false);
-    setAssessmentToDelete(null);
-  } catch (err) {
-    setError("Failed to delete assessment");
-    console.error(err);
-  }
-};
-  
+  };
+
   if (loading)
     return (
       <div className="p-3 md:p-6 flex justify-center items-center h-64">
@@ -218,28 +222,30 @@ export default function Page() {
       />
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Assessment</h1>
-        <div className="flex gap-2">
-          <Button
-            onClick={() => {
-              setIsAddingQuiz(false);
-              setEditingAssessment(null);
-              setOpen(true);
-            }}
-            className="!bg-white !border !border-gray-300"
-          >
-            Add Assessment
-          </Button>
+        {!isTeacher && (
+          <div className="flex gap-2">
+            <Button
+              onClick={() => {
+                setIsAddingQuiz(false);
+                setEditingAssessment(null);
+                setOpen(true);
+              }}
+              className="!bg-white !border !border-gray-300"
+            >
+              Add Assessment
+            </Button>
 
-          <Button
-            onClick={() => {
-              setOpen(true);
-              setIsAddingQuiz(true);
-            }}
-            className="!bg-primary !text-white"
-          >
-            Assign Quiz
-          </Button>
-        </div>
+            <Button
+              onClick={() => {
+                setOpen(true);
+                setIsAddingQuiz(true);
+              }}
+              className="!bg-primary !text-white"
+            >
+              Assign Quiz
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Add/Edit Assessment Modal */}
