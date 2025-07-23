@@ -552,7 +552,7 @@ function Timetable() {
                   </Form.Item>
                 )}
 
-                <Form.Item name="zoom_link" label="Zoom Link">
+                <Form.Item name="zoom_link" label="Zoom Link" rules={[{type : "url"}]}>
                   <Input placeholder="Zoom meeting link (optional)" />
                 </Form.Item>
               </Col>
