@@ -1,58 +1,44 @@
 "use client";
 import React from 'react';
-import { Table, Avatar, Tag, Card, Segmented, Space, Typography } from 'antd';
+import { Table, Avatar, Tag, Card, Segmented, Space, Typography, Spin } from 'antd';
 import { CrownOutlined, TrophyOutlined, StarOutlined, RiseOutlined, FallOutlined } from '@ant-design/icons';
+import { useQuery } from '@tanstack/react-query';
+import { fetchLeaderBoardData } from '@/services/leaderboardApi';
 
 const { Title, Text } = Typography;
 
 const LeaderBoard = () => {
-  const studentData = [
-    {
-      key: '1',
-      rank: 1,
-      name: 'Alex Johnson',
-      avatar: 'https://randomuser.me/api/portraits/men/1.jpg',
-      points: 985,
-      progress: 12,
-      badge: 'gold'
-    },
-    {
-      key: '2',
-      rank: 2,
-      name: 'Sarah Williams',
-      avatar: 'https://randomuser.me/api/portraits/women/1.jpg',
-      points: 932,
-      progress: 8,
-      badge: 'silver'
-    },
-    {
-      key: '3',
-      rank: 3,
-      name: 'Michael Chen',
-      avatar: 'https://randomuser.me/api/portraits/men/2.jpg',
-      points: 910,
-      progress: 15,
-      badge: 'bronze'
-    },
-    {
-      key: '4',
-      rank: 4,
-      name: 'Emily Davis',
-      avatar: 'https://randomuser.me/api/portraits/women/2.jpg',
-      points: 875,
-      progress: -3,
-      badge: null
-    },
-    {
-      key: '5',
-      rank: 5,
-      name: 'David Kim',
-      avatar: 'https://randomuser.me/api/portraits/men/3.jpg',
-      points: 842,
-      progress: 5,
-      badge: null
-    },
-  ];
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ['leaderboard'],
+    queryFn: fetchLeaderBoardData,
+  });
+
+  if (isLoading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}>
+        <Spin size="large" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}>
+        <Text type="danger">Error: {error.message}</Text>
+      </div>
+    );
+  }
+
+  // Transform API data to match the table format
+  const studentData = data?.data?.map((student, index) => ({
+    key: student.student_id.toString(),
+    rank: index + 1,
+    name: student.student_name,
+    avatar: `https://randomuser.me/api/portraits/${index % 2 === 0 ? 'men' : 'women'}/${index + 1}.jpg`,
+    points: student.total_marks || 0,
+    progress: Math.floor(Math.random() * 20) - 5, // Random progress for demo
+    badge: index === 0 ? 'gold' : index === 1 ? 'silver' : index === 2 ? 'bronze' : null,
+  })) || [];
 
   const columns = [
     {
@@ -90,30 +76,30 @@ const LeaderBoard = () => {
       key: 'points',
       render: (points: number) => <Text strong style={{ color: '#1890ff' }}>{points}</Text>,
       width: 120,
-      align: 'right' as const
+      align: 'left' as const
     },
-    {
-      title: 'Progress',
-      dataIndex: 'progress',
-      key: 'progress',
-      render: (progress: number) => (
-        <Space>
-          {progress > 0 ? (
-            <>
-              <RiseOutlined style={{ color: '#52c41a' }} />
-              <Text type="success">{progress}%</Text>
-            </>
-          ) : (
-            <>
-              <FallOutlined style={{ color: '#f5222d' }} />
-              <Text type="danger">{Math.abs(progress)}%</Text>
-            </>
-          )}
-        </Space>
-      ),
-      width: 120,
-      align: 'center' as const
-    },
+    // {
+    //   title: 'Progress',
+    //   dataIndex: 'progress',
+    //   key: 'progress',
+    //   render: (progress: number) => (
+    //     <Space>
+    //       {progress > 0 ? (
+    //         <>
+    //           <RiseOutlined style={{ color: '#52c41a' }} />
+    //           <Text type="success">{progress}%</Text>
+    //         </>
+    //       ) : (
+    //         <>
+    //           <FallOutlined style={{ color: '#f5222d' }} />
+    //           <Text type="danger">{Math.abs(progress)}%</Text>
+    //         </>
+    //       )}
+    //     </Space>
+    //   ),
+    //   width: 120,
+    //   align: 'center' as const
+    // },
   ];
 
   return (
@@ -123,13 +109,13 @@ const LeaderBoard = () => {
           <Space direction="vertical" size="middle" style={{ width: '100%' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Title level={3} style={{ margin: 0 }}>Student Leaderboard</Title>
-              <Segmented 
+              {/* <Segmented 
                 options={['Weekly', 'Monthly', 'All Time']} 
                 defaultValue="Weekly"
-              />
+              /> */}
             </div>
 
-            <Card bordered={false} style={{ backgroundColor: '#fafafa' }}>
+            {/* <Card bordered={false} style={{ backgroundColor: '#fafafa' }}>
               <Space>
                 <Avatar 
                   size={48} 
@@ -141,7 +127,7 @@ const LeaderBoard = () => {
                   <Text type="secondary">Rank #8 with 720 points</Text>
                 </Space>
               </Space>
-            </Card>
+            </Card> */}
 
             <Table 
               columns={columns} 
@@ -152,7 +138,7 @@ const LeaderBoard = () => {
             />
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text type="secondary">Showing top 5 of 128 students</Text>
+              <Text type="secondary">Showing top {studentData.length} of {studentData.length} students</Text>
               <Text type="secondary" style={{ cursor: 'pointer', color: '#1890ff' }}>Load More</Text>
             </div>
           </Space>
