@@ -22,9 +22,15 @@ export const fetchReportAssessments = async () => {
   return response.data.data;
 };
 
-//assigned year classes api
+//assigned year classes api For teacher
 export const fetchAssignedYearClasses = async () => {
   const response = await api.get(`/get-assigned-year-classes`);
+  return response.data.data;
+};
+
+//assigned year classes api For School admin
+export const fetchAllYearClasses = async () => {
+  const response = await api.get(`/getall-assigned-year-classes`);
   return response.data.data;
 };
 

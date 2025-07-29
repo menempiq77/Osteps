@@ -153,6 +153,27 @@ export default function DashboardPage() {
           pieChartTitle: "Assignment Status",
           barChartTitle: "Students per Class",
         };
+      case "HOD":
+        return {
+          stats: [
+            { title: "My Classes", value: 4 },
+            { title: "Total Students", value: 60 },
+            // { title: "Pending Assignments", value: 15 },
+          ],
+          barChartData: [
+            // { name: "Class A", students: 30 },
+            // { name: "Class B", students: 28 },
+            // { name: "Class C", students: 32 },
+            // { name: "Class D", students: 30 },
+          ],
+          pieChartData: [
+            // { name: "Submitted Assignments", value: 85 },
+            // { name: "Pending Assignments", value: 15 },
+          ],
+          barChartKey: "students",
+          pieChartTitle: "Assignment Status",
+          barChartTitle: "Students per Class",
+        };
       case "STUDENT":
         return {
           stats: [
@@ -210,6 +231,17 @@ export default function DashboardPage() {
       ),
     },
     TEACHER: {
+      "My Classes": (
+        <BookOpen className="h-5 w-5" style={{ color: THEME_COLOR }} />
+      ),
+      "Total Students": (
+        <GraduationCap className="h-5 w-5" style={{ color: THEME_COLOR }} />
+      ),
+      "Pending Assignments": (
+        <ClipboardList className="h-5 w-5" style={{ color: THEME_COLOR }} />
+      ),
+    },
+     HOD: {
       "My Classes": (
         <BookOpen className="h-5 w-5" style={{ color: THEME_COLOR }} />
       ),
