@@ -289,7 +289,7 @@ export default function StudentList() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="3" className="text-center p-4 text-gray-500">
+                  <td colSpan={4} className="text-center p-4 text-gray-500">
                     No students found
                   </td>
                 </tr>

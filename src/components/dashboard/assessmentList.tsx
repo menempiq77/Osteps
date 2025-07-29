@@ -22,19 +22,29 @@ interface Task {
   url?: string;
 }
 
+export interface Quiz {
+  id: string | number;
+  name: string;
+}
+
 interface Assessment {
   id: string;
   name: string;
   type: "assessment" | "quiz";
   quiz_id?: string;
+  quiz?: Quiz;
 }
 
 interface AssessmentListProps {
   assessments: Assessment[];
   onDeleteAssessment: (id: string) => void;
-  onEditAssessment?: (id: string, newName: string) => void;
+  onEditAssessment?: (assessment: Assessment) => void; 
   quizzes: any[];
   termId: number;
+}
+export interface Term {
+  id: number;
+  name: string;
 }
 
 export default function AssessmentList({
@@ -45,15 +55,12 @@ export default function AssessmentList({
   termId,
 }: AssessmentListProps) {
   const router = useRouter();
-  const { classId } = useParams();
+   const { classId } = useParams<{ classId: string }>();
   const [drawerVisible, setDrawerVisible] = useState(false);
   const { currentUser } = useSelector((state: RootState) => state.auth);
-  const [selectedAssessment, setSelectedAssessment] = useState<string | null>(
-    null
-  );
+  const [selectedAssessment, setSelectedAssessment] = useState<string | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [selectedTermId, setSelectedTermId] = useState<string | null>(
     termId ? termId.toString() : null
   );
@@ -61,12 +68,12 @@ export default function AssessmentList({
     data: terms = [],
     isLoading: isTermsLoading,
     error: termsError,
-  } = useQuery({
+  } = useQuery<Term[]>({
     queryKey: ["terms", classId],
     queryFn: () => fetchTerm(Number(classId)),
     enabled: !!classId,
     select: (data) => data || [],
-    onSuccess: (data) => {
+    onSuccess: (data: Term[]) => {
       if (data.length > 0 && !selectedTermId) {
         setSelectedTermId(data[0].id.toString());
       }
@@ -82,7 +89,7 @@ export default function AssessmentList({
     try {
       setLoading(true);
       if (!selectedAssessment) return;
-      const fetchedTasks = await fetchTasks(selectedAssessment);
+      const fetchedTasks: Task[] = await fetchTasks(selectedAssessment);
       setTasks(fetchedTasks);
     } catch (error) {
       console.error("Error loading tasks:", error);
@@ -90,29 +97,9 @@ export default function AssessmentList({
       setLoading(false);
     }
   };
-  const loadTerms = async () => {
-    try {
-      setLoading(true);
-      const response = await fetchTerm(Number(classId));
-      setTerms(response);
-      if (response.length > 0) {
-        setSelectedTermId(response[0].id);
-      }
-      setError(null);
-    } catch (err) {
-      setError("Failed to load terms");
-      console.error("Error loading terms:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadTerms();
-  }, []);
 
   const canUpload =
-    currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "TEACHER";
+    currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "HOD";
 
   const handleAssignmentClick = (
     assignmentId: string,
@@ -165,7 +152,7 @@ export default function AssessmentList({
         >
           {terms?.map((term) => (
             <Select.Option key={term.id} value={term.id.toString()}>
-              {term.name}
+              {term?.name}
             </Select.Option>
           ))}
         </Select>
@@ -192,7 +179,6 @@ export default function AssessmentList({
               assessments?.map((assignment, index) => (
                 <tr
                   key={`${assignment.id}-${index}`}
-                  // key={assignment.id}
                   className="text-xs md:text-sm text-center text-gray-800 even:bg-[#E9FAF1] odd:bg-white hover:bg-[#E9FAF1]"
                 >
                   <td className="p-2 md:p-4">

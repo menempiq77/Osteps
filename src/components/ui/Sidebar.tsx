@@ -90,6 +90,37 @@ const Sidebar = () => {
         icon: Settings,
       },
     ],
+    HOD: [
+      { name: "Dashboard", href: "/dashboard", icon: Home },
+      { name: "My Classes", href: "/dashboard/years", icon: BookOpen },
+      // { name: "Students", href: "/dashboard/students", icon: Users },
+      { name: "Library", href: "/dashboard/library", icon: BookText },
+      { name: "Manage Quiz", href: "/dashboard/quiz", icon: BookOpen },
+      { name: "Reports", href: "/dashboard/students/reports", icon: Building },
+      // { name: "Trackers", href: "/dashboard/trackers", icon: Building  },
+      {
+        name: "View Trackers",
+        href: "/dashboard/viewtrackers",
+        icon: Building,
+      },
+      { name: "Timetable", href: "/dashboard/time_table", icon: BookOpen },
+      {
+        name: "Announcements",
+        href: "/dashboard/announcements",
+        icon: Megaphone,
+        badge: unreadCount,
+      },
+      {
+        name: "Answer a Question",
+        href: "/dashboard/questions",
+        icon: HelpCircle,
+      },
+      {
+        name: "Settings",
+        href: "/dashboard/teachers/settings",
+        icon: Settings,
+      },
+    ],
     TEACHER: [
       { name: "Dashboard", href: "/dashboard", icon: Home },
       { name: "My Classes", href: "/dashboard/years", icon: BookOpen },
@@ -211,7 +242,7 @@ const Sidebar = () => {
         {/* Navigation Menu */}
         <nav className="flex-1 p-3 md:p-4 overflow-y-auto scroll-hidden">
           {currentUser?.role &&
-            navigation[currentUser.role].map((item) => (
+            navigation[currentUser.role]?.map((item) => (
               <Link
                 key={item.name}
                 href={item.href}

@@ -4,11 +4,14 @@ import { Button, Card, Input, Select, Spin } from "antd";
 import { ChevronLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
+  fetchAllYearClasses,
   fetchAssignedYearClasses,
   fetchReportAssessments,
   fetchWholeAssessmentsReport,
 } from "@/services/reportApi";
 import { fetchGrades } from "@/services/gradesApi";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store/store";
 interface Task {
   student_id: number;
   student_name: string;
@@ -59,6 +62,7 @@ interface Grade {
 
 export default function ReportsPage() {
   const router = useRouter();
+  const { currentUser } = useSelector((state: RootState) => state.auth);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
@@ -70,6 +74,7 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
   const [grades, setGrades] = useState<Grade[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const isSchoolAdmin = currentUser?.role === "SCHOOL_ADMIN";
 
   useEffect(() => {
     const loadGrades = async () => {
@@ -87,6 +92,60 @@ export default function ReportsPage() {
     loadGrades();
   }, []);
 
+useEffect(() => {
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      let response;
+      if (isSchoolAdmin) {
+        const adminData = await fetchAllYearClasses();
+
+        // Transform to match fetchAssignedYearClasses format
+        response = adminData.school_classs.map((cls: any) => {
+          const year = adminData.years.find((y: any) => y.id === cls.year_id);
+          return {
+            id: cls.id,
+            classes: {
+              id: cls.id,
+              year_id: cls.year_id,
+              class_name: cls.class_name,
+              year: {
+                id: year?.id,
+                name: year?.name,
+              },
+              school_id: cls.school_id,
+              number_of_terms: cls.number_of_terms,
+              term: cls.term || [],
+            },
+          };
+        });
+      } else {
+        response = await fetchAssignedYearClasses();
+      }
+
+      setAssignedClasses(response);
+
+      if (response?.length > 0) {
+        const firstYear = response[0]?.classes?.year;
+        const firstClass = response[0]?.classes;
+
+        setSelectedYear(firstYear?.id?.toString());
+        setSelectedClass(firstClass?.id?.toString());
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      setError("Failed to load class data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchData();
+}, [isSchoolAdmin]);
+
+  
   const years = Array.from(
     new Set(
       assignedClasses?.map((item) => ({
@@ -128,29 +187,9 @@ export default function ReportsPage() {
     fetchData();
   }, [selectedYear, selectedClass]);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetchAssignedYearClasses();
-        setAssignedClasses(response);
-        if (response?.length > 0) {
-          const firstYear = response[0]?.classes?.year;
-          const firstClass = response[0]?.classes;
-
-          setSelectedYear(firstYear?.id?.toString());
-          setSelectedClass(firstClass?.id?.toString());
-        }
-        setLoading(false);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
 
   const getCurrentClass = () => {
-    return assignedClasses.find(
+    return assignedClasses?.find(
       (cls) => cls.classes.id.toString() === selectedClass
     );
   };
@@ -246,8 +285,8 @@ export default function ReportsPage() {
 
   const transformedData = transformAssessmentData();
 
-  const filteredData = transformedData.filter((student) =>
-    student.student.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredData = transformedData?.filter((student) =>
+    student?.student?.toLowerCase()?.includes(searchTerm?.toLowerCase())
   );
 
   const handleViewReportsDetail = (reportId: string) => {
@@ -371,47 +410,60 @@ export default function ReportsPage() {
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-gray-200 bg-white">
-                {filteredData?.map((student, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-2 py-2 border border-gray-300 whitespace-nowrap text-sm font-medium text-gray-900 sticky left-0 bg-white z-10">
-                      {student.student}
-                    </td>
-                    {/* Assessment marks */}
-                    {wholeAssesmentData?.map((assessment) => (
-                      <td
-                        key={assessment.assessment_id}
-                        className="px-2 py-2 border border-gray-300 whitespace-nowrap text-sm text-gray-500 font-medium"
-                      >
-                        {student[`assessment_${assessment.assessment_id}`]}
+              <tbody className="divide-y divide-gray-200 bg-white shadow">
+                {filteredData?.length > 0 ? (
+                  filteredData.map((student, index) => (
+                    <tr key={index} className="hover:bg-gray-50">
+                      <td className="px-2 py-2 border border-gray-300 whitespace-nowrap text-sm font-medium text-gray-900 sticky left-0 bg-white z-10">
+                        {student.student}
                       </td>
-                    ))}
-                    <td className="px-2 py-2 border border-gray-300 whitespace-nowrap text-sm text-gray-500 font-medium">
-                      {student.total} / {student.maxPossibleTotal}
-                      <span className="block text-xs text-gray-400">
-                        {student.percentage}%
-                      </span>
-                    </td>
-                    <td className="px-2 py-3 border border-gray-300 whitespace-nowrap text-sm font-medium text-center">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          student.courseGrade === "A"
-                            ? "bg-green-100 text-green-800"
-                            : student.courseGrade === "B"
-                            ? "bg-blue-100 text-blue-800"
-                            : student.courseGrade === "C"
-                            ? "bg-yellow-100 text-yellow-800"
-                            : student.courseGrade === "D" ||
-                              student.courseGrade === "E"
-                            ? "bg-orange-100 text-orange-800"
-                            : "bg-red-100 text-red-800"
-                        }`}
-                      >
-                        {student.courseGrade}
-                      </span>
+
+                      {/* Assessment marks */}
+                      {wholeAssesmentData?.map((assessment) => (
+                        <td
+                          key={assessment.assessment_id}
+                          className="px-2 py-2 border border-gray-300 whitespace-nowrap text-sm text-gray-500 font-medium"
+                        >
+                          {student[`assessment_${assessment.assessment_id}`]}
+                        </td>
+                      ))}
+
+                      <td className="px-2 py-2 border border-gray-300 whitespace-nowrap text-sm text-gray-500 font-medium">
+                        {student.total} / {student.maxPossibleTotal}
+                        <span className="block text-xs text-gray-400">
+                          {student.percentage}%
+                        </span>
+                      </td>
+
+                      <td className="px-2 py-3 border border-gray-300 whitespace-nowrap text-sm font-medium text-center">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            student.courseGrade === "A"
+                              ? "bg-green-100 text-green-800"
+                              : student.courseGrade === "B"
+                              ? "bg-blue-100 text-blue-800"
+                              : student.courseGrade === "C"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : student.courseGrade === "D" || student.courseGrade === "E"
+                              ? "bg-orange-100 text-orange-800"
+                              : "bg-red-100 text-red-800"
+                          }`}
+                        >
+                          {student.courseGrade}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td
+                      colSpan={wholeAssesmentData?.length + 3} // dynamic colspan
+                      className="text-center py-4 text-gray-500"
+                    >
+                      No students found
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </Card>

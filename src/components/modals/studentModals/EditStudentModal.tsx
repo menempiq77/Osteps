@@ -4,7 +4,7 @@ import { useEffect } from "react";
 type Student = {
   id: number;
   student_name: string;
-  username: string;
+  user_name: string;
   email?: string;
   password: string;
   status: string;
