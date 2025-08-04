@@ -1,9 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { Button, Card, Checkbox, Spin, Alert } from "antd";
+import { Button, Card, Spin, Radio, message } from "antd";
 import { PlusCircle, Users, BookOpen } from "lucide-react";
-import { AssignTeacher, fetchTeachers, getAssignTeacher } from "@/services/teacherApi";
+import {
+  AssignTeacher,
+  fetchTeachers,
+  getAssignTeacher,
+} from "@/services/teacherApi";
 
 interface Teacher {
   id: number | string;
@@ -19,8 +23,10 @@ export default function AssignPage() {
   const [assignedTeachers, setAssignedTeachers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAssigning, setIsAssigning] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [selectedTeacher, setSelectedTeacher] = useState<
+    number | string | null
+  >(null);
+  const [messageApi, contextHolder] = message.useMessage();
 
   useEffect(() => {
     const loadData = async () => {
@@ -39,11 +45,14 @@ export default function AssignPage() {
         if (classId) {
           const assignedResponse = await getAssignTeacher(classId as string);
           if (assignedResponse.teachers_by_subject?.Islamiat?.length > 0) {
-            setAssignedTeachers(assignedResponse.teachers_by_subject.Islamiat); // Store all teachers
+            setAssignedTeachers(assignedResponse.teachers_by_subject.Islamiat);
+            setSelectedTeacher(
+              assignedResponse.teachers_by_subject.Islamiat[0].id
+            );
           }
         }
       } catch (err) {
-        setError("Failed to fetch data");
+        // messageApi.error("Failed to fetch data");
         console.error(err);
       } finally {
         setIsLoading(false);
@@ -53,40 +62,33 @@ export default function AssignPage() {
     loadData();
   }, [classId]);
 
-  const [selectedTeachers, setSelectedTeachers] = useState<number[]>([]);
-
-  const toggleTeacher = (id: number) => {
-    setSelectedTeachers([id]);
+  const handleTeacherSelect = (id: number | string) => {
+    setSelectedTeacher(id === selectedTeacher ? null : id);
   };
 
   const handleAssignTeachers = async () => {
     try {
-      if (!classId || selectedTeachers.length === 0) return;
-
+      if (!classId || !selectedTeacher) return;
       setIsAssigning(true);
-      setError(null);
-      setSuccessMessage(null);
+      await AssignTeacher(classId as string, selectedTeacher);
 
-      const teacherId = selectedTeachers[0];
-      await AssignTeacher(classId as string, teacherId);
+      const assignedResponse = await getAssignTeacher(classId as string);
+      if (assignedResponse.teachers_by_subject?.Islamiat?.length > 0) {
+        setAssignedTeachers(assignedResponse.teachers_by_subject.Islamiat);
+      }
 
-       const assignedResponse = await getAssignTeacher(classId as string);
-    if (assignedResponse.teachers_by_subject?.Islamiat?.length > 0) {
-      setAssignedTeachers(assignedResponse.teachers_by_subject.Islamiat);
-    }
-
-      setSuccessMessage(`Successfully assigned teacher to class`);
-      setSelectedTeachers([]);
+      messageApi.success("Successfully assigned teacher to class");
     } catch (error) {
       console.error("Error assigning teacher:", error);
-      setError("Failed to assign teacher. Please try again.");
+      messageApi.error("Failed to assign teacher. Please try again.");
     } finally {
       setIsAssigning(false);
     }
   };
 
   return (
-    <div className="p-4 md:p-8 max-w-7xl mx-auto">
+    <div className="p-3 md:p-6 max-w-7xl mx-auto">
+        {contextHolder}
       <div className="flex items-center gap-3 mb-6">
         <BookOpen className="w-8 h-8 text-primary" />
         <div>
@@ -96,30 +98,6 @@ export default function AssignPage() {
           <p className="text-sm text-gray-500">Assign teachers to Class</p>
         </div>
       </div>
-
-      {error && (
-        <Alert
-          message="Error"
-          description={error}
-          type="error"
-          showIcon
-          closable
-          className="mb-6"
-          onClose={() => setError(null)}
-        />
-      )}
-
-      {successMessage && (
-        <Alert
-          message="Success"
-          description={successMessage}
-          type="success"
-          showIcon
-          closable
-          className="mb-6"
-          onClose={() => setSuccessMessage(null)}
-        />
-      )}
 
       <Spin spinning={isLoading} tip="Loading...">
         <div className="flex flex-col gap-6">
@@ -209,29 +187,27 @@ export default function AssignPage() {
                       Islamiyat
                     </h3>
                   </div>
-                  <div className="p-4 space-y-3">
+                  <div className="p-6 space-y-3">
                     {teachers?.map((teacher) => (
                       <div
                         key={teacher.id}
                         className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
-                          selectedTeachers.includes(teacher.id)
+                          selectedTeacher === teacher.id
                             ? "bg-indigo-50"
                             : "hover:bg-gray-50"
                         }`}
                       >
-                        <Checkbox
-                          id={`teacher-${teacher.id}`}
-                          checked={selectedTeachers.includes(teacher.id)}
-                          onChange={() => toggleTeacher(teacher.id)}
-                          className="[&_.ant-checkbox-inner]:!border-gray-300 [&_.ant-checkbox-checked_.ant-checkbox-inner]:!bg-primary [&_.ant-checkbox-checked_.ant-checkbox-inner]:!border-primary"
+                        <Radio
+                          checked={selectedTeacher === teacher.id}
+                          onChange={() => handleTeacherSelect(teacher.id)}
                         />
                         <label
-                          htmlFor={`teacher-${teacher.id}`}
                           className="text-sm font-medium text-gray-700 cursor-pointer flex-1"
+                          onClick={() => handleTeacherSelect(teacher.id)}
                         >
                           {teacher.name}
                         </label>
-                        {selectedTeachers.includes(teacher.id) && (
+                        {selectedTeacher === teacher.id && (
                           <span className="text-xs px-2 py-1 rounded-full bg-indigo-100 text-green-800">
                             Selected
                           </span>
@@ -246,7 +222,7 @@ export default function AssignPage() {
                 <Button
                   onClick={handleAssignTeachers}
                   className="px-6 py-3 text-md !bg-primary hover:!bg-primary !text-white flex items-center gap-2"
-                  disabled={selectedTeachers.length === 0 || isAssigning}
+                  disabled={!selectedTeacher || isAssigning}
                   loading={isAssigning}
                 >
                   {!isAssigning && <PlusCircle className="w-5 h-5" />}
