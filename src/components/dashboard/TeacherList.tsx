@@ -247,7 +247,7 @@ export default function TeacherList() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="text-center p-4">
+                  <td colSpan={6} className="text-center p-4">
                     No teachers found.
                   </td>
                 </tr>

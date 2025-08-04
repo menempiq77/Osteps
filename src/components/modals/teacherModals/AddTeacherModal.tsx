@@ -13,7 +13,7 @@ interface AddTeacherModalProps {
     phone: string;
     email: string;
     subjects: Subject[];
-    role: "Teacher" | "HOD";
+    role: "TEACHER" | "HOD";
   }) => void;
   onClose?: () => void;
 }
@@ -83,10 +83,10 @@ export const AddTeacherModal = ({
           name="role"
           label="Role"
           rules={[{ required: true, message: "Please select a role" }]}
-          initialValue="Teacher"
+          initialValue="TEACHER"
         >
           <Select>
-            <Select.Option value="Teacher">Teacher</Select.Option>
+            <Select.Option value="TEACHER">TEACHER</Select.Option>
             <Select.Option value="HOD">HOD</Select.Option>
           </Select>
         </Form.Item>
