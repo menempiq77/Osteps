@@ -70,6 +70,8 @@ const authSlice = createSlice({
           school: school?.id || null,
           student: student?.id || null,
           studentClass: student?.class_id || null,
+          studentClassName: student?.class?.class_name,
+          studentYearName: student?.class?.year?.name,
           profile_path: processedProfilePath,
           contact: school?.contact,
           token,
