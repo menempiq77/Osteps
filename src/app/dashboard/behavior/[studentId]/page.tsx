@@ -4,35 +4,43 @@ import { Card, Tag, Select, List, Avatar, Statistic } from "antd";
 import { ArrowUpOutlined, ArrowDownOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { useParams } from "next/navigation";
 import { fetchBehaviour, fetchBehaviourType } from "@/services/behaviorApi";
 
 const { Option } = Select;
 
+type BehaviorType = {
+  id: string;
+  name: string;
+  points: number;
+  color: string;
+};
+
+type Behavior = {
+  id: string;
+  behaviour_id: string;
+  description: string;
+  date: string;
+  teacher?: string;
+  points: number;
+  teacher_name: string;
+};
+
+interface CurrentUser {
+  student?: string;
+  avatar?: string;
+  name?: string;
+  class?: string;
+  role?: string;
+}
+
 const StudentBehaviorPage = () => {
   const [filter, setFilter] = useState("all");
-  const { currentUser } = useSelector((state: RootState) => state.auth);
+  // const { currentUser } = useSelector((state: RootState) => state.auth);
+  const { currentUser } = useSelector((state: RootState) => state.auth) as { currentUser: CurrentUser };
   const [behaviorTypes, setBehaviorTypes] = useState<BehaviorType[]>([]);
   const [behaviors, setBehaviors] = useState<Behavior[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  type BehaviorType = {
-    id: string;
-    name: string;
-    points: number;
-    color: string;
-  };
-
-  type Behavior = {
-    id: string;
-    behaviour_id: string;
-    description: string;
-    date: string;
-    teacher?: string;
-    points: number;
-    teacher_name: string;
-  };
 
   const loadBehaviorTypes = async () => {
     try {
@@ -65,9 +73,14 @@ const StudentBehaviorPage = () => {
   }, [currentUser?.student]);
 
   const filteredBehaviors = behaviors?.filter((behavior) => {
-    if (filter === "positive") return behavior.points > 0;
-    if (filter === "negative") return behavior.points < 0;
-    if (filter === "neutral") return behavior.points === 0;
+    const behaviorType = behaviorTypes.find(
+      (t) => t.id === behavior.behaviour_id
+    );
+    if (!behaviorType) return false; // Skip if type not found
+
+    if (filter === "positive") return behaviorType.points > 0;
+    if (filter === "negative") return behaviorType.points < 0;
+    if (filter === "neutral") return behaviorType.points === 0;
     return true; // 'all'
   });
 
@@ -163,7 +176,7 @@ const StudentBehaviorPage = () => {
         }
         extra={
           <Select
-            defaultValue="all"
+            value={filter}
             style={{ width: 120 }}
             onChange={(value) => setFilter(value)}
           >
@@ -194,7 +207,8 @@ const StudentBehaviorPage = () => {
                         </Tag>
                         <p className="mt-2 font-medium">{item.description}</p>
                         <p className="text-sm text-gray-500">
-                          Recorded by {item.teacher?.teacher_name || "Teacher"} on {item.date}
+                          Recorded by {item.teacher?.teacher_name || "Teacher"}{" "}
+                          on {item.date}
                         </p>
                       </>
                     );
