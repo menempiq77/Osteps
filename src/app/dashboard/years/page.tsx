@@ -143,8 +143,8 @@ export default function Page() {
         )}
       </div>
       <YearsList
-        key={years.length}
-        years={years.map((year) => ({
+        key={years?.length}
+        years={years?.map((year) => ({
           id: year.id,
           name: year.name,
           school_id: year.school_id,

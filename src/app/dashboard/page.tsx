@@ -87,6 +87,9 @@ export default function DashboardPage() {
     loadTeachers();
   }, []);
 
+  const studentYearName = currentUser?.studentYearName;
+  const studentClassName = currentUser?.studentClassName;
+
   // Role-based data
   const getDashboardData = () => {
     switch (currentUser?.role) {
@@ -332,10 +335,12 @@ export default function DashboardPage() {
           {/* Enhanced Breadcrumb */}
           <div className="flex items-center text-sm font-medium text-gray-600">
             <span className="font-semibold" style={{ color: THEME_COLOR }}>
-              Year 7
+              {studentYearName || "Year"}
             </span>
             <ChevronRight className="mx-2 h-4 w-4 text-gray-400" />
-            <span className="text-gray-800">Class C</span>
+            <span className="text-gray-800">
+              {studentClassName || "Class"}
+            </span>
           </div>
 
           {/* Cards Grid */}
