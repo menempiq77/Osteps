@@ -141,6 +141,8 @@ export default function QuranQuizPage() {
     if (classId) loadStudents();
   }, [classId]);
 
+  console.log(students, "students")
+
   const handleStudentChange = (value: string) => {
     setSelectedStudentId(value);
   };

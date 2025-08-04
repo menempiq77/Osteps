@@ -83,7 +83,7 @@ export default function QuranTrackerAdminPage() {
   const [selectedQuiz, setSelectedQuiz] = useState<string>("");
 
   const canUpload =
-    currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "TEACHER";
+    currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "HOD" || currentUser?.role === "TEACHER";
   const isStudent = currentUser?.role === "STUDENT";
 
   useEffect(() => {

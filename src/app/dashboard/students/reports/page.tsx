@@ -200,89 +200,112 @@ useEffect(() => {
     if (!wholeAssesmentData?.length) return [];
 
     const filteredAssessments = wholeAssesmentData.filter((assessment) => {
-      const classMatch =
-        !selectedClass || assessment.class_id.toString() === selectedClass;
-      const yearMatch =
-        !selectedYear || assessment.year_id.toString() === selectedYear;
-      return classMatch && yearMatch;
+        const classMatch = !selectedClass || assessment.class_id.toString() === selectedClass;
+        const yearMatch = !selectedYear || assessment.year_id.toString() === selectedYear;
+        return classMatch && yearMatch;
     });
 
     if (!filteredAssessments.length) return [];
 
     const maxPossibleTotal = filteredAssessments.reduce((sum, assessment) => {
-      const assessmentTotal = assessment.tasks.reduce((taskSum, task) => {
-        return taskSum + Number(task.allocated_marks);
-      }, 0);
-      return sum + assessmentTotal;
+        const assessmentTotal = assessment.tasks.reduce((taskSum, task) => {
+            return taskSum + Number(task.allocated_marks);
+        }, 0);
+        return sum + assessmentTotal;
     }, 0);
 
-    const studentsMap = new Map<number, any>();
+    const studentsMap = new Map();
 
     filteredAssessments?.forEach((assessment) => {
-      assessment.tasks.forEach((task) => {
-        if (!studentsMap.has(task.student_id)) {
-          studentsMap.set(task.student_id, {
-            student_id: task.student_id,
-            student_name: task.student_name,
-            tasks: {},
-            totals: {},
-          });
-        }
+        assessment.tasks.forEach((task) => {
+            // Process submitted students
+            task.submitted.forEach((submission) => {
+                if (!studentsMap.has(submission.student_id)) {
+                    studentsMap.set(submission.student_id, {
+                        student_id: submission.student_id,
+                        student_name: submission.student_name,
+                        tasks: {},
+                    });
+                }
 
-        const student = studentsMap.get(task.student_id);
-        if (!student.tasks[assessment.assessment_id]) {
-          student.tasks[assessment.assessment_id] = [];
-        }
+                const student = studentsMap.get(submission.student_id);
+                if (!student.tasks[assessment.assessment_id]) {
+                    student.tasks[assessment.assessment_id] = [];
+                }
 
-        student.tasks[assessment.assessment_id].push({
-          task_id: task.task_id,
-          task_name: task.task_name,
-          marks: Number(task.teacher_assessment_marks),
-          allocated_marks: Number(task.allocated_marks),
+                student.tasks[assessment.assessment_id].push({
+                    task_id: task.task_id,
+                    task_name: task.task_name,
+                    marks: Number(submission.teacher_assessment_marks),
+                    allocated_marks: Number(task.allocated_marks),
+                    submitted: true
+                });
+            });
+
+            // Process not submitted students (with 0 marks)
+            task.not_submitted.forEach((student) => {
+                if (!studentsMap.has(student.student_id)) {
+                    studentsMap.set(student.student_id, {
+                        student_id: student.student_id,
+                        student_name: student.student_name,
+                        tasks: {},
+                    });
+                }
+
+                const studentData = studentsMap.get(student.student_id);
+                if (!studentData.tasks[assessment.assessment_id]) {
+                    studentData.tasks[assessment.assessment_id] = [];
+                }
+
+                studentData.tasks[assessment.assessment_id].push({
+                    task_id: task.task_id,
+                    task_name: task.task_name,
+                    marks: 0, // 0 marks for not submitted
+                    allocated_marks: Number(task.allocated_marks),
+                    submitted: false
+                });
+            });
         });
-      });
     });
 
     const students = Array.from(studentsMap.values()).map((student) => {
-      const studentData: any = {
-        student: student.student_name,
-        student_id: student.student_id,
-        total: 0,
-        maxPossibleTotal,
-        courseGrade: "N/A",
-      };
+        const studentData = {
+            student: student.student_name,
+            student_id: student.student_id,
+            total: 0,
+            maxPossibleTotal,
+            courseGrade: "N/A",
+        };
 
-      wholeAssesmentData.forEach((assessment) => {
-        const assessmentKey = `assessment_${assessment.assessment_id}`;
-        studentData[assessmentKey] = 0;
-      });
+        filteredAssessments.forEach((assessment) => {
+            const assessmentKey = `assessment_${assessment.assessment_id}`;
+            studentData[assessmentKey] = 0;
+        });
 
-      Object.entries(student.tasks).forEach(
-        ([assessmentId, tasks]: [string, any]) => {
-          const assessmentTotal = tasks.reduce((sum: number, task: any) => {
-            return sum + (task.marks || 0);
-          }, 0);
+        Object.entries(student.tasks).forEach(([assessmentId, tasks]) => {
+            const assessmentTotal = tasks.reduce((sum, task) => {
+                return sum + (task.marks || 0);
+            }, 0);
 
-          studentData[`assessment_${assessmentId}`] = assessmentTotal;
-          studentData.total += assessmentTotal;
+            studentData[`assessment_${assessmentId}`] = assessmentTotal;
+            studentData.total += assessmentTotal;
+        });
+
+        if (maxPossibleTotal > 0) {
+            const percentage = (studentData.total / maxPossibleTotal) * 100;
+            studentData.percentage = percentage.toFixed(2);
+            const studentGrade = grades?.find(
+                (grade) =>
+                    percentage >= parseInt(grade.min_percentage) &&
+                    percentage <= parseInt(grade.max_percentage)
+            );
+            studentData.courseGrade = studentGrade ? studentGrade.grade : "N/A";
         }
-      );
-
-      if (maxPossibleTotal > 0) {
-        const percentage = (studentData.total / maxPossibleTotal) * 100;
-        studentData.percentage = percentage.toFixed(2);
-        const studentGrade = grades.find(
-          (grade) =>
-            percentage >= parseInt(grade.min_percentage) &&
-            percentage <= parseInt(grade.max_percentage)
-        );
-        studentData.courseGrade = studentGrade ? studentGrade.grade : "N/A";
-      }
-      return studentData;
+        return studentData;
     });
-    return students;
-  };
 
+    return students;
+};
   const transformedData = transformAssessmentData();
 
   const filteredData = transformedData?.filter((student) =>
