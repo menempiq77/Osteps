@@ -40,6 +40,41 @@ import { fetchStudents } from "@/services/studentsApi";
 
 const { Option } = Select;
 
+type BehaviorType = {
+  id: string;
+  name: string;
+  points: number;
+  color: string;
+};
+
+type Behavior = {
+  id: string;
+  behaviour_id: string;
+  description: string;
+  date: string;
+  points: number;
+  teacher?: {
+    teacher_name?: string;
+  };
+};
+
+type Student = {
+  id: string;
+  student_name: string;
+  points: number;
+  class?: string;
+  behaviors?: Behavior[];
+  avatar?: string;
+};
+
+interface CurrentUser {
+  student?: string;
+  avatar?: string;
+  name?: string;
+  class?: string;
+  role?: string;
+}
+
 const StudentBehaviorPage = () => {
   const { classId, studentId } = useParams();
   const [selectedStudentId, setSelectedStudentId] = useState<string>("");
@@ -49,7 +84,8 @@ const StudentBehaviorPage = () => {
   const [typeForm] = Form.useForm();
   const [filter, setFilter] = useState("all");
   const [editingType, setEditingType] = useState(null);
-  const { currentUser } = useSelector((state: RootState) => state.auth);
+  // const { currentUser } = useSelector((state: RootState) => state.auth);
+  const { currentUser } = useSelector((state: RootState) => state.auth) as { currentUser: CurrentUser };
   const [behaviorTypes, setBehaviorTypes] = useState<BehaviorType[]>([]);
   const [behaviors, setBehaviors] = useState<Behavior[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -57,34 +93,7 @@ const StudentBehaviorPage = () => {
   const isStudent = currentUser?.role !== "STUDENT";
   const [editingBehavior, setEditingBehavior] = useState(null);
   const [students, setStudents] = useState<Student[]>([]);
-  console.log(students, "students");
-
-  type BehaviorType = {
-    id: string;
-    name: string;
-    points: number;
-    color: string;
-  };
-
-  type Behavior = {
-    id: string;
-    behaviour_id: string;
-    description: string;
-    date: string;
-    points: number;
-    teacher?: {
-      teacher_name?: string;
-    };
-  };
-
-  type Student = {
-    id: string;
-    student_name: string;
-    points: number;
-    class?: string;
-    behaviors?: Behavior[];
-    avatar?: string;
-  };
+  // console.log(students, "students");
 
   const loadStudents = async () => {
     try {
@@ -290,12 +299,16 @@ const StudentBehaviorPage = () => {
   };
 
   const filteredBehaviors = behaviors?.filter((behavior) => {
-    if (filter === "positive") return behavior.points > 0;
-    if (filter === "negative") return behavior.points < 0;
-    if (filter === "neutral") return behavior.points === 0;
+    const behaviorType = behaviorTypes.find(
+      (t) => t.id === behavior.behaviour_id
+    );
+    if (!behaviorType) return false; // Skip if type not found
+
+    if (filter === "positive") return behaviorType.points > 0;
+    if (filter === "negative") return behaviorType.points < 0;
+    if (filter === "neutral") return behaviorType.points === 0;
     return true; // 'all'
   });
-
   const colorOptions = [
     { value: "green", label: "Green" },
     { value: "blue", label: "Blue" },
@@ -444,7 +457,7 @@ const StudentBehaviorPage = () => {
         }
         extra={
           <Select
-            defaultValue="all"
+            value={filter}
             style={{ width: 120 }}
             onChange={(value) => setFilter(value)}
           >
@@ -501,7 +514,8 @@ const StudentBehaviorPage = () => {
                         </Tag>
                         <p className="mt-2 font-medium">{item.description}</p>
                         <p className="text-sm text-gray-500">
-                          Recorded by {item?.teacher?.teacher_name || "Teacher"} on {item.date}
+                          Recorded by {item?.teacher?.teacher_name || "Teacher"}{" "}
+                          on {item.date}
                         </p>
                       </>
                     );
@@ -556,7 +570,7 @@ const StudentBehaviorPage = () => {
         visible={isBehaviorModalVisible}
         onCancel={handleCancel}
         onOk={handleOk}
-        studentName={student?.student_name}
+        studentName={student?.student_name ?? ""}
         behaviorTypes={behaviorTypes}
         form={form}
         isEditing={!!editingBehavior}
