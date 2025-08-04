@@ -80,7 +80,7 @@ const StudentBehaviorPage = () => {
 
     if (filter === "positive") return behaviorType.points > 0;
     if (filter === "negative") return behaviorType.points < 0;
-    if (filter === "neutral") return behaviorType.points === 0;
+    if (filter === "neutral") return behaviorType.points == 0;
     return true; // 'all'
   });
 
