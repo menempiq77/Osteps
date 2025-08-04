@@ -21,6 +21,11 @@ export const fetchYears = async () => {
   const response = await api.get('/get-year');
   return response.data.data;
 };
+// fetch Years By School
+export const fetchYearsBySchool = async () => {
+  const response = await api.get(`/get-school-year`);
+  return response.data.data;
+};
 // add Year
 export const addYear = async (yearData: { name: string }) => {
   const response = await api.post('/add-year', yearData);

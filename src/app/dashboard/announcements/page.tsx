@@ -36,6 +36,24 @@ type Announcement = {
   type: "event" | "reminder" | "general";
   target?: "School Admins" | "teachers" | "students";
 };
+const roleOptions: Record<string, { value: string; label: string }[]> = {
+  SUPER_ADMIN: [
+    { value: "SCHOOL_ADMIN", label: "School Admins" },
+    { value: "HOD", label: "HOD" },
+    { value: "TEACHER", label: "Teachers" },
+    { value: "STUDENT", label: "Students" },
+  ],
+  SCHOOL_ADMIN: [
+    { value: "HOD", label: "HOD" },
+    { value: "TEACHER", label: "Teachers" },
+    { value: "STUDENT", label: "Students" },
+  ],
+  HOD: [
+    { value: "TEACHER", label: "Teachers" },
+    { value: "STUDENT", label: "Students" },
+  ],
+  TEACHER: [{ value: "STUDENT", label: "Students" }],
+};
 
 export default function AnnouncementsPage() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
@@ -158,7 +176,7 @@ export default function AnnouncementsPage() {
       title: announcement.title,
       description: announcement.description,
       type: announcement.type,
-      target: announcement.role,
+      target: announcement.role || "",
     });
     setIsFormOpen(true);
     setTimeout(() => {
@@ -167,7 +185,14 @@ export default function AnnouncementsPage() {
   };
 
   const handleNewAnnouncement = () => {
-    resetForm();
+    const options = roleOptions[currentUser?.role ?? ""] || [];
+    setAnnouncementForm({
+      id: null,
+      title: "",
+      description: "",
+      type: "general",
+      target: options[0]?.value || "", 
+    });
     setIsFormOpen(true);
   };
 
@@ -184,6 +209,7 @@ export default function AnnouncementsPage() {
   const canCreateAnnouncement =
     currentUser?.role === "SUPER_ADMIN" ||
     currentUser?.role === "SCHOOL_ADMIN" ||
+    currentUser?.role === "HOD" ||
     currentUser?.role === "TEACHER";
 
   const canDeleteAnnouncement = (announcement: Announcement) => {
@@ -207,8 +233,11 @@ export default function AnnouncementsPage() {
     if (currentUser?.role === "SCHOOL_ADMIN") {
       return true;
     }
+    if (currentUser?.role === "HOD") {
+      return announcement.role === "HOD" || announcement.role === "TEACHER" || announcement.role === "STUDENT" || !announcement.role;
+    }
     if (currentUser?.role === "TEACHER") {
-      return announcement.role === "TEACHER" || !announcement.role;
+      return announcement.role === "TEACHER" || announcement.role === "STUDENT" || !announcement.role;
     }
     if (currentUser?.role === "STUDENT") {
       return announcement.role === "STUDENT" || !announcement.role;
@@ -321,21 +350,24 @@ export default function AnnouncementsPage() {
                 <Option value="general">General</Option>
               </Select>
 
-              <Select
-                value={announcementForm.role}
+               <Select
+                value={announcementForm.target}
                 onChange={(value) =>
-                  setAnnouncementForm({
-                    ...announcementForm,
-                    target: value as any,
-                  })
+                  setAnnouncementForm((prev) => ({
+                    ...prev,
+                    target: value,
+                  }))
                 }
                 placeholder="Target Audience"
                 className="flex-1 min-w-[150px] hover:!border-primary focus:!border-primary focus:ring-1 focus:!ring-primary transition-colors"
               >
-                <Option value="SCHOOL_ADMIN">School Admins</Option>
-                <Option value="TEACHER">Teachers</Option>
-                <Option value="STUDENT">Students</Option>
+                {(roleOptions[currentUser?.role ?? ""] || []).map((opt) => (
+                  <Option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </Option>
+                ))}
               </Select>
+
             </div>
 
             {error && <div className="text-red-500">{error}</div>}

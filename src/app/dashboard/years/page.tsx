@@ -12,6 +12,7 @@ import {
   addYear as addYearApi,
   deleteYear as deleteYearApi,
   updateYear as updateYearApi,
+  fetchYearsBySchool,
 } from "@/services/yearsApi";
 
 interface Year {
@@ -37,7 +38,7 @@ export default function Page() {
   useEffect(() => {
     const loadYears = async () => {
       try {
-        const data = await fetchYears();
+        const data = await fetchYearsBySchool();
         setYears(data);
         setLoading(false);
       } catch (err) {

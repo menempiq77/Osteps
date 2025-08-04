@@ -81,7 +81,7 @@ export default function QuranQuizPage() {
   );
 
   const canUpload =
-    currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "TEACHER";
+    currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "TEACHER" || currentUser?.role === "HOD";
 
   useEffect(() => {
     const loadQuizQuestions = async () => {
