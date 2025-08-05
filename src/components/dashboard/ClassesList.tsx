@@ -36,6 +36,7 @@ export default function ClassesList({
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [classToDelete, setClassToDelete] = useState<Class | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const hasAccess = currentUser?.role === "SCHOOL_ADMIN";
 
   const isStudent = currentUser?.role === "STUDENT";
   const isTeacher = currentUser?.role === "TEACHER";
@@ -129,7 +130,7 @@ export default function ClassesList({
                     </td>
                     {!isStudent && (
                       <td className="relative p-2 md:p-4 flex justify-center space-x-3">
-                        {!isTeacher && (
+                        {hasAccess && (
                           <button
                             onClick={() => onEditClass(cls)}
                             className="text-green-500 hover:text-green-700 cursor-pointer"
@@ -168,7 +169,7 @@ export default function ClassesList({
                           </button>
                         )}
 
-                        {!isTeacher && (
+                        {hasAccess && (
                           <button
                             onClick={() => handleDeleteClick(cls)}
                             className="text-red-500 hover:text-red-700 cursor-pointer"

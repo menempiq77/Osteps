@@ -97,6 +97,7 @@ const Sidebar = () => {
     ],
     HOD: [
       { name: "Dashboard", href: "/dashboard", icon: Home },
+      { name: "Teachers", href: "/dashboard/teachers", icon: UserCircle },
       { name: "My Classes", href: "/dashboard/years", icon: BookOpen },
       // { name: "Students", href: "/dashboard/students", icon: Users },
       { name: "Library", href: "/dashboard/library", icon: BookText },
