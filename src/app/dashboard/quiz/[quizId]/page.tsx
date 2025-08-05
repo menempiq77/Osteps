@@ -78,7 +78,7 @@ export default function QuranQuizPage() {
   const [messageApi, contextHolder] = message.useMessage();
 
   const canUpload =
-    currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "TEACHER";
+    currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "HOD" || currentUser?.role === "TEACHER";
 
   const loadQuizQuestions = async () => {
     try {

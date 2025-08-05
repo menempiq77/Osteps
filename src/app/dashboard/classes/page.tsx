@@ -29,6 +29,7 @@ export default function Page() {
   const [currentClass, setCurrentClass] = useState<ApiClass | null>(null);
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [messageApi, contextHolder] = message.useMessage();
+  const hasAccess = currentUser?.role === "SCHOOL_ADMIN";
 
   useEffect(() => {
     const loadClasses = async () => {
@@ -143,7 +144,7 @@ export default function Page() {
 
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Classes</h1>
-        {currentUser?.role !== "STUDENT" && currentUser?.role !== "TEACHER" && (
+        {hasAccess && (
           <Button className="!bg-primary !text-white" onClick={() => setModalOpen(true)}>
             Add Class
           </Button>

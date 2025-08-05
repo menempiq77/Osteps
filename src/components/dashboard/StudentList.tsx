@@ -39,6 +39,7 @@ export default function StudentList() {
   const [error, setError] = useState<string | null>(null);
   const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
   const [messageApi, contextHolder] = message.useMessage();
+  const hasAccess = currentUser?.role === "SCHOOL_ADMIN";
 
   const loadStudents = async () => {
     try {
@@ -179,7 +180,7 @@ export default function StudentList() {
       />
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Students</h1>
-        {currentUser?.role !== "TEACHER" && currentUser?.role !== "STUDENT" && (
+        {hasAccess && (
           <Button
             type="primary"
             className="!bg-primary !text-white hover:!bg-primary/90 !border-none"
@@ -258,8 +259,7 @@ export default function StudentList() {
                         <BookOutlined />
                       </button>
 
-                      {currentUser?.role !== "TEACHER" &&
-                        currentUser?.role !== "STUDENT" && (
+                      {hasAccess && (
                           <>
                             <button
                               onClick={(e) => {
