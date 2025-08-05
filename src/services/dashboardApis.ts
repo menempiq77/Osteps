@@ -4,15 +4,6 @@ import { store } from '@/store/store';
 
 interface SchoolData {
   id: number;
-  name: string;
-  contact: string;
-  school_admin: string;
-  email: string;
-  user_id: number;
-  password: string;
-  year_structure: string;
-  created_at: string;
-  updated_at: string;
   years_count: number;
   school_classs_count: number;
   teachers_count: number;
@@ -37,5 +28,13 @@ export const fetchSchoolDashboardData = async (): Promise<SchoolDashboardRespons
     headers: getAuthHeader(),
   });
   if (!response.ok) throw new Error('Failed to fetch school dashboard data');
+  return await response.json();
+};
+
+export const fetchStudentDashboardData = async () => {
+  const response = await fetch(`${API_BASE_URL}/dashboard-student-assessment`, {
+    headers: getAuthHeader(),
+  });
+  if (!response.ok) throw new Error('Failed to fetch student dashboard assessment data');
   return await response.json();
 };
