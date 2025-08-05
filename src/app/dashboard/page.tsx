@@ -33,6 +33,8 @@ import { useEffect, useState } from "react";
 import { fetchSchools } from "@/services/schoolApi";
 import { fetchAdmins } from "@/services/adminsApi";
 import { fetchTeachers } from "@/services/teacherApi";
+import { useQuery } from "@tanstack/react-query";
+import { fetchSchoolDashboardData } from "@/services/dashboardApis";
 
 // Custom theme colors
 const THEME_COLOR = "#38C16C";
@@ -87,6 +89,15 @@ export default function DashboardPage() {
     loadTeachers();
   }, []);
 
+   const {
+    data: schoolDashboard,
+    isLoading: dashboardLoading,
+    error: dashboardError,
+  } = useQuery({
+    queryKey: ["schoolDashboard"],
+    queryFn: fetchSchoolDashboardData,
+  });
+
   const studentYearName = currentUser?.studentYearName;
   const studentClassName = currentUser?.studentClassName;
 
@@ -117,8 +128,22 @@ export default function DashboardPage() {
       case "SCHOOL_ADMIN":
         return {
           stats: [
-            { title: "Total Classes", value: 2 },
-            { title: "Total Teachers", value: teachers?.length || 0 },
+            { 
+              title: "Total Years", 
+              value: schoolDashboard?.school.years_count || 0 
+            },
+            { 
+              title: "Total Classes", 
+              value: schoolDashboard?.school.school_classs_count || 0 
+            },
+            { 
+              title: "Total Teachers", 
+              value: schoolDashboard?.school.teachers_count || 0 
+            },
+            { 
+              title: "Total Students", 
+              value: schoolDashboard?.school.students_count || 0 
+            },
           ],
           barChartData: [
             // { name: "Grade 1", students: 120 },
@@ -137,10 +162,15 @@ export default function DashboardPage() {
         };
       case "TEACHER":
         return {
-          stats: [
-            { title: "My Classes", value: 4 },
-            { title: "Total Students", value: 60 },
-            // { title: "Pending Assignments", value: 15 },
+           stats: [
+            { 
+              title: "Total Classes", 
+              value: schoolDashboard?.assigned_class_count || 0 
+            },
+            { 
+              title: "Total Students", 
+              value: schoolDashboard?.assigned_students_count || 0 
+            },
           ],
           barChartData: [
             // { name: "Class A", students: 30 },
@@ -159,9 +189,22 @@ export default function DashboardPage() {
       case "HOD":
         return {
           stats: [
-            { title: "My Classes", value: 4 },
-            { title: "Total Students", value: 60 },
-            // { title: "Pending Assignments", value: 15 },
+            { 
+              title: "Total Years", 
+              value: schoolDashboard?.school.years_count || 0 
+            },
+            { 
+              title: "Total Classes", 
+              value: schoolDashboard?.school.school_classs_count || 0 
+            },
+            { 
+              title: "Total Teachers", 
+              value: schoolDashboard?.school.teachers_count || 0 
+            },
+            { 
+              title: "Total Students", 
+              value: schoolDashboard?.school.students_count || 0 
+            },
           ],
           barChartData: [
             // { name: "Class A", students: 30 },
@@ -223,6 +266,9 @@ export default function DashboardPage() {
       ),
     },
     SCHOOL_ADMIN: {
+      "Total Years": (
+        <LayoutDashboard className="h-5 w-5" style={{ color: THEME_COLOR }} />
+      ),
       "Total Classes": (
         <LayoutDashboard className="h-5 w-5" style={{ color: THEME_COLOR }} />
       ),
@@ -245,6 +291,9 @@ export default function DashboardPage() {
       ),
     },
      HOD: {
+      "Total Years": (
+        <LayoutDashboard className="h-5 w-5" style={{ color: THEME_COLOR }} />
+      ),
       "My Classes": (
         <BookOpen className="h-5 w-5" style={{ color: THEME_COLOR }} />
       ),
@@ -451,7 +500,7 @@ export default function DashboardPage() {
                 : null;
 
               return (
-                <Col key={index} xs={24} md={12}>
+                <Col key={index} xs={24} md={currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "HOD" ? 6 : 12}>
                   <Card className="border-0 shadow-sm hover:shadow-md transition-all">
                     <Statistic
                       title={
