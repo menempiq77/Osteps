@@ -353,8 +353,8 @@ useEffect(() => {
       <div className="mb-6 flex items-center gap-2">
         <h3 className="font-medium min-w-[120px]">View worksheet:</h3>
         <div className="flex flex-wrap items-center space-x-2 text-sm text-gray-600">
-          {assesmentData?.map((item) => (
-            <React.Fragment key={item?.id}>
+          {assesmentData?.map((item, index) => (
+            <React.Fragment key={index}>
               <span
                 onClick={() => handleViewReportsDetail(item.id)}
                 className="text-blue-500 cursor-pointer hover:underline"
@@ -388,7 +388,7 @@ useEffect(() => {
                 style={{ width: 200 }}
                 placeholder="Select Year"
                 options={years?.map((year) => ({
-                  value: year.id.toString(),
+                  value: year.id?.toString(),
                   label: year.name,
                 }))}
               />
@@ -400,7 +400,7 @@ useEffect(() => {
                 placeholder="Select Class"
                 disabled={!selectedYear}
                 options={classes?.map((cls) => ({
-                  value: cls.id.toString(),
+                  value: cls.id?.toString(),
                   label: cls.name,
                 }))}
               />

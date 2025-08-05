@@ -15,6 +15,7 @@ interface QuizResult {
     userAnswer: string;
     correctAnswer: string;
     isCorrect: boolean;
+    isSubjective: boolean;
   }[];
 }
 
@@ -48,7 +49,7 @@ export default function QuizResultPage() {
   const { quizId } = useParams();
   const [loading, setLoading] = useState(false);
   const [quizData, setQuizData] = useState<Quiz | null>(null);
- const [userAnswers, setUserAnswers] = useState<StoredAnswer[]>([]);
+  const [userAnswers, setUserAnswers] = useState<StoredAnswer[]>([]);
 
   useEffect(() => {
     const loadQuizQuestions = async () => {
@@ -101,12 +102,17 @@ export default function QuizResultPage() {
   };
 
   // Function to check if answer is correct
-  const isAnswerCorrect = (questionId: number): boolean => {
+  const isAnswerCorrect = (questionId: number): boolean | null => {
     const answer = userAnswers.find(a => a.question_id === questionId);
     if (!answer) return false;
 
     const question = quizData?.quiz_queston.find(q => q.id === questionId);
     if (!question) return false;
+
+    // Return null for subjective questions (short answer and paragraph)
+    if (question.type === "short_answer" || question.type === "paragraph") {
+      return null;
+    }
 
     if (question.type === "multiple_choice" || question.type === "drop_down") {
       const correctOption = question.options.find(opt => opt.is_correct === 1);
@@ -128,7 +134,6 @@ export default function QuizResultPage() {
       return answer.answer === correctAnswer;
     }
 
-    // For short answer and paragraph, we can't automatically determine correctness
     return false;
   };
 
@@ -144,6 +149,9 @@ export default function QuizResultPage() {
         return correctOptions.map(opt => opt.option_text).join(", ") || "No correct answers specified";
       case "true_false":
         return question.correct_answer === "1" ? "True" : "False";
+      case "short_answer":
+      case "paragraph":
+        return question.correct_answer || "No specific correct answer (subjective question)";
       default:
         return "No specific correct answer (subjective question)";
     }
@@ -161,9 +169,10 @@ export default function QuizResultPage() {
       };
     }
 
-    const totalQuestions = quizData.quiz_queston.length;
-    const correctAnswers = quizData.quiz_queston.reduce((count, question) => {
-      return count + (isAnswerCorrect(question.id) ? 1 : 0);
+    const totalQuestions = quizData?.quiz_queston?.length;
+    const correctAnswers = quizData?.quiz_queston?.reduce((count, question) => {
+      const isCorrect = isAnswerCorrect(question.id);
+      return count + (isCorrect === true ? 1 : 0); // Only count truly correct answers
     }, 0);
     const scorePercentage = Math.round((correctAnswers / totalQuestions) * 100);
 
@@ -172,12 +181,16 @@ export default function QuizResultPage() {
       correctAnswers,
       scorePercentage,
       timeTaken: "0:00", // You can store and retrieve the time taken if needed
-      quizDetails: quizData.quiz_queston.map(question => ({
-        question: question.question_text,
-        userAnswer: getUserAnswerText(question.id),
-        correctAnswer: getCorrectAnswerText(question),
-        isCorrect: isAnswerCorrect(question.id),
-      })),
+      quizDetails: quizData?.quiz_queston?.map(question => {
+        const correctness = isAnswerCorrect(question.id);
+        return {
+          question: question.question_text,
+          userAnswer: getUserAnswerText(question.id),
+          correctAnswer: getCorrectAnswerText(question),
+          isCorrect: correctness === true, // true for correct, false for incorrect, null for subjective
+          isSubjective: question.type === "short_answer" || question.type === "paragraph"
+        };
+      }),
     };
   };
 
@@ -213,7 +226,7 @@ export default function QuizResultPage() {
                   You answered {result.correctAnswers} out of{" "}
                   {result.totalQuestions} questions correctly.
                 </p>
-                <p className="text-gray-600">Time taken: {result.timeTaken}</p>
+                {/* <p className="text-gray-600">Time taken: {result.timeTaken}</p> */}
               </div>
 
               <div className="flex flex-col items-center">
@@ -223,7 +236,7 @@ export default function QuizResultPage() {
                   strokeColor="#38C16C"
                   trailColor="#e0e7ff"
                   strokeWidth={10}
-                  width={120}
+                  size={120}
                   format={(percent) => (
                     <span className="text-2xl font-bold text-primary">
                       {percent}%
@@ -268,9 +281,11 @@ export default function QuizResultPage() {
               <div
                 key={index}
                 className={`p-4 rounded-lg border ${
-                  item.isCorrect
-                    ? "bg-green-50 border-green-200"
-                    : "bg-red-50 border-red-200"
+                  item.isSubjective 
+                    ? "bg-gray-50 border-gray-200" 
+                    : item.isCorrect
+                      ? "bg-green-50 border-green-200"
+                      : "bg-red-50 border-red-200"
                 }`}
               >
                 <div className="flex justify-between items-start">
@@ -285,16 +300,18 @@ export default function QuizResultPage() {
                           {item.userAnswer || "Not answered"}
                         </span>
                       </p>
-                      <p className="text-sm">
-                        <span className="font-medium">Correct answer:</span>{" "}
-                        <span className="text-green-600">
-                          {item.correctAnswer}
-                        </span>
-                      </p>
+                      {!item.isSubjective && (
+                        <p className="text-sm">
+                          <span className="font-medium">Correct answer:</span>{" "}
+                          <span className="text-green-600">
+                            {item.correctAnswer}
+                          </span>
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div>
-                    {item.isCorrect ? (
+                    {item.isSubjective ? null : item.isCorrect ? (
                       <CheckCircle2 className="text-green-500" size={20} />
                     ) : (
                       <XCircle className="text-red-500" size={20} />

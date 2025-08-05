@@ -1,10 +1,10 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, Calendar } from "lucide-react";
+import { Calendar } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import AssignmentDrawer from "@/components/ui/AssignmentDrawer";
-import { Button, Spin } from "antd";
+import { Breadcrumb, Button, Spin, Tooltip } from "antd";
 import { fetchTasks } from "@/services/api";
 
 interface Task {
@@ -17,6 +17,7 @@ interface Task {
   url: string | null;
   created_at: string;
   updated_at: string;
+  due_date: string;
   status?: string;
   mark?: string;
   comment?: string;
@@ -32,6 +33,12 @@ export default function AssignmentDetailPage() {
   const [isDrawerOpen, setIsDrawerOpen] = React.useState(false);
   const [selectedTask, setSelectedTask] = React.useState<Task | null>(null);
 
+  const isDueDateExpired = (dueDate: string) => {
+    const today = new Date();
+    const due = new Date(dueDate);
+    return due < today;
+  };
+
   const loadTasks = async () => {
     try {
       setLoading(true);
@@ -40,7 +47,7 @@ export default function AssignmentDetailPage() {
         ...task,
         status: task.status || "not-started",
       }));
-      console.log(tasksWithStatus, "tasksWithStatus")
+      console.log(tasksWithStatus, "tasksWithStatus");
       setTasks(tasksWithStatus);
     } catch (error) {
       console.error("Error loading tasks:", error);
@@ -65,23 +72,6 @@ export default function AssignmentDetailPage() {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "submitted":
-        return "bg-green-100 text-green-800";
-      case "pending":
-        return "bg-orange-100 text-orange-800";
-      case "in-progress":
-        return "bg-yellow-100 text-yellow-800";
-      case "not-started":
-        return "bg-gray-100 text-gray-800";
-      case "overdue":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-blue-100 text-blue-800";
-    }
-  };
-
   if (loading)
     return (
       <div className="p-3 md:p-6 flex justify-center items-center h-64">
@@ -91,14 +81,22 @@ export default function AssignmentDetailPage() {
 
   return (
     <div className="p-3 md:p-6 max-w-5xl mx-auto">
-      <Link href="/dashboard/students/assignments/">
-        <Button
-          icon={<ChevronLeft />}
-          className="mb-6 text-gray-700 border border-gray-300 hover:bg-gray-100 flex items-center gap-1"
-        >
-          Back to Assessments
-        </Button>
-      </Link>
+      <Breadcrumb
+        items={[
+          {
+            title: <Link href="/dashboard">Dashboard</Link>,
+          },
+          {
+            title: (
+              <Link href="/dashboard/students/assignments">Assesments</Link>
+            ),
+          },
+          {
+            title: <span>Tasks</span>,
+          },
+        ]}
+        className="!mb-2"
+      />
 
       <div className="space-y-6">
         <div className="border-b pb-4">
@@ -115,9 +113,9 @@ export default function AssignmentDetailPage() {
           </div>
         ) : (
           <div className="grid gap-4">
-            {tasks?.map((task) => (
+            {tasks?.map((task, index) => (
               <div
-                key={task.id}
+                key={index}
                 className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200"
               >
                 <div className="p-5">
@@ -135,8 +133,7 @@ export default function AssignmentDetailPage() {
                         <div className="flex items-center text-sm text-gray-500 mb-2">
                           <Calendar className="w-4 h-4 mr-1.5" />
                           <span>
-                            Due:{" "}
-                            {new Date(task.updated_at).toLocaleDateString()}
+                            Due: {new Date(task.due_date).toLocaleDateString()}
                           </span>
                         </div>
                       )}
@@ -211,17 +208,30 @@ export default function AssignmentDetailPage() {
                     !!task?.url && "hidden"
                   }`}
                 >
-                  <Button
-                    type={task.status === "completed" ? "default" : "primary"}
-                    className="flex items-center gap-1 !bg-primary !border-primary !text-white"
-                    onClick={() => handleOpenDrawer(task)}
-                  >
-                    {task.status === "completed"
-                      ? "View Submission"
-                      : `${
-                          task?.type !== "quiz" ? "Submit Work" : "View Quiz"
-                        }`}
-                  </Button>
+                  {isDueDateExpired(task.due_date) &&
+                  task.status !== "completed" ? (
+                    <Tooltip title="The due date for this task has expired">
+                      <Button
+                        type="default"
+                        className="flex items-center gap-1"
+                        disabled
+                      >
+                        {task?.type !== "quiz" ? "Submit Work" : "View Quiz"}
+                      </Button>
+                    </Tooltip>
+                  ) : (
+                    <Button
+                      type="default"
+                      className={`flex items-center gap-1 !bg-primary !border-primary !text-white`}
+                      onClick={() => handleOpenDrawer(task)}
+                    >
+                      {task.status === "completed"
+                        ? "View Submission"
+                        : `${
+                            task?.type !== "quiz" ? "Submit Work" : "View Quiz"
+                          }`}
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}

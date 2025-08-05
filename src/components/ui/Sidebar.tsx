@@ -75,6 +75,11 @@ const Sidebar = () => {
       { name: "Manage Grades", href: "/dashboard/grades", icon: BarChart2 },
       { name: "Manage Quiz", href: "/dashboard/quiz", icon: BookOpen },
       { name: "Reports", href: "/dashboard/students/reports", icon: Building },
+      // {
+      //   name: "View Trackers",
+      //   href: "/dashboard/viewtrackers",
+      //   icon: Building,
+      // },
       { name: "Library", href: "/dashboard/library", icon: BookText },
       // { name: "Trackers", href: "/dashboard/trackers", icon: Building },
       { name: "Timetable", href: "/dashboard/time_table", icon: BookOpen },

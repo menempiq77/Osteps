@@ -1,12 +1,13 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { Button, Card, Select, Spin } from "antd";
+import { Breadcrumb, Button, Card, Select, Spin } from "antd";
 import { ChevronLeft, Calendar } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { fetchAssessmentByStudent } from "@/services/api";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { fetchTerm } from "@/services/termsApi";
+import Link from "next/link";
 
 export default function AssignmentsPage() {
   const [selectedTerm, setSelectedTerm] = useState<string>("");
@@ -141,14 +142,19 @@ export default function AssignmentsPage() {
 
   return (
     <div className="p-3 md:p-6">
-      <div className="flex items-center justify-between">
-        <Button
-          icon={<ChevronLeft />}
-          onClick={() => router.back()}
-          className="mb-6 text-gray-700 border border-gray-300 hover:bg-gray-100"
-        >
-          Back to Dashboard
-        </Button>
+      <Breadcrumb
+          items={[
+            {
+              title: <Link href="/dashboard">Dashboard</Link>,
+            },
+            {
+              title: <span>Assesments</span>,
+            },
+          ]}
+          className="!mb-2"
+        />
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-2xl font-bold text-gray-900">Assessments</h1>
         {terms?.length > 0 && (
           <Select
             value={selectedTerm}
@@ -165,7 +171,6 @@ export default function AssignmentsPage() {
         )}
       </div>
 
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Assessments</h1>
 
       {loading ? (
         <div className="flex justify-center items-center h-64">

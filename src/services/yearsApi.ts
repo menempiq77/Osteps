@@ -22,8 +22,8 @@ export const fetchYears = async () => {
   return response.data.data;
 };
 // fetch Years By School
-export const fetchYearsBySchool = async () => {
-  const response = await api.get(`/get-school-year`);
+export const fetchYearsBySchool = async (schoolId: number) => {
+  const response = await api.get(`/get-school-year/${schoolId}`);
   return response.data.data;
 };
 // add Year
