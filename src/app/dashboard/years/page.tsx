@@ -8,7 +8,6 @@ import { RootState } from "@/store/store";
 import { Breadcrumb, Spin, Modal } from "antd";
 import Link from "next/link";
 import {
-  fetchYears,
   addYear as addYearApi,
   deleteYear as deleteYearApi,
   updateYear as updateYearApi,
@@ -64,7 +63,7 @@ export default function Page() {
         const newYear = await addYearApi(yearData);
         setYears((prevYears) => [...prevYears, newYear]);
       }
-      const updatedYears = await fetchYears();
+      const updatedYears = await fetchYearsBySchool(schoolId);
       setYears(updatedYears);
 
       setIsModalOpen(false);
@@ -130,7 +129,7 @@ export default function Page() {
       />
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Academic Years</h1>
-        {currentUser?.role !== "STUDENT" && currentUser?.role !== "TEACHER" && (
+        {currentUser?.role !== "STUDENT" && currentUser?.role !== "HOD" && currentUser?.role !== "TEACHER" && (
           <Button
             type="primary"
             className="!bg-primary !text-white"

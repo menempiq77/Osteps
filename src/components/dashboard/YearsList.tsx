@@ -25,7 +25,7 @@ export default function YearsList({
 
   // Check if current user is a student
   const isStudent =
-    currentUser?.role === "STUDENT" || currentUser?.role === "TEACHER";
+    currentUser?.role === "STUDENT" || currentUser?.role === "HOD" || currentUser?.role === "TEACHER";
 
   const handleViewClasses = (yearId: number) => {
     localStorage.setItem("selectedYearId", yearId.toString());

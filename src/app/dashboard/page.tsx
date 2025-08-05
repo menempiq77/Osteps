@@ -34,7 +34,10 @@ import { fetchSchools } from "@/services/schoolApi";
 import { fetchAdmins } from "@/services/adminsApi";
 import { fetchTeachers } from "@/services/teacherApi";
 import { useQuery } from "@tanstack/react-query";
-import { fetchSchoolDashboardData } from "@/services/dashboardApis";
+import {
+  fetchSchoolDashboardData,
+  fetchStudentDashboardData,
+} from "@/services/dashboardApis";
 
 // Custom theme colors
 const THEME_COLOR = "#38C16C";
@@ -70,26 +73,13 @@ export default function DashboardPage() {
       setLoading(false);
     }
   };
-  const loadTeachers = async () => {
-    try {
-      setLoading(true);
-      const response = await fetchTeachers();
-      setTeachers(response);
-    } catch (err) {
-      setError("Failed to fetch teachers");
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
     loadSchools();
     loadAdmins();
-    loadTeachers();
   }, []);
 
-   const {
+  const {
     data: schoolDashboard,
     isLoading: dashboardLoading,
     error: dashboardError,
@@ -97,6 +87,25 @@ export default function DashboardPage() {
     queryKey: ["schoolDashboard"],
     queryFn: fetchSchoolDashboardData,
   });
+  const {
+    data: studentDashboard,
+    isLoading: studentdashboardLoading,
+    error: studentdashboardError,
+  } = useQuery({
+    queryKey: ["studentDashboard"],
+    queryFn: fetchStudentDashboardData,
+  });
+
+  function timeAgo(dateString: string) {
+    const now = new Date();
+    const date = new Date(dateString);
+    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (seconds < 60) return "just now";
+    if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
+    return `${Math.floor(seconds / 86400)} days ago`;
+  }
 
   const studentYearName = currentUser?.studentYearName;
   const studentClassName = currentUser?.studentClassName;
@@ -128,21 +137,21 @@ export default function DashboardPage() {
       case "SCHOOL_ADMIN":
         return {
           stats: [
-            { 
-              title: "Total Years", 
-              value: schoolDashboard?.school.years_count || 0 
+            {
+              title: "Total Years",
+              value: schoolDashboard?.school.years_count || 0,
             },
-            { 
-              title: "Total Classes", 
-              value: schoolDashboard?.school.school_classs_count || 0 
+            {
+              title: "Total Classes",
+              value: schoolDashboard?.school.school_classs_count || 0,
             },
-            { 
-              title: "Total Teachers", 
-              value: schoolDashboard?.school.teachers_count || 0 
+            {
+              title: "Total Teachers",
+              value: schoolDashboard?.school.teachers_count || 0,
             },
-            { 
-              title: "Total Students", 
-              value: schoolDashboard?.school.students_count || 0 
+            {
+              title: "Total Students",
+              value: schoolDashboard?.school.students_count || 0,
             },
           ],
           barChartData: [
@@ -162,14 +171,14 @@ export default function DashboardPage() {
         };
       case "TEACHER":
         return {
-           stats: [
-            { 
-              title: "Total Classes", 
-              value: schoolDashboard?.assigned_class_count || 0 
+          stats: [
+            {
+              title: "Total Classes",
+              value: schoolDashboard?.assigned_class_count || 0,
             },
-            { 
-              title: "Total Students", 
-              value: schoolDashboard?.assigned_students_count || 0 
+            {
+              title: "Total Students",
+              value: schoolDashboard?.assigned_students_count || 0,
             },
           ],
           barChartData: [
@@ -189,21 +198,21 @@ export default function DashboardPage() {
       case "HOD":
         return {
           stats: [
-            { 
-              title: "Total Years", 
-              value: schoolDashboard?.school.years_count || 0 
+            {
+              title: "Total Years",
+              value: schoolDashboard?.school.years_count || 0,
             },
-            { 
-              title: "Total Classes", 
-              value: schoolDashboard?.school.school_classs_count || 0 
+            {
+              title: "Total Classes",
+              value: schoolDashboard?.school.school_classs_count || 0,
             },
-            { 
-              title: "Total Teachers", 
-              value: schoolDashboard?.school.teachers_count || 0 
+            {
+              title: "Total Teachers",
+              value: schoolDashboard?.school.teachers_count || 0,
             },
-            { 
-              title: "Total Students", 
-              value: schoolDashboard?.school.students_count || 0 
+            {
+              title: "Total Students",
+              value: schoolDashboard?.school.students_count || 0,
             },
           ],
           barChartData: [
@@ -290,7 +299,7 @@ export default function DashboardPage() {
         <ClipboardList className="h-5 w-5" style={{ color: THEME_COLOR }} />
       ),
     },
-     HOD: {
+    HOD: {
       "Total Years": (
         <LayoutDashboard className="h-5 w-5" style={{ color: THEME_COLOR }} />
       ),
@@ -387,60 +396,81 @@ export default function DashboardPage() {
               {studentYearName || "Year"}
             </span>
             <ChevronRight className="mx-2 h-4 w-4 text-gray-400" />
-            <span className="text-gray-800">
-              {studentClassName || "Class"}
-            </span>
+            <span className="text-gray-800">{studentClassName || "Class"}</span>
           </div>
 
           {/* Cards Grid */}
           <Row gutter={[16, 16]}>
-            <Col xs={24} md={12}>
-              <Link href="/dashboard/students/assignments">
-                <Card
-                  hoverable
-                  className="border-0 shadow-sm hover:shadow-md transition-all"
-                >
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-800">
-                        Islamic Studies
-                      </h3>
-                      <p className="text-sm text-gray-500">
-                        Assessments Due: Tomorrow
-                      </p>
-                    </div>
-                    <div
-                      className="p-3 rounded-lg"
-                      style={{ backgroundColor: THEME_COLOR_LIGHT }}
+            {studentDashboard?.data?.class?.term
+              ?.flatMap((term: any) =>
+                term.assessments?.flatMap((assessment: any) =>
+                  assessment.tasks?.map((task: any) => ({
+                    ...task,
+                    termName: term.name,
+                    assessmentName: assessment.name,
+                  }))
+                )
+              )
+              ?.filter((task: any) => {
+                const today = new Date();
+                const dueDate = new Date(task.due_date);
+                return dueDate >= today;
+              })
+              ?.sort((a: any, b: any) => {
+                const dateA = new Date(a.due_date).getTime();
+                const dateB = new Date(b.due_date).getTime();
+                return dateA - dateB;
+              })
+              ?.slice(0, 2)
+              ?.map((task: any) => (
+                <Col xs={24} md={12} key={task.id}>
+                  <Link href={`dashboard/students/assignments`}>
+                    <Card
+                      hoverable
+                      className="border-0 shadow-sm hover:shadow-md transition-all"
                     >
-                      <BookOpen
-                        className="h-6 w-6"
-                        style={{ color: THEME_COLOR }}
-                      />
-                    </div>
-                  </div>
-                  <div className="mt-4 flex justify-between items-end">
-                    <div>
-                      <p className="text-base font-medium text-gray-700">
-                        Today's Lesson: Prayer
-                      </p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        Updated 2 hours ago
-                      </p>
-                    </div>
-                    <Button
-                      type="primary"
-                      style={{
-                        backgroundColor: THEME_COLOR,
-                        borderColor: THEME_COLOR,
-                      }}
-                    >
-                      View
-                    </Button>
-                  </div>
-                </Card>
-              </Link>
-            </Col>
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-800">
+                            Islamiyat
+                          </h3>
+                          <p className="text-sm text-gray-500">
+                            Due: {new Date(task.due_date).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div
+                          className="p-3 rounded-lg"
+                          style={{ backgroundColor: THEME_COLOR_LIGHT }}
+                        >
+                          <ClipboardList
+                            className="h-6 w-6"
+                            style={{ color: THEME_COLOR }}
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-4 flex justify-between items-end">
+                        <div>
+                          <p className="text-base font-medium text-gray-700">
+                            {task.assessmentName}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            Updated {timeAgo(task.updated_at)}
+                          </p>
+                        </div>
+                        <Button
+                          type="primary"
+                          style={{
+                            backgroundColor: THEME_COLOR,
+                            borderColor: THEME_COLOR,
+                          }}
+                        >
+                          View Task
+                        </Button>
+                      </div>
+                    </Card>
+                  </Link>
+                </Col>
+              ))}
           </Row>
 
           {/* Progress Chart Section */}
@@ -500,7 +530,16 @@ export default function DashboardPage() {
                 : null;
 
               return (
-                <Col key={index} xs={24} md={currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "HOD" ? 6 : 12}>
+                <Col
+                  key={index}
+                  xs={24}
+                  md={
+                    currentUser?.role === "SCHOOL_ADMIN" ||
+                    currentUser?.role === "HOD"
+                      ? 6
+                      : 12
+                  }
+                >
                   <Card className="border-0 shadow-sm hover:shadow-md transition-all">
                     <Statistic
                       title={
