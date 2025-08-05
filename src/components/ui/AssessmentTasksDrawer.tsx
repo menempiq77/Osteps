@@ -409,6 +409,7 @@ export function AssessmentTasksDrawer({
                         className="!mt-1"
                         disabled={loading}
                         status={errors.dueDate ? "error" : ""}
+                        min={new Date().toISOString().split('T')[0]}
                       />
                     )}
                   />

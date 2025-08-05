@@ -34,11 +34,12 @@ export default function Page() {
   const [currentYear, setCurrentYear] = useState<Year | null>(null);
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [messageApi, contextHolder] = message.useMessage();
-
+  const schoolId = currentUser?.school;
+  
   useEffect(() => {
     const loadYears = async () => {
       try {
-        const data = await fetchYearsBySchool();
+        const data = await fetchYearsBySchool(schoolId);
         setYears(data);
         setLoading(false);
       } catch (err) {

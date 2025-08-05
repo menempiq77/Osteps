@@ -11,10 +11,12 @@ import {
   Radio,
   message,
   Skeleton,
+  Breadcrumb,
 } from "antd";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { fetchQuizQuestions, submitQuizByStudent } from "@/services/quizApi";
+import Link from "next/link";
 interface Option {
   id: number;
   option_text: string;
@@ -186,14 +188,21 @@ export default function QuranQuizPage() {
 
   return (
     <div className="p-3 md:p-6 max-w-5xl mx-auto min-h-screen">
-      <div className="mb-8">
-        <Button
-          onClick={() => router.back()}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
-        >
-          <ArrowLeft size={18} />
-          Back to Quizzes
-        </Button>
+      <div className="mb-4">
+        <Breadcrumb
+          items={[
+            {
+              title: <Link href="/dashboard">Dashboard</Link>,
+            },
+            {
+              title: <Link href="/dashboard/students/assignments">Assesments</Link>,
+            },
+            {
+              title: <span>Quiz</span>,
+            },
+          ]}
+          className="!mb-2"
+        />
       </div>
 
       {loading && !quizData ? (

@@ -59,28 +59,28 @@ export default function YearsList({
               {years?.length > 0 ? (
                 years?.map((year, idx) => (
                   <tr
-                    key={`${year.id}-${year.name}`}
+                    key={`${year?.id}-${year?.name}`}
                     className="border-b border-gray-300 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
                   >
                     <td className="p-2 md:p-4">{idx === 0 ? "1" : idx + 1}</td>
                     <td className="p-2 md:p-4">
                       <button
-                        onClick={() => handleViewClasses(year.id, year.name)}
+                        onClick={() => handleViewClasses(year?.id)}
                         className="text-green-600 hover:text-green-800 font-medium hover:underline cursor-pointer"
                       >
-                        {year.name}
+                        {year?.name}
                       </button>
                     </td>
                     {!isStudent && (
                       <td className="relative p-2 md:p-4 flex justify-center space-x-3">
                         <button
-                          onClick={() => onEditYear(year.id)}
+                          onClick={() => onEditYear(year?.id)}
                           className="text-green-500 hover:text-green-700 cursor-pointer"
                         >
                           <EditOutlined />
                         </button>
                         <button
-                          onClick={() => onDeleteYear(year.id)}
+                          onClick={() => onDeleteYear(year?.id)}
                           className="text-red-500 hover:text-red-700 cursor-pointer"
                         >
                           <DeleteOutlined />
