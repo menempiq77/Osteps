@@ -55,7 +55,7 @@ export default function AssessmentDrawer() {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedStudentId, setSelectedStudentId] = useState<string>("");
+  const [selectedStudentId, setSelectedStudentId] = useState<string>(null);
   const [assementTasks, setAssesmentTasks] = useState<StudentAssessmentTask[]>(
     []
   );
@@ -89,9 +89,9 @@ export default function AssessmentDrawer() {
       setLoading(true);
       const studentsData = await fetchStudents(classId);
       setStudents(studentsData);
-      if (studentsData.length > 0) {
-        setSelectedStudentId(studentsData[0].id);
-      }
+      // if (studentsData.length > 0) {
+      //   setSelectedStudentId(studentsData[0].id);
+      // }
       setStudents(studentsData);
     } catch (err) {
       setError("Failed to load students");
@@ -164,9 +164,11 @@ export default function AssessmentDrawer() {
     }
   };
 
-  const filteredTasks = assementTasks.filter(
-    (task) => task.student_id === Number(selectedStudentId)
-  );
+  const filteredTasks = selectedStudentId
+    ? assementTasks.filter(
+        (task) => task.student_id === Number(selectedStudentId)
+      )
+    : assementTasks;
 
   const handleViewQuiz = (task: any) => {
     router.push(
@@ -440,7 +442,7 @@ export default function AssessmentDrawer() {
             ))
           ) : (
             <div className="text-center text-gray-500 w-full p-4 shadow border border-gray-200">
-              No tasks found for this student.
+              No tasks found.
             </div>
           )}
         </div>

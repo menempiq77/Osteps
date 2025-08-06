@@ -196,7 +196,7 @@ export default function AssignmentsPage() {
                         <h3 className="text-lg font-semibold text-gray-900">
                           {assignment.name || assignment?.quiz?.name}
                         </h3>
-                        {getStatusBadge(status)}
+                        {/* {getStatusBadge(status)} */}
                       </div>
                       <p className="text-sm text-gray-600 line-clamp-2 mt-1">
                         {assignment.description}
@@ -230,7 +230,7 @@ export default function AssignmentsPage() {
                       }}
                     >
                       {assignment.type === "quiz"
-                        ? "Take Quiz"
+                        ? "Attempt Quiz"
                         : "View Details"}
                     </Button>
                   </div>

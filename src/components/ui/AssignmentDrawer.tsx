@@ -1,6 +1,14 @@
 "use client";
 import React, { useState } from "react";
-import { Drawer, Button, Form, message, InputNumber, Upload, UploadFile } from "antd";
+import {
+  Drawer,
+  Button,
+  Form,
+  message,
+  InputNumber,
+  Upload,
+  UploadFile,
+} from "antd";
 import {
   FileTextOutlined,
   PlayCircleOutlined,
@@ -45,7 +53,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
   const handleFileChange = (info: any) => {
     let newFileList = [...info.fileList];
     newFileList = newFileList.slice(-1);
-    newFileList = newFileList.map(file => {
+    newFileList = newFileList.map((file) => {
       if (file.response) {
         file.url = file.response.url;
       }
@@ -57,12 +65,14 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
 
   const beforeUpload = (file: File) => {
     // Reset file list to only include the new file
-    setFileList([{
-      uid: file.name,
-      name: file.name,
-      status: 'done',
-      originFileObj: file,
-    }]);
+    setFileList([
+      {
+        uid: file.name,
+        name: file.name,
+        status: "done",
+        originFileObj: file,
+      },
+    ]);
     return false;
   };
 
@@ -160,11 +170,12 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
   const renderUploadArea = () => {
     if (selectedTask?.status === "completed") return null;
 
-    const acceptType = selectedTask?.task_type === "audio" 
-      ? "audio/*" 
-      : selectedTask?.task_type === "video" 
-      ? "video/*" 
-      : "application/pdf";
+    const acceptType =
+      selectedTask?.task_type === "audio"
+        ? "audio/*"
+        : selectedTask?.task_type === "video"
+        ? "video/*"
+        : "application/pdf";
 
     const hasFile = fileList.length > 0;
     const file = hasFile ? fileList[0] : null;
@@ -284,7 +295,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
                 <div className="flex-1">
                   <div className="mb-8">{renderUploadArea()}</div>
 
-                   <Form.Item
+                  <Form.Item
                     label={`Self-Assessment (Rate your work out of ${selectedTask.allocated_marks})`}
                     name="selfAssessment"
                     rules={[
@@ -297,13 +308,17 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
                         min={0}
                         max={selectedTask.allocated_marks}
                         step={0.5}
-                        className={`w-full ${inputError ? "border-red-500" : ""}`}
+                        className={`w-full ${
+                          inputError ? "border-red-500" : ""
+                        }`}
                         placeholder={`Enter your rating (0-${selectedTask.allocated_marks})`}
                         style={{ width: "100%" }}
                         onChange={(value) => {
-                          if (value === null || 
-                              (value >= 0 && value <= selectedTask.allocated_marks)) {
-                            form.setFieldsValue({ selfAssessment: value });
+                          if (
+                            value === null ||
+                            (value >= 0 &&
+                              value <= selectedTask.allocated_marks)
+                          ) {
                             setInputError(false);
                           } else {
                             setInputError(true);
@@ -311,8 +326,11 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
                           }
                         }}
                         onKeyPress={(e) => {
-                          const currentValue = form.getFieldValue('selfAssessment') || 0;
-                          const newValue = parseFloat(currentValue.toString() + e.key);
+                          const currentValue =
+                            form.getFieldValue("selfAssessment") || 0;
+                          const newValue = parseFloat(
+                            currentValue.toString() + e.key
+                          );
                           if (
                             isNaN(newValue) ||
                             newValue > selectedTask.allocated_marks
@@ -325,7 +343,8 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
                       />
                       {inputError && (
                         <p className="text-red-500 text-xs mt-1">
-                          Rating must be between 0 and {selectedTask.allocated_marks}
+                          Rating must be between 0 and{" "}
+                          {selectedTask.allocated_marks}
                         </p>
                       )}
                     </div>
