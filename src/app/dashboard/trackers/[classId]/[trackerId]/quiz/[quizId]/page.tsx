@@ -17,7 +17,12 @@ import {
 } from "antd";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { addQuizQuestion, deleteQuizQuestion, fetchQuizQuestions, submitQuizByStudent } from "@/services/quizApi";
+import {
+  addQuizQuestion,
+  deleteQuizQuestion,
+  fetchQuizQuestions,
+  submitQuizByStudent,
+} from "@/services/quizApi";
 interface Option {
   id: number;
   option_text: string;
@@ -54,7 +59,6 @@ interface Answer {
   answer: string | number | boolean | number[];
 }
 
-
 export default function QuranQuizPage() {
   const { quizId } = useParams();
   const { currentUser } = useSelector((state: RootState) => state.auth);
@@ -69,6 +73,7 @@ export default function QuranQuizPage() {
   const [questionToDelete, setQuestionToDelete] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [answers, setAnswers] = useState<Record<number, any>>({});
+  const [messageApi, contextHolder] = message.useMessage();
 
   const canUpload =
     currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "TEACHER";
@@ -154,7 +159,9 @@ export default function QuranQuizPage() {
       let options: string[] = [];
       let correctAnswer: number | null = null;
 
-      if (["multiple_choice", "check_boxes", "drop_down"].includes(values.type)) {
+      if (
+        ["multiple_choice", "check_boxes", "drop_down"].includes(values.type)
+      ) {
         // Collect all options that have values
         for (let i = 1; i <= optionCount; i++) {
           if (values[`option${i}`]) {
@@ -285,11 +292,9 @@ export default function QuranQuizPage() {
     try {
       setSubmitting(true);
 
-      
       const formattedAnswers: Answer[] = quizData.quiz_queston.map(
         (question) => {
           const answer = answers[question.id] || "";
-
           return {
             question_id: question.id,
             answer: answer,
@@ -305,18 +310,28 @@ export default function QuranQuizPage() {
         })
       );
 
-      await submitQuizByStudent(
+      const res = await submitQuizByStudent(
         quizData.id,
         currentUser.student,
         formattedAnswers,
         "tracker"
       );
 
-      message.success("Quiz submitted successfully!");
+      // ✅ check if already submitted
+      if (res?.status === 409) {
+        messageApi.warning(res.message || "You have already submitted this quiz.");
+        return; // stop further execution
+      }
+
+      messageApi.success("Quiz submitted successfully!");
       router.push(`${quizId}/quiz-result`);
-    } catch (error) {
-      message.error("Failed to submit quiz");
-      console.error("Submission error:", error);
+    } catch (error: any) {
+      if (error?.response?.status === 409) {
+        messageApi.warning("You have already submitted this quiz.");
+      } else {
+        messageApi.error("Failed to submit quiz");
+        console.error("Submission error:", error);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -324,6 +339,7 @@ export default function QuranQuizPage() {
 
   return (
     <div className="p-3 md:p-6 max-w-5xl mx-auto min-h-screen">
+      {contextHolder}
       <div className="mb-8">
         <Button
           onClick={() => router.back()}
@@ -382,7 +398,9 @@ export default function QuranQuizPage() {
                     <Select.Option value="multiple_choice">
                       Multiple Choice
                     </Select.Option>
-                    <Select.Option value="check_boxes">Checkboxes</Select.Option>
+                    <Select.Option value="check_boxes">
+                      Checkboxes
+                    </Select.Option>
                     <Select.Option value="drop_down">Dropdown</Select.Option>
                     <Select.Option value="true_false">True/False</Select.Option>
                   </Select>
@@ -679,8 +697,10 @@ export default function QuranQuizPage() {
                     </div>
                   )}
 
-                 <div className="mt-1 text-xs text-gray-500 flex justify-between">
-                    <span>Type: {quizTypeLabels[question.type] || question.type}</span>
+                  <div className="mt-1 text-xs text-gray-500 flex justify-between">
+                    <span>
+                      Type: {quizTypeLabels[question.type] || question.type}
+                    </span>
                     <span>Marks: {question.marks || "N/A"}</span>
                   </div>
                 </div>

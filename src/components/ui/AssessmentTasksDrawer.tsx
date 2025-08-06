@@ -8,6 +8,7 @@ import {
   message,
   Input as AntdInput,
   Checkbox,
+  InputNumber,
 } from "antd";
 import { Controller, useForm } from "react-hook-form";
 import { addTask, updateTask, deleteTask } from "@/services/api";
@@ -423,25 +424,24 @@ export function AssessmentTasksDrawer({
                 {/* Allocated Marks */}
                 <div>
                   <p className="font-medium">Allocated Marks</p>
-                  <Controller
-                    name="allocatedMarks"
-                    control={control}
-                    rules={{
-                      required: "Allocated marks are required",
-                    }}
-                    render={({ field }) => (
-                      <AntdInput
-                        {...field}
-                        id="allocatedMarks"
-                        type="number"
-                        min={0}
-                        className="!mt-1"
-                        disabled={loading}
-                        status={errors.allocatedMarks ? "error" : ""}
-                        onChange={(e) => field.onChange(Number(e.target.value))}
-                      />
-                    )}
-                  />
+               <Controller
+                  name="allocatedMarks"
+                  control={control}
+                  rules={{
+                    required: "Allocated marks are required",
+                  }}
+                  render={({ field }) => (
+                    <InputNumber
+                      {...field}
+                      id="allocatedMarks"
+                      min={0}
+                      className="!mt-1 w-full"
+                      disabled={loading}
+                      status={errors.allocatedMarks ? "error" : ""}
+                      onChange={(value) => field.onChange(value)} // value is already a number
+                    />
+                  )}
+                />
                   {errors.allocatedMarks && (
                     <p className="text-red-500 text-sm mt-1">
                       {errors.allocatedMarks.message}

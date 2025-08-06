@@ -1,7 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { Input, Button, Modal, Rate, Select, message } from "antd";
-import { useForm } from "react-hook-form";
+import { Input, Button, Modal, Select, message } from "antd";
 import {
   AudioOutlined,
   VideoCameraOutlined,
@@ -354,6 +353,7 @@ export default function AssessmentDrawer() {
                             ? "text-gray-500"
                             : "text-green-600 hover:text-green-800"
                         }`}
+                        disabled={!selectedStudentId}
                       >
                         {assessmentOpenTaskId === task.id ? (
                           <span>Hide</span>
@@ -395,6 +395,7 @@ export default function AssessmentDrawer() {
                           }
                         }}
                         type="number"
+                        step="any"
                         min="0"
                         max={task.task.allocated_marks}
                         className={`w-20 ${inputError ? "border-red-500" : ""}`}
@@ -487,7 +488,7 @@ export default function AssessmentDrawer() {
                       PDF document available for download
                     </p>
                     <a
-                      href={viewingTask.file_path}
+                      href={`https://dashboard.osteps.com/${viewingTask.file_path}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       download
@@ -502,17 +503,17 @@ export default function AssessmentDrawer() {
                     className="w-full rounded-lg border"
                     style={{ maxHeight: "400px" }}
                   >
-                    <source src={viewingTask.file_path} type="video/mp4" />
+                    <source src={`https://dashboard.osteps.com/${viewingTask.file_path}`} type="video/mp4" />
                     Your browser does not support the video tag.
                   </video>
                 ) : viewingTask.task?.task_type.toLowerCase() === "audio" ? (
                   <audio controls className="w-full">
-                    <source src={viewingTask.file_path} type="audio/mpeg" />
+                    <source src={`https://dashboard.osteps.com/${viewingTask.file_path}`} type="audio/mpeg" />
                     Your browser does not support the audio element.
                   </audio>
                 ) : (
                   <a
-                    href={viewingTask.file_path}
+                    href={`https://dashboard.osteps.com/${viewingTask.file_path}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-blue-600 hover:underline"
