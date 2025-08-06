@@ -170,7 +170,7 @@ export default function AssessmentDrawer() {
 
   const handleViewQuiz = (task: any) => {
     router.push(
-      `/dashboard/students/${classId}/view-student-assesment/${selectedStudentId}/quiz/${task.quiz.id}`
+      `/dashboard/students/${classId}/view-student-assesment/${selectedStudentId}/assesment-tasks/quiz/${task.quiz.id}`
     );
   };
 
@@ -234,14 +234,25 @@ export default function AssessmentDrawer() {
                       )}
                     </div>
                   </div>
-                  <Button
-                    size="small"
-                    type="text"
-                    onClick={() => setViewingTask(task)}
-                    className="text-blue-600 hover:text-blue-800"
-                  >
-                    View
-                  </Button>
+                  {task?.submission_type === "quiz" ? (
+                    <Button
+                      size="small"
+                      type="text"
+                      onClick={() => handleViewQuiz(task)}
+                      className="text-blue-600 hover:text-blue-800"
+                    >
+                      View
+                    </Button>
+                  ) : (
+                    <Button
+                      size="small"
+                      type="text"
+                      onClick={() => setViewingTask(task)}
+                      className="text-blue-600 hover:text-blue-800"
+                    >
+                      View
+                    </Button>
+                  )}
                 </div>
 
                 {/* Assessment Summary */}
@@ -363,36 +374,34 @@ export default function AssessmentDrawer() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Marks
                       </label>
-                        <Input
-                          placeholder={`0-${task.task.allocated_marks}`}
-                          value={formValues.marks}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            if (
-                              value === "" ||
-                              (Number(value) >= 0 &&
-                                Number(value) <=
-                                  Number(task.task.allocated_marks))
-                            ) {
-                              handleInputChange("marks", value);
-                              setInputError(false);
-                            } else {
-                              setInputError(true);
-                              setTimeout(() => setInputError(false), 2000);
-                            }
-                          }}
-                          type="number"
-                          min="0"
-                          max={task.task.allocated_marks}
-                          className={`w-20 ${
-                            inputError ? "border-red-500" : ""
-                          }`}
-                        />
-                        {inputError && (
-                          <p className="text-red-500 text-xs mt-1">
-                            Marks cannot exceed {task.task.allocated_marks}
-                          </p>
-                        )}
+                      <Input
+                        placeholder={`0-${task.task.allocated_marks}`}
+                        value={formValues.marks}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (
+                            value === "" ||
+                            (Number(value) >= 0 &&
+                              Number(value) <=
+                                Number(task.task.allocated_marks))
+                          ) {
+                            handleInputChange("marks", value);
+                            setInputError(false);
+                          } else {
+                            setInputError(true);
+                            setTimeout(() => setInputError(false), 2000);
+                          }
+                        }}
+                        type="number"
+                        min="0"
+                        max={task.task.allocated_marks}
+                        className={`w-20 ${inputError ? "border-red-500" : ""}`}
+                      />
+                      {inputError && (
+                        <p className="text-red-500 text-xs mt-1">
+                          Marks cannot exceed {task.task.allocated_marks}
+                        </p>
+                      )}
                     </div>
 
                     <div>
