@@ -15,7 +15,10 @@ import {
 } from "antd";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { fetchQuizQuestions, submitTaskQuizByStudent } from "@/services/quizApi";
+import {
+  fetchQuizQuestions,
+  submitTaskQuizByStudent,
+} from "@/services/quizApi";
 import Link from "next/link";
 
 interface Option {
@@ -61,6 +64,7 @@ export default function QuranQuizPage() {
   const [submitting, setSubmitting] = useState(false);
   const [quizData, setQuizData] = useState<Quiz | null>(null);
   const [answers, setAnswers] = useState<Record<number, any>>({});
+  const [messageApi, contextHolder] = message.useMessage();
 
   const canUpload =
     currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "TEACHER";
@@ -154,7 +158,6 @@ export default function QuranQuizPage() {
       const formattedAnswers: Answer[] = quizData.quiz_queston.map(
         (question) => {
           const answer = answers[question.id] || "";
-
           return {
             question_id: question.id,
             answer: answer,
@@ -170,7 +173,7 @@ export default function QuranQuizPage() {
         })
       );
 
-      await submitTaskQuizByStudent(
+      const res = await submitTaskQuizByStudent(
         quizData.id,
         currentUser.student,
         Id,
@@ -178,11 +181,23 @@ export default function QuranQuizPage() {
         "task"
       );
 
-      message.success("Quiz submitted successfully!");
+      // ✅ check if already submitted
+      if (res?.status === 409) {
+        messageApi.warning(
+          res.message || "You have already submitted this quiz."
+        );
+        return; // stop further execution
+      }
+
+      messageApi.success("Quiz submitted successfully!");
       router.push(`${quizId}/quiz-result`);
-    } catch (error) {
-      message.error("Failed to submit quiz");
-      console.error("Submission error:", error);
+    } catch (error: any) {
+      if (error?.response?.status === 409) {
+        messageApi.warning("You have already submitted this quiz.");
+      } else {
+        messageApi.error("Failed to submit quiz");
+        console.error("Submission error:", error);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -190,28 +205,31 @@ export default function QuranQuizPage() {
 
   return (
     <div className="p-3 md:p-6 max-w-5xl mx-auto min-h-screen">
+      {contextHolder}
       <div className="mb-4">
         <Breadcrumb
-        items={[
-          {
-            title: <Link href="/dashboard">Dashboard</Link>,
-          },
-          {
-            title: (
-              <Link href="/dashboard/students/assignments">Assesments</Link>
-            ),
-          },
-          {
-            title: (
-              <Link href={`/dashboard/students/assignments/${quizId}`}>Tasks</Link>
-            ),
-          },
-          {
-            title: <span>Quiz</span>,
-          },
-        ]}
-        className="!mb-2"
-      />
+          items={[
+            {
+              title: <Link href="/dashboard">Dashboard</Link>,
+            },
+            {
+              title: (
+                <Link href="/dashboard/students/assignments">Assesments</Link>
+              ),
+            },
+            {
+              title: (
+                <Link href={`/dashboard/students/assignments/${quizId}`}>
+                  Tasks
+                </Link>
+              ),
+            },
+            {
+              title: <span>Quiz</span>,
+            },
+          ]}
+          className="!mb-2"
+        />
       </div>
 
       {loading && !quizData ? (

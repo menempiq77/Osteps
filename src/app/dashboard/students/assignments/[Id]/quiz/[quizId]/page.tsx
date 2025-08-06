@@ -60,6 +60,7 @@ export default function QuranQuizPage() {
   const [submitting, setSubmitting] = useState(false);
   const [quizData, setQuizData] = useState<Quiz | null>(null);
   const [answers, setAnswers] = useState<Record<number, any>>({});
+  const [messageApi, contextHolder] = message.useMessage();
 
   const canUpload =
     currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "TEACHER";
@@ -145,49 +146,60 @@ export default function QuranQuizPage() {
   };
 
   const handleSubmit = async () => {
-    if (!quizData || !currentUser) return;
+  if (!quizData || !currentUser) return;
 
-    try {
-      setSubmitting(true);
+  try {
+    setSubmitting(true);
 
-      const formattedAnswers: Answer[] = quizData.quiz_queston.map(
-        (question) => {
-          const answer = answers[question.id] || "";
+    const formattedAnswers: Answer[] = quizData.quiz_queston.map((question) => {
+      const answer = answers[question.id] || "";
+      return {
+        question_id: question.id,
+        answer: answer,
+      };
+    });
 
-          return {
-            question_id: question.id,
-            answer: answer,
-          };
-        }
-      );
+    // store locally regardless
+    localStorage.setItem(
+      `quiz_${quizData.id}_answers`,
+      JSON.stringify({
+        answers: formattedAnswers,
+        submittedAt: new Date().toISOString(),
+      })
+    );
 
-      localStorage.setItem(
-        `quiz_${quizData.id}_answers`,
-        JSON.stringify({
-          answers: formattedAnswers,
-          submittedAt: new Date().toISOString(),
-        })
-      );
+    const res = await submitQuizByStudent(
+      quizData.id,
+      currentUser.student,
+      formattedAnswers,
+      "assessment"
+    );
 
-      await submitQuizByStudent(
-        quizData.id,
-        currentUser.student,
-        formattedAnswers,
-        "assessment"
-      );
-
-      message.success("Quiz submitted successfully!");
-      router.push(`${quizId}/quiz-result`);
-    } catch (error) {
-      message.error("Failed to submit quiz");
-      console.error("Submission error:", error);
-    } finally {
-      setSubmitting(false);
+    // ✅ check response status
+    if (res?.status === 409) {
+      messageApi.warning(res.message || "You have already submitted this quiz.");
+      return; // stop further execution
     }
-  };
+
+    messageApi.success("Quiz submitted successfully!");
+    router.push(`${quizId}/quiz-result`);
+  } catch (error: any) {
+    // In case server throws error instead of returning JSON
+    if (error?.response?.status === 409) {
+      messageApi.warning("You have already submitted this quiz.");
+    } else {
+      messageApi.error("Failed to submit quiz");
+      console.error("Submission error:", error);
+    }
+  } finally {
+    setSubmitting(false);
+  }
+};
+
 
   return (
     <div className="p-3 md:p-6 max-w-5xl mx-auto min-h-screen">
+      {contextHolder}
       <div className="mb-4">
         <Breadcrumb
           items={[

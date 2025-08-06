@@ -312,6 +312,12 @@ useEffect(() => {
     student?.student?.toLowerCase()?.includes(searchTerm?.toLowerCase())
   );
 
+  const filteredAssessments = wholeAssesmentData.filter((assessment) => {
+  const classMatch = !selectedClass || assessment.class_id.toString() === selectedClass;
+  const yearMatch = !selectedYear || assessment.year_id.toString() === selectedYear;
+  return classMatch && yearMatch;
+});
+
   const handleViewReportsDetail = (reportId: string) => {
     router.push(`/dashboard/students/reports/${reportId}`);
   };
@@ -412,7 +418,7 @@ useEffect(() => {
                     Student
                   </th>
                   {[
-                    ...(wholeAssesmentData?.map(
+                    ...(filteredAssessments?.map(
                       (assessment) => assessment.assessment_name
                     ) || []),
                     "Total",
@@ -442,7 +448,7 @@ useEffect(() => {
                       </td>
 
                       {/* Assessment marks */}
-                      {wholeAssesmentData?.map((assessment) => (
+                      {filteredAssessments?.map((assessment) => (
                         <td
                           key={assessment.assessment_id}
                           className="px-2 py-2 border border-gray-300 whitespace-nowrap text-sm text-gray-500 font-medium"
