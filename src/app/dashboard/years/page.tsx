@@ -12,6 +12,7 @@ import {
   deleteYear as deleteYearApi,
   updateYear as updateYearApi,
   fetchYearsBySchool,
+  fetchAssignYears,
 } from "@/services/yearsApi";
 
 interface Year {
@@ -34,21 +35,39 @@ export default function Page() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [messageApi, contextHolder] = message.useMessage();
   const schoolId = currentUser?.school;
-  
-  useEffect(() => {
-    const loadYears = async () => {
-      try {
-        const data = await fetchYearsBySchool(schoolId);
-        setYears(data);
-        setLoading(false);
-      } catch (err) {
-        setError("Failed to load years");
-        setLoading(false);
-        console.error(err);
+  const isTeacher = currentUser?.role === "TEACHER";
+
+useEffect(() => {
+  const loadYears = async () => {
+    try {
+      let yearsData = [];
+
+      if (isTeacher) {
+        const res = await fetchAssignYears();
+
+        const years = res
+          .map((item) => item.classes?.year)
+          .filter((year) => year);
+
+        yearsData = Array.from(
+          new Map(years.map((year) => [year.id, year])).values()
+        );
+      } else {
+        const res = await fetchYearsBySchool(schoolId);
+        yearsData = res;
       }
-    };
-    loadYears();
-  }, []);
+
+      setYears(yearsData);
+    } catch (err) {
+      setError("Failed to load years");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  loadYears();
+}, [schoolId, isTeacher]);
 
   const handleSubmitYear = async (data: { name: string }) => {
     try {
@@ -129,18 +148,20 @@ export default function Page() {
       />
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Academic Years</h1>
-        {currentUser?.role !== "STUDENT" && currentUser?.role !== "HOD" && currentUser?.role !== "TEACHER" && (
-          <Button
-            type="primary"
-            className="!bg-primary !text-white"
-            onClick={() => {
-              setCurrentYear(null);
-              setIsModalOpen(true);
-            }}
-          >
-            Add Year
-          </Button>
-        )}
+        {currentUser?.role !== "STUDENT" &&
+          currentUser?.role !== "HOD" &&
+          currentUser?.role !== "TEACHER" && (
+            <Button
+              type="primary"
+              className="!bg-primary !text-white"
+              onClick={() => {
+                setCurrentYear(null);
+                setIsModalOpen(true);
+              }}
+            >
+              Add Year
+            </Button>
+          )}
       </div>
       <YearsList
         key={years?.length}

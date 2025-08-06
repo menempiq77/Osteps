@@ -81,7 +81,7 @@ export default function QuranQuizPage() {
   );
 
   const canUpload =
-    currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "TEACHER";
+    currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "TEACHER" || currentUser?.role === "HOD";
 
   useEffect(() => {
     const loadQuizQuestions = async () => {
@@ -106,13 +106,13 @@ export default function QuranQuizPage() {
         const response = await fetchSubmittedQuizDetails(
           Number(quizId),
           Number(selectedStudentId),
-          "tracker"
+          "task"
         );
         setSubmittedAnswers(response);
 
         // Initialize custom marks with existing marks from submitted answers
         const marksMap: Record<number, number> = {};
-        response.forEach((ans: SubmittedAnswer) => {
+        response.forEach((ans) => {
           marksMap[ans.question_id] = ans.marks;
         });
         setCustomMarks(marksMap);
@@ -140,8 +140,6 @@ export default function QuranQuizPage() {
     };
     if (classId) loadStudents();
   }, [classId]);
-
-  console.log(students, "students")
 
   const handleStudentChange = (value: string) => {
     setSelectedStudentId(value);
