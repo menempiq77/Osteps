@@ -153,19 +153,6 @@ export default function QuranTrackerAdminPage() {
     return students.filter((student) => studentIdsInData.includes(student.id));
   }, [students, studentIdsInData]);
 
-  // useEffect(() => {
-  //   if (currentUser?.role === "STUDENT" && students.length > 0) {
-  //     // If current user is a student, automatically select their ID
-  //     const student = students.find(s => s.id === currentUser.student);
-  //     if (student) {
-  //       setSelectedStudentId(student.id);
-  //     }
-  //   } else if (availableStudents.length > 0 && !selectedStudentId) {
-  //     // For teachers/admins, select the first available student by default
-  //     setSelectedStudentId(availableStudents[0].id);
-  //   }
-  // }, [availableStudents, currentUser]);
-
   const handleEnterMarks = (topic: Topic) => {
     if (!selectedStudentId) {
       message.warning("Please select a student first");
@@ -196,6 +183,15 @@ export default function QuranTrackerAdminPage() {
         message.warning("Please enter valid marks");
         return;
       }
+
+      // Get the maximum marks from the topic (10 in this case)
+      const maxMarks = selectedTopic.marks ? Number(selectedTopic.marks) : 100;
+      
+      if (marksValue > maxMarks) {
+        message.warning(`Marks cannot exceed ${maxMarks}`);
+        return;
+      }
+
 
       await addTopicMark(selectedTopic.id, marksValue, selectedStudentId);
 
@@ -239,7 +235,7 @@ export default function QuranTrackerAdminPage() {
             placeholder="Select Student"
             className="w-48"
             style={{ minWidth: "120px" }}
-            options={availableStudents.map((student) => ({
+            options={students.map((student) => ({
               label: student.student_name,
               value: student.id,
             }))}
@@ -303,7 +299,7 @@ export default function QuranTrackerAdminPage() {
                                   />
                                 </div>
                                 <button
-                                  className={`hover:bg-gray-50 transition-colors disabled:cursor-not-allowed ${
+                                  className={`hover:bg-gray-50 transition-colors ${
                                     topic.type === "quiz"
                                       ? "cursor-pointer hover:underline"
                                       : ""
@@ -317,7 +313,6 @@ export default function QuranTrackerAdminPage() {
                                         }
                                       : undefined
                                   }
-                                  disabled={!selectedStudentId}
                                 >
                                   {topic.title || topic?.quiz?.name}
                                 </button>
@@ -351,6 +346,7 @@ export default function QuranTrackerAdminPage() {
                                     <input
                                       type="checkbox"
                                       readOnly
+                                      disabled
                                       checked={
                                         studentProgress?.is_completed === 1
                                       }
@@ -416,7 +412,7 @@ export default function QuranTrackerAdminPage() {
 
       {/* Marks Modal */}
       <Modal
-        title={`Enter Marks`}
+        title={`Enter Marks (Max: ${selectedTopic?.marks || 100})`}
         open={markModal}
         onOk={handleSubmitMarks}
         onCancel={() => setMarkModal(false)}
@@ -428,9 +424,9 @@ export default function QuranTrackerAdminPage() {
           <Input
             name="marks"
             type="number"
-            placeholder="Enter marks (0-100)"
+            placeholder={`Enter marks (0-${selectedTopic?.marks || 100})`}
             min={0}
-            max={100}
+            max={selectedTopic?.marks || 100}
             value={marks}
             onChange={(e) => setMarks(e.target.value)}
           />
