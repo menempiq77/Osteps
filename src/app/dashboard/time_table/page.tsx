@@ -281,7 +281,7 @@ function Timetable() {
     setCurrentEventId(eventProps.id);
     setIsModalVisible(true);
   };
-  
+
   const renderEventContent = (eventInfo: EventContentArg) => (
     <div className="p-2 overflow-auto bg-primary">
       <div className="flex justify-between items-start">
@@ -362,74 +362,76 @@ function Timetable() {
         ]}
         className="!mb-2"
       />
-      <div className="bg-white p-4 rounded-md shadow-sm border border-gray-200 mb-6">
-        <h3 className="text-sm font-medium text-gray-700 mb-3">Filters</h3>
+      {!isStudent && (
+        <div className="bg-white p-4 rounded-md shadow-sm border border-gray-200 mb-6">
+          <h3 className="text-sm font-medium text-gray-700 mb-3">Filters</h3>
 
-        <div
-          className={`grid grid-cols-1 ${
-            isTeacher ? "md:grid-cols-2" : "md:grid-cols-3"
-          } gap-4`}
-        >
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">
-              Year
-            </label>
-            <Select
-              value={selectedYear || undefined}
-              onChange={handleYearChange}
-              className="w-full"
-              placeholder="All Years"
-              allowClear
-            >
-              {years?.map((year) => (
-                <Option key={year.id} value={year.id}>
-                  {year.name}
-                </Option>
-              ))}
-            </Select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">
-              Class
-            </label>
-            <Select
-              value={selectedClass || undefined}
-              onChange={handleClassChange}
-              className="w-full"
-              placeholder="All Classes"
-              allowClear
-            >
-              {classes?.map((cls) => (
-                <Option key={cls.id} value={cls.id}>
-                  {cls.class_name}
-                </Option>
-              ))}
-            </Select>
-          </div>
-
-          {!isTeacher && (
+          <div
+            className={`grid grid-cols-1 ${
+              isTeacher ? "md:grid-cols-2" : "md:grid-cols-3"
+            } gap-4`}
+          >
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">
-                Teacher
+                Year
               </label>
               <Select
-                // value={selectedTeacher || undefined}
-                onChange={handleTeacherChange}
+                value={selectedYear || undefined}
+                onChange={handleYearChange}
                 className="w-full"
-                placeholder="All Teachers"
+                placeholder="All Years"
                 allowClear
               >
-                {teachers?.map((teacher) => (
-                  <Option key={teacher.id} value={teacher.id}>
-                    {teacher.teacher_name}
+                {years?.map((year) => (
+                  <Option key={year.id} value={year.id}>
+                    {year.name}
                   </Option>
                 ))}
               </Select>
             </div>
-          )}
+
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                Class
+              </label>
+              <Select
+                value={selectedClass || undefined}
+                onChange={handleClassChange}
+                className="w-full"
+                placeholder="All Classes"
+                allowClear
+              >
+                {classes?.map((cls) => (
+                  <Option key={cls.id} value={cls.id}>
+                    {cls.class_name}
+                  </Option>
+                ))}
+              </Select>
+            </div>
+
+            {!isTeacher && (
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">
+                  Teacher
+                </label>
+                <Select
+                  // value={selectedTeacher || undefined}
+                  onChange={handleTeacherChange}
+                  className="w-full"
+                  placeholder="All Teachers"
+                  allowClear
+                >
+                  {teachers?.map((teacher) => (
+                    <Option key={teacher.id} value={teacher.id}>
+                      {teacher.teacher_name}
+                    </Option>
+                  ))}
+                </Select>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
       <FullCalendar
         plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
         initialView="timeGridWeek"
@@ -552,7 +554,11 @@ function Timetable() {
                   </Form.Item>
                 )}
 
-                <Form.Item name="zoom_link" label="Zoom Link" rules={[{type : "url"}]}>
+                <Form.Item
+                  name="zoom_link"
+                  label="Zoom Link"
+                  rules={[{ type: "url" }]}
+                >
                   <Input placeholder="Zoom meeting link (optional)" />
                 </Form.Item>
               </Col>
