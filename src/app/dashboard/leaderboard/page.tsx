@@ -34,7 +34,7 @@ const LeaderBoard = () => {
     key: student.student_id.toString(),
     rank: index + 1,
     name: student.student_name,
-    avatar: `https://randomuser.me/api/portraits/${index % 2 === 0 ? 'men' : 'women'}/${index + 1}.jpg`,
+    avatar: student.student_name?.charAt(0).toUpperCase() || '?',
     points: student.total_marks || 0,
     progress: Math.floor(Math.random() * 20) - 5, // Random progress for demo
     badge: index === 0 ? 'gold' : index === 1 ? 'silver' : index === 2 ? 'bronze' : null,
@@ -60,7 +60,20 @@ const LeaderBoard = () => {
       key: 'name',
       render: (text: string, record: any) => (
         <Space>
-          <Avatar src={record.avatar} />
+          <Avatar 
+            style={{ 
+              backgroundColor:
+                record.badge === 'gold' ? '#FFD700' :
+                record.badge === 'silver' ? '#C0C0C0' :
+                record.badge === 'bronze' ? '#CD7F32' :
+                '#1890ff',
+              verticalAlign: 'middle',
+              color: '#000',
+              fontWeight: 'bold'
+            }}
+          >
+            {record.avatar}
+          </Avatar>
           <Text strong>{text}</Text>
           {record.badge === 'gold' && <Tag color="gold">Top</Tag>}
           {record.badge === 'silver' && <Tag color="silver">Excellent</Tag>}

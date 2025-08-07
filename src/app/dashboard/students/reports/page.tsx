@@ -75,6 +75,7 @@ export default function ReportsPage() {
   const [grades, setGrades] = useState<Grade[]>([]);
   const [error, setError] = useState<string | null>(null);
   const isSchoolAdmin = currentUser?.role === "SCHOOL_ADMIN";
+  const isHOD = currentUser?.role === "HOD";
 
   useEffect(() => {
     const loadGrades = async () => {

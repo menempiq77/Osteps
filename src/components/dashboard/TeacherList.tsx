@@ -11,6 +11,8 @@ import {
   updateTeacher,
   deleteTeacher as deleteTeacherApi,
 } from "@/services/teacherApi";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store/store";
 
 type Teacher = {
   id: string;
@@ -39,6 +41,8 @@ export default function TeacherList() {
   const [isAddTeacherModalOpen, setIsAddTeacherModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
+  const { currentUser } = useSelector((state: RootState) => state.auth);
+  const hasAccess = currentUser?.role === "HOD";
 
   useEffect(() => {
     const loadTeachers = async () => {
@@ -166,14 +170,16 @@ export default function TeacherList() {
       />
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold uppercase">Teachers</h1>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => setIsAddTeacherModalOpen(true)}
-          className="!bg-primary hover:bg-primary/90 !text-white !border-0 uppercase"
-        >
-          Teacher / HOD
-        </Button>
+        {!hasAccess && (
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => setIsAddTeacherModalOpen(true)}
+            className="!bg-primary hover:bg-primary/90 !text-white !border-0 uppercase"
+          >
+            Teacher / HOD
+          </Button>
+        )}
       </div>
 
       <div className="relative overflow-auto">
@@ -206,7 +212,9 @@ export default function TeacherList() {
                     Role
                   </span>
                 </th>
-                <th className="p-4 text-xs md:text-sm">Actions</th>
+                {!hasAccess && (
+                  <th className="p-4 text-xs md:text-sm">Actions</th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -216,33 +224,37 @@ export default function TeacherList() {
                     key={teacher.id}
                     className="border-b border-gray-300 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
                   >
-                    <td className="p-2 md:p-4 font-medium">{teacher.name || "N/A"}</td>
+                    <td className="p-2 md:p-4 font-medium">
+                      {teacher.name || "N/A"}
+                    </td>
                     <td className="p-2 md:p-4">{teacher.phone || "N/A"}</td>
                     <td className="p-2 md:p-4">{teacher.email || "N/A"}</td>
                     <td className="p-2 md:p-4">
                       {teacher.subjects?.join(", ") || "N/A"}
                     </td>
                     <td className="p-2 md:p-4">{teacher.role || "N/A"}</td>
-                    <td className="relative p-2 md:p-4 flex justify-center space-x-3">
-                      <button
-                        onClick={() => setEditTeacher(teacher)}
-                        className="text-green-500 hover:text-green-700 cursor-pointer"
-                        title="Edit"
-                      >
-                        <EditOutlined />
-                      </button>
+                    {!hasAccess && (
+                      <td className="relative p-2 md:p-4 flex justify-center space-x-3">
+                        <button
+                          onClick={() => setEditTeacher(teacher)}
+                          className="text-green-500 hover:text-green-700 cursor-pointer"
+                          title="Edit"
+                        >
+                          <EditOutlined />
+                        </button>
 
-                      <button
-                        onClick={() => {
-                          setDeleteTeacher(teacher);
-                          setIsDeleteModalOpen(true);
-                        }}
-                        className="text-red-500 hover:text-red-700 cursor-pointer"
-                        title="Delete"
-                      >
-                        <DeleteOutlined />
-                      </button>
-                    </td>
+                        <button
+                          onClick={() => {
+                            setDeleteTeacher(teacher);
+                            setIsDeleteModalOpen(true);
+                          }}
+                          className="text-red-500 hover:text-red-700 cursor-pointer"
+                          title="Delete"
+                        >
+                          <DeleteOutlined />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))
               ) : (
