@@ -100,7 +100,7 @@ useEffect(() => {
       setError(null);
 
       let response;
-      if (isSchoolAdmin) {
+      if (isSchoolAdmin || isHOD) {
         const adminData = await fetchAllYearClasses();
 
         // Transform to match fetchAssignedYearClasses format
@@ -144,7 +144,7 @@ useEffect(() => {
   };
 
   fetchData();
-}, [isSchoolAdmin]);
+}, [isSchoolAdmin, isHOD]);
 
   
   const years = Array.from(
