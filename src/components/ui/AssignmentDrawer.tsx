@@ -95,15 +95,25 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
         formData.append("file_path", file);
       }
 
-      await uploadTaskByStudent(formData, assessmentId);
+      const response = await uploadTaskByStudent(formData, assessmentId);
+
+      if (response?.status_code === 409) {
+        messageApi.warning(response.message || "You have already submitted this task.");
+        return;
+      }
 
       messageApi.success("Task submitted successfully!");
       onClose();
       form.resetFields();
       setFileList([]);
-    } catch (error) {
-      console.error("Error submitting Task:", error);
-      messageApi.error("Failed to submit Task. Please try again.");
+    } catch (error: any) {
+      // In case server throws error instead of returning JSON
+      if (error?.response?.status_code === 409) {
+        messageApi.warning("You have already submitted this task.");
+      } else {
+        console.error("Error submitting Task:", error);
+        messageApi.error("Failed to submit Task. Please try again.");
+      }
     } finally {
       setIsSubmitting(false);
     }
