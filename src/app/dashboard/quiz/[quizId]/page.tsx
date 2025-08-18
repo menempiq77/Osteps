@@ -14,6 +14,7 @@ import {
   message,
   Skeleton,
   Modal,
+  InputNumber,
 } from "antd";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
@@ -333,12 +334,13 @@ export default function QuranQuizPage() {
                     },
                   ]}
                 >
-                  <Input
-                    type="number"
+                  <InputNumber
                     min={1}
+                    className="!w-full"
                     placeholder="Enter marks for this question"
                   />
                 </Form.Item>
+
                 {quizType === "true_false" && (
                   <Form.Item
                     name="correctAnswer"
