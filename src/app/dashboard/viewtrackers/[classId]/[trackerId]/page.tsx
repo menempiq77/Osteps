@@ -10,7 +10,8 @@ import {
   addTopicMark,
 } from "@/services/api";
 import { fetchStudents } from "@/services/studentsApi";
-import { fetchQuizes } from "@/services/quizApi";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store/store";
 
 interface Status {
   id: number;
@@ -63,7 +64,6 @@ export default function QuranTrackerAdminPage() {
   const [topics, setTopics] = useState<Topic[]>([]);
   const [visibleTopics, setVisibleTopics] = useState(10);
   const [loading, setLoading] = useState(false);
-  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [markModal, setMarkModal] = useState(false);
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
@@ -71,7 +71,7 @@ export default function QuranTrackerAdminPage() {
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(
     null
   );
-  const schoolId = currentUser?.school;
+  const { currentUser } = useSelector((state: RootState) => state.auth);
 
   const loadStudents = async () => {
     try {
@@ -87,7 +87,6 @@ export default function QuranTrackerAdminPage() {
 
   useEffect(() => {
     loadTrackerData();
-    loadQuizzes();
   }, [trackerId]);
 
   useEffect(() => {
@@ -102,17 +101,6 @@ export default function QuranTrackerAdminPage() {
       setTopics(data?.topics || []);
     } catch (error) {
       console.error("Failed to load tracker data", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-  const loadQuizzes = async (schoolId: string) => {
-    try {
-      setLoading(true);
-      const response = await fetchQuizes(schoolId);
-      setQuizzes(response);
-    } catch (error) {
-      console.error("Failed to load quizzes", error);
     } finally {
       setLoading(false);
     }
