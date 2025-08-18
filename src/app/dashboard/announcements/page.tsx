@@ -216,6 +216,7 @@ export default function AnnouncementsPage() {
     return (
       currentUser?.role === "SUPER_ADMIN" ||
       currentUser?.role === "SCHOOL_ADMIN" ||
+      currentUser?.role === "HOD" ||
       announcement.authorId === currentUser?.id
     );
   };
@@ -224,6 +225,7 @@ export default function AnnouncementsPage() {
     return (
       currentUser?.role === "SUPER_ADMIN" ||
       currentUser?.role === "SCHOOL_ADMIN" ||
+      currentUser?.role === "HOD" ||
       announcement.authorId === currentUser?.id
     );
   };

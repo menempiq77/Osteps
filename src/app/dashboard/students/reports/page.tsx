@@ -76,6 +76,7 @@ export default function ReportsPage() {
   const [error, setError] = useState<string | null>(null);
   const isSchoolAdmin = currentUser?.role === "SCHOOL_ADMIN";
   const isHOD = currentUser?.role === "HOD";
+  const schoolId = currentUser?.school;
 
   useEffect(() => {
     const loadGrades = async () => {
@@ -175,9 +176,9 @@ useEffect(() => {
   }, []);
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchData = async (schoolId: string) => {
       try {
-        const response = await fetchWholeAssessmentsReport();
+        const response = await fetchWholeAssessmentsReport(schoolId);
         setWholeAssesmentData(response);
         setLoading(false);
       } catch (error) {
@@ -185,7 +186,7 @@ useEffect(() => {
         setLoading(false);
       }
     };
-    fetchData();
+    fetchData(schoolId);
   }, [selectedYear, selectedClass]);
 
 

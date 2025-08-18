@@ -44,6 +44,8 @@ export default function Page() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const isTeacher = currentUser?.role === "TEACHER";
 
+  const schoolId = currentUser?.school;
+
   useEffect(() => {
     setCurrentTermId(termId);
   }, [termId]);
@@ -70,14 +72,14 @@ export default function Page() {
   useEffect(() => {
     if (currentTermId) {
       loadAssessment();
-      loadQuizzes();
+      loadQuizzes(schoolId);
     }
   }, [currentTermId]);
 
-  const loadQuizzes = async () => {
+  const loadQuizzes = async (schoolId: string) => {
     try {
       setLoading(true);
-      const response = await fetchQuizes();
+      const response = await fetchQuizes(schoolId);
       setQuizzes(response);
     } catch (error) {
       message.error("Failed to load quizzes");

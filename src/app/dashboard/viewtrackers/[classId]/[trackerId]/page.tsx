@@ -71,6 +71,7 @@ export default function QuranTrackerAdminPage() {
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(
     null
   );
+  const schoolId = currentUser?.school;
 
   const loadStudents = async () => {
     try {
@@ -105,10 +106,10 @@ export default function QuranTrackerAdminPage() {
       setLoading(false);
     }
   };
-  const loadQuizzes = async () => {
+  const loadQuizzes = async (schoolId: string) => {
     try {
       setLoading(true);
-      const response = await fetchQuizes();
+      const response = await fetchQuizes(schoolId);
       setQuizzes(response);
     } catch (error) {
       console.error("Failed to load quizzes", error);

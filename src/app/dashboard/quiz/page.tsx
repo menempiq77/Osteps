@@ -10,6 +10,8 @@ import {
   fetchQuizes,
   updateQuize,
 } from "@/services/quizApi";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store/store";
 
 type Quiz = {
   id: string;
@@ -37,15 +39,20 @@ export default function QuizPage() {
   const router = useRouter();
   const [messageApi, contextHolder] = message.useMessage();
   const [submitting, setSubmitting] = useState(false);
+  const { currentUser } = useSelector((state: RootState) => state.auth);
 
-  useEffect(() => {
-    loadQuizzes();
-  }, []);
+  const schoolId = currentUser?.school;
 
-  const loadQuizzes = async () => {
+ useEffect(() => {
+  if (schoolId) {
+    loadQuizzes(schoolId);
+  }
+}, [schoolId]); 
+
+  const loadQuizzes = async (schoolId: string) => {
     try {
       setLoading(true);
-      const response = await fetchQuizes();
+      const response = await fetchQuizes(schoolId);
       setQuizzes(response);
     } catch (error) {
       messageApi.error("Failed to load quizzes");
@@ -64,7 +71,7 @@ export default function QuizPage() {
     setEditingId(null);
   };
 
-  const onFinish = async (values: QuizFormValues): Promise<void> => {
+  const onFinish = async (values: QuizFormValues & { school_id: string }): Promise<void> => {
     if (submitting) return;
     try {
       setSubmitting(true);
@@ -224,12 +231,14 @@ export default function QuizPage() {
           onCancel={handleCancel}
           footer={null}
           destroyOnHidden
+          
         >
           <Form
             form={form}
             layout="vertical"
             onFinish={onFinish}
             autoComplete="off"
+            initialValues={{ school_id: schoolId }}
           >
             <Form.Item
               label="Quiz Title"
@@ -239,6 +248,10 @@ export default function QuizPage() {
               ]}
             >
               <Input />
+            </Form.Item>
+
+            <Form.Item name="school_id" hidden>
+              <Input type="hidden" />
             </Form.Item>
 
             <div className="flex justify-end gap-2">
