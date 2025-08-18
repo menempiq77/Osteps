@@ -39,7 +39,7 @@ export default function StudentList() {
   const [error, setError] = useState<string | null>(null);
   const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
   const [messageApi, contextHolder] = message.useMessage();
-  const hasAccess = currentUser?.role === "SCHOOL_ADMIN";
+  const hasAccess = currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "HOD";
 
   const loadStudents = async () => {
     try {

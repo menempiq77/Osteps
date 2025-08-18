@@ -35,8 +35,8 @@ export const fetchAllYearClasses = async () => {
 };
 
 //whole-assessments report api
-export const fetchWholeAssessmentsReport = async () => {
-  const response = await api.get(`/get-whole-assessments-report`);
+export const fetchWholeAssessmentsReport = async (schoolId: string) => {
+  const response = await api.get(`/get-whole-assessments-report/${schoolId}`);
   return response.data.data;
 };
 

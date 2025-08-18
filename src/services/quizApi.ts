@@ -18,8 +18,8 @@ api.interceptors.request.use((config) => {
 
 //quiz apis Started
 // fetch quizes
-export const fetchQuizes = async () => {
-  const response = await api.get('/get-quiz');
+export const fetchQuizes = async (schoolId: string) => {
+  const response = await api.get(`/get-quiz/${schoolId}`);
   return response.data.data;
 };
 // add Quiz

@@ -85,6 +85,7 @@ export default function QuranTrackerAdminPage() {
   const canUpload =
     currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "HOD" || currentUser?.role === "TEACHER";
   const isStudent = currentUser?.role === "STUDENT";
+  const schoolId = currentUser?.school;
 
   useEffect(() => {
     if (isStudent) {
@@ -92,7 +93,7 @@ export default function QuranTrackerAdminPage() {
     } else {
       loadTrackerData();
     }
-    loadQuizzes();
+    loadQuizzes(schoolId);
   }, [trackerId]);
 
   const loadTrackerData = async () => {
@@ -134,10 +135,10 @@ export default function QuranTrackerAdminPage() {
   };
   console.log(trackerData, "trackerData");
 
-  const loadQuizzes = async () => {
+  const loadQuizzes = async (schoolId: string) => {
     try {
       setLoading(true);
-      const response = await fetchQuizes();
+      const response = await fetchQuizes(schoolId);
       setQuizzes(response);
     } catch (error) {
       console.error("Failed to load quizzes", error);

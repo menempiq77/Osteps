@@ -96,26 +96,33 @@ export default function TeacherList() {
         )
       );
       setEditTeacher(null);
-      messageApi?.success("Teacher updated successfully");
+      messageApi?.success(`${teacher.role || "Teacher"} updated successfully`);
     } catch (err) {
       console.error("Failed to update teacher:", err);
       messageApi?.error("Failed to update teacher");
     }
   };
 
-  const handleDeleteTeacher = async (teacherId: string) => {
-    try {
-      await deleteTeacherApi(Number(teacherId));
-      setTeachers(teachers.filter((teacher) => teacher.id !== teacherId));
-      setIsDeleteModalOpen(false);
-      setDeleteTeacher(null);
-      messageApi.success("Teacher deleted successfully");
-    } catch (err) {
-      console.error("Failed to delete teacher:", err);
-      setError("Failed to delete teacher");
-      messageApi.error("Failed to delete teacher");
-    }
-  };
+ const handleDeleteTeacher = async (teacherId: string) => {
+  try {
+    // find the teacher first
+    const teacherToDelete = teachers.find((t) => t.id === teacherId);
+
+    await deleteTeacherApi(Number(teacherId));
+    setTeachers(teachers.filter((teacher) => teacher.id !== teacherId));
+    setIsDeleteModalOpen(false);
+    setDeleteTeacher(null);
+
+    messageApi.success(
+      `${teacherToDelete?.role || "Teacher"} deleted successfully`
+    );
+  } catch (err) {
+    console.error("Failed to delete teacher:", err);
+    setError("Failed to delete teacher");
+    messageApi.error("Failed to delete teacher");
+  }
+};
+
 
   const handleAddNewTeacher = async (teacher: TeacherBasic) => {
     try {
@@ -140,7 +147,7 @@ export default function TeacherList() {
 
       setTeachers([...teachers, newTeacher]);
       setIsAddTeacherModalOpen(false);
-      messageApi?.success("Teacher added successfully");
+      messageApi?.success(`${teacher.role || "Teacher"} added successfully`);
     } catch (err) {
       console.error("Failed to add teacher:", err);
       messageApi?.error("Failed to add teacher");
@@ -302,8 +309,8 @@ export default function TeacherList() {
       >
         {deleteTeacher && (
           <p>
-            Are you sure you want to delete teacher{" "}
-            <strong>{deleteTeacher.name}</strong>? This action cannot be undone.
+            Are you sure you want to delete 
+            <strong> {deleteTeacher.name}</strong>? This action cannot be undone.
           </p>
         )}
       </Modal>

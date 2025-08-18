@@ -30,7 +30,7 @@ import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import Link from "next/link";
-import { fetchYears } from "@/services/yearsApi";
+import { fetchYears, fetchYearsBySchool } from "@/services/yearsApi";
 import { fetchClasses } from "@/services/classesApi";
 import { fetchTeachers } from "@/services/teacherApi";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -78,6 +78,7 @@ function Timetable() {
         },
       })),
   });
+  const schoolId = currentUser?.school;
 
   const filteredEvents = useMemo(() => {
     return events.filter((event) => {
@@ -100,7 +101,7 @@ function Timetable() {
   useEffect(() => {
     const loadYears = async () => {
       try {
-        const data = await fetchYears();
+        const data = await fetchYearsBySchool(schoolId);
         setYears(data);
         if (data.length > 0) {
           setSelectedYear(data[0].id);
