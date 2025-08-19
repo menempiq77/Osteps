@@ -13,7 +13,6 @@ import Link from "next/link";
 
 const SchoolAdminSettings = () => {
   const [profileForm] = Form.useForm();
-  const [schoolForm] = Form.useForm();
   const [securityForm] = Form.useForm();
   const [loading, setLoading] = React.useState(false);
   const [profileImage, setProfileImage] = React.useState([]);
@@ -52,6 +51,10 @@ const SchoolAdminSettings = () => {
         formData.append("profile_path", profileImage[0].originFileObj);
       }
 
+      if (schoolLogo.length > 0) {
+        formData.append("logo", schoolLogo[0].originFileObj);
+      }
+
       const response = await updateSchoolAdminProfile(formData);
 
       const updatedUser = {
@@ -59,6 +62,7 @@ const SchoolAdminSettings = () => {
         name: response?.name,
         profile_path: response?.profile_photo,
         contact: response.phone_number,
+        logo: response?.logo,
       };
 
       dispatch(setCurrentUser(updatedUser));
@@ -118,53 +122,105 @@ const SchoolAdminSettings = () => {
             onFinishFailed={onFinishFailed}
             autoComplete="off"
           >
-            <div className="flex items-center gap-4 mb-6">
-              <div className="flex-shrink-0">
-                {profileImage.length > 0 ? (
-                  <img
-                    src={URL.createObjectURL(profileImage[0].originFileObj)}
-                    alt="Profile"
-                    className="w-20 h-20 rounded-full object-cover"
-                  />
-                ) : currentUser?.profile_path ? (
-                  <img
-                    src={currentUser.profile_path}
-                    alt="Profile"
-                    className="w-20 h-20 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="w-20 h-20 rounded-full bg-gray-300 flex items-center justify-center">
-                    <span className="text-gray-500 text-xl">
-                      {currentUser?.name?.charAt(0).toUpperCase() || "U"}
-                    </span>
-                  </div>
-                )}
-              </div>
-              <div>
-                <Form.Item label="Profile Picture" className="mb-0">
-                  <Upload
-                    fileList={profileImage}
-                    onChange={({ fileList }) => setProfileImage(fileList)}
-                    beforeUpload={() => false}
-                    listType="picture"
-                    maxCount={1}
-                    showUploadList={false}
-                  >
-                    <Button icon={<UploadOutlined />}>Change Photo</Button>
-                  </Upload>
-                  {profileImage.length > 0 && (
-                    <Button
-                      danger
-                      type="text"
-                      onClick={() => setProfileImage([])}
-                      className="ml-2"
-                    >
-                      Remove
-                    </Button>
+            <div className="flex justify-between gap-4 mb-6">
+              {/* Profile Image */}
+              <div className="flex items-center gap-4">
+                <div className="flex-shrink-0">
+                  {profileImage.length > 0 ? (
+                    <img
+                      src={URL.createObjectURL(profileImage[0].originFileObj)}
+                      alt="Profile"
+                      className="w-20 h-20 rounded-full object-cover"
+                    />
+                  ) : currentUser?.profile_path ? (
+                    <img
+                      src={currentUser.profile_path}
+                      alt="Profile"
+                      className="w-20 h-20 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 rounded-full bg-gray-300 flex items-center justify-center">
+                      <span className="text-gray-500 text-xl">
+                        {currentUser?.name?.charAt(0).toUpperCase() || "U"}
+                      </span>
+                    </div>
                   )}
-                </Form.Item>
-                <div className="text-xs text-gray-500 mt-1">
-                  JPG, GIF or PNG.
+                </div>
+                <div>
+                  <Form.Item label="Profile Picture" className="mb-0">
+                    <Upload
+                      fileList={profileImage}
+                      onChange={({ fileList }) => setProfileImage(fileList)}
+                      beforeUpload={() => false}
+                      listType="picture"
+                      maxCount={1}
+                      showUploadList={false}
+                    >
+                      <Button icon={<UploadOutlined />}>Change Photo</Button>
+                    </Upload>
+                    {profileImage.length > 0 && (
+                      <Button
+                        danger
+                        type="text"
+                        onClick={() => setProfileImage([])}
+                        className="ml-2"
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </Form.Item>
+                  <div className="text-xs text-gray-500">
+                    JPG, GIF or PNG.
+                  </div>
+                </div>
+              </div>
+              {/* School Logo */}
+              <div className="flex items-center gap-4">
+                <div className="flex-shrink-0">
+                  {schoolLogo.length > 0 ? (
+                    <img
+                      src={URL.createObjectURL(schoolLogo[0].originFileObj)}
+                      alt="School Logo"
+                      className="w-20 h-20 rounded-full object-cover"
+                    />
+                  ) : currentUser?.logo ? (
+                    <img
+                      src={currentUser.logo}
+                      alt="School Logo"
+                      className="w-20 h-20 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 rounded-full bg-gray-300 flex items-center justify-center">
+                      <span className="text-gray-500 text-xl">S</span>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <Form.Item label="School Logo" className="mb-0">
+                    <Upload
+                      fileList={schoolLogo}
+                      onChange={({ fileList }) => setSchoolLogo(fileList)}
+                      beforeUpload={() => false}
+                      listType="picture"
+                      maxCount={1}
+                      showUploadList={false}
+                    >
+                      <Button icon={<UploadOutlined />}>Upload Logo</Button>
+                    </Upload>
+                    {schoolLogo.length > 0 && (
+                      <Button
+                        danger
+                        type="text"
+                        onClick={() => setSchoolLogo([])}
+                        className="ml-2"
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </Form.Item>
+                  <div className="text-xs text-gray-500">
+                    JPG, GIF or PNG.
+                  </div>
                 </div>
               </div>
             </div>
@@ -232,87 +288,6 @@ const SchoolAdminSettings = () => {
         </div>
       ),
     },
-    // {
-    //   key: "2",
-    //   label: "School Information",
-    //   children: (
-    //     <div className="w-full max-w-3xl">
-    //       <Form
-    //         form={schoolForm}
-    //         name="school"
-    //         layout="vertical"
-    //         onFinish={onProfileFinish}
-    //         onFinishFailed={onFinishFailed}
-    //         autoComplete="off"
-    //       >
-    //         <Form.Item
-    //           label="School Name"
-    //           name="schoolName"
-    //           rules={[{ required: true, message: "Please input school name!" }]}
-    //         >
-    //           <Input size="large" />
-    //         </Form.Item>
-
-    //         <Form.Item
-    //           label="School Address"
-    //           name="address"
-    //           rules={[
-    //             { required: true, message: "Please input school address!" },
-    //           ]}
-    //         >
-    //           <Input.TextArea rows={4} />
-    //         </Form.Item>
-
-    //         <Form.Item
-    //           label="School Phone"
-    //           name="schoolPhone"
-    //           rules={[
-    //             {
-    //               required: true,
-    //               message: "Please input school phone number!",
-    //             },
-    //           ]}
-    //         >
-    //           <Input size="large" />
-    //         </Form.Item>
-
-    //         <Form.Item
-    //           label="School Email"
-    //           name="schoolEmail"
-    //           rules={[
-    //             { required: true, message: "Please input school email!" },
-    //             { type: "email", message: "Please enter a valid email!" },
-    //           ]}
-    //         >
-    //           <Input size="large" />
-    //         </Form.Item>
-
-    //         <Form.Item label="School Logo">
-    //           <Upload
-    //             fileList={schoolLogo}
-    //             onChange={({ fileList }) => setSchoolLogo(fileList)}
-    //             beforeUpload={() => false}
-    //             listType="picture"
-    //             maxCount={1}
-    //           >
-    //             <Button icon={<UploadOutlined />}>Upload Logo</Button>
-    //           </Upload>
-    //         </Form.Item>
-
-    //         <Form.Item className="text-right">
-    //           <Button
-    //             type="primary"
-    //             htmlType="submit"
-    //             size="large"
-    //             className="w-full md:w-auto !bg-primary !border-primary hover:!bg-primary hover:!border-primary"
-    //           >
-    //             Save School Information
-    //           </Button>
-    //         </Form.Item>
-    //       </Form>
-    //     </div>
-    //   ),
-    // },
     {
       key: "3",
       label: "Security",
