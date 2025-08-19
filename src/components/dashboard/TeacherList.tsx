@@ -182,11 +182,10 @@ export default function TeacherList() {
 
         <Button
           type="primary"
-          icon={<PlusOutlined />}
           onClick={() => setIsAddTeacherModalOpen(true)}
           className="!bg-primary hover:bg-primary/90 !text-white !border-0 uppercase"
         >
-          {isHOD ? "Teacher" : "Teacher / HOD"}
+          {isHOD ? "Add Teacher" : "Add Teacher / HOD"}
         </Button>
       </div>
 
