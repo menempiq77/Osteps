@@ -140,7 +140,7 @@ export default function TrackerList() {
   };
 
   const handleLeaderBoard = () => {
-    router.push(`/dashboard/leaderboard`);
+    router.push(`/dashboard/classes/${classId}/leaderboard`);
   };
 
   const handleTrackerClick = (trackerId: string) => {

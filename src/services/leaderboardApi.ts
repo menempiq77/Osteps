@@ -19,8 +19,8 @@ const getAuthHeader = (): Record<string, string> => {
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
-export const fetchLeaderBoardData = async (): Promise<LeaderboardResponse> => {
-  const response = await fetch(`${API_BASE_URL}/get-student-scores`, {
+export const fetchLeaderBoardData = async (classId: string | number): Promise<LeaderboardResponse> => {
+  const response = await fetch(`${API_BASE_URL}/get-student-scores/${classId}`, {
     headers: getAuthHeader(),
   });
   if (!response.ok) throw new Error('Failed to fetch leader Board Scores');

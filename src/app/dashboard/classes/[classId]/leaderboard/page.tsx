@@ -4,13 +4,17 @@ import { Table, Avatar, Tag, Card, Space, Typography, Spin } from 'antd';
 import { CrownOutlined, TrophyOutlined, StarOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { fetchLeaderBoardData } from '@/services/leaderboardApi';
+import { useParams } from 'next/navigation';
 
 const { Title, Text } = Typography;
 
 const LeaderBoard = () => {
+  const { classId } = useParams();
+
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['leaderboard'],
-    queryFn: fetchLeaderBoardData,
+    queryKey: ['leaderboard', classId],
+    queryFn: () => fetchLeaderBoardData(classId as string),
+    enabled: !!classId,
   });
 
   const [visibleCount, setVisibleCount] = useState(10);
