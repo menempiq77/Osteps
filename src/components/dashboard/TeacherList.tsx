@@ -13,6 +13,7 @@ import {
 } from "@/services/teacherApi";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
+import { useRouter } from "next/navigation";
 
 type Teacher = {
   id: string;
@@ -33,6 +34,7 @@ type TeacherBasic = {
 };
 
 export default function TeacherList() {
+  const router = useRouter();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +45,8 @@ export default function TeacherList() {
   const [messageApi, contextHolder] = message.useMessage();
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const isHOD = currentUser?.role === "HOD";
+  const hasAccess =
+    currentUser?.role === "HOD" || currentUser?.role === "SCHOOL_ADMIN";
   const schoolId = currentUser?.school;
 
   useEffect(() => {
@@ -156,6 +160,10 @@ export default function TeacherList() {
     }
   };
 
+  const handleTeacherAssignedClasses = (teacherId: string) => {
+    router.push(`/dashboard/teachers/${teacherId}/assignedClasses`);
+  };
+
   if (isLoading)
     return (
       <div className="p-3 md:p-6 flex justify-center items-center h-64">
@@ -230,9 +238,22 @@ export default function TeacherList() {
                     key={teacher.id}
                     className="border-b border-gray-300 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
                   >
-                    <td className="p-2 md:p-4 font-medium">
-                      {teacher.name || "N/A"}
-                    </td>
+                    {hasAccess ? (
+                      <td className="p-2 md:p-4 font-medium">
+                        <button
+                          onClick={() =>
+                            handleTeacherAssignedClasses(teacher.id)
+                          }
+                          className="cursor-pointer hover:text-green-500"
+                        >
+                          {teacher.name || "N/A"}
+                        </button>
+                      </td>
+                    ) : (
+                      <td className="p-2 md:p-4 font-medium">
+                        {teacher.name || "N/A"}
+                      </td>
+                    )}
                     <td className="p-2 md:p-4">{teacher.phone || "N/A"}</td>
                     <td className="p-2 md:p-4">{teacher.email || "N/A"}</td>
                     <td className="p-2 md:p-4">

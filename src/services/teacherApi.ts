@@ -43,6 +43,11 @@ export const getAssignTeacher = async (classId: string | number) => {
   const response = await api.get(`/get-assign-teacher/${classId}`);
   return response.data;
 };
+// Get assign teacher
+export const getAssignClassesTeacher = async (teacherId: string | number) => {
+  const response = await api.get(`/show-assign-classes-teacher/${teacherId}`);
+  return response.data;
+};
 // edit Teacher
 export const updateTeacher = async (id: string, teacherData: any) => {
   const response = await api.post(`/update-teacher/${id}`, teacherData);
