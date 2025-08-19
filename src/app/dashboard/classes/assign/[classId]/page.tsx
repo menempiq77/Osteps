@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { Button, Card, Spin, Radio, message } from "antd";
-import { PlusCircle, Users, BookOpen } from "lucide-react";
+import { Button, Card, Spin, Radio, message, Tag, Divider } from "antd";
+import { PlusCircle, Users, BookOpen, Mail, Phone } from "lucide-react";
 import {
   AssignTeacher,
   fetchTeachers,
@@ -26,6 +26,7 @@ export default function AssignPage() {
   const [selectedTeacher, setSelectedTeacher] = useState<
     number | string | null
   >(null);
+  const [className, setClassName] = useState<string>("");
   const [messageApi, contextHolder] = message.useMessage();
 
   useEffect(() => {
@@ -44,6 +45,8 @@ export default function AssignPage() {
 
         if (classId) {
           const assignedResponse = await getAssignTeacher(classId as string);
+          setClassName(assignedResponse.class || "");
+
           if (assignedResponse.teachers_by_subject?.Islamiat?.length > 0) {
             setAssignedTeachers(assignedResponse.teachers_by_subject.Islamiat);
             setSelectedTeacher(
@@ -52,7 +55,7 @@ export default function AssignPage() {
           }
         }
       } catch (err) {
-        // messageApi.error("Failed to fetch data");
+        messageApi.error("Failed to fetch data");
         console.error(err);
       } finally {
         setIsLoading(false);
@@ -63,7 +66,7 @@ export default function AssignPage() {
   }, [classId]);
 
   const handleTeacherSelect = (id: number | string) => {
-    setSelectedTeacher(id === selectedTeacher ? null : id);
+    setSelectedTeacher(id);
   };
 
   const handleAssignTeachers = async () => {
@@ -88,145 +91,176 @@ export default function AssignPage() {
 
   return (
     <div className="p-3 md:p-6 max-w-7xl mx-auto">
-        {contextHolder}
+      {contextHolder}
+
+      {/* Header Section */}
       <div className="flex items-center gap-3 mb-6">
-        <BookOpen className="w-8 h-8 text-primary" />
+        <div className="bg-primary p-2 rounded-lg">
+          <BookOpen className="w-8 h-8 text-white" />
+        </div>
         <div>
           <h2 className="text-2xl font-bold text-gray-800">
             Teacher Assignment
           </h2>
-          <p className="text-sm text-gray-500">Assign teachers to Class</p>
+          <p className="text-sm text-gray-500">
+            {className ? (
+              <>
+                Assign teachers to{" "}
+                <span className="font-semibold">{className}</span>
+              </>
+            ) : (
+              "Assign teachers to class"
+            )}
+          </p>
         </div>
       </div>
 
       <Spin spinning={isLoading} tip="Loading...">
         <div className="flex flex-col gap-6">
           {/* Current Assignment Card */}
-          <Card className="w-full border-0 shadow-sm">
-            <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-t-lg p-6 mb-2">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-                <div>
-                  <h6 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
-                    <Users className="w-5 h-5" />
-                    Current Teacher Assignment
-                  </h6>
-                  <p className="text-sm text-gray-600 mt-1">
-                    View the currently assigned teacher for this class
-                  </p>
-                </div>
-                <div className="mt-3 md:mt-0">
-                  <span className="inline-block px-3 py-1 text-xs font-medium rounded-full bg-blue-100 text-purple-800">
-                    Current
-                  </span>
-                </div>
+          <Card
+            className="w-full border-0 shadow-sm"
+            title={
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-primary" />
+                <span>Current Teacher Assignment</span>
               </div>
-            </div>
-
-            <div className="p-6">
+            }
+            extra={
+              <Tag color="blue" className="text-sm py-1 px-3">
+                Current
+              </Tag>
+            }
+          >
+            <div className="p-4">
               {assignedTeachers.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {assignedTeachers.map((teacher) => (
-                    <div
+                    <Card
                       key={teacher.id}
-                      className="border border-gray-100 rounded-xl overflow-hidden shadow-xs bg-white p-4"
+                      size="small"
+                      className="border border-gray-200 hover:shadow-md transition-all"
                     >
-                      <div className="flex items-center gap-4">
-                        <div className="bg-blue-100 p-3 rounded-full">
+                      <div className="flex items-start gap-3">
+                        <div className="bg-blue-100 p-2 rounded-full">
                           <Users className="w-5 h-5 text-blue-600" />
                         </div>
-                        <div>
-                          <h4 className="font-semibold text-gray-800">
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-gray-800 mb-1">
                             {teacher.teacher_name}
                           </h4>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Email: {teacher.email}
-                          </p>
+                          <div className="flex items-center gap-1 text-xs text-gray-500 mb-1">
+                            <Mail className="w-3 h-3" />
+                            <span>{teacher.email}</span>
+                          </div>
+                          <div className="flex items-center gap-1 text-xs text-gray-500">
+                            <Phone className="w-3 h-3" />
+                            <span>{teacher.phone}</span>
+                          </div>
+                          <div className="mt-2">
+                            <Tag color="green" className="text-xs">
+                              Islamiat
+                            </Tag>
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    </Card>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8 text-gray-500">
-                  No teacher currently assigned to this class
+                <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg">
+                  <Users className="w-12 h-12 mx-auto text-gray-300 mb-2" />
+                  <p>No teacher currently assigned to this class</p>
                 </div>
               )}
             </div>
           </Card>
 
           {/* Assign Teacher Card */}
-          <Card className="w-full border-0 shadow-sm">
-            <div className="bg-gradient-to-r from-indigo-50 to-green-50 rounded-t-lg p-6 mb-2">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-                <div>
-                  <h6 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
-                    <Users className="w-5 h-5" />
-                    Assign Teachers by Subject
-                  </h6>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Select teachers to assign to this class from available
-                    subjects
-                  </p>
-                </div>
-                <div className="mt-3 md:mt-0">
-                  <span className="inline-block px-3 py-1 text-xs font-medium rounded-full bg-indigo-100 text-green-800">
-                    Subjects
-                  </span>
+          <Card
+            className="w-full border-0 shadow-sm"
+            title={
+              <div className="flex items-center gap-2">
+                <PlusCircle className="w-5 h-5 text-primary" />
+                <span>Assign New Teacher</span>
+              </div>
+            }
+            extra={
+              <Tag color="green" className="text-sm py-1 px-3">
+                Select Subject
+              </Tag>
+            }
+          >
+            <div className="p-4">
+              <div className="mb-4">
+                <h3 className="text-lg font-medium text-gray-800 mb-2">
+                  Subjects
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  <Tag
+                    color="blue"
+                    className="px-3 py-1 text-sm cursor-pointer"
+                  >
+                    Islamiyat
+                  </Tag>
                 </div>
               </div>
-            </div>
 
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div className="border border-gray-100 rounded-xl overflow-hidden shadow-xs hover:shadow-md transition-all duration-200 bg-white">
-                  <div className="bg-primary px-5 py-4">
-                    <h3 className="font-semibold text-lg text-white flex items-center gap-2">
-                      <span className="bg-white/20 p-1 rounded-full">
-                        <BookOpen className="w-4 h-4" />
-                      </span>
-                      Islamiyat
-                    </h3>
-                  </div>
-                  <div className="p-6 space-y-3">
-                    {teachers?.map((teacher) => (
-                      <div
-                        key={teacher.id}
-                        className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
-                          selectedTeacher === teacher.id
-                            ? "bg-indigo-50"
-                            : "hover:bg-gray-50"
-                        }`}
-                      >
-                        <Radio
-                          checked={selectedTeacher === teacher.id}
-                          onChange={() => handleTeacherSelect(teacher.id)}
-                        />
-                        <label
-                          className="text-sm font-medium text-gray-700 cursor-pointer flex-1"
-                          onClick={() => handleTeacherSelect(teacher.id)}
-                        >
-                          {teacher.name}
-                        </label>
-                        {selectedTeacher === teacher.id && (
-                          <span className="text-xs px-2 py-1 rounded-full bg-indigo-100 text-green-800">
-                            Selected
-                          </span>
-                        )}
+              <Divider className="my-4" />
+
+              <h3 className="text-lg font-medium text-gray-800 mb-3">
+                Available Teachers for Islamiyat
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {teachers.map((teacher) => (
+                  <Card
+                    key={teacher.id}
+                    size="small"
+                    className={`border cursor-pointer transition-all ${
+                      selectedTeacher === teacher.id
+                        ? "border-primary shadow-md"
+                        : "border-gray-200 hover:border-gray-300"
+                    }`}
+                    onClick={() => handleTeacherSelect(teacher.id)}
+                  >
+                    <div className="flex items-start gap-3">
+                      <Radio checked={selectedTeacher === teacher.id} />
+                      <div className="flex-1">
+                        <div className="flex justify-between items-start">
+                          <h4 className="font-medium text-gray-800">
+                            {teacher.name}
+                          </h4>
+                          {selectedTeacher === teacher.id && (
+                            <Tag color="green" className="text-xs">
+                              Selected
+                            </Tag>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
+                          <Mail className="w-3 h-3" />
+                          <span>{teacher.email}</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
+                          <Phone className="w-3 h-3" />
+                          <span>{teacher.phone}</span>
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
+                    </div>
+                  </Card>
+                ))}
               </div>
 
-              <div className="mt-8 pt-5 border-t border-gray-100 flex justify-end">
+              <div className="mt-8 pt-4 border-t border-gray-100 flex justify-end">
                 <Button
                   onClick={handleAssignTeachers}
-                  className="px-6 py-3 text-md !bg-primary hover:!bg-primary !text-white flex items-center gap-2"
+                  className="px-6 py-2 text-md bg-primary hover:bg-primary/90 text-white flex items-center gap-2"
                   disabled={!selectedTeacher || isAssigning}
                   loading={isAssigning}
+                  size="large"
                 >
                   {!isAssigning && <PlusCircle className="w-5 h-5" />}
-                  Assign Teachers
+                  Assign Teacher
                 </Button>
               </div>
             </div>
