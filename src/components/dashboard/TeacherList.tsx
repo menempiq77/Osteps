@@ -42,7 +42,8 @@ export default function TeacherList() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
   const { currentUser } = useSelector((state: RootState) => state.auth);
-  const hasAccess = currentUser?.role === "HOD";
+  const isHOD = currentUser?.role === "HOD";
+  const schoolId = currentUser?.school;
 
   useEffect(() => {
     const loadTeachers = async () => {
@@ -77,6 +78,7 @@ export default function TeacherList() {
         email: teacher.email,
         subjects: teacher.subjects?.join(","),
         role: teacher.role,
+        school_id: schoolId,
       });
 
       setTeachers(
@@ -103,26 +105,25 @@ export default function TeacherList() {
     }
   };
 
- const handleDeleteTeacher = async (teacherId: string) => {
-  try {
-    // find the teacher first
-    const teacherToDelete = teachers.find((t) => t.id === teacherId);
+  const handleDeleteTeacher = async (teacherId: string) => {
+    try {
+      // find the teacher first
+      const teacherToDelete = teachers.find((t) => t.id === teacherId);
 
-    await deleteTeacherApi(Number(teacherId));
-    setTeachers(teachers.filter((teacher) => teacher.id !== teacherId));
-    setIsDeleteModalOpen(false);
-    setDeleteTeacher(null);
+      await deleteTeacherApi(Number(teacherId));
+      setTeachers(teachers.filter((teacher) => teacher.id !== teacherId));
+      setIsDeleteModalOpen(false);
+      setDeleteTeacher(null);
 
-    messageApi.success(
-      `${teacherToDelete?.role || "Teacher"} deleted successfully`
-    );
-  } catch (err) {
-    console.error("Failed to delete teacher:", err);
-    setError("Failed to delete teacher");
-    messageApi.error("Failed to delete teacher");
-  }
-};
-
+      messageApi.success(
+        `${teacherToDelete?.role || "Teacher"} deleted successfully`
+      );
+    } catch (err) {
+      console.error("Failed to delete teacher:", err);
+      setError("Failed to delete teacher");
+      messageApi.error("Failed to delete teacher");
+    }
+  };
 
   const handleAddNewTeacher = async (teacher: TeacherBasic) => {
     try {
@@ -131,6 +132,7 @@ export default function TeacherList() {
         phone: teacher.phone,
         email: teacher.email,
         role: teacher?.role,
+        school_id: schoolId,
         subjects: teacher.subjects?.join(","),
       });
 
@@ -177,16 +179,15 @@ export default function TeacherList() {
       />
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold uppercase">Teachers</h1>
-        {!hasAccess && (
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => setIsAddTeacherModalOpen(true)}
-            className="!bg-primary hover:bg-primary/90 !text-white !border-0 uppercase"
-          >
-            Teacher / HOD
-          </Button>
-        )}
+
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={() => setIsAddTeacherModalOpen(true)}
+          className="!bg-primary hover:bg-primary/90 !text-white !border-0 uppercase"
+        >
+          {isHOD ? "Teacher" : "Teacher / HOD"}
+        </Button>
       </div>
 
       <div className="relative overflow-auto">
@@ -219,9 +220,8 @@ export default function TeacherList() {
                     Role
                   </span>
                 </th>
-                {!hasAccess && (
-                  <th className="p-4 text-xs md:text-sm">Actions</th>
-                )}
+
+                <th className="p-4 text-xs md:text-sm">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -240,28 +240,27 @@ export default function TeacherList() {
                       {teacher.subjects?.join(", ") || "N/A"}
                     </td>
                     <td className="p-2 md:p-4">{teacher.role || "N/A"}</td>
-                    {!hasAccess && (
-                      <td className="relative p-2 md:p-4 flex justify-center space-x-3">
-                        <button
-                          onClick={() => setEditTeacher(teacher)}
-                          className="text-green-500 hover:text-green-700 cursor-pointer"
-                          title="Edit"
-                        >
-                          <EditOutlined />
-                        </button>
 
-                        <button
-                          onClick={() => {
-                            setDeleteTeacher(teacher);
-                            setIsDeleteModalOpen(true);
-                          }}
-                          className="text-red-500 hover:text-red-700 cursor-pointer"
-                          title="Delete"
-                        >
-                          <DeleteOutlined />
-                        </button>
-                      </td>
-                    )}
+                    <td className="relative p-2 md:p-4 flex justify-center space-x-3">
+                      <button
+                        onClick={() => setEditTeacher(teacher)}
+                        className="text-green-500 hover:text-green-700 cursor-pointer"
+                        title="Edit"
+                      >
+                        <EditOutlined />
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setDeleteTeacher(teacher);
+                          setIsDeleteModalOpen(true);
+                        }}
+                        className="text-red-500 hover:text-red-700 cursor-pointer"
+                        title="Delete"
+                      >
+                        <DeleteOutlined />
+                      </button>
+                    </td>
                   </tr>
                 ))
               ) : (
@@ -281,6 +280,7 @@ export default function TeacherList() {
         isOpen={isAddTeacherModalOpen}
         onOpenChange={setIsAddTeacherModalOpen}
         onAddTeacher={handleAddNewTeacher}
+        isHOD={isHOD}
       />
 
       {/* Edit Teacher Modal */}
@@ -290,6 +290,7 @@ export default function TeacherList() {
           isOpen={!!editTeacher}
           onOpenChange={(open) => !open && setEditTeacher(null)}
           onSave={handleSaveEdit}
+          isHOD={isHOD}
         />
       )}
 
@@ -309,8 +310,9 @@ export default function TeacherList() {
       >
         {deleteTeacher && (
           <p>
-            Are you sure you want to delete 
-            <strong> {deleteTeacher.name}</strong>? This action cannot be undone.
+            Are you sure you want to delete
+            <strong> {deleteTeacher.name}</strong>? This action cannot be
+            undone.
           </p>
         )}
       </Modal>

@@ -38,6 +38,7 @@ type Announcement = {
 };
 const roleOptions: Record<string, { value: string; label: string }[]> = {
   SUPER_ADMIN: [
+    { value: "ALL", label: "Everyone" },
     { value: "SCHOOL_ADMIN", label: "School Admins" },
     { value: "HOD", label: "HOD" },
     { value: "TEACHER", label: "Teachers" },
@@ -231,6 +232,7 @@ export default function AnnouncementsPage() {
   };
 
   const filteredAnnouncements = announcements.filter((announcement) => {
+    if (announcement.role === "ALL") return true;
     if (currentUser?.role === "SUPER_ADMIN") return true;
     if (currentUser?.role === "SCHOOL_ADMIN") {
       return true;

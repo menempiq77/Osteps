@@ -23,6 +23,7 @@ export const AddTeacherModal = ({
   onOpenChange,
   onAddTeacher,
   onClose,
+  isHOD
 }: AddTeacherModalProps) => {
   const [form] = Form.useForm();
   const [confirmLoading, setConfirmLoading] = useState(false);
@@ -58,7 +59,7 @@ export const AddTeacherModal = ({
 
   return (
     <Modal
-      title="Add New Teacher / HOD"
+      title={isHOD ? "Add New Teacher" : "Add New Teacher / HOD"}
       open={isOpen}
       onOk={handleOk}
       confirmLoading={confirmLoading}
@@ -74,22 +75,26 @@ export const AddTeacherModal = ({
           onClick={handleOk}
           className="!bg-primary hover:!bg-primary text-white"
         >
-          Add Teacher / HOD
+          {isHOD ? "Add Teacher" : "Add Teacher / HOD"}
         </Button>,
       ]}
     >
       <Form form={form} layout="vertical">
-        <Form.Item
-          name="role"
-          label="Role"
-          rules={[{ required: true, message: "Please select a role" }]}
-          initialValue="TEACHER"
-        >
-          <Select>
-            <Select.Option value="TEACHER">TEACHER</Select.Option>
-            <Select.Option value="HOD">HOD</Select.Option>
-          </Select>
-        </Form.Item>
+        {!isHOD && (
+          <Form.Item name="role" label="Role" rules={[{ required: true }]}>
+            <Select>
+              <Select.Option value="TEACHER">Teacher</Select.Option>
+              <Select.Option value="HOD">HOD</Select.Option>
+            </Select>
+          </Form.Item>
+        )}
+
+        {/* If HOD, inject hidden field */}
+        {isHOD && (
+          <Form.Item name="role" initialValue="TEACHER" hidden>
+            <Input type="hidden" />
+          </Form.Item>
+        )}
 
         <Form.Item
           name="name"

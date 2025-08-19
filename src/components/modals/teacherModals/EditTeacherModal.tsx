@@ -20,6 +20,7 @@ export const EditTeacherModal = ({
   isOpen,
   onOpenChange,
   onSave,
+  isHOD
 }: {
   teacher: TeacherBasic | null;
   isOpen: boolean;
@@ -98,18 +99,21 @@ export const EditTeacherModal = ({
       ]}
     >
       <Form form={form} layout="vertical">
-         <Form.Item
-          name="role"
-          label="Role"
-          rules={[{ required: true, message: "Please select a role" }]}
-          initialValue="TEACHER"
-        >
-          <Select>
-            <Select.Option value="TEACHER">TEACHER</Select.Option>
-            <Select.Option value="HOD">HOD</Select.Option>
-          </Select>
-        </Form.Item>
+          {!isHOD && (
+          <Form.Item name="role" label="Role" rules={[{ required: true }]}>
+            <Select>
+              <Select.Option value="TEACHER">Teacher</Select.Option>
+              <Select.Option value="HOD">HOD</Select.Option>
+            </Select>
+          </Form.Item>
+        )}
 
+        {/* If HOD, inject hidden field */}
+        {isHOD && (
+          <Form.Item name="role" initialValue="TEACHER" hidden>
+            <Input type="hidden" />
+          </Form.Item>
+        )}
         <Form.Item
           name="name"
           label="Name"
