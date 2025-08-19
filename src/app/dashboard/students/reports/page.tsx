@@ -168,12 +168,12 @@ useEffect(() => {
     }));
 
   useEffect(() => {
-    const fetchData = async () => {
-      const reportData = await fetchReportAssessments();
+    const fetchData = async (schoolId: string) => {
+      const reportData = await fetchReportAssessments(schoolId);
       setAssesmentData(reportData);
     };
-    fetchData();
-  }, []);
+    fetchData(schoolId);
+  }, [schoolId]);
 
   useEffect(() => {
     const fetchData = async (schoolId: string) => {
@@ -187,7 +187,7 @@ useEffect(() => {
       }
     };
     fetchData(schoolId);
-  }, [selectedYear, selectedClass]);
+  }, [selectedYear, selectedClass, schoolId]);
 
 
   const getCurrentClass = () => {
