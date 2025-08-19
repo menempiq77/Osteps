@@ -17,8 +17,8 @@ api.interceptors.request.use((config) => {
 });
 
 //report-assessments api
-export const fetchReportAssessments = async () => {
-  const response = await api.get(`/get-report-assessments`);
+export const fetchReportAssessments = async (schoolId: string) => {
+  const response = await api.get(`/get-report-assessments/${schoolId}`);
   return response.data.data;
 };
 
