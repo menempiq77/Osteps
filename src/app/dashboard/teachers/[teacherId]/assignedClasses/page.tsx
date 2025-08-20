@@ -151,7 +151,7 @@ export default function TeacherAssignedClasses() {
 
                   <div className="mt-3">
                     <Tag color="green" className="text-sm py-1">
-                      Subjects: {teacherInfo.subjects}
+                      Subject: {teacherInfo.subjects}
                     </Tag>
                   </div>
                 </div>
