@@ -23,7 +23,7 @@ import {
   getAllAskQuestions,
   submitAskQuestion,
 } from "@/services/askQuestionApi";
-import { fetchYears } from "@/services/yearsApi";
+import { fetchYearsBySchool } from "@/services/yearsApi";
 import { fetchClasses } from "@/services/classesApi";
 import { fetchTeachersByStudent } from "@/services/teacherApi";
 
@@ -57,6 +57,7 @@ const AskQuestionPage = () => {
 
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const isStudent = currentUser?.role === "STUDENT";
+  const isHOD = currentUser?.role === "HOD";
   const isTeacher = currentUser?.role === "TEACHER";
   const isAdmin = currentUser?.role === "SCHOOL_ADMIN";
 
@@ -79,6 +80,8 @@ const AskQuestionPage = () => {
   const [questionToDelete, setQuestionToDelete] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
+
+  const schoolId = currentUser?.school;
 
   const handleDeleteClick = (question) => {
     setQuestionToDelete(question);
@@ -152,7 +155,7 @@ const confirmDelete = async () => {
 
   const loadYears = async () => {
     try {
-      const data = await fetchYears();
+      const data = await fetchYearsBySchool(schoolId);
       setYears(data);
       setIsLoading(false);
     } catch (err) {
@@ -167,6 +170,13 @@ const confirmDelete = async () => {
       setIsLoading(true);
       const data = await fetchClasses(yearId);
       setClasses(data);
+
+      if (data.length > 0) {
+        // auto-select first class of the year
+        setSelectedClass(data[0].class_name);
+      } else {
+        setSelectedClass(null);
+      }
     } catch (err) {
       setError("Failed to fetch classes");
       console.error(err);
@@ -336,7 +346,7 @@ const confirmDelete = async () => {
         )}
 
         {/* Teacher View Filters */}
-        {isTeacher && (
+        {(isTeacher || isHOD) && (
           <Card title="Filter Questions" className="shadow-md">
             <Form layout="vertical">
               <Form.Item label="Select Year">
@@ -372,7 +382,7 @@ const confirmDelete = async () => {
         )}
 
         {/* Teacher Answer Form */}
-        {isTeacher && activeQuestion && (
+        {(isTeacher || isHOD) && activeQuestion && (
           <Card title="Answer This Question" className="shadow-md">
             <Form layout="vertical">
               <Form.Item label="Your Answer">
