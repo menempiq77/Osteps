@@ -5,14 +5,15 @@ import { EditTrackerModal } from "../modals/trackerModals/EditTrackerModal";
 import { useParams, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
+import { Spin, Modal, Button, Breadcrumb, message } from "antd";
+import { EditOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
+import Link from "next/link";
 import {
   fetchTrackers,
   addTracker as addTrackerAPI,
   updateTracker as updateTrackerAPI,
   deleteTracker as deleteTrackerAPI,
-} from "@/services/api";
-import { Spin, Modal, Button } from "antd";
-import { EditOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
+} from "@/services/trackersApi";
 
 type Tracker = {
   id: string;
@@ -32,17 +33,26 @@ type TrackerBasic = {
 };
 
 export default function TrackerList() {
-  const { classId } = useParams();
+  const { classId, yearId } = useParams();
   const router = useRouter();
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [trackers, setTrackers] = useState<Tracker[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
 
   const [editTracker, setEditTracker] = useState<Tracker | null>(null);
   const [deleteTracker, setDeleteTracker] = useState<Tracker | null>(null);
   const [isAddTrackerModalOpen, setIsAddTrackerModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [messageApi, contextHolder] = message.useMessage();
+
+  useEffect(() => {
+    const savedYearId = localStorage.getItem("selectedYearId");
+    if (savedYearId) {
+      setSelectedYearId(Number(savedYearId));
+    }
+  }, [classId]);
 
   const loadTrackers = async () => {
     try {
@@ -88,8 +98,10 @@ export default function TrackerList() {
       );
       await loadTrackers();
       setEditTracker(null);
+      messageApi.success("Tracker updated successfully!");
     } catch (err) {
       console.error("Failed to update tracker:", err);
+      messageApi.error("Failed to update tracker");
     }
   };
 
@@ -102,8 +114,11 @@ export default function TrackerList() {
       );
       setDeleteTracker(null);
       setIsDeleteModalOpen(false);
+
+      messageApi.success("Tracker deleted successfully!");
     } catch (err) {
       console.error("Failed to delete tracker:", err);
+      messageApi.error("Failed to delete tracker");
     }
   };
 
@@ -119,8 +134,11 @@ export default function TrackerList() {
 
       setIsAddTrackerModalOpen(false);
       await loadTrackers();
+
+      messageApi.success("Tracker added successfully!");
     } catch (err) {
       console.error("Failed to add tracker:", err);
+      messageApi.error("Failed to add tracker");
     }
   };
 
@@ -156,6 +174,30 @@ export default function TrackerList() {
 
   return (
     <>
+      {contextHolder}
+      <Breadcrumb
+        items={[
+          {
+            title: <Link href="/dashboard">Dashboard</Link>,
+          },
+          {
+            title: <Link href="/dashboard/years">Academic Years</Link>,
+          },
+          {
+            title: selectedYearId ? (
+              <Link href={`/dashboard/classes?year=${selectedYearId}`}>
+                Classes
+              </Link>
+            ) : (
+              <Link href="/dashboard/classes">Classes</Link>
+            ),
+          },
+          {
+            title: <span>Trackers</span>,
+          },
+        ]}
+        className="!mb-2"
+      />
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Trackers</h1>
         <div className="flex items-center gap-2">

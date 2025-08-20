@@ -127,39 +127,6 @@ export const addStudentTaskMarks = async (studentId: number, taskData: {
   return response.data;
 };
 
-//Trackers apis Started
-// fetch trackers
-export const fetchTrackers = async (classId: number) => {
-  const response = await api.get(`/get-trackers/${classId}`);
-  return response.data.data;
-};
-// add tracker
-export const addTracker = async (trackerData: {
-  class_id: number;
-  name: string;
-  type: string;
-  status: string;
-  progress: string[];
-}) => {
-  const response = await api.post('/add-trackers', trackerData);
-  return response.data;
-};
-// update tracker
-export const updateTracker = async (id: string, trackerData: {
-  name: string;
-  type: string;
-  status: string;
-  progress: string[];
-}) => {
-  const response = await api.post(`/update-trackers/${id}`, trackerData);
-  return response.data;
-};
-// Delete tracker
-export const deleteTracker = async (id: number) => {
-  const response = await api.post(`/delete-trackers/${id}`);
-  return response.data;
-};
-
 //get trackers topic apis Started
 // fetch trackers topic
 export const fetchTrackerTopics = async (trackerId: number) => {
@@ -209,6 +176,13 @@ export const addTopicMark = async (topicId: number, marks: number, studentId: nu
     marks: marks,
   });
   return response.data;
+};
+
+
+// fetch School logo
+export const fetchSchoolLogo = async () => {
+  const response = await api.get(`/get-logo`);
+  return response.data.data;
 };
 
 export default api;
