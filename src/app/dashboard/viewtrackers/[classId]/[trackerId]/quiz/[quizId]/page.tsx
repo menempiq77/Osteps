@@ -79,6 +79,7 @@ export default function QuranQuizPage() {
   const [loadingStates, setLoadingStates] = useState<Record<number, boolean>>(
     {}
   );
+  const [messageApi, contextHolder] = message.useMessage();
 
   const canUpload =
     currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "TEACHER";
@@ -218,8 +219,10 @@ export default function QuranQuizPage() {
     questionId: number,
     maxMarks: number
   ) => {
+
+    const key = `${questionId}-${isCorrect ? "correct" : "incorrect"}`;
     try {
-      setLoadingStates((prev) => ({ ...prev, [questionId]: true }));
+      setLoadingStates((prev) => ({ ...prev, [key]: true }));
 
       const question = quizData?.quiz_queston.find((q) => q.id === questionId);
       const isTextType =
@@ -232,23 +235,25 @@ export default function QuranQuizPage() {
         : 0;
 
       await quizAnswerMarks(answerId, isCorrect ? 1 : 0, marksToUse);
-      message.success("Answer marked successfully");
+      messageApi.success("Answer marked successfully");
 
-      const response = await fetchSubmittedQuizDetails(
-        Number(quizId),
-        Number(selectedStudentId),
-        "assessment"
+      setSubmittedAnswers((prev) =>
+        prev.map((ans) =>
+          ans.id === answerId
+            ? { ...ans, is_correct: isCorrect ? 1 : 0, marks: marksToUse }
+            : ans
+        )
       );
-      setSubmittedAnswers(response);
     } catch (error) {
-      message.error("Failed to mark answer");
+      messageApi.error("Failed to mark answer");
     } finally {
-      setLoadingStates((prev) => ({ ...prev, [questionId]: false }));
+      setLoadingStates((prev) => ({ ...prev, [key]: false }));
     }
   };
 
   return (
     <div className="p-3 md:p-6 max-w-5xl mx-auto min-h-screen">
+      {contextHolder}
       <div className="mb-8 flex justify-between items-center">
         <Button
           onClick={() => router.back()}
@@ -391,7 +396,7 @@ export default function QuranQuizPage() {
                                             question.marks
                                           )
                                         }
-                                        loading={loadingStates[question.id]}
+                                        loading={loadingStates[`${question.id}-correct`]}
                                       >
                                         Correct
                                       </Button>
@@ -406,7 +411,7 @@ export default function QuranQuizPage() {
                                             question.marks
                                           )
                                         }
-                                        loading={loadingStates[question.id]}
+                                        loading={loadingStates[`${question.id}-incorrect`]}
                                       >
                                         Incorrect
                                       </Button>
