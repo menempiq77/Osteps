@@ -87,7 +87,7 @@ export default function QuizPage() {
         const newQuiz = await addQuize(values);
         messageApi.success("Quiz added successfully");
         setQuizzes((prev) => [...prev, newQuiz]);
-        await loadQuizzes();
+        await loadQuizzes(schoolId);
       }
       handleCancel();
     } catch (error: any) {
