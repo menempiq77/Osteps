@@ -39,18 +39,20 @@ type Announcement = {
 };
 const roleOptions: Record<string, { value: string; label: string }[]> = {
   SUPER_ADMIN: [
-    { value: "ALL", label: "Everyone" },
+    { value: "ALL", label: "ALL" },
     { value: "SCHOOL_ADMIN", label: "School Admins" },
     { value: "HOD", label: "HOD" },
     { value: "TEACHER", label: "Teachers" },
     { value: "STUDENT", label: "Students" },
   ],
   SCHOOL_ADMIN: [
+    { value: "ALL", label: "ALL" },
     { value: "HOD", label: "HOD" },
     { value: "TEACHER", label: "Teachers" },
     { value: "STUDENT", label: "Students" },
   ],
   HOD: [
+    { value: "ALL", label: "ALL" },
     { value: "TEACHER", label: "Teachers" },
     { value: "STUDENT", label: "Students" },
   ],
@@ -420,21 +422,37 @@ export default function AnnouncementsPage() {
               <label className="block mb-1 font-medium text-gray-700">
                 Target Roles
               </label>
-              <Select
-                mode="multiple"
-                value={announcementForm.role}
-                onChange={(value) =>
-                  setAnnouncementForm((prev) => ({ ...prev, role: value }))
-                }
-                placeholder="Select roles"
-                className="w-full hover:!border-primary focus:!border-primary focus:ring-1 focus:!ring-primary transition-colors"
-              >
-                {(roleOptions[currentUser?.role ?? ""] || []).map((opt) => (
-                  <Option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </Option>
-                ))}
-              </Select>
+                <Select
+                  mode="multiple"
+                  value={announcementForm.role}
+                  onChange={(value) => {
+                    const options = roleOptions[currentUser?.role ?? ""] || [];
+
+                    if (value.includes("ALL")) {
+                      const allExceptAll = options
+                        .map((opt) => opt.value)
+                        .filter((v) => v !== "ALL");
+
+                      setAnnouncementForm((prev) => ({
+                        ...prev,
+                        role: allExceptAll,
+                      }));
+                    } else {
+                      setAnnouncementForm((prev) => ({
+                        ...prev,
+                        role: value,
+                      }));
+                    }
+                  }}
+                  placeholder="Select roles"
+                  className="w-full hover:!border-primary focus:!border-primary focus:ring-1 focus:!ring-primary transition-colors"
+                >
+                  {(roleOptions[currentUser?.role ?? ""] || []).map((opt) => (
+                    <Option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </Option>
+                  ))}
+                </Select>
             </div>
 
             {/* Target Schools (only for super admin) */}
