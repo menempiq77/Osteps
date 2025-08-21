@@ -75,6 +75,11 @@ export const addQuizQuestion = async (quizId: number, quizQuestionData: { name: 
   const response = await api.post('/add-quiz-question', { ...quizQuestionData, quiz_id: quizId });
   return response.data;
 };
+// add QuizQuestions
+export const updateQuizQuestion = async (questionId: number, quizId: number, quizQuestionData: { name: string }) => {
+  const response = await api.post(`/update-quiz-question/${questionId}`, { ...quizQuestionData, quiz_id: quizId });
+  return response.data;
+};
 // delete QuizQuestions
 export const deleteQuizQuestion = async (id: number) => {
   const response = await api.post(`/delete-quiz-question/${id}`);

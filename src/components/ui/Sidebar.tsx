@@ -36,10 +36,18 @@ const Sidebar = () => {
     enabled: !!currentUser?.role,
   });
 
-  const filteredAnnouncements = announcements?.filter(
-    (announcement: any) => announcement?.role === currentUser?.role
-  );
-  const unreadCount = filteredAnnouncements?.length || 0;
+const filteredAnnouncements = announcements?.filter((announcement: any) => {
+  const roles = Array.isArray(announcement.role)
+    ? announcement.role
+    : announcement.role
+    ? [announcement.role]
+    : [];
+
+  return roles.includes(currentUser?.role);
+});
+
+const unreadCount = filteredAnnouncements?.length || 0;
+
 
   useEffect(() => {
     setIsOpen(!isMobile);
