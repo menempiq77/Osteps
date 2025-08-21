@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import {
@@ -22,6 +22,7 @@ import {
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Megaphone } from "lucide-react";
+import { fetchSchools } from "@/services/schoolApi";
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -69,11 +70,30 @@ export default function AnnouncementsPage() {
     title: "",
     description: "",
     type: "",
-    target: "",
+    role: [] as string[],
+    school_ids: [] as string[],
   });
   const [isFormOpen, setIsFormOpen] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
   const [messageApi, contextHolder] = message.useMessage();
+  const isSuperAdmin = currentUser?.role === "SUPER_ADMIN";
+  const [schools, setSchools] = useState<any[]>([]);
+  const [schoolsLoading, setSchoolsLoading] = useState(true);
+
+  const loadSchools = async () => {
+    try {
+      setSchoolsLoading(true);
+      const data = await fetchSchools();
+      setSchools(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSchoolsLoading(false);
+    }
+  };
+  useEffect(() => {
+    loadSchools();
+  }, []);
 
   // Fetch announcements with React Query
   const {
@@ -144,7 +164,8 @@ export default function AnnouncementsPage() {
       title: announcementForm.title,
       description: announcementForm.description,
       type: announcementForm.type,
-      role: announcementForm.target,
+      role: announcementForm.role,
+      school_ids: announcementForm.school_ids,
     };
 
     if (announcementForm.id) {
@@ -166,7 +187,8 @@ export default function AnnouncementsPage() {
       title: "",
       description: "",
       type: "general",
-      target: "",
+      role: [],
+      school_ids: [],
     });
     setIsFormOpen(false);
   };
@@ -177,7 +199,12 @@ export default function AnnouncementsPage() {
       title: announcement.title,
       description: announcement.description,
       type: announcement.type,
-      target: announcement.role || "",
+      role: announcement.role
+        ? Array.isArray(announcement.role)
+          ? announcement.role
+          : [announcement.role]
+        : [],
+      school_ids: announcement.school_ids || [],
     });
     setIsFormOpen(true);
     setTimeout(() => {
@@ -192,7 +219,7 @@ export default function AnnouncementsPage() {
       title: "",
       description: "",
       type: "general",
-      target: options[0]?.value || "", 
+      target: options[0]?.value || "",
     });
     setIsFormOpen(true);
   };
@@ -232,22 +259,39 @@ export default function AnnouncementsPage() {
   };
 
   const filteredAnnouncements = announcements.filter((announcement) => {
-    if (announcement.role === "ALL") return true;
-    if (currentUser?.role === "SUPER_ADMIN") return true;
-    if (currentUser?.role === "SCHOOL_ADMIN") {
-      return true;
-    }
-    if (currentUser?.role === "HOD") {
-      return announcement.role === "HOD" || announcement.role === "TEACHER" || announcement.role === "STUDENT" || !announcement.role;
-    }
-    if (currentUser?.role === "TEACHER") {
-      return announcement.role === "TEACHER" || announcement.role === "STUDENT" || !announcement.role;
-    }
-    if (currentUser?.role === "STUDENT") {
-      return announcement.role === "STUDENT" || !announcement.role;
-    }
-    return false;
-  });
+  const roles = Array.isArray(announcement.role)
+    ? announcement.role
+    : announcement.role
+    ? [announcement.role]
+    : []; // fallback in case API sends single role
+
+  if (roles.includes("ALL")) return true;
+
+  if (currentUser?.role === "SUPER_ADMIN") return true;
+
+  if (currentUser?.role === "SCHOOL_ADMIN") {
+    return true; // super-wide visibility
+  }
+
+  if (currentUser?.role === "HOD") {
+    return roles.some((r) =>
+      ["HOD", "TEACHER", "STUDENT"].includes(r)
+    );
+  }
+
+  if (currentUser?.role === "TEACHER") {
+    return roles.some((r) =>
+      ["TEACHER", "STUDENT"].includes(r)
+    );
+  }
+
+  if (currentUser?.role === "STUDENT") {
+    return roles.includes("STUDENT") || roles.length === 0;
+  }
+
+  return false;
+});
+
 
   const badgeRibbonColors = {
     event: "blue",
@@ -313,32 +357,48 @@ export default function AnnouncementsPage() {
           }
         >
           <div className="space-y-4">
-            <Input
-              placeholder="Title (e.g., 'Exam Schedule')"
-              value={announcementForm.title}
-              onChange={(e) =>
-                setAnnouncementForm({
-                  ...announcementForm,
-                  title: e.target.value,
-                })
-              }
-              className="!mb-2 hover:!border-primary focus:!border-primary focus:ring-1 focus:!ring-primary transition-colors"
-            />
+            {/* Title */}
+            <div>
+              <label className="block mb-1 font-medium text-gray-700">
+                Title
+              </label>
+              <Input
+                placeholder="e.g., 'Exam Schedule'"
+                value={announcementForm.title}
+                onChange={(e) =>
+                  setAnnouncementForm({
+                    ...announcementForm,
+                    title: e.target.value,
+                  })
+                }
+                className="hover:!border-primary focus:!border-primary focus:ring-1 focus:!ring-primary transition-colors"
+              />
+            </div>
 
-            <TextArea
-              placeholder="Content (e.g., 'The exam will begin at 8:30 PM...')"
-              value={announcementForm.description}
-              onChange={(e) =>
-                setAnnouncementForm({
-                  ...announcementForm,
-                  description: e.target.value,
-                })
-              }
-              rows={4}
-              className="!mb-2 hover:!border-primary focus:!border-primary focus:ring-1 focus:!ring-primary transition-colors"
-            />
+            {/* Description */}
+            <div>
+              <label className="block mb-1 font-medium text-gray-700">
+                Description
+              </label>
+              <TextArea
+                placeholder="e.g., 'The exam will begin at 8:30 PM...'"
+                value={announcementForm.description}
+                onChange={(e) =>
+                  setAnnouncementForm({
+                    ...announcementForm,
+                    description: e.target.value,
+                  })
+                }
+                rows={4}
+                className="hover:!border-primary focus:!border-primary focus:ring-1 focus:!ring-primary transition-colors"
+              />
+            </div>
 
-            <div className="flex gap-4 flex-wrap">
+            {/* Announcement Type */}
+            <div>
+              <label className="block mb-1 font-medium text-gray-700">
+                Announcement Type
+              </label>
               <Select
                 value={announcementForm.type}
                 onChange={(value) =>
@@ -347,23 +407,27 @@ export default function AnnouncementsPage() {
                     type: value as any,
                   })
                 }
-                className="flex-1 min-w-[150px] hover:!border-primary focus:!border-primary focus:ring-1 focus:!ring-primary transition-colors"
+                className="w-full hover:!border-primary focus:!border-primary focus:ring-1 focus:!ring-primary transition-colors"
               >
                 <Option value="event">Event</Option>
                 <Option value="reminder">Reminder</Option>
                 <Option value="general">General</Option>
               </Select>
+            </div>
 
-               <Select
-                value={announcementForm.target}
+            {/* Target Roles */}
+            <div>
+              <label className="block mb-1 font-medium text-gray-700">
+                Target Roles
+              </label>
+              <Select
+                mode="multiple"
+                value={announcementForm.role}
                 onChange={(value) =>
-                  setAnnouncementForm((prev) => ({
-                    ...prev,
-                    target: value,
-                  }))
+                  setAnnouncementForm((prev) => ({ ...prev, role: value }))
                 }
-                placeholder="Target Audience"
-                className="flex-1 min-w-[150px] hover:!border-primary focus:!border-primary focus:ring-1 focus:!ring-primary transition-colors"
+                placeholder="Select roles"
+                className="w-full hover:!border-primary focus:!border-primary focus:ring-1 focus:!ring-primary transition-colors"
               >
                 {(roleOptions[currentUser?.role ?? ""] || []).map((opt) => (
                   <Option key={opt.value} value={opt.value}>
@@ -371,11 +435,39 @@ export default function AnnouncementsPage() {
                   </Option>
                 ))}
               </Select>
-
             </div>
+
+            {/* Target Schools (only for super admin) */}
+            {isSuperAdmin && (
+              <div>
+                <label className="block mb-1 font-medium text-gray-700">
+                  Target Schools
+                </label>
+                <Select
+                  mode="multiple"
+                  value={announcementForm.school_ids}
+                  onChange={(value) =>
+                    setAnnouncementForm((prev) => ({
+                      ...prev,
+                      school_ids: value,
+                    }))
+                  }
+                  placeholder="Select schools"
+                  className="w-full hover:!border-primary focus:!border-primary focus:ring-1 focus:!ring-primary transition-colors"
+                  loading={schoolsLoading}
+                >
+                  {schools.map((school) => (
+                    <Option key={school.id} value={school.id}>
+                      {school.name}
+                    </Option>
+                  ))}
+                </Select>
+              </div>
+            )}
 
             {error && <div className="text-red-500">{error}</div>}
 
+            {/* Actions */}
             <div className="flex justify-end gap-3">
               <Button onClick={resetForm}>Cancel</Button>
               <Button
@@ -444,7 +536,12 @@ export default function AnnouncementsPage() {
                   <div className="flex flex-wrap text-xs text-gray-500 gap-2 items-center mb-4">
                     <span>{formatDate(announcement.created_at)}</span>
                     <span>•</span>
-                    <span>Posted For {announcement.role}</span>
+                    <span>
+                      Posted For{" "}
+                      {Array.isArray(announcement.role)
+                        ? announcement.role.join(", ")
+                        : announcement.role}
+                    </span>
                   </div>
                 </div>
                 <div>

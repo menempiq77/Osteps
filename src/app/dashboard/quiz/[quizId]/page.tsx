@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Trash2, Plus, X } from "lucide-react";
+import { ArrowLeft, Trash2, Plus, X, Edit } from "lucide-react";
 import {
   Button,
   Form,
@@ -22,6 +22,7 @@ import {
   addQuizQuestion,
   deleteQuizQuestion,
   fetchQuizQuestions,
+  updateQuizQuestion,
 } from "@/services/quizApi";
 
 interface Option {
@@ -75,11 +76,20 @@ export default function QuranQuizPage() {
     questionId: null,
     loading: false,
   });
+  const [editState, setEditState] = useState<{
+    isEditing: boolean;
+    questionId: number | null;
+  }>({
+    isEditing: false,
+    questionId: null,
+  });
 
   const [messageApi, contextHolder] = message.useMessage();
 
   const canUpload =
-    currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "HOD" || currentUser?.role === "TEACHER";
+    currentUser?.role === "SCHOOL_ADMIN" ||
+    currentUser?.role === "HOD" ||
+    currentUser?.role === "TEACHER";
 
   const loadQuizQuestions = async () => {
     try {
@@ -144,6 +154,7 @@ export default function QuranQuizPage() {
       quizForm.resetFields();
       setQuizType("short_answer");
       setOptionCount(3);
+      setEditState({ isEditing: false, questionId: null });
     }
   };
 
@@ -160,13 +171,59 @@ export default function QuranQuizPage() {
     }
   };
 
-  const handleAddQuestion = async () => {
+  const handleEditQuestion = (question: QuizQuestion) => {
+    setShowAddQuestion(true);
+    setEditState({ isEditing: true, questionId: question.id });
+    setQuizType(question.type);
+
+    // pre-fill options if type has them
+    if (
+      ["multiple_choice", "check_boxes", "drop_down"].includes(question.type)
+    ) {
+      setOptionCount(question.options.length);
+      const optionValues: Record<string, string> = {};
+      question.options.forEach((opt, i) => {
+        optionValues[`option${i + 1}`] = opt.option_text;
+      });
+
+      quizForm.setFieldsValue({
+        type: question.type,
+        question_text: question.question_text,
+        marks: question.marks,
+        ...optionValues,
+        correctAnswer:
+          question.type === "check_boxes"
+            ? question.options
+                .filter((opt) => opt.is_correct === 1)
+                .map((_, idx) => idx) // array of indexes
+            : question.options.find((opt) => opt.is_correct === 1)
+            ? question.options.findIndex((opt) => opt.is_correct === 1)
+            : null,
+      });
+    } else if (question.type === "true_false") {
+      quizForm.setFieldsValue({
+        type: question.type,
+        question_text: question.question_text,
+        marks: question.marks,
+        correctAnswer: question.correct_answer,
+      });
+    } else {
+      quizForm.setFieldsValue({
+        type: question.type,
+        question_text: question.question_text,
+        marks: question.marks,
+        correctAnswer: question.correct_answer,
+      });
+    }
+  };
+
+  const handleSaveQuestion = async () => {
     try {
       await quizForm.validateFields();
       const values = quizForm.getFieldsValue();
 
       let options: string[] = [];
-      let correctAnswer: number | null = null;
+      let correctAnswer: number | number[] | null = null;
 
       if (
         ["multiple_choice", "check_boxes", "drop_down"].includes(values.type)
@@ -193,29 +250,23 @@ export default function QuranQuizPage() {
         options: options.length > 0 ? options : undefined,
       };
 
-      const response = await addQuizQuestion(Number(quizId), questionData);
+      if (editState.isEditing && editState.questionId) {
+        await updateQuizQuestion(
+          editState.questionId,
+          Number(quizId),
+          questionData
+        );
+        messageApi.success("Question updated successfully");
+      } else {
+        await addQuizQuestion(Number(quizId), questionData);
+        messageApi.success("Question added successfully");
+      }
 
-      setQuizData((prev) => {
-        if (!prev) return null;
-        const newQuestion = {
-          ...response,
-          options: response.options || [],
-        };
-
-        return {
-          ...prev,
-          quiz_queston: [...prev.quiz_queston, newQuestion],
-        };
-      });
-
-      setShowAddQuestion(false);
-      quizForm.resetFields();
-      setOptionCount(3);
+      toggleAddQuestion();
       await loadQuizQuestions();
-      messageApi.success("Question added successfully");
     } catch (error) {
-      messageApi.error("Failed to add question");
-      console.error("Error adding question:", error);
+      messageApi.error("Failed to save question");
+      console.error("Error saving question:", error);
     }
   };
 
@@ -271,224 +322,13 @@ export default function QuranQuizPage() {
               <Button
                 type="primary"
                 onClick={toggleAddQuestion}
-                icon={showAddQuestion ? <X size={16} /> : <Plus size={16} />}
                 loading={loading}
                 className="!bg-primary !border-primary hover:!bg-primary hover:!border-primary"
               >
-                {showAddQuestion ? "Cancel" : "Add Question"}
+                Add Question
               </Button>
             )}
           </div>
-
-          {showAddQuestion && (
-            <div className="p-6 border-b border-gray-200 bg-gray-50">
-              <Form form={quizForm} layout="vertical">
-                <Form.Item
-                  name="type"
-                  label="Question Type"
-                  initialValue="short_answer"
-                  rules={[
-                    {
-                      required: true,
-                      message: "Please select a question type",
-                    },
-                  ]}
-                >
-                  <Select
-                    placeholder="Select question type"
-                    onChange={(val) => setQuizType(val)}
-                  >
-                    <Select.Option value="short_answer">
-                      Short Answer
-                    </Select.Option>
-                    <Select.Option value="paragraph">Paragraph</Select.Option>
-                    <Select.Option value="multiple_choice">
-                      Multiple Choice
-                    </Select.Option>
-                    <Select.Option value="check_boxes">
-                      Checkboxes
-                    </Select.Option>
-                    <Select.Option value="drop_down">Dropdown</Select.Option>
-                    <Select.Option value="true_false">True/False</Select.Option>
-                  </Select>
-                </Form.Item>
-
-                <Form.Item
-                  name="question_text"
-                  label="Question"
-                  rules={[
-                    { required: true, message: "Please enter the question" },
-                  ]}
-                >
-                  <Input.TextArea rows={3} placeholder="Enter question" />
-                </Form.Item>
-
-                <Form.Item
-                  name="marks"
-                  label="Marks"
-                  initialValue={1}
-                  rules={[
-                    {
-                      required: true,
-                      message: "Please enter marks for this question",
-                    },
-                  ]}
-                >
-                  <InputNumber
-                    min={1}
-                    className="!w-full"
-                    placeholder="Enter marks for this question"
-                  />
-                </Form.Item>
-
-                {quizType === "true_false" && (
-                  <Form.Item
-                    name="correctAnswer"
-                    label="Correct Answer"
-                    valuePropName="checked"
-                    initialValue={true}
-                    rules={[
-                      {
-                        required: true,
-                        message: "Please specify the correct answer",
-                      },
-                    ]}
-                  >
-                    <Radio.Group>
-                      <Radio value={1}>True</Radio>
-                      <Radio value={0}>False</Radio>
-                    </Radio.Group>
-                  </Form.Item>
-                )}
-
-                {["multiple_choice", "check_boxes", "drop_down"].includes(
-                  quizType
-                ) && (
-                  <>
-                    <Divider orientation="left">Options</Divider>
-
-                    {Array.from({ length: optionCount }).map((_, index) => (
-                      <Form.Item
-                        key={index}
-                        name={`option${index + 1}`}
-                        label={`Option ${index + 1}`}
-                        rules={[
-                          {
-                            required: index < 2,
-                            message: `Option ${index + 1} is required`,
-                          },
-                        ]}
-                      >
-                        <Input
-                          placeholder={`Enter option ${index + 1}`}
-                          suffix={
-                            index >= 2 && (
-                              <Button
-                                type="text"
-                                danger
-                                size="small"
-                                icon={<Trash2 size={14} />}
-                                onClick={() => {
-                                  const values = quizForm.getFieldsValue();
-                                  const updatedValues = {};
-                                  let shiftIndex = 1;
-
-                                  for (let i = 1; i <= optionCount; i++) {
-                                    if (i !== index + 1) {
-                                      updatedValues[`option${shiftIndex}`] =
-                                        values[`option${i}`];
-                                      shiftIndex++;
-                                    }
-                                  }
-
-                                  quizForm.setFieldsValue(updatedValues);
-                                  setOptionCount((prev) => prev - 1);
-                                }}
-                                className="opacity-70 hover:opacity-100"
-                              />
-                            )
-                          }
-                        />
-                      </Form.Item>
-                    ))}
-
-                    <div className="flex justify-start gap-3 mt-2">
-                      <Button
-                        type="dashed"
-                        onClick={addOption}
-                        icon={<Plus size={14} />}
-                      >
-                        Add Option
-                      </Button>
-                      {optionCount > 2 && (
-                        <Button
-                          type="dashed"
-                          danger
-                          onClick={removeOption}
-                          icon={<Trash2 size={14} />}
-                        >
-                          Remove Last Option
-                        </Button>
-                      )}
-                    </div>
-
-                    <Form.Item
-                      name="correctAnswer"
-                      label="Correct Answer"
-                      rules={[
-                        {
-                          required: true,
-                          message: "Please specify the correct answer",
-                        },
-                      ]}
-                    >
-                      {quizType === "multiple_choice" ||
-                      quizType === "drop_down" ? (
-                        <Radio.Group>
-                          <Space direction="vertical">
-                            {Array.from({ length: optionCount }).map(
-                              (_, index) => (
-                                <Radio key={index} value={index}>
-                                  {quizForm.getFieldValue(
-                                    `option${index + 1}`
-                                  ) || `Option ${index + 1}`}
-                                </Radio>
-                              )
-                            )}
-                          </Space>
-                        </Radio.Group>
-                      ) : quizType === "check_boxes" ? (
-                        <Checkbox.Group>
-                          <Space direction="vertical">
-                            {Array.from({ length: optionCount }).map(
-                              (_, index) => (
-                                <Checkbox key={index} value={index}>
-                                  {quizForm.getFieldValue(
-                                    `option${index + 1}`
-                                  ) || `Option ${index + 1}`}
-                                </Checkbox>
-                              )
-                            )}
-                          </Space>
-                        </Checkbox.Group>
-                      ) : null}
-                    </Form.Item>
-                  </>
-                )}
-
-                <div className="flex justify-end gap-2 mt-4">
-                  <Button onClick={toggleAddQuestion}>Cancel</Button>
-                  <Button
-                    type="primary"
-                    onClick={handleAddQuestion}
-                    className="!bg-primary !border-primary hover:!bg-primary hover:!border-primary"
-                  >
-                    Add Question
-                  </Button>
-                </div>
-              </Form>
-            </div>
-          )}
 
           <div className="p-6 space-y-6">
             {!quizData?.quiz_queston?.length ? (
@@ -507,19 +347,29 @@ export default function QuranQuizPage() {
                       {question.question_text}
                     </div>
                     {canUpload && (
-                      <Button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          showDeleteModal(question.id);
-                        }}
-                        size="small"
-                        danger
-                        icon={<Trash2 size={14} />}
-                        loading={
-                          deleteState.loading &&
-                          deleteState.questionId === question.id
-                        }
-                      />
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditQuestion(question);
+                          }}
+                          size="small"
+                          icon={<Edit size={14} />} // import from lucide-react
+                        />
+                        <Button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            showDeleteModal(question.id);
+                          }}
+                          size="small"
+                          danger
+                          icon={<Trash2 size={14} />}
+                          loading={
+                            deleteState.loading &&
+                            deleteState.questionId === question.id
+                          }
+                        />
+                      </div>
                     )}
                   </div>
 
@@ -610,6 +460,211 @@ export default function QuranQuizPage() {
       )}
 
       <Modal
+        title={editState.isEditing ? "Edit Question" : "Add Question"}
+        open={showAddQuestion}
+        onCancel={toggleAddQuestion}
+        footer={null}
+        width={800}
+        destroyOnHidden
+        centered
+      >
+        <Form form={quizForm} layout="vertical">
+          {/* --- Question Type --- */}
+          <Form.Item
+            name="type"
+            label="Question Type"
+            initialValue="short_answer"
+            rules={[
+              { required: true, message: "Please select a question type" },
+            ]}
+          >
+            <Select
+              placeholder="Select question type"
+              onChange={(val) => setQuizType(val)}
+            >
+              <Select.Option value="short_answer">Short Answer</Select.Option>
+              <Select.Option value="paragraph">Paragraph</Select.Option>
+              <Select.Option value="multiple_choice">
+                Multiple Choice
+              </Select.Option>
+              <Select.Option value="check_boxes">Checkboxes</Select.Option>
+              <Select.Option value="drop_down">Dropdown</Select.Option>
+              <Select.Option value="true_false">True/False</Select.Option>
+            </Select>
+          </Form.Item>
+
+          {/* --- Question Text --- */}
+          <Form.Item
+            name="question_text"
+            label="Question"
+            rules={[{ required: true, message: "Please enter the question" }]}
+          >
+            <Input.TextArea rows={3} placeholder="Enter question" />
+          </Form.Item>
+
+          {/* --- Marks --- */}
+          <Form.Item
+            name="marks"
+            label="Marks"
+            initialValue={1}
+            rules={[
+              {
+                required: true,
+                message: "Please enter marks for this question",
+              },
+            ]}
+          >
+            <InputNumber
+              min={1}
+              className="!w-full"
+              placeholder="Enter marks for this question"
+            />
+          </Form.Item>
+
+          {/* --- True/False --- */}
+          {quizType === "true_false" && (
+            <Form.Item
+              name="correctAnswer"
+              label="Correct Answer"
+              rules={[
+                {
+                  required: true,
+                  message: "Please specify the correct answer",
+                },
+              ]}
+            >
+              <Radio.Group>
+                <Radio value={1}>True</Radio>
+                <Radio value={0}>False</Radio>
+              </Radio.Group>
+            </Form.Item>
+          )}
+
+          {/* --- Options Section --- */}
+          {["multiple_choice", "check_boxes", "drop_down"].includes(
+            quizType
+          ) && (
+            <>
+              <Divider orientation="left">Options</Divider>
+
+              {Array.from({ length: optionCount }).map((_, index) => (
+                <Form.Item
+                  key={index}
+                  name={`option${index + 1}`}
+                  label={`Option ${index + 1}`}
+                  rules={[
+                    {
+                      required: index < 2,
+                      message: `Option ${index + 1} is required`,
+                    },
+                  ]}
+                >
+                  <Input
+                    placeholder={`Enter option ${index + 1}`}
+                    suffix={
+                      index >= 2 && (
+                        <Button
+                          type="text"
+                          danger
+                          size="small"
+                          icon={<Trash2 size={14} />}
+                          onClick={() => {
+                            const values = quizForm.getFieldsValue();
+                            const updatedValues: Record<string, any> = {};
+                            let shiftIndex = 1;
+
+                            for (let i = 1; i <= optionCount; i++) {
+                              if (i !== index + 1) {
+                                updatedValues[`option${shiftIndex}`] =
+                                  values[`option${i}`];
+                                shiftIndex++;
+                              }
+                            }
+
+                            quizForm.setFieldsValue(updatedValues);
+                            setOptionCount((prev) => prev - 1);
+                          }}
+                          className="opacity-70 hover:opacity-100"
+                        />
+                      )
+                    }
+                  />
+                </Form.Item>
+              ))}
+
+              <div className="flex justify-start gap-3 mt-2">
+                <Button
+                  type="dashed"
+                  onClick={addOption}
+                  icon={<Plus size={14} />}
+                >
+                  Add Option
+                </Button>
+                {optionCount > 2 && (
+                  <Button
+                    type="dashed"
+                    danger
+                    onClick={removeOption}
+                    icon={<Trash2 size={14} />}
+                  >
+                    Remove Last Option
+                  </Button>
+                )}
+              </div>
+
+              {/* --- Correct Answer Selection --- */}
+              <Form.Item
+                name="correctAnswer"
+                label="Correct Answer"
+                rules={[
+                  {
+                    required: true,
+                    message: "Please specify the correct answer",
+                  },
+                ]}
+              >
+                {quizType === "multiple_choice" || quizType === "drop_down" ? (
+                  <Radio.Group>
+                    <Space direction="vertical">
+                      {Array.from({ length: optionCount }).map((_, index) => (
+                        <Radio key={index} value={index}>
+                          {quizForm.getFieldValue(`option${index + 1}`) ||
+                            `Option ${index + 1}`}
+                        </Radio>
+                      ))}
+                    </Space>
+                  </Radio.Group>
+                ) : (
+                  <Checkbox.Group>
+                    <Space direction="vertical">
+                      {Array.from({ length: optionCount }).map((_, index) => (
+                        <Checkbox key={index} value={index}>
+                          {quizForm.getFieldValue(`option${index + 1}`) ||
+                            `Option ${index + 1}`}
+                        </Checkbox>
+                      ))}
+                    </Space>
+                  </Checkbox.Group>
+                )}
+              </Form.Item>
+            </>
+          )}
+
+          {/* --- Action Buttons --- */}
+          <div className="flex justify-end gap-2 mt-4">
+            <Button onClick={toggleAddQuestion}>Cancel</Button>
+            <Button
+              type="primary"
+              onClick={handleSaveQuestion}
+              className="!bg-primary !border-primary hover:!bg-primary hover:!border-primary"
+            >
+              {editState.isEditing ? "Update Question" : "Add Question"}
+            </Button>
+          </div>
+        </Form>
+      </Modal>
+
+      <Modal
         title="Delete Question"
         open={deleteState.visible}
         onOk={handleDeleteConfirm}
@@ -618,6 +673,8 @@ export default function QuranQuizPage() {
         okButtonProps={{ danger: true }}
         cancelText="Cancel"
         confirmLoading={deleteState.loading}
+        centered
+        destroyOnHidden
       >
         <p>Are you sure you want to delete this question?</p>
       </Modal>
