@@ -140,6 +140,12 @@ export default function StudentList() {
       `/dashboard/students/${classId}/view-student-assesment/${studentId}`
     );
   };
+  
+  useEffect(() => {
+    if (!isAddStudentModalOpen) {
+      form.resetFields();
+    }
+  }, [isAddStudentModalOpen]);
 
   const handleStudentBehavior = (studentId: string) => {
     router.push(`/dashboard/classes/${classId}/behavior/${studentId}`);
