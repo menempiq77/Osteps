@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Card, Tag, Divider, Avatar, Spin, message } from "antd";
 import { BookOpen, Mail, Phone, Users, Calendar } from "lucide-react";
 import { getAssignClassesTeacher } from "@/services/teacherApi";
@@ -47,7 +47,7 @@ interface ApiResponse {
 
 export default function TeacherAssignedClasses() {
   const { teacherId } = useParams();
-
+  const router = useRouter();
   const [assignedClasses, setAssignedClasses] = useState<AssignedClass[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -99,6 +99,10 @@ export default function TeacherAssignedClasses() {
 
   const teacherInfo =
     assignedClasses.length > 0 ? assignedClasses[0].teacher : null;
+
+  const handleViewStudents = (classId: number | string) => {
+    router.push(`/dashboard/students/${classId}`);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
@@ -193,7 +197,8 @@ export default function TeacherAssignedClasses() {
                   {assignedClasses.map((classItem) => (
                     <Card
                       key={classItem.id}
-                      className="shadow-md hover:shadow-lg transition-all border-0"
+                      onClick={() => handleViewStudents(classItem.classes.id)}
+                      className="shadow-md hover:shadow-lg transition-all border-0 !cursor-pointer"
                     >
                       <div className="flex justify-between items-start mb-4">
                         <Tag color="blue" className="text-sm py-1 px-3">
@@ -211,29 +216,6 @@ export default function TeacherAssignedClasses() {
                           Assigned on:{" "}
                           {new Date(classItem.created_at).toLocaleDateString()}
                         </span>
-                      </div>
-
-                      <div className="bg-gray-50 p-3 rounded-lg hidden">
-                        <div className="text-sm text-gray-600">
-                          <div className="flex justify-between mb-1">
-                            <span>Class ID:</span>
-                            <span className="font-medium">
-                              {classItem.classes.id}
-                            </span>
-                          </div>
-                          <div className="flex justify-between mb-1">
-                            <span>Year ID:</span>
-                            <span className="font-medium">
-                              {classItem.classes.year_id}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>School ID:</span>
-                            <span className="font-medium">
-                              {classItem.classes.school_id}
-                            </span>
-                          </div>
-                        </div>
                       </div>
                     </Card>
                   ))}

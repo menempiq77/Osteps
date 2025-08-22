@@ -3,9 +3,11 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Spin, Select, Button } from "antd";
 import { ArrowLeft } from "lucide-react";
-import { fetchYears } from "@/services/yearsApi";
+import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
 import { fetchClasses } from "@/services/classesApi";
 import { fetchTrackers } from "@/services/trackersApi";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store/store";
 
 type Tracker = {
   id: string;
@@ -26,6 +28,9 @@ export default function TrackerList() {
   const [selectedClass, setSelectedClass] = useState<string>("");
   const [years, setYears] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
+  const { currentUser } = useSelector((state: RootState) => state.auth);
+  const isTeacher = currentUser?.role === "TEACHER";
+  const schoolId = currentUser?.school;
 
   const loadTrackers = async () => {
     if (!selectedClass) return;
@@ -49,22 +54,35 @@ export default function TrackerList() {
   };
 
   const loadYears = async () => {
-    try {
-      setLoading(true);
-      const data = await fetchYears();
-      setYears(data);
+  try {
+    setLoading(true);
+    let yearsData: any[] = [];
 
-      // Set first year as default if available
-      if (data.length > 0) {
-        setSelectedYear(data[0].id.toString());
-      }
-    } catch (err) {
-      setError("Failed to load years");
-      console.error(err);
-    } finally {
-      setLoading(false);
+    if (isTeacher) {
+      const res = await fetchAssignYears();
+      const years = res
+        .map((item: any) => item?.classes?.year)
+        .filter((year: any) => year);
+
+      yearsData = Array.from(
+        new Map(years?.map((year: any) => [year.id, year])).values()
+      );
+    } else {
+      const res = await fetchYearsBySchool(schoolId);
+      yearsData = res;
     }
-  };
+    setYears(yearsData);
+    if (yearsData.length > 0) {
+      setSelectedYear(yearsData[0].id.toString());
+    }
+  } catch (err) {
+    setError("Failed to load years");
+    console.error(err);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const loadClasses = async (yearId: string) => {
     if (!yearId) return;
@@ -147,11 +165,10 @@ export default function TrackerList() {
               value={selectedYear}
               onChange={(value) => setSelectedYear(value)}
               className="w-full"
-              options={years.map((year) => ({
-                value: year.id.toString(),
-                label: year.name,
+              options={years.map((item) => ({
+                value: item.id.toString(),
+                label: item.name,
               }))}
-              loading={years.length === 0}
             />
           </div>
 

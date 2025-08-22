@@ -23,7 +23,7 @@ import {
   getAllAskQuestions,
   submitAskQuestion,
 } from "@/services/askQuestionApi";
-import { fetchYearsBySchool } from "@/services/yearsApi";
+import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
 import { fetchClasses } from "@/services/classesApi";
 import { fetchTeachersByStudent } from "@/services/teacherApi";
 
@@ -155,8 +155,23 @@ const confirmDelete = async () => {
 
   const loadYears = async () => {
     try {
-      const data = await fetchYearsBySchool(schoolId);
-      setYears(data);
+      let yearsData;
+
+      if (isTeacher) {
+        const res = await fetchAssignYears();
+        const years = res
+          .map((item: any) => item.classes?.year)
+          .filter((year: any) => year);
+
+        yearsData = Array.from(
+          new Map(years.map((year: any) => [year.id, year])).values()
+        );
+      } else {
+        const res = await fetchYearsBySchool(schoolId);
+        yearsData = res;
+      }
+
+      setYears(yearsData);
       setIsLoading(false);
     } catch (err) {
       setError("Failed to load years");
