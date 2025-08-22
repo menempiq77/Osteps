@@ -130,6 +130,7 @@ export default function LibraryPage() {
 
   const canUpload =
     currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "HOD" || currentUser?.role === "TEACHER";
+  const schoolId = currentUser?.school;
 
   const typeTabItems = [
     { label: <span className="font-medium">All Resources</span>, key: "all" },
@@ -159,6 +160,7 @@ export default function LibraryPage() {
       formData.append("library_resources_id", values.type);
       formData.append("library_categories_id", values.category);
       formData.append("description", values.description || "");
+      formData.append("school_id", schoolId?.toString() || "");
 
       if (fileList.length > 0) {
         const fileToUpload = fileList[0].originFileObj || fileList[0];
