@@ -59,7 +59,7 @@ export const AddStudentModal = ({
           label="Username"
           rules={[{ required: true, message: "Please input username!" }]}
         >
-          <Input />
+          <Input autoComplete="off" />
         </Form.Item>
 
         <Form.Item
@@ -70,7 +70,7 @@ export const AddStudentModal = ({
             { required: false },
           ]}
         >
-          <Input />
+          <Input  />
         </Form.Item>
 
          <Form.Item
@@ -78,7 +78,7 @@ export const AddStudentModal = ({
           label="Password"
           rules={[{ required: true, message: "Please input password!" }]}
         >
-          <Input.Password />
+          <Input.Password autoComplete="new-password" />
         </Form.Item>
 
         <Form.Item
