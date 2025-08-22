@@ -67,6 +67,7 @@ export const AddStudentModal = ({
           label="Email (Optional)"
           rules={[
             { type: "email", message: "Please enter a valid email!" },
+            { required: false },
           ]}
         >
           <Input />

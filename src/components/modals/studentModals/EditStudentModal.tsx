@@ -90,7 +90,10 @@ export const EditStudentModal = ({
         <Form.Item
           name="email"
           label="Email (Optional)"
-          rules={[{ type: "email", message: "Please enter a valid email!" }]}
+          rules={[
+            { type: "email", message: "Please enter a valid email!" },
+            { required: false },
+          ]}
         >
           <Input />
         </Form.Item>
