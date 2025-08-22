@@ -30,7 +30,7 @@ import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import Link from "next/link";
-import { fetchYears, fetchYearsBySchool } from "@/services/yearsApi";
+import { fetchYearsBySchool } from "@/services/yearsApi";
 import { fetchClasses } from "@/services/classesApi";
 import { fetchTeachers } from "@/services/teacherApi";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -242,6 +242,7 @@ function Timetable() {
         start_time: values.start_time.format("HH:mm"),
         end_time: values.end_time.format("HH:mm"),
         zoom_link: values.zoom_link,
+        school_id: schoolId,
       };
 
       if (isEditMode && currentEventId) {
@@ -275,6 +276,7 @@ function Timetable() {
       start_time: dayjs(event.startStr.split("T")[1], "HH:mm:ss"),
       end_time: dayjs(event.endStr.split("T")[1], "HH:mm:ss"),
       zoom_link: eventProps.zoomLink || "",
+      school_id: eventProps.schoolId,
     };
 
     form.setFieldsValue(eventData);
