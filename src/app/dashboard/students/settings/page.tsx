@@ -31,48 +31,46 @@ const StudentSettings = () => {
     }
   }, [currentUser, profileForm]);
 
- const onProfileFinish = async (values) => {
-  try {
-    setProfileLoading(true);
+  const onProfileFinish = async (values) => {
+    try {
+      setProfileLoading(true);
 
-    const formData = new FormData();
-    formData.append("user_id", currentUser.id.toString());
-    formData.append("class_id", currentUser.studentClass.toString());
-    formData.append("first_name", values.firstName);
-    formData.append("last_name", values.lastName);
-    formData.append("email", values.email);
+      const formData = new FormData();
+      formData.append("user_id", currentUser.id.toString());
+      formData.append("class_id", currentUser.studentClass.toString());
+      formData.append("first_name", values.firstName);
+      formData.append("last_name", values.lastName);
+      formData.append("email", values.email);
 
-    if (fileList.length > 0) {
-      formData.append("profile_path", fileList[0].originFileObj);
+      if (fileList.length > 0) {
+        formData.append("profile_path", fileList[0].originFileObj);
+      }
+
+      const response = await updateStudentProfile(formData);
+
+      const updatedUser = {
+        ...currentUser,
+        name: response?.name,
+        profile_path: response?.profile_photo,
+      };
+
+      dispatch(setCurrentUser(updatedUser));
+
+      const nameParts = response.name?.trim().split(" ") || [];
+      profileForm.setFieldsValue({
+        firstName: nameParts[0] || "",
+        lastName: nameParts.slice(1).join(" ") || "",
+        email: response.email,
+      });
+
+      messageApi.success("Profile updated successfully!");
+    } catch (error) {
+      console.error("Profile update failed:", error);
+      messageApi.error(error.response?.message || "Failed to update profile");
+    } finally {
+      setProfileLoading(false);
     }
-
-    const response = await updateStudentProfile(formData);
-
-    const updatedUser = {
-      ...currentUser,
-      name: response?.name,
-      profile_path: response?.profile_photo,
-    };
-
-    dispatch(setCurrentUser(updatedUser));
-
-    const nameParts = response.name?.trim().split(" ") || [];
-    profileForm.setFieldsValue({
-      firstName: nameParts[0] || "",
-      lastName: nameParts.slice(1).join(" ") || "",
-      email: response.email,
-    });
-
-    messageApi.success("Profile updated successfully!");
-  } catch (error) {
-    console.error("Profile update failed:", error);
-    messageApi.error(
-      error.response?.message || "Failed to update profile"
-    );
-  } finally {
-    setProfileLoading(false);
-  }
-};
+  };
 
   const onFinishFailed = (errorInfo) => {
     console.log("Failed:", errorInfo);
@@ -167,9 +165,7 @@ const StudentSettings = () => {
                     </Button>
                   )}
                 </Form.Item>
-                <div className="text-xs text-gray-500">
-                  JPG, PNG, or GIF.
-                </div>
+                <div className="text-xs text-gray-500">JPG, PNG, or GIF.</div>
               </div>
             </div>
 
@@ -201,15 +197,25 @@ const StudentSettings = () => {
               </div>
             </div>
 
-            <Form.Item
-              label="Email"
-              name="email"
+            {/* <Form.Item
+              label="User Name"
+              name="user_name"
               rules={[
-                { required: true, message: "Please input your email!" },
-                { type: "email", message: "Please enter a valid email!" },
+                { required: true, message: "Please input your username!" },
               ]}
             >
               <Input size="large" disabled />
+            </Form.Item> */}
+            
+            <Form.Item
+              label="Email (Optional)"
+              name="email"
+              rules={[
+                { type: "email", message: "Please enter a valid email!" },
+                { required: false },
+              ]}
+            >
+              <Input size="large" />
             </Form.Item>
 
             <Form.Item className="text-right">
