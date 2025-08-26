@@ -30,7 +30,7 @@ import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import Link from "next/link";
-import { fetchYearsBySchool } from "@/services/yearsApi";
+import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
 import { fetchClasses } from "@/services/classesApi";
 import { fetchTeachers } from "@/services/teacherApi";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -98,21 +98,36 @@ function Timetable() {
     });
   }, [events, selectedYear, selectedClass, selectedTeacher]);
 
-  useEffect(() => {
-    const loadYears = async () => {
-      try {
-        const data = await fetchYearsBySchool(schoolId);
-        setYears(data);
-        if (data.length > 0) {
-          setSelectedYear(data[0].id);
-        }
-        setLoading(false);
-      } catch (err) {
-        console.log("Failed to load years");
-        setLoading(false);
-        console.error(err);
+  const loadYears = async () => {
+    try {
+      setLoading(true);
+      let yearsData: any[] = [];
+
+      if (isTeacher) {
+        const res = await fetchAssignYears();
+        const years = res
+          .map((item: any) => item?.classes?.year)
+          .filter((year: any) => year);
+
+        yearsData = Array.from(
+          new Map(years?.map((year: any) => [year.id, year])).values()
+        );
+      } else {
+        const res = await fetchYearsBySchool(schoolId);
+        yearsData = res;
       }
-    };
+      setYears(yearsData);
+      if (yearsData.length > 0) {
+        setSelectedYear(yearsData[0].name);
+      }
+    } catch (err) {
+      setError("Failed to load years");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => {
     loadYears();
   }, []);
 

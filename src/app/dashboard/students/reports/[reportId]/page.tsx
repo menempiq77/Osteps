@@ -6,6 +6,8 @@ import { useParams, useRouter } from "next/navigation";
 import { fetchReportSpecificAssessmentTasks } from "@/services/reportApi";
 import { addStudentTaskMarks } from "@/services/api";
 import { fetchGrades } from "@/services/gradesApi";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store/store";
 
 interface Task {
   id: number;
@@ -31,17 +33,19 @@ interface Grade {
 export default function Page() {
   const { reportId } = useParams();
   const router = useRouter();
+  const { currentUser } = useSelector((state: RootState) => state.auth);
   const [apiData, setApiData] = useState<StudentData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [messageApi, contextHolder] = message.useMessage();
   const [grades, setGrades] = useState<Grade[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const schoolId = currentUser?.school;
 
   useEffect(() => {
-    const loadGrades = async () => {
+    const loadGrades = async (schoolId: string) => {
       try {
-        const data = await fetchGrades();
+        const data = await fetchGrades(schoolId);
         const sortedGrades = [...data].sort(
           (a, b) => parseInt(b.min_percentage) - parseInt(a.min_percentage)
         );
@@ -51,8 +55,8 @@ export default function Page() {
         console.error(err);
       }
     };
-    loadGrades();
-  }, []);
+    loadGrades(schoolId);
+  }, [schoolId]);
 
   useEffect(() => {
     const fetchData = async () => {
