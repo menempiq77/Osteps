@@ -26,11 +26,12 @@ export default function Page() {
   const [currentGrade, setCurrentGrade] = useState<Grade | null>(null);
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [messageApi, contextHolder] = message.useMessage();
+  const schoolId = currentUser?.school;
 
   useEffect(() => {
-    const loadGrades = async () => {
+    const loadGrades = async (schoolId: string) => {
       try {
-        const data = await fetchGrades();
+        const data = await fetchGrades(schoolId);
         setGrades(data);
         setLoading(false);
       } catch (err) {
@@ -40,8 +41,8 @@ export default function Page() {
         messageApi.error("Failed to load grades");
       }
     };
-    loadGrades();
-  }, []);
+    loadGrades(schoolId);
+  }, [schoolId]);
 
   const handleSubmitGrade = async (formData: {
     gradeName: string;
@@ -65,7 +66,7 @@ export default function Page() {
          messageApi.success("Grade added successfully");
       }
 
-      const updatedGrades = await fetchGrades();
+      const updatedGrades = await fetchGrades(schoolId);
       setGrades(updatedGrades);
       setOpen(false);
       setCurrentGrade(null);

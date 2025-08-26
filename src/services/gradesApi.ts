@@ -17,8 +17,8 @@ api.interceptors.request.use((config) => {
 });
 
 // fetch Grades
-export const fetchGrades = async () => {
-  const response = await api.get('/get-grades');
+export const fetchGrades = async (schoolId: string) => {
+  const response = await api.get(`/get-grades/${schoolId}`);
   return response.data.data;
 };
 // add Grade

@@ -79,9 +79,9 @@ export default function ReportsPage() {
   const schoolId = currentUser?.school;
 
   useEffect(() => {
-    const loadGrades = async () => {
+    const loadGrades = async (schoolId: string) => {
       try {
-        const data = await fetchGrades();
+        const data = await fetchGrades(schoolId);
         const sortedGrades = [...data].sort(
           (a, b) => parseInt(b.min_percentage) - parseInt(a.min_percentage)
         );
@@ -91,8 +91,8 @@ export default function ReportsPage() {
         console.error(err);
       }
     };
-    loadGrades();
-  }, []);
+    loadGrades(schoolId);
+  }, [schoolId]);
 
 useEffect(() => {
   const fetchData = async () => {
