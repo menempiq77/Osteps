@@ -285,23 +285,6 @@ export default function QuranTrackerAdminPage() {
     // Note: You might want to add API call to save the new order
   };
 
-  const totalTopics = topics?.length;
-  const readCount = topics?.filter((topic) =>
-    topic?.status_progress.some(
-      (sp) => sp.status.name === "read" && sp.is_completed
-    )
-  ).length;
-  const memorizedCount = topics.filter((topic) =>
-    topic?.status_progress.some(
-      (sp) => sp.status.name === "memorization" && sp.is_completed
-    )
-  ).length;
-  const tafsirCount = topics?.filter((topic) =>
-    topic?.status_progress.some(
-      (sp) => sp.status.name === "tafsir" && sp.is_completed
-    )
-  ).length;
-
   const statusTypes = Array.from(
     new Set(
       topics?.flatMap((topic) =>
@@ -327,27 +310,6 @@ export default function QuranTrackerAdminPage() {
           <ArrowLeft size={18} />
           Back to Trackers
         </Button>
-
-        <div className="flex gap-4">
-          <div className="bg-white px-4 py-2 rounded-lg shadow-sm flex items-center gap-2">
-            <BookOpen size={16} className="text-green-500" />
-            <span className="text-sm font-medium">
-              {readCount}/{totalTopics}
-            </span>
-          </div>
-          <div className="bg-white px-4 py-2 rounded-lg shadow-sm flex items-center gap-2">
-            <BrainCircuit size={16} className="text-blue-500" />
-            <span className="text-sm font-medium">
-              {memorizedCount}/{totalTopics}
-            </span>
-          </div>
-          <div className="bg-white px-4 py-2 rounded-lg shadow-sm flex items-center gap-2">
-            <Languages size={16} className="text-purple-500" />
-            <span className="text-sm font-medium">
-              {tafsirCount}/{totalTopics}
-            </span>
-          </div>
-        </div>
       </div>
 
       <div className="bg-white rounded-md shadow-sm border border-gray-200 overflow-hidden">

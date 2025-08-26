@@ -25,7 +25,7 @@ import {
 } from "@/services/askQuestionApi";
 import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
 import { fetchClasses } from "@/services/classesApi";
-import { fetchTeachersByStudent } from "@/services/teacherApi";
+import { fetchTeachersByStudent, getAssignTeacher } from "@/services/teacherApi";
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -82,6 +82,7 @@ const AskQuestionPage = () => {
   const [messageApi, contextHolder] = message.useMessage();
 
   const schoolId = currentUser?.school;
+  const classId = currentUser?.studentClass;
 
   const handleDeleteClick = (question) => {
     setQuestionToDelete(question);
@@ -141,17 +142,26 @@ const confirmDelete = async () => {
   };
 
   const loadTeachers = async () => {
-    try {
-      setIsLoading(true);
-      const response = await fetchTeachersByStudent();
-      setTeachers(response);
-    } catch (err) {
-      setError("Failed to fetch teachers");
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  try {
+    setIsLoading(true);
+    const response = await getAssignTeacher(classId);
+
+    // Flatten teachers_by_subject into a single array
+    const teachersArray = Object.values(response.teachers_by_subject)
+      .flat() // merge all subjects into one array
+      .map((teacher) => ({
+        id: teacher.id,
+        name: teacher.teacher_name,
+      }));
+
+    setTeachers(teachersArray);
+  } catch (err) {
+    setError("Failed to fetch teachers");
+    console.error(err);
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const loadYears = async () => {
     try {
@@ -335,7 +345,7 @@ const confirmDelete = async () => {
                 >
                   {teachers.map((teacher) => (
                     <Option key={teacher.id} value={teacher.id}>
-                      {teacher.teacher_name}
+                      {teacher.name}
                     </Option>
                   ))}
                 </Select>
