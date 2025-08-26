@@ -209,7 +209,7 @@ export default function LibraryPage() {
     try {
       const item = libraryItems.find((i) => i.id === itemToDelete);
       await deleteLibrary(itemToDelete, item?.file_path);
-      setLibraryItems((prev) => prev.filter((i) => i.id !== itemToDelete));
+      setLibraryItems((prev) => prev?.filter((i) => i.id !== itemToDelete));
       messageApi.success("Deleted successfully");
     } catch (error) {
       messageApi.error("Delete failed");
@@ -305,7 +305,7 @@ export default function LibraryPage() {
     return category?.color || "default";
   };
 
-  const filteredItems = libraryItems.filter((item) => {
+  const filteredItems = libraryItems?.filter((item) => {
     const typeMatch =
       activeTypeTab === "all" ||
       getResourceName(item.library_resources_id).toLowerCase() ===
@@ -430,7 +430,7 @@ export default function LibraryPage() {
           </div>
         )}
 
-        {filteredItems.length === 0 ? (
+        {filteredItems?.length === 0 ? (
           <Card className="shadow-sm rounded-lg border-0">
             <div className="text-center py-12">
               <FileOutlined className="text-4xl text-gray-300 mb-4" />
@@ -445,7 +445,7 @@ export default function LibraryPage() {
               screens.md ? "md:grid-cols-2" : ""
             } ${screens.lg ? "lg:grid-cols-3" : ""} gap-6`}
           >
-            {filteredItems.map((item) => (
+            {filteredItems?.map((item) => (
               <Card
                 key={item.id}
                 className="hover:shadow-lg shadow-sm transition-all duration-300 border border-gray-100 rounded-xl overflow-hidden flex flex-col h-full"

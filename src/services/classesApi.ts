@@ -17,7 +17,7 @@ api.interceptors.request.use((config) => {
 });
 
 // fetch Classes
-export const fetchClasses = async (yearId: number) => {
+export const fetchClasses = async (yearId: string) => {
   const response = await api.get(`/get-class/${yearId}`);
   return response.data.data;
 };

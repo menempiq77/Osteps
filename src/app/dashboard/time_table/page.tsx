@@ -55,6 +55,7 @@ function Timetable() {
   const [classes, setClasses] = useState([]);
   const [teachers, setTeachers] = useState<any[]>([]);
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
+  const [selectedYearId, setSelectedYearId] = useState<string | null>(null);
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [selectedTeacher, setSelectedTeacher] = useState("");
   const [messageApi, contextHolder] = message.useMessage();
@@ -118,6 +119,7 @@ function Timetable() {
       }
       setYears(yearsData);
       if (yearsData.length > 0) {
+        setSelectedYearId(yearsData[0].id); 
         setSelectedYear(yearsData[0].name);
       }
     } catch (err) {
@@ -131,21 +133,28 @@ function Timetable() {
     loadYears();
   }, []);
 
-  const loadClasses = async (yearId: string) => {
-    try {
-      setLoading(true);
-      const data = await fetchClasses(yearId);
-      setClasses(data);
-      if (data.length > 0) {
-        setSelectedClass(data[0].id);
-      }
-    } catch (err) {
-      setError("Failed to fetch classes");
-      console.error(err);
-    } finally {
-      setLoading(false);
+const loadClasses = async (yearId: number) => {
+  try {
+    setLoading(true);
+    const data = await fetchClasses(yearId); 
+    setClasses(data);
+
+    if (data.length > 0) {
+      setSelectedClass(data[0].id);
     }
-  };
+  } catch (err) {
+    setError("Failed to fetch classes");
+    console.error(err);
+  } finally {
+    setLoading(false);
+  }
+};
+
+ useEffect(() => {
+  if (selectedYearId) {
+    loadClasses(selectedYearId);
+  }
+}, [selectedYearId]);
 
   const loadTeachers = async () => {
     try {
@@ -167,11 +176,6 @@ function Timetable() {
     loadTeachers();
   }, []);
 
-  useEffect(() => {
-    if (selectedYear) {
-      loadClasses(selectedYear);
-    }
-  }, [selectedYear]);
 
   const addMutation = useMutation({
     mutationFn: addTimetableSlot,
