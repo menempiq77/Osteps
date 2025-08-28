@@ -6,7 +6,7 @@ import { AppDispatch, RootState } from "@/store/store";
 import { useRouter } from "next/navigation";
 import { login } from "@/features/auth/authSlice";
 import Image from "next/image";
-import Logo from "@/assets/images/Logo2.png";
+import Logo from "@/assets/images/Logo2.jpg";
 import LoginImg from "@/assets/images/login.png";
 import { useEffect } from "react";
 
@@ -38,9 +38,9 @@ export default function LoginPage() {
               <Image
                 src={Logo}
                 alt="Company Logo"
-                width={80}
-                height={80}
-                className="h-36 w-auto"
+                width={50}
+                height={50}
+                className="h-28 rounded-full w-auto"
                 priority
               />
             </div>
