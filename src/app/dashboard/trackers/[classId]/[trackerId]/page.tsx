@@ -625,13 +625,21 @@ export default function QuranTrackerAdminPage() {
                                 </>
                               )}
                               {isStudent && (
-                                <span className="text-primary">
-                                  {topic.topic_mark?.find(
-                                    (m) => m.student_id === currentUser?.student
-                                  )?.marks || "0"}
-                                  / {topic.marks || "0"}
-                                </span>
-                              )}
+                                  <span className="text-primary">
+                                    {topic.type === "quiz"
+                                      ? (
+                                          topic.quiz?.submissions?.find(
+                                            (s) => s.student_id === currentUser?.student
+                                          )?.obtained_marks || "0"
+                                        )
+                                      : (
+                                          topic.topic_mark?.find(
+                                            (m) => m.student_id === currentUser?.student
+                                          )?.marks || "0"
+                                        )}
+                                    / {topic?.marks || topic?.quiz?.total_marks || "0"}
+                                  </span>
+                                )}
                             </td>
                           </tr>
                         )}
