@@ -32,12 +32,13 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { fetchSchools } from "@/services/schoolApi";
 import { fetchAdmins } from "@/services/adminsApi";
-import { fetchTeachers } from "@/services/teacherApi";
 import { useQuery } from "@tanstack/react-query";
 import {
   fetchSchoolDashboardData,
   fetchStudentDashboardData,
 } from "@/services/dashboardApis";
+import { fetchSchoolLogo } from "@/services/api";
+import { IMG_BASE_URL } from "@/lib/config";
 
 // Custom theme colors
 const THEME_COLOR = "#38C16C";
@@ -48,9 +49,9 @@ export default function DashboardPage() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [schools, setSchools] = useState<any[]>([]);
   const [superAdmins, setSuperAdmins] = useState<any[]>([]);
-  const [teachers, setTeachers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [schoolLogo, setSchoolLogo] = useState("");
 
   const loadAdmins = async () => {
     try {
@@ -73,9 +74,20 @@ export default function DashboardPage() {
       setLoading(false);
     }
   };
+  const loadSchoolLogo = async () => {
+    try {
+      const school = await fetchSchoolLogo();
+      setSchoolLogo(school.logo);
+    } catch (error) {
+      console.error("Failed to fetch Logo:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     loadSchools();
+    loadSchoolLogo();
     loadAdmins();
   }, []);
 
@@ -365,25 +377,35 @@ export default function DashboardPage() {
                 activities.
               </p>
             </div>
-            <div
-              className="hidden md:block p-3 rounded-lg"
-              style={{ backgroundColor: THEME_COLOR_LIGHT }}
-            >
-              <svg
-                className="w-16 h-16"
-                style={{ color: THEME_COLOR }}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+            {currentUser?.role !== "SUPER_ADMIN" && schoolLogo ? (
+              <div className="w-16 h-16 rounded-lg overflow-hidden">
+                <img
+                  src={`${IMG_BASE_URL}/storage/${schoolLogo}`}
+                  alt="School Logo"
+                  className="w-full h-full object-cover"
                 />
-              </svg>
-            </div>
+              </div>
+            ) : (
+              <div
+                className="hidden md:block p-3 rounded-lg"
+                style={{ backgroundColor: THEME_COLOR_LIGHT }}
+              >
+                <svg
+                  className="w-16 h-16"
+                  style={{ color: THEME_COLOR }}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                  />
+                </svg>
+              </div>
+            )}
           </div>
         </div>
       </Card>
@@ -411,17 +433,12 @@ export default function DashboardPage() {
                   }))
                 )
               )
-              ?.filter((task: any) => {
-                const today = new Date();
-                const dueDate = new Date(task.due_date);
-                return dueDate >= today;
-              })
               ?.sort((a: any, b: any) => {
                 const dateA = new Date(a.due_date).getTime();
                 const dateB = new Date(b.due_date).getTime();
                 return dateA - dateB;
               })
-              ?.slice(0, 2)
+              ?.slice(0, 1)
               ?.map((task: any) => (
                 <Col xs={24} md={12} key={task.id}>
                   <Link href={`dashboard/students/assignments`}>
@@ -472,51 +489,6 @@ export default function DashboardPage() {
                 </Col>
               ))}
           </Row>
-
-          {/* Progress Chart Section */}
-          {/* <Card className="shadow-sm">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">
-              Assessments Progress
-            </h2>
-            <div className="flex flex-col items-center">
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie
-                    data={[
-                      { name: "Completed", value: 24 },
-                      { name: "Pending", value: 3 },
-                    ]}
-                    dataKey="value"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    startAngle={90}
-                    endAngle={-270}
-                    paddingAngle={5}
-                    labelLine={false}
-                    label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
-                  >
-                    <Cell key="completed" fill={THEME_COLOR} />
-                    <Cell key="pending" fill="#f59e0b" />
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="flex justify-around mt-4 text-sm text-gray-600 w-full">
-                <div className="flex items-center gap-2">
-                  <div
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: THEME_COLOR }}
-                  />
-                  Completed
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-amber-400" />
-                  Pending
-                </div>
-              </div>
-            </div>
-          </Card> */}
         </div>
       ) : (
         <>
