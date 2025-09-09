@@ -252,11 +252,14 @@ export default function QuranTrackerAdminPage() {
                         >
                           <div className="flex items-center justify-center gap-1">
                             <span className="capitalize">
-                              {statusName || "dsggsd"}
+                              {statusName || ""}
                             </span>
                           </div>
                         </th>
                       ))}
+                      <th className="p-4 text-center text-sm font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
+                        Marks
+                      </th>
                       <th className="p-4 text-center text-sm font-medium text-gray-500 uppercase tracking-wider">
                         Actions
                       </th>
@@ -361,7 +364,22 @@ export default function QuranTrackerAdminPage() {
                                 </td>
                               );
                             })}
-
+                            <td className="p-4 whitespace-nowrap text-center border-r border-gray-200">
+                                <span>
+                                    {topic.type === "quiz"
+                                      ? (
+                                          topic.quiz?.submissions?.find(
+                                            (s) => s.student_id === selectedStudentId
+                                          )?.obtained_marks || "0"
+                                        )
+                                      : (
+                                          topic.topic_mark?.find(
+                                            (m) => m.student_id === selectedStudentId
+                                          )?.marks || "0"
+                                        )}
+                                    / {topic?.marks || topic?.quiz?.total_marks || "0"}
+                                  </span>
+                            </td>
                             <td className="p-4 whitespace-nowrap text-center">
                               {topic.type !== "quiz" && (
                                 <Button
