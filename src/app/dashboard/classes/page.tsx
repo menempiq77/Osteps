@@ -8,6 +8,7 @@ import { useSearchParams } from "next/navigation";
 import { Breadcrumb, Spin, Modal, Button, message } from "antd";
 import Link from "next/link";
 import { addClass, deleteClass, fetchClasses, updateClass } from "@/services/classesApi";
+import { fetchAssignYears } from "@/services/yearsApi";
 
 interface ApiClass {
   id: string;
@@ -30,28 +31,44 @@ export default function Page() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [messageApi, contextHolder] = message.useMessage();
   const hasAccess = currentUser?.role === "SCHOOL_ADMIN";
+  const isTeacher = currentUser?.role === "TEACHER";
 
   useEffect(() => {
-    const loadClasses = async () => {
-      try {
-        setLoading(true);
-        const data = await fetchClasses(year_id);
-        setClasses(data);
-      } catch (err) {
-        setError("Failed to fetch classes");
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const loadClasses = async () => {
+    let classesData: any[] = [];
+    try {
+      setLoading(true);
 
-    if (year_id) {
-      loadClasses();
-    } else {
-      setError("Year parameter is missing in URL");
+      if (isTeacher) {
+        const res = await fetchAssignYears();
+
+        classesData = res
+          .map((item: any) => item.classes)
+          .filter((cls: any) => cls);
+
+        classesData = Array.from(
+          new Map(classesData.map((cls: any) => [cls.id, cls])).values()
+        );
+      } else {
+        if (!year_id) {
+          setError("Year parameter is missing in URL");
+          return;
+        }
+        classesData = await fetchClasses(year_id);
+      }
+
+      setClasses(classesData);
+    } catch (err) {
+      setError("Failed to fetch classes");
+      console.error(err);
+    } finally {
       setLoading(false);
     }
-  }, [year_id]);
+  };
+
+  loadClasses();
+}, [year_id, isTeacher]);
+
 
   const handleAddClass = async (classData: {
     class_name: string;
