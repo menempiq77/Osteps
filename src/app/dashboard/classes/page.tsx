@@ -33,7 +33,7 @@ export default function Page() {
   const hasAccess = currentUser?.role === "SCHOOL_ADMIN";
   const isTeacher = currentUser?.role === "TEACHER";
 
-  useEffect(() => {
+ useEffect(() => {
   const loadClasses = async () => {
     let classesData: any[] = [];
     try {
@@ -49,6 +49,12 @@ export default function Page() {
         classesData = Array.from(
           new Map(classesData.map((cls: any) => [cls.id, cls])).values()
         );
+
+        if (year_id) {
+          classesData = classesData.filter(
+            (cls: any) => cls.year_id === Number(year_id)
+          );
+        }
       } else {
         if (!year_id) {
           setError("Year parameter is missing in URL");
@@ -68,7 +74,6 @@ export default function Page() {
 
   loadClasses();
 }, [year_id, isTeacher]);
-
 
   const handleAddClass = async (classData: {
     class_name: string;
