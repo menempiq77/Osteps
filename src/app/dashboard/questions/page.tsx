@@ -190,25 +190,48 @@ const confirmDelete = async () => {
     }
   };
 
-  const loadClasses = async (yearId: number) => {
-    try {
-      setIsLoading(true);
-      const data = await fetchClasses(yearId);
-      setClasses(data);
+const loadClasses = async (yearId: string | null) => {
+  if (!yearId) return;
 
-      if (data.length > 0) {
-        // auto-select first class of the year
-        setSelectedClass(data[0].class_name);
-      } else {
-        setSelectedClass(null);
-      }
-    } catch (err) {
-      setError("Failed to fetch classes");
-      console.error(err);
-    } finally {
-      setIsLoading(false);
+  try {
+    setIsLoading(true);
+    let classesData: any[] = [];
+
+    if (isTeacher) {
+      const res = await fetchAssignYears();
+
+      classesData = res
+        .map((item: any) => item.classes)
+        .filter((cls: any) => cls);
+
+      // Remove duplicates
+      classesData = Array.from(
+        new Map(classesData.map((cls: any) => [cls.id, cls])).values()
+      );
+
+      // Filter by yearId
+      classesData = classesData.filter(
+        (cls: any) => cls.year_id === Number(yearId)
+      );
+    } else {
+      classesData = await fetchClasses(Number(yearId));
     }
-  };
+
+    setClasses(classesData);
+
+    if (classesData.length > 0) {
+      // auto-select first class (better to keep as string id, not name)
+      setSelectedClass(classesData[0].id.toString());
+    } else {
+      setSelectedClass(null);
+    }
+  } catch (err) {
+    setError("Failed to fetch classes");
+    console.error(err);
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   useEffect(() => {
     loadYears();
@@ -396,7 +419,7 @@ const confirmDelete = async () => {
                   placeholder="Select class"
                 >
                   {classes?.map((cls) => (
-                    <Option key={cls.id} value={cls.id}>
+                    <Option key={cls.id} value={cls.id.toString()}>
                       {cls.class_name}
                     </Option>
                   ))}

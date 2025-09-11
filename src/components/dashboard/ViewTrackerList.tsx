@@ -83,19 +83,41 @@ export default function TrackerList() {
   }
 };
 
-
-  const loadClasses = async (yearId: string) => {
-    if (!yearId) return;
-
+const loadClasses = async (yearId: string) => {
+    let classesData: any[] = [];
     try {
       setLoading(true);
-      const data = await fetchClasses(yearId);
-      setClasses(data);
 
-      // Set first class as default if available
-      if (data.length > 0) {
-        setSelectedClass(data[0].id.toString());
+      if (isTeacher) {
+        const res = await fetchAssignYears();
+
+        classesData = res
+          .map((item: any) => item.classes)
+          .filter((cls: any) => cls);
+
+        classesData = Array.from(
+          new Map(classesData?.map((cls: any) => [cls.id, cls])).values()
+        );
+
+        if (yearId) {
+          classesData = classesData?.filter(
+            (cls: any) => cls.year_id === Number(yearId)
+          );
+        }
+      } else {
+        if (!yearId) {
+          setError("Year parameter is missing in URL");
+          return;
+        }
+        classesData = await fetchClasses(yearId);
       }
+
+      setClasses(classesData);
+
+      if (classesData.length > 0) {
+        setSelectedClass(classesData[0].id.toString());
+      }
+
     } catch (err) {
       setError("Failed to fetch classes");
       console.error(err);
