@@ -119,8 +119,7 @@ function Timetable() {
       }
       setYears(yearsData);
       if (yearsData.length > 0) {
-        setSelectedYearId(yearsData[0].id); 
-        setSelectedYear(yearsData[0].name);
+        setSelectedYear(yearsData[0].id.toString()); 
       }
     } catch (err) {
       setError("Failed to load years");
@@ -136,11 +135,32 @@ function Timetable() {
 const loadClasses = async (yearId: number) => {
   try {
     setLoading(true);
-    const data = await fetchClasses(yearId); 
-    setClasses(data);
+    let classesData: any[] = [];
 
-    if (data.length > 0) {
-      setSelectedClass(data[0].id);
+    if (isTeacher) {
+      const res = await fetchAssignYears();
+
+      // Extract unique classes
+      classesData = res
+        .map((item: any) => item.classes)
+        .filter((cls: any) => cls);
+
+      classesData = Array.from(
+        new Map(classesData.map((cls: any) => [cls.id, cls])).values()
+      );
+
+      // Filter by yearId
+      classesData = classesData.filter(
+        (cls: any) => cls.year_id === Number(yearId)
+      );
+    } else {
+      classesData = await fetchClasses(yearId);
+    }
+
+    setClasses(classesData);
+
+    if (classesData.length > 0) {
+      setSelectedClass(classesData[0].id.toString());
     }
   } catch (err) {
     setError("Failed to fetch classes");
@@ -150,11 +170,11 @@ const loadClasses = async (yearId: number) => {
   }
 };
 
- useEffect(() => {
-  if (selectedYearId) {
-    loadClasses(selectedYearId);
+useEffect(() => {
+  if (selectedYear) {
+    loadClasses(selectedYear);
   }
-}, [selectedYearId]);
+}, [selectedYear]);
 
   const loadTeachers = async () => {
     try {
@@ -405,7 +425,7 @@ const loadClasses = async (yearId: number) => {
                 allowClear
               >
                 {years?.map((year) => (
-                  <Option key={year.id} value={year.id}>
+                  <Option key={year.id} value={year.id.toString()}>
                     {year.name}
                   </Option>
                 ))}
@@ -424,7 +444,7 @@ const loadClasses = async (yearId: number) => {
                 allowClear
               >
                 {classes?.map((cls) => (
-                  <Option key={cls.id} value={cls.id}>
+                  <Option key={cls.id} value={cls.id.toString()}>
                     {cls.class_name}
                   </Option>
                 ))}
