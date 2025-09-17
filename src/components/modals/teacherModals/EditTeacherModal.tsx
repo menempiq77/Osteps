@@ -38,6 +38,7 @@ export const EditTeacherModal = ({
         email: teacher.email,
         role: teacher.role,
         subjects: teacher.subjects,
+        password: teacher.password,
       });
     } else {
       form.resetFields();
@@ -59,6 +60,7 @@ export const EditTeacherModal = ({
         email: values.email.trim(),
         role: values.role.trim(),
         subjects: subjects,
+        password: values.password,
       });
       message.success("Teacher updated successfully");
       onOpenChange(false);
@@ -163,6 +165,17 @@ export const EditTeacherModal = ({
           ]}
         >
           <Input placeholder="Enter email" />
+        </Form.Item>
+
+        <Form.Item
+          name="password"
+          label="Password"
+          rules={[
+            { required: true, message: "Please input a password!" },
+            { min: 6, message: "Password must be at least 6 characters" },
+          ]}
+        >
+          <Input.Password placeholder="Enter password" />
         </Form.Item>
 
         {/* <Form.Item name="subjects" label="Subjects">

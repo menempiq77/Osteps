@@ -204,9 +204,9 @@ const unreadCount = filteredAnnouncements?.length || 0;
     ],
   };
 
-  if (pathname.startsWith("/dashboard/students/reports")) {
-    return null;
-  }
+  // if (pathname.startsWith("/dashboard/students/reports")) {
+  //   return null;
+  // }
 
   return (
     <div
