@@ -358,7 +358,7 @@ useEffect(() => {
         <span>{currentClass?.subject || "Subject"}</span>
       </div>
 
-      <div className="mb-6 flex items-center gap-2">
+      <div className="mb-6 flex flex-col lg:flex-row gap-2">
         <h3 className="font-medium min-w-[120px]">View worksheet:</h3>
         <div className="flex flex-wrap items-center space-x-2 text-sm text-gray-600">
           {assesmentData?.map((item, index) => (

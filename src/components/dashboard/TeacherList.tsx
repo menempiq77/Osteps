@@ -74,16 +74,22 @@ export default function TeacherList() {
     loadTeachers();
   }, []);
 
-  const handleSaveEdit = async (teacher: TeacherBasic) => {
+  const handleSaveEdit = async (teacher: TeacherBasic & { password?: string }) => {
     try {
-      const response = await updateTeacher(teacher.id, {
+        const payload: any = {
         teacher_name: teacher.name,
         phone: teacher.phone,
         email: teacher.email,
         subjects: teacher.subjects?.join(","),
         role: teacher.role,
         school_id: schoolId,
-      });
+      };
+
+      if (teacher.password) {
+        payload.password = teacher.password;
+      }
+
+      const response = await updateTeacher(teacher.id, payload);
 
       setTeachers(
         teachers.map((t) =>
@@ -138,6 +144,7 @@ export default function TeacherList() {
         role: teacher?.role,
         school_id: schoolId,
         subjects: teacher.subjects?.join(","),
+        password: teacher.password,
       });
 
       const newTeacher = {

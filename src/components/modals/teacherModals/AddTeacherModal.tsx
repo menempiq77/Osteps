@@ -41,6 +41,7 @@ export const AddTeacherModal = ({
         email: values.email.trim(),
         subjects: subjects,
         role: values.role,
+        password: values.password,
       });
       handleClose();
       message.success("Teacher added successfully");
@@ -145,6 +146,17 @@ export const AddTeacherModal = ({
           ]}
         >
           <Input placeholder="Enter phone number" />
+        </Form.Item>
+
+        <Form.Item
+          name="password"
+          label="Password"
+          rules={[
+            { required: true, message: "Please input a password!" },
+            { min: 6, message: "Password must be at least 6 characters" },
+          ]}
+        >
+          <Input.Password placeholder="Enter password" />
         </Form.Item>
 
         {/* <Form.Item name="subjects" label="Subjects">
