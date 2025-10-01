@@ -1,6 +1,6 @@
 "use client";
 import { RootState } from "@/store/store";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, TrophyIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { useState } from "react";
@@ -55,6 +55,10 @@ export default function ClassesList({
 
   const handleViewTracker = (classId: string) => {
     router.push(`/dashboard/trackers/${classId}`);
+  };
+
+  const handleLeaderBoard = (classId: string) => {
+    router.push(`/dashboard/classes/${classId}/leaderboard`);
   };
 
   const handleDeleteClick = (cls: Class) => {
@@ -148,7 +152,7 @@ export default function ClassesList({
                           <FileAddOutlined />
                         </button>
 
-                        <button
+                        {/* <button
                           onClick={(e) => {
                             e.stopPropagation();
                             handleViewTracker(cls.id);
@@ -157,6 +161,17 @@ export default function ClassesList({
                           title="Tracker"
                         >
                           <BarChart3 className="h-4 w-4" />
+                        </button> */}
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleLeaderBoard(cls.id);
+                          }}
+                          className="text-purple-500 hover:text-purple-700 cursor-pointer"
+                          title="Leaderboard"
+                        >
+                          <TrophyIcon className="h-4 w-4" />
                         </button>
 
                         {!isTeacher && (

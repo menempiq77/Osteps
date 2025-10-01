@@ -16,6 +16,13 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// fetch all trackers
+export const fetchAllTrackers = async (schoolId: number) => {
+  const response = await api.get(`/get-school-trackers/${schoolId}`);
+  return response.data.data;
+};
+
+
 // fetch trackers
 export const fetchTrackers = async (classId: number) => {
   const response = await api.get(`/get-trackers/${classId}`);
@@ -24,7 +31,7 @@ export const fetchTrackers = async (classId: number) => {
 
 // add tracker
 export const addTracker = async (trackerData: {
-  class_id: number;
+  school_id: number;
   name: string;
   type: string;
   status: string;
@@ -51,5 +58,24 @@ export const deleteTracker = async (id: number) => {
   const response = await api.post(`/delete-trackers/${id}`);
   return response.data;
 };
+
+// assign tracker to class
+export const assignTrackerToClass = async (trackerId: number, classId: number) => {
+  const response = await api.post(`/assign-tracker-class`, {
+    tracker_id: trackerId,
+    class_id: classId,
+  });
+  return response.data;
+};
+
+// unassign tracker from class
+export const unassignTrackerFromClass = async (trackerId: number, classId: number) => {
+  const response = await api.post(`/unassign-tracker-class`, {
+    tracker_id: trackerId,
+    class_id: classId,
+  });
+  return response.data;
+};
+
 
 export default api;

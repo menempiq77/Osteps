@@ -17,6 +17,7 @@ import {
   HelpCircle,
   NotebookPen,
   LucideLogOut,
+  BarChart3,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { logout } from "@/features/auth/authSlice";
@@ -89,7 +90,7 @@ const unreadCount = filteredAnnouncements?.length || 0;
       //   icon: Building,
       // },
       { name: "Library", href: "/dashboard/library", icon: BookText },
-      // { name: "Trackers", href: "/dashboard/trackers", icon: Building },
+      { name: "Trackers", href: "/dashboard/all_trackers", icon: BarChart3 },
       { name: "Timetable", href: "/dashboard/time_table", icon: BookOpen },
       {
         name: "Announcements",
@@ -111,11 +112,11 @@ const unreadCount = filteredAnnouncements?.length || 0;
       { name: "Library", href: "/dashboard/library", icon: BookText },
       { name: "Manage Quiz", href: "/dashboard/quiz", icon: BookOpen },
       { name: "Reports", href: "/dashboard/students/reports", icon: Building },
-      // { name: "Trackers", href: "/dashboard/trackers", icon: Building  },
+      { name: "Trackers", href: "/dashboard/all_trackers", icon: BarChart3  },
       {
         name: "View Trackers",
         href: "/dashboard/viewtrackers",
-        icon: Building,
+        icon: BarChart3,
       },
       { name: "Timetable", href: "/dashboard/time_table", icon: BookOpen },
       {
@@ -143,10 +144,12 @@ const unreadCount = filteredAnnouncements?.length || 0;
       { name: "Manage Quiz", href: "/dashboard/quiz", icon: BookOpen },
       { name: "Reports", href: "/dashboard/students/reports", icon: Building },
       // { name: "Trackers", href: "/dashboard/trackers", icon: Building  },
+      { name: "Trackers", href: "/dashboard/all_trackers", icon: BarChart3  },
+
       {
         name: "View Trackers",
         href: "/dashboard/viewtrackers",
-        icon: Building,
+        icon: BarChart3,
       },
       { name: "Timetable", href: "/dashboard/time_table", icon: BookOpen },
       {
@@ -176,7 +179,7 @@ const unreadCount = filteredAnnouncements?.length || 0;
       {
         name: "Trackers",
         href: `/dashboard/trackers/${currentUser?.studentClass}`,
-        icon: Building,
+        icon: BarChart3,
       },
       { name: "Timetable", href: "/dashboard/time_table", icon: BookOpen },
       { name: "Library", href: "/dashboard/library", icon: BookText },
