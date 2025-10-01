@@ -6,13 +6,13 @@ import { useParams, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { Spin, Modal, Button, Breadcrumb, message } from "antd";
-import { EditOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
+import { EditOutlined, DeleteOutlined, PlusOutlined, TeamOutlined } from "@ant-design/icons";
 import Link from "next/link";
 import {
-  fetchTrackers,
   addTracker as addTrackerAPI,
   updateTracker as updateTrackerAPI,
   deleteTracker as deleteTrackerAPI,
+  fetchAllTrackers,
 } from "@/services/trackersApi";
 
 type Tracker = {
@@ -32,32 +32,24 @@ type TrackerBasic = {
   progress: string[];
 };
 
-export default function TrackerList() {
-  const { classId, yearId } = useParams();
+export default function AllTrackerList() {
   const router = useRouter();
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [trackers, setTrackers] = useState<Tracker[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
 
   const [editTracker, setEditTracker] = useState<Tracker | null>(null);
   const [deleteTracker, setDeleteTracker] = useState<Tracker | null>(null);
   const [isAddTrackerModalOpen, setIsAddTrackerModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
-
-  useEffect(() => {
-    const savedYearId = localStorage.getItem("selectedYearId");
-    if (savedYearId) {
-      setSelectedYearId(Number(savedYearId));
-    }
-  }, [classId]);
+  const schoolId = currentUser?.school;
 
   const loadTrackers = async () => {
     try {
       setLoading(true);
-      const data = await fetchTrackers(Number(classId));
+      const data = await fetchAllTrackers(Number(schoolId));
       setTrackers(
         data.map((tracker: any) => ({
           ...tracker,
@@ -75,7 +67,7 @@ export default function TrackerList() {
 
   useEffect(() => {
     loadTrackers();
-  }, [classId]);
+  }, []);
 
   const handleSaveEdit = async (tracker: Tracker) => {
     try {
@@ -125,7 +117,7 @@ export default function TrackerList() {
   const handleAddNewTracker = async (tracker: TrackerBasic) => {
     try {
       await addTrackerAPI({
-        class_id: Number(classId),
+        school_id: Number(schoolId),
         name: tracker.name,
         type: "topic",
         status: "Active",
@@ -157,12 +149,13 @@ export default function TrackerList() {
     }
   };
 
-  const handleLeaderBoard = () => {
-    router.push(`/dashboard/classes/${classId}/leaderboard`);
-  };
 
   const handleTrackerClick = (trackerId: string) => {
-    router.push(`/dashboard/trackers/${classId}/${trackerId}`);
+    router.push(`/dashboard/all_trackers/${trackerId}`);
+  };
+
+  const handleAssignTracker = (trackerId: string) => {
+    router.push(`/dashboard/all_trackers/${trackerId}/assign`);
   };
 
   if (loading)
@@ -180,34 +173,14 @@ export default function TrackerList() {
           {
             title: <Link href="/dashboard">Dashboard</Link>,
           },
-          // {
-          //   title: <Link href="/dashboard/years">Academic Years</Link>,
-          // },
-          // {
-          //   title: selectedYearId ? (
-          //     <Link href={`/dashboard/classes?year=${selectedYearId}`}>
-          //       Classes
-          //     </Link>
-          //   ) : (
-          //     <Link href="/dashboard/classes">Classes</Link>
-          //   ),
-          // },
           {
-            title: <span>Trackers</span>,
+            title: <span>All Trackers</span>,
           },
         ]}
         className="!mb-2"
       />
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Trackers</h1>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outlined"
-            onClick={() => handleLeaderBoard()}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 cursor-pointer"
-          >
-            View Leaderboard
-          </Button>
+        <h1 className="text-2xl font-bold">All Trackers</h1>
           {currentUser?.role !== "STUDENT" && (
             <>
               <Button
@@ -225,7 +198,6 @@ export default function TrackerList() {
               />
             </>
           )}
-        </div>
       </div>
 
       <div className="relative overflow-auto">
@@ -270,7 +242,7 @@ export default function TrackerList() {
                       }
                       className="p-2 md:p-4 cursor-pointer hover:underline text-green-600 hover:text-green-800 font-medium"
                     >
-                      {tracker?.tracker?.name}
+                      {tracker.name}
                     </td>
                     <td className="p-2 md:p-4">{tracker.lastUpdated}</td>
                     <td className="p-2 md:p-4">
@@ -279,12 +251,21 @@ export default function TrackerList() {
                           tracker.status
                         )}`}
                       >
-                        {tracker?.tracker?.status}
+                        {tracker.status}
                       </span>
                     </td>
                     {currentUser?.role !== "STUDENT" && (
                       <td className="relative p-2 md:p-4 flex justify-center space-x-3">
                         <>
+                          <button
+                            onClick={() =>
+                                handleAssignTracker(tracker.id)
+                            }
+                            className="text-blue-500 hover:text-blue-700 cursor-pointer"
+                            title="Assign to Classes"
+                          >
+                            <TeamOutlined />
+                          </button>
                           <button
                             onClick={() => setEditTracker(tracker)}
                             className="text-green-500 hover:text-green-700 cursor-pointer"
