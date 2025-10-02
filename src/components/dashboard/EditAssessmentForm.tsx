@@ -70,7 +70,7 @@ export default function EditAssessmentForm({
         type: initialData.type,
       }}
     >
-      <Form.Item
+      {/* <Form.Item
         label="Type"
         name="type"
         rules={[{ required: true, message: "Please select a type" }]}
@@ -79,7 +79,7 @@ export default function EditAssessmentForm({
           options={typeOptions}
           onChange={(value: "assessment" | "quiz") => setType(value)}
         />
-      </Form.Item>
+      </Form.Item> */}
 
       {type === "quiz" ? (
         <Form.Item

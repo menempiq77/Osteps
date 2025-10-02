@@ -48,6 +48,12 @@ export const fetchAssessment = async (termId: number) => {
   const response = await api.get(`/get-assessment/${termId}`);
   return response.data.data;
 };
+
+export const fetchSchoolAssessment = async (schoolId: number) => {
+  const response = await api.get(`/get-school-assessments/${schoolId}`);
+  return response.data.data;
+};
+
 // fetch Assessment By Students
 export const fetchAssessmentByStudent = async (termId: number) => {
   const response = await api.get(`/get-student-assessment/${termId}`);
@@ -73,6 +79,25 @@ export const deleteAssignTermQuiz = async (id: number) => {
   const response = await api.delete(`/delete-assign-term-quiz/${id}`);
   return response.data;
 };
+
+// assign tracker to class
+export const assignAssessmentToTerm = async (assesmentId: number, termId: number) => {
+  const response = await api.post(`/assign-assessments`, {
+    assessment_id: assesmentId,
+    term_id: termId,
+  });
+  return response.data;
+};
+
+// unassign tracker from class
+export const unassignAssessmentFromTerm = async (assesmentId: number, termId: number) => {
+  const response = await api.post(`/unassign-assessments`, {
+    assessment_id: assesmentId,
+    term_id: termId,
+  });
+  return response.data;
+};
+
 
 //Tasks apis Started
 // fetch Tasks

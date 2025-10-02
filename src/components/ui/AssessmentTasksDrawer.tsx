@@ -189,7 +189,7 @@ export function AssessmentTasksDrawer({
     }
   };
   const handleAssignQuiz = async () => {
-    if (!selectedQuizId || !selectedTermId) {
+    if (!selectedQuizId) {
       message.error("Please select both a term and a quiz");
       return;
     }
@@ -197,7 +197,6 @@ export function AssessmentTasksDrawer({
     try {
       setLoading(true);
       await assignTaskQuiz(
-        parseInt(selectedTermId),
         selectedQuizId,
         assessmentId
       );
@@ -637,7 +636,6 @@ export function AssessmentTasksDrawer({
                 <Button
                   variant="solid"
                   className="!bg-primary !text-white hover:!bg-primary/90 !border-0"
-                  disabled={loading || !selectedQuizId || !selectedTermId}
                   onClick={handleAssignQuiz}
                 >
                   Assign
