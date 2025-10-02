@@ -44,6 +44,7 @@ export const addTracker = async (trackerData: {
 export const updateTracker = async (
   id: string,
   trackerData: {
+    school_id: number;
     name: string;
     type: string;
     status: string;

@@ -72,6 +72,7 @@ export default function AllTrackerList() {
   const handleSaveEdit = async (tracker: Tracker) => {
     try {
       await updateTrackerAPI(tracker.id, {
+        school_id: Number(schoolId),
         name: tracker.name,
         type: "topic",
         status: "Active",
