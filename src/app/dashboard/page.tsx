@@ -423,72 +423,75 @@ export default function DashboardPage() {
 
           {/* Cards Grid */}
           <Row gutter={[16, 16]}>
-            {studentDashboard?.data?.class?.term
-              ?.flatMap((term: any) =>
-                term.assessments?.flatMap((assessment: any) =>
-                  assessment.tasks?.map((task: any) => ({
-                    ...task,
-                    termName: term.name,
-                    assessmentName: assessment.name,
-                  }))
-                )
-              )
-              ?.sort((a: any, b: any) => {
-                const dateA = new Date(a.due_date).getTime();
-                const dateB = new Date(b.due_date).getTime();
-                return dateA - dateB;
-              })
-              ?.slice(0, 1)
-              ?.map((task: any) => (
-                <Col xs={24} md={12} key={task.id}>
-                  <Link href={`dashboard/students/assignments`}>
-                    <Card
-                      hoverable
-                      className="border-0 shadow-sm hover:shadow-md transition-all"
-                    >
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <h3 className="text-lg font-semibold text-gray-800">
-                            Islamiyat
-                          </h3>
-                          <p className="text-sm text-gray-500">
-                            Due: {new Date(task.due_date).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <div
-                          className="p-3 rounded-lg"
-                          style={{ backgroundColor: THEME_COLOR_LIGHT }}
-                        >
-                          <ClipboardList
-                            className="h-6 w-6"
-                            style={{ color: THEME_COLOR }}
-                          />
-                        </div>
-                      </div>
-                      <div className="mt-4 flex justify-between items-end">
-                        <div>
-                          <p className="text-base font-medium text-gray-700">
-                            {task.assessmentName}
-                          </p>
-                          <p className="text-xs text-gray-400 mt-1">
-                            Updated {timeAgo(task.updated_at)}
-                          </p>
-                        </div>
-                        <Button
-                          type="primary"
-                          style={{
-                            backgroundColor: THEME_COLOR,
-                            borderColor: THEME_COLOR,
-                          }}
-                        >
-                          View Task
-                        </Button>
-                      </div>
-                    </Card>
-                  </Link>
-                </Col>
-              ))}
-          </Row>
+  {studentDashboard?.data?.class?.term
+    ?.flatMap((term: any) =>
+      term.assign_assessments
+        ?.filter((a: any) => a.status === "assigned") // only take assigned ones
+        ?.flatMap((assigned: any) =>
+          assigned.assessment?.tasks?.map((task: any) => ({
+            ...task,
+            termName: term.name,
+            assessmentName: assigned.assessment?.name,
+          }))
+        )
+    )
+    ?.sort((a: any, b: any) => {
+      const dateA = new Date(a.due_date).getTime();
+      const dateB = new Date(b.due_date).getTime();
+      return dateA - dateB;
+    })
+    ?.slice(0, 1) // show next upcoming task
+    ?.map((task: any) => (
+      <Col xs={24} md={12} key={task.id}>
+        <Link href={`/dashboard/students/assignments`}>
+          <Card
+            hoverable
+            className="border-0 shadow-sm hover:shadow-md transition-all"
+          >
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800">
+                  {task.task_name}
+                </h3>
+                <p className="text-sm text-gray-500">
+                  Due: {new Date(task.due_date).toLocaleDateString()}
+                </p>
+              </div>
+              <div
+                className="p-3 rounded-lg"
+                style={{ backgroundColor: THEME_COLOR_LIGHT }}
+              >
+                <ClipboardList
+                  className="h-6 w-6"
+                  style={{ color: THEME_COLOR }}
+                />
+              </div>
+            </div>
+            <div className="mt-4 flex justify-between items-end">
+              <div>
+                <p className="text-base font-medium text-gray-700">
+                  {task.assessmentName} ({task.termName})
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  Updated {timeAgo(task.updated_at)}
+                </p>
+              </div>
+              <Button
+                type="primary"
+                style={{
+                  backgroundColor: THEME_COLOR,
+                  borderColor: THEME_COLOR,
+                }}
+              >
+                View Task
+              </Button>
+            </div>
+          </Card>
+        </Link>
+      </Col>
+    ))}
+</Row>
+
         </div>
       ) : (
         <>

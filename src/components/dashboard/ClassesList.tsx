@@ -9,6 +9,7 @@ import {
   DeleteOutlined,
   FileAddOutlined,
   UsergroupAddOutlined,
+  BookOutlined,
 } from "@ant-design/icons";
 import { Modal } from "antd";
 
@@ -42,6 +43,10 @@ export default function ClassesList({
   const isTeacher = currentUser?.role === "TEACHER";
 
   const handleAssesments = (classId: string) => {
+    router.push(`/dashboard/classes/${classId}/terms`);
+  };
+
+  const handleTerms = (classId: string) => {
     router.push(`/dashboard/classes/${classId}/terms`);
   };
 
@@ -144,12 +149,20 @@ export default function ClassesList({
                           </button>
                         )}
 
-                        <button
+                        {/* <button
                           onClick={() => handleAssesments(cls.id)}
                           className="text-blue-500 hover:text-blue-700 cursor-pointer"
                           title="Assessments"
                         >
                           <FileAddOutlined />
+                        </button> */}
+
+                        <button
+                          onClick={() => handleTerms(cls.id)}
+                          className="text-blue-500 hover:text-blue-700 cursor-pointer"
+                          title="Terms"
+                        >
+                          <BookOutlined />
                         </button>
 
                         {/* <button

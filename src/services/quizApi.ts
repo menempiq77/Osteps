@@ -102,9 +102,8 @@ export const assignAssesmentQuiz = async (termId: number, quizId: number) => {
   return response.data;
 };
 // add assign Task Quiz
-export const assignTaskQuiz = async (termId: number, quizId: number, assessmentId: number) => {
+export const assignTaskQuiz = async (quizId: number, assessmentId: number) => {
   const response = await api.post('/assign-task-quiz', {
-    term_id: termId, 
     quiz_id: quizId, 
     assessment_id: assessmentId,
   });

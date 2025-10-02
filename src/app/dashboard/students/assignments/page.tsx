@@ -61,6 +61,7 @@ export default function AssignmentsPage() {
     }
   }, [selectedTermId]);
 
+  
   const handleTermChange = (termName: string) => {
     const term = terms.find((t) => t.name === termName);
     if (term) {
@@ -88,6 +89,18 @@ export default function AssignmentsPage() {
       router.push(`/dashboard/students/assignments/${assignment.id}`);
     }
   };
+
+  const filteredAssessments = assessments.filter((assignment) => {
+    if (assignment.type === "quiz") {
+      return assignment.term_id === selectedTermId;
+    }
+    if (assignment.type === "assessment") {
+      return assignment.assigned.some(
+        (a: any) => a.term_id === selectedTermId && a.status === "assigned"
+      );
+    }
+    return false;
+  });
 
   const getStatusBadge = (status: string) => {
     const statusClasses = {
@@ -176,13 +189,13 @@ export default function AssignmentsPage() {
         <div className="flex justify-center items-center h-64">
           <Spin size="large" />
         </div>
-      ) : assessments?.length <= 0 ? (
+      ) : filteredAssessments?.length <= 0 ? (
         <Card className="text-center py-10">
           <p>No assessments found for this term</p>
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {assessments?.map((assignment) => {
+          {filteredAssessments?.map((assignment) => {
             const status = getAssignmentStatus(assignment);
             return (
               <Card

@@ -45,13 +45,14 @@ export default function TermsList({ terms, onEdit, onDelete }: TermsListProps) {
                     className="border-b border-gray-300 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
                   >
                     <td className="p-2 md:p-4">
-                      <button
+                      {/* <button
                         type="button"
                         onClick={() => handleTermClick(term.id)}
                         className="text-green-600 hover:text-green-800 font-medium hover:underline cursor-pointer"
                       >
                         {term.name}
-                      </button>
+                      </button> */}
+                        {term.name}
                     </td>
                     <td className="relative p-2 md:p-4 flex justify-center space-x-3">
                       <button
