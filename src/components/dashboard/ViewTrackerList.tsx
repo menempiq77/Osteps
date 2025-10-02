@@ -243,7 +243,7 @@ const loadClasses = async (yearId: string) => {
                       }
                       className="p-2 md:p-4 cursor-pointer hover:underline text-green-600 hover:text-green-800 font-medium"
                     >
-                      {tracker.name}
+                      {tracker?.tracker?.name}
                     </td>
                     <td className="p-2 md:p-4">{tracker.lastUpdated}</td>
                     <td className="p-2 md:p-4">
@@ -252,7 +252,7 @@ const loadClasses = async (yearId: string) => {
                           tracker.status
                         )}`}
                       >
-                        {tracker.status}
+                        {tracker?.tracker?.status}
                       </span>
                     </td>
                   </tr>
