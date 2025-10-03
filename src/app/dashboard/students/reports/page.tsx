@@ -202,8 +202,8 @@ useEffect(() => {
     if (!wholeAssesmentData?.length) return [];
 
     const filteredAssessments = wholeAssesmentData.filter((assessment) => {
-        const classMatch = !selectedClass || assessment.class_id.toString() === selectedClass;
-        const yearMatch = !selectedYear || assessment.year_id.toString() === selectedYear;
+        const classMatch = !selectedClass || assessment?.class_id?.toString() === selectedClass;
+        const yearMatch = !selectedYear || assessment?.year_id?.toString() === selectedYear;
         return classMatch && yearMatch;
     });
 
@@ -315,8 +315,8 @@ useEffect(() => {
   );
 
   const filteredAssessments = wholeAssesmentData.filter((assessment) => {
-  const classMatch = !selectedClass || assessment.class_id.toString() === selectedClass;
-  const yearMatch = !selectedYear || assessment.year_id.toString() === selectedYear;
+  const classMatch = !selectedClass || assessment?.class_id?.toString() === selectedClass;
+  const yearMatch = !selectedYear || assessment?.year_id?.toString() === selectedYear;
   return classMatch && yearMatch;
 });
 

@@ -434,7 +434,7 @@ export function AssessmentTasksDrawer({
                       {...field}
                       id="allocatedMarks"
                       min={0}
-                      className="!mt-1 w-full"
+                      className="!mt-1 !w-full"
                       disabled={loading}
                       status={errors.allocatedMarks ? "error" : ""}
                       onChange={(value) => field.onChange(value)} // value is already a number

@@ -36,6 +36,11 @@ export default function AssignmentDetailPage() {
   const isDueDateExpired = (dueDate: string) => {
     const today = new Date();
     const due = new Date(dueDate);
+
+    // Reset times to midnight
+    today.setHours(0, 0, 0, 0);
+    due.setHours(0, 0, 0, 0);
+
     return due < today;
   };
 
