@@ -98,13 +98,13 @@ export const EditStudentModal = ({
           <Input />
         </Form.Item>
 
-        {/* <Form.Item
+        <Form.Item
           name="password"
           label="Password"
           rules={[{ required: true, message: "Please input password!" }]}
         >
           <Input.Password />
-        </Form.Item> */}
+        </Form.Item>
 
         <Form.Item name="status" label="Status" rules={[{ required: true }]}>
           <Select>

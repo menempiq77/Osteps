@@ -136,7 +136,7 @@ const LeaderBoard = () => {
         className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
       >
         <ArrowLeft size={18} />
-        Back to Trackers
+        Go Back
       </Button>
       <Space direction="vertical" size="large" style={{ width: "100%" }}>
         <Card>

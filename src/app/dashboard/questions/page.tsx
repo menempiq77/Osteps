@@ -15,7 +15,7 @@ import {
 import { UserOutlined, SendOutlined, DeleteOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   createAskQuestion,
@@ -26,6 +26,7 @@ import {
 import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
 import { fetchClasses } from "@/services/classesApi";
 import { fetchTeachersByStudent, getAssignTeacher } from "@/services/teacherApi";
+import Link from "next/link";
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -344,13 +345,14 @@ const loadClasses = async (yearId: string | null) => {
   return (
     <>
     {contextHolder}
-      <Button
-        onClick={() => router.back()}
-        className="flex items-center gap-2 text-gray-600 hover:!border-green-500 hover:!text-green-500 mb-4"
-      >
-        <ArrowLeft size={18} />
-        Back to Dashboard
-      </Button>
+      <Link href="/dashboard">
+        <Button
+          icon={<ChevronLeft />}
+          className="text-gray-700 border border-gray-300 hover:bg-gray-100 mb-4"
+        >
+          Back to Dashboard
+        </Button>
+      </Link>
       <h1 className="text-2xl font-bold mb-6">
         {isStudent ? "Ask" : "Answer"} a Question
       </h1>

@@ -3,13 +3,14 @@ import { useState, useEffect } from "react";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import { AddSuperAdminModal } from "@/components/modals/superAdminModals/AddSuperAdminModal";
 import { EditSuperAdminModal } from "@/components/modals/superAdminModals/EditSuperAdminModal";
-import { Button, Spin, Modal, message } from "antd";
+import { Button, Spin, Modal, message, Breadcrumb } from "antd";
 import {
   addAdmin,
   deleteAdmin,
   fetchAdmins,
   updateAdmin,
 } from "@/services/adminsApi";
+import Link from "next/link";
 
 // Types
 type SuperAdmin = {
@@ -67,10 +68,10 @@ export default function SuperAdminsList() {
       await updateAdmin(id, adminData);
       setSuperAdmins(superAdmins.map((t) => (t.id === admin.id ? admin : t)));
       setEditSuperAdmin(null);
-      messageApi?.success("Admin Update Successfully!")
+      messageApi?.success("Admin Update Successfully!");
     } catch (error) {
       console.error("Failed to update admin:", error);
-      messageApi?.error("Failed to Update Successfully!")
+      messageApi?.error("Failed to Update Successfully!");
     }
   };
 
@@ -80,10 +81,10 @@ export default function SuperAdminsList() {
       setSuperAdmins(superAdmins.filter((admin) => admin.id !== adminId));
       setDeleteSuperAdmin(null);
       setIsDeleteModalOpen(false);
-      messageApi?.success("Admin Deleted Successfully!")
+      messageApi?.success("Admin Deleted Successfully!");
     } catch (error) {
       console.error("Failed to delete admin:", error);
-      messageApi?.error("Failed to delete Successfully!")
+      messageApi?.error("Failed to delete Successfully!");
     }
   };
 
@@ -106,10 +107,10 @@ export default function SuperAdminsList() {
       setSuperAdmins([...superAdmins, newAdmin]);
       await loadAdmins();
       setIsAddSuperAdminModalOpen(false);
-      messageApi?.success("Admin Added Successfully!")
+      messageApi?.success("Admin Added Successfully!");
     } catch (error) {
       console.error("Failed to add admin:", error);
-      messageApi?.error("Failed to add Successfully!")
+      messageApi?.error("Failed to add Successfully!");
     }
   };
 
@@ -123,6 +124,17 @@ export default function SuperAdminsList() {
   return (
     <div className="p-3 md:p-6 max-w-7xl mx-auto">
       {contextHolder}
+      <Breadcrumb
+        items={[
+          {
+            title: <Link href="/dashboard">Dashboard</Link>,
+          },
+          {
+            title: <span>Admins</span>,
+          },
+        ]}
+        className="!mb-2"
+      />
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Sub Admins</h1>
         <Button
