@@ -21,6 +21,9 @@ interface Task {
   status?: string;
   mark?: string;
   comment?: string;
+  type?: string;
+  self_assessment_marks?: number;
+  teacher_assessment_marks?: number;
 }
 
 export default function AssignmentDetailPage() {
@@ -160,6 +163,26 @@ export default function AssignmentDetailPage() {
                       </span>
                     </div>
                   </div>
+
+                   {/* Show Marks Info */}
+                 {task?.type !== "quiz" && task?.task_type !== "url" && (
+                    <div className="mt-3 text-sm flex items-center gap-3">
+                        <div>
+                          <span className="text-gray-500">Self Assessment:</span>
+                          <span className="ml-2 font-medium">
+                            {task?.self_assessment_marks || 0} / {task?.allocated_marks || 0}
+                          </span>
+                        </div>
+                           <div className="h-5 w-1 bg-gray-300"></div>
+
+                        <div>
+                          <span className="text-gray-500">Teacher Assessment:</span>
+                          <span className="ml-2 font-medium">
+                            {task?.teacher_assessment_marks || 0} / {task?.allocated_marks || 0}
+                          </span>
+                        </div>
+                    </div>
+                  )}
 
                   {task.url && (
                     <div className="mt-3">

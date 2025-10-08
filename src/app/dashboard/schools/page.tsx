@@ -2,8 +2,14 @@
 import { useState, useEffect } from "react";
 import AddSchoolForm from "@/components/dashboard/AddSchoolForm";
 import SchoolList from "@/components/dashboard/SchoolList";
-import { Spin, Modal, Button, message } from "antd";
-import { addSchool, deleteSchool, fetchSchools, updateSchool } from "@/services/schoolApi";
+import { Spin, Modal, Button, message, Breadcrumb } from "antd";
+import {
+  addSchool,
+  deleteSchool,
+  fetchSchools,
+  updateSchool,
+} from "@/services/schoolApi";
+import Link from "next/link";
 
 export default function SuperAdminDashboard() {
   const [schools, setSchools] = useState<any[]>([]);
@@ -87,7 +93,11 @@ export default function SuperAdminDashboard() {
         ]);
       }
       await loadSchools();
-      messageApi?.success(editingSchool ? "Updated school Successfully!" : "Added school Successfully!")
+      messageApi?.success(
+        editingSchool
+          ? "Updated school Successfully!"
+          : "Added school Successfully!"
+      );
       setOpen(false);
       setEditingSchool(null);
     } catch (err) {
@@ -95,7 +105,9 @@ export default function SuperAdminDashboard() {
         editingSchool ? "Failed to update school" : "Failed to add school"
       );
       console.error(err);
-      messageApi?.error(editingSchool ? "Failed to update school" : "Failed to add school")
+      messageApi?.error(
+        editingSchool ? "Failed to update school" : "Failed to add school"
+      );
     }
   };
 
@@ -110,24 +122,36 @@ export default function SuperAdminDashboard() {
       await deleteSchool(deletingId);
       setSchools((prev) => prev.filter((school) => school.id !== deletingId));
       setDeletingId(null);
-      messageApi?.success("Deleted school Successfully!")
+      messageApi?.success("Deleted school Successfully!");
     } catch (err) {
       setError("Failed to delete school");
-      messageApi?.error("Failed to delete school")
+      messageApi?.error("Failed to delete school");
       console.error(err);
       setDeletingId(null);
     }
   };
 
-  if (loading) return (
-    <div className="p-3 md:p-6 flex justify-center items-center h-64">
-      <Spin size="large" />
-    </div>
-  );
+  if (loading)
+    return (
+      <div className="p-3 md:p-6 flex justify-center items-center h-64">
+        <Spin size="large" />
+      </div>
+    );
 
   return (
     <div className="p-3 md:p-6">
       {contextHolder}
+      <Breadcrumb
+        items={[
+          {
+            title: <Link href="/dashboard">Dashboard</Link>,
+          },
+          {
+            title: <span>Schools</span>,
+          },
+        ]}
+        className="!mb-2"
+      />
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Schools</h1>
         <Button

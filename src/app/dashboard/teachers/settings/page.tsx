@@ -1,11 +1,12 @@
 "use client";
 import React from "react";
-import { Tabs, Form, Input, Button, Upload, message } from "antd";
+import { Tabs, Form, Input, Button, Upload, message, Breadcrumb } from "antd";
 import { UploadOutlined, UserOutlined } from "@ant-design/icons";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/store/store";
 import { setCurrentUser } from "@/features/auth/authSlice";
 import { changePassword, updateTeacherProfile } from "@/services/settingApi";
+import Link from "next/link";
 
 const TeacherSettings = () => {
   const [form] = Form.useForm();
@@ -300,6 +301,17 @@ const TeacherSettings = () => {
   return (
     <div className="p-4 sm:p-6">
       {contextHolder}
+      <Breadcrumb
+        items={[
+          {
+            title: <Link href="/dashboard">Dashboard</Link>,
+          },
+          {
+            title: <span>Teacher Settings</span>,
+          },
+        ]}
+        className="!mb-2"
+      />
       <h1 className="text-xl sm:text-2xl font-bold mb-6">Teacher Settings</h1>
       <Tabs
         defaultActiveKey="1"

@@ -12,6 +12,7 @@ import {
 import { fetchGrades } from "@/services/gradesApi";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
+import Link from "next/link";
 interface Task {
   student_id: number;
   student_name: string;
@@ -335,13 +336,14 @@ useEffect(() => {
   return (
     <div className="p-3 md:p-6 lg:p-12 mx-auto bg-white min-h-screen">
       <div className="flex items-center gap-4 mb-6">
+      <Link href="/dashboard">
         <Button
           icon={<ChevronLeft />}
-          onClick={() => router.back()}
           className="text-gray-700 border border-gray-300 hover:bg-gray-100"
         >
           Back to Dashboard
         </Button>
+      </Link>
       </div>
 
       <h1 className="text-2xl font-bold text-gray-900 mb-6">

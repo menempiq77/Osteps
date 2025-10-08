@@ -2,12 +2,13 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Spin, Select, Button } from "antd";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronLeft } from "lucide-react";
 import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
 import { fetchClasses } from "@/services/classesApi";
 import { fetchTrackers } from "@/services/trackersApi";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
+import Link from "next/link";
 
 type Tracker = {
   id: string;
@@ -171,13 +172,15 @@ const loadClasses = async (yearId: string) => {
 
   return (
     <>
-      <Button
-        onClick={() => router.back()}
-        className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
-      >
-        <ArrowLeft size={18} />
-        Back to Dashboard
-      </Button>
+      <Link href="/dashboard">
+        <Button
+          icon={<ChevronLeft />}
+          className="text-gray-700 border border-gray-300 hover:bg-gray-100 mb-4"
+        >
+          Back to Dashboard
+        </Button>
+      </Link>
+
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Trackers</h1>
         <div className="flex gap-4">
