@@ -58,4 +58,22 @@ export const deleteTeacher = async (id: string | number) => {
   const response = await api.post(`/delete-teacher/${id}`);
   return response.data;
 };
+// assign Teacher to class
+export const assignTeacherToClass = async (teacherId: number, classId: number) => {
+  const response = await api.post(`/assign-teacher`, {
+    teacher_id: teacherId,
+    class_id: classId,
+  });
+  return response.data;
+};
+
+// unassign Teacher from class
+export const unassignTeacherFromClass = async (teacherId: number, classId: number) => {
+  const response = await api.post(`/unassign-teacher`, {
+    teacher_id: teacherId,
+    class_id: classId,
+  });
+  return response.data;
+};
+
 export default api;

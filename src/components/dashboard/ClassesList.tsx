@@ -139,16 +139,7 @@ export default function ClassesList({
                     </td>
                     {!isStudent && (
                       <td className="relative p-2 md:p-4 flex justify-center space-x-3">
-                        {hasAccess && (
-                          <button
-                            onClick={() => onEditClass(cls)}
-                            className="text-green-500 hover:text-green-700 cursor-pointer"
-                            title="Edit"
-                          >
-                            <EditOutlined />
-                          </button>
-                        )}
-
+                        
                         {/* <button
                           onClick={() => handleAssesments(cls.id)}
                           className="text-blue-500 hover:text-blue-700 cursor-pointer"
@@ -187,13 +178,23 @@ export default function ClassesList({
                           <TrophyIcon className="h-4 w-4" />
                         </button>
 
-                        {!isTeacher && (
+                        {/* {!isTeacher && (
                           <button
                             onClick={() => handleAssign(cls.id)}
                             className="text-orange-500 hover:text-orange-700 cursor-pointer"
                             title="Assign Teacher"
                           >
                             <UsergroupAddOutlined />
+                          </button>
+                        )} */}
+
+                        {hasAccess && (
+                          <button
+                            onClick={() => onEditClass(cls)}
+                            className="text-green-500 hover:text-green-700 cursor-pointer"
+                            title="Edit"
+                          >
+                            <EditOutlined />
                           </button>
                         )}
 
