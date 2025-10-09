@@ -152,6 +152,14 @@ export const addStudentTaskMarks = async (studentId: number, taskData: {
   return response.data;
 };
 
+// mark-url-taskAsComplete
+export const markUrlTaskAsComplete = async (taskId: number) => {
+  const response = await api.post(`/mark-url-taskAsComplete`, {  
+    task_id: taskId,
+  });
+  return response.data;
+};
+
 //get trackers topic apis Started
 // fetch trackers topic
 export const fetchTrackerTopics = async (trackerId: number) => {

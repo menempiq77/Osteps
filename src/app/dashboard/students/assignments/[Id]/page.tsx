@@ -4,8 +4,10 @@ import Link from "next/link";
 import { Calendar } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import AssignmentDrawer from "@/components/ui/AssignmentDrawer";
-import { Breadcrumb, Button, Spin, Tooltip } from "antd";
-import { fetchTasks } from "@/services/api";
+import { Breadcrumb, Button, Spin, Tag, Tooltip } from "antd";
+import { fetchTasks, markUrlTaskAsComplete } from "@/services/api";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store/store";
 
 interface Task {
   id: number;
@@ -24,6 +26,10 @@ interface Task {
   type?: string;
   self_assessment_marks?: number;
   teacher_assessment_marks?: number;
+  teacher_feedback?: string;
+}
+interface CurrentUser {
+  student?: string;
 }
 
 export default function AssignmentDetailPage() {
@@ -35,6 +41,10 @@ export default function AssignmentDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = React.useState(false);
   const [selectedTask, setSelectedTask] = React.useState<Task | null>(null);
+  const { currentUser } = useSelector((state: RootState) => state.auth) as {
+    currentUser: CurrentUser;
+  };
+  const studentId = currentUser?.student;
 
   const isDueDateExpired = (dueDate: string) => {
     const today = new Date();
@@ -51,12 +61,23 @@ export default function AssignmentDetailPage() {
     try {
       setLoading(true);
       const fetchedTasks = await fetchTasks(assignmentId);
-      const tasksWithStatus = fetchedTasks?.map((task: Task) => ({
-        ...task,
-        status: task.status || "not-started",
-      }));
-      console.log(tasksWithStatus, "tasksWithStatus");
-      setTasks(tasksWithStatus);
+      const tasksWithStudentData = fetchedTasks?.map((task: any) => {
+        const studentTask = task.student_assessment_tasks?.find(
+          (st: any) => st.student_id === studentId
+        );
+
+        return {
+          ...task,
+          status: studentTask?.status || "not-started",
+          self_assessment_marks: studentTask?.self_assessment_mark || 0,
+          teacher_assessment_marks: studentTask?.teacher_assessment_score || 0,
+          teacher_feedback: studentTask?.teacher_feedback || null,
+          file_path: studentTask?.file_path || null,
+        };
+      });
+
+      console.log(tasksWithStudentData, "tasksWithStudentData");
+      setTasks(tasksWithStudentData);
     } catch (error) {
       console.error("Error loading tasks:", error);
       setError("Failed to load tasks");
@@ -83,22 +104,29 @@ export default function AssignmentDetailPage() {
     try {
       setLoading(true);
 
-      // Example API call — replace with your actual endpoint
-      await fetch(`/api/tasks/${task.id}/complete`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "completed" }),
-      });
+      await markUrlTaskAsComplete(task.id);
 
-      // Update local state so UI updates instantly
       setTasks((prev) =>
         prev.map((t) => (t.id === task.id ? { ...t, status: "completed" } : t))
       );
     } catch (error) {
-      console.error("Failed to mark task complete:", error);
+      console.error("Failed to mark task as complete:", error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const getStatusBadge = (status: string = "not-completed") => {
+    const isCompleted = status.toLowerCase() === "completed";
+
+    return (
+      <Tag
+        color={isCompleted ? "green" : "default"}
+        className="font-medium text-sm"
+      >
+        {isCompleted ? "Completed" : "Not Completed"}
+      </Tag>
+    );
   };
 
   if (loading)
@@ -169,10 +197,10 @@ export default function AssignmentDetailPage() {
                     )}
                   </div>
 
-                  <div className="flex gap-4 mt-3 text-sm">
+                  <div className="flex justify-between gap-4 mt-3 py-2.5 text-sm border-t border-b border-gray-100">
                     {/* Show Marks Info */}
                     {task?.type !== "quiz" && (
-                      <div className="text-sm flex items-center gap-3">
+                      <div className="text-sm flex flex-col sm:flex-row sm:items-center gap-3">
                         {task?.task_type !== "url" && (
                           <>
                             <div>
@@ -199,7 +227,17 @@ export default function AssignmentDetailPage() {
                         </div>
                       </div>
                     )}
+                    <span className="ml-2 font-medium">
+                      {getStatusBadge(task.status)}
+                    </span>
                   </div>
+
+                  {task.teacher_feedback && (
+                    <p className="text-gray-600 text-sm mt-1">
+                      <strong>Teacher Feedback:</strong> {task.teacher_feedback}
+                    </p>
+                  )}
+
 
                   {task.url && (
                     <div className="mt-3">
@@ -230,12 +268,12 @@ export default function AssignmentDetailPage() {
                 </div>
 
                 <div className="bg-green-50 px-5 py-3 flex justify-between">
-                   <div>
-                      <span className="text-gray-500">Type:</span>
-                      <span className="ml-2 font-medium">
-                        {task?.type !== "quiz" ? task?.task_type : "Quiz"}
-                      </span>
-                    </div>
+                  <div>
+                    <span className="text-gray-500">Type:</span>
+                    <span className="ml-2 font-medium">
+                      {task?.type !== "quiz" ? task?.task_type : "Quiz"}
+                    </span>
+                  </div>
 
                   {/* If task type is URL → show Mark as Complete */}
                   {task?.task_type === "url" ? (
@@ -262,16 +300,17 @@ export default function AssignmentDetailPage() {
                     </Tooltip>
                   ) : (
                     <Button
-                      type="default"
-                      className={`flex items-center gap-1 !bg-primary !border-primary !text-white`}
-                      onClick={() => handleOpenDrawer(task)}
-                    >
-                      {task.status === "completed"
-                        ? "View Submission"
-                        : `${
-                            task?.type !== "quiz" ? "Submit Work" : "View Quiz"
-                          }`}
-                    </Button>
+                        type="default"
+                        className={`flex items-center gap-1 !bg-primary !border-primary !text-white`}
+                        onClick={() => handleOpenDrawer(task)}
+                        disabled={task.status === "completed"}
+                      >
+                        {task.status === "completed"
+                          ? "Submitted"
+                          : task?.type !== "quiz"
+                          ? "Submit Work"
+                          : "View Quiz"}
+                      </Button>
                   )}
                 </div>
               </div>
