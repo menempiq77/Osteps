@@ -79,6 +79,27 @@ export default function AssignmentDetailPage() {
       setIsDrawerOpen(true);
     }
   };
+  const handleMarkAsComplete = async (task: Task) => {
+    try {
+      setLoading(true);
+
+      // Example API call — replace with your actual endpoint
+      await fetch(`/api/tasks/${task.id}/complete`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "completed" }),
+      });
+
+      // Update local state so UI updates instantly
+      setTasks((prev) =>
+        prev.map((t) => (t.id === task.id ? { ...t, status: "completed" } : t))
+      );
+    } catch (error) {
+      console.error("Failed to mark task complete:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (loading)
     return (
@@ -137,52 +158,48 @@ export default function AssignmentDetailPage() {
                           {task.description || "No description provided."}
                         </p>
                       )}
-                      {task?.type !== "quiz" && (
-                        <div className="flex items-center text-sm text-gray-500 mb-2">
-                          <Calendar className="w-4 h-4 mr-1.5" />
-                          <span>
-                            Due: {new Date(task.due_date).toLocaleDateString()}
-                          </span>
-                        </div>
-                      )}
                     </div>
-                    {/* <span
-                      className={`px-3 py-1 text-xs font-medium rounded-full capitalize ${getStatusColor(
-                        task?.status || "not-started"
-                      )}`}
-                    >
-                      {(task?.status || "not-started")?.replace("-", " ")}
-                    </span> */}
+                    {task?.type !== "quiz" && (
+                      <div className="flex items-center text-sm text-gray-500 mb-2">
+                        <Calendar className="w-4 h-4 mr-1.5" />
+                        <span>
+                          Due: {new Date(task.due_date).toLocaleDateString()}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 mt-3 text-sm">
-                    <div>
-                      <span className="text-gray-500">Type:</span>
-                      <span className="ml-2 font-medium">
-                        {task?.type !== "quiz" ? task?.task_type : "Quiz"}
-                      </span>
-                    </div>
+                  <div className="flex gap-4 mt-3 text-sm">
+                    {/* Show Marks Info */}
+                    {task?.type !== "quiz" && (
+                      <div className="text-sm flex items-center gap-3">
+                        {task?.task_type !== "url" && (
+                          <>
+                            <div>
+                              <span className="text-gray-500">
+                                Self Assessment:
+                              </span>
+                              <span className="ml-2 font-medium">
+                                {task?.self_assessment_marks || 0} /{" "}
+                                {task?.allocated_marks || 0}
+                              </span>
+                            </div>
+                            <div className="text-gray-300">|</div>
+                          </>
+                        )}
+
+                        <div>
+                          <span className="text-gray-500">
+                            Teacher Assessment:
+                          </span>
+                          <span className="ml-2 font-medium">
+                            {task?.teacher_assessment_marks || 0} /{" "}
+                            {task?.allocated_marks || 0}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
-
-                   {/* Show Marks Info */}
-                 {task?.type !== "quiz" && task?.task_type !== "url" && (
-                    <div className="mt-3 text-sm flex items-center gap-3">
-                        <div>
-                          <span className="text-gray-500">Self Assessment:</span>
-                          <span className="ml-2 font-medium">
-                            {task?.self_assessment_marks || 0} / {task?.allocated_marks || 0}
-                          </span>
-                        </div>
-                           <div className="h-5 w-1 bg-gray-300"></div>
-
-                        <div>
-                          <span className="text-gray-500">Teacher Assessment:</span>
-                          <span className="ml-2 font-medium">
-                            {task?.teacher_assessment_marks || 0} / {task?.allocated_marks || 0}
-                          </span>
-                        </div>
-                    </div>
-                  )}
 
                   {task.url && (
                     <div className="mt-3">
@@ -210,34 +227,30 @@ export default function AssignmentDetailPage() {
                       </a>
                     </div>
                   )}
-
-                  {(task?.mark || task?.comment) && (
-                    <div className="mt-4 pt-4 border-t border-gray-100">
-                      {task.mark && (
-                        <div className="mb-2">
-                          <span className="text-gray-500">Grade:</span>
-                          <span className="ml-2 font-medium">{task?.mark}</span>
-                        </div>
-                      )}
-                      {task?.comment && (
-                        <div>
-                          <span className="text-gray-500">Feedback:</span>
-                          <p className="mt-1 text-gray-700 bg-gray-50 p-2 rounded">
-                            {task?.comment}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
 
-                <div
-                  className={`bg-green-50 px-5 py-3 flex justify-end ${
-                    !!task?.url && "hidden"
-                  }`}
-                >
-                  {isDueDateExpired(task.due_date) &&
-                  task.status !== "completed" ? (
+                <div className="bg-green-50 px-5 py-3 flex justify-between">
+                   <div>
+                      <span className="text-gray-500">Type:</span>
+                      <span className="ml-2 font-medium">
+                        {task?.type !== "quiz" ? task?.task_type : "Quiz"}
+                      </span>
+                    </div>
+
+                  {/* If task type is URL → show Mark as Complete */}
+                  {task?.task_type === "url" ? (
+                    <Button
+                      type="default"
+                      className={`flex items-center gap-1 !bg-primary !border-primary !text-white`}
+                      onClick={() => handleMarkAsComplete(task)}
+                      disabled={task.status === "completed"}
+                    >
+                      {task.status === "completed"
+                        ? "Completed"
+                        : "Mark as Complete"}
+                    </Button>
+                  ) : isDueDateExpired(task.due_date) &&
+                    task.status !== "completed" ? (
                     <Tooltip title="The due date for this task has expired">
                       <Button
                         type="default"

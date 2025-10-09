@@ -3,18 +3,15 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Breadcrumb, Button, Select, Spin, message } from "antd";
 import Link from "next/link";
-import { fetchClasses } from "@/services/classesApi"; // keep for later
+import { fetchClasses } from "@/services/classesApi";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
-import {
-  assignTrackerToClass,
-  unassignTrackerFromClass,
-} from "@/services/trackersApi";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { assignTeacherToClass, unassignTeacherFromClass } from "@/services/teacherApi";
 
-export default function AssignTrackerPage() {
-  const { trackerId } = useParams<{ trackerId: string }>();
+export default function AssignTeacherPage() {
+  const { teacherId } = useParams<{ teacherId: string }>();
   const [loading, setLoading] = useState(true);
   const [messageApi, contextHolder] = message.useMessage();
   const [years, setYears] = useState<any[]>([]);
@@ -85,7 +82,7 @@ export default function AssignTrackerPage() {
           (cls: any) => cls.year_id === Number(selectedYear)
         );
       } else {
-        return await fetchClasses(Number(selectedYear));
+        return await fetchClasses(selectedYear as string);
       }
     },
     enabled: !!selectedYear,
@@ -93,27 +90,27 @@ export default function AssignTrackerPage() {
 
   const handleAssignClass = async (classId: number) => {
     try {
-      await assignTrackerToClass(Number(trackerId), classId);
-      messageApi.success("Tracker assigned successfully!");
+      await assignTeacherToClass(Number(teacherId), classId);
+      messageApi.success("Teacher assigned successfully!");
       queryClient.invalidateQueries({
         queryKey: ["classes", selectedYear, isTeacher],
       });
     } catch (error) {
       console.error(error);
-      messageApi.error("Failed to assign tracker");
+      messageApi.error("Failed to assign teacher");
     }
   };
 
   const handleUnassignClass = async (classId: number) => {
     try {
-      await unassignTrackerFromClass(Number(trackerId), classId);
-      messageApi.success("Tracker unassigned successfully!");
+      await unassignTeacherFromClass(Number(teacherId), classId);
+      messageApi.success("Teacher unassigned successfully!");
       queryClient.invalidateQueries({
         queryKey: ["classes", selectedYear, isTeacher],
       });
     } catch (error) {
       console.error(error);
-      messageApi.error("Failed to unassign tracker");
+      messageApi.error("Failed to unassign teacher");
     }
   };
 
@@ -131,13 +128,13 @@ export default function AssignTrackerPage() {
       <Breadcrumb
         items={[
           { title: <Link href="/dashboard">Dashboard</Link> },
-          { title: <Link href="/dashboard/all_trackers">All Trackers</Link> },
-          { title: <span>Assign Tracker</span> },
+          { title: <Link href="/dashboard/teachers">All Teacher</Link> },
+          { title: <span>Assign Teacher</span> },
         ]}
         className="!mb-4"
       />
 
-      <h1 className="text-2xl font-bold mb-4">Assign Tracker to Classes</h1>
+      <h1 className="text-2xl font-bold mb-4">Assign Teacher to Classes</h1>
 
       <div className="overflow-x-auto rounded-lg px-1">
         <div className="mb-2">
@@ -152,9 +149,9 @@ export default function AssignTrackerPage() {
             allowClear
           >
             {years?.map((year) => (
-              <Option key={year.id} value={year.id.toString()}>
+              <Select.Option key={year.id} value={year.id.toString()}>
                 {year.name}
-              </Option>
+              </Select.Option>
             ))}
           </Select>
         </div>
@@ -183,11 +180,11 @@ export default function AssignTrackerPage() {
           </thead>
           <tbody>
             {classes.length > 0 ? (
-              classes.map((cls, index) => {
-                // pick the status of the tracker for this class (if any)
+              classes.map((cls: any, index: number) => {
+                // pick the status of the teacher for this class (if any)
                 const status =
-                    cls.assign_trackers?.find(
-                      (t: any) => t.tracker_id === Number(trackerId)
+                    cls.assigned_teachers?.find(
+                      (t: any) => t.teacher_id === Number(teacherId)
                     )?.status || "N/A";
 
                 return (

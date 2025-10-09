@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { AddTeacherModal } from "../modals/teacherModals/AddTeacherModal";
 import { EditTeacherModal } from "../modals/teacherModals/EditTeacherModal";
 import { Spin, Modal, Button, Breadcrumb, message } from "antd";
-import { EditOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
+import { EditOutlined, DeleteOutlined, PlusOutlined, TeamOutlined } from "@ant-design/icons";
 import Link from "next/link";
 import {
   fetchTeachers,
@@ -171,6 +171,10 @@ export default function TeacherList() {
     router.push(`/dashboard/teachers/${teacherId}/assignedClasses`);
   };
 
+  const handleAssignTeacher = (teacherId: string) => {
+    router.push(`/dashboard/teachers/${teacherId}/assign`);
+  };
+
   if (isLoading)
     return (
       <div className="p-3 md:p-6 flex justify-center items-center h-64">
@@ -269,6 +273,16 @@ export default function TeacherList() {
                     <td className="p-2 md:p-4">{teacher.role || "N/A"}</td>
 
                     <td className="relative p-2 md:p-4 flex justify-center space-x-3">
+                       <button
+                            onClick={() =>
+                                handleAssignTeacher(teacher.id)
+                            }
+                            className="text-blue-500 hover:text-blue-700 cursor-pointer"
+                            title="Assign to Classes"
+                          >
+                            <TeamOutlined />
+                        </button>
+
                       <button
                         onClick={() => setEditTeacher(teacher)}
                         className="text-green-500 hover:text-green-700 cursor-pointer"
