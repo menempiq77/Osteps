@@ -5,6 +5,7 @@ import {
   AudioOutlined,
   VideoCameraOutlined,
   FilePdfOutlined,
+  LinkOutlined,
 } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
@@ -158,6 +159,8 @@ export default function AssessmentDrawer() {
         return <VideoCameraOutlined className="text-purple-500" />;
       case "pdf":
         return <FilePdfOutlined className="text-red-500" />;
+      case "url":
+        return <LinkOutlined className="text-green-500" />;
       default:
         return null;
     }
@@ -333,16 +336,35 @@ export default function AssessmentDrawer() {
                   </div>
                 )}
 
+                <div className="text-sm text-gray-500">
+                  {task?.additional_notes && (
+                    <span
+                      title={task?.additional_notes}
+                      className="truncate max-w-[300px] inline-block"
+                    >
+                      {task?.additional_notes}
+                    </span>
+                  )}
+                </div>
+
                 {/* Assessment Form Toggle */}
                 {task?.submission_type !== "quiz" && (
                   <div className="flex justify-between items-center border-t border-gray-100 pt-3">
-                    <div className="text-sm text-gray-500">
-                      {task?.additional_notes && (
-                        <span className="truncate max-w-[180px] inline-block">
-                          {task?.additional_notes}
+                    {/* Task Status */}
+                    {task?.status && (
+                      <div className="">
+                        <span
+                          className={`text-xs font-medium px-2 py-1 rounded-full  ${
+                            task.status === "completed"
+                              ? "bg-green-100 text-green-700"
+                              : "bg-yellow-100 text-yellow-700"
+                          }`}
+                        >
+                          {task.status.charAt(0).toUpperCase() +
+                            task.status.slice(1)}
                         </span>
-                      )}
-                    </div>
+                      </div>
+                    )}
                     {currentUser?.role !== "STUDENT" && (
                       <Button
                         type="text"
@@ -479,50 +501,70 @@ export default function AssessmentDrawer() {
               </div>
             )}
 
-            {viewingTask?.file_path && (
-              <div className="mt-4">
-                {viewingTask.task?.task_type.toLowerCase() === "pdf" ? (
-                  <div className="p-4 border rounded-lg bg-gray-50">
-                    <FilePdfOutlined className="text-red-500 text-2xl mb-2" />
-                    <p className="text-gray-700 mb-3">
-                      PDF document available for download
-                    </p>
-                    <a
-                      href={`https://dashboard.osteps.com/${viewingTask.file_path}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      download
-                      className="text-blue-600 hover:underline flex items-center gap-1"
-                    >
-                      Download PDF
-                    </a>
-                  </div>
-                ) : viewingTask.task?.task_type.toLowerCase() === "video" ? (
-                  <video
-                    controls
-                    className="w-full rounded-lg border"
-                    style={{ maxHeight: "400px" }}
-                  >
-                    <source src={`https://dashboard.osteps.com/${viewingTask.file_path}`} type="video/mp4" />
-                    Your browser does not support the video tag.
-                  </video>
-                ) : viewingTask.task?.task_type.toLowerCase() === "audio" ? (
-                  <audio controls className="w-full">
-                    <source src={`https://dashboard.osteps.com/${viewingTask.file_path}`} type="audio/mpeg" />
-                    Your browser does not support the audio element.
-                  </audio>
-                ) : (
+            {/* File or URL Preview */}
+            <div className="mt-4">
+              {viewingTask.task?.task_type.toLowerCase() === "pdf" ? (
+                <div className="p-4 border rounded-lg bg-gray-50">
+                  <FilePdfOutlined className="text-red-500 text-2xl mb-2" />
+                  <p className="text-gray-700 mb-3">
+                    PDF document available for download
+                  </p>
                   <a
                     href={`https://dashboard.osteps.com/${viewingTask.file_path}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline"
+                    download
+                    className="text-blue-600 hover:underline flex items-center gap-1"
                   >
-                    View File
+                    Download PDF
                   </a>
-                )}
-              </div>
-            )}
+                </div>
+              ) : viewingTask.task?.task_type.toLowerCase() === "video" ? (
+                <video
+                  controls
+                  className="w-full rounded-lg border"
+                  style={{ maxHeight: "400px" }}
+                >
+                  <source
+                    src={`https://dashboard.osteps.com/${viewingTask.file_path}`}
+                    type="video/mp4"
+                  />
+                  Your browser does not support the video tag.
+                </video>
+              ) : viewingTask.task?.task_type.toLowerCase() === "audio" ? (
+                <audio controls className="w-full">
+                  <source
+                    src={`https://dashboard.osteps.com/${viewingTask.file_path}`}
+                    type="audio/mpeg"
+                  />
+                  Your browser does not support the audio element.
+                </audio>
+              ) : viewingTask.task?.task_type.toLowerCase() === "url" ? (
+                <div className="p-4 border rounded-lg bg-blue-50">
+                  <LinkOutlined className="text-blue-500 text-2xl mb-2" />
+                  <p className="text-gray-700 mb-3">URL Submission</p>
+                  <a
+                    href={viewingTask.task.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline break-words"
+                  >
+                    {viewingTask.task.url}
+                  </a>
+                </div>
+              ) : viewingTask.file_path ? (
+                <a
+                  href={`https://dashboard.osteps.com/${viewingTask.file_path}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline"
+                >
+                  View File
+                </a>
+              ) : (
+                <p className="text-gray-500 italic">No file or URL provided.</p>
+              )}
+            </div>
           </div>
         )}
       </Modal>

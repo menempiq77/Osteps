@@ -99,6 +99,11 @@ const unreadCount = filteredAnnouncements?.length || 0;
         icon: Megaphone,
         badge: unreadCount,
       },
+      // {
+      //   name: "Behavior",
+      //   href: `/dashboard/student_behavior`,
+      //   icon: NotebookPen,
+      // },
       {
         name: "Settings",
         href: "/dashboard/school-admin/settings",
@@ -127,6 +132,11 @@ const unreadCount = filteredAnnouncements?.length || 0;
         icon: Megaphone,
         badge: unreadCount,
       },
+      // {
+      //   name: "Behavior",
+      //   href: `/dashboard/student_behavior`,
+      //   icon: NotebookPen,
+      // },
       {
         name: "Answer a Question",
         href: "/dashboard/questions",
@@ -160,6 +170,11 @@ const unreadCount = filteredAnnouncements?.length || 0;
         icon: Megaphone,
         badge: unreadCount,
       },
+      // {
+      //   name: "Behavior",
+      //   href: `/dashboard/student_behavior`,
+      //   icon: NotebookPen,
+      // },
       {
         name: "Answer a Question",
         href: "/dashboard/questions",
