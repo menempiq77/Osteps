@@ -98,11 +98,26 @@ export default function AssignmentDetailPage() {
             0
           );
 
+          const comments =
+            submission?.answers
+              ?.filter((a: any) => a.comment)
+              ?.map((a: any) => {
+                const question = task.quiz.quiz_queston?.find(
+                  (q: any) => q.id === a.quiz_question_id
+                );
+                return {
+                  question_id: a.quiz_question_id,
+                  question_text: question?.question_text || "Untitled question",
+                  comment: a.comment,
+                };
+              }) || [];
+
           return {
             ...task,
             status: submission?.status || "not-started",
             obtained_marks: totalMarks || 0,
             total_marks: totalPossibleMarks || 0,
+            quiz_comments: comments,
           };
         }
 
@@ -234,12 +249,33 @@ export default function AssignmentDetailPage() {
                     {/* Show Marks Info */}
                     <div className="text-sm flex flex-col sm:flex-row sm:items-center gap-3">
                       {task.type === "quiz" ? (
-                        <div>
-                          <span className="text-gray-500">Quiz Marks:</span>
-                          <span className="ml-2 font-medium">
-                            {task?.obtained_marks || 0} /{" "}
-                            {task?.total_marks || 0}
-                          </span>
+                        <div className="flex flex-col gap-1">
+                          <div>
+                            <span className="text-gray-500">Quiz Marks:</span>
+                            <span className="ml-2 font-medium">
+                              {task?.obtained_marks || 0} /{" "}
+                              {task?.total_marks || 0}
+                            </span>
+                          </div>
+
+                          {/* 🗒️ Show comments if available */}
+                          {task?.quiz_comments?.length > 0 && (
+                            <div className="mt-2 text-sm text-gray-600 space-y-1">
+                              <strong className="block mb-2 text-gray-800">
+                                Comments:
+                              </strong>
+                              {task?.quiz_comments?.map((c: any, idx: number) => (
+                                <div key={idx} className="mb-1 ">
+                                  <p className="text-gray-800 font-medium">
+                                    Q{idx + 1}: {c.question_text}
+                                  </p>
+                                  <p className="text-gray-600 pl-2 border-l border-gray-300">
+                                    💬 {c.comment}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <>

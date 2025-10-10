@@ -11,7 +11,12 @@ import {
   InputNumber,
 } from "antd";
 import { Controller, useForm } from "react-hook-form";
-import { addTask, updateTask, deleteTask } from "@/services/api";
+import {
+  addTask,
+  updateTask,
+  deleteTask,
+  removeTaskQuiz,
+} from "@/services/api";
 import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { assignTaskQuiz } from "@/services/quizApi";
 
@@ -196,12 +201,24 @@ export function AssessmentTasksDrawer({
 
     try {
       setLoading(true);
-      await assignTaskQuiz(
-        selectedQuizId,
-        assessmentId
-      );
+      await assignTaskQuiz(selectedQuizId, assessmentId);
       messageApi.success("Quiz assigned successfully");
       // You might want to refresh the task list or add the quiz to initialTasks
+
+      const selectedQuiz = quizzes.find((q) => q.id === selectedQuizId);
+        if (selectedQuiz) {
+          const newQuizTask = {
+            id: Date.now(), // temporary unique ID for frontend
+            quiz_id: selectedQuizId,
+            type: "quiz",
+            quiz: selectedQuiz,
+            task_name: selectedQuiz.name,
+          };
+
+          const updatedTasks = [...initialTasks, newQuizTask];
+          onTasksChange(updatedTasks);
+        }
+      
       setSelectedType(null);
       setSelectedQuizId(null);
     } catch (error) {
@@ -229,15 +246,28 @@ export function AssessmentTasksDrawer({
     setValue("url", task.url || "");
   };
 
-  const handleRemoveTask = async (taskId: number) => {
+  const handleRemoveTask = async (task: Task) => {
     try {
-      await deleteTask(taskId);
-      const updatedTasks = initialTasks.filter((task) => task.id !== taskId);
+      setLoading(true);
+
+      if (task?.type === "quiz") {
+        // Remove quiz assignment
+        await removeTaskQuiz(task.quiz_id); // or task.quiz_id if your backend expects quiz_id
+        messageApi.success("Quiz unassigned successfully");
+      } else {
+        // Remove normal task
+        await deleteTask(task.id);
+        messageApi.success("Task deleted successfully");
+      }
+
+      // Update local state
+      const updatedTasks = initialTasks.filter((t) => t.id !== task.id);
       onTasksChange(updatedTasks);
-      messageApi.success("Task deleted successfully");
     } catch (error) {
       messageApi.error("Failed to delete task");
       console.error("Error deleting task:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -409,7 +439,7 @@ export function AssessmentTasksDrawer({
                         className="!mt-1"
                         disabled={loading}
                         status={errors.dueDate ? "error" : ""}
-                        min={new Date().toISOString().split('T')[0]}
+                        min={new Date().toISOString().split("T")[0]}
                       />
                     )}
                   />
@@ -423,24 +453,24 @@ export function AssessmentTasksDrawer({
                 {/* Allocated Marks */}
                 <div>
                   <p className="font-medium">Allocated Marks</p>
-               <Controller
-                  name="allocatedMarks"
-                  control={control}
-                  rules={{
-                    required: "Allocated marks are required",
-                  }}
-                  render={({ field }) => (
-                    <InputNumber
-                      {...field}
-                      id="allocatedMarks"
-                      min={0}
-                      className="!mt-1 !w-full"
-                      disabled={loading}
-                      status={errors.allocatedMarks ? "error" : ""}
-                      onChange={(value) => field.onChange(value)} // value is already a number
-                    />
-                  )}
-                />
+                  <Controller
+                    name="allocatedMarks"
+                    control={control}
+                    rules={{
+                      required: "Allocated marks are required",
+                    }}
+                    render={({ field }) => (
+                      <InputNumber
+                        {...field}
+                        id="allocatedMarks"
+                        min={0}
+                        className="!mt-1 !w-full"
+                        disabled={loading}
+                        status={errors.allocatedMarks ? "error" : ""}
+                        onChange={(value) => field.onChange(value)} // value is already a number
+                      />
+                    )}
+                  />
                   {errors.allocatedMarks && (
                     <p className="text-red-500 text-sm mt-1">
                       {errors.allocatedMarks.message}
@@ -686,7 +716,7 @@ export function AssessmentTasksDrawer({
                         </button>
                       )}
                       <button
-                        onClick={() => handleRemoveTask(task.id)}
+                        onClick={() => handleRemoveTask(task)}
                         className="text-red-500 hover:text-red-700 cursor-pointer"
                         title="Remove task"
                         disabled={loading}

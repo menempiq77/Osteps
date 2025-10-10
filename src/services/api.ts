@@ -132,6 +132,12 @@ export const deleteTask = async (id: number) => {
   const response = await api.post(`/delete-task/${id}`);
   return response.data;
 };
+// Remove Task Quiz
+export const removeTaskQuiz = async (quizId: number) => {
+  const response = await api.post(`/remove-task-quiz/${quizId}`);
+  return response.data;
+};
+
 // upload Task by student
 export const uploadTaskByStudent = async (formData: FormData, assessmentId: number) => {
   const response = await api.post(`/submit-student-assessment-tasks/${assessmentId}`, formData, {
