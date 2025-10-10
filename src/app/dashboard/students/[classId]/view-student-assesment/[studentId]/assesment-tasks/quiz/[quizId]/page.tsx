@@ -15,6 +15,7 @@ import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { fetchStudents } from "@/services/studentsApi";
 import { fetchQuizQuestions, fetchSubmittedQuizDetails, quizAnswerMarks } from "@/services/quizApi";
+import TextArea from "antd/es/input/TextArea";
 
 interface Option {
   id: number;
@@ -76,6 +77,7 @@ export default function QuranQuizPage() {
     []
   );
   const [customMarks, setCustomMarks] = useState<Record<number, number>>({});
+  const [customComments, setCustomComments] = useState<Record<number, string>>({});
   const [loadingStates, setLoadingStates] = useState<Record<number, boolean>>(
     {}
   );
@@ -211,6 +213,13 @@ export default function QuranQuizPage() {
     }));
   };
 
+  const handleCommentChange = (questionId: number, value: string) => {
+    setCustomComments((prev) => ({
+      ...prev,
+      [questionId]: value,
+    }));
+  };
+
   const markAnswer = async (
     answerId: number,
     isCorrect: boolean,
@@ -231,7 +240,9 @@ export default function QuranQuizPage() {
         ? maxMarks
         : 0;
 
-      await quizAnswerMarks(answerId, isCorrect ? 1 : 0, marksToUse);
+      const commentToUse = isTextType ? customComments[questionId] || "" : undefined;
+
+      await quizAnswerMarks(answerId, isCorrect ? 1 : 0, marksToUse, commentToUse);
       messageApi.success("Answer marked successfully");
 
       setSubmittedAnswers((prev) =>
@@ -365,6 +376,15 @@ export default function QuranQuizPage() {
                                       <span className="text-sm text-gray-600">
                                         / {question.marks}
                                       </span>
+
+                                        <TextArea
+                                          rows={1}
+                                          placeholder="Add comment"
+                                          value={customComments[question.id] || ""}
+                                          onChange={(e) => handleCommentChange(question.id, e.target.value)}
+                                          className="w-64"
+                                        />
+
                                       <Button
                                         size="small"
                                         type="primary"

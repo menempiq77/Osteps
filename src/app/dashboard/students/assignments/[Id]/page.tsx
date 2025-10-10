@@ -61,19 +61,52 @@ export default function AssignmentDetailPage() {
     try {
       setLoading(true);
       const fetchedTasks = await fetchTasks(assignmentId);
-      const tasksWithStudentData = fetchedTasks?.map((task: any) => {
-        const studentTask = task.student_assessment_tasks?.find(
-          (st: any) => st.student_id === studentId
-        );
 
-        return {
-          ...task,
-          status: studentTask?.status || "not-started",
-          self_assessment_marks: studentTask?.self_assessment_mark || 0,
-          teacher_assessment_marks: studentTask?.teacher_assessment_score || 0,
-          teacher_feedback: studentTask?.teacher_feedback || null,
-          file_path: studentTask?.file_path || null,
-        };
+      const tasksWithStudentData = fetchedTasks?.map((task: any) => {
+        // 📘 If the item is a regular task
+        if (task.type === "task") {
+          const studentTask = task.student_assessment_tasks?.find(
+            (st: any) => st.student_id === studentId
+          );
+
+          return {
+            ...task,
+            status: studentTask?.status || "not-started",
+            self_assessment_marks: studentTask?.self_assessment_mark || 0,
+            teacher_assessment_marks:
+              studentTask?.teacher_assessment_score || 0,
+            teacher_feedback: studentTask?.teacher_feedback || null,
+            file_path: studentTask?.file_path || null,
+          };
+        }
+
+        // 🧠 If the item is a quiz
+        if (task.type === "quiz" && task.quiz) {
+          const submission = task.quiz.submissions?.find(
+            (sub: any) => sub.student_id === studentId
+          );
+
+          // Calculate total marks obtained
+          const totalMarks = submission?.answers?.reduce(
+            (sum: number, ans: any) => sum + (parseFloat(ans.marks) || 0),
+            0
+          );
+
+          // Calculate total possible marks from quiz questions
+          const totalPossibleMarks = task.quiz.quiz_queston?.reduce(
+            (sum: number, q: any) => sum + (parseFloat(q.marks) || 0),
+            0
+          );
+
+          return {
+            ...task,
+            status: submission?.status || "not-started",
+            obtained_marks: totalMarks || 0,
+            total_marks: totalPossibleMarks || 0,
+          };
+        }
+
+        return task;
       });
 
       console.log(tasksWithStudentData, "tasksWithStudentData");
@@ -199,34 +232,44 @@ export default function AssignmentDetailPage() {
 
                   <div className="flex justify-between gap-4 mt-3 py-2.5 text-sm border-t border-b border-gray-100">
                     {/* Show Marks Info */}
-                    {task?.type !== "quiz" && (
-                      <div className="text-sm flex flex-col sm:flex-row sm:items-center gap-3">
-                        {task?.task_type !== "url" && (
-                          <>
-                            <div>
-                              <span className="text-gray-500">
-                                Self Assessment:
-                              </span>
-                              <span className="ml-2 font-medium">
-                                {task?.self_assessment_marks || 0} /{" "}
-                                {task?.allocated_marks || 0}
-                              </span>
-                            </div>
-                            <div className="text-gray-300">|</div>
-                          </>
-                        )}
-
+                    <div className="text-sm flex flex-col sm:flex-row sm:items-center gap-3">
+                      {task.type === "quiz" ? (
                         <div>
-                          <span className="text-gray-500">
-                            Teacher Assessment:
-                          </span>
+                          <span className="text-gray-500">Quiz Marks:</span>
                           <span className="ml-2 font-medium">
-                            {task?.teacher_assessment_marks || 0} /{" "}
-                            {task?.allocated_marks || 0}
+                            {task?.obtained_marks || 0} /{" "}
+                            {task?.total_marks || 0}
                           </span>
                         </div>
-                      </div>
-                    )}
+                      ) : (
+                        <>
+                          {task?.task_type !== "url" && (
+                            <>
+                              <div>
+                                <span className="text-gray-500">
+                                  Self Assessment:
+                                </span>
+                                <span className="ml-2 font-medium">
+                                  {task?.self_assessment_marks || 0} /{" "}
+                                  {task?.allocated_marks || 0}
+                                </span>
+                              </div>
+                              <div className="text-gray-300">|</div>
+                            </>
+                          )}
+                          <div>
+                            <span className="text-gray-500">
+                              Teacher Assessment:
+                            </span>
+                            <span className="ml-2 font-medium">
+                              {task?.teacher_assessment_marks || 0} /{" "}
+                              {task?.allocated_marks || 0}
+                            </span>
+                          </div>
+                        </>
+                      )}
+                    </div>
+
                     <span className="ml-2 font-medium">
                       {getStatusBadge(task.status)}
                     </span>
@@ -237,7 +280,6 @@ export default function AssignmentDetailPage() {
                       <strong>Teacher Feedback:</strong> {task.teacher_feedback}
                     </p>
                   )}
-
 
                   {task.url && (
                     <div className="mt-3">
@@ -300,17 +342,17 @@ export default function AssignmentDetailPage() {
                     </Tooltip>
                   ) : (
                     <Button
-                        type="default"
-                        className={`flex items-center gap-1 !bg-primary !border-primary !text-white`}
-                        onClick={() => handleOpenDrawer(task)}
-                        disabled={task.status === "completed"}
-                      >
-                        {task.status === "completed"
-                          ? "Submitted"
-                          : task?.type !== "quiz"
-                          ? "Submit Work"
-                          : "View Quiz"}
-                      </Button>
+                      type="default"
+                      className={`flex items-center gap-1 !bg-primary !border-primary !text-white`}
+                      onClick={() => handleOpenDrawer(task)}
+                      disabled={task.status === "completed"}
+                    >
+                      {task.status === "completed"
+                        ? "Submitted"
+                        : task?.type !== "quiz"
+                        ? "Submit Work"
+                        : "View Quiz"}
+                    </Button>
                   )}
                 </div>
               </div>
