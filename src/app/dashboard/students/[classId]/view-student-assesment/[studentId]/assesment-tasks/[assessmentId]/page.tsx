@@ -89,9 +89,9 @@ export default function AssessmentDrawer() {
       setLoading(true);
       const studentsData = await fetchStudents(classId);
       setStudents(studentsData);
-      // if (studentsData.length > 0) {
-      //   setSelectedStudentId(studentsData[0].id);
-      // }
+      if (studentsData.length > 0) {
+        setSelectedStudentId(studentsData[0].id);
+      }
       setStudents(studentsData);
     } catch (err) {
       setError("Failed to load students");

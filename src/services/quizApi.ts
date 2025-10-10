@@ -86,10 +86,11 @@ export const deleteQuizQuestion = async (id: number) => {
   return response.data;
 };
 // Quiz answer marks
-export const quizAnswerMarks = async (answerId: number, isCorrect: number, marks: number) => {
+export const quizAnswerMarks = async (answerId: number, isCorrect: number, marks: number, comment: string) => {
   const response = await api.post(`/quiz-answer/${answerId}`, {
     is_correct: isCorrect,
-    marks: marks
+    marks: marks,
+    comment: comment
   });
   return response.data;
 };
