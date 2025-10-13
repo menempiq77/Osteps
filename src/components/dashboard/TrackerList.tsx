@@ -266,7 +266,7 @@ export default function TrackerList() {
                   >
                     <td
                       onClick={() =>
-                        handleTrackerClick(tracker.id, tracker.type)
+                        handleTrackerClick(tracker.tracker_id, tracker.type)
                       }
                       className="p-2 md:p-4 cursor-pointer hover:underline text-green-600 hover:text-green-800 font-medium"
                     >
