@@ -40,14 +40,15 @@ export default function QuizPage() {
   const [messageApi, contextHolder] = message.useMessage();
   const [submitting, setSubmitting] = useState(false);
   const { currentUser } = useSelector((state: RootState) => state.auth);
+  const isTeacher = currentUser?.role === "TEACHER";
 
   const schoolId = currentUser?.school;
 
- useEffect(() => {
-  if (schoolId) {
-    loadQuizzes(schoolId);
-  }
-}, [schoolId]); 
+  useEffect(() => {
+    if (schoolId) {
+      loadQuizzes(schoolId);
+    }
+  }, [schoolId]);
 
   const loadQuizzes = async (schoolId: string) => {
     try {
@@ -71,7 +72,9 @@ export default function QuizPage() {
     setEditingId(null);
   };
 
-  const onFinish = async (values: QuizFormValues & { school_id: string }): Promise<void> => {
+  const onFinish = async (
+    values: QuizFormValues & { school_id: string }
+  ): Promise<void> => {
     if (submitting) return;
     try {
       setSubmitting(true);
@@ -186,7 +189,9 @@ export default function QuizPage() {
                       key={item.id}
                       className="border-b border-gray-300 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
                     >
-                      <td className="p-2 md:p-4">{idx === 0 ? "1" : idx+1}</td>
+                      <td className="p-2 md:p-4">
+                        {idx === 0 ? "1" : idx + 1}
+                      </td>
                       <td className="p-2 md:p-4">
                         <button
                           onClick={() => handleViewQuiz(item.id)}
@@ -203,13 +208,15 @@ export default function QuizPage() {
                         >
                           <EditOutlined />
                         </button>
-                        <button
-                          onClick={() => showDeleteConfirm(item.id)}
-                          className="text-red-500 hover:text-red-700 cursor-pointer"
-                          title="Delete"
-                        >
-                          <DeleteOutlined />
-                        </button>
+                        {!isTeacher && (
+                          <button
+                            onClick={() => showDeleteConfirm(item.id)}
+                            className="text-red-500 hover:text-red-700 cursor-pointer"
+                            title="Delete"
+                          >
+                            <DeleteOutlined />
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))
@@ -231,7 +238,6 @@ export default function QuizPage() {
           onCancel={handleCancel}
           footer={null}
           destroyOnHidden
-          
         >
           <Form
             form={form}

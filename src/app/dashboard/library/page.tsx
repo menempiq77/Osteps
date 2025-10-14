@@ -129,7 +129,7 @@ export default function LibraryPage() {
   }, []);
 
   const canUpload =
-    currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "HOD" || currentUser?.role === "TEACHER";
+    currentUser?.role === "SCHOOL_ADMIN";
   const schoolId = currentUser?.school;
 
   const typeTabItems = [
