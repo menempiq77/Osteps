@@ -423,7 +423,7 @@ export default function DashboardPage() {
       {currentUser?.role === "STUDENT" ? (
         <div className="space-y-6">
           {/* Enhanced Breadcrumb */}
-          <div className="flex items-center text-sm font-medium text-gray-600">
+          <div className="flex items-center text-sm font-medium capitalize text-gray-600">
             <span className="font-semibold" style={{ color: THEME_COLOR }}>
               {studentYearName || "Year"}
             </span>
