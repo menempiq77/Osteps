@@ -19,6 +19,7 @@ import {
 } from "@/services/api";
 import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { assignTaskQuiz } from "@/services/quizApi";
+import { IMG_BASE_URL } from "@/lib/config";
 
 const { Option } = Select;
 const { TextArea: AntdTextArea } = AntdInput;
@@ -206,19 +207,19 @@ export function AssessmentTasksDrawer({
       // You might want to refresh the task list or add the quiz to initialTasks
 
       const selectedQuiz = quizzes.find((q) => q.id === selectedQuizId);
-        if (selectedQuiz) {
-          const newQuizTask = {
-            id: Date.now(), // temporary unique ID for frontend
-            quiz_id: selectedQuizId,
-            type: "quiz",
-            quiz: selectedQuiz,
-            task_name: selectedQuiz.name,
-          };
+      if (selectedQuiz) {
+        const newQuizTask = {
+          id: Date.now(), // temporary unique ID for frontend
+          quiz_id: selectedQuizId,
+          type: "quiz",
+          quiz: selectedQuiz,
+          task_name: selectedQuiz.name,
+        };
 
-          const updatedTasks = [...initialTasks, newQuizTask];
-          onTasksChange(updatedTasks);
-        }
-      
+        const updatedTasks = [...initialTasks, newQuizTask];
+        onTasksChange(updatedTasks);
+      }
+
       setSelectedType(null);
       setSelectedQuizId(null);
     } catch (error) {
@@ -728,6 +729,18 @@ export function AssessmentTasksDrawer({
                   <p className="text-sm text-gray-600 mb-4">
                     {task?.description || "No description provided"}
                   </p>
+                  {task?.file_path && (
+                      <div className="mt-3">
+                        <a
+                          href={`${IMG_BASE_URL}/storage/${task.file_path}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 text-sm font-medium inline-flex items-center"
+                        >
+                          Attached document
+                        </a>
+                      </div>
+                    )}
                   {task?.type !== "quiz" && (
                     <div className="mt-2 text-sm text-gray-500">
                       Due: {task?.due_date} | Allocated Marks:{" "}

@@ -66,8 +66,8 @@ function Timetable() {
     select: (data) =>
       Object.values(data).map((item: any) => ({
         title: item.subject,
-        start: `${item.date}T${item.start_time}`,
-        end: `${item.date}T${item.end_time}`,
+        start: `${item.date}T${item.start_time_formatted}`,
+        end: `${item.date}T${item.end_time_formatted}`,
         extendedProps: {
           id: item.id,
           teacher: item?.teacher?.teacher_name || "N/A",

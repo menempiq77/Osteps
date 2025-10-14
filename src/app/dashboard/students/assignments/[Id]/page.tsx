@@ -8,6 +8,7 @@ import { Breadcrumb, Button, Spin, Tag, Tooltip } from "antd";
 import { fetchTasks, markUrlTaskAsComplete } from "@/services/api";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
+import { IMG_BASE_URL } from "@/lib/config";
 
 interface Task {
   id: number;
@@ -27,6 +28,7 @@ interface Task {
   self_assessment_marks?: number;
   teacher_assessment_marks?: number;
   teacher_feedback?: string;
+  file_path?: string;
 }
 interface CurrentUser {
   student?: string;
@@ -76,7 +78,6 @@ export default function AssignmentDetailPage() {
             teacher_assessment_marks:
               studentTask?.teacher_assessment_score || 0,
             teacher_feedback: studentTask?.teacher_feedback || null,
-            file_path: studentTask?.file_path || null,
           };
         }
 
@@ -207,7 +208,7 @@ export default function AssignmentDetailPage() {
         <div className="border-b pb-4">
           <h2 className="text-2xl font-semibold text-gray-800">Tasks</h2>
           <p className="text-gray-500 text-sm mt-1">
-            {tasks?.length} task{tasks?.length !== 1 ? "s" : ""} in this
+            {tasks?.length || 0} task{tasks?.length !== 1 ? "s" : ""} in this
             assessment
           </p>
         </div>
@@ -245,6 +246,19 @@ export default function AssignmentDetailPage() {
                     )}
                   </div>
 
+                    {task.file_path && (
+                      <div className="mt-3">
+                        <a
+                          href={`${IMG_BASE_URL}/storage/${task.file_path}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 text-sm font-medium inline-flex items-center"
+                        >
+                          Attached document
+                        </a>
+                      </div>
+                    )}
+
                   <div className="flex justify-between gap-4 mt-3 py-2.5 text-sm border-t border-b border-gray-100">
                     {/* Show Marks Info */}
                     <div className="text-sm flex flex-col sm:flex-row sm:items-center gap-3">
@@ -264,16 +278,18 @@ export default function AssignmentDetailPage() {
                               <strong className="block mb-2 text-gray-800">
                                 Comments:
                               </strong>
-                              {task?.quiz_comments?.map((c: any, idx: number) => (
-                                <div key={idx} className="mb-1 ">
-                                  <p className="text-gray-800 font-medium">
-                                    Q{idx + 1}: {c.question_text}
-                                  </p>
-                                  <p className="text-gray-600 pl-2 border-l border-gray-300">
-                                    💬 {c.comment}
-                                  </p>
-                                </div>
-                              ))}
+                              {task?.quiz_comments?.map(
+                                (c: any, idx: number) => (
+                                  <div key={idx} className="mb-1 ">
+                                    <p className="text-gray-800 font-medium">
+                                      Q{idx + 1}: {c.question_text}
+                                    </p>
+                                    <p className="text-gray-600 pl-2 border-l border-gray-300">
+                                      💬 {c.comment}
+                                    </p>
+                                  </div>
+                                )
+                              )}
                             </div>
                           )}
                         </div>
