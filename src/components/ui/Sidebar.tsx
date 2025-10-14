@@ -116,7 +116,6 @@ const unreadCount = filteredAnnouncements?.length || 0;
       { name: "Teachers", href: "/dashboard/teachers", icon: UserCircle },
       { name: "My Classes", href: "/dashboard/years", icon: BookOpen },
       // { name: "Students", href: "/dashboard/students", icon: Users },
-      { name: "Library", href: "/dashboard/library", icon: BookText },
       { name: "Manage Quiz", href: "/dashboard/quiz", icon: BookOpen },
       { name: "Assesments", href: "/dashboard/all_assesments", icon: GraduationCap },
       { name: "View Assesments", href: "/dashboard/student_assesments", icon: GraduationCap },
@@ -126,6 +125,7 @@ const unreadCount = filteredAnnouncements?.length || 0;
         href: "/dashboard/viewtrackers",
         icon: BarChart3,
       },
+      { name: "Library", href: "/dashboard/library", icon: BookText },
       { name: "Reports", href: "/dashboard/students/reports", icon: Building },
       { name: "Timetable", href: "/dashboard/time_table", icon: BookOpen },
       {
@@ -155,17 +155,18 @@ const unreadCount = filteredAnnouncements?.length || 0;
       { name: "My Classes", href: "/dashboard/years", icon: BookOpen },
       // { name: "Students", href: "/dashboard/students", icon: Users },
       { name: "View Assesments", href: "/dashboard/student_assesments", icon: GraduationCap },
-      { name: "Library", href: "/dashboard/library", icon: BookText },
       { name: "Manage Quiz", href: "/dashboard/quiz", icon: BookOpen },
       { name: "Reports", href: "/dashboard/students/reports", icon: Building },
       // { name: "Trackers", href: "/dashboard/trackers", icon: Building  },
       { name: "Trackers", href: "/dashboard/all_trackers", icon: BarChart3  },
-
+      
       {
         name: "View Trackers",
         href: "/dashboard/viewtrackers",
         icon: BarChart3,
       },
+      { name: "My Materials", href: "/dashboard/materials", icon: BookText },
+      { name: "Library", href: "/dashboard/library", icon: BookText },
       { name: "Timetable", href: "/dashboard/time_table", icon: BookOpen },
       {
         name: "Announcements",
@@ -201,8 +202,9 @@ const unreadCount = filteredAnnouncements?.length || 0;
         href: `/dashboard/trackers/${currentUser?.studentClass}`,
         icon: BarChart3,
       },
-      { name: "Timetable", href: "/dashboard/time_table", icon: BookOpen },
+      { name: "Shared Materials", href: "/dashboard/shared_materials", icon: BookText },
       { name: "Library", href: "/dashboard/library", icon: BookText },
+      { name: "Timetable", href: "/dashboard/time_table", icon: BookOpen },
       {
         name: "Announcements",
         href: "/dashboard/announcements",

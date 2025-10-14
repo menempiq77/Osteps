@@ -3,7 +3,12 @@ import { useState, useEffect } from "react";
 import { AddTeacherModal } from "../modals/teacherModals/AddTeacherModal";
 import { EditTeacherModal } from "../modals/teacherModals/EditTeacherModal";
 import { Spin, Modal, Button, Breadcrumb, message } from "antd";
-import { EditOutlined, DeleteOutlined, PlusOutlined, TeamOutlined } from "@ant-design/icons";
+import {
+  EditOutlined,
+  DeleteOutlined,
+  PlusOutlined,
+  TeamOutlined,
+} from "@ant-design/icons";
 import Link from "next/link";
 import {
   fetchTeachers,
@@ -45,8 +50,7 @@ export default function TeacherList() {
   const [messageApi, contextHolder] = message.useMessage();
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const isHOD = currentUser?.role === "HOD";
-  const hasAccess =
-    currentUser?.role === "HOD" || currentUser?.role === "SCHOOL_ADMIN";
+  const hasAccess = currentUser?.role === "SCHOOL_ADMIN";
   const schoolId = currentUser?.school;
 
   useEffect(() => {
@@ -74,9 +78,11 @@ export default function TeacherList() {
     loadTeachers();
   }, []);
 
-  const handleSaveEdit = async (teacher: TeacherBasic & { password?: string }) => {
+  const handleSaveEdit = async (
+    teacher: TeacherBasic & { password?: string }
+  ) => {
     try {
-        const payload: any = {
+      const payload: any = {
         teacher_name: teacher.name,
         phone: teacher.phone,
         email: teacher.email,
@@ -199,13 +205,15 @@ export default function TeacherList() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold uppercase">Teachers</h1>
 
-        <Button
-          type="primary"
-          onClick={() => setIsAddTeacherModalOpen(true)}
-          className="!bg-primary hover:bg-primary/90 !text-white !border-0 uppercase"
-        >
-          {isHOD ? "Add Teacher" : "Add Teacher / HOD"}
-        </Button>
+        {hasAccess && (
+          <Button
+            type="primary"
+            onClick={() => setIsAddTeacherModalOpen(true)}
+            className="!bg-primary hover:bg-primary/90 !text-white !border-0 uppercase"
+          >
+            {isHOD ? "Add Teacher" : "Add Teacher / HOD"}
+          </Button>
+        )}
       </div>
 
       <div className="relative overflow-auto">
@@ -238,8 +246,9 @@ export default function TeacherList() {
                     Role
                   </span>
                 </th>
-
-                <th className="p-4 text-xs md:text-sm">Actions</th>
+                {hasAccess && (
+                  <th className="p-4 text-xs md:text-sm">Actions</th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -272,36 +281,36 @@ export default function TeacherList() {
                     </td>
                     <td className="p-2 md:p-4">{teacher.role || "N/A"}</td>
 
-                    <td className="relative p-2 md:p-4 flex justify-center space-x-3">
-                       <button
-                            onClick={() =>
-                                handleAssignTeacher(teacher.id)
-                            }
-                            className="text-blue-500 hover:text-blue-700 cursor-pointer"
-                            title="Assign to Classes"
-                          >
-                            <TeamOutlined />
+                    {hasAccess && (
+                      <td className="relative p-2 md:p-4 flex justify-center space-x-3">
+                        <button
+                          onClick={() => handleAssignTeacher(teacher.id)}
+                          className="text-blue-500 hover:text-blue-700 cursor-pointer"
+                          title="Assign to Classes"
+                        >
+                          <TeamOutlined />
                         </button>
 
-                      <button
-                        onClick={() => setEditTeacher(teacher)}
-                        className="text-green-500 hover:text-green-700 cursor-pointer"
-                        title="Edit"
-                      >
-                        <EditOutlined />
-                      </button>
+                        <button
+                          onClick={() => setEditTeacher(teacher)}
+                          className="text-green-500 hover:text-green-700 cursor-pointer"
+                          title="Edit"
+                        >
+                          <EditOutlined />
+                        </button>
 
-                      <button
-                        onClick={() => {
-                          setDeleteTeacher(teacher);
-                          setIsDeleteModalOpen(true);
-                        }}
-                        className="text-red-500 hover:text-red-700 cursor-pointer"
-                        title="Delete"
-                      >
-                        <DeleteOutlined />
-                      </button>
-                    </td>
+                        <button
+                          onClick={() => {
+                            setDeleteTeacher(teacher);
+                            setIsDeleteModalOpen(true);
+                          }}
+                          className="text-red-500 hover:text-red-700 cursor-pointer"
+                          title="Delete"
+                        >
+                          <DeleteOutlined />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))
               ) : (
