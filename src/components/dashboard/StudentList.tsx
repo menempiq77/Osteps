@@ -228,8 +228,8 @@ export default function StudentList() {
                     className="border-b border-gray-300 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
                   >
                     <td
-                      onClick={() => handleStudentClick(student.id)}
-                      className="p-2 md:p-4 cursor-pointer hover:underline text-green-600 hover:text-green-800 font-medium"
+                      // onClick={() => handleStudentClick(student.id)}
+                      className="p-2 md:p-4 text-gray-700 capitalize font-medium"
                     >
                       {student.student_name}
                     </td>
