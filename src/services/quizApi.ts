@@ -119,4 +119,22 @@ export const assignTrackerQuiz = async (trackerId: number, quizId: number) => {
   return response.data;
 };
 
+// Fetch quiz approval requests
+export const fetchQuizRequests = async () => {
+  const response = await api.get('/fetch-quiz-requests');
+  return response.data.data;
+};
+
+// Approve quiz request
+export const approveQuizRequest = async (id: number) => {
+  const response = await api.get(`/approve-quiz/${id}`);
+  return response.data;
+};
+
+// Reject quiz request
+export const rejectQuizRequest = async (id: number) => {
+  const response = await api.get(`/reject-quiz/${id}`);
+  return response.data;
+};
+
 export default api;

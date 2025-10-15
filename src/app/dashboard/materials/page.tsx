@@ -39,6 +39,7 @@ export default function MaterialsPage() {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [messageApi, contextHolder] = message.useMessage();
 
   // modal & form state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -107,13 +108,13 @@ export default function MaterialsPage() {
       }
 
       await addMaterial(formData);
-      message.success("Material added successfully!");
+      messageApi.success("Material added successfully!");
       setIsAddModalOpen(false);
       form.resetFields();
       setCurrentUploadFile(null);
       await loadMaterials();
     } catch (err: any) {
-      message.error(err.message || "Failed to add material");
+      messageApi.error(err.message || "Failed to add material");
     }
   };
 
@@ -153,13 +154,13 @@ export default function MaterialsPage() {
       }
 
       await updateMaterial(selectedMaterial.id, formData);
-      message.success("Material updated successfully!");
+      messageApi.success("Material updated successfully!");
       setIsEditModalOpen(false);
       form.resetFields();
       setCurrentUploadFile(null);
       await loadMaterials();
     } catch (err: any) {
-      message.error(err.message || "Failed to update material");
+      messageApi.error(err.message || "Failed to update material");
     }
   };
 
@@ -173,11 +174,11 @@ export default function MaterialsPage() {
     if (!selectedMaterial) return;
     try {
       await deleteMaterial(selectedMaterial.id);
-      message.success("Material deleted successfully!");
+      messageApi.success("Material deleted successfully!");
       setIsDeleteModalOpen(false);
       await loadMaterials();
     } catch (err: any) {
-      message.error(err.message || "Failed to delete material");
+      messageApi.error(err.message || "Failed to delete material");
     }
   };
 
@@ -220,7 +221,8 @@ export default function MaterialsPage() {
   };
 
   return (
-    <div className="p-6 bg-gray-50">
+    <div className="p-3 md:p-6">
+      {contextHolder}
       <Breadcrumb
         items={[
           { title: <Link href="/dashboard">Dashboard</Link> },

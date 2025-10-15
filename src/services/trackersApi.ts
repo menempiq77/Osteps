@@ -34,7 +34,6 @@ export const addTracker = async (trackerData: {
   school_id: number;
   name: string;
   type: string;
-  status: string;
   progress: string[];
 }) => {
   const response = await api.post("/add-trackers", trackerData);
@@ -47,7 +46,6 @@ export const updateTracker = async (
     school_id: number;
     name: string;
     type: string;
-    status: string;
     progress: string[];
   }
 ) => {
@@ -75,6 +73,24 @@ export const unassignTrackerFromClass = async (trackerId: number, classId: numbe
     tracker_id: trackerId,
     class_id: classId,
   });
+  return response.data;
+};
+
+// Fetch Tracker approval requests
+export const fetchTrackerRequests = async () => {
+  const response = await api.get('/fetch-tracker-requests');
+  return response.data.data;
+};
+
+// Approve Tracker request
+export const approveTrackerRequest = async (id: number) => {
+  const response = await api.get(`/accept-tracker/${id}`);
+  return response.data;
+};
+
+// Reject Tracker request
+export const rejectTrackerRequest = async (id: number) => {
+  const response = await api.get(`/reject-tracker/${id}`);
   return response.data;
 };
 
