@@ -18,6 +18,10 @@ import {
   NotebookPen,
   LucideLogOut,
   BarChart3,
+  Award,
+  FolderOpen,
+  Library,
+  FileBarChart,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { logout } from "@/features/auth/authSlice";
@@ -79,20 +83,18 @@ const unreadCount = filteredAnnouncements?.length || 0;
     SCHOOL_ADMIN: [
       { name: "Dashboard", href: "/dashboard", icon: Home },
       { name: "Teachers", href: "/dashboard/teachers", icon: UserCircle },
-      // { name: "Students", href: "/dashboard/students", icon: Users },
       { name: "Manage Classes", href: "/dashboard/years", icon: BookOpen },
       { name: "Manage Grades", href: "/dashboard/grades", icon: BarChart2 },
       { name: "Manage Quiz", href: "/dashboard/quiz", icon: BookOpen },
       { name: "Assesments", href: "/dashboard/all_assesments", icon: GraduationCap },
-      // { name: "View Assesments", href: "/dashboard/student_assesments", icon: GraduationCap },
       { name: "Trackers", href: "/dashboard/all_trackers", icon: BarChart3 },
-      { name: "Reports", href: "/dashboard/students/reports", icon: Building },
-      // {
-      //   name: "View Trackers",
-      //   href: "/dashboard/viewtrackers",
-      //   icon: Building,
-      // },
-      { name: "Library", href: "/dashboard/library", icon: BookText },
+      {
+        name: "Leaderboard",
+        href: `/dashboard/leaderboard/`,
+        icon: Award,
+      },
+      { name: "Reports", href: "/dashboard/students/reports", icon: FileBarChart },
+      { name: "Library", href: "/dashboard/library", icon: Library },
       { name: "Timetable", href: "/dashboard/time_table", icon: BookOpen },
       {
         name: "Announcements",
@@ -100,11 +102,11 @@ const unreadCount = filteredAnnouncements?.length || 0;
         icon: Megaphone,
         badge: unreadCount,
       },
-      // {
-      //   name: "Behavior",
-      //   href: `/dashboard/student_behavior`,
-      //   icon: NotebookPen,
-      // },
+      {
+        name: "Behavior",
+        href: `/dashboard/student_behavior`,
+        icon: NotebookPen,
+      },
       {
         name: "Settings",
         href: "/dashboard/school-admin/settings",
@@ -115,7 +117,6 @@ const unreadCount = filteredAnnouncements?.length || 0;
       { name: "Dashboard", href: "/dashboard", icon: Home },
       { name: "Teachers", href: "/dashboard/teachers", icon: UserCircle },
       { name: "My Classes", href: "/dashboard/years", icon: BookOpen },
-      // { name: "Students", href: "/dashboard/students", icon: Users },
       { name: "Manage Quiz", href: "/dashboard/quiz", icon: BookOpen },
       { name: "Assesments", href: "/dashboard/all_assesments", icon: GraduationCap },
       { name: "View Assesments", href: "/dashboard/student_assesments", icon: GraduationCap },
@@ -125,8 +126,13 @@ const unreadCount = filteredAnnouncements?.length || 0;
         href: "/dashboard/viewtrackers",
         icon: BarChart3,
       },
-      { name: "Library", href: "/dashboard/library", icon: BookText },
-      { name: "Reports", href: "/dashboard/students/reports", icon: Building },
+      {
+        name: "Leaderboard",
+        href: `/dashboard/leaderboard/`,
+        icon: Award,
+      },
+      { name: "Library", href: "/dashboard/library", icon: Library },
+      { name: "Reports", href: "/dashboard/students/reports", icon: FileBarChart },
       { name: "Timetable", href: "/dashboard/time_table", icon: BookOpen },
       {
         name: "Announcements",
@@ -134,11 +140,11 @@ const unreadCount = filteredAnnouncements?.length || 0;
         icon: Megaphone,
         badge: unreadCount,
       },
-      // {
-      //   name: "Behavior",
-      //   href: `/dashboard/student_behavior`,
-      //   icon: NotebookPen,
-      // },
+      {
+        name: "Behavior",
+        href: `/dashboard/student_behavior`,
+        icon: NotebookPen,
+      },
       {
         name: "Answer a Question",
         href: "/dashboard/questions",
@@ -153,20 +159,22 @@ const unreadCount = filteredAnnouncements?.length || 0;
     TEACHER: [
       { name: "Dashboard", href: "/dashboard", icon: Home },
       { name: "My Classes", href: "/dashboard/years", icon: BookOpen },
-      // { name: "Students", href: "/dashboard/students", icon: Users },
       { name: "View Assesments", href: "/dashboard/student_assesments", icon: GraduationCap },
       { name: "Manage Quiz", href: "/dashboard/quiz", icon: BookOpen },
-      { name: "Reports", href: "/dashboard/students/reports", icon: Building },
-      // { name: "Trackers", href: "/dashboard/trackers", icon: Building  },
+      { name: "Reports", href: "/dashboard/students/reports", icon: FileBarChart },
       { name: "Trackers", href: "/dashboard/all_trackers", icon: BarChart3  },
-      
       {
         name: "View Trackers",
         href: "/dashboard/viewtrackers",
         icon: BarChart3,
       },
-      { name: "My Materials", href: "/dashboard/materials", icon: BookText },
-      { name: "Library", href: "/dashboard/library", icon: BookText },
+      {
+        name: "Leaderboard",
+        href: `/dashboard/leaderboard`,
+        icon: Award,
+      },
+      { name: "My Materials", href: "/dashboard/materials", icon: FolderOpen },
+      { name: "Library", href: "/dashboard/library", icon: Library },
       { name: "Timetable", href: "/dashboard/time_table", icon: BookOpen },
       {
         name: "Announcements",
@@ -174,11 +182,11 @@ const unreadCount = filteredAnnouncements?.length || 0;
         icon: Megaphone,
         badge: unreadCount,
       },
-      // {
-      //   name: "Behavior",
-      //   href: `/dashboard/student_behavior`,
-      //   icon: NotebookPen,
-      // },
+      {
+        name: "Behavior",
+        href: `/dashboard/student_behavior`,
+        icon: NotebookPen,
+      },
       {
         name: "Answer a Question",
         href: "/dashboard/questions",
@@ -202,8 +210,13 @@ const unreadCount = filteredAnnouncements?.length || 0;
         href: `/dashboard/trackers/${currentUser?.studentClass}`,
         icon: BarChart3,
       },
-      { name: "Shared Materials", href: "/dashboard/shared_materials", icon: BookText },
-      { name: "Library", href: "/dashboard/library", icon: BookText },
+      {
+        name: "Leaderboard",
+        href: `/dashboard/classes/${currentUser?.studentClass}/leaderboard/`,
+        icon: Award,
+      },
+      { name: "Shared Materials", href: "/dashboard/shared_materials", icon: FolderOpen },
+      { name: "Library", href: "/dashboard/library", icon: Library },
       { name: "Timetable", href: "/dashboard/time_table", icon: BookOpen },
       {
         name: "Announcements",

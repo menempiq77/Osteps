@@ -11,6 +11,8 @@ import {
 } from "@/services/termsApi";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store/store";
 
 export default function TermsPage() {
   const { classId } = useParams();
@@ -19,12 +21,16 @@ export default function TermsPage() {
     id: number | null;
     name: string;
   } | null>(null);
+  const { currentUser } = useSelector((state: RootState) => state.auth);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [termToDelete, setTermToDelete] = useState<number | null>(null);
   const [form] = Form.useForm();
   const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
   const [messageApi, contextHolder] = message.useMessage();
   const queryClient = useQueryClient();
+
+  const hasAccess =
+    currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "HOD";
 
   // Fetch terms with React Query
   const {
@@ -159,18 +165,21 @@ export default function TermsPage() {
       />
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Terms</h1>
-        <Button
-          className="!bg-primary !text-white"
-          onClick={() => setOpen(true)}
-        >
-          Add Term
-        </Button>
+        {hasAccess && (
+          <Button
+            className="!bg-primary !text-white"
+            onClick={() => setOpen(true)}
+          >
+            Add Term
+          </Button>
+        )}
       </div>
 
       <TermsList
         terms={terms}
         onEdit={handleEditClick}
         onDelete={handleDeleteClick}
+        hasAccess={hasAccess}
       />
 
       {/* Add/Edit Term Modal */}

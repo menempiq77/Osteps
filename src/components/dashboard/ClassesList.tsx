@@ -167,7 +167,7 @@ export default function ClassesList({
                           <BarChart3 className="h-4 w-4" />
                         </button> */}
 
-                        <button
+                        {/* <button
                           onClick={(e) => {
                             e.stopPropagation();
                             handleLeaderBoard(cls.id);
@@ -176,7 +176,7 @@ export default function ClassesList({
                           title="Leaderboard"
                         >
                           <TrophyIcon className="h-4 w-4" />
-                        </button>
+                        </button> */}
 
                         {/* {!isTeacher && (
                           <button

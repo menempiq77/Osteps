@@ -140,7 +140,7 @@ export default function StudentList() {
       `/dashboard/students/${classId}/view-student-assesment/${studentId}`
     );
   };
-  
+
   useEffect(() => {
     if (!isAddStudentModalOpen) {
       form.resetFields();
@@ -217,7 +217,9 @@ export default function StudentList() {
                     Status
                   </span>
                 </th>
-                <th className="p-4 text-xs md:text-sm">Actions</th>
+                {hasAccess && (
+                  <th className="p-4 text-xs md:text-sm">Actions</th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -233,10 +235,8 @@ export default function StudentList() {
                     >
                       {student.student_name}
                     </td>
-                     <td className="p-2 md:p-4">
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs`}
-                      >
+                    <td className="p-2 md:p-4">
+                      <span className={`px-2 py-1 rounded-full text-xs`}>
                         {student.user_name || "N/A"}
                       </span>
                     </td>
@@ -253,44 +253,44 @@ export default function StudentList() {
                         {student.status}
                       </span>
                     </td>
-                    <td
-                      className="relative p-2 md:p-4 flex justify-center space-x-3"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <button
+                    {hasAccess && (
+                      <td
+                        className="relative p-2 md:p-4 flex justify-center space-x-3"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {/* <button
                         onClick={() => handleStudentBehavior(student.id)}
                         className="text-blue-500 hover:text-blue-700 cursor-pointer"
                         title="Behavior"
                       >
                         <BookOutlined />
-                      </button>
+                      </button> */}
 
-                      {hasAccess && (
-                          <>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditStudent(student);
-                              }}
-                              className="text-green-500 hover:text-green-700 cursor-pointer"
-                              title="Edit"
-                            >
-                              <EditOutlined />
-                            </button>
+                        <>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditStudent(student);
+                            }}
+                            className="text-green-500 hover:text-green-700 cursor-pointer"
+                            title="Edit"
+                          >
+                            <EditOutlined />
+                          </button>
 
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                showDeleteConfirm(student);
-                              }}
-                              className="text-red-500 hover:text-red-700 cursor-pointer"
-                              title="Delete"
-                            >
-                              <DeleteOutlined />
-                            </button>
-                          </>
-                        )}
-                    </td>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              showDeleteConfirm(student);
+                            }}
+                            className="text-red-500 hover:text-red-700 cursor-pointer"
+                            title="Delete"
+                          >
+                            <DeleteOutlined />
+                          </button>
+                        </>
+                      </td>
+                    )}
                   </tr>
                 ))
               ) : (
