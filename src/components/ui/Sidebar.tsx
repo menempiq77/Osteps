@@ -12,8 +12,6 @@ import {
   Megaphone,
   BarChart2,
   UserCircle,
-  BookText,
-  Building,
   HelpCircle,
   NotebookPen,
   LucideLogOut,
@@ -22,6 +20,9 @@ import {
   FolderOpen,
   Library,
   FileBarChart,
+  CheckSquare,
+  Layers,
+  ClipboardList,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { logout } from "@/features/auth/authSlice";
@@ -83,9 +84,10 @@ const unreadCount = filteredAnnouncements?.length || 0;
     SCHOOL_ADMIN: [
       { name: "Dashboard", href: "/dashboard", icon: Home },
       { name: "Teachers", href: "/dashboard/teachers", icon: UserCircle },
-      { name: "Manage Classes", href: "/dashboard/years", icon: BookOpen },
+      { name: "Manage Classes", href: "/dashboard/years", icon: Layers },
       { name: "Manage Grades", href: "/dashboard/grades", icon: BarChart2 },
-      { name: "Manage Quiz", href: "/dashboard/quiz", icon: BookOpen },
+      { name: "Subjects", href: "/dashboard/subjects", icon: BookOpen },
+      { name: "Manage Quiz", href: "/dashboard/quiz", icon: ClipboardList },
       { name: "Assesments", href: "/dashboard/all_assesments", icon: GraduationCap },
       { name: "Trackers", href: "/dashboard/all_trackers", icon: BarChart3 },
       {
@@ -95,6 +97,7 @@ const unreadCount = filteredAnnouncements?.length || 0;
       },
       { name: "Reports", href: "/dashboard/students/reports", icon: FileBarChart },
       { name: "Library", href: "/dashboard/library", icon: Library },
+      { name: "Content Approvals", href: "/dashboard/approvals", icon: CheckSquare },
       { name: "Timetable", href: "/dashboard/time_table", icon: BookOpen },
       {
         name: "Announcements",
@@ -116,8 +119,9 @@ const unreadCount = filteredAnnouncements?.length || 0;
     HOD: [
       { name: "Dashboard", href: "/dashboard", icon: Home },
       { name: "Teachers", href: "/dashboard/teachers", icon: UserCircle },
-      { name: "My Classes", href: "/dashboard/years", icon: BookOpen },
-      { name: "Manage Quiz", href: "/dashboard/quiz", icon: BookOpen },
+      { name: "My Classes", href: "/dashboard/years", icon: Layers },
+      { name: "Subjects", href: "/dashboard/subjects", icon: BookOpen },
+      { name: "Manage Quiz", href: "/dashboard/quiz", icon: ClipboardList },
       { name: "Assesments", href: "/dashboard/all_assesments", icon: GraduationCap },
       { name: "View Assesments", href: "/dashboard/student_assesments", icon: GraduationCap },
       { name: "Trackers", href: "/dashboard/all_trackers", icon: BarChart3  },
@@ -133,6 +137,7 @@ const unreadCount = filteredAnnouncements?.length || 0;
       },
       { name: "Library", href: "/dashboard/library", icon: Library },
       { name: "Reports", href: "/dashboard/students/reports", icon: FileBarChart },
+      { name: "Content Approvals", href: "/dashboard/approvals", icon: CheckSquare },
       { name: "Timetable", href: "/dashboard/time_table", icon: BookOpen },
       {
         name: "Announcements",
@@ -158,9 +163,10 @@ const unreadCount = filteredAnnouncements?.length || 0;
     ],
     TEACHER: [
       { name: "Dashboard", href: "/dashboard", icon: Home },
-      { name: "My Classes", href: "/dashboard/years", icon: BookOpen },
+      { name: "My Classes", href: "/dashboard/years", icon: Layers },
       { name: "View Assesments", href: "/dashboard/student_assesments", icon: GraduationCap },
-      { name: "Manage Quiz", href: "/dashboard/quiz", icon: BookOpen },
+      { name: "Subjects", href: "/dashboard/subjects", icon: BookOpen },
+      { name: "Manage Quiz", href: "/dashboard/quiz", icon: ClipboardList },
       { name: "Reports", href: "/dashboard/students/reports", icon: FileBarChart },
       { name: "Trackers", href: "/dashboard/all_trackers", icon: BarChart3  },
       {
@@ -205,6 +211,7 @@ const unreadCount = filteredAnnouncements?.length || 0;
         href: "/dashboard/students/assignments",
         icon: GraduationCap,
       },
+      { name: "Subjects", href: "/dashboard/subjects", icon: BookOpen },
       {
         name: "Trackers",
         href: `/dashboard/trackers/${currentUser?.studentClass}`,

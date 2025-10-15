@@ -75,7 +75,6 @@ export default function AllTrackerList() {
         school_id: Number(schoolId),
         name: tracker.name,
         type: "topic",
-        status: "Active",
         progress: tracker.progress,
       });
 
@@ -121,7 +120,6 @@ export default function AllTrackerList() {
         school_id: Number(schoolId),
         name: tracker.name,
         type: "topic",
-        status: "Active",
         progress: tracker.progress,
       });
 

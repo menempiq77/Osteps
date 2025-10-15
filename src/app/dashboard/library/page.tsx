@@ -129,7 +129,10 @@ export default function LibraryPage() {
   }, []);
 
   const canUpload =
-    currentUser?.role === "SCHOOL_ADMIN";
+    currentUser?.role === "SCHOOL_ADMIN" ||
+    currentUser?.role === "HOD" ||
+    currentUser?.role === "TEACHER";
+  const isTeacher = currentUser?.role === "TEACHER";
   const schoolId = currentUser?.school;
 
   const typeTabItems = [
@@ -459,18 +462,18 @@ export default function LibraryPage() {
                     </div>
                     {canUpload && (
                       <div className="flex gap-2">
-                        <Button
-                          shape="circle"
-                          size="small"
-                          icon={<DeleteOutlined className="text-xs" />}
-                          danger
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setItemToDelete(item.id);
-                            setDeleteModalVisible(true);
-                          }}
-                          className="shadow-sm bg-white hover:bg-red-50 border-none"
-                        />
+                          <Button
+                            shape="circle"
+                            size="small"
+                            icon={<DeleteOutlined className="text-xs" />}
+                            danger
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setItemToDelete(item.id);
+                              setDeleteModalVisible(true);
+                            }}
+                            className="shadow-sm bg-white hover:bg-red-50 border-none"
+                          />
                         <Button
                           shape="circle"
                           size="small"

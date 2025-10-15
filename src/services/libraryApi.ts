@@ -95,4 +95,23 @@ export const deleteLibrary = async (id: number, filePath?: string) => {
   return response.data;
 };
 
+// Library Request Approval APIs
+export const fetchLibraryRequests = async () => {
+  const response = await api.get('/fetch-library-requests');
+  return response.data.data;
+};
+
+// Library Request Approval API
+export const approveLibraryRequest = async (id: number) => {
+  const response = await api.get(`/approve-library-request/${id}`);
+  return response.data;
+};
+
+// Library Request Reject API
+export const rejectLibraryRequest = async (id: number) => {
+  const response = await api.get(`/reject-library-request/${id}`);
+  return response.data;
+};
+
+
 export default api;
