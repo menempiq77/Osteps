@@ -9,12 +9,14 @@ import {
   Typography,
   Spin,
   Button,
+  Breadcrumb,
 } from "antd";
 import { CrownOutlined, TrophyOutlined, StarOutlined } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import { fetchLeaderBoardData } from "@/services/leaderboardApi";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
 
 const { Title, Text } = Typography;
 
@@ -131,13 +133,18 @@ const LeaderBoard = () => {
 
   return (
     <div style={{ maxWidth: 1200, margin: "0 auto", padding: 24 }}>
-      <Button
-        onClick={() => router.back()}
-        className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
-      >
-        <ArrowLeft size={18} />
-        Go Back
-      </Button>
+      <Breadcrumb
+        items={[
+          {
+            title: <Link href="/dashboard">Dashboard</Link>,
+          },
+          {
+            title: <span>Leaderboard</span>,
+          },
+        ]}
+        className="!mb-6"
+      />
+
       <Space direction="vertical" size="large" style={{ width: "100%" }}>
         <Card>
           <Space direction="vertical" size="middle" style={{ width: "100%" }}>

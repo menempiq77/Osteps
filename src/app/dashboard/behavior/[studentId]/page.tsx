@@ -1,10 +1,11 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
-import { Card, Tag, Select, List, Avatar, Statistic } from "antd";
+import { Card, Tag, Select, List, Avatar, Statistic, Breadcrumb } from "antd";
 import { ArrowUpOutlined, ArrowDownOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { fetchBehaviour, fetchBehaviourType } from "@/services/behaviorApi";
+import Link from "next/link";
 
 const { Option } = Select;
 
@@ -36,7 +37,9 @@ interface CurrentUser {
 const StudentBehaviorPage = () => {
   const [filter, setFilter] = useState("all");
   // const { currentUser } = useSelector((state: RootState) => state.auth);
-  const { currentUser } = useSelector((state: RootState) => state.auth) as { currentUser: CurrentUser };
+  const { currentUser } = useSelector((state: RootState) => state.auth) as {
+    currentUser: CurrentUser;
+  };
   const [behaviorTypes, setBehaviorTypes] = useState<BehaviorType[]>([]);
   const [behaviors, setBehaviors] = useState<Behavior[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -126,7 +129,19 @@ const StudentBehaviorPage = () => {
   }, [behaviors, behaviorTypes]);
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-3 md:p-6 max-w-6xl mx-auto">
+      <Breadcrumb
+        items={[
+          {
+            title: <Link href="/dashboard">Dashboard</Link>,
+          },
+          {
+            title: <span>Behavior</span>,
+          },
+        ]}
+        className="!mb-6"
+      />
+
       <h1 className="text-2xl font-bold mb-6">Student Behavior</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
