@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Modal, Form, Input, message, Spin, Button, Breadcrumb } from "antd";
 import { EditOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 import { useRouter } from "next/navigation";
@@ -12,6 +12,7 @@ import {
 } from "@/services/quizApi";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 type Quiz = {
   id: string;
@@ -30,10 +31,8 @@ interface QuizFormValues {
 
 export default function QuizPage() {
   const [form] = Form.useForm();
-  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [quizToDelete, setQuizToDelete] = useState<string | null>(null);
   const router = useRouter();
@@ -44,23 +43,17 @@ export default function QuizPage() {
 
   const schoolId = currentUser?.school;
 
-  useEffect(() => {
-    if (schoolId) {
-      loadQuizzes(schoolId);
-    }
-  }, [schoolId]);
-
-  const loadQuizzes = async (schoolId: string) => {
-    try {
-      setLoading(true);
-      const response = await fetchQuizes(schoolId);
-      setQuizzes(response);
-    } catch (error) {
+  const { data: quizzes = [], isLoading } = useQuery({
+    queryKey: ["quizzes", schoolId],
+    queryFn: async () => {
+      if (!schoolId) return [];
+      return await fetchQuizes(schoolId);
+    },
+    enabled: !!schoolId,
+    onError: () => {
       messageApi.error("Failed to load quizzes");
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+  });
 
   const showModal = () => {
     setIsModalOpen(true);
@@ -72,32 +65,74 @@ export default function QuizPage() {
     setEditingId(null);
   };
 
-  const onFinish = async (
-    values: QuizFormValues & { school_id: string }
-  ): Promise<void> => {
-    if (submitting) return;
-    try {
-      setSubmitting(true);
-      if (editingId) {
-        await updateQuize(editingId, values);
-        messageApi.success("Quiz updated successfully");
-        setQuizzes((prev) =>
-          prev.map((quiz) =>
-            quiz.id === editingId ? { ...quiz, ...values } : quiz
-          )
-        );
-      } else {
-        const newQuiz = await addQuize(values);
-        messageApi.success("Quiz added successfully");
-        setQuizzes((prev) => [...prev, newQuiz]);
-        await loadQuizzes(schoolId);
-      }
+  const queryClient = useQueryClient();
+
+  const addQuizMutation = useMutation({
+    mutationFn: addQuize,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["quizzes", schoolId] });
+      messageApi.success(
+        isTeacher
+          ? "Quiz added successfully and sent for approval"
+          : "Quiz added successfully"
+      );
       handleCancel();
-    } catch (error: any) {
-      messageApi.error(error.response?.data?.message || "Operation failed");
+    },
+    onError: (error: any) => {
+      messageApi.error(error.response?.data?.message || "Failed to add quiz");
+    },
+  });
+
+  const updateQuizMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: QuizFormValues }) =>
+      updateQuize(id, data),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["quizzes", schoolId] });
+      messageApi.success(
+        isTeacher
+          ? "Quiz updated successfully and sent for approval"
+          : "Quiz updated successfully"
+      );
+      handleCancel();
+    },
+    onError: (error: any) => {
+      messageApi.error(
+        error.response?.data?.message || "Failed to update quiz"
+      );
+    },
+  });
+
+  const deleteQuizMutation = useMutation({
+    mutationFn: (id: number) => deleteQuize(id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["quizzes", schoolId] });
+      messageApi.success("Quiz deleted successfully");
+      setDeleteConfirmVisible(false);
+    },
+    onError: (error: any) => {
+      messageApi.error(
+        error.response?.data?.message || "Failed to delete quiz"
+      );
+    },
+  });
+
+  const onFinish = async (values: QuizFormValues & { school_id: string }) => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      if (editingId) {
+        await updateQuizMutation.mutateAsync({ id: editingId, data: values });
+      } else {
+        await addQuizMutation.mutateAsync(values);
+      }
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleDelete = async () => {
+    if (!quizToDelete) return;
+    await deleteQuizMutation.mutateAsync(Number(quizToDelete));
   };
 
   const editQuiz = (record: EditQuizRecord) => {
@@ -111,25 +146,11 @@ export default function QuizPage() {
     setDeleteConfirmVisible(true);
   };
 
-  const handleDelete = async () => {
-    try {
-      await deleteQuize(Number(quizToDelete));
-      messageApi.success("Quiz deleted successfully");
-      setQuizzes((prev) => prev.filter((quiz) => quiz.id !== quizToDelete));
-    } catch (error) {
-      messageApi.error(
-        error.response?.data?.message || "Failed to delete quiz"
-      );
-    } finally {
-      setDeleteConfirmVisible(false);
-    }
-  };
-
   const handleViewQuiz = (quizId: string) => {
     router.push(`/dashboard/quiz/${quizId}`);
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="p-3 md:p-6 flex justify-center items-center h-64">
         <Spin size="large" />
@@ -184,7 +205,7 @@ export default function QuizPage() {
               </thead>
               <tbody>
                 {quizzes?.length > 0 ? (
-                  quizzes.map((item, idx) => (
+                  quizzes?.map((item, idx) => (
                     <tr
                       key={item.id}
                       className="border-b border-gray-300 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
@@ -197,7 +218,7 @@ export default function QuizPage() {
                           onClick={() => handleViewQuiz(item.id)}
                           className="text-green-600 hover:text-green-800 font-medium hover:underline cursor-pointer"
                         >
-                          {item.name}
+                          {item?.name}
                         </button>
                       </td>
                       <td className="relative p-2 md:p-4 flex justify-center space-x-3">

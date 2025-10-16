@@ -1,14 +1,9 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { AddTeacherModal } from "../modals/teacherModals/AddTeacherModal";
 import { EditTeacherModal } from "../modals/teacherModals/EditTeacherModal";
 import { Spin, Modal, Button, Breadcrumb, message } from "antd";
-import {
-  EditOutlined,
-  DeleteOutlined,
-  PlusOutlined,
-  TeamOutlined,
-} from "@ant-design/icons";
+import { EditOutlined, DeleteOutlined, TeamOutlined } from "@ant-design/icons";
 import Link from "next/link";
 import {
   fetchTeachers,
@@ -19,6 +14,8 @@ import {
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { useRouter } from "next/navigation";
+import { fetchSubjects } from "@/services/subjectsApi";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 type Teacher = {
   id: string;
@@ -37,11 +34,15 @@ type TeacherBasic = {
   role: string;
   subjects: string[];
 };
+interface Subject {
+  id: number;
+  name: string;
+  code: string;
+  description: string;
+}
 
 export default function TeacherList() {
   const router = useRouter();
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editTeacher, setEditTeacher] = useState<TeacherBasic | null>(null);
   const [deleteTeacher, setDeleteTeacher] = useState<Teacher | null>(null);
@@ -53,30 +54,47 @@ export default function TeacherList() {
   const hasAccess = currentUser?.role === "SCHOOL_ADMIN";
   const schoolId = currentUser?.school;
 
-  useEffect(() => {
-    const loadTeachers = async () => {
-      try {
-        setIsLoading(true);
-        const response = await fetchTeachers();
-        const transformedTeachers = response.map((teacher: any) => ({
-          id: teacher.id.toString(),
-          name: teacher.teacher_name,
-          phone: teacher.phone,
-          email: teacher.email,
-          role: teacher.role,
-          subjects: teacher.subjects.split(",").map((s: string) => s.trim()),
-        }));
-        setTeachers(transformedTeachers);
-      } catch (err) {
-        setError("Failed to fetch teachers");
-        console.error(err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const queryClient = useQueryClient();
 
-    loadTeachers();
-  }, []);
+  const {
+    data: teachers = [],
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["teachers"],
+    queryFn: async () => {
+      const response = await fetchTeachers();
+      return response.map((teacher: any) => ({
+        id: teacher.id.toString(),
+        name: teacher.teacher_name,
+        phone: teacher.phone,
+        email: teacher.email,
+        role: teacher.role,
+        subjects: Array.isArray(teacher.subjects)
+          ? teacher.subjects.map((s: any) =>
+              typeof s === "object" ? s.name : s
+            )
+          : [],
+      }));
+    },
+    onError: (err) => {
+      console.error(err);
+      setError("Failed to fetch teachers");
+      messageApi.error("Failed to fetch teachers");
+    },
+  });
+
+  const { data: subjects = [] } = useQuery({
+    queryKey: ["subjects"],
+    queryFn: async () => {
+      const data = await fetchSubjects();
+      return data;
+    },
+    onError: (err) => {
+      console.error(err);
+      messageApi.error("Failed to fetch subjects");
+    },
+  });
 
   const handleSaveEdit = async (
     teacher: TeacherBasic & { password?: string }
@@ -86,58 +104,20 @@ export default function TeacherList() {
         teacher_name: teacher.name,
         phone: teacher.phone,
         email: teacher.email,
-        subjects: teacher.subjects?.join(","),
+        subjects: teacher.subjects,
         role: teacher.role,
         school_id: schoolId,
       };
 
-      if (teacher.password) {
-        payload.password = teacher.password;
-      }
+      if (teacher.password) payload.password = teacher.password;
 
-      const response = await updateTeacher(teacher.id, payload);
+      await updateTeacher(teacher.id, payload);
+      await queryClient.invalidateQueries({ queryKey: ["teachers"] });
 
-      setTeachers(
-        teachers.map((t) =>
-          t.id === teacher.id
-            ? {
-                ...teacher,
-                name: response.data?.teacher_name,
-                phone: response.data?.phone,
-                email: response.data?.email,
-                role: response.data?.role,
-                subjects: response.data?.subjects
-                  .split(",")
-                  .map((s: string) => s.trim()),
-              }
-            : t
-        )
-      );
-      setEditTeacher(null);
       messageApi?.success(`${teacher.role || "Teacher"} updated successfully`);
     } catch (err) {
       console.error("Failed to update teacher:", err);
       messageApi?.error("Failed to update teacher");
-    }
-  };
-
-  const handleDeleteTeacher = async (teacherId: string) => {
-    try {
-      // find the teacher first
-      const teacherToDelete = teachers.find((t) => t.id === teacherId);
-
-      await deleteTeacherApi(Number(teacherId));
-      setTeachers(teachers.filter((teacher) => teacher.id !== teacherId));
-      setIsDeleteModalOpen(false);
-      setDeleteTeacher(null);
-
-      messageApi.success(
-        `${teacherToDelete?.role || "Teacher"} deleted successfully`
-      );
-    } catch (err) {
-      console.error("Failed to delete teacher:", err);
-      setError("Failed to delete teacher");
-      messageApi.error("Failed to delete teacher");
     }
   };
 
@@ -149,27 +129,37 @@ export default function TeacherList() {
         email: teacher.email,
         role: teacher?.role,
         school_id: schoolId,
-        subjects: teacher.subjects?.join(","),
+        subjects: teacher.subjects,
         password: teacher.password,
       });
 
-      const newTeacher = {
-        id: response.data.id.toString(),
-        name: response.data?.teacher_name,
-        phone: response.data?.phone,
-        email: response.data?.email,
-        role: response.data?.role,
-        subjects: response.data?.subjects
-          .split(",")
-          .map((s: string) => s.trim()),
-      };
-
-      setTeachers([...teachers, newTeacher]);
+      await queryClient.invalidateQueries({ queryKey: ["teachers"] });
       setIsAddTeacherModalOpen(false);
       messageApi?.success(`${teacher.role || "Teacher"} added successfully`);
     } catch (err) {
       console.error("Failed to add teacher:", err);
       messageApi?.error("Failed to add teacher");
+    }
+  };
+
+  const handleDeleteTeacher = async (teacherId: string) => {
+    try {
+      // find the teacher first
+      const teacherToDelete = teachers.find((t) => t.id === teacherId);
+
+      await deleteTeacherApi(Number(teacherId));
+      await queryClient.invalidateQueries({ queryKey: ["teachers"] });
+
+      setIsDeleteModalOpen(false);
+      setDeleteTeacher(null);
+
+      messageApi.success(
+        `${teacherToDelete?.role || "Teacher"} deleted successfully`
+      );
+    } catch (err) {
+      console.error("Failed to delete teacher:", err);
+      setError("Failed to delete teacher");
+      messageApi.error("Failed to delete teacher");
     }
   };
 
@@ -252,7 +242,7 @@ export default function TeacherList() {
               </tr>
             </thead>
             <tbody>
-              {teachers?.length > 0 ? (
+              {teachers && teachers.length > 0 ? (
                 teachers?.map((teacher) => (
                   <tr
                     key={teacher.id}
@@ -277,7 +267,10 @@ export default function TeacherList() {
                     <td className="p-2 md:p-4">{teacher.phone || "N/A"}</td>
                     <td className="p-2 md:p-4">{teacher.email || "N/A"}</td>
                     <td className="p-2 md:p-4">
-                      {teacher.subjects?.join(", ") || "N/A"}
+                      {Array.isArray(teacher.subjects) &&
+                      teacher.subjects.length > 0
+                        ? teacher.subjects.join(", ")
+                        : "N/A"}
                     </td>
                     <td className="p-2 md:p-4">{teacher.role || "N/A"}</td>
 
@@ -331,6 +324,7 @@ export default function TeacherList() {
         onOpenChange={setIsAddTeacherModalOpen}
         onAddTeacher={handleAddNewTeacher}
         isHOD={isHOD}
+        subjects={subjects}
       />
 
       {/* Edit Teacher Modal */}
@@ -341,6 +335,7 @@ export default function TeacherList() {
           onOpenChange={(open) => !open && setEditTeacher(null)}
           onSave={handleSaveEdit}
           isHOD={isHOD}
+          subjects={subjects}
         />
       )}
 

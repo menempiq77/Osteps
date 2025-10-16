@@ -1,10 +1,10 @@
-"use client";
-import { Modal, Form, Input, Button, message, Select } from "antd";
+import { Modal, Form, Input, Button, message, Select, Checkbox } from "antd";
 import { useEffect, useState } from "react";
 
-const subjectOptions = [{ label: "Islamiyat", value: "Islamiyat" }];
-
-type Subject = (typeof subjectOptions)[number]["value"];
+interface Subject {
+  id: number;
+  name: string;
+}
 
 type TeacherBasic = {
   id: string;
@@ -12,7 +12,8 @@ type TeacherBasic = {
   phone: string;
   email: string;
   role: string;
-  subjects: Subject[];
+  subjects: number[];
+  password?: string;
 };
 
 export const EditTeacherModal = ({
@@ -20,15 +21,23 @@ export const EditTeacherModal = ({
   isOpen,
   onOpenChange,
   onSave,
-  isHOD
+  isHOD,
+  subjects,
 }: {
   teacher: TeacherBasic | null;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (teacher: TeacherBasic) => void;
+  isHOD?: boolean;
+  subjects: Subject[];
 }) => {
   const [form] = Form.useForm();
   const [confirmLoading, setConfirmLoading] = useState(false);
+
+  const subjectOptions = subjects.map((subj) => ({
+    label: subj.name,
+    value: subj.id,
+  }));
 
   useEffect(() => {
     if (teacher) {
@@ -52,14 +61,13 @@ export const EditTeacherModal = ({
       setConfirmLoading(true);
       const values = await form.validateFields();
 
-      const subjects = [...(values.subjects || []), "Islamiyat"];
       onSave({
         ...teacher,
         name: values.name.trim(),
         phone: values.phone?.trim() || "",
         email: values.email.trim(),
         role: values.role.trim(),
-        subjects: subjects,
+        subjects: values.subjects || [],
         password: values.password,
       });
       message.success("Teacher updated successfully");
@@ -101,7 +109,7 @@ export const EditTeacherModal = ({
       ]}
     >
       <Form form={form} layout="vertical">
-          {!isHOD && (
+        {!isHOD && (
           <Form.Item name="role" label="Role" rules={[{ required: true }]}>
             <Select>
               <Select.Option value="TEACHER">Teacher</Select.Option>
@@ -109,60 +117,24 @@ export const EditTeacherModal = ({
             </Select>
           </Form.Item>
         )}
-
-        {/* If HOD, inject hidden field */}
         {isHOD && (
           <Form.Item name="role" initialValue="TEACHER" hidden>
             <Input type="hidden" />
           </Form.Item>
         )}
-        <Form.Item
-          name="name"
-          label="Name"
-          rules={[
-            { required: true, message: "Please input the teacher name!" },
-            { whitespace: true, message: "Name cannot be just whitespace" },
-          ]}
-        >
+
+        <Form.Item name="name" label="Name" rules={[{ required: true }]}>
           <Input placeholder="Enter teacher name" />
         </Form.Item>
 
-        <Form.Item
-          name="phone"
-          label="Phone"
-          rules={[
-            {
-              required: true,
-              message: "Phone number is required",
-            },
-            {
-              pattern: /^[0-9+\- ]*$/,
-              message: "Please enter a valid phone number",
-            },
-            {
-              validator: (_, value) => {
-                if (!value) return Promise.resolve();
-                const digits = value.replace(/\D/g, "");
-                if (digits.length < 6 || digits.length > 12) {
-                  return Promise.reject(
-                    new Error("Phone number must be between 6 and 12 digits")
-                  );
-                }
-                return Promise.resolve();
-              },
-            },
-          ]}
-        >
+        <Form.Item name="phone" label="Phone" rules={[{ required: true }]}>
           <Input placeholder="Enter phone number" />
         </Form.Item>
 
         <Form.Item
           name="email"
           label="Email"
-          rules={[
-            { required: true, message: "Please input the email!" },
-            { type: "email", message: "Please enter a valid email" },
-          ]}
+          rules={[{ required: true }, { type: "email" }]}
         >
           <Input placeholder="Enter email" />
         </Form.Item>
@@ -170,17 +142,14 @@ export const EditTeacherModal = ({
         <Form.Item
           name="password"
           label="Password"
-          rules={[
-            { required: true, message: "Please input a password!" },
-            { min: 6, message: "Password must be at least 6 characters" },
-          ]}
+          rules={[{ min: 6, message: "Password must be at least 6 characters" }]}
         >
-          <Input.Password placeholder="Enter password" />
+          <Input.Password placeholder="Enter password (optional)" />
         </Form.Item>
 
-        {/* <Form.Item name="subjects" label="Subjects">
+        <Form.Item name="subjects" label="Subjects">
           <Checkbox.Group options={subjectOptions} />
-        </Form.Item> */}
+        </Form.Item>
       </Form>
     </Modal>
   );

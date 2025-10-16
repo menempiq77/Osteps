@@ -33,7 +33,7 @@ export default function SubjectsList({
             <tr className="bg-primary text-center text-xs md:text-sm font-thin text-white">
               <th className="p-2 border-r border-gray-300">S. No.</th>
               <th className="p-2 border-r border-gray-300">Subject Name</th>
-              <th className="p-2">Actions</th>
+              {/* <th className="p-2">Actions</th> */}
             </tr>
           </thead>
           <tbody>
@@ -56,7 +56,7 @@ export default function SubjectsList({
                   >
                     {subject.name}
                   </td>
-                  <td className="p-2 md:p-4 flex justify-center space-x-3">
+                  {/* <td className="p-2 md:p-4 flex justify-center space-x-3">
                     <button
                       onClick={() => onEditSubject(subject)}
                       className="text-green-500 hover:text-green-700"
@@ -71,7 +71,7 @@ export default function SubjectsList({
                     >
                       <DeleteOutlined />
                     </button>
-                  </td>
+                  </td> */}
                 </tr>
               ))
             ) : (
