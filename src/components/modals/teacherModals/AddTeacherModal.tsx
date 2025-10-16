@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { Modal, Form, Input, Button, message, Select } from "antd";
+import { Modal, Form, Input, Button, message, Select, Checkbox } from "antd";
 
-const subjectOptions = [{ label: "Islamiyat", value: "Islamiyat" }];
-
-type Subject = (typeof subjectOptions)[number]["value"];
+interface Subject {
+  id: number;
+  name: string;
+  code?: string;
+}
 
 interface AddTeacherModalProps {
   isOpen?: boolean;
@@ -12,10 +14,13 @@ interface AddTeacherModalProps {
     name: string;
     phone: string;
     email: string;
-    subjects: Subject[];
+    subjects: number[];
     role: "TEACHER" | "HOD";
+    password: string;
   }) => void;
   onClose?: () => void;
+  isHOD?: boolean;
+  subjects: Subject[];
 }
 
 export const AddTeacherModal = ({
@@ -23,7 +28,8 @@ export const AddTeacherModal = ({
   onOpenChange,
   onAddTeacher,
   onClose,
-  isHOD
+  isHOD,
+  subjects,
 }: AddTeacherModalProps) => {
   const [form] = Form.useForm();
   const [confirmLoading, setConfirmLoading] = useState(false);
@@ -33,13 +39,11 @@ export const AddTeacherModal = ({
       setConfirmLoading(true);
       const values = await form.validateFields();
 
-      const subjects = [...(values.subjects || []), "Islamiyat"];
-
       onAddTeacher({
         name: values.name.trim(),
         phone: values.phone?.trim() || "",
         email: values.email.trim(),
-        subjects: subjects,
+        subjects: values.subjects || [],
         role: values.role,
         password: values.password,
       });
@@ -57,6 +61,11 @@ export const AddTeacherModal = ({
     onClose?.();
     onOpenChange?.(false);
   };
+
+  const subjectOptions = subjects.map((subj) => ({
+    label: subj.name,
+    value: subj.id,
+  }));
 
   return (
     <Modal
@@ -90,7 +99,6 @@ export const AddTeacherModal = ({
           </Form.Item>
         )}
 
-        {/* If HOD, inject hidden field */}
         {isHOD && (
           <Form.Item name="role" initialValue="TEACHER" hidden>
             <Input type="hidden" />
@@ -102,7 +110,6 @@ export const AddTeacherModal = ({
           label="Name"
           rules={[
             { required: true, message: "Please input the teacher name!" },
-            { whitespace: true, message: "Name cannot be just whitespace" },
           ]}
         >
           <Input placeholder="Enter teacher name" />
@@ -123,26 +130,8 @@ export const AddTeacherModal = ({
           name="phone"
           label="Phone"
           rules={[
-            {
-              required: true,
-              message: "Phone number is required",
-            },
-            {
-              pattern: /^[0-9+\- ]*$/,
-              message: "Please enter a valid phone number",
-            },
-            {
-              validator: (_, value) => {
-                if (!value) return Promise.resolve();
-                const digits = value.replace(/\D/g, "");
-                if (digits.length < 6 || digits.length > 12) {
-                  return Promise.reject(
-                    new Error("Phone number must be between 6 and 12 digits")
-                  );
-                }
-                return Promise.resolve();
-              },
-            },
+            { required: true, message: "Phone number is required" },
+            { pattern: /^[0-9+\- ]*$/, message: "Please enter a valid phone" },
           ]}
         >
           <Input placeholder="Enter phone number" />
@@ -159,9 +148,9 @@ export const AddTeacherModal = ({
           <Input.Password placeholder="Enter password" />
         </Form.Item>
 
-        {/* <Form.Item name="subjects" label="Subjects">
+        <Form.Item name="subjects" label="Subjects">
           <Checkbox.Group options={subjectOptions} />
-        </Form.Item> */}
+        </Form.Item>
       </Form>
     </Modal>
   );

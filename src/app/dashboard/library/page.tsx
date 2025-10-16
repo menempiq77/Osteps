@@ -42,6 +42,7 @@ import {
   fetchResources,
   updateLibrary,
 } from "@/services/libraryApi";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 const { useBreakpoint } = Grid;
 
 type LibraryItem = {
@@ -74,11 +75,10 @@ export default function LibraryPage() {
   const isMobile = useMediaQuery("(max-width: 768px)");
   const [categories, setCategories] = useState<any[]>([]);
   const [resources, setResources] = useState<any[]>([]);
-  const [libraryItems, setLibraryItems] = useState<any[]>([]);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [messageApi, contextHolder] = message.useMessage();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -86,7 +86,6 @@ export default function LibraryPage() {
         const data = await fetchCategories();
         setCategories(data);
       } catch (err) {
-        setError("Failed to fetch categories");
         console.error(err);
       } finally {
         setLoading(false);
@@ -102,7 +101,6 @@ export default function LibraryPage() {
         const data = await fetchResources();
         setResources(data);
       } catch (err) {
-        setError("Failed to fetch categories");
         console.error(err);
       } finally {
         setLoading(false);
@@ -112,21 +110,21 @@ export default function LibraryPage() {
     loadResources();
   }, []);
 
-  useEffect(() => {
-    const loadLibrary = async () => {
-      try {
-        const data = await fetchLibrary();
-        setLibraryItems(data);
-      } catch (err) {
-        setError("Failed to fetch Library Items");
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadLibrary();
-  }, []);
+  const {
+    data: libraryItems = [],
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["libraryItems"],
+    queryFn: async () => {
+      const data = await fetchLibrary();
+      return data;
+    },
+    onError: (err: any) => {
+      console.error(err);
+      messageApi.error("Failed to fetch Library Items");
+    },
+  });
 
   const canUpload =
     currentUser?.role === "SCHOOL_ADMIN" ||
@@ -180,15 +178,14 @@ export default function LibraryPage() {
 
       if (isEditing && currentItem) {
         await updateLibrary(currentItem.id, formData);
-        messageApi.success("Resource updated successfully!");
+        messageApi.success(isTeacher ? "Resource updated successfully and sent for approval" : "Resource updated successfully!");
       } else {
         await addLibrary(formData);
-        messageApi.success("Resource uploaded successfully!");
+        messageApi.success(isTeacher ? "Resource added successfully and sent for approval" : "Resource added successfully!");
       }
 
       // Refresh the library items
-      const data = await fetchLibrary();
-      setLibraryItems(data);
+      await queryClient.invalidateQueries({ queryKey: ["libraryItems"] });
 
       setIsUploadModalOpen(false);
       form.resetFields();
@@ -212,35 +209,15 @@ export default function LibraryPage() {
     try {
       const item = libraryItems.find((i) => i.id === itemToDelete);
       await deleteLibrary(itemToDelete, item?.file_path);
-      setLibraryItems((prev) => prev?.filter((i) => i.id !== itemToDelete));
       messageApi.success("Deleted successfully");
+      await queryClient.invalidateQueries({ queryKey: ["libraryItems"] });
+
     } catch (error) {
       messageApi.error("Delete failed");
     } finally {
       setDeleteModalVisible(false);
       setItemToDelete(null);
     }
-  };
-
-  const handleView = (item: any) => {
-    if (getResourceName(item.library_resources_id).toLowerCase() === "pdf") {
-      window.open(item.file_path, "_blank");
-      return;
-    }
-
-    setCurrentItem({
-      ...item,
-      type: getResourceName(item.library_resources_id).toLowerCase(),
-      url: item.file_path,
-      uploadedBy: item.uploaded_by || "Unknown",
-      uploadDate: new Date(item.updated_at).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      }),
-      size: item.size || "N/A",
-    });
-    setIsViewModalOpen(true);
   };
 
   const handleEdit = (item: LibraryItem) => {
@@ -266,6 +243,27 @@ export default function LibraryPage() {
           ]
         : []
     );
+  };
+
+  const handleView = (item: any) => {
+    if (getResourceName(item.library_resources_id).toLowerCase() === "pdf") {
+      window.open(item.file_path, "_blank");
+      return;
+    }
+
+    setCurrentItem({
+      ...item,
+      type: getResourceName(item.library_resources_id).toLowerCase(),
+      url: item.file_path,
+      uploadedBy: item.uploaded_by || "Unknown",
+      uploadDate: new Date(item.updated_at).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      }),
+      size: item.size || "N/A",
+    });
+    setIsViewModalOpen(true);
   };
 
   const openUploadModal = () => {
@@ -322,7 +320,7 @@ export default function LibraryPage() {
     return typeMatch && categoryMatch;
   });
 
-  if (loading)
+  if (isLoading)
     return (
       <div className="p-3 md:p-6 flex justify-center items-center h-64">
         <Spin size="large" />
@@ -462,18 +460,18 @@ export default function LibraryPage() {
                     </div>
                     {canUpload && (
                       <div className="flex gap-2">
-                          <Button
-                            shape="circle"
-                            size="small"
-                            icon={<DeleteOutlined className="text-xs" />}
-                            danger
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setItemToDelete(item.id);
-                              setDeleteModalVisible(true);
-                            }}
-                            className="shadow-sm bg-white hover:bg-red-50 border-none"
-                          />
+                        <Button
+                          shape="circle"
+                          size="small"
+                          icon={<DeleteOutlined className="text-xs" />}
+                          danger
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setItemToDelete(item.id);
+                            setDeleteModalVisible(true);
+                          }}
+                          className="shadow-sm bg-white hover:bg-red-50 border-none"
+                        />
                         <Button
                           shape="circle"
                           size="small"

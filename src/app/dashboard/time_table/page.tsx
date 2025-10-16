@@ -14,14 +14,8 @@ import {
 import {
   Modal,
   Form,
-  Input,
-  Button,
   Select,
-  DatePicker,
-  TimePicker,
   message,
-  Row,
-  Col,
   Breadcrumb,
   Spin,
 } from "antd";
@@ -34,6 +28,7 @@ import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
 import { fetchClasses } from "@/services/classesApi";
 import { fetchTeachers } from "@/services/teacherApi";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import TimetableModal from "@/components/dashboard/TimetableModal";
 
 const { Option } = Select;
 
@@ -42,20 +37,15 @@ function Timetable() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [form] = Form.useForm();
   const queryClient = useQueryClient();
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
   const [eventToDelete, setEventToDelete] = useState<any>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [currentEventId, setCurrentEventId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const isStudent = currentUser?.role === "STUDENT";
   const isTeacher = currentUser?.role === "TEACHER";
-  const [years, setYears] = useState<any[]>([]);
-  const [classes, setClasses] = useState([]);
   const [teachers, setTeachers] = useState<any[]>([]);
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
-  const [selectedYearId, setSelectedYearId] = useState<string | null>(null);
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [selectedTeacher, setSelectedTeacher] = useState("");
   const [messageApi, contextHolder] = message.useMessage();
@@ -63,11 +53,15 @@ function Timetable() {
   const { data: events = [], isLoading: isTimetableLoading } = useQuery({
     queryKey: ["timetable"],
     queryFn: fetchTimetableData,
-    select: (data) =>
-      Object.values(data).map((item: any) => ({
+    select: (res) =>
+      res?.map((item: any) => ({
         title: item.subject,
-        start: `${item.date}T${item.start_time_formatted}`,
-        end: `${item.date}T${item.end_time_formatted}`,
+        start: `${item.date}T${dayjs(item.start_time, "HH:mm:ss").format(
+          "HH:mm:ss"
+        )}`,
+        end: `${item.date}T${dayjs(item.end_time, "HH:mm:ss").format(
+          "HH:mm:ss"
+        )}`,
         extendedProps: {
           id: item.id,
           teacher: item?.teacher?.teacher_name || "N/A",
@@ -77,31 +71,36 @@ function Timetable() {
           year_id: item?.year_id || null,
           class_id: item?.class_id || null,
         },
-      })),
+      })) || [],
   });
+
   const schoolId = currentUser?.school;
 
   const filteredEvents = useMemo(() => {
     return events.filter((event) => {
       const eventProps = event.extendedProps;
 
-      if (!selectedYear && !selectedClass && !selectedTeacher) {
-        return true;
-      }
+      if (!selectedYear && !selectedClass && !selectedTeacher) return true;
 
-      const yearMatch = !selectedYear || eventProps.year_id === selectedYear;
+      const yearMatch =
+        !selectedYear || eventProps.year_id === Number(selectedYear);
       const classMatch =
-        !selectedClass || eventProps.class_id === selectedClass;
+        !selectedClass || eventProps.class_id === Number(selectedClass);
       const teacherMatch =
-        !selectedTeacher || eventProps.teacher_id === selectedTeacher;
+        !selectedTeacher || eventProps.teacher_id === Number(selectedTeacher);
 
       return yearMatch && classMatch && teacherMatch;
     });
   }, [events, selectedYear, selectedClass, selectedTeacher]);
 
-  const loadYears = async () => {
-    try {
-      setLoading(true);
+  // Fetch years
+  const {
+    data: yearsData = [],
+    isLoading: isYearsLoading,
+    isError: isYearsError,
+  } = useQuery({
+    queryKey: ["years", currentUser?.id],
+    queryFn: async () => {
       let yearsData: any[] = [];
 
       if (isTeacher) {
@@ -117,64 +116,61 @@ function Timetable() {
         const res = await fetchYearsBySchool(schoolId);
         yearsData = res;
       }
-      setYears(yearsData);
-      if (yearsData.length > 0) {
-        setSelectedYear(yearsData[0].id.toString()); 
+
+      return yearsData;
+    },
+    onSuccess: (data) => {
+      if (data.length > 0) {
+        setSelectedYear(data[0].id.toString());
       }
-    } catch (err) {
-      setError("Failed to load years");
+    },
+    onError: (err) => {
       console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-  useEffect(() => {
-    loadYears();
-  }, []);
+    },
+  });
 
-const loadClasses = async (yearId: number) => {
-  try {
-    setLoading(true);
-    let classesData: any[] = [];
+  // Fetch classes (depends on selectedYear)
+  const {
+    data: classesData = [],
+    isLoading: isClassesLoading,
+    isError: isClassesError,
+  } = useQuery({
+    queryKey: ["classes", selectedYear, currentUser?.id],
+    enabled: !!selectedYear,
+    queryFn: async () => {
+      let classesData: any[] = [];
 
-    if (isTeacher) {
-      const res = await fetchAssignYears();
+      if (isTeacher) {
+        const res = await fetchAssignYears();
 
-      // Extract unique classes
-      classesData = res
-        .map((item: any) => item.classes)
-        .filter((cls: any) => cls);
+        // Extract unique classes
+        classesData = res
+          .map((item: any) => item.classes)
+          .filter((cls: any) => cls);
 
-      classesData = Array.from(
-        new Map(classesData.map((cls: any) => [cls.id, cls])).values()
-      );
+        classesData = Array.from(
+          new Map(classesData.map((cls: any) => [cls.id, cls])).values()
+        );
 
-      // Filter by yearId
-      classesData = classesData.filter(
-        (cls: any) => cls.year_id === Number(yearId)
-      );
-    } else {
-      classesData = await fetchClasses(yearId);
-    }
+        // Filter by selected year
+        classesData = classesData.filter(
+          (cls: any) => cls.year_id === Number(selectedYear)
+        );
+      } else {
+        classesData = await fetchClasses(Number(selectedYear));
+      }
 
-    setClasses(classesData);
-
-    if (classesData.length > 0) {
-      setSelectedClass(classesData[0].id.toString());
-    }
-  } catch (err) {
-    setError("Failed to fetch classes");
-    console.error(err);
-  } finally {
-    setLoading(false);
-  }
-};
-
-useEffect(() => {
-  if (selectedYear) {
-    loadClasses(selectedYear);
-  }
-}, [selectedYear]);
+      return classesData;
+    },
+    onSuccess: (data) => {
+      if (data.length > 0) {
+        setSelectedClass(data[0].id.toString());
+      }
+    },
+    onError: (err) => {
+      console.error(err);
+    },
+  });
 
   const loadTeachers = async () => {
     try {
@@ -185,7 +181,6 @@ useEffect(() => {
         setSelectedTeacher(response[0].id);
       }
     } catch (err) {
-      setError("Failed to fetch teachers");
       console.error(err);
     } finally {
       setLoading(false);
@@ -195,7 +190,6 @@ useEffect(() => {
   useEffect(() => {
     loadTeachers();
   }, []);
-
 
   const addMutation = useMutation({
     mutationFn: addTimetableSlot,
@@ -247,7 +241,6 @@ useEffect(() => {
     setSelectedTeacher(value);
   };
   const handleDateSelect = (selectInfo: any) => {
-    setSelectedDate(selectInfo.startStr.split("T")[0]);
     form.setFieldsValue({
       date: dayjs(selectInfo.startStr.split("T")[0]),
       start_time: dayjs(selectInfo.startStr.split("T")[1], "HH:mm:ss"),
@@ -382,7 +375,7 @@ useEffect(() => {
     });
   };
 
-  if (loading) {
+  if (isTimetableLoading) {
     return (
       <div className="p-3 md:p-6 flex justify-center items-center h-64">
         <Spin size="large" />
@@ -424,7 +417,7 @@ useEffect(() => {
                 placeholder="All Years"
                 allowClear
               >
-                {years?.map((year) => (
+                {yearsData?.map((year) => (
                   <Option key={year.id} value={year.id.toString()}>
                     {year.name}
                   </Option>
@@ -443,7 +436,7 @@ useEffect(() => {
                 placeholder="All Classes"
                 allowClear
               >
-                {classes?.map((cls) => (
+                {classesData?.map((cls) => (
                   <Option key={cls.id} value={cls.id.toString()}>
                     {cls.class_name}
                   </Option>
@@ -508,139 +501,23 @@ useEffect(() => {
       />
 
       {!isStudent && (
-        <Modal
-          title={isEditMode ? "Edit Timetable Slot" : "Add New Timetable Slot"}
-          open={isModalVisible}
-          onOk={handleAddEvent}
+        <TimetableModal
+          isModalVisible={isModalVisible}
+          isEditMode={isEditMode}
           onCancel={() => {
             setIsModalVisible(false);
             form.resetFields();
             setIsEditMode(false);
             setCurrentEventId(null);
           }}
-          footer={[
-            <Button
-              key="back"
-              onClick={() => {
-                setIsModalVisible(false);
-                form.resetFields();
-                setIsEditMode(false);
-                setCurrentEventId(null);
-              }}
-            >
-              Cancel
-            </Button>,
-            <Button
-              key="submit"
-              type="primary"
-              onClick={handleAddEvent}
-              className="!bg-primary hover:!bg-primary/90 !text-white"
-            >
-              {isEditMode ? "Update" : "Add"} Event
-            </Button>,
-          ]}
-          width={800}
-        >
-          <Form form={form} layout="vertical">
-            <Row gutter={16}>
-              <Col xs={24} md={12}>
-                <Form.Item
-                  name="subject"
-                  label="Subject"
-                  rules={[{ required: true }]}
-                >
-                  <Input placeholder="Subject" />
-                </Form.Item>
-
-                <Form.Item
-                  name="year"
-                  label="Year"
-                  rules={[{ required: true }]}
-                >
-                  <Select placeholder="Select year">
-                    {years?.map((year) => (
-                      <Option key={year.id} value={year.id}>
-                        {year.name}
-                      </Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-
-                <Form.Item
-                  name="class"
-                  label="Class"
-                  rules={[{ required: true }]}
-                >
-                  <Select placeholder="Select class">
-                    {classes?.map((cls) => (
-                      <Option key={cls.id} value={cls.id}>
-                        {cls.class_name}
-                      </Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-
-                {!isTeacher && (
-                  <Form.Item
-                    name="teacher"
-                    label="Teacher"
-                    rules={[{ required: true }]}
-                  >
-                    <Select placeholder="Select teacher">
-                      {teachers?.map((teacher) => (
-                        <Option key={teacher.id} value={teacher.id}>
-                          {teacher.teacher_name}
-                        </Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
-                )}
-
-                <Form.Item
-                  name="zoom_link"
-                  label="Zoom Link"
-                  rules={[{ type: "url" }]}
-                >
-                  <Input placeholder="Zoom meeting link (optional)" />
-                </Form.Item>
-              </Col>
-
-              <Col xs={24} md={12}>
-                <Form.Item
-                  name="room"
-                  label="Room"
-                  rules={[{ required: true }]}
-                >
-                  <Input placeholder="Room" />
-                </Form.Item>
-
-                <Form.Item
-                  name="date"
-                  label="Date"
-                  rules={[{ required: true }]}
-                >
-                  <DatePicker style={{ width: "100%" }} />
-                </Form.Item>
-
-                <Form.Item
-                  name="start_time"
-                  label="Start Time"
-                  rules={[{ required: true }]}
-                >
-                  <TimePicker format="HH:mm" style={{ width: "100%" }} />
-                </Form.Item>
-
-                <Form.Item
-                  name="end_time"
-                  label="End Time"
-                  rules={[{ required: true }]}
-                >
-                  <TimePicker format="HH:mm" style={{ width: "100%" }} />
-                </Form.Item>
-              </Col>
-            </Row>
-          </Form>
-        </Modal>
+          onSubmit={handleAddEvent}
+          form={form}
+          yearsData={yearsData}
+          classesData={classesData}
+          teachers={teachers}
+          isTeacher={isTeacher}
+          handleYearChange={handleYearChange}
+        />
       )}
 
       <Modal
