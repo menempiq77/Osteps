@@ -1,4 +1,3 @@
-
 "use client";
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -16,23 +15,16 @@ import {
 } from "lucide-react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { Button, Input, InputNumber, Select, Spin, message } from "antd";
+import { Breadcrumb, Button, Input, InputNumber, Select, Spin, message } from "antd";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import {
   fetchTrackerTopics,
   addTrackerTopic,
   updateTrackerTopic,
   deleteTrackerTopic,
-  updateTopicStatus,
-  fetchTrackerStudentTopics,
 } from "@/services/api";
 import { assignTrackerQuiz, fetchQuizes } from "@/services/quizApi";
-
-interface Status {
-  id: number;
-  name: string;
-  is_completed: boolean;
-}
+import Link from "next/link";
 
 interface Topic {
   id: number;
@@ -67,7 +59,7 @@ interface Quiz {
 }
 
 export default function TrackerTopicsPage() {
-  const { trackerId, classId } = useParams();
+  const { trackerId } = useParams();
   const router = useRouter();
   const [trackerData, setTrackerData] = useState<TrackerData | null>(null);
   const [topics, setTopics] = useState<Topic[]>([]);
@@ -83,16 +75,14 @@ export default function TrackerTopicsPage() {
   const [selectedQuiz, setSelectedQuiz] = useState<string>("");
 
   const canUpload =
-    currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "HOD" || currentUser?.role === "TEACHER";
+    currentUser?.role === "SCHOOL_ADMIN" ||
+    currentUser?.role === "HOD" ||
+    currentUser?.role === "TEACHER";
   const isStudent = currentUser?.role === "STUDENT";
   const schoolId = currentUser?.school;
 
   useEffect(() => {
-    if (isStudent) {
-      loadStudentTrackerData();
-    } else {
-      loadTrackerData();
-    }
+    loadTrackerData();
     loadQuizzes(schoolId);
   }, [trackerId]);
 
@@ -109,31 +99,6 @@ export default function TrackerTopicsPage() {
       setLoading(false);
     }
   };
-
-  const loadStudentTrackerData = async () => {
-    try {
-      setLoading(true);
-      const response = await fetchTrackerStudentTopics(
-        currentUser?.student,
-        Number(trackerId)
-      );
-
-      let trackerData;
-      if (Array.isArray(response)) {
-        trackerData = response[0] || { topics: [] };
-      } else {
-        trackerData = response || { topics: [] };
-      }
-
-      setTrackerData(trackerData);
-      setTopics(trackerData.topics || []);
-    } catch (error) {
-      console.error("Failed to load tracker data", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-  console.log(trackerData, "trackerData");
 
   const loadQuizzes = async (schoolId: string) => {
     try {
@@ -153,36 +118,6 @@ export default function TrackerTopicsPage() {
       value: quiz.id,
       label: quiz.name || `Quiz ${quiz.id}`,
     }));
-  };
-
-  const handleStatusChange = async (
-    topicId: number,
-    statusId: number,
-    currentStatus: number
-  ) => {
-    try {
-      const newStatus = currentStatus === 0 ? 1 : 0;
-      await updateTopicStatus(topicId, statusId, newStatus === 1);
-
-      setTopics((prev) =>
-        prev.map((topic) => {
-          if (topic.id === topicId) {
-            return {
-              ...topic,
-              status_progress: topic.status_progress.map((sp) =>
-                sp.status_id === statusId
-                  ? { ...sp, is_completed: newStatus }
-                  : sp
-              ),
-            };
-          }
-          return topic;
-        })
-      );
-    } catch (error) {
-      console.error("Failed to update status", error);
-      message.error("Failed to update status");
-    }
   };
 
   const startEditing = (topicId: number) => {
@@ -301,16 +236,21 @@ export default function TrackerTopicsPage() {
     );
 
   return (
-    <div className="p-4 md:p-8 max-w-7xl mx-auto min-h-screen">
-      <div className="flex flex-col md:flex-row justify-between items-center mb-8">
-        <Button
-          onClick={() => router.back()}
-          className="flex items-center gap-2 text-gray-600 hover:!border-green-500 hover:!text-green-500"
-        >
-          <ArrowLeft size={18} />
-          Back to Trackers
-        </Button>
-      </div>
+    <div className="p-3 md:p-6 max-w-7xl mx-auto min-h-screen">
+     <Breadcrumb
+        items={[
+          {
+            title: <Link href="/dashboard">Dashboard</Link>,
+          },
+          {
+            title: <Link href="/dashboard/all_trackers">All Trackers</Link>,
+          },
+           {
+            title: <span>All Trackers</span>,
+          },
+        ]}
+        className="!mb-6"
+      />
 
       <div className="bg-white rounded-md shadow-sm border border-gray-200 overflow-hidden">
         <div className="p-6 border-b border-gray-200 flex justify-between items-center">
@@ -447,7 +387,7 @@ export default function TrackerTopicsPage() {
                         </th>
                       ))}
                       <th className="p-4 text-center text-sm font-medium text-gray-500 uppercase tracking-wider">
-                        {isStudent ? "Marks" : "Action"}
+                        Action
                       </th>
                     </tr>
                   </thead>
@@ -478,16 +418,18 @@ export default function TrackerTopicsPage() {
                             }
                           >
                             <td className="p-4 whitespace-nowrap border-r border-gray-200">
-                              <div className="flex items-center"> 
-                                  <div
-                                    {...provided.dragHandleProps}
-                                    className={`mr-2 cursor-move ${!canUpload ? "hidden" : "block"}`}
-                                  >
-                                    <GripVertical
-                                      size={16}
-                                      className="text-gray-400"
-                                    />
-                                  </div>
+                              <div className="flex items-center">
+                                <div
+                                  {...provided.dragHandleProps}
+                                  className={`mr-2 cursor-move ${
+                                    !canUpload ? "hidden" : "block"
+                                  }`}
+                                >
+                                  <GripVertical
+                                    size={16}
+                                    className="text-gray-400"
+                                  />
+                                </div>
 
                                 {editingTopic === topic?.id ? (
                                   <div className="flex flex-col gap-1 w-full">
@@ -525,11 +467,6 @@ export default function TrackerTopicsPage() {
                               </div>
                             </td>
                             {statusTypes?.map((statusName, index) => {
-                              const statusProgress =
-                                topic?.status_progress?.find(
-                                  (sp) => sp.status.name === statusName
-                                );
-
                               return (
                                 <td
                                   key={index}
@@ -539,105 +476,57 @@ export default function TrackerTopicsPage() {
                                     <input
                                       type="checkbox"
                                       disabled={!isStudent}
-                                      checked={
-                                        statusProgress?.is_completed === 1
-                                      }
-                                      onChange={(e) => {
-                                        if (statusProgress) {
-                                          handleStatusChange(
-                                            topic.id,
-                                            statusProgress.status_id,
-                                            statusProgress.is_completed
-                                          );
-                                        }
-                                      }}
-                                      className={`
-                                                  h-5 w-5 !appearance-none rounded border border-gray-300 
-                                                  checked:!bg-primary checked:border-transparent 
-                                                  focus:ring-2 focus:ring-primary 
-                                                  transition duration-150 cursor-pointer 
-                                                  disabled:cursor-not-allowed disabled:opacity-50
-                                                  relative
-                                                  checked:after:content-['✔'] 
-                                                  checked:after:absolute 
-                                                  checked:after:text-white 
-                                                  checked:after:text-sm 
-                                                  checked:after:font-bold 
-                                                  checked:after:left-1/2 
-                                                  checked:after:top-1/2 
-                                                  checked:after:-translate-x-1/2 
-                                                  checked:after:-translate-y-1/2
-                                                `}
+                                      className="h-5 w-5 !appearance-none rounded border border-gray-300 relative"
                                     />
                                   )}
                                 </td>
                               );
                             })}
                             <td className="p-4 whitespace-nowrap text-center">
-                              {canUpload && (
-                                <>
-                                  {editingTopic === topic?.id ? (
-                                    <div className="flex justify-center gap-2">
-                                      <Button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          saveEdit();
-                                        }}
-                                        className="text-green-600 hover:text-green-800"
-                                      >
-                                        <Save size={16} />
-                                      </Button>
-                                      <Button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          cancelEdit();
-                                        }}
-                                        className="text-red-600 hover:text-red-800"
-                                      >
-                                        <X size={16} />
-                                      </Button>
-                                    </div>
-                                  ) : (
-                                    <div className="flex justify-center gap-2">
-                                      <Button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          startEditing(topic.id);
-                                        }}
-                                        disabled={topic?.type === "quiz"}
-                                        className="text-blue-600 hover:text-blue-800"
-                                      >
-                                        <Edit size={16} />
-                                      </Button>
-                                      <Button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          deleteTopic(topic.id);
-                                        }}
-                                        className="text-red-600 hover:text-red-800"
-                                      >
-                                        <Trash2 size={16} />
-                                      </Button>
-                                    </div>
-                                  )}
-                                </>
+                              {editingTopic === topic?.id ? (
+                                <div className="flex justify-center gap-2">
+                                  <Button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      saveEdit();
+                                    }}
+                                    className="text-green-600 hover:text-green-800"
+                                  >
+                                    <Save size={16} />
+                                  </Button>
+                                  <Button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      cancelEdit();
+                                    }}
+                                    className="text-red-600 hover:text-red-800"
+                                  >
+                                    <X size={16} />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <div className="flex justify-center gap-2">
+                                  <Button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      startEditing(topic.id);
+                                    }}
+                                    disabled={topic?.type === "quiz"}
+                                    className="text-blue-600 hover:text-blue-800"
+                                  >
+                                    <Edit size={16} />
+                                  </Button>
+                                  <Button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      deleteTopic(topic.id);
+                                    }}
+                                    className="text-red-600 hover:text-red-800"
+                                  >
+                                    <Trash2 size={16} />
+                                  </Button>
+                                </div>
                               )}
-                              {isStudent && (
-                                  <span className="text-primary">
-                                    {topic.type === "quiz"
-                                      ? (
-                                          topic.quiz?.submissions?.find(
-                                            (s) => s.student_id === currentUser?.student
-                                          )?.obtained_marks || "0"
-                                        )
-                                      : (
-                                          topic.topic_mark?.find(
-                                            (m) => m.student_id === currentUser?.student
-                                          )?.marks || "0"
-                                        )}
-                                    / {topic?.marks || topic?.quiz?.total_marks || "0"}
-                                  </span>
-                                )}
                             </td>
                           </tr>
                         )}

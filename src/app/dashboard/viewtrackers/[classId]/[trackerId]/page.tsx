@@ -337,7 +337,7 @@ export default function ViewTrackerTopicPage() {
                                     {topic.type === "quiz"
                                       ? (
                                           topic.quiz?.submissions?.find(
-                                            (s) => s.student_id === selectedStudentId
+                                            (s) => s.student_id === selectedStudentId && s.type === "tracker"
                                           )?.obtained_marks || "0"
                                         )
                                       : (
