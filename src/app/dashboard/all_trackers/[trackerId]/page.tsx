@@ -246,7 +246,7 @@ export default function TrackerTopicsPage() {
             title: <Link href="/dashboard/all_trackers">All Trackers</Link>,
           },
            {
-            title: <span>All Trackers</span>,
+            title: <span>Topics</span>,
           },
         ]}
         className="!mb-6"

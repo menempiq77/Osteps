@@ -14,7 +14,11 @@ import {
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { fetchStudents } from "@/services/studentsApi";
-import { fetchQuizQuestions, fetchSubmittedQuizDetails, quizAnswerMarks } from "@/services/quizApi";
+import {
+  fetchQuizQuestions,
+  fetchSubmittedQuizDetails,
+  quizAnswerMarks,
+} from "@/services/quizApi";
 
 interface Option {
   id: number;
@@ -142,7 +146,7 @@ export default function QuranQuizPage() {
     if (classId) loadStudents();
   }, [classId]);
 
-  console.log(students, "students")
+  console.log(students, "students");
 
   const handleStudentChange = (value: string) => {
     setSelectedStudentId(value);
@@ -219,7 +223,6 @@ export default function QuranQuizPage() {
     questionId: number,
     maxMarks: number
   ) => {
-
     const key = `${questionId}-${isCorrect ? "correct" : "incorrect"}`;
     try {
       setLoadingStates((prev) => ({ ...prev, [key]: true }));
@@ -260,7 +263,7 @@ export default function QuranQuizPage() {
           className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
         >
           <ArrowLeft size={18} />
-          Back to Quizzes
+          Back to Topics
         </Button>
 
         <div className="min-w-xs mb-3">
@@ -300,7 +303,7 @@ export default function QuranQuizPage() {
                 No questions available.
               </div>
             ) : (
-              quizData.quiz_queston.map((question) => (
+              quizData?.quiz_queston?.map((question) => (
                 <div
                   key={question.id}
                   className="bg-white p-4 rounded shadow-sm border border-gray-200 relative"
@@ -346,77 +349,89 @@ export default function QuranQuizPage() {
 
                             {canUpload && (
                               <div className="mt-4">
-                                <div className="flex items-center gap-4 flex-wrap">
-                                  {isTextType ? (
-                                    <>
-                                      <InputNumber
-                                        min={0}
-                                        max={question.marks}
-                                        value={
-                                          customMarks[question.id] ??
-                                          submitted.marks
-                                        }
-                                        onChange={(value) =>
-                                          handleCustomMarkChange(
-                                            question.id,
-                                            value
-                                          )
-                                        }
-                                        className="w-24"
-                                      />
-                                      <span className="text-sm text-gray-600">
-                                        / {question.marks}
-                                      </span>
-                                      <Button
-                                        size="small"
-                                        type="primary"
-                                        onClick={() =>
-                                          markAnswer(
-                                            submitted.id,
-                                            true,
-                                            question.id,
-                                            question.marks
-                                          )
-                                        }
-                                        loading={loadingStates[question.id]}
-                                      >
-                                        Save Marks
-                                      </Button>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Button
-                                        size="small"
-                                        type={isCorrect ? "primary" : "default"}
-                                        onClick={() =>
-                                          markAnswer(
-                                            submitted.id,
-                                            true,
-                                            question.id,
-                                            question.marks
-                                          )
-                                        }
-                                        loading={loadingStates[`${question.id}-correct`]}
-                                      >
-                                        Correct
-                                      </Button>
-                                      <Button
-                                        size="small"
-                                        danger={!isCorrect}
-                                        onClick={() =>
-                                          markAnswer(
-                                            submitted.id,
-                                            false,
-                                            question.id,
-                                            question.marks
-                                          )
-                                        }
-                                        loading={loadingStates[`${question.id}-incorrect`]}
-                                      >
-                                        Incorrect
-                                      </Button>
-                                    </>
-                                  )}
+                                <div className="flex items-center justify-between gap-4 flex-wrap">
+                                  <div className="flex items-center gap-4 flex-wrap">
+                                    {isTextType ? (
+                                      <>
+                                        <InputNumber
+                                          min={0}
+                                          max={question.marks}
+                                          value={
+                                            customMarks[question.id] ??
+                                            submitted.marks
+                                          }
+                                          onChange={(value) =>
+                                            handleCustomMarkChange(
+                                              question.id,
+                                              value
+                                            )
+                                          }
+                                          className="w-24"
+                                        />
+                                        <span className="text-sm text-gray-600">
+                                          / {question.marks}
+                                        </span>
+                                        <Button
+                                          size="small"
+                                          type="primary"
+                                          onClick={() =>
+                                            markAnswer(
+                                              submitted.id,
+                                              true,
+                                              question.id,
+                                              question.marks
+                                            )
+                                          }
+                                          loading={loadingStates[question.id]}
+                                        >
+                                          Save Marks
+                                        </Button>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Button
+                                          size="small"
+                                          type={
+                                            isCorrect ? "primary" : "default"
+                                          }
+                                          onClick={() =>
+                                            markAnswer(
+                                              submitted.id,
+                                              true,
+                                              question.id,
+                                              question.marks
+                                            )
+                                          }
+                                          loading={
+                                            loadingStates[
+                                              `${question.id}-correct`
+                                            ]
+                                          }
+                                        >
+                                          Correct
+                                        </Button>
+                                        <Button
+                                          size="small"
+                                          danger={!isCorrect}
+                                          onClick={() =>
+                                            markAnswer(
+                                              submitted.id,
+                                              false,
+                                              question.id,
+                                              question.marks
+                                            )
+                                          }
+                                          loading={
+                                            loadingStates[
+                                              `${question.id}-incorrect`
+                                            ]
+                                          }
+                                        >
+                                          Incorrect
+                                        </Button>
+                                      </>
+                                    )}
+                                  </div>
                                   <span className="text-sm text-gray-600">
                                     Marks: {submitted.marks || 0}/
                                     {question.marks}
