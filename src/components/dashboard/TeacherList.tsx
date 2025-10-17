@@ -248,7 +248,7 @@ export default function TeacherList() {
                     key={teacher.id}
                     className="border-b border-gray-300 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
                   >
-                    {hasAccess ? (
+                    {hasAccess || isHOD ? (
                       <td className="p-2 md:p-4 font-medium">
                         <button
                           onClick={() =>

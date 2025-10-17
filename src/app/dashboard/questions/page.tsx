@@ -11,6 +11,7 @@ import {
   Select,
   message,
   Modal,
+  Breadcrumb,
 } from "antd";
 import { UserOutlined, SendOutlined, DeleteOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
@@ -25,7 +26,10 @@ import {
 } from "@/services/askQuestionApi";
 import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
 import { fetchClasses } from "@/services/classesApi";
-import { fetchTeachersByStudent, getAssignTeacher } from "@/services/teacherApi";
+import {
+  fetchTeachersByStudent,
+  getAssignTeacher,
+} from "@/services/teacherApi";
 import Link from "next/link";
 
 const { TextArea } = Input;
@@ -90,24 +94,24 @@ const AskQuestionPage = () => {
     setIsDeleteModalOpen(true);
   };
 
-const confirmDelete = async () => {
-  if (!questionToDelete) return;
-  
-  try {
-    setIsLoading(true);
-    await deleteAskQuestion(questionToDelete.id);
-    
-    setQuestions(questions.filter(q => q.id !== questionToDelete.id));
-    messageApi.success("Question deleted successfully");
-  } catch (err) {
-    messageApi.error("Failed to delete question");
-    console.error(err);
-  } finally {
-    setIsLoading(false);
-    setIsDeleteModalOpen(false);
-    setQuestionToDelete(null);
-  }
-};
+  const confirmDelete = async () => {
+    if (!questionToDelete) return;
+
+    try {
+      setIsLoading(true);
+      await deleteAskQuestion(questionToDelete.id);
+
+      setQuestions(questions.filter((q) => q.id !== questionToDelete.id));
+      messageApi.success("Question deleted successfully");
+    } catch (err) {
+      messageApi.error("Failed to delete question");
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+      setIsDeleteModalOpen(false);
+      setQuestionToDelete(null);
+    }
+  };
 
   const loadQuestions = async () => {
     try {
@@ -143,26 +147,26 @@ const confirmDelete = async () => {
   };
 
   const loadTeachers = async () => {
-  try {
-    setIsLoading(true);
-    const response = await getAssignTeacher(classId);
+    try {
+      setIsLoading(true);
+      const response = await getAssignTeacher(classId);
 
-    // Flatten teachers_by_subject into a single array
-    const teachersArray = Object.values(response.teachers_by_subject)
-      .flat() // merge all subjects into one array
-      .map((teacher) => ({
-        id: teacher.id,
-        name: teacher.teacher_name,
-      }));
+      // Flatten teachers_by_subject into a single array
+      const teachersArray = Object.values(response.teachers_by_subject)
+        .flat() // merge all subjects into one array
+        .map((teacher) => ({
+          id: teacher.id,
+          name: teacher.teacher_name,
+        }));
 
-    setTeachers(teachersArray);
-  } catch (err) {
-    setError("Failed to fetch teachers");
-    console.error(err);
-  } finally {
-    setIsLoading(false);
-  }
-};
+      setTeachers(teachersArray);
+    } catch (err) {
+      setError("Failed to fetch teachers");
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const loadYears = async () => {
     try {
@@ -191,48 +195,48 @@ const confirmDelete = async () => {
     }
   };
 
-const loadClasses = async (yearId: string | null) => {
-  if (!yearId) return;
+  const loadClasses = async (yearId: string | null) => {
+    if (!yearId) return;
 
-  try {
-    setIsLoading(true);
-    let classesData: any[] = [];
+    try {
+      setIsLoading(true);
+      let classesData: any[] = [];
 
-    if (isTeacher) {
-      const res = await fetchAssignYears();
+      if (isTeacher) {
+        const res = await fetchAssignYears();
 
-      classesData = res
-        .map((item: any) => item.classes)
-        .filter((cls: any) => cls);
+        classesData = res
+          .map((item: any) => item.classes)
+          .filter((cls: any) => cls);
 
-      // Remove duplicates
-      classesData = Array.from(
-        new Map(classesData.map((cls: any) => [cls.id, cls])).values()
-      );
+        // Remove duplicates
+        classesData = Array.from(
+          new Map(classesData.map((cls: any) => [cls.id, cls])).values()
+        );
 
-      // Filter by yearId
-      classesData = classesData.filter(
-        (cls: any) => cls.year_id === Number(yearId)
-      );
-    } else {
-      classesData = await fetchClasses(Number(yearId));
+        // Filter by yearId
+        classesData = classesData.filter(
+          (cls: any) => cls.year_id === Number(yearId)
+        );
+      } else {
+        classesData = await fetchClasses(Number(yearId));
+      }
+
+      setClasses(classesData);
+
+      if (classesData.length > 0) {
+        // auto-select first class (better to keep as string id, not name)
+        setSelectedClass(classesData[0].id.toString());
+      } else {
+        setSelectedClass(null);
+      }
+    } catch (err) {
+      setError("Failed to fetch classes");
+      console.error(err);
+    } finally {
+      setIsLoading(false);
     }
-
-    setClasses(classesData);
-
-    if (classesData.length > 0) {
-      // auto-select first class (better to keep as string id, not name)
-      setSelectedClass(classesData[0].id.toString());
-    } else {
-      setSelectedClass(null);
-    }
-  } catch (err) {
-    setError("Failed to fetch classes");
-    console.error(err);
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
   useEffect(() => {
     loadYears();
@@ -344,15 +348,18 @@ const loadClasses = async (yearId: string | null) => {
 
   return (
     <>
-    {contextHolder}
-      <Link href="/dashboard">
-        <Button
-          icon={<ChevronLeft />}
-          className="text-gray-700 border border-gray-300 hover:bg-gray-100 mb-4"
-        >
-          Back to Dashboard
-        </Button>
-      </Link>
+      {contextHolder}
+      <Breadcrumb
+        items={[
+          {
+            title: <Link href="/dashboard">Dashboard</Link>,
+          },
+          {
+            title: <span>{isStudent ? "Ask" : "Answer"} a Question</span>,
+          },
+        ]}
+        className="!mb-6"
+      />
       <h1 className="text-2xl font-bold mb-6">
         {isStudent ? "Ask" : "Answer"} a Question
       </h1>
