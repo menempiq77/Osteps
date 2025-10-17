@@ -57,7 +57,7 @@ export default function QuizResultPage() {
         setLoading(true);
         const response = await fetchQuizQuestions(Number(quizId));
         setQuizData(response);
-        
+
         // Retrieve stored answers from localStorage
         const storedAnswers = localStorage.getItem(`quiz_${quizId}_answers`);
         if (storedAnswers) {
@@ -75,23 +75,26 @@ export default function QuizResultPage() {
 
   // Function to get user's answer text
   const getUserAnswerText = (questionId: number): string => {
-    const answer = userAnswers.find(a => a.question_id === questionId);
+    const answer = userAnswers.find((a) => a.question_id === questionId);
     if (!answer) return "Not answered";
 
-    const question = quizData?.quiz_queston.find(q => q.id === questionId);
+    const question = quizData?.quiz_queston.find((q) => q.id === questionId);
     if (!question) return "Not answered";
 
     // Handle different question types
     if (question.type === "multiple_choice" || question.type === "drop_down") {
-      const option = question.options.find(opt => opt.id === answer.answer);
+      const option = question.options.find((opt) => opt.id === answer.answer);
       return option?.option_text || "Not answered";
     }
 
     if (question.type === "check_boxes") {
-      const selectedOptions = question.options.filter(opt => 
-        Array.isArray(answer.answer) && answer.answer.includes(opt.id)
+      const selectedOptions = question.options.filter(
+        (opt) => Array.isArray(answer.answer) && answer.answer.includes(opt.id)
       );
-      return selectedOptions.map(opt => opt.option_text).join(", ") || "Not answered";
+      return (
+        selectedOptions.map((opt) => opt.option_text).join(", ") ||
+        "Not answered"
+      );
     }
 
     if (question.type === "true_false") {
@@ -103,10 +106,10 @@ export default function QuizResultPage() {
 
   // Function to check if answer is correct
   const isAnswerCorrect = (questionId: number): boolean | null => {
-    const answer = userAnswers.find(a => a.question_id === questionId);
+    const answer = userAnswers.find((a) => a.question_id === questionId);
     if (!answer) return false;
 
-    const question = quizData?.quiz_queston.find(q => q.id === questionId);
+    const question = quizData?.quiz_queston.find((q) => q.id === questionId);
     if (!question) return false;
 
     // Return null for subjective questions (short answer and paragraph)
@@ -115,17 +118,21 @@ export default function QuizResultPage() {
     }
 
     if (question.type === "multiple_choice" || question.type === "drop_down") {
-      const correctOption = question.options.find(opt => opt.is_correct === 1);
+      const correctOption = question.options.find(
+        (opt) => opt.is_correct === 1
+      );
       return correctOption?.id === answer.answer;
     }
 
     if (question.type === "check_boxes") {
-      const correctOptions = question.options.filter(opt => opt.is_correct === 1);
-      const correctOptionIds = correctOptions.map(opt => opt.id);
+      const correctOptions = question.options.filter(
+        (opt) => opt.is_correct === 1
+      );
+      const correctOptionIds = correctOptions.map((opt) => opt.id);
       return (
         Array.isArray(answer.answer) &&
         correctOptionIds.length === answer.answer.length &&
-        correctOptionIds.every(id => answer.answer.includes(id))
+        correctOptionIds.every((id) => answer.answer.includes(id))
       );
     }
 
@@ -142,16 +149,28 @@ export default function QuizResultPage() {
     switch (question.type) {
       case "multiple_choice":
       case "drop_down":
-        const correctOption = question.options.find(opt => opt.is_correct === 1);
-        return correctOption ? correctOption.option_text : "No correct answer specified";
+        const correctOption = question.options.find(
+          (opt) => opt.is_correct === 1
+        );
+        return correctOption
+          ? correctOption.option_text
+          : "No correct answer specified";
       case "check_boxes":
-        const correctOptions = question.options.filter(opt => opt.is_correct === 1);
-        return correctOptions.map(opt => opt.option_text).join(", ") || "No correct answers specified";
+        const correctOptions = question.options.filter(
+          (opt) => opt.is_correct === 1
+        );
+        return (
+          correctOptions.map((opt) => opt.option_text).join(", ") ||
+          "No correct answers specified"
+        );
       case "true_false":
         return question.correct_answer === "1" ? "True" : "False";
       case "short_answer":
       case "paragraph":
-        return question.correct_answer || "No specific correct answer (subjective question)";
+        return (
+          question.correct_answer ||
+          "No specific correct answer (subjective question)"
+        );
       default:
         return "No specific correct answer (subjective question)";
     }
@@ -181,14 +200,15 @@ export default function QuizResultPage() {
       correctAnswers,
       scorePercentage,
       timeTaken: "0:00", // You can store and retrieve the time taken if needed
-      quizDetails: quizData?.quiz_queston?.map(question => {
+      quizDetails: quizData?.quiz_queston?.map((question) => {
         const correctness = isAnswerCorrect(question.id);
         return {
           question: question.question_text,
           userAnswer: getUserAnswerText(question.id),
           correctAnswer: getCorrectAnswerText(question),
           isCorrect: correctness === true, // true for correct, false for incorrect, null for subjective
-          isSubjective: question.type === "short_answer" || question.type === "paragraph"
+          isSubjective:
+            question.type === "short_answer" || question.type === "paragraph",
         };
       }),
     };
@@ -198,15 +218,7 @@ export default function QuizResultPage() {
 
   return (
     <div className="p-3 md:p-6 max-w-5xl mx-auto bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
-      <div className="mb-8">
-        <Button
-          onClick={() => router.back()}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
-        >
-          <ArrowLeft size={18} />
-          Back to Quiz
-        </Button>
-      </div>
+      <div className="mb-8"></div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="p-6 border-b border-gray-200">
@@ -277,15 +289,15 @@ export default function QuizResultPage() {
               Question Breakdown
             </h3>
 
-            {result.quizDetails.map((item, index) => (
+            {result?.quizDetails?.map((item, index) => (
               <div
                 key={index}
                 className={`p-4 rounded-lg border ${
-                  item.isSubjective 
-                    ? "bg-gray-50 border-gray-200" 
+                  item.isSubjective
+                    ? "bg-gray-50 border-gray-200"
                     : item.isCorrect
-                      ? "bg-green-50 border-green-200"
-                      : "bg-red-50 border-red-200"
+                    ? "bg-green-50 border-green-200"
+                    : "bg-red-50 border-red-200"
                 }`}
               >
                 <div className="flex justify-between items-start">
@@ -330,7 +342,6 @@ export default function QuizResultPage() {
             >
               Back to Dashboard
             </Button>
-            <Button onClick={() => router.back()}>Review Quiz Again</Button>
           </div>
         </div>
       </div>

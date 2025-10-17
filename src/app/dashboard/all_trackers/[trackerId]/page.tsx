@@ -1,4 +1,4 @@
-// Updated QuranTrackerAdminPage component
+
 "use client";
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -66,7 +66,7 @@ interface Quiz {
   answer?: string;
 }
 
-export default function QuranTrackerAdminPage() {
+export default function TrackerTopicsPage() {
   const { trackerId, classId } = useParams();
   const router = useRouter();
   const [trackerData, setTrackerData] = useState<TrackerData | null>(null);
@@ -478,18 +478,16 @@ export default function QuranTrackerAdminPage() {
                             }
                           >
                             <td className="p-4 whitespace-nowrap border-r border-gray-200">
-                              <div className="flex items-center">
-                                {canUpload && (
+                              <div className="flex items-center"> 
                                   <div
                                     {...provided.dragHandleProps}
-                                    className="mr-2 cursor-move"
+                                    className={`mr-2 cursor-move ${!canUpload ? "hidden" : "block"}`}
                                   >
                                     <GripVertical
                                       size={16}
                                       className="text-gray-400"
                                     />
                                   </div>
-                                )}
 
                                 {editingTopic === topic?.id ? (
                                   <div className="flex flex-col gap-1 w-full">

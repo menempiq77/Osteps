@@ -1,58 +1,33 @@
 "use client";
 import { useState, useEffect } from "react";
-import { AddTrackerModal } from "../modals/trackerModals/AddTrackerModal";
-import { EditTrackerModal } from "../modals/trackerModals/EditTrackerModal";
 import { useParams, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { Spin, Modal, Button, Breadcrumb, message } from "antd";
-import { EditOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
+import { Spin, Breadcrumb } from "antd";
 import Link from "next/link";
-import {
-  fetchTrackers,
-  addTracker as addTrackerAPI,
-  updateTracker as updateTrackerAPI,
-  deleteTracker as deleteTrackerAPI,
-} from "@/services/trackersApi";
+import { fetchTrackers } from "@/services/trackersApi";
 
 type Tracker = {
   id: string;
   class_id: number;
   name: string;
-  type: string;
+  type?: string;
   status: string;
   progress: string[];
   lastUpdated?: string;
-};
-
-type TrackerBasic = {
-  name: string;
-  type: string;
-  status: string;
-  progress: string[];
+  tracker_id: string;
+  tracker: {
+    name: string;
+    status: string;
+  };
 };
 
 export default function TrackerList() {
-  const { classId, yearId } = useParams();
+  const { classId } = useParams();
   const router = useRouter();
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [trackers, setTrackers] = useState<Tracker[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
-
-  const [editTracker, setEditTracker] = useState<Tracker | null>(null);
-  const [deleteTracker, setDeleteTracker] = useState<Tracker | null>(null);
-  const [isAddTrackerModalOpen, setIsAddTrackerModalOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [messageApi, contextHolder] = message.useMessage();
-
-  useEffect(() => {
-    const savedYearId = localStorage.getItem("selectedYearId");
-    if (savedYearId) {
-      setSelectedYearId(Number(savedYearId));
-    }
-  }, [classId]);
 
   const loadTrackers = async () => {
     try {
@@ -66,7 +41,6 @@ export default function TrackerList() {
         }))
       );
     } catch (err) {
-      setError("Failed to fetch trackers");
       console.error(err);
     } finally {
       setLoading(false);
@@ -76,71 +50,6 @@ export default function TrackerList() {
   useEffect(() => {
     loadTrackers();
   }, [classId]);
-
-  const handleSaveEdit = async (tracker: Tracker) => {
-    try {
-      await updateTrackerAPI(tracker.id, {
-        name: tracker.name,
-        type: "topic",
-        status: "Active",
-        progress: tracker.progress,
-      });
-
-      setTrackers(
-        trackers.map((t) =>
-          t.id === tracker.id
-            ? {
-                ...tracker,
-                lastUpdated: new Date().toISOString().split("T")[0],
-              }
-            : t
-        )
-      );
-      await loadTrackers();
-      setEditTracker(null);
-      messageApi.success("Tracker updated successfully!");
-    } catch (err) {
-      console.error("Failed to update tracker:", err);
-      messageApi.error("Failed to update tracker");
-    }
-  };
-
-  const handleDeleteTracker = async () => {
-    if (!deleteTracker) return;
-    try {
-      await deleteTrackerAPI(Number(deleteTracker.id));
-      setTrackers(
-        trackers.filter((tracker) => tracker.id !== deleteTracker.id)
-      );
-      setDeleteTracker(null);
-      setIsDeleteModalOpen(false);
-
-      messageApi.success("Tracker deleted successfully!");
-    } catch (err) {
-      console.error("Failed to delete tracker:", err);
-      messageApi.error("Failed to delete tracker");
-    }
-  };
-
-  const handleAddNewTracker = async (tracker: TrackerBasic) => {
-    try {
-      await addTrackerAPI({
-        class_id: Number(classId),
-        name: tracker.name,
-        type: "topic",
-        status: "Active",
-        progress: tracker.progress,
-      });
-
-      setIsAddTrackerModalOpen(false);
-      await loadTrackers();
-
-      messageApi.success("Tracker added successfully!");
-    } catch (err) {
-      console.error("Failed to add tracker:", err);
-      messageApi.error("Failed to add tracker");
-    }
-  };
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -157,10 +66,6 @@ export default function TrackerList() {
     }
   };
 
-  const handleLeaderBoard = () => {
-    router.push(`/dashboard/classes/${classId}/leaderboard`);
-  };
-
   const handleTrackerClick = (trackerId: string) => {
     router.push(`/dashboard/trackers/${classId}/${trackerId}`);
   };
@@ -174,24 +79,11 @@ export default function TrackerList() {
 
   return (
     <>
-      {contextHolder}
       <Breadcrumb
         items={[
           {
             title: <Link href="/dashboard">Dashboard</Link>,
           },
-          // {
-          //   title: <Link href="/dashboard/years">Academic Years</Link>,
-          // },
-          // {
-          //   title: selectedYearId ? (
-          //     <Link href={`/dashboard/classes?year=${selectedYearId}`}>
-          //       Classes
-          //     </Link>
-          //   ) : (
-          //     <Link href="/dashboard/classes">Classes</Link>
-          //   ),
-          // },
           {
             title: <span>Trackers</span>,
           },
@@ -200,32 +92,6 @@ export default function TrackerList() {
       />
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Trackers</h1>
-        <div className="flex items-center gap-2">
-          {/* <Button
-            variant="outlined"
-            onClick={() => handleLeaderBoard()}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 cursor-pointer"
-          >
-            View Leaderboard
-          </Button> */}
-          {currentUser?.role !== "STUDENT" && (
-            <>
-              <Button
-                type="primary"
-                className="cursor-pointer !bg-primary !text-white"
-                icon={<PlusOutlined />}
-                onClick={() => setIsAddTrackerModalOpen(true)}
-              >
-                Add Tracker
-              </Button>
-              <AddTrackerModal
-                isOpen={isAddTrackerModalOpen}
-                onOpenChange={setIsAddTrackerModalOpen}
-                onAddTracker={handleAddNewTracker}
-              />
-            </>
-          )}
-        </div>
       </div>
 
       <div className="relative overflow-auto">
@@ -252,9 +118,6 @@ export default function TrackerList() {
                     Status
                   </span>
                 </th>
-                {currentUser?.role !== "STUDENT" && (
-                  <th className="p-2 md:p-4 text-xs md:text-sm">Actions</th>
-                )}
               </tr>
             </thead>
             <tbody>
@@ -266,7 +129,7 @@ export default function TrackerList() {
                   >
                     <td
                       onClick={() =>
-                        handleTrackerClick(tracker.tracker_id, tracker.type)
+                        handleTrackerClick(tracker.tracker_id)
                       }
                       className="p-2 md:p-4 cursor-pointer hover:underline text-green-600 hover:text-green-800 font-medium"
                     >
@@ -282,39 +145,6 @@ export default function TrackerList() {
                         {tracker?.tracker?.status}
                       </span>
                     </td>
-                    {currentUser?.role !== "STUDENT" && (
-                      <td className="relative p-2 md:p-4 flex justify-center space-x-3">
-                        <>
-                          <button
-                            onClick={() => setEditTracker(tracker)}
-                            className="text-green-500 hover:text-green-700 cursor-pointer"
-                            title="Edit"
-                          >
-                            <EditOutlined />
-                          </button>
-                          <button
-                            onClick={() => {
-                              setDeleteTracker(tracker);
-                              setIsDeleteModalOpen(true);
-                            }}
-                            className="text-red-500 hover:text-red-700 cursor-pointer"
-                            title="Delete"
-                          >
-                            <DeleteOutlined />
-                          </button>
-                          {editTracker?.id === tracker.id && (
-                            <EditTrackerModal
-                              tracker={editTracker}
-                              isOpen={!!editTracker}
-                              onOpenChange={(open) =>
-                                !open && setEditTracker(null)
-                              }
-                              onSave={handleSaveEdit}
-                            />
-                          )}
-                        </>
-                      </td>
-                    )}
                   </tr>
                 ))
               ) : (
@@ -331,23 +161,6 @@ export default function TrackerList() {
           </table>
         </div>
       </div>
-
-      {/* Delete Confirmation Modal */}
-      <Modal
-        title="Confirm Deletion"
-        open={isDeleteModalOpen}
-        onOk={handleDeleteTracker}
-        onCancel={() => setIsDeleteModalOpen(false)}
-        okText="Delete"
-        okButtonProps={{ danger: true }}
-        cancelText="Cancel"
-        centered
-      >
-        <p>
-          Are you sure you want to delete the tracker{" "}
-          <strong>{deleteTracker?.name}</strong>? This action cannot be undone.
-        </p>
-      </Modal>
     </>
   );
 }

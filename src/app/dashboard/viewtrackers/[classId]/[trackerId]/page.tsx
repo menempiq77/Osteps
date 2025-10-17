@@ -1,4 +1,4 @@
-// Updated QuranTrackerAdminPage component
+
 "use client";
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -10,14 +10,6 @@ import {
   addTopicMark,
 } from "@/services/api";
 import { fetchStudents } from "@/services/studentsApi";
-import { useSelector } from "react-redux";
-import { RootState } from "@/store/store";
-
-interface Status {
-  id: number;
-  name: string;
-  is_completed: boolean;
-}
 
 interface Topic {
   id: number;
@@ -42,14 +34,6 @@ interface TrackerData {
   type: string;
   topics: Topic[];
 }
-interface Quiz {
-  id: string;
-  type: "mcq" | "true_false" | "writing";
-  question: string;
-  options?: string[];
-  correctAnswer?: string;
-  answer?: string;
-}
 
 interface Student {
   id: number;
@@ -57,7 +41,7 @@ interface Student {
   // Add other student properties as needed
 }
 
-export default function QuranTrackerAdminPage() {
+export default function ViewTrackerTopicPage() {
   const { trackerId, classId } = useParams();
   const router = useRouter();
   const [trackerData, setTrackerData] = useState<TrackerData | null>(null);
@@ -71,7 +55,6 @@ export default function QuranTrackerAdminPage() {
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(
     null
   );
-  const { currentUser } = useSelector((state: RootState) => state.auth);
 
   const loadStudents = async () => {
     try {
@@ -126,21 +109,6 @@ export default function QuranTrackerAdminPage() {
     });
     return Array.from(types);
   }, [trackerData]);
-
-  const studentIdsInData = React.useMemo(() => {
-    const ids = new Set<number>();
-    trackerData?.topics?.forEach((topic) => {
-      topic.status_progress?.forEach((sp) => {
-        ids.add(sp.student_id);
-      });
-    });
-    return Array.from(ids);
-  }, [trackerData]);
-
-  // Match students from dropdown with those in data
-  const availableStudents = React.useMemo(() => {
-    return students.filter((student) => studentIdsInData.includes(student.id));
-  }, [students, studentIdsInData]);
 
   const handleEnterMarks = (topic: Topic) => {
     if (!selectedStudentId) {
