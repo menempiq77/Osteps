@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle2, XCircle, Trophy } from "lucide-react";
+import { CheckCircle2, XCircle, Trophy } from "lucide-react";
 import { Button, Progress, message } from "antd";
 import { fetchQuizQuestions } from "@/services/quizApi";
 
@@ -198,15 +198,7 @@ export default function QuizResultPage() {
 
   return (
     <div className="p-3 md:p-6 max-w-5xl mx-auto bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
-      <div className="mb-8">
-        <Button
-          onClick={() => router.back()}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
-        >
-          <ArrowLeft size={18} />
-          Back to Quiz
-        </Button>
-      </div>
+      <div className="mb-8"></div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="p-6 border-b border-gray-200">
@@ -330,7 +322,6 @@ export default function QuizResultPage() {
             >
               Back to Dashboard
             </Button>
-            <Button onClick={() => router.back()}>Review Quiz Again</Button>
           </div>
         </div>
       </div>

@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 import {
   Button,
   Input,
@@ -219,7 +218,7 @@ export default function QuranQuizPage() {
             },
             {
               title: (
-                <Link href={`/dashboard/students/assignments/${quizId}`}>
+                <Link href={`/dashboard/students/assignments/${Id}`}>
                   Tasks
                 </Link>
               ),
@@ -228,7 +227,7 @@ export default function QuranQuizPage() {
               title: <span>Quiz</span>,
             },
           ]}
-          className="!mb-2"
+          className="!mb-6"
         />
       </div>
 
