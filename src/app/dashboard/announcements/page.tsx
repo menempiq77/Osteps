@@ -17,6 +17,7 @@ import {
   addAnnouncement,
   deleteAnnouncement,
   fetchAnnouncements,
+  markAnnouncementAsSeen,
   updateAnnouncement,
 } from "@/services/announcementApi";
 import Link from "next/link";
@@ -81,6 +82,7 @@ export default function AnnouncementsPage() {
   const isSuperAdmin = currentUser?.role === "SUPER_ADMIN";
   const [schools, setSchools] = useState<any[]>([]);
   const [schoolsLoading, setSchoolsLoading] = useState(true);
+  const [markingId, setMarkingId] = useState<number | null>(null);
 
   const loadSchools = async () => {
     try {
@@ -153,6 +155,32 @@ export default function AnnouncementsPage() {
     },
     onError: () => {
       messageApi.error("Failed to delete announcement");
+    },
+  });
+
+  const markSeenMutation = useMutation({
+    mutationFn: async (id: number) => {
+      setMarkingId(id);
+      const result = await markAnnouncementAsSeen(id);
+      return result;
+    },
+    onSuccess: (_, id) => {
+      queryClient.setQueryData(["announcements"], (old: any[] = []) =>
+        old.map((ann) => {
+          if (Number(ann.id) === Number(id)) {
+            const updatedUsers = ann.users?.map((user: any) =>
+              Number(user.id) === Number(currentUser?.id)
+                ? { ...user, pivot: { ...user.pivot, is_seen: 1 } }
+                : user
+            );
+            return { ...ann, users: updatedUsers };
+          }
+          return ann;
+        })
+      );
+    },
+    onSettled: () => {
+      setMarkingId(null);
     },
   });
 
@@ -261,39 +289,27 @@ export default function AnnouncementsPage() {
   };
 
   const filteredAnnouncements = announcements.filter((announcement) => {
-  const roles = Array.isArray(announcement.role)
-    ? announcement.role
-    : announcement.role
-    ? [announcement.role]
-    : []; // fallback in case API sends single role
+    const rolesArray = announcement.roles?.map((r: any) => r.role_name) || [];
 
-  if (roles.includes("ALL")) return true;
+    if (rolesArray.includes("ALL")) return true;
+    if (currentUser?.role === "SUPER_ADMIN") return true;
 
-  if (currentUser?.role === "SUPER_ADMIN") return true;
+    if (currentUser?.role === "SCHOOL_ADMIN") return true;
 
-  if (currentUser?.role === "SCHOOL_ADMIN") {
-    return true; // super-wide visibility
-  }
+    if (currentUser?.role === "HOD") {
+      return rolesArray.some((r) => ["HOD", "TEACHER", "STUDENT"].includes(r));
+    }
 
-  if (currentUser?.role === "HOD") {
-    return roles.some((r) =>
-      ["HOD", "TEACHER", "STUDENT"].includes(r)
-    );
-  }
+    if (currentUser?.role === "TEACHER") {
+      return rolesArray.some((r) => ["TEACHER", "STUDENT"].includes(r));
+    }
 
-  if (currentUser?.role === "TEACHER") {
-    return roles.some((r) =>
-      ["TEACHER", "STUDENT"].includes(r)
-    );
-  }
+    if (currentUser?.role === "STUDENT") {
+      return rolesArray.includes("STUDENT") || rolesArray.length === 0;
+    }
 
-  if (currentUser?.role === "STUDENT") {
-    return roles.includes("STUDENT") || roles.length === 0;
-  }
-
-  return false;
-});
-
+    return false;
+  });
 
   const badgeRibbonColors = {
     event: "blue",
@@ -422,37 +438,37 @@ export default function AnnouncementsPage() {
               <label className="block mb-1 font-medium text-gray-700">
                 Target Roles
               </label>
-                <Select
-                  mode="multiple"
-                  value={announcementForm.role}
-                  onChange={(value) => {
-                    const options = roleOptions[currentUser?.role ?? ""] || [];
+              <Select
+                mode="multiple"
+                value={announcementForm.role}
+                onChange={(value) => {
+                  const options = roleOptions[currentUser?.role ?? ""] || [];
 
-                    if (value.includes("ALL")) {
-                      const allExceptAll = options
-                        .map((opt) => opt.value)
-                        .filter((v) => v !== "ALL");
+                  if (value.includes("ALL")) {
+                    const allExceptAll = options
+                      .map((opt) => opt.value)
+                      .filter((v) => v !== "ALL");
 
-                      setAnnouncementForm((prev) => ({
-                        ...prev,
-                        role: allExceptAll,
-                      }));
-                    } else {
-                      setAnnouncementForm((prev) => ({
-                        ...prev,
-                        role: value,
-                      }));
-                    }
-                  }}
-                  placeholder="Select roles"
-                  className="w-full hover:!border-primary focus:!border-primary focus:ring-1 focus:!ring-primary transition-colors"
-                >
-                  {(roleOptions[currentUser?.role ?? ""] || []).map((opt) => (
-                    <Option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </Option>
-                  ))}
-                </Select>
+                    setAnnouncementForm((prev) => ({
+                      ...prev,
+                      role: allExceptAll,
+                    }));
+                  } else {
+                    setAnnouncementForm((prev) => ({
+                      ...prev,
+                      role: value,
+                    }));
+                  }
+                }}
+                placeholder="Select roles"
+                className="w-full hover:!border-primary focus:!border-primary focus:ring-1 focus:!ring-primary transition-colors"
+              >
+                {(roleOptions[currentUser?.role ?? ""] || []).map((opt) => (
+                  <Option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </Option>
+                ))}
+              </Select>
             </div>
 
             {/* Target Schools (only for super admin) */}
@@ -517,59 +533,95 @@ export default function AnnouncementsPage() {
             No announcements yet. Check back later for updates.
           </Card>
         ) : (
-          filteredAnnouncements?.map((announcement, index) => (
-            <Badge.Ribbon
-              key={announcement.id || `announcement-${index}`}
-              text={
-                announcement?.type?.charAt(0)?.toUpperCase() +
-                announcement?.type?.slice(1)
-              }
-              color={badgeRibbonColors[announcement.type]}
-            >
-              <Card className="hover:shadow-lg transition-shadow rounded-lg border border-gray-200 relative">
-                <div className="absolute bottom-4 right-4 flex gap-3">
-                  {canEditAnnouncement(announcement) && (
-                    <span
-                      onClick={() => handleEditAnnouncement(announcement)}
-                      className="text-primary font-medium hover:text-primary/70 transition-colors cursor-pointer"
-                      aria-label="Edit announcement"
-                    >
-                      Edit
-                    </span>
-                  )}
-                  {canDeleteAnnouncement(announcement) && (
-                    <span
-                      onClick={() => confirmDelete(announcement.id)}
-                      className="text-red-500 font-medium hover:text-red-700 transition-colors cursor-pointer"
-                      aria-label="Delete announcement"
-                    >
-                      Delete
-                    </span>
-                  )}
-                </div>
-                <div>
-                  <div className="flex justify-between items-start gap-2 flex-wrap">
-                    <h3 className="font-medium mb-1">{announcement.title}</h3>
-                  </div>
-                  <div className="flex flex-wrap text-xs text-gray-500 gap-2 items-center mb-4">
-                    <span>{formatDate(announcement.created_at)}</span>
-                    <span>•</span>
-                    <span>
-                      Posted For{" "}
-                      {Array.isArray(announcement.role)
-                        ? announcement.role.join(", ")
-                        : announcement.role}
-                    </span>
-                  </div>
-                </div>
-                <div>
-                  <p className="whitespace-pre-line text-gray-700">
-                    {announcement.description}
-                  </p>
-                </div>
-              </Card>
-            </Badge.Ribbon>
-          ))
+          filteredAnnouncements.map((announcement, index) => {
+            const rolesArray =
+              announcement.roles?.map((r: any) => r.role_name) || [];
+
+            const currentUserRecord = announcement.users?.find(
+              (u: any) => Number(u.id) === Number(currentUser?.id)
+            );
+
+            const isSeen = (() => {
+              if (currentUserRecord)
+                return currentUserRecord.pivot?.is_seen === 1;
+              if (!announcement.users?.length) return true;
+              return true;
+            })();
+
+            return (
+              <div
+                key={announcement.id || `announcement-${index}`}
+                className={`p-1 rounded-lg transition-all`}
+              >
+                <Badge.Ribbon
+                  text={
+                    announcement?.type?.charAt(0)?.toUpperCase() +
+                    announcement?.type?.slice(1)
+                  }
+                  color={badgeRibbonColors[announcement.type]}
+                >
+                  <Card
+                    onClick={() => {
+                      if (!isSeen && announcement.id && markingId === null) {
+                        markSeenMutation.mutate(Number(announcement.id));
+                      }
+                    }}
+                    className={`hover:shadow-lg transition-shadow rounded-lg ${
+                      isSeen
+                        ? "!bg-white"
+                        : "!bg-blue-50 border border-blue-300"
+                    } relative`}
+                  >
+                    <div className="absolute bottom-4 right-4 flex gap-3">
+                      {canEditAnnouncement(announcement) && (
+                        <span
+                          onClick={() => handleEditAnnouncement(announcement)}
+                          className="text-primary font-medium hover:text-primary/70 transition-colors cursor-pointer"
+                          aria-label="Edit announcement"
+                        >
+                          Edit
+                        </span>
+                      )}
+                      {canDeleteAnnouncement(announcement) && (
+                        <span
+                        onClick={() => confirmDelete(announcement.id)}
+                        className="text-red-500 font-medium hover:text-red-700 transition-colors cursor-pointer"
+                        aria-label="Delete announcement"
+                        >
+                          Delete
+                        </span>
+                      )}
+                      {markingId === Number(announcement.id) && (
+                        <Spin size="small" className="" />
+                      )}
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between items-start gap-2 flex-wrap">
+                        <h3 className="font-medium mb-1">
+                          {announcement.title}
+                        </h3>
+                      </div>
+                      <div className="flex flex-wrap text-xs text-gray-500 gap-2 items-center mb-4">
+                        <span>{formatDate(announcement.created_at)}</span>
+                        <span>•</span>
+                        <span>
+                          Posted For{" "}
+                          {rolesArray.length > 0 ? rolesArray.join(", ") : "—"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="whitespace-pre-line text-gray-700">
+                        {announcement.description}
+                      </p>
+                    </div>
+                  </Card>
+                </Badge.Ribbon>
+              </div>
+            );
+          })
         )}
       </div>
 
