@@ -28,7 +28,7 @@ import { useState, useEffect } from "react";
 import { logout } from "@/features/auth/authSlice";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { useQuery } from "@tanstack/react-query";
-import { fetchAnnouncements } from "@/services/announcementApi";
+import { fetchUnseenAnnouncementCount } from "@/services/announcementApi";
 
 const Sidebar = () => {
   const pathname = usePathname();
@@ -36,24 +36,14 @@ const Sidebar = () => {
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const isMobile = useMediaQuery("(max-width: 768px)");
   const [isOpen, setIsOpen] = useState(!isMobile);
-  const { data: announcements = [] } = useQuery({
-    queryKey: ["announcements", currentUser?.role],
-    queryFn: fetchAnnouncements,
+
+  const { data: unseenCount = 0 } = useQuery({
+    queryKey: ["unseen-announcement-count", currentUser?.role],
+    queryFn: fetchUnseenAnnouncementCount,
     enabled: !!currentUser?.role,
   });
 
-const filteredAnnouncements = announcements?.filter((announcement: any) => {
-  const roles = Array.isArray(announcement.role)
-    ? announcement.role
-    : announcement.role
-    ? [announcement.role]
-    : [];
-
-  return roles.includes(currentUser?.role);
-});
-
-const unreadCount = filteredAnnouncements?.length || 0;
-
+  const unreadCount = unseenCount?.unseen_count ?? 0;
 
   useEffect(() => {
     setIsOpen(!isMobile);
@@ -88,16 +78,28 @@ const unreadCount = filteredAnnouncements?.length || 0;
       { name: "Manage Grades", href: "/dashboard/grades", icon: BarChart2 },
       { name: "Subjects", href: "/dashboard/subjects", icon: BookOpen },
       { name: "Manage Quiz", href: "/dashboard/quiz", icon: ClipboardList },
-      { name: "Assesments", href: "/dashboard/all_assesments", icon: GraduationCap },
+      {
+        name: "Assesments",
+        href: "/dashboard/all_assesments",
+        icon: GraduationCap,
+      },
       { name: "Trackers", href: "/dashboard/all_trackers", icon: BarChart3 },
       {
         name: "Leaderboard",
         href: `/dashboard/leaderboard/`,
         icon: Award,
       },
-      { name: "Reports", href: "/dashboard/students/reports", icon: FileBarChart },
+      {
+        name: "Reports",
+        href: "/dashboard/students/reports",
+        icon: FileBarChart,
+      },
       { name: "Library", href: "/dashboard/library", icon: Library },
-      { name: "Content Approvals", href: "/dashboard/approvals", icon: CheckSquare },
+      {
+        name: "Content Approvals",
+        href: "/dashboard/approvals",
+        icon: CheckSquare,
+      },
       { name: "Timetable", href: "/dashboard/time_table", icon: BookOpen },
       {
         name: "Announcements",
@@ -122,9 +124,17 @@ const unreadCount = filteredAnnouncements?.length || 0;
       { name: "My Classes", href: "/dashboard/years", icon: Layers },
       { name: "Subjects", href: "/dashboard/subjects", icon: BookOpen },
       { name: "Manage Quiz", href: "/dashboard/quiz", icon: ClipboardList },
-      { name: "Assesments", href: "/dashboard/all_assesments", icon: GraduationCap },
-      { name: "View Assesments", href: "/dashboard/student_assesments", icon: GraduationCap },
-      { name: "Trackers", href: "/dashboard/all_trackers", icon: BarChart3  },
+      {
+        name: "Assesments",
+        href: "/dashboard/all_assesments",
+        icon: GraduationCap,
+      },
+      {
+        name: "View Assesments",
+        href: "/dashboard/student_assesments",
+        icon: GraduationCap,
+      },
+      { name: "Trackers", href: "/dashboard/all_trackers", icon: BarChart3 },
       {
         name: "View Trackers",
         href: "/dashboard/viewtrackers",
@@ -136,8 +146,16 @@ const unreadCount = filteredAnnouncements?.length || 0;
         icon: Award,
       },
       { name: "Library", href: "/dashboard/library", icon: Library },
-      { name: "Reports", href: "/dashboard/students/reports", icon: FileBarChart },
-      { name: "Content Approvals", href: "/dashboard/approvals", icon: CheckSquare },
+      {
+        name: "Reports",
+        href: "/dashboard/students/reports",
+        icon: FileBarChart,
+      },
+      {
+        name: "Content Approvals",
+        href: "/dashboard/approvals",
+        icon: CheckSquare,
+      },
       { name: "Timetable", href: "/dashboard/time_table", icon: BookOpen },
       {
         name: "Announcements",
@@ -164,11 +182,19 @@ const unreadCount = filteredAnnouncements?.length || 0;
     TEACHER: [
       { name: "Dashboard", href: "/dashboard", icon: Home },
       { name: "My Classes", href: "/dashboard/years", icon: Layers },
-      { name: "View Assesments", href: "/dashboard/student_assesments", icon: GraduationCap },
+      {
+        name: "View Assesments",
+        href: "/dashboard/student_assesments",
+        icon: GraduationCap,
+      },
       { name: "Subjects", href: "/dashboard/subjects", icon: BookOpen },
       { name: "Manage Quiz", href: "/dashboard/quiz", icon: ClipboardList },
-      { name: "Reports", href: "/dashboard/students/reports", icon: FileBarChart },
-      { name: "Trackers", href: "/dashboard/all_trackers", icon: BarChart3  },
+      {
+        name: "Reports",
+        href: "/dashboard/students/reports",
+        icon: FileBarChart,
+      },
+      { name: "Trackers", href: "/dashboard/all_trackers", icon: BarChart3 },
       {
         name: "View Trackers",
         href: "/dashboard/viewtrackers",
@@ -222,7 +248,11 @@ const unreadCount = filteredAnnouncements?.length || 0;
         href: `/dashboard/classes/${currentUser?.studentClass}/leaderboard/`,
         icon: Award,
       },
-      { name: "Shared Materials", href: "/dashboard/shared_materials", icon: FolderOpen },
+      {
+        name: "Shared Materials",
+        href: "/dashboard/shared_materials",
+        icon: FolderOpen,
+      },
       { name: "Library", href: "/dashboard/library", icon: Library },
       { name: "Timetable", href: "/dashboard/time_table", icon: BookOpen },
       {

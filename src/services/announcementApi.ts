@@ -50,3 +50,23 @@ export const deleteAnnouncement = async (id: number) => {
   if (!response.ok) throw new Error('Failed to delete announcement');
   return response.json();
 };
+
+/** Fetch unseen announcement count */
+export const fetchUnseenAnnouncementCount = async () => {
+  const response = await fetch(`${API_BASE_URL}/unseen-announcement-count`, {
+    headers: getAuthHeader(),
+  });
+  if (!response.ok) throw new Error('Failed to fetch unseen announcement count');
+  const data = await response.json();
+  return data.data;
+};
+
+/** Mark a specific announcement as seen */
+export const markAnnouncementAsSeen = async (id: number) => {
+  const response = await fetch(`${API_BASE_URL}/mark-announcement-seen/${id}`, {
+    headers: getAuthHeader(),
+  });
+  if (!response.ok) throw new Error(`Failed to mark announcement ${id} as seen`);
+  const data = await response.json();
+  return data.data;
+};
