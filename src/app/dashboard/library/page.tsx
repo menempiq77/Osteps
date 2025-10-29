@@ -458,7 +458,7 @@ export default function LibraryPage() {
                     <div className="text-3xl text-blue-500">
                       {getIconForType(item.type)}
                     </div>
-                    {canUpload && (
+                    {canUpload && !isTeacher && (
                       <div className="flex gap-2">
                         <Button
                           shape="circle"
