@@ -71,6 +71,22 @@ const Sidebar = () => {
         icon: Settings,
       },
     ],
+    ADMIN: [
+      { name: "Dashboard", href: "/dashboard", icon: Home },
+      { name: "Schools", href: "/dashboard/schools", icon: GraduationCap },
+      // { name: "Admins", href: "/dashboard/admins", icon: Users },
+      {
+        name: "Announcements",
+        href: "/dashboard/announcements",
+        icon: Megaphone,
+        badge: unreadCount,
+      },
+      {
+        name: "Settings",
+        href: "/dashboard/admins/settings",
+        icon: Settings,
+      },
+    ],
     SCHOOL_ADMIN: [
       { name: "Dashboard", href: "/dashboard", icon: Home },
       { name: "Teachers", href: "/dashboard/teachers", icon: UserCircle },

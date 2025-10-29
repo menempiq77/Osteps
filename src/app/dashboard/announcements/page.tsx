@@ -17,6 +17,7 @@ import {
   addAnnouncement,
   deleteAnnouncement,
   fetchAnnouncements,
+  fetchUnseenAnnouncementCount,
   markAnnouncementAsSeen,
   updateAnnouncement,
 } from "@/services/announcementApi";
@@ -99,6 +100,12 @@ export default function AnnouncementsPage() {
     loadSchools();
   }, []);
 
+  const { data: unseenCount = 0 } = useQuery({
+      queryKey: ["unseen-announcement-count", currentUser?.role],
+      queryFn: fetchUnseenAnnouncementCount,
+      enabled: !!currentUser?.role,
+    });
+
   // Fetch announcements with React Query
   const {
     data: announcements = [],
@@ -178,6 +185,9 @@ export default function AnnouncementsPage() {
           return ann;
         })
       );
+      queryClient.invalidateQueries({
+      queryKey: ["unseen-announcement-count", currentUser?.role],
+    });
     },
     onSettled: () => {
       setMarkingId(null);
