@@ -99,6 +99,11 @@ const Sidebar = () => {
         href: "/dashboard/all_assesments",
         icon: GraduationCap,
       },
+      {
+        name: "View Assesments",
+        href: "/dashboard/student_assesments",
+        icon: GraduationCap,
+      },
       { name: "Trackers", href: "/dashboard/all_trackers", icon: BarChart3 },
       {
         name: "Leaderboard",
