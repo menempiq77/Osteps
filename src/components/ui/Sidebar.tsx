@@ -74,7 +74,7 @@ const Sidebar = () => {
     ADMIN: [
       { name: "Dashboard", href: "/dashboard", icon: Home },
       { name: "Schools", href: "/dashboard/schools", icon: GraduationCap },
-      // { name: "Admins", href: "/dashboard/admins", icon: Users },
+      { name: "Admins", href: "/dashboard/admins", icon: Users },
       {
         name: "Announcements",
         href: "/dashboard/announcements",
