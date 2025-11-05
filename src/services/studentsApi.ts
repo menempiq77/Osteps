@@ -51,3 +51,9 @@ export const deleteStudent = async (id: string | number) => {
   return response.data;
 };
 export default api;
+
+// fetch Students profile data
+export const fetchStudentProfileData = async (studentId: string | number) => {
+  const response = await api.get(`/get-studentProfile/${studentId}`);
+  return response.data.data;
+};
