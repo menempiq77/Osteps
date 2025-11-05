@@ -73,6 +73,7 @@ export default function TrackerTopicsPage() {
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [isAddingQuiz, setIsAddingQuiz] = useState(false);
   const [selectedQuiz, setSelectedQuiz] = useState<string>("");
+  const [messageApi, contextHolder] = message.useMessage();
 
   const canUpload =
     currentUser?.role === "SCHOOL_ADMIN" ||
@@ -180,24 +181,34 @@ export default function TrackerTopicsPage() {
   };
 
   const addNewTopic = async () => {
-    if (newTopicTitle.trim() && trackerId) {
-      try {
-        const response = await addTrackerTopic(Number(trackerId), {
-          title: newTopicTitle.trim(),
-          marks: newTopicMarks,
-        });
-        setTopics((prev) => [...prev, response.data]);
-        setNewTopicTitle("");
-        setNewTopicMarks(0);
-        setIsAddingTopic(false);
-        loadTrackerData();
-        message.success("Topic added successfully");
-      } catch (error) {
-        console.error("Failed to add topic", error);
-        message.error("Failed to add topic");
-      }
-    }
-  };
+  if (!newTopicTitle.trim() || !trackerId) return;
+
+  try {
+    const response = await addTrackerTopic(Number(trackerId), {
+      title: newTopicTitle.trim(),
+      marks: newTopicMarks,
+    });
+
+    setTopics((prev) => [...prev, response.data]);
+    setNewTopicTitle("");
+    setNewTopicMarks(0);
+    setIsAddingTopic(false);
+    loadTrackerData();
+    messageApi.success("Topic added successfully");
+
+  } catch (error: any) {
+    console.error("Failed to add topic", error);
+
+    // Extract backend message safely
+    const backendMsg =
+      error?.response?.data?.msg ||
+      error?.response?.data?.message ||
+      "Failed to add topic";
+
+    messageApi.error(backendMsg);
+  }
+};
+
   const deleteTopic = async (topicId: number) => {
     try {
       await deleteTrackerTopic(topicId);
@@ -237,6 +248,7 @@ export default function TrackerTopicsPage() {
 
   return (
     <div className="p-3 md:p-6 max-w-7xl mx-auto min-h-screen">
+      {contextHolder}
      <Breadcrumb
         items={[
           {
