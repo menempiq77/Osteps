@@ -274,7 +274,9 @@ export default function MaterialsPage() {
                   <tr key={item.id} className="border-b hover:bg-gray-50">
                     <td className="px-6 py-4 font-medium text-gray-800 flex items-center gap-2">
                       <FileText className="text-green-500" size={18} />
-                      {item.title}
+                      <Link href={`/dashboard/materials/${item.id}`}>
+                        {item.title}
+                      </Link>
                     </td>
                     <td className="px-6 py-4">{item.class_name}</td>
                     <td className="px-6 py-4">

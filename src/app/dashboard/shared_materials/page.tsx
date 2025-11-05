@@ -1,15 +1,32 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { Table, Card, Tag, Button, Space, Breadcrumb, message, Spin } from "antd";
-import { FileText, Eye, Download } from "lucide-react";
+import {
+  Table,
+  Card,
+  Button,
+  Space,
+  Breadcrumb,
+  message,
+  Spin,
+  Form,
+  Modal,
+  Input,
+  Upload,
+} from "antd";
+import { FileText, Eye, Download, UploadCloud } from "lucide-react";
 import Link from "next/link";
 import dayjs from "dayjs";
-import { fetchStudentMaterials } from "@/services/materialApi";
+import { fetchStudentMaterials, uploadMaterial } from "@/services/materialApi";
 import { IMG_BASE_URL } from "@/lib/config";
 
 export default function SharedMaterialsPage() {
   const [sharedMaterials, setSharedMaterials] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [form] = Form.useForm();
+
+  const [selectedMaterial, setSelectedMaterial] = useState<any>(null);
+  const [messageApi, contextHolder] = message.useMessage();
 
   // Fetch shared materials
   const loadSharedMaterials = async () => {
@@ -37,6 +54,32 @@ export default function SharedMaterialsPage() {
   useEffect(() => {
     loadSharedMaterials();
   }, []);
+
+  const openUploadModal = (record: any) => {
+    setSelectedMaterial(record);
+    form.resetFields();
+    setUploadModalOpen(true);
+  };
+
+ const handleUploadSubmit = async () => {
+  try {
+    const values = await form.validateFields();
+    const fileObj = values.file?.[0]?.originFileObj;
+
+    const formData = new FormData();
+    formData.append("material_id", selectedMaterial.id);
+    formData.append("text", values.notes || "");
+    if (fileObj) formData.append("file_path", fileObj);
+
+    await uploadMaterial(formData);
+
+    messageApi.success("Material uploaded successfully!");
+    setUploadModalOpen(false);
+  } catch (err) {
+    console.log(err);
+  }
+};
+
 
   const columns = [
     {
@@ -96,6 +139,11 @@ export default function SharedMaterialsPage() {
               <Download size={18} />
             </Button>
           )}
+          <Button
+            type="text"
+            icon={<UploadCloud size={18} className="text-blue-600" />}
+            onClick={() => openUploadModal(record)}
+          />
         </Space>
       ),
     },
@@ -103,6 +151,7 @@ export default function SharedMaterialsPage() {
 
   return (
     <div className="p-3 md:p-6">
+      {contextHolder}
       <Breadcrumb
         items={[
           { title: <Link href="/dashboard">Dashboard</Link> },
@@ -112,7 +161,9 @@ export default function SharedMaterialsPage() {
       />
       <Card className="shadow-md">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
-          <h1 className="text-2xl font-semibold text-gray-800">📂 Shared Materials</h1>
+          <h1 className="text-2xl font-semibold text-gray-800">
+            📂 Shared Materials
+          </h1>
         </div>
 
         {loading ? (
@@ -132,6 +183,54 @@ export default function SharedMaterialsPage() {
           />
         )}
       </Card>
+
+      {/* Upload Modal */}
+      <Modal
+        title="Upload File"
+        open={uploadModalOpen}
+        onCancel={() => setUploadModalOpen(false)}
+        centered
+        footer={
+          <div className="flex justify-end gap-3">
+            <Button
+              onClick={() => setUploadModalOpen(false)}
+              className="!border-gray-400 !text-gray-600 hover:!border-gray-500 hover:!text-gray-700"
+            >
+              Cancel
+            </Button>
+
+            <Button
+              type="primary"
+              onClick={handleUploadSubmit}
+              className="!bg-primary hover:!bg-primary/80 !text-white !px-5 !py-2 rounded-md shadow-md"
+            >
+              Submit
+            </Button>
+          </div>
+        }
+      >
+        <Form layout="vertical" form={form}>
+          <Form.Item
+            name="notes"
+            label="Notes"
+            rules={[{ required: false, message: "Please enter notes" }]}
+          >
+            <Input.TextArea rows={4} placeholder="Write notes here..." />
+          </Form.Item>
+
+          <Form.Item
+            name="file"
+            label="Upload File"
+            valuePropName="fileList"
+            getValueFromEvent={(e) => e.fileList}
+            rules={[{ required: false, message: "Please upload a file" }]}
+          >
+            <Upload className="!block !w-full" beforeUpload={() => false} maxCount={1}>
+              <Button className="!w-full">Click to Upload</Button>
+            </Upload>
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 }

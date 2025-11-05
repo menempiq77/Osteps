@@ -62,3 +62,27 @@ export const deleteMaterial = async (id: number) => {
   if (!response.ok) throw new Error('Failed to delete material');
   return response.json();
 };
+
+// upload material by student
+export const uploadMaterial = async (formData: FormData) => {
+  const response = await fetch(`${API_BASE_URL}/upload-material`, {
+    method: 'POST',
+    headers: {
+      ...getAuthHeader(),  
+    },
+    body: formData, 
+  });
+
+  if (!response.ok) throw new Error('Failed to upload material');
+  return response.json();
+};
+
+// Fetch materials get-student-submissions
+export const fetchStudentSubmiitedMaterials = async (materialId: number) => {
+  const response = await fetch(`${API_BASE_URL}/get-student-submissions/${materialId}`, {
+    headers: getAuthHeader(),
+  });
+  if (!response.ok) throw new Error('Failed to fetch submitted materials');
+  const data = await response.json();
+  return data.data;
+};
