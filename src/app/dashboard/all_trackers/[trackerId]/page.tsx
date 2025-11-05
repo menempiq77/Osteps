@@ -15,7 +15,15 @@ import {
 } from "lucide-react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { Breadcrumb, Button, Input, InputNumber, Select, Spin, message } from "antd";
+import {
+  Breadcrumb,
+  Button,
+  Input,
+  InputNumber,
+  Select,
+  Spin,
+  message,
+} from "antd";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import {
   fetchTrackerTopics,
@@ -25,6 +33,7 @@ import {
 } from "@/services/api";
 import { assignTrackerQuiz, fetchQuizes } from "@/services/quizApi";
 import Link from "next/link";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface Topic {
   id: number;
@@ -61,8 +70,6 @@ interface Quiz {
 export default function TrackerTopicsPage() {
   const { trackerId } = useParams();
   const router = useRouter();
-  const [trackerData, setTrackerData] = useState<TrackerData | null>(null);
-  const [topics, setTopics] = useState<Topic[]>([]);
   const [visibleTopics, setVisibleTopics] = useState(10);
   const [editingTopic, setEditingTopic] = useState<number | null>(null);
   const [newTopicTitle, setNewTopicTitle] = useState("");
@@ -83,23 +90,17 @@ export default function TrackerTopicsPage() {
   const schoolId = currentUser?.school;
 
   useEffect(() => {
-    loadTrackerData();
     loadQuizzes(schoolId);
   }, [trackerId]);
 
-  const loadTrackerData = async () => {
-    try {
-      setLoading(true);
-      const data = await fetchTrackerTopics(Number(trackerId));
+  const queryClient = useQueryClient();
 
-      setTrackerData(data);
-      setTopics(data.topics || []);
-    } catch (error) {
-      console.error("Failed to load tracker data", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: trackerData, isLoading } = useQuery({
+    queryKey: ["tracker-topics", trackerId],
+    queryFn: () => fetchTrackerTopics(Number(trackerId)),
+  });
+
+  const topics = trackerData?.topics || [];
 
   const loadQuizzes = async (schoolId: string) => {
     try {
@@ -137,13 +138,7 @@ export default function TrackerTopicsPage() {
           title: newTopicTitle.trim(),
           marks: newTopicMarks,
         });
-        setTopics((prev) =>
-          prev.map((topic) =>
-            topic.id === editingTopic
-              ? { ...topic, title: newTopicTitle.trim(), marks: newTopicMarks }
-              : topic
-          )
-        );
+        queryClient.invalidateQueries(["tracker-topics", trackerId]);
         setEditingTopic(null);
         message.success("Topic updated successfully");
       } catch (error) {
@@ -171,7 +166,7 @@ export default function TrackerTopicsPage() {
       message.success("Quiz assigned successfully");
       setIsAddingQuiz(false);
       setSelectedQuiz("");
-      loadTrackerData();
+      queryClient.invalidateQueries(["tracker-topics", trackerId]);
     } catch (error) {
       console.error("Failed to assign quiz", error);
       message.error("Failed to assign quiz");
@@ -180,39 +175,49 @@ export default function TrackerTopicsPage() {
     }
   };
 
-  const addNewTopic = async () => {
-  if (!newTopicTitle.trim() || !trackerId) return;
+  const addNewTopic = () => {
+    if (!newTopicTitle.trim()) return;
 
-  try {
-    const response = await addTrackerTopic(Number(trackerId), {
+    addTopicMutation.mutate({
       title: newTopicTitle.trim(),
       marks: newTopicMarks,
     });
+  };
 
-    setTopics((prev) => [...prev, response.data]);
-    setNewTopicTitle("");
-    setNewTopicMarks(0);
-    setIsAddingTopic(false);
-    loadTrackerData();
-    messageApi.success("Topic added successfully");
+  const addTopicMutation = useMutation({
+    mutationFn: (payload: { title: string; marks: number }) =>
+      addTrackerTopic(Number(trackerId), payload),
 
-  } catch (error: any) {
-    console.error("Failed to add topic", error);
+    onSuccess: (res) => {
+      if (res?.status_code === 400 && res?.msg) {
+        messageApi.warning({
+          content: res.msg,
+          duration: 5,  
+        });
+        return;
+      }
 
-    // Extract backend message safely
-    const backendMsg =
-      error?.response?.data?.msg ||
-      error?.response?.data?.message ||
-      "Failed to add topic";
+      queryClient.invalidateQueries(["tracker-topics", trackerId]);
+      messageApi.success("Topic added successfully");
+      setIsAddingTopic(false);
+      setNewTopicTitle("");
+      setNewTopicMarks(0);
+    },
 
-    messageApi.error(backendMsg);
-  }
-};
+    onError: (error: any) => {
+      const backendMsg =
+        error?.response?.data?.msg ||
+        error?.response?.data?.message ||
+        "Failed to add topic";
+
+      messageApi.error(backendMsg);
+    },
+  });
 
   const deleteTopic = async (topicId: number) => {
     try {
       await deleteTrackerTopic(topicId);
-      setTopics((prev) => prev.filter((topic) => topic.id !== topicId));
+      queryClient.invalidateQueries(["tracker-topics", trackerId]);
       message.success("Topic deleted successfully");
     } catch (error) {
       console.error("Failed to delete topic", error);
@@ -227,7 +232,7 @@ export default function TrackerTopicsPage() {
     const [reorderedItem] = items.splice(result.source.index, 1);
     items.splice(result.destination.index, 0, reorderedItem);
 
-    setTopics(items);
+    // setTopics(items);
     // Note: You might want to add API call to save the new order
   };
 
@@ -239,7 +244,7 @@ export default function TrackerTopicsPage() {
     )
   );
 
-  if (loading)
+  if (isLoading)
     return (
       <div className="p-3 md:p-6 flex justify-center items-center h-64">
         <Spin size="large" />
@@ -249,7 +254,7 @@ export default function TrackerTopicsPage() {
   return (
     <div className="p-3 md:p-6 max-w-7xl mx-auto min-h-screen">
       {contextHolder}
-     <Breadcrumb
+      <Breadcrumb
         items={[
           {
             title: <Link href="/dashboard">Dashboard</Link>,
@@ -257,7 +262,7 @@ export default function TrackerTopicsPage() {
           {
             title: <Link href="/dashboard/all_trackers">All Trackers</Link>,
           },
-           {
+          {
             title: <span>Topics</span>,
           },
         ]}

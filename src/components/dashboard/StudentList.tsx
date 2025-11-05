@@ -137,7 +137,7 @@ export default function StudentList() {
 
   const handleStudentClick = (studentId: string) => {
     router.push(
-      `/dashboard/students/${classId}/view-student-assesment/${studentId}`
+      `/dashboard/students/${classId}/${studentId}/student_dashboard`
     );
   };
 
@@ -203,9 +203,9 @@ export default function StudentList() {
             <thead>
               <tr className="bg-primary text-center text-xs md:text-sm font-thin text-white">
                 <th className="p-0">
-                  <span className="block py-2 px-3 border-r border-gray-300">
-                    Student Name
-                  </span>
+                    <span className="block py-2 px-3 border-r border-gray-300">
+                      Student Name
+                    </span>
                 </th>
                 <th className="p-0">
                   <span className="block py-2 px-3 border-r border-gray-300">
@@ -230,8 +230,8 @@ export default function StudentList() {
                     className="border-b border-gray-300 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
                   >
                     <td
-                      // onClick={() => handleStudentClick(student.id)}
-                      className="p-2 md:p-4 text-gray-700 capitalize font-medium"
+                      onClick={() => handleStudentClick(student.id)}
+                      className="p-2 md:p-4 text-gray-700 cursor-pointer hover:text-green-600 hover:underline capitalize font-medium"
                     >
                       {student.student_name}
                     </td>
