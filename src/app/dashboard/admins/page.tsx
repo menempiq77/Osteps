@@ -11,6 +11,8 @@ import {
   updateAdmin,
 } from "@/services/adminsApi";
 import Link from "next/link";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store/store";
 
 // Types
 type SuperAdmin = {
@@ -46,6 +48,8 @@ export default function SuperAdminsList() {
     useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
+  const { currentUser } = useSelector((state: RootState) => state.auth);
+  const isAdmin = currentUser?.role === "ADMIN";
 
   const loadAdmins = async () => {
     try {
@@ -137,13 +141,15 @@ export default function SuperAdminsList() {
       />
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Sub Admins</h1>
-        <Button
-          type="primary"
-          className="!bg-primary !text-white !border-none"
-          onClick={() => setIsAddSuperAdminModalOpen(true)}
-        >
-          Add Sub Admin
-        </Button>
+        {!isAdmin && (
+          <Button
+            type="primary"
+            className="!bg-primary !text-white !border-none"
+            onClick={() => setIsAddSuperAdminModalOpen(true)}
+          >
+            Add Sub Admin
+          </Button>
+        )}
       </div>
 
       <div className="relative overflow-auto">
@@ -166,7 +172,9 @@ export default function SuperAdminsList() {
                     Role
                   </span>
                 </th>
-                <th className="p-4 text-xs md:text-sm">Actions</th>
+                {!isAdmin && (
+                  <th className="p-4 text-xs md:text-sm">Actions</th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -179,24 +187,26 @@ export default function SuperAdminsList() {
                     <td className="p-2 md:p-4">{admin.name}</td>
                     <td className="p-2 md:p-4">{admin.email}</td>
                     <td className="p-2 md:p-4">{admin.role || "N/A"}</td>
-                    <td className="relative p-2 md:p-4 flex justify-center space-x-3">
-                      <Button
-                        title="Edit"
-                        onClick={() => setEditSuperAdmin(admin)}
-                        className="!text-green-500 hover:!text-green-700 !border-none !shadow-none "
-                        icon={<EditOutlined />}
-                      />
+                    {!isAdmin && (
+                      <td className="relative p-2 md:p-4 flex justify-center space-x-3">
+                        <Button
+                          title="Edit"
+                          onClick={() => setEditSuperAdmin(admin)}
+                          className="!text-green-500 hover:!text-green-700 !border-none !shadow-none "
+                          icon={<EditOutlined />}
+                        />
 
-                      <Button
-                        title="Delete"
-                        onClick={() => {
-                          setDeleteSuperAdmin(admin);
-                          setIsDeleteModalOpen(true);
-                        }}
-                        className="!text-red-500 hover:!text-red-700 !border-none !shadow-none "
-                        icon={<DeleteOutlined />}
-                      />
-                    </td>
+                        <Button
+                          title="Delete"
+                          onClick={() => {
+                            setDeleteSuperAdmin(admin);
+                            setIsDeleteModalOpen(true);
+                          }}
+                          className="!text-red-500 hover:!text-red-700 !border-none !shadow-none "
+                          icon={<DeleteOutlined />}
+                        />
+                      </td>
+                    )}
                   </tr>
                 ))
               ) : (
