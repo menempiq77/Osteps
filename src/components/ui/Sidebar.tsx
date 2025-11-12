@@ -106,6 +106,11 @@ const Sidebar = () => {
       },
       { name: "Trackers", href: "/dashboard/all_trackers", icon: BarChart3 },
       {
+        name: "View Trackers",
+        href: "/dashboard/viewtrackers",
+        icon: BarChart3,
+      },
+      {
         name: "Leaderboard",
         href: `/dashboard/leaderboard/`,
         icon: Award,

@@ -272,7 +272,7 @@ export default function MaterialsPage() {
               <tbody>
                 {materials.map((item) => (
                   <tr key={item.id} className="border-b hover:bg-gray-50">
-                    <td className="px-6 py-4 font-medium text-gray-800 flex items-center gap-2">
+                    <td className="px-6 py-4 font-medium text-gray-800 hover:text-green-600 hover:underline flex items-center gap-2" title="View Submitted materails">
                       <FileText className="text-green-500" size={18} />
                       <Link href={`/dashboard/materials/${item.id}`}>
                         {item.title}
