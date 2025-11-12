@@ -236,13 +236,15 @@ export default function TrackerTopicsPage() {
     // Note: You might want to add API call to save the new order
   };
 
-  const statusTypes = Array.from(
-    new Set(
-      topics?.flatMap((topic) =>
-        topic?.status_progress?.map((sp) => sp.status.name)
-      )
-    )
-  );
+  // const statusTypes = Array.from(
+  //   new Set(
+  //     topics?.flatMap((topic) =>
+  //       topic?.status_progress?.map((sp) => sp.status.name)
+  //     )
+  //   )
+  // );
+  const statusTypes =
+  trackerData?.status_progress?.map((sp) => sp.name) || [];
 
   if (isLoading)
     return (
