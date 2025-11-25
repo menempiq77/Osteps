@@ -255,13 +255,15 @@ export default function AllTrackerList() {
                     {currentUser?.role !== "STUDENT" && (
                       <td className="relative p-2 md:p-4 flex justify-center space-x-3">
                         <>
-                          <button
-                            onClick={() => handleAssignTracker(tracker.id)}
-                            className="text-blue-500 hover:text-blue-700 cursor-pointer"
-                            title="Assign to Classes"
-                          >
-                            <TeamOutlined />
-                          </button>
+                          {tracker?.is_topic === 1 && (
+                            <button
+                              onClick={() => handleAssignTracker(tracker.id)}
+                              className="text-blue-500 hover:text-blue-700 cursor-pointer"
+                              title="Assign to Classes"
+                            >
+                              <TeamOutlined />
+                            </button>
+                          )}
                           <button
                             onClick={() => setEditTracker(tracker)}
                             className="text-green-500 hover:text-green-700 cursor-pointer"
