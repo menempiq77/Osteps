@@ -10,6 +10,7 @@ import {
   addTopicMark,
 } from "@/services/api";
 import { fetchStudents } from "@/services/studentsApi";
+import { useQuery } from "@tanstack/react-query";
 
 interface Topic {
   id: number;
@@ -44,7 +45,6 @@ interface Student {
 export default function ViewTrackerTopicPage() {
   const { trackerId, classId } = useParams();
   const router = useRouter();
-  const [trackerData, setTrackerData] = useState<TrackerData | null>(null);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [visibleTopics, setVisibleTopics] = useState(10);
   const [loading, setLoading] = useState(false);
@@ -55,6 +55,7 @@ export default function ViewTrackerTopicPage() {
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(
     null
   );
+  const [messageApi, contextHolder] = message.useMessage();
 
   const loadStudents = async () => {
     try {
@@ -68,26 +69,19 @@ export default function ViewTrackerTopicPage() {
     }
   };
 
-  useEffect(() => {
-    loadTrackerData();
-  }, [trackerId]);
+  const {
+    data: trackerData,
+    isLoading,
+    refetch: refetchTracker,
+  } = useQuery({
+    queryKey: ["tracker-topics", trackerId],
+    queryFn: () => fetchTrackerTopics(Number(trackerId)),
+    refetchOnWindowFocus: false,
+  });
 
   useEffect(() => {
     loadStudents();
   }, [classId]);
-
-  const loadTrackerData = async () => {
-    try {
-      setLoading(true);
-      const data = await fetchTrackerTopics(Number(trackerId));
-      setTrackerData(data);
-      setTopics(data?.topics || []);
-    } catch (error) {
-      console.error("Failed to load tracker data", error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleDragEnd = (result: any) => {
     if (!result.destination) return;
@@ -112,32 +106,37 @@ export default function ViewTrackerTopicPage() {
 
   const handleEnterMarks = (topic: Topic) => {
     if (!selectedStudentId) {
-      message.warning("Please select a student first");
+      messageApi.warning("Please select a student first");
       return;
     }
     setSelectedTopic(topic);
     setMarkModal(true);
   };
+
+  useEffect(() => {
+    setTopics(trackerData?.topics || []);
+  }, [trackerData]);
+
   const handleSubmitMarks = async () => {
     if (!marks) {
-      message.warning("Please enter marks");
+      messageApi.warning("Please enter marks");
       return;
     }
 
     if (!selectedTopic) {
-      message.warning("No topic selected");
+      messageApi.warning("No topic selected");
       return;
     }
 
     if (!selectedStudentId) {
-      message.warning("No student selected");
+      messageApi.warning("No student selected");
       return;
     }
 
     try {
       const marksValue = Number(marks);
       if (isNaN(marksValue)) {
-        message.warning("Please enter valid marks");
+        messageApi.warning("Please enter valid marks");
         return;
       }
 
@@ -145,18 +144,19 @@ export default function ViewTrackerTopicPage() {
       const maxMarks = selectedTopic.marks ? Number(selectedTopic.marks) : 100;
       
       if (marksValue > maxMarks) {
-        message.warning(`Marks cannot exceed ${maxMarks}`);
+        messageApi.warning(`Marks cannot exceed ${maxMarks}`);
         return;
       }
 
 
       await addTopicMark(selectedTopic.id, marksValue, selectedStudentId);
+      await refetchTracker();
 
-      message.success(`Marks ${marks} submitted for ${selectedTopic.title}`);
+      messageApi.success(`Marks ${marks} submitted for ${selectedTopic.title}`);
       setMarkModal(false);
       setMarks("");
     } catch (error) {
-      message.error("Failed to submit marks");
+      messageApi.error("Failed to submit marks");
       console.error("Error submitting marks:", error);
     }
   };
@@ -170,6 +170,7 @@ export default function ViewTrackerTopicPage() {
 
   return (
     <div className="p-3 md:p-6">
+      {contextHolder}
       <div className="flex flex-col md:flex-row justify-between items-center mb-8">
         <Button
           onClick={() => router.back()}
@@ -351,6 +352,7 @@ export default function ViewTrackerTopicPage() {
                             <td className="p-4 whitespace-nowrap text-center">
                               {topic.type !== "quiz" && (
                                 <Button
+                                  title={!selectedStudentId && "Please select a student first"}
                                   className="!text-primary"
                                   onClick={() => handleEnterMarks(topic)}
                                   disabled={!selectedStudentId}
