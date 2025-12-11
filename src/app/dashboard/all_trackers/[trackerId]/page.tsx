@@ -30,6 +30,7 @@ import {
   addTrackerTopic,
   updateTrackerTopic,
   deleteTrackerTopic,
+  reorderTrackerTopics,
 } from "@/services/api";
 import { assignTrackerQuiz, fetchQuizes } from "@/services/quizApi";
 import Link from "next/link";
@@ -100,7 +101,9 @@ export default function TrackerTopicsPage() {
     queryFn: () => fetchTrackerTopics(Number(trackerId)),
   });
 
-  const topics = trackerData?.topics || [];
+  const topics = trackerData?.topics
+  ?.slice()
+  .sort((a, b) => (a.position || 0) - (b.position || 0)) || [];
 
   const loadQuizzes = async (schoolId: string) => {
     try {
@@ -225,16 +228,34 @@ export default function TrackerTopicsPage() {
     }
   };
 
-  const handleDragEnd = (result: any) => {
+  const handleDragEnd = async (result: any) => {
     if (!result.destination) return;
 
     const items = Array.from(topics);
-    const [reorderedItem] = items.splice(result.source.index, 1);
-    items.splice(result.destination.index, 0, reorderedItem);
+    const [removed] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, removed);
 
-    // setTopics(items);
-    // Note: You might want to add API call to save the new order
+    queryClient.setQueryData(["tracker-topics", trackerId], {
+      ...trackerData,
+      topics: items,
+    });
+
+
+    const orders = items.map((topic, index) => ({
+      id: topic.id,
+      position: index + 1,
+    }));
+
+    try {
+      await reorderTrackerTopics(orders);
+      message.success("Topics reordered successfully");
+      queryClient.invalidateQueries(["tracker-topics", trackerId]);
+    } catch (error) {
+      console.error("Failed to reorder topics", error);
+      message.error("Failed to reorder topics");
+    }
   };
+
 
   // const statusTypes = Array.from(
   //   new Set(

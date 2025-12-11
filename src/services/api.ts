@@ -54,6 +54,14 @@ export const fetchSchoolAssessment = async (schoolId: number) => {
   return response.data.data;
 };
 
+// reorder Assessment
+export const reorderAssessments = async (orders: { id: number; position: number }[]) => {
+  const response = await api.post('/reorder-assessment', {
+    orders: orders,
+  });
+  return response.data;
+};
+
 // fetch Assessment By Students
 export const fetchAssessmentByStudent = async (termId: number) => {
   const response = await api.get(`/get-student-assessment/${termId}`);
@@ -177,6 +185,15 @@ export const fetchTrackerStudentTopics = async (studentId: number, trackerId: nu
   const response = await api.get(`/get-student-tracker-topics/${studentId}/${trackerId}`);
   return response.data.data;
 };
+
+// reorder TrackerTopics
+export const reorderTrackerTopics = async (orders: { id: number; position: number }[]) => {
+  const response = await api.post('/reorder-topic', {
+    orders: orders,
+  });
+  return response.data;
+};
+
 // add trackers topic
 export const addTrackerTopic = async (trackerId: number, data: { title: string; marks: number }) => {
   const response = await api.post('/add-topic', { 
