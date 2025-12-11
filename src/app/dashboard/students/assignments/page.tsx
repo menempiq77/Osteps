@@ -41,7 +41,8 @@ export default function AssignmentsPage() {
     try {
       setLoading(true);
       const data = await fetchAssessmentByStudent(termId);
-      setAssessments(data);
+      const sortedAssessments = data.sort((a, b) => a.position - b.position);
+      setAssessments(sortedAssessments);
       setError(null);
     } catch (err) {
       setError("Failed to load Assessment");

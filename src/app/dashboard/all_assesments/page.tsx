@@ -61,7 +61,8 @@ export default function Page() {
   const loadAssessment = async () => {
     try {
       const data = await fetchSchoolAssessment(schoolId);
-      setAssessments(data);
+      const sortedAssessments = data.sort((a, b) => a.position - b.position);
+      setAssessments(sortedAssessments);
       setLoading(false);
     } catch (err) {
       setError("Failed to load Assessment");
