@@ -27,8 +27,9 @@ import {
 import { useState, useEffect } from "react";
 import { logout } from "@/features/auth/authSlice";
 import useMediaQuery from "@/hooks/useMediaQuery";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchUnseenAnnouncementCount } from "@/services/announcementApi";
+import { fetchUnreadCount, markAllNotificationsAsRead } from "@/services/notificationsApi";
 
 const Sidebar = () => {
   const pathname = usePathname();
@@ -37,13 +38,21 @@ const Sidebar = () => {
   const isMobile = useMediaQuery("(max-width: 768px)");
   const [isOpen, setIsOpen] = useState(!isMobile);
 
-  const { data: unseenCount = 0 } = useQuery({
+  // Announcement unread count
+  const { data: announcementData } = useQuery({
     queryKey: ["unseen-announcement-count", currentUser?.role],
     queryFn: fetchUnseenAnnouncementCount,
     enabled: !!currentUser?.role,
   });
 
-  const unreadCount = unseenCount?.unseen_count ?? 0;
+  // Question unread count
+  const { data: questionUnreadCount = 0 } = useQuery({
+    queryKey: ["unread-count", currentUser?.role],
+    queryFn: fetchUnreadCount,
+    enabled: !!currentUser?.role,
+  });
+
+  const announcementUnreadCount = announcementData?.unseen_count ?? 0;
 
   useEffect(() => {
     setIsOpen(!isMobile);
@@ -52,6 +61,23 @@ const Sidebar = () => {
   const handleLogout = () => {
     dispatch(logout());
     window.location.href = "/";
+  };
+
+  const queryClient = useQueryClient();
+
+  const markAllReadMutation = useMutation({
+    mutationFn: markAllNotificationsAsRead,
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["unread-count"],
+      });
+    },
+  });
+
+  const handleQuestionClick = () => {
+    if (questionUnreadCount > 0) {
+      markAllReadMutation.mutate();
+    }
   };
 
   const navigation = {
@@ -63,7 +89,7 @@ const Sidebar = () => {
         name: "Announcements",
         href: "/dashboard/announcements",
         icon: Megaphone,
-        badge: unreadCount,
+        badge: announcementUnreadCount,
       },
       {
         name: "Settings",
@@ -79,7 +105,7 @@ const Sidebar = () => {
         name: "Announcements",
         href: "/dashboard/announcements",
         icon: Megaphone,
-        badge: unreadCount,
+        badge: announcementUnreadCount,
       },
       {
         name: "Settings",
@@ -131,7 +157,7 @@ const Sidebar = () => {
         name: "Announcements",
         href: "/dashboard/announcements",
         icon: Megaphone,
-        badge: unreadCount,
+        badge: announcementUnreadCount,
       },
       {
         name: "Behavior",
@@ -187,7 +213,7 @@ const Sidebar = () => {
         name: "Announcements",
         href: "/dashboard/announcements",
         icon: Megaphone,
-        badge: unreadCount,
+        badge: announcementUnreadCount,
       },
       {
         name: "Behavior",
@@ -198,6 +224,7 @@ const Sidebar = () => {
         name: "Answer a Question",
         href: "/dashboard/questions",
         icon: HelpCircle,
+        badge: questionUnreadCount,
       },
       {
         name: "Settings",
@@ -238,7 +265,7 @@ const Sidebar = () => {
         name: "Announcements",
         href: "/dashboard/announcements",
         icon: Megaphone,
-        badge: unreadCount,
+        badge: announcementUnreadCount,
       },
       {
         name: "Behavior",
@@ -249,6 +276,7 @@ const Sidebar = () => {
         name: "Answer a Question",
         href: "/dashboard/questions",
         icon: HelpCircle,
+        badge: questionUnreadCount,
       },
       {
         name: "Settings",
@@ -285,12 +313,13 @@ const Sidebar = () => {
         name: "Announcements",
         href: "/dashboard/announcements",
         icon: Megaphone,
-        badge: unreadCount,
+        badge: announcementUnreadCount,
       },
       {
         name: "Ask a Question",
         href: "/dashboard/questions",
         icon: HelpCircle,
+        badge: questionUnreadCount,
       },
       {
         name: "Behavior",
@@ -361,6 +390,12 @@ const Sidebar = () => {
               <Link
                 key={item.name}
                 href={item.href}
+                onClick={
+                  item.name === "Ask a Question" ||
+                  item.name === "Answer a Question"
+                    ? handleQuestionClick
+                    : undefined
+                }
                 className={`group flex items-center p-3 mb-1 rounded-lg hover:bg-green-50 transition-all relative overflow-hidden ${
                   pathname === item.href
                     ? "bg-green-50 text-[#38C16C] font-medium"
