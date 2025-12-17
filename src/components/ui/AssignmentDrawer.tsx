@@ -50,6 +50,9 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
   const [messageApi, contextHolder] = message.useMessage();
   const [inputError, setInputError] = useState(false);
 
+  const isNATask =
+    !selectedTask?.task_type || selectedTask?.task_type === "null";
+
   const handleFileChange = (info: any) => {
     let newFileList = [...info.fileList];
     newFileList = newFileList.slice(-1);
@@ -76,48 +79,46 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
     return false;
   };
 
-  const handleSubmit = async (values: any) => {
-    if (fileList.length === 0) {
-      messageApi.error("Please upload a file before submitting.");
+ const handleSubmit = async (values: any) => {
+  setIsSubmitting(true);
+
+  try {
+    const formData = new FormData();
+    formData.append("task_id", selectedTask?.id || "");
+    formData.append("additional_notes", values.notes || "");
+
+    if (!isNATask && values.selfAssessment !== undefined) {
+      formData.append(
+        "self_assessment_mark",
+        values.selfAssessment.toString()
+      );
+    }
+
+    if (fileList[0]?.originFileObj) {
+      formData.append("file_path", fileList[0].originFileObj);
+    }
+
+    const response = await uploadTaskByStudent(formData, assessmentId);
+
+    if (response?.status_code === 409) {
+      messageApi.warning(
+        response.message || "You have already submitted this task."
+      );
       return;
     }
 
-    setIsSubmitting(true);
+    messageApi.success("Task submitted successfully!");
+    onClose();
+    form.resetFields();
+    setFileList([]);
+  } catch (error: any) {
+    console.error("Error submitting Task:", error);
+    messageApi.error("Failed to submit Task. Please try again.");
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
-    try {
-      const formData = new FormData();
-      const file = fileList[0].originFileObj;
-
-      formData.append("task_id", selectedTask?.id || "");
-      formData.append("self_assessment_mark", values.selfAssessment.toString());
-      formData.append("additional_notes", values.notes || "");
-      if (file) {
-        formData.append("file_path", file);
-      }
-
-      const response = await uploadTaskByStudent(formData, assessmentId);
-
-      if (response?.status_code === 409) {
-        messageApi.warning(response.message || "You have already submitted this task.");
-        return;
-      }
-
-      messageApi.success("Task submitted successfully!");
-      onClose();
-      form.resetFields();
-      setFileList([]);
-    } catch (error: any) {
-      // In case server throws error instead of returning JSON
-      if (error?.response?.status_code === 409) {
-        messageApi.warning("You have already submitted this task.");
-      } else {
-        console.error("Error submitting Task:", error);
-        messageApi.error("Failed to submit Task. Please try again.");
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const renderFileIcon = () => {
     if (!selectedTask) return null;
@@ -178,7 +179,8 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
   };
 
   const renderUploadArea = () => {
-    if (selectedTask?.status === "completed") return null;
+    // if (selectedTask?.status === "completed") return null;
+    if (selectedTask?.status === "completed" || isNATask) return null;
 
     const acceptType =
       selectedTask?.task_type === "audio"
@@ -260,7 +262,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
           <div className="space-y-6 h-full flex flex-col">
             <div>
               <h4 className="font-medium text-gray-800">Task Description</h4>
-              <p className="text-gray-600">{selectedTask.name}</p>
+              <p className="text-gray-600">{selectedTask.description}</p>
             </div>
 
             {selectedTask.status === "completed" ? (
@@ -305,60 +307,62 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
                 <div className="flex-1">
                   <div className="mb-8">{renderUploadArea()}</div>
 
-                  <Form.Item
-                    label={`Self-Assessment (Rate your work out of ${selectedTask.allocated_marks})`}
-                    name="selfAssessment"
-                    rules={[
-                      { required: true, message: "Please rate your work" },
-                    ]}
-                    className="mt-4"
-                  >
-                    <div>
-                      <InputNumber
-                        min={0}
-                        max={selectedTask.allocated_marks}
-                        step={0.5}
-                        className={`w-full ${
-                          inputError ? "border-red-500" : ""
-                        }`}
-                        placeholder={`Enter your rating (0-${selectedTask.allocated_marks})`}
-                        style={{ width: "100%" }}
-                        onChange={(value) => {
-                          if (
-                            value === null ||
-                            (value >= 0 &&
-                              value <= selectedTask.allocated_marks)
-                          ) {
-                            setInputError(false);
-                          } else {
-                            setInputError(true);
-                            setTimeout(() => setInputError(false), 2000);
-                          }
-                        }}
-                        onKeyPress={(e) => {
-                          const currentValue =
-                            form.getFieldValue("selfAssessment") || 0;
-                          const newValue = parseFloat(
-                            currentValue.toString() + e.key
-                          );
-                          if (
-                            isNaN(newValue) ||
-                            newValue > selectedTask.allocated_marks
-                          ) {
-                            e.preventDefault();
-                            setInputError(true);
-                            setTimeout(() => setInputError(false), 2000);
-                          }
-                        }}
-                      />
-                      {inputError && (
-                        <p className="text-red-500 text-xs mt-1">
-                          Rating must be between 0 and{" "}
-                          {selectedTask.allocated_marks}
-                        </p>
-                      )}
-                    </div>
-                  </Form.Item>
+                  {!isNATask && (
+                    <Form.Item
+                      label={`Self-Assessment (Rate your work out of ${selectedTask.allocated_marks})`}
+                      name="selfAssessment"
+                      rules={[
+                        { required: true, message: "Please rate your work" },
+                      ]}
+                      className="mt-4"
+                    >
+                      <div>
+                        <InputNumber
+                          min={0}
+                          max={selectedTask.allocated_marks}
+                          step={0.5}
+                          className={`w-full ${
+                            inputError ? "border-red-500" : ""
+                          }`}
+                          placeholder={`Enter your rating (0-${selectedTask.allocated_marks})`}
+                          style={{ width: "100%" }}
+                          onChange={(value) => {
+                            if (
+                              value === null ||
+                              (value >= 0 &&
+                                value <= selectedTask.allocated_marks)
+                            ) {
+                              setInputError(false);
+                            } else {
+                              setInputError(true);
+                              setTimeout(() => setInputError(false), 2000);
+                            }
+                          }}
+                          onKeyPress={(e) => {
+                            const currentValue =
+                              form.getFieldValue("selfAssessment") || 0;
+                            const newValue = parseFloat(
+                              currentValue.toString() + e.key
+                            );
+                            if (
+                              isNaN(newValue) ||
+                              newValue > selectedTask.allocated_marks
+                            ) {
+                              e.preventDefault();
+                              setInputError(true);
+                              setTimeout(() => setInputError(false), 2000);
+                            }
+                          }}
+                        />
+                        {inputError && (
+                          <p className="text-red-500 text-xs mt-1">
+                            Rating must be between 0 and{" "}
+                            {selectedTask.allocated_marks}
+                          </p>
+                        )}
+                      </div>
+                    </Form.Item>
+                  )}
 
                   <Form.Item
                     label="Additional Notes"
