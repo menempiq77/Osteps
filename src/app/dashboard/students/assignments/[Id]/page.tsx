@@ -365,7 +365,12 @@ export default function AssignmentDetailPage() {
                   <div>
                     <span className="text-gray-500">Type:</span>
                     <span className="ml-2 font-medium">
-                      {task?.type !== "quiz" ? task?.task_type : "Quiz"}
+                      {/* {task?.type !== "quiz" ? task?.task_type : "Quiz"} */}
+                        {task?.type === "quiz"
+                          ? "Quiz"
+                          : !task?.task_type || task?.task_type === "null"
+                          ? "N/A"
+                          : task.task_type.toUpperCase()}
                     </span>
                   </div>
 

@@ -32,6 +32,7 @@ type TaskFormData = {
   isVideo: boolean;
   isPdf: boolean;
   isUrl: boolean;
+  isNA: boolean;
   allocatedMarks: number;
   url?: string;
   file?: FileList;
@@ -106,6 +107,7 @@ export function AssessmentTasksDrawer({
       isVideo: false,
       isPdf: false,
       isUrl: false,
+      isNA: false,
       allocatedMarks: 0,
       url: "",
     },
@@ -115,13 +117,20 @@ export function AssessmentTasksDrawer({
     try {
       setLoading(true);
 
-      let taskType = "";
-      if (data.isAudio) taskType = "audio";
-      else if (data.isVideo) taskType = "video";
-      else if (data.isPdf) taskType = "pdf";
-      else if (data.isUrl) taskType = "url";
-      else {
-        message.error("Please select at least one task type");
+      let taskType: string | null = null;
+
+      if (data.isNA) {
+        taskType = null;
+      } else if (data.isAudio) {
+        taskType = "audio";
+      } else if (data.isVideo) {
+        taskType = "video";
+      } else if (data.isPdf) {
+        taskType = "pdf";
+      } else if (data.isUrl) {
+        taskType = "url";
+      } else {
+        messageApi.error("Please select at least one task type");
         return;
       }
 
@@ -131,9 +140,14 @@ export function AssessmentTasksDrawer({
       formData.append("description", data.description);
       formData.append("due_date", data.dueDate);
       formData.append("allocated_marks", data.allocatedMarks.toString());
-      formData.append("task_type", taskType);
 
-      if (data.isUrl && data.url) {
+      if (taskType !== null) {
+        formData.append("task_type", taskType);
+      } else {
+        formData.append("task_type", "null");
+      }
+
+      if (data.isUrl && data.url  && !data.isNA) {
         formData.append("url", data.url);
       }
 
@@ -245,6 +259,7 @@ export function AssessmentTasksDrawer({
 
     setValue("allocatedMarks", task.allocated_marks);
     setValue("url", task.url || "");
+    setValue("isNA", !taskType);
   };
 
   const handleRemoveTask = async (task: Task) => {
@@ -496,6 +511,7 @@ export function AssessmentTasksDrawer({
                               field.onChange(e.target.checked);
                               if (e.target.checked) {
                                 setValue("isUrl", false);
+                                setValue("isNA", false);
                               }
                             }}
                             disabled={loading}
@@ -519,6 +535,7 @@ export function AssessmentTasksDrawer({
                               field.onChange(e.target.checked);
                               if (e.target.checked) {
                                 setValue("isUrl", false);
+                                setValue("isNA", false);
                               }
                             }}
                             disabled={loading}
@@ -542,6 +559,7 @@ export function AssessmentTasksDrawer({
                               field.onChange(e.target.checked);
                               if (e.target.checked) {
                                 setValue("isUrl", false);
+                                setValue("isNA", false);
                               }
                             }}
                             disabled={loading}
@@ -567,6 +585,7 @@ export function AssessmentTasksDrawer({
                                 setValue("isAudio", false);
                                 setValue("isVideo", false);
                                 setValue("isPdf", false);
+                                setValue("isNA", false);
                               }
                             }}
                             disabled={loading}
@@ -576,12 +595,39 @@ export function AssessmentTasksDrawer({
                         )}
                       />
                     </div>
+
+                    {/* N/A */}
+                    <div className="flex items-center space-x-2">
+                      <Controller
+                        name="isNA"
+                        control={control}
+                        render={({ field }) => (
+                          <Checkbox
+                            checked={field.value}
+                            onChange={(e) => {
+                              field.onChange(e.target.checked);
+                              if (e.target.checked) {
+                                setValue("isAudio", false);
+                                setValue("isVideo", false);
+                                setValue("isPdf", false);
+                                setValue("isUrl", false);
+                                setValue("url", "");
+                              }
+                            }}
+                            disabled={loading}
+                          >
+                            N/A
+                          </Checkbox>
+                        )}
+                      />
+                    </div>
                   </div>
 
                   {!watch("isAudio") &&
                     !watch("isPdf") &&
                     !watch("isVideo") &&
-                    !watch("isUrl") && (
+                    !watch("isUrl") && 
+                    !watch("isNA") && (
                       <p className="text-red-500 text-sm mt-1">
                         Please select at least one task type
                       </p>
