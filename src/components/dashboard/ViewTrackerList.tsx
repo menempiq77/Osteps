@@ -190,7 +190,7 @@ const loadClasses = async (yearId: string) => {
               value={selectedYear}
               onChange={(value) => setSelectedYear(value)}
               className="w-full"
-              options={years.map((item) => ({
+              options={years?.map((item) => ({
                 value: item.id.toString(),
                 label: item.name,
               }))}

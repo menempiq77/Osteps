@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Modal, Select, Button, Form, Input } from "antd";
+import { Modal, Select, Button, Form, Input, Checkbox } from "antd";
 
 const trackerOptions = [
   { value: "recitation", label: "Recitation" },
@@ -22,26 +22,25 @@ export function AddTrackerModal({
     type: string;
     status: string;
     progress: string[];
+    claim_certificate: boolean;
   }) => void;
 }) {
   const [form] = Form.useForm();
-  const [progressOptions, setProgressOptions] = useState<string[]>([]);
 
-  const handleSubmit = (values: {
-    name: string;
-    type: string;
-    status: string;
-    progress: string[];
-  }) => {
-    onAddTracker(values);
+  const handleSubmit = (values: any) => {
+    onAddTracker({
+      name: values.name,
+      type: values.type || "",
+      status: values.status || "",
+      progress: values.progress || [],
+      claim_certificate: values.claim_certificate || false,
+    });
     form.resetFields();
-    setProgressOptions([]);
   };
 
   const handleCancel = () => {
     onOpenChange(false);
     form.resetFields();
-    setProgressOptions([]);
   };
 
   return (
@@ -61,15 +60,14 @@ export function AddTrackerModal({
         <Form.Item
           label="Tracker Name"
           name="name"
-          rules={[{ required: true, message: 'Please input the tracker name!' }]}
+          rules={[
+            { required: true, message: "Please input the tracker name!" },
+          ]}
         >
           <Input placeholder="Enter tracker name" />
         </Form.Item>
 
-        <Form.Item
-          label="Progress Options"
-          name="progress"
-        >
+        <Form.Item label="Progress Options" name="progress">
           <Select
             mode="tags"
             allowClear
@@ -78,11 +76,17 @@ export function AddTrackerModal({
           />
         </Form.Item>
 
+        <Form.Item name="claim_certificate" valuePropName="checked">
+          <Checkbox>Manual Certificate</Checkbox>
+        </Form.Item>
+
         <div className="flex justify-end space-x-3">
-          <Button onClick={handleCancel}>
-            Cancel
-          </Button>
-          <Button type="primary" htmlType="submit" className="!bg-primary border:!bg-primary">
+          <Button onClick={handleCancel}>Cancel</Button>
+          <Button
+            type="primary"
+            htmlType="submit"
+            className="!bg-primary border:!bg-primary"
+          >
             Add Tracker
           </Button>
         </div>

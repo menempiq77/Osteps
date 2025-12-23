@@ -35,6 +35,7 @@ export const addTracker = async (trackerData: {
   name: string;
   type: string;
   progress: string[];
+  claim_certificate: boolean;
 }) => {
   const response = await api.post("/add-trackers", trackerData);
   return response.data;
@@ -92,6 +93,76 @@ export const approveTrackerRequest = async (id: number) => {
 export const rejectTrackerRequest = async (id: number) => {
   const response = await api.get(`/reject-tracker/${id}`);
   return response.data;
+};
+
+// Student: claim certificate
+export const claimCertificate = async (trackerId: number) => {
+  const response = await api.post("/claim-certificate", {
+    tracker_id: trackerId,
+  });
+  return response.data;
+};
+
+// Teacher: check certificate requests
+export const checkCertificateRequest = async (payload: {
+  tracker_id: number;
+  student_id: number;
+}) => {
+  const response = await api.post("/check-certificate-request", payload);
+  return response.data.data;
+};
+
+// Teacher: upload certificate and approve
+export const uploadCertificate = async (payload: {
+  claim_id: number;
+  certificate: File;
+  remarks?: string;
+}) => {
+  const formData = new FormData();
+  formData.append("claim_id", payload.claim_id.toString());
+  formData.append("certificate", payload.certificate);
+
+  if (payload.remarks) {
+    formData.append("remarks", payload.remarks);
+  }
+
+  const response = await api.post("/upload-certificate", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
+  return response.data;
+};
+
+// Student: download certificate
+export const downloadCertificate = async (claimId: number) => {
+  const response = await api.get(`/download-certificate/${claimId}`);
+  return response.data;
+};
+// Student: fetch my claimed certificates
+export const fetchMyClaimedCertificates = async () => {
+  const response = await api.get("/myclaim-certificate");
+  return response.data.data;
+};
+
+// Student: tracker progress points
+export const fetchStudentTrackerPoints = async (trackerId: number) => {
+  const response = await api.get(
+    `/student-trackerProgress-points/${trackerId}`
+  );
+  return response.data.data;
+};
+
+// Teacher: tracker points for a student
+export const fetchTeacherTrackerPoints = async (
+  trackerId: number,
+  studentId: number
+) => {
+  const response = await api.get(
+    `/teacher-track-points/${trackerId}/${studentId}`
+  );
+  return response.data.data;
 };
 
 

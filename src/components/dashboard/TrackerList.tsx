@@ -3,9 +3,15 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { Spin, Breadcrumb } from "antd";
+import { Spin, Breadcrumb, Switch, message, Tooltip } from "antd";
 import Link from "next/link";
-import { fetchTrackers } from "@/services/trackersApi";
+import {
+  claimCertificate,
+  fetchMyClaimedCertificates,
+  fetchTrackers,
+} from "@/services/trackersApi";
+import { FilePdfOutlined } from "@ant-design/icons";
+import { IMG_BASE_URL } from "@/lib/config";
 
 type Tracker = {
   id: string;
@@ -28,6 +34,51 @@ export default function TrackerList() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [trackers, setTrackers] = useState<Tracker[]>([]);
   const [loading, setLoading] = useState(true);
+  const [checkedTrackers, setCheckedTrackers] = useState<
+    Record<string, boolean>
+  >({});
+  const [claimedCertificates, setClaimedCertificates] = useState<any[]>([]);
+  const [messageApi, contextHolder] = message.useMessage();
+
+  const handleRequestCertificateToggle = async (
+    trackerId: string,
+    checked: boolean
+  ) => {
+    setLoading(true);
+    try {
+      await claimCertificate(trackerId);
+      messageApi.success("Request Certificate submitted successfully!");
+      // Update only the specific tracker
+      setCheckedTrackers((prev) => ({
+        ...prev,
+        [trackerId]: checked,
+      }));
+      await loadClaimedCertificates();
+    } catch (error: any) {
+      messageApi.error("Failed to request certificate.");
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const initialChecked: Record<string, boolean> = {};
+    trackers.forEach((tracker) => {
+      // If claim_certificate is 1, we can allow switching, else disabled
+      initialChecked[tracker.tracker_id] = false; // or true if previously requested
+    });
+    setCheckedTrackers(initialChecked);
+  }, [trackers]);
+
+  const loadClaimedCertificates = async () => {
+    try {
+      const data = await fetchMyClaimedCertificates();
+      setClaimedCertificates(data); // array of { id, tracker_id, certificate_path }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const loadTrackers = async () => {
     try {
@@ -37,9 +88,11 @@ export default function TrackerList() {
         data.map((tracker: any) => ({
           ...tracker,
           id: tracker.id.toString(),
+          tracker_id: tracker.tracker_id.toString(),
           lastUpdated: new Date().toISOString().split("T")[0],
         }))
       );
+      await loadClaimedCertificates();
     } catch (err) {
       console.error(err);
     } finally {
@@ -66,6 +119,24 @@ export default function TrackerList() {
     }
   };
 
+  const handleDownloadCertificate = (certificatePath: string) => {
+    const url = `${IMG_BASE_URL}/storage/${certificatePath}`;
+    window.open(url, "_blank");
+  };
+
+  const isCertificateClaimed = (trackerId: string | number) => {
+    return claimedCertificates.some(
+      (c) => Number(c.tracker_id) === Number(trackerId)
+    );
+  };
+
+  const getCertificatePath = (trackerId: string | number) => {
+    const cert = claimedCertificates.find(
+      (c) => Number(c.tracker_id) === Number(trackerId)
+    );
+    return cert?.certificate_path;
+  };
+
   const handleTrackerClick = (trackerId: string) => {
     router.push(`/dashboard/trackers/${classId}/${trackerId}`);
   };
@@ -79,6 +150,7 @@ export default function TrackerList() {
 
   return (
     <>
+      {contextHolder}
       <Breadcrumb
         items={[
           {
@@ -110,27 +182,30 @@ export default function TrackerList() {
                   </span>
                 </th>
                 <th className="p-2 md:p-4">
+                  <span className={`block py-2 px-3 border-r border-gray-300`}>
+                    Status
+                  </span>
+                </th>
+                <th className="p-2 md:p-4">
                   <span
                     className={`block py-2 px-3 ${
                       currentUser?.role !== "STUDENT" ? "border-r" : ""
                     } border-gray-300`}
                   >
-                    Status
+                    Request Certificate
                   </span>
                 </th>
               </tr>
             </thead>
             <tbody>
               {trackers?.length > 0 ? (
-                trackers.map((tracker) => (
+                trackers?.map((tracker) => (
                   <tr
                     key={tracker.id}
                     className="border-b border-gray-300 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
                   >
                     <td
-                      onClick={() =>
-                        handleTrackerClick(tracker.tracker_id)
-                      }
+                      onClick={() => handleTrackerClick(tracker.tracker_id)}
                       className="p-2 md:p-4 cursor-pointer hover:underline text-green-600 hover:text-green-800 font-medium"
                     >
                       {tracker?.tracker?.name}
@@ -144,6 +219,31 @@ export default function TrackerList() {
                       >
                         {tracker?.tracker?.status}
                       </span>
+                    </td>
+                    <td className="p-2 md:p-4 flex justify-center gap-2">
+                      {isCertificateClaimed(tracker.tracker_id) ? (
+                        <Tooltip title="View Certificate">
+                          <FilePdfOutlined
+                            className="text-red-600 text-xl cursor-pointer"
+                            onClick={() =>
+                              handleDownloadCertificate(
+                                getCertificatePath(tracker.tracker_id)!
+                              )
+                            }
+                          />
+                        </Tooltip>
+                      ) : (
+                        <Switch
+                          checked={checkedTrackers[tracker.tracker_id] || false}
+                          onChange={(checked) =>
+                            handleRequestCertificateToggle(
+                              tracker.tracker_id,
+                              checked
+                            )
+                          }
+                          disabled={tracker.tracker.claim_certificate === 0}
+                        />
+                      )}
                     </td>
                   </tr>
                 ))

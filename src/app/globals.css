@@ -167,3 +167,13 @@
   padding: 6px;
 }
 /* Time table style end... */
+
+
+/* Checkbox field inner colors */
+:where(.css-dev-only-do-not-override-mncuj7).ant-checkbox-checked .ant-checkbox-inner{
+  background-color: #38C16C !important;
+  border-color: #38C16C !important;
+}
+:where(.css-dev-only-do-not-override-mncuj7).ant-checkbox-wrapper:not(.ant-checkbox-wrapper-disabled):hover {
+  border-color: #38C16C !important;
+}
