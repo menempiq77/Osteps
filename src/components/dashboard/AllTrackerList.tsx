@@ -75,6 +75,7 @@ export default function AllTrackerList() {
         name: tracker.name,
         type: "topic",
         progress: tracker.progress,
+        claim_certificate: tracker.claim_certificate,
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["trackers", schoolId] });

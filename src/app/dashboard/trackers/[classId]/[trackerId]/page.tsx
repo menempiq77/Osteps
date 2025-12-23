@@ -362,7 +362,7 @@ export default function TrackerTopicsPage() {
                                                   checked:after:absolute 
                                                   checked:after:text-white 
                                                   checked:after:text-sm 
-                                                  checked:after:font-bold 
+                                                  checked:after:font-semibold 
                                                   checked:after:left-1/2 
                                                   checked:after:top-1/2 
                                                   checked:after:-translate-x-1/2 

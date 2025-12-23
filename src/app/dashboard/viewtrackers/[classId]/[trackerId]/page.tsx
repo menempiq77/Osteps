@@ -1,16 +1,17 @@
-
 "use client";
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, GripVertical } from "lucide-react";
-import { Button, Input, Modal, Select, Spin, message } from "antd";
+import { Button, Input, Modal, Select, Spin, Tooltip, message } from "antd";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import {
-  fetchTrackerTopics,
-  addTopicMark,
-} from "@/services/api";
+import { fetchTrackerTopics, addTopicMark } from "@/services/api";
 import { fetchStudents } from "@/services/studentsApi";
 import { useQuery } from "@tanstack/react-query";
+import { BellOutlined } from "@ant-design/icons";
+import {
+  checkCertificateRequest,
+  uploadCertificate,
+} from "@/services/trackersApi";
 
 interface Topic {
   id: number;
@@ -55,7 +56,43 @@ export default function ViewTrackerTopicPage() {
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(
     null
   );
+  const [certificateModal, setCertificateModal] = useState(false);
+  const [certificateFile, setCertificateFile] = useState<File | null>(null);
+  const [certificateRemarks, setCertificateRemarks] = useState("");
+  const [certificateClaimId, setCertificateClaimId] = useState<number | null>(
+    null
+  );
+
+  const [hasCertificateRequest, setHasCertificateRequest] = useState(false);
+
   const [messageApi, contextHolder] = message.useMessage();
+
+  const checkCertificate = async () => {
+    if (!selectedStudentId) return;
+
+    try {
+      const data = await checkCertificateRequest({
+        tracker_id: Number(trackerId),
+        student_id: selectedStudentId,
+      });
+
+      // If there's a request, store the claim_id
+      if (Array.isArray(data) && data.length > 0) {
+        setHasCertificateRequest(true);
+        setCertificateClaimId(data[0].id); // take the first request's id
+      } else {
+        setHasCertificateRequest(false);
+        setCertificateClaimId(null);
+      }
+    } catch (err) {
+      console.error("Failed to check certificate request:", err);
+      setHasCertificateRequest(false);
+      setCertificateClaimId(null);
+    }
+  };
+  useEffect(() => {
+    checkCertificate();
+  }, [selectedStudentId, trackerId]);
 
   const loadStudents = async () => {
     try {
@@ -142,12 +179,11 @@ export default function ViewTrackerTopicPage() {
 
       // Get the maximum marks from the topic (10 in this case)
       const maxMarks = selectedTopic.marks ? Number(selectedTopic.marks) : 100;
-      
+
       if (marksValue > maxMarks) {
         messageApi.warning(`Marks cannot exceed ${maxMarks}`);
         return;
       }
-
 
       await addTopicMark(selectedTopic.id, marksValue, selectedStudentId);
       await refetchTracker();
@@ -187,17 +223,41 @@ export default function ViewTrackerTopicPage() {
             {trackerData?.name || "Tracker Progress"}
           </h1>
 
-          <Select
-            value={selectedStudentId || undefined}
-            onChange={(val) => setSelectedStudentId(val)}
-            placeholder="Select Student"
-            className="w-48"
-            style={{ minWidth: "120px" }}
-            options={students.map((student) => ({
-              label: student.student_name,
-              value: student.id,
-            }))}
-          />
+          <div className="flex align-center gap-3">
+            <Tooltip title="Certificate Request">
+              <div
+                className={`relative flex align-center ${
+                  !selectedStudentId ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                }`}
+                onClick={() => {
+                  if (hasCertificateRequest && selectedStudentId) {
+                    setCertificateModal(true);
+                  }
+                }}
+              >
+                <BellOutlined className="text-orange-500 text-lg" />
+
+                {hasCertificateRequest && (
+                  <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
+                  </span>
+                )}
+              </div>
+            </Tooltip>
+
+            <Select
+              value={selectedStudentId || undefined}
+              onChange={(val) => setSelectedStudentId(val)}
+              placeholder="Select Student"
+              className="w-48"
+              style={{ minWidth: "120px" }}
+              options={students?.map((student) => ({
+                label: student.student_name,
+                value: student.id,
+              }))}
+            />
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -334,25 +394,29 @@ export default function ViewTrackerTopicPage() {
                               );
                             })}
                             <td className="p-4 whitespace-nowrap text-center border-r border-gray-200">
-                                <span>
-                                    {topic.type === "quiz"
-                                      ? (
-                                          topic.quiz?.submissions?.find(
-                                            (s) => s.student_id === selectedStudentId && s.type === "tracker"
-                                          )?.obtained_marks || "0"
-                                        )
-                                      : (
-                                          topic.topic_mark?.find(
-                                            (m) => m.student_id === selectedStudentId
-                                          )?.marks || "0"
-                                        )}
-                                    / {topic?.marks || topic?.quiz?.total_marks || "0"}
-                                  </span>
+                              <span>
+                                {topic.type === "quiz"
+                                  ? topic.quiz?.submissions?.find(
+                                      (s) =>
+                                        s.student_id === selectedStudentId &&
+                                        s.type === "tracker"
+                                    )?.obtained_marks || "0"
+                                  : topic.topic_mark?.find(
+                                      (m) => m.student_id === selectedStudentId
+                                    )?.marks || "0"}
+                                /{" "}
+                                {topic?.marks ||
+                                  topic?.quiz?.total_marks ||
+                                  "0"}
+                              </span>
                             </td>
                             <td className="p-4 whitespace-nowrap text-center">
                               {topic.type !== "quiz" && (
                                 <Button
-                                  title={!selectedStudentId && "Please select a student first"}
+                                  title={
+                                    !selectedStudentId &&
+                                    "Please select a student first"
+                                  }
                                   className="!text-primary"
                                   onClick={() => handleEnterMarks(topic)}
                                   disabled={!selectedStudentId}
@@ -406,6 +470,68 @@ export default function ViewTrackerTopicPage() {
             max={selectedTopic?.marks || 100}
             value={marks}
             onChange={(e) => setMarks(e.target.value)}
+          />
+        </div>
+      </Modal>
+      <Modal
+        title="Upload Certificate"
+        open={certificateModal}
+        onCancel={() => {
+          setCertificateModal(false);
+          setCertificateFile(null);
+          setCertificateRemarks("");
+        }}
+        onOk={async () => {
+          if (!certificateFile) {
+            messageApi.warning("Please upload a file");
+            return;
+          }
+
+          if (!selectedStudentId) {
+            messageApi.warning("Please select a student first");
+            return;
+          }
+
+          try {
+            await uploadCertificate({
+              claim_id: certificateClaimId!,
+              certificate: certificateFile,
+              remarks: certificateRemarks,
+            });
+
+            messageApi.success("Certificate uploaded");
+            setCertificateModal(false);
+            setCertificateFile(null);
+            setCertificateRemarks("");
+
+            await checkCertificate();
+          } catch (err) {
+            console.error(err);
+            messageApi.error("Failed to Certificate uploaded");
+          }
+        }}
+        okText="Submit"
+        okButtonProps={{ className: "!bg-primary !text-white" }}
+        centered
+      >
+        <div className="space-y-4">
+          <div className="mb-3">
+            <Input
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png"
+              onChange={(e) => {
+                if (e.target.files?.[0]) {
+                  setCertificateFile(e.target.files[0]);
+                }
+              }}
+            />
+          </div>
+
+          <Input.TextArea
+            placeholder="Enter remarks (optional)"
+            value={certificateRemarks}
+            onChange={(e) => setCertificateRemarks(e.target.value)}
+            rows={3}
           />
         </div>
       </Modal>
