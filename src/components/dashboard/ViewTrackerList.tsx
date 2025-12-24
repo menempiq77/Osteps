@@ -23,7 +23,6 @@ type Tracker = {
 export default function TrackerList() {
   const router = useRouter();
   const [trackers, setTrackers] = useState<Tracker[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedYear, setSelectedYear] = useState<string>("");
   const [selectedClass, setSelectedClass] = useState<string>("");
@@ -33,11 +32,15 @@ export default function TrackerList() {
   const isTeacher = currentUser?.role === "TEACHER";
   const schoolId = currentUser?.school;
 
+  const [yearsLoading, setYearsLoading] = useState(false);
+  const [classesLoading, setClassesLoading] = useState(false);
+  const [trackersLoading, setTrackersLoading] = useState(false);
+
   const loadTrackers = async () => {
     if (!selectedClass) return;
 
     try {
-      setLoading(true);
+      setTrackersLoading(true);
       const data = await fetchTrackers(Number(selectedClass));
       setTrackers(
         data.map((tracker: any) => ({
@@ -50,13 +53,13 @@ export default function TrackerList() {
       setError("Failed to fetch trackers");
       console.error(err);
     } finally {
-      setLoading(false);
+      setTrackersLoading(false);
     }
   };
 
   const loadYears = async () => {
   try {
-    setLoading(true);
+    setYearsLoading(true);
     let yearsData: any[] = [];
 
     if (isTeacher) {
@@ -80,14 +83,14 @@ export default function TrackerList() {
     setError("Failed to load years");
     console.error(err);
   } finally {
-    setLoading(false);
+    setYearsLoading(false);
   }
 };
 
 const loadClasses = async (yearId: string) => {
     let classesData: any[] = [];
     try {
-      setLoading(true);
+      setClassesLoading(true);
 
       if (isTeacher) {
         const res = await fetchAssignYears();
@@ -123,7 +126,7 @@ const loadClasses = async (yearId: string) => {
       setError("Failed to fetch classes");
       console.error(err);
     } finally {
-      setLoading(false);
+      setClassesLoading(false);
     }
   };
 
@@ -162,7 +165,7 @@ const loadClasses = async (yearId: string) => {
     router.push(`/dashboard/viewtrackers/${selectedClass}/${trackerId}`);
   };
 
-  if (loading && years.length === 0) {
+  if (trackersLoading && years.length === 0) {
     return (
       <div className="p-3 md:p-6 flex justify-center items-center h-64">
         <Spin size="large" />

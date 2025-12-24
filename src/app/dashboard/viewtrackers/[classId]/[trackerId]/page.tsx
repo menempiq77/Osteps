@@ -2,7 +2,16 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, GripVertical } from "lucide-react";
-import { Button, Input, Modal, Select, Spin, Tooltip, message } from "antd";
+import {
+  Button,
+  Input,
+  Modal,
+  Progress,
+  Select,
+  Spin,
+  Tooltip,
+  message,
+} from "antd";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { fetchTrackerTopics, addTopicMark } from "@/services/api";
 import { fetchStudents } from "@/services/studentsApi";
@@ -10,6 +19,7 @@ import { useQuery } from "@tanstack/react-query";
 import { BellOutlined } from "@ant-design/icons";
 import {
   checkCertificateRequest,
+  fetchTeacherTrackerPoints,
   uploadCertificate,
 } from "@/services/trackersApi";
 
@@ -63,6 +73,12 @@ export default function ViewTrackerTopicPage() {
     null
   );
 
+  const [progressPoints, setProgressPoints] = useState<{
+    earned_points: number;
+    total_points: number;
+    percentage: number;
+  } | null>(null);
+
   const [hasCertificateRequest, setHasCertificateRequest] = useState(false);
 
   const [messageApi, contextHolder] = message.useMessage();
@@ -90,6 +106,31 @@ export default function ViewTrackerTopicPage() {
       setCertificateClaimId(null);
     }
   };
+
+  useEffect(() => {
+    loadTeacherProgressPoints();
+  }, [trackerId, selectedStudentId]);
+
+  const loadTeacherProgressPoints = async () => {
+    if (!trackerId || !selectedStudentId) return;
+
+    try {
+      const data = await fetchTeacherTrackerPoints(
+        Number(trackerId),
+        selectedStudentId
+      );
+      setProgressPoints(data);
+    } catch (error) {
+      console.error("Failed to load progress points", error);
+      setProgressPoints(null);
+    }
+  };
+  useEffect(() => {
+    if (!selectedStudentId) {
+      setProgressPoints(null);
+    }
+  }, [selectedStudentId]);
+
   useEffect(() => {
     checkCertificate();
   }, [selectedStudentId, trackerId]);
@@ -223,11 +264,34 @@ export default function ViewTrackerTopicPage() {
             {trackerData?.name || "Tracker Progress"}
           </h1>
 
+          <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-lg px-5 py-3">
+            {/* Points Info */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">Progress Points</span>
+              <span className="text-lg font-semibold text-gray-900">
+                {progressPoints?.earned_points || 0} /{" "}
+                {progressPoints?.total_points || 0}
+              </span>
+            </div>
+            {/* Circular Progress */}
+            <Progress
+              type="circle"
+              percent={progressPoints?.percentage}
+              size={40}
+              strokeColor="#16a34a"
+              format={(percent) => (
+                <span className="text-green-700 font-semibold">{percent}%</span>
+              )}
+            />
+          </div>
+
           <div className="flex align-center gap-3">
             <Tooltip title="Certificate Request">
               <div
                 className={`relative flex align-center ${
-                  !selectedStudentId ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                  !selectedStudentId
+                    ? "opacity-50 cursor-not-allowed"
+                    : "cursor-pointer"
                 }`}
                 onClick={() => {
                   if (hasCertificateRequest && selectedStudentId) {
