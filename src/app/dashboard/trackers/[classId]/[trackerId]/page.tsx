@@ -10,13 +10,14 @@ import {
 } from "lucide-react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { Button, Spin, message } from "antd";
+import { Button, Progress, Spin, message } from "antd";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import {
   fetchTrackerTopics,
   updateTopicStatus,
   fetchTrackerStudentTopics,
 } from "@/services/api";
+import { fetchStudentTrackerPoints } from "@/services/trackersApi";
 
 interface Status {
   id: number;
@@ -34,7 +35,7 @@ interface StatusProgress {
 interface QuizSubmission {
   id: number;
   student_id: number;
-  type: string; 
+  type: string;
   status: string;
   obtained_marks?: number;
 }
@@ -79,6 +80,12 @@ export default function TrackerTopicsPage() {
   const [visibleTopics, setVisibleTopics] = useState(10);
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [loading, setLoading] = useState(false);
+  const [progressPoints, setProgressPoints] = useState<{
+    earned_points: number;
+    total_points: number;
+    percentage: number;
+  } | null>(null);
+
   const [messageApi, contextHolder] = message.useMessage();
 
   const canUpload =
@@ -134,6 +141,21 @@ export default function TrackerTopicsPage() {
     }
   };
 
+  useEffect(() => {
+    if (isStudent && trackerId) {
+      loadStudentProgressPoints();
+    }
+  }, [trackerId]);
+
+  const loadStudentProgressPoints = async () => {
+    try {
+      const data = await fetchStudentTrackerPoints(Number(trackerId));
+      setProgressPoints(data);
+    } catch (error) {
+      console.error("Failed to load progress points", error);
+    }
+  };
+
   const handleStatusChange = async (
     topicId: number,
     statusId: number,
@@ -182,9 +204,7 @@ export default function TrackerTopicsPage() {
   //     )
   //   )
   // );
-  const statusTypes =
-  trackerData?.status_progress?.map((sp) => sp.name) || [];
-
+  const statusTypes = trackerData?.status_progress?.map((sp) => sp.name) || [];
 
   if (loading)
     return (
@@ -211,6 +231,28 @@ export default function TrackerTopicsPage() {
           <h1 className="text-2xl font-bold text-gray-900">
             {trackerData?.name || "Tracker Progress"}
           </h1>
+
+          <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-lg px-5 py-3">
+            {/* Points Info */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">Progress Points</span>
+              <span className="text-lg font-semibold text-gray-900">
+                {progressPoints?.earned_points || 0} / {progressPoints?.total_points || 0}
+              </span>
+            </div>
+            {/* Circular Progress */}
+            <Progress
+              type="circle"
+              percent={progressPoints?.percentage}
+              size={40}
+              strokeColor="#16a34a"
+              format={(percent) => (
+                <span className="text-green-700 font-semibold">
+                  {percent}%
+                </span>
+              )}
+            />
+          </div>
         </div>
 
         <div className="overflow-x-auto">

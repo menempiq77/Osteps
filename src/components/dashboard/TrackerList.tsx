@@ -101,6 +101,7 @@ export default function TrackerList() {
   };
 
   useEffect(() => {
+    if (!classId) return;
     loadTrackers();
   }, [classId]);
 
@@ -250,8 +251,8 @@ export default function TrackerList() {
               ) : (
                 <tr>
                   <td
-                    colSpan={currentUser?.role !== "STUDENT" ? 4 : 3}
-                    className="p-4 text-center text-gray-500"
+                    colSpan={4}
+                    className="p-2 md:p-4 text-center text-gray-500"
                   >
                     No trackers found.
                   </td>
