@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/store/store";
 import {
@@ -33,6 +33,7 @@ import { fetchUnreadCount, markAllNotificationsAsRead } from "@/services/notific
 
 const Sidebar = () => {
   const pathname = usePathname();
+  const router = useRouter();
   const dispatch = useDispatch();
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const isMobile = useMediaQuery("(max-width: 768px)");
@@ -60,7 +61,7 @@ const Sidebar = () => {
 
   const handleLogout = () => {
     dispatch(logout());
-    window.location.href = "/";
+    router?.replace("/");
   };
 
   const queryClient = useQueryClient();
@@ -68,9 +69,10 @@ const Sidebar = () => {
   const markAllReadMutation = useMutation({
     mutationFn: markAllNotificationsAsRead,
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["unread-count"],
-      });
+      queryClient.setQueryData(
+        ["unread-count", currentUser?.role],
+        0
+      );
     },
   });
 

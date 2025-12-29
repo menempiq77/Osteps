@@ -50,7 +50,6 @@ export default function DashboardPage() {
   const [schools, setSchools] = useState<any[]>([]);
   const [superAdmins, setSuperAdmins] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [schoolLogo, setSchoolLogo] = useState("");
 
   const loadAdmins = async () => {
@@ -58,7 +57,7 @@ export default function DashboardPage() {
       const admins = await fetchAdmins();
       setSuperAdmins(admins);
     } catch (error) {
-      console.error("Failed to fetch admins:", error);
+      console.log("Failed to fetch admins:", error);
     } finally {
       setLoading(false);
     }
@@ -68,8 +67,7 @@ export default function DashboardPage() {
       const data = await fetchSchools();
       setSchools(data);
     } catch (err) {
-      setError("Failed to fetch schools");
-      console.error(err);
+      console.log("Failed to fetch schools", err);
     } finally {
       setLoading(false);
     }
@@ -77,9 +75,9 @@ export default function DashboardPage() {
   const loadSchoolLogo = async () => {
     try {
       const school = await fetchSchoolLogo();
-      setSchoolLogo(school.logo);
+      setSchoolLogo(school?.logo);
     } catch (error) {
-      console.error("Failed to fetch Logo:", error);
+      console.log("Failed to fetch Logo:", error);
     } finally {
       setLoading(false);
     }
@@ -99,6 +97,7 @@ export default function DashboardPage() {
     queryKey: ["schoolDashboard"],
     queryFn: fetchSchoolDashboardData,
   });
+  
   const {
     data: studentDashboard,
     isLoading: studentdashboardLoading,
@@ -106,6 +105,7 @@ export default function DashboardPage() {
   } = useQuery({
     queryKey: ["studentDashboard"],
     queryFn: fetchStudentDashboardData,
+    enabled: currentUser?.role === "STUDENT",
   });
 
   function timeAgo(dateString: string) {
@@ -151,22 +151,22 @@ export default function DashboardPage() {
           stats: [
             {
               title: "Total Years",
-              value: schoolDashboard?.school.years_count || 0,
+              value: schoolDashboard?.school?.years_count || 0,
               link: "dashboard/years"
             },
             {
               title: "Total Classes",
-              value: schoolDashboard?.school.school_classs_count || 0,
+              value: schoolDashboard?.school?.school_classs_count || 0,
               link: "dashboard/years"
             },
             {
               title: "Total Teachers",
-              value: schoolDashboard?.school.teachers_count || 0,
+              value: schoolDashboard?.school?.teachers_count || 0,
               link: "dashboard/teachers"
             },
             {
               title: "Total Students",
-              value: schoolDashboard?.school.students_count || 0,
+              value: schoolDashboard?.school?.students_count || 0,
               link: "/dashboard",
             },
           ],
@@ -218,22 +218,22 @@ export default function DashboardPage() {
           stats: [
             {
               title: "Total Years",
-              value: schoolDashboard?.school.years_count || 0,
+              value: schoolDashboard?.school?.years_count || 0,
               link: "dashboard/years"
             },
             {
               title: "Total Classes",
-              value: schoolDashboard?.school.school_classs_count || 0,
+              value: schoolDashboard?.school?.school_classs_count || 0,
               link: "dashboard/years"
             },
             {
               title: "Total Teachers",
-              value: schoolDashboard?.school.teachers_count || 0,
+              value: schoolDashboard?.school?.teachers_count || 0,
                link: "dashboard/teachers"
             },
             {
               title: "Total Students",
-              value: schoolDashboard?.school.students_count || 0,
+              value: schoolDashboard?.school?.students_count || 0,
               link: "/dashboard",
             },
           ],
@@ -508,7 +508,7 @@ export default function DashboardPage() {
           <Row gutter={[16, 16]}>
             {stats.map((stat, index) => {
               const icon = currentUser?.role
-                ? (statIcons[currentUser.role] as Record<string, JSX.Element>)[
+                ? (statIcons[currentUser?.role] as Record<string, JSX.Element>)[
                     stat.title
                   ]
                 : null;
@@ -524,15 +524,15 @@ export default function DashboardPage() {
                       : 12
                   }
                 >
-                <Link href={stat.link || "#"}>
+                <Link href={stat?.link || "#"}>
                   <Card className="border-0 shadow-sm hover:shadow-md transition-all">
                     <Statistic
                       title={
                         <span className="text-[#000000] font-medium !font-['Raleway']">
-                          {stat.title}
+                          {stat?.title}
                         </span>
                       }
-                      value={stat.value}
+                      value={stat?.value}
                       prefix={icon}
                       valueStyle={{ color: THEME_COLOR_DARK }}
                     />
