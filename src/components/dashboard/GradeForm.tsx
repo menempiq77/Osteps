@@ -35,15 +35,18 @@ export default function GradeForm({ onSubmit, defaultValues, isOpen }: GradeForm
   };
 
   const validateGradeLetter = (_: any, value: string) => {
-    if (!value) {
-      return Promise.reject(new Error("Grade letter is required"));
-    }
-    if (!/^[A-Za-z]+$/.test(value)) {
-      return Promise.reject(new Error("Grade letter should contain only letters"));
-    }
-    return Promise.resolve();
-  };
+  if (!value) {
+    return Promise.reject(new Error("Grade letter is required"));
+  }
 
+  if (!/^[A-Za-z]+[+-]?$/.test(value)) {
+    return Promise.reject(
+      new Error("Grade must be letters with optional + or - (e.g., A, A+, B-)")
+    );
+  }
+
+  return Promise.resolve();
+};
   return (
     <Form form={form} layout="vertical" onFinish={handleFinish}>
       <Form.Item
@@ -53,18 +56,16 @@ export default function GradeForm({ onSubmit, defaultValues, isOpen }: GradeForm
           { validator: validateGradeLetter }
         ]}
       >
-        <Input 
-          placeholder="A" 
-          // Prevent typing numbers
+        <Input
+          placeholder="A+"
           onKeyPress={(e) => {
-            if (!/[A-Za-z]/.test(e.key)) {
+            if (!/[A-Za-z+-]/.test(e.key)) {
               e.preventDefault();
             }
           }}
-          // Prevent paste with numbers
           onPaste={(e) => {
-            const text = e.clipboardData.getData('text');
-            if (!/^[A-Za-z]+$/.test(text)) {
+            const text = e.clipboardData.getData("text");
+            if (!/^[A-Za-z]+[+-]?$/.test(text)) {
               e.preventDefault();
             }
           }}
