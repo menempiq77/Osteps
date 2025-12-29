@@ -75,6 +75,7 @@ export default function AssignmentDetailPage() {
             ...task,
             status: studentTask?.status || "not-started",
             self_assessment_marks: studentTask?.self_assessment_mark || 0,
+            additional_notes: studentTask?.additional_notes || "",
             teacher_assessment_marks:
               studentTask?.teacher_assessment_score || 0,
             teacher_feedback: studentTask?.teacher_feedback || null,
@@ -330,6 +331,12 @@ export default function AssignmentDetailPage() {
                   {task.teacher_feedback && (
                     <p className="text-gray-600 text-sm mt-1">
                       <strong>Teacher Feedback:</strong> {task.teacher_feedback}
+                    </p>
+                  )}
+
+                  {task.additional_notes && (
+                    <p className="text-gray-600 text-sm mt-1">
+                      <strong>Student Note:</strong> {task.additional_notes}
                     </p>
                   )}
 

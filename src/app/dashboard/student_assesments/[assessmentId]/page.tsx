@@ -356,11 +356,24 @@ export default function AssessmentDrawer() {
                 )}
 
                 <div className="text-sm text-gray-500">
+                  {task?.teacher_feedback && (
+                    <span
+                      title={task?.teacher_feedback}
+                      className="truncate max-w-[300px] inline-block"
+                    >
+                      <strong>Teacher Feedback: </strong>
+                      {task?.teacher_feedback}
+                    </span>
+                  )}
+                </div>
+
+                <div className="text-sm text-gray-500">
                   {task?.additional_notes && (
                     <span
                       title={task?.additional_notes}
                       className="truncate max-w-[300px] inline-block"
                     >
+                      <strong>Student Note: </strong>
                       {task?.additional_notes}
                     </span>
                   )}
