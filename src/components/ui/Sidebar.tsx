@@ -39,6 +39,8 @@ const Sidebar = () => {
   const isMobile = useMediaQuery("(max-width: 768px)");
   const [isOpen, setIsOpen] = useState(!isMobile);
 
+  const isSUPER_ADMIN = currentUser?.role === "SUPER_ADMIN";
+
   // Announcement unread count
   const { data: announcementData } = useQuery({
     queryKey: ["unseen-announcement-count", currentUser?.role],
@@ -50,7 +52,7 @@ const Sidebar = () => {
   const { data: questionUnreadCount = 0 } = useQuery({
     queryKey: ["unread-count", currentUser?.role],
     queryFn: fetchUnreadCount,
-    enabled: !!currentUser?.role,
+    enabled: !isSUPER_ADMIN,
   });
 
   const announcementUnreadCount = announcementData?.unseen_count ?? 0;

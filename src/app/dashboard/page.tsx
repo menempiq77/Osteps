@@ -47,47 +47,42 @@ const THEME_COLOR_DARK = "#2E7D32";
 
 export default function DashboardPage() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
-  const [schools, setSchools] = useState<any[]>([]);
-  const [superAdmins, setSuperAdmins] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [schoolLogo, setSchoolLogo] = useState("");
+  const isSUPER_ADMIN = currentUser?.role === "SUPER_ADMIN";
+  const isSCHOOL_ADMIN = currentUser?.role === "SCHOOL_ADMIN";
 
-  const loadAdmins = async () => {
-    try {
-      const admins = await fetchAdmins();
-      setSuperAdmins(admins);
-    } catch (error) {
-      console.log("Failed to fetch admins:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-  const loadSchools = async () => {
-    try {
-      const data = await fetchSchools();
-      setSchools(data);
-    } catch (err) {
-      console.log("Failed to fetch schools", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-  const loadSchoolLogo = async () => {
-    try {
-      const school = await fetchSchoolLogo();
-      setSchoolLogo(school?.logo);
-    } catch (error) {
-      console.log("Failed to fetch Logo:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    data: superAdmins = [],
+    isLoading: adminsLoading,
+    error: adminsError,
+  } = useQuery({
+    queryKey: ["admins"],
+    queryFn: fetchAdmins,
+    enabled: isSUPER_ADMIN,
+    retry: false,
+  });
 
-  useEffect(() => {
-    loadSchools();
-    loadSchoolLogo();
-    loadAdmins();
-  }, []);
+  const {
+    data: schools = [],
+    isLoading: schoolsLoading,
+    error: schoolsError,
+  } = useQuery({
+    queryKey: ["schools"],
+    queryFn: fetchSchools,
+    enabled: isSUPER_ADMIN,
+    retry: false,
+  });
+
+  const {
+    data: schoolLogoData,
+    isLoading: logoLoading,
+    error: logoError,
+  } = useQuery({
+    queryKey: ["school-logo"],
+    queryFn: fetchSchoolLogo,
+    enabled: isSCHOOL_ADMIN,
+    retry: false,
+  });
+  const schoolLogo = schoolLogoData?.logo;
 
   const {
     data: schoolDashboard,
