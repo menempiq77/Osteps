@@ -232,27 +232,30 @@ export default function TrackerTopicsPage() {
             {trackerData?.name || "Tracker Progress"}
           </h1>
 
-          <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-lg px-5 py-3">
-            {/* Points Info */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500">Progress Points</span>
-              <span className="text-lg font-semibold text-gray-900">
-                {progressPoints?.earned_points || 0} / {progressPoints?.total_points || 0}
-              </span>
-            </div>
-            {/* Circular Progress */}
-            <Progress
-              type="circle"
-              percent={progressPoints?.percentage}
-              size={40}
-              strokeColor="#16a34a"
-              format={(percent) => (
-                <span className="text-green-700 font-semibold">
-                  {percent}%
+          {trackerData?.claim_certificate !== 1 && (
+            <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-lg px-5 py-3">
+              {/* Points Info */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-500">Progress Points</span>
+                <span className="text-lg font-semibold text-gray-900">
+                  {progressPoints?.earned_points || 0} /{" "}
+                  {progressPoints?.total_points || 0}
                 </span>
-              )}
-            />
-          </div>
+              </div>
+              {/* Circular Progress */}
+              <Progress
+                type="circle"
+                percent={progressPoints?.percentage}
+                size={40}
+                strokeColor="#16a34a"
+                format={(percent) => (
+                  <span className="text-green-700 font-semibold">
+                    {percent}%
+                  </span>
+                )}
+              />
+            </div>
+          )}
         </div>
 
         <div className="overflow-x-auto">

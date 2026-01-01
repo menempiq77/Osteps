@@ -24,8 +24,8 @@ export default function TrackerList() {
   const router = useRouter();
   const [trackers, setTrackers] = useState<Tracker[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [selectedYear, setSelectedYear] = useState<string>("");
-  const [selectedClass, setSelectedClass] = useState<string>("");
+  const [selectedYear, setSelectedYear] = useState<string | undefined>(undefined);
+  const [selectedClass, setSelectedClass] = useState<string | undefined>(undefined);
   const [years, setYears] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const { currentUser } = useSelector((state: RootState) => state.auth);
@@ -191,6 +191,7 @@ const loadClasses = async (yearId: string) => {
             <Select
               id="year-select"
               value={selectedYear}
+              placeholder="Select Year"
               onChange={(value) => setSelectedYear(value)}
               className="w-full"
               options={years?.map((item) => ({
@@ -204,6 +205,7 @@ const loadClasses = async (yearId: string) => {
             <Select
               id="class-select"
               value={selectedClass}
+              placeholder="Select Class"
               onChange={(value) => setSelectedClass(value)}
               className="w-full"
               options={classes?.map((cls) => ({
