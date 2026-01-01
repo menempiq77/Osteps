@@ -3,15 +3,16 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { Spin, Breadcrumb, Switch, message, Tooltip } from "antd";
+import { Spin, Breadcrumb, message, Tooltip, Button } from "antd";
 import Link from "next/link";
 import {
   claimCertificate,
   fetchMyClaimedCertificates,
   fetchTrackers,
 } from "@/services/trackersApi";
-import { FilePdfOutlined } from "@ant-design/icons";
+import { FilePdfOutlined, TrophyOutlined } from "@ant-design/icons";
 import { IMG_BASE_URL } from "@/lib/config";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 type Tracker = {
   id: string;
@@ -23,6 +24,7 @@ type Tracker = {
   lastUpdated?: string;
   tracker_id: string;
   tracker: {
+    claim_certificate: number;
     name: string;
     status: string;
   };
@@ -34,51 +36,41 @@ export default function TrackerList() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [trackers, setTrackers] = useState<Tracker[]>([]);
   const [loading, setLoading] = useState(true);
-  const [checkedTrackers, setCheckedTrackers] = useState<
-    Record<string, boolean>
-  >({});
-  const [claimedCertificates, setClaimedCertificates] = useState<any[]>([]);
+  const [activeTrackerId, setActiveTrackerId] = useState<string | null>(null);
   const [messageApi, contextHolder] = message.useMessage();
 
-  const handleRequestCertificateToggle = async (
-    trackerId: string,
-    checked: boolean
-  ) => {
-    setLoading(true);
-    try {
-      await claimCertificate(trackerId);
+  const requestCertificateMutation = useMutation({
+    mutationFn: claimCertificate,
+
+    onMutate: (trackerId: string) => {
+      setActiveTrackerId(trackerId);
+    },
+
+    onSuccess: () => {
       messageApi.success("Request Certificate submitted successfully!");
-      // Update only the specific tracker
-      setCheckedTrackers((prev) => ({
-        ...prev,
-        [trackerId]: checked,
-      }));
-      await loadClaimedCertificates();
-    } catch (error: any) {
+      queryClient.invalidateQueries({
+        queryKey: ["claimed-certificates"],
+      });
+    },
+
+    onError: () => {
       messageApi.error("Failed to request certificate.");
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
 
-  useEffect(() => {
-    const initialChecked: Record<string, boolean> = {};
-    trackers.forEach((tracker) => {
-      // If claim_certificate is 1, we can allow switching, else disabled
-      initialChecked[tracker.tracker_id] = false; // or true if previously requested
-    });
-    setCheckedTrackers(initialChecked);
-  }, [trackers]);
+    onSettled: () => {
+      setActiveTrackerId(null);
+    },
+  });
 
-  const loadClaimedCertificates = async () => {
-    try {
-      const data = await fetchMyClaimedCertificates();
-      setClaimedCertificates(data); // array of { id, tracker_id, certificate_path }
-    } catch (err) {
-      console.error(err);
-    }
-  };
+ const queryClient = useQueryClient();
+
+  const {
+    data: claimedCertificates = [],
+    isLoading: certificatesLoading,
+  } = useQuery({
+    queryKey: ["claimed-certificates"],
+    queryFn: fetchMyClaimedCertificates,
+  });
 
   const loadTrackers = async () => {
     try {
@@ -92,7 +84,9 @@ export default function TrackerList() {
           lastUpdated: new Date().toISOString().split("T")[0],
         }))
       );
-      await loadClaimedCertificates();
+      queryClient.invalidateQueries({
+        queryKey: ["claimed-certificates"],
+      });
     } catch (err) {
       console.error(err);
     } finally {
@@ -234,16 +228,18 @@ export default function TrackerList() {
                           />
                         </Tooltip>
                       ) : (
-                        <Switch
-                          checked={checkedTrackers[tracker.tracker_id] || false}
-                          onChange={(checked) =>
-                            handleRequestCertificateToggle(
-                              tracker.tracker_id,
-                              checked
-                            )
+                        <Button
+                          size="small"
+                          icon={<TrophyOutlined />}
+                          loading={
+                            requestCertificateMutation.isPending &&
+                            activeTrackerId === tracker.tracker_id
                           }
+                          onClick={() => requestCertificateMutation.mutate(tracker.tracker_id)}
                           disabled={tracker.tracker.claim_certificate === 0}
-                        />
+                        >
+                          Request
+                        </Button>
                       )}
                     </td>
                   </tr>

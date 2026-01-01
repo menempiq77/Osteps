@@ -259,36 +259,38 @@ export default function ViewTrackerTopicPage() {
       </div>
 
       <div className="bg-white rounded-md shadow-sm border border-gray-200 overflow-hidden">
-        <div className="p-6 border-b border-gray-200 flex justify-between items-center">
+        <div className="p-6 border-b border-gray-200 flex flex-wrap justify-between items-center gap-3">
           <h1 className="text-2xl font-bold text-gray-900">
             {trackerData?.name || "Tracker Progress"}
           </h1>
 
-          <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-lg px-5 py-3">
-            {/* Points Info */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500">Progress Points</span>
-              <span className="text-lg font-semibold text-gray-900">
-                {progressPoints?.earned_points || 0} /{" "}
-                {progressPoints?.total_points || 0}
-              </span>
+          {trackerData?.claim_certificate !== 1 && (
+            <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-lg px-5 py-3">
+              {/* Points Info */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-500">Progress Points</span>
+                <span className="text-lg font-semibold text-gray-900">
+                  {progressPoints?.earned_points || 0} /{" "}
+                  {progressPoints?.total_points || 0}
+                </span>
+              </div>
+              {/* Circular Progress */}
+              <Progress
+                type="circle"
+                percent={progressPoints?.percentage}
+                size={40}
+                strokeColor="#16a34a"
+                format={(percent) => (
+                  <span className="text-green-700 font-semibold">{percent}%</span>
+                )}
+              />
             </div>
-            {/* Circular Progress */}
-            <Progress
-              type="circle"
-              percent={progressPoints?.percentage}
-              size={40}
-              strokeColor="#16a34a"
-              format={(percent) => (
-                <span className="text-green-700 font-semibold">{percent}%</span>
-              )}
-            />
-          </div>
+          )}
 
-          <div className="flex align-center gap-3">
+          <div className="flex items-center gap-3">
             <Tooltip title="Certificate Request">
               <div
-                className={`relative flex align-center ${
+                className={`relative flex items-center ${
                   !selectedStudentId
                     ? "opacity-50 cursor-not-allowed"
                     : "cursor-pointer"
