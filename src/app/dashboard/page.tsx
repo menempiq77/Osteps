@@ -1,5 +1,5 @@
 "use client";
-import { Card, Statistic, Row, Col, Button } from "antd";
+import { Card, Statistic, Row, Col, Button, Select, Spin } from "antd";
 import { useSelector } from "react-redux";
 import {
   BarChart,
@@ -36,9 +36,11 @@ import { useQuery } from "@tanstack/react-query";
 import {
   fetchSchoolDashboardData,
   fetchStudentDashboardData,
+  searchStudentProfile,
 } from "@/services/dashboardApis";
 import { fetchSchoolLogo } from "@/services/api";
 import { IMG_BASE_URL } from "@/lib/config";
+import { useRouter } from "next/navigation";
 
 // Custom theme colors
 const THEME_COLOR = "#38C16C";
@@ -49,6 +51,48 @@ export default function DashboardPage() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const isSUPER_ADMIN = currentUser?.role === "SUPER_ADMIN";
   const isSCHOOL_ADMIN = currentUser?.role === "SCHOOL_ADMIN";
+  const isTEACHER = currentUser?.role === "TEACHER";
+  const router = useRouter();
+
+  const [students, setStudents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
+
+  const handleSearch = async (value: string) => {
+    if (!value) {
+      setStudents([]);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await searchStudentProfile(value);
+      console.log("Student search response:", response);
+      setStudents(response.data || []);
+    } catch (error) {
+      console.error("Search student error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSelect = (value: string) => {
+    const student = students.find((s) => s.id.toString() === value);
+
+    if (!student) return;
+
+    // Navigate with both student ID and class ID
+    router.push(`/dashboard/students/reports?studentId=${student.id}&classId=${student.class_id}`);
+  };
+
+  const handleChange = (value: string | null) => {
+    setSelectedStudent(value);
+    
+    // Clear students when selection is cleared
+    if (!value) {
+      setStudents([]);
+    }
+  };
 
   const {
     data: superAdmins = [],
@@ -415,6 +459,28 @@ export default function DashboardPage() {
         </div>
       </Card>
 
+       {isTEACHER &&(
+        <>
+          <Select
+            showSearch
+            placeholder="Search student"
+            value={selectedStudent}
+            onChange={handleChange}
+            onSearch={handleSearch}
+            onSelect={handleSelect}
+            filterOption={false}
+            notFoundContent={loading ? <Spin size="small" /> : null}
+            options={students.map((student) => ({
+              value: student.id.toString(),
+              label: student.student_name || "",
+            }))}
+            style={{ width: 320 }}
+            allowClear
+            className="!mb-2"
+          />
+        </>
+      )}
+
       {currentUser?.role === "STUDENT" ? (
         <div className="space-y-6">
           {/* Enhanced Breadcrumb */}
@@ -648,6 +714,7 @@ export default function DashboardPage() {
           )}
         </>
       )}
+
     </div>
   );
 }
