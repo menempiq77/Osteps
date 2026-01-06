@@ -174,14 +174,14 @@ export default function ReportsPage() {
     fetchData();
   }, [isSchoolAdmin, isHOD, urlClassId, applyUrlFilter]);
 
-  const years = Array.from(
-    new Set(
-      assignedClasses?.map((item) => ({
-        id: item.classes.year.id,
-        name: item.classes.year.name,
-      }))
-    )
-  );
+  const uniqueYearIds = [...new Set(assignedClasses?.map(item => item.classes.year.id))];
+  const years = uniqueYearIds.map(id => {
+    const item = assignedClasses.find(item => item.classes.year.id === id);
+    return {
+      id: item.classes.year.id,
+      name: item.classes.year.name,
+    };
+  });
 
   const classes = assignedClasses
     ?.filter(

@@ -52,6 +52,7 @@ export default function DashboardPage() {
   const isSUPER_ADMIN = currentUser?.role === "SUPER_ADMIN";
   const isSCHOOL_ADMIN = currentUser?.role === "SCHOOL_ADMIN";
   const isTEACHER = currentUser?.role === "TEACHER";
+  const isHOD = currentUser?.role === "HOD";
   const router = useRouter();
 
   const [students, setStudents] = useState<any[]>([]);
@@ -459,7 +460,7 @@ export default function DashboardPage() {
         </div>
       </Card>
 
-       {isTEACHER &&(
+       {(isTEACHER || isHOD || isSCHOOL_ADMIN) &&(
         <>
           <Select
             showSearch
