@@ -46,6 +46,8 @@ const LeaderBoard = () => {
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const schoolId = currentUser?.school;
 
+  const [assignYearsData, setAssignYearsData] = useState<any[]>([]);
+
   /** Load years */
   const loadYears = async () => {
     try {
@@ -54,6 +56,8 @@ const LeaderBoard = () => {
 
       if (isTeacher) {
         const res = await fetchAssignYears();
+        setAssignYearsData(res);
+
         const years = res
           .map((item: any) => item?.classes?.year)
           .filter((year: any) => year);
@@ -80,26 +84,50 @@ const LeaderBoard = () => {
   }, []);
 
   /** Fetch classes for selected year */
+  // const { data: classes = [], isLoading: classesLoading } = useQuery({
+  //   queryKey: ["classes", selectedYear, isTeacher],
+  //   queryFn: async () => {
+  //     if (!selectedYear) return [];
+  //     if (isTeacher) {
+  //       const res = await fetchAssignYears();
+  //       let classesData = res
+  //         .map((item: any) => item.classes)
+  //         .filter((cls: any) => cls);
+  //       classesData = Array.from(
+  //         new Map(classesData.map((cls: any) => [cls.id, cls])).values()
+  //       );
+  //       return classesData.filter(
+  //         (cls: any) => cls.year_id === Number(selectedYear)
+  //       );
+  //     } else {
+  //       return await fetchClasses(Number(selectedYear));
+  //     }
+  //   },
+  //   enabled: !!selectedYear,
+  // });
+
   const { data: classes = [], isLoading: classesLoading } = useQuery({
     queryKey: ["classes", selectedYear, isTeacher],
     queryFn: async () => {
       if (!selectedYear) return [];
+
       if (isTeacher) {
-        const res = await fetchAssignYears();
-        let classesData = res
+        let classesData = assignYearsData
           .map((item: any) => item.classes)
           .filter((cls: any) => cls);
+
         classesData = Array.from(
           new Map(classesData.map((cls: any) => [cls.id, cls])).values()
         );
+
         return classesData.filter(
           (cls: any) => cls.year_id === Number(selectedYear)
         );
-      } else {
-        return await fetchClasses(Number(selectedYear));
       }
+
+      return fetchClasses(Number(selectedYear));
     },
-    enabled: !!selectedYear,
+    enabled: !!selectedYear && (!isTeacher || assignYearsData.length > 0),
   });
 
   const { data, isLoading, isError, error } = useQuery({
