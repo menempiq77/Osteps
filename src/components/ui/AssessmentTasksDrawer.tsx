@@ -9,6 +9,7 @@ import {
   Input as AntdInput,
   Checkbox,
   InputNumber,
+  DatePicker,
 } from "antd";
 import { Controller, useForm } from "react-hook-form";
 import {
@@ -20,6 +21,8 @@ import {
 import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { assignTaskQuiz } from "@/services/quizApi";
 import { IMG_BASE_URL } from "@/lib/config";
+import { Dayjs } from "dayjs";
+import dayjs from "dayjs";
 
 const { Option } = Select;
 const { TextArea: AntdTextArea } = AntdInput;
@@ -443,22 +446,23 @@ export function AssessmentTasksDrawer({
                 {/* Due Date */}
                 <div>
                   <p className="font-medium">Due Date</p>
-                  <Controller
-                    name="dueDate"
-                    control={control}
-                    rules={{ required: "Due date is required" }}
-                    render={({ field }) => (
-                      <AntdInput
-                        {...field}
-                        id="dueDate"
-                        type="date"
-                        className="!mt-1"
-                        disabled={loading}
-                        status={errors.dueDate ? "error" : ""}
-                        min={new Date().toISOString().split("T")[0]}
-                      />
-                    )}
-                  />
+                 <Controller
+                  name="dueDate"
+                  control={control}
+                  rules={{ required: "Due date is required" }}
+                  render={({ field }) => (
+                    <DatePicker
+                      {...field}
+                      value={field.value ? dayjs(field.value) : undefined} // RHF + dayjs
+                      onChange={(date: Dayjs | null, dateString: string) => field.onChange(dateString)}
+                      disabled={loading}
+                      status={errors.dueDate ? "error" : ""}
+                      className="!w-full !mt-1"
+                      format="YYYY-MM-DD"
+                      disabledDate={(current) => current && current < dayjs().startOf("day")} // disable past dates
+                    />
+                  )}
+                />
                   {errors.dueDate && (
                     <p className="text-red-500 text-sm mt-1">
                       {errors.dueDate.message}
