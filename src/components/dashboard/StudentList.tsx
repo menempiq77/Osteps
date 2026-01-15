@@ -14,6 +14,7 @@ import {
   updateStudent as apiUpdateStudent,
   deleteStudent as apiDeleteStudent,
 } from "@/services/studentsApi";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 type Student = {
   id: string;
@@ -30,64 +31,94 @@ export default function StudentList() {
   const { classId } = useParams();
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [form] = Form.useForm();
-  const [students, setStudents] = useState<Student[]>([]);
   const [editStudent, setEditStudent] = useState<Student | null>(null);
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isAddStudentModalOpen, setIsAddStudentModalOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
   const [messageApi, contextHolder] = message.useMessage();
   const hasAccess = currentUser?.role === "SCHOOL_ADMIN";
 
-  const loadStudents = async () => {
-    try {
-      setIsLoading(true);
-      const studentsData = await fetchStudents(classId);
-      setStudents(studentsData);
-    } catch (err) {
-      setError("Failed to load students");
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const queryClient = useQueryClient();
+
+  const {
+    data: students = [],
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["students", classId],
+    queryFn: () => fetchStudents(classId),
+    enabled: !!classId,
+  });
 
   useEffect(() => {
-    if (classId) {
-      loadStudents();
-    }
     const savedYearId = localStorage.getItem("selectedYearId");
     if (savedYearId) {
       setSelectedYearId(Number(savedYearId));
     }
-  }, [classId]);
+  }, []);
 
-  const handleSaveEdit = async (values: any) => {
-    try {
-      const updatedStudent = await apiUpdateStudent(editStudent?.id || "", {
+  const addStudentMutation = useMutation({
+    mutationFn: apiAddStudent,
+
+    onSuccess: (newStudent) => {
+      queryClient.invalidateQueries({
+        queryKey: ["students", classId],
+      });
+
+      form.resetFields();
+      setIsAddStudentModalOpen(false);
+      messageApi.success("Student Added Successfully!");
+    },
+
+    onError: () => {
+      messageApi.error("Failed to add student!");
+    },
+  });
+
+  const handleAddNewStudent = (values: any) => {
+    addStudentMutation.mutate({
+      student_name: values.student_name,
+      email: values.email,
+      user_name: values.user_name,
+      class_id: Number(classId),
+      password: values.password,
+      status: values.status,
+    });
+  };
+
+  const updateStudentMutation = useMutation({
+    mutationFn: ({ id, values }: { id: string; values: any }) =>
+      apiUpdateStudent(id, values),
+
+    onSuccess: (updatedStudent) => {
+      queryClient.invalidateQueries({
+        queryKey: ["students", classId],
+      });
+
+      setEditStudent(null);
+      messageApi.success("Student Update Successfully!");
+    },
+
+    onError: () => {
+      messageApi.error("Failed to update student!");
+    },
+  });
+
+  const handleSaveEdit = (values: any) => {
+    if (!editStudent) return;
+
+    updateStudentMutation.mutate({
+      id: editStudent.id,
+      values: {
         student_name: values.student_name,
         email: values.email,
         user_name: values.user_name,
         class_id: Number(classId),
         password: values.password,
         status: values.status,
-      });
-
-      setStudents((prevStudents) =>
-        prevStudents.map((student) =>
-          student.id === editStudent?.id ? updatedStudent : student
-        )
-      );
-      setEditStudent(null);
-      await loadStudents();
-      messageApi?.success("Student Update Successfully!");
-    } catch (err) {
-      console.error("Failed to update student:", err);
-      setError("Failed to update student");
-      messageApi?.error("Failed to update student!");
-    }
+      },
+    });
   };
 
   const showDeleteConfirm = (student: Student) => {
@@ -95,44 +126,27 @@ export default function StudentList() {
     setIsDeleteModalOpen(true);
   };
 
-  const handleDeleteStudent = async () => {
-    if (!studentToDelete) return;
+  const deleteStudentMutation = useMutation({
+    mutationFn: apiDeleteStudent,
 
-    try {
-      await apiDeleteStudent(studentToDelete.id);
-      setStudents(
-        students.filter((student) => student.id !== studentToDelete.id)
-      );
+    onSuccess: (_, studentId) => {
+      queryClient.invalidateQueries({
+        queryKey: ["students", classId],
+      });
+
       setIsDeleteModalOpen(false);
       setStudentToDelete(null);
-      messageApi?.success("Student Deleted Successfully!");
-    } catch (err) {
-      console.error("Failed to delete student:", err);
-      setError("Failed to delete student");
-      messageApi?.error("Failed to delete student!");
-    }
-  };
+      messageApi.success("Student Deleted Successfully!");
+    },
 
-  const handleAddNewStudent = async (values: any) => {
-    try {
-      const newStudent = await apiAddStudent({
-        student_name: values.student_name,
-        email: values.email,
-        user_name: values.user_name,
-        class_id: Number(classId),
-        password: values.password,
-        status: values.status,
-      });
-      setStudents([...students, newStudent]);
-      form.resetFields();
-      setIsAddStudentModalOpen(false);
-      await loadStudents();
-      messageApi?.success("Student Added Successfully!");
-    } catch (err) {
-      console.error("Failed to add student:", err);
-      setError("Failed to add student");
-      messageApi?.error("Failed to add student!");
-    }
+    onError: () => {
+      messageApi.error("Failed to delete student!");
+    },
+  });
+
+  const handleDeleteStudent = () => {
+    if (!studentToDelete) return;
+    deleteStudentMutation.mutate(studentToDelete.id);
   };
 
   const handleStudentClick = (studentId: string) => {
@@ -146,10 +160,6 @@ export default function StudentList() {
       form.resetFields();
     }
   }, [isAddStudentModalOpen]);
-
-  const handleStudentBehavior = (studentId: string) => {
-    router.push(`/dashboard/classes/${classId}/behavior/${studentId}`);
-  };
 
   if (isLoading)
     return (
@@ -203,9 +213,9 @@ export default function StudentList() {
             <thead>
               <tr className="bg-primary text-center text-xs md:text-sm font-thin text-white">
                 <th className="p-0">
-                    <span className="block py-2 px-3 border-r border-gray-300">
-                      Student Name
-                    </span>
+                  <span className="block py-2 px-3 border-r border-gray-300">
+                    Student Name
+                  </span>
                 </th>
                 <th className="p-0">
                   <span className="block py-2 px-3 border-r border-gray-300">
@@ -258,15 +268,6 @@ export default function StudentList() {
                         className="relative p-2 md:p-4 flex justify-center space-x-3"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        {/* <button
-                        onClick={() => handleStudentBehavior(student.id)}
-                        className="text-blue-500 hover:text-blue-700 cursor-pointer"
-                        title="Behavior"
-                      >
-                        <BookOutlined />
-                      </button> */}
-
-                        <>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -288,7 +289,6 @@ export default function StudentList() {
                           >
                             <DeleteOutlined />
                           </button>
-                        </>
                       </td>
                     )}
                   </tr>

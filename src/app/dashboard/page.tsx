@@ -29,7 +29,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { fetchSchools } from "@/services/schoolApi";
 import { fetchAdmins } from "@/services/adminsApi";
 import { useQuery } from "@tanstack/react-query";
@@ -161,6 +161,27 @@ export default function DashboardPage() {
 
   const studentYearName = currentUser?.studentYearName;
   const studentClassName = currentUser?.studentClassName;
+
+  const nextUpcomingTask = useMemo(() => {
+    if (!studentDashboard?.data?.class?.term) return null;
+
+    return studentDashboard.data.class.term
+      .flatMap((term: any) =>
+        term.assign_assessments
+          ?.filter((a: any) => a.status === "assigned")
+          ?.flatMap((assigned: any) =>
+            assigned.assessment?.tasks?.map((task: any) => ({
+              ...task,
+              termName: term.name,
+              assessmentName: assigned.assessment?.name,
+            }))
+          ) || []
+      )
+      .sort(
+        (a: any, b: any) =>
+          new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
+      )[0] || null; // only first item
+  }, [studentDashboard]);
 
   // Role-based data
   const getDashboardData = () => {
@@ -495,26 +516,8 @@ export default function DashboardPage() {
 
           {/* Cards Grid */}
           <Row gutter={[16, 16]}>
-            {studentDashboard?.data?.class?.term
-              ?.flatMap((term: any) =>
-                term.assign_assessments
-                  ?.filter((a: any) => a.status === "assigned") // only take assigned ones
-                  ?.flatMap((assigned: any) =>
-                    assigned.assessment?.tasks?.map((task: any) => ({
-                      ...task,
-                      termName: term.name,
-                      assessmentName: assigned.assessment?.name,
-                    }))
-                  )
-              )
-              ?.sort((a: any, b: any) => {
-                const dateA = new Date(a.due_date).getTime();
-                const dateB = new Date(b.due_date).getTime();
-                return dateA - dateB;
-              })
-              ?.slice(0, 1) // show next upcoming task
-              ?.map((task: any) => (
-                <Col xs={24} md={12} key={task.id}>
+           {nextUpcomingTask && (
+                <Col xs={24} md={12}>
                   <Link href={`/dashboard/students/assignments`}>
                     <Card
                       hoverable
@@ -523,10 +526,10 @@ export default function DashboardPage() {
                       <div className="flex justify-between items-center">
                         <div>
                           <h3 className="text-lg font-semibold text-gray-800">
-                            {task.task_name}
+                            {nextUpcomingTask.task_name}
                           </h3>
                           <p className="text-sm text-gray-500">
-                            Due: {new Date(task.due_date).toLocaleDateString()}
+                            Due: {new Date(nextUpcomingTask.due_date).toLocaleDateString()}
                           </p>
                         </div>
                         <div
@@ -542,10 +545,10 @@ export default function DashboardPage() {
                       <div className="mt-4 flex justify-between items-end">
                         <div>
                           <p className="text-base font-medium text-gray-700">
-                            {task.assessmentName} ({task.termName})
+                            {nextUpcomingTask.assessmentName} ({nextUpcomingTask.termName})
                           </p>
                           <p className="text-xs text-gray-400 mt-1">
-                            Updated {timeAgo(task.updated_at)}
+                            Updated {timeAgo(nextUpcomingTask.updated_at)}
                           </p>
                         </div>
                         <Button
@@ -561,7 +564,7 @@ export default function DashboardPage() {
                     </Card>
                   </Link>
                 </Col>
-              ))}
+             )}
           </Row>
         </div>
       ) : (

@@ -174,6 +174,7 @@ export default function SuperAdminDashboard() {
         }}
         footer={null}
         destroyOnHidden
+        centered
       >
         <AddSchoolForm
           onSubmit={handleAddOrEditSchool}
