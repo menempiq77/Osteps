@@ -165,5 +165,12 @@ export const fetchTeacherTrackerPoints = async (
   return response.data.data;
 };
 
+// Student: check certificate eligibility
+export const fetchCertificateEligibility = async (trackerId: number) => {
+  const response = await api.get(
+    `/tracker/certificate-eligibility/${trackerId}`
+  );
+  return response.data;
+};
 
 export default api;
