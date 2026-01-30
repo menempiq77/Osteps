@@ -7,6 +7,7 @@ import { Spin, Breadcrumb, message, Tooltip, Button } from "antd";
 import Link from "next/link";
 import {
   claimCertificate,
+  fetchCertificateEligibility,
   fetchMyClaimedCertificates,
   fetchTrackers,
 } from "@/services/trackersApi";
@@ -113,6 +114,21 @@ export default function TrackerList() {
         return "bg-gray-100 text-gray-800";
     }
   };
+
+  const { data: eligibilityMap = {} } = useQuery({
+    queryKey: ["certificate-eligibility", trackers.map(t => t.tracker_id)],
+    queryFn: async () => {
+      const results = await Promise.all(
+        trackers?.map(async (t) => {
+          const res = await fetchCertificateEligibility(Number(t.tracker_id));
+          return [t.tracker_id, res];
+        })
+      );
+
+      return Object.fromEntries(results);
+    },
+    enabled: trackers.length > 0,
+  });
 
   const handleDownloadCertificate = (certificatePath: string) => {
     const url = `${IMG_BASE_URL}/storage/${certificatePath}`;
@@ -228,18 +244,28 @@ export default function TrackerList() {
                           />
                         </Tooltip>
                       ) : (
-                        <Button
-                          size="small"
-                          icon={<TrophyOutlined />}
-                          loading={
-                            requestCertificateMutation.isPending &&
-                            activeTrackerId === tracker.tracker_id
-                          }
-                          onClick={() => requestCertificateMutation.mutate(tracker.tracker_id)}
-                          disabled={tracker.tracker.claim_certificate === 0}
-                        >
-                          Request
-                        </Button>
+                        <Tooltip
+                            title={
+                              !eligibilityMap?.[tracker.tracker_id]?.eligible
+                                ? "Complete tracker requirements to become eligible"
+                                : "Request Certificate"
+                            }>
+                          <Button
+                            size="small"
+                            icon={<TrophyOutlined />}
+                            loading={
+                              requestCertificateMutation.isPending &&
+                              activeTrackerId === tracker.tracker_id
+                            }
+                            onClick={() => requestCertificateMutation.mutate(tracker.tracker_id)}
+                            disabled={
+                                tracker.tracker.claim_certificate === 0 ||
+                                !eligibilityMap?.[tracker.tracker_id]?.eligible
+                              }
+                          >
+                            Request
+                          </Button>
+                        </Tooltip>
                       )}
                     </td>
                   </tr>

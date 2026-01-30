@@ -6,16 +6,14 @@ import {
   BookOpen,
   BrainCircuit,
   Languages,
-  GripVertical,
 } from "lucide-react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { Button, Progress, Spin, message } from "antd";
-import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import { Button, Input, Modal, Progress, Spin, message } from "antd";
 import {
-  fetchTrackerTopics,
   updateTopicStatus,
   fetchTrackerStudentTopics,
+  addTopicMark,
 } from "@/services/api";
 import { fetchStudentTrackerPoints } from "@/services/trackersApi";
 
@@ -86,36 +84,18 @@ export default function TrackerTopicsPage() {
     percentage: number;
   } | null>(null);
 
-  const [messageApi, contextHolder] = message.useMessage();
+  const [markModal, setMarkModal] = useState(false);
+  const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
+  const [marks, setMarks] = useState("");
 
-  const canUpload =
-    currentUser?.role === "SCHOOL_ADMIN" ||
-    currentUser?.role === "HOD" ||
-    currentUser?.role === "TEACHER";
+  const [messageApi, contextHolder] = message.useMessage();
   const isStudent = currentUser?.role === "STUDENT";
   const schoolId = currentUser?.school;
 
   useEffect(() => {
-    if (isStudent) {
       loadStudentTrackerData();
-    } else {
-      loadTrackerData();
-    }
   }, [trackerId]);
 
-  const loadTrackerData = async () => {
-    try {
-      setLoading(true);
-      const data = await fetchTrackerTopics(Number(trackerId));
-
-      setTrackerData(data);
-      setTopics(data.topics || []);
-    } catch (error) {
-      console.error("Failed to load tracker data", error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const loadStudentTrackerData = async () => {
     try {
@@ -186,16 +166,48 @@ export default function TrackerTopicsPage() {
     }
   };
 
-  const handleDragEnd = (result: any) => {
-    if (!result.destination) return;
-
-    const items = Array.from(topics);
-    const [reorderedItem] = items.splice(result.source.index, 1);
-    items.splice(result.destination.index, 0, reorderedItem);
-
-    setTopics(items);
-    // Note: You might want to add API call to save the new order
+  const handleEnterMarks = (topic: Topic) => {
+    setSelectedTopic(topic);
+    setMarkModal(true);
   };
+    const handleSubmitMarks = async () => {
+      if (!marks) {
+        messageApi.warning("Please enter marks");
+        return;
+      }
+  
+      if (!selectedTopic) {
+        messageApi.warning("No topic selected");
+        return;
+      }
+  
+      try {
+        const marksValue = Number(marks);
+        if (isNaN(marksValue)) {
+          messageApi.warning("Please enter valid marks");
+          return;
+        }
+  
+        // Get the maximum marks from the topic (10 in this case)
+        const maxMarks = selectedTopic.marks ? Number(selectedTopic.marks) : 100;
+  
+        if (marksValue > maxMarks) {
+          messageApi.warning(`Marks cannot exceed ${maxMarks}`);
+          return;
+        }
+  
+        await addTopicMark(selectedTopic.id, marksValue, currentUser?.student);
+        // await refetchTracker();
+        await loadStudentTrackerData();
+  
+        messageApi.success(`Marks ${marks} submitted for ${selectedTopic.title}`);
+        setMarkModal(false);
+        setMarks("");
+      } catch (error) {
+        messageApi.error("Failed to submit marks");
+        console.error("Error submitting marks:", error);
+      }
+    };
 
   // const statusTypes = Array.from(
   //   new Set(
@@ -259,195 +271,196 @@ export default function TrackerTopicsPage() {
         </div>
 
         <div className="overflow-x-auto">
-          <DragDropContext onDragEnd={handleDragEnd}>
-            <Droppable droppableId="topics">
-              {(provided) => (
-                <table
-                  className="w-full"
-                  ref={provided.innerRef}
-                  {...provided.droppableProps}
-                >
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="p-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
-                        Topics
-                      </th>
-                      {statusTypes.map((statusName, index) => (
-                        <th
-                          key={index}
-                          className="p-4 text-center text-sm font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200"
-                        >
-                          <div className="flex items-center justify-center gap-1">
-                            {statusName === "memorization" ? (
-                              <BrainCircuit
-                                size={16}
-                                className="text-blue-500"
-                              />
-                            ) : statusName === "Recall" ? (
-                              <BookOpen size={16} className="text-green-500" />
-                            ) : (
-                              <Languages
-                                size={16}
-                                className="text-purple-500"
-                              />
-                            )}
-                            <span className="capitalize">{statusName}</span>
-                          </div>
-                        </th>
-                      ))}
-                      <th className="p-4 text-center text-sm font-medium text-gray-500 uppercase tracking-wider">
-                        {isStudent ? "Marks" : "Action"}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {topics?.slice(0, visibleTopics)?.map((topic, index) => (
-                      <Draggable
-                        key={`topic-${topic?.id}`}
-                        draggableId={topic?.id.toString()}
-                        index={index}
-                      >
-                        {(provided) => (
-                          <tr
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            className={`hover:bg-gray-50 transition-colors ${
-                              topic?.type === "quiz"
-                                ? "cursor-pointer bg-blue-50"
-                                : ""
-                            }`}
-                            onClick={
-                              topic?.type === "quiz"
-                                ? (e) => {
-                                    const trackerSubmission =
-                                      topic.quiz?.submissions?.find(
-                                        (s) =>
-                                          s.student_id ===
-                                            currentUser?.student &&
-                                          s.type === "tracker"
-                                      );
-
-                                    if (
-                                      trackerSubmission?.status === "completed"
-                                    ) {
-                                      e.preventDefault();
-                                      messageApi.info(
-                                        "You have already submitted this quiz."
-                                      );
-                                      return;
-                                    }
-
-                                    router.push(
-                                      `${trackerId}/quiz/${topic?.quiz_id}`
-                                    );
-                                  }
-                                : undefined
-                            }
-                          >
-                            <td className="p-4 whitespace-nowrap border-r border-gray-200">
-                              <div className="flex items-center">
-                                <div
-                                  {...provided.dragHandleProps}
-                                  className={`mr-2 cursor-move ${
-                                    !canUpload ? "hidden" : "block"
-                                  }`}
-                                >
-                                  <GripVertical
-                                    size={16}
-                                    className={`text-gray-400`}
-                                  />
-                                </div>
-                                <div className="flex items-center">
-                                  <div className="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-full bg-gray-100 text-gray-700 font-medium">
-                                    {index + 1}
-                                  </div>
-                                  <div className="ml-4">
-                                    <div className="text-sm font-medium text-gray-900">
-                                      {topic?.title || topic?.quiz?.name}
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            </td>
-                            {statusTypes?.map((statusName, index) => {
-                              const statusProgress =
-                                topic?.status_progress?.find(
-                                  (sp) => sp.status.name === statusName
+          <table
+            className="w-full"
+          >
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="p-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
+                  Topics
+                </th>
+                {statusTypes.map((statusName, index) => (
+                  <th
+                    key={index}
+                    className="p-4 text-center text-sm font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200"
+                  >
+                    <div className="flex items-center justify-center gap-1">
+                      {statusName === "memorization" ? (
+                        <BrainCircuit
+                          size={16}
+                          className="text-blue-500"
+                        />
+                      ) : statusName === "Recall" ? (
+                        <BookOpen size={16} className="text-green-500" />
+                      ) : (
+                        <Languages
+                          size={16}
+                          className="text-purple-500"
+                        />
+                      )}
+                      <span className="capitalize">{statusName}</span>
+                    </div>
+                  </th>
+                ))}
+                <th className="p-4 text-center text-sm font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
+                  {isStudent ? "Marks" : "Action"}
+                </th>
+                <th className="p-4 text-center text-sm font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {topics?.slice(0, visibleTopics)?.map((topic, index) => (
+                    <tr
+                      className={`hover:bg-gray-50 transition-colors ${
+                        topic?.type === "quiz"
+                          ? "cursor-pointer bg-blue-50"
+                          : ""
+                      }`}
+                      onClick={
+                        topic?.type === "quiz"
+                          ? (e) => {
+                              const trackerSubmission =
+                                topic.quiz?.submissions?.find(
+                                  (s) =>
+                                    s.student_id ===
+                                      currentUser?.student &&
+                                    s.type === "tracker"
                                 );
 
-                              return (
-                                <td
-                                  key={index}
-                                  className="p-4 whitespace-nowrap text-center border-r border-gray-200"
-                                >
-                                  {topic?.type !== "quiz" && (
-                                    <input
-                                      type="checkbox"
-                                      disabled={!isStudent}
-                                      checked={
-                                        statusProgress?.is_completed === 1
-                                      }
-                                      onChange={(e) => {
-                                        if (statusProgress) {
-                                          handleStatusChange(
-                                            topic.id,
-                                            statusProgress.status_id,
-                                            statusProgress.is_completed
-                                          );
-                                        }
-                                      }}
-                                      className={`
-                                                  h-5 w-5 !appearance-none rounded border border-gray-300 
-                                                  checked:!bg-primary checked:border-transparent 
-                                                  focus:ring-2 focus:ring-primary 
-                                                  transition duration-150 cursor-pointer 
-                                                  disabled:cursor-not-allowed disabled:opacity-50
-                                                  relative
-                                                  checked:after:content-['✔'] 
-                                                  checked:after:absolute 
-                                                  checked:after:text-white 
-                                                  checked:after:text-sm 
-                                                  checked:after:font-semibold 
-                                                  checked:after:left-1/2 
-                                                  checked:after:top-1/2 
-                                                  checked:after:-translate-x-1/2 
-                                                  checked:after:-translate-y-1/2
-                                                `}
-                                    />
-                                  )}
-                                </td>
+                              if (
+                                trackerSubmission?.status === "completed"
+                              ) {
+                                e.preventDefault();
+                                messageApi.info(
+                                  "You have already submitted this quiz."
+                                );
+                                return;
+                              }
+
+                              router.push(
+                                `${trackerId}/quiz/${topic?.quiz_id}`
                               );
-                            })}
-                            <td className="p-4 whitespace-nowrap text-center">
-                              {isStudent && (
-                                <span className="text-primary">
-                                  {topic.type === "quiz"
-                                    ? topic.quiz?.submissions?.find(
-                                        (s) =>
-                                          s.student_id ===
-                                            currentUser?.student &&
-                                          s.type === "tracker"
-                                      )?.obtained_marks || "0"
-                                    : topic.topic_mark?.find(
-                                        (m) =>
-                                          m.student_id === currentUser?.student
-                                      )?.marks || "0"}
-                                  /{" "}
-                                  {topic?.marks ||
-                                    topic?.quiz?.total_marks ||
-                                    "0"}
-                                </span>
-                              )}
-                            </td>
-                          </tr>
+                            }
+                          : undefined
+                      }
+                    >
+                      <td className="p-4 whitespace-nowrap border-r border-gray-200">
+                        <div className="flex items-center">
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-full bg-gray-100 text-gray-700 font-medium">
+                              {index + 1}
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900">
+                                {topic?.title || topic?.quiz?.name}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      {statusTypes?.map((statusName, index) => {
+                        const statusProgress =
+                          topic?.status_progress?.find(
+                            (sp) => sp.status.name === statusName
+                          );
+
+                        return (
+                          <td
+                            key={index}
+                            className="p-4 whitespace-nowrap text-center border-r border-gray-200"
+                          >
+                            {topic?.type !== "quiz" && (
+                              <input
+                                type="checkbox"
+                                disabled={!isStudent}
+                                checked={
+                                  statusProgress?.is_completed === 1
+                                }
+                                onChange={(e) => {
+                                  if (statusProgress) {
+                                    handleStatusChange(
+                                      topic.id,
+                                      statusProgress.status_id,
+                                      statusProgress.is_completed
+                                    );
+                                  }
+                                }}
+                                className={`
+                                  h-5 w-5 !appearance-none rounded border border-gray-300 
+                                  checked:!bg-primary checked:border-transparent 
+                                  focus:ring-2 focus:ring-primary 
+                                  transition duration-150 cursor-pointer 
+                                  disabled:cursor-not-allowed disabled:opacity-50
+                                  relative
+                                  checked:after:content-['✔'] 
+                                  checked:after:absolute 
+                                  checked:after:text-white 
+                                  checked:after:text-sm 
+                                  checked:after:font-semibold 
+                                  checked:after:left-1/2 
+                                  checked:after:top-1/2 
+                                  checked:after:-translate-x-1/2 
+                                  checked:after:-translate-y-1/2
+                                `}
+                              />
+                            )}
+                          </td>
+                        );
+                      })}
+                      <td className="p-4 whitespace-nowrap text-center border-r border-gray-200">
+                        {isStudent && (
+                          <span className="text-primary">
+                            {topic.type === "quiz"
+                              ? topic.quiz?.submissions?.find(
+                                  (s) =>
+                                    s.student_id ===
+                                      currentUser?.student &&
+                                    s.type === "tracker"
+                                )?.obtained_marks || "0"
+                              : topic.topic_mark?.find(
+                                  (m) =>
+                                    m.student_id === currentUser?.student
+                                )?.marks || "0"}
+                            /{" "}
+                            {topic?.marks ||
+                              topic?.quiz?.total_marks ||
+                              "0"}
+                          </span>
                         )}
-                      </Draggable>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </Droppable>
-          </DragDropContext>
+                      </td>
+                      <td className="p-4 whitespace-nowrap text-center">
+                        {topic.type !== "quiz" && (
+                            <Button
+                              className={`!text-primary ${
+                                (!topic?.status_progress?.some((sp) => sp.is_completed === 1) ||
+                                  topic.topic_mark?.some(
+                                    (m) =>
+                                      m.student_id === currentUser?.student &&
+                                      m.teacher_locked === 1
+                                  ))
+                                  ? "opacity-50 cursor-not-allowed"
+                                  : ""
+                              }`}
+                              disabled={
+                                !topic?.status_progress?.some((sp) => sp.is_completed === 1) ||
+                                topic.topic_mark?.some(
+                                  (m) =>
+                                    m.student_id === currentUser?.student &&
+                                    m.teacher_locked === 1
+                                )
+                              }
+                              onClick={() => handleEnterMarks(topic)}
+                            >
+                              Enter Marks
+                            </Button>
+                          )}
+                      </td>
+                    </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
 
         <div className="p-4 bg-gray-50 border-t border-gray-200">
@@ -464,6 +477,30 @@ export default function TrackerTopicsPage() {
           </div>
         </div>
       </div>
+
+      {/* Marks Modal */}
+        <Modal
+          title={`Enter Marks (Max: ${selectedTopic?.marks || 100})`}
+          open={markModal}
+          onOk={handleSubmitMarks}
+          onCancel={() => setMarkModal(false)}
+          okText="Submit Marks"
+          okButtonProps={{ className: "!bg-primary !text-white" }}
+          centered
+        >
+          <div className="my-4">
+            <Input
+              name="marks"
+              type="number"
+              placeholder={`Enter marks (0-${selectedTopic?.marks || 100})`}
+              min={0}
+              max={selectedTopic?.marks || 100}
+              value={marks}
+              onChange={(e) => setMarks(e.target.value)}
+            />
+          </div>
+        </Modal>
+        
     </div>
   );
 }
