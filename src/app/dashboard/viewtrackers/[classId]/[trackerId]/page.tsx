@@ -63,6 +63,8 @@ export default function ViewTrackerTopicPage() {
   const [markModal, setMarkModal] = useState(false);
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
   const [marks, setMarks] = useState("");
+  const [submittingMarks, setSubmittingMarks] = useState(false);
+
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(
     null
   );
@@ -196,6 +198,8 @@ export default function ViewTrackerTopicPage() {
   }, [trackerData]);
 
   const handleSubmitMarks = async () => {
+    if (submittingMarks) return; 
+
     if (!marks) {
       messageApi.warning("Please enter marks");
       return;
@@ -212,6 +216,8 @@ export default function ViewTrackerTopicPage() {
     }
 
     try {
+       setSubmittingMarks(true);
+
       const marksValue = Number(marks);
       if (isNaN(marksValue)) {
         messageApi.warning("Please enter valid marks");
@@ -235,6 +241,8 @@ export default function ViewTrackerTopicPage() {
     } catch (error) {
       messageApi.error("Failed to submit marks");
       console.error("Error submitting marks:", error);
+    } finally {
+      setSubmittingMarks(false);
     }
   };
 
@@ -524,7 +532,11 @@ export default function ViewTrackerTopicPage() {
         onOk={handleSubmitMarks}
         onCancel={() => setMarkModal(false)}
         okText="Submit Marks"
-        okButtonProps={{ className: "!bg-primary !text-white" }}
+        okButtonProps={{ 
+          className: "!bg-primary !text-white",
+          loading: submittingMarks,
+          disabled: submittingMarks,
+        }}
         centered
       >
         <div className="my-4">
