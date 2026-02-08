@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo } from "react";
 import {
   Modal,
   Form,
@@ -8,7 +8,7 @@ import {
   Divider,
   Button,
   Space,
-  message,
+  Radio,
 } from "antd";
 import { UploadOutlined } from "@ant-design/icons";
 
@@ -37,15 +37,22 @@ const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
   resources,
   setFileList,
 }) => {
-    const [selectedResourceType, setSelectedResourceType] = useState<string | null>(null);
+  const selectedResourceType = Form.useWatch("type", form);
+  const selectedSource = Form.useWatch("source", form);
+
+  const selectedResource = useMemo(() => {
+    if (!selectedResourceType) return null;
+    const selectedId = Number(selectedResourceType);
+    return resources.find((resource) => Number(resource.id) === selectedId) || null;
+  }, [resources, selectedResourceType]);
+
+  const resourceName = selectedResource?.name?.toLowerCase();
+  const sourceMode = (selectedSource as "upload" | "link") || "upload";
+  const isLinkMode = sourceMode === "link";
 
   const getAcceptedFileTypes = () => {
-    if (!selectedResourceType) return "";
-    
-    const resource = resources.find(r => r.id === selectedResourceType);
-    if (!resource) return "";
-    
-    const resourceName = resource.name.toLowerCase();
+    if (!selectedResource) return "";
+    const resourceName = selectedResource.name.toLowerCase();
     
     switch (resourceName) {
       case 'video':
@@ -80,15 +87,20 @@ const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
           <Input placeholder="Enter resource title" />
         </Form.Item>
 
-       <Form.Item
+        <Form.Item
           name="type"
           label="Resource Type"
           rules={[{ required: true, message: "Please select a type!" }]}
         >
           <Select 
             onChange={(value) => {
-              setSelectedResourceType(value);
+              const selectedId = Number(value);
+              const resource = resources.find(
+                (item) => Number(item.id) === selectedId
+              );
+              const resourceName = resource?.name?.toLowerCase();
               setFileList([]);
+              form.setFieldsValue({ source: "upload", link: undefined });
             }}
           >
             {resources?.map((resource) => (
@@ -113,54 +125,95 @@ const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
           </Select>
         </Form.Item>
 
-        <Form.Item name="description" label="Description">
+        <Form.Item
+          name="description"
+          label="Description"
+          rules={[{ required: true, message: "Please add a description!" }]}
+        >
           <Input.TextArea
             rows={3}
             placeholder="Brief description of the resource"
           />
         </Form.Item>
 
-      
-        <Form.Item
-          name="file"
-          label="File"
-          rules={[{ required: true, message: "Please upload a file!" }]}
-          valuePropName="fileList"
-          getValueFromEvent={(e) => {
-            if (Array.isArray(e)) {
-              return e;
-            }
-            return e?.fileList;
-          }}
-        >
-          <Upload.Dragger
-            name="file"
-            multiple={false}
-            fileList={fileList}
-            beforeUpload={(file) => {
-              setFileList([file]);
-              return false;
-            }}
-            onRemove={() => {
-              setFileList([]);
-            }}
-            maxCount={1}
-            accept={getAcceptedFileTypes()}
-            disabled={!selectedResourceType}
-          >
-            <p className="ant-upload-drag-icon">
-              <UploadOutlined style={{ fontSize: "32px", color: "#38C16C" }} />
-            </p>
-            <p className="ant-upload-text">
-              Click or drag file to this area to upload
-            </p>
-            <p className="ant-upload-hint">
-              {selectedResourceType 
-                ? `Supported formats: ${getAcceptedFileTypes().replace(/,/g, ', ')}`
-                : "Please select a resource type first"}
-            </p>
-          </Upload.Dragger>
+        <Form.Item name="tags" label="Tags">
+          <Select
+            mode="tags"
+            placeholder="Add tags and press Enter"
+            tokenSeparators={[","]}
+          />
         </Form.Item>
+
+        {selectedResourceType && (
+          <Form.Item name="source" label="Resource Source" initialValue="upload">
+            <Radio.Group
+              onChange={(event) => {
+                if (event.target.value === "link") {
+                  setFileList([]);
+                }
+              }}
+            >
+              <Radio value="upload">Upload File</Radio>
+              <Radio value="link">External Link</Radio>
+            </Radio.Group>
+          </Form.Item>
+        )}
+
+        {isLinkMode && (
+          <Form.Item
+            name="link"
+            label="Resource Link"
+            rules={[
+              { required: true, message: "Please add a resource link!" },
+              { type: "url", message: "Please enter a valid URL!" },
+            ]}
+          >
+            <Input placeholder="https://..." />
+          </Form.Item>
+        )}
+
+        {!isLinkMode && (
+          <Form.Item
+            name="file"
+            label="File"
+            rules={[{ required: true, message: "Please upload a file!" }]}
+            valuePropName="fileList"
+            getValueFromEvent={(e) => {
+              if (Array.isArray(e)) {
+                return e;
+              }
+              return e?.fileList;
+            }}
+          >
+            <Upload.Dragger
+              name="file"
+              multiple={false}
+              fileList={fileList}
+              beforeUpload={(file) => {
+                setFileList([file]);
+                return false;
+              }}
+              onRemove={() => {
+                setFileList([]);
+              }}
+              maxCount={1}
+              accept={getAcceptedFileTypes()}
+              disabled={!selectedResourceType}
+            >
+              <p className="ant-upload-drag-icon">
+                <UploadOutlined style={{ fontSize: "32px", color: "#38C16C" }} />
+              </p>
+              <p className="ant-upload-text">
+                Click or drag file to this area to upload
+              </p>
+              <p className="ant-upload-hint">
+                {selectedResourceType 
+                  ? `Supported formats: ${getAcceptedFileTypes().replace(/,/g, ', ')}`
+                  : "Please select a resource type first"}
+              </p>
+            </Upload.Dragger>
+          </Form.Item>
+        )}
 
         <Divider />
 

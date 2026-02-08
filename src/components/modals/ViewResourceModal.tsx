@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Modal,
   Button,
@@ -8,6 +8,7 @@ import {
   message,
 } from "antd";
 import { DownloadOutlined } from "@ant-design/icons";
+import { IMG_BASE_URL } from "@/lib/config";
 
 const { Text } = Typography;
 
@@ -21,6 +22,7 @@ interface LibraryItem {
   size: string;
   subject?: string;
   description?: string;
+  tags?: string[];
 }
 
 interface ViewResourceModalProps {
@@ -34,6 +36,9 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
   onCancel,
   currentItem,
 }) => {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [mediaUrl, setMediaUrl] = useState<string>("");
   const getTypeTag = (type: string) => {
     const typeMap: Record<string, { color: string; text: string }> = {
       book: { color: "blue", text: "Book" },
@@ -49,19 +54,76 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
     );
   };
 
+  const isExternalLink = (url: string) => {
+    if (!url) return false;
+    const isHttp = /^https?:\/\//i.test(url);
+    const hasVideoExtension = /\.(mp4|mov|avi|mkv|webm)(\?|#|$)/i.test(url);
+    const isInternal = url.startsWith(IMG_BASE_URL);
+    return isHttp && !isInternal && !hasVideoExtension;
+  };
+
+  const getVideoEmbedUrl = (url: string) => {
+    const youTubeMatch = url.match(
+      /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{6,})/i
+    );
+    if (youTubeMatch?.[1]) {
+      return `https://www.youtube.com/embed/${youTubeMatch[1]}`;
+    }
+
+    const vimeoMatch = url.match(/vimeo\.com\/(\d+)/i);
+    if (vimeoMatch?.[1]) {
+      return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+    }
+
+    return url;
+  };
+
+  useEffect(() => {
+    if (open && currentItem?.url) {
+      setMediaUrl(currentItem.url);
+      return;
+    }
+
+    setMediaUrl("");
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.currentTime = 0;
+    }
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+  }, [open, currentItem?.url]);
+
   const renderViewContent = () => {
     if (!currentItem) return null;
 
     switch (currentItem.type) {
       case "video":
+        if (isExternalLink(currentItem.url)) {
+          const embedUrl = mediaUrl ? getVideoEmbedUrl(mediaUrl) : "";
+          return (
+            <div className="video-container" style={{ padding: "12px" }}>
+              <iframe
+                key={embedUrl || "empty"}
+                src={embedUrl}
+                title={currentItem.title}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                style={{ width: "100%", height: "500px", border: "none" }}
+              />
+            </div>
+          );
+        }
         return (
           <div className="video-container">
             <video
+              ref={videoRef}
               controls
               autoPlay
               style={{ width: "100%", maxHeight: "500px" }}
             >
-              <source src={currentItem.url} type="video/mp4" />
+              <source src={mediaUrl} type="video/mp4" />
               Your browser does not support the video tag.
             </video>
           </div>
@@ -72,8 +134,8 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
             className="audio-container"
             style={{ textAlign: "center", padding: "20px" }}
           >
-            <audio controls autoPlay style={{ width: "100%" }}>
-              <source src={currentItem.url} type="audio/mpeg" />
+            <audio ref={audioRef} controls autoPlay style={{ width: "100%" }}>
+              <source src={mediaUrl} type="audio/mpeg" />
               Your browser does not support the audio element.
             </audio>
           </div>
@@ -112,17 +174,42 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
       title={currentItem?.title || "View Resource"}
       open={open}
       onCancel={onCancel}
+      destroyOnClose
+      afterClose={() => {
+        setMediaUrl("");
+        if (videoRef.current) {
+          videoRef.current.pause();
+          videoRef.current.currentTime = 0;
+        }
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
+        }
+      }}
       footer={[
-        <Button
-          key="download"
-          type="primary"
-          icon={<DownloadOutlined />}
-          href={currentItem?.url}
-          download
-          className="!bg-primary !border-primary"
-        >
-          Download
-        </Button>,
+        currentItem?.url && isExternalLink(currentItem.url) ? (
+          <Button
+            key="open"
+            type="primary"
+            icon={<DownloadOutlined />}
+            href={currentItem.url}
+            target="_blank"
+            className="!bg-primary !border-primary"
+          >
+            Open Link
+          </Button>
+        ) : (
+          <Button
+            key="download"
+            type="primary"
+            icon={<DownloadOutlined />}
+            href={currentItem?.url}
+            download
+            className="!bg-primary !border-primary"
+          >
+            Download
+          </Button>
+        ),
         <Button key="close" onClick={onCancel}>
           Close
         </Button>,
@@ -146,6 +233,19 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
           <div className="mb-4">
             <Text strong>Description: </Text>
             <Text>{currentItem.description}</Text>
+          </div>
+        )}
+
+        {currentItem?.tags && currentItem.tags.length > 0 && (
+          <div className="mb-4">
+            <Text strong>Tags: </Text>
+            <span className="ml-2">
+              {currentItem.tags.map((tag) => (
+                <Tag key={`${currentItem.id}-${tag}`} className="m-0">
+                  {tag}
+                </Tag>
+              ))}
+            </span>
           </div>
         )}
 

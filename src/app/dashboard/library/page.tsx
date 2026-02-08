@@ -34,6 +34,7 @@ import UploadResourceModal from "@/components/modals/UploadResourceModal";
 import ViewResourceModal from "@/components/modals/ViewResourceModal";
 import { Plus } from "lucide-react";
 import Link from "next/link";
+import { IMG_BASE_URL } from "@/lib/config";
 import {
   addLibrary,
   deleteLibrary,
@@ -55,6 +56,12 @@ type LibraryItem = {
   size: string;
   category: "Quran" | "Hadees" | "Tafseer" | "Seerah" | "Fiqh" | "Dua";
   description?: string;
+  tags?: string[] | string;
+  library_resources_id?: number;
+  library_categories_id?: number;
+  file_path?: string;
+  updated_at?: string;
+  uploaded_by?: string;
 };
 
 export default function LibraryPage() {
@@ -78,6 +85,7 @@ export default function LibraryPage() {
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
   const [messageApi, contextHolder] = message.useMessage();
+  const [debugError, setDebugError] = useState<any>(null);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -156,14 +164,26 @@ export default function LibraryPage() {
   const handleUpload = async (values: any) => {
     setLoading(true);
     try {
+      const tags = Array.isArray(values.tags)
+        ? values.tags.map((tag: string) => tag.trim()).filter(Boolean)
+        : typeof values.tags === "string"
+        ? values.tags.split(",").map((tag) => tag.trim()).filter(Boolean)
+        : [];
       const formData = new FormData();
       formData.append("title", values.title);
       formData.append("library_resources_id", values.type);
       formData.append("library_categories_id", values.category);
       formData.append("description", values.description || "");
       formData.append("school_id", schoolId?.toString() || "");
+      if (tags.length > 0) {
+        formData.append("tags", tags.join(","));
+      }
 
-      if (fileList.length > 0) {
+      if (values.source === "link" && values.link) {
+        formData.append("file_path", values.link);
+        formData.append("external_link", values.link);
+        formData.append("link", values.link);
+      } else if (fileList.length > 0) {
         const fileToUpload = fileList[0].originFileObj || fileList[0];
 
         console.log("Uploading file:", {
@@ -192,11 +212,21 @@ export default function LibraryPage() {
       setFileList([]);
       setCurrentItem(null);
       setIsEditing(false);
-    } catch (error) {
+    } catch (error: any) {
+      const apiMessage =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message;
+      setDebugError({
+        status: error?.response?.status,
+        data: error?.response?.data,
+        message: error?.message,
+      });
       messageApi.error(
-        `Failed to ${
-          isEditing ? "update" : "upload"
-        } resource. Please try again.`
+        apiMessage ||
+          `Failed to ${
+            isEditing ? "update" : "upload"
+          } resource. Please try again.`
       );
     } finally {
       setLoading(false);
@@ -221,6 +251,7 @@ export default function LibraryPage() {
   };
 
   const handleEdit = (item: LibraryItem) => {
+    const isLink = isExternalLink(item.file_path || "");
     setCurrentItem(item);
     setIsEditing(true);
     setIsUploadModalOpen(true);
@@ -229,10 +260,13 @@ export default function LibraryPage() {
       type: item.library_resources_id,
       category: item.library_categories_id,
       description: item.description,
+      tags: parseTags(item.tags),
+      source: isLink ? "link" : "upload",
+      link: isLink ? item.file_path : undefined,
     });
 
     setFileList(
-      item.file_path
+      !isLink && item.file_path
         ? [
             {
               uid: "-1",
@@ -246,14 +280,20 @@ export default function LibraryPage() {
   };
 
   const handleView = (item: any) => {
-    if (getResourceName(item.library_resources_id).toLowerCase() === "pdf") {
+    const resourceType = getResourceName(item.library_resources_id).toLowerCase();
+    if (resourceType === "pdf") {
+      window.open(item.file_path, "_blank");
+      return;
+    }
+
+    if (isExternalLink(item.file_path) && resourceType !== "video") {
       window.open(item.file_path, "_blank");
       return;
     }
 
     setCurrentItem({
       ...item,
-      type: getResourceName(item.library_resources_id).toLowerCase(),
+      type: resourceType,
       url: item.file_path,
       uploadedBy: item.uploaded_by || "Unknown",
       uploadDate: new Date(item.updated_at).toLocaleDateString("en-US", {
@@ -262,6 +302,7 @@ export default function LibraryPage() {
         day: "numeric",
       }),
       size: item.size || "N/A",
+      tags: parseTags(item.tags),
     });
     setIsViewModalOpen(true);
   };
@@ -270,6 +311,7 @@ export default function LibraryPage() {
     setIsEditing(false);
     setCurrentItem(null);
     form.resetFields();
+    form.setFieldsValue({ source: "upload", link: undefined, tags: [] });
     setFileList([]);
     setIsUploadModalOpen(true);
   };
@@ -291,18 +333,105 @@ export default function LibraryPage() {
     }
   };
 
-  const getResourceName = (id: number) => {
-    const resource = resources.find((res) => res.id === id);
+  const getEmojiForType = (type: string) => {
+    switch (type) {
+      case "book":
+        return "📘";
+      case "pdf":
+        return "📄";
+      case "video":
+        return "🎬";
+      case "audio":
+        return "🎧";
+      default:
+        return "📚";
+    }
+  };
+
+  const getResourceName = (id: number | string) => {
+    const resourceId = Number(id);
+    const resource = resources.find((res) => Number(res.id) === resourceId);
     return resource?.name || "Unknown";
   };
 
-  const getCategoryName = (id: number) => {
-    const category = categories.find((cat) => cat.id === id);
+  const parseTags = (tags: unknown): string[] => {
+    if (!tags) return [];
+    if (Array.isArray(tags)) return tags.map((tag) => String(tag).trim()).filter(Boolean);
+    if (typeof tags === "string") {
+      return tags.split(",").map((tag) => tag.trim()).filter(Boolean);
+    }
+    return [];
+  };
+
+  const isExternalLink = (url?: string) => {
+    if (!url) return false;
+    const isHttp = /^https?:\/\//i.test(url);
+    const hasVideoExtension = /\.(mp4|mov|avi|mkv|webm)(\?|#|$)/i.test(url);
+    const isInternal = url.startsWith(IMG_BASE_URL);
+    return isHttp && !isInternal && !hasVideoExtension;
+  };
+
+  const getVideoEmbedUrl = (url: string) => {
+    const youTubeMatch = url.match(
+      /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{6,})/i
+    );
+    if (youTubeMatch?.[1]) {
+      return `https://www.youtube.com/embed/${youTubeMatch[1]}`;
+    }
+
+    const vimeoMatch = url.match(/vimeo\.com\/(\d+)/i);
+    if (vimeoMatch?.[1]) {
+      return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+    }
+
+    return url;
+  };
+
+  const getYouTubeId = (url: string) => {
+    const youTubeMatch = url.match(
+      /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{6,})/i
+    );
+    return youTubeMatch?.[1] || null;
+  };
+
+  const getVideoThumbnailUrl = (url: string) => {
+    const youTubeId = getYouTubeId(url);
+    if (youTubeId) {
+      return `https://img.youtube.com/vi/${youTubeId}/hqdefault.jpg`;
+    }
+    return "";
+  };
+
+  const getFileExtension = (url: string) => {
+    const cleanUrl = url.split("?")[0].split("#")[0];
+    const lastDot = cleanUrl.lastIndexOf(".");
+    if (lastDot === -1) return "";
+    return cleanUrl.slice(lastDot + 1).toLowerCase();
+  };
+
+  const isImageUrl = (url: string) => {
+    const ext = getFileExtension(url);
+    return ["jpg", "jpeg", "png", "webp", "gif"].includes(ext);
+  };
+
+  const getLinkDomain = (url: string) => {
+    try {
+      const { hostname } = new URL(url);
+      return hostname.replace(/^www\./i, "");
+    } catch {
+      return url;
+    }
+  };
+
+  const getCategoryName = (id: number | string) => {
+    const categoryId = Number(id);
+    const category = categories.find((cat) => Number(cat.id) === categoryId);
     return category?.name || "Unknown";
   };
 
-  const getCategoryColor = (id: number) => {
-    const category = categories.find((cat) => cat.id === id);
+  const getCategoryColor = (id: number | string) => {
+    const categoryId = Number(id);
+    const category = categories.find((cat) => Number(cat.id) === categoryId);
     return category?.color || "default";
   };
 
@@ -446,20 +575,54 @@ export default function LibraryPage() {
               screens.md ? "md:grid-cols-2" : ""
             } ${screens.lg ? "lg:grid-cols-3" : ""} gap-6`}
           >
-            {filteredItems?.map((item) => (
-              <Card
-                key={item.id}
-                className="hover:shadow-lg shadow-sm transition-all duration-300 border border-gray-100 rounded-xl overflow-hidden flex flex-col h-full"
-                hoverable
-                bodyStyle={{ padding: 0 }}
-              >
-                <div className="relative bg-gradient-to-br from-gray-50 to-gray-100 p-5">
-                  <div className="flex items-center justify-between h-4">
-                    <div className="text-3xl text-blue-500">
-                      {getIconForType(item.type)}
-                    </div>
+            {filteredItems?.map((item) => {
+              const resourceType = getResourceName(
+                item.library_resources_id
+              ).toLowerCase();
+              const isExternal = isExternalLink(item.file_path);
+              const domainLabel = isExternal
+                ? getLinkDomain(item.file_path)
+                : "";
+              const coverUrl =
+                isExternal && resourceType === "video"
+                  ? getVideoThumbnailUrl(item.file_path)
+                  : isImageUrl(item.file_path)
+                  ? item.file_path
+                  : "";
+
+              return (
+                <Card
+                  key={item.id}
+                  className="hover:shadow-lg shadow-sm transition-all duration-300 border border-gray-100 rounded-xl overflow-hidden flex flex-col h-full"
+                  hoverable
+                  styles={{ body: { padding: 0 } }}
+                >
+                  <div className="relative">
+                    {coverUrl ? (
+                      <img
+                        src={coverUrl}
+                        alt={item.title}
+                        className="w-full h-40 object-cover"
+                      />
+                    ) : (
+                      <div className="h-40 bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col items-center justify-center gap-2">
+                        <div className="text-4xl">
+                          {getEmojiForType(resourceType)}
+                        </div>
+                        <div className="text-xs uppercase tracking-wide text-gray-500">
+                          {resourceType || "resource"}
+                        </div>
+                      </div>
+                    )}
+
+                    {isExternal && (
+                      <span className="absolute bottom-2 left-2 text-xs bg-white/90 text-gray-700 px-2 py-1 rounded-full">
+                        {domainLabel}
+                      </span>
+                    )}
+
                     {canUpload && !isTeacher && (
-                      <div className="flex gap-2">
+                      <div className="absolute top-3 right-3 flex gap-2">
                         <Button
                           shape="circle"
                           size="small"
@@ -482,7 +645,6 @@ export default function LibraryPage() {
                       </div>
                     )}
                   </div>
-                </div>
 
                 <div className="p-5 flex-grow flex flex-col">
                   <h3 className="text-lg font-semibold mb-2 line-clamp-2 text-gray-800">
@@ -491,6 +653,16 @@ export default function LibraryPage() {
                   <p className="mb-2 text-gray-700 line-clamp-1">
                     {item.description}
                   </p>
+
+                  {parseTags(item.tags)?.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {parseTags(item.tags).map((tag) => (
+                        <Tag key={`${item.id}-${tag}`} className="m-0">
+                          {tag}
+                        </Tag>
+                      ))}
+                    </div>
+                  )}
 
                   <div className="flex flex-wrap gap-2 mb-4">
                     {getResourceName(item.library_resources_id)}
@@ -525,26 +697,44 @@ export default function LibraryPage() {
                       >
                         View
                       </Button>
-                      <a
-                        href={item.file_path}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        download
-                        className="flex"
-                      >
-                        <Button
-                          type="text"
-                          icon={<DownloadOutlined />}
-                          className="flex items-center text-green-600 hover:text-green-800 !px-0 hover:bg-green-50"
+                      {isExternalLink(item.file_path) ? (
+                        <a
+                          href={item.file_path}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex"
                         >
-                          Download
-                        </Button>
-                      </a>
+                          <Button
+                            type="text"
+                            icon={<DownloadOutlined />}
+                            className="flex items-center text-green-600 hover:text-green-800 !px-0 hover:bg-green-50"
+                          >
+                            Open
+                          </Button>
+                        </a>
+                      ) : (
+                        <a
+                          href={item.file_path}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          download
+                          className="flex"
+                        >
+                          <Button
+                            type="text"
+                            icon={<DownloadOutlined />}
+                            className="flex items-center text-green-600 hover:text-green-800 !px-0 hover:bg-green-50"
+                          >
+                            Download
+                          </Button>
+                        </a>
+                      )}
                     </div>
                   </div>
                 </div>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </div>
         )}
       </Space>
@@ -583,6 +773,22 @@ export default function LibraryPage() {
         okButtonProps={{ danger: true }}
       >
         <p>Are you sure you want to delete this resource?</p>
+      </Modal>
+
+      <Modal
+        title="Upload Error Details"
+        open={!!debugError}
+        onCancel={() => setDebugError(null)}
+        footer={[
+          <Button key="close" onClick={() => setDebugError(null)}>
+            Close
+          </Button>,
+        ]}
+        width={720}
+      >
+        <pre className="whitespace-pre-wrap text-xs bg-gray-50 p-3 rounded">
+          {debugError ? JSON.stringify(debugError, null, 2) : ""}
+        </pre>
       </Modal>
     </div>
   );
