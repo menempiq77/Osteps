@@ -232,7 +232,13 @@ export default function ViewTrackerTopicPage() {
         return;
       }
 
-      await addTopicMark(selectedTopic.id, marksValue, selectedStudentId);
+      await addTopicMark(
+        selectedTopic.id,
+        marksValue,
+        selectedStudentId,
+        Number(trackerId),
+        classId ? Number(classId) : undefined
+      );
       await refetchTracker();
 
       messageApi.success(`Marks ${marks} submitted for ${selectedTopic.title}`);

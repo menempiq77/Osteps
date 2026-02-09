@@ -71,7 +71,7 @@ interface TrackerData {
 }
 
 export default function TrackerTopicsPage() {
-  const { trackerId } = useParams();
+  const { trackerId, classId } = useParams();
   const router = useRouter();
   const [trackerData, setTrackerData] = useState<TrackerData | null>(null);
   const [topics, setTopics] = useState<Topic[]>([]);
@@ -93,8 +93,9 @@ export default function TrackerTopicsPage() {
   const schoolId = currentUser?.school;
 
   useEffect(() => {
-      loadStudentTrackerData();
-  }, [trackerId]);
+    if (!currentUser?.student || !trackerId) return;
+    loadStudentTrackerData();
+  }, [trackerId, currentUser?.student]);
 
 
   const loadStudentTrackerData = async () => {
@@ -181,6 +182,12 @@ export default function TrackerTopicsPage() {
         return;
       }
   
+      const studentId = currentUser?.student ?? (currentUser?.id ? Number(currentUser.id) : null);
+      if (!studentId || Number.isNaN(studentId)) {
+        messageApi.error("Student profile not found. Please re-login.");
+        return;
+      }
+
       try {
         const marksValue = Number(marks);
         if (isNaN(marksValue)) {
@@ -196,15 +203,23 @@ export default function TrackerTopicsPage() {
           return;
         }
   
-        await addTopicMark(selectedTopic.id, marksValue, currentUser?.student);
+        await addTopicMark(
+          selectedTopic.id,
+          marksValue,
+          studentId,
+          Number(trackerId),
+          classId ? Number(classId) : undefined
+        );
         // await refetchTracker();
         await loadStudentTrackerData();
   
         messageApi.success(`Marks ${marks} submitted for ${selectedTopic.title}`);
         setMarkModal(false);
         setMarks("");
-      } catch (error) {
-        messageApi.error("Failed to submit marks");
+      } catch (error: any) {
+        const errorMessage =
+          error?.response?.data?.message || "Failed to submit marks";
+        messageApi.error(errorMessage);
         console.error("Error submitting marks:", error);
       }
     };
@@ -313,6 +328,7 @@ export default function TrackerTopicsPage() {
             <tbody className="divide-y divide-gray-200">
               {topics?.slice(0, visibleTopics)?.map((topic, index) => (
                     <tr
+                      key={topic.id ?? `${topic.title}-${index}`}
                       className={`hover:bg-gray-50 transition-colors ${
                         topic?.type === "quiz"
                           ? "cursor-pointer bg-blue-50"

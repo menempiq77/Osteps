@@ -3,6 +3,20 @@
 Date: 2026-02-08
 Server: DigitalOcean droplet (Ubuntu 24.04), Laravel backend at /var/www/laravel
 
+## Marks submission fix (2026-02-09)
+Issue: Student tracker marks failed with 500 (count() on null, array-to-string conversion).
+
+### Files changed (backend)
+- app/Http/Controllers/Api/TopicController.php
+
+### Changes
+- In `addStudentTopicMarks`: avoid `count()`/`pluck()` on a nullable model by logging with safe defaults.
+- Coerce `$request->marks` to a scalar before `updateOrCreate` to prevent array-to-string conversion.
+
+### Notes
+- No frontend change required after backend fix.
+- If error reappears, recheck `addStudentTopicMarks` around the log and `updateOrCreate` block.
+
 ## What was fixed
 - Library uploads now accept either a file upload or a URL link.
 - External links are returned as-is in API responses (not rewritten as local storage URLs).

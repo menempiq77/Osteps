@@ -225,11 +225,31 @@ export const updateTopicStatus = async (topicId: number, statusId: number, isCom
   });
   return response.data;
 };
-export const addTopicMark = async (topicId: number, marks: number, studentId: number) => {
-  const response = await api.post('/add-student-topic-marks', {
-    topic_id: topicId,
-    student_id: studentId,
-    marks: marks,
+export const addTopicMark = async (
+  topicId: number,
+  marks: number,
+  studentId: number,
+  trackerId?: number,
+  classId?: number
+) => {
+  const formData = new FormData();
+  formData.append("topic_id", topicId.toString());
+  formData.append("topic_ids[]", topicId.toString());
+  formData.append("student_id", studentId.toString());
+  formData.append("marks", marks.toString());
+
+  if (typeof trackerId === "number" && !Number.isNaN(trackerId)) {
+    formData.append("tracker_id", trackerId.toString());
+  }
+
+  if (typeof classId === "number" && !Number.isNaN(classId)) {
+    formData.append("class_id", classId.toString());
+  }
+
+  const response = await api.post("/add-student-topic-marks", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
   });
   return response.data;
 };
