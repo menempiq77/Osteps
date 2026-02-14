@@ -23,6 +23,7 @@ import {
   CheckSquare,
   Layers,
   ClipboardList,
+  Wrench,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { logout } from "@/features/auth/authSlice";
@@ -169,6 +170,11 @@ const Sidebar = () => {
         icon: NotebookPen,
       },
       {
+        name: "Tools",
+        href: "/dashboard/tools",
+        icon: Wrench,
+      },
+      {
         name: "Settings",
         href: "/dashboard/school-admin/settings",
         icon: Settings,
@@ -225,6 +231,11 @@ const Sidebar = () => {
         icon: NotebookPen,
       },
       {
+        name: "Tools",
+        href: "/dashboard/tools",
+        icon: Wrench,
+      },
+      {
         name: "Answer a Question",
         href: "/dashboard/questions",
         icon: HelpCircle,
@@ -275,6 +286,11 @@ const Sidebar = () => {
         name: "Behavior",
         href: `/dashboard/student_behavior`,
         icon: NotebookPen,
+      },
+      {
+        name: "Tools",
+        href: "/dashboard/tools",
+        icon: Wrench,
       },
       {
         name: "Answer a Question",

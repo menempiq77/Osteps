@@ -58,3 +58,34 @@ Run in /var/www/laravel:
   - app/Http/Requests/LibraryRequest/StoreRequest.php.bak
   - app/Http/Requests/LibraryRequest/UpdateRequest.php.bak
   - app/Services/LibraryService.php.bak
+
+## Tools - Transcribe (frontend)
+Frontend pages:
+- src/app/dashboard/tools/page.tsx
+- src/app/dashboard/tools/transcribe/page.tsx
+
+Frontend service:
+- src/services/transcribeApi.ts
+
+Backend requirement:
+- POST /transcribe (file upload or URL) that returns transcript text.
+
+## Tools - Transcribe (backend)
+Date: 2026-02-09
+Server: DigitalOcean droplet (Ubuntu 24.04), Laravel backend at /var/www/laravel
+
+### Packages installed (server)
+- ffmpeg
+- python3-venv
+- faster-whisper (in venv at /var/www/laravel/storage/transcribe_venv)
+
+### Files added/updated (backend)
+- app/Http/Controllers/Api/ToolsController.php
+- routes/api.php (added /transcribe route)
+- storage/transcribe/transcribe.py
+- .env (TRANSCRIBE_PYTHON, TRANSCRIBE_SCRIPT, TRANSCRIBE_MODEL)
+
+### Notes
+- This is CPU-only transcription using Faster-Whisper.
+- Endpoint accepts multipart file `file` or JSON `{ "url": "..." }`.
+- Only SCHOOL_ADMIN, HOD, TEACHER can access (role check in controller).
