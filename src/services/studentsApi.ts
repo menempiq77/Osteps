@@ -31,6 +31,9 @@ export const addStudent = async (studentData: {
   status: string;
   gender?: string;
   student_gender?: string;
+  nationality?: string;
+  is_sen?: boolean;
+  sen_details?: string;
 }) => {
   const response = await api.post('/add-student', studentData);
   return response.data;
@@ -47,6 +50,9 @@ export const updateStudent = async (
     status: 'active' | 'inactive' | 'suspended';
     gender?: string;
     student_gender?: string;
+    nationality?: string;
+    is_sen?: boolean;
+    sen_details?: string;
   }
 ) => {
   const response = await api.post(`/update-student/${id}`, studentData);

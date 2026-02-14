@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
 import {
@@ -30,6 +31,7 @@ type StudentListRow = {
   name: string;
   userName: string;
   email: string;
+  yearId: number;
   yearGroup: string;
   className: string;
   classId: number;
@@ -67,6 +69,9 @@ const normalizeGenderRaw = (raw: unknown): "male" | "female" | "" => {
 };
 
 export default function AllStudentsPage() {
+  const searchParams = useSearchParams();
+  const preselectedYearId = searchParams.get("yearId") || "";
+  const preselectedClassId = searchParams.get("classId") || "";
   const queryClient = useQueryClient();
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const role = currentUser?.role;
@@ -77,7 +82,10 @@ export default function AllStudentsPage() {
 
   const [nameFilter, setNameFilter] = useState("");
   const [yearFilter, setYearFilter] = useState<string>("all");
-  const [classFilters, setClassFilters] = useState<string[]>([]);
+  const [yearIdFilter, setYearIdFilter] = useState<string>(preselectedYearId);
+  const [classFilters, setClassFilters] = useState<string[]>(
+    preselectedClassId ? [preselectedClassId] : []
+  );
   const [genderFilters, setGenderFilters] = useState<Array<"Male" | "Female" | "Unknown">>([]);
   const [editingStudent, setEditingStudent] = useState<StudentListRow | null>(null);
   const [genderOverrides, setGenderOverrides] = useState<Record<string, "male" | "female">>(() => {
@@ -157,6 +165,7 @@ export default function AllStudentsPage() {
                   name: String(student.student_name ?? student.name ?? "Unknown Student"),
                   userName: String(student.user_name ?? student.username ?? ""),
                   email: String(student.email ?? ""),
+                  yearId: Number(classYearId ?? 0),
                   yearGroup: yearName,
                   className,
                   classId: Number(cls.id),
@@ -197,13 +206,14 @@ export default function AllStudentsPage() {
     return students.filter((row) => {
       const nameMatch = !q || row.name.toLowerCase().includes(q);
       const yearMatch = yearFilter === "all" || row.yearGroup === yearFilter;
+      const yearIdMatch = !yearIdFilter || String(row.yearId) === yearIdFilter;
       const classMatch =
         classFilters.length === 0 || classFilters.includes(String(row.classId));
       const genderMatch =
         genderFilters.length === 0 || genderFilters.includes(row.gender);
-      return nameMatch && yearMatch && classMatch && genderMatch;
+      return nameMatch && yearMatch && yearIdMatch && classMatch && genderMatch;
     });
-  }, [students, nameFilter, yearFilter, classFilters, genderFilters]);
+  }, [students, nameFilter, yearFilter, yearIdFilter, classFilters, genderFilters]);
 
   const classOptions = useMemo(() => {
     const unique = Array.from(
@@ -217,6 +227,7 @@ export default function AllStudentsPage() {
   const resetFilters = () => {
     setNameFilter("");
     setYearFilter("all");
+    setYearIdFilter("");
     setClassFilters([]);
     setGenderFilters([]);
   };
@@ -329,6 +340,16 @@ export default function AllStudentsPage() {
         <Typography.Text className="text-gray-500">
           View and filter students by name, year group, class, and gender.
         </Typography.Text>
+        {yearIdFilter && (
+          <Typography.Text className="block text-emerald-700 text-sm mt-1">
+            Year filter applied from previous page.
+          </Typography.Text>
+        )}
+        {classFilters.length > 0 && (
+          <Typography.Text className="block text-emerald-700 text-sm mt-1">
+            Class filter applied from previous page.
+          </Typography.Text>
+        )}
       </Card>
 
       <Card className="border border-[#D6EFE2]">

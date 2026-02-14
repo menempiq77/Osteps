@@ -373,7 +373,10 @@ const Sidebar = () => {
     >
       <div className="flex flex-col h-full">
         {/* Header with collapse button */}
-        <div className="w-full p-3 md:p-4 flex items-center justify-between mb-4 border-b bg-[#38C16C] border-gray-100 pb-4">
+        <div
+          className="w-full p-3 md:p-4 flex items-center justify-between mb-4 border-b border-gray-100 pb-4"
+          style={{ backgroundColor: "var(--primary)" }}
+        >
           <Link href="/">
             {isOpen && (
               <h2 className="font-semibold text-white text-lg">
@@ -439,8 +442,8 @@ const Sidebar = () => {
                   }
                   className={`sidebar-nav-item group flex items-center p-3 mb-1 rounded-lg cursor-pointer shadow-none transition-all duration-200 relative overflow-hidden ${
                     isItemActive(item.href)
-                      ? "bg-[#b9f6cc] text-[#15803d] font-semibold sidebar-item-active hover:bg-[#a8efc1]"
-                      : "text-gray-600 hover:text-[#1f8f4d] hover:bg-[#def7e9]"
+                      ? "sidebar-nav-item-active font-semibold sidebar-item-active"
+                      : "text-gray-600 hover:text-[var(--theme-dark)] hover:bg-[var(--theme-soft)]"
                   }`}
                 >
                   <item.icon
@@ -457,7 +460,10 @@ const Sidebar = () => {
                         {item.name}
                       </span>
                       {"badge" in item && (
-                        <span className="bg-[#38C16C] text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                        <span
+                          className="text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center"
+                          style={{ backgroundColor: "var(--primary)" }}
+                        >
                           {item.badge}
                         </span>
                       )}
@@ -501,11 +507,17 @@ const Sidebar = () => {
                     }}
                   />
                 ) : (
-                  <div className="h-9 w-9 rounded-full bg-green-500 flex items-center justify-center text-white font-medium">
+                  <div
+                    className="h-9 w-9 rounded-full flex items-center justify-center text-white font-medium"
+                    style={{ backgroundColor: "var(--primary)" }}
+                  >
                     {currentUser?.email?.[0]?.toUpperCase() || "U"}
                   </div>
                 )}
-                <div className="absolute -bottom-1 -right-1 h-3 w-3 rounded-full bg-green-400 border-2 border-white"></div>
+                <div
+                  className="absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-white"
+                  style={{ backgroundColor: "var(--primary)" }}
+                ></div>
               </div>
               {isOpen && (
                 <div className="ml-3 overflow-hidden">
@@ -525,8 +537,15 @@ const Sidebar = () => {
         .sidebar-item-active {
           animation: sidebarActivePop 280ms cubic-bezier(0.22, 1, 0.36, 1);
         }
+        .sidebar-nav-item-active {
+          background: color-mix(in srgb, var(--primary) 22%, white);
+          color: var(--theme-dark);
+        }
+        .sidebar-nav-item-active:hover {
+          background: color-mix(in srgb, var(--primary) 30%, white);
+        }
         .sidebar-nav-item:hover {
-          box-shadow: 0 10px 24px rgba(22, 101, 52, 0.35);
+          box-shadow: 0 10px 24px var(--theme-shadow);
         }
         .sidebar-logout-item:hover {
           box-shadow: 0 10px 24px rgba(153, 27, 27, 0.32);
@@ -544,7 +563,7 @@ const Sidebar = () => {
         .sidebar-scrollbar {
           direction: rtl;
           scrollbar-width: thin;
-          scrollbar-color: #22c55e #e5e7eb;
+          scrollbar-color: var(--primary) #e5e7eb;
         }
         .sidebar-scrollbar > * {
           direction: ltr;
@@ -557,12 +576,20 @@ const Sidebar = () => {
           border-radius: 999px;
         }
         .sidebar-scrollbar::-webkit-scrollbar-thumb {
-          background: linear-gradient(180deg, #34d399, #16a34a);
+          background: linear-gradient(
+            180deg,
+            var(--theme-scroll-start),
+            var(--theme-scroll-end)
+          );
           border-radius: 999px;
           border: 2px solid #e5e7eb;
         }
         .sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: linear-gradient(180deg, #22c55e, #15803d);
+          background: linear-gradient(
+            180deg,
+            var(--theme-scroll-end),
+            var(--theme-dark)
+          );
         }
       `}</style>
     </div>

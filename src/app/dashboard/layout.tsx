@@ -6,6 +6,81 @@ import Sidebar from "@/components/ui/Sidebar";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
+const THEME_STORAGE_KEY = "osteps-dashboard-theme";
+const THEMES = {
+  green: {
+    label: "Green",
+    primary: "#38C16C",
+    soft: "#eef9f2",
+    soft2: "#dff3e7",
+    border: "#b9e2cd",
+    dark: "#2f8f5b",
+    shadow: "rgba(22, 101, 52, 0.35)",
+    scrollStart: "#34d399",
+    scrollEnd: "#16a34a",
+  },
+  blue: {
+    label: "Blue",
+    primary: "#2F80ED",
+    soft: "#edf4ff",
+    soft2: "#d9e9ff",
+    border: "#b9d2ff",
+    dark: "#1f5fb8",
+    shadow: "rgba(30, 64, 175, 0.35)",
+    scrollStart: "#60a5fa",
+    scrollEnd: "#2563eb",
+  },
+  red: {
+    label: "Red",
+    primary: "#E35D5D",
+    soft: "#fff0f0",
+    soft2: "#ffe0e0",
+    border: "#f7bbbb",
+    dark: "#b84141",
+    shadow: "rgba(153, 27, 27, 0.32)",
+    scrollStart: "#f87171",
+    scrollEnd: "#dc2626",
+  },
+  purple: {
+    label: "Purple",
+    primary: "#8B5CF6",
+    soft: "#f3efff",
+    soft2: "#e9dfff",
+    border: "#d3c0ff",
+    dark: "#6a3fd0",
+    shadow: "rgba(109, 40, 217, 0.33)",
+    scrollStart: "#a78bfa",
+    scrollEnd: "#7c3aed",
+  },
+  orange: {
+    label: "Orange",
+    primary: "#F08A24",
+    soft: "#fff5e9",
+    soft2: "#ffe8cd",
+    border: "#f6d0a2",
+    dark: "#b86315",
+    shadow: "rgba(180, 83, 9, 0.34)",
+    scrollStart: "#fb923c",
+    scrollEnd: "#ea580c",
+  },
+} as const;
+
+type ThemeName = keyof typeof THEMES;
+
+const applyTheme = (themeName: ThemeName) => {
+  const theme = THEMES[themeName];
+  const root = document.documentElement;
+  root.style.setProperty("--primary", theme.primary);
+  root.style.setProperty("--theme-soft", theme.soft);
+  root.style.setProperty("--theme-soft-2", theme.soft2);
+  root.style.setProperty("--theme-border", theme.border);
+  root.style.setProperty("--theme-dark", theme.dark);
+  root.style.setProperty("--theme-shadow", theme.shadow);
+  root.style.setProperty("--theme-scroll-start", theme.scrollStart);
+  root.style.setProperty("--theme-scroll-end", theme.scrollEnd);
+  root.style.setProperty("--theme-name", themeName);
+};
+
 export default function DashboardLayout({
   children,
 }: {
@@ -16,6 +91,7 @@ export default function DashboardLayout({
   const router = useRouter();
   const [isHydrated, setIsHydrated] = useState(false);
   const [isRouteTransitioning, setIsRouteTransitioning] = useState(false);
+  const [themeName, setThemeName] = useState<ThemeName>("green");
 
   const formatSegmentLabel = (segment: string) => {
     const cleaned = decodeURIComponent(segment).replace(/[-_]+/g, " ").trim();
@@ -45,17 +121,28 @@ export default function DashboardLayout({
     return items;
   }, [pathname]);
 
-  // Handle hydration
   useEffect(() => {
     setIsHydrated(true);
   }, []);
 
   useEffect(() => {
+    if (!isHydrated) return;
+    const raw = localStorage.getItem(THEME_STORAGE_KEY) as ThemeName | null;
+    const nextTheme: ThemeName =
+      raw && Object.prototype.hasOwnProperty.call(THEMES, raw) ? raw : "green";
+    setThemeName(nextTheme);
+    applyTheme(nextTheme);
+  }, [isHydrated]);
+
+  const handleThemeChange = (nextTheme: ThemeName) => {
+    setThemeName(nextTheme);
+    applyTheme(nextTheme);
+    localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+  };
+
+  useEffect(() => {
     if (isHydrated && !currentUser) {
-      console.log("DEBUG: No currentUser found after hydration, redirecting to /");
       router.push("/");
-    } else if (currentUser) {
-      console.log("DEBUG: Current user found:", currentUser.email, "Role:", currentUser.role);
     }
   }, [currentUser, router, isHydrated]);
 
@@ -66,7 +153,6 @@ export default function DashboardLayout({
     return () => clearTimeout(timer);
   }, [pathname, isHydrated]);
 
-  // Show loading while not hydrated or while checking auth
   if (!isHydrated || !currentUser) {
     return (
       <div className="min-h-screen bg-[#FAF9F6] flex items-center justify-center">
@@ -78,9 +164,7 @@ export default function DashboardLayout({
     );
   }
 
-  const shouldApplyMaxWidth = !pathname.startsWith(
-    "/dashboard/students/reports"
-  );
+  const shouldApplyMaxWidth = !pathname.startsWith("/dashboard/students/reports");
 
   return (
     <div className="min-h-screen bg-[#FAF9F6] flex">
@@ -109,7 +193,7 @@ export default function DashboardLayout({
                         className={`transition-colors ${
                           isLast
                             ? "cursor-default font-medium text-gray-800"
-                            : "text-gray-500 hover:text-[#2f8f5b]"
+                            : "text-gray-500 hover:text-[var(--theme-dark)]"
                         }`}
                       >
                         {item.label}
@@ -121,17 +205,33 @@ export default function DashboardLayout({
               </div>
 
               <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 rounded-lg border border-[var(--theme-border)] bg-[var(--theme-soft)] px-2 py-1">
+                  {(Object.keys(THEMES) as ThemeName[]).map((name) => (
+                    <button
+                      key={name}
+                      type="button"
+                      title={THEMES[name].label}
+                      onClick={() => handleThemeChange(name)}
+                      className={`h-5 w-5 rounded-full border transition ${
+                        themeName === name
+                          ? "scale-110 ring-2 ring-offset-1 ring-[var(--theme-border)]"
+                          : "opacity-80 hover:opacity-100"
+                      }`}
+                      style={{ backgroundColor: THEMES[name].primary }}
+                    />
+                  ))}
+                </div>
                 <button
                   type="button"
                   onClick={() => window.history.back()}
-                  className="rounded-lg border border-[#b9e2cd] bg-[#eef9f2] px-3 py-1.5 text-sm font-medium text-[#2f8f5b] transition hover:bg-[#dff3e7]"
+                  className="rounded-lg border border-[var(--theme-border)] bg-[var(--theme-soft)] px-3 py-1.5 text-sm font-medium text-[var(--theme-dark)] transition hover:bg-[var(--theme-soft-2)]"
                 >
                   Back
                 </button>
                 <button
                   type="button"
                   onClick={() => window.history.forward()}
-                  className="rounded-lg border border-[#b9e2cd] bg-[#eef9f2] px-3 py-1.5 text-sm font-medium text-[#2f8f5b] transition hover:bg-[#dff3e7]"
+                  className="rounded-lg border border-[var(--theme-border)] bg-[var(--theme-soft)] px-3 py-1.5 text-sm font-medium text-[var(--theme-dark)] transition hover:bg-[var(--theme-soft-2)]"
                 >
                   Next
                 </button>
@@ -166,8 +266,8 @@ export default function DashboardLayout({
           z-index: 10;
           background: linear-gradient(
             110deg,
-            rgba(56, 193, 108, 0.16) 0%,
-            rgba(15, 118, 110, 0.12) 45%,
+            color-mix(in srgb, var(--primary) 20%, transparent) 0%,
+            color-mix(in srgb, var(--primary) 12%, transparent) 45%,
             rgba(255, 255, 255, 0) 100%
           );
           transform: translateX(-12%);

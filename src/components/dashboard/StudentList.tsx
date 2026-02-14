@@ -85,6 +85,12 @@ type AttendanceState = {
   attendanceRecordId?: string | number;
 };
 
+type SeatingApiErrorShape = {
+  status?: number;
+  backendMessage?: string;
+  message?: string;
+};
+
 const GRID = 16;
 const SEAT_CARD_WIDTH = 180;
 const SEAT_CARD_HEIGHT = 100;
@@ -240,6 +246,21 @@ const areSeatLayoutsEqual = (
   return true;
 };
 
+const getSeatingApiUnavailableMessage = (error: SeatingApiErrorShape | null) => {
+  const status = Number(error?.status || 0);
+  if (status === 404) {
+    return "Seating API route is missing (404). Backend must add GET/PUT /api/classes/{classId}/seating-layout.";
+  }
+  if (status === 401 || status === 403) {
+    return "You do not have permission to use seating save API (401/403).";
+  }
+  return (
+    error?.backendMessage ||
+    error?.message ||
+    "Seating API not available. You can still arrange seats for this session, but server save is disabled."
+  );
+};
+
 export default function StudentList() {
   const router = useRouter();
   const { classId } = useParams();
@@ -351,7 +372,9 @@ export default function StudentList() {
     retry: 1,
   });
 
-  const seatingApiReady = !!seatingQuery.data && !seatingQuery.isError;
+  const seatingApiError = (seatingQuery.error || null) as SeatingApiErrorShape | null;
+  const seatingApiReady = !!classIdStr && canArrangeSeats && !seatingQuery.isError;
+  const seatingUnavailableMessage = getSeatingApiUnavailableMessage(seatingApiError);
 
   const addStudentMutation = useMutation({
     mutationFn: apiAddStudent,
@@ -471,8 +494,24 @@ export default function StudentList() {
       setLocalSeatingDirty(false);
       messageApi.success("Seating plan saved.");
     },
-    onError: () => {
-      messageApi.error("Failed to save seating plan.");
+    onError: (error: any) => {
+      const status = Number(error?.status || error?.response?.status || 0);
+      const backendMessage =
+        error?.backendMessage ||
+        error?.response?.data?.msg ||
+        error?.response?.data?.message ||
+        error?.response?.data?.data?.message ||
+        error?.message ||
+        "Failed to save seating plan.";
+      if (status === 404) {
+        messageApi.error("Save failed: seating API route missing (404).");
+        return;
+      }
+      if (status === 401 || status === 403) {
+        messageApi.error("Save failed: you do not have permission (401/403).");
+        return;
+      }
+      messageApi.error(String(backendMessage));
     },
   });
 
@@ -734,17 +773,59 @@ export default function StudentList() {
     if (clicked) setSelectedStudentAction(clicked);
   };
 
-  const handleAddNewStudent = (values: any) => {
-    addStudentMutation.mutate({
-      student_name: values.student_name,
-      email: values.email,
-      user_name: values.user_name,
+  const handleAddNewStudent = async (values: any) => {
+    const rows = Array.isArray(values?.students) && values.students.length
+      ? values.students
+      : [values];
+
+    const payloads = rows.map((row: any) => ({
+      student_name: row.student_name,
+      email: row.email || "",
+      user_name: row.user_name,
       class_id: Number(classIdStr),
-      password: values.password,
-      status: values.status,
-      gender: values.gender,
-      student_gender: values.gender,
-    });
+      password: row.password,
+      status: row.status || "active",
+      gender: row.gender,
+      student_gender: row.gender,
+      nationality: row.nationality || undefined,
+      is_sen: !!row.is_sen,
+      sen_details: row.is_sen ? row.sen_details || "" : "",
+    }));
+
+    if (payloads.length <= 1) {
+      addStudentMutation.mutate(payloads[0]);
+      return;
+    }
+
+    let successCount = 0;
+    let failedCount = 0;
+
+    for (const payload of payloads) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        await apiAddStudent(payload);
+        successCount += 1;
+      } catch {
+        failedCount += 1;
+      }
+    }
+
+    if (successCount > 0) {
+      queryClient.invalidateQueries({ queryKey: ["students", classIdStr] });
+      queryClient.invalidateQueries({
+        queryKey: ["class-students-behavior-summary", classIdStr],
+      });
+      setIsAddStudentModalOpen(false);
+    }
+
+    if (failedCount === 0) {
+      messageApi.success(`Added ${successCount} students successfully.`);
+    } else if (successCount > 0) {
+      messageApi.warning(`Added ${successCount} students, ${failedCount} failed.`);
+    } else {
+      messageApi.error("Failed to add students.");
+      throw new Error("Bulk add failed");
+    }
   };
 
   const handleSaveEdit = (values: any) => {
@@ -1125,6 +1206,10 @@ export default function StudentList() {
   };
 
   const handleSaveLayout = () => {
+    if (!seatingApiReady) {
+      messageApi.error(seatingUnavailableMessage);
+      return;
+    }
     const payload: SeatingLayoutItem[] = seatingItems.map((item, idx) => ({
       student_id: item.student_id,
       x: item.x,
@@ -1441,10 +1526,12 @@ export default function StudentList() {
             </Button>
           </div>
 
-          {!seatingApiReady && (
-            <div className="mb-3 rounded-lg border border-yellow-300 bg-yellow-50 px-3 py-2 text-sm text-yellow-800">
-              Seating API not available. You can still arrange seats for this session,
-              but server save is disabled.
+          {seatingQuery.isError && (
+            <div className="mb-3 rounded-lg border border-yellow-300 bg-yellow-50 px-3 py-2 text-sm text-yellow-800 flex flex-wrap items-center justify-between gap-2">
+              <span>{seatingUnavailableMessage}</span>
+              <Button size="small" onClick={() => seatingQuery.refetch()}>
+                Retry
+              </Button>
             </div>
           )}
 

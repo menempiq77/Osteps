@@ -28,6 +28,7 @@ interface ClassesListProps {
   onDeleteClass: (id: string) => void;
   onEditClass: (cls: Class) => void;
   onReorderClasses?: (classes: Class[]) => void;
+  classStats?: Record<string, { students: number }>;
 }
 
 export default function ClassesList({
@@ -35,6 +36,7 @@ export default function ClassesList({
   onDeleteClass,
   onEditClass,
   onReorderClasses,
+  classStats = {},
 }: ClassesListProps) {
   const router = useRouter();
   const { currentUser } = useSelector((state: RootState) => state.auth);
@@ -173,6 +175,7 @@ export default function ClassesList({
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
             {localClasses.map((cls) => {
               const tone = getClassTone(cls.color);
+              const stats = classStats[String(cls.id)] ?? { students: 0 };
               return (
               <div
                 key={cls.id}
@@ -214,8 +217,20 @@ export default function ClassesList({
                     )}
                   </div>
 
-                  <div className="mt-2 text-sm text-gray-600">
-                    {cls.number_of_terms === "two" ? "Two Terms" : "Three Terms"}
+                  <div className="mt-2 space-y-1 text-sm text-gray-600">
+                    <div>
+                      {cls.number_of_terms === "two" ? "Two Terms" : "Three Terms"}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Teacher: {cls.teacher_name || "Not assigned"}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/dashboard/students/all?classId=${cls.id}`)}
+                      className="cursor-pointer inline-flex items-center rounded-full border border-slate-200 bg-white/85 px-2 py-0.5 text-xs text-slate-700 hover:bg-slate-100/90"
+                    >
+                      {stats.students} students
+                    </button>
                   </div>
 
                   <div className="mt-4 flex flex-wrap items-center gap-2">

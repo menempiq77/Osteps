@@ -14,6 +14,8 @@ import {
   fetchYearsBySchool,
   fetchAssignYears,
 } from "@/services/yearsApi";
+import { fetchClasses } from "@/services/classesApi";
+import { fetchStudents } from "@/services/studentsApi";
 
 interface Year {
   id: number;
@@ -33,6 +35,9 @@ export default function Page() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentYear, setCurrentYear] = useState<Year | null>(null);
+  const [yearStats, setYearStats] = useState<
+    Record<number, { classes: number; students: number }>
+  >({});
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [messageApi, contextHolder] = message.useMessage();
   const schoolId = currentUser?.school;
@@ -82,8 +87,8 @@ export default function Page() {
     }
   };
 
-useEffect(() => {
-  const loadYears = async () => {
+  useEffect(() => {
+    const loadYears = async () => {
     try {
       let yearsData = [];
 
@@ -113,6 +118,43 @@ useEffect(() => {
 
   loadYears();
 }, [schoolId, isTeacher]);
+
+  useEffect(() => {
+    const loadYearStats = async () => {
+      if (!years.length) {
+        setYearStats({});
+        return;
+      }
+
+      const statsEntries = await Promise.all(
+        years.map(async (year) => {
+          try {
+            const classes = ((await fetchClasses(String(year.id))) || []) as Array<{
+              id: number | string;
+            }>;
+            const studentCounts = await Promise.all(
+              classes.map(async (cls) => {
+                try {
+                  const students = await fetchStudents(cls.id);
+                  return Array.isArray(students) ? students.length : 0;
+                } catch {
+                  return 0;
+                }
+              })
+            );
+            const totalStudents = studentCounts.reduce((sum, count) => sum + count, 0);
+            return [year.id, { classes: classes.length, students: totalStudents }] as const;
+          } catch {
+            return [year.id, { classes: 0, students: 0 }] as const;
+          }
+        })
+      );
+
+      setYearStats(Object.fromEntries(statsEntries));
+    };
+
+    loadYearStats();
+  }, [years]);
 
   const persistYearOrder = (orderedYears: Year[]) => {
     if (typeof window === "undefined") return;
@@ -257,6 +299,7 @@ useEffect(() => {
           if (year) handleEditClick(year);
         }}
         onReorderYears={handleReorderYears}
+        yearStats={yearStats}
       />
 
       {/* Add/Edit Year Modal */}

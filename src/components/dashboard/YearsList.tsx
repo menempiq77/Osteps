@@ -21,6 +21,7 @@ interface YearsListProps {
   onDeleteYear: (id: number) => void;
   onEditYear: (id: number) => void;
   onReorderYears?: (years: Year[]) => void;
+  yearStats?: Record<number, { classes: number; students: number }>;
 }
 
 export default function YearsList({
@@ -28,6 +29,7 @@ export default function YearsList({
   onDeleteYear,
   onEditYear,
   onReorderYears,
+  yearStats = {},
 }: YearsListProps) {
   const router = useRouter();
   const { currentUser } = useSelector((state: RootState) => state.auth);
@@ -191,6 +193,7 @@ export default function YearsList({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {localYears.map((year) => {
               const tone = getYearTone(year?.name, year?.color);
+              const stats = yearStats[year.id] ?? { classes: 0, students: 0 };
               return (
               <div
                 key={`${year?.id}-${year?.name}`}
@@ -229,6 +232,23 @@ export default function YearsList({
                         Move
                       </span>
                     )}
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => handleViewClasses(year.id)}
+                      className="cursor-pointer rounded-full border border-slate-200 bg-white/85 px-2 py-1 text-slate-700 hover:bg-slate-100/90"
+                    >
+                      {stats.classes} classes
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/dashboard/students/all?yearId=${year.id}`)}
+                      className="cursor-pointer rounded-full border border-slate-200 bg-white/85 px-2 py-1 text-slate-700 hover:bg-slate-100/90"
+                    >
+                      {stats.students} students
+                    </button>
                   </div>
 
                   {!isStudent && (

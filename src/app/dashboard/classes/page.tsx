@@ -9,6 +9,7 @@ import { Breadcrumb, Spin, Modal, Button, message } from "antd";
 import Link from "next/link";
 import { addClass, deleteClass, fetchClasses, updateClass } from "@/services/classesApi";
 import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
+import { fetchStudents } from "@/services/studentsApi";
 
 interface ApiClass {
   id: string;
@@ -29,6 +30,7 @@ export default function Page() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentClass, setCurrentClass] = useState<ApiClass | null>(null);
+  const [classStats, setClassStats] = useState<Record<string, { students: number }>>({});
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [messageApi, contextHolder] = message.useMessage();
   const hasAccess = currentUser?.role === "SCHOOL_ADMIN";
@@ -141,6 +143,30 @@ export default function Page() {
 
   loadClasses();
 }, [year_id, isTeacher, currentUser?.school]);
+
+useEffect(() => {
+  const loadClassStats = async () => {
+    if (!classes.length) {
+      setClassStats({});
+      return;
+    }
+
+    const entries = await Promise.all(
+      classes.map(async (cls) => {
+        try {
+          const students = await fetchStudents(cls.id);
+          const total = Array.isArray(students) ? students.length : 0;
+          return [String(cls.id), { students: total }] as const;
+        } catch {
+          return [String(cls.id), { students: 0 }] as const;
+        }
+      })
+    );
+    setClassStats(Object.fromEntries(entries));
+  };
+
+  loadClassStats();
+}, [classes]);
 
   const handleReorderClasses = (ordered: {
     id: string;
@@ -303,6 +329,7 @@ export default function Page() {
           setModalOpen(true);
         }}
         onReorderClasses={handleReorderClasses}
+        classStats={classStats}
       />
     </div>
   );

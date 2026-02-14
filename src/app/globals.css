@@ -45,6 +45,14 @@
 :root {
   --font-raleway: "Raleway", sans-serif;
   --radius: 0.625rem;
+  --theme-name: "green";
+  --theme-soft: #eef9f2;
+  --theme-soft-2: #dff3e7;
+  --theme-border: #b9e2cd;
+  --theme-dark: #2f8f5b;
+  --theme-shadow: rgba(22, 101, 52, 0.35);
+  --theme-scroll-start: #34d399;
+  --theme-scroll-end: #16a34a;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -115,7 +123,7 @@
 /* Antd tabs custom styles started */
 /* Target the active tab's bottom border */
 .ant-tabs-tab-active {
-  border-bottom: 2px solid #38C16C !important;
+  border-bottom: 2px solid var(--primary) !important;
 }
 
 /* Optional: Remove the default blue border (if you want) */
@@ -125,14 +133,14 @@
 
 /* Make sure active tab text color stays green */
 .ant-tabs-tab-active > .ant-tabs-tab-btn {
-  color: #38C16C !important;
+  color: var(--primary) !important;
 }
 
 .ant-tabs-ink-bar {
-  background-color: #38C16C !important;
+  background-color: var(--primary) !important;
 }
 .ant-tabs-tab:hover > .ant-tabs-tab-btn {
-  color: #38C16C !important;
+  color: var(--primary) !important;
   cursor: pointer;
 }
 /* Antd tabs custom styles end */
@@ -171,11 +179,11 @@
 
 /* Checkbox field inner colors */
 :where(.css-dev-only-do-not-override-mncuj7).ant-checkbox-checked .ant-checkbox-inner{
-  background-color: #38C16C !important;
-  border-color: #38C16C !important;
+  background-color: var(--primary) !important;
+  border-color: var(--primary) !important;
 }
 :where(.css-dev-only-do-not-override-mncuj7).ant-checkbox-wrapper:not(.ant-checkbox-wrapper-disabled):hover {
-  border-color: #38C16C !important;
+  border-color: var(--primary) !important;
 }
 
 /* Global clickable cursor */
