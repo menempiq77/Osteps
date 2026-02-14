@@ -8,6 +8,7 @@ type Student = {
   email?: string;
   password: string;
   status: string;
+  gender?: string;
   class_id?: number;
 };
 
@@ -34,6 +35,9 @@ export const EditStudentModal = ({
         email: student?.email,
         password: student?.password,
         status: student?.status,
+        gender:
+          String((student as any)?.gender ?? (student as any)?.student_gender ?? "")
+            .toLowerCase() || undefined,
         class_id: student?.class_id,
       });
     }
@@ -111,6 +115,17 @@ export const EditStudentModal = ({
             <Select.Option value="active">Active</Select.Option>
             <Select.Option value="inactive">Inactive</Select.Option>
             <Select.Option value="suspended">Suspended</Select.Option>
+          </Select>
+        </Form.Item>
+
+        <Form.Item
+          name="gender"
+          label="Gender"
+          rules={[{ required: true, message: "Please select gender!" }]}
+        >
+          <Select placeholder="Select gender">
+            <Select.Option value="male">Male</Select.Option>
+            <Select.Option value="female">Female</Select.Option>
           </Select>
         </Form.Item>
       </Form>

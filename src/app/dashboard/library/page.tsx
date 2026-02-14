@@ -3,16 +3,11 @@ import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import {
-  BookOutlined,
-  FileOutlined,
-  VideoCameraOutlined,
   UploadOutlined,
-  DownloadOutlined,
   DeleteOutlined,
-  AudioOutlined,
-  EyeOutlined,
   EditOutlined,
   PlusOutlined,
+  FileOutlined,
 } from "@ant-design/icons";
 import {
   Button,
@@ -21,7 +16,6 @@ import {
   Modal,
   Form,
   message,
-  Divider,
   Tag,
   Space,
   Grid,
@@ -121,7 +115,6 @@ export default function LibraryPage() {
   const {
     data: libraryItems = [],
     isLoading,
-    isError,
   } = useQuery({
     queryKey: ["libraryItems"],
     queryFn: async () => {
@@ -184,16 +177,23 @@ export default function LibraryPage() {
         formData.append("external_link", values.link);
         formData.append("link", values.link);
       } else if (fileList.length > 0) {
-        const fileToUpload = fileList[0].originFileObj || fileList[0];
+        const fileToUpload = fileList[0]?.originFileObj || fileList[0];
+        const isNewUpload = Boolean(fileToUpload?.originFileObj || fileToUpload instanceof File);
 
-        console.log("Uploading file:", {
-          name: fileToUpload.name,
-          type: fileToUpload.type,
-          size: fileToUpload.size,
-          file: fileToUpload,
-        });
+        if (isNewUpload) {
+          const normalizedFile = fileToUpload?.originFileObj || fileToUpload;
+          formData.append("file_path", normalizedFile);
+        }
+      }
 
-        formData.append("file_path", fileToUpload);
+      // Keep existing file path during edit when user updates metadata only.
+      if (
+        isEditing &&
+        currentItem &&
+        !formData.has("file_path") &&
+        currentItem.file_path
+      ) {
+        formData.append("file_path", currentItem.file_path);
       }
 
       if (isEditing && currentItem) {
@@ -279,29 +279,24 @@ export default function LibraryPage() {
     );
   };
 
-  const handleView = (item: any) => {
+  const openResourceDirectly = (item: any) => {
+    if (!item?.file_path) return;
     const resourceType = getResourceName(item.library_resources_id).toLowerCase();
-    if (resourceType === "pdf") {
-      window.open(item.file_path, "_blank");
-      return;
-    }
-
-    if (isExternalLink(item.file_path) && resourceType !== "video") {
-      window.open(item.file_path, "_blank");
-      return;
-    }
 
     setCurrentItem({
       ...item,
       type: resourceType,
       url: item.file_path,
       uploadedBy: item.uploaded_by || "Unknown",
-      uploadDate: new Date(item.updated_at).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      }),
+      uploadDate: item.updated_at
+        ? new Date(item.updated_at).toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+          })
+        : "N/A",
       size: item.size || "N/A",
+      subject: getCategoryName(item.library_categories_id),
       tags: parseTags(item.tags),
     });
     setIsViewModalOpen(true);
@@ -316,36 +311,38 @@ export default function LibraryPage() {
     setIsUploadModalOpen(true);
   };
 
-  const getIconForType = (type: string) => {
-    switch (type) {
-      case "book":
-        return <BookOutlined style={{ fontSize: "24px", color: "#1890ff" }} />;
-      case "video":
-        return (
-          <VideoCameraOutlined style={{ fontSize: "24px", color: "#ff4d4f" }} />
-        );
-      case "pdf":
-        return <FileOutlined style={{ fontSize: "24px", color: "#52c41a" }} />;
-      case "audio":
-        return <AudioOutlined style={{ fontSize: "24px", color: "#fa8c16" }} />;
-      default:
-        return <FileOutlined style={{ fontSize: "24px" }} />;
-    }
+  const getEmojiForType = (type: string) => {
+    const key = (type || "").toLowerCase();
+    const emojiMap: Record<string, string> = {
+      pdf: "\u{1F4C4}",
+      book: "\u{1F4DA}",
+      document: "\u{1F4DD}",
+      video: "\u{1F3AC}",
+      audio: "\u{1F3A7}",
+      website: "\u{1F310}",
+      link: "\u{1F517}",
+    };
+    return emojiMap[key] || "\u{1F4D8}";
   };
 
-  const getEmojiForType = (type: string) => {
-    switch (type) {
-      case "book":
-        return "📘";
-      case "pdf":
-        return "📄";
-      case "video":
-        return "🎬";
-      case "audio":
-        return "🎧";
-      default:
-        return "📚";
-    }
+  const getEmojiStyleForType = (type: string) => {
+    const key = (type || "").toLowerCase();
+    const styleMap: Record<string, { bg: string; border: string; shadow: string }> = {
+      pdf: { bg: "#EEF2FF", border: "#C7D2FE", shadow: "rgba(79,70,229,0.12)" },
+      book: { bg: "#ECFDF3", border: "#A7F3D0", shadow: "rgba(16,185,129,0.14)" },
+      document: { bg: "#FFF7ED", border: "#FED7AA", shadow: "rgba(234,88,12,0.12)" },
+      video: { bg: "#FEF2F2", border: "#FECACA", shadow: "rgba(239,68,68,0.12)" },
+      audio: { bg: "#F5F3FF", border: "#DDD6FE", shadow: "rgba(124,58,237,0.12)" },
+      website: { bg: "#ECFEFF", border: "#A5F3FC", shadow: "rgba(8,145,178,0.12)" },
+      link: { bg: "#F0FDF4", border: "#BBF7D0", shadow: "rgba(34,197,94,0.12)" },
+    };
+    return (
+      styleMap[key] || {
+        bg: "#F3F4F6",
+        border: "#E5E7EB",
+        shadow: "rgba(17,24,39,0.08)",
+      }
+    );
   };
 
   const getResourceName = (id: number | string) => {
@@ -426,13 +423,29 @@ export default function LibraryPage() {
   const getCategoryName = (id: number | string) => {
     const categoryId = Number(id);
     const category = categories.find((cat) => Number(cat.id) === categoryId);
-    return category?.name || "Unknown";
+    return formatCategoryLabel(category?.name) || "Unknown";
   };
 
   const getCategoryColor = (id: number | string) => {
     const categoryId = Number(id);
     const category = categories.find((cat) => Number(cat.id) === categoryId);
     return category?.color || "default";
+  };
+
+  const formatCategoryLabel = (name?: string) => {
+    if (!name) return "";
+    const key = name.trim().toLowerCase();
+    const labelMap: Record<string, string> = {
+      dua: "Dua'",
+      fiqa: "Fiqh",
+      fiqh: "Fiqh",
+      hadees: "Hadith",
+      hadith: "Hadith",
+      quran: "Qur'an",
+      seerah: "Seerah",
+      tafseer: "Tafsir",
+    };
+    return labelMap[key] || name;
   };
 
   const filteredItems = libraryItems?.filter((item) => {
@@ -448,6 +461,9 @@ export default function LibraryPage() {
 
     return typeMatch && categoryMatch;
   });
+
+  const totalResourcesCount = libraryItems?.length || 0;
+  const visibleResourcesCount = filteredItems?.length || 0;
 
   if (isLoading)
     return (
@@ -468,28 +484,43 @@ export default function LibraryPage() {
             title: <span>Library</span>,
           },
         ]}
-        className="!mb-2"
+        className="!mb-3"
       />
 
       <Space direction="vertical" size="large" style={{ width: "100%" }}>
-        <div className="flex justify-between items-center">
-          <Typography.Title level={3} style={{ margin: 0 }}>
-            {isMobile ? "Islamic Library" : "Islamic Library Resources"}
-          </Typography.Title>
-          {canUpload && (
-            <Button
-              type="primary"
-              icon={<UploadOutlined />}
-              onClick={openUploadModal}
-              className="flex items-center !bg-primary !border-primary"
-            >
-              {isMobile ? "Upload" : "Upload Resource"}
-            </Button>
-          )}
+        <div className="rounded-2xl border border-emerald-100 bg-gradient-to-r from-emerald-50 via-white to-lime-50 p-4 md:p-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <Typography.Title level={3} style={{ margin: 0 }}>
+                {isMobile ? "Islamic Library" : "Islamic Library Resources"}
+              </Typography.Title>
+              <p className="mt-1 text-sm text-gray-600">
+                Discover, view, and share learning resources in one place.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Tag className="m-0 rounded-full border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700">
+                  {totalResourcesCount} Total
+                </Tag>
+                <Tag className="m-0 rounded-full border-sky-200 bg-sky-50 px-3 py-1 text-sky-700">
+                  {visibleResourcesCount} Showing
+                </Tag>
+              </div>
+            </div>
+            {canUpload && (
+              <Button
+                type="primary"
+                icon={<UploadOutlined />}
+                onClick={openUploadModal}
+                className="flex items-center !h-11 !rounded-xl !bg-primary !border-primary !px-5 !font-medium"
+              >
+                {isMobile ? "Upload" : "Upload Resource"}
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Main Type Tabs - Modern Design */}
-        <div className="border-b border-gray-200">
+        <div className="rounded-2xl border border-gray-100 bg-white px-3 pt-2 shadow-sm">
           <Tabs
             activeKey={activeTypeTab}
             onChange={(key) => {
@@ -511,7 +542,11 @@ export default function LibraryPage() {
 
         {/* Category Tabs - Modern Pill Design */}
         {categories?.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-6">
+          <div className="rounded-2xl border border-gray-100 bg-white p-3 md:p-4 shadow-sm">
+            <div className="mb-3 text-sm font-medium text-gray-600">
+              Browse by category
+            </div>
+            <div className="flex flex-wrap gap-2">
             <Button
               size="middle"
               type={activeCategoryTab === "all" ? "primary" : "default"}
@@ -545,7 +580,7 @@ export default function LibraryPage() {
                     : "bg-white hover:bg-gray-50 border-gray-200 hover:!border-green-600 hover:!text-green-600"
                 }`}
               >
-                {category?.name}
+                {formatCategoryLabel(category?.name)}
               </Button>
             ))}
 
@@ -557,11 +592,12 @@ export default function LibraryPage() {
                 <Plus size={18} /> Add More
               </Link>
             )}
+            </div>
           </div>
         )}
 
         {filteredItems?.length === 0 ? (
-          <Card className="shadow-sm rounded-lg border-0">
+          <Card className="shadow-sm rounded-2xl border border-gray-100">
             <div className="text-center py-12">
               <FileOutlined className="text-4xl text-gray-300 mb-4" />
               <Typography.Text type="secondary" className="text-lg">
@@ -573,7 +609,9 @@ export default function LibraryPage() {
           <div
             className={`grid grid-cols-1 ${
               screens.md ? "md:grid-cols-2" : ""
-            } ${screens.lg ? "lg:grid-cols-3" : ""} gap-6`}
+            } ${screens.lg ? "lg:grid-cols-3" : ""} ${
+              screens.xl ? "xl:grid-cols-4" : ""
+            } gap-4`}
           >
             {filteredItems?.map((item) => {
               const resourceType = getResourceName(
@@ -593,20 +631,28 @@ export default function LibraryPage() {
               return (
                 <Card
                   key={item.id}
-                  className="hover:shadow-lg shadow-sm transition-all duration-300 border border-gray-100 rounded-xl overflow-hidden flex flex-col h-full"
+                  className="hover:shadow-xl hover:-translate-y-1 shadow-sm transition-all duration-300 border border-gray-100 rounded-2xl overflow-hidden flex flex-col h-full cursor-pointer"
                   hoverable
                   styles={{ body: { padding: 0 } }}
+                  onClick={() => openResourceDirectly(item)}
                 >
                   <div className="relative">
                     {coverUrl ? (
                       <img
                         src={coverUrl}
                         alt={item.title}
-                        className="w-full h-40 object-cover"
+                        className="w-full h-32 object-cover"
                       />
                     ) : (
-                      <div className="h-40 bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col items-center justify-center gap-2">
-                        <div className="text-4xl">
+                      <div className="h-32 bg-gradient-to-br from-emerald-50 via-white to-sky-50 flex flex-col items-center justify-center gap-2">
+                        <div
+                          className="flex h-11 w-11 items-center justify-center rounded-full border text-2xl"
+                          style={{
+                            backgroundColor: getEmojiStyleForType(resourceType).bg,
+                            borderColor: getEmojiStyleForType(resourceType).border,
+                            boxShadow: `0 6px 14px ${getEmojiStyleForType(resourceType).shadow}`,
+                          }}
+                        >
                           {getEmojiForType(resourceType)}
                         </div>
                         <div className="text-xs uppercase tracking-wide text-gray-500">
@@ -639,96 +685,63 @@ export default function LibraryPage() {
                           shape="circle"
                           size="small"
                           icon={<EditOutlined className="text-xs" />}
-                          onClick={() => handleEdit(item)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEdit(item);
+                          }}
                           className="shadow-sm bg-white hover:bg-blue-50 border-none"
                         />
                       </div>
                     )}
                   </div>
 
-                <div className="p-5 flex-grow flex flex-col">
-                  <h3 className="text-lg font-semibold mb-2 line-clamp-2 text-gray-800">
+                <div className="p-4 flex-grow flex flex-col">
+                  <h3 className="text-base font-semibold mb-1 line-clamp-2 text-gray-900">
                     {item.title}
                   </h3>
-                  <p className="mb-2 text-gray-700 line-clamp-1">
-                    {item.description}
+                  <p className="mb-2 text-sm text-gray-600 line-clamp-1 min-h-[20px]">
+                    {item.description || " "}
                   </p>
 
                   {parseTags(item.tags)?.length > 0 && (
                     <div className="flex flex-wrap gap-2 mb-3">
                       {parseTags(item.tags).map((tag) => (
-                        <Tag key={`${item.id}-${tag}`} className="m-0">
+                        <Tag
+                          key={`${item.id}-${tag}`}
+                          className="m-0 rounded-full border-emerald-100 bg-emerald-50 text-emerald-700"
+                        >
                           {tag}
                         </Tag>
                       ))}
                     </div>
                   )}
 
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {getResourceName(item.library_resources_id)}
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    <Tag className="m-0 rounded-full border-sky-100 bg-sky-50 px-2 py-[1px] text-sky-700">
+                      {getResourceName(item.library_resources_id)}
+                    </Tag>
                     <Tag
                       color={getCategoryColor(item.library_categories_id)}
-                      className="m-0"
+                      className="m-0 rounded-full px-2 py-[1px]"
                     >
                       {getCategoryName(item.library_categories_id)}
                     </Tag>
                   </div>
 
                   <div className="mt-auto">
-                    <div className="flex justify-between items-center mb-3">
-                      <span className="text-xs text-gray-500">{item.size}</span>
-                      <span className="text-xs text-gray-400">
-                        {new Date(item.updated_at).toLocaleDateString("en-US", {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                        })}
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-xs text-gray-500">
+                        {item.size || "N/A"}
                       </span>
-                    </div>
-
-                    <Divider className="my-3" />
-
-                    <div className="flex justify-between">
-                      <Button
-                        type="text"
-                        icon={<EyeOutlined />}
-                        onClick={() => handleView(item)}
-                        className="flex items-center text-blue-600 hover:text-blue-800 !px-0 hover:bg-blue-50"
-                      >
-                        View
-                      </Button>
-                      {isExternalLink(item.file_path) ? (
-                        <a
-                          href={item.file_path}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex"
-                        >
-                          <Button
-                            type="text"
-                            icon={<DownloadOutlined />}
-                            className="flex items-center text-green-600 hover:text-green-800 !px-0 hover:bg-green-50"
-                          >
-                            Open
-                          </Button>
-                        </a>
-                      ) : (
-                        <a
-                          href={item.file_path}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          download
-                          className="flex"
-                        >
-                          <Button
-                            type="text"
-                            icon={<DownloadOutlined />}
-                            className="flex items-center text-green-600 hover:text-green-800 !px-0 hover:bg-green-50"
-                          >
-                            Download
-                          </Button>
-                        </a>
-                      )}
+                      <span className="text-xs text-gray-400">
+                        {item.updated_at
+                          ? new Date(item.updated_at).toLocaleDateString("en-US", {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                            })
+                          : "N/A"}
+                      </span>
                     </div>
                   </div>
                 </div>

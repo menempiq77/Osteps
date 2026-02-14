@@ -1,15 +1,15 @@
 "use client";
 import { RootState } from "@/store/store";
-import { BarChart3, TrophyIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   EditOutlined,
   DeleteOutlined,
-  FileAddOutlined,
-  UsergroupAddOutlined,
   BookOutlined,
+  FolderOpenOutlined,
+  MenuOutlined,
+  TeamOutlined,
 } from "@ant-design/icons";
 import { Modal } from "antd";
 
@@ -20,50 +20,55 @@ interface Class {
   year_id: number;
   number_of_terms: string;
   teacher_name?: string;
+  color?: string;
 }
 
 interface ClassesListProps {
   classes: Class[];
   onDeleteClass: (id: string) => void;
   onEditClass: (cls: Class) => void;
+  onReorderClasses?: (classes: Class[]) => void;
 }
 
 export default function ClassesList({
   classes,
   onDeleteClass,
   onEditClass,
+  onReorderClasses,
 }: ClassesListProps) {
   const router = useRouter();
   const { currentUser } = useSelector((state: RootState) => state.auth);
+  const [localClasses, setLocalClasses] = useState<Class[]>(classes || []);
   const [classToDelete, setClassToDelete] = useState<Class | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [draggingClassId, setDraggingClassId] = useState<string | null>(null);
   const hasAccess = currentUser?.role === "SCHOOL_ADMIN";
 
   const isStudent = currentUser?.role === "STUDENT";
-  const isTeacher = currentUser?.role === "TEACHER";
+  const canManageOrder = hasAccess;
 
-  const handleAssesments = (classId: string) => {
-    router.push(`/dashboard/classes/${classId}/terms`);
+  useEffect(() => {
+    setLocalClasses(classes || []);
+  }, [classes]);
+
+  const reorderClasses = (draggedId: string, targetId: string) => {
+    if (draggedId === targetId) return;
+    const updated = [...localClasses];
+    const draggedIndex = updated.findIndex((c) => c.id === draggedId);
+    const targetIndex = updated.findIndex((c) => c.id === targetId);
+    if (draggedIndex < 0 || targetIndex < 0) return;
+    const [moved] = updated.splice(draggedIndex, 1);
+    updated.splice(targetIndex, 0, moved);
+    setLocalClasses(updated);
+    onReorderClasses?.(updated);
   };
 
   const handleTerms = (classId: string) => {
     router.push(`/dashboard/classes/${classId}/terms`);
   };
 
-  const handleAssign = (classId: string) => {
-    router.push(`/dashboard/classes/assign/${classId}`);
-  };
-
   const handleViewStudents = (classId: string) => {
     router.push(`/dashboard/students/${classId}`);
-  };
-
-  const handleViewTracker = (classId: string) => {
-    router.push(`/dashboard/trackers/${classId}`);
-  };
-
-  const handleLeaderBoard = (classId: string) => {
-    router.push(`/dashboard/classes/${classId}/leaderboard`);
   };
 
   const handleDeleteClick = (cls: Class) => {
@@ -79,142 +84,185 @@ export default function ClassesList({
     }
   };
 
+  const getClassTone = (color?: string) => {
+    switch (color) {
+      case "yellow":
+        return {
+          card: "border-amber-200 bg-gradient-to-b from-amber-50 to-white hover:shadow-md hover:-translate-y-0.5",
+          dragCard: "border-amber-300 bg-amber-100/70",
+          top: "bg-amber-200/80 border-amber-300/70",
+          title: "hover:text-amber-700",
+          icon: "text-amber-500",
+          move: "border-amber-200 text-amber-700",
+          students: "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100",
+          terms: "border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100",
+          edit: "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100",
+        };
+      case "red":
+        return {
+          card: "border-rose-200 bg-gradient-to-b from-rose-50 to-white hover:shadow-md hover:-translate-y-0.5",
+          dragCard: "border-rose-300 bg-rose-100/70",
+          top: "bg-rose-200/80 border-rose-300/70",
+          title: "hover:text-rose-700",
+          icon: "text-rose-500",
+          move: "border-rose-200 text-rose-700",
+          students: "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100",
+          terms: "border-red-200 bg-red-50 text-red-700 hover:bg-red-100",
+          edit: "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100",
+        };
+      case "blue":
+        return {
+          card: "border-sky-200 bg-gradient-to-b from-sky-50 to-white hover:shadow-md hover:-translate-y-0.5",
+          dragCard: "border-sky-300 bg-sky-100/70",
+          top: "bg-sky-200/80 border-sky-300/70",
+          title: "hover:text-sky-700",
+          icon: "text-sky-500",
+          move: "border-sky-200 text-sky-700",
+          students: "border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100",
+          terms: "border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100",
+          edit: "border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100",
+        };
+      case "purple":
+        return {
+          card: "border-violet-200 bg-gradient-to-b from-violet-50 to-white hover:shadow-md hover:-translate-y-0.5",
+          dragCard: "border-violet-300 bg-violet-100/70",
+          top: "bg-violet-200/80 border-violet-300/70",
+          title: "hover:text-violet-700",
+          icon: "text-violet-500",
+          move: "border-violet-200 text-violet-700",
+          students: "border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100",
+          terms: "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700 hover:bg-fuchsia-100",
+          edit: "border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100",
+        };
+      case "green":
+      default:
+        return {
+          card: "border-emerald-200 bg-gradient-to-b from-emerald-50 to-white hover:shadow-md hover:-translate-y-0.5",
+          dragCard: "border-emerald-300 bg-emerald-100/70",
+          top: "bg-emerald-200/80 border-emerald-300/70",
+          title: "hover:text-emerald-700",
+          icon: "text-emerald-500",
+          move: "border-emerald-200 text-emerald-700",
+          students: "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
+          terms: "border-green-200 bg-green-50 text-green-700 hover:bg-green-100",
+          edit: "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
+        };
+    }
+  };
+
   return (
     <div className="overflow-auto">
-      <div className="relative overflow-auto">
-        <div className="overflow-x-auto rounded-lg">
-          <table className="min-w-full bg-white border border-gray-300 mb-20">
-            <thead>
-              <tr className="bg-primary text-center text-xs md:text-sm font-thin text-white">
-                <th className="p-0">
-                  <span className="block py-2 px-3 border-r border-gray-300">
-                    Class Name
-                  </span>
-                </th>
-                <th className="p-0">
-                  <span className="block py-2 px-3 border-r border-gray-300">
-                    No. of Terms
-                  </span>
-                </th>
-                {!isStudent && (
-                  <th className="p-4 text-xs md:text-sm">Actions</th>
-                )}
-              </tr>
-            </thead>
-              <tbody>
-              {classes?.length === 0 ? (
-                <tr>
-                  <td 
-                    colSpan={!isStudent ? 3 : 2}
-                    className="p-8 text-center text-gray-500"
-                  >
-                    <div className="flex flex-col items-center justify-center">
-                      <div className="text-lg mb-2">No classes found</div>
-                      {!isStudent && (
-                        <p className="text-sm text-gray-400">
-                          Click the 'Add Class' button to create a new class
-                        </p>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                classes?.map((cls) => (
-                  <tr
-                    key={cls.id}
-                    className="border-b border-gray-300 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
-                  >
-                    <td className="p-2 md:p-4">
-                      <button
-                        onClick={() => handleViewStudents(cls.id)}
-                        className="text-green-600 hover:text-green-800 font-medium hover:underline cursor-pointer"
-                      >
+      <div className="relative overflow-auto rounded-2xl border border-emerald-100 bg-gradient-to-b from-white to-emerald-50/30 p-4 md:p-5 shadow-sm">
+        {canManageOrder && (
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs text-emerald-700">
+            <MenuOutlined />
+            Drag class folders to reorder
+          </div>
+        )}
+
+        {localClasses?.length === 0 ? (
+          <div className="p-8 text-center text-gray-500 bg-white rounded-xl border border-dashed border-emerald-200">
+            <div className="text-lg mb-2">No classes found</div>
+            {!isStudent && (
+              <p className="text-sm text-gray-400">
+                Click the 'Add Class' button to create a new class
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
+            {localClasses.map((cls) => {
+              const tone = getClassTone(cls.color);
+              return (
+              <div
+                key={cls.id}
+                draggable={canManageOrder}
+                onDragStart={() => setDraggingClassId(cls.id)}
+                onDragOver={(e) => {
+                  if (canManageOrder) e.preventDefault();
+                }}
+                onDrop={() => {
+                  if (canManageOrder && draggingClassId) {
+                    reorderClasses(draggingClassId, cls.id);
+                  }
+                }}
+                onDragEnd={() => setDraggingClassId(null)}
+                className={`relative rounded-xl border transition-all duration-200 ${
+                  draggingClassId === cls.id
+                    ? tone.dragCard
+                    : tone.card
+                }`}
+              >
+                <div className={`h-8 rounded-t-xl border-b ${tone.top}`} />
+                <div className="p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <button
+                      onClick={() => handleViewStudents(cls.id)}
+                      className={`cursor-pointer text-left text-base font-semibold text-gray-800 transition-colors ${tone.title}`}
+                    >
+                      <span className="inline-flex items-center gap-2">
+                        <FolderOpenOutlined className={tone.icon} />
                         {cls.class_name}
-                      </button>
-                    </td>
-                    <td className="p-2 md:p-4">
-                      {cls.number_of_terms === "two"
-                        ? "Two Terms"
-                        : "Three Terms"}
-                    </td>
-                    {!isStudent && (
-                      <td className="relative p-2 md:p-4 flex justify-center space-x-3">
-                        
-                        {/* <button
-                          onClick={() => handleAssesments(cls.id)}
-                          className="text-blue-500 hover:text-blue-700 cursor-pointer"
-                          title="Assessments"
-                        >
-                          <FileAddOutlined />
-                        </button> */}
+                      </span>
+                    </button>
 
-                        <button
-                          onClick={() => handleTerms(cls.id)}
-                          className="text-blue-500 hover:text-blue-700 cursor-pointer"
-                          title="Terms"
-                        >
-                          <BookOutlined />
-                        </button>
-
-                        {/* <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleViewTracker(cls.id);
-                          }}
-                          className="text-purple-500 hover:text-purple-700 cursor-pointer"
-                          title="Tracker"
-                        >
-                          <BarChart3 className="h-4 w-4" />
-                        </button> */}
-
-                        {/* <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleLeaderBoard(cls.id);
-                          }}
-                          className="text-purple-500 hover:text-purple-700 cursor-pointer"
-                          title="Leaderboard"
-                        >
-                          <TrophyIcon className="h-4 w-4" />
-                        </button> */}
-
-                        {/* {!isTeacher && (
-                          <button
-                            onClick={() => handleAssign(cls.id)}
-                            className="text-orange-500 hover:text-orange-700 cursor-pointer"
-                            title="Assign Teacher"
-                          >
-                            <UsergroupAddOutlined />
-                          </button>
-                        )} */}
-
-                        {hasAccess && (
-                          <button
-                            onClick={() => onEditClass(cls)}
-                            className="text-green-500 hover:text-green-700 cursor-pointer"
-                            title="Edit"
-                          >
-                            <EditOutlined />
-                          </button>
-                        )}
-
-                        {hasAccess && (
-                          <button
-                            onClick={() => handleDeleteClick(cls)}
-                            className="text-red-500 hover:text-red-700 cursor-pointer"
-                            title="Delete"
-                          >
-                            <DeleteOutlined />
-                          </button>
-                        )}
-                      </td>
+                    {canManageOrder && (
+                      <span className={`inline-flex items-center gap-1 rounded-full border bg-white px-2 py-1 text-[11px] cursor-grab ${tone.move}`}>
+                        <MenuOutlined />
+                        Move
+                      </span>
                     )}
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                  </div>
+
+                  <div className="mt-2 text-sm text-gray-600">
+                    {cls.number_of_terms === "two" ? "Two Terms" : "Three Terms"}
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={() => handleViewStudents(cls.id)}
+                      className={`cursor-pointer inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs ${tone.students}`}
+                      title="Students"
+                    >
+                      <TeamOutlined />
+                      Students
+                    </button>
+                    <button
+                      onClick={() => handleTerms(cls.id)}
+                      className={`cursor-pointer inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs ${tone.terms}`}
+                      title="Terms"
+                    >
+                      <BookOutlined />
+                      Terms
+                    </button>
+
+                    {hasAccess && (
+                      <button
+                        onClick={() => onEditClass(cls)}
+                        className={`cursor-pointer inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs ${tone.edit}`}
+                        title="Edit"
+                      >
+                        <EditOutlined />
+                        Edit
+                      </button>
+                    )}
+
+                    {hasAccess && (
+                      <button
+                        onClick={() => handleDeleteClick(cls)}
+                        className="cursor-pointer inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs text-rose-700 hover:bg-rose-100"
+                        title="Delete"
+                      >
+                        <DeleteOutlined />
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )})}
+          </div>
+        )}
       </div>
 
       {/* Delete Confirmation Dialog */}

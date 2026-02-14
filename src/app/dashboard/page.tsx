@@ -218,7 +218,7 @@ export default function DashboardPage() {
             {
               title: "Total Classes",
               value: schoolDashboard?.school?.school_classs_count || 0,
-              link: "dashboard/years"
+              link: "/dashboard/classes"
             },
             {
               title: "Total Teachers",
@@ -228,7 +228,7 @@ export default function DashboardPage() {
             {
               title: "Total Students",
               value: schoolDashboard?.school?.students_count || 0,
-              link: "/dashboard",
+              link: "/dashboard/students/all",
             },
           ],
           barChartData: [
@@ -252,12 +252,12 @@ export default function DashboardPage() {
             {
               title: "Total Classes",
               value: schoolDashboard?.assigned_class_count || 0,
-              link: "dashboard/years"
+              link: "/dashboard/classes"
             },
             {
               title: "Total Students",
               value: schoolDashboard?.assigned_students_count || 0,
-              link: "/dashboard",
+              link: "/dashboard/students/all",
             },
           ],
           barChartData: [
@@ -285,7 +285,7 @@ export default function DashboardPage() {
             {
               title: "Total Classes",
               value: schoolDashboard?.school?.school_classs_count || 0,
-              link: "dashboard/years"
+              link: "/dashboard/classes"
             },
             {
               title: "Total Teachers",
@@ -295,7 +295,7 @@ export default function DashboardPage() {
             {
               title: "Total Students",
               value: schoolDashboard?.school?.students_count || 0,
-              link: "/dashboard",
+              link: "/dashboard/students/all",
             },
           ],
           barChartData: [

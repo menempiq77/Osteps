@@ -177,3 +177,24 @@
 :where(.css-dev-only-do-not-override-mncuj7).ant-checkbox-wrapper:not(.ant-checkbox-wrapper-disabled):hover {
   border-color: #38C16C !important;
 }
+
+/* Global clickable cursor */
+a[href],
+button:not(:disabled),
+input[type="button"]:not(:disabled),
+input[type="submit"]:not(:disabled),
+input[type="reset"]:not(:disabled),
+label[for],
+[role="button"],
+.ant-btn:not(:disabled),
+.ant-dropdown-menu-item,
+.ant-menu-item,
+.ant-tabs-tab,
+.ant-pagination-item,
+.ant-pagination-prev .ant-pagination-item-link,
+.ant-pagination-next .ant-pagination-item-link,
+.ant-select-selector,
+.ant-picker,
+.ant-upload-select {
+  cursor: pointer !important;
+}

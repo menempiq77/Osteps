@@ -1,11 +1,10 @@
-// src/services/leaderboardApi.ts
-import { API_BASE_URL } from '@/lib/config';
-import { store } from '@/store/store';
+import api from "@/services/api";
 
 interface LeaderboardEntry {
   student_id: number;
   student_name: string;
   total_marks: number | null;
+  class_name?: string;
 }
 
 interface LeaderboardResponse {
@@ -14,15 +13,84 @@ interface LeaderboardResponse {
   data: LeaderboardEntry[];
 }
 
-const getAuthHeader = (): Record<string, string> => {
-  const token = store.getState().auth.token;
-  return token ? { Authorization: `Bearer ${token}` } : {};
+const normalizePayload = (payload: any): LeaderboardResponse => {
+  if (payload && Array.isArray(payload.data)) {
+    return payload as LeaderboardResponse;
+  }
+  if (Array.isArray(payload)) {
+    return {
+      status_code: 200,
+      msg: "LeaderBoard Data Fetched Successfully",
+      data: payload,
+    };
+  }
+  return {
+    status_code: 200,
+    msg: payload?.msg || "LeaderBoard Data Fetched Successfully",
+    data: [],
+  };
 };
 
-export const fetchLeaderBoardData = async (classId: string | number): Promise<LeaderboardResponse> => {
-  const response = await fetch(`${API_BASE_URL}/get-student-scores/${classId}`, {
-    headers: getAuthHeader(),
-  });
-  if (!response.ok) throw new Error('Failed to fetch leader Board Scores');
-  return await response.json();
+const fetchWithFallback = async (
+  paths: string[],
+  errorLabel: string
+): Promise<LeaderboardResponse> => {
+  const errors: string[] = [];
+
+  for (const path of paths) {
+    try {
+      const res = await api.get(path);
+      return normalizePayload(res.data);
+    } catch (error: any) {
+      const status = error?.response?.status;
+      const message =
+        error?.response?.data?.message ||
+        error?.response?.data?.msg ||
+        error?.message ||
+        "request_failed";
+      errors.push(`${path} -> ${status ?? "ERR"} ${message}`);
+    }
+  }
+
+  throw new Error(`${errorLabel}. Tried: ${errors.join(" | ")}`);
+};
+
+export const fetchLeaderBoardData = async (
+  classId: string | number
+): Promise<LeaderboardResponse> => {
+  const id = String(classId);
+  return fetchWithFallback(
+    [
+      `/get-student-scores/${id}`,
+    ],
+    "Failed to fetch leader Board Scores"
+  );
+};
+
+export const fetchSchoolLeaderBoardData = async (
+  schoolId: string | number
+): Promise<LeaderboardResponse> => {
+  const id = String(schoolId);
+  return fetchWithFallback(
+    [
+      `/leaderboard/school/${id}`,
+      `/leaderboard/school-self`,
+    ],
+    "Failed to fetch school leaderboard"
+  );
+};
+
+export const fetchSchoolSelfLeaderBoardData =
+  async (): Promise<LeaderboardResponse> => {
+    return fetchWithFallback(
+      ["/leaderboard/school-self"],
+      "Failed to fetch school self leaderboard"
+    );
+  };
+
+export const fetchYearLeaderBoardData = async (
+  yearId: string | number
+): Promise<LeaderboardResponse> => {
+  const id = String(yearId);
+  return fetchWithFallback([`/leaderboard/year/${id}`], "Failed to fetch year leaderboard");
 };

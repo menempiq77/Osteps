@@ -8,20 +8,32 @@ import {
   Space,
   Typography,
   Spin,
-  Button,
   Select,
   Breadcrumb,
+  Button,
 } from "antd";
-import { CrownOutlined, TrophyOutlined, StarOutlined } from "@ant-design/icons";
+import {
+  CrownOutlined,
+  TrophyOutlined,
+  StarOutlined,
+} from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
-import { fetchLeaderBoardData } from "@/services/leaderboardApi";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import {
+  fetchLeaderBoardData,
+  fetchSchoolLeaderBoardData,
+  fetchSchoolSelfLeaderBoardData,
+} from "@/services/leaderboardApi";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { fetchClasses } from "@/services/classesApi";
 import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
 import Link from "next/link";
+import { fetchStudentProfileData, fetchStudents } from "@/services/studentsApi";
+import {
+  mergeAndRankLeaderboards,
+  mapWithConcurrency,
+  type LeaderboardRow,
+} from "@/lib/leaderboard";
 
 const { Title, Text } = Typography;
 
@@ -32,18 +44,28 @@ interface CurrentUser {
   class?: string;
   role?: string;
   school?: string;
+  studentClass?: string | number;
+  studentClassName?: string;
 }
 
 const LeaderBoard = () => {
-  const router = useRouter();
   const { currentUser } = useSelector((state: RootState) => state.auth) as {
     currentUser: CurrentUser;
   };
-  const isTeacher = currentUser?.role === "TEACHER";
+  const roleKey = (currentUser?.role ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "_");
+
+  const isTeacher = roleKey === "TEACHER";
+  const isStudent = roleKey === "STUDENT";
   const [loading, setLoading] = useState(true);
   const [years, setYears] = useState<any[]>([]);
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
+  const [leaderboardScope, setLeaderboardScope] = useState<"class" | "school">(
+    roleKey === "STUDENT" ? "school" : "class"
+  );
   const schoolId = currentUser?.school;
 
   const [assignYearsData, setAssignYearsData] = useState<any[]>([]);
@@ -53,6 +75,13 @@ const LeaderBoard = () => {
     try {
       setLoading(true);
       let yearsData: any[] = [];
+
+      if (isStudent) {
+        // Student view uses derived year + school leaderboards (no dropdowns)
+        setYears([]);
+        setSelectedYear(null);
+        return;
+      }
 
       if (isTeacher) {
         const res = await fetchAssignYears();
@@ -127,18 +156,266 @@ const LeaderBoard = () => {
 
       return fetchClasses(Number(selectedYear));
     },
-    enabled: !!selectedYear && (!isTeacher || assignYearsData.length > 0),
+    enabled: !isStudent && !!selectedYear && (!isTeacher || assignYearsData.length > 0),
   });
 
-  const { data, isLoading, isError, error } = useQuery({
+  const {
+    data: classLeaderboardResponse,
+    isLoading: classLeaderboardLoading,
+    isError: classLeaderboardIsError,
+    error: classLeaderboardError,
+  } = useQuery({
     queryKey: ["leaderboard", selectedClass],
     queryFn: () => fetchLeaderBoardData(selectedClass as string),
-    enabled: !!selectedClass,
+    enabled: !isStudent && !!selectedClass && leaderboardScope === "class",
   });
 
-  const [visibleCount, setVisibleCount] = useState(10);
+  const {
+    data: studentProfile,
+    isLoading: studentProfileLoading,
+    isError: studentProfileIsError,
+    error: studentProfileError,
+  } = useQuery({
+    queryKey: ["student-profile-self", currentUser?.student],
+    queryFn: () => fetchStudentProfileData(currentUser?.student as string),
+    enabled: isStudent && !!currentUser?.student,
+    staleTime: 5 * 60 * 1000,
+  });
 
-  if (isLoading) {
+  const studentClassId = isStudent
+    ? String(
+        currentUser?.studentClass ??
+          studentProfile?.class_id ??
+          studentProfile?.class?.id ??
+          ""
+      ) || null
+    : null;
+  const studentSchoolIdResolved = isStudent
+    ? (currentUser?.school ??
+      studentProfile?.school?.id ??
+      studentProfile?.class?.year?.school_id ??
+      null)
+    : null;
+
+  const {
+    data: studentClassLeaderboardResponse,
+    isLoading: studentClassLeaderboardLoading,
+    isError: studentClassLeaderboardIsError,
+    error: studentClassLeaderboardError,
+  } = useQuery({
+    queryKey: ["leaderboard-student-class", studentClassId],
+    queryFn: () => fetchLeaderBoardData(studentClassId as string),
+    enabled: isStudent && !!studentClassId,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const {
+    data: schoolLeaderboardRows,
+    isLoading: schoolLeaderboardLoading,
+    isError: schoolLeaderboardIsError,
+    error: schoolLeaderboardError,
+  } = useQuery({
+    queryKey: ["leaderboard-school-self", currentUser?.student],
+    queryFn: async () => {
+      const res = await fetchSchoolSelfLeaderBoardData();
+      const rows = res?.data ?? [];
+      return rows.map((student: any, index: number) => ({
+        key: String(student?.student_id ?? ""),
+        rank: index + 1,
+        name: student?.student_name ?? "Unknown",
+        avatar: student?.student_name?.charAt(0).toUpperCase() || "?",
+        points: student?.total_marks || 0,
+        className: student?.class_name ?? "",
+        badge:
+          index === 0
+            ? "gold"
+            : index === 1
+            ? "silver"
+            : index === 2
+            ? "bronze"
+            : null,
+      }));
+    },
+    enabled: isStudent,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const { data: studentClassMap = {} } = useQuery({
+    queryKey: ["student-class-map-school", studentSchoolIdResolved],
+    queryFn: async () => {
+      if (!studentSchoolIdResolved) return {};
+
+      const years = (await fetchYearsBySchool(Number(studentSchoolIdResolved))) ?? [];
+      const yearIds = Array.from(
+        new Set(
+          (years ?? [])
+            .map((y: any) => y?.id ?? y?.year_id ?? y?.yearId)
+            .filter((id: any) => id !== null && id !== undefined)
+            .map((id: any) => String(id))
+        )
+      );
+
+      const classesByYear = await mapWithConcurrency(yearIds, 3, async (yearId) => {
+        try {
+          return (await fetchClasses(String(yearId))) ?? [];
+        } catch (error) {
+          return [];
+        }
+      });
+
+      const classes = classesByYear.flat();
+      const mapping: Record<string, string> = {};
+
+      await mapWithConcurrency(classes, 4, async (cls: any) => {
+        const classId = cls?.id ?? cls?.class_id ?? cls?.classId;
+        const className = cls?.class_name ?? cls?.name ?? `Class ${classId}`;
+        if (!classId) return null;
+        try {
+          const students = (await fetchStudents(String(classId))) ?? [];
+          for (const s of students) {
+            const sid = s?.id ?? s?.student_id;
+            if (sid !== null && sid !== undefined) {
+              mapping[String(sid)] = className;
+            }
+          }
+        } catch (error) {
+          // Ignore per-class failure and continue.
+        }
+        return null;
+      });
+
+      return mapping;
+    },
+    enabled: isStudent && !!studentSchoolIdResolved,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const unresolvedSchoolStudentIds = isStudent
+    ? (schoolLeaderboardRows ?? [])
+        .map((row: any) => String(row?.key ?? row?.student_id ?? ""))
+        .filter((id: string) => !!id)
+        .filter((id: string) => !studentClassMap?.[id])
+    : [];
+
+  const { data: studentProfileClassMap = {} } = useQuery({
+    queryKey: ["student-profile-class-map", unresolvedSchoolStudentIds.join("|")],
+    queryFn: async () => {
+      const mapping: Record<string, string> = {};
+      await mapWithConcurrency(unresolvedSchoolStudentIds, 4, async (studentId) => {
+        try {
+          const profile = await fetchStudentProfileData(studentId);
+          const className =
+            profile?.class?.class_name ??
+            profile?.class_name ??
+            profile?.class?.name ??
+            null;
+          if (className) {
+            mapping[String(studentId)] = className;
+          }
+        } catch (error) {
+          // Ignore per-student profile errors and continue.
+        }
+        return null;
+      });
+      return mapping;
+    },
+    enabled: isStudent && unresolvedSchoolStudentIds.length > 0,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const {
+    data: staffSchoolLeaderboardRows,
+    isLoading: staffSchoolLeaderboardLoading,
+    isError: staffSchoolLeaderboardIsError,
+    error: staffSchoolLeaderboardError,
+  } = useQuery({
+    queryKey: ["leaderboard-school-staff", schoolId],
+    queryFn: async () => {
+      if (!schoolId) return [];
+
+      try {
+        const res = await fetchSchoolLeaderBoardData(schoolId);
+        const rows = res?.data ?? [];
+        if (rows.length > 0) {
+          return mergeAndRankLeaderboards([rows]);
+        }
+      } catch (error) {
+        // Fall back to class aggregation below.
+      }
+
+      const years = (await fetchYearsBySchool(Number(schoolId))) ?? [];
+      const yearIds = (years ?? [])
+        .map((y: any) => y?.id ?? y?.year_id ?? y?.yearId)
+        .filter((id: any) => id !== null && id !== undefined)
+        .map((id: any) => String(id));
+
+      const uniqueYearIds = Array.from(new Set(yearIds));
+      const classesByYear = await mapWithConcurrency(
+        uniqueYearIds,
+        3,
+        async (yearId) => {
+          try {
+            return (await fetchClasses(String(yearId))) ?? [];
+          } catch (error) {
+            return [];
+          }
+        }
+      );
+
+      const classIds = classesByYear
+        .flat()
+        .map((cls: any) => cls?.id ?? cls?.class_id ?? cls?.classId)
+        .filter((id: any) => id !== null && id !== undefined)
+        .map((id: any) => String(id));
+
+      const uniqueClassIds = Array.from(new Set(classIds));
+      const leaderboards = await mapWithConcurrency(
+        uniqueClassIds,
+        5,
+        async (classId) => {
+          try {
+            const res = await fetchLeaderBoardData(classId);
+            return res?.data ?? [];
+          } catch (error) {
+            return [];
+          }
+        }
+      );
+
+      return mergeAndRankLeaderboards(leaderboards);
+    },
+    enabled: !isStudent && !!schoolId && leaderboardScope === "school",
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const isPageLoading =
+    loading ||
+    (!isStudent &&
+      ((leaderboardScope === "class" && (classesLoading || classLeaderboardLoading)) ||
+        (leaderboardScope === "school" && staffSchoolLeaderboardLoading))) ||
+    (isStudent &&
+      (studentProfileLoading ||
+        studentClassLeaderboardLoading ||
+        schoolLeaderboardLoading));
+
+  const isPageError =
+    (!isStudent &&
+      ((leaderboardScope === "class" && classLeaderboardIsError) ||
+        (leaderboardScope === "school" && staffSchoolLeaderboardIsError))) ||
+    (isStudent && studentProfileIsError);
+
+  const pageErrorMessage = !isStudent
+    ? (leaderboardScope === "class"
+        ? (classLeaderboardError as any)?.message
+        : (staffSchoolLeaderboardError as any)?.message) ||
+      "Failed to load leaderboard"
+    : (studentProfileError as any)?.message ||
+      (leaderboardScope === "class"
+        ? (studentClassLeaderboardError as any)?.message
+        : (schoolLeaderboardError as any)?.message) ||
+      "Failed to load leaderboard";
+
+  if (isPageLoading) {
     return (
       <div style={{ display: "flex", justifyContent: "center", padding: 24 }}>
         <Spin size="large" />
@@ -146,17 +423,16 @@ const LeaderBoard = () => {
     );
   }
 
-  if (isError) {
+  if (isPageError) {
     return (
       <div style={{ display: "flex", justifyContent: "center", padding: 24 }}>
-        <Text type="danger">Error: {error.message}</Text>
+        <Text type="danger">Error: {pageErrorMessage}</Text>
       </div>
     );
   }
 
-  // Transform API data
-  const studentData =
-    data?.data?.map((student, index) => ({
+  const classLeaderboardRows: LeaderboardRow[] =
+    classLeaderboardResponse?.data?.map((student: any, index: number) => ({
       key: student.student_id.toString(),
       rank: index + 1,
       name: student.student_name,
@@ -172,10 +448,161 @@ const LeaderBoard = () => {
           : null,
     })) || [];
 
-  // Slice only visible students
-  const visibleStudents = studentData.slice(0, visibleCount);
+  const studentClassLeaderboardRows: LeaderboardRow[] =
+    studentClassLeaderboardResponse?.data?.map((student: any, index: number) => ({
+      key: student.student_id.toString(),
+      rank: index + 1,
+      name: student.student_name,
+      avatar: student.student_name?.charAt(0).toUpperCase() || "?",
+      points: student.total_marks || 0,
+      badge:
+        index === 0
+          ? "gold"
+          : index === 1
+          ? "silver"
+          : index === 2
+          ? "bronze"
+          : null,
+    })) || [];
 
-  const columns = [
+  // Show all rows (no load-more) as requested
+  const visibleStudents = classLeaderboardRows;
+  const visibleStudentClass = studentClassLeaderboardRows;
+  const visibleSchoolStudents =
+    isStudent ? (schoolLeaderboardRows ?? []) : (staffSchoolLeaderboardRows ?? []);
+  const studentOwnClassName =
+    currentUser?.studentClassName ??
+    studentProfile?.class?.class_name ??
+    "My Class";
+  const visibleStudentClassWithClass = visibleStudentClass.map((row) => ({
+    ...row,
+    className: studentOwnClassName,
+  }));
+  const visibleSchoolStudentsWithClass = isStudent
+    ? visibleSchoolStudents.map((row) => ({
+        ...row,
+        className:
+          (row as any)?.className ??
+          (row as any)?.class_name ??
+          (row as any)?.class?.class_name ??
+          studentClassMap?.[String(row.key)] ??
+          studentProfileClassMap?.[String(row.key)] ??
+          ((row as any)?.class_id ? `Class ${(row as any).class_id}` : ""),
+      }))
+    : visibleSchoolStudents;
+
+  const normalizeClassName = (value: string | null | undefined) =>
+    String(value ?? "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "");
+
+  const rankRowsByPoints = (rows: any[]) =>
+    [...rows]
+      .sort((a, b) => Number(b?.points || 0) - Number(a?.points || 0))
+      .map((row, index) => ({
+        ...row,
+        rank: index + 1,
+        badge:
+          index === 0
+            ? "gold"
+            : index === 1
+            ? "silver"
+            : index === 2
+            ? "bronze"
+            : null,
+      }));
+
+  const fallbackStudentClassRows = rankRowsByPoints(
+    (visibleSchoolStudentsWithClass ?? []).filter((row: any) => {
+      const byClassName =
+        normalizeClassName((row as any)?.className) ===
+        normalizeClassName(studentOwnClassName);
+      const byClassId =
+        !!studentClassId &&
+        String((row as any)?.class_id ?? "") === String(studentClassId);
+      return byClassName || byClassId;
+    })
+  );
+
+  const resolvedStudentClassRows =
+    (visibleStudentClassWithClass ?? []).length > 0
+      ? visibleStudentClassWithClass
+      : fallbackStudentClassRows;
+
+  const myStudentKey = currentUser?.student
+    ? String(currentUser.student)
+    : studentProfile?.id
+    ? String(studentProfile.id)
+    : studentProfile?.student_id
+    ? String(studentProfile.student_id)
+    : null;
+  const mySchoolRank = myStudentKey
+    ? (visibleSchoolStudents ?? []).find((row) => row.key === myStudentKey)?.rank ?? null
+    : null;
+  const myClassRank = myStudentKey
+    ? (resolvedStudentClassRows ?? []).find((row) => row.key === myStudentKey)?.rank ?? null
+    : null;
+
+  const activeRows = leaderboardScope === "class"
+    ? visibleStudents
+    : visibleSchoolStudents;
+  const studentActiveRows =
+    leaderboardScope === "class"
+      ? resolvedStudentClassRows
+      : visibleSchoolStudentsWithClass;
+
+  const getRowClassName = (record: any, index: number) => {
+    const classes = [];
+    if (index % 2 === 0) classes.push("ant-table-row-striped");
+    if (record?.rank === 1) classes.push("leaderboard-row-gold");
+    if (record?.rank === 2) classes.push("leaderboard-row-silver");
+    if (record?.rank === 3) classes.push("leaderboard-row-bronze");
+    if (myStudentKey && record?.key === myStudentKey) classes.push("leaderboard-row-me");
+    return classes.join(" ");
+  };
+
+  const classTagColors = [
+    "green",
+    "cyan",
+    "blue",
+    "geekblue",
+    "lime",
+    "gold",
+    "orange",
+    "magenta",
+  ] as const;
+
+  const getClassTagColor = (value: string) => {
+    const text = (value || "Unknown").trim();
+    let hash = 0;
+    for (let i = 0; i < text.length; i += 1) {
+      hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
+    }
+    return classTagColors[hash % classTagColors.length];
+  };
+
+  const getClassTagStyle = (value: string) => {
+    const palette = [
+      { bg: "#f0fdf4", text: "#2f855a", border: "#bbf7d0" },
+      { bg: "#f0f9ff", text: "#2c5282", border: "#bae6fd" },
+      { bg: "#eff6ff", text: "#334e9a", border: "#bfdbfe" },
+      { bg: "#f5f3ff", text: "#5b4bb7", border: "#ddd6fe" },
+      { bg: "#f7fee7", text: "#4d7c0f", border: "#d9f99d" },
+      { bg: "#fffbeb", text: "#9a6b16", border: "#fde68a" },
+      { bg: "#fff7ed", text: "#9a5d2f", border: "#fed7aa" },
+      { bg: "#fdf2f8", text: "#9b4f7b", border: "#fbcfe8" },
+    ] as const;
+
+    const text = (value || "Class").trim();
+    let hash = 0;
+    for (let i = 0; i < text.length; i += 1) {
+      hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
+    }
+    return palette[hash % palette.length];
+  };
+
+  const columns: any[] = [
     {
       title: "Rank",
       dataIndex: "rank",
@@ -187,7 +614,22 @@ const LeaderBoard = () => {
           return <TrophyOutlined style={{ color: "#C0C0C0", fontSize: 20 }} />;
         if (rank === 3)
           return <StarOutlined style={{ color: "#CD7F32", fontSize: 20 }} />;
-        return <Text>{rank}</Text>;
+        return (
+          <span
+            style={{
+              display: "inline-flex",
+              width: 26,
+              height: 26,
+              borderRadius: "50%",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "#f1f5f9",
+              fontWeight: 700,
+            }}
+          >
+            {rank}
+          </span>
+        );
       },
       width: 80,
       align: "center" as const,
@@ -197,7 +639,7 @@ const LeaderBoard = () => {
       dataIndex: "name",
       key: "name",
       render: (text: string, record: any) => (
-        <Space>
+        <Space size={10}>
           <Avatar
             style={{
               backgroundColor:
@@ -208,16 +650,16 @@ const LeaderBoard = () => {
                   : record.badge === "bronze"
                   ? "#CD7F32"
                   : "#1890ff",
-              color: "#000",
+              color: "#111827",
               fontWeight: "bold",
             }}
           >
             {record.avatar}
           </Avatar>
-          <Text strong>{text}</Text>
-          {record.badge === "gold" && <Tag color="gold">Top</Tag>}
-          {record.badge === "silver" && <Tag color="silver">Excellent</Tag>}
-          {record.badge === "bronze" && <Tag color="#cd7f32">Great</Tag>}
+          <Text strong style={{ marginRight: 2 }}>{text}</Text>
+          {record.badge === "gold" && <Tag color="gold">#1</Tag>}
+          {record.badge === "silver" && <Tag color="default">#2</Tag>}
+          {record.badge === "bronze" && <Tag color="#cd7f32">#3</Tag>}
         </Space>
       ),
       width: 250,
@@ -228,17 +670,66 @@ const LeaderBoard = () => {
       dataIndex: "points",
       key: "points",
       render: (points: number) => (
-        <Text strong style={{ color: "#1890ff" }}>
+        <Text strong style={{ color: "#0f766e", fontVariantNumeric: "tabular-nums" }}>
           {points}
         </Text>
       ),
       width: 120,
-      align: "left" as const,
+      align: "center" as const,
     },
   ];
 
+  if (isStudent) {
+    columns.push({
+      title: "Class",
+      dataIndex: "className",
+      key: "className",
+      render: (value: string) => {
+        const styles = getClassTagStyle(value);
+        return (
+        <Tag
+          color={getClassTagColor(value)}
+          style={{
+            fontWeight: 600,
+            borderRadius: 999,
+            paddingInline: 12,
+            paddingBlock: 3,
+            borderColor: styles.border,
+            color: styles.text,
+            background: styles.bg,
+            letterSpacing: 0,
+            fontSize: 12.5,
+          }}
+        >
+          {value || "N/A"}
+        </Tag>
+      )},
+      width: 180,
+      ellipsis: false,
+      align: "right" as const,
+    });
+  }
+
   return (
     <div style={{ maxWidth: 1200, margin: "0 auto", padding: 24 }}>
+      <Card
+        className="!mb-4"
+        style={{
+          background:
+            "linear-gradient(120deg, rgba(15,118,110,0.08) 0%, rgba(245,158,11,0.08) 100%)",
+          border: "1px solid rgba(15,118,110,0.2)",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+          <div>
+            <Text type="secondary">Leaderboard Overview</Text>
+            <Title level={4} style={{ margin: 0 }}>
+              {isStudent ? "Your Class + Whole School Rankings" : "Class and School Performance Rankings"}
+            </Title>
+          </div>
+          <Tag color="processing">Live</Tag>
+        </div>
+      </Card>
      <Breadcrumb
         items={[
           {
@@ -251,103 +742,239 @@ const LeaderBoard = () => {
         className="!mb-6"
       />
 
-      <Card className="p-4 !mb-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Year Select */}
-            <div className="flex flex-col">
-              <label className="text-xs font-medium text-gray-500 mb-1">
-                Year
-              </label>
-              <Select
-                value={selectedYear || undefined}
-                onChange={(value) => {
-                  setSelectedYear(value);
-                  setSelectedClass(null); // reset class when year changes
-                }}
-                className="w-full"
-                placeholder="Select Year"
-              >
-                {years?.map((year) => (
-                  <Select.Option key={year.id} value={year.id.toString()}>
-                    {year.name}
-                  </Select.Option>
-                ))}
-              </Select>
-            </div>
-
-            {/* Class Select */}
-            <div className="flex flex-col">
-              <label className="text-xs font-medium text-gray-500 mb-1">
-                Class
-              </label>
-              <Select
-                value={selectedClass || undefined}
-                onChange={(value) => setSelectedClass(value)}
-                className="w-full"
-                placeholder="Select Class"
-                loading={classesLoading}
-                disabled={!selectedYear}
-              >
-                {classes?.map((cls) => (
-                  <Select.Option key={cls.id} value={cls.id.toString()}>
-                    {cls.class_name}
-                  </Select.Option>
-                ))}
-              </Select>
-            </div>
-          </div>
-      </Card>
-
-      <Space direction="vertical" size="large" style={{ width: "100%" }}>
-        <Card>
-          <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <Title level={3} style={{ margin: 0 }}>
-                Student Leaderboard
-              </Title>
-            </div>
-
-            <Table
-              columns={columns}
-              dataSource={visibleStudents}
-              pagination={false}
-              rowClassName={(_, index) =>
-                index % 2 === 0 ? "ant-table-row-striped" : ""
-              }
-              scroll={{ x: true }}
-            />
-
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <Text type="secondary">
-                Showing {visibleStudents.length} of {studentData.length}{" "}
-                students
-              </Text>
-
-              {visibleCount < studentData.length && (
-                <Text
-                  type="secondary"
-                  style={{ cursor: "pointer", color: "#1890ff" }}
-                  onClick={() => setVisibleCount((prev) => prev + 10)}
+      {!isStudent ? (
+        <>
+          <Card className="p-4 !mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="flex flex-col">
+                <label className="text-xs font-medium text-gray-500 mb-1">
+                  Scope
+                </label>
+                <Select
+                  value={leaderboardScope}
+                  onChange={(value) => setLeaderboardScope(value)}
+                  className="w-full"
                 >
-                  Load More
+                  <Select.Option value="class">Class</Select.Option>
+                  <Select.Option value="school">Whole School</Select.Option>
+                </Select>
+              </div>
+              {/* Year Select */}
+              <div className="flex flex-col">
+                <label className="text-xs font-medium text-gray-500 mb-1">
+                  Year
+                </label>
+                <Select
+                  value={selectedYear || undefined}
+                  onChange={(value) => {
+                    setSelectedYear(value);
+                    setSelectedClass(null); // reset class when year changes
+                  }}
+                  className="w-full"
+                  placeholder="Select Year"
+                >
+                  {years?.map((year) => (
+                    <Select.Option key={year.id} value={year.id.toString()}>
+                      {year.name}
+                    </Select.Option>
+                  ))}
+                </Select>
+              </div>
+
+              {/* Class Select */}
+              <div className="flex flex-col">
+                <label className="text-xs font-medium text-gray-500 mb-1">
+                  Class
+                </label>
+                <Select
+                  value={selectedClass || undefined}
+                  onChange={(value) => setSelectedClass(value)}
+                  className="w-full"
+                  placeholder="Select Class"
+                  loading={classesLoading}
+                  disabled={!selectedYear || leaderboardScope === "school"}
+                >
+                  {classes?.map((cls) => (
+                    <Select.Option key={cls.id} value={cls.id.toString()}>
+                      {cls.class_name}
+                    </Select.Option>
+                  ))}
+                </Select>
+              </div>
+            </div>
+          </Card>
+
+          <Space direction="vertical" size="large" style={{ width: "100%" }}>
+            <Card>
+              <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <Title level={3} style={{ margin: 0 }}>
+                    {leaderboardScope === "class" ? "Class Leaderboard" : "Whole School Leaderboard"}
+                  </Title>
+                </div>
+
+                <Table
+                  columns={columns}
+                  dataSource={activeRows}
+                  pagination={false}
+                  rowClassName={getRowClassName}
+                  scroll={{ x: true }}
+                />
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <Text type="secondary">
+                    Showing {activeRows.length} students
+                  </Text>
+                </div>
+              </Space>
+            </Card>
+          </Space>
+        </>
+      ) : (
+        <Space direction="vertical" size="large" style={{ width: "100%" }}>
+          <Card className="p-4 !mb-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="flex flex-col">
+                <Text type="secondary">My rank in class</Text>
+                <Title level={4} style={{ margin: 0 }}>
+                  {myClassRank ? `#${myClassRank}` : "N/A"}
+                  <Text type="secondary" style={{ marginLeft: 8 }}>
+                    / {(resolvedStudentClassRows ?? []).length}
+                  </Text>
+                </Title>
+              </div>
+              <div className="flex flex-col">
+                <Text type="secondary">My rank in whole school</Text>
+                <Title level={4} style={{ margin: 0 }}>
+                  {mySchoolRank ? `#${mySchoolRank}` : "N/A"}
+                  <Text type="secondary" style={{ marginLeft: 8 }}>
+                    / {(schoolLeaderboardRows ?? []).length}
+                  </Text>
+                </Title>
+              </div>
+            </div>
+          </Card>
+
+          <Card>
+            <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+              <Title level={3} style={{ margin: 0 }}>
+                {leaderboardScope === "class"
+                  ? "Class Leaderboard"
+                  : "Whole School Leaderboard"}
+              </Title>
+
+              <div style={{ display: "inline-flex", gap: 10 }}>
+                <Button
+                  type={leaderboardScope === "class" ? "primary" : "default"}
+                  onClick={() => setLeaderboardScope("class")}
+                  className="leaderboard-switch-btn"
+                >
+                  My class
+                </Button>
+                <Button
+                  type={leaderboardScope === "school" ? "primary" : "default"}
+                  onClick={() => setLeaderboardScope("school")}
+                  className="leaderboard-switch-btn"
+                >
+                  Whole school
+                </Button>
+              </div>
+
+              {leaderboardScope === "class" &&
+                studentClassLeaderboardIsError &&
+                (resolvedStudentClassRows ?? []).length === 0 && (
+                <Text type="danger">
+                  {(studentClassLeaderboardError as any)?.message || "Failed to load class leaderboard"}
                 </Text>
               )}
-            </div>
-          </Space>
-        </Card>
-      </Space>
+              {leaderboardScope === "school" && schoolLeaderboardIsError && (
+                <Text type="danger">
+                  {(schoolLeaderboardError as any)?.message || "Failed to load whole school leaderboard"}
+                </Text>
+              )}
+
+              <div key={leaderboardScope} className="leaderboard-table-animate">
+                <Table
+                  columns={columns}
+                  dataSource={studentActiveRows}
+                  pagination={false}
+                  rowClassName={getRowClassName}
+                  scroll={{ x: true }}
+                />
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <Text type="secondary">
+                  Showing {studentActiveRows.length} students
+                </Text>
+              </div>
+            </Space>
+          </Card>
+        </Space>
+      )}
+      <style jsx global>{`
+        .leaderboard-row-gold td {
+          background: linear-gradient(90deg, rgba(250, 204, 21, 0.12), rgba(255, 255, 255, 0));
+        }
+        .leaderboard-row-silver td {
+          background: linear-gradient(90deg, rgba(148, 163, 184, 0.14), rgba(255, 255, 255, 0));
+        }
+        .leaderboard-row-bronze td {
+          background: linear-gradient(90deg, rgba(217, 119, 6, 0.12), rgba(255, 255, 255, 0));
+        }
+        .leaderboard-row-me td {
+          box-shadow: inset 3px 0 0 #0f766e;
+          font-weight: 600;
+        }
+        .ant-table-thead > tr > th {
+          background: #f8fafc !important;
+          font-weight: 700 !important;
+        }
+        .ant-table-container table > tbody > tr > td {
+          transition: background-color 0.2s ease;
+        }
+        .leaderboard-switch-btn.ant-btn {
+          border-radius: 999px;
+          font-weight: 600;
+          padding-inline: 18px;
+        }
+        .leaderboard-switch-btn.ant-btn-primary {
+          background: linear-gradient(90deg, #0f766e, #0e7490);
+          border-color: transparent;
+        }
+        .leaderboard-table-animate {
+          animation: leaderboardSwap 280ms ease;
+          transform-origin: top center;
+        }
+        @keyframes leaderboardSwap {
+          0% {
+            opacity: 0;
+            transform: translateY(10px) scale(0.99);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+      `}</style>
     </div>
   );
 };

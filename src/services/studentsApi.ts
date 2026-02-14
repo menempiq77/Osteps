@@ -24,9 +24,13 @@ export const fetchStudents = async (classId: string | number) => {
 // add Student
 export const addStudent = async (studentData: {
   student_name: string;
+  user_name?: string;
   email: string;
+  password?: string;
   class_id: number;
   status: string;
+  gender?: string;
+  student_gender?: string;
 }) => {
   const response = await api.post('/add-student', studentData);
   return response.data;
@@ -36,9 +40,13 @@ export const updateStudent = async (
   id: string,
   studentData: {
     student_name: string;
+    user_name?: string;
     email: string;
     class_id: number;
+    password?: string;
     status: 'active' | 'inactive' | 'suspended';
+    gender?: string;
+    student_gender?: string;
   }
 ) => {
   const response = await api.post(`/update-student/${id}`, studentData);
@@ -56,4 +64,23 @@ export default api;
 export const fetchStudentProfileData = async (studentId: string | number) => {
   const response = await api.get(`/get-studentProfile/${studentId}`);
   return response.data.data;
+};
+
+export const uploadStudentAvatar = async (
+  classId: string | number,
+  studentId: string | number,
+  file: File
+) => {
+  const formData = new FormData();
+  formData.append("profile_path", file);
+  const response = await api.post(
+    `/classes/${classId}/students/${studentId}/avatar`,
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }
+  );
+  return response.data;
 };

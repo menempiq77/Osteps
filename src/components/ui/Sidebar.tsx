@@ -39,19 +39,26 @@ const Sidebar = () => {
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const isMobile = useMediaQuery("(max-width: 768px)");
   const [isOpen, setIsOpen] = useState(!isMobile);
+  const [orderedItems, setOrderedItems] = useState<any[]>([]);
+  const [draggingItemName, setDraggingItemName] = useState<string | null>(null);
 
-  const isSUPER_ADMIN = currentUser?.role === "SUPER_ADMIN";
+  const roleKey = (currentUser?.role ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "_");
+
+  const isSUPER_ADMIN = roleKey === "SUPER_ADMIN";
 
   // Announcement unread count
   const { data: announcementData } = useQuery({
-    queryKey: ["unseen-announcement-count", currentUser?.role],
+    queryKey: ["unseen-announcement-count", roleKey],
     queryFn: fetchUnseenAnnouncementCount,
-    enabled: !!currentUser?.role,
+    enabled: !!roleKey,
   });
 
   // Question unread count
   const { data: questionUnreadCount = 0 } = useQuery({
-    queryKey: ["unread-count", currentUser?.role],
+    queryKey: ["unread-count", roleKey],
     queryFn: fetchUnreadCount,
     enabled: !isSUPER_ADMIN,
   });
@@ -73,7 +80,7 @@ const Sidebar = () => {
     mutationFn: markAllNotificationsAsRead,
     onSuccess: () => {
       queryClient.setQueryData(
-        ["unread-count", currentUser?.role],
+        ["unread-count", roleKey],
         0
       );
     },
@@ -83,6 +90,17 @@ const Sidebar = () => {
     if (questionUnreadCount > 0) {
       markAllReadMutation.mutate();
     }
+  };
+
+  const normalizePath = (value?: string) =>
+    value ? value.replace(/\/+$/, "") || "/" : "/";
+
+  const isItemActive = (href: string) => {
+    const current = normalizePath(pathname || "");
+    const target = normalizePath(href);
+    if (current === target) return true;
+    if (target === "/dashboard") return current === "/dashboard";
+    return current.startsWith(`${target}/`);
   };
 
   const navigation = {
@@ -120,36 +138,12 @@ const Sidebar = () => {
     ],
     SCHOOL_ADMIN: [
       { name: "Dashboard", href: "/dashboard", icon: Home },
-      { name: "Teachers", href: "/dashboard/teachers", icon: UserCircle },
-      { name: "Manage Classes", href: "/dashboard/years", icon: Layers },
-      { name: "Manage Grades", href: "/dashboard/grades", icon: BarChart2 },
-      { name: "Subjects", href: "/dashboard/subjects", icon: BookOpen },
-      { name: "Manage Quiz", href: "/dashboard/quiz", icon: ClipboardList },
-      {
-        name: "Assesments",
-        href: "/dashboard/all_assesments",
-        icon: GraduationCap,
-      },
-      {
-        name: "View Assesments",
-        href: "/dashboard/student_assesments",
-        icon: GraduationCap,
-      },
-      { name: "Trackers", href: "/dashboard/all_trackers", icon: BarChart3 },
-      {
-        name: "View Trackers",
-        href: "/dashboard/viewtrackers",
-        icon: BarChart3,
-      },
+      { name: "Manager", href: "/dashboard/manager", icon: Layers },
+      { name: "View", href: "/dashboard/view", icon: FolderOpen },
       {
         name: "Leaderboard",
         href: `/dashboard/leaderboard/`,
         icon: Award,
-      },
-      {
-        name: "Reports",
-        href: "/dashboard/students/reports",
-        icon: FileBarChart,
       },
       { name: "Library", href: "/dashboard/library", icon: Library },
       {
@@ -163,11 +157,6 @@ const Sidebar = () => {
         href: "/dashboard/announcements",
         icon: Megaphone,
         badge: announcementUnreadCount,
-      },
-      {
-        name: "Behavior",
-        href: `/dashboard/student_behavior`,
-        icon: NotebookPen,
       },
       {
         name: "Tools",
@@ -184,6 +173,7 @@ const Sidebar = () => {
       { name: "Dashboard", href: "/dashboard", icon: Home },
       { name: "Teachers", href: "/dashboard/teachers", icon: UserCircle },
       { name: "My Classes", href: "/dashboard/years", icon: Layers },
+      { name: "View", href: "/dashboard/view", icon: FolderOpen },
       { name: "Subjects", href: "/dashboard/subjects", icon: BookOpen },
       { name: "Manage Quiz", href: "/dashboard/quiz", icon: ClipboardList },
       {
@@ -191,28 +181,13 @@ const Sidebar = () => {
         href: "/dashboard/all_assesments",
         icon: GraduationCap,
       },
-      {
-        name: "View Assesments",
-        href: "/dashboard/student_assesments",
-        icon: GraduationCap,
-      },
       { name: "Trackers", href: "/dashboard/all_trackers", icon: BarChart3 },
-      {
-        name: "View Trackers",
-        href: "/dashboard/viewtrackers",
-        icon: BarChart3,
-      },
       {
         name: "Leaderboard",
         href: `/dashboard/leaderboard/`,
         icon: Award,
       },
       { name: "Library", href: "/dashboard/library", icon: Library },
-      {
-        name: "Reports",
-        href: "/dashboard/students/reports",
-        icon: FileBarChart,
-      },
       {
         name: "Content Approvals",
         href: "/dashboard/approvals",
@@ -250,24 +225,10 @@ const Sidebar = () => {
     TEACHER: [
       { name: "Dashboard", href: "/dashboard", icon: Home },
       { name: "My Classes", href: "/dashboard/years", icon: Layers },
-      {
-        name: "View Assesments",
-        href: "/dashboard/student_assesments",
-        icon: GraduationCap,
-      },
+      { name: "View", href: "/dashboard/view", icon: FolderOpen },
       { name: "Subjects", href: "/dashboard/subjects", icon: BookOpen },
       { name: "Manage Quiz", href: "/dashboard/quiz", icon: ClipboardList },
-      {
-        name: "Reports",
-        href: "/dashboard/students/reports",
-        icon: FileBarChart,
-      },
       { name: "Trackers", href: "/dashboard/all_trackers", icon: BarChart3 },
-      {
-        name: "View Trackers",
-        href: "/dashboard/viewtrackers",
-        icon: BarChart3,
-      },
       {
         name: "Leaderboard",
         href: `/dashboard/leaderboard`,
@@ -319,7 +280,7 @@ const Sidebar = () => {
       },
       {
         name: "Leaderboard",
-        href: `/dashboard/classes/${currentUser?.studentClass}/leaderboard/`,
+        href: `/dashboard/leaderboard`,
         icon: Award,
       },
       {
@@ -354,6 +315,52 @@ const Sidebar = () => {
     ],
   };
 
+  const sidebarOrderStorageKey = `sidebar-order-${roleKey || "UNKNOWN"}`;
+
+  const applySavedSidebarOrder = (items: any[]) => {
+    if (typeof window === "undefined") return items;
+    try {
+      const raw = localStorage.getItem(sidebarOrderStorageKey);
+      if (!raw) return items;
+      const savedOrder: string[] = JSON.parse(raw);
+      if (!Array.isArray(savedOrder) || savedOrder.length === 0) return items;
+
+      const rank = new Map(savedOrder.map((name, idx) => [name, idx]));
+      return [...items].sort((a, b) => {
+        const aRank = rank.has(a.name) ? (rank.get(a.name) as number) : Number.MAX_SAFE_INTEGER;
+        const bRank = rank.has(b.name) ? (rank.get(b.name) as number) : Number.MAX_SAFE_INTEGER;
+        return aRank - bRank;
+      });
+    } catch {
+      return items;
+    }
+  };
+
+  const persistSidebarOrder = (items: any[]) => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(
+      sidebarOrderStorageKey,
+      JSON.stringify(items.map((item) => item.name))
+    );
+  };
+
+  useEffect(() => {
+    const navItems = ((navigation as any)[roleKey] || []) as any[];
+    setOrderedItems(applySavedSidebarOrder(navItems));
+  }, [roleKey, announcementUnreadCount, questionUnreadCount]);
+
+  const handleReorderSidebarItems = (draggedName: string, targetName: string) => {
+    if (!draggedName || !targetName || draggedName === targetName) return;
+    const updated = [...orderedItems];
+    const draggedIndex = updated.findIndex((item) => item.name === draggedName);
+    const targetIndex = updated.findIndex((item) => item.name === targetName);
+    if (draggedIndex < 0 || targetIndex < 0) return;
+    const [moved] = updated.splice(draggedIndex, 1);
+    updated.splice(targetIndex, 0, moved);
+    setOrderedItems(updated);
+    persistSidebarOrder(updated);
+  };
+
   // if (pathname.startsWith("/dashboard/students/reports")) {
   //   return null;
   // }
@@ -370,7 +377,7 @@ const Sidebar = () => {
           <Link href="/">
             {isOpen && (
               <h2 className="font-semibold text-white text-lg">
-                {currentUser?.role.replace("_", " ")}
+                  {(roleKey || currentUser?.role || "").toString().replace("_", " ")}
               </h2>
             )}
           </Link>
@@ -404,52 +411,60 @@ const Sidebar = () => {
         </div>
 
         {/* Navigation Menu */}
-        <nav className="flex-1 p-3 md:p-4 overflow-y-auto scroll-hidden">
-          {currentUser?.role &&
-            navigation[currentUser.role]?.map((item) => (
-              <Link
+        <nav
+          className="flex-1 p-3 md:p-4 overflow-y-auto sidebar-scrollbar relative"
+        >
+          {!!roleKey &&
+            orderedItems?.map((item: any) => (
+              <div
                 key={item.name}
-                href={item.href}
-                onClick={
-                  item.name === "Ask a Question" ||
-                  item.name === "Answer a Question"
-                    ? handleQuestionClick
-                    : undefined
-                }
-                className={`group flex items-center p-3 mb-1 rounded-lg hover:bg-green-50 transition-all relative overflow-hidden ${
-                  pathname === item.href
-                    ? "bg-green-50 text-[#38C16C] font-medium"
-                    : "text-gray-600 hover:text-[#38C16C]"
-                }`}
+                draggable
+                onDragStart={() => setDraggingItemName(item.name)}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={() => {
+                  if (draggingItemName) {
+                    handleReorderSidebarItems(draggingItemName, item.name);
+                  }
+                }}
+                onDragEnd={() => setDraggingItemName(null)}
+                className={`rounded-lg ${draggingItemName === item.name ? "opacity-70" : ""}`}
               >
-                {/* Hover animation effect */}
-                <div
-                  className="absolute inset-y-0 left-0 w-1 bg-green-500 transition-all duration-300 
-                       transform -translate-x-full group-hover:translate-x-0"
-                />
-
-                {/* Icon with subtle animation */}
-                <item.icon
-                  className={`h-5 w-5 flex-shrink-0 transition-transform duration-200 ${
-                    isOpen
-                      ? "mr-3 group-hover:scale-110"
-                      : "mx-auto group-hover:scale-110"
+                <Link
+                  href={item.href}
+                  onClick={
+                    item.name === "Ask a Question" ||
+                    item.name === "Answer a Question"
+                      ? handleQuestionClick
+                      : undefined
+                  }
+                  className={`sidebar-nav-item group flex items-center p-3 mb-1 rounded-lg cursor-pointer shadow-none transition-all duration-200 relative overflow-hidden ${
+                    isItemActive(item.href)
+                      ? "bg-[#b9f6cc] text-[#15803d] font-semibold sidebar-item-active hover:bg-[#a8efc1]"
+                      : "text-gray-600 hover:text-[#1f8f4d] hover:bg-[#def7e9]"
                   }`}
-                />
+                >
+                  <item.icon
+                    className={`h-5 w-5 flex-shrink-0 transition-transform duration-200 ${
+                      isOpen
+                        ? "mr-3 group-hover:scale-110"
+                        : "mx-auto group-hover:scale-110"
+                    }`}
+                  />
 
-                {isOpen && (
-                  <div className="flex items-center justify-between w-full">
-                    <span className="text-sm transition-all duration-200 group-hover:translate-x-1">
-                      {item.name}
-                    </span>
-                    {"badge" in item && (
-                      <span className="bg-[#38C16C] text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                        {item.badge}
+                  {isOpen && (
+                    <div className="flex items-center justify-between w-full">
+                      <span className="text-sm transition-all duration-200 group-hover:translate-x-1">
+                        {item.name}
                       </span>
-                    )}
-                  </div>
-                )}
-              </Link>
+                      {"badge" in item && (
+                        <span className="bg-[#38C16C] text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                          {item.badge}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </Link>
+              </div>
             ))}
         </nav>
 
@@ -458,7 +473,7 @@ const Sidebar = () => {
           {/* Logout Button */}
           <button
             onClick={handleLogout}
-            className={`flex items-center w-full p-3 rounded-lg hover:bg-gray-50 text-gray-600 hover:text-red-500 transition-colors cursor-pointer ${
+            className={`sidebar-logout-item flex items-center w-full p-3 rounded-lg shadow-none hover:bg-[#feecec] text-gray-600 hover:text-red-500 transition-all cursor-pointer ${
               !isOpen ? "justify-center" : ""
             }`}
           >
@@ -498,7 +513,7 @@ const Sidebar = () => {
                     {currentUser.email}
                   </p>
                   <p className="text-xs text-gray-500 capitalize">
-                    {currentUser.role.replace("_", " ")}
+                    {(roleKey || currentUser.role).replace("_", " ")}
                   </p>
                 </div>
               )}
@@ -506,6 +521,50 @@ const Sidebar = () => {
           )}
         </div>
       </div>
+      <style jsx global>{`
+        .sidebar-item-active {
+          animation: sidebarActivePop 280ms cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .sidebar-nav-item:hover {
+          box-shadow: 0 10px 24px rgba(22, 101, 52, 0.35);
+        }
+        .sidebar-logout-item:hover {
+          box-shadow: 0 10px 24px rgba(153, 27, 27, 0.32);
+        }
+        @keyframes sidebarActivePop {
+          0% {
+            opacity: 0.55;
+            transform: translateX(8px) scale(0.985);
+          }
+          100% {
+            opacity: 1;
+            transform: translateX(0) scale(1);
+          }
+        }
+        .sidebar-scrollbar {
+          direction: rtl;
+          scrollbar-width: thin;
+          scrollbar-color: #22c55e #e5e7eb;
+        }
+        .sidebar-scrollbar > * {
+          direction: ltr;
+        }
+        .sidebar-scrollbar::-webkit-scrollbar {
+          width: 10px;
+        }
+        .sidebar-scrollbar::-webkit-scrollbar-track {
+          background: #e5e7eb;
+          border-radius: 999px;
+        }
+        .sidebar-scrollbar::-webkit-scrollbar-thumb {
+          background: linear-gradient(180deg, #34d399, #16a34a);
+          border-radius: 999px;
+          border: 2px solid #e5e7eb;
+        }
+        .sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(180deg, #22c55e, #15803d);
+        }
+      `}</style>
     </div>
   );
 };

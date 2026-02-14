@@ -5,6 +5,7 @@ import { Button, Form, Input, Select } from "antd";
 interface ClassFormValues {
   class_name: string;
   number_of_terms: string;
+  color?: string;
 }
 
 interface AddClassFormProps {
@@ -14,6 +15,7 @@ interface AddClassFormProps {
     class_name: string;
     year_id: number;
     number_of_terms: string;
+    color?: string;
   } | null;
   visible: boolean;
   onCancel: () => void;
@@ -32,9 +34,11 @@ export default function AddClassForm({
       form.setFieldsValue({
         class_name: initialData.class_name,
         number_of_terms: initialData.number_of_terms,
+        color: initialData.color || "green",
       });
     } else {
       form.resetFields();
+      form.setFieldsValue({ color: "green" });
     }
   }, [initialData, form]);
 
@@ -68,6 +72,20 @@ export default function AddClassForm({
           <Select.Option value="first">One Term</Select.Option>
           <Select.Option value="two">Two Term</Select.Option>
           <Select.Option value="three">Three Term</Select.Option>
+        </Select>
+      </Form.Item>
+
+      <Form.Item
+        name="color"
+        label="Card Color"
+        rules={[{ required: true, message: "Please choose a color" }]}
+      >
+        <Select>
+          <Select.Option value="green">Green</Select.Option>
+          <Select.Option value="yellow">Yellow</Select.Option>
+          <Select.Option value="red">Red</Select.Option>
+          <Select.Option value="blue">Blue</Select.Option>
+          <Select.Option value="purple">Purple</Select.Option>
         </Select>
       </Form.Item>
 

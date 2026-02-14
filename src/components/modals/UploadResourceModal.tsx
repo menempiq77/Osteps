@@ -37,6 +37,22 @@ const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
   resources,
   setFileList,
 }) => {
+  const formatCategoryLabel = (name?: string) => {
+    if (!name) return "";
+    const key = name.trim().toLowerCase();
+    const labelMap: Record<string, string> = {
+      dua: "Dua'",
+      fiqa: "Fiqh",
+      fiqh: "Fiqh",
+      hadees: "Hadith",
+      hadith: "Hadith",
+      quran: "Qur'an",
+      seerah: "Seerah",
+      tafseer: "Tafsir",
+    };
+    return labelMap[key] || name;
+  };
+
   const selectedResourceType = Form.useWatch("type", form);
   const selectedSource = Form.useWatch("source", form);
 
@@ -119,7 +135,7 @@ const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
           <Select placeholder="Select Category">
             {categories?.map((category) => (
               <Select.Option key={category.id} value={category.id}>
-                {category.name}
+                {formatCategoryLabel(category.name)}
               </Select.Option>
             ))}
           </Select>
@@ -136,28 +152,18 @@ const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
           />
         </Form.Item>
 
-        <Form.Item name="tags" label="Tags">
-          <Select
-            mode="tags"
-            placeholder="Add tags and press Enter"
-            tokenSeparators={[","]}
-          />
+        <Form.Item name="source" label="Resource Source" initialValue="upload">
+          <Radio.Group
+            onChange={(event) => {
+              if (event.target.value === "link") {
+                setFileList([]);
+              }
+            }}
+          >
+            <Radio value="upload">Upload File</Radio>
+            <Radio value="link">External Link</Radio>
+          </Radio.Group>
         </Form.Item>
-
-        {selectedResourceType && (
-          <Form.Item name="source" label="Resource Source" initialValue="upload">
-            <Radio.Group
-              onChange={(event) => {
-                if (event.target.value === "link") {
-                  setFileList([]);
-                }
-              }}
-            >
-              <Radio value="upload">Upload File</Radio>
-              <Radio value="link">External Link</Radio>
-            </Radio.Group>
-          </Form.Item>
-        )}
 
         {isLinkMode && (
           <Form.Item
@@ -168,7 +174,14 @@ const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
               { type: "url", message: "Please enter a valid URL!" },
             ]}
           >
-            <Input placeholder="https://..." />
+            <Input
+              placeholder={
+                selectedResourceType
+                  ? "https://..."
+                  : "Select resource type first"
+              }
+              disabled={!selectedResourceType}
+            />
           </Form.Item>
         )}
 
@@ -176,7 +189,11 @@ const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
           <Form.Item
             name="file"
             label="File"
-            rules={[{ required: true, message: "Please upload a file!" }]}
+            rules={
+              isEditing
+                ? []
+                : [{ required: true, message: "Please upload a file!" }]
+            }
             valuePropName="fileList"
             getValueFromEvent={(e) => {
               if (Array.isArray(e)) {

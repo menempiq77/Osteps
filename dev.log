@@ -1,0 +1,16 @@
+
+> sms@0.1.0 dev
+> next dev -p 3007
+
+   ▲ Next.js 15.5.12
+   - Local:        http://localhost:3007
+   - Network:      http://192.168.0.104:3007
+   - Experiments (use with caution):
+     · serverActions
+
+ ✓ Starting...
+ ✓ Ready in 4.6s
+ ○ Compiling /dashboard/students/[classId]/[studentId]/student_dashboard ...
+ ✓ Compiled /dashboard/students/[classId]/[studentId]/student_dashboard in 25s (6012 modules)
+redux-persist failed to create sync storage. falling back to noop storage.
+ GET /dashboard/students/2/1/student_dashboard 200 in 27974ms

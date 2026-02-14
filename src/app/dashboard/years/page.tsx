@@ -22,6 +22,7 @@ interface Year {
   terms?: any;
   created_at?: string;
   updated_at?: string;
+  color?: string;
 }
 
 export default function Page() {
@@ -36,6 +37,50 @@ export default function Page() {
   const [messageApi, contextHolder] = message.useMessage();
   const schoolId = currentUser?.school;
   const isTeacher = currentUser?.role === "TEACHER";
+  const yearOrderStorageKey = `years-order-${schoolId ?? "global"}`;
+  const yearColorStorageKey = `years-colors-${schoolId ?? "global"}`;
+
+  const readYearColorMap = (): Record<string, string> => {
+    if (typeof window === "undefined") return {};
+    try {
+      const raw = localStorage.getItem(yearColorStorageKey);
+      const parsed = raw ? JSON.parse(raw) : {};
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
+  };
+
+  const writeYearColorMap = (nextMap: Record<string, string>) => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(yearColorStorageKey, JSON.stringify(nextMap));
+  };
+
+  const applySavedYearColors = (list: Year[]) => {
+    const colorMap = readYearColorMap();
+    return list.map((year) => ({
+      ...year,
+      color: year.color || colorMap[String(year.id)] || "green",
+    }));
+  };
+
+  const applySavedOrder = (list: Year[]) => {
+    if (typeof window === "undefined") return list;
+    try {
+      const raw = localStorage.getItem(yearOrderStorageKey);
+      if (!raw) return list;
+      const savedOrder: number[] = JSON.parse(raw);
+      if (!Array.isArray(savedOrder) || savedOrder.length === 0) return list;
+      const rank = new Map(savedOrder.map((id, index) => [id, index]));
+      return [...list].sort((a, b) => {
+        const aRank = rank.has(a.id) ? (rank.get(a.id) as number) : Number.MAX_SAFE_INTEGER;
+        const bRank = rank.has(b.id) ? (rank.get(b.id) as number) : Number.MAX_SAFE_INTEGER;
+        return aRank - bRank || a.id - b.id;
+      });
+    } catch {
+      return list;
+    }
+  };
 
 useEffect(() => {
   const loadYears = async () => {
@@ -57,7 +102,7 @@ useEffect(() => {
         yearsData = res;
       }
 
-      setYears(yearsData);
+      setYears(applySavedOrder(applySavedYearColors(yearsData as Year[])));
     } catch (err) {
       setError("Failed to load years");
       console.error(err);
@@ -69,21 +114,48 @@ useEffect(() => {
   loadYears();
 }, [schoolId, isTeacher]);
 
-  const handleSubmitYear = async (data: { name: string }) => {
+  const persistYearOrder = (orderedYears: Year[]) => {
+    if (typeof window === "undefined") return;
+    const ids = orderedYears.map((year) => year.id);
+    localStorage.setItem(yearOrderStorageKey, JSON.stringify(ids));
+  };
+
+  const handleReorderYears = (orderedYears: { id: number; name: string }[]) => {
+    const orderedIds = new Set(orderedYears.map((item) => item.id));
+    const remaining = years.filter((year) => !orderedIds.has(year.id));
+    const nextYears = [
+      ...orderedYears.map((item) => years.find((y) => y.id === item.id) || item),
+      ...remaining,
+    ] as Year[];
+    setYears(nextYears);
+    persistYearOrder(nextYears);
+  };
+
+  const handleSubmitYear = async (data: { name: string; color?: string }) => {
     try {
+      const { color, ...payload } = data;
       const yearData =
         currentUser?.role === "SCHOOL_ADMIN"
-          ? { ...data, school_id: currentUser?.school }
-          : data;
+          ? { ...payload, school_id: currentUser?.school }
+          : payload;
 
       if (currentYear) {
         await updateYearApi(currentYear.id, yearData);
+        writeYearColorMap({
+          ...readYearColorMap(),
+          [String(currentYear.id)]: color || currentYear.color || "green",
+        });
       } else {
         const newYear = await addYearApi(yearData);
-        setYears((prevYears) => [...prevYears, newYear]);
+        const yearWithColor = { ...newYear, color: color || "green" };
+        setYears((prevYears) => [...prevYears, yearWithColor]);
+        writeYearColorMap({
+          ...readYearColorMap(),
+          [String(newYear.id)]: yearWithColor.color as string,
+        });
       }
       const updatedYears = await fetchYearsBySchool(schoolId);
-      setYears(updatedYears);
+      setYears(applySavedYearColors(updatedYears));
 
       setIsModalOpen(false);
       setCurrentYear(null);
@@ -146,14 +218,20 @@ useEffect(() => {
         ]}
         className="!mb-2"
       />
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Academic Years</h1>
-        {currentUser?.role !== "STUDENT" &&
-          currentUser?.role !== "HOD" &&
-          currentUser?.role !== "TEACHER" && (
+      <div className="mb-6 rounded-2xl border border-emerald-100 bg-gradient-to-r from-emerald-50 via-white to-lime-50 p-4 md:p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold">Academic Years</h1>
+            <p className="text-sm text-gray-600 mt-1">
+              Manage your years as folders and drag cards to set your preferred order.
+            </p>
+          </div>
+          {currentUser?.role !== "STUDENT" &&
+            currentUser?.role !== "HOD" &&
+            currentUser?.role !== "TEACHER" && (
             <Button
               type="primary"
-              className="!bg-primary !text-white"
+              className="!bg-primary !text-white !cursor-pointer"
               onClick={() => {
                 setCurrentYear(null);
                 setIsModalOpen(true);
@@ -161,7 +239,8 @@ useEffect(() => {
             >
               Add Year
             </Button>
-          )}
+            )}
+        </div>
       </div>
       <YearsList
         key={years?.length}
@@ -170,12 +249,14 @@ useEffect(() => {
           name: year.name,
           school_id: year.school_id,
           terms: year.terms,
+          color: year.color,
         }))}
         onDeleteYear={confirmDelete}
         onEditYear={(id) => {
           const year = years.find((y) => y.id === id);
           if (year) handleEditClick(year);
         }}
+        onReorderYears={handleReorderYears}
       />
 
       {/* Add/Edit Year Modal */}

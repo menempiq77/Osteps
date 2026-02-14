@@ -9,7 +9,6 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: true,
-  swcMinify: true, 
   compress: process.env.NODE_ENV === 'production',
   output: 'standalone',
   productionBrowserSourceMaps: false,
@@ -23,12 +22,10 @@ const nextConfig: NextConfig = {
       '@': path.resolve(__dirname, 'src'),
     };
 
-  if (dev) {
-  config.cache = {
-    type: 'filesystem',
-    cacheDirectory: path.resolve(__dirname, '.next/cache/webpack'),
-  };
-}
+    if (dev) {
+      // Filesystem cache can be flaky on Windows + OneDrive paths (missing chunk/module errors).
+      config.cache = { type: 'memory' };
+    }
 
 
     return config;

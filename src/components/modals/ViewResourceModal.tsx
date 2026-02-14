@@ -1,13 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import {
-  Modal,
-  Button,
-  Divider,
-  Tag,
-  Typography,
-  message,
-} from "antd";
-import { DownloadOutlined } from "@ant-design/icons";
+﻿import React, { useEffect, useRef, useState } from "react";
+import { Modal, Button, Divider, Tag, Typography } from "antd";
+import { ExpandOutlined, CompressOutlined, LinkOutlined } from "@ant-design/icons";
 import { IMG_BASE_URL } from "@/lib/config";
 
 const { Text } = Typography;
@@ -15,7 +8,7 @@ const { Text } = Typography;
 interface LibraryItem {
   id: string;
   title: string;
-  type: "book" | "video" | "pdf" | "audio";
+  type: string;
   url: string;
   uploadedBy: string;
   uploadDate: string;
@@ -38,28 +31,54 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
 }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const previewContainerRef = useRef<HTMLDivElement | null>(null);
+
   const [mediaUrl, setMediaUrl] = useState<string>("");
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [iframeLoaded, setIframeLoaded] = useState(false);
+  const [embedBlocked, setEmbedBlocked] = useState(false);
+
+  const normalizeResourceUrl = (url?: string) => {
+    if (!url) return "";
+    const trimmed = String(url).trim();
+    if (!trimmed) return "";
+    if (/^(https?:\/\/|blob:|data:)/i.test(trimmed)) return trimmed;
+    if (trimmed.startsWith("//")) return `https:${trimmed}`;
+    if (trimmed.startsWith("/")) return trimmed;
+    return `https://${trimmed}`;
+  };
+
   const getTypeTag = (type: string) => {
     const typeMap: Record<string, { color: string; text: string }> = {
       book: { color: "blue", text: "Book" },
       video: { color: "red", text: "Video" },
       pdf: { color: "green", text: "PDF" },
       audio: { color: "orange", text: "Audio" },
+      website: { color: "cyan", text: "Website" },
+      document: { color: "geekblue", text: "Document" },
+      link: { color: "lime", text: "Link" },
     };
 
+    const normalized = (type || "").toLowerCase();
     return (
-      <Tag color={typeMap[type]?.color || "default"}>
-        {typeMap[type]?.text || type}
+      <Tag color={typeMap[normalized]?.color || "default"}>
+        {typeMap[normalized]?.text || type}
       </Tag>
     );
   };
 
   const isExternalLink = (url: string) => {
     if (!url) return false;
-    const isHttp = /^https?:\/\//i.test(url);
+    const normalized = normalizeResourceUrl(url);
+    const isHttp = /^https?:\/\//i.test(normalized);
     const hasVideoExtension = /\.(mp4|mov|avi|mkv|webm)(\?|#|$)/i.test(url);
-    const isInternal = url.startsWith(IMG_BASE_URL);
+    const isInternal = normalized.startsWith(IMG_BASE_URL);
     return isHttp && !isInternal && !hasVideoExtension;
+  };
+
+  const isLikelyEmbeddableDocument = (url: string) => {
+    const clean = normalizeResourceUrl(url).split("?")[0].split("#")[0].toLowerCase();
+    return clean.endsWith(".pdf");
   };
 
   const getVideoEmbedUrl = (url: string) => {
@@ -80,11 +99,15 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
 
   useEffect(() => {
     if (open && currentItem?.url) {
-      setMediaUrl(currentItem.url);
+      setMediaUrl(normalizeResourceUrl(currentItem.url));
+      setIframeLoaded(false);
+      setEmbedBlocked(false);
       return;
     }
 
     setMediaUrl("");
+    setIframeLoaded(false);
+    setEmbedBlocked(false);
     if (videoRef.current) {
       videoRef.current.pause();
       videoRef.current.currentTime = 0;
@@ -95,78 +118,197 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
     }
   }, [open, currentItem?.url]);
 
+  useEffect(() => {
+    if (!open || !currentItem?.url) return;
+    const normalizedType = (currentItem.type || "").toLowerCase();
+    const shouldCheckEmbed = !["audio", "video"].includes(normalizedType);
+    if (!shouldCheckEmbed) return;
+
+    const timer = window.setTimeout(() => {
+      if (!iframeLoaded) {
+        setEmbedBlocked(true);
+      }
+    }, 2800);
+
+    return () => window.clearTimeout(timer);
+  }, [open, currentItem?.url, currentItem?.type, iframeLoaded]);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, []);
+
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement && previewContainerRef.current) {
+        await previewContainerRef.current.requestFullscreen();
+      } else if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      }
+    } catch {
+      // Ignore browser-specific fullscreen failures.
+    }
+  };
+
   const renderViewContent = () => {
     if (!currentItem) return null;
 
-    switch (currentItem.type) {
-      case "video":
-        if (isExternalLink(currentItem.url)) {
-          const embedUrl = mediaUrl ? getVideoEmbedUrl(mediaUrl) : "";
-          return (
-            <div className="video-container" style={{ padding: "12px" }}>
-              <iframe
-                key={embedUrl || "empty"}
-                src={embedUrl}
-                title={currentItem.title}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                style={{ width: "100%", height: "500px", border: "none" }}
-              />
-            </div>
-          );
-        }
+    const normalizedType = (currentItem.type || "").toLowerCase();
+    const playerHeight = isFullscreen ? "100vh" : "560px";
+    const external = isExternalLink(currentItem.url);
+
+    if (normalizedType === "video") {
+      if (isExternalLink(currentItem.url)) {
+        const embedUrl = mediaUrl ? getVideoEmbedUrl(mediaUrl) : "";
         return (
-          <div className="video-container">
-            <video
-              ref={videoRef}
-              controls
-              autoPlay
-              style={{ width: "100%", maxHeight: "500px" }}
-            >
-              <source src={mediaUrl} type="video/mp4" />
-              Your browser does not support the video tag.
-            </video>
+          <div style={{ padding: isFullscreen ? "0" : "12px" }}>
+            <iframe
+              key={embedUrl || "empty"}
+              src={embedUrl}
+              title={currentItem.title}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              style={{
+                width: "100%",
+                height: playerHeight,
+                border: "none",
+                borderRadius: isFullscreen ? "0" : "8px",
+              }}
+            />
           </div>
         );
-      case "audio":
-        return (
-          <div
-            className="audio-container"
-            style={{ textAlign: "center", padding: "20px" }}
+      }
+
+      return (
+        <div style={{ padding: isFullscreen ? "0" : "12px" }}>
+          <video
+            ref={videoRef}
+            controls
+            autoPlay
+            style={{
+              width: "100%",
+              height: playerHeight,
+              maxHeight: "none",
+              objectFit: "contain",
+            }}
           >
-            <audio ref={audioRef} controls autoPlay style={{ width: "100%" }}>
-              <source src={mediaUrl} type="audio/mpeg" />
-              Your browser does not support the audio element.
-            </audio>
-          </div>
-        );
-      case "book":
-        return (
-          <div className="book-preview" style={{ padding: "20px" }}>
-            <Text>
-              This is a book resource. Click the download button to get the full
-              content.
-            </Text>
-            <div style={{ marginTop: "20px" }}>
-              <Button
-                type="primary"
-                icon={<DownloadOutlined />}
-                href={currentItem.url}
-                target="_blank"
-                className="!bg-primary !border-primary"
-              >
-                Download Book
-              </Button>
-            </div>
-          </div>
-        );
-      default:
-        return (
-          <div className="default-preview" style={{ padding: "20px" }}>
-            <Text>Preview not available for this resource type.</Text>
-          </div>
-        );
+            <source src={mediaUrl} type="video/mp4" />
+            Your browser does not support the video tag.
+          </video>
+        </div>
+      );
     }
+
+    if (normalizedType === "audio") {
+      return (
+        <div style={{ textAlign: "center", padding: "20px" }}>
+          <audio ref={audioRef} controls autoPlay style={{ width: "100%" }}>
+            <source src={mediaUrl} type="audio/mpeg" />
+            Your browser does not support the audio element.
+          </audio>
+        </div>
+      );
+    }
+
+    // External websites often block iframe embedding (X-Frame-Options/CSP).
+    // For non-document external links, show a reliable fallback panel instead of blank iframe.
+    if (external && !isLikelyEmbeddableDocument(currentItem.url) && normalizedType !== "video") {
+      return (
+        <div style={{ padding: isFullscreen ? "0" : "12px" }}>
+          <div
+            style={{
+              width: "100%",
+              height: playerHeight,
+              borderRadius: isFullscreen ? "0" : "8px",
+              background: "#f8fafc",
+              border: "1px solid #e5e7eb",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexDirection: "column",
+              gap: "12px",
+              padding: "24px",
+            }}
+          >
+            <Text strong style={{ fontSize: 16 }}>
+              This website cannot be displayed inside the app.
+            </Text>
+            <Text type="secondary">Use Open Link to view it in a new tab.</Text>
+            <Button
+              type="primary"
+              icon={<LinkOutlined />}
+              href={normalizeResourceUrl(currentItem?.url)}
+              target="_blank"
+              className="!bg-primary !border-primary"
+            >
+              Open Link
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ padding: isFullscreen ? "0" : "12px" }}>
+        {embedBlocked ? (
+          <div
+            style={{
+              width: "100%",
+              height: playerHeight,
+              borderRadius: isFullscreen ? "0" : "8px",
+              background: "#f8fafc",
+              border: "1px solid #e5e7eb",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexDirection: "column",
+              gap: "12px",
+              padding: "24px",
+            }}
+          >
+            <Text strong style={{ fontSize: 16 }}>
+              This website blocks in-app preview.
+            </Text>
+            <Text type="secondary">Open it in a new tab to view the content.</Text>
+            <Button
+              type="primary"
+              icon={<LinkOutlined />}
+              href={normalizeResourceUrl(currentItem?.url)}
+              target="_blank"
+              className="!bg-primary !border-primary"
+            >
+              Open Link
+            </Button>
+          </div>
+        ) : (
+          <iframe
+            key={mediaUrl || "resource-frame"}
+            src={mediaUrl}
+            title={currentItem.title}
+            onLoad={() => {
+              setIframeLoaded(true);
+              setEmbedBlocked(false);
+            }}
+            onError={() => setEmbedBlocked(true)}
+            style={{
+              width: "100%",
+              height: playerHeight,
+              border: "none",
+              borderRadius: isFullscreen ? "0" : "8px",
+            }}
+          />
+        )}
+        <div style={{ marginTop: "10px", display: isFullscreen ? "none" : "block" }}>
+          <Text type="secondary">If preview is blocked by the provider, use Open Link.</Text>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -187,41 +329,35 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
         }
       }}
       footer={[
-        currentItem?.url && isExternalLink(currentItem.url) ? (
-          <Button
-            key="open"
-            type="primary"
-            icon={<DownloadOutlined />}
-            href={currentItem.url}
-            target="_blank"
-            className="!bg-primary !border-primary"
-          >
-            Open Link
-          </Button>
-        ) : (
-          <Button
-            key="download"
-            type="primary"
-            icon={<DownloadOutlined />}
-            href={currentItem?.url}
-            download
-            className="!bg-primary !border-primary"
-          >
-            Download
-          </Button>
-        ),
+        <Button
+          key="fullscreen"
+          icon={isFullscreen ? <CompressOutlined /> : <ExpandOutlined />}
+          onClick={toggleFullscreen}
+        >
+          {isFullscreen ? "Exit Full Screen" : "Full Screen"}
+        </Button>,
+        <Button
+          key="open-link"
+          type="primary"
+          icon={<LinkOutlined />}
+          href={normalizeResourceUrl(currentItem?.url)}
+          target="_blank"
+          className="!bg-primary !border-primary"
+        >
+          Open Link
+        </Button>,
         <Button key="close" onClick={onCancel}>
           Close
         </Button>,
       ]}
-      width={800}
+      width={900}
       styles={{ body: { padding: 0 } }}
     >
       <div style={{ padding: "24px" }}>
         <div className="flex justify-between items-start mb-4">
           <div>
             <Text strong>Subject: </Text>
-            <Tag color="purple">{currentItem?.subject}</Tag>
+            <Tag color="purple">{currentItem?.subject || "General"}</Tag>
           </div>
           <div>
             <Text strong>Type: </Text>
@@ -251,15 +387,19 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
 
         <div className="mb-2">
           <Text type="secondary">
-            Uploaded by {currentItem?.uploadedBy} on {currentItem?.uploadDate} •{" "}
-            {currentItem?.size}
+            Uploaded by {currentItem?.uploadedBy} on {currentItem?.uploadDate} - {currentItem?.size}
           </Text>
         </div>
       </div>
 
       <Divider style={{ margin: 0 }} />
 
-      <div style={{ minHeight: "500px" }}>{renderViewContent()}</div>
+      <div
+        ref={previewContainerRef}
+        style={{ minHeight: isFullscreen ? "100vh" : "560px", background: "#fff" }}
+      >
+        {renderViewContent()}
+      </div>
     </Modal>
   );
 };

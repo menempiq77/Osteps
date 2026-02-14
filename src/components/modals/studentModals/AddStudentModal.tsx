@@ -93,6 +93,17 @@ export const AddStudentModal = ({
             <Select.Option value="suspended">Suspended</Select.Option>
           </Select>
         </Form.Item>
+
+        <Form.Item
+          name="gender"
+          label="Gender"
+          rules={[{ required: true, message: "Please select gender!" }]}
+        >
+          <Select placeholder="Select gender">
+            <Select.Option value="male">Male</Select.Option>
+            <Select.Option value="female">Female</Select.Option>
+          </Select>
+        </Form.Item>
       </Form>
     </Modal>
   );

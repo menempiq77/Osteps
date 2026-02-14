@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Card,
   Tag,
@@ -79,6 +80,7 @@ interface CurrentUser {
 }
 
 const StudentBehaviorPage = () => {
+  const searchParams = useSearchParams();
   const [selectedStudentId, setSelectedStudentId] = useState<string>("");
   const [isBehaviorModalVisible, setIsBehaviorModalVisible] = useState(false);
   const [isTypeModalVisible, setIsTypeModalVisible] = useState(false);
@@ -103,7 +105,35 @@ const StudentBehaviorPage = () => {
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const schoolId = currentUser?.school;
+  const schoolTimeZone = useMemo(() => {
+    const userAny = currentUser as any;
+    return (
+      userAny?.school_timezone ||
+      userAny?.schoolTimeZone ||
+      userAny?.timezone ||
+      userAny?.school?.timezone ||
+      process.env.NEXT_PUBLIC_SCHOOL_TIMEZONE ||
+      Intl.DateTimeFormat().resolvedOptions().timeZone
+    );
+  }, [currentUser]);
   const [messageApi, contextHolder] = message.useMessage();
+  const [pendingClassId, setPendingClassId] = useState<string | null>(null);
+  const [pendingStudentId, setPendingStudentId] = useState<string | null>(null);
+  const [pendingIntent, setPendingIntent] = useState<"positive" | "negative" | null>(null);
+  const [pendingOpenAdd, setPendingOpenAdd] = useState(false);
+  const [autoOpenedFromQuery, setAutoOpenedFromQuery] = useState(false);
+
+  useEffect(() => {
+    const classId = searchParams.get("classId");
+    const studentId = searchParams.get("studentId");
+    const intent = searchParams.get("intent");
+    const openAdd = searchParams.get("openAdd");
+
+    if (classId) setPendingClassId(classId);
+    if (studentId) setPendingStudentId(studentId);
+    if (intent === "positive" || intent === "negative") setPendingIntent(intent);
+    if (openAdd === "1") setPendingOpenAdd(true);
+  }, [searchParams]);
 
   /** Load years */
   const loadYears = async () => {
@@ -174,8 +204,13 @@ const StudentBehaviorPage = () => {
       const studentsData = await fetchStudents(selectedClass);
       setStudents(studentsData);
 
-      const initialId = studentsData[0]?.id || "";
-      setSelectedStudentId(initialId);
+      const preferredStudent =
+        pendingStudentId &&
+        studentsData.find(
+          (s: any) => String(s.id).toLowerCase() === String(pendingStudentId).toLowerCase()
+        );
+      const initialId = preferredStudent?.id || studentsData[0]?.id || "";
+      setSelectedStudentId(String(initialId));
 
       return studentsData;
     } catch (err) {
@@ -190,7 +225,17 @@ const StudentBehaviorPage = () => {
   // Load students whenever class selection changes
   useEffect(() => {
     loadStudents();
-  }, [selectedClass]);
+  }, [selectedClass, pendingStudentId]);
+
+  useEffect(() => {
+    if (!pendingClassId || !classes?.length) return;
+    const hasClass = classes.some(
+      (cls: any) => String(cls.id).toLowerCase() === String(pendingClassId).toLowerCase()
+    );
+    if (hasClass && String(selectedClass || "") !== String(pendingClassId)) {
+      setSelectedClass(String(pendingClassId));
+    }
+  }, [pendingClassId, classes, selectedClass]);
 
   const loadBehaviorTypes = async () => {
     try {
@@ -205,6 +250,10 @@ const StudentBehaviorPage = () => {
     }
   };
   const loadBehavior = async () => {
+    if (!selectedStudentId) {
+      setBehaviors([]);
+      return;
+    }
     try {
       setIsLoading(true);
       const behaviourData = await fetchBehaviour(selectedStudentId);
@@ -221,6 +270,38 @@ const StudentBehaviorPage = () => {
     loadBehavior();
     loadBehaviorTypes();
   }, [selectedStudentId]);
+
+  useEffect(() => {
+    if (!pendingOpenAdd || autoOpenedFromQuery || !selectedStudentId || !behaviorTypes.length) {
+      return;
+    }
+
+    const types =
+      pendingIntent === "positive"
+        ? behaviorTypes.filter((t) => Number(t.points) > 0)
+        : pendingIntent === "negative"
+        ? behaviorTypes.filter((t) => Number(t.points) < 0)
+        : behaviorTypes;
+
+    const chosen = types[0] || behaviorTypes[0];
+    if (chosen) {
+      form.setFieldsValue({
+        type: chosen.id,
+      });
+    }
+    if (pendingIntent) {
+      setFilter(pendingIntent);
+    }
+    setIsBehaviorModalVisible(true);
+    setAutoOpenedFromQuery(true);
+  }, [
+    pendingOpenAdd,
+    autoOpenedFromQuery,
+    selectedStudentId,
+    behaviorTypes,
+    pendingIntent,
+    form,
+  ]);
 
   const student = useMemo(() => {
     if (!students.length || !selectedStudentId) {
@@ -378,12 +459,86 @@ const StudentBehaviorPage = () => {
       (t) => t.id === behavior.behaviour_id
     );
     if (!behaviorType) return false; // Skip if type not found
+    const typeName = String(behaviorType?.name || "").toLowerCase();
+    const description = String(behavior?.description || "").toLowerCase();
+    const isAttendance =
+      typeName.includes("attendance") ||
+      typeName.includes("absent") ||
+      typeName.includes("present") ||
+      description.includes("[attendance]") ||
+      description.includes("attendance absent") ||
+      description.includes("attendance present");
+    if (isAttendance) return false;
 
     if (filter === "positive") return behaviorType.points > 0;
     if (filter === "negative") return behaviorType.points < 0;
     if (filter === "neutral") return behaviorType.points == 0;
     return true; // 'all'
   });
+
+  const attendanceBehaviors = behaviors?.filter((behavior) => {
+    const behaviorType = behaviorTypes.find(
+      (t) => t.id === behavior.behaviour_id
+    );
+    const typeName = String(behaviorType?.name || "").toLowerCase();
+    const description = String(behavior?.description || "").toLowerCase();
+    return (
+      typeName.includes("attendance") ||
+      typeName.includes("absent") ||
+      typeName.includes("present") ||
+      description.includes("[attendance]") ||
+      description.includes("attendance absent") ||
+      description.includes("attendance present")
+    );
+  });
+
+  const sortedAttendanceBehaviors = useMemo(() => {
+    return [...(attendanceBehaviors || [])].sort((a: any, b: any) => {
+      const bTime = new Date(
+        b?.created_at || b?.updated_at || b?.date || 0
+      ).getTime();
+      const aTime = new Date(
+        a?.created_at || a?.updated_at || a?.date || 0
+      ).getTime();
+      return bTime - aTime;
+    });
+  }, [attendanceBehaviors]);
+
+  const getAttendanceStatus = (item: any) => {
+    const typeName = String(
+      behaviorTypes.find((t) => t.id === item.behaviour_id)?.name || ""
+    ).toLowerCase();
+    const description = String(item?.description || "").toLowerCase();
+    if (typeName.includes("absent") || description.includes("attendance] absent")) {
+      return "Absent";
+    }
+    if (typeName.includes("present") || description.includes("attendance] present")) {
+      return "Present";
+    }
+    return "Attendance";
+  };
+
+  const getAttendanceLocalTime = (item: any) => {
+    const description = String(item?.description || "");
+    const marker = " @ ";
+    if (description.includes(marker)) {
+      return description.split(marker).pop();
+    }
+    if ((item as any)?.created_at || (item as any)?.updated_at) {
+      return new Date(
+        (item as any)?.created_at || (item as any)?.updated_at
+      ).toLocaleString(undefined, schoolTimeZone ? { timeZone: schoolTimeZone } : undefined);
+    }
+    return "N/A";
+  };
+
+  const sortedFilteredBehaviors = useMemo(() => {
+    return [...(filteredBehaviors || [])].sort((a, b) => {
+      const bTime = new Date((b as any)?.date || (b as any)?.created_at || 0).getTime();
+      const aTime = new Date((a as any)?.date || (a as any)?.created_at || 0).getTime();
+      return bTime - aTime;
+    });
+  }, [filteredBehaviors]);
   const colorOptions = [
     { value: "green", label: "Green" },
     { value: "blue", label: "Blue" },
@@ -515,7 +670,7 @@ const StudentBehaviorPage = () => {
                   showSearch
                   placeholder="Select a student"
                   optionFilterProp="children"
-                  value={selectedStudentId ? student?.student_name : undefined}
+                  value={selectedStudentId || undefined}
                   onChange={(value) => setSelectedStudentId(value)}
                   filterOption={(input, option) =>
                     String(option?.label ?? "")
@@ -584,7 +739,20 @@ const StudentBehaviorPage = () => {
                   : ""}
               </Avatar>
             <div>
-              <h2 className="text-lg font-semibold">{student?.student_name}</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold">{student?.student_name}</h2>
+                <span
+                  className={`text-sm font-semibold px-2 py-0.5 rounded-full ${
+                    totalPoints > 0
+                      ? "bg-green-100 text-green-700"
+                      : totalPoints < 0
+                      ? "bg-red-100 text-red-600"
+                      : "bg-gray-100 text-gray-600"
+                  }`}
+                >
+                  {totalPoints > 0 ? `+${totalPoints}` : totalPoints}
+                </span>
+              </div>
               <p className="text-gray-500">{student?.class}</p>
             </div>
           </div>
@@ -604,7 +772,7 @@ const StudentBehaviorPage = () => {
       >
         <List
           itemLayout="vertical"
-          dataSource={filteredBehaviors}
+          dataSource={sortedFilteredBehaviors}
           renderItem={(item) => (
             <List.Item
               actions={
@@ -654,6 +822,56 @@ const StudentBehaviorPage = () => {
                       </>
                     );
                   })()}
+                </div>
+              </div>
+            </List.Item>
+          )}
+        />
+      </Card>
+
+      <Card title="Attendance Records" className="mt-6">
+        <List
+          itemLayout="vertical"
+          dataSource={sortedAttendanceBehaviors}
+          locale={{ emptyText: "No attendance records." }}
+          renderItem={(item) => (
+            <List.Item
+              actions={
+                isStudent
+                  ? [
+                      <div className="">
+                        <Popconfirm
+                          title="Delete this attendance record?"
+                          onConfirm={() => deleteBehavior(item.id)}
+                          okText="Yes"
+                          cancelText="No"
+                        >
+                          <Button
+                            icon={<DeleteOutlined />}
+                            danger
+                            className="!border-none !shadow-none"
+                          ></Button>
+                        </Popconfirm>
+                      </div>,
+                    ]
+                  : []
+              }
+            >
+              <div className="flex justify-between w-full">
+                <div>
+                  {(() => {
+                    const status = getAttendanceStatus(item);
+                    return (
+                      <Tag color={status === "Absent" ? "volcano" : "green"}>
+                        {status}
+                      </Tag>
+                    );
+                  })()}
+                  <p className="mt-2 font-medium">{item.description || "[Attendance]"}</p>
+                  <p className="text-sm text-gray-500">
+                    Recorded by {item?.teacher?.teacher_name || "Teacher"} on {item.date}
+                  </p>
+                  <p className="text-xs text-gray-500">Local time: {getAttendanceLocalTime(item)}</p>
                 </div>
               </div>
             </List.Item>

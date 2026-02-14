@@ -367,6 +367,7 @@ Route::middleware(['auth:sanctum'])->group(function(){
 
     /////leaderboard Apis/
     Route::get('get-student-scores/{id}',[LeaderBoardController::class,'getStudentsTotalMarks'])->name('get-student-scores');
+    Route::get('leaderboard/school-self',[LeaderBoardController::class,'schoolSelf'])->name('leaderboard-school-self');
 
     //add user using DTO 
     Route::post('add-user',[UserController::class,'addUser'])->name('add-user');
