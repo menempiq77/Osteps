@@ -89,6 +89,7 @@ export default function TrackerTopicsPage() {
   const [markModal, setMarkModal] = useState(false);
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
   const [marks, setMarks] = useState("");
+  const [savingMarks, setSavingMarks] = useState(false);
 
   const [messageApi, contextHolder] = message.useMessage();
   const isStudent = currentUser?.role === "STUDENT";
@@ -100,9 +101,10 @@ export default function TrackerTopicsPage() {
   }, [trackerId, currentUser?.student]);
 
 
-  const loadStudentTrackerData = async () => {
+  const loadStudentTrackerData = async (opts?: { showLoading?: boolean }) => {
     try {
-      setLoading(true);
+      const showLoading = opts?.showLoading ?? true;
+      if (showLoading) setLoading(true);
       const response = await fetchTrackerStudentTopics(
         currentUser?.student,
         Number(trackerId)
@@ -120,7 +122,7 @@ export default function TrackerTopicsPage() {
     } catch (error) {
       console.error("Failed to load tracker data", error);
     } finally {
-      setLoading(false);
+      if (opts?.showLoading ?? true) setLoading(false);
     }
   };
 
@@ -178,6 +180,7 @@ export default function TrackerTopicsPage() {
     setMarkModal(true);
   };
   const handleSubmitMarks = async () => {
+      if (savingMarks) return;
       if (!marks) {
         messageApi.warning("Please enter marks");
         return;
@@ -187,8 +190,9 @@ export default function TrackerTopicsPage() {
         messageApi.warning("No topic selected");
         return;
       }
-  
+   
       try {
+        setSavingMarks(true);
         const marksValue = Number(marks);
         if (isNaN(marksValue)) {
           messageApi.warning("Please enter valid marks");
@@ -219,15 +223,20 @@ export default function TrackerTopicsPage() {
         messageApi.success(
           `Saved ${marksValue}/${maxMarks} for ${selectedTopic.title}.`
         );
-        await loadStudentTrackerData();
-        await loadStudentProgressPoints();
         setMarkModal(false);
         setMarks("");
+
+        await Promise.all([
+          loadStudentTrackerData({ showLoading: false }),
+          loadStudentProgressPoints(),
+        ]);
       } catch (error: any) {
         const errorMessage =
           error?.response?.data?.message || "Failed to save marks";
         messageApi.error(errorMessage);
         console.error("Error saving marks:", error);
+      } finally {
+        setSavingMarks(false);
       }
   };
 
@@ -240,7 +249,7 @@ export default function TrackerTopicsPage() {
   // );
   const statusTypes = trackerData?.status_progress?.map((sp) => sp.name) || [];
 
-  if (loading)
+  if (loading && !trackerData)
     return (
       <div className="p-3 md:p-6 flex justify-center items-center h-64">
         <Spin size="large" />
@@ -496,7 +505,11 @@ export default function TrackerTopicsPage() {
           onOk={handleSubmitMarks}
           onCancel={() => setMarkModal(false)}
           okText="Save Marks"
-          okButtonProps={{ className: "!bg-primary !text-white" }}
+          okButtonProps={{
+            className: "!bg-primary !text-white",
+            loading: savingMarks,
+            disabled: savingMarks,
+          }}
           centered
         >
           <div className="my-4">
