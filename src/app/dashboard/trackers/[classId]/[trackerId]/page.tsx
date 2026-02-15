@@ -13,9 +13,12 @@ import { Button, Input, Modal, Progress, Spin, message } from "antd";
 import {
   updateTopicStatus,
   fetchTrackerStudentTopics,
-  addTopicMark,
 } from "@/services/api";
-import { fetchStudentTrackerPoints } from "@/services/trackersApi";
+import {
+  fetchStudentTrackerPoints,
+  fetchMyTrackerPointClaims,
+  submitTrackerPointsClaim,
+} from "@/services/trackersApi";
 
 interface Status {
   id: number;
@@ -87,10 +90,20 @@ export default function TrackerTopicsPage() {
   const [markModal, setMarkModal] = useState(false);
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
   const [marks, setMarks] = useState("");
+  const [bucketMarks, setBucketMarks] = useState<Record<number, number>>({});
+  const [claimSubmitting, setClaimSubmitting] = useState(false);
+  const [claimSubmitted, setClaimSubmitted] = useState(false);
 
   const [messageApi, contextHolder] = message.useMessage();
   const isStudent = currentUser?.role === "STUDENT";
-  const schoolId = currentUser?.school;
+  const bucketStorageKey =
+    currentUser?.student && trackerId
+      ? `tracker-bucket:${currentUser.student}:${trackerId}`
+      : "";
+  const claimStorageKey =
+    currentUser?.student && trackerId
+      ? `tracker-claim:${currentUser.student}:${trackerId}`
+      : "";
 
   useEffect(() => {
     if (!currentUser?.student || !trackerId) return;
@@ -127,6 +140,96 @@ export default function TrackerTopicsPage() {
       loadStudentProgressPoints();
     }
   }, [trackerId]);
+
+  useEffect(() => {
+    if (!isStudent || !bucketStorageKey) return;
+    try {
+      const raw = localStorage.getItem(bucketStorageKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Record<string, number>;
+      const normalized: Record<number, number> = {};
+      Object.entries(parsed || {}).forEach(([k, v]) => {
+        const key = Number(k);
+        const value = Number(v);
+        if (Number.isFinite(key) && Number.isFinite(value)) {
+          normalized[key] = value;
+        }
+      });
+      setBucketMarks(normalized);
+    } catch {
+      setBucketMarks({});
+    }
+  }, [bucketStorageKey, isStudent]);
+
+  useEffect(() => {
+    if (!isStudent || !trackerId) return;
+
+    const loadClaimsIntoBucket = async () => {
+      try {
+        const claims = await fetchMyTrackerPointClaims();
+        if (!Array.isArray(claims) || claims.length === 0) return;
+
+        const trackerClaims = claims.filter(
+          (c: any) => Number(c?.tracker_id) === Number(trackerId)
+        );
+        if (trackerClaims.length === 0) return;
+
+        const latest = trackerClaims.sort(
+          (a: any, b: any) =>
+            Number(b?.id ?? 0) - Number(a?.id ?? 0)
+        )[0];
+
+        const rawBucket =
+          latest?.bucket_marks_json ??
+          latest?.bucket_marks ??
+          latest?.bucketMarks ??
+          null;
+
+        let parsed: Record<string, number> = {};
+        if (typeof rawBucket === "string" && rawBucket.trim()) {
+          parsed = JSON.parse(rawBucket);
+        } else if (rawBucket && typeof rawBucket === "object") {
+          parsed = rawBucket as Record<string, number>;
+        }
+
+        const normalized: Record<number, number> = {};
+        Object.entries(parsed || {}).forEach(([k, v]) => {
+          const key = Number(k);
+          const value = Number(v);
+          if (Number.isFinite(key) && Number.isFinite(value)) {
+            normalized[key] = value;
+          }
+        });
+
+        if (Object.keys(normalized).length > 0) {
+          setBucketMarks((prev) =>
+            Object.keys(prev).length > 0 ? prev : normalized
+          );
+        }
+
+        const status = String(latest?.status ?? "").toLowerCase();
+        if (status === "submitted" || status === "verified") {
+          setClaimSubmitted(true);
+          if (claimStorageKey) localStorage.setItem(claimStorageKey, "1");
+        }
+      } catch (error) {
+        // Non-blocking: local bucket still works if API is unavailable
+        console.error("Failed to load tracker point claims", error);
+      }
+    };
+
+    loadClaimsIntoBucket();
+  }, [isStudent, trackerId, claimStorageKey]);
+
+  useEffect(() => {
+    if (!isStudent || !claimStorageKey) return;
+    setClaimSubmitted(localStorage.getItem(claimStorageKey) === "1");
+  }, [claimStorageKey, isStudent]);
+
+  useEffect(() => {
+    if (!isStudent || !bucketStorageKey) return;
+    localStorage.setItem(bucketStorageKey, JSON.stringify(bucketMarks));
+  }, [bucketMarks, bucketStorageKey, isStudent]);
 
   const loadStudentProgressPoints = async () => {
     try {
@@ -169,9 +272,11 @@ export default function TrackerTopicsPage() {
 
   const handleEnterMarks = (topic: Topic) => {
     setSelectedTopic(topic);
+    const existing = bucketMarks[topic.id];
+    setMarks(Number.isFinite(existing) ? String(existing) : "");
     setMarkModal(true);
   };
-    const handleSubmitMarks = async () => {
+  const handleSubmitMarks = async () => {
       if (!marks) {
         messageApi.warning("Please enter marks");
         return;
@@ -182,12 +287,6 @@ export default function TrackerTopicsPage() {
         return;
       }
   
-      const studentId = currentUser?.student ?? (currentUser?.id ? Number(currentUser.id) : null);
-      if (!studentId || Number.isNaN(studentId)) {
-        messageApi.error("Student profile not found. Please re-login.");
-        return;
-      }
-
       try {
         const marksValue = Number(marks);
         if (isNaN(marksValue)) {
@@ -203,26 +302,75 @@ export default function TrackerTopicsPage() {
           return;
         }
   
-        await addTopicMark(
-          selectedTopic.id,
-          marksValue,
-          studentId,
-          Number(trackerId),
-          classId ? Number(classId) : undefined
+        setBucketMarks((prev) => ({
+          ...prev,
+          [selectedTopic.id]: marksValue,
+        }));
+        messageApi.success(
+          `Saved ${marksValue}/${maxMarks} to Practice Bucket for ${selectedTopic.title}.`
         );
-        // await refetchTracker();
-        await loadStudentTrackerData();
-  
-        messageApi.success(`Marks ${marks} submitted for ${selectedTopic.title}`);
         setMarkModal(false);
         setMarks("");
       } catch (error: any) {
         const errorMessage =
-          error?.response?.data?.message || "Failed to submit marks";
+          error?.response?.data?.message || "Failed to save bucket marks";
         messageApi.error(errorMessage);
-        console.error("Error submitting marks:", error);
+        console.error("Error saving bucket marks:", error);
       }
-    };
+  };
+
+  const nonQuizTopics = topics.filter((t) => t.type !== "quiz");
+  const completedTopicIds = new Set(
+    nonQuizTopics
+      .filter((topic) => topic.status_progress?.some((sp) => sp.is_completed === 1))
+      .map((topic) => topic.id)
+  );
+  const hasBucketForCompleted = Array.from(completedTopicIds).every(
+    (topicId) => typeof bucketMarks[topicId] === "number"
+  );
+  const isTrackerReadyToClaim =
+    nonQuizTopics.length > 0 &&
+    completedTopicIds.size === nonQuizTopics.length &&
+    hasBucketForCompleted;
+
+  const bucketTotal = Object.entries(bucketMarks).reduce(
+    (sum, [topicId, value]) =>
+      completedTopicIds.has(Number(topicId)) ? sum + Number(value || 0) : sum,
+    0
+  );
+
+  const handleClaimPoints = async () => {
+    if (!isTrackerReadyToClaim) {
+      messageApi.warning(
+        "Complete all tracker topics and enter practice marks before claiming."
+      );
+      return;
+    }
+    try {
+      setClaimSubmitting(true);
+      await submitTrackerPointsClaim({
+        tracker_id: Number(trackerId),
+        class_id: classId ? Number(classId) : undefined,
+        bucket_marks: Object.fromEntries(
+          Object.entries(bucketMarks).map(([k, v]) => [String(k), Number(v)])
+        ),
+        bucket_total: bucketTotal,
+      });
+      if (claimStorageKey) {
+        localStorage.setItem(claimStorageKey, "1");
+      }
+      setClaimSubmitted(true);
+      messageApi.success("Claim submitted. Teacher verification is required.");
+    } catch (error: any) {
+      const errMsg =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Failed to submit claim.";
+      messageApi.error(String(errMsg));
+    } finally {
+      setClaimSubmitting(false);
+    }
+  };
 
   // const statusTypes = Array.from(
   //   new Set(
@@ -281,6 +429,26 @@ export default function TrackerTopicsPage() {
                   </span>
                 )}
               />
+            </div>
+          )}
+          {isStudent && (
+            <div className="flex flex-col items-end gap-2">
+              <div className="text-sm text-gray-600">
+                Practice Bucket:{" "}
+                <span className="font-semibold text-amber-700">
+                  {bucketTotal}
+                </span>{" "}
+                points (not in leaderboard yet)
+              </div>
+              <Button
+                type="primary"
+                className="!bg-primary !text-white hover:!bg-primary/90 !border-none"
+                disabled={!isTrackerReadyToClaim || claimSubmitted}
+                loading={claimSubmitting}
+                onClick={handleClaimPoints}
+              >
+                {claimSubmitted ? "Claim Submitted" : "Claim My Points"}
+              </Button>
             </div>
           )}
         </div>
@@ -435,10 +603,12 @@ export default function TrackerTopicsPage() {
                                       currentUser?.student &&
                                     s.type === "tracker"
                                 )?.obtained_marks || "0"
-                              : topic.topic_mark?.find(
-                                  (m) =>
-                                    m.student_id === currentUser?.student
-                                )?.marks || "0"}
+                              : (bucketMarks[topic.id] ??
+                                  topic.topic_mark?.find(
+                                    (m) =>
+                                      m.student_id === currentUser?.student
+                                  )?.marks) ||
+                                "0"}
                             /{" "}
                             {topic?.marks ||
                               topic?.quiz?.total_marks ||
@@ -455,7 +625,8 @@ export default function TrackerTopicsPage() {
                                     (m) =>
                                       m.student_id === currentUser?.student &&
                                       m.teacher_locked === 1
-                                  ))
+                                  ) ||
+                                  claimSubmitted)
                                   ? "opacity-50 cursor-not-allowed"
                                   : ""
                               }`}
@@ -465,11 +636,12 @@ export default function TrackerTopicsPage() {
                                   (m) =>
                                     m.student_id === currentUser?.student &&
                                     m.teacher_locked === 1
-                                )
+                                ) ||
+                                claimSubmitted
                               }
                               onClick={() => handleEnterMarks(topic)}
                             >
-                              Enter Marks
+                              Add To Bucket
                             </Button>
                           )}
                       </td>
@@ -496,11 +668,11 @@ export default function TrackerTopicsPage() {
 
       {/* Marks Modal */}
         <Modal
-          title={`Enter Marks (Max: ${selectedTopic?.marks || 100})`}
+          title={`Practice Bucket Marks (Max: ${selectedTopic?.marks || 100})`}
           open={markModal}
           onOk={handleSubmitMarks}
           onCancel={() => setMarkModal(false)}
-          okText="Submit Marks"
+          okText="Save To Bucket"
           okButtonProps={{ className: "!bg-primary !text-white" }}
           centered
         >

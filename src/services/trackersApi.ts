@@ -173,4 +173,62 @@ export const fetchCertificateEligibility = async (trackerId: number) => {
   return response.data;
 };
 
+// Student: claim tracker points for teacher verification
+export const submitTrackerPointsClaim = async (payload: {
+  tracker_id: number;
+  class_id?: number;
+  bucket_marks?: Record<string, number>;
+  bucket_total?: number;
+}) => {
+  const attempts = [
+    { path: "/claim-tracker-points", body: payload },
+    { path: "/tracker/claim-points", body: payload },
+    // fallback to existing claim flow so teacher still receives request
+    { path: "/claim-certificate", body: { tracker_id: payload.tracker_id } },
+  ];
+
+  const errors: string[] = [];
+  for (const attempt of attempts) {
+    try {
+      const response = await api.post(attempt.path, attempt.body);
+      return response.data;
+    } catch (error: any) {
+      const status = error?.response?.status;
+      const message =
+        error?.response?.data?.message ||
+        error?.response?.data?.msg ||
+        error?.message ||
+        "request_failed";
+      errors.push(`${attempt.path} -> ${status ?? "ERR"} ${message}`);
+    }
+  }
+
+  throw new Error(`Failed to submit tracker points claim. Tried: ${errors.join(" | ")}`);
+};
+
+// Student: fetch my tracker point claims
+export const fetchMyTrackerPointClaims = async () => {
+  const attempts = ["/my-tracker-point-claims", "/tracker-point-claims/my"];
+  const errors: string[] = [];
+
+  for (const path of attempts) {
+    try {
+      const response = await api.get(path);
+      return response.data?.data ?? response.data ?? [];
+    } catch (error: any) {
+      const status = error?.response?.status;
+      const message =
+        error?.response?.data?.message ||
+        error?.response?.data?.msg ||
+        error?.message ||
+        "request_failed";
+      errors.push(`${path} -> ${status ?? "ERR"} ${message}`);
+    }
+  }
+
+  throw new Error(
+    `Failed to fetch tracker point claims. Tried: ${errors.join(" | ")}`
+  );
+};
+
 export default api;
