@@ -20,6 +20,7 @@ import {
   fetchAllTrackers,
 } from "@/services/trackersApi";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { DeadlineCountdown } from "@/components/common/DeadlineCountdown";
 
 type Tracker = {
   id: string;
@@ -28,8 +29,20 @@ type Tracker = {
   type: string;
   status: string;
   progress: string[];
-  lastUpdated?: string;
+  deadline?: string | null;
 };
+
+function normalizeDeadline(t: any): string | null {
+  const raw =
+    t?.deadline ??
+    t?.deadline_at ??
+    t?.deadline_date ??
+    t?.last_updated ??
+    t?.lastUpdated ??
+    null;
+  if (raw === null || raw === undefined || raw === "") return null;
+  return String(raw).slice(0, 10);
+}
 
 export default function AllTrackerList() {
   const router = useRouter();
@@ -57,7 +70,7 @@ export default function AllTrackerList() {
       return data.map((tracker: any) => ({
         ...tracker,
         id: tracker.id.toString(),
-        lastUpdated: new Date().toISOString().split("T")[0],
+        deadline: normalizeDeadline(tracker),
       }));
     },
     enabled: !!schoolId,
@@ -76,6 +89,7 @@ export default function AllTrackerList() {
         type: "topic",
         progress: tracker.progress,
         claim_certificate: tracker.claim_certificate,
+        deadline: tracker.deadline ?? null,
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["trackers", schoolId] });
@@ -95,6 +109,7 @@ export default function AllTrackerList() {
         name: tracker.name,
         type: "topic",
         progress: tracker.progress,
+        deadline: tracker.deadline ?? null,
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["trackers", schoolId] });
@@ -211,7 +226,7 @@ export default function AllTrackerList() {
                 </th>
                 <th className="p-2 md:p-4">
                   <span className="block py-2 px-3 border-r border-gray-300">
-                    Last Updated
+                    Deadline
                   </span>
                 </th>
                 <th className="p-2 md:p-4">
@@ -243,7 +258,9 @@ export default function AllTrackerList() {
                     >
                       {tracker?.name}
                     </td>
-                    <td className="p-2 md:p-4">{tracker?.lastUpdated}</td>
+                    <td className="p-2 md:p-4">
+                      <DeadlineCountdown deadline={tracker?.deadline} />
+                    </td>
                     <td className="p-2 md:p-4">
                       <span
                         className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(

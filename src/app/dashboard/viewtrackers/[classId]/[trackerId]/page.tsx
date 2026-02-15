@@ -19,9 +19,11 @@ import { useQuery } from "@tanstack/react-query";
 import { BellOutlined } from "@ant-design/icons";
 import {
   checkCertificateRequest,
+  fetchTrackers,
   fetchTeacherTrackerPoints,
   uploadCertificate,
 } from "@/services/trackersApi";
+import { DeadlineCountdown } from "@/components/common/DeadlineCountdown";
 
 interface Topic {
   id: number;
@@ -84,6 +86,7 @@ export default function ViewTrackerTopicPage() {
   const [hasCertificateRequest, setHasCertificateRequest] = useState(false);
 
   const [messageApi, contextHolder] = message.useMessage();
+  const [deadline, setDeadline] = useState<string | null>(null);
 
   const checkCertificate = async () => {
     if (!selectedStudentId) return;
@@ -162,6 +165,32 @@ export default function ViewTrackerTopicPage() {
   useEffect(() => {
     loadStudents();
   }, [classId]);
+
+  useEffect(() => {
+    if (!classId || !trackerId) return;
+    (async () => {
+      try {
+        const list = await fetchTrackers(Number(classId));
+        const match = list?.find((t: any) => {
+          const id = Number(t?.tracker_id ?? t?.id);
+          return id === Number(trackerId);
+        });
+        const d =
+          match?.tracker?.deadline ??
+          match?.tracker?.deadline_at ??
+          match?.tracker?.deadline_date ??
+          match?.tracker?.last_updated ??
+          match?.deadline ??
+          match?.deadline_at ??
+          match?.deadline_date ??
+          match?.last_updated ??
+          null;
+        setDeadline(d ? String(d).slice(0, 10) : null);
+      } catch {
+        setDeadline(null);
+      }
+    })();
+  }, [classId, trackerId]);
 
   const handleDragEnd = (result: any) => {
     if (!result.destination) return;
@@ -277,6 +306,11 @@ export default function ViewTrackerTopicPage() {
           <h1 className="text-2xl font-bold text-gray-900">
             {trackerData?.name || "Tracker Progress"}
           </h1>
+
+          <div className="text-sm text-gray-600">
+            <span className="mr-2 font-medium text-gray-700">Deadline:</span>
+            <DeadlineCountdown deadline={deadline} showDate />
+          </div>
 
           {trackerData?.claim_certificate !== 1 && (
             <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-lg px-5 py-3">

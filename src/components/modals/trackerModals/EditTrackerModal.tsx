@@ -37,7 +37,7 @@ export function EditTrackerModal({
     type: string;
     status: string;
     progress: string[];
-    lastUpdated?: string;
+    deadline?: string | null;
   };
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -47,7 +47,7 @@ export function EditTrackerModal({
     type: string;
     status: string;
     progress: string[];
-    lastUpdated?: string;
+    deadline?: string | null;
   }) => void;
 }) {
   const [form] = Form.useForm();
@@ -56,7 +56,7 @@ export function EditTrackerModal({
   useEffect(() => {
     form.setFieldsValue({
       ...initialTracker,
-      lastUpdated: initialTracker.lastUpdated ? dayjs(initialTracker.lastUpdated) : null,
+      deadline: initialTracker.deadline ? dayjs(initialTracker.deadline) : null,
     });
     setProgressOptions(initialTracker.progress);
   }, [initialTracker, form]);
@@ -66,7 +66,7 @@ export function EditTrackerModal({
     type: string;
     status: string;
     progress: string[];
-    lastUpdated?: dayjs.Dayjs;
+    deadline?: dayjs.Dayjs;
   }) => {
     onSave({
       ...initialTracker,
@@ -74,7 +74,7 @@ export function EditTrackerModal({
       type: "topic",
       status: "Active",
       progress: progressOptions,
-      lastUpdated: values.lastUpdated ? values.lastUpdated.format('YYYY-MM-DD') : new Date().toISOString().split('T')[0],
+      deadline: values.deadline ? values.deadline.format("YYYY-MM-DD") : null,
     });
   };
 
@@ -102,7 +102,7 @@ export function EditTrackerModal({
         onFinish={handleSubmit}
         initialValues={{
           ...initialTracker,
-          lastUpdated: initialTracker.lastUpdated ? dayjs(initialTracker.lastUpdated) : null,
+          deadline: initialTracker.deadline ? dayjs(initialTracker.deadline) : null,
         }}
       >
         <Form.Item
@@ -127,8 +127,8 @@ export function EditTrackerModal({
         </Form.Item>
 
         <Form.Item
-          label="Last Updated"
-          name="lastUpdated"
+          label="Deadline"
+          name="deadline"
         >
           <DatePicker format="YYYY-MM-DD" style={{ width: '100%' }} />
         </Form.Item>

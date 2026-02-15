@@ -36,6 +36,7 @@ export const addTracker = async (trackerData: {
   type: string;
   progress: string[];
   claim_certificate: boolean;
+  deadline?: string | null;
 }) => {
   const response = await api.post("/add-trackers", trackerData);
   return response.data;
@@ -48,6 +49,7 @@ export const updateTracker = async (
     name: string;
     type: string;
     progress: string[];
+    deadline?: string | null;
   }
 ) => {
   const response = await api.post(`/update-trackers/${id}`, trackerData);

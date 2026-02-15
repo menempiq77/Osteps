@@ -89,3 +89,49 @@ Server: DigitalOcean droplet (Ubuntu 24.04), Laravel backend at /var/www/laravel
 - This is CPU-only transcription using Faster-Whisper.
 - Endpoint accepts multipart file `file` or JSON `{ "url": "..." }`.
 - Only SCHOOL_ADMIN, HOD, TEACHER can access (role check in controller).
+
+## Trackers - Deadline + Countdown (frontend + backend)
+Date: 2026-02-15
+
+### Frontend changes
+- Replaced all "Last Updated" UI for trackers with a "Deadline" date.
+- Added a live countdown badge (Due / Overdue) on:
+  - `/dashboard/all_trackers` (admin)
+  - `/dashboard/trackers/[classId]` (students)
+  - `/dashboard/viewtrackers` (admin/teacher)
+  - Tracker detail pages show "Deadline" near the header as well.
+
+Files changed (frontend):
+- `src/components/modals/trackerModals/EditTrackerModal.tsx`
+- `src/components/modals/trackerModals/AddTrackerModal.tsx`
+- `src/components/dashboard/AllTrackerList.tsx`
+- `src/components/dashboard/TrackerList.tsx`
+- `src/components/dashboard/ViewTrackerList.tsx`
+- `src/app/dashboard/trackers/[classId]/[trackerId]/page.tsx`
+- `src/app/dashboard/viewtrackers/[classId]/[trackerId]/page.tsx`
+- `src/services/trackersApi.ts`
+- `src/components/common/DeadlineCountdown.tsx`
+
+### Backend requirements (Laravel)
+The frontend now sends/reads `deadline` (as `YYYY-MM-DD` string). To persist it, Laravel must:
+
+1. Add a nullable deadline column to `trackers` table, e.g.
+   - `deadline` (DATE) or `deadline_at` (DATETIME)
+
+2. Update tracker create/update endpoints to validate + save:
+   - `add-trackers` should accept `deadline` nullable
+   - `update-trackers/{id}` should accept `deadline` nullable
+
+3. Ensure tracker list endpoints include deadline in their response:
+   - `GET /get-school-trackers/{schoolId}`
+   - `GET /get-trackers/{classId}`
+
+Optional (if you want deadline on topics-progress payloads without extra calls):
+- Include deadline in:
+  - `GET /get-student-tracker-topics/{studentId}/{trackerId}`
+  - `GET /get-topics-progress/{trackerId}`
+
+### Notes
+- Frontend tries to read deadline from any of these keys (in order):
+  - `deadline`, `deadline_at`, `deadline_date`, `last_updated`
+- If the backend returns none of them, UI will show "No deadline".

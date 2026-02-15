@@ -16,8 +16,10 @@ import {
   addTopicMark,
 } from "@/services/api";
 import {
+  fetchTrackers,
   fetchStudentTrackerPoints,
 } from "@/services/trackersApi";
+import { DeadlineCountdown } from "@/components/common/DeadlineCountdown";
 
 interface Status {
   id: number;
@@ -95,11 +97,38 @@ export default function TrackerTopicsPage() {
   const [messageApi, contextHolder] = message.useMessage();
   const isStudent = currentUser?.role === "STUDENT";
   const currentStudentId = Number(currentUser?.student);
+  const [deadline, setDeadline] = useState<string | null>(null);
 
   useEffect(() => {
     if (!currentUser?.student || !trackerId) return;
     loadStudentTrackerData();
   }, [trackerId, currentUser?.student]);
+
+  useEffect(() => {
+    if (!classId || !trackerId) return;
+    (async () => {
+      try {
+        const list = await fetchTrackers(Number(classId));
+        const match = list?.find((t: any) => {
+          const id = Number(t?.tracker_id ?? t?.id);
+          return id === Number(trackerId);
+        });
+        const d =
+          match?.tracker?.deadline ??
+          match?.tracker?.deadline_at ??
+          match?.tracker?.deadline_date ??
+          match?.tracker?.last_updated ??
+          match?.deadline ??
+          match?.deadline_at ??
+          match?.deadline_date ??
+          match?.last_updated ??
+          null;
+        setDeadline(d ? String(d).slice(0, 10) : null);
+      } catch {
+        setDeadline(null);
+      }
+    })();
+  }, [classId, trackerId]);
 
 
   const loadStudentTrackerData = async (opts?: { showLoading?: boolean }) => {
@@ -273,6 +302,10 @@ export default function TrackerTopicsPage() {
           <ArrowLeft size={18} />
           Back to Trackers
         </Button>
+        <div className="mt-3 md:mt-0 text-sm text-gray-600">
+          <span className="mr-2 font-medium text-gray-700">Deadline:</span>
+          <DeadlineCountdown deadline={deadline} showDate />
+        </div>
       </div>
 
       <div className="bg-white rounded-md shadow-sm border border-gray-200 overflow-hidden">

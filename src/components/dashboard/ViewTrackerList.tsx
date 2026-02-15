@@ -9,6 +9,7 @@ import { fetchTrackers } from "@/services/trackersApi";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import Link from "next/link";
+import { DeadlineCountdown } from "@/components/common/DeadlineCountdown";
 
 type Tracker = {
   id: string;
@@ -17,7 +18,7 @@ type Tracker = {
   type: string;
   status: string;
   progress: string[];
-  lastUpdated?: string;
+  deadline?: string | null;
 };
 
 export default function TrackerList() {
@@ -46,7 +47,16 @@ export default function TrackerList() {
         data.map((tracker: any) => ({
           ...tracker,
           id: tracker.id.toString(),
-          lastUpdated: new Date().toISOString().split("T")[0],
+          deadline:
+            tracker?.tracker?.deadline ??
+            tracker?.tracker?.deadline_at ??
+            tracker?.tracker?.deadline_date ??
+            tracker?.tracker?.last_updated ??
+            tracker?.deadline ??
+            tracker?.deadline_at ??
+            tracker?.deadline_date ??
+            tracker?.last_updated ??
+            null,
         }))
       );
     } catch (err) {
@@ -230,7 +240,7 @@ const loadClasses = async (yearId: string) => {
                 </th>
                 <th className="p-2 md:p-4">
                   <span className="block py-2 px-3 border-r border-gray-300">
-                    Last Updated
+                    Deadline
                   </span>
                 </th>
                 <th className="p-2 md:p-4">
@@ -253,7 +263,9 @@ const loadClasses = async (yearId: string) => {
                     >
                       {tracker?.tracker?.name}
                     </td>
-                    <td className="p-2 md:p-4">{tracker.lastUpdated}</td>
+                    <td className="p-2 md:p-4">
+                      <DeadlineCountdown deadline={tracker.deadline} />
+                    </td>
                     <td className="p-2 md:p-4">
                       <span
                         className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(

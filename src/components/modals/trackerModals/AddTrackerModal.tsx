@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
-import { Modal, Select, Button, Form, Input, Checkbox } from "antd";
+import { Modal, Select, Button, Form, Input, Checkbox, DatePicker } from "antd";
+import dayjs from "dayjs";
 
 const trackerOptions = [
   { value: "recitation", label: "Recitation" },
@@ -23,6 +24,7 @@ export function AddTrackerModal({
     status: string;
     progress: string[];
     claim_certificate: boolean;
+    deadline?: string | null;
   }) => void;
 }) {
   const [form] = Form.useForm();
@@ -34,6 +36,7 @@ export function AddTrackerModal({
       status: values.status || "",
       progress: values.progress || [],
       claim_certificate: values.claim_certificate || false,
+      deadline: values.deadline ? dayjs(values.deadline).format("YYYY-MM-DD") : null,
     });
     form.resetFields();
   };
@@ -74,6 +77,10 @@ export function AddTrackerModal({
             placeholder="Select progress options"
             options={trackerOptions}
           />
+        </Form.Item>
+
+        <Form.Item label="Deadline" name="deadline">
+          <DatePicker format="YYYY-MM-DD" style={{ width: "100%" }} />
         </Form.Item>
 
         <Form.Item name="claim_certificate" valuePropName="checked">

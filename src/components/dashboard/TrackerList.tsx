@@ -14,6 +14,7 @@ import {
 import { FilePdfOutlined, TrophyOutlined } from "@ant-design/icons";
 import { IMG_BASE_URL } from "@/lib/config";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { DeadlineCountdown } from "@/components/common/DeadlineCountdown";
 
 type Tracker = {
   id: string;
@@ -22,12 +23,16 @@ type Tracker = {
   type?: string;
   status: string;
   progress: string[];
-  lastUpdated?: string;
+  deadline?: string | null;
   tracker_id: string;
   tracker: {
     claim_certificate: number;
     name: string;
     status: string;
+    deadline?: string | null;
+    deadline_at?: string | null;
+    deadline_date?: string | null;
+    last_updated?: string | null;
   };
 };
 
@@ -82,7 +87,12 @@ export default function TrackerList() {
           ...tracker,
           id: tracker.id.toString(),
           tracker_id: tracker.tracker_id.toString(),
-          lastUpdated: new Date().toISOString().split("T")[0],
+          deadline:
+            tracker?.tracker?.deadline ??
+            tracker?.tracker?.deadline_at ??
+            tracker?.tracker?.deadline_date ??
+            tracker?.tracker?.last_updated ??
+            null,
         }))
       );
       queryClient.invalidateQueries({
@@ -189,7 +199,7 @@ export default function TrackerList() {
                 </th>
                 <th className="p-2 md:p-4">
                   <span className="block py-2 px-3 border-r border-gray-300">
-                    Last Updated
+                    Deadline
                   </span>
                 </th>
                 <th className="p-2 md:p-4">
@@ -221,7 +231,9 @@ export default function TrackerList() {
                     >
                       {tracker?.tracker?.name}
                     </td>
-                    <td className="p-2 md:p-4">{tracker.lastUpdated}</td>
+                    <td className="p-2 md:p-4">
+                      <DeadlineCountdown deadline={tracker.deadline} />
+                    </td>
                     <td className="p-2 md:p-4">
                       <span
                         className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
