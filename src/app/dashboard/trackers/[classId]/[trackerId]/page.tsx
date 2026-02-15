@@ -90,6 +90,7 @@ export default function TrackerTopicsPage() {
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
   const [marks, setMarks] = useState("");
   const [savingMarks, setSavingMarks] = useState(false);
+  const [lastMarksSavedAt, setLastMarksSavedAt] = useState<number>(0);
 
   const [messageApi, contextHolder] = message.useMessage();
   const isStudent = currentUser?.role === "STUDENT";
@@ -172,6 +173,9 @@ export default function TrackerTopicsPage() {
   };
 
   const handleEnterMarks = (topic: Topic) => {
+    // Prevent "click-through" where the modal closes and the same click hits the
+    // underlying button, instantly reopening the modal.
+    if (Date.now() - lastMarksSavedAt < 600) return;
     setSelectedTopic(topic);
     const existing =
       topic.topic_mark?.find((m) => Number(m.student_id) === currentStudentId)
@@ -225,6 +229,8 @@ export default function TrackerTopicsPage() {
         );
         setMarkModal(false);
         setMarks("");
+        setSelectedTopic(null);
+        setLastMarksSavedAt(Date.now());
 
         await Promise.all([
           loadStudentTrackerData({ showLoading: false }),
