@@ -92,6 +92,7 @@ export default function TrackerTopicsPage() {
 
   const [messageApi, contextHolder] = message.useMessage();
   const isStudent = currentUser?.role === "STUDENT";
+  const currentStudentId = Number(currentUser?.student);
 
   useEffect(() => {
     if (!currentUser?.student || !trackerId) return;
@@ -171,7 +172,7 @@ export default function TrackerTopicsPage() {
   const handleEnterMarks = (topic: Topic) => {
     setSelectedTopic(topic);
     const existing =
-      topic.topic_mark?.find((m) => m.student_id === currentUser?.student)
+      topic.topic_mark?.find((m) => Number(m.student_id) === currentStudentId)
         ?.marks ?? null;
     setMarks(existing === null || existing === undefined ? "" : String(existing));
     setMarkModal(true);
@@ -202,7 +203,7 @@ export default function TrackerTopicsPage() {
           return;
         }
 
-        if (!currentUser?.student) {
+        if (!Number.isFinite(currentStudentId) || currentStudentId <= 0) {
           messageApi.error("Student profile not found");
           return;
         }
@@ -210,7 +211,7 @@ export default function TrackerTopicsPage() {
         await addTopicMark(
           selectedTopic.id,
           marksValue,
-          Number(currentUser.student),
+          currentStudentId,
           Number(trackerId),
           classId ? Number(classId) : undefined
         );
@@ -436,11 +437,11 @@ export default function TrackerTopicsPage() {
                           {topic.type === "quiz"
                             ? topic.quiz?.submissions?.find(
                                 (s) =>
-                                  s.student_id === currentUser?.student &&
+                                  Number(s.student_id) === currentStudentId &&
                                   s.type === "tracker"
                               )?.obtained_marks || "0"
                             : topic.topic_mark?.find(
-                                (m) => m.student_id === currentUser?.student
+                                (m) => Number(m.student_id) === currentStudentId
                               )?.marks || "0"}
                           /{" "}
                           {topic?.marks || topic?.quiz?.total_marks || "0"}

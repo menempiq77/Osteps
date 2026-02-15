@@ -482,7 +482,9 @@ export default function ViewTrackerTopicPage() {
                                         s.type === "tracker"
                                     )?.obtained_marks || "0"
                                   : topic.topic_mark?.find(
-                                      (m) => m.student_id === selectedStudentId
+                                      (m) =>
+                                        Number(m.student_id) ===
+                                        Number(selectedStudentId)
                                     )?.marks || "0"}
                                 /{" "}
                                 {topic?.marks ||
