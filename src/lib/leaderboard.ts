@@ -1,7 +1,18 @@
 export type LeaderboardRawEntry = {
-  student_id: number | string;
+  student_id?: number | string;
   student_name?: string;
   total_marks?: number | null;
+  name?: string;
+  id?: number | string;
+  student?: {
+    id?: number | string;
+    student_id?: number | string;
+    student_name?: string;
+    name?: string;
+    user?: {
+      name?: string;
+    };
+  };
 };
 
 export type LeaderboardRow = {
@@ -27,15 +38,36 @@ const toKey = (value: unknown): string => {
   return String(value);
 };
 
+export const resolveStudentId = (entry: LeaderboardRawEntry): string => {
+  const rawId =
+    entry?.student_id ??
+    entry?.id ??
+    entry?.student?.student_id ??
+    entry?.student?.id ??
+    null;
+  return toKey(rawId);
+};
+
+export const resolveStudentName = (entry: LeaderboardRawEntry): string => {
+  return (
+    entry?.student_name ??
+    entry?.name ??
+    entry?.student?.student_name ??
+    entry?.student?.name ??
+    entry?.student?.user?.name ??
+    ""
+  );
+};
+
 export const mergeAndRankLeaderboards = (leaderboards: LeaderboardRawEntry[][]): LeaderboardRow[] => {
   const map = new Map<string, { name: string; points: number }>();
 
   for (const entries of leaderboards) {
     for (const entry of entries ?? []) {
-      const key = toKey(entry?.student_id);
+      const key = resolveStudentId(entry);
       if (!key) continue;
 
-      const name = entry?.student_name ?? "";
+      const name = resolveStudentName(entry);
       const points = toNumber(entry?.total_marks);
 
       const existing = map.get(key);

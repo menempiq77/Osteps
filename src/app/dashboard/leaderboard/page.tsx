@@ -32,6 +32,8 @@ import { fetchStudentProfileData, fetchStudents } from "@/services/studentsApi";
 import {
   mergeAndRankLeaderboards,
   mapWithConcurrency,
+  resolveStudentId,
+  resolveStudentName,
   type LeaderboardRow,
 } from "@/lib/leaderboard";
 
@@ -432,38 +434,46 @@ const LeaderBoard = () => {
   }
 
   const classLeaderboardRows: LeaderboardRow[] =
-    classLeaderboardResponse?.data?.map((student: any, index: number) => ({
-      key: student.student_id.toString(),
-      rank: index + 1,
-      name: student.student_name,
-      avatar: student.student_name?.charAt(0).toUpperCase() || "?",
-      points: student.total_marks || 0,
-      badge:
-        index === 0
-          ? "gold"
-          : index === 1
-          ? "silver"
-          : index === 2
-          ? "bronze"
-          : null,
-    })) || [];
+    classLeaderboardResponse?.data?.map((student: any, index: number) => {
+      const name = resolveStudentName(student) || "Unknown";
+      const key = resolveStudentId(student) || `row-${index}`;
+      return {
+        key,
+        rank: index + 1,
+        name,
+        avatar: name?.charAt(0).toUpperCase() || "?",
+        points: student?.total_marks || 0,
+        badge:
+          index === 0
+            ? "gold"
+            : index === 1
+            ? "silver"
+            : index === 2
+            ? "bronze"
+            : null,
+      };
+    }) || [];
 
   const studentClassLeaderboardRows: LeaderboardRow[] =
-    studentClassLeaderboardResponse?.data?.map((student: any, index: number) => ({
-      key: student.student_id.toString(),
-      rank: index + 1,
-      name: student.student_name,
-      avatar: student.student_name?.charAt(0).toUpperCase() || "?",
-      points: student.total_marks || 0,
-      badge:
-        index === 0
-          ? "gold"
-          : index === 1
-          ? "silver"
-          : index === 2
-          ? "bronze"
-          : null,
-    })) || [];
+    studentClassLeaderboardResponse?.data?.map((student: any, index: number) => {
+      const name = resolveStudentName(student) || "Unknown";
+      const key = resolveStudentId(student) || `row-${index}`;
+      return {
+        key,
+        rank: index + 1,
+        name,
+        avatar: name?.charAt(0).toUpperCase() || "?",
+        points: student?.total_marks || 0,
+        badge:
+          index === 0
+            ? "gold"
+            : index === 1
+            ? "silver"
+            : index === 2
+            ? "bronze"
+            : null,
+      };
+    }) || [];
 
   // Show all rows (no load-more) as requested
   const visibleStudents = classLeaderboardRows;

@@ -21,31 +21,54 @@ export default function LoginPage() {
     }
   }, [currentUser, router]);
 
+  // Apply theme colors on mount
+  useEffect(() => {
+    const root = document.documentElement;
+    const THEMES = {
+      green: {
+        primary: "#38C16C",
+        soft: "#eef9f2",
+        soft2: "#dff3e7",
+        border: "#b9e2cd",
+        dark: "#2f8f5b",
+        shadow: "rgba(22, 101, 52, 0.35)",
+        scrollStart: "#34d399",
+        scrollEnd: "#16a34a",
+      },
+    };
+    const theme = THEMES.green;
+    root.style.setProperty("--primary", theme.primary);
+    root.style.setProperty("--theme-soft", theme.soft);
+    root.style.setProperty("--theme-soft-2", theme.soft2);
+    root.style.setProperty("--theme-border", theme.border);
+    root.style.setProperty("--theme-dark", theme.dark);
+    root.style.setProperty("--theme-shadow", theme.shadow);
+    root.style.setProperty("--theme-scroll-start", theme.scrollStart);
+    root.style.setProperty("--theme-scroll-end", theme.scrollEnd);
+  }, []);
+
   const onFinish = async (values: { login: string; password: string }) => {
     await dispatch(login(values));
   };
 
   return (
-    <div className="min-h-screen overflow-hidden font-['Raleway']">
-      <div className="w-full min-h-screen bg-[#f5f5f5] shadow-xl z-10 flex overflow-hidden border-none">
+    <div className="min-h-[100dvh] bg-white font-['Raleway']">
+      <div className="mx-auto flex min-h-[100dvh] w-full">
         {/* Left side - Form */}
-        <div className="w-full md:w-1/2 p-8 flex items-center justify-center">
-          <div
-            className="max-w-md w-full bg-white py-4 px-4 md:px-8 rounded-[26px] border border-[#C6C5D0] flex flex-col items-center justify-start"
-            style={{ boxShadow: "0px 2px 16px 0px #90909A1F" }}
-          >
-            <div className="w-full flex items-center justify-center">
+        <div className="flex w-full items-center justify-center px-4 py-8 md:w-2/5 md:px-8 md:py-0 bg-white">
+          <div className="w-full max-w-sm">
+            <div className="w-full flex items-center justify-center mb-8">
               <Image
                 src={Logo}
                 alt="Company Logo"
-                width={50}
-                height={50}
-                className="h-28 rounded-full w-auto"
+                width={80}
+                height={80}
+                className="w-24 h-24 rounded-full"
                 priority
               />
             </div>
 
-            <div className="mt-8 w-full">
+            <div className="w-full">
               <Form layout="vertical" onFinish={onFinish}>
                 <Form.Item
                   label="Email Or Username"
@@ -54,11 +77,11 @@ export default function LoginPage() {
                     { type: "text", message: "Invalid email address or username" },
                     { required: true, message: "Please input your email or username" },
                   ]}
-                  className="[&_.ant-form-item-label>label]:!text-[16px] [&_.ant-form-item-label>label]:font-['Raleway'] !mb-4"
+                  className="[&_.ant-form-item-label>label]:!text-sm [&_.ant-form-item-label>label]:text-gray-700 [&_.ant-form-item-label>label]:font-['Raleway'] !mb-4"
                 >
                   <Input
                     placeholder="Enter your email or username"
-                    className="focus:!border-green-500 hover:!border-green-400 font-['Raleway'] !px-[16px] !py-[14px]"
+                    className="!px-4 !py-2.5 font-['Raleway'] focus:!border-green-600 hover:!border-green-600 !rounded-lg"
                     size="large"
                   />
                 </Form.Item>
@@ -76,33 +99,33 @@ export default function LoginPage() {
                   extra={
                     <a
                       href="#"
-                      className="float-right text-sm !text-green-600 hover:!text-green-500 font-['Raleway']"
+                      className="float-right text-xs !text-green-600 hover:!text-green-700 font-['Raleway']"
                     >
                       Forgot password?
                     </a>
                   }
-                  className="[&_.ant-form-item-label>label]:!text-[16px] [&_.ant-form-item-label>label]:font-['Raleway']"
+                  className="[&_.ant-form-item-label>label]:!text-sm [&_.ant-form-item-label>label]:text-gray-700 [&_.ant-form-item-label>label]:font-['Raleway']"
                 >
                   <Input.Password
                     placeholder="Enter your password"
-                    className="focus:!border-green-500 hover:!border-green-400 font-['Raleway'] !px-[16px] !py-[14px]"
+                    className="!px-4 !py-2.5 font-['Raleway'] focus:!border-green-600 hover:!border-green-600 !rounded-lg"
                     size="large"
                   />
                 </Form.Item>
 
-                <Form.Item>
+                <Form.Item className="!mb-0 mt-6">
                   <Button
                     type="primary"
                     htmlType="submit"
                     loading={status === 'loading'}
-                    className="!bg-green-600 hover:!bg-green-700 w-full text-white !text-[16px] !font-semibold !h-[49px] !rounded-[66px] shadow-sm font-['Raleway']"
+                    className="!bg-green-600 hover:!bg-green-700 w-full !text-white !text-base !font-semibold !h-12 !rounded-full shadow-sm font-['Raleway']"
                   >
                     {status === 'loading' ? "Signing in..." : "Sign In"}
                   </Button>
                 </Form.Item>
 
                 {error && (
-                  <div className="text-red-500 text-center mt-4 font-['Raleway']">
+                  <div className="text-red-500 text-center text-sm mt-4 font-['Raleway']">
                     {error}
                   </div>
                 )}
@@ -112,17 +135,15 @@ export default function LoginPage() {
         </div>
 
         {/* Right side - Image */}
-        <div className="hidden md:block md:w-1/2 bg-gradient-to-br from-green-400 to-emerald-600 relative">
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Image
-              src={LoginImg}
-              alt="Authentication Illustration"
-              width={400}
-              height={400}
-              className="w-full h-full object-cover"
-              priority
-            />
-          </div>
+        <div className="relative hidden w-3/5 overflow-hidden bg-gray-100 md:block">
+          <Image
+            src={LoginImg}
+            alt="Authentication Illustration"
+            width={800}
+            height={800}
+            className="w-full h-full object-cover"
+            priority
+          />
         </div>
       </div>
     </div>

@@ -1,6 +1,5 @@
 // src/services/api.ts
 import axios from 'axios';
-import { store } from '@/store/store';
 import { API_BASE_URL } from '@/lib/config';
 
 const api = axios.create({
@@ -8,7 +7,8 @@ const api = axios.create({
 });
 
 // Request interceptor to add auth token
-api.interceptors.request.use((config) => {
+api.interceptors.request.use(async (config) => {
+  const { store } = await import("@/store/store");
   const token = store.getState().auth.token;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -46,12 +46,12 @@ export const loginUser = async (login: string, password: string) => {
 // fetch Assessment
 export const fetchAssessment = async (termId: number) => {
   const response = await api.get(`/get-assessment/${termId}`);
-  return response.data.data;
+  return response.data.data ?? [];
 };
 
 export const fetchSchoolAssessment = async (schoolId: number) => {
   const response = await api.get(`/get-school-assessments/${schoolId}`);
-  return response.data.data;
+  return response.data.data ?? [];
 };
 
 // reorder Assessment
@@ -65,7 +65,7 @@ export const reorderAssessments = async (orders: { id: number; position: number 
 // fetch Assessment By Students
 export const fetchAssessmentByStudent = async (termId: number) => {
   const response = await api.get(`/get-student-assessment/${termId}`);
-  return response.data.data;
+  return response.data.data ?? [];
 };
 // add Assessment
 export const addAssessment = async (assessmentData: { name: string }) => {
@@ -111,11 +111,11 @@ export const unassignAssessmentFromTerm = async (assesmentId: number, termId: nu
 // fetch Tasks
 export const fetchTasks = async (assessmentId: number) => {
   const response = await api.get(`/get-tasks/${assessmentId}`);
-  return response.data.data;
+  return response.data.data ?? [];
 };
 export const fetchStudentTasks = async (assessmentId: number) => {
   const response = await api.get(`/get-student-assessment-tasks/${assessmentId}`);
-  return response.data.data;
+  return response.data.data ?? [];
 };
 // add Task
 export const addTask = async (formData: FormData) => {
@@ -178,12 +178,12 @@ export const markUrlTaskAsComplete = async (taskId: number) => {
 // fetch trackers topic
 export const fetchTrackerTopics = async (trackerId: number) => {
   const response = await api.get(`/get-topics-progress/${trackerId}`);
-  return response.data.data;
+  return response.data.data ?? [];
 };
 // fetch trackers topic
 export const fetchTrackerStudentTopics = async (studentId: number, trackerId: number) => {
   const response = await api.get(`/get-student-tracker-topics/${studentId}/${trackerId}`);
-  return response.data.data;
+  return response.data.data ?? [];
 };
 
 // reorder TrackerTopics
@@ -258,7 +258,7 @@ export const addTopicMark = async (
 // fetch School logo
 export const fetchSchoolLogo = async () => {
   const response = await api.get(`/get-logo`);
-  return response.data.data;
+  return response.data.data ?? null;
 };
 
 export default api;
