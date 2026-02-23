@@ -1,0 +1,125 @@
+========================================
+DEADLINE FEATURE - SERVER SETUP GUIDE
+========================================
+
+Run these commands on your server (cd /var/www/laravel first):
+
+STEP 1: Create the migration file
+================================
+1. Copy the migration file from your local tmp folder:
+   2026_02_16_000000_add_deadline_to_trackers_table.php
+   
+2. Place it in: database/migrations/
+
+   On server, you can create it directly:
+   cat > database/migrations/2026_02_16_000000_add_deadline_to_trackers_table.php << 'EOF'
+   <?php
+
+   use Illuminate\Database\Migrations\Migration;
+   use Illuminate\Database\Schema\Blueprint;
+   use Illuminate\Support\Facades\Schema;
+
+   class AddDeadlineToTrackersTable extends Migration
+   {
+       public function up()
+       {
+           Schema::table('trackers', function (Blueprint $table) {
+               $table->date('deadline')->nullable()->after('points');
+           });
+       }
+
+       public function down()
+       {
+           Schema::table('trackers', function (Blueprint $table) {
+               $table->dropColumn('deadline');
+           });
+       }
+   }
+   EOF
+
+STEP 2: Update the Tracker Model
+================================
+File: app/Models/Tracker.php
+
+Update the $fillable array to include 'deadline':
+
+protected $fillable = [
+    // 'class_id',
+    'school_id',
+    'name',
+    'type',
+    'position',
+    'progress',
+    'status',
+    'claim_certificate',
+    'points',
+    'deadline'  // <-- ADD THIS
+];
+
+(Optional) Add cast for the deadline field:
+protected $casts = [
+    'deadline' => 'date',
+];
+
+STEP 3: Update Request Validation Classes
+==========================================
+Check these files and add deadline validation if needed:
+
+1. Find StoreRequest:
+   grep -r "StoreRequest" app/Http/Requests/
+
+2. Find UpdateRequest:
+   grep -r "UpdateRequest" app/Http/Requests/
+
+Add to the rules() method of BOTH files:
+    'deadline' => 'nullable|date_format:Y-m-d',
+
+Example:
+    public function rules()
+    {
+        return [
+            'school_id' => 'required|exists:schools,id',
+            'name' => 'required|string|max:255',
+            'type' => 'nullable|string',
+            'position' => 'nullable|integer',
+            'progress' => 'nullable|array',
+            'status' => 'nullable|string',
+            'claim_certificate' => 'nullable|boolean',
+            'points' => 'nullable|numeric',
+            'deadline' => 'nullable|date_format:Y-m-d',  // <-- ADD THIS
+        ];
+    }
+
+STEP 4: Run the Migration
+========================
+php artisan migrate
+
+STEP 5: Verify the deadline column was added
+============================================
+php artisan tinker
+> Schema::getColumnListing('trackers')
+
+You should see 'deadline' in the list.
+
+STEP 6: Test the API
+====================
+Test adding a tracker with deadline:
+POST /add-trackers
+{
+    "school_id": 1,
+    "name": "Test Tracker",
+    "type": "topic",
+    "progress": ["started", "completed"],
+    "status": "Active",
+    "claim_certificate": false,
+    "deadline": "2026-03-31"
+}
+
+Test updating a tracker with deadline:
+POST /update-trackers/{id}
+{
+    "name": "Updated Tracker",
+    "deadline": "2026-04-15"
+}
+
+========================================
