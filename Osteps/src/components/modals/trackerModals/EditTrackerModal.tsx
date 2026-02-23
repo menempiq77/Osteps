@@ -3,12 +3,20 @@ import { useState, useEffect } from "react";
 import { Modal, Select, Button, Form, Input, DatePicker } from "antd";
 import dayjs from "dayjs";
 
+const normalizeProgressOption = (value: string) =>
+  value
+    .replace(/\p{Extended_Pictographic}/gu, "")
+    .replace(/[\uFE0F\u200D]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toUpperCase();
+
 const trackerOptions = [
-  { value: "recitation", label: "Recitation" },
-  { value: "memorization", label: "Memorization" },
-  { value: "tafsir", label: "Tafsir" },
-  { value: "studied", label: "Studied" },
-  { value: "recall", label: "Recall" },
+  { value: "RECITATION", label: "RECITATION" },
+  { value: "MEMORIZATION", label: "MEMORIZATION" },
+  { value: "TAFSIR", label: "TAFSIR" },
+  { value: "STUDIED", label: "STUDIED" },
+  { value: "RECALL", label: "RECALL" },
 ];
 
 const typeOptions = [
@@ -51,14 +59,23 @@ export function EditTrackerModal({
   }) => void;
 }) {
   const [form] = Form.useForm();
-  const [progressOptions, setProgressOptions] = useState<string[]>(initialTracker.progress);
+  const [progressOptions, setProgressOptions] = useState<string[]>(
+    (initialTracker.progress || []).map(normalizeProgressOption).filter(Boolean)
+  );
 
   useEffect(() => {
     form.setFieldsValue({
       ...initialTracker,
+      progress: (initialTracker.progress || [])
+        .map(normalizeProgressOption)
+        .filter(Boolean),
       deadline: initialTracker.deadline ? dayjs(initialTracker.deadline) : null,
     });
-    setProgressOptions(initialTracker.progress);
+    setProgressOptions(
+      (initialTracker.progress || [])
+        .map(normalizeProgressOption)
+        .filter(Boolean)
+    );
   }, [initialTracker, form]);
 
   const handleSubmit = (values: {
@@ -73,19 +90,23 @@ export function EditTrackerModal({
       name: values.name,
       type: "topic",
       status: "Active",
-      progress: progressOptions,
+      progress: progressOptions.map(normalizeProgressOption).filter(Boolean),
       deadline: values.deadline ? values.deadline.format("YYYY-MM-DD") : null,
     });
   };
 
   const handleOptionsChange = (value: string[]) => {
-    setProgressOptions(value);
+    setProgressOptions(value.map(normalizeProgressOption).filter(Boolean));
   };
 
   const handleCancel = () => {
     onOpenChange(false);
     form.resetFields();
-    setProgressOptions(initialTracker.progress);
+    setProgressOptions(
+      (initialTracker.progress || [])
+        .map(normalizeProgressOption)
+        .filter(Boolean)
+    );
   };
 
   return (

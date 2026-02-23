@@ -3,9 +3,6 @@ import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
-  BookOpen,
-  BrainCircuit,
-  Languages,
 } from "lucide-react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
@@ -73,6 +70,14 @@ interface TrackerData {
   type: string;
   topics: Topic[];
 }
+
+const normalizeProgressOption = (value: string) =>
+  String(value || "")
+    .replace(/\p{Extended_Pictographic}/gu, "")
+    .replace(/[\uFE0F\u200D]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toUpperCase();
 
 export default function TrackerTopicsPage() {
   const { trackerId, classId } = useParams();
@@ -260,7 +265,7 @@ export default function TrackerTopicsPage() {
   const handleSubmitMarks = async () => {
       if (savingMarks) return;
       if (!marks) {
-        messageApi.warning("Please enter marks");
+        messageApi.warning("Please enter points");
         return;
       }
   
@@ -273,7 +278,7 @@ export default function TrackerTopicsPage() {
         setSavingMarks(true);
         const marksValue = Number(marks);
         if (isNaN(marksValue)) {
-          messageApi.warning("Please enter valid marks");
+          messageApi.warning("Please enter valid points");
           return;
         }
   
@@ -281,7 +286,7 @@ export default function TrackerTopicsPage() {
         const maxMarks = selectedTopic.marks ? Number(selectedTopic.marks) : 100;
   
         if (marksValue > maxMarks) {
-          messageApi.warning(`Marks cannot exceed ${maxMarks}`);
+          messageApi.warning(`Points cannot exceed ${maxMarks}`);
           return;
         }
 
@@ -312,7 +317,7 @@ export default function TrackerTopicsPage() {
         ]);
       } catch (error: any) {
         const errorMessage =
-          error?.response?.data?.message || "Failed to save marks";
+          error?.response?.data?.message || "Failed to save points";
         messageApi.error(errorMessage);
         console.error("Error saving marks:", error);
       } finally {
@@ -399,21 +404,8 @@ export default function TrackerTopicsPage() {
                     key={index}
                     className="p-4 text-center text-sm font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200"
                   >
-                    <div className="flex items-center justify-center gap-1">
-                      {statusName === "memorization" ? (
-                        <BrainCircuit
-                          size={16}
-                          className="text-blue-500"
-                        />
-                      ) : statusName === "Recall" ? (
-                        <BookOpen size={16} className="text-green-500" />
-                      ) : (
-                        <Languages
-                          size={16}
-                          className="text-purple-500"
-                        />
-                      )}
-                      <span className="capitalize">{statusName}</span>
+                    <div className="flex items-center justify-center">
+                      <span>{normalizeProgressOption(statusName)}</span>
                     </div>
                   </th>
                 ))}
@@ -553,7 +545,7 @@ export default function TrackerTopicsPage() {
                               }
                               onClick={() => handleEnterMarks(topic)}
                             >
-                              Enter Marks
+                              Enter Points
                             </Button>
                           )}
                       </td>
@@ -578,13 +570,13 @@ export default function TrackerTopicsPage() {
         </div>
       </div>
 
-      {/* Marks Modal */}
+      {/* Points Modal */}
         <Modal
-          title={`Enter Marks (Max: ${selectedTopic?.marks || 100})`}
+          title={`Enter Points (Max: ${selectedTopic?.marks || 100})`}
           open={markModal}
           onOk={handleSubmitMarks}
           onCancel={() => setMarkModal(false)}
-          okText="Save Marks"
+          okText="Save Points"
           okButtonProps={{
             className: "!bg-primary !text-white",
             loading: savingMarks,
@@ -596,7 +588,7 @@ export default function TrackerTopicsPage() {
             <Input
               name="marks"
               type="number"
-              placeholder={`Enter marks (0-${selectedTopic?.marks || 100})`}
+              placeholder={`Enter points (0-${selectedTopic?.marks || 100})`}
               min={0}
               max={selectedTopic?.marks || 100}
               value={marks}

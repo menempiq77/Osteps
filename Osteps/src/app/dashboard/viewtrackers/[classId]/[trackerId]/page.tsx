@@ -394,9 +394,7 @@ export default function ViewTrackerTopicPage() {
                           className="p-4 text-center text-sm font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200"
                         >
                           <div className="flex items-center justify-center gap-1">
-                            <span className="capitalize">
-                              {statusName || ""}
-                            </span>
+                            <span>{String(statusName || "").toUpperCase()}</span>
                           </div>
                         </th>
                       ))}

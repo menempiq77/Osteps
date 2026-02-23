@@ -43,9 +43,9 @@ import { IMG_BASE_URL } from "@/lib/config";
 import { useRouter } from "next/navigation";
 
 // Custom theme colors
-const THEME_COLOR = "#38C16C";
-const THEME_COLOR_LIGHT = "#E8F5E9";
-const THEME_COLOR_DARK = "#2E7D32";
+const THEME_COLOR = "var(--primary)";
+const THEME_COLOR_LIGHT = "var(--theme-soft)";
+const THEME_COLOR_DARK = "var(--theme-dark)";
 
 export default function DashboardPage() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
@@ -420,9 +420,9 @@ export default function DashboardPage() {
 
   const COLORS = [
     THEME_COLOR,
-    "#81C784",
-    "#4CAF50",
-    "#388E3C",
+    "color-mix(in srgb, var(--primary) 75%, white)",
+    "color-mix(in srgb, var(--primary) 55%, white)",
+    "color-mix(in srgb, var(--primary) 35%, black)",
     THEME_COLOR_DARK,
   ];
 

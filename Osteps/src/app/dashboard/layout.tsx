@@ -167,7 +167,7 @@ export default function DashboardLayout({
   const shouldApplyMaxWidth = !pathname.startsWith("/dashboard/students/reports");
 
   return (
-    <div className="min-h-screen bg-[#FAF9F6] flex">
+    <div className="dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] flex">
       <Sidebar />
 
       <div className="flex-1 h-screen overflow-y-auto relative">
@@ -179,7 +179,7 @@ export default function DashboardLayout({
         <div
           className={`mx-auto ${shouldApplyMaxWidth ? "max-w-7xl p-3 md:p-6" : ""}`}
         >
-          <div className="mb-4 rounded-xl border border-[#d9ece2] bg-white px-3 py-2 md:px-4 md:py-3">
+          <div className="mb-4 rounded-xl border border-[var(--theme-border)] bg-white px-3 py-2 md:px-4 md:py-3">
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
               <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500">
                 {breadcrumbItems.map((item, index) => {
@@ -250,6 +250,24 @@ export default function DashboardLayout({
         </div>
       </div>
       <style jsx global>{`
+        .dashboard-theme-scope [class*="text-green-"] {
+          color: var(--theme-dark) !important;
+        }
+        .dashboard-theme-scope [class*="bg-green-50"] {
+          background-color: color-mix(in srgb, var(--primary) 12%, white) !important;
+        }
+        .dashboard-theme-scope [class*="bg-green-100"] {
+          background-color: color-mix(in srgb, var(--primary) 20%, white) !important;
+        }
+        .dashboard-theme-scope [class*="border-green-"] {
+          border-color: color-mix(in srgb, var(--primary) 45%, white) !important;
+        }
+        .dashboard-theme-scope [class*="hover:text-green-"]:hover {
+          color: var(--theme-dark) !important;
+        }
+        .dashboard-theme-scope [class*="hover:bg-green-"]:hover {
+          background-color: color-mix(in srgb, var(--primary) 20%, white) !important;
+        }
         .dashboard-route-transition {
           animation: dashboardRouteSwap 420ms cubic-bezier(0.22, 1, 0.36, 1);
           transform-origin: top center;

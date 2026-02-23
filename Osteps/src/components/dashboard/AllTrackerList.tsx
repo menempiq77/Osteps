@@ -201,7 +201,7 @@ export default function AllTrackerList() {
           <>
             <Button
               type="primary"
-              className="premium-pill-btn cursor-pointer !bg-primary !text-white"
+              className="premium-pill-btn cursor-pointer !bg-[#38C16C] !border-[#38C16C] !text-white hover:!bg-[#32ad5f] hover:!border-[#32ad5f]"
               icon={<PlusOutlined />}
               onClick={() => setIsAddTrackerModalOpen(true)}
             >

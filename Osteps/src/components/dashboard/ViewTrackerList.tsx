@@ -19,6 +19,14 @@ type Tracker = {
   status: string;
   progress: string[];
   deadline?: string | null;
+  tracker?: {
+    id?: number | string;
+    name?: string;
+    status?: string;
+  };
+  tracker_id?: number | string;
+  trackerName?: string;
+  trackerStatus?: string;
 };
 
 export default function TrackerList() {
@@ -47,6 +55,8 @@ export default function TrackerList() {
         data.map((tracker: any) => ({
           ...tracker,
           id: tracker.id.toString(),
+          trackerName: tracker?.tracker?.name ?? tracker?.name ?? "Untitled Tracker",
+          trackerStatus: tracker?.tracker?.status ?? tracker?.status ?? "pending",
           deadline:
             tracker?.tracker?.deadline ??
             tracker?.tracker?.deadline_at ??
@@ -157,17 +167,17 @@ const loadClasses = async (yearId: string) => {
   }, [selectedClass]);
 
   const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
+    switch ((status || "").toLowerCase()) {
       case "active":
-        return "bg-green-100 text-green-800";
+        return "bg-emerald-100 text-emerald-800 border border-emerald-200";
       case "paused":
-        return "bg-yellow-100 text-yellow-800";
+        return "bg-amber-100 text-amber-800 border border-amber-200";
       case "completed":
-        return "bg-blue-100 text-blue-800";
+        return "bg-sky-100 text-sky-800 border border-sky-200";
       case "pending":
-        return "bg-gray-100 text-gray-800";
+        return "bg-slate-100 text-slate-700 border border-slate-200";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-slate-100 text-slate-700 border border-slate-200";
     }
   };
 
@@ -232,7 +242,7 @@ const loadClasses = async (yearId: string) => {
         <div className="overflow-x-auto rounded-lg">
           <table className="premium-table min-w-full bg-white border border-gray-300 mb-20">
             <thead>
-              <tr className="bg-gray-50 text-center text-xs md:text-sm font-semibold text-gray-700">
+              <tr className="bg-emerald-50 text-center text-xs md:text-sm font-semibold text-slate-700">
                 <th className="p-2 md:p-4">
                   <span className="block py-2 px-3 border-r border-gray-300">
                     Tracker Name
@@ -253,26 +263,28 @@ const loadClasses = async (yearId: string) => {
                 trackers.map((tracker) => (
                   <tr
                     key={tracker.id}
-                    className="border-b border-gray-300 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
+                    className="border-b border-gray-300 text-xs md:text-sm text-center text-gray-800 hover:bg-emerald-50 even:bg-emerald-50/40 odd:bg-white"
                   >
                     <td
                       onClick={() =>
-                        handleTrackerClick(tracker.tracker_id, tracker.type)
+                        handleTrackerClick(String(tracker.tracker_id ?? tracker.id))
                       }
-                      className="p-2 md:p-4 cursor-pointer hover:underline text-green-600 hover:text-green-800 font-medium"
+                      className="p-2 md:p-4 cursor-pointer hover:underline text-black hover:text-black font-semibold"
                     >
-                      {tracker?.tracker?.name}
+                      <span className="inline-block max-w-[92%] truncate">
+                        {tracker.trackerName}
+                      </span>
                     </td>
-                    <td className="p-2 md:p-4">
+                    <td className="p-2 md:p-4 text-black" dir="ltr">
                       <DeadlineCountdown deadline={tracker.deadline} />
                     </td>
                     <td className="p-2 md:p-4">
                       <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                          tracker.status
+                        className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${getStatusColor(
+                          tracker.trackerStatus || tracker.status
                         )}`}
                       >
-                        {tracker?.tracker?.status}
+                        {tracker.trackerStatus || tracker.status}
                       </span>
                     </td>
                   </tr>

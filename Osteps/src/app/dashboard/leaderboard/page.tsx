@@ -82,6 +82,25 @@ const extractAssignedClasses = (assignYears: any[]): any[] => {
   );
 };
 
+const buildStudentNameMap = (students: any[]): Record<string, string> => {
+  const mapping: Record<string, string> = {};
+  for (const student of students ?? []) {
+    const rawId = student?.id ?? student?.student_id;
+    if (rawId === null || rawId === undefined) continue;
+    const key = String(rawId);
+    const resolvedName =
+      student?.student_name ??
+      student?.user_name ??
+      student?.name ??
+      student?.user?.name ??
+      "";
+    if (resolvedName) {
+      mapping[key] = resolvedName;
+    }
+  }
+  return mapping;
+};
+
 const LeaderBoard = () => {
   const { currentUser } = useSelector((state: RootState) => state.auth) as {
     currentUser: CurrentUser;
@@ -269,6 +288,24 @@ const LeaderBoard = () => {
     staleTime: 2 * 60 * 1000,
   });
 
+  const classIdForNameLookup =
+    leaderboardScope === "class"
+      ? isStudent
+        ? studentClassId
+        : selectedClass
+      : null;
+
+  const { data: classStudentNameMap = {} } = useQuery({
+    queryKey: ["leaderboard-class-student-name-map", classIdForNameLookup],
+    queryFn: async () => {
+      if (!classIdForNameLookup) return {};
+      const students = (await fetchStudents(String(classIdForNameLookup))) ?? [];
+      return buildStudentNameMap(students);
+    },
+    enabled: !!classIdForNameLookup,
+    staleTime: 60 * 1000,
+  });
+
   const {
     data: schoolLeaderboardRows,
     isLoading: schoolLeaderboardLoading,
@@ -300,10 +337,12 @@ const LeaderBoard = () => {
     staleTime: 2 * 60 * 1000,
   });
 
-  const { data: studentClassMap = {} } = useQuery({
-    queryKey: ["student-class-map-school", studentSchoolIdResolved],
+  const { data: studentSchoolMaps = { classByStudentId: {}, nameByStudentId: {} } } = useQuery({
+    queryKey: ["student-school-maps", studentSchoolIdResolved],
     queryFn: async () => {
-      if (!studentSchoolIdResolved) return {};
+      if (!studentSchoolIdResolved) {
+        return { classByStudentId: {}, nameByStudentId: {} };
+      }
 
       const years = (await fetchYearsBySchool(Number(studentSchoolIdResolved))) ?? [];
       const yearIds = Array.from(
@@ -324,7 +363,8 @@ const LeaderBoard = () => {
       });
 
       const classes = classesByYear.flat();
-      const mapping: Record<string, string> = {};
+      const classByStudentId: Record<string, string> = {};
+      const nameByStudentId: Record<string, string> = {};
 
       await mapWithConcurrency(classes, 4, async (cls: any) => {
         const classId = cls?.id ?? cls?.class_id ?? cls?.classId;
@@ -332,10 +372,17 @@ const LeaderBoard = () => {
         if (!classId) return null;
         try {
           const students = (await fetchStudents(String(classId))) ?? [];
+          const classNameForStudents = className;
           for (const s of students) {
             const sid = s?.id ?? s?.student_id;
             if (sid !== null && sid !== undefined) {
-              mapping[String(sid)] = className;
+              const key = String(sid);
+              classByStudentId[key] = classNameForStudents;
+              const resolvedName =
+                s?.student_name ?? s?.user_name ?? s?.name ?? s?.user?.name ?? "";
+              if (resolvedName) {
+                nameByStudentId[key] = resolvedName;
+              }
             }
           }
         } catch (error) {
@@ -344,7 +391,7 @@ const LeaderBoard = () => {
         return null;
       });
 
-      return mapping;
+      return { classByStudentId, nameByStudentId };
     },
     enabled: isStudent && !!studentSchoolIdResolved,
     staleTime: 10 * 60 * 1000,
@@ -354,7 +401,7 @@ const LeaderBoard = () => {
     ? (schoolLeaderboardRows ?? [])
         .map((row: any) => String(row?.key ?? row?.student_id ?? ""))
         .filter((id: string) => !!id)
-        .filter((id: string) => !studentClassMap?.[id])
+        .filter((id: string) => !studentSchoolMaps?.classByStudentId?.[id])
     : [];
 
   const { data: studentProfileClassMap = {} } = useQuery({
@@ -484,17 +531,20 @@ const LeaderBoard = () => {
         .filter((id: string) => !!id)
     : [];
 
-  const { data: staffStudentClassMap = {} } = useQuery({
+  const { data: staffSchoolMaps = { classByStudentId: {}, nameByStudentId: {} } } = useQuery({
     queryKey: [
-      "leaderboard-school-staff-class-map",
+      "leaderboard-school-staff-maps",
       resolvedSchoolId,
       isTeacher,
       assignYearsData.length,
       unresolvedStaffSchoolStudentIds.join("|"),
     ],
     queryFn: async () => {
-      const mapping: Record<string, string> = {};
-      if (unresolvedStaffSchoolStudentIds.length === 0) return mapping;
+      const classByStudentId: Record<string, string> = {};
+      const nameByStudentId: Record<string, string> = {};
+      if (unresolvedStaffSchoolStudentIds.length === 0) {
+        return { classByStudentId, nameByStudentId };
+      }
 
       const classesForLookup =
         teacherAssignedClasses.length > 0
@@ -541,7 +591,12 @@ const LeaderBoard = () => {
             if (sid !== null && sid !== undefined) {
               const key = String(sid);
               if (unresolvedStaffSchoolStudentIds.includes(key)) {
-                mapping[key] = className;
+                classByStudentId[key] = className;
+                const resolvedName =
+                  s?.student_name ?? s?.user_name ?? s?.name ?? s?.user?.name ?? "";
+                if (resolvedName) {
+                  nameByStudentId[key] = resolvedName;
+                }
               }
             }
           }
@@ -551,7 +606,7 @@ const LeaderBoard = () => {
         return null;
       });
 
-      return mapping;
+      return { classByStudentId, nameByStudentId };
     },
     enabled: !isStudent && leaderboardScope === "school" && unresolvedStaffSchoolStudentIds.length > 0,
     staleTime: 10 * 60 * 1000,
@@ -602,8 +657,8 @@ const LeaderBoard = () => {
 
   const classLeaderboardRows: LeaderboardRow[] =
     classLeaderboardResponse?.data?.map((student: any, index: number) => {
-      const name = resolveStudentName(student) || "Unknown";
       const key = resolveStudentId(student) || `row-${index}`;
+      const name = classStudentNameMap?.[String(key)] || resolveStudentName(student) || "Unknown";
       return {
         key,
         rank: index + 1,
@@ -623,8 +678,8 @@ const LeaderBoard = () => {
 
   const studentClassLeaderboardRows: LeaderboardRow[] =
     studentClassLeaderboardResponse?.data?.map((student: any, index: number) => {
-      const name = resolveStudentName(student) || "Unknown";
       const key = resolveStudentId(student) || `row-${index}`;
+      const name = classStudentNameMap?.[String(key)] || resolveStudentName(student) || "Unknown";
       return {
         key,
         rank: index + 1,
@@ -658,21 +713,45 @@ const LeaderBoard = () => {
   const visibleSchoolStudentsWithClass = isStudent
     ? visibleSchoolStudents.map((row) => ({
         ...row,
+        name:
+          studentSchoolMaps?.nameByStudentId?.[String(row.key)] ??
+          (row as any)?.name ??
+          "Unknown",
+        avatar:
+          (
+            studentSchoolMaps?.nameByStudentId?.[String(row.key)] ??
+            (row as any)?.name ??
+            "?"
+          )
+            .charAt(0)
+            .toUpperCase(),
         className:
           (row as any)?.className ??
           (row as any)?.class_name ??
           (row as any)?.class?.class_name ??
-          studentClassMap?.[String(row.key)] ??
+          studentSchoolMaps?.classByStudentId?.[String(row.key)] ??
           studentProfileClassMap?.[String(row.key)] ??
           ((row as any)?.class_id ? `Class ${(row as any).class_id}` : ""),
       }))
     : visibleSchoolStudents.map((row) => ({
         ...row,
+        name:
+          staffSchoolMaps?.nameByStudentId?.[String((row as any)?.key ?? "")] ??
+          (row as any)?.name ??
+          "Unknown",
+        avatar:
+          (
+            staffSchoolMaps?.nameByStudentId?.[String((row as any)?.key ?? "")] ??
+            (row as any)?.name ??
+            "?"
+          )
+            .charAt(0)
+            .toUpperCase(),
         className:
           (row as any)?.className ??
           (row as any)?.class_name ??
           (row as any)?.class?.class_name ??
-          staffStudentClassMap?.[String((row as any)?.key ?? "")] ??
+          staffSchoolMaps?.classByStudentId?.[String((row as any)?.key ?? "")] ??
           ((row as any)?.class_id ? `Class ${(row as any).class_id}` : ""),
       }));
 

@@ -3,12 +3,20 @@ import { useState } from "react";
 import { Modal, Select, Button, Form, Input, Checkbox, DatePicker } from "antd";
 import dayjs from "dayjs";
 
+const normalizeProgressOption = (value: string) =>
+  value
+    .replace(/\p{Extended_Pictographic}/gu, "")
+    .replace(/[\uFE0F\u200D]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toUpperCase();
+
 const trackerOptions = [
-  { value: "recitation", label: "Recitation" },
-  { value: "memorization", label: "Memorization" },
-  { value: "tafsir", label: "Tafsir" },
-  { value: "studied", label: "Studied" },
-  { value: "recall", label: "Recall" },
+  { value: "RECITATION", label: "RECITATION" },
+  { value: "MEMORIZATION", label: "MEMORIZATION" },
+  { value: "TAFSIR", label: "TAFSIR" },
+  { value: "STUDIED", label: "STUDIED" },
+  { value: "RECALL", label: "RECALL" },
 ];
 
 export function AddTrackerModal({
@@ -34,7 +42,9 @@ export function AddTrackerModal({
       name: values.name,
       type: values.type || "",
       status: values.status || "",
-      progress: values.progress || [],
+      progress: (values.progress || [])
+        .map((option: string) => normalizeProgressOption(option))
+        .filter(Boolean),
       claim_certificate: values.claim_certificate || false,
       deadline: values.deadline ? dayjs(values.deadline).format("YYYY-MM-DD") : null,
     });

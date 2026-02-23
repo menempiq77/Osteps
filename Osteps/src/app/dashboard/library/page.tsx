@@ -456,8 +456,7 @@ export default function LibraryPage() {
 
     const categoryMatch =
       activeCategoryTab === "all" ||
-      getCategoryName(item.library_categories_id).toLowerCase() ===
-        activeCategoryTab.toLowerCase();
+      String(item.library_categories_id ?? "") === String(activeCategoryTab);
 
     return typeMatch && categoryMatch;
   });
@@ -566,16 +565,14 @@ export default function LibraryPage() {
                 key={category?.id}
                 size="middle"
                 type={
-                  activeCategoryTab === category.name.toLowerCase()
+                  activeCategoryTab === String(category.id)
                     ? "primary"
                     : "default"
                 }
                 shape="round"
-                onClick={() =>
-                  setActiveCategoryTab(category.name.toLowerCase())
-                }
+                onClick={() => setActiveCategoryTab(String(category.id))}
                 className={`transition-all ${
-                  activeCategoryTab === category.name.toLowerCase()
+                  activeCategoryTab === String(category.id)
                     ? "!bg-primary !hover:bg-green-700"
                     : "bg-white hover:bg-gray-50 border-gray-200 hover:!border-green-600 hover:!text-green-600"
                 }`}

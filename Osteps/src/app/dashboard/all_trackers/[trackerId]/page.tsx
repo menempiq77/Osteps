@@ -1,18 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import {
-  ArrowLeft,
-  BookOpen,
-  BrainCircuit,
-  Languages,
-  Plus,
-  Trash2,
-  Edit,
-  Save,
-  X,
-  GripVertical,
-} from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Edit, Save, X, GripVertical } from "lucide-react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import {
@@ -68,6 +57,19 @@ interface Quiz {
   answer?: string;
 }
 
+interface NewTopicDraft {
+  title: string;
+  marks: number | null;
+}
+
+const normalizeProgressOption = (value: string) =>
+  String(value || "")
+    .replace(/\p{Extended_Pictographic}/gu, "")
+    .replace(/[\uFE0F\u200D]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toUpperCase();
+
 export default function TrackerTopicsPage() {
   const { trackerId } = useParams();
   const router = useRouter();
@@ -75,12 +77,16 @@ export default function TrackerTopicsPage() {
   const [editingTopic, setEditingTopic] = useState<number | null>(null);
   const [newTopicTitle, setNewTopicTitle] = useState("");
   const [newTopicMarks, setNewTopicMarks] = useState<number>(0);
+  const [newTopics, setNewTopics] = useState<NewTopicDraft[]>([
+    { title: "", marks: 0 },
+  ]);
   const [isAddingTopic, setIsAddingTopic] = useState(false);
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [loading, setLoading] = useState(false);
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [isAddingQuiz, setIsAddingQuiz] = useState(false);
   const [selectedQuiz, setSelectedQuiz] = useState<string>("");
+  const [savingTopics, setSavingTopics] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
 
   const canUpload =
@@ -178,44 +184,107 @@ export default function TrackerTopicsPage() {
     }
   };
 
-  const addNewTopic = () => {
-    if (!newTopicTitle.trim()) return;
+  const updateNewTopicRow = (
+    index: number,
+    key: keyof NewTopicDraft,
+    value: string | number | null
+  ) => {
+    setNewTopics((prev) =>
+      prev.map((topic, topicIndex) => {
+        if (topicIndex !== index) return topic;
+        if (key === "title") {
+          return { ...topic, title: String(value ?? "") };
+        }
+        return {
+          ...topic,
+          marks: typeof value === "number" ? value : value === null ? null : 0,
+        };
+      })
+    );
+  };
 
-    addTopicMutation.mutate({
-      title: newTopicTitle.trim(),
-      marks: newTopicMarks,
+  const addNewTopicRow = () => {
+    setNewTopics((prev) => [...prev, { title: "", marks: 0 }]);
+  };
+
+  const removeNewTopicRow = (index: number) => {
+    setNewTopics((prev) => {
+      if (prev.length === 1) return prev;
+      return prev.filter((_, topicIndex) => topicIndex !== index);
     });
   };
 
-  const addTopicMutation = useMutation({
-    mutationFn: (payload: { title: string; marks: number }) =>
-      addTrackerTopic(Number(trackerId), payload),
+  const resetAddTopicForm = () => {
+    setIsAddingTopic(false);
+    setNewTopics([{ title: "", marks: 0 }]);
+  };
 
-    onSuccess: (res) => {
-      if (res?.status_code === 400 && res?.msg) {
-        messageApi.warning({
-          content: res.msg,
-          duration: 5,  
-        });
-        return;
+  const addNewTopics = async () => {
+    const preparedTopics = newTopics
+      .map((topic) => ({
+        title: topic.title.trim(),
+        marks: typeof topic.marks === "number" ? topic.marks : 0,
+      }))
+      .filter((topic) => topic.title.length > 0);
+
+    if (!preparedTopics.length) {
+      messageApi.error("Please add at least one topic title");
+      return;
+    }
+
+    setSavingTopics(true);
+    const failedTopics: NewTopicDraft[] = [];
+    let addedCount = 0;
+
+    try {
+      for (const topic of preparedTopics) {
+        try {
+          const res = await addTrackerTopic(Number(trackerId), topic);
+          if (res?.status_code === 400 && res?.msg) {
+            failedTopics.push({
+              title: topic.title,
+              marks: topic.marks,
+            });
+            messageApi.warning(`${topic.title}: ${res.msg}`);
+            continue;
+          }
+          addedCount += 1;
+        } catch (error: any) {
+          const backendMsg =
+            error?.response?.data?.msg ||
+            error?.response?.data?.message ||
+            "Failed to add topic";
+          failedTopics.push({
+            title: topic.title,
+            marks: topic.marks,
+          });
+          messageApi.error(`${topic.title}: ${backendMsg}`);
+        }
       }
 
-      queryClient.invalidateQueries(["tracker-topics", trackerId]);
-      messageApi.success("Topic added successfully");
-      setIsAddingTopic(false);
-      setNewTopicTitle("");
-      setNewTopicMarks(0);
-    },
+      if (addedCount > 0) {
+        queryClient.invalidateQueries(["tracker-topics", trackerId]);
+      }
 
-    onError: (error: any) => {
-      const backendMsg =
-        error?.response?.data?.msg ||
-        error?.response?.data?.message ||
-        "Failed to add topic";
-
-      messageApi.error(backendMsg);
-    },
-  });
+      if (failedTopics.length === 0) {
+        messageApi.success(
+          `${addedCount} topic${addedCount > 1 ? "s" : ""} added successfully`
+        );
+        resetAddTopicForm();
+      } else {
+        messageApi.warning(
+          `Added ${addedCount}. ${failedTopics.length} topic${
+            failedTopics.length > 1 ? "s" : ""
+          } need attention.`
+        );
+        setNewTopics(
+          failedTopics.length ? failedTopics : [{ title: "", marks: 0 }]
+        );
+      }
+    } finally {
+      setSavingTopics(false);
+    }
+  };
 
   const deleteTopic = async (topicId: number) => {
     try {
@@ -328,9 +397,10 @@ export default function TrackerTopicsPage() {
               <Button
                 onClick={() => {
                   setIsAddingTopic(true);
-                  setNewTopicTitle("");
+                  setNewTopics([{ title: "", marks: 0 }]);
                 }}
-                className="flex items-center gap-2 cursor-pointer !bg-primary !text-white hover:!border-primary"
+                type="primary"
+                className="flex items-center gap-2 cursor-pointer !bg-[#38C16C] !border-[#38C16C] !text-white hover:!bg-[#32ad5f] hover:!border-[#32ad5f]"
               >
                 <Plus size={16} />
                 Add Topic
@@ -350,35 +420,55 @@ export default function TrackerTopicsPage() {
 
         {isAddingTopic && (
           <div className="p-4 border-b border-gray-200 bg-gray-50 flex flex-col gap-4">
-            <div className="flex items-center gap-4">
-              <Input
-                type="text"
-                // value={newTopicTitle}
-                onChange={(e) => setNewTopicTitle(e.target.value)}
-                placeholder="Enter Topic Title"
-                className="flex-1"
-              />
-              <InputNumber
-                min={0}
-                // value={newTopicMarks}
-                onChange={(value) => setNewTopicMarks(value)}
-                placeholder="Enter Marks"
-                className="flex-grow"
-              />
+            <div className="flex flex-col gap-3">
+              {newTopics.map((topic, index) => (
+                <div key={index} className="flex items-center gap-4">
+                  <Input
+                    type="text"
+                    value={topic.title}
+                    onChange={(e) =>
+                      updateNewTopicRow(index, "title", e.target.value)
+                    }
+                    placeholder={`Enter Topic Title ${newTopics.length > 1 ? `#${index + 1}` : ""}`}
+                    className="flex-1"
+                  />
+                  <InputNumber
+                    min={0}
+                    value={topic.marks}
+                    onChange={(value) => updateNewTopicRow(index, "marks", value)}
+                    placeholder="Enter Points"
+                    className="flex-grow"
+                  />
+                  <Button
+                    danger
+                    disabled={newTopics.length === 1}
+                    onClick={() => removeNewTopicRow(index)}
+                    className="flex items-center justify-center"
+                  >
+                    <Trash2 size={16} />
+                  </Button>
+                </div>
+              ))}
+            </div>
+            <div>
+              <Button onClick={addNewTopicRow} className="flex items-center gap-2">
+                <Plus size={16} />
+                Add Another Topic
+              </Button>
             </div>
             <div className="flex gap-2 justify-end">
               <Button
-                onClick={() => {
-                  setIsAddingTopic(false);
-                  setNewTopicTitle("");
-                  setNewTopicMarks(0);
-                }}
+                onClick={resetAddTopicForm}
               >
                 Cancel
               </Button>
-              <Button onClick={addNewTopic} className="flex items-center gap-1">
+              <Button
+                onClick={addNewTopics}
+                className="flex items-center gap-1"
+                loading={savingTopics}
+              >
                 <Save size={16} />
-                Save
+                Save All
               </Button>
             </div>
           </div>
@@ -432,21 +522,8 @@ export default function TrackerTopicsPage() {
                           key={index}
                           className="p-4 text-center text-sm font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200"
                         >
-                          <div className="flex items-center justify-center gap-1">
-                            {statusName === "memorization" ? (
-                              <BrainCircuit
-                                size={16}
-                                className="text-blue-500"
-                              />
-                            ) : statusName === "Recall" ? (
-                              <BookOpen size={16} className="text-green-500" />
-                            ) : (
-                              <Languages
-                                size={16}
-                                className="text-purple-500"
-                              />
-                            )}
-                            <span className="capitalize">{statusName}</span>
+                          <div className="flex items-center justify-center">
+                            <span>{normalizeProgressOption(statusName)}</span>
                           </div>
                         </th>
                       ))}
@@ -512,7 +589,7 @@ export default function TrackerTopicsPage() {
                                       onChange={(value) =>
                                         setNewTopicMarks(value || 0)
                                       }
-                                      placeholder="Enter Marks"
+                                      placeholder="Enter Points"
                                       className="!w-full"
                                     />
                                   </div>

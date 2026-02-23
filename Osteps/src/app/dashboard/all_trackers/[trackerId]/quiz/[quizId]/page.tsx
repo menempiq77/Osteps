@@ -216,7 +216,7 @@ export default function QuranQuizPage() {
                     <span>
                       Type: {quizTypeLabels[question.type] || question.type}
                     </span>
-                    <span>Marks: {question.marks || "N/A"}</span>
+                    <span>Points: {question.marks || "N/A"}</span>
                   </div>
                 </div>
               ))
@@ -227,3 +227,4 @@ export default function QuranQuizPage() {
     </div>
   );
 }
+

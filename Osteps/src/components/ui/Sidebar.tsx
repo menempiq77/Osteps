@@ -536,12 +536,24 @@ const Sidebar = () => {
         .sidebar-shell {
           border-right: 1px solid rgba(148, 163, 184, 0.24);
           background:
-            radial-gradient(580px 280px at 8% -12%, rgba(56, 193, 108, 0.14), transparent 58%),
-            radial-gradient(540px 260px at 100% 0%, rgba(14, 116, 144, 0.12), transparent 62%),
+            radial-gradient(
+              580px 280px at 8% -12%,
+              color-mix(in srgb, var(--primary) 22%, transparent),
+              transparent 58%
+            ),
+            radial-gradient(
+              540px 260px at 100% 0%,
+              color-mix(in srgb, var(--theme-scroll-end) 18%, transparent),
+              transparent 62%
+            ),
             rgba(255, 255, 255, 0.88);
         }
         .sidebar-header {
-          background: linear-gradient(120deg, #38c16c, #0e7490);
+          background: linear-gradient(
+            120deg,
+            var(--theme-scroll-start),
+            var(--theme-scroll-end)
+          );
         }
         .sidebar-profile {
           border: 1px solid rgba(148, 163, 184, 0.24);
@@ -554,16 +566,16 @@ const Sidebar = () => {
           background: linear-gradient(
             90deg,
             color-mix(in srgb, var(--primary) 26%, white),
-            color-mix(in srgb, #0e7490 16%, white)
+            color-mix(in srgb, var(--theme-scroll-end) 16%, white)
           );
           color: #0f172a;
-          border: 1px solid rgba(56, 193, 108, 0.28);
+          border: 1px solid color-mix(in srgb, var(--primary) 36%, white);
         }
         .sidebar-nav-item-active:hover {
           background: linear-gradient(
             90deg,
             color-mix(in srgb, var(--primary) 32%, white),
-            color-mix(in srgb, #0e7490 20%, white)
+            color-mix(in srgb, var(--theme-scroll-end) 20%, white)
           );
         }
         .sidebar-nav-item:hover {
