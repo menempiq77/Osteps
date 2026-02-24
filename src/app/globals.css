@@ -1,0 +1,325 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-raleway: "Raleway", sans-serif;
+  --radius: 0.625rem;
+  --theme-name: "green";
+  --theme-soft: #eef9f2;
+  --theme-soft-2: #dff3e7;
+  --theme-border: #b9e2cd;
+  --theme-dark: #2f8f5b;
+  --theme-shadow: rgba(22, 101, 52, 0.35);
+  --theme-scroll-start: #34d399;
+  --theme-scroll-end: #16a34a;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: #38C16C;
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+  --premium-ink: #0f172a;
+  --premium-muted: #64748b;
+  --premium-surface: rgba(255, 255, 255, 0.9);
+  --premium-border: rgba(148, 163, 184, 0.28);
+  --premium-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
+  --premium-shadow-soft: 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+/* Antd tabs custom styles started */
+/* Target the active tab's bottom border */
+.ant-tabs-tab-active {
+  border-bottom: 2px solid var(--primary) !important;
+}
+
+/* Optional: Remove the default blue border (if you want) */
+.ant-tabs-nav .ant-tabs-tab {
+  border-bottom: none;
+}
+
+/* Make sure active tab text color stays green */
+.ant-tabs-tab-active > .ant-tabs-tab-btn {
+  color: var(--primary) !important;
+}
+
+.ant-tabs-ink-bar {
+  background-color: var(--primary) !important;
+}
+.ant-tabs-tab:hover > .ant-tabs-tab-btn {
+  color: var(--primary) !important;
+  cursor: pointer;
+}
+/* Antd tabs custom styles end */
+
+/* Hide scrollbar but allow scrolling */
+.scroll-hidden {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none;  /* Internet Explorer 10+ */
+  overflow: auto;
+}
+
+.scroll-hidden::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+ 
+
+/* Time table style start */
+.fc-event{
+  background: transparent !important;
+}
+.fc-v-event{
+  border: none !important;
+}
+
+/* styles/globals.css */
+.fc .fc-timegrid-slot {
+  height: 60px !important;
+}
+
+.fc .fc-timegrid-event {
+  min-height: 60px !important;
+  padding: 6px;
+}
+/* Time table style end... */
+
+.premium-page {
+  background:
+    radial-gradient(900px 420px at 0% -8%, rgba(56, 193, 108, 0.12), transparent 55%),
+    radial-gradient(780px 380px at 100% -12%, rgba(14, 116, 144, 0.12), transparent 58%);
+}
+
+.premium-hero {
+  border-radius: 18px !important;
+  border: 1px solid var(--premium-border) !important;
+  background: linear-gradient(120deg, rgba(56, 193, 108, 0.12), rgba(14, 116, 144, 0.08)) !important;
+  box-shadow: var(--premium-shadow-soft);
+}
+
+.premium-card {
+  border-radius: 16px !important;
+  border: 1px solid var(--premium-border) !important;
+  background: var(--premium-surface) !important;
+  box-shadow: var(--premium-shadow-soft);
+}
+
+.premium-filter-panel {
+  border-radius: 16px !important;
+  border: 1px solid rgba(56, 193, 108, 0.25) !important;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(240, 253, 244, 0.7)) !important;
+  box-shadow: var(--premium-shadow-soft);
+}
+
+.premium-table {
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--premium-border);
+  box-shadow: var(--premium-shadow-soft);
+}
+
+.premium-table thead tr {
+  background: linear-gradient(90deg, #f8fafc, #ecfeff) !important;
+}
+
+.premium-table thead th,
+.premium-table thead span {
+  color: #334155 !important;
+  font-weight: 700 !important;
+}
+
+.premium-antd-table .ant-table {
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--premium-border);
+}
+
+.premium-antd-table .ant-table-thead > tr > th {
+  background: linear-gradient(90deg, #f8fafc, #ecfeff) !important;
+  color: #334155 !important;
+  font-weight: 700 !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.22) !important;
+}
+
+.premium-antd-table .ant-table-tbody > tr > td {
+  border-bottom-color: rgba(148, 163, 184, 0.2) !important;
+}
+
+.premium-pill-btn.ant-btn {
+  border-radius: 999px !important;
+  border-color: rgba(56, 193, 108, 0.35) !important;
+  font-weight: 600 !important;
+}
+
+.premium-pill-btn.ant-btn-primary {
+  background: linear-gradient(90deg, #0f766e, #0e7490) !important;
+  border-color: transparent !important;
+}
+
+/* Premium AntD controls */
+.ant-form-item .ant-form-item-label > label {
+  color: #334155 !important;
+  font-weight: 600 !important;
+}
+
+.ant-input,
+.ant-input-affix-wrapper,
+.ant-select-selector,
+.ant-picker,
+.ant-input-number,
+.ant-input-number-input {
+  border-radius: 12px !important;
+}
+
+.ant-input,
+.ant-input-affix-wrapper,
+.ant-select-selector,
+.ant-picker,
+.ant-input-number {
+  border-color: rgba(148, 163, 184, 0.42) !important;
+  box-shadow: none !important;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.ant-input:hover,
+.ant-input-affix-wrapper:hover,
+.ant-select:hover .ant-select-selector,
+.ant-picker:hover,
+.ant-input-number:hover {
+  border-color: rgba(56, 193, 108, 0.52) !important;
+}
+
+.ant-input:focus,
+.ant-input-affix-wrapper:focus,
+.ant-input-affix-wrapper-focused,
+.ant-select-focused .ant-select-selector,
+.ant-picker-focused,
+.ant-input-number-focused {
+  border-color: #38c16c !important;
+  box-shadow: 0 0 0 3px rgba(56, 193, 108, 0.16) !important;
+}
+
+.ant-modal-content {
+  border-radius: 18px !important;
+  border: 1px solid rgba(148, 163, 184, 0.25) !important;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18) !important;
+  overflow: hidden !important;
+}
+
+.ant-modal-header {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2) !important;
+  background: linear-gradient(90deg, rgba(248, 250, 252, 0.95), rgba(236, 253, 245, 0.95)) !important;
+}
+
+.ant-modal-title {
+  color: #0f172a !important;
+  font-weight: 700 !important;
+}
+
+.ant-modal-footer {
+  border-top: 1px solid rgba(148, 163, 184, 0.2) !important;
+}
+
+.ant-drawer-content {
+  border-left: 1px solid rgba(148, 163, 184, 0.25) !important;
+  box-shadow: -16px 0 44px rgba(15, 23, 42, 0.12) !important;
+}
+
+.ant-btn-primary {
+  background: linear-gradient(90deg, #0f766e, #0e7490) !important;
+  border-color: transparent !important;
+  box-shadow: 0 8px 20px rgba(15, 118, 110, 0.24) !important;
+}
+
+.ant-btn-primary:hover {
+  filter: brightness(1.02);
+}
+
+
+/* Checkbox field inner colors */
+:where(.css-dev-only-do-not-override-mncuj7).ant-checkbox-checked .ant-checkbox-inner{
+  background-color: var(--primary) !important;
+  border-color: var(--primary) !important;
+}
+:where(.css-dev-only-do-not-override-mncuj7).ant-checkbox-wrapper:not(.ant-checkbox-wrapper-disabled):hover {
+  border-color: var(--primary) !important;
+}
+
+/* Global clickable cursor */
+a[href],
+button:not(:disabled),
+input[type="button"]:not(:disabled),
+input[type="submit"]:not(:disabled),
+input[type="reset"]:not(:disabled),
+label[for],
+[role="button"],
+.ant-btn:not(:disabled),
+.ant-dropdown-menu-item,
+.ant-menu-item,
+.ant-tabs-tab,
+.ant-pagination-item,
+.ant-pagination-prev .ant-pagination-item-link,
+.ant-pagination-next .ant-pagination-item-link,
+.ant-select-selector,
+.ant-picker,
+.ant-upload-select {
+  cursor: pointer !important;
+}
