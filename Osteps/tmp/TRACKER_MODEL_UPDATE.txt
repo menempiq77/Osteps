@@ -1,0 +1,22 @@
+// ===== TRACKER MODEL UPDATE =====
+// File: app/Models/Tracker.php
+// 
+// Replace the $fillable array with this updated version:
+
+protected $fillable = [
+    // 'class_id',
+    'school_id',
+    'name',
+    'type',
+    'position',
+    'progress',
+    'status',
+    'claim_certificate',
+    'points',
+    'deadline'  // <-- ADD THIS LINE
+];
+
+// The deadline should be cast as a date in the model:
+protected $casts = [
+    'deadline' => 'date',
+];
