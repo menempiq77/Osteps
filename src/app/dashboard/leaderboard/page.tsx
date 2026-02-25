@@ -553,64 +553,25 @@ const LeaderBoard = () => {
       (classes ?? []).map((cls: any) => getClassId(cls)).filter(Boolean).join("|"),
     ],
     queryFn: async () => {
-      // Try direct school leaderboard endpoints for ALL staff (including teachers)
-      if (resolvedSchoolId) {
-        try {
-          const res = await fetchSchoolLeaderBoardData(resolvedSchoolId);
-          const rows = res?.data ?? [];
-          if (rows.length > 0) {
-            return mergeAndRankLeaderboards([rows]);
-          }
-        } catch (error) {
-          // Fall back below.
-        }
-      }
-
-      try {
-        const res = await fetchSchoolSelfLeaderBoardData();
-        const rows = res?.data ?? [];
-        if (rows.length > 0) {
-          return mergeAndRankLeaderboards([rows]);
-        }
-      } catch (error) {
-        // Fall back to class aggregation below.
-      }
-
-      // Last resort: aggregate from classes (should only happen if school APIs fail)
-      const classesForAggregation =
-        await (async () => {
-          const schoolClasses = await loadSchoolClassesForStaff();
-          if (schoolClasses.length > 0) return schoolClasses;
-          return teacherAssignedClasses;
-        })();
-
-      const fallbackSelectedYearClasses =
-        classesForAggregation.length === 0 ? (classes ?? []) : [];
-      const mergedClassPool =
-        classesForAggregation.length > 0
-          ? classesForAggregation
-          : fallbackSelectedYearClasses;
-
-      const classIds: string[] = mergedClassPool
-        .map((cls: any) => getClassId(cls))
-        .filter((id: string) => !!id);
-
-      const uniqueClassIds: string[] = Array.from(new Set(classIds));
-      
-      const leaderboards = await mapWithConcurrency(
-        uniqueClassIds,
-        5,
-        async (classId) => {
-          try {
-            const res = await fetchLeaderBoardData(classId);
-            return res?.data ?? [];
-          } catch (error) {
-            return [];
-          }
-        }
-      );
-
-      return mergeAndRankLeaderboards(leaderboards);
+      // Teachers use the school-self endpoint which includes all school students
+      const res = await fetchSchoolSelfLeaderBoardData();
+      const rows = res?.data ?? [];
+      return rows.map((student: any, index: number) => ({
+        key: String(student?.student_id ?? ""),
+        rank: index + 1,
+        name: student?.student_name ?? "Unknown",
+        avatar: student?.student_name?.charAt(0).toUpperCase() || "?",
+        points: student?.total_marks || 0,
+        className: student?.class_name ?? "",
+        badge:
+          index === 0
+            ? "gold"
+            : index === 1
+            ? "silver"
+            : index === 2
+            ? "bronze"
+            : null,
+      }));
     },
     enabled: !isStudent && leaderboardScope === "school",
     staleTime: 2 * 60 * 1000,
