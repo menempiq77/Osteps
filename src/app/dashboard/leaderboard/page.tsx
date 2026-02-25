@@ -612,7 +612,7 @@ const LeaderBoard = () => {
 
       return mergeAndRankLeaderboards(leaderboards);
     },
-    enabled: false, // Disabled: using schoolLeaderboardRows for both students and teachers now
+    enabled: !isStudent && leaderboardScope === "school",
     staleTime: 2 * 60 * 1000,
   });
 
@@ -770,7 +770,8 @@ const LeaderBoard = () => {
   // Show all rows (no load-more) as requested
   const visibleStudents = classLeaderboardRows;
   const visibleStudentClass = studentClassLeaderboardRows;
-  const visibleSchoolStudents = schoolLeaderboardRows ?? [];
+  const visibleSchoolStudents =
+    isStudent ? (schoolLeaderboardRows ?? []) : (staffSchoolLeaderboardRows ?? []);
   const studentOwnClassName =
     currentUser?.studentClassName ??
     studentProfile?.class?.class_name ??
