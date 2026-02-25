@@ -134,7 +134,7 @@ const LeaderBoard = () => {
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [showMyStudentsOnly, setShowMyStudentsOnly] = useState(false);
   const [leaderboardScope, setLeaderboardScope] = useState<"class" | "school">(
-    roleKey === "STUDENT" ? "school" : isTeacher ? "class" : "school"
+    roleKey === "STUDENT" ? "school" : "school"
   );
   const authSchoolId = (() => {
     const schoolValue = (currentUser as any)?.school;
@@ -937,11 +937,7 @@ const LeaderBoard = () => {
 
   const activeRows = leaderboardScope === "class"
     ? visibleStudents
-    : applySchoolFilters(
-        isTeacher && showMyStudentsOnly
-          ? filteredTeacherSchoolRows
-          : visibleSchoolStudentsWithClass
-      );
+    : applySchoolFilters(visibleSchoolStudentsWithClass);
   const studentActiveRows =
     leaderboardScope === "class"
       ? resolvedStudentClassRows
@@ -1203,22 +1199,6 @@ const LeaderBoard = () => {
                 </Select>
               </div>
             </div>
-            {isTeacher && leaderboardScope === "school" && (
-              <div
-                style={{
-                  marginTop: 12,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                }}
-              >
-                <Switch
-                  checked={showMyStudentsOnly}
-                  onChange={(checked) => setShowMyStudentsOnly(checked)}
-                />
-                <Text type="secondary">My students only</Text>
-              </div>
-            )}
           </Card>
 
           <Space direction="vertical" size="large" style={{ width: "100%" }}>
@@ -1268,10 +1248,6 @@ const LeaderBoard = () => {
                 >
                   <Text type="secondary">
                     Showing {activeRows.length} students
-                    {isTeacher &&
-                      leaderboardScope === "school" &&
-                      showMyStudentsOnly &&
-                      " from your assigned classes"}
                   </Text>
                 </div>
               </Space>
