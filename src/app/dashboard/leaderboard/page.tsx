@@ -441,7 +441,7 @@ const LeaderBoard = () => {
             : null,
       }));
     },
-    enabled: isStudent,
+    enabled: isStudent || leaderboardScope === "school",
     staleTime: 2 * 60 * 1000,
   });
 
