@@ -91,12 +91,8 @@ export const fetchLeaderBoardData = async (
 export const fetchSchoolLeaderBoardData = async (
   schoolId: string | number
 ): Promise<LeaderboardResponse> => {
-  const id = String(schoolId);
   return fetchWithFallback(
-    [
-      `/leaderboard/school/${id}`,
-      `/leaderboard/school-self`,
-    ],
+    ["/leaderboard/school-self"],
     "Failed to fetch school leaderboard"
   );
 };

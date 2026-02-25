@@ -9,6 +9,9 @@ export type LeaderboardRawEntry = {
   name?: string;
   id?: number | string;
   user_id?: number | string;
+  class_name?: string;
+  className?: string;
+  class_id?: number | string;
   user?: {
     id?: number | string;
     name?: string;
@@ -31,6 +34,8 @@ export type LeaderboardRow = {
   avatar: string;
   points: number;
   badge: "gold" | "silver" | "bronze" | null;
+  className?: string;
+  class_id?: string;
 };
 
 const toNumber = (value: unknown): number => {
@@ -73,7 +78,7 @@ export const resolveStudentName = (entry: LeaderboardRawEntry): string => {
 };
 
 export const mergeAndRankLeaderboards = (leaderboards: LeaderboardRawEntry[][]): LeaderboardRow[] => {
-  const map = new Map<string, { name: string; points: number }>();
+  const map = new Map<string, { name: string; points: number; className?: string; class_id?: string }>();
 
   for (const entries of leaderboards) {
     for (const entry of entries ?? []) {
@@ -86,15 +91,23 @@ export const mergeAndRankLeaderboards = (leaderboards: LeaderboardRawEntry[][]):
         entry?.total_marks ?? entry?.points ?? entry?.score ?? entry?.marks
       );
 
+      const className = entry?.class_name ?? entry?.className ?? undefined;
+      const class_id = entry?.class_id ? String(entry.class_id) : undefined;
+
       const existing = map.get(resolvedKey);
       if (!existing) {
-        map.set(resolvedKey, { name, points });
+        map.set(resolvedKey, { name, points, className, class_id });
         continue;
       }
 
-      // Defensive: if student appears twice (shouldn’t), keep the higher score.
+      // Defensive: if student appears twice (shouldn't), keep the higher score.
       if (points > existing.points) {
-        map.set(resolvedKey, { name: name || existing.name, points });
+        map.set(resolvedKey, { 
+          name: name || existing.name, 
+          points,
+          className: className || existing.className,
+          class_id: class_id || existing.class_id
+        });
       }
     }
   }
@@ -110,6 +123,8 @@ export const mergeAndRankLeaderboards = (leaderboards: LeaderboardRawEntry[][]):
     avatar: student.name?.charAt(0).toUpperCase() || "?",
     points: student.points || 0,
     badge: index === 0 ? "gold" : index === 1 ? "silver" : index === 2 ? "bronze" : null,
+    className: student.className,
+    class_id: student.class_id,
   }));
 };
 
