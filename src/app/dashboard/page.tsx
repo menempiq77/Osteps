@@ -38,6 +38,8 @@ import {
   fetchStudentDashboardData,
   searchStudentProfile,
 } from "@/services/dashboardApis";
+import { fetchAssignYears } from "@/services/yearsApi";
+import { fetchStudents } from "@/services/studentsApi";
 import { fetchSchoolLogo } from "@/services/api";
 import { IMG_BASE_URL } from "@/lib/config";
 import { useRouter } from "next/navigation";
@@ -136,6 +138,45 @@ export default function DashboardPage() {
   } = useQuery({
     queryKey: ["schoolDashboard"],
     queryFn: fetchSchoolDashboardData,
+  });
+
+  const { data: teacherDerivedCounts } = useQuery({
+    queryKey: ["teacher-dashboard-counts", currentUser?.id],
+    queryFn: async () => {
+      if (currentUser?.role !== "TEACHER") return null;
+      const assignYears = (await fetchAssignYears()) ?? [];
+      const assignedClasses = (assignYears ?? []).flatMap((item: any) => {
+        const classesValue = item?.classes;
+        if (Array.isArray(classesValue)) return classesValue;
+        if (classesValue) return [classesValue];
+        return [];
+      });
+
+      const uniqueClassIds = Array.from(
+        new Set(
+          assignedClasses
+            .map((cls: any) => String(cls?.id ?? cls?.class_id ?? cls?.classId ?? ""))
+            .filter(Boolean)
+        )
+      );
+
+      const studentCounts = await Promise.all(
+        uniqueClassIds.map(async (classId) => {
+          try {
+            const students = (await fetchStudents(classId)) ?? [];
+            return Array.isArray(students) ? students.length : 0;
+          } catch {
+            return 0;
+          }
+        })
+      );
+
+      return {
+        classCount: uniqueClassIds.length,
+        studentCount: studentCounts.reduce((sum, count) => sum + count, 0),
+      };
+    },
+    enabled: currentUser?.role === "TEACHER",
   });
   
   const {
@@ -251,12 +292,18 @@ export default function DashboardPage() {
           stats: [
             {
               title: "Total Classes",
-              value: schoolDashboard?.assigned_class_count || 0,
+              value:
+                teacherDerivedCounts?.classCount ??
+                schoolDashboard?.assigned_class_count ??
+                0,
               link: "/dashboard/classes"
             },
             {
               title: "Total Students",
-              value: schoolDashboard?.assigned_students_count || 0,
+              value:
+                teacherDerivedCounts?.studentCount ??
+                schoolDashboard?.assigned_students_count ??
+                0,
               link: "/dashboard/students/all",
             },
           ],
