@@ -17,6 +17,7 @@ interface BehaviorModalProps {
   behaviorTypes: BehaviorType[];
   form: any;
   isEditing: boolean;
+  confirmLoading?: boolean;
 }
 
 const BehaviorModal: React.FC<BehaviorModalProps> = ({
@@ -26,6 +27,7 @@ const BehaviorModal: React.FC<BehaviorModalProps> = ({
   studentName,
   behaviorTypes,
   form,
+  confirmLoading = false,
 }) => {
   return (
     <Modal
@@ -33,6 +35,7 @@ const BehaviorModal: React.FC<BehaviorModalProps> = ({
       open={visible}
       onOk={onOk}
       onCancel={onCancel}
+      confirmLoading={confirmLoading}
       width={600}
     >
       <Form form={form} layout="vertical">

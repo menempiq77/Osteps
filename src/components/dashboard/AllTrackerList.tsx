@@ -52,6 +52,8 @@ export default function AllTrackerList() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const schoolId = currentUser?.school;
   const isTeacher = currentUser?.role === "TEACHER";
+  const canDeleteTrackers =
+    currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "HOD";
 
   const [editTracker, setEditTracker] = useState<Tracker | null>(null);
   const [deleteTracker, setDeleteTracker] = useState<Tracker | null>(null);
@@ -147,6 +149,10 @@ export default function AllTrackerList() {
   };
 
   const handleDeleteTracker = () => {
+    if (!canDeleteTrackers) {
+      messageApi.warning("Only HOD or School Admin can delete trackers.");
+      return;
+    }
     if (!deleteTracker) return;
     deleteTrackerMutation.mutate(Number(deleteTracker.id));
   };
@@ -291,18 +297,20 @@ export default function AllTrackerList() {
                             onClick={() => setEditTracker(tracker)}
                           />
                         </Tooltip>
-                        <Tooltip title="Delete Tracker">
-                          <Button
-                            type="text"
-                            icon={<DeleteOutlined className="text-sm" />}
-                            size="small"
-                            className="!text-red-600 hover:!text-red-800 hover:!bg-red-50"
-                            onClick={() => {
-                              setDeleteTracker(tracker);
-                              setIsDeleteModalOpen(true);
-                            }}
-                          />
-                        </Tooltip>
+                        {canDeleteTrackers && (
+                          <Tooltip title="Delete Tracker">
+                            <Button
+                              type="text"
+                              icon={<DeleteOutlined className="text-sm" />}
+                              size="small"
+                              className="!text-red-600 hover:!text-red-800 hover:!bg-red-50"
+                              onClick={() => {
+                                setDeleteTracker(tracker);
+                                setIsDeleteModalOpen(true);
+                              }}
+                            />
+                          </Tooltip>
+                        )}
                       </div>
                     )}
                   </div>

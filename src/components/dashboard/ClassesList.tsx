@@ -12,6 +12,7 @@ import {
   TeamOutlined,
 } from "@ant-design/icons";
 import { Modal } from "antd";
+import { message } from "antd";
 
 interface Class {
   id: string;
@@ -44,6 +45,7 @@ export default function ClassesList({
   const [classToDelete, setClassToDelete] = useState<Class | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [draggingClassId, setDraggingClassId] = useState<string | null>(null);
+  const [messageApi, contextHolder] = message.useMessage();
   const hasAccess = currentUser?.role === "SCHOOL_ADMIN";
 
   const isStudent = currentUser?.role === "STUDENT";
@@ -74,11 +76,19 @@ export default function ClassesList({
   };
 
   const handleDeleteClick = (cls: Class) => {
+    if (!hasAccess) {
+      messageApi.warning("Only School Admin can delete classes.");
+      return;
+    }
     setClassToDelete(cls);
     setIsDeleteModalOpen(true);
   };
 
   const confirmDelete = () => {
+    if (!hasAccess) {
+      messageApi.warning("Only School Admin can delete classes.");
+      return;
+    }
     if (classToDelete) {
       onDeleteClass(classToDelete.id);
       setIsDeleteModalOpen(false);
@@ -154,6 +164,7 @@ export default function ClassesList({
 
   return (
     <div className="overflow-auto">
+      {contextHolder}
       <div className="relative overflow-auto rounded-2xl border border-emerald-100 bg-gradient-to-b from-white to-emerald-50/30 p-4 md:p-5 shadow-sm">
         {canManageOrder && (
           <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs text-emerald-700">

@@ -2,13 +2,16 @@ import { Modal, Form, Input, Select, Button } from "antd";
 import { useEffect } from "react";
 
 type Student = {
-  id: number;
+  id: number | string;
   student_name: string;
   user_name: string;
   email?: string;
-  password: string;
+  password?: string;
   status: string;
   gender?: string;
+  student_gender?: string;
+  sex?: string;
+  student_sex?: string;
   class_id?: number;
 };
 
@@ -33,10 +36,16 @@ export const EditStudentModal = ({
         student_name: student?.student_name,
         user_name: student?.user_name,
         email: student?.email,
-        password: student?.password,
+        password: "",
         status: student?.status,
         gender:
-          String((student as any)?.gender ?? (student as any)?.student_gender ?? "")
+          String(
+            (student as any)?.gender ??
+              (student as any)?.student_gender ??
+              (student as any)?.sex ??
+              (student as any)?.student_sex ??
+              ""
+          )
             .toLowerCase() || undefined,
         class_id: student?.class_id,
       });
@@ -104,8 +113,8 @@ export const EditStudentModal = ({
 
         <Form.Item
           name="password"
-          label="Password"
-          rules={[{ required: true, message: "Please input password!" }]}
+          label="Password (Optional)"
+          extra="Leave empty to keep current password."
         >
           <Input.Password />
         </Form.Item>
@@ -121,7 +130,6 @@ export const EditStudentModal = ({
         <Form.Item
           name="gender"
           label="Gender"
-          rules={[{ required: true, message: "Please select gender!" }]}
         >
           <Select placeholder="Select gender">
             <Select.Option value="male">Male</Select.Option>

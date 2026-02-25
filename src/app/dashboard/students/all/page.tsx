@@ -74,6 +74,37 @@ const normalizeGenderRaw = (raw: unknown): "male" | "female" | "" => {
   return "";
 };
 
+const getFirstOverride = <T,>(map: Record<string, T>, keys: string[]): T | undefined => {
+  for (const key of keys) {
+    if (Object.prototype.hasOwnProperty.call(map, key)) return map[key];
+  }
+  return undefined;
+};
+
+const buildOverrideKeys = (params: {
+  classId: number | string;
+  studentId?: string;
+  profileId?: string;
+  updateIds?: string[];
+}): string[] => {
+  const classKey = String(params.classId ?? "").trim();
+  const studentId = String(params.studentId ?? "").trim();
+  const profileId = String(params.profileId ?? "").trim();
+  const updateIds = (params.updateIds || []).map((id) => String(id).trim()).filter(Boolean);
+
+  return Array.from(
+    new Set(
+      [
+        ...updateIds,
+        studentId,
+        profileId,
+        classKey && studentId ? `${classKey}:${studentId}` : "",
+        classKey && profileId ? `${classKey}:${profileId}` : "",
+      ].filter(Boolean)
+    )
+  );
+};
+
 export default function AllStudentsPage() {
   const searchParams = useSearchParams();
   const preselectedYearId = searchParams.get("yearId") || "";
@@ -82,6 +113,7 @@ export default function AllStudentsPage() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const role = currentUser?.role;
   const canView = role === "SCHOOL_ADMIN" || role === "HOD" || role === "TEACHER";
+  const canEdit = role === "SCHOOL_ADMIN";
   const schoolId = Number((currentUser as { school?: number | string } | null)?.school ?? 0);
   const [messageApi, contextHolder] = message.useMessage();
   const [editForm] = Form.useForm();
@@ -94,6 +126,26 @@ export default function AllStudentsPage() {
   );
   const [genderFilters, setGenderFilters] = useState<Array<"Male" | "Female">>([]);
   const [editingStudent, setEditingStudent] = useState<StudentListRow | null>(null);
+  const [genderOverrides, setGenderOverrides] = useState<Record<string, "male" | "female">>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const raw = localStorage.getItem("students-gender-overrides");
+      const parsed = raw ? JSON.parse(raw) : {};
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
+  });
+  const [nationalityOverrides, setNationalityOverrides] = useState<Record<string, string>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const raw = localStorage.getItem("students-nationality-overrides");
+      const parsed = raw ? JSON.parse(raw) : {};
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
+  });
 
 
   const {
@@ -161,7 +213,20 @@ export default function AllStudentsPage() {
                 const fromApi = normalizeGenderRaw(
                   student.gender ?? student.student_gender ?? student.sex ?? student.student_sex
                 );
-                const rawGender = fromApi;
+                const overrideKeys = buildOverrideKeys({
+                  classId: cls.id,
+                  studentId: sid,
+                  profileId,
+                  updateIds,
+                });
+                const overrideGender = getFirstOverride(genderOverrides, overrideKeys);
+                const rawGender = overrideGender || fromApi;
+                const apiNationality = String(student.nationality ?? "").trim();
+                const overrideNationality = getFirstOverride(nationalityOverrides, overrideKeys);
+                const nationality =
+                  overrideNationality !== undefined
+                  ? String(overrideNationality ?? "")
+                  : apiNationality;
                 return {
                   key: `${cls.id}-${student.id ?? student.student_id ?? Math.random()}`,
                   studentId: sid,
@@ -170,7 +235,7 @@ export default function AllStudentsPage() {
                   name: String(student.student_name ?? student.name ?? "Unknown Student"),
                   userName: String(student.user_name ?? student.username ?? ""),
                   email: String(student.email ?? ""),
-                  nationality: String(student.nationality ?? ""),
+                  nationality,
                   isSen: Boolean(student.is_sen ?? student.isSen ?? false),
                   senDetails: String(student.sen_details ?? student.senDetails ?? ""),
                   yearId: Number(classYearId ?? 0),
@@ -252,6 +317,9 @@ export default function AllStudentsPage() {
       sen_details?: string;
       password?: string;
     }) => {
+      if (!canEdit) {
+        throw new Error("Only School Admin can edit student information.");
+      }
       if (!editingStudent) return;
       const nextName = values.student_name?.trim() || editingStudent.name;
       const nextUserName = values.user_name?.trim() || editingStudent.userName;
@@ -277,6 +345,8 @@ export default function AllStudentsPage() {
         status: nextStatus,
         gender: nextGender,
         student_gender: nextGender,
+        sex: nextGender,
+        student_sex: nextGender,
         nationality: nextNationality,
         is_sen: nextIsSen,
         sen_details: nextSenDetails,
@@ -351,6 +421,47 @@ export default function AllStudentsPage() {
             })
         );
 
+        if (nextGender === "male" || nextGender === "female") {
+          const keys = buildOverrideKeys({
+            classId: editingStudent.classId,
+            studentId: editingStudent.studentId,
+            profileId: editingStudent.profileId,
+            updateIds: editingStudent.updateIds,
+          });
+          const nextOverrides = { ...genderOverrides };
+          keys.forEach((key) => {
+            nextOverrides[key] = nextGender as "male" | "female";
+          });
+          setGenderOverrides(nextOverrides);
+          if (typeof window !== "undefined") {
+            localStorage.setItem("students-gender-overrides", JSON.stringify(nextOverrides));
+          }
+        }
+        {
+          const keys = buildOverrideKeys({
+            classId: editingStudent.classId,
+            studentId: editingStudent.studentId,
+            profileId: editingStudent.profileId,
+            updateIds: editingStudent.updateIds,
+          });
+          const nextNationalityOverrides = { ...nationalityOverrides };
+          if (nextNationality) {
+            keys.forEach((key) => {
+              nextNationalityOverrides[key] = nextNationality;
+            });
+          } else {
+            keys.forEach((key) => {
+              delete nextNationalityOverrides[key];
+            });
+          }
+          setNationalityOverrides(nextNationalityOverrides);
+          if (typeof window !== "undefined") {
+            localStorage.setItem(
+              "students-nationality-overrides",
+              JSON.stringify(nextNationalityOverrides)
+            );
+          }
+        }
 
       }
       messageApi.success("Student updated successfully.");
@@ -368,14 +479,27 @@ export default function AllStudentsPage() {
   });
 
   const openEdit = (record: StudentListRow) => {
+    if (!canEdit) {
+      messageApi.warning("Only School Admin can edit student information.");
+      return;
+    }
+    const overrideKeys = buildOverrideKeys({
+      classId: record.classId,
+      studentId: record.studentId,
+      profileId: record.profileId,
+      updateIds: record.updateIds,
+    });
+    const overrideNationality = getFirstOverride(nationalityOverrides, overrideKeys);
+    const overrideGender = getFirstOverride(genderOverrides, overrideKeys);
     setEditingStudent(record);
     editForm.setFieldsValue({
       student_name: record.name,
       user_name: record.userName,
       email: record.email,
       status: record.status,
-      gender: record.genderRaw || "male",
-      nationality: record.nationality || "",
+      gender: overrideGender || record.genderRaw || "male",
+      nationality:
+        overrideNationality !== undefined ? String(overrideNationality ?? "") : record.nationality || "",
       is_sen: record.isSen,
       sen_details: record.senDetails || "",
       password: "",
@@ -383,6 +507,10 @@ export default function AllStudentsPage() {
   };
 
   const handleSaveEdit = async () => {
+    if (!canEdit) {
+      messageApi.warning("Only School Admin can edit student information.");
+      return;
+    }
     try {
       const values = await editForm.validateFields();
       editMutation.mutate(values);
@@ -536,9 +664,11 @@ export default function AllStudentsPage() {
                   title: "Action",
                   key: "action",
                   render: (_: unknown, record: StudentListRow) => (
-                    <Button size="small" onClick={() => openEdit(record)}>
-                      Edit
-                    </Button>
+                    canEdit ? (
+                      <Button size="small" onClick={() => openEdit(record)}>
+                        Edit
+                      </Button>
+                    ) : null
                   ),
                 },
               ]}

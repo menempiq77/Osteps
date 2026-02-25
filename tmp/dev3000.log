@@ -1,0 +1,37 @@
+
+> sms@0.1.0 dev
+> next dev -p 3000
+
+   ▲ Next.js 15.5.12
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.0.104:3000
+   - Experiments (use with caution):
+     ⨯ devtoolSegmentExplorer
+
+ ✓ Starting...
+ ✓ Ready in 3.5s
+ ○ Compiling /dashboard/leaderboard ...
+ ✓ Compiled /dashboard/leaderboard in 30.5s (6008 modules)
+redux-persist failed to create sync storage. falling back to noop storage.
+ GET /dashboard/leaderboard 200 in 31629ms
+ GET /dashboard/leaderboard 200 in 32799ms
+ ✓ Compiled in 2.6s (2887 modules)
+ ✓ Compiled in 2.5s (5999 modules)
+ GET /dashboard/leaderboard 200 in 295ms
+ ✓ Compiled in 2.3s (5999 modules)
+ GET /dashboard/leaderboard 200 in 206ms
+ ⨯ [TypeError: __webpack_modules__[moduleId] is not a function] {
+  digest: '505073469'
+}
+[TypeError: __webpack_modules__[moduleId] is not a function]
+ ⨯ [TypeError: __webpack_modules__[moduleId] is not a function]
+ ⨯ [TypeError: __webpack_modules__[moduleId] is not a function] {
+  page: '/dashboard/leaderboard'
+}
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 5.1s (6344 modules)
+ GET /dashboard/leaderboard 200 in 2987ms
+ GET /dashboard/leaderboard 200 in 65ms
+ GET /dashboard/leaderboard 500 in 7627ms
+ GET /dashboard/leaderboard 200 in 386ms
+[?25h

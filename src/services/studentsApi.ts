@@ -106,16 +106,49 @@ export const uploadStudentAvatar = async (
   studentId: string | number,
   file: File
 ) => {
-  const formData = new FormData();
-  formData.append("profile_path", file);
-  const response = await api.post(
-    `/classes/${classId}/students/${studentId}/avatar`,
-    formData,
-    {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
+  const formDataPrimary = new FormData();
+  formDataPrimary.append("profile_path", file);
+
+  const attempts: Array<() => Promise<any>> = [
+    // Preferred REST route (newer backend shape).
+    () =>
+      api.post(`/classes/${classId}/students/${studentId}/avatar`, formDataPrimary, {
+        headers: { "Content-Type": "multipart/form-data" },
+      }),
+    // Legacy route used in this codebase for student updates.
+    () => {
+      const fd = new FormData();
+      fd.append("profile_path", file);
+      return api.post(`/update-student/${studentId}`, fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+    },
+    // Profile route fallback (some backends expect student_id in multipart body).
+    () => {
+      const fd = new FormData();
+      fd.append("student_id", String(studentId));
+      fd.append("profile_path", file);
+      return api.post(`/update-student-profile`, fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+    },
+  ];
+
+  let lastError: any;
+  for (const attempt of attempts) {
+    try {
+      const response = await attempt();
+      return response.data;
+    } catch (error: any) {
+      lastError = error;
     }
-  );
-  return response.data;
+  }
+
+  const backendMessage =
+    lastError?.response?.data?.msg ||
+    lastError?.response?.data?.message ||
+    lastError?.response?.data?.data?.message ||
+    lastError?.message ||
+    "Failed to update avatar";
+  throw new Error(String(backendMessage));
 };

@@ -8,6 +8,7 @@ import {
   Breadcrumb,
   Button,
   Form,
+  Input,
   Modal,
   Spin,
   message,
@@ -57,6 +58,10 @@ type Student = {
   class_id: number;
   class_name?: string;
   status: "active" | "inactive" | "suspended";
+  gender?: string;
+  student_gender?: string;
+  sex?: string;
+  student_sex?: string;
   profile_path?: string | null;
   profile_photo?: string | null;
   avatar?: string | null;
@@ -92,6 +97,8 @@ type SeatingApiErrorShape = {
 };
 
 const GRID = 16;
+const BASE_CANVAS_WIDTH = 1240;
+const CANVAS_HEIGHT = 820;
 const SEAT_CARD_WIDTH = 180;
 const SEAT_CARD_HEIGHT = 100;
 const MARKER_WIDTH_HORIZONTAL = 170;
@@ -99,10 +106,13 @@ const MARKER_HEIGHT_HORIZONTAL = 40;
 const MARKER_WIDTH_VERTICAL = 56;
 const MARKER_HEIGHT_VERTICAL = 170;
 const EMPTY_LIST: any[] = [];
-const DEFAULT_ROOM_MARKERS: RoomMarkers = {
-  teacher: { x: 24, y: 380 },
-  screen: { x: 560, y: 8 },
-  door: { x: 1030, y: 8 },
+const getDefaultRoomMarkers = (canvasWidth: number): RoomMarkers => {
+  const safeWidth = Math.max(900, Math.floor(canvasWidth || BASE_CANVAS_WIDTH));
+  return {
+    teacher: { x: 24, y: 380 },
+    screen: { x: Math.max(24, Math.round(safeWidth * 0.45)), y: 8 },
+    door: { x: Math.max(24, safeWidth - 210), y: 8 },
+  };
 };
 const DEFAULT_MARKER_ORIENTATIONS: RoomMarkerOrientations = {
   teacher: "horizontal",
@@ -124,6 +134,12 @@ const safeNumber = (value: unknown) => {
 const toStudentId = (id: string | number) => String(id);
 const normalizeText = (value: string) =>
   value.toLowerCase().replace(/[\s_-]+/g, " ").trim();
+const normalizeGenderRaw = (raw: unknown): "male" | "female" | "" => {
+  const value = String(raw ?? "").trim().toLowerCase();
+  if (["male", "m", "boy"].includes(value)) return "male";
+  if (["female", "f", "girl"].includes(value)) return "female";
+  return "";
+};
 
 const getLocalTimestampLabel = (timeZone?: string) => {
   try {
@@ -186,8 +202,13 @@ const getAttendanceEventTime = (record: any) => {
   return 0;
 };
 
-const buildAutoLayout = (students: Student[]): SeatingStateItem[] => {
-  const columns = [90, 300, 800, 1010];
+const buildAutoLayout = (students: Student[], canvasWidth: number): SeatingStateItem[] => {
+  const safeWidth = Math.max(900, Math.floor(canvasWidth || BASE_CANVAS_WIDTH));
+  const padding = 24;
+  const maxLeft = Math.max(padding, safeWidth - SEAT_CARD_WIDTH - padding);
+  const columns = [0, 1, 2, 3].map((idx) =>
+    Math.round((padding + (idx / 3) * (maxLeft - padding)) / GRID) * GRID
+  );
   const top = 150;
   const rowGap = 145;
 
@@ -277,7 +298,10 @@ export default function StudentList() {
   const [selectedStudentAction, setSelectedStudentAction] = useState<any | null>(
     null
   );
+  const [isWholeClassActionModalOpen, setIsWholeClassActionModalOpen] = useState(false);
+  const [isWholeClassBehaviorMode, setIsWholeClassBehaviorMode] = useState(false);
   const [isBehaviorModalOpen, setIsBehaviorModalOpen] = useState(false);
+  const [isBehaviorSubmitting, setIsBehaviorSubmitting] = useState(false);
   const [behaviorIntent, setBehaviorIntent] = useState<"positive" | "negative">(
     "positive"
   );
@@ -285,6 +309,16 @@ export default function StudentList() {
   const [avatarPreviewMap, setAvatarPreviewMap] = useState<Record<string, string>>(
     {}
   );
+  const [avatarOverrides, setAvatarOverrides] = useState<Record<string, string>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const raw = localStorage.getItem("students-avatar-overrides");
+      const parsed = raw ? JSON.parse(raw) : {};
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
+  });
   const [seatingItems, setSeatingItems] = useState<SeatingStateItem[]>([]);
   const [localSeatingDirty, setLocalSeatingDirty] = useState(false);
   const [dragging, setDragging] = useState<{
@@ -298,8 +332,9 @@ export default function StudentList() {
     offsetY: number;
   } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [canvasWidth, setCanvasWidth] = useState<number>(BASE_CANVAS_WIDTH);
   const [roomMarkers, setRoomMarkers] = useState<RoomMarkers>(
-    DEFAULT_ROOM_MARKERS
+    getDefaultRoomMarkers(BASE_CANVAS_WIDTH)
   );
   const [markerOrientations, setMarkerOrientations] = useState<RoomMarkerOrientations>(
     DEFAULT_MARKER_ORIENTATIONS
@@ -310,15 +345,32 @@ export default function StudentList() {
   const [isRandomModalOpen, setIsRandomModalOpen] = useState(false);
   const [isPickingRandom, setIsPickingRandom] = useState(false);
   const [randomStudent, setRandomStudent] = useState<any | null>(null);
+  const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
+  const [avatarTargetStudent, setAvatarTargetStudent] = useState<any | null>(null);
+  const [avatarPresetTab, setAvatarPresetTab] = useState<"emoji" | "avatar" | "symbol">(
+    "emoji"
+  );
+  const [customAvatarChar, setCustomAvatarChar] = useState("");
   const [isAttendanceMode, setIsAttendanceMode] = useState(false);
   const [attendanceByStudent, setAttendanceByStudent] = useState<
     Record<string, AttendanceState>
   >({});
+  const [genderOverrides, setGenderOverrides] = useState<Record<string, "male" | "female">>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const raw = localStorage.getItem("students-gender-overrides");
+      const parsed = raw ? JSON.parse(raw) : {};
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
+  });
   const [attendanceSyncing, setAttendanceSyncing] = useState(false);
   const dragStartedRef = useRef(false);
+  const canvasContainerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const fileInputsRef = useRef<Record<string, HTMLInputElement | null>>({});
-  const actionAvatarInputRef = useRef<HTMLInputElement | null>(null);
+  const pickerAvatarInputRef = useRef<HTMLInputElement | null>(null);
   const role = currentUser?.role;
   const hasAccess = role === "SCHOOL_ADMIN";
   const canArrangeSeats =
@@ -402,8 +454,10 @@ export default function StudentList() {
       setEditStudent(null);
       messageApi.success("Student updated successfully.");
     },
-    onError: () => {
-      messageApi.error("Failed to update student.");
+    onError: (error: unknown) => {
+      const backendMessage =
+        (error as { message?: string })?.message?.trim() || "Failed to update student.";
+      messageApi.error(backendMessage);
     },
   });
 
@@ -425,16 +479,30 @@ export default function StudentList() {
   });
 
   const avatarMutation = useMutation({
-    mutationFn: ({
-      studentId,
+    mutationFn: async ({
+      studentIds,
+      cacheStudentId,
       file,
     }: {
-      studentId: string;
+      studentIds: string[];
+      cacheStudentId: string;
       file: File;
-    }) => uploadStudentAvatar(classIdStr as string, studentId, file),
-    onSuccess: (response, variables) => {
-      const studentId = variables.studentId;
-      const serverPath = extractAvatarPath(response);
+    }) => {
+      const ids = Array.from(new Set((studentIds || []).map((id) => String(id).trim()).filter(Boolean)));
+      let lastError: unknown;
+      for (const id of ids) {
+        try {
+          const response = await uploadStudentAvatar(classIdStr as string, id, file);
+          return { response, usedId: id, cacheStudentId };
+        } catch (error) {
+          lastError = error;
+        }
+      }
+      throw lastError || new Error("Failed to update avatar.");
+    },
+    onSuccess: (result, variables) => {
+      const studentId = variables.cacheStudentId;
+      const serverPath = extractAvatarPath(result?.response);
       queryClient.setQueryData(
         ["class-students-behavior-summary", classIdStr],
         (old: StudentBehaviorSummary[] | undefined) => {
@@ -465,14 +533,20 @@ export default function StudentList() {
       });
       messageApi.success("Avatar updated.");
     },
-    onError: (_, variables) => {
+    onError: (error: any, variables) => {
       setAvatarPreviewMap((prev) => {
-        if (prev[variables.studentId]) URL.revokeObjectURL(prev[variables.studentId]);
+        if (prev[variables.cacheStudentId]) URL.revokeObjectURL(prev[variables.cacheStudentId]);
         const next = { ...prev };
-        delete next[variables.studentId];
+        delete next[variables.cacheStudentId];
         return next;
       });
-      messageApi.error("Failed to update avatar.");
+      const backendMessage =
+        error?.response?.data?.msg ||
+        error?.response?.data?.message ||
+        error?.response?.data?.data?.message ||
+        error?.message ||
+        "Failed to update avatar.";
+      messageApi.error(String(backendMessage));
     },
   });
 
@@ -481,8 +555,8 @@ export default function StudentList() {
       saveClassSeatingLayout(classIdStr as string, {
         items,
         room_meta: {
-          width: 1240,
-          height: 820,
+          width: canvasWidth,
+          height: CANVAS_HEIGHT,
           screen_edge: "top",
           door_edge: "right",
           room_markers: roomMarkers,
@@ -534,14 +608,21 @@ export default function StudentList() {
     if (summaryError || behaviorSummary.length === 0) {
       return (students as Student[]).map((s) => {
         const fp = fallbackPointsByStudent[toStudentId(s.id)];
+        const sid = toStudentId(s.id);
+        const fromApiGender = normalizeGenderRaw(
+          s.gender ?? s.student_gender ?? s.sex ?? s.student_sex
+        );
+        const rawGender = genderOverrides[sid] || fromApiGender;
         return {
-        id: toStudentId(s.id),
+        id: sid,
         student_name: s.student_name,
         user_name: s.user_name,
         email: s.email,
         class_id: s.class_id,
         class_name: s.class_name,
         status: s.status || "active",
+        gender: rawGender,
+        student_gender: rawGender,
         profile_path: getStudentImagePath(s),
         positive_points: fp?.positive ?? 0,
         negative_points: fp?.negative ?? 0,
@@ -554,6 +635,17 @@ export default function StudentList() {
     return behaviorSummary.map((item) => {
       const id = toStudentId(item.student_id);
       const fromStudents = byId.get(id);
+      const fromApiGender = normalizeGenderRaw(
+        (item as any)?.gender ??
+          (item as any)?.student_gender ??
+          (item as any)?.sex ??
+          (item as any)?.student_sex ??
+          fromStudents?.gender ??
+          fromStudents?.student_gender ??
+          fromStudents?.sex ??
+          fromStudents?.student_sex
+      );
+      const rawGender = genderOverrides[id] || fromApiGender;
       return {
         id,
         student_name: item.student_name || fromStudents?.student_name || "Student",
@@ -564,6 +656,8 @@ export default function StudentList() {
           | "active"
           | "inactive"
           | "suspended",
+        gender: rawGender,
+        student_gender: rawGender,
         profile_path: getStudentImagePath(item) || getStudentImagePath(fromStudents),
         positive_points:
           safeNumber(item.positive_points) ||
@@ -577,7 +671,7 @@ export default function StudentList() {
           safeNumber(item.total_points) || fallbackPointsByStudent[id]?.total || 0,
       };
     });
-  }, [behaviorSummary, students, summaryError, classIdStr, fallbackPointsByStudent]);
+  }, [behaviorSummary, students, summaryError, classIdStr, fallbackPointsByStudent, genderOverrides]);
 
   useEffect(() => {
     const shouldUseFallback =
@@ -654,11 +748,42 @@ export default function StudentList() {
   }, []);
 
   useEffect(() => {
+    const container = canvasContainerRef.current;
+    if (!container || typeof window === "undefined") return;
+
+    const updateCanvasWidth = () => {
+      const next = Math.max(900, Math.floor(container.clientWidth || BASE_CANVAS_WIDTH));
+      setCanvasWidth((prev) => (prev === next ? prev : next));
+    };
+
+    updateCanvasWidth();
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateCanvasWidth);
+      return () => window.removeEventListener("resize", updateCanvasWidth);
+    }
+
+    const observer = new ResizeObserver(() => updateCanvasWidth());
+    observer.observe(container);
+    window.addEventListener("resize", updateCanvasWidth);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateCanvasWidth);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!orderedStudents.length) return;
+    const clampSeatX = (x: number) =>
+      Math.max(0, Math.min(Math.max(0, canvasWidth - SEAT_CARD_WIDTH), x));
     if (canArrangeSeats && seatingQuery.data?.items?.length) {
+      const savedWidth =
+        safeNumber((seatingQuery.data as any)?.room_meta?.width) || BASE_CANVAS_WIDTH;
+      const scaleX = (x: unknown) =>
+        Math.round((safeNumber(x) * canvasWidth) / savedWidth / GRID) * GRID;
       const fromApi = seatingQuery.data.items.map((item, index) => ({
         student_id: toStudentId(item.student_id),
-        x: safeNumber(item.x),
+        x: clampSeatX(scaleX(item.x)),
         y: safeNumber(item.y),
         z_index: safeNumber(item.z_index) || index + 1,
       }));
@@ -669,29 +794,41 @@ export default function StudentList() {
       const savedOrientations =
         seatingQuery.data?.room_meta?.room_marker_orientations;
       if (markers) {
-        setRoomMarkers({
-          teacher: markers.teacher || DEFAULT_ROOM_MARKERS.teacher,
-          screen: markers.screen || DEFAULT_ROOM_MARKERS.screen,
-          door: markers.door || DEFAULT_ROOM_MARKERS.door,
-        });
-        setMarkerOrientations({
+        const nextOrientations = {
           teacher: savedOrientations?.teacher || DEFAULT_MARKER_ORIENTATIONS.teacher,
           screen: savedOrientations?.screen || DEFAULT_MARKER_ORIENTATIONS.screen,
           door: savedOrientations?.door || DEFAULT_MARKER_ORIENTATIONS.door,
+        };
+        const scaleMarkerX = (x: unknown, key: RoomMarkerKey) => {
+          const markerWidth = getMarkerWidth(nextOrientations[key]);
+          const maxX = Math.max(0, canvasWidth - markerWidth);
+          return Math.max(0, Math.min(maxX, scaleX(x)));
+        };
+        setRoomMarkers({
+          teacher: markers.teacher
+            ? { x: scaleMarkerX(markers.teacher.x, "teacher"), y: safeNumber(markers.teacher.y) }
+            : getDefaultRoomMarkers(canvasWidth).teacher,
+          screen: markers.screen
+            ? { x: scaleMarkerX(markers.screen.x, "screen"), y: safeNumber(markers.screen.y) }
+            : getDefaultRoomMarkers(canvasWidth).screen,
+          door: markers.door
+            ? { x: scaleMarkerX(markers.door.x, "door"), y: safeNumber(markers.door.y) }
+            : getDefaultRoomMarkers(canvasWidth).door,
         });
+        setMarkerOrientations(nextOrientations);
       } else {
-        setRoomMarkers(DEFAULT_ROOM_MARKERS);
+        setRoomMarkers(getDefaultRoomMarkers(canvasWidth));
         setMarkerOrientations(DEFAULT_MARKER_ORIENTATIONS);
       }
       setLocalSeatingDirty(false);
       return;
     }
-    const auto = buildAutoLayout(orderedStudents);
+    const auto = buildAutoLayout(orderedStudents, canvasWidth);
     setSeatingItems((prev) => (areSeatLayoutsEqual(prev, auto) ? prev : auto));
-    setRoomMarkers(DEFAULT_ROOM_MARKERS);
+    setRoomMarkers(getDefaultRoomMarkers(canvasWidth));
     setMarkerOrientations(DEFAULT_MARKER_ORIENTATIONS);
     setLocalSeatingDirty(false);
-  }, [orderedStudents, seatingQuery.data, canArrangeSeats]);
+  }, [orderedStudents, seatingQuery.data, canArrangeSeats, canvasWidth]);
 
   useEffect(() => {
     return () => {
@@ -829,40 +966,263 @@ export default function StudentList() {
   };
 
   const handleSaveEdit = (values: any) => {
+    if (!hasAccess) {
+      messageApi.warning("Only School Admin can edit student information.");
+      return;
+    }
     if (!editStudent) return;
+    const nextPassword = String(values.password ?? "").trim();
+    const nextGender = String(
+      values.gender ??
+        (editStudent as any)?.gender ??
+        (editStudent as any)?.student_gender ??
+        (editStudent as any)?.sex ??
+        (editStudent as any)?.student_sex ??
+        ""
+    )
+      .trim()
+      .toLowerCase();
+    const payload: Record<string, any> = {
+      student_name: values.student_name,
+      email: values.email,
+      user_name: values.user_name,
+      class_id: Number(classIdStr),
+      status: values.status,
+      gender: nextGender || undefined,
+      student_gender: nextGender || undefined,
+      sex: nextGender || undefined,
+      student_sex: nextGender || undefined,
+      // Backend expects password key on update; empty string keeps current password.
+      password: nextPassword,
+    };
+    if (nextGender === "male" || nextGender === "female") {
+      const sid = toStudentId(editStudent.id);
+      const nextOverrides = {
+        ...genderOverrides,
+        [sid]: nextGender as "male" | "female",
+      };
+      setGenderOverrides(nextOverrides);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("students-gender-overrides", JSON.stringify(nextOverrides));
+      }
+    }
     updateStudentMutation.mutate({
       id: editStudent.id,
-        values: {
-          student_name: values.student_name,
-          email: values.email,
-          user_name: values.user_name,
-          class_id: Number(classIdStr),
-          password: values.password,
-          status: values.status,
-          gender: values.gender,
-          student_gender: values.gender,
-        },
-      });
+      values: payload,
+    });
   };
 
   const showDeleteConfirm = (student: Student) => {
+    if (!hasAccess) {
+      messageApi.warning("Only School Admin can delete students.");
+      return;
+    }
     setStudentToDelete(student);
     setIsDeleteModalOpen(true);
   };
 
   const handleDeleteStudent = () => {
+    if (!hasAccess) {
+      messageApi.warning("Only School Admin can delete students.");
+      return;
+    }
     if (!studentToDelete) return;
     deleteStudentMutation.mutate(studentToDelete.id);
   };
 
-  const handleAvatarPick = (studentId: string, file?: File) => {
+  const handleAvatarPick = (
+    studentRef: { id?: string | number; user_name?: string; student_name?: string } | string,
+    file?: File
+  ) => {
     if (!file) return;
+    const cacheStudentId =
+      typeof studentRef === "string" ? studentRef : String(studentRef?.id ?? "").trim();
+    if (!cacheStudentId) return;
+    const refUserName =
+      typeof studentRef === "string" ? "" : String(studentRef?.user_name ?? "").trim().toLowerCase();
+    const refStudentName =
+      typeof studentRef === "string" ? "" : String(studentRef?.student_name ?? "").trim().toLowerCase();
+    const fallbackIds = (students || [])
+      .filter((s) => {
+        const byUserName =
+          !!refUserName && String((s as any)?.user_name ?? "").trim().toLowerCase() === refUserName;
+        const byStudentName =
+          !!refStudentName &&
+          String((s as any)?.student_name ?? "").trim().toLowerCase() === refStudentName;
+        return byUserName || byStudentName;
+      })
+      .map((s) => String((s as any)?.id ?? "").trim())
+      .filter(Boolean);
+    const candidateIds = Array.from(new Set([cacheStudentId, ...fallbackIds]));
+
     const previewUrl = URL.createObjectURL(file);
     setAvatarPreviewMap((prev) => {
-      if (prev[studentId]) URL.revokeObjectURL(prev[studentId]);
-      return { ...prev, [studentId]: previewUrl };
+      if (prev[cacheStudentId]) URL.revokeObjectURL(prev[cacheStudentId]);
+      return { ...prev, [cacheStudentId]: previewUrl };
     });
-    avatarMutation.mutate({ studentId, file });
+    avatarMutation.mutate({ studentIds: candidateIds, cacheStudentId, file });
+  };
+
+  const saveLocalAvatar = (studentId: string, dataUrl: string) => {
+    if (!studentId || !dataUrl) return;
+    setAvatarOverrides((prev) => {
+      const next = { ...prev, [studentId]: dataUrl };
+      if (typeof window !== "undefined") {
+        localStorage.setItem("students-avatar-overrides", JSON.stringify(next));
+      }
+      return next;
+    });
+  };
+
+  const fileToDataUrl = async (file: File): Promise<string> => {
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(new Error("Failed to read avatar file."));
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const emojiPresets: Array<{ char: string; bg: string; fg?: string }> = [
+    { char: "😀", bg: "#E8F5E9" },
+    { char: "😄", bg: "#ECFDF5" },
+    { char: "😁", bg: "#FEFCE8" },
+    { char: "😎", bg: "#E3F2FD" },
+    { char: "🤓", bg: "#EEF2FF" },
+    { char: "🥳", bg: "#FCE7F3" },
+    { char: "🤩", bg: "#FFF7ED" },
+    { char: "😊", bg: "#ECFCCB" },
+    { char: "😺", bg: "#FEF3C7" },
+    { char: "🐶", bg: "#F1F5F9" },
+    { char: "🐱", bg: "#FDF2F8" },
+    { char: "🐼", bg: "#ECEFF1" },
+    { char: "🦊", bg: "#FFF3E0" },
+    { char: "🦁", bg: "#FFF8E1" },
+    { char: "🐯", bg: "#FCE4EC" },
+    { char: "🐸", bg: "#DCFCE7" },
+    { char: "🐵", bg: "#FFF7ED" },
+    { char: "🐧", bg: "#E0F2FE" },
+    { char: "🐨", bg: "#F3F4F6" },
+    { char: "🦄", bg: "#F5F3FF" },
+    { char: "🐬", bg: "#E0F2FE" },
+    { char: "🦋", bg: "#FCE7F3" },
+    { char: "🌟", bg: "#FFFBEB" },
+    { char: "🔥", bg: "#FFF1F2" },
+    { char: "⚽", bg: "#F0FDF4" },
+    { char: "🏀", bg: "#FFF7ED" },
+    { char: "🎨", bg: "#FCE7F3" },
+    { char: "🎵", bg: "#F5F3FF" },
+    { char: "🚀", bg: "#E0F2FE" },
+    { char: "📚", bg: "#ECFDF5" },
+  ];
+
+  const avatarFacePresets: Array<{ char: string; bg: string; fg?: string }> = [
+    { char: "👧", bg: "#F3E5F5" },
+    { char: "👦", bg: "#E8EAF6" },
+    { char: "🧑", bg: "#F0FDF4" },
+    { char: "👩", bg: "#FDF2F8" },
+    { char: "👨", bg: "#EFF6FF" },
+    { char: "🧒", bg: "#FEF3C7" },
+    { char: "🧕", bg: "#FFF7ED" },
+    { char: "👩‍🎓", bg: "#E0F2FE" },
+    { char: "🧑‍🎓", bg: "#ECFDF5" },
+    { char: "👨‍🎓", bg: "#EEF2FF" },
+    { char: "👩‍💻", bg: "#E0F2FE" },
+    { char: "🧑‍💻", bg: "#ECFEFF" },
+    { char: "👨‍💻", bg: "#EFF6FF" },
+    { char: "👩‍🔬", bg: "#F0FDF4" },
+    { char: "🧑‍🔬", bg: "#ECFEFF" },
+    { char: "👨‍🔬", bg: "#ECFCCB" },
+    { char: "👩‍🏫", bg: "#FEF3C7" },
+    { char: "🧑‍🏫", bg: "#FFFBEB" },
+    { char: "👨‍🏫", bg: "#FFF7ED" },
+    { char: "🧑‍🎨", bg: "#FCE7F3" },
+    { char: "👩‍🎨", bg: "#FDF2F8" },
+    { char: "👨‍🎨", bg: "#FAF5FF" },
+    { char: "🧑‍🚀", bg: "#E0F2FE" },
+    { char: "👩‍🚀", bg: "#DBEAFE" },
+    { char: "👨‍🚀", bg: "#EFF6FF" },
+    { char: "🧑‍⚕️", bg: "#ECFEFF" },
+    { char: "👩‍⚕️", bg: "#F0F9FF" },
+    { char: "👨‍⚕️", bg: "#E0F2FE" },
+  ];
+
+  const symbolPresets: Array<{ char: string; bg: string; fg?: string }> = [
+    { char: "★", bg: "#FFF8E1", fg: "#B45309" },
+    { char: "✦", bg: "#EEF2FF", fg: "#3730A3" },
+    { char: "✪", bg: "#F5F3FF", fg: "#6D28D9" },
+    { char: "✧", bg: "#FDF4FF", fg: "#A21CAF" },
+    { char: "⚡", bg: "#FFFBEB", fg: "#B45309" },
+    { char: "☀", bg: "#FEF3C7", fg: "#B45309" },
+    { char: "☾", bg: "#E0E7FF", fg: "#3730A3" },
+    { char: "☘", bg: "#ECFDF5", fg: "#065F46" },
+    { char: "✿", bg: "#FDF2F8", fg: "#9D174D" },
+    { char: "❖", bg: "#EEF2FF", fg: "#4338CA" },
+    { char: "⬢", bg: "#ECFEFF", fg: "#155E75" },
+    { char: "⬡", bg: "#F0FDF4", fg: "#166534" },
+    { char: "⬣", bg: "#FFFBEB", fg: "#92400E" },
+    { char: "⬟", bg: "#F3F4F6", fg: "#111827" },
+    { char: "♞", bg: "#F3F4F6", fg: "#111827" },
+    { char: "♜", bg: "#F8FAFC", fg: "#0F172A" },
+    { char: "♛", bg: "#FEF3C7", fg: "#78350F" },
+    { char: "♣", bg: "#ECFDF5", fg: "#14532D" },
+    { char: "♠", bg: "#E2E8F0", fg: "#1E293B" },
+    { char: "♥", bg: "#FFE4E6", fg: "#BE123C" },
+    { char: "♦", bg: "#FEE2E2", fg: "#B91C1C" },
+    { char: "♬", bg: "#FCE7F3", fg: "#9D174D" },
+    { char: "♫", bg: "#F5F3FF", fg: "#6D28D9" },
+    { char: "⌘", bg: "#E0F2FE", fg: "#0C4A6E" },
+    { char: "∞", bg: "#E0F2FE", fg: "#0369A1" },
+    { char: "Ω", bg: "#EEF2FF", fg: "#3730A3" },
+    { char: "π", bg: "#ECFEFF", fg: "#155E75" },
+    { char: "∑", bg: "#ECFCCB", fg: "#3F6212" },
+    { char: "✓", bg: "#DCFCE7", fg: "#166534" },
+    { char: "⚑", bg: "#FFF7ED", fg: "#9A3412" },
+  ];
+
+  const createAvatarDataUrl = (
+    char: string,
+    bgColor: string,
+    fgColor?: string
+  ): string => {
+    if (typeof document === "undefined") return "";
+    const canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return "";
+
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = fgColor || "#0F766E";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = "bold 260px 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif";
+    ctx.fillText(char, canvas.width / 2, canvas.height / 2 + 6);
+    return canvas.toDataURL("image/png");
+  };
+
+  const openAvatarPicker = (student: any) => {
+    if (!student?.id) {
+      messageApi.error("Student not found for avatar change.");
+      return;
+    }
+    setAvatarTargetStudent(student);
+    setCustomAvatarChar("");
+    setAvatarPresetTab("emoji");
+    setIsAvatarPickerOpen(true);
+  };
+
+  const applyPresetAvatar = async (preset: { char: string; bg: string; fg?: string }) => {
+    if (!avatarTargetStudent?.id) return;
+    const dataUrl = createAvatarDataUrl(preset.char, preset.bg, preset.fg);
+    if (!dataUrl) {
+      messageApi.error("Failed to generate avatar image.");
+      return;
+    }
+    saveLocalAvatar(String(avatarTargetStudent.id), dataUrl);
+    messageApi.success("Avatar updated.");
+    setIsAvatarPickerOpen(false);
   };
 
   const scoreColorClass = (score: number) => {
@@ -875,6 +1235,7 @@ export default function StudentList() {
     student: any,
     intent: "positive" | "negative"
   ) => {
+    setIsWholeClassBehaviorMode(false);
     setSelectedStudentAction(student);
     setIsBehaviorModalOpen(false);
     setBehaviorIntent(intent);
@@ -890,8 +1251,27 @@ export default function StudentList() {
     setIsBehaviorModalOpen(true);
   };
 
+  const openWholeClassBehaviorModalFor = (intent: "positive" | "negative") => {
+    setIsWholeClassBehaviorMode(true);
+    setSelectedStudentAction(null);
+    setIsWholeClassActionModalOpen(false);
+    setIsBehaviorModalOpen(false);
+    setBehaviorIntent(intent);
+    const filtered = behaviorTypes.filter((type) =>
+      intent === "positive" ? Number(type.points) > 0 : Number(type.points) < 0
+    );
+    const firstType = filtered[0] || behaviorTypes[0];
+    behaviorForm.setFieldsValue({
+      type: firstType?.id,
+      description: "",
+      date: new Date().toISOString().split("T")[0],
+    });
+    setIsBehaviorModalOpen(true);
+  };
+
   const handleInlineBehaviorSave = async () => {
-    if (!selectedStudentAction?.id) return;
+    if (isBehaviorSubmitting) return;
+    setIsBehaviorSubmitting(true);
     try {
       const values = await behaviorForm.validateFields();
       const selectedType = behaviorTypes.find(
@@ -901,7 +1281,48 @@ export default function StudentList() {
         messageApi.error("Please select a valid behavior type.");
         return;
       }
-      addBehaviorMutation.mutate({
+      if (isWholeClassBehaviorMode) {
+        if (!presentStudents.length) {
+          messageApi.warning("No present students found in this class.");
+          return;
+        }
+        let successCount = 0;
+        let failedCount = 0;
+        for (const student of presentStudents) {
+          try {
+            // eslint-disable-next-line no-await-in-loop
+            await addBehaviour({
+              student_id: student.id,
+              behaviour_id: selectedType.id,
+              description: values.description,
+              date: values.date || new Date().toISOString().split("T")[0],
+              teacher_id: currentUser?.id,
+            });
+            successCount += 1;
+          } catch {
+            failedCount += 1;
+          }
+        }
+        queryClient.invalidateQueries({
+          queryKey: ["class-students-behavior-summary", classIdStr],
+        });
+        if (failedCount === 0) {
+          messageApi.success(`Behavior added to all ${successCount} present students.`);
+        } else if (successCount > 0) {
+          messageApi.warning(
+            `Added to ${successCount} present students, ${failedCount} failed.`
+          );
+        } else {
+          messageApi.error("Failed to apply behavior to present students.");
+        }
+        setIsBehaviorModalOpen(false);
+        setIsWholeClassBehaviorMode(false);
+        behaviorForm.resetFields();
+        setIsBehaviorSubmitting(false);
+        return;
+      }
+      if (!selectedStudentAction?.id) return;
+      await addBehaviorMutation.mutateAsync({
         student_id: selectedStudentAction.id,
         behaviour_id: selectedType.id,
         description: values.description,
@@ -910,6 +1331,8 @@ export default function StudentList() {
       });
     } catch {
       // validation handled by form
+    } finally {
+      setIsBehaviorSubmitting(false);
     }
   };
 
@@ -1199,8 +1622,8 @@ export default function StudentList() {
   }, [orderedStudents, attendanceByStudent]);
 
   const handleResetLayout = () => {
-    setSeatingItems(buildAutoLayout(orderedStudents));
-    setRoomMarkers(DEFAULT_ROOM_MARKERS);
+    setSeatingItems(buildAutoLayout(orderedStudents, canvasWidth));
+    setRoomMarkers(getDefaultRoomMarkers(canvasWidth));
     setMarkerOrientations(DEFAULT_MARKER_ORIENTATIONS);
     setLocalSeatingDirty(true);
   };
@@ -1380,7 +1803,13 @@ export default function StudentList() {
       {viewMode === "behavior" && (
         <div className="rounded-2xl border border-emerald-100 bg-gradient-to-b from-white to-emerald-50/30 p-4 md:p-5 shadow-sm">
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
-            <div className="rounded-3xl bg-white border border-gray-200 p-4 shadow-sm">
+            <div
+              className="rounded-3xl bg-white border border-gray-200 p-4 shadow-sm cursor-pointer hover:shadow-md transition"
+              onClick={() => {
+                if (!orderedStudents.length) return;
+                setIsWholeClassActionModalOpen(true);
+              }}
+            >
               <div className="flex items-start justify-between">
                 <div className="h-16 w-16 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-2xl">
                   C
@@ -1397,12 +1826,16 @@ export default function StudentList() {
                 {presentStudents.length} present,{" "}
                 {Math.max(orderedStudents.length - presentStudents.length, 0)} absent
               </div>
+              <div className="mt-2 text-xs text-emerald-700">Click to give/deduct points</div>
             </div>
 
             {orderedStudents.map((student) => {
               const studentId = toStudentId(student.id);
               const imageSrc =
-                avatarPreviewMap[studentId] || getStudentImagePath(student) || "";
+                avatarPreviewMap[studentId] ||
+                avatarOverrides[studentId] ||
+                getStudentImagePath(student) ||
+                "";
               const attendanceEntry = attendanceByStudent[studentId];
               const isPresent = attendanceEntry?.isPresent !== false;
               return (
@@ -1419,11 +1852,17 @@ export default function StudentList() {
                   className={`rounded-3xl bg-white border border-gray-200 p-4 shadow-sm transition cursor-pointer ${
                     isPresent
                       ? "hover:shadow-md"
-                      : "opacity-65 border-red-200 bg-red-50/30"
+                      : "border-red-300 bg-red-100/70 hover:shadow-md"
                   }`}
                 >
                   <div className="flex items-start justify-between">
-                    <div className="h-16 w-16 rounded-full bg-emerald-100 overflow-hidden flex items-center justify-center text-2xl text-emerald-700 font-semibold uppercase">
+                    <div
+                      className={`h-16 w-16 rounded-full overflow-hidden flex items-center justify-center text-2xl font-semibold uppercase ${
+                        isPresent
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-red-200 text-red-700"
+                      }`}
+                    >
                       {imageSrc ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={imageSrc} alt={student.student_name} className="h-full w-full object-cover" />
@@ -1451,7 +1890,9 @@ export default function StudentList() {
                   <div className="mt-3 flex items-center justify-between">
                     <div
                       className={`text-xs px-2 py-0.5 rounded-full ${
-                        student.status === "active"
+                        !isPresent
+                          ? "bg-red-100 text-red-700"
+                          : student.status === "active"
                           ? "bg-green-100 text-green-700"
                           : student.status === "inactive"
                           ? "bg-yellow-100 text-yellow-700"
@@ -1485,7 +1926,16 @@ export default function StudentList() {
                     type="file"
                     accept="image/*"
                     className="hidden"
-                    onChange={(e) => handleAvatarPick(studentId, e.target.files?.[0])}
+                    onChange={(e) =>
+                      handleAvatarPick(
+                        {
+                          id: student.id,
+                          user_name: student.user_name,
+                          student_name: student.student_name,
+                        },
+                        e.target.files?.[0]
+                      )
+                    }
                   />
                 </div>
               );
@@ -1535,10 +1985,10 @@ export default function StudentList() {
             </div>
           )}
 
-          <div className="overflow-auto rounded-xl border border-gray-200">
+          <div ref={canvasContainerRef} className="overflow-hidden rounded-xl border border-gray-200">
             <div
               ref={canvasRef}
-              className="relative mx-auto min-w-[1240px] h-[820px]"
+              className="relative mx-auto w-full h-[820px]"
               style={{
                 backgroundColor: "#f8fafc",
                 backgroundImage:
@@ -1705,11 +2155,22 @@ export default function StudentList() {
               {seatingStudents.map((student) => {
                 const seat = student.seat;
                 if (!seat) return null;
+                const isPresent = attendanceByStudent[toStudentId(student.id)]?.isPresent !== false;
+                const studentId = toStudentId(student.id);
+                const seatingImageSrc =
+                  avatarPreviewMap[studentId] ||
+                  avatarOverrides[studentId] ||
+                  getStudentImagePath(student) ||
+                  "";
 
                 return (
                   <div
                     key={student.id}
-                    className="absolute rounded-xl border border-slate-300 bg-white shadow-sm px-3 py-2 select-none cursor-move"
+                    className={`absolute rounded-xl shadow-sm px-3 py-2 select-none cursor-move ${
+                      isPresent
+                        ? "border border-slate-300 bg-white"
+                        : "border border-red-300 bg-red-100/70"
+                    }`}
                     style={{
                       width: `${SEAT_CARD_WIDTH}px`,
                       height: `${SEAT_CARD_HEIGHT}px`,
@@ -1732,10 +2193,10 @@ export default function StudentList() {
                     </div>
                     <div className="mt-1 flex items-center gap-2">
                       <div className="h-10 w-10 rounded-full bg-emerald-100 overflow-hidden flex items-center justify-center text-sm font-semibold uppercase text-emerald-700">
-                        {getStudentImagePath(student) ? (
+                        {seatingImageSrc ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
-                            src={getStudentImagePath(student) || ""}
+                            src={seatingImageSrc}
                             alt={student.student_name}
                             className="h-full w-full object-cover"
                           />
@@ -1765,6 +2226,34 @@ export default function StudentList() {
         onOk={handleAddNewStudent}
         classId={Number(classIdStr)}
       />
+
+      <Modal
+        title="Whole Class Actions"
+        open={isWholeClassActionModalOpen}
+        onCancel={() => setIsWholeClassActionModalOpen(false)}
+        footer={null}
+        centered
+      >
+        <div className="space-y-3">
+          <div className="text-sm text-slate-600">
+            Apply the same behavior to all students in this class.
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              onClick={() => openWholeClassBehaviorModalFor("positive")}
+              className="!border-emerald-300 !text-emerald-700"
+            >
+              Give Points
+            </Button>
+            <Button
+              onClick={() => openWholeClassBehaviorModalFor("negative")}
+              className="!border-red-300 !text-red-600"
+            >
+              Deduct Points
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <EditStudentModal
         open={!!editStudent}
@@ -1804,37 +2293,32 @@ export default function StudentList() {
               >
                 Deduct Points
               </Button>
-              <Button
-                icon={<EditOutlined />}
-                onClick={() => {
-                  setEditStudent(selectedStudentAction);
-                  setSelectedStudentAction(null);
-                }}
-              >
-                Edit
-              </Button>
-              <Button
-                icon={<DeleteOutlined />}
-                danger
-                onClick={() => {
-                  showDeleteConfirm(selectedStudentAction);
-                  setSelectedStudentAction(null);
-                }}
-              >
-                Delete
-              </Button>
-              <input
-                ref={actionAvatarInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) =>
-                  handleAvatarPick(selectedStudentAction.id, e.target.files?.[0])
-                }
-              />
+              {hasAccess && (
+                <Button
+                  icon={<EditOutlined />}
+                  onClick={() => {
+                    setEditStudent(selectedStudentAction);
+                    setSelectedStudentAction(null);
+                  }}
+                >
+                  Edit
+                </Button>
+              )}
+              {hasAccess && (
+                <Button
+                  icon={<DeleteOutlined />}
+                  danger
+                  onClick={() => {
+                    showDeleteConfirm(selectedStudentAction);
+                    setSelectedStudentAction(null);
+                  }}
+                >
+                  Delete
+                </Button>
+              )}
               <Button
                 icon={<PictureOutlined />}
-                onClick={() => actionAvatarInputRef.current?.click()}
+                onClick={() => openAvatarPicker(selectedStudentAction)}
                 className="col-span-2 !border-emerald-300 !text-emerald-700"
               >
                 Change Avatar
@@ -1852,6 +2336,116 @@ export default function StudentList() {
             </div>
           </div>
         )}
+      </Modal>
+
+      <Modal
+        title={`Choose Avatar${avatarTargetStudent?.student_name ? `: ${avatarTargetStudent.student_name}` : ""}`}
+        open={isAvatarPickerOpen}
+        onCancel={() => setIsAvatarPickerOpen(false)}
+        footer={null}
+        centered
+      >
+        <div className="space-y-3">
+          <input
+            ref={pickerAvatarInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const studentId = String(avatarTargetStudent?.id || "");
+              const file = e.target.files?.[0];
+              if (!studentId || !file) return;
+              fileToDataUrl(file)
+                .then((dataUrl) => {
+                  saveLocalAvatar(studentId, dataUrl);
+                  messageApi.success("Avatar updated.");
+                })
+                .catch(() => {
+                  messageApi.error("Failed to read selected image.");
+                });
+              setIsAvatarPickerOpen(false);
+            }}
+          />
+          <Button
+            block
+            onClick={() => pickerAvatarInputRef.current?.click()}
+            className="!border-emerald-300 !text-emerald-700"
+          >
+            Upload Photo
+          </Button>
+
+          <div className="grid grid-cols-3 gap-2">
+            <Button
+              type={avatarPresetTab === "emoji" ? "primary" : "default"}
+              className={avatarPresetTab === "emoji" ? "!bg-primary !border-none" : ""}
+              onClick={() => setAvatarPresetTab("emoji")}
+            >
+              Emojis
+            </Button>
+            <Button
+              type={avatarPresetTab === "avatar" ? "primary" : "default"}
+              className={avatarPresetTab === "avatar" ? "!bg-primary !border-none" : ""}
+              onClick={() => setAvatarPresetTab("avatar")}
+            >
+              Avatars
+            </Button>
+            <Button
+              type={avatarPresetTab === "symbol" ? "primary" : "default"}
+              className={avatarPresetTab === "symbol" ? "!bg-primary !border-none" : ""}
+              onClick={() => setAvatarPresetTab("symbol")}
+            >
+              Symbols
+            </Button>
+          </div>
+
+          <div className="text-xs text-slate-500">
+            {avatarPresetTab === "emoji"
+              ? `${emojiPresets.length} emojis`
+              : avatarPresetTab === "avatar"
+              ? `${avatarFacePresets.length} avatars`
+              : `${symbolPresets.length} symbols`}
+          </div>
+
+          <div className="max-h-56 overflow-y-auto pr-1">
+            <div className="grid grid-cols-4 gap-2">
+              {(avatarPresetTab === "emoji"
+                ? emojiPresets
+                : avatarPresetTab === "avatar"
+                ? avatarFacePresets
+                : symbolPresets
+              ).map((preset, index) => (
+                <button
+                  key={`${avatarPresetTab}-${preset.char}-${index}`}
+                  type="button"
+                  onClick={() => applyPresetAvatar(preset)}
+                  className="cursor-pointer h-16 rounded-xl border border-slate-200 text-3xl flex items-center justify-center hover:scale-[1.03] transition"
+                  style={{ backgroundColor: preset.bg, color: preset.fg || "#0F766E" }}
+                  title={`Use ${preset.char}`}
+                >
+                  {preset.char}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <Input
+              value={customAvatarChar}
+              onChange={(e) => setCustomAvatarChar(e.target.value.slice(0, 2))}
+              placeholder="Custom emoji/symbol"
+              maxLength={2}
+            />
+            <Button
+              onClick={() => {
+                const value = customAvatarChar.trim();
+                if (!value) return;
+                applyPresetAvatar({ char: value, bg: "#ECFEFF", fg: "#155E75" });
+              }}
+            >
+              Use
+            </Button>
+          </div>
+        </div>
       </Modal>
 
       <Modal
@@ -1878,14 +2472,17 @@ export default function StudentList() {
       <BehaviorModal
         visible={isBehaviorModalOpen}
         onCancel={() => {
+          if (isBehaviorSubmitting) return;
           setIsBehaviorModalOpen(false);
+          setIsWholeClassBehaviorMode(false);
           behaviorForm.resetFields();
         }}
         onOk={handleInlineBehaviorSave}
-        studentName={selectedStudentAction?.student_name || "Student"}
+        studentName={isWholeClassBehaviorMode ? "Whole Class" : selectedStudentAction?.student_name || "Student"}
         behaviorTypes={filteredModalBehaviorTypes}
         form={behaviorForm}
         isEditing={false}
+        confirmLoading={isBehaviorSubmitting}
       />
 
       <Modal

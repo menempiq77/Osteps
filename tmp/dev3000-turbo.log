@@ -1,0 +1,666 @@
+
+> sms@0.1.0 dev
+> next dev --turbopack -p 3000
+
+   ▲ Next.js 15.5.12 (Turbopack)
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.0.104:3000
+   - Experiments (use with caution):
+     ⨯ devtoolSegmentExplorer
+
+ ✓ Starting...
+ ✓ Ready in 2.6s
+ ⚠ Webpack is configured while Turbopack is not, which may cause problems.
+ ⚠ See instructions if you need to configure Turbopack:
+  https://nextjs.org/docs/app/api-reference/next-config-js/turbopack
+
+[Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection: [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection:  [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ○ Compiling /dashboard/leaderboard ...
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ✓ Compiled /dashboard/leaderboard in 16.1s
+redux-persist failed to create sync storage. falling back to noop storage.
+ GET /dashboard/leaderboard 200 in 17269ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /dashboard/leaderboard 200 in 1563ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+[Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection: [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection:  [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+[Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection: [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection:  [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+[Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection: [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection:  [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+[Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection: [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection:  [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+[Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection: [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection:  [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+[Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection: [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection:  [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+[Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection: [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection:  [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+[Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection: [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection:  [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+[Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection: [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection:  [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+[Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection: [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection:  [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+[Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection: [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection:  [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+[Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection: [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection:  [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/esm/client/components/layout-router.js#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>) {
+  digest: '565377403'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/esm/client/components/render-from-template-context.js#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>)
+    at stringify (<anonymous>)
+    at stringify (<anonymous>) {
+  digest: '1673594331'
+}
+ ⨯ Error: Could not find the module "[project]/src/app/provider.tsx#Providers" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>) {
+  digest: '1037824239'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/esm/client/components/layout-router.js#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>) {
+  digest: '3811899343'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/esm/client/components/render-from-template-context.js#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>) {
+  digest: '3314396079'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/esm/client/components/client-segment.js#ClientSegmentRoot" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '4039084962'
+}
+ ⨯ Error: Could not find the module "[project]/src/app/dashboard/layout.tsx#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '1594067502'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/esm/client/components/layout-router.js#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '3481790850'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/esm/client/components/render-from-template-context.js#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '2323765538'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/esm/client/components/layout-router.js#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '3481790850'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/esm/client/components/render-from-template-context.js#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '2323765538'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/esm/client/components/client-page.js#ClientPageRoot" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '4227635234'
+}
+ ⨯ Error: Could not find the module "[project]/src/app/dashboard/leaderboard/page.tsx#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '2721138350'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/esm/lib/framework/boundary-components.js#OutletBoundary" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '4291027618'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/esm/client/components/metadata/async-metadata.js#AsyncMetadataOutlet" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>) {
+  digest: '3598498543'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/esm/lib/framework/boundary-components.js#ViewportBoundary" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>) {
+  digest: '3312162863'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/esm/lib/framework/boundary-components.js#MetadataBoundary" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>) {
+  digest: '1869601647'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/client/components/builtin/global-error.js#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '2453671202'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/esm/lib/metadata/generate/icon-mark.js#IconMark" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '167704886'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/esm/lib/framework/boundary-components.js#ViewportBoundary" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>) {
+  digest: '3312162863'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/esm/lib/framework/boundary-components.js#MetadataBoundary" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>) {
+  digest: '1869601647'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/client/components/builtin/global-error.js#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '2453671202'
+}
+[0m[7m Server [0m Error: Could not find the module "[project]/node_modules/next/dist/client/components/builtin/global-error.js#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>:1:18) {
+  environmentName: 'Server',
+  digest: '2453671202'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/client/components/builtin/global-error.js#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>:1:18) {
+  environmentName: 'Server',
+  digest: '2453671202'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/esm/lib/metadata/generate/icon-mark.js#IconMark" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '167704886'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/client/components/builtin/global-error.js#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>:1:18) {
+  environmentName: 'Server',
+  digest: '2453671202',
+  page: '/dashboard/leaderboard'
+}
+[Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection: [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection:  [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+[Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection: [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection:  [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+[Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection: [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection:  [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/esm/client/components/layout-router.js#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>) {
+  digest: '565377403'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/esm/client/components/render-from-template-context.js#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>)
+    at stringify (<anonymous>)
+    at stringify (<anonymous>) {
+  digest: '1673594331'
+}
+ ⨯ Error: Could not find the module "[project]/src/app/provider.tsx#Providers" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>) {
+  digest: '1037824239'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/esm/client/components/layout-router.js#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>) {
+  digest: '3811899343'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/esm/client/components/render-from-template-context.js#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>) {
+  digest: '3314396079'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/esm/client/components/client-segment.js#ClientSegmentRoot" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '4039084962'
+}
+ ⨯ Error: Could not find the module "[project]/src/app/dashboard/layout.tsx#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '1594067502'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/esm/client/components/layout-router.js#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '3481790850'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/esm/client/components/render-from-template-context.js#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '2323765538'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/esm/client/components/layout-router.js#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '3481790850'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/esm/client/components/render-from-template-context.js#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '2323765538'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/esm/client/components/client-page.js#ClientPageRoot" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '4227635234'
+}
+ ⨯ Error: Could not find the module "[project]/src/app/dashboard/leaderboard/page.tsx#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '2721138350'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/esm/lib/framework/boundary-components.js#OutletBoundary" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '4291027618'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/esm/client/components/metadata/async-metadata.js#AsyncMetadataOutlet" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>) {
+  digest: '3598498543'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/esm/lib/framework/boundary-components.js#ViewportBoundary" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>) {
+  digest: '3312162863'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/esm/lib/framework/boundary-components.js#MetadataBoundary" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>) {
+  digest: '1869601647'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/client/components/builtin/global-error.js#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '2453671202'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/esm/lib/metadata/generate/icon-mark.js#IconMark" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '167704886'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/esm/lib/framework/boundary-components.js#ViewportBoundary" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>) {
+  digest: '3312162863'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/esm/lib/framework/boundary-components.js#MetadataBoundary" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>) {
+  digest: '1869601647'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/client/components/builtin/global-error.js#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '2453671202'
+}
+[0m[7m Server [0m Error: Could not find the module "[project]/node_modules/next/dist/client/components/builtin/global-error.js#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>:1:18) {
+  environmentName: 'Server',
+  digest: '2453671202'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/client/components/builtin/global-error.js#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>:1:18) {
+  environmentName: 'Server',
+  digest: '2453671202'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/esm/lib/metadata/generate/icon-mark.js#IconMark" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '167704886'
+}
+ ⨯ Error: Could not find the module "[project]/node_modules/next/dist/client/components/builtin/global-error.js#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>:1:18) {
+  environmentName: 'Server',
+  digest: '2453671202',
+  page: '/dashboard/leaderboard'
+}
+ ○ Compiling /_error ...
+[Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection: [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection:  [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+[Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection: [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection:  [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Windows-\Osteps-main\Osteps\.next\server\app\dashboard\leaderboard\page\app-paths-manifest.json'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Windows-\\Osteps-main\\Osteps\\.next\\server\\app\\dashboard\\leaderboard\\page\\app-paths-manifest.json'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Windows-\Osteps-main\Osteps\.next\server\app\dashboard\leaderboard\page\app-paths-manifest.json'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Windows-\\Osteps-main\\Osteps\\.next\\server\\app\\dashboard\\leaderboard\\page\\app-paths-manifest.json',
+  page: '/dashboard/leaderboard'
+}
+ ✓ Compiled /_error in 7.4s
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Windows-\Osteps-main\Osteps\.next\server\pages\_app\build-manifest.json'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Windows-\\Osteps-main\\Osteps\\.next\\server\\pages\\_app\\build-manifest.json'
+}
+ ⚠ Found a change in next.config.ts. Restarting the server to apply the changes...
+   ▲ Next.js 15.5.12 (Turbopack)
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.0.104:3000
+   - Experiments (use with caution):
+     ⨯ devtoolSegmentExplorer
+
+ ✓ Starting...
+ ✓ Ready in 2.2s
+ ○ Compiling /dashboard/leaderboard ...
+[Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection: [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection:  [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+[Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection: [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection:  [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+[Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection: [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection:  [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+[Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection: [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection:  [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ✓ Compiled /dashboard/leaderboard in 10.7s
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Windows-\Osteps-main\Osteps\.next\static\development\_buildManifest.js.tmp.xrt97n2w24e'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Windows-\\Osteps-main\\Osteps\\.next\\static\\development\\_buildManifest.js.tmp.xrt97n2w24e'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Windows-\Osteps-main\Osteps\.next\static\development\_buildManifest.js.tmp.t8b69ayq8h'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Windows-\\Osteps-main\\Osteps\\.next\\static\\development\\_buildManifest.js.tmp.t8b69ayq8h'
+}
+ ○ Compiling /_error ...
+[Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection: [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ⨯ unhandledRejection:  [Error: unrecognized HMR message "{"event":"ping","page":"/_error"}"]
+ ✓ Compiled /_error in 2s
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Windows-\Osteps-main\Osteps\.next\static\development\_buildManifest.js.tmp.ztzlq3lahmo'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Windows-\\Osteps-main\\Osteps\\.next\\static\\development\\_buildManifest.js.tmp.ztzlq3lahmo'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Windows-\Osteps-main\Osteps\.next\static\development\_buildManifest.js.tmp.sd06nkrmzjo'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Windows-\\Osteps-main\\Osteps\\.next\\static\\development\\_buildManifest.js.tmp.sd06nkrmzjo'
+}
+[Error: ENOENT: no such file or directory, open 'C:\Windows-\Osteps-main\Osteps\.next\static\development\_buildManifest.js.tmp.t8b69ayq8h'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Windows-\\Osteps-main\\Osteps\\.next\\static\\development\\_buildManifest.js.tmp.t8b69ayq8h'
+}
+[Error: ENOENT: no such file or directory, open 'C:\Windows-\Osteps-main\Osteps\.next\static\development\_buildManifest.js.tmp.xrt97n2w24e'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Windows-\\Osteps-main\\Osteps\\.next\\static\\development\\_buildManifest.js.tmp.xrt97n2w24e'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Windows-\Osteps-main\Osteps\.next\static\development\_buildManifest.js.tmp.rx1ki09wegp'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Windows-\\Osteps-main\\Osteps\\.next\\static\\development\\_buildManifest.js.tmp.rx1ki09wegp'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Windows-\Osteps-main\Osteps\.next\static\development\_buildManifest.js.tmp.qbkyj880k8f'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Windows-\\Osteps-main\\Osteps\\.next\\static\\development\\_buildManifest.js.tmp.qbkyj880k8f'
+}
+[Error: ENOENT: no such file or directory, open 'C:\Windows-\Osteps-main\Osteps\.next\static\development\_buildManifest.js.tmp.pxurm36rl6i'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Windows-\\Osteps-main\\Osteps\\.next\\static\\development\\_buildManifest.js.tmp.pxurm36rl6i'
+}
+[Error: ENOENT: no such file or directory, open 'C:\Windows-\Osteps-main\Osteps\.next\static\development\_buildManifest.js.tmp.e9lhjyvgohr'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Windows-\\Osteps-main\\Osteps\\.next\\static\\development\\_buildManifest.js.tmp.e9lhjyvgohr'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Windows-\Osteps-main\Osteps\.next\static\development\_buildManifest.js.tmp.vr8lmyj8unm'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Windows-\\Osteps-main\\Osteps\\.next\\static\\development\\_buildManifest.js.tmp.vr8lmyj8unm'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Windows-\Osteps-main\Osteps\.next\static\development\_buildManifest.js.tmp.j8jdjiv4b6h'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Windows-\\Osteps-main\\Osteps\\.next\\static\\development\\_buildManifest.js.tmp.j8jdjiv4b6h'
+}
+[Error: ENOENT: no such file or directory, open 'C:\Windows-\Osteps-main\Osteps\.next\static\development\_buildManifest.js.tmp.vr8lmyj8unm'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Windows-\\Osteps-main\\Osteps\\.next\\static\\development\\_buildManifest.js.tmp.vr8lmyj8unm'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Windows-\Osteps-main\Osteps\.next\static\development\_buildManifest.js.tmp.09xc3v0cx676'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Windows-\\Osteps-main\\Osteps\\.next\\static\\development\\_buildManifest.js.tmp.09xc3v0cx676'
+}
+[Error: ENOENT: no such file or directory, open 'C:\Windows-\Osteps-main\Osteps\.next\static\development\_buildManifest.js.tmp.hhwik9vrsbg'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Windows-\\Osteps-main\\Osteps\\.next\\static\\development\\_buildManifest.js.tmp.hhwik9vrsbg'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Windows-\Osteps-main\Osteps\.next\static\development\_buildManifest.js.tmp.pa8xjj50mu'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Windows-\\Osteps-main\\Osteps\\.next\\static\\development\\_buildManifest.js.tmp.pa8xjj50mu'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Windows-\Osteps-main\Osteps\.next\static\development\_buildManifest.js.tmp.5935697jni9'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Windows-\\Osteps-main\\Osteps\\.next\\static\\development\\_buildManifest.js.tmp.5935697jni9'
+}
+[Error: ENOENT: no such file or directory, open 'C:\Windows-\Osteps-main\Osteps\.next\static\development\_buildManifest.js.tmp.pa8xjj50mu'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Windows-\\Osteps-main\\Osteps\\.next\\static\\development\\_buildManifest.js.tmp.pa8xjj50mu'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Windows-\Osteps-main\Osteps\.next\static\development\_buildManifest.js.tmp.0y6jze8eep4'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Windows-\\Osteps-main\\Osteps\\.next\\static\\development\\_buildManifest.js.tmp.0y6jze8eep4'
+}
+[Error: ENOENT: no such file or directory, open 'C:\Windows-\Osteps-main\Osteps\.next\static\development\_buildManifest.js.tmp.ikuxtbge0gr'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Windows-\\Osteps-main\\Osteps\\.next\\static\\development\\_buildManifest.js.tmp.ikuxtbge0gr'
+}
+[?25h

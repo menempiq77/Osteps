@@ -1,0 +1,84 @@
+========================================
+TEACHER LEADERBOARD FIX - SUMMARY
+========================================
+
+ISSUE:
+Teachers could not see the whole school leaderboard - only their assigned classes (15 students instead of all school students).
+
+ROOT CAUSE:
+The backend API `/leaderboard/school-self` did not support teachers. It only worked for:
+- Admins (via $user->school)
+- Students (via $user->student->class->school_id)
+
+Teachers were not recognized, so the API returned "No school found for current user".
+
+SOLUTION:
+========================================
+
+FRONTEND CHANGES (Already Committed):
+-------------------------------------
+File: Osteps/src/app/dashboard/leaderboard/page.tsx
+
+1. Teachers now use the same school-wide API as admins and students
+2. Added class aggregation fallback if APIs fail
+3. Updated mergeAndRankLeaderboards to preserve className and class_id fields
+4. Extract years from teacher's assigned classes when direct API fails
+
+File: Osteps/src/lib/leaderboard.ts
+
+1. Updated LeaderboardRawEntry type to include class_name, className, class_id
+2. Updated LeaderboardRow type to include optional className and class_id
+3. Modified mergeAndRankLeaderboards to preserve class information
+
+BACKEND CHANGES (Needs Deployment):
+-----------------------------------
+File: app/Http/Controllers/LeaderBoardController.php (on server)
+Reference: Osteps/tmp/LeaderBoardController.school-self.php
+
+The schoolSelf() method now:
+1. Checks for teachers via assign_class_teachers table
+2. Extracts school_id from teacher's assigned classes
+3. Returns class_name for each student in the response
+4. Shows ALL students from the teacher's school
+
+DEPLOYMENT REQUIRED:
+===================
+See: Osteps/tmp/LEADERBOARD_FIX_DEPLOYMENT.txt
+
+Quick steps:
+1. SSH to your Laravel server
+2. Update app/Http/Controllers/LeaderBoardController.php
+3. Replace the schoolSelf() method with the version from tmp/LeaderBoardController.school-self.php
+4. Clear Laravel cache
+5. Test the endpoint
+
+VERIFICATION:
+============
+After deployment, teachers should see:
+- Complete school leaderboard (not just their classes)
+- All students with their class names displayed
+- Same experience as admins and students
+
+BEFORE FIX:
+- Teacher sees: 15 students (only from their 2 assigned classes)
+- API returns: "No school found for current user"
+
+AFTER FIX:
+- Teacher sees: ALL students from the entire school
+- API returns: Full student list with class_name field
+- Works identically for teachers, admins, and students
+
+FILES MODIFIED:
+==============
+Frontend (committed):
+- Osteps/src/app/dashboard/leaderboard/page.tsx
+- Osteps/src/lib/leaderboard.ts
+
+Backend (needs deployment):
+- app/Http/Controllers/LeaderBoardController.php (schoolSelf method)
+
+Reference files:
+- Osteps/tmp/LeaderBoardController.school-self.php
+- Osteps/tmp/LEADERBOARD_FIX_DEPLOYMENT.txt
+
+DATE: February 25, 2026

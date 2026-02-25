@@ -1,0 +1,29 @@
+
+> sms@0.1.0 dev
+> next dev -p 3020
+
+   ▲ Next.js 15.5.12
+   - Local:        http://localhost:3020
+   - Network:      http://192.168.0.104:3020
+   - Experiments (use with caution):
+     ⨯ devtoolSegmentExplorer
+
+ ✓ Starting...
+ ✓ Ready in 3.6s
+ ○ Compiling /dashboard/leaderboard ...
+ ✓ Compiled /dashboard/leaderboard in 19.4s (6008 modules)
+redux-persist failed to create sync storage. falling back to noop storage.
+ GET /dashboard/leaderboard 200 in 20702ms
+ ✓ Compiled in 1714ms (2887 modules)
+ ✓ Compiled in 847ms (2887 modules)
+ ✓ Compiled in 1010ms (2887 modules)
+ ✓ Compiled in 736ms (2887 modules)
+ ⚠ Found a change in next.config.ts. Restarting the server to apply the changes...
+   ▲ Next.js 15.5.12
+   - Local:        http://localhost:3020
+   - Network:      http://192.168.0.104:3020
+   - Experiments (use with caution):
+     ⨯ devtoolSegmentExplorer
+
+ ✓ Starting...
+ ✓ Ready in 4.1s

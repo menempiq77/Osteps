@@ -1,0 +1,24 @@
+
+> sms@0.1.0 dev
+> next dev --turbopack -p 3000
+
+   ▲ Next.js 15.5.12 (Turbopack)
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.0.104:3000
+   - Experiments (use with caution):
+     ⨯ devtoolSegmentExplorer
+
+ ✓ Starting...
+ ✓ Ready in 2.3s
+ ○ Compiling /dashboard/leaderboard ...
+ ✓ Compiled /dashboard/leaderboard in 14.8s
+redux-persist failed to create sync storage. falling back to noop storage.
+ GET /dashboard/leaderboard 200 in 15980ms
+ GET /dashboard/leaderboard 200 in 471ms
+ ○ Compiling /favicon.ico ...
+ ✓ Compiled /favicon.ico in 1035ms
+ GET /favicon.ico?favicon.55d8382c.ico 200 in 1672ms
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 3.3s
+ GET /dashboard 200 in 3553ms
+ GET /favicon.ico?favicon.55d8382c.ico 200 in 385ms

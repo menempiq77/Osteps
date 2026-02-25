@@ -2,6 +2,7 @@ import path from 'path';
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  outputFileTracingRoot: __dirname,
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -15,6 +16,16 @@ const nextConfig: NextConfig = {
   images: {
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 60,
+  },
+  experimental: {
+    // Work around intermittent dev manifest crashes on Next 15 + webpack.
+    devtoolSegmentExplorer: false,
+    browserDebugInfoInTerminal: false,
+  },
+  turbopack: {
+    resolveAlias: {
+      "@": path.resolve(__dirname, "src"),
+    },
   },
   webpack: (config, { dev, isServer, webpack }) => {
     config.resolve.alias = {

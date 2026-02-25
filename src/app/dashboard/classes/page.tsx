@@ -252,6 +252,10 @@ useEffect(() => {
   };
 
   const handleDeleteClass = async (id: string) => {
+    if (!hasAccess) {
+      messageApi.warning("Only School Admin can delete classes.");
+      return;
+    }
     try {
       await deleteClass(parseInt(id));
       setClasses(classes.filter((cls) => cls.id !== id));
@@ -296,8 +300,12 @@ useEffect(() => {
               Organize classes as folders and drag cards to set display order.
             </p>
           </div>
-          {hasAccess && (
-            <Button className="premium-pill-btn !bg-primary !text-white !cursor-pointer" onClick={() => setModalOpen(true)}>
+          {hasAccess && !!year_id && (
+            <Button
+              type="primary"
+              className="!bg-emerald-600 !border-emerald-600 !text-white hover:!bg-emerald-700 !cursor-pointer"
+              onClick={() => setModalOpen(true)}
+            >
               Add Class
             </Button>
           )}

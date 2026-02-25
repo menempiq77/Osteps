@@ -1,0 +1,116 @@
+========================================
+TEACHER LEADERBOARD FIX - DEPLOYMENT GUIDE
+========================================
+
+ISSUE: Teachers cannot see whole school leaderboard
+FIX: Update LeaderBoardController to support teachers
+
+Run these commands on your server:
+
+STEP 1: Navigate to Laravel directory
+=====================================
+cd /var/www/laravel
+
+STEP 2: Update LeaderBoardController
+=====================================
+Edit the file: app/Http/Controllers/LeaderBoardController.php
+
+Find the "schoolSelf" method and replace it with the updated version.
+
+Use this command to update it directly:
+
+cat > /tmp/leaderboard_fix.php << 'PHPEOF'
+    public function schoolSelf(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        // Try to get school ID from multiple sources
+        $schoolId = optional($user->school)->id
+            ?? optional(optional($user->student)->class)->school_id
+            ?? optional(optional(optional($user->student)->class)->year)->school_id;
+
+        // For teachers: extract school from their first assigned class
+        if (!$schoolId && $user->relationLoaded('assignYears')) {
+            foreach ($user->assignYears as $assignYear) {
+                if ($assignYear->relationLoaded('classes')) {
+                    foreach ($assignYear->classes as $class) {
+                        $schoolId = optional($class)->school_id 
+                            ?? optional(optional($class)->year)->school_id;
+                        if ($schoolId) break 2;
+                    }
+                }
+            }
+        }
+
+        // Alternative for teachers: query from classes table
+        if (!$schoolId) {
+            $schoolId = DB::table('classes')
+                ->join('assign_class_teachers', 'classes.id', '=', 'assign_class_teachers.class_id')
+                ->where('assign_class_teachers.teacher_id', $user->id)
+                ->value('classes.school_id');
+        }
+
+        if (!$schoolId) {
+            return response()->json([
+                'status_code' => 200,
+                'msg' => 'No school found for current user',
+                'data' => [],
+            ]);
+        }
+
+        $rows = Student::query()
+            ->join('classes', 'students.class_id', '=', 'classes.id')
+            ->whereHas('class', function ($query) use ($schoolId) {
+                $query->where('school_id', $schoolId);
+            })
+            ->leftJoin('student_assessment_task_submits as sats', 'sats.student_id', '=', 'students.id')
+            ->select([
+                'students.id as student_id',
+                'students.student_name',
+                'classes.class_name',
+                DB::raw('COALESCE(SUM(sats.teacher_assessment_marks), 0) as total_marks'),
+            ])
+            ->groupBy('students.id', 'students.student_name', 'classes.class_name')
+            ->orderByDesc('total_marks')
+            ->orderBy('students.student_name')
+            ->get();
+
+        return response()->json([
+            'status_code' => 200,
+            'msg' => 'School leaderboard fetched successfully',
+            'data' => $rows,
+        ]);
+    }
+PHPEOF
+
+STEP 3: Apply the fix manually
+==============================
+Open the controller file:
+nano app/Http/Controllers/LeaderBoardController.php
+
+Locate the "schoolSelf" method (around line 16-50)
+Replace the entire method with the content from /tmp/leaderboard_fix.php
+
+OR copy directly from: Osteps/tmp/LeaderBoardController.school-self.php
+
+STEP 4: Clear Laravel cache
+===========================
+php artisan config:clear
+php artisan cache:clear
+php artisan route:clear
+
+STEP 5: Test the endpoint
+=========================
+Test as a teacher user:
+curl -H "Authorization: Bearer YOUR_TEACHER_TOKEN" \
+     https://dashboard.osteps.com/api/leaderboard/school-self
+
+Expected result: Should return ALL students from the teacher's school with class_name field
+
+WHAT CHANGED:
+============
+1. Added teacher support - extracts school ID from teacher's assigned classes
+2. Added class_name field to response - shows which class each student belongs to
+3. Now teachers, admins, and students all see the same complete school leaderboard
+
+Frontend changes are already committed in the repository.

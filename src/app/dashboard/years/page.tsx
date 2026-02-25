@@ -42,6 +42,7 @@ export default function Page() {
   const [messageApi, contextHolder] = message.useMessage();
   const schoolId = currentUser?.school;
   const isTeacher = currentUser?.role === "TEACHER";
+  const hasAccess = currentUser?.role === "SCHOOL_ADMIN";
   const yearOrderStorageKey = `years-order-${schoolId ?? "global"}`;
   const yearColorStorageKey = `years-colors-${schoolId ?? "global"}`;
 
@@ -214,6 +215,10 @@ export default function Page() {
   };
 
   const confirmDelete = (id: number) => {
+    if (!hasAccess) {
+      messageApi.warning("Only School Admin can delete year groups.");
+      return;
+    }
     setYearToDelete(id);
     setIsDeleteModalOpen(true);
   };
@@ -224,6 +229,10 @@ export default function Page() {
   };
 
   const handleDeleteYear = async () => {
+    if (!hasAccess) {
+      messageApi.warning("Only School Admin can delete year groups.");
+      return;
+    }
     if (!yearToDelete) return;
 
     try {
