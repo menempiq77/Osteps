@@ -898,8 +898,13 @@ const LeaderBoard = () => {
       .filter((name: string) => !!name)
   );
 
-  const applySchoolFilters = (rows: any[]) =>
-    rankRowsByPoints(
+  const applySchoolFilters = (rows: any[]) => {
+    // When viewing the whole school, show all students without class/year filters
+    if (leaderboardScope === "school" && !selectedClass && !selectedYear) {
+      return rankRowsByPoints(rows ?? []);
+    }
+    
+    return rankRowsByPoints(
       (rows ?? []).filter((row: any) => {
         const rowClassId = String((row as any)?.class_id ?? "");
         const rowClassName = normalizeClassName((row as any)?.className);
@@ -920,6 +925,7 @@ const LeaderBoard = () => {
         return yearPass && classPass;
       })
     );
+  };
 
   const myStudentKey = currentUser?.student
     ? String(currentUser.student)
