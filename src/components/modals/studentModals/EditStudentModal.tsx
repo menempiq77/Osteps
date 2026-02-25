@@ -12,6 +12,7 @@ type Student = {
   student_gender?: string;
   sex?: string;
   student_sex?: string;
+  nationality?: string;
   class_id?: number;
 };
 
@@ -38,15 +39,9 @@ export const EditStudentModal = ({
         email: student?.email,
         password: "",
         status: student?.status,
-        gender:
-          String(
-            (student as any)?.gender ??
-              (student as any)?.student_gender ??
-              (student as any)?.sex ??
-              (student as any)?.student_sex ??
-              ""
-          )
-            .toLowerCase() || undefined,
+        // Don't pre-fill gender unless explicitly provided
+        gender: undefined,
+        nationality: (student as any)?.nationality || undefined,
         class_id: student?.class_id,
       });
     }
@@ -129,12 +124,21 @@ export const EditStudentModal = ({
 
         <Form.Item
           name="gender"
-          label="Gender"
+          label="Gender (Optional)"
+          extra="Leave empty to keep current gender."
         >
-          <Select placeholder="Select gender">
+          <Select placeholder="Select gender" allowClear>
             <Select.Option value="male">Male</Select.Option>
             <Select.Option value="female">Female</Select.Option>
           </Select>
+        </Form.Item>
+
+        <Form.Item
+          name="nationality"
+          label="Nationality (Optional)"
+          extra="Leave empty to keep current nationality."
+        >
+          <Input placeholder="e.g., British, American" />
         </Form.Item>
       </Form>
     </Modal>

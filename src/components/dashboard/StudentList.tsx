@@ -972,30 +972,43 @@ export default function StudentList() {
     }
     if (!editStudent) return;
     const nextPassword = String(values.password ?? "").trim();
-    const nextGender = String(
-      values.gender ??
-        (editStudent as any)?.gender ??
-        (editStudent as any)?.student_gender ??
-        (editStudent as any)?.sex ??
-        (editStudent as any)?.student_sex ??
-        ""
-    )
-      .trim()
-      .toLowerCase();
+    
+    // Only use the new gender if explicitly set, otherwise keep current
+    const nextGender = values.gender
+      ? String(values.gender).trim().toLowerCase()
+      : String(
+          (editStudent as any)?.gender ??
+            (editStudent as any)?.student_gender ??
+            (editStudent as any)?.sex ??
+            (editStudent as any)?.student_sex ??
+            ""
+        )
+          .trim()
+          .toLowerCase();
+
     const payload: Record<string, any> = {
       student_name: values.student_name,
       email: values.email,
       user_name: values.user_name,
       class_id: Number(classIdStr),
       status: values.status,
-      gender: nextGender || undefined,
-      student_gender: nextGender || undefined,
-      sex: nextGender || undefined,
-      student_sex: nextGender || undefined,
+      // Only include gender in payload if explicitly set
+      ...(values.gender && {
+        gender: nextGender,
+        student_gender: nextGender,
+        sex: nextGender,
+        student_sex: nextGender,
+      }),
       // Backend expects password key on update; empty string keeps current password.
       password: nextPassword,
+      // Add nationality if provided, otherwise let backend keep current
+      ...(values.nationality !== undefined && values.nationality !== "" && {
+        nationality: values.nationality,
+      }),
     };
-    if (nextGender === "male" || nextGender === "female") {
+
+    // Only save gender override if explicitly set
+    if (values.gender && (nextGender === "male" || nextGender === "female")) {
       const sid = toStudentId(editStudent.id);
       const nextOverrides = {
         ...genderOverrides,
@@ -1006,6 +1019,7 @@ export default function StudentList() {
         localStorage.setItem("students-gender-overrides", JSON.stringify(nextOverrides));
       }
     }
+
     updateStudentMutation.mutate({
       id: editStudent.id,
       values: payload,
