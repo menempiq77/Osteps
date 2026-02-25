@@ -27,7 +27,7 @@ import {
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { fetchClasses } from "@/services/classesApi";
-import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
+import { fetchAssignYears, fetchYears, fetchYearsBySchool } from "@/services/yearsApi";
 import Link from "next/link";
 import { fetchStudentProfileData, fetchStudents } from "@/services/studentsApi";
 import {
@@ -63,6 +63,19 @@ const getClassYearId = (cls: any): string => {
   const rawYearId = cls?.year_id ?? cls?.year?.id ?? cls?.yearId ?? null;
   if (rawYearId === null || rawYearId === undefined || String(rawYearId).trim() === "") return "";
   return String(rawYearId);
+};
+
+const getClassSchoolId = (cls: any): string => {
+  const rawSchoolId =
+    cls?.school_id ??
+    cls?.school?.id ??
+    cls?.year?.school_id ??
+    cls?.year?.school?.id ??
+    null;
+  if (rawSchoolId === null || rawSchoolId === undefined || String(rawSchoolId).trim() === "") {
+    return "";
+  }
+  return String(rawSchoolId);
 };
 
 const extractAssignedClasses = (assignYears: any[]): any[] => {
@@ -111,6 +124,9 @@ const LeaderBoard = () => {
     .replace(/\s+/g, "_");
 
   const isTeacher = roleKey === "TEACHER";
+  const isHod = roleKey === "HOD" || roleKey === "HEAD_OF_DEPARTMENT";
+  const isAdmin =
+    roleKey === "SCHOOL_ADMIN" || roleKey === "ADMIN" || roleKey === "SUPER_ADMIN";
   const isStudent = roleKey === "STUDENT";
   const [loading, setLoading] = useState(true);
   const [years, setYears] = useState<any[]>([]);
@@ -118,9 +134,9 @@ const LeaderBoard = () => {
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [showMyStudentsOnly, setShowMyStudentsOnly] = useState(false);
   const [leaderboardScope, setLeaderboardScope] = useState<"class" | "school">(
-    roleKey === "STUDENT" ? "school" : "class"
+    roleKey === "STUDENT" ? "school" : isTeacher ? "class" : "school"
   );
-  const resolvedSchoolId = (() => {
+  const authSchoolId = (() => {
     const schoolValue = (currentUser as any)?.school;
     if (typeof schoolValue === "object" && schoolValue !== null && "id" in schoolValue) {
       const nestedId = (schoolValue as any)?.id;
@@ -144,6 +160,57 @@ const LeaderBoard = () => {
 
   const [assignYearsData, setAssignYearsData] = useState<any[]>([]);
   const teacherAssignedClasses = isTeacher ? extractAssignedClasses(assignYearsData) : [];
+  const assignedSchoolId = (() => {
+    for (const cls of teacherAssignedClasses) {
+      const sid = getClassSchoolId(cls);
+      if (sid) return sid;
+    }
+    return null;
+  })();
+  const resolvedSchoolId = authSchoolId ?? assignedSchoolId;
+
+  const loadSchoolYearsForStaff = async () => {
+    if (resolvedSchoolId) {
+      return (await fetchYearsBySchool(Number(resolvedSchoolId))) ?? [];
+    }
+    try {
+      return (await fetchYears()) ?? [];
+    } catch {
+      return [];
+    }
+  };
+
+  const loadSchoolClassesForStaff = async () => {
+    let yearsData = await loadSchoolYearsForStaff();
+    
+    // If we got 0 years (teacher doesn't have permission), extract years from assigned classes
+    if (yearsData.length === 0 && isTeacher && teacherAssignedClasses.length > 0) {
+      const assignedYears = teacherAssignedClasses
+        .map((cls: any) => cls?.year)
+        .filter((year: any) => year);
+      yearsData = Array.from(
+        new Map(assignedYears?.map((year: any) => [year.id, year])).values()
+      );
+    }
+    
+    const yearIds = Array.from(
+      new Set(
+        (yearsData ?? [])
+          .map((y: any) => y?.id ?? y?.year_id ?? y?.yearId)
+          .filter((id: any) => id !== null && id !== undefined)
+          .map((id: any) => String(id))
+      )
+    );
+    
+    const classesByYear = await mapWithConcurrency(yearIds, 3, async (yearId) => {
+      try {
+        return (await fetchClasses(String(yearId))) ?? [];
+      } catch (error) {
+        return [];
+      }
+    });
+    return classesByYear.flat();
+  };
 
   /** Load years */
   const loadYears = async () => {
@@ -162,12 +229,16 @@ const LeaderBoard = () => {
         const res = await fetchAssignYears();
         setAssignYearsData(res);
 
-        const years = extractAssignedClasses(res)
-          .map((cls: any) => cls?.year)
-          .filter((year: any) => year);
-        yearsData = Array.from(
-          new Map(years?.map((year: any) => [year.id, year])).values()
-        );
+        if (leaderboardScope === "school") {
+          yearsData = await loadSchoolYearsForStaff();
+        } else {
+          const years = extractAssignedClasses(res)
+            .map((cls: any) => cls?.year)
+            .filter((year: any) => year);
+          yearsData = Array.from(
+            new Map(years?.map((year: any) => [year.id, year])).values()
+          );
+        }
       } else {
         if (!resolvedSchoolId) {
           setYears([]);
@@ -179,7 +250,11 @@ const LeaderBoard = () => {
       }
       setYears(yearsData);
       if (yearsData.length > 0) {
-        setSelectedYear(yearsData[0].id.toString());
+        if (isTeacher && leaderboardScope === "class") {
+          setSelectedYear(yearsData[0].id.toString());
+        } else {
+          setSelectedYear("__all__");
+        }
       }
     } catch (err) {
       console.error(err);
@@ -190,7 +265,7 @@ const LeaderBoard = () => {
 
   useEffect(() => {
     loadYears();
-  }, []);
+  }, [leaderboardScope, resolvedSchoolId]);
 
   useEffect(() => {
     if (!isTeacher || leaderboardScope !== "school") {
@@ -226,17 +301,50 @@ const LeaderBoard = () => {
     queryFn: async () => {
       if (!selectedYear) return [];
 
-      if (isTeacher) {
+      if (isTeacher && leaderboardScope === "class") {
+        if (selectedYear === "__all__") {
+          return teacherAssignedClasses;
+        }
         return teacherAssignedClasses.filter((cls: any) => {
           const yearId = getClassYearId(cls);
           return !!yearId && yearId === String(selectedYear);
         });
       }
 
+      if (selectedYear === "__all__") {
+        return await loadSchoolClassesForStaff();
+      }
+
       return fetchClasses(String(selectedYear));
     },
-    enabled: !isStudent && !!selectedYear && (!isTeacher || assignYearsData.length > 0),
+    enabled:
+      !isStudent &&
+      !!selectedYear &&
+      (!isTeacher || assignYearsData.length > 0) &&
+      (!!resolvedSchoolId || isTeacher),
   });
+
+  useEffect(() => {
+    if (isStudent) return;
+    if (leaderboardScope === "school") {
+      setSelectedClass(null);
+      return;
+    }
+    const normalizedClasses = Array.isArray(classes) ? classes : [];
+    if (normalizedClasses.length === 0) {
+      setSelectedClass(null);
+      return;
+    }
+
+    const hasSelectedInList = normalizedClasses.some((cls: any) => {
+      const id = getClassId(cls);
+      return id && id === String(selectedClass ?? "");
+    });
+
+    if (!hasSelectedInList) {
+      setSelectedClass(getClassId(normalizedClasses[0]) || null);
+    }
+  }, [classes, isStudent, selectedClass, leaderboardScope]);
 
   const {
     data: classLeaderboardResponse,
@@ -445,6 +553,7 @@ const LeaderBoard = () => {
       (classes ?? []).map((cls: any) => getClassId(cls)).filter(Boolean).join("|"),
     ],
     queryFn: async () => {
+      // Try direct school leaderboard endpoints for ALL staff (including teachers)
       if (resolvedSchoolId) {
         try {
           const res = await fetchSchoolLeaderBoardData(resolvedSchoolId);
@@ -467,32 +576,13 @@ const LeaderBoard = () => {
         // Fall back to class aggregation below.
       }
 
+      // Last resort: aggregate from classes (should only happen if school APIs fail)
       const classesForAggregation =
-        teacherAssignedClasses.length > 0
-          ? teacherAssignedClasses
-          : (
-              await (async () => {
-                if (!resolvedSchoolId) return [];
-                const years = (await fetchYearsBySchool(Number(resolvedSchoolId))) ?? [];
-                const yearIds = (years ?? [])
-                  .map((y: any) => y?.id ?? y?.year_id ?? y?.yearId)
-                  .filter((id: any) => id !== null && id !== undefined)
-                  .map((id: any) => String(id));
-                const uniqueYearIds = Array.from(new Set(yearIds));
-                const classesByYear = await mapWithConcurrency(
-                  uniqueYearIds,
-                  3,
-                  async (yearId) => {
-                    try {
-                      return (await fetchClasses(String(yearId))) ?? [];
-                    } catch (error) {
-                      return [];
-                    }
-                  }
-                );
-                return classesByYear.flat();
-              })()
-            );
+        await (async () => {
+          const schoolClasses = await loadSchoolClassesForStaff();
+          if (schoolClasses.length > 0) return schoolClasses;
+          return teacherAssignedClasses;
+        })();
 
       const fallbackSelectedYearClasses =
         classesForAggregation.length === 0 ? (classes ?? []) : [];
@@ -506,6 +596,7 @@ const LeaderBoard = () => {
         .filter((id: string) => !!id);
 
       const uniqueClassIds: string[] = Array.from(new Set(classIds));
+      
       const leaderboards = await mapWithConcurrency(
         uniqueClassIds,
         5,
@@ -547,32 +638,11 @@ const LeaderBoard = () => {
       }
 
       const classesForLookup =
-        teacherAssignedClasses.length > 0
-          ? teacherAssignedClasses
-          : (
-              await (async () => {
-                if (!resolvedSchoolId) return [];
-                const years = (await fetchYearsBySchool(Number(resolvedSchoolId))) ?? [];
-                const yearIds = Array.from(
-                  new Set(
-                    years
-                      .map((y: any) => y?.id ?? y?.year_id ?? y?.yearId)
-                      .filter((id: any) => id !== null && id !== undefined)
-                      .map((id: any) => String(id))
-                  )
-                );
-
-                const classesByYear = await mapWithConcurrency(yearIds, 3, async (yearId) => {
-                  try {
-                    return (await fetchClasses(String(yearId))) ?? [];
-                  } catch (error) {
-                    return [];
-                  }
-                });
-
-                return classesByYear.flat();
-              })()
-            );
+        await (async () => {
+          const schoolClasses = await loadSchoolClassesForStaff();
+          if (schoolClasses.length > 0) return schoolClasses;
+          return teacherAssignedClasses;
+        })();
 
       const fallbackSelectedYearClasses =
         classesForLookup.length === 0 ? (classes ?? []) : [];
@@ -817,6 +887,40 @@ const LeaderBoard = () => {
     })
   );
 
+  const selectedClassIdSet = new Set(
+    (classes ?? [])
+      .map((cls: any) => getClassId(cls))
+      .filter((id: string) => !!id)
+  );
+  const selectedClassNameSet = new Set(
+    (classes ?? [])
+      .map((cls: any) => normalizeClassName(cls?.class_name ?? cls?.name ?? ""))
+      .filter((name: string) => !!name)
+  );
+
+  const applySchoolFilters = (rows: any[]) =>
+    rankRowsByPoints(
+      (rows ?? []).filter((row: any) => {
+        const rowClassId = String((row as any)?.class_id ?? "");
+        const rowClassName = normalizeClassName((row as any)?.className);
+        const yearPass =
+          selectedYear === "__all__" ||
+          selectedClassIdSet.has(rowClassId) ||
+          selectedClassNameSet.has(rowClassName);
+        const classPass =
+          !selectedClass ||
+          rowClassId === String(selectedClass) ||
+          rowClassName === normalizeClassName(
+            (classes ?? []).find((cls: any) => getClassId(cls) === String(selectedClass))
+              ?.class_name ??
+              (classes ?? []).find((cls: any) => getClassId(cls) === String(selectedClass))
+                ?.name ??
+              ""
+          );
+        return yearPass && classPass;
+      })
+    );
+
   const myStudentKey = currentUser?.student
     ? String(currentUser.student)
     : studentProfile?.id
@@ -833,9 +937,11 @@ const LeaderBoard = () => {
 
   const activeRows = leaderboardScope === "class"
     ? visibleStudents
-    : (isTeacher && showMyStudentsOnly
-        ? filteredTeacherSchoolRows
-        : visibleSchoolStudentsWithClass);
+    : applySchoolFilters(
+        isTeacher && showMyStudentsOnly
+          ? filteredTeacherSchoolRows
+          : visibleSchoolStudentsWithClass
+      );
   const studentActiveRows =
     leaderboardScope === "class"
       ? resolvedStudentClassRows
@@ -1062,6 +1168,7 @@ const LeaderBoard = () => {
                   className="w-full"
                   placeholder="Select Year"
                 >
+                  <Select.Option value="__all__">All Years</Select.Option>
                   {years?.map((year) => (
                     <Select.Option key={year.id} value={year.id.toString()}>
                       {year.name}
@@ -1077,15 +1184,20 @@ const LeaderBoard = () => {
                 </label>
                 <Select
                   value={selectedClass || undefined}
-                  onChange={(value) => setSelectedClass(value)}
+                  onChange={(value) =>
+                    setSelectedClass(value === "__all_classes__" ? null : value)
+                  }
                   className="w-full"
-                  placeholder="Select Class"
+                  placeholder={leaderboardScope === "school" ? "All Classes" : "Select Class"}
                   loading={classesLoading}
-                  disabled={!selectedYear || leaderboardScope === "school"}
+                  disabled={!selectedYear}
                 >
+                  {leaderboardScope === "school" && (
+                    <Select.Option value="__all_classes__">All Classes</Select.Option>
+                  )}
                   {classes?.map((cls: any) => (
-                    <Select.Option key={cls.id} value={cls.id.toString()}>
-                      {cls.class_name}
+                    <Select.Option key={getClassId(cls)} value={getClassId(cls)}>
+                      {cls.class_name ?? cls.name ?? `Class ${getClassId(cls)}`}
                     </Select.Option>
                   ))}
                 </Select>
@@ -1123,6 +1235,20 @@ const LeaderBoard = () => {
                     {leaderboardScope === "class" ? "Class Leaderboard" : "Whole School Leaderboard"}
                   </Title>
                 </div>
+
+                {leaderboardScope === "school" && activeRows.length === 0 && !staffSchoolLeaderboardLoading && (
+                  <div style={{ padding: "20px", textAlign: "center", background: "#f5f5f5", borderRadius: "8px" }}>
+                    <Text type="secondary">
+                      <strong>No leaderboard data available.</strong>
+                      <div style={{ marginTop: 10 }}>Possible reasons:</div>
+                      <ul style={{ marginTop: 10, textAlign: "left", display: "inline-block" }}>
+                        <li>No students have submitted assessments yet</li>
+                        <li>The backend needs to be updated with the latest changes</li>
+                        <li>Your account may need additional permissions</li>
+                      </ul>
+                    </Text>
+                  </div>
+                )}
 
                 <Table
                   className="premium-antd-table"

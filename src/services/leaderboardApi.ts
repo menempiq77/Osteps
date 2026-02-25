@@ -80,23 +80,60 @@ export const fetchLeaderBoardData = async (
   classId: string | number
 ): Promise<LeaderboardResponse> => {
   const id = String(classId);
-  return fetchWithFallback(
-    [
-      `/get-student-scores/${id}`,
-    ],
+  const primary = await fetchWithFallback(
+    [`/get-student-scores/${id}`],
     "Failed to fetch leader Board Scores"
   );
+
+  if ((primary?.data ?? []).length > 0) {
+    return primary;
+  }
+
+  // Fallback for backends where class leaderboard endpoint is empty:
+  // build a ranking from class students' current points.
+  try {
+    const res = await api.get(`/get-student/${id}`);
+    const students = Array.isArray(res?.data?.data) ? res.data.data : [];
+    const mapped = students
+      .map((student: any) => {
+        const pointsRaw =
+          student?.total_marks ??
+          student?.total_points ??
+          student?.points ??
+          student?.score ??
+          student?.marks ??
+          0;
+        const pointsNum = Number(pointsRaw);
+        return {
+          student_id: student?.id ?? student?.student_id,
+          student_name:
+            student?.student_name ??
+            student?.user_name ??
+            student?.name ??
+            student?.user?.name ??
+            "Unknown",
+          total_marks: Number.isFinite(pointsNum) ? pointsNum : 0,
+          class_name: student?.class_name ?? student?.class?.class_name ?? "",
+        } as LeaderboardEntry;
+      })
+      .filter((student: LeaderboardEntry) => !!student.student_id)
+      .sort((a: LeaderboardEntry, b: LeaderboardEntry) => (b.total_marks ?? 0) - (a.total_marks ?? 0));
+
+    return {
+      status_code: 200,
+      msg: "LeaderBoard Data Fetched Successfully",
+      data: mapped,
+    };
+  } catch {
+    return primary;
+  }
 };
 
 export const fetchSchoolLeaderBoardData = async (
   schoolId: string | number
 ): Promise<LeaderboardResponse> => {
-  const id = String(schoolId);
   return fetchWithFallback(
-    [
-      `/leaderboard/school/${id}`,
-      `/leaderboard/school-self`,
-    ],
+    ["/leaderboard/school-self"],
     "Failed to fetch school leaderboard"
   );
 };
