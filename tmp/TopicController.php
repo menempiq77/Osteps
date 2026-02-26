@@ -652,6 +652,13 @@ class TopicController extends Controller
             if (is_array($marksValue)) {
                 $marksValue = $marksValue[0] ?? null;
             }
+            $marksValue = is_null($marksValue) ? null : trim((string) $marksValue);
+            if ($marksValue === '' || !preg_match('/^\d+$/', (string) $marksValue)) {
+                return response()->json([
+                    'msg' => 'Marks must be a whole number.',
+                    'status_code' => 422,
+                ], 422);
+            }
 
             Log::info('Calling updateOrCreate', [
                 'student_id' => $request->student_id,

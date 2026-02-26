@@ -252,6 +252,10 @@ export default function ViewTrackerTopicPage() {
         messageApi.warning("Please enter valid marks");
         return;
       }
+      if (!Number.isInteger(marksValue)) {
+        messageApi.warning("Please enter a whole number");
+        return;
+      }
 
       // Get the maximum marks from the topic (10 in this case)
       const maxMarks = selectedTopic.marks ? Number(selectedTopic.marks) : 100;
@@ -582,6 +586,8 @@ export default function ViewTrackerTopicPage() {
             placeholder={`Enter marks (0-${selectedTopic?.marks || 100})`}
             min={0}
             max={selectedTopic?.marks || 100}
+            step={1}
+            inputMode="numeric"
             value={marks}
             onChange={(e) => setMarks(e.target.value)}
           />
