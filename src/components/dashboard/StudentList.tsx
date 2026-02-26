@@ -355,16 +355,6 @@ export default function StudentList() {
   const [attendanceByStudent, setAttendanceByStudent] = useState<
     Record<string, AttendanceState>
   >({});
-  const [genderOverrides, setGenderOverrides] = useState<Record<string, "male" | "female">>(() => {
-    if (typeof window === "undefined") return {};
-    try {
-      const raw = localStorage.getItem("students-gender-overrides");
-      const parsed = raw ? JSON.parse(raw) : {};
-      return parsed && typeof parsed === "object" ? parsed : {};
-    } catch {
-      return {};
-    }
-  });
   const [attendanceSyncing, setAttendanceSyncing] = useState(false);
   const dragStartedRef = useRef(false);
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
@@ -447,6 +437,7 @@ export default function StudentList() {
     mutationFn: ({ id, values }: { id: string; values: any }) =>
       apiUpdateStudent(id, values),
     onSuccess: () => {
+      console.log('[Student Update] Success - invalidating queries');
       queryClient.invalidateQueries({ queryKey: ["students", classIdStr] });
       queryClient.invalidateQueries({
         queryKey: ["class-students-behavior-summary", classIdStr],
@@ -455,6 +446,7 @@ export default function StudentList() {
       messageApi.success("Student updated successfully.");
     },
     onError: (error: unknown) => {
+      console.error('[Student Update] Error:', error);
       const backendMessage =
         (error as { message?: string })?.message?.trim() || "Failed to update student.";
       messageApi.error(backendMessage);
@@ -612,7 +604,7 @@ export default function StudentList() {
         const fromApiGender = normalizeGenderRaw(
           s.gender ?? s.student_gender ?? s.sex ?? s.student_sex
         );
-        const rawGender = genderOverrides[sid] || fromApiGender;
+        const rawGender = fromApiGender;
         return {
         id: sid,
         student_name: s.student_name,
@@ -645,7 +637,7 @@ export default function StudentList() {
           fromStudents?.sex ??
           fromStudents?.student_sex
       );
-      const rawGender = genderOverrides[id] || fromApiGender;
+      const rawGender = fromApiGender;
       return {
         id,
         student_name: item.student_name || fromStudents?.student_name || "Student",
@@ -671,7 +663,7 @@ export default function StudentList() {
           safeNumber(item.total_points) || fallbackPointsByStudent[id]?.total || 0,
       };
     });
-  }, [behaviorSummary, students, summaryError, classIdStr, fallbackPointsByStudent, genderOverrides]);
+  }, [behaviorSummary, students, summaryError, classIdStr, fallbackPointsByStudent]);
 
   useEffect(() => {
     const shouldUseFallback =
@@ -992,34 +984,25 @@ export default function StudentList() {
       user_name: values.user_name,
       class_id: Number(classIdStr),
       status: values.status,
-      // Only include gender in payload if explicitly set
-      ...(values.gender && {
-        gender: nextGender,
-        student_gender: nextGender,
-        sex: nextGender,
-        student_sex: nextGender,
-      }),
       // Backend expects password key on update; empty string keeps current password.
       password: nextPassword,
-      // Add nationality if provided, otherwise let backend keep current
-      ...(values.nationality !== undefined && values.nationality !== "" && {
-        nationality: values.nationality,
-      }),
     };
 
-    // Only save gender override if explicitly set
+    // Include gender in payload if explicitly set
     if (values.gender && (nextGender === "male" || nextGender === "female")) {
-      const sid = toStudentId(editStudent.id);
-      const nextOverrides = {
-        ...genderOverrides,
-        [sid]: nextGender as "male" | "female",
-      };
-      setGenderOverrides(nextOverrides);
-      if (typeof window !== "undefined") {
-        localStorage.setItem("students-gender-overrides", JSON.stringify(nextOverrides));
-      }
+      payload.gender = nextGender;
+      payload.student_gender = nextGender;
+      payload.sex = nextGender;
+      payload.student_sex = nextGender;
+      console.log('[Gender Update] Sending gender to API:', nextGender, 'for student:', editStudent.id);
     }
 
+    // Add nationality if provided, otherwise let backend keep current
+    if (values.nationality !== undefined && values.nationality !== "") {
+      payload.nationality = values.nationality;
+    }
+
+    console.log('[Student Update] Payload:', payload);
     updateStudentMutation.mutate({
       id: editStudent.id,
       values: payload,
