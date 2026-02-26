@@ -648,10 +648,15 @@ class TopicController extends Controller
 
             $isTeacher = $user->role !== 'STUDENT';
 
+            $marksValue = $request->marks;
+            if (is_array($marksValue)) {
+                $marksValue = $marksValue[0] ?? null;
+            }
+
             Log::info('Calling updateOrCreate', [
                 'student_id' => $request->student_id,
                 'topic_id' => $request->topic_id,
-                'marks' => $request->marks,
+                'marks' => $marksValue,
                 'teacher_locked' => $isTeacher
             ]);
 
@@ -661,7 +666,7 @@ class TopicController extends Controller
                     'student_id' => $request->student_id
                 ],
                 [
-                    'marks' => $request->marks,
+                    'marks' => $marksValue,
                     'teacher_locked' => $isTeacher ? true : false
 
                 ]
