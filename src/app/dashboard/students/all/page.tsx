@@ -126,26 +126,6 @@ export default function AllStudentsPage() {
   );
   const [genderFilters, setGenderFilters] = useState<Array<"Male" | "Female">>([]);
   const [editingStudent, setEditingStudent] = useState<StudentListRow | null>(null);
-  const [genderOverrides, setGenderOverrides] = useState<Record<string, "male" | "female">>(() => {
-    if (typeof window === "undefined") return {};
-    try {
-      const raw = localStorage.getItem("students-gender-overrides");
-      const parsed = raw ? JSON.parse(raw) : {};
-      return parsed && typeof parsed === "object" ? parsed : {};
-    } catch {
-      return {};
-    }
-  });
-  const [nationalityOverrides, setNationalityOverrides] = useState<Record<string, string>>(() => {
-    if (typeof window === "undefined") return {};
-    try {
-      const raw = localStorage.getItem("students-nationality-overrides");
-      const parsed = raw ? JSON.parse(raw) : {};
-      return parsed && typeof parsed === "object" ? parsed : {};
-    } catch {
-      return {};
-    }
-  });
 
 
   const {
@@ -210,23 +190,11 @@ export default function AllStudentsPage() {
                 );
                 const sid = updateIds[0] || "";
                 const profileId = primaryId || fallbackId || sid;
-                const fromApi = normalizeGenderRaw(
+                // Use database values directly - no localStorage overrides
+                const rawGender = normalizeGenderRaw(
                   student.gender ?? student.student_gender ?? student.sex ?? student.student_sex
                 );
-                const overrideKeys = buildOverrideKeys({
-                  classId: cls.id,
-                  studentId: sid,
-                  profileId,
-                  updateIds,
-                });
-                const overrideGender = getFirstOverride(genderOverrides, overrideKeys);
-                const rawGender = overrideGender || fromApi;
-                const apiNationality = String(student.nationality ?? "").trim();
-                const overrideNationality = getFirstOverride(nationalityOverrides, overrideKeys);
-                const nationality =
-                  overrideNationality !== undefined
-                  ? String(overrideNationality ?? "")
-                  : apiNationality;
+                const nationality = String(student.nationality ?? "").trim();
                 return {
                   key: `${cls.id}-${student.id ?? student.student_id ?? Math.random()}`,
                   studentId: sid,
@@ -421,49 +389,8 @@ export default function AllStudentsPage() {
             })
         );
 
-        if (nextGender === "male" || nextGender === "female") {
-          const keys = buildOverrideKeys({
-            classId: editingStudent.classId,
-            studentId: editingStudent.studentId,
-            profileId: editingStudent.profileId,
-            updateIds: editingStudent.updateIds,
-          });
-          const nextOverrides = { ...genderOverrides };
-          keys.forEach((key) => {
-            nextOverrides[key] = nextGender as "male" | "female";
-          });
-          setGenderOverrides(nextOverrides);
-          if (typeof window !== "undefined") {
-            localStorage.setItem("students-gender-overrides", JSON.stringify(nextOverrides));
-          }
-        }
-        {
-          const keys = buildOverrideKeys({
-            classId: editingStudent.classId,
-            studentId: editingStudent.studentId,
-            profileId: editingStudent.profileId,
-            updateIds: editingStudent.updateIds,
-          });
-          const nextNationalityOverrides = { ...nationalityOverrides };
-          if (nextNationality) {
-            keys.forEach((key) => {
-              nextNationalityOverrides[key] = nextNationality;
-            });
-          } else {
-            keys.forEach((key) => {
-              delete nextNationalityOverrides[key];
-            });
-          }
-          setNationalityOverrides(nextNationalityOverrides);
-          if (typeof window !== "undefined") {
-            localStorage.setItem(
-              "students-nationality-overrides",
-              JSON.stringify(nextNationalityOverrides)
-            );
-          }
-        }
-
-      }
+        // Data is automatically synced from the database via invalidateQueries
+      } else {
       messageApi.success("Student updated successfully.");
       setEditingStudent(null);
       editForm.resetFields();
@@ -483,23 +410,14 @@ export default function AllStudentsPage() {
       messageApi.warning("Only School Admin can edit student information.");
       return;
     }
-    const overrideKeys = buildOverrideKeys({
-      classId: record.classId,
-      studentId: record.studentId,
-      profileId: record.profileId,
-      updateIds: record.updateIds,
-    });
-    const overrideNationality = getFirstOverride(nationalityOverrides, overrideKeys);
-    const overrideGender = getFirstOverride(genderOverrides, overrideKeys);
     setEditingStudent(record);
     editForm.setFieldsValue({
       student_name: record.name,
       user_name: record.userName,
       email: record.email,
       status: record.status,
-      gender: overrideGender || record.genderRaw || "male",
-      nationality:
-        overrideNationality !== undefined ? String(overrideNationality ?? "") : record.nationality || "",
+      gender: record.genderRaw || "male",  // Use database value directly
+      nationality: record.nationality || "",  // Use database value directly
       is_sen: record.isSen,
       sen_details: record.senDetails || "",
       password: "",
