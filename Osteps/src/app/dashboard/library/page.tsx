@@ -173,10 +173,10 @@ export default function LibraryPage() {
       }
 
       if (values.source === "link" && values.link) {
-        formData.append("file_path", values.link);
-        formData.append("external_link", values.link);
+        // For links, send via 'link' field (backend will handle it)
         formData.append("link", values.link);
       } else if (fileList.length > 0) {
+        // For files, send via 'file_path' field
         const fileToUpload = fileList[0]?.originFileObj || fileList[0];
         const isNewUpload = Boolean(fileToUpload?.originFileObj || fileToUpload instanceof File);
 
@@ -184,16 +184,10 @@ export default function LibraryPage() {
           const normalizedFile = fileToUpload?.originFileObj || fileToUpload;
           formData.append("file_path", normalizedFile);
         }
-      }
-
-      // Keep existing file path during edit when user updates metadata only.
-      if (
-        isEditing &&
-        currentItem &&
-        !formData.has("file_path") &&
-        currentItem.file_path
-      ) {
-        formData.append("file_path", currentItem.file_path);
+      } else if (isEditing && currentItem) {
+        // Keep existing file path during edit when user updates metadata only.
+        // Send as a string to indicate this is existing data, not a new file
+        formData.append("existing_file_path", currentItem.file_path);
       }
 
       if (isEditing && currentItem) {
