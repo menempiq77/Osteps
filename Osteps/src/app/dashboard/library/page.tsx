@@ -245,7 +245,8 @@ export default function LibraryPage() {
   };
 
   const handleEdit = (item: LibraryItem) => {
-    const isLink = isExternalLink(item.file_path || "");
+    const resolvedPath = resolveLibraryPath(item.file_path);
+    const isLink = isExternalLink(resolvedPath);
     setCurrentItem(item);
     setIsEditing(true);
     setIsUploadModalOpen(true);
@@ -256,17 +257,17 @@ export default function LibraryPage() {
       description: item.description,
       tags: parseTags(item.tags),
       source: isLink ? "link" : "upload",
-      link: isLink ? item.file_path : undefined,
+      link: isLink ? resolvedPath : undefined,
     });
 
     setFileList(
-      !isLink && item.file_path
+      !isLink && resolvedPath
         ? [
             {
               uid: "-1",
               name: item.title,
               status: "done",
-              url: item.file_path,
+              url: resolvedPath,
             },
           ]
         : []
@@ -274,13 +275,14 @@ export default function LibraryPage() {
   };
 
   const openResourceDirectly = (item: any) => {
-    if (!item?.file_path) return;
+    const resolvedPath = resolveLibraryPath(item?.file_path);
+    if (!resolvedPath) return;
     const resourceType = getResourceName(item.library_resources_id).toLowerCase();
 
     setCurrentItem({
       ...item,
       type: resourceType,
-      url: item.file_path,
+      url: resolvedPath,
       uploadedBy: item.uploaded_by || "Unknown",
       uploadDate: item.updated_at
         ? new Date(item.updated_at).toLocaleDateString("en-US", {
@@ -608,15 +610,16 @@ export default function LibraryPage() {
               const resourceType = getResourceName(
                 item.library_resources_id
               ).toLowerCase();
-              const isExternal = isExternalLink(item.file_path);
+              const resolvedPath = resolveLibraryPath(item.file_path);
+              const isExternal = isExternalLink(resolvedPath);
               const domainLabel = isExternal
-                ? getLinkDomain(item.file_path)
+                ? getLinkDomain(resolvedPath)
                 : "";
               const coverUrl =
                 isExternal && resourceType === "video"
-                  ? getVideoThumbnailUrl(item.file_path)
-                  : isImageUrl(item.file_path)
-                  ? item.file_path
+                  ? getVideoThumbnailUrl(resolvedPath)
+                  : isImageUrl(resolvedPath)
+                  ? resolvedPath
                   : "";
 
               return (
