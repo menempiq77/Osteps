@@ -229,7 +229,7 @@ export default function ViewTrackerTopicPage() {
   const handleSubmitMarks = async () => {
     if (submittingMarks) return; 
 
-    if (!marks) {
+    if (marks.trim() === "") {
       messageApi.warning("Please enter marks");
       return;
     }

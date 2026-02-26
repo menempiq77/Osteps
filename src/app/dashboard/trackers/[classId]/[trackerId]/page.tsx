@@ -264,7 +264,7 @@ export default function TrackerTopicsPage() {
   };
   const handleSubmitMarks = async () => {
       if (savingMarks) return;
-      if (!marks) {
+      if (marks.trim() === "") {
         messageApi.warning("Please enter points");
         return;
       }

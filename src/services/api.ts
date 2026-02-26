@@ -237,8 +237,10 @@ export const addTopicMark = async (
   const formData = new FormData();
   formData.append("topic_id", topicId.toString());
   formData.append("topic_ids[]", topicId.toString());
+  formData.append("topic_ids", topicId.toString());
   formData.append("student_id", studentId.toString());
   formData.append("marks", marks.toString());
+  formData.append("marks[]", marks.toString());
 
   if (typeof trackerId === "number" && !Number.isNaN(trackerId)) {
     formData.append("tracker_id", trackerId.toString());
