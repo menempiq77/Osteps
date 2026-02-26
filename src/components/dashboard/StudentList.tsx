@@ -437,9 +437,10 @@ export default function StudentList() {
     mutationFn: ({ id, values }: { id: string; values: any }) =>
       apiUpdateStudent(id, values),
     onSuccess: () => {
-      console.log('[Student Update] Success - invalidating queries');
-      queryClient.invalidateQueries({ queryKey: ["students", classIdStr] });
-      queryClient.invalidateQueries({
+      console.log('[Student Update] Success - refetching student data');
+      // Force immediate refetch instead of just invalidating
+      queryClient.refetchQueries({ queryKey: ["students", classIdStr] });
+      queryClient.refetchQueries({
         queryKey: ["class-students-behavior-summary", classIdStr],
       });
       setEditStudent(null);
