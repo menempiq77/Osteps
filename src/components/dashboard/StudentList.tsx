@@ -989,8 +989,8 @@ export default function StudentList() {
       password: nextPassword,
     };
 
-    // Include gender in payload if explicitly set
-    if (values.gender && (nextGender === "male" || nextGender === "female")) {
+    // Include gender in payload if we have a valid value (from form or existing data)
+    if (nextGender === "male" || nextGender === "female") {
       payload.gender = nextGender;
       payload.student_gender = nextGender;
       payload.sex = nextGender;

@@ -33,14 +33,21 @@ export const EditStudentModal = ({
 
   useEffect(() => {
     if (student) {
+      // Get current gender from any available field
+      const currentGender = 
+        student?.gender || 
+        student?.student_gender || 
+        (student as any)?.sex || 
+        (student as any)?.student_sex;
+      
       form?.setFieldsValue({
         student_name: student?.student_name,
         user_name: student?.user_name,
         email: student?.email,
         password: "",
         status: student?.status,
-        // Don't pre-fill gender unless explicitly provided
-        gender: undefined,
+        // Pre-fill current gender if it exists
+        gender: currentGender ? String(currentGender).toLowerCase() : undefined,
         nationality: (student as any)?.nationality || undefined,
         class_id: student?.class_id,
       });
