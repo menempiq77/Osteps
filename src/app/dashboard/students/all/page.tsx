@@ -390,7 +390,8 @@ export default function AllStudentsPage() {
         );
 
         // Data is automatically synced from the database via invalidateQueries
-      } else {
+      }
+      
       messageApi.success("Student updated successfully.");
       setEditingStudent(null);
       editForm.resetFields();
