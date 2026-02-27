@@ -18,6 +18,36 @@ const DEFAULT_LAYOUT: SeatingLayoutResponse = {
   room_meta: {},
 };
 
+const getLocalStorageKey = (classId: string | number) =>
+  `class-seating-layout:${String(classId)}`;
+
+const readLocalLayout = (classId: string | number): SeatingLayoutResponse | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(getLocalStorageKey(classId));
+    if (!raw) return null;
+    return normalizeLayout(JSON.parse(raw));
+  } catch {
+    return null;
+  }
+};
+
+const writeLocalLayout = (classId: string | number, payload: SavePayload | SeatingLayoutResponse) => {
+  if (typeof window === "undefined") return;
+  try {
+    const normalized = normalizeLayout(payload);
+    window.localStorage.setItem(getLocalStorageKey(classId), JSON.stringify(normalized));
+  } catch {
+    // ignore local persistence failures
+  }
+};
+
+const shouldUseLocalFallback = (error: unknown) => {
+  const axiosError = error as AxiosError<any>;
+  const status = Number(axiosError?.response?.status || 0);
+  return status === 404 || status === 401 || status === 403;
+};
+
 const normalizeLayout = (raw: any): SeatingLayoutResponse => {
   const payload = raw?.data ?? raw ?? {};
   return {
@@ -50,8 +80,13 @@ export const fetchClassSeatingLayout = async (
 ): Promise<SeatingLayoutResponse> => {
   try {
     const response = await api.get(`/classes/${classId}/seating-layout`);
-    return normalizeLayout(response?.data) || DEFAULT_LAYOUT;
+    const normalized = normalizeLayout(response?.data) || DEFAULT_LAYOUT;
+    writeLocalLayout(classId, normalized);
+    return normalized;
   } catch (error) {
+    if (shouldUseLocalFallback(error)) {
+      return readLocalLayout(classId) || DEFAULT_LAYOUT;
+    }
     throw enrichError(error);
   }
 };
@@ -62,8 +97,14 @@ export const saveClassSeatingLayout = async (
 ) => {
   try {
     const response = await api.put(`/classes/${classId}/seating-layout`, payload);
-    return normalizeLayout(response?.data);
+    const normalized = normalizeLayout(response?.data);
+    writeLocalLayout(classId, normalized);
+    return normalized;
   } catch (error) {
+    if (shouldUseLocalFallback(error)) {
+      writeLocalLayout(classId, payload);
+      return normalizeLayout(payload);
+    }
     throw enrichError(error);
   }
 };
