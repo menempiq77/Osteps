@@ -224,11 +224,23 @@ export default function AllStudentsPage() {
                 const override = getFirstOverride(studentFieldOverrides, overrideKeys);
 
                 const fromApiGender = normalizeGenderRaw(
-                  student.gender ?? student.student_gender ?? student.sex ?? student.student_sex
+                  student.gender ??
+                    student.student_gender ??
+                    student.sex ??
+                    student.student_sex ??
+                    student.studentGender ??
+                    student.studentSex
                 );
                 const rawGender =
                   normalizeGenderRaw(override?.genderRaw) || fromApiGender;
-                const nationalityFromApi = String(student.nationality ?? "").trim();
+                const nationalityFromApi = String(
+                  student.nationality ??
+                    student.student_nationality ??
+                    student.studentNationality ??
+                    student.country ??
+                    student.citizenship ??
+                    ""
+                ).trim();
                 const nationality =
                   typeof override?.nationality === "string"
                     ? override.nationality
@@ -362,6 +374,8 @@ export default function AllStudentsPage() {
         sex: nextGender,
         student_sex: nextGender,
         nationality: nextNationality,
+        student_nationality: nextNationality,
+        country: nextNationality,
         is_sen: nextIsSen,
         sen_details: nextSenDetails,
         // Backend currently expects password key to always exist on update.
