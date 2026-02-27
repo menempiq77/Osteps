@@ -39,13 +39,42 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
   const [embedBlocked, setEmbedBlocked] = useState(false);
 
   const normalizeResourceUrl = (url?: string) => {
-    if (!url) return "";
-    const trimmed = String(url).trim();
-    if (!trimmed) return "";
-    if (/^(https?:\/\/|blob:|data:)/i.test(trimmed)) return trimmed;
-    if (trimmed.startsWith("//")) return `https:${trimmed}`;
-    if (trimmed.startsWith("/")) return trimmed;
-    return `https://${trimmed}`;
+    if (!url) {
+      console.log('[normalizeResourceUrl] Input is empty');
+      return "";
+    }
+    let trimmed = String(url).trim();
+    console.log('[normalizeResourceUrl] Input:', trimmed);
+
+    const wrappedExternalMatch = trimmed.match(/\/storage\/(https?:\/\/.*)$/i);
+    if (wrappedExternalMatch?.[1]) {
+      trimmed = wrappedExternalMatch[1];
+      console.log('[normalizeResourceUrl] Unwrapped external URL:', trimmed);
+    }
+    
+    if (!trimmed) {
+      console.log('[normalizeResourceUrl] Empty after cleanup');
+      return "";
+    }
+    
+    // Ensure it starts with http/https if it's an external link
+    if (!/^(https?:\/\/|blob:|data:)/i.test(trimmed)) {
+      if (trimmed.startsWith("//")) {
+        const result = `https:${trimmed}`;
+        console.log('[normalizeResourceUrl] Prepended https: for //, result:', result);
+        return result;
+      }
+      if (trimmed.startsWith("/")) {
+        console.log('[normalizeResourceUrl] Local path, returning as-is');
+        return trimmed;
+      }
+      const result = `https://${trimmed}`;
+      console.log('[normalizeResourceUrl] Prepended https://, result:', result);
+      return result;
+    }
+    
+    console.log('[normalizeResourceUrl] Final result:', trimmed);
+    return trimmed;
   };
 
   const getTypeTag = (type: string) => {
@@ -99,7 +128,10 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
 
   useEffect(() => {
     if (open && currentItem?.url) {
-      setMediaUrl(normalizeResourceUrl(currentItem.url));
+      console.log('[ViewResourceModal useEffect] Raw currentItem.url:', currentItem.url);
+      const normalized = normalizeResourceUrl(currentItem.url);
+      console.log('[ViewResourceModal useEffect] After normalization:', normalized);
+      setMediaUrl(normalized);
       setIframeLoaded(false);
       setEmbedBlocked(false);
       return;
@@ -164,8 +196,11 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
     const external = isExternalLink(currentItem.url);
 
     if (normalizedType === "video") {
-      if (isExternalLink(currentItem.url)) {
-        const embedUrl = mediaUrl ? getVideoEmbedUrl(mediaUrl) : "";
+      const normalizedVideoUrl = mediaUrl || normalizeResourceUrl(currentItem.url);
+      const embedUrl = normalizedVideoUrl ? getVideoEmbedUrl(normalizedVideoUrl) : "";
+      const canEmbed = /youtube\.com\/embed\/|player\.vimeo\.com\/video\//i.test(embedUrl);
+
+      if (canEmbed) {
         return (
           <div style={{ padding: isFullscreen ? "0" : "12px" }}>
             <iframe
@@ -243,8 +278,12 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
             <Button
               type="primary"
               icon={<LinkOutlined />}
-              href={normalizeResourceUrl(currentItem?.url)}
-              target="_blank"
+              onClick={() => {
+                const finalUrl = normalizeResourceUrl(currentItem?.url);
+                console.log('[OpenLink-ExternalBlock] Original URL:', currentItem?.url);
+                console.log('[OpenLink-ExternalBlock] Final URL:', finalUrl);
+                window.open(finalUrl, '_blank');
+              }}
               className="!bg-primary !border-primary"
             >
               Open Link
@@ -279,8 +318,12 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
             <Button
               type="primary"
               icon={<LinkOutlined />}
-              href={normalizeResourceUrl(currentItem?.url)}
-              target="_blank"
+              onClick={() => {
+                const finalUrl = normalizeResourceUrl(currentItem?.url);
+                console.log('[OpenLink-EmbedBlocked] Original URL:', currentItem?.url);
+                console.log('[OpenLink-EmbedBlocked] Final URL:', finalUrl);
+                window.open(finalUrl, '_blank');
+              }}
               className="!bg-primary !border-primary"
             >
               Open Link
@@ -340,8 +383,12 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
           key="open-link"
           type="primary"
           icon={<LinkOutlined />}
-          href={normalizeResourceUrl(currentItem?.url)}
-          target="_blank"
+          onClick={() => {
+            const finalUrl = normalizeResourceUrl(currentItem?.url);
+            console.log('ViewResourceModal - Original URL:', currentItem?.url);
+            console.log('ViewResourceModal - Final URL:', finalUrl);
+            window.open(finalUrl, '_blank');
+          }}
           className="!bg-primary !border-primary"
         >
           Open Link
