@@ -209,10 +209,11 @@ export default function AllStudentsPage() {
               ...(function () {
                 const primaryId = String(student.id ?? "").trim();
                 const fallbackId = String(student.student_id ?? "").trim();
+                const canonicalStudentId = fallbackId || primaryId;
                 const updateIds = Array.from(
-                  new Set([primaryId, fallbackId].filter(Boolean))
+                  new Set([canonicalStudentId, fallbackId, primaryId].filter(Boolean))
                 );
-                const sid = updateIds[0] || "";
+                const sid = canonicalStudentId || updateIds[0] || "";
                 const profileId = primaryId || fallbackId || sid;
                 const overrideKeys = buildOverrideKeys({
                   classId: cls.id,
