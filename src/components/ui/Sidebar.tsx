@@ -165,19 +165,10 @@ const Sidebar = () => {
         icon: Wrench,
       },
       {
-        name: "🧠 Mind-upgrade",
+        name: "\uD83E\uDDE0 Mind-upgrade",
         href: "/dashboard/mind-upgrade",
         icon: Brain,
-        children: [
-          {
-            name: "Aqeedah",
-            href: "/dashboard/mind-upgrade/aqeedah",
-          },
-          {
-            name: "Stories of the Prophets",
-            href: "/dashboard/mind-upgrade/stories-of-the-prophets",
-          },
-        ],
+        
       },
       {
         name: "Settings",
@@ -486,23 +477,6 @@ const Sidebar = () => {
                   )}
                 </Link>
 
-                {isOpen && Array.isArray(item.children) && item.children.length > 0 && (
-                  <div className="ml-8 mb-2 mt-1 space-y-1">
-                    {item.children.map((child: any) => (
-                      <Link
-                        key={child.name}
-                        href={child.href}
-                        className={`block rounded-md px-3 py-2 text-sm transition-all duration-200 ${
-                          isItemActive(child.href)
-                            ? "sidebar-nav-item-active font-semibold sidebar-item-active"
-                            : "text-gray-600 hover:text-[var(--theme-dark)] hover:bg-[var(--theme-soft)]"
-                        }`}
-                      >
-                        {child.name}
-                      </Link>
-                    ))}
-                  </div>
-                )}
               </div>
             ))}
         </nav>
@@ -665,3 +639,4 @@ const Sidebar = () => {
 };
 
 export default Sidebar;
+
