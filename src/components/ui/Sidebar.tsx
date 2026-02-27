@@ -24,6 +24,7 @@ import {
   Layers,
   ClipboardList,
   Wrench,
+  Brain,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { logout } from "@/features/auth/authSlice";
@@ -162,6 +163,11 @@ const Sidebar = () => {
         name: "Tools",
         href: "/dashboard/tools",
         icon: Wrench,
+      },
+      {
+        name: "🧠 Mind-upgrade",
+        href: "/dashboard/mind-upgrade",
+        icon: Brain,
       },
       {
         name: "Settings",
