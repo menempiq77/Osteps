@@ -1,5 +1,5 @@
 import { PROPHETS } from "./prophets";
-import { formatProphetNamesWithPbuh } from "../../../components/stories/pbuh";
+import { formatProphetNamesWithPbuh } from "@/components/stories/pbuh";
 
 export type ProphetStorySection = {
 	title: string | { en: string; ar: string };
