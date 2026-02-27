@@ -2,11 +2,11 @@
 
 import { useMemo, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
-import type { ProphetStory } from "../../app/mind-upgrade/stories-of-the-prophets/stories";
+import type { ProphetStory } from "@/app/dashboard/mind-upgrade/stories-of-the-prophets/stories";
 import type { StoryProgress } from "./storyProgress";
 import AdamQuizClient from "./AdamQuizClient";
 import StoryQuizClient from "./StoryQuizClient";
-import { useLanguage } from "../../app/LanguageContext";
+import { useLanguage } from "@/app/LanguageContext";
 import { resolveMiniGame } from "./miniGameConfig";
 import {
   getStoryProgress,

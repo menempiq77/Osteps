@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import type { Prophet } from "../../app/mind-upgrade/stories-of-the-prophets/prophets";
+import type { Prophet } from "@/app/dashboard/mind-upgrade/stories-of-the-prophets/prophets";
 import { getStoryProgress, getStoryRewards, isStoryInProgress } from "./storyProgress";
 
 type Props = {
