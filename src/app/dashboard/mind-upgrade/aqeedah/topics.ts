@@ -1,0 +1,45 @@
+export type AqeedahTopic = {
+  id: number;
+  titleEn: string;
+  titleAr: string;
+};
+
+export const AQEEDAH_TOPICS: AqeedahTopic[] = [
+  { id: 1, titleEn: "Foundations of 'Aqidah", titleAr: "أسس العقيدة" },
+  { id: 2, titleEn: "Methodology of Ahl al-Sunnah in Allah's Names and Attributes", titleAr: "منهج أهل السنة في أسماء الله وصفاته" },
+  { id: 3, titleEn: "Evidence for the Methodology", titleAr: "الدليل على المنهج" },
+  { id: 4, titleEn: "Allah's Attributes in the Qur'an", titleAr: "صفات الله في القرآن" },
+  { id: 5, titleEn: "Affirmation and Negation in Surah Al-Ikhlas", titleAr: "الإثبات والنفي في سورة الإخلاص" },
+  { id: 6, titleEn: "Affirmation and Negation in Ayat al-Kursi", titleAr: "الإثبات والنفي في آية الكرسي" },
+  { id: 7, titleEn: "Attributes of Life, First, Last, Outward, and Inward", titleAr: "صفات الحياة والأول والآخر والظاهر والباطن" },
+  { id: 8, titleEn: "Attributes of Knowledge and Might", titleAr: "صفات العلم والقدرة" },
+  { id: 9, titleEn: "Attributes of Hearing, Seeing, and Will", titleAr: "صفات السمع والبصر والإرادة" },
+  { id: 10, titleEn: "Attribute of Love", titleAr: "صفة المحبة" },
+  { id: 11, titleEn: "Attribute of Mercy", titleAr: "صفة الرحمة" },
+  { id: 12, titleEn: "Attributes of Pleasure, Anger, and Coming", titleAr: "صفات الرضا والغضب والمجيء" },
+  { id: 13, titleEn: "Attributes of Face and Hand", titleAr: "صفات الوجه واليد" },
+  { id: 14, titleEn: "Attributes of Eyes, Seeing, and Hearing", titleAr: "صفات العين والبصر والسمع" },
+  { id: 15, titleEn: "Attribute of Power and Planning", titleAr: "صفة القوة والمكر" },
+  { id: 16, titleEn: "Attributes of Forgiveness and Might", titleAr: "صفات المغفرة والعزة" },
+  { id: 17, titleEn: "Attribute of Oneness", titleAr: "صفة الوحدانية" },
+  { id: 18, titleEn: "Attribute of Settling on the Throne and Highness", titleAr: "صفة الاستواء والعلو" },
+  { id: 19, titleEn: "Attribute of Omnipresence (Closeness)", titleAr: "صفة القرب" },
+  { id: 20, titleEn: "Attribute of Speech", titleAr: "صفة الكلام" },
+  { id: 21, titleEn: "The Qur'an is the Speech of Allah", titleAr: "القرآن كلام الله" },
+  { id: 22, titleEn: "Seeing Allah", titleAr: "رؤية الله" },
+  { id: 23, titleEn: "Evidence from the Sunnah Regarding Allah's Attributes", titleAr: "الدليل من السنة على صفات الله" },
+  { id: 24, titleEn: "Belief in the Hereafter", titleAr: "الإيمان بالآخرة" },
+  { id: 25, titleEn: "The Trial of the Grave and Resurrection", titleAr: "فتنة القبر والبعث" },
+  { id: 26, titleEn: "Records of Deeds", titleAr: "الصحف والكتب" },
+  { id: 27, titleEn: "The Prophet's Fountain (Al-Hawd)", titleAr: "الحوض" },
+  { id: 28, titleEn: "Intercession (Shafa'ah)", titleAr: "الشفاعة" },
+  { id: 29, titleEn: "Divine Decree (Al-Qadar)", titleAr: "القدر" },
+  { id: 30, titleEn: "Belief (Iman)", titleAr: "الإيمان" },
+  { id: 31, titleEn: "The Companions of the Prophet (Sahabah)", titleAr: "الصحابة" },
+  { id: 32, titleEn: "The Family of the Prophet (Ahl al-Bayt)", titleAr: "أهل البيت" },
+  { id: 33, titleEn: "The Wives of the Prophet (Mothers of the Believers)", titleAr: "أمهات المؤمنين" },
+  { id: 34, titleEn: "The Miracles of the Saints (Awliya')", titleAr: "كرامات الأولياء" },
+  { id: 35, titleEn: "The Path of Ahl al-Sunnah wal-Jama'ah", titleAr: "طريق أهل السنة والجماعة" },
+  { id: 36, titleEn: "Belief of Ahl al-Sunnah in Rulings (Ahkam)", titleAr: "اعتقاد أهل السنة في الأحكام" },
+  { id: 37, titleEn: "The Virtue of Ahl al-Sunnah Over All Sects", titleAr: "فضل أهل السنة على الفرق" },
+];
