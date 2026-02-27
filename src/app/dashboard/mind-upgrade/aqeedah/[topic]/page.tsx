@@ -1,60 +1,133 @@
 "use client";
 
-import { Card, Typography, Button } from "antd";
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { AQEEDAH_TOPICS } from "../topics";
+import { notFound } from "next/navigation";
+import StoryStepper from "@/components/stories/StoryStepper";
+import { getAqeedahTopicBySlug } from "../topics";
+import { useTranslation } from "@/app/useTranslation";
+import { use } from "react";
 
-export default function AqeedahTopicPage() {
-  const params = useParams();
-  const topicParam = params.topic as string;
-  
-  // Extract topic ID from "topic-1" format
-  const topicId = parseInt(topicParam.replace("topic-", ""));
-  const topic = AQEEDAH_TOPICS.find((t) => t.id === topicId);
+type PageProps = {
+  params: Promise<{ topic: string }>;
+};
 
-  if (!topic) {
-    return (
-      <div className="p-3 md:p-6">
-        <Card className="border border-[#D6EFE2]">
-          <Typography.Title level={3}>Topic Not Found</Typography.Title>
-          <Link href="/dashboard/mind-upgrade/aqeedah">
-            <Button type="primary">← Back to Aqeedah Topics</Button>
-          </Link>
-        </Card>
-      </div>
-    );
+export default function AqeedahTopicPage({ params }: PageProps) {
+  const { topic } = use(params);
+  const { t, language } = useTranslation();
+  const lesson = getAqeedahTopicBySlug(topic);
+
+  if (!lesson) {
+    notFound();
   }
 
+  const shortIntro = typeof lesson.shortIntro === "string" 
+    ? lesson.shortIntro 
+    : lesson.shortIntro[language];
+
   return (
-    <div className="p-3 md:p-6">
-      <div className="mb-4">
-        <Link href="/dashboard/mind-upgrade/aqeedah">
-          <Button>← Back to Aqeedah Topics</Button>
-        </Link>
-      </div>
+    <main
+      style={{
+        minHeight: "100vh",
+        background: "linear-gradient(180deg, #f0fdf4 0%, #ecfdf5 100%)",
+        padding: "44px 20px",
+        fontFamily: language === "ar" ? "var(--font-noto-naskh-arabic), system-ui" : "system-ui",
+      }}
+    >
+      <div style={{ maxWidth: "1000px", margin: "0 auto" }}>
+        <div style={{ marginBottom: 18, display: "flex", gap: 10 }}>
+          <Link
+            href="/dashboard/mind-upgrade/aqeedah"
+            style={{
+              color: "var(--foreground)",
+              textDecoration: "none",
+              fontWeight: 700,
+              background: "var(--background)",
+              border: "1px solid rgba(0,0,0,0.10)",
+              padding: "10px 14px",
+              borderRadius: "12px",
+              display: "inline-block",
+            }}
+          >
+            {t({ en: "← Back", ar: "→ رجوع" })}
+          </Link>
 
-      <Card className="border border-[#D6EFE2]">
-        <Typography.Title level={3} className="!mb-2">
-          Topic {topic.id}: {topic.titleEn}
-        </Typography.Title>
-        <Typography.Title level={4} dir="rtl" className="!mb-4 text-gray-600">
-          {topic.titleAr}
-        </Typography.Title>
-
-        <div className="mt-6">
-          <Typography.Paragraph className="text-gray-500">
-            Detailed content for this topic will be added here, including:
-          </Typography.Paragraph>
-          <ul className="list-disc list-inside text-gray-600 space-y-2">
-            <li>Qur'anic verses with translations</li>
-            <li>Authentic Hadith evidences</li>
-            <li>Detailed explanations from scholars</li>
-            <li>Practical lessons and applications</li>
-            <li>Quiz to test understanding</li>
-          </ul>
+          <Link
+            href="/dashboard"
+            style={{
+              color: "var(--foreground)",
+              textDecoration: "none",
+              fontWeight: 700,
+              background: "var(--background)",
+              border: "1px solid rgba(0,0,0,0.10)",
+              padding: "10px 14px",
+              borderRadius: "12px",
+              display: "inline-block",
+            }}
+          >
+            {t({ en: "Home", ar: "الرئيسية" })}
+          </Link>
         </div>
-      </Card>
-    </div>
+
+        <section
+          style={{
+            background: "var(--background)",
+            borderRadius: "18px",
+            padding: "34px",
+            border: "1px solid rgba(0,0,0,0.06)",
+            color: "var(--foreground)",
+          }}
+        >
+          <h1
+            style={{
+              fontSize: "34px",
+              fontWeight: "800",
+              marginBottom: "10px",
+              lineHeight: 1.15,
+            }}
+          >
+            {lesson.name}
+          </h1>
+
+          <div
+            style={{
+              color: "#333",
+              fontWeight: 650,
+              marginBottom: 18,
+              lineHeight: 1.75,
+              fontSize: 16,
+            }}
+          >
+            {shortIntro}
+          </div>
+
+          <div style={{ display: "grid", gap: 16 }}>
+            <StoryStepper story={lesson} basePath="/dashboard/mind-upgrade/aqeedah" />
+
+            <div
+              style={{
+                background: "rgba(0,0,0,0.03)",
+                border: "1px solid rgba(0,0,0,0.06)",
+                borderRadius: 16,
+                padding: 18,
+              }}
+            >
+              <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 8 }}>
+                {t({ en: "Qur'an references (surahs)", ar: "مراجع القرآن (السور)" })}
+              </div>
+              <div
+                style={{
+                  color: "#111",
+                  fontWeight: 650,
+                  lineHeight: 1.9,
+                  fontSize: 16,
+                }}
+              >
+                {lesson.quranSurahs.length ? lesson.quranSurahs.join(" • ") : "—"}
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
   );
 }
