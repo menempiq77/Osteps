@@ -173,10 +173,10 @@ export default function LibraryPage() {
       }
 
       if (values.source === "link" && values.link) {
-        // For links, send via 'link' field (backend will handle it)
+        formData.append("file_path", values.link);
+        formData.append("external_link", values.link);
         formData.append("link", values.link);
       } else if (fileList.length > 0) {
-        // For files, send via 'file_path' field
         const fileToUpload = fileList[0]?.originFileObj || fileList[0];
         const isNewUpload = Boolean(fileToUpload?.originFileObj || fileToUpload instanceof File);
 
@@ -184,10 +184,16 @@ export default function LibraryPage() {
           const normalizedFile = fileToUpload?.originFileObj || fileToUpload;
           formData.append("file_path", normalizedFile);
         }
-      } else if (isEditing && currentItem) {
-        // Keep existing file path during edit when user updates metadata only.
-        // Send as a string to indicate this is existing data, not a new file
-        formData.append("existing_file_path", currentItem.file_path);
+      }
+
+      // Keep existing file path during edit when user updates metadata only.
+      if (
+        isEditing &&
+        currentItem &&
+        !formData.has("file_path") &&
+        currentItem.file_path
+      ) {
+        formData.append("file_path", currentItem.file_path);
       }
 
       if (isEditing && currentItem) {
@@ -245,8 +251,7 @@ export default function LibraryPage() {
   };
 
   const handleEdit = (item: LibraryItem) => {
-    const resolvedPath = resolveLibraryPath(item.file_path);
-    const isLink = isExternalLink(resolvedPath);
+    const isLink = isExternalLink(item.file_path || "");
     setCurrentItem(item);
     setIsEditing(true);
     setIsUploadModalOpen(true);
@@ -257,17 +262,17 @@ export default function LibraryPage() {
       description: item.description,
       tags: parseTags(item.tags),
       source: isLink ? "link" : "upload",
-      link: isLink ? resolvedPath : undefined,
+      link: isLink ? item.file_path : undefined,
     });
 
     setFileList(
-      !isLink && resolvedPath
+      !isLink && item.file_path
         ? [
             {
               uid: "-1",
               name: item.title,
               status: "done",
-              url: resolvedPath,
+              url: item.file_path,
             },
           ]
         : []
@@ -275,14 +280,13 @@ export default function LibraryPage() {
   };
 
   const openResourceDirectly = (item: any) => {
-    const resolvedPath = resolveLibraryPath(item?.file_path);
-    if (!resolvedPath) return;
+    if (!item?.file_path) return;
     const resourceType = getResourceName(item.library_resources_id).toLowerCase();
 
     setCurrentItem({
       ...item,
       type: resourceType,
-      url: resolvedPath,
+      url: item.file_path,
       uploadedBy: item.uploaded_by || "Unknown",
       uploadDate: item.updated_at
         ? new Date(item.updated_at).toLocaleDateString("en-US", {
@@ -610,16 +614,15 @@ export default function LibraryPage() {
               const resourceType = getResourceName(
                 item.library_resources_id
               ).toLowerCase();
-              const resolvedPath = resolveLibraryPath(item.file_path);
-              const isExternal = isExternalLink(resolvedPath);
+              const isExternal = isExternalLink(item.file_path);
               const domainLabel = isExternal
-                ? getLinkDomain(resolvedPath)
+                ? getLinkDomain(item.file_path)
                 : "";
               const coverUrl =
                 isExternal && resourceType === "video"
-                  ? getVideoThumbnailUrl(resolvedPath)
-                  : isImageUrl(resolvedPath)
-                  ? resolvedPath
+                  ? getVideoThumbnailUrl(item.file_path)
+                  : isImageUrl(item.file_path)
+                  ? item.file_path
                   : "";
 
               return (
