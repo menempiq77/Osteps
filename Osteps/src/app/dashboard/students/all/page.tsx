@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
@@ -59,6 +59,44 @@ type ClassItem = {
   year?: { id?: number | string; name?: string };
 };
 
+type StudentFieldOverride = {
+  genderRaw?: "male" | "female" | "";
+  nationality?: string;
+  isSen?: boolean;
+  senDetails?: string;
+};
+
+const getFirstOverride = <T,>(map: Record<string, T>, keys: string[]): T | undefined => {
+  for (const key of keys) {
+    if (Object.prototype.hasOwnProperty.call(map, key)) return map[key];
+  }
+  return undefined;
+};
+
+const buildOverrideKeys = (params: {
+  classId: number | string;
+  studentId?: string;
+  profileId?: string;
+  updateIds?: string[];
+}): string[] => {
+  const classKey = String(params.classId ?? "").trim();
+  const studentId = String(params.studentId ?? "").trim();
+  const profileId = String(params.profileId ?? "").trim();
+  const updateIds = (params.updateIds || []).map((id) => String(id).trim()).filter(Boolean);
+
+  return Array.from(
+    new Set(
+      [
+        ...updateIds,
+        studentId,
+        profileId,
+        classKey && studentId ? `${classKey}:${studentId}` : "",
+        classKey && profileId ? `${classKey}:${profileId}` : "",
+      ].filter(Boolean)
+    )
+  );
+};
+
 const normalizeGender = (raw: unknown): "Male" | "Female" | "Unknown" => {
   const value = String(raw ?? "").trim().toLowerCase();
   if (!value) return "Unknown";
@@ -94,16 +132,23 @@ export default function AllStudentsPage() {
   );
   const [genderFilters, setGenderFilters] = useState<Array<"Male" | "Female" | "Unknown">>([]);
   const [editingStudent, setEditingStudent] = useState<StudentListRow | null>(null);
-  const [genderOverrides, setGenderOverrides] = useState<Record<string, "male" | "female">>(() => {
+  const [studentFieldOverrides, setStudentFieldOverrides] = useState<
+    Record<string, StudentFieldOverride>
+  >(() => {
     if (typeof window === "undefined") return {};
     try {
-      const raw = localStorage.getItem("students-gender-overrides");
+      const raw = localStorage.getItem("students-field-overrides");
       const parsed = raw ? JSON.parse(raw) : {};
       return parsed && typeof parsed === "object" ? parsed : {};
     } catch {
       return {};
     }
   });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem("students-field-overrides", JSON.stringify(studentFieldOverrides));
+  }, [studentFieldOverrides]);
 
   const {
     data: students = [],
@@ -167,10 +212,31 @@ export default function AllStudentsPage() {
                 );
                 const sid = updateIds[0] || "";
                 const profileId = primaryId || fallbackId || sid;
+                const overrideKeys = buildOverrideKeys({
+                  classId: cls.id,
+                  studentId: sid,
+                  profileId,
+                  updateIds,
+                });
+                const override = getFirstOverride(studentFieldOverrides, overrideKeys);
+
                 const fromApi = normalizeGenderRaw(
                   student.gender ?? student.student_gender ?? student.sex ?? student.student_sex
                 );
-                const rawGender = genderOverrides[sid] || fromApi;
+                const rawGender = normalizeGenderRaw(override?.genderRaw) || fromApi;
+                const nationalityFromApi = String(student.nationality ?? "").trim();
+                const nationality =
+                  typeof override?.nationality === "string"
+                    ? override.nationality
+                    : nationalityFromApi;
+                const isSenFromApi = Boolean(student.is_sen ?? student.isSen ?? false);
+                const isSen =
+                  typeof override?.isSen === "boolean" ? override.isSen : isSenFromApi;
+                const senDetailsFromApi = String(student.sen_details ?? student.senDetails ?? "");
+                const senDetails =
+                  typeof override?.senDetails === "string"
+                    ? override.senDetails
+                    : senDetailsFromApi;
                 return {
                   key: `${cls.id}-${student.id ?? student.student_id ?? Math.random()}`,
                   studentId: sid,
@@ -179,9 +245,9 @@ export default function AllStudentsPage() {
                   name: String(student.student_name ?? student.name ?? "Unknown Student"),
                   userName: String(student.user_name ?? student.username ?? ""),
                   email: String(student.email ?? ""),
-                  nationality: String(student.nationality ?? ""),
-                  isSen: Boolean(student.is_sen ?? student.isSen ?? false),
-                  senDetails: String(student.sen_details ?? student.senDetails ?? ""),
+                  nationality,
+                  isSen,
+                  senDetails,
                   yearId: Number(classYearId ?? 0),
                   yearGroup: yearName,
                   className,
@@ -360,16 +426,27 @@ export default function AllStudentsPage() {
             })
         );
 
-        if (nextGender === "male" || nextGender === "female") {
-          const nextOverrides = {
-            ...genderOverrides,
-            [editingStudent.studentId]: nextGender as "male" | "female",
-          };
-          setGenderOverrides(nextOverrides);
-          if (typeof window !== "undefined") {
-            localStorage.setItem("students-gender-overrides", JSON.stringify(nextOverrides));
+        const overrideKeys = buildOverrideKeys({
+          classId: editingStudent.classId,
+          studentId: editingStudent.studentId,
+          profileId: editingStudent.profileId,
+          updateIds: editingStudent.updateIds,
+        });
+        setStudentFieldOverrides((prev) => {
+          const next = { ...prev };
+          for (const key of overrideKeys) {
+            next[key] = {
+              genderRaw:
+                nextGender === "male" || nextGender === "female"
+                  ? (nextGender as "male" | "female")
+                  : editingStudent.genderRaw,
+              nationality: nextNationality,
+              isSen: nextIsSen,
+              senDetails: nextSenDetails,
+            };
           }
-        }
+          return next;
+        });
       }
       messageApi.success("Student updated successfully.");
       setEditingStudent(null);

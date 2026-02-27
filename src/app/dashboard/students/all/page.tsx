@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
@@ -57,6 +57,13 @@ type ClassItem = {
   year_id?: number | string;
   year_name?: string;
   year?: { id?: number | string; name?: string };
+};
+
+type StudentFieldOverride = {
+  genderRaw?: "male" | "female" | "";
+  nationality?: string;
+  isSen?: boolean;
+  senDetails?: string;
 };
 
 const normalizeGender = (raw: unknown): "Male" | "Female" | "Unknown" => {
@@ -126,6 +133,23 @@ export default function AllStudentsPage() {
   );
   const [genderFilters, setGenderFilters] = useState<Array<"Male" | "Female">>([]);
   const [editingStudent, setEditingStudent] = useState<StudentListRow | null>(null);
+  const [studentFieldOverrides, setStudentFieldOverrides] = useState<
+    Record<string, StudentFieldOverride>
+  >(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const raw = localStorage.getItem("students-field-overrides");
+      const parsed = raw ? JSON.parse(raw) : {};
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem("students-field-overrides", JSON.stringify(studentFieldOverrides));
+  }, [studentFieldOverrides]);
 
 
   const {
@@ -190,11 +214,32 @@ export default function AllStudentsPage() {
                 );
                 const sid = updateIds[0] || "";
                 const profileId = primaryId || fallbackId || sid;
-                // Use database values directly - no localStorage overrides
-                const rawGender = normalizeGenderRaw(
+                const overrideKeys = buildOverrideKeys({
+                  classId: cls.id,
+                  studentId: sid,
+                  profileId,
+                  updateIds,
+                });
+                const override = getFirstOverride(studentFieldOverrides, overrideKeys);
+
+                const fromApiGender = normalizeGenderRaw(
                   student.gender ?? student.student_gender ?? student.sex ?? student.student_sex
                 );
-                const nationality = String(student.nationality ?? "").trim();
+                const rawGender =
+                  normalizeGenderRaw(override?.genderRaw) || fromApiGender;
+                const nationalityFromApi = String(student.nationality ?? "").trim();
+                const nationality =
+                  typeof override?.nationality === "string"
+                    ? override.nationality
+                    : nationalityFromApi;
+                const isSenFromApi = Boolean(student.is_sen ?? student.isSen ?? false);
+                const isSen =
+                  typeof override?.isSen === "boolean" ? override.isSen : isSenFromApi;
+                const senDetailsFromApi = String(student.sen_details ?? student.senDetails ?? "");
+                const senDetails =
+                  typeof override?.senDetails === "string"
+                    ? override.senDetails
+                    : senDetailsFromApi;
                 return {
                   key: `${cls.id}-${student.id ?? student.student_id ?? Math.random()}`,
                   studentId: sid,
@@ -204,8 +249,8 @@ export default function AllStudentsPage() {
                   userName: String(student.user_name ?? student.username ?? ""),
                   email: String(student.email ?? ""),
                   nationality,
-                  isSen: Boolean(student.is_sen ?? student.isSen ?? false),
-                  senDetails: String(student.sen_details ?? student.senDetails ?? ""),
+                  isSen,
+                  senDetails,
                   yearId: Number(classYearId ?? 0),
                   yearGroup: yearName,
                   className,
@@ -388,6 +433,28 @@ export default function AllStudentsPage() {
               };
             })
         );
+
+        const overrideKeys = buildOverrideKeys({
+          classId: editingStudent.classId,
+          studentId: editingStudent.studentId,
+          profileId: editingStudent.profileId,
+          updateIds: editingStudent.updateIds,
+        });
+        setStudentFieldOverrides((prev) => {
+          const next = { ...prev };
+          for (const key of overrideKeys) {
+            next[key] = {
+              genderRaw:
+                nextGender === "male" || nextGender === "female"
+                  ? (nextGender as "male" | "female")
+                  : editingStudent.genderRaw,
+              nationality: nextNationality,
+              isSen: nextIsSen,
+              senDetails: nextSenDetails,
+            };
+          }
+          return next;
+        });
 
         // Data is automatically synced from the database via invalidateQueries
       }
