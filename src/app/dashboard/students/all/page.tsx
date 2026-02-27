@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
@@ -59,13 +59,6 @@ type ClassItem = {
   year?: { id?: number | string; name?: string };
 };
 
-type StudentFieldOverride = {
-  genderRaw?: "male" | "female" | "";
-  nationality?: string;
-  isSen?: boolean;
-  senDetails?: string;
-};
-
 const normalizeGender = (raw: unknown): "Male" | "Female" | "Unknown" => {
   const value = String(raw ?? "").trim().toLowerCase();
   if (!value) return "Unknown";
@@ -79,37 +72,6 @@ const normalizeGenderRaw = (raw: unknown): "male" | "female" | "" => {
   if (["male", "m", "boy"].includes(value)) return "male";
   if (["female", "f", "girl"].includes(value)) return "female";
   return "";
-};
-
-const getFirstOverride = <T,>(map: Record<string, T>, keys: string[]): T | undefined => {
-  for (const key of keys) {
-    if (Object.prototype.hasOwnProperty.call(map, key)) return map[key];
-  }
-  return undefined;
-};
-
-const buildOverrideKeys = (params: {
-  classId: number | string;
-  studentId?: string;
-  profileId?: string;
-  updateIds?: string[];
-}): string[] => {
-  const classKey = String(params.classId ?? "").trim();
-  const studentId = String(params.studentId ?? "").trim();
-  const profileId = String(params.profileId ?? "").trim();
-  const updateIds = (params.updateIds || []).map((id) => String(id).trim()).filter(Boolean);
-
-  return Array.from(
-    new Set(
-      [
-        ...updateIds,
-        studentId,
-        profileId,
-        classKey && studentId ? `${classKey}:${studentId}` : "",
-        classKey && profileId ? `${classKey}:${profileId}` : "",
-      ].filter(Boolean)
-    )
-  );
 };
 
 export default function AllStudentsPage() {
@@ -133,23 +95,6 @@ export default function AllStudentsPage() {
   );
   const [genderFilters, setGenderFilters] = useState<Array<"Male" | "Female">>([]);
   const [editingStudent, setEditingStudent] = useState<StudentListRow | null>(null);
-  const [studentFieldOverrides, setStudentFieldOverrides] = useState<
-    Record<string, StudentFieldOverride>
-  >(() => {
-    if (typeof window === "undefined") return {};
-    try {
-      const raw = localStorage.getItem("students-field-overrides");
-      const parsed = raw ? JSON.parse(raw) : {};
-      return parsed && typeof parsed === "object" ? parsed : {};
-    } catch {
-      return {};
-    }
-  });
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    localStorage.setItem("students-field-overrides", JSON.stringify(studentFieldOverrides));
-  }, [studentFieldOverrides]);
 
 
   const {
@@ -215,13 +160,6 @@ export default function AllStudentsPage() {
                 );
                 const sid = canonicalStudentId || updateIds[0] || "";
                 const profileId = primaryId || fallbackId || sid;
-                const overrideKeys = buildOverrideKeys({
-                  classId: cls.id,
-                  studentId: sid,
-                  profileId,
-                  updateIds,
-                });
-                const override = getFirstOverride(studentFieldOverrides, overrideKeys);
 
                 const fromApiGender = normalizeGenderRaw(
                   student.gender ??
@@ -231,8 +169,7 @@ export default function AllStudentsPage() {
                     student.studentGender ??
                     student.studentSex
                 );
-                const rawGender =
-                  normalizeGenderRaw(override?.genderRaw) || fromApiGender;
+                const rawGender = fromApiGender;
                 const nationalityFromApi = String(
                   student.nationality ??
                     student.student_nationality ??
@@ -241,18 +178,9 @@ export default function AllStudentsPage() {
                     student.citizenship ??
                     ""
                 ).trim();
-                const nationality =
-                  typeof override?.nationality === "string"
-                    ? override.nationality
-                    : nationalityFromApi;
-                const isSenFromApi = Boolean(student.is_sen ?? student.isSen ?? false);
-                const isSen =
-                  typeof override?.isSen === "boolean" ? override.isSen : isSenFromApi;
-                const senDetailsFromApi = String(student.sen_details ?? student.senDetails ?? "");
-                const senDetails =
-                  typeof override?.senDetails === "string"
-                    ? override.senDetails
-                    : senDetailsFromApi;
+                const nationality = nationalityFromApi;
+                const isSen = Boolean(student.is_sen ?? student.isSen ?? false);
+                const senDetails = String(student.sen_details ?? student.senDetails ?? "");
                 return {
                   key: `${cls.id}-${student.id ?? student.student_id ?? Math.random()}`,
                   studentId: sid,
@@ -360,8 +288,7 @@ export default function AllStudentsPage() {
         ? String(values.sen_details ?? editingStudent.senDetails ?? "").trim()
         : "";
       const nextStatus = values.status || editingStudent.status || "active";
-      const nextGender =
-        values.gender || editingStudent.genderRaw || (editingStudent.gender === "Female" ? "female" : "male");
+      const nextGender = normalizeGenderRaw(values.gender ?? editingStudent.genderRaw);
 
       const payload: Record<string, unknown> = {
         student_name: nextName,
@@ -369,10 +296,6 @@ export default function AllStudentsPage() {
         email: nextEmail,
         class_id: editingStudent.classId,
         status: nextStatus,
-        gender: nextGender,
-        student_gender: nextGender,
-        sex: nextGender,
-        student_sex: nextGender,
         nationality: nextNationality,
         student_nationality: nextNationality,
         country: nextNationality,
@@ -381,6 +304,12 @@ export default function AllStudentsPage() {
         // Backend currently expects password key to always exist on update.
         password: values.password?.trim() || "",
       };
+      if (nextGender) {
+        payload.gender = nextGender;
+        payload.student_gender = nextGender;
+        payload.sex = nextGender;
+        payload.student_sex = nextGender;
+      }
 
       const candidateIds = editingStudent.updateIds?.length
         ? editingStudent.updateIds
@@ -404,81 +333,15 @@ export default function AllStudentsPage() {
       }
     },
     onSuccess: async () => {
-      if (editingStudent) {
-        const nextName = String(editForm.getFieldValue("student_name") || "").trim();
-        const nextUserName = String(editForm.getFieldValue("user_name") || "").trim();
-        const nextEmail = String(editForm.getFieldValue("email") || "").trim();
-        const nextNationality = String(editForm.getFieldValue("nationality") || "").trim();
-        const nextIsSen = Boolean(editForm.getFieldValue("is_sen"));
-        const nextSenDetails = nextIsSen
-          ? String(editForm.getFieldValue("sen_details") || "").trim()
-          : "";
-        const nextStatus = String(editForm.getFieldValue("status") || "").toLowerCase();
-        const nextGender = String(editForm.getFieldValue("gender") || "").toLowerCase();
-
-        queryClient.setQueryData<StudentListRow[]>(
-          ["all-students-list", role, schoolId],
-          (prev = []) =>
-            prev.map((row) => {
-              if (row.studentId !== editingStudent.studentId) return row;
-              const patchedGender =
-                nextGender === "male"
-                  ? "Male"
-                  : nextGender === "female"
-                  ? "Female"
-                  : row.gender;
-              const patchedGenderRaw =
-                nextGender === "male" || nextGender === "female"
-                  ? (nextGender as "male" | "female")
-                  : row.genderRaw;
-              return {
-                ...row,
-                name: nextName || row.name,
-                userName: nextUserName || row.userName,
-                email: nextEmail || row.email,
-                nationality: nextNationality,
-                isSen: nextIsSen,
-                senDetails: nextSenDetails,
-                status:
-                  nextStatus === "active" || nextStatus === "inactive" || nextStatus === "suspended"
-                    ? (nextStatus as "active" | "inactive" | "suspended")
-                    : row.status,
-                gender: patchedGender,
-                genderRaw: patchedGenderRaw,
-              };
-            })
-        );
-
-        const overrideKeys = buildOverrideKeys({
-          classId: editingStudent.classId,
-          studentId: editingStudent.studentId,
-          profileId: editingStudent.profileId,
-          updateIds: editingStudent.updateIds,
-        });
-        setStudentFieldOverrides((prev) => {
-          const next = { ...prev };
-          for (const key of overrideKeys) {
-            next[key] = {
-              genderRaw:
-                nextGender === "male" || nextGender === "female"
-                  ? (nextGender as "male" | "female")
-                  : editingStudent.genderRaw,
-              nationality: nextNationality,
-              isSen: nextIsSen,
-              senDetails: nextSenDetails,
-            };
-          }
-          return next;
-        });
-
-        // Data is automatically synced from the database via invalidateQueries
-      }
-      
       messageApi.success("Student updated successfully.");
       setEditingStudent(null);
       editForm.resetFields();
       await queryClient.invalidateQueries({
         queryKey: ["all-students-list", role, schoolId],
+      });
+      await queryClient.refetchQueries({
+        queryKey: ["all-students-list", role, schoolId],
+        type: "active",
       });
     },
     onError: (error: unknown) => {
@@ -499,8 +362,8 @@ export default function AllStudentsPage() {
       user_name: record.userName,
       email: record.email,
       status: record.status,
-      gender: record.genderRaw || "male",  // Use database value directly
-      nationality: record.nationality || "",  // Use database value directly
+      gender: record.genderRaw || undefined,
+      nationality: record.nationality || "",
       is_sen: record.isSen,
       sen_details: record.senDetails || "",
       password: "",
