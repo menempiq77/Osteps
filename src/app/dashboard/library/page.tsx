@@ -134,6 +134,21 @@ export default function LibraryPage() {
   const isTeacher = currentUser?.role === "TEACHER";
   const schoolId = currentUser?.school;
 
+  // Helper to clean file paths by removing /storage/ prefix from external URLs
+  const cleanFilePath = (filePath?: string) => {
+    if (!filePath) return "";
+    let clean = String(filePath).trim();
+    console.log('cleanFilePath - Input:', clean);
+    
+    // Remove /storage/ prefix from both absolute and relative URLs
+    if (clean.includes('/storage/https://') || clean.includes('/storage/http://')) {
+      console.log('cleanFilePath - Found /storage/http(s):// pattern');
+      clean = clean.replace(/.*\/storage\//, '');
+      console.log('cleanFilePath - After removing /storage/:', clean);
+    }
+    return clean;
+  };
+
   const typeTabItems = [
     { label: <span className="font-medium">All Resources</span>, key: "all" },
     ...resources?.map((type) => ({
@@ -173,7 +188,6 @@ export default function LibraryPage() {
       }
 
       if (values.source === "link" && values.link) {
-        formData.append("file_path", values.link);
         formData.append("external_link", values.link);
         formData.append("link", values.link);
       } else if (fileList.length > 0) {
@@ -190,6 +204,7 @@ export default function LibraryPage() {
       if (
         isEditing &&
         currentItem &&
+        values.source !== "link" &&
         !formData.has("file_path") &&
         currentItem.file_path
       ) {
@@ -251,7 +266,11 @@ export default function LibraryPage() {
   };
 
   const handleEdit = (item: LibraryItem) => {
-    const isLink = isExternalLink(item.file_path || "");
+    // Use the cleanFilePath helper to handle both absolute and relative /storage/ patterns
+    const cleanPath = cleanFilePath(item.file_path);
+    console.log('handleEdit - Cleaned path:', cleanPath);
+
+    const isLink = isExternalLink(cleanPath);
     setCurrentItem(item);
     setIsEditing(true);
     setIsUploadModalOpen(true);
@@ -262,17 +281,17 @@ export default function LibraryPage() {
       description: item.description,
       tags: parseTags(item.tags),
       source: isLink ? "link" : "upload",
-      link: isLink ? item.file_path : undefined,
+      link: isLink ? cleanPath : undefined,
     });
 
     setFileList(
-      !isLink && item.file_path
+      !isLink && cleanPath
         ? [
             {
               uid: "-1",
               name: item.title,
               status: "done",
-              url: item.file_path,
+              url: cleanPath,
             },
           ]
         : []
@@ -283,10 +302,14 @@ export default function LibraryPage() {
     if (!item?.file_path) return;
     const resourceType = getResourceName(item.library_resources_id).toLowerCase();
 
+    // Use the cleanFilePath helper to handle both absolute and relative /storage/ patterns
+    const cleanPath = cleanFilePath(item.file_path);
+    console.log('openResourceDirectly - Cleaned path:', cleanPath);
+
     setCurrentItem({
       ...item,
       type: resourceType,
-      url: item.file_path,
+      url: cleanPath,
       uploadedBy: item.uploaded_by || "Unknown",
       uploadDate: item.updated_at
         ? new Date(item.updated_at).toLocaleDateString("en-US", {
@@ -614,15 +637,16 @@ export default function LibraryPage() {
               const resourceType = getResourceName(
                 item.library_resources_id
               ).toLowerCase();
-              const isExternal = isExternalLink(item.file_path);
+              const cleanPath = cleanFilePath(item.file_path);
+              const isExternal = isExternalLink(cleanPath);
               const domainLabel = isExternal
-                ? getLinkDomain(item.file_path)
+                ? getLinkDomain(cleanPath)
                 : "";
               const coverUrl =
                 isExternal && resourceType === "video"
-                  ? getVideoThumbnailUrl(item.file_path)
-                  : isImageUrl(item.file_path)
-                  ? item.file_path
+                  ? getVideoThumbnailUrl(cleanPath)
+                  : isImageUrl(cleanPath)
+                  ? cleanPath
                   : "";
 
               return (
