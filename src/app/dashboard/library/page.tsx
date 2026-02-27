@@ -200,17 +200,6 @@ export default function LibraryPage() {
         }
       }
 
-      // Keep existing file path during edit when user updates metadata only.
-      if (
-        isEditing &&
-        currentItem &&
-        values.source !== "link" &&
-        !formData.has("file_path") &&
-        currentItem.file_path
-      ) {
-        formData.append("file_path", currentItem.file_path);
-      }
-
       if (isEditing && currentItem) {
         await updateLibrary(currentItem.id, formData);
         messageApi.success(isTeacher ? "Resource updated successfully and sent for approval" : "Resource updated successfully!");
