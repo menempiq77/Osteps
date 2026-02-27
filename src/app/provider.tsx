@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { useState } from "react";
 import dynamic from "next/dynamic";
+import { LanguageProvider } from "./LanguageContext";
 
 // Lazy load Redux to avoid circular dependencies at module load time
 const ReduxProvider = dynamic(
@@ -39,10 +40,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <ReduxProvider>
-        {children}
-        {process.env.NODE_ENV === "development" && (
-          <ReactQueryDevtools initialIsOpen={false} />
-        )}
+        <LanguageProvider>
+          {children}
+          {process.env.NODE_ENV === "development" && (
+            <ReactQueryDevtools initialIsOpen={false} />
+          )}
+        </LanguageProvider>
       </ReduxProvider>
     </QueryClientProvider>
   );
