@@ -89,21 +89,13 @@ class LibraryService
     {
         try {
             $filePath = null;
-
-            // Accept legacy link sent as file_path string
-            if (isset($data['file_path']) && is_string($data['file_path'])) {
-                $filePathValue = trim($data['file_path']);
-                if ($filePathValue !== '') {
-                    $filePath = $filePathValue;
-                }
-            }
-
+            
             // Check if it's a link (URL) or file upload
-            if (!$filePath && isset($data['link']) && !empty($data['link'])) {
+            if (isset($data['link']) && !empty($data['link'])) {
                 // It's a link
                 $filePath = $data['link'];
                 
-            } elseif (isset($data['file_path']) && is_object($data['file_path']) && $data['file_path']->isValid()) {
+            } elseif (isset($data['file_path']) && $data['file_path']->isValid()) {
                 // It's a file upload
                 $filePath = $this->imageUpload($data['file_path'], 'library_files', 'public');
                 
@@ -211,10 +203,7 @@ class LibraryService
                 }
                 $newFilePath = $data['link'];
                 
-            } elseif (isset($data['file_path']) && is_string($data['file_path'])) {
-                // Legacy link or existing path sent as file_path string
-                $newFilePath = trim($data['file_path']);
-            } elseif (isset($data['file_path']) && is_object($data['file_path']) && $data['file_path']->isValid()) {
+            } elseif (isset($data['file_path']) && $data['file_path']->isValid()) {
                 // Delete old file if it exists and isn't a URL
                 if ($library->file_path && !filter_var($library->file_path, FILTER_VALIDATE_URL)) {
                     $oldFilePath = public_path('storage/' . $library->file_path);

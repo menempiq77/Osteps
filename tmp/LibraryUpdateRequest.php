@@ -27,7 +27,7 @@ class UpdateRequest extends FormRequest
                 'library_resources_id' => 'required|exists:library_resources,id',
                 'library_categories_id' => 'required|exists:library_categories,id',
                 'description' => 'required|string',
-                'file_path' => 'nullable|file',
+                'file_path' => 'nullable',
                 'link' => 'nullable|url',
                 'existing_file_path' => 'nullable|string',
                 'school_id' => 'required|exists:schools,id'
