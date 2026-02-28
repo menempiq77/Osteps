@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { use, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSelector } from "react-redux";
 import {
   incrementCheckpointAttempt,
   isCheckpointFailed,
@@ -14,6 +15,7 @@ import {
   isMiniGamePlayed,
 } from "@/components/stories/storyProgress";
 import { getCheckpointData } from "../checkpointData";
+import { RootState } from "@/store/store";
 
 type PageProps = {
   params: Promise<{ topic: string; partIndex: string }>;
@@ -45,9 +47,18 @@ type CheckpointContentProps = {
   part4Events: OrderEvent[];
   part8Pairs: MatchPair[];
   part12Options: MCQOption[];
+  previewMode: boolean;
 };
 
-function CheckpointContent({ slug, topicLabel, partNum, part4Events, part8Pairs, part12Options }: CheckpointContentProps) {
+function CheckpointContent({
+  slug,
+  topicLabel,
+  partNum,
+  part4Events,
+  part8Pairs,
+  part12Options,
+  previewMode,
+}: CheckpointContentProps) {
   const router = useRouter();
   const [selectedOrder, setSelectedOrder] = useState<string[]>([]);
   const [selectedMatches, setSelectedMatches] = useState<Record<string, string>>({});
@@ -77,10 +88,10 @@ function CheckpointContent({ slug, topicLabel, partNum, part4Events, part8Pairs,
 
   // Redirect to mini-game if checkpoint is cleared and game not yet played
   useEffect(() => {
-    if (alreadyPassed && !miniGamePlayed) {
+    if (!previewMode && alreadyPassed && !miniGamePlayed) {
       router.push(`/dashboard/mind-upgrade/aqeedah/${slug}/minigame/${partNum}`);
     }
-  }, [alreadyPassed, miniGamePlayed, slug, partNum, router]);
+  }, [alreadyPassed, miniGamePlayed, slug, partNum, previewMode, router]);
 
   const availableOrders = shuffledAvailable.length ? shuffledAvailable : part4Events;
   const remainingOrders = availableOrders.filter((evt) => !selectedOrder.includes(evt.id));
@@ -92,7 +103,7 @@ function CheckpointContent({ slug, topicLabel, partNum, part4Events, part8Pairs,
   const part12Choices = shuffledMCQ.length ? shuffledMCQ : part12Options;
 
   const handleValidateOrder = () => {
-    const nextAttempts = incrementCheckpointAttempt(slug, partNum);
+    const nextAttempts = previewMode ? 1 : incrementCheckpointAttempt(slug, partNum);
     const correctOrder = part4Events.every((evt, idx) => selectedOrder[idx] === evt.id);
     const allPicked = selectedOrder.length === part4Events.length;
     const success = allPicked && correctOrder;
@@ -103,7 +114,7 @@ function CheckpointContent({ slug, topicLabel, partNum, part4Events, part8Pairs,
       resetCheckpointAttempts(slug, partNum);
       setStatusTick((v) => v + 1);
     }
-    if (!success && nextAttempts >= 3) {
+    if (!previewMode && !success && nextAttempts >= 3) {
       markCheckpointFailed(slug, partNum);
       resetStageProgressToStageStart(slug, partNum);
       resetCheckpointAttempts(slug, partNum);
@@ -135,7 +146,7 @@ function CheckpointContent({ slug, topicLabel, partNum, part4Events, part8Pairs,
   };
 
   const handleValidateMatching = () => {
-    const nextAttempts = incrementCheckpointAttempt(slug, partNum);
+    const nextAttempts = previewMode ? 1 : incrementCheckpointAttempt(slug, partNum);
     const allCorrect = part8Pairs.every((p) => selectedMatches[p.id] === p.right);
     setValidated(true);
     setIsCorrect(allCorrect);
@@ -144,7 +155,7 @@ function CheckpointContent({ slug, topicLabel, partNum, part4Events, part8Pairs,
       resetCheckpointAttempts(slug, partNum);
       setStatusTick((v) => v + 1);
     }
-    if (!allCorrect && nextAttempts >= 3) {
+    if (!previewMode && !allCorrect && nextAttempts >= 3) {
       markCheckpointFailed(slug, partNum);
       resetStageProgressToStageStart(slug, partNum);
       resetCheckpointAttempts(slug, partNum);
@@ -166,7 +177,7 @@ function CheckpointContent({ slug, topicLabel, partNum, part4Events, part8Pairs,
   };
 
   const handleValidateMCQ = () => {
-    const nextAttempts = incrementCheckpointAttempt(slug, partNum);
+    const nextAttempts = previewMode ? 1 : incrementCheckpointAttempt(slug, partNum);
     const chosen = part12Options.find((opt) => opt.id === selectedOption);
     const correct = chosen?.isCorrect === true;
     setValidated(true);
@@ -176,7 +187,7 @@ function CheckpointContent({ slug, topicLabel, partNum, part4Events, part8Pairs,
       resetCheckpointAttempts(slug, partNum);
       setStatusTick((v) => v + 1);
     }
-    if (!correct && nextAttempts >= 3) {
+    if (!previewMode && !correct && nextAttempts >= 3) {
       markCheckpointFailed(slug, partNum);
       resetStageProgressToStageStart(slug, partNum);
       resetCheckpointAttempts(slug, partNum);
@@ -461,6 +472,10 @@ function CheckpointContent({ slug, topicLabel, partNum, part4Events, part8Pairs,
 }
 
 export default function CheckpointPage({ params }: PageProps) {
+  const { currentUser } = useSelector((state: RootState) => state.auth);
+  const roleKey = (currentUser?.role ?? "").trim().toUpperCase().replace(/\s+/g, "_");
+  const previewMode = roleKey === "SCHOOL_ADMIN" || roleKey === "HOD" || roleKey === "TEACHER";
+
   const resolved = useMemo(() => params, [params]);
   const { topic, partIndex } = use(resolved);
 
@@ -485,6 +500,7 @@ export default function CheckpointPage({ params }: PageProps) {
       part4Events={part4Events}
       part8Pairs={part8Pairs}
       part12Options={part12Options}
+      previewMode={previewMode}
     />
   );
 }

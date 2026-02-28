@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import StoryStepper from "@/components/stories/StoryStepper";
 import { getAqeedahTopicBySlug } from "../topics";
 import { useTranslation } from "@/app/useTranslation";
 import { use } from "react";
+import { useSelector } from "react-redux";
+import { useQuery } from "@tanstack/react-query";
+import { RootState } from "@/store/store";
+import { fetchStudentMindAssignments } from "@/services/mindUpgradeApi";
 
 type PageProps = {
   params: Promise<{ topic: string }>;
@@ -14,15 +17,39 @@ type PageProps = {
 export default function AqeedahTopicPage({ params }: PageProps) {
   const { topic } = use(params);
   const { t, language } = useTranslation();
+  const { currentUser } = useSelector((state: RootState) => state.auth);
+  const roleKey = (currentUser?.role ?? "").trim().toUpperCase().replace(/\s+/g, "_");
+  const isStudent = roleKey === "STUDENT";
+  const canPreviewAll = roleKey === "SCHOOL_ADMIN" || roleKey === "HOD" || roleKey === "TEACHER";
   const lesson = getAqeedahTopicBySlug(topic);
 
+  const { data: assignments = [], isError: assignmentsError } = useQuery({
+    queryKey: ["mind-upgrade-student-assignments", "aqeedah-topic-page"],
+    queryFn: fetchStudentMindAssignments,
+    enabled: isStudent,
+    staleTime: 60 * 1000,
+  });
+
+  const aqeedahStatus = assignments.find((a) => a.course_key === "aqeedah");
+  const isAqeedahAccessible = !isStudent || (!assignmentsError && aqeedahStatus?.status === "active");
+  const isAqeedahLocked = isStudent && !isAqeedahAccessible;
+
   if (!lesson) {
-    notFound();
+    return (
+      <main className="min-h-screen p-6">
+        <div className="mx-auto max-w-3xl rounded-xl border border-slate-200 bg-white p-6">
+          <h1 className="text-2xl font-bold">Topic not found</h1>
+          <p className="mt-2 text-slate-600">The requested topic does not exist.</p>
+          <Link href="/dashboard/mind-upgrade/aqeedah" className="mt-4 inline-block text-blue-600">
+            Back to Aqeedah
+          </Link>
+        </div>
+      </main>
+    );
   }
 
-  const shortIntro = typeof lesson.shortIntro === "string" 
-    ? lesson.shortIntro 
-    : lesson.shortIntro[language];
+  const shortIntro =
+    typeof lesson.shortIntro === "string" ? lesson.shortIntro : lesson.shortIntro[language];
 
   return (
     <main
@@ -48,7 +75,7 @@ export default function AqeedahTopicPage({ params }: PageProps) {
               display: "inline-block",
             }}
           >
-            {t({ en: "← Back", ar: "→ رجوع" })}
+            {t({ en: "Back", ar: "Back" })}
           </Link>
 
           <Link
@@ -64,7 +91,7 @@ export default function AqeedahTopicPage({ params }: PageProps) {
               display: "inline-block",
             }}
           >
-            {t({ en: "Home", ar: "الرئيسية" })}
+            {t({ en: "Home", ar: "Home" })}
           </Link>
         </div>
 
@@ -101,7 +128,25 @@ export default function AqeedahTopicPage({ params }: PageProps) {
           </div>
 
           <div style={{ display: "grid", gap: 16 }}>
-            <StoryStepper story={lesson} basePath="/dashboard/mind-upgrade/aqeedah" />
+            {isAqeedahLocked ? (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm font-semibold text-rose-700">
+                {assignmentsError
+                  ? "This course is hidden until assignment status can be verified."
+                  : "This course is currently locked for your class."}
+                {aqeedahStatus?.status === "upcoming" && aqeedahStatus?.starts_at
+                  ? ` Available on ${new Date(aqeedahStatus.starts_at).toLocaleString()}.`
+                  : null}
+                {aqeedahStatus?.status === "expired" && aqeedahStatus?.ends_at
+                  ? ` Assignment ended on ${new Date(aqeedahStatus.ends_at).toLocaleString()}.`
+                  : null}
+              </div>
+            ) : (
+              <StoryStepper
+                story={lesson}
+                basePath="/dashboard/mind-upgrade/aqeedah"
+                previewMode={canPreviewAll}
+              />
+            )}
 
             <div
               style={{
@@ -112,7 +157,7 @@ export default function AqeedahTopicPage({ params }: PageProps) {
               }}
             >
               <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 8 }}>
-                {t({ en: "Qur'an references (surahs)", ar: "مراجع القرآن (السور)" })}
+                {t({ en: "Qur'an references (surahs)", ar: "Qur'an references (surahs)" })}
               </div>
               <div
                 style={{
@@ -122,7 +167,7 @@ export default function AqeedahTopicPage({ params }: PageProps) {
                   fontSize: 16,
                 }}
               >
-                {lesson.quranSurahs.length ? lesson.quranSurahs.join(" • ") : "—"}
+                {lesson.quranSurahs.length ? lesson.quranSurahs.join(" | ") : "-"}
               </div>
             </div>
           </div>

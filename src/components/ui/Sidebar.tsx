@@ -165,7 +165,7 @@ const Sidebar = () => {
         icon: Wrench,
       },
       {
-        name: "\uD83E\uDDE0 Mind-upgrade",
+        name: "Mind-upgrade",
         href: "/dashboard/mind-upgrade",
         icon: Brain,
         
@@ -204,7 +204,7 @@ const Sidebar = () => {
         icon: Wrench,
       },
       {
-        name: "🧠 Mind-upgrade",
+        name: "Mind-upgrade",
         href: "/dashboard/mind-upgrade",
         icon: Brain,
         
@@ -294,6 +294,11 @@ const Sidebar = () => {
         href: "/dashboard/questions",
         icon: HelpCircle,
         badge: questionUnreadCount,
+      },
+      {
+        name: "Mind-upgrade",
+        href: "/dashboard/mind-upgrade",
+        icon: Brain,
       },
       {
         name: "Behavior",
@@ -625,4 +630,5 @@ const Sidebar = () => {
 };
 
 export default Sidebar;
+
 

@@ -3,6 +3,8 @@ export type LeaderboardRawEntry = {
   studentId?: number | string;
   student_name?: string;
   total_marks?: number | null;
+  tracker_points?: number | string | null;
+  mind_points?: number | string | null;
   points?: number | string | null;
   score?: number | string | null;
   marks?: number | string | null;
@@ -33,6 +35,8 @@ export type LeaderboardRow = {
   name: string;
   avatar: string;
   points: number;
+  trackerPoints?: number;
+  mindPoints?: number;
   badge: "gold" | "silver" | "bronze" | null;
   className?: string;
   class_id?: string;
@@ -78,7 +82,10 @@ export const resolveStudentName = (entry: LeaderboardRawEntry): string => {
 };
 
 export const mergeAndRankLeaderboards = (leaderboards: LeaderboardRawEntry[][]): LeaderboardRow[] => {
-  const map = new Map<string, { name: string; points: number; className?: string; class_id?: string }>();
+  const map = new Map<
+    string,
+    { name: string; points: number; trackerPoints?: number; mindPoints?: number; className?: string; class_id?: string }
+  >();
 
   for (const entries of leaderboards) {
     for (const entry of entries ?? []) {
@@ -90,13 +97,15 @@ export const mergeAndRankLeaderboards = (leaderboards: LeaderboardRawEntry[][]):
       const points = toNumber(
         entry?.total_marks ?? entry?.points ?? entry?.score ?? entry?.marks
       );
+      const trackerPoints = toNumber(entry?.tracker_points);
+      const mindPoints = toNumber(entry?.mind_points);
 
       const className = entry?.class_name ?? entry?.className ?? undefined;
       const class_id = entry?.class_id ? String(entry.class_id) : undefined;
 
       const existing = map.get(resolvedKey);
       if (!existing) {
-        map.set(resolvedKey, { name, points, className, class_id });
+        map.set(resolvedKey, { name, points, trackerPoints, mindPoints, className, class_id });
         continue;
       }
 
@@ -105,6 +114,8 @@ export const mergeAndRankLeaderboards = (leaderboards: LeaderboardRawEntry[][]):
         map.set(resolvedKey, { 
           name: name || existing.name, 
           points,
+          trackerPoints,
+          mindPoints,
           className: className || existing.className,
           class_id: class_id || existing.class_id
         });
@@ -122,6 +133,8 @@ export const mergeAndRankLeaderboards = (leaderboards: LeaderboardRawEntry[][]):
     name: student.name,
     avatar: student.name?.charAt(0).toUpperCase() || "?",
     points: student.points || 0,
+    trackerPoints: student.trackerPoints,
+    mindPoints: student.mindPoints,
     badge: index === 0 ? "gold" : index === 1 ? "silver" : index === 2 ? "bronze" : null,
     className: student.className,
     class_id: student.class_id,

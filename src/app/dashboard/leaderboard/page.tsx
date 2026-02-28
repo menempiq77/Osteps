@@ -431,6 +431,8 @@ const LeaderBoard = () => {
         name: student?.student_name ?? "Unknown",
         avatar: student?.student_name?.charAt(0).toUpperCase() || "?",
         points: student?.total_marks || 0,
+        trackerPoints: student?.tracker_points,
+        mindPoints: student?.mind_points,
         className: student?.class_name ?? "",
         badge:
           index === 0
@@ -730,6 +732,8 @@ const LeaderBoard = () => {
         name,
         avatar: name?.charAt(0).toUpperCase() || "?",
         points: student?.total_marks || 0,
+        trackerPoints: student?.tracker_points,
+        mindPoints: student?.mind_points,
         badge:
           index === 0
             ? "gold"
@@ -751,6 +755,8 @@ const LeaderBoard = () => {
         name,
         avatar: name?.charAt(0).toUpperCase() || "?",
         points: student?.total_marks || 0,
+        trackerPoints: student?.tracker_points,
+        mindPoints: student?.mind_points,
         badge:
           index === 0
             ? "gold"
@@ -1061,8 +1067,16 @@ const LeaderBoard = () => {
       title: "Points",
       dataIndex: "points",
       key: "points",
-      render: (points: number) => (
-        <Text strong style={{ color: "#0f766e", fontVariantNumeric: "tabular-nums" }}>
+      render: (points: number, record: LeaderboardRow) => (
+        <Text
+          strong
+          title={
+            record.trackerPoints !== undefined || record.mindPoints !== undefined
+              ? `Tracker: ${record.trackerPoints ?? 0} | Mind: ${record.mindPoints ?? 0}`
+              : undefined
+          }
+          style={{ color: "#0f766e", fontVariantNumeric: "tabular-nums" }}
+        >
           {points}
         </Text>
       ),

@@ -45,6 +45,7 @@ use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\StudentProfileController;
 use App\Http\Controllers\Api\SubjectController;
 use App\Http\Controllers\Api\ToolsController;
+use App\Http\Controllers\Api\MindUpgradeController;
 
 Route::get('/user', function (Request $request) {             
     return $request->user();
@@ -368,6 +369,16 @@ Route::middleware(['auth:sanctum'])->group(function(){
     /////leaderboard Apis/
     Route::get('get-student-scores/{id}',[LeaderBoardController::class,'getStudentsTotalMarks'])->name('get-student-scores');
     Route::get('leaderboard/school-self',[LeaderBoardController::class,'schoolSelf'])->name('leaderboard-school-self');
+
+    /////mind-upgrade Apis/
+    Route::get('mind-upgrade/catalog', [MindUpgradeController::class, 'catalog'])->name('mind-upgrade-catalog');
+    Route::post('mind-upgrade/assignments', [MindUpgradeController::class, 'assignCourses'])->name('mind-upgrade-assignments-store');
+    Route::get('mind-upgrade/assignments/manage', [MindUpgradeController::class, 'manageAssignments'])->name('mind-upgrade-assignments-manage');
+    Route::delete('mind-upgrade/assignments/{id}', [MindUpgradeController::class, 'unassign'])->name('mind-upgrade-assignments-destroy');
+    Route::get('mind-upgrade/assignments/my', [MindUpgradeController::class, 'myAssignments'])->name('mind-upgrade-assignments-my');
+    Route::post('mind-upgrade/progress/quiz-complete', [MindUpgradeController::class, 'submitQuizCompletion'])->name('mind-upgrade-progress-quiz');
+    Route::post('mind-upgrade/progress/minigame-complete', [MindUpgradeController::class, 'submitMiniGameCompletion'])->name('mind-upgrade-progress-minigame');
+    Route::get('mind-upgrade/points/student/{studentId}', [MindUpgradeController::class, 'studentPoints'])->name('mind-upgrade-student-points');
 
     //add user using DTO 
     Route::post('add-user',[UserController::class,'addUser'])->name('add-user');

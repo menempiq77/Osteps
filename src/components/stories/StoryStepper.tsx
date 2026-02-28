@@ -23,6 +23,7 @@ import {
 type Props = {
   story: ProphetStory;
   basePath?: string;
+  previewMode?: boolean;
 };
 
 const EMPTY_PROGRESS: StoryProgress = {
@@ -48,7 +49,7 @@ function subscribeToProgress(callback: () => void) {
 
 
 
-export default function StoryStepper({ story, basePath }: Props) {
+export default function StoryStepper({ story, basePath, previewMode = false }: Props) {
   const router = useRouter();
   const { language } = useLanguage();
   const totalSections = story.sections.length;
@@ -83,10 +84,11 @@ export default function StoryStepper({ story, basePath }: Props) {
   }, [completedSet, totalSections]);
 
   const highestUnlockedIndex = useMemo(() => {
+    if (previewMode) return Math.max(0, totalSections - 1);
     // Student starts at Part 1 (index 0). Next part unlocks only after current is completed.
     // Once a part is completed it stays open (review allowed).
     return Math.min(Math.max(0, nextRequiredIndex), Math.max(0, totalSections - 1));
-  }, [nextRequiredIndex, totalSections]);
+  }, [nextRequiredIndex, previewMode, totalSections]);
 
   const activeIndex = useMemo(() => {
     const idx = Math.min(
@@ -155,12 +157,13 @@ export default function StoryStepper({ story, basePath }: Props) {
   const progressPct = totalSections > 0 ? Math.min(100, Math.round((completedCount / totalSections) * 100)) : 0;
 
   function onMarkThisPartDone() {
+    if (previewMode) return;
     if (isOnQuizSection && !hasPassedQuiz) return;
     markSectionCompleted(story.slug, activeIndex, totalSections);
   }
 
   function onFinishQuizAndReturn() {
-    if (hasPassedQuiz) {
+    if (!previewMode && hasPassedQuiz) {
       markSectionCompleted(story.slug, activeIndex, totalSections);
     }
     router.push(storyBasePath);
@@ -183,6 +186,10 @@ export default function StoryStepper({ story, basePath }: Props) {
   }
 
   function markDoneAndAdvance() {
+    if (previewMode) {
+      goTo(activeIndex + 1);
+      return;
+    }
     if (isOnQuizSection && !hasPassedQuiz) return;
 
     // Check checkpoint gates
@@ -259,7 +266,9 @@ export default function StoryStepper({ story, basePath }: Props) {
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
             <div className="text-lg font-black text-gray-900">Parts</div>
-            <div className="text-xs font-bold text-gray-500">Locked until completed</div>
+            <div className="text-xs font-bold text-gray-500">
+              {previewMode ? "Preview mode: all parts unlocked" : "Locked until completed"}
+            </div>
           </div>
 
           <div className="grid gap-2">
@@ -344,14 +353,14 @@ export default function StoryStepper({ story, basePath }: Props) {
                   slug={story.slug}
                   totalSections={totalSections}
                   quizSectionIndex={quizSectionIndex}
-                  unlocked={hasCompletedAllNonQuizSections}
+                  unlocked={previewMode || hasCompletedAllNonQuizSections}
                 />
               ) : (
                 <StoryQuizClient
                   slug={story.slug}
                   totalSections={totalSections}
                   quizSectionIndex={quizSectionIndex}
-                  unlocked={hasCompletedAllNonQuizSections}
+                  unlocked={previewMode || hasCompletedAllNonQuizSections}
                   sections={story.sections.slice(0, quizSectionIndex).map((s) => ({
                     title: getText(s.title),
                     body: getText(s.body),
@@ -366,7 +375,34 @@ export default function StoryStepper({ story, basePath }: Props) {
 
         {/* Checkpoint Gate - Redirect to dedicated checkpoint page */}
         {(activeIndex === 3 || activeIndex === 7 || activeIndex === 11) && !isOnQuizSection ? (
-          isCheckpointPassed(story.slug, activeIndex === 3 ? 4 : activeIndex === 7 ? 8 : 12) ? (
+          previewMode ? (
+            <div className="rounded-xl border-2 border-sky-200 bg-sky-50 p-5">
+              <div className="mb-3">
+                <div className="text-sm font-bold text-sky-900">Preview Access</div>
+                <div className="mt-1 text-sm text-sky-800">
+                  You can open checkpoint and reward game directly for review.
+                </div>
+                <div className="mt-2 inline-flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-bold text-sky-800 shadow-sm">
+                  {resolveMiniGame(story.slug, activeIndex === 3 ? 4 : activeIndex === 7 ? 8 : 12).meta.icon}
+                  {resolveMiniGame(story.slug, activeIndex === 3 ? 4 : activeIndex === 7 ? 8 : 12).meta.label}
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <a
+                  href={`${storyBasePath}/${story.slug}/checkpoint/${activeIndex === 3 ? 4 : activeIndex === 7 ? 8 : 12}`}
+                  className="inline-block rounded-lg bg-amber-600 px-4 py-2 font-bold text-white hover:bg-amber-700"
+                >
+                  Open Checkpoint {"->"}
+                </a>
+                <a
+                  href={`${storyBasePath}/${story.slug}/minigame/${activeIndex === 3 ? 4 : activeIndex === 7 ? 8 : 12}`}
+                  className="inline-block rounded-lg bg-green-600 px-4 py-2 font-bold text-white hover:bg-green-700"
+                >
+                  Open Game {"->"}
+                </a>
+              </div>
+            </div>
+          ) : isCheckpointPassed(story.slug, activeIndex === 3 ? 4 : activeIndex === 7 ? 8 : 12) ? (
             // Checkpoint PASSED - Show game button
             <div className="rounded-xl border-2 border-green-200 bg-green-50 p-5">
               <div className="mb-3">
@@ -435,10 +471,10 @@ export default function StoryStepper({ story, basePath }: Props) {
                 markDoneAndAdvance();
               }}
               disabled={
-                (isOnQuizSection && !hasPassedQuiz) ||
-                (activeIndex === 3 && !isCheckpointPassed(story.slug, 4)) ||
-                (activeIndex === 7 && !isCheckpointPassed(story.slug, 8)) ||
-                (activeIndex === 11 && !isCheckpointPassed(story.slug, 12))
+                (!previewMode && isOnQuizSection && !hasPassedQuiz) ||
+                (!previewMode && activeIndex === 3 && !isCheckpointPassed(story.slug, 4)) ||
+                (!previewMode && activeIndex === 7 && !isCheckpointPassed(story.slug, 8)) ||
+                (!previewMode && activeIndex === 11 && !isCheckpointPassed(story.slug, 12))
               }
               className="rounded-lg bg-gradient-to-r from-teal-500 to-emerald-500 px-6 py-3 font-black text-white shadow-md transition-all hover:shadow-lg active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -448,7 +484,7 @@ export default function StoryStepper({ story, basePath }: Props) {
             <button
               type="button"
               onClick={isOnQuizSection ? onFinishQuizAndReturn : onMarkThisPartDone}
-              disabled={isOnQuizSection ? !hasQuizAttempt : false}
+              disabled={!previewMode && isOnQuizSection ? !hasQuizAttempt : false}
               className="rounded-lg bg-gradient-to-r from-teal-500 to-emerald-500 px-6 py-3 font-black text-white shadow-md transition-all hover:shadow-lg active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Mark Done ✓

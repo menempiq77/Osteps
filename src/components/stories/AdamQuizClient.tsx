@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getStoryProgress, markSectionCompleted, setStoryProgress, recordQuizRewards } from "./storyProgress";
 import { formatProphetNamesWithPbuh } from "./pbuh";
+import { inferCourseKeyFromSlug, submitMindQuizCompletion } from "@/services/mindUpgradeApi";
 
 const QUIZ_STORAGE_PREFIX = "islamic_curriculum_story_quiz_v1";
 
@@ -239,6 +240,15 @@ export default function AdamQuizClient({ slug, totalSections, quizSectionIndex, 
     if (didPass) {
       markSectionCompleted(slug, quizSectionIndex, totalSections);
       recordQuizRewards(slug, nextScore, total);
+      const courseKey = inferCourseKeyFromSlug(slug);
+      void submitMindQuizCompletion({
+        course_key: courseKey,
+        unit_key: `${courseKey}:${slug}:quiz`,
+        score: nextScore,
+        total,
+      }).catch(() => {
+        // Non-blocking: learning flow continues, event is queued for retry.
+      });
     } else {
       const progress = getStoryProgress(slug);
       const nextCompleted = (progress.completedSectionIndices ?? []).filter((n) => n !== quizSectionIndex);
@@ -283,7 +293,7 @@ export default function AdamQuizClient({ slug, totalSections, quizSectionIndex, 
         <div className="text-xl font-black text-gray-900">Quiz (10 questions)</div>
         {passed ? (
           <div className="rounded-full bg-green-100 px-3 py-1 text-xs font-black text-green-700">
-            ✓ Completed
+            Completed
           </div>
         ) : null}
       </div>
@@ -408,3 +418,5 @@ export default function AdamQuizClient({ slug, totalSections, quizSectionIndex, 
     </div>
   );
 }
+
+

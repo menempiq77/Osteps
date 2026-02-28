@@ -6,6 +6,7 @@ import { getDifficultyContent } from "@/components/stories/miniGameContent";
 import { resolveMiniGame } from "@/components/stories/miniGameConfig";
 import { markMiniGamePlayed, addMiniGameXP, getMinigameLevel, setMinigameLevel, setMinigameOutcome } from "@/components/stories/storyProgress";
 import type { Difficulty } from "@/components/stories/miniGameConfig";
+import { inferCourseKeyFromSlug, submitMindMiniGameCompletion } from "@/services/mindUpgradeApi";
 
 type PageProps = {
   params: Promise<{ topic: string; checkpointNum: string }>;
@@ -45,6 +46,14 @@ export default function AqeedahMiniGamePage({ params }: PageProps) {
     // Award XP
     const xpAmount = won ? 30 : 15;
     addMiniGameXP(topic, xpAmount);
+    const courseKey = inferCourseKeyFromSlug(topic);
+    void submitMindMiniGameCompletion({
+      course_key: courseKey,
+      unit_key: `${courseKey}:${topic}:checkpoint-${checkpoint}:minigame`,
+      xp: xpAmount,
+    }).catch(() => {
+      // Non-blocking: learning flow continues, event is queued for retry.
+    });
     
     if (won) {
       // Advance difficulty or mark complete
@@ -88,7 +97,8 @@ export default function AqeedahMiniGamePage({ params }: PageProps) {
     }
   };
 
-  const difficultyEmoji = difficulty === "easy" ? "⭐" : difficulty === "medium" ? "⭐⭐" : "⭐⭐⭐";
+  const difficultyLabel =
+    difficulty === "easy" ? "Level 1" : difficulty === "medium" ? "Level 2" : "Level 3";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 py-8">
@@ -97,7 +107,7 @@ export default function AqeedahMiniGamePage({ params }: PageProps) {
           <h1 className="mb-2 text-3xl font-bold text-gray-800">
             {meta.icon} Checkpoint {checkpoint} Reward!
           </h1>
-          <div className="text-2xl mb-3">{difficultyEmoji}</div>
+          <div className="text-2xl mb-3">{difficultyLabel}</div>
           <p className="text-lg text-gray-600">Great job completing the checkpoint! Here's a fun game for you!</p>
         </div>
         {renderGame()}
@@ -105,3 +115,4 @@ export default function AqeedahMiniGamePage({ params }: PageProps) {
     </div>
   );
 }
+

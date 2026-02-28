@@ -20,6 +20,7 @@ interface Task {
 interface StudentData {
   student_id: number;
   student_name: string;
+  mind_points?: number;
   tasks: Task[];
 }
 interface Grade {
@@ -146,10 +147,14 @@ export default function Page() {
 
       const percentage = maxPossible > 0 ? (total / maxPossible) * 100 : 0;
       const grade = calculateGrade(percentage);
+      const mindPoints = Number(student.mind_points ?? 0);
+      const totalWithMind = total + (Number.isFinite(mindPoints) ? mindPoints : 0);
 
       return {
         ...student,
         total,
+        mindPoints: Number.isFinite(mindPoints) ? mindPoints : 0,
+        totalWithMind,
         grade,
         maxPossible,
         percentage,
@@ -241,7 +246,7 @@ export default function Page() {
                     {taskName}
                   </th>
                 ))}
-                {["Total", "Grade"].map((label, index) => (
+                {["Total", "Mind Points", "Total + Mind", "Grade"].map((label, index) => (
                   <th
                     key={`extra-${index}`}
                     className="w-12px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-300"
@@ -309,6 +314,12 @@ export default function Page() {
                     <div className="text-xs text-gray-500 mt-1">
                       {student.percentage.toFixed(1)}%
                     </div>
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border border-gray-300">
+                    {student.mindPoints}
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border border-gray-300">
+                    {student.totalWithMind}
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm border border-gray-300">
                     <span

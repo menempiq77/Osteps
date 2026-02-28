@@ -60,7 +60,8 @@ class LeaderBoardController extends Controller
 
         $rows = Student::query()
             ->join('school_classes', 'students.class_id', '=', 'school_classes.id')
-            ->join('student_topic_marks', 'student_topic_marks.student_id', '=', 'students.id')
+            ->leftJoin('student_topic_marks', 'student_topic_marks.student_id', '=', 'students.id')
+            ->leftJoin('mind_upgrade_student_points as musp', 'musp.student_id', '=', 'students.id')
             ->whereHas('class', function ($query) use ($schoolId) {
                 $query->where('school_id', $schoolId);
             })
@@ -68,9 +69,11 @@ class LeaderBoardController extends Controller
                 'students.id as student_id',
                 'students.student_name',
                 'school_classes.class_name',
-                DB::raw('ROUND(SUM(student_topic_marks.marks)) as total_marks'),
+                DB::raw('COALESCE(ROUND(SUM(student_topic_marks.marks)), 0) as tracker_points'),
+                DB::raw('COALESCE(musp.mind_points, 0) as mind_points'),
+                DB::raw('(COALESCE(ROUND(SUM(student_topic_marks.marks)), 0) + COALESCE(musp.mind_points, 0)) as total_marks'),
             ])
-            ->groupBy('students.id', 'students.student_name', 'school_classes.class_name')
+            ->groupBy('students.id', 'students.student_name', 'school_classes.class_name', 'musp.mind_points')
             ->orderByDesc('total_marks')
             ->orderBy('students.student_name')
             ->get();

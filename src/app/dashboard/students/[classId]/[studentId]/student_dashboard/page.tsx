@@ -68,6 +68,15 @@ function toDateValue(value: unknown): number {
   return Number.isFinite(t) ? t : 0;
 }
 
+function toFiniteNumber(value: unknown): number {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+}
+
 function isAttendanceRecord(row: AnyObj): boolean {
   const t = String(row?.behaviour?.name ?? "").toLowerCase();
   const d = String(row?.description ?? "").toLowerCase();
@@ -219,6 +228,29 @@ export default function StudentProfilePage() {
   );
 
   const trackers = asArray<AnyObj>(student?.class?.assign_trackers);
+
+  const trackerPointsFromTrackers = trackers.reduce((sum, assigned) => {
+    const topics = asArray<AnyObj>(assigned?.tracker?.topics);
+    const completedMarks = topics.reduce((topicSum, topic) => {
+      const isCompleted = asArray<AnyObj>(topic?.status_progress).some((sp) => sp?.is_completed);
+      if (!isCompleted) return topicSum;
+      return topicSum + toFiniteNumber(topic?.marks);
+    }, 0);
+    return sum + completedMarks;
+  }, 0);
+
+  const trackerPointsFromApi = toFiniteNumber(
+    student?.tracker_points ?? student?.total_marks ?? student?.tracker_total_points
+  );
+  const hasTrackerPointsFromApi =
+    student?.tracker_points !== undefined ||
+    student?.total_marks !== undefined ||
+    student?.tracker_total_points !== undefined;
+  const trackerPoints = hasTrackerPointsFromApi
+    ? trackerPointsFromApi
+    : trackerPointsFromTrackers;
+  const mindPoints = toFiniteNumber(student?.mind_points);
+  const combinedPoints = toFiniteNumber(student?.total_points ?? trackerPoints + mindPoints);
 
   const trackerRows = trackers.map((assigned, index) => {
     const tracker = assigned?.tracker ?? {};
@@ -440,6 +472,17 @@ export default function StudentProfilePage() {
               prefix={<UserOutlined />}
             />
           </div>
+        </div>
+        <div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-3">
+          <Card size="small">
+            <Statistic title="Mind-upgrade Points" value={mindPoints} prefix={<TrophyOutlined />} />
+          </Card>
+          <Card size="small">
+            <Statistic title="Tracker Points" value={trackerPoints} prefix={<TrophyOutlined />} />
+          </Card>
+          <Card size="small">
+            <Statistic title="Combined Points" value={combinedPoints} prefix={<TrophyOutlined />} />
+          </Card>
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <Button icon={<DownloadOutlined />} onClick={exportAttendanceCsv}>

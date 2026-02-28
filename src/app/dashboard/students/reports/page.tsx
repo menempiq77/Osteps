@@ -21,6 +21,17 @@ interface Task {
   assessment_id: number;
   teacher_assessment_marks: number | null;
   allocated_marks: string;
+  submitted?: Array<{
+    student_id: number;
+    student_name: string;
+    teacher_assessment_marks: number | null;
+    mind_points?: number;
+  }>;
+  not_submitted?: Array<{
+    student_id: number;
+    student_name: string;
+    mind_points?: number;
+  }>;
 }
 interface Assessment {
   assessment_id: number;
@@ -59,6 +70,10 @@ interface Grade {
   min_percentage: string;
   max_percentage: string;
   description: string;
+}
+
+function asArray<T = any>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
 }
 
 export default function ReportsPage() {
@@ -242,10 +257,19 @@ export default function ReportsPage() {
     }, 0);
 
     const studentsMap = new Map();
+    const mindPointsByStudent = new Map<number, number>();
 
     filteredAssessments?.forEach((assessment) => {
       assessment.tasks.forEach((task) => {
-        task.submitted.forEach((submission) => {
+        asArray<any>(task.submitted).forEach((submission: any) => {
+          const submissionMindPoints = Number(submission?.mind_points ?? 0);
+          if (Number.isFinite(submissionMindPoints)) {
+            const existingMindPoints = mindPointsByStudent.get(submission.student_id) ?? 0;
+            if (submissionMindPoints > existingMindPoints) {
+              mindPointsByStudent.set(submission.student_id, submissionMindPoints);
+            }
+          }
+
           if (!studentsMap.has(submission.student_id)) {
             studentsMap.set(submission.student_id, {
               student_id: submission.student_id,
@@ -268,7 +292,15 @@ export default function ReportsPage() {
           });
         });
 
-        task.not_submitted.forEach((student) => {
+        asArray<any>(task.not_submitted).forEach((student: any) => {
+          const notSubmittedMindPoints = Number(student?.mind_points ?? 0);
+          if (Number.isFinite(notSubmittedMindPoints)) {
+            const existingMindPoints = mindPointsByStudent.get(student.student_id) ?? 0;
+            if (notSubmittedMindPoints > existingMindPoints) {
+              mindPointsByStudent.set(student.student_id, notSubmittedMindPoints);
+            }
+          }
+
           if (!studentsMap.has(student.student_id)) {
             studentsMap.set(student.student_id, {
               student_id: student.student_id,
@@ -294,10 +326,11 @@ export default function ReportsPage() {
     });
 
     const students = Array.from(studentsMap.values()).map((student) => {
-      const studentData = {
+      const studentData: any = {
         student: student.student_name,
         student_id: student.student_id,
         total: 0,
+        mindPoints: mindPointsByStudent.get(student.student_id) ?? 0,
         maxPossibleTotal,
         courseGrade: "N/A",
       };
@@ -308,7 +341,8 @@ export default function ReportsPage() {
       });
 
       Object.entries(student.tasks).forEach(([assessmentId, tasks]) => {
-        const assessmentTotal = tasks.reduce((sum, task) => {
+        const typedTasks = asArray<any>(tasks);
+        const assessmentTotal = typedTasks.reduce((sum: number, task: any) => {
           return sum + (task.marks || 0);
         }, 0);
 
@@ -326,6 +360,7 @@ export default function ReportsPage() {
         );
         studentData.courseGrade = studentGrade ? studentGrade.grade : "N/A";
       }
+      studentData.totalWithMind = studentData.total + studentData.mindPoints;
       return studentData;
     });
 
@@ -500,6 +535,8 @@ export default function ReportsPage() {
                       (assessment) => assessment.assessment_name
                     ) || []),
                     "Total",
+                    "Mind Points",
+                    "Total + Mind",
                     "Grade",
                   ].map((header, index) => (
                     <th
@@ -541,6 +578,12 @@ export default function ReportsPage() {
                           {student.percentage}%
                         </span>
                       </td>
+                      <td className="px-2 py-2 border border-gray-300 whitespace-nowrap text-sm text-gray-500 font-medium">
+                        {student.mindPoints}
+                      </td>
+                      <td className="px-2 py-2 border border-gray-300 whitespace-nowrap text-sm text-gray-500 font-medium">
+                        {student.totalWithMind}
+                      </td>
 
                       <td className="px-2 py-3 border border-gray-300 whitespace-nowrap text-sm font-medium text-center">
                         <span
@@ -564,7 +607,7 @@ export default function ReportsPage() {
                 ) : (
                   <tr>
                     <td
-                      colSpan={wholeAssesmentData?.length + 3} // dynamic colspan
+                      colSpan={filteredAssessments.length + 5}
                       className="text-center py-4 text-gray-500"
                     >
                       No students found
