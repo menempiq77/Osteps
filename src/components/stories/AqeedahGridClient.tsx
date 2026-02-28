@@ -21,7 +21,7 @@ function toOneSentence(text: string): string {
   if (!cleaned) return "";
   const match = cleaned.match(/(.+?[.!?])(\s|$)/);
   const sentence = match ? match[1] : cleaned;
-  return sentence.length > 80 ? `${sentence.slice(0, 77).trimEnd()}…` : sentence;
+  return sentence.length > 80 ? `${sentence.slice(0, 77).trimEnd()}...` : sentence;
 }
 
 export default function AqeedahGridClient({ topics, basePath = "/mind-upgrade/aqeedah" }: Props) {
@@ -40,7 +40,7 @@ export default function AqeedahGridClient({ topics, basePath = "/mind-upgrade/aq
   >(new Map());
   const [rewardsBySlug, setRewardsBySlug] = useState<Map<string, { xp: number; badge?: string }>>(new Map());
 
-  const slugs = useMemo(() => topics.map((t) => t.slug), [topics]);
+  const slugs = useMemo(() => topics.map((topic) => topic.slug), [topics]);
 
   function ordinal(n: number) {
     const mod10 = n % 10;
@@ -150,13 +150,7 @@ export default function AqeedahGridClient({ topics, basePath = "/mind-upgrade/aq
   }, [slugs, setQuizBadgeBySlug]);
 
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(5, 1fr)",
-        gap: "20px",
-      }}
-    >
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
       {topics.map((topic) => {
         const isDone = completedSlugs.has(topic.slug);
         const isInProgress = inProgressSlugs.has(topic.slug);
@@ -173,180 +167,74 @@ export default function AqeedahGridClient({ topics, basePath = "/mind-upgrade/aq
           <Link
             key={topic.slug}
             href={`${basePath}/${topic.slug}`}
-            style={{
-              background: "white",
-              borderRadius: "16px",
-              padding: "22px 18px",
-              textDecoration: "none",
-              color: "#111",
-              boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
-              transition: "all 0.3s ease",
-              display: "flex",
-              flexDirection: "column",
-              gap: 10,
-              position: "relative",
-            }}
+            className="group relative flex min-h-[250px] flex-col gap-3 rounded-2xl border border-slate-200/80 bg-white px-4 py-5 text-slate-900 shadow-[0_8px_28px_rgba(2,6,23,0.08)] transition duration-200 hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-[0_14px_32px_rgba(2,6,23,0.12)]"
           >
             {isInProgress && !isDone ? (
-              <div
-                style={{
-                  position: "absolute",
-                  top: "12px",
-                  right: "12px",
-                  fontSize: "11px",
-                  fontWeight: "800",
-                  color: "#065f46",
-                  background: "linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)",
-                  border: "2px solid #22c55e",
-                  padding: "4px 10px",
-                  borderRadius: "999px",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.5px",
-                  boxShadow: "0 2px 6px rgba(34, 197, 94, 0.25)",
-                }}
-              >
-                📖 In Progress
+              <div className="absolute right-3 top-3 rounded-full border border-emerald-300 bg-emerald-50 px-2 py-1 text-[11px] font-extrabold uppercase tracking-wide text-emerald-700">
+                In progress
               </div>
             ) : null}
 
-            <div style={{ display: "grid", placeItems: "center", gap: 10 }}>
-              <div
-                style={{
-                  width: "54px",
-                  height: "54px",
-                  borderRadius: "14px",
-                  background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "18px",
-                  fontWeight: "800",
-                  color: "white",
-                  boxShadow: "0 4px 12px rgba(16, 185, 129, 0.3)",
-                }}
-              >
+            {isDone ? (
+              <div className="absolute left-3 top-3 rounded-full border border-emerald-300 bg-emerald-50 px-2 py-1 text-[11px] font-extrabold uppercase tracking-wide text-emerald-700">
+                Completed
+              </div>
+            ) : null}
+
+            <div className="grid place-items-center gap-2 pt-2">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-base font-extrabold text-white shadow-lg shadow-emerald-500/30">
                 {topic.order}
               </div>
 
-              <div style={{ fontWeight: "800", fontSize: "18px", color: "#0f172a", textAlign: "center" }}>{topic.title}</div>
+              <div className="line-clamp-2 text-center text-base font-extrabold text-slate-900">{topic.title}</div>
             </div>
 
             {rewards ? (
-              <div
-                style={{
-                  marginTop: 2,
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 8,
-                  justifyContent: "center",
-                  alignItems: "center",
-                }}
-              >
+              <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
                 {typeof rewards.xp === "number" && rewards.xp > 0 ? (
-                  <div
-                    style={{
-                      fontWeight: 900,
-                      fontSize: 12,
-                      color: "#065f46",
-                      background: "rgba(16,185,129,0.12)",
-                      border: "1px solid rgba(16,185,129,0.32)",
-                      padding: "6px 10px",
-                      borderRadius: 999,
-                      whiteSpace: "nowrap",
-                    }}
-                  >
+                  <div className="rounded-full border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs font-black text-emerald-700">
                     XP: {rewards.xp}
                   </div>
                 ) : null}
 
                 {rewards.badge ? (
-                  <div
-                    style={{
-                      fontWeight: 900,
-                      fontSize: 12,
-                      color: "#854d0e",
-                      background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 50%, #fbbf24 100%)",
-                      border: "2px solid #f59e0b",
-                      padding: "6px 10px",
-                      borderRadius: 999,
-                      whiteSpace: "nowrap",
-                      boxShadow: "0 2px 8px rgba(245, 158, 11, 0.3)",
-                    }}
-                  >
-                    🏆 {rewards.badge}
+                  <div className="rounded-full border border-amber-400 bg-gradient-to-r from-amber-100 via-yellow-100 to-amber-200 px-2 py-1 text-xs font-black text-amber-800 shadow-sm">
+                    Award: {rewards.badge}
                   </div>
                 ) : null}
               </div>
             ) : null}
 
-            <div style={{ color: "#475569", fontSize: "13px", fontWeight: 600, lineHeight: 1.5, minHeight: 32, textAlign: "center" }}>
-              {subtitle}
-            </div>
+            <div className="line-clamp-2 min-h-10 text-center text-xs font-semibold leading-relaxed text-slate-600">{subtitle}</div>
 
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", flex: 1, gap: 8 }}>
-              <span style={{ color: "#047857", fontSize: "16px", fontWeight: "700" }}>
-                {isDone ? "Review" : "Open"}
-              </span>
-              <span style={{ color: "#047857", fontSize: "18px" }}>→</span>
+            <div className="mt-auto flex items-center justify-center gap-2 text-emerald-700">
+              <span className="text-sm font-bold">{isDone ? "Review" : "Open"}</span>
+              <span className="text-base transition-transform group-hover:translate-x-0.5">{"->"}</span>
             </div>
 
             {quizBadge ? (
-              <div
-                style={{
-                  marginTop: 4,
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: 6,
-                  color: quizColor,
-                }}
-              >
+              <div className="mt-2 flex flex-col items-center gap-2">
                 <div
-                  style={{
-                    fontWeight: 900,
-                    fontSize: 13,
-                    color: quizColor,
-                    background: quizBg,
-                    border: quizBorder,
-                    padding: "6px 12px",
-                    borderRadius: 999,
-                    textAlign: "center",
-                    whiteSpace: "nowrap",
-                  }}
+                  style={{ color: quizColor, background: quizBg, border: quizBorder }}
+                  className="rounded-full px-3 py-1 text-xs font-black"
                 >
                   {quizBadge.statusText}
                 </div>
 
                 <div
                   aria-label={`Quiz score ${quizBadge.percent}%`}
-                  style={{
-                    width: 52,
-                    height: 52,
-                    borderRadius: "50%",
-                    display: "grid",
-                    placeItems: "center",
-                    background: `conic-gradient(${quizColor} ${quizBadge.percent}%, rgba(0,0,0,0.10) 0)`,
-                  }}
+                  className="grid h-12 w-12 place-items-center rounded-full"
+                  style={{ background: `conic-gradient(${quizColor} ${quizBadge.percent}%, rgba(0,0,0,0.10) 0)` }}
                 >
                   <div
-                    style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: "50%",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontWeight: 900,
-                      fontSize: 12,
-                      color: quizColor,
-                      background: "rgba(255,255,255,0.92)",
-                    }}
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[11px] font-black"
+                    style={{ color: quizColor }}
                   >
                     {quizBadge.percent}%
                   </div>
                 </div>
 
-                <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.9 }}>{quizBadge.detailText}</div>
+                <div className="text-xs font-extrabold text-slate-700">{quizBadge.detailText}</div>
               </div>
             ) : null}
           </Link>
@@ -355,3 +243,4 @@ export default function AqeedahGridClient({ topics, basePath = "/mind-upgrade/aq
     </div>
   );
 }
+

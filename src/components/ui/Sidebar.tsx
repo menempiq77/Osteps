@@ -178,17 +178,8 @@ const Sidebar = () => {
     ],
     HOD: [
       { name: "Dashboard", href: "/dashboard", icon: Home },
-      { name: "Teachers", href: "/dashboard/teachers", icon: UserCircle },
-      { name: "My Classes", href: "/dashboard/years", icon: Layers },
+      { name: "Manager", href: "/dashboard/manager", icon: Layers },
       { name: "View", href: "/dashboard/view", icon: FolderOpen },
-      { name: "Subjects", href: "/dashboard/subjects", icon: BookOpen },
-      { name: "Manage Quiz", href: "/dashboard/quiz", icon: ClipboardList },
-      {
-        name: "Assesments",
-        href: "/dashboard/all_assesments",
-        icon: GraduationCap,
-      },
-      { name: "Trackers", href: "/dashboard/all_trackers", icon: BarChart3 },
       {
         name: "Leaderboard",
         href: `/dashboard/leaderboard/`,
@@ -208,24 +199,19 @@ const Sidebar = () => {
         badge: announcementUnreadCount,
       },
       {
-        name: "Behavior",
-        href: `/dashboard/student_behavior`,
-        icon: NotebookPen,
-      },
-      {
         name: "Tools",
         href: "/dashboard/tools",
         icon: Wrench,
       },
       {
-        name: "Answer a Question",
-        href: "/dashboard/questions",
-        icon: HelpCircle,
-        badge: questionUnreadCount,
+        name: "🧠 Mind-upgrade",
+        href: "/dashboard/mind-upgrade",
+        icon: Brain,
+        
       },
       {
         name: "Settings",
-        href: "/dashboard/teachers/settings",
+        href: "/dashboard/school-admin/settings",
         icon: Settings,
       },
     ],

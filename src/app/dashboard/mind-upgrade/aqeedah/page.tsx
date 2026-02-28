@@ -8,80 +8,69 @@ import StoriesProgressBadge from "@/components/stories/StoriesProgressBadge";
 
 export default function AqeedahPage() {
   const { t, language } = useTranslation();
+
   const topicCards = AQEEDAH_TOPICS.map((topic, idx) => ({
     slug: topic.slug,
     title: getTopicTitle(idx, language),
     subtitle:
       typeof topic.shortIntro === "string"
         ? topic.shortIntro
-        : topic.shortIntro?.[language] || topic.shortIntro?.en || t({ en: "Sections + quiz", ar: "أقسام + اختبار" }),
+        : topic.shortIntro?.[language] || topic.shortIntro?.en || t({ en: "Sections + quiz", ar: "Sections + quiz" }),
     order: idx + 1,
   })).map((card) => ({
     ...card,
     subtitle: card.subtitle.replace(/\s+/g, " ").trim().split(/(?<=[.!?])\s+/)[0] || card.subtitle,
   }));
-  
+
   return (
     <main
+      className="relative min-h-screen overflow-hidden bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-900 px-4 py-8 md:px-8 md:py-10"
       style={{
-        minHeight: "100vh",
-        background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
-        padding: "60px 20px",
-        fontFamily: language === "ar" ? "var(--font-noto-naskh-arabic), system-ui" : "system-ui, -apple-system, sans-serif",
+        fontFamily: language === "ar" ? "var(--font-noto-naskh-arabic), system-ui" : "var(--font-raleway), sans-serif",
       }}
     >
-      <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
-        {/* Header */}
-        <div
-          style={{
-            textAlign: "center",
-            color: "white",
-            marginBottom: "40px",
-          }}
-        >
-          <h1
-            style={{
-              fontSize: "48px",
-              fontWeight: "800",
-              marginBottom: "12px",
-              textShadow: "0 2px 12px rgba(0,0,0,0.2)",
-            }}
-          >
-            {t({ en: "☪️ Aqeedah - Islamic Creed", ar: "☪️ العقيدة الإسلامية" })}
+      <div className="pointer-events-none absolute -left-24 -top-28 h-80 w-80 rounded-full bg-emerald-300/20 blur-3xl" />
+      <div className="pointer-events-none absolute right-0 top-24 h-72 w-72 rounded-full bg-cyan-200/20 blur-3xl" />
+
+      <div className="relative mx-auto max-w-7xl">
+        <section className="mb-6 rounded-3xl border border-white/20 bg-white/10 p-6 text-white shadow-2xl backdrop-blur-xl md:p-8">
+          <div className="mb-4 inline-flex rounded-full border border-white/35 bg-white/15 px-3 py-1 text-xs font-semibold tracking-wide">
+            {t({ en: "Mind Upgrade", ar: "Mind Upgrade" })}
+          </div>
+
+          <h1 className="text-3xl font-extrabold leading-tight md:text-5xl">
+            {t({ en: "Aqeedah: Islamic Creed", ar: "Aqeedah: Islamic Creed" })}
           </h1>
-          <p
-            style={{
-              fontSize: "18px",
-              opacity: 0.95,
-              fontWeight: 500,
-            }}
-          >
-            {t({ en: "Learn the foundations of Islamic belief", ar: "تعلم أسس العقيدة الإسلامية" })}
+
+          <p className="mt-3 max-w-3xl text-sm text-emerald-50 md:text-lg">
+            {t({
+              en: "Learn the foundations of Islamic belief through short sections and quizzes.",
+              ar: "Learn the foundations of Islamic belief through short sections and quizzes.",
+            })}
           </p>
+
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            <Link
+              href="/dashboard/mind-upgrade"
+              className="rounded-xl border border-white/35 bg-white/15 px-4 py-2 text-sm font-bold text-white transition hover:bg-white/25"
+            >
+              {t({ en: "Back to Mind Upgrade", ar: "Back to Mind Upgrade" })}
+            </Link>
+
+            <div className="rounded-xl border border-white/30 bg-black/10 px-4 py-2 text-sm font-semibold">
+              {t({ en: `${topicCards.length} Topics`, ar: `${topicCards.length} Topics` })}
+            </div>
+
+            <div className="rounded-xl border border-white/30 bg-black/10 px-4 py-2 text-sm font-semibold">
+              {t({ en: "Pass: 7/10", ar: "Pass: 7/10" })}
+            </div>
+          </div>
+        </section>
+
+        <div className="mb-5 rounded-2xl border border-white/20 bg-white/85 p-4 shadow-lg">
+          <StoriesProgressBadge slugs={topicCards.map((topic) => topic.slug)} total={topicCards.length} showXP />
         </div>
 
-        <div style={{ marginBottom: 24 }}>
-          <Link
-            href="/dashboard/mind-upgrade"
-            style={{
-              color: "white",
-              textDecoration: "none",
-              fontWeight: 700,
-              background: "rgba(255,255,255,0.15)",
-              border: "1px solid rgba(255,255,255,0.2)",
-              padding: "12px 20px",
-              borderRadius: "12px",
-              display: "inline-block",
-              transition: "all 0.3s ease",
-            }}
-          >
-            {t({ en: "← Back to Mind Upgrade", ar: "→ العودة إلى تطوير العقل" })}
-          </Link>
-        </div>
-
-        <StoriesProgressBadge slugs={topicCards.map((t) => t.slug)} total={topicCards.length} showXP />
-
-        {/* Topics Grid */}
         <AqeedahGridClient topics={topicCards} basePath="/dashboard/mind-upgrade/aqeedah" />
       </div>
     </main>
