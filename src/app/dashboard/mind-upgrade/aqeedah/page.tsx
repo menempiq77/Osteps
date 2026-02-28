@@ -1,38 +1,89 @@
 "use client";
 
-import { Card, Col, Row, Tag, Typography } from "antd";
 import Link from "next/link";
-import { AQEEDAH_TOPICS } from "./topics";
+import { AQEEDAH_TOPICS, getTopicTitle } from "./topics";
+import { useTranslation } from "@/app/useTranslation";
+import AqeedahGridClient from "@/components/stories/AqeedahGridClient";
+import StoriesProgressBadge from "@/components/stories/StoriesProgressBadge";
 
 export default function AqeedahPage() {
+  const { t, language } = useTranslation();
+  const topicCards = AQEEDAH_TOPICS.map((topic, idx) => ({
+    slug: topic.slug,
+    title: getTopicTitle(idx, language),
+    subtitle:
+      typeof topic.shortIntro === "string"
+        ? topic.shortIntro
+        : topic.shortIntro?.[language] || topic.shortIntro?.en || t({ en: "Sections + quiz", ar: "أقسام + اختبار" }),
+    order: idx + 1,
+  })).map((card) => ({
+    ...card,
+    subtitle: card.subtitle.replace(/\s+/g, " ").trim().split(/(?<=[.!?])\s+/)[0] || card.subtitle,
+  }));
+  
   return (
-    <div className="p-3 md:p-6">
-      <Card className="border border-[#D6EFE2] mb-4">
-        <Typography.Title level={3} className="!mb-2">
-          Aqeedah
-        </Typography.Title>
-        <Typography.Text className="text-gray-500">
-          Foundations and core creed topics imported from the Mind-upgrade module.
-        </Typography.Text>
-      </Card>
+    <main
+      style={{
+        minHeight: "100vh",
+        background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+        padding: "60px 20px",
+        fontFamily: language === "ar" ? "var(--font-noto-naskh-arabic), system-ui" : "system-ui, -apple-system, sans-serif",
+      }}
+    >
+      <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+        {/* Header */}
+        <div
+          style={{
+            textAlign: "center",
+            color: "white",
+            marginBottom: "40px",
+          }}
+        >
+          <h1
+            style={{
+              fontSize: "48px",
+              fontWeight: "800",
+              marginBottom: "12px",
+              textShadow: "0 2px 12px rgba(0,0,0,0.2)",
+            }}
+          >
+            {t({ en: "☪️ Aqeedah - Islamic Creed", ar: "☪️ العقيدة الإسلامية" })}
+          </h1>
+          <p
+            style={{
+              fontSize: "18px",
+              opacity: 0.95,
+              fontWeight: 500,
+            }}
+          >
+            {t({ en: "Learn the foundations of Islamic belief", ar: "تعلم أسس العقيدة الإسلامية" })}
+          </p>
+        </div>
 
-      <Row gutter={[12, 12]}>
-        {AQEEDAH_TOPICS.map((topic) => (
-          <Col key={topic.id} xs={24} sm={12} lg={8}>
-            <Link href={`/dashboard/mind-upgrade/aqeedah/topic-${topic.id}`} className="block">
-              <Card className="h-full border border-[#D6EFE2] cursor-pointer hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between mb-2">
-                  <Tag color="green">Topic {topic.id}</Tag>
-                </div>
-                <Typography.Text strong>{topic.titleEn}</Typography.Text>
-                <div className="mt-2" dir="rtl">
-                  <Typography.Text className="text-gray-500">{topic.titleAr}</Typography.Text>
-                </div>
-              </Card>
-            </Link>
-          </Col>
-        ))}
-      </Row>
-    </div>
+        <div style={{ marginBottom: 24 }}>
+          <Link
+            href="/dashboard/mind-upgrade"
+            style={{
+              color: "white",
+              textDecoration: "none",
+              fontWeight: 700,
+              background: "rgba(255,255,255,0.15)",
+              border: "1px solid rgba(255,255,255,0.2)",
+              padding: "12px 20px",
+              borderRadius: "12px",
+              display: "inline-block",
+              transition: "all 0.3s ease",
+            }}
+          >
+            {t({ en: "← Back to Mind Upgrade", ar: "→ العودة إلى تطوير العقل" })}
+          </Link>
+        </div>
+
+        <StoriesProgressBadge slugs={topicCards.map((t) => t.slug)} total={topicCards.length} showXP />
+
+        {/* Topics Grid */}
+        <AqeedahGridClient topics={topicCards} basePath="/dashboard/mind-upgrade/aqeedah" />
+      </div>
+    </main>
   );
 }
