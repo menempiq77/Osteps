@@ -128,6 +128,7 @@ const LeaderBoard = () => {
   const isAdmin =
     roleKey === "SCHOOL_ADMIN" || roleKey === "ADMIN" || roleKey === "SUPER_ADMIN";
   const isStudent = roleKey === "STUDENT";
+  const isTeachingStaff = isTeacher || isHod;
   const [loading, setLoading] = useState(true);
   const [years, setYears] = useState<any[]>([]);
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
@@ -159,7 +160,7 @@ const LeaderBoard = () => {
   })();
 
   const [assignYearsData, setAssignYearsData] = useState<any[]>([]);
-  const teacherAssignedClasses = isTeacher ? extractAssignedClasses(assignYearsData) : [];
+  const teacherAssignedClasses = isTeachingStaff ? extractAssignedClasses(assignYearsData) : [];
   const assignedSchoolId = (() => {
     for (const cls of teacherAssignedClasses) {
       const sid = getClassSchoolId(cls);
@@ -184,7 +185,7 @@ const LeaderBoard = () => {
     let yearsData = await loadSchoolYearsForStaff();
     
     // If we got 0 years (teacher doesn't have permission), extract years from assigned classes
-    if (yearsData.length === 0 && isTeacher && teacherAssignedClasses.length > 0) {
+    if (yearsData.length === 0 && isTeachingStaff && teacherAssignedClasses.length > 0) {
       const assignedYears = teacherAssignedClasses
         .map((cls: any) => cls?.year)
         .filter((year: any) => year);
@@ -225,7 +226,7 @@ const LeaderBoard = () => {
         return;
       }
 
-      if (isTeacher) {
+      if (isTeachingStaff) {
         const res = await fetchAssignYears();
         setAssignYearsData(res);
 
@@ -250,7 +251,7 @@ const LeaderBoard = () => {
       }
       setYears(yearsData);
       if (yearsData.length > 0) {
-        if (isTeacher && leaderboardScope === "class") {
+        if (isTeachingStaff && leaderboardScope === "class") {
           setSelectedYear(yearsData[0].id.toString());
         } else {
           setSelectedYear("__all__");
@@ -268,10 +269,10 @@ const LeaderBoard = () => {
   }, [leaderboardScope, resolvedSchoolId]);
 
   useEffect(() => {
-    if (!isTeacher || leaderboardScope !== "school") {
+    if (!isTeachingStaff || leaderboardScope !== "school") {
       setShowMyStudentsOnly(false);
     }
-  }, [isTeacher, leaderboardScope]);
+  }, [isTeachingStaff, leaderboardScope]);
 
   /** Fetch classes for selected year */
   // const { data: classes = [], isLoading: classesLoading } = useQuery({
@@ -297,11 +298,11 @@ const LeaderBoard = () => {
   // });
 
   const { data: classes = [], isLoading: classesLoading } = useQuery({
-    queryKey: ["classes", selectedYear, isTeacher],
+    queryKey: ["classes", selectedYear, isTeachingStaff],
     queryFn: async () => {
       if (!selectedYear) return [];
 
-      if (isTeacher && leaderboardScope === "class") {
+      if (isTeachingStaff && leaderboardScope === "class") {
         if (selectedYear === "__all__") {
           return teacherAssignedClasses;
         }
@@ -320,8 +321,8 @@ const LeaderBoard = () => {
     enabled:
       !isStudent &&
       !!selectedYear &&
-      (!isTeacher || assignYearsData.length > 0) &&
-      (!!resolvedSchoolId || isTeacher),
+      (!isTeachingStaff || assignYearsData.length > 0) &&
+      (!!resolvedSchoolId || isTeachingStaff),
   });
 
   useEffect(() => {
@@ -547,31 +548,64 @@ const LeaderBoard = () => {
     queryKey: [
       "leaderboard-school-staff",
       resolvedSchoolId,
-      isTeacher,
+      isTeachingStaff,
       assignYearsData.length,
       selectedYear,
       (classes ?? []).map((cls: any) => getClassId(cls)).filter(Boolean).join("|"),
     ],
     queryFn: async () => {
-      // Teachers use the school-self endpoint which includes all school students
-      const res = await fetchSchoolSelfLeaderBoardData();
-      const rows = res?.data ?? [];
-      return rows.map((student: any, index: number) => ({
-        key: String(student?.student_id ?? ""),
-        rank: index + 1,
-        name: student?.student_name ?? "Unknown",
-        avatar: student?.student_name?.charAt(0).toUpperCase() || "?",
-        points: student?.total_marks || 0,
-        className: student?.class_name ?? "",
-        badge:
-          index === 0
-            ? "gold"
-            : index === 1
-            ? "silver"
-            : index === 2
-            ? "bronze"
-            : null,
-      }));
+      if (resolvedSchoolId) {
+        try {
+          const res = await fetchSchoolLeaderBoardData(resolvedSchoolId);
+          const rows = res?.data ?? [];
+          if (rows.length > 0) {
+            return mergeAndRankLeaderboards([rows]);
+          }
+        } catch (error) {
+          // Fall back below.
+        }
+      }
+
+      try {
+        const res = await fetchSchoolSelfLeaderBoardData();
+        const rows = res?.data ?? [];
+        if (rows.length > 0) {
+          return mergeAndRankLeaderboards([rows]);
+        }
+      } catch (error) {
+        // Fall back to class aggregation below.
+      }
+
+      const classesForAggregation = await (async () => {
+        const schoolClasses = await loadSchoolClassesForStaff();
+        if (schoolClasses.length > 0) return schoolClasses;
+        return teacherAssignedClasses;
+      })();
+
+      const fallbackSelectedYearClasses =
+        classesForAggregation.length === 0 ? (classes ?? []) : [];
+      const mergedClassPool =
+        classesForAggregation.length > 0 ? classesForAggregation : fallbackSelectedYearClasses;
+
+      const classIds: string[] = mergedClassPool
+        .map((cls: any) => getClassId(cls))
+        .filter((id: string) => !!id);
+      const uniqueClassIds: string[] = Array.from(new Set(classIds));
+
+      if (uniqueClassIds.length === 0) {
+        return [];
+      }
+
+      const leaderboards = await mapWithConcurrency(uniqueClassIds, 5, async (classId) => {
+        try {
+          const res = await fetchLeaderBoardData(classId);
+          return res?.data ?? [];
+        } catch (error) {
+          return [];
+        }
+      });
+
+      return mergeAndRankLeaderboards(leaderboards);
     },
     enabled: !isStudent && leaderboardScope === "school",
     staleTime: 2 * 60 * 1000,
@@ -587,7 +621,7 @@ const LeaderBoard = () => {
     queryKey: [
       "leaderboard-school-staff-maps",
       resolvedSchoolId,
-      isTeacher,
+      isTeachingStaff,
       assignYearsData.length,
       unresolvedStaffSchoolStudentIds.join("|"),
     ],

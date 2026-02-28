@@ -1,38 +1,83 @@
 "use client";
 
-import { Card, Col, Row, Tag, Typography } from "antd";
 import Link from "next/link";
 import { PROPHETS } from "./prophets";
+import { useTranslation } from "@/app/useTranslation";
+import ProphetsGridClient from "@/components/stories/ProphetsGridClient";
+import StoriesProgressBadge from "@/components/stories/StoriesProgressBadge";
 
 export default function StoriesOfTheProphetsPage() {
-  return (
-    <div className="p-3 md:p-6">
-      <Card className="border border-[#D6EFE2] mb-4">
-        <Typography.Title level={3} className="!mb-2">
-          Stories of the Prophets
-        </Typography.Title>
-        <Typography.Text className="text-gray-500">
-          25 prophets mentioned in the Qur'an, imported from the Mind-upgrade module.
-        </Typography.Text>
-      </Card>
+  const { t, language } = useTranslation();
+  const prophetCards = PROPHETS.map((prophet, idx) => ({
+    slug: prophet.slug,
+    title: prophet.name,
+    subtitle: prophet.subtitle,
+    order: idx + 1,
+  }));
 
-      <Row gutter={[12, 12]}>
-        {PROPHETS.map((prophet, index) => (
-          <Col key={prophet.slug} xs={24} sm={12} lg={8}>
-            <Link href={`/dashboard/mind-upgrade/stories-of-the-prophets/${prophet.slug}`} className="block">
-              <Card className="h-full border border-[#D6EFE2] cursor-pointer hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between mb-2">
-                  <Tag color="blue">#{index + 1}</Tag>
-                </div>
-                <Typography.Text strong>{prophet.name}</Typography.Text>
-                <div className="mt-2">
-                  <Typography.Text className="text-gray-500">{prophet.subtitle}</Typography.Text>
-                </div>
-              </Card>
-            </Link>
-          </Col>
-        ))}
-      </Row>
-    </div>
+  return (
+    <main
+      style={{
+        minHeight: "100vh",
+        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+        padding: "60px 20px",
+        fontFamily: language === "ar" ? "var(--font-noto-naskh-arabic), system-ui" : "system-ui, -apple-system, sans-serif",
+      }}
+    >
+      <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+        {/* Header */}
+        <div
+          style={{
+            textAlign: "center",
+            color: "white",
+            marginBottom: "40px",
+          }}
+        >
+          <h1
+            style={{
+              fontSize: "48px",
+              fontWeight: "800",
+              marginBottom: "12px",
+              textShadow: "0 2px 12px rgba(0,0,0,0.2)",
+            }}
+          >
+            {t({ en: "📖 Stories of the Prophets", ar: "📖 قصص الأنبياء" })}
+          </h1>
+          <p
+            style={{
+              fontSize: "18px",
+              opacity: 0.95,
+              fontWeight: 500,
+            }}
+          >
+            {t({ en: "Learn from the lives of 25 prophets mentioned in the Qur'an", ar: "تعلم من حياة 25 نبياً ورد ذكرهم في القرآن الكريم" })}
+          </p>
+        </div>
+
+        <div style={{ marginBottom: 24 }}>
+          <Link
+            href="/dashboard/mind-upgrade"
+            style={{
+              color: "white",
+              textDecoration: "none",
+              fontWeight: 700,
+              background: "rgba(255,255,255,0.15)",
+              border: "1px solid rgba(255,255,255,0.2)",
+              padding: "12px 20px",
+              borderRadius: "12px",
+              display: "inline-block",
+              transition: "all 0.3s ease",
+            }}
+          >
+            {t({ en: "← Back to Mind Upgrade", ar: "→ العودة إلى تطوير العقل" })}
+          </Link>
+        </div>
+
+        <StoriesProgressBadge slugs={prophetCards.map((p) => p.slug)} total={prophetCards.length} showXP />
+
+        {/* Prophets Grid */}
+        <ProphetsGridClient prophets={prophetCards} basePath="/dashboard/mind-upgrade/stories-of-the-prophets" />
+      </div>
+    </main>
   );
 }

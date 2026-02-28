@@ -17,34 +17,36 @@ class LeaderBoardController extends Controller
     {
         $user = $request->user();
 
-        // Try to get school ID from multiple sources
+        // 1) Direct user relations
         $schoolId = optional($user->school)->id
             ?? optional(optional($user->student)->class)->school_id
             ?? optional(optional(optional($user->student)->class)->year)->school_id;
 
-        // For teachers: extract school from their first assigned class
-        if (!$schoolId && $user->relationLoaded('assignYears')) {
-            foreach ($user->assignYears as $assignYear) {
-                if ($assignYear->relationLoaded('classes')) {
-                    foreach ($assignYear->classes as $class) {
-                        $schoolId = optional($class)->school_id 
-                            ?? optional(optional($class)->year)->school_id;
-                        if ($schoolId) break 2;
-                    }
-                }
-            }
-        }
-
-        // Alternative for teachers: resolve school via teacher record/assignments
+        // 2) Teacher/HOD records
         if (!$schoolId) {
             $teacherId = DB::table('teachers')->where('user_id', $user->id)->value('id');
             $schoolId = DB::table('teachers')->where('user_id', $user->id)->value('school_id');
+
             if (!$schoolId && $teacherId) {
                 $schoolId = DB::table('school_classes')
                     ->join('assign_teachers', 'school_classes.id', '=', 'assign_teachers.class_id')
                     ->where('assign_teachers.teacher_id', $teacherId)
                     ->value('school_classes.school_id');
             }
+
+            // Defensive fallback for deployments that store user_id directly in assign_teachers.teacher_id
+            if (!$schoolId) {
+                $schoolId = DB::table('school_classes')
+                    ->join('assign_teachers', 'school_classes.id', '=', 'assign_teachers.class_id')
+                    ->where('assign_teachers.teacher_id', $user->id)
+                    ->value('school_classes.school_id');
+            }
+        }
+
+        // 3) School admin / admin records (for HOD variants tied to admin tables)
+        if (!$schoolId) {
+            $schoolId = DB::table('school_admins')->where('user_id', $user->id)->value('school_id')
+                ?? DB::table('admins')->where('user_id', $user->id)->value('school_id');
         }
 
         if (!$schoolId) {
