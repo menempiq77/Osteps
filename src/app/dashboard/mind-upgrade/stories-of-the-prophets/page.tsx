@@ -8,12 +8,6 @@ import StoriesProgressBadge from "@/components/stories/StoriesProgressBadge";
 
 export default function StoriesOfTheProphetsPage() {
   const { t, language } = useTranslation();
-  const prophetCards = PROPHETS.map((prophet, idx) => ({
-    slug: prophet.slug,
-    title: prophet.name,
-    subtitle: prophet.subtitle,
-    order: idx + 1,
-  }));
 
   return (
     <main
@@ -73,10 +67,10 @@ export default function StoriesOfTheProphetsPage() {
           </Link>
         </div>
 
-        <StoriesProgressBadge slugs={prophetCards.map((p) => p.slug)} total={prophetCards.length} showXP />
+        <StoriesProgressBadge slugs={PROPHETS.map((p) => p.slug)} total={PROPHETS.length} showXP />
 
         {/* Prophets Grid */}
-        <ProphetsGridClient prophets={prophetCards} basePath="/dashboard/mind-upgrade/stories-of-the-prophets" />
+        <ProphetsGridClient prophets={PROPHETS} basePath="/dashboard/mind-upgrade/stories-of-the-prophets" />
       </div>
     </main>
   );
