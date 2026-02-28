@@ -138,8 +138,10 @@ export default function ProphetsGridClient({ prophets }: Props) {
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "repeat(5, 1fr)",
-        gap: "20px",
+        gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+        gap: "24px",
+        maxWidth: "1400px",
+        margin: "0 auto",
       }}
     >
       {prophets.map((p) => {
@@ -158,18 +160,29 @@ export default function ProphetsGridClient({ prophets }: Props) {
             key={p.slug}
             href={`/mind-upgrade/stories-of-the-prophets/${p.slug}`}
             style={{
-              background: "white",
-              borderRadius: "16px",
-              padding: "24px 20px",
+              background: "linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%)",
+              borderRadius: "20px",
+              padding: "32px 24px",
               textDecoration: "none",
               color: "#111",
-              boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
-              transition: "all 0.3s ease",
+              boxShadow: "0 8px 32px rgba(102, 126, 234, 0.15)",
+              transition: "all 0.4s ease",
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
               textAlign: "center",
               position: "relative",
+              border: "2px solid rgba(102, 126, 234, 0.1)",
+              cursor: "pointer",
+              transform: "translateY(0)",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.transform = "translateY(-6px)";
+              (e.currentTarget as HTMLElement).style.boxShadow = "0 16px 48px rgba(102, 126, 234, 0.25)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
+              (e.currentTarget as HTMLElement).style.boxShadow = "0 8px 32px rgba(102, 126, 234, 0.15)";
             }}
           >
             {/* In Progress Badge - Top Right */}
@@ -177,14 +190,14 @@ export default function ProphetsGridClient({ prophets }: Props) {
               <div
                 style={{
                   position: "absolute",
-                  top: "12px",
-                  right: "12px",
-                  fontSize: "11px",
-                  fontWeight: "800",
+                  top: "16px",
+                  right: "16px",
+                  fontSize: "12px",
+                  fontWeight: "900",
                   color: "#0369a1",
                   background: "linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%)",
                   border: "2px solid #0ea5e9",
-                  padding: "4px 10px",
+                  padding: "6px 12px",
                   borderRadius: "999px",
                   textTransform: "uppercase",
                   letterSpacing: "0.5px",
@@ -197,18 +210,18 @@ export default function ProphetsGridClient({ prophets }: Props) {
 
             <div
               style={{
-                width: "60px",
-                height: "60px",
+                width: "72px",
+                height: "72px",
                 borderRadius: "50%",
                 background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: "24px",
+                fontSize: "32px",
                 fontWeight: "800",
                 color: "white",
-                marginBottom: "14px",
-                boxShadow: "0 4px 12px rgba(102, 126, 234, 0.3)",
+                marginBottom: "18px",
+                boxShadow: "0 6px 20px rgba(102, 126, 234, 0.35)",
               }}
             >
               {p.icon}
@@ -216,10 +229,12 @@ export default function ProphetsGridClient({ prophets }: Props) {
 
             <div
               style={{
-                fontWeight: "800",
-                fontSize: "20px",
-                marginBottom: "6px",
-                color: "#333",
+                fontWeight: "900",
+                fontSize: "24px",
+                marginBottom: "8px",
+                color: "#1a1a2e",
+                lineHeight: "1.2",
+                letterSpacing: "-0.3px",
               }}
             >
               {p.name}
@@ -228,41 +243,43 @@ export default function ProphetsGridClient({ prophets }: Props) {
             {rewards ? (
               <div
                 style={{
-                  marginTop: 6,
+                  marginTop: "12px",
                   display: "flex",
                   flexWrap: "wrap",
-                  gap: 8,
+                  gap: "10px",
                   justifyContent: "center",
                   alignItems: "center",
+                  paddingBottom: "8px",
                 }}
               >
                 {typeof rewards.xp === "number" && rewards.xp > 0 ? (
                   <div
                     style={{
-                      fontWeight: 900,
-                      fontSize: 12,
-                      color: "#333",
-                      background: "rgba(0,0,0,0.05)",
-                      border: "1px solid rgba(0,0,0,0.08)",
-                      padding: "6px 10px",
-                      borderRadius: 999,
+                      fontWeight: "900",
+                      fontSize: "13px",
+                      color: "#667eea",
+                      background: "linear-gradient(135deg, #ede9fe 0%, #f3e8ff 100%)",
+                      border: "2px solid #c4b5fd",
+                      padding: "6px 12px",
+                      borderRadius: "999px",
                       whiteSpace: "nowrap",
+                      boxShadow: "0 2px 8px rgba(102, 126, 234, 0.15)",
                     }}
                   >
-                    XP: {rewards.xp}
+                    🌟 {rewards.xp} XP
                   </div>
                 ) : null}
 
                 {rewards.badge ? (
                   <div
                     style={{
-                      fontWeight: 900,
-                      fontSize: 12,
+                      fontWeight: "900",
+                      fontSize: "13px",
                       color: "#854d0e",
                       background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 50%, #fbbf24 100%)",
                       border: "2px solid #f59e0b",
-                      padding: "6px 10px",
-                      borderRadius: 999,
+                      padding: "6px 12px",
+                      borderRadius: "999px",
                       whiteSpace: "nowrap",
                       boxShadow: "0 2px 8px rgba(245, 158, 11, 0.3)",
                     }}
@@ -275,10 +292,13 @@ export default function ProphetsGridClient({ prophets }: Props) {
 
             <div
               style={{
-                color: "#666",
-                fontSize: "13px",
-                fontWeight: "700",
-                minHeight: 18,
+                color: "#555",
+                fontSize: "14px",
+                fontWeight: "600",
+                marginBottom: "16px",
+                opacity: 0.85,
+                minHeight: "20px",
+                marginTop: "2px",
               }}
             >
               {p.subtitle}
@@ -287,23 +307,26 @@ export default function ProphetsGridClient({ prophets }: Props) {
             {quizBadge ? (
               <div
                 style={{
-                  marginTop: 12,
+                  marginTop: "12px",
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
-                  gap: 6,
+                  gap: "10px",
                   color: quizColor,
+                  paddingTop: "12px",
+                  borderTop: "1px solid rgba(0,0,0,0.08)",
+                  width: "100%",
                 }}
               >
                 <div
                   style={{
-                    fontWeight: 900,
-                    fontSize: 13,
+                    fontWeight: "900",
+                    fontSize: "13px",
                     color: quizColor,
                     background: quizBg,
                     border: quizBorder,
-                    padding: "6px 12px",
-                    borderRadius: 999,
+                    padding: "8px 14px",
+                    borderRadius: "999px",
                     textAlign: "center",
                     whiteSpace: "nowrap",
                   }}
@@ -314,45 +337,48 @@ export default function ProphetsGridClient({ prophets }: Props) {
                 <div
                   aria-label={`Quiz score ${quizBadge.percent}%`}
                   style={{
-                    width: 52,
-                    height: 52,
+                    width: "60px",
+                    height: "60px",
                     borderRadius: "50%",
                     display: "grid",
                     placeItems: "center",
-                    background: `conic-gradient(${quizColor} ${quizBadge.percent}%, rgba(0,0,0,0.10) 0)`,
+                    background: `conic-gradient(${quizColor} ${quizBadge.percent}%, rgba(0,0,0,0.08) 0)`,
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
                   }}
                 >
                   <div
                     style={{
-                      width: 40,
-                      height: 40,
+                      width: "48px",
+                      height: "48px",
                       borderRadius: "50%",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      fontWeight: 900,
-                      fontSize: 12,
+                      fontWeight: "900",
+                      fontSize: "14px",
                       color: quizColor,
-                      background: "rgba(255,255,255,0.92)",
+                      background: "rgba(255,255,255,0.95)",
                     }}
                   >
                     {quizBadge.percent}%
                   </div>
                 </div>
 
-                <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.9 }}>{quizBadge.detailText}</div>
+                <div style={{ fontSize: "12px", fontWeight: "800", opacity: 0.85 }}>{quizBadge.detailText}</div>
               </div>
             ) : null}
 
             <div
               style={{
                 color: "#667eea",
-                fontSize: "13px",
-                fontWeight: "600",
-                marginTop: "10px",
+                fontSize: "14px",
+                fontWeight: "800",
+                marginTop: "auto",
+                paddingTop: "12px",
+                transition: "all 0.3s ease",
               }}
             >
-              {isDone ? "Review →" : "Open →"}
+              {isDone ? "✓ Review →" : "Open →"}
             </div>
           </Link>
         );
