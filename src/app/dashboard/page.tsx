@@ -44,6 +44,8 @@ import { fetchSchoolLogo } from "@/services/api";
 import { IMG_BASE_URL } from "@/lib/config";
 import { useRouter } from "next/navigation";
 
+export const dynamic = "force-dynamic";
+
 // Custom theme colors
 const THEME_COLOR = "var(--primary)";
 const THEME_COLOR_LIGHT = "var(--theme-soft)";
@@ -485,7 +487,7 @@ export default function DashboardPage() {
           <div className="flex items-start justify-between">
             <div>
               <h1 className="text-2xl font-semibold text-gray-800 mb-1">
-                Welcome, {currentUser?.name.replace("_", " ")}!
+                Welcome, {String(currentUser?.name || "User").replace(/_/g, " ")}!
               </h1>
               <p className="text-lg text-gray-600 mb-3">
                 We're glad to have you back!
