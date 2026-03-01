@@ -1,6 +1,7 @@
 // src/services/api.ts
 import axios from 'axios';
 import { API_BASE_URL } from '@/lib/config';
+import { getStoredSubjectId } from '@/lib/subjectScope';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -13,6 +14,38 @@ api.interceptors.request.use(async (config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
+  // Auto-attach subject_id to subject-scoped APIs when absent.
+  const url = String(config.url || "");
+  const subjectScopedHints = [
+    "/get-quiz",
+    "/add-quiz",
+    "/update-quiz",
+    "/submitQuizAnswers",
+    "/get-SubmittedQuizDetails",
+    "/get-school-trackers",
+    "/get-trackers",
+    "/add-trackers",
+    "/update-trackers",
+    "/assign-tracker",
+    "/get-whole-assessments-report",
+    "/schoolget-whole-assessments-report",
+    "/get-student-scores",
+    "/leaderboard/",
+    "/school/dashboard",
+    "/dashboard-student-assessment",
+    "/search-studentProfile",
+    "/mind-upgrade/",
+  ];
+  const isScoped = subjectScopedHints.some((hint) => url.includes(hint));
+  if (isScoped) {
+    const existing = (config.params as any)?.subject_id;
+    const subjectId = existing ?? getStoredSubjectId();
+    if (subjectId && Number(subjectId) > 0) {
+      config.params = { ...(config.params || {}), subject_id: Number(subjectId) };
+    }
+  }
+
   return config;
 });
 

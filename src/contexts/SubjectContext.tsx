@@ -92,10 +92,24 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
     if (!canUseSubjectContext || loading) return;
     if (!activeSubjectId) return;
 
+    const pathSubjectId = extractSubjectIdFromPath(pathname);
+    if (pathSubjectId && !subjects.some((subject) => subject.id === pathSubjectId)) {
+      const fallback = subjects[0]?.id;
+      if (fallback) {
+        setActiveSubjectIdState(fallback);
+        storeSubjectId(fallback);
+        void setLastSubject(fallback);
+        router.replace(toSubjectScopedPath("/dashboard", fallback));
+      } else {
+        router.replace("/dashboard");
+      }
+      return;
+    }
+
     if (isSubjectScopedPath(pathname)) {
       router.replace(toSubjectScopedPath(pathname, activeSubjectId));
     }
-  }, [activeSubjectId, canUseSubjectContext, loading, pathname, router]);
+  }, [activeSubjectId, canUseSubjectContext, loading, pathname, router, subjects]);
 
   const setActiveSubjectId = (subjectId: number, options?: { navigate?: boolean }) => {
     if (!Number.isFinite(subjectId) || subjectId <= 0) return;

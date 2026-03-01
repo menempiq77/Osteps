@@ -46,6 +46,8 @@ use App\Http\Controllers\Api\StudentProfileController;
 use App\Http\Controllers\Api\SubjectController;
 use App\Http\Controllers\Api\ToolsController;
 use App\Http\Controllers\Api\MindUpgradeController;
+use App\Http\Controllers\Api\SubjectContextController;
+use App\Http\Controllers\Api\SubjectClassController;
 
 Route::get('/user', function (Request $request) {             
     return $request->user();
@@ -401,6 +403,14 @@ Route::middleware(['auth:sanctum'])->group(function(){
     Route::post('update-subject/{id}',[SubjectController::class,'updateSubject'])->name('update-subject');
     Route::post('delete-subject/{id}',[SubjectController::class,'deleteSubject'])->name('delete-subject');
     Route::get('get-subject',[SubjectController::class,'getSubject'])->name('get-subject');
+    Route::get('subjects/my-context', [SubjectContextController::class, 'myContext'])->name('subjects-my-context');
+    Route::post('subjects/set-last', [SubjectContextController::class, 'setLast'])->name('subjects-set-last');
+    Route::post('subjects/assign-staff', [SubjectContextController::class, 'assignStaff'])->name('subjects-assign-staff');
+    Route::get('subjects/staff-assignments', [SubjectContextController::class, 'staffAssignments'])->name('subjects-staff-assignments');
+
+    Route::get('subject-classes', [SubjectClassController::class, 'index'])->name('subject-classes-index');
+    Route::post('subject-classes', [SubjectClassController::class, 'store'])->name('subject-classes-store');
+    Route::post('subject-classes/enroll-students', [SubjectClassController::class, 'enrollStudents'])->name('subject-classes-enroll-students');
 
     Route::get('get-studentProfile/{studentId}',[StudentProfileController::class,'studentProfile'])->name('get-studentProfile');
     Route::post('search-studentProfile',[StudentProfileController::class,'searchStudentProfile'])->name('search-studentProfile');
