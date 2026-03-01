@@ -38,6 +38,18 @@ const managerCards = [
     icon: BookOpen,
   },
   {
+    title: "Subject Classes",
+    description: "Create classes inside the active subject workspace.",
+    href: "/dashboard/subject-classes",
+    icon: Layers,
+  },
+  {
+    title: "Subject Staff",
+    description: "Assign HODs and teachers to one or more subjects.",
+    href: "/dashboard/subject-staff",
+    icon: UserCircle,
+  },
+  {
     title: "Teachers",
     description: "Manage teacher accounts and assignments.",
     href: "/dashboard/teachers",
