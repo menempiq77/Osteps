@@ -1,4 +1,5 @@
 const SUBJECT_STORAGE_KEY = "osteps-active-subject-id";
+const SUBJECT_NAME_STORAGE_KEY = "osteps-active-subject-name";
 
 export const getStoredSubjectId = (): number | null => {
   if (typeof window === "undefined") return null;
@@ -11,10 +12,48 @@ export const getStoredSubjectId = (): number | null => {
   }
 };
 
-export const storeSubjectId = (subjectId: number): void => {
+export const getStoredSubjectName = (): string | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(SUBJECT_NAME_STORAGE_KEY);
+    return raw ? raw.trim() : null;
+  } catch {
+    return null;
+  }
+};
+
+const isLegacyIslamiatSubject = (subjectName: string | null): boolean => {
+  if (!subjectName) return false;
+  const normalized = subjectName.trim().toLowerCase();
+  return (
+    normalized.includes("islamiat") ||
+    normalized.includes("islamiyat") ||
+    normalized.includes("islamic")
+  );
+};
+
+export const shouldUseLegacyUnscopedSubjectData = (subjectId?: number | null): boolean => {
+  const activeId = getStoredSubjectId();
+  const resolved = subjectId ?? activeId;
+  if (!resolved || !activeId) return false;
+  if (Number(activeId) !== Number(resolved)) return false;
+  return isLegacyIslamiatSubject(getStoredSubjectName());
+};
+
+export const resolveScopedSubjectId = (subjectId?: number | null): number | null => {
+  const resolved = subjectId ?? getStoredSubjectId();
+  if (!resolved) return null;
+  if (shouldUseLegacyUnscopedSubjectData(resolved)) return null;
+  return resolved;
+};
+
+export const storeSubjectId = (subjectId: number, subjectName?: string | null): void => {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(SUBJECT_STORAGE_KEY, String(subjectId));
+    if (typeof subjectName === "string") {
+      window.localStorage.setItem(SUBJECT_NAME_STORAGE_KEY, subjectName);
+    }
     document.cookie = `osteps_subject_id=${subjectId}; path=/; max-age=${60 * 60 * 24 * 365}`;
   } catch {
     // ignore
@@ -22,7 +61,7 @@ export const storeSubjectId = (subjectId: number): void => {
 };
 
 export const withSubjectQuery = <T extends Record<string, unknown>>(params?: T, subjectId?: number | null): T & { subject_id?: number } => {
-  const resolved = subjectId ?? getStoredSubjectId();
+  const resolved = resolveScopedSubjectId(subjectId);
   if (!resolved) {
     return { ...(params ?? ({} as T)) };
   }
@@ -33,7 +72,7 @@ export const withSubjectQuery = <T extends Record<string, unknown>>(params?: T, 
 };
 
 export const withSubjectPayload = <T extends Record<string, unknown>>(payload: T, subjectId?: number | null): T & { subject_id?: number } => {
-  const resolved = subjectId ?? getStoredSubjectId();
+  const resolved = resolveScopedSubjectId(subjectId);
   if (!resolved) return payload;
   return {
     ...payload,
@@ -41,4 +80,4 @@ export const withSubjectPayload = <T extends Record<string, unknown>>(payload: T
   };
 };
 
-export { SUBJECT_STORAGE_KEY };
+export { SUBJECT_STORAGE_KEY, SUBJECT_NAME_STORAGE_KEY };

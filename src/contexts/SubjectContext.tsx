@@ -69,7 +69,9 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
 
         setActiveSubjectIdState(candidate);
         if (candidate) {
-          storeSubjectId(candidate);
+          const candidateSubject =
+            available.find((subject) => subject.id === candidate) ?? null;
+          storeSubjectId(candidate, candidateSubject?.name ?? null);
           void setLastSubject(candidate);
         }
       } catch {
@@ -97,7 +99,8 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
       const fallback = subjects[0]?.id;
       if (fallback) {
         setActiveSubjectIdState(fallback);
-        storeSubjectId(fallback);
+        const fallbackSubject = subjects.find((subject) => subject.id === fallback) ?? null;
+        storeSubjectId(fallback, fallbackSubject?.name ?? null);
         void setLastSubject(fallback);
         router.replace(toSubjectScopedPath("/dashboard", fallback));
       } else {
@@ -117,7 +120,8 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
     if (!exists) return;
 
     setActiveSubjectIdState(subjectId);
-    storeSubjectId(subjectId);
+    const selectedSubject = subjects.find((subject) => subject.id === subjectId) ?? null;
+    storeSubjectId(subjectId, selectedSubject?.name ?? null);
     void setLastSubject(subjectId);
 
     if (options?.navigate !== false) {

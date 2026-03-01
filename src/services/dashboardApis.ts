@@ -1,7 +1,7 @@
 // src/services/dashboardApis.ts
 import { API_BASE_URL } from '@/lib/config';
 import { store } from '@/store/store';
-import { getStoredSubjectId } from '@/lib/subjectScope';
+import { resolveScopedSubjectId } from '@/lib/subjectScope';
 
 interface SchoolData {
   id: number;
@@ -29,7 +29,7 @@ const getAuthHeader = (): Record<string, string> => {
 };
 
 const withSubjectSearch = (path: string): string => {
-  const subjectId = getStoredSubjectId();
+  const subjectId = resolveScopedSubjectId();
   if (!subjectId) return path;
   const separator = path.includes("?") ? "&" : "?";
   return `${path}${separator}subject_id=${subjectId}`;

@@ -3,6 +3,7 @@ import axios from 'axios';
 import { API_BASE_URL } from '@/lib/config';
 import { getStoredSubjectId } from '@/lib/subjectScope';
 import { withSubjectQuery } from '@/lib/subjectScope';
+import { shouldUseLegacyUnscopedSubjectData } from '@/lib/subjectScope';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -50,7 +51,8 @@ api.interceptors.request.use(async (config) => {
   if (isScoped) {
     const existing = (config.params as any)?.subject_id;
     const subjectId = existing ?? getStoredSubjectId();
-    if (subjectId && Number(subjectId) > 0) {
+    const legacyUnscoped = shouldUseLegacyUnscopedSubjectData(subjectId ? Number(subjectId) : null);
+    if (subjectId && Number(subjectId) > 0 && !legacyUnscoped) {
       config.params = { ...(config.params || {}), subject_id: Number(subjectId) };
     }
   }
