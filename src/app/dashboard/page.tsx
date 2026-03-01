@@ -45,6 +45,7 @@ import { IMG_BASE_URL } from "@/lib/config";
 import { useRouter } from "next/navigation";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import { fetchStaffSubjectAssignments, fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
+import { shouldUseLegacyUnscopedSubjectData } from "@/lib/subjectScope";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +61,12 @@ export default function DashboardPage() {
   const isSCHOOL_ADMIN = currentUser?.role === "SCHOOL_ADMIN";
   const isTEACHER = currentUser?.role === "TEACHER";
   const isHOD = currentUser?.role === "HOD";
+  const isLegacySubjectView =
+    canUseSubjectContext &&
+    !!activeSubjectId &&
+    shouldUseLegacyUnscopedSubjectData(activeSubjectId);
+  const isSubjectWorkspaceMode =
+    canUseSubjectContext && !!activeSubjectId && !isLegacySubjectView;
   const router = useRouter();
 
   const [students, setStudents] = useState<any[]>([]);
@@ -180,7 +187,7 @@ export default function DashboardPage() {
     },
     enabled:
       !!activeSubjectId &&
-      canUseSubjectContext &&
+      isSubjectWorkspaceMode &&
       (currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "HOD" || currentUser?.role === "TEACHER"),
     retry: false,
   });
@@ -294,7 +301,7 @@ export default function DashboardPage() {
           barChartTitle: "Admins per School",
         };
       case "SCHOOL_ADMIN":
-        if (activeSubjectId && canUseSubjectContext) {
+        if (isSubjectWorkspaceMode) {
           return {
             stats: [
               {
@@ -359,7 +366,7 @@ export default function DashboardPage() {
           barChartTitle: "Students per Grade",
         };
       case "TEACHER":
-        if (activeSubjectId && canUseSubjectContext) {
+        if (isSubjectWorkspaceMode) {
           return {
             stats: [
               {
@@ -414,7 +421,7 @@ export default function DashboardPage() {
           barChartTitle: "Students per Class",
         };
       case "HOD":
-        if (activeSubjectId && canUseSubjectContext) {
+        if (isSubjectWorkspaceMode) {
           return {
             stats: [
               {
@@ -617,7 +624,7 @@ export default function DashboardPage() {
 
   return (
     <div className="premium-page p-3 md:p-6 space-y-6 min-h-screen !font-[Raleway]">
-      {canUseSubjectContext && activeSubjectId && subjectScopedOverviewError && (
+      {isSubjectWorkspaceMode && subjectScopedOverviewError && (
         <Alert
           type="warning"
           showIcon
