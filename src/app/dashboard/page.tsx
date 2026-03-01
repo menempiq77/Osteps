@@ -294,22 +294,22 @@ export default function DashboardPage() {
           barChartTitle: "Admins per School",
         };
       case "SCHOOL_ADMIN":
-        if (subjectScopedOverview) {
+        if (activeSubjectId && canUseSubjectContext) {
           return {
             stats: [
               {
                 title: "Subject Classes",
-                value: subjectScopedOverview.classCount,
+                value: subjectScopedOverview?.classCount || 0,
                 link: "/dashboard/subject-classes",
               },
               {
                 title: "Subject Teachers",
-                value: subjectScopedOverview.teacherCount,
+                value: subjectScopedOverview?.teacherCount || 0,
                 link: "/dashboard/subject-staff",
               },
               {
                 title: "Subject HODs",
-                value: subjectScopedOverview.hodCount,
+                value: subjectScopedOverview?.hodCount || 0,
                 link: "/dashboard/subject-staff",
               },
             ],
@@ -359,17 +359,17 @@ export default function DashboardPage() {
           barChartTitle: "Students per Grade",
         };
       case "TEACHER":
-        if (subjectScopedOverview) {
+        if (activeSubjectId && canUseSubjectContext) {
           return {
             stats: [
               {
                 title: "Subject Classes",
-                value: subjectScopedOverview.classCount,
+                value: subjectScopedOverview?.classCount || 0,
                 link: "/dashboard/subject-classes",
               },
               {
                 title: "Subject Teachers",
-                value: subjectScopedOverview.teacherCount,
+                value: subjectScopedOverview?.teacherCount || 0,
                 link: "/dashboard/subject-staff",
               },
             ],
@@ -414,22 +414,22 @@ export default function DashboardPage() {
           barChartTitle: "Students per Class",
         };
       case "HOD":
-        if (subjectScopedOverview) {
+        if (activeSubjectId && canUseSubjectContext) {
           return {
             stats: [
               {
                 title: "Subject Classes",
-                value: subjectScopedOverview.classCount,
+                value: subjectScopedOverview?.classCount || 0,
                 link: "/dashboard/subject-classes",
               },
               {
                 title: "Subject Teachers",
-                value: subjectScopedOverview.teacherCount,
+                value: subjectScopedOverview?.teacherCount || 0,
                 link: "/dashboard/subject-staff",
               },
               {
                 title: "Subject HODs",
-                value: subjectScopedOverview.hodCount,
+                value: subjectScopedOverview?.hodCount || 0,
                 link: "/dashboard/subject-staff",
               },
             ],
