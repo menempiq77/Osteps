@@ -1,5 +1,5 @@
 "use client";
-import { Card, Statistic, Row, Col, Button, Select, Spin } from "antd";
+import { Alert, Card, Statistic, Row, Col, Button, Select, Spin } from "antd";
 import { useSelector } from "react-redux";
 import {
   BarChart,
@@ -43,6 +43,8 @@ import { fetchStudents } from "@/services/studentsApi";
 import { fetchSchoolLogo } from "@/services/api";
 import { IMG_BASE_URL } from "@/lib/config";
 import { useRouter } from "next/navigation";
+import { useSubjectContext } from "@/contexts/SubjectContext";
+import { fetchStaffSubjectAssignments, fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +55,7 @@ const THEME_COLOR_DARK = "var(--theme-dark)";
 
 export default function DashboardPage() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
+  const { activeSubjectId, activeSubject, canUseSubjectContext } = useSubjectContext();
   const isSUPER_ADMIN = currentUser?.role === "SUPER_ADMIN";
   const isSCHOOL_ADMIN = currentUser?.role === "SCHOOL_ADMIN";
   const isTEACHER = currentUser?.role === "TEACHER";
@@ -140,6 +143,46 @@ export default function DashboardPage() {
   } = useQuery({
     queryKey: ["schoolDashboard"],
     queryFn: fetchSchoolDashboardData,
+  });
+
+  const {
+    data: subjectScopedOverview,
+    error: subjectScopedOverviewError,
+  } = useQuery({
+    queryKey: ["subject-scoped-overview", activeSubjectId],
+    queryFn: async () => {
+      if (!activeSubjectId) return null;
+      const [classes, staffAssignments] = await Promise.all([
+        fetchSubjectClasses({ subject_id: Number(activeSubjectId) }),
+        fetchStaffSubjectAssignments(),
+      ]);
+
+      const classCount = Array.isArray(classes) ? classes.length : 0;
+      const scopedStaff = (Array.isArray(staffAssignments) ? staffAssignments : []).filter(
+        (item: any) => Number(item?.subject_id) === Number(activeSubjectId)
+      );
+      const teacherCount = new Set(
+        scopedStaff
+          .filter((item: any) => String(item?.role_scope || "").toUpperCase() === "TEACHER")
+          .map((item: any) => Number(item?.user_id))
+      ).size;
+      const hodCount = new Set(
+        scopedStaff
+          .filter((item: any) => String(item?.role_scope || "").toUpperCase() === "HOD")
+          .map((item: any) => Number(item?.user_id))
+      ).size;
+
+      return {
+        classCount,
+        teacherCount,
+        hodCount,
+      };
+    },
+    enabled:
+      !!activeSubjectId &&
+      canUseSubjectContext &&
+      (currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "HOD" || currentUser?.role === "TEACHER"),
+    retry: false,
   });
 
   const { data: teacherDerivedCounts } = useQuery({
@@ -251,6 +294,32 @@ export default function DashboardPage() {
           barChartTitle: "Admins per School",
         };
       case "SCHOOL_ADMIN":
+        if (subjectScopedOverview) {
+          return {
+            stats: [
+              {
+                title: "Subject Classes",
+                value: subjectScopedOverview.classCount,
+                link: "/dashboard/subject-classes",
+              },
+              {
+                title: "Subject Teachers",
+                value: subjectScopedOverview.teacherCount,
+                link: "/dashboard/subject-staff",
+              },
+              {
+                title: "Subject HODs",
+                value: subjectScopedOverview.hodCount,
+                link: "/dashboard/subject-staff",
+              },
+            ],
+            barChartData: [],
+            pieChartData: [],
+            barChartKey: "students",
+            pieChartTitle: "Teacher Status",
+            barChartTitle: "Students per Grade",
+          };
+        }
         return {
           stats: [
             {
@@ -290,6 +359,27 @@ export default function DashboardPage() {
           barChartTitle: "Students per Grade",
         };
       case "TEACHER":
+        if (subjectScopedOverview) {
+          return {
+            stats: [
+              {
+                title: "Subject Classes",
+                value: subjectScopedOverview.classCount,
+                link: "/dashboard/subject-classes",
+              },
+              {
+                title: "Subject Teachers",
+                value: subjectScopedOverview.teacherCount,
+                link: "/dashboard/subject-staff",
+              },
+            ],
+            barChartData: [],
+            pieChartData: [],
+            barChartKey: "students",
+            pieChartTitle: "Assignment Status",
+            barChartTitle: "Students per Class",
+          };
+        }
         return {
           stats: [
             {
@@ -324,6 +414,32 @@ export default function DashboardPage() {
           barChartTitle: "Students per Class",
         };
       case "HOD":
+        if (subjectScopedOverview) {
+          return {
+            stats: [
+              {
+                title: "Subject Classes",
+                value: subjectScopedOverview.classCount,
+                link: "/dashboard/subject-classes",
+              },
+              {
+                title: "Subject Teachers",
+                value: subjectScopedOverview.teacherCount,
+                link: "/dashboard/subject-staff",
+              },
+              {
+                title: "Subject HODs",
+                value: subjectScopedOverview.hodCount,
+                link: "/dashboard/subject-staff",
+              },
+            ],
+            barChartData: [],
+            pieChartData: [],
+            barChartKey: "students",
+            pieChartTitle: "Assignment Status",
+            barChartTitle: "Students per Class",
+          };
+        }
         return {
           stats: [
             {
@@ -419,6 +535,15 @@ export default function DashboardPage() {
       "Total Students": (
         <GraduationCap className="h-5 w-5" style={{ color: THEME_COLOR }} />
       ),
+      "Subject Classes": (
+        <LayoutDashboard className="h-5 w-5" style={{ color: THEME_COLOR }} />
+      ),
+      "Subject Teachers": (
+        <Users className="h-5 w-5" style={{ color: THEME_COLOR }} />
+      ),
+      "Subject HODs": (
+        <UserCog className="h-5 w-5" style={{ color: THEME_COLOR }} />
+      ),
     },
     TEACHER: {
       "My Classes": (
@@ -429,6 +554,12 @@ export default function DashboardPage() {
       ),
       "Pending Assignments": (
         <ClipboardList className="h-5 w-5" style={{ color: THEME_COLOR }} />
+      ),
+      "Subject Classes": (
+        <LayoutDashboard className="h-5 w-5" style={{ color: THEME_COLOR }} />
+      ),
+      "Subject Teachers": (
+        <Users className="h-5 w-5" style={{ color: THEME_COLOR }} />
       ),
     },
     HOD: {
@@ -443,6 +574,15 @@ export default function DashboardPage() {
       ),
       "Pending Assignments": (
         <ClipboardList className="h-5 w-5" style={{ color: THEME_COLOR }} />
+      ),
+      "Subject Classes": (
+        <LayoutDashboard className="h-5 w-5" style={{ color: THEME_COLOR }} />
+      ),
+      "Subject Teachers": (
+        <Users className="h-5 w-5" style={{ color: THEME_COLOR }} />
+      ),
+      "Subject HODs": (
+        <UserCog className="h-5 w-5" style={{ color: THEME_COLOR }} />
       ),
     },
     STUDENT: {
@@ -477,6 +617,14 @@ export default function DashboardPage() {
 
   return (
     <div className="premium-page p-3 md:p-6 space-y-6 min-h-screen !font-[Raleway]">
+      {canUseSubjectContext && activeSubjectId && subjectScopedOverviewError && (
+        <Alert
+          type="warning"
+          showIcon
+          message={`Subject workspace data is not isolated yet for ${activeSubject?.name || "this subject"}.`}
+          description="Backend subject-scoped dashboard endpoints are required for full separation."
+        />
+      )}
       <Card
         className="premium-hero border-0 !mb-6"
         style={{
