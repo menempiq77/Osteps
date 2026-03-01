@@ -282,8 +282,8 @@ export default function DashboardPage() {
       case "SUPER_ADMIN":
         return {
           stats: [
-            { title: "Total Schools", value: schools?.length || 0,  link: "dashboard/schools", },
-            { title: "Total Admins", value: superAdmins?.length || 0,  link: "dashboard/admins", },
+            { title: "Total Schools", value: schools?.length || 0,  link: "/dashboard/schools", },
+            { title: "Total Admins", value: superAdmins?.length || 0,  link: "/dashboard/admins", },
           ],
           barChartData: [
             // { name: "School A", admins: 3 },
@@ -332,7 +332,7 @@ export default function DashboardPage() {
             {
               title: "Total Years",
               value: schoolDashboard?.school?.years_count || 0,
-              link: "dashboard/years"
+              link: "/dashboard/years"
             },
             {
               title: "Total Classes",
@@ -342,7 +342,7 @@ export default function DashboardPage() {
             {
               title: "Total Teachers",
               value: schoolDashboard?.school?.teachers_count || 0,
-              link: "dashboard/teachers"
+              link: "/dashboard/teachers"
             },
             {
               title: "Total Students",
@@ -452,7 +452,7 @@ export default function DashboardPage() {
             {
               title: "Total Years",
               value: schoolDashboard?.school?.years_count || 0,
-              link: "dashboard/years"
+              link: "/dashboard/years"
             },
             {
               title: "Total Classes",
@@ -462,7 +462,7 @@ export default function DashboardPage() {
             {
               title: "Total Teachers",
               value: schoolDashboard?.school?.teachers_count || 0,
-               link: "dashboard/teachers"
+               link: "/dashboard/teachers"
             },
             {
               title: "Total Students",
