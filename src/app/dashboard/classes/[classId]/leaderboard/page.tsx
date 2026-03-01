@@ -17,16 +17,22 @@ import { fetchLeaderBoardData } from "@/services/leaderboardApi";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { useSubjectContext } from "@/contexts/SubjectContext";
 
 const { Title, Text } = Typography;
 
 const LeaderBoard = () => {
   const { classId } = useParams();
   const router = useRouter();
+  const { activeSubjectId, canUseSubjectContext } = useSubjectContext();
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["leaderboard", classId],
-    queryFn: () => fetchLeaderBoardData(classId as string),
+    queryKey: ["leaderboard", classId, activeSubjectId],
+    queryFn: () =>
+      fetchLeaderBoardData(
+        classId as string,
+        canUseSubjectContext ? activeSubjectId ?? undefined : undefined
+      ),
     enabled: !!classId,
   });
 

@@ -16,6 +16,7 @@ import { assignAssesmentQuiz, fetchQuizes } from "@/services/quizApi";
 import Link from "next/link";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
+import { useSubjectContext } from "@/contexts/SubjectContext";
 
 interface Assessment {
   id: string;
@@ -42,6 +43,7 @@ export default function Page() {
   );
   const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
   const { currentUser } = useSelector((state: RootState) => state.auth);
+  const { activeSubjectId, canUseSubjectContext } = useSubjectContext();
   const isTeacher = currentUser?.role === "TEACHER";
 
   const schoolId = currentUser?.school;
@@ -59,7 +61,10 @@ export default function Page() {
 
   const loadAssessment = async () => {
     try {
-      const data = await fetchAssessment(currentTermId);
+      const data = await fetchAssessment(
+        currentTermId,
+        canUseSubjectContext ? activeSubjectId ?? undefined : undefined
+      );
       setAssessments(data);
       setLoading(false);
     } catch (err) {
@@ -74,12 +79,15 @@ export default function Page() {
       loadAssessment();
       loadQuizzes(schoolId);
     }
-  }, [currentTermId]);
+  }, [currentTermId, activeSubjectId, canUseSubjectContext]);
 
   const loadQuizzes = async (schoolId: string) => {
     try {
       setLoading(true);
-      const response = await fetchQuizes(schoolId);
+      const response = await fetchQuizes(
+        schoolId,
+        canUseSubjectContext ? activeSubjectId ?? undefined : undefined
+      );
       setQuizzes(response);
     } catch (error) {
       message.error("Failed to load quizzes");

@@ -7,10 +7,12 @@ import {
   fetchAssessment
 } from "@/services/api";
 import { fetchTerm } from "@/services/termsApi";
+import { useSubjectContext } from "@/contexts/SubjectContext";
 
 export default function TermPage() {
   const { classId, studentId } = useParams();
   const router = useRouter();
+  const { activeSubjectId, canUseSubjectContext } = useSubjectContext();
   const [terms, setTerms] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +23,10 @@ export default function TermPage() {
   const loadAssessment = async (termId: number) => {
     try {
       setLoading(true);
-      const data = await fetchAssessment(termId);
+      const data = await fetchAssessment(
+        termId,
+        canUseSubjectContext ? activeSubjectId ?? undefined : undefined
+      );
       console.log(data, "data");
 
       setAssessments(data);
@@ -38,7 +43,7 @@ export default function TermPage() {
     if (selectedTermId !== null) {
       loadAssessment(selectedTermId);
     }
-  }, [selectedTermId]);
+  }, [selectedTermId, activeSubjectId, canUseSubjectContext]);
 
   const loadTerms = async () => {
     try {

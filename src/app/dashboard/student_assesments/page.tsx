@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useSelector } from "react-redux";
 import { useQuery } from "@tanstack/react-query";
 import { RootState } from "@/store/store";
+import { useSubjectContext } from "@/contexts/SubjectContext";
 
 import { fetchAssessment } from "@/services/api";
 import { fetchTerm } from "@/services/termsApi";
@@ -41,6 +42,7 @@ export default function StudentAssessmentPage() {
   const { currentUser } = useSelector((state: RootState) => state.auth) as {
     currentUser: CurrentUser;
   };
+  const { activeSubjectId, canUseSubjectContext } = useSubjectContext();
 
   const isTeacher = currentUser?.role === "TEACHER";
   const schoolId = currentUser?.school;
@@ -135,7 +137,10 @@ export default function StudentAssessmentPage() {
   const loadAssessment = async (termId: number) => {
     try {
       setLoading(true);
-      const data = await fetchAssessment(termId);
+      const data = await fetchAssessment(
+        termId,
+        canUseSubjectContext ? activeSubjectId ?? undefined : undefined
+      );
       setAssessments(data);
       setError(null);
     } catch (err) {
@@ -152,7 +157,7 @@ export default function StudentAssessmentPage() {
     } else {
       setAssessments([]);
     }
-  }, [selectedTermId]);
+  }, [selectedTermId, activeSubjectId, canUseSubjectContext]);
 
   /** ------------------ HANDLERS ------------------ */
   const handleViewTasks = (assessment: any) => {

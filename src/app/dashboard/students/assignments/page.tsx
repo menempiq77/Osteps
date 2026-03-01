@@ -8,12 +8,14 @@ import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { fetchTerm } from "@/services/termsApi";
 import Link from "next/link";
+import { useSubjectContext } from "@/contexts/SubjectContext";
 
 export default function AssignmentsPage() {
   const [selectedTerm, setSelectedTerm] = useState<string>("");
   const [selectedTermId, setSelectedTermId] = useState<number | null>(null);
   const router = useRouter();
   const { currentUser } = useSelector((state: RootState) => state.auth);
+  const { activeSubjectId, canUseSubjectContext } = useSubjectContext();
   const [terms, setTerms] = useState<any[]>([]);
   const [assessments, setAssessments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,7 +42,10 @@ export default function AssignmentsPage() {
   const loadAssessment = async (termId: number) => {
     try {
       setLoading(true);
-      const data = await fetchAssessmentByStudent(termId);
+      const data = await fetchAssessmentByStudent(
+        termId,
+        canUseSubjectContext ? activeSubjectId ?? undefined : undefined
+      );
       const sortedAssessments = data.sort((a, b) => a.position - b.position);
       setAssessments(sortedAssessments);
       setError(null);
@@ -60,7 +65,7 @@ export default function AssignmentsPage() {
     if (selectedTermId !== null) {
       loadAssessment(selectedTermId);
     }
-  }, [selectedTermId]);
+  }, [selectedTermId, activeSubjectId, canUseSubjectContext]);
 
   
   const handleTermChange = (termName: string) => {

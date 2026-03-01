@@ -24,6 +24,7 @@ import {
 import { assignTrackerQuiz, fetchQuizes } from "@/services/quizApi";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSubjectContext } from "@/contexts/SubjectContext";
 
 interface Topic {
   id: number;
@@ -82,6 +83,7 @@ export default function TrackerTopicsPage() {
   ]);
   const [isAddingTopic, setIsAddingTopic] = useState(false);
   const { currentUser } = useSelector((state: RootState) => state.auth);
+  const { activeSubjectId, canUseSubjectContext } = useSubjectContext();
   const [loading, setLoading] = useState(false);
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [isAddingQuiz, setIsAddingQuiz] = useState(false);
@@ -98,7 +100,7 @@ export default function TrackerTopicsPage() {
 
   useEffect(() => {
     loadQuizzes(schoolId);
-  }, [trackerId]);
+  }, [trackerId, schoolId, activeSubjectId, canUseSubjectContext]);
 
   const queryClient = useQueryClient();
 
@@ -114,7 +116,10 @@ export default function TrackerTopicsPage() {
   const loadQuizzes = async (schoolId: string) => {
     try {
       setLoading(true);
-      const response = await fetchQuizes(schoolId);
+      const response = await fetchQuizes(
+        schoolId,
+        canUseSubjectContext ? activeSubjectId ?? undefined : undefined
+      );
       setQuizzes(response);
     } catch (error) {
       console.error("Failed to load quizzes", error);
