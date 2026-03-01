@@ -7,7 +7,7 @@ import { RootState } from "@/store/store";
 import { fetchMySubjectContext, setLastSubject } from "@/services/subjectContextApi";
 import type { SubjectBrief } from "@/types/subjectContext";
 import { extractSubjectIdFromPath, isSubjectScopedPath, toSubjectScopedPath } from "@/lib/subjectRouting";
-import { getStoredSubjectId, storeSubjectId } from "@/lib/subjectScope";
+import { getStoredSubjectId, isSubjectContextEnabled, storeSubjectId } from "@/lib/subjectScope";
 
 type SubjectContextValue = {
   subjects: SubjectBrief[];
@@ -36,7 +36,7 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
   const [loading, setLoading] = useState(true);
 
   const role = currentUser?.role;
-  const canUseSubjectContext = isRoleEligible(role);
+  const canUseSubjectContext = isSubjectContextEnabled() && isRoleEligible(role);
 
   useEffect(() => {
     let mounted = true;

@@ -1,5 +1,8 @@
 const SUBJECT_STORAGE_KEY = "osteps-active-subject-id";
 const SUBJECT_NAME_STORAGE_KEY = "osteps-active-subject-name";
+const SUBJECT_CONTEXT_FLAG = process.env.NEXT_PUBLIC_SUBJECT_CONTEXT_ENABLED === "true";
+
+export const isSubjectContextEnabled = (): boolean => SUBJECT_CONTEXT_FLAG;
 
 export const getStoredSubjectId = (): number | null => {
   if (typeof window === "undefined") return null;
@@ -33,6 +36,7 @@ const isLegacyIslamiatSubject = (subjectName: string | null): boolean => {
 };
 
 export const shouldUseLegacyUnscopedSubjectData = (subjectId?: number | null): boolean => {
+  if (!isSubjectContextEnabled()) return true;
   const activeId = getStoredSubjectId();
   const resolved = subjectId ?? activeId;
   if (!resolved || !activeId) return false;
@@ -41,6 +45,7 @@ export const shouldUseLegacyUnscopedSubjectData = (subjectId?: number | null): b
 };
 
 export const resolveScopedSubjectId = (subjectId?: number | null): number | null => {
+  if (!isSubjectContextEnabled()) return null;
   const resolved = subjectId ?? getStoredSubjectId();
   if (!resolved) return null;
   if (shouldUseLegacyUnscopedSubjectData(resolved)) return null;

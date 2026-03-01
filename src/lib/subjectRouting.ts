@@ -19,6 +19,8 @@ const SUBJECT_SCOPED_PREFIXES = [
   "/dashboard/subject-staff",
 ];
 
+const SUBJECT_CONTEXT_ENABLED = process.env.NEXT_PUBLIC_SUBJECT_CONTEXT_ENABLED === "true";
+
 const SHARED_PREFIXES = [
   "/dashboard/library",
   "/dashboard/time_table",
@@ -46,6 +48,7 @@ export const isSharedPath = (path: string): boolean => {
 };
 
 export const isSubjectScopedPath = (path: string): boolean => {
+  if (!SUBJECT_CONTEXT_ENABLED) return false;
   const normalized = normalize(path);
   if (normalized.startsWith("/dashboard/s/")) return false;
   if (isSharedPath(normalized)) return false;
@@ -54,6 +57,7 @@ export const isSubjectScopedPath = (path: string): boolean => {
 
 export const toSubjectScopedPath = (path: string, subjectId: number): string => {
   const normalized = normalize(path);
+  if (!SUBJECT_CONTEXT_ENABLED) return stripSubjectScope(normalized);
   if (normalized.startsWith("/dashboard/s/")) return normalized;
   if (!isSubjectScopedPath(normalized)) return normalized;
   const suffix = normalized.replace("/dashboard", "") || "";

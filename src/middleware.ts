@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+const SUBJECT_CONTEXT_ENABLED = process.env.NEXT_PUBLIC_SUBJECT_CONTEXT_ENABLED === "true";
+
 const SUBJECT_SCOPED_PREFIXES = [
   "/dashboard",
   "/dashboard/manager",
@@ -47,6 +49,17 @@ export function middleware(req: NextRequest) {
   const { pathname } = url;
 
   if (!pathname.startsWith("/dashboard")) {
+    return NextResponse.next();
+  }
+
+  if (!SUBJECT_CONTEXT_ENABLED) {
+    if (pathname.startsWith("/dashboard/s/")) {
+      const suffix = pathname.replace(/^\/dashboard\/s\/\d+/, "") || "";
+      const redirectUrl = req.nextUrl.clone();
+      redirectUrl.pathname = `/dashboard${suffix}`;
+      redirectUrl.searchParams.delete("subject_id");
+      return NextResponse.redirect(redirectUrl);
+    }
     return NextResponse.next();
   }
 
