@@ -2,6 +2,7 @@
 import axios from "axios";
 import { store } from "@/store/store";
 import { API_BASE_URL } from "@/lib/config";
+import { withSubjectPayload, withSubjectQuery } from "@/lib/subjectScope";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -17,15 +18,19 @@ api.interceptors.request.use((config) => {
 });
 
 // fetch all trackers
-export const fetchAllTrackers = async (schoolId: number) => {
-  const response = await api.get(`/get-school-trackers/${schoolId}`);
+export const fetchAllTrackers = async (schoolId: number, subjectId?: number) => {
+  const response = await api.get(`/get-school-trackers/${schoolId}`, {
+    params: withSubjectQuery({}, subjectId),
+  });
   return response.data.data;
 };
 
 
 // fetch trackers
-export const fetchTrackers = async (classId: number) => {
-  const response = await api.get(`/get-trackers/${classId}`);
+export const fetchTrackers = async (classId: number, subjectId?: number) => {
+  const response = await api.get(`/get-trackers/${classId}`, {
+    params: withSubjectQuery({}, subjectId),
+  });
   return response.data.data;
 };
 
@@ -37,8 +42,8 @@ export const addTracker = async (trackerData: {
   progress: string[];
   claim_certificate: boolean;
   deadline?: string | null;
-}) => {
-  const response = await api.post("/add-trackers", trackerData);
+}, subjectId?: number) => {
+  const response = await api.post("/add-trackers", withSubjectPayload(trackerData, subjectId));
   return response.data;
 };
 // update tracker
@@ -50,9 +55,10 @@ export const updateTracker = async (
     type: string;
     progress: string[];
     deadline?: string | null;
-  }
+  },
+  subjectId?: number
 ) => {
-  const response = await api.post(`/update-trackers/${id}`, trackerData);
+  const response = await api.post(`/update-trackers/${id}`, withSubjectPayload(trackerData, subjectId));
   return response.data;
 };
 // Delete tracker
@@ -62,38 +68,44 @@ export const deleteTracker = async (id: number) => {
 };
 
 // assign tracker to class
-export const assignTrackerToClass = async (trackerId: number, classId: number) => {
-  const response = await api.post(`/assign-tracker-class`, {
+export const assignTrackerToClass = async (trackerId: number, classId: number, subjectId?: number) => {
+  const response = await api.post(`/assign-tracker-class`, withSubjectPayload({
     tracker_id: trackerId,
     class_id: classId,
-  });
+  }, subjectId));
   return response.data;
 };
 
 // unassign tracker from class
-export const unassignTrackerFromClass = async (trackerId: number, classId: number) => {
-  const response = await api.post(`/unassign-tracker-class`, {
+export const unassignTrackerFromClass = async (trackerId: number, classId: number, subjectId?: number) => {
+  const response = await api.post(`/unassign-tracker-class`, withSubjectPayload({
     tracker_id: trackerId,
     class_id: classId,
-  });
+  }, subjectId));
   return response.data;
 };
 
 // Fetch Tracker approval requests
-export const fetchTrackerRequests = async () => {
-  const response = await api.get('/fetch-tracker-requests');
+export const fetchTrackerRequests = async (subjectId?: number) => {
+  const response = await api.get('/fetch-tracker-requests', {
+    params: withSubjectQuery({}, subjectId),
+  });
   return response.data.data;
 };
 
 // Approve Tracker request
-export const approveTrackerRequest = async (id: number) => {
-  const response = await api.get(`/accept-tracker/${id}`);
+export const approveTrackerRequest = async (id: number, subjectId?: number) => {
+  const response = await api.get(`/accept-tracker/${id}`, {
+    params: withSubjectQuery({}, subjectId),
+  });
   return response.data;
 };
 
 // Reject Tracker request
-export const rejectTrackerRequest = async (id: number) => {
-  const response = await api.get(`/reject-tracker/${id}`);
+export const rejectTrackerRequest = async (id: number, subjectId?: number) => {
+  const response = await api.get(`/reject-tracker/${id}`, {
+    params: withSubjectQuery({}, subjectId),
+  });
   return response.data;
 };
 

@@ -3,6 +3,8 @@
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import Sidebar from "@/components/ui/Sidebar";
+import SubjectSwitcher from "@/components/ui/SubjectSwitcher";
+import { SubjectContextProvider } from "@/contexts/SubjectContext";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -104,7 +106,10 @@ export default function DashboardLayout({
   };
 
   const breadcrumbItems = useMemo(() => {
-    const segments = pathname.split("/").filter(Boolean);
+    let segments = pathname.split("/").filter(Boolean);
+    if (segments[0] === "dashboard" && segments[1] === "s" && /^\d+$/.test(segments[2] || "")) {
+      segments = ["dashboard", ...segments.slice(3)];
+    }
     const items: Array<{ label: string; href: string }> = [];
 
     if (!segments.length) return items;
@@ -167,85 +172,88 @@ export default function DashboardLayout({
   const shouldApplyMaxWidth = !pathname.startsWith("/dashboard/students/reports");
 
   return (
-    <div className="dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] flex">
-      <Sidebar />
+    <SubjectContextProvider>
+      <div className="dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] flex">
+        <Sidebar />
 
-      <div className="flex-1 h-screen overflow-y-auto relative">
-        <div
-          className={`dashboard-route-overlay ${
-            isRouteTransitioning ? "dashboard-route-overlay-active" : ""
-          }`}
-        />
-        <div
-          className={`mx-auto ${shouldApplyMaxWidth ? "max-w-7xl p-3 md:p-6" : ""}`}
-        >
-          <div className="mb-4 rounded-xl border border-[var(--theme-border)] bg-white px-3 py-2 md:px-4 md:py-3">
-            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-              <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500">
-                {breadcrumbItems.map((item, index) => {
-                  const isLast = index === breadcrumbItems.length - 1;
-                  return (
-                    <div key={item.href} className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => router.push(item.href)}
-                        disabled={isLast}
-                        className={`transition-colors ${
-                          isLast
-                            ? "cursor-default font-medium text-gray-800"
-                            : "text-gray-500 hover:text-[var(--theme-dark)]"
-                        }`}
-                      >
-                        {item.label}
-                      </button>
-                      {!isLast && <span className="text-gray-300">/</span>}
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1 rounded-lg border border-[var(--theme-border)] bg-[var(--theme-soft)] px-2 py-1">
-                  {(Object.keys(THEMES) as ThemeName[]).map((name) => (
-                    <button
-                      key={name}
-                      type="button"
-                      title={THEMES[name].label}
-                      onClick={() => handleThemeChange(name)}
-                      className={`h-5 w-5 rounded-full border transition ${
-                        themeName === name
-                          ? "scale-110 ring-2 ring-offset-1 ring-[var(--theme-border)]"
-                          : "opacity-80 hover:opacity-100"
-                      }`}
-                      style={{ backgroundColor: THEMES[name].primary }}
-                    />
-                  ))}
+        <div className="flex-1 h-screen overflow-y-auto relative">
+          <div
+            className={`dashboard-route-overlay ${
+              isRouteTransitioning ? "dashboard-route-overlay-active" : ""
+            }`}
+          />
+          <div
+            className={`mx-auto ${shouldApplyMaxWidth ? "max-w-7xl p-3 md:p-6" : ""}`}
+          >
+            <div className="mb-4 rounded-xl border border-[var(--theme-border)] bg-white px-3 py-2 md:px-4 md:py-3">
+              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500">
+                  {breadcrumbItems.map((item, index) => {
+                    const isLast = index === breadcrumbItems.length - 1;
+                    return (
+                      <div key={item.href} className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => router.push(item.href)}
+                          disabled={isLast}
+                          className={`transition-colors ${
+                            isLast
+                              ? "cursor-default font-medium text-gray-800"
+                              : "text-gray-500 hover:text-[var(--theme-dark)]"
+                          }`}
+                        >
+                          {item.label}
+                        </button>
+                        {!isLast && <span className="text-gray-300">/</span>}
+                      </div>
+                    );
+                  })}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => window.history.back()}
-                  className="rounded-lg border border-[var(--theme-border)] bg-[var(--theme-soft)] px-3 py-1.5 text-sm font-medium text-[var(--theme-dark)] transition hover:bg-[var(--theme-soft-2)]"
-                >
-                  Back
-                </button>
-                <button
-                  type="button"
-                  onClick={() => window.history.forward()}
-                  className="rounded-lg border border-[var(--theme-border)] bg-[var(--theme-soft)] px-3 py-1.5 text-sm font-medium text-[var(--theme-dark)] transition hover:bg-[var(--theme-soft-2)]"
-                >
-                  Next
-                </button>
+
+                <div className="flex items-center gap-2">
+                  <SubjectSwitcher />
+                  <div className="flex items-center gap-1 rounded-lg border border-[var(--theme-border)] bg-[var(--theme-soft)] px-2 py-1">
+                    {(Object.keys(THEMES) as ThemeName[]).map((name) => (
+                      <button
+                        key={name}
+                        type="button"
+                        title={THEMES[name].label}
+                        onClick={() => handleThemeChange(name)}
+                        className={`h-5 w-5 rounded-full border transition ${
+                          themeName === name
+                            ? "scale-110 ring-2 ring-offset-1 ring-[var(--theme-border)]"
+                            : "opacity-80 hover:opacity-100"
+                        }`}
+                        style={{ backgroundColor: THEMES[name].primary }}
+                      />
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => window.history.back()}
+                    className="rounded-lg border border-[var(--theme-border)] bg-[var(--theme-soft)] px-3 py-1.5 text-sm font-medium text-[var(--theme-dark)] transition hover:bg-[var(--theme-soft-2)]"
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => window.history.forward()}
+                    className="rounded-lg border border-[var(--theme-border)] bg-[var(--theme-soft)] px-3 py-1.5 text-sm font-medium text-[var(--theme-dark)] transition hover:bg-[var(--theme-soft-2)]"
+                  >
+                    Next
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div
-            key={pathname}
-            className={`dashboard-route-transition ${
-              isRouteTransitioning ? "dashboard-route-transition-active" : ""
-            }`}
-          >
-            {children}
+            <div
+              key={pathname}
+              className={`dashboard-route-transition ${
+                isRouteTransitioning ? "dashboard-route-transition-active" : ""
+              }`}
+            >
+              {children}
+            </div>
           </div>
         </div>
       </div>
@@ -319,6 +327,6 @@ export default function DashboardLayout({
           }
         }
       `}</style>
-    </div>
+    </SubjectContextProvider>
   );
 }

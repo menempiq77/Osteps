@@ -56,7 +56,20 @@ const authSlice = createSlice({
       })
       .addCase(login.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        const { id, email, role, token, name, school, student, profile_path, contact } = action.payload;
+        const {
+          id,
+          email,
+          role,
+          token,
+          name,
+          school,
+          student,
+          profile_path,
+          contact,
+          assigned_subjects,
+          default_subject_id,
+          subject_roles,
+        } = action.payload;
 
          const processedProfilePath = profile_path && 
                              profile_path !== 'https://dashboard.osteps.com/storage' 
@@ -74,6 +87,12 @@ const authSlice = createSlice({
           studentYearName: student?.class?.year?.name,
           profile_path: processedProfilePath,
           contact: school?.contact,
+          assigned_subjects: Array.isArray(assigned_subjects) ? assigned_subjects : [],
+          default_subject_id:
+            typeof default_subject_id === "number" && Number.isFinite(default_subject_id)
+              ? default_subject_id
+              : null,
+          subject_roles: Array.isArray(subject_roles) ? subject_roles : [],
           token,
           name,
         };

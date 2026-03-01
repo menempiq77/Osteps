@@ -1,6 +1,7 @@
 // src/services/dashboardApis.ts
 import { API_BASE_URL } from '@/lib/config';
 import { store } from '@/store/store';
+import { getStoredSubjectId } from '@/lib/subjectScope';
 
 interface SchoolData {
   id: number;
@@ -27,8 +28,15 @@ const getAuthHeader = (): Record<string, string> => {
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
+const withSubjectSearch = (path: string): string => {
+  const subjectId = getStoredSubjectId();
+  if (!subjectId) return path;
+  const separator = path.includes("?") ? "&" : "?";
+  return `${path}${separator}subject_id=${subjectId}`;
+};
+
 export const fetchSchoolDashboardData = async (): Promise<SchoolDashboardResponse> => {
-  const response = await fetch(`${API_BASE_URL}/school/dashboard`, {
+  const response = await fetch(`${API_BASE_URL}${withSubjectSearch('/school/dashboard')}`, {
     headers: getAuthHeader(),
   });
   if (!response.ok) throw new Error('Failed to fetch school dashboard data');
@@ -36,7 +44,7 @@ export const fetchSchoolDashboardData = async (): Promise<SchoolDashboardRespons
 };
 
 export const fetchStudentDashboardData = async () => {
-  const response = await fetch(`${API_BASE_URL}/dashboard-student-assessment`, {
+  const response = await fetch(`${API_BASE_URL}${withSubjectSearch('/dashboard-student-assessment')}`, {
     headers: getAuthHeader(),
   });
   if (!response.ok) throw new Error('Failed to fetch student dashboard assessment data');
@@ -46,7 +54,7 @@ export const fetchStudentDashboardData = async () => {
 export const searchStudentProfile = async (
   name: string
 ): Promise<SearchStudentResponse> => {
-  const response = await fetch(`${API_BASE_URL}/search-studentProfile`, {
+  const response = await fetch(`${API_BASE_URL}${withSubjectSearch('/search-studentProfile')}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

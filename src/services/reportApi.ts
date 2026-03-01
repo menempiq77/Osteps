@@ -2,6 +2,7 @@
 import axios from 'axios';
 import { store } from '@/store/store';
 import { API_BASE_URL } from '@/lib/config';
+import { withSubjectQuery } from '@/lib/subjectScope';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -35,14 +36,18 @@ export const fetchAllYearClasses = async () => {
 };
 
 //whole-assessments report api
-export const fetchWholeAssessmentsReport = async (schoolId: string) => {
-  const response = await api.get(`/get-whole-assessments-report/${schoolId}`);
+export const fetchWholeAssessmentsReport = async (schoolId: string, subjectId?: number) => {
+  const response = await api.get(`/get-whole-assessments-report/${schoolId}`, {
+    params: withSubjectQuery({}, subjectId),
+  });
   return response?.data?.data ?? response?.data?.report ?? response?.data ?? [];
 };
 
 // whole-assessments report for current user's school (school is resolved by backend auth)
-export const fetchWholeAssessmentsReportForMySchool = async () => {
-  const response = await api.get(`/schoolget-whole-assessments-report`);
+export const fetchWholeAssessmentsReportForMySchool = async (subjectId?: number) => {
+  const response = await api.get(`/schoolget-whole-assessments-report`, {
+    params: withSubjectQuery({}, subjectId),
+  });
   return response?.data?.data ?? response?.data?.report ?? response?.data ?? [];
 };
 

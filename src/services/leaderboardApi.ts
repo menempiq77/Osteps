@@ -1,4 +1,5 @@
 import api from "@/services/api";
+import { withSubjectQuery } from "@/lib/subjectScope";
 
 interface LeaderboardEntry {
   student_id: number;
@@ -54,13 +55,16 @@ const normalizePayload = (payload: any): LeaderboardResponse => {
 
 const fetchWithFallback = async (
   paths: string[],
-  errorLabel: string
+  errorLabel: string,
+  subjectId?: number
 ): Promise<LeaderboardResponse> => {
   const errors: string[] = [];
 
   for (const path of paths) {
     try {
-      const res = await api.get(path);
+      const res = await api.get(path, {
+        params: withSubjectQuery({}, subjectId),
+      });
       return normalizePayload(res.data);
     } catch (error: any) {
       const status = error?.response?.status;
@@ -77,12 +81,14 @@ const fetchWithFallback = async (
 };
 
 export const fetchLeaderBoardData = async (
-  classId: string | number
+  classId: string | number,
+  subjectId?: number
 ): Promise<LeaderboardResponse> => {
   const id = String(classId);
   const primary = await fetchWithFallback(
     [`/get-student-scores/${id}`],
-    "Failed to fetch leader Board Scores"
+    "Failed to fetch leader Board Scores",
+    subjectId
   );
 
   if ((primary?.data ?? []).length > 0) {
@@ -92,7 +98,9 @@ export const fetchLeaderBoardData = async (
   // Fallback for backends where class leaderboard endpoint is empty:
   // build a ranking from class students' current points.
   try {
-    const res = await api.get(`/get-student/${id}`);
+    const res = await api.get(`/get-student/${id}`, {
+      params: withSubjectQuery({}, subjectId),
+    });
     const students = Array.isArray(res?.data?.data) ? res.data.data : [];
     const mapped = students
       .map((student: any) => {
@@ -130,25 +138,29 @@ export const fetchLeaderBoardData = async (
 };
 
 export const fetchSchoolLeaderBoardData = async (
-  schoolId: string | number
+  schoolId: string | number,
+  subjectId?: number
 ): Promise<LeaderboardResponse> => {
   return fetchWithFallback(
     ["/leaderboard/school-self"],
-    "Failed to fetch school leaderboard"
+    "Failed to fetch school leaderboard",
+    subjectId
   );
 };
 
 export const fetchSchoolSelfLeaderBoardData =
-  async (): Promise<LeaderboardResponse> => {
+  async (subjectId?: number): Promise<LeaderboardResponse> => {
     return fetchWithFallback(
       ["/leaderboard/school-self"],
-      "Failed to fetch school self leaderboard"
+      "Failed to fetch school self leaderboard",
+      subjectId
     );
   };
 
 export const fetchYearLeaderBoardData = async (
-  yearId: string | number
+  yearId: string | number,
+  subjectId?: number
 ): Promise<LeaderboardResponse> => {
   const id = String(yearId);
-  return fetchWithFallback([`/leaderboard/year/${id}`], "Failed to fetch year leaderboard");
+  return fetchWithFallback([`/leaderboard/year/${id}`], "Failed to fetch year leaderboard", subjectId);
 };

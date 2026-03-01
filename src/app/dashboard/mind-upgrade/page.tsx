@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BookOpen, ScrollText, Lock, CalendarClock } from "lucide-react";
 import { Button, Card, Drawer, Input, Select, Space, Typography, message } from "antd";
 import { RootState } from "@/store/store";
+import { useSubjectContext } from "@/contexts/SubjectContext";
 import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
 import { fetchClasses } from "@/services/classesApi";
 import { fetchStudents } from "@/services/studentsApi";
@@ -58,6 +59,7 @@ function assignmentStatusLabel(status?: string) {
 
 export default function MindUpgradePage() {
   const queryClient = useQueryClient();
+  const { canUseSubjectContext, activeSubject } = useSubjectContext();
   const { currentUser } = useSelector((state: RootState) => state.auth) as {
     currentUser: CurrentUser;
   };
@@ -65,6 +67,8 @@ export default function MindUpgradePage() {
   const roleKey = (currentUser?.role ?? "").trim().toUpperCase().replace(/\s+/g, "_");
   const isStudent = roleKey === "STUDENT";
   const canAssign = roleKey === "SCHOOL_ADMIN" || roleKey === "HOD" || roleKey === "TEACHER";
+  const isMindEnabledForSubject =
+    !canUseSubjectContext || !activeSubject || /islam|islamiat|islamic/i.test(activeSubject.name);
   const schoolId = resolveSchoolId(currentUser);
   const [assignDrawerOpen, setAssignDrawerOpen] = useState(false);
   const [selectedCourseKeys, setSelectedCourseKeys] = useState<string[]>(["aqeedah"]);
@@ -84,9 +88,10 @@ export default function MindUpgradePage() {
   });
 
   const catalog = useMemo(() => {
+    if (!isMindEnabledForSubject) return [];
     if (Array.isArray(catalogData) && catalogData.length > 0) return catalogData;
     return fallbackMindCatalog;
-  }, [catalogData]);
+  }, [catalogData, isMindEnabledForSubject]);
 
   const { data: studentAssignments = [], isError: studentAssignmentsError } = useQuery({
     queryKey: ["mind-upgrade-student-assignments"],
@@ -301,6 +306,11 @@ export default function MindUpgradePage() {
           ) : null}
         </Card>
 
+        {!isMindEnabledForSubject ? (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm font-semibold text-amber-800">
+            Mind-upgrade is currently enabled only for Islamiat subject context.
+          </div>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {visibleCatalog.map((course) => {
             const status = assignmentMap.get(course.course_key);
@@ -370,6 +380,7 @@ export default function MindUpgradePage() {
             </div>
           ) : null}
         </div>
+        )}
       </div>
 
       <Drawer

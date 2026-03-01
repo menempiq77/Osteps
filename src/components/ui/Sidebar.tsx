@@ -32,6 +32,8 @@ import useMediaQuery from "@/hooks/useMediaQuery";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchUnseenAnnouncementCount } from "@/services/announcementApi";
 import { fetchUnreadCount, markAllNotificationsAsRead } from "@/services/notificationsApi";
+import { useSubjectContext } from "@/contexts/SubjectContext";
+import { isSharedPath } from "@/lib/subjectRouting";
 
 const Sidebar = () => {
   const pathname = usePathname();
@@ -42,6 +44,11 @@ const Sidebar = () => {
   const [isOpen, setIsOpen] = useState(!isMobile);
   const [orderedItems, setOrderedItems] = useState<any[]>([]);
   const [draggingItemName, setDraggingItemName] = useState<string | null>(null);
+  const { toSubjectHref, canUseSubjectContext, activeSubjectId, activeSubject } = useSubjectContext();
+  const isIslamiatContext =
+    !canUseSubjectContext ||
+    !activeSubject ||
+    /islam|islamiat|islamic/i.test(activeSubject.name);
 
   const roleKey = (currentUser?.role ?? "")
     .trim()
@@ -94,11 +101,15 @@ const Sidebar = () => {
   };
 
   const normalizePath = (value?: string) =>
-    value ? value.replace(/\/+$/, "") || "/" : "/";
+    value ? value.split("?")[0].replace(/\/+$/, "") || "/" : "/";
 
   const isItemActive = (href: string) => {
     const current = normalizePath(pathname || "");
-    const target = normalizePath(href);
+    const routedHref =
+      canUseSubjectContext && !isSharedPath(href) && activeSubjectId
+        ? toSubjectHref(href)
+        : href;
+    const target = normalizePath(routedHref);
     if (current === target) return true;
     if (target === "/dashboard") return current === "/dashboard";
     return current.startsWith(`${target}/`);
@@ -343,9 +354,12 @@ const Sidebar = () => {
   };
 
   useEffect(() => {
-    const navItems = ((navigation as any)[roleKey] || []) as any[];
+    let navItems = ((navigation as any)[roleKey] || []) as any[];
+    if (!isIslamiatContext) {
+      navItems = navItems.filter((item: any) => item.name !== "Mind-upgrade");
+    }
     setOrderedItems(applySavedSidebarOrder(navItems));
-  }, [roleKey, announcementUnreadCount, questionUnreadCount]);
+  }, [roleKey, announcementUnreadCount, questionUnreadCount, isIslamiatContext]);
 
   const handleReorderSidebarItems = (draggedName: string, targetName: string) => {
     if (!draggedName || !targetName || draggedName === targetName) return;
@@ -430,7 +444,11 @@ const Sidebar = () => {
                 className={`rounded-lg ${draggingItemName === item.name ? "opacity-70" : ""}`}
               >
                 <Link
-                  href={item.href}
+                  href={
+                    canUseSubjectContext && !isSharedPath(item.href) && activeSubjectId
+                      ? toSubjectHref(item.href)
+                      : item.href
+                  }
                   onClick={
                     item.name === "Ask a Question" ||
                     item.name === "Answer a Question"
