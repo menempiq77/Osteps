@@ -116,7 +116,7 @@ export default function Page() {
         <h1 className="text-2xl font-bold">Subjects</h1>
         {hasAccess && (
           <>
-            {/* <Button
+            <Button
               className="cursor-pointer !bg-primary !text-white !border-none"
               onClick={() => {
                 setCurrentSubject(null);
@@ -124,7 +124,7 @@ export default function Page() {
               }}
             >
               Add Subject
-            </Button> */}
+            </Button>
 
             <Modal
               title={currentSubject ? "Edit Subject" : "Add New Subject"}
