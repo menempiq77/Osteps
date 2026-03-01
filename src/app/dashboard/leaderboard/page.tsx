@@ -37,6 +37,7 @@ import {
   resolveStudentName,
   type LeaderboardRow,
 } from "@/lib/leaderboard";
+import { useSubjectContext } from "@/contexts/SubjectContext";
 
 const { Title, Text } = Typography;
 
@@ -118,6 +119,7 @@ const LeaderBoard = () => {
   const { currentUser } = useSelector((state: RootState) => state.auth) as {
     currentUser: CurrentUser;
   };
+  const { activeSubjectId, canUseSubjectContext } = useSubjectContext();
   const roleKey = (currentUser?.role ?? "")
     .trim()
     .toUpperCase()
@@ -354,7 +356,7 @@ const LeaderBoard = () => {
     error: classLeaderboardError,
   } = useQuery({
     queryKey: ["leaderboard", selectedClass],
-    queryFn: () => fetchLeaderBoardData(selectedClass as string),
+    queryFn: () => fetchLeaderBoardData(selectedClass as string, activeSubjectId ?? undefined),
     enabled: !isStudent && !!selectedClass && leaderboardScope === "class",
   });
 
@@ -392,7 +394,7 @@ const LeaderBoard = () => {
     error: studentClassLeaderboardError,
   } = useQuery({
     queryKey: ["leaderboard-student-class", studentClassId],
-    queryFn: () => fetchLeaderBoardData(studentClassId as string),
+    queryFn: () => fetchLeaderBoardData(studentClassId as string, activeSubjectId ?? undefined),
     enabled: isStudent && !!studentClassId,
     staleTime: 2 * 60 * 1000,
   });
@@ -421,9 +423,9 @@ const LeaderBoard = () => {
     isError: schoolLeaderboardIsError,
     error: schoolLeaderboardError,
   } = useQuery({
-    queryKey: ["leaderboard-school-self", currentUser?.student],
+    queryKey: ["leaderboard-school-self", currentUser?.student, activeSubjectId],
     queryFn: async () => {
-      const res = await fetchSchoolSelfLeaderBoardData();
+      const res = await fetchSchoolSelfLeaderBoardData(activeSubjectId ?? undefined);
       const rows = res?.data ?? [];
       return rows.map((student: any, index: number) => ({
         key: String(student?.student_id ?? ""),
@@ -551,6 +553,7 @@ const LeaderBoard = () => {
       "leaderboard-school-staff",
       resolvedSchoolId,
       isTeachingStaff,
+      activeSubjectId,
       assignYearsData.length,
       selectedYear,
       (classes ?? []).map((cls: any) => getClassId(cls)).filter(Boolean).join("|"),
@@ -558,7 +561,10 @@ const LeaderBoard = () => {
     queryFn: async () => {
       if (resolvedSchoolId) {
         try {
-          const res = await fetchSchoolLeaderBoardData(resolvedSchoolId);
+          const res = await fetchSchoolLeaderBoardData(
+            resolvedSchoolId,
+            activeSubjectId ?? undefined
+          );
           const rows = res?.data ?? [];
           if (rows.length > 0) {
             return mergeAndRankLeaderboards([rows]);
@@ -569,7 +575,7 @@ const LeaderBoard = () => {
       }
 
       try {
-        const res = await fetchSchoolSelfLeaderBoardData();
+        const res = await fetchSchoolSelfLeaderBoardData(activeSubjectId ?? undefined);
         const rows = res?.data ?? [];
         if (rows.length > 0) {
           return mergeAndRankLeaderboards([rows]);
@@ -600,7 +606,7 @@ const LeaderBoard = () => {
 
       const leaderboards = await mapWithConcurrency(uniqueClassIds, 5, async (classId) => {
         try {
-          const res = await fetchLeaderBoardData(classId);
+          const res = await fetchLeaderBoardData(classId, activeSubjectId ?? undefined);
           return res?.data ?? [];
         } catch (error) {
           return [];

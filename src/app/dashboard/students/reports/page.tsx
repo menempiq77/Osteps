@@ -13,6 +13,7 @@ import { fetchGrades } from "@/services/gradesApi";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import Link from "next/link";
+import { useSubjectContext } from "@/contexts/SubjectContext";
 interface Task {
   student_id: number;
   student_name: string;
@@ -80,6 +81,7 @@ export default function ReportsPage() {
    const router = useRouter();
   const searchParams = useSearchParams();
   const { currentUser } = useSelector((state: RootState) => state.auth);
+  const { activeSubjectId, canUseSubjectContext } = useSubjectContext();
 
   // Get student ID and class ID from URL
   const urlStudentId = searchParams.get('studentId');
@@ -133,7 +135,7 @@ export default function ReportsPage() {
 
         let response;
         if (isSchoolAdmin || isHOD) {
-          const adminData = await fetchAllYearClasses();
+          const adminData = await fetchAllYearClasses(activeSubjectId ?? undefined);
 
           response = adminData.school_classs.map((cls: any) => {
             const year = adminData.years.find((y: any) => y.id === cls.year_id);
@@ -154,7 +156,7 @@ export default function ReportsPage() {
             };
           });
         } else {
-          response = await fetchAssignedYearClasses();
+          response = await fetchAssignedYearClasses(activeSubjectId ?? undefined);
         }
 
         setAssignedClasses(response);
@@ -187,7 +189,7 @@ export default function ReportsPage() {
     };
 
     fetchData();
-  }, [isSchoolAdmin, isHOD, urlClassId, applyUrlFilter]);
+  }, [isSchoolAdmin, isHOD, urlClassId, applyUrlFilter, activeSubjectId]);
 
   const uniqueYearIds = [...new Set(assignedClasses?.map(item => item.classes.year.id))];
   const years = uniqueYearIds.map(id => {
@@ -210,16 +212,18 @@ export default function ReportsPage() {
 
   useEffect(() => {
     const fetchData = async (schoolId: string) => {
-      const reportData = await fetchReportAssessments(schoolId);
+      const reportData = await fetchReportAssessments(schoolId, activeSubjectId ?? undefined);
       setAssesmentData(reportData);
     };
-    fetchData(schoolId);
-  }, [schoolId]);
+    if (!canUseSubjectContext || activeSubjectId) {
+      fetchData(schoolId);
+    }
+  }, [schoolId, activeSubjectId, canUseSubjectContext]);
 
   useEffect(() => {
     const fetchData = async (schoolId: string) => {
       try {
-        const response = await fetchWholeAssessmentsReport(schoolId);
+        const response = await fetchWholeAssessmentsReport(schoolId, activeSubjectId ?? undefined);
         setWholeAssesmentData(response);
         setLoading(false);
       } catch (error) {
@@ -227,8 +231,10 @@ export default function ReportsPage() {
         setLoading(false);
       }
     };
-    fetchData(schoolId);
-  }, [selectedYear, selectedClass, schoolId]);
+    if (!canUseSubjectContext || activeSubjectId) {
+      fetchData(schoolId);
+    }
+  }, [selectedYear, selectedClass, schoolId, activeSubjectId, canUseSubjectContext]);
 
   const getCurrentClass = () => {
     return assignedClasses?.find(

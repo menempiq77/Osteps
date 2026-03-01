@@ -18,20 +18,26 @@ api.interceptors.request.use((config) => {
 });
 
 //report-assessments api
-export const fetchReportAssessments = async (schoolId: string) => {
-  const response = await api.get(`/get-report-assessments/${schoolId}`);
+export const fetchReportAssessments = async (schoolId: string, subjectId?: number) => {
+  const response = await api.get(`/get-report-assessments/${schoolId}`, {
+    params: withSubjectQuery({}, subjectId),
+  });
   return response.data.data;
 };
 
 //assigned year classes api For teacher
-export const fetchAssignedYearClasses = async () => {
-  const response = await api.get(`/get-assigned-year-classes`);
+export const fetchAssignedYearClasses = async (subjectId?: number) => {
+  const response = await api.get(`/get-assigned-year-classes`, {
+    params: withSubjectQuery({}, subjectId),
+  });
   return response.data.data;
 };
 
 //assigned year classes api For School admin
-export const fetchAllYearClasses = async () => {
-  const response = await api.get(`/getall-assigned-year-classes`);
+export const fetchAllYearClasses = async (subjectId?: number) => {
+  const response = await api.get(`/getall-assigned-year-classes`, {
+    params: withSubjectQuery({}, subjectId),
+  });
   return response.data.data;
 };
 

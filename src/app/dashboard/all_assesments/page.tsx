@@ -17,6 +17,7 @@ import { assignAssesmentQuiz, fetchQuizes } from "@/services/quizApi";
 import Link from "next/link";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
+import { useSubjectContext } from "@/contexts/SubjectContext";
 
 interface Assessment {
   id: string;
@@ -43,6 +44,7 @@ export default function Page() {
   );
   const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
   const { currentUser } = useSelector((state: RootState) => state.auth);
+  const { activeSubjectId, canUseSubjectContext } = useSubjectContext();
   const isTeacher = currentUser?.role === "TEACHER";
 
   const schoolId = currentUser?.school;
@@ -60,7 +62,7 @@ export default function Page() {
 
   const loadAssessment = async () => {
     try {
-      const data = await fetchSchoolAssessment(schoolId);
+      const data = await fetchSchoolAssessment(schoolId, activeSubjectId ?? undefined);
       const sortedAssessments = data.sort((a, b) => a.position - b.position);
       setAssessments(sortedAssessments);
       setLoading(false);
@@ -72,16 +74,16 @@ export default function Page() {
   };
 
   useEffect(() => {
-    if (currentTermId) {
+    if (currentTermId && (!canUseSubjectContext || !!activeSubjectId)) {
       loadAssessment();
       loadQuizzes(schoolId);
     }
-  }, [currentTermId]);
+  }, [currentTermId, activeSubjectId, canUseSubjectContext]);
 
   const loadQuizzes = async (schoolId: string) => {
     try {
       setLoading(true);
-      const response = await fetchQuizes(schoolId);
+      const response = await fetchQuizes(schoolId, activeSubjectId ?? undefined);
       setQuizzes(response);
     } catch (error) {
       console.error("Failed to load quizzes");
@@ -102,7 +104,8 @@ export default function Page() {
       if (assessmentData.type === "quiz") {
         newAssessment = await assignAssesmentQuiz(
           parseInt(termId as string),
-          parseInt(assessmentData.name)
+          parseInt(assessmentData.name),
+          activeSubjectId ?? undefined
         );
       } else {
         newAssessment = await addAssessment({

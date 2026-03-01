@@ -2,6 +2,7 @@
 import axios from 'axios';
 import { API_BASE_URL } from '@/lib/config';
 import { getStoredSubjectId } from '@/lib/subjectScope';
+import { withSubjectQuery } from '@/lib/subjectScope';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -28,6 +29,14 @@ api.interceptors.request.use(async (config) => {
     "/add-trackers",
     "/update-trackers",
     "/assign-tracker",
+    "/get-assessment",
+    "/get-school-assessments",
+    "/get-student-assessment",
+    "/add-assessment",
+    "/update-assessment",
+    "/get-report-assessments",
+    "/get-assigned-year-classes",
+    "/getall-assigned-year-classes",
     "/get-whole-assessments-report",
     "/schoolget-whole-assessments-report",
     "/get-student-scores",
@@ -77,13 +86,17 @@ export const loginUser = async (login: string, password: string) => {
 
 //assessment apis Started
 // fetch Assessment
-export const fetchAssessment = async (termId: number) => {
-  const response = await api.get(`/get-assessment/${termId}`);
+export const fetchAssessment = async (termId: number, subjectId?: number) => {
+  const response = await api.get(`/get-assessment/${termId}`, {
+    params: withSubjectQuery({}, subjectId),
+  });
   return response.data.data ?? [];
 };
 
-export const fetchSchoolAssessment = async (schoolId: number) => {
-  const response = await api.get(`/get-school-assessments/${schoolId}`);
+export const fetchSchoolAssessment = async (schoolId: number, subjectId?: number) => {
+  const response = await api.get(`/get-school-assessments/${schoolId}`, {
+    params: withSubjectQuery({}, subjectId),
+  });
   return response.data.data ?? [];
 };
 
@@ -96,8 +109,10 @@ export const reorderAssessments = async (orders: { id: number; position: number 
 };
 
 // fetch Assessment By Students
-export const fetchAssessmentByStudent = async (termId: number) => {
-  const response = await api.get(`/get-student-assessment/${termId}`);
+export const fetchAssessmentByStudent = async (termId: number, subjectId?: number) => {
+  const response = await api.get(`/get-student-assessment/${termId}`, {
+    params: withSubjectQuery({}, subjectId),
+  });
   return response.data.data ?? [];
 };
 // add Assessment

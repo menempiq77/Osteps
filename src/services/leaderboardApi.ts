@@ -95,6 +95,11 @@ export const fetchLeaderBoardData = async (
     return primary;
   }
 
+  // In strict subject mode, do not fall back to class roster points.
+  if (subjectId && Number(subjectId) > 0) {
+    return primary;
+  }
+
   // Fallback for backends where class leaderboard endpoint is empty:
   // build a ranking from class students' current points.
   try {

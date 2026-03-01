@@ -13,6 +13,7 @@ import {
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSubjectContext } from "@/contexts/SubjectContext";
 
 type Quiz = {
   id: string;
@@ -39,17 +40,18 @@ export default function QuizPage() {
   const [messageApi, contextHolder] = message.useMessage();
   const [submitting, setSubmitting] = useState(false);
   const { currentUser } = useSelector((state: RootState) => state.auth);
+  const { activeSubjectId, canUseSubjectContext } = useSubjectContext();
   const isTeacher = currentUser?.role === "TEACHER";
 
   const schoolId = currentUser?.school;
 
   const { data: quizzes = [], isLoading } = useQuery({
-    queryKey: ["quizzes", schoolId],
+    queryKey: ["quizzes", schoolId, activeSubjectId],
     queryFn: async () => {
       if (!schoolId) return [];
-      return await fetchQuizes(schoolId);
+      return await fetchQuizes(schoolId, activeSubjectId ?? undefined);
     },
-    enabled: !!schoolId,
+    enabled: !!schoolId && (!canUseSubjectContext || !!activeSubjectId),
     onError: () => {
       messageApi.error("Failed to load quizzes");
     },
@@ -68,7 +70,7 @@ export default function QuizPage() {
   const queryClient = useQueryClient();
 
   const addQuizMutation = useMutation({
-    mutationFn: addQuize,
+    mutationFn: (payload: any) => addQuize(payload, activeSubjectId ?? undefined),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["quizzes", schoolId] });
       messageApi.success(
@@ -85,7 +87,7 @@ export default function QuizPage() {
 
   const updateQuizMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: QuizFormValues }) =>
-      updateQuize(id, data),
+      updateQuize(id, data, activeSubjectId ?? undefined),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["quizzes", schoolId] });
       messageApi.success(
