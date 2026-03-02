@@ -80,24 +80,94 @@ const fetchWithFallback = async (
   throw new Error(`${errorLabel}. Tried: ${errors.join(" | ")}`);
 };
 
+const buildClassLeaderboardFromSchoolData = async (
+  classId: string,
+  subjectId?: number
+): Promise<LeaderboardResponse> => {
+  const [classStudentsRes, schoolRes] = await Promise.all([
+    api.get(`/get-student/${classId}`, {
+      params: withSubjectQuery({}, subjectId),
+    }),
+    api.get("/leaderboard/school-self", {
+      params: withSubjectQuery({}, subjectId),
+    }),
+  ]);
+
+  const classStudents = Array.isArray(classStudentsRes?.data?.data)
+    ? classStudentsRes.data.data
+    : [];
+  const schoolLeaderboard = normalizePayload(schoolRes?.data).data ?? [];
+
+  const classStudentIds = new Set(
+    classStudents
+      .map((student: any) => student?.id ?? student?.student_id)
+      .filter((id: any) => id !== null && id !== undefined)
+      .map((id: any) => Number(id))
+      .filter((id: number) => Number.isFinite(id))
+  );
+
+  const classStudentNameMap: Record<number, string> = {};
+  for (const student of classStudents) {
+    const sid = Number(student?.id ?? student?.student_id);
+    if (!Number.isFinite(sid)) continue;
+    const resolvedName =
+      student?.student_name ??
+      student?.user_name ??
+      student?.name ??
+      student?.user?.name ??
+      "";
+    if (resolvedName) classStudentNameMap[sid] = resolvedName;
+  }
+
+  const filtered = schoolLeaderboard
+    .filter((entry: any) => classStudentIds.has(Number(entry?.student_id)))
+    .map((entry: any) => {
+      const sid = Number(entry?.student_id);
+      return {
+        ...entry,
+        student_name: classStudentNameMap[sid] || entry?.student_name || "Unknown",
+      };
+    })
+    .sort((a: any, b: any) => Number(b?.total_marks ?? 0) - Number(a?.total_marks ?? 0));
+
+  return {
+    status_code: 200,
+    msg: "LeaderBoard Data Fetched Successfully",
+    data: filtered,
+  };
+};
+
 export const fetchLeaderBoardData = async (
   classId: string | number,
   subjectId?: number
 ): Promise<LeaderboardResponse> => {
   const id = String(classId);
-  const primary = await fetchWithFallback(
-    [`/get-student-scores/${id}`],
-    "Failed to fetch leader Board Scores",
-    subjectId
-  );
+  let primary: LeaderboardResponse | null = null;
+  let primaryError: Error | null = null;
+
+  try {
+    primary = await fetchWithFallback(
+      [`/get-student-scores/${id}`],
+      "Failed to fetch leader Board Scores",
+      subjectId
+    );
+  } catch (error: any) {
+    primaryError = error instanceof Error ? error : new Error(String(error));
+  }
 
   if ((primary?.data ?? []).length > 0) {
     return primary;
   }
 
-  // In strict subject mode, do not fall back to class roster points.
-  if (subjectId && Number(subjectId) > 0) {
-    return primary;
+  // Fallback for backends where class leaderboard endpoint is broken:
+  // build class leaderboard by filtering school leaderboard using class roster.
+  try {
+    const fromSchoolLeaderboard = await buildClassLeaderboardFromSchoolData(id, subjectId);
+    if ((fromSchoolLeaderboard?.data ?? []).length > 0) {
+      return fromSchoolLeaderboard;
+    }
+  } catch {
+    // continue to next fallback
   }
 
   // Fallback for backends where class leaderboard endpoint is empty:
@@ -138,7 +208,10 @@ export const fetchLeaderBoardData = async (
       data: mapped,
     };
   } catch {
-    return primary;
+    if (primary) return primary;
+    throw (
+      primaryError ?? new Error("Failed to fetch leader Board Scores and fallbacks failed")
+    );
   }
 };
 
