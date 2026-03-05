@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
   Alert,
   Button,
@@ -13,6 +13,7 @@ import {
   Popconfirm,
   Progress,
   Row,
+  Select,
   Space,
   Spin,
   Statistic,
@@ -25,6 +26,8 @@ import {
   DeleteOutlined,
   DownloadOutlined,
   FilePdfOutlined,
+  LeftOutlined,
+  RightOutlined,
   SaveOutlined,
   TeamOutlined,
   TrophyOutlined,
@@ -34,7 +37,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { deleteBehaviour } from "@/services/behaviorApi";
-import { fetchStudentProfileData } from "@/services/studentsApi";
+import { fetchStudentProfileData, fetchStudents } from "@/services/studentsApi";
+import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
+import { fetchClasses } from "@/services/classesApi";
 
 type AnyObj = Record<string, any>;
 
@@ -102,6 +107,7 @@ function isAbsentRecord(row: AnyObj): boolean {
 
 export default function StudentProfilePage() {
   const params = useParams<{ classId?: string; studentId?: string }>();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const classId = String(params?.classId ?? "");
   const studentId = String(params?.studentId ?? "");
@@ -111,11 +117,60 @@ export default function StudentProfilePage() {
     currentUser?.role === "HOD" ||
     currentUser?.role === "TEACHER";
   const [profileNote, setProfileNote] = useState("");
+  const [studentStatusFilter, setStudentStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [selectedStudentId, setSelectedStudentId] = useState<string>(studentId);
+  const [selectedYearId, setSelectedYearId] = useState<string>("");
+  const [classSwitchLoading, setClassSwitchLoading] = useState(false);
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["student-profile-v2", classId, studentId],
     queryFn: () => fetchStudentProfileData(studentId),
     enabled: Boolean(studentId),
+  });
+
+  const { data: classStudentsData = [], isLoading: classStudentsLoading } = useQuery({
+    queryKey: ["class-students-for-profile-switcher", classId],
+    queryFn: () => fetchStudents(classId),
+    enabled: Boolean(classId),
+  });
+
+  const schoolId = Number(
+    currentUser?.school_id || currentUser?.school?.id || (data as AnyObj)?.school?.id || 0
+  );
+  const { data: yearsData = [] } = useQuery({
+    queryKey: ["profile-switcher-years", currentUser?.role, schoolId],
+    queryFn: async () => {
+      if (schoolId > 0) {
+        const years = (await fetchYearsBySchool(schoolId)) ?? [];
+        if (Array.isArray(years) && years.length > 0) return years;
+      }
+
+      // For staff without school-scoped year access, use assigned years only.
+      const assignedYears = (await fetchAssignYears()) ?? [];
+      return Array.isArray(assignedYears) ? assignedYears : [];
+    },
+    enabled: Boolean(currentUser?.role) && schoolId > 0,
+  });
+
+  const { data: allClassesData = [] } = useQuery({
+    queryKey: ["profile-switcher-all-classes", yearsData],
+    queryFn: async () => {
+      const years = asArray<AnyObj>(yearsData);
+      if (years.length === 0) return [];
+      const classLists = await Promise.all(
+        years.map(async (year) => {
+          const classes = (await fetchClasses(String(year?.id ?? ""))) ?? [];
+          return asArray<AnyObj>(classes).map((cls) => ({
+            id: String(cls?.id ?? ""),
+            class_name: String(cls?.class_name ?? cls?.name ?? "Class"),
+            year_name: String(year?.name ?? ""),
+            year_id: String(cls?.year_id ?? year?.id ?? ""),
+          }));
+        })
+      );
+      return classLists.flat();
+    },
+    enabled: asArray(yearsData).length > 0,
   });
 
   const { data: noteData } = useQuery({
@@ -134,6 +189,10 @@ export default function StudentProfilePage() {
   useEffect(() => {
     setProfileNote(String(noteData?.note ?? ""));
   }, [noteData?.note]);
+
+  useEffect(() => {
+    setSelectedStudentId(studentId);
+  }, [studentId]);
 
   const deleteAttendanceMutation = useMutation({
     mutationFn: (id: number) => deleteBehaviour(id),
@@ -268,6 +327,60 @@ export default function StudentProfilePage() {
     };
   });
 
+  const trackerTopicTotal = useMemo(
+    () => trackerRows.reduce((sum, row) => sum + Number(row.total || 0), 0),
+    [trackerRows]
+  );
+  const trackerTopicDone = useMemo(
+    () => trackerRows.reduce((sum, row) => sum + Number(row.done || 0), 0),
+    [trackerRows]
+  );
+  const trackerTopicPending = Math.max(0, trackerTopicTotal - trackerTopicDone);
+  const trackerCompletionPercent =
+    trackerTopicTotal > 0 ? Math.round((trackerTopicDone / trackerTopicTotal) * 100) : 0;
+
+  const storiesTrackerRows = useMemo(
+    () =>
+      trackerRows.filter((row) =>
+        String(row.name || "").toLowerCase().includes("stories of the prophets")
+      ),
+    [trackerRows]
+  );
+  const storiesTopicTotal = useMemo(
+    () => storiesTrackerRows.reduce((sum, row) => sum + Number(row.total || 0), 0),
+    [storiesTrackerRows]
+  );
+  const storiesTopicDone = useMemo(
+    () => storiesTrackerRows.reduce((sum, row) => sum + Number(row.done || 0), 0),
+    [storiesTrackerRows]
+  );
+  const storiesTopicPending = Math.max(0, storiesTopicTotal - storiesTopicDone);
+  const storiesCompletionPercent =
+    storiesTopicTotal > 0 ? Math.round((storiesTopicDone / storiesTopicTotal) * 100) : 0;
+
+  const behaviorSummary = useMemo(() => {
+    const positive = behaviorOnlyRecords.filter(
+      (row) => toFiniteNumber(row?.behaviour?.points) > 0
+    ).length;
+    const neutral = behaviorOnlyRecords.filter(
+      (row) => toFiniteNumber(row?.behaviour?.points) === 0
+    ).length;
+    const needsWork = behaviorOnlyRecords.filter(
+      (row) => toFiniteNumber(row?.behaviour?.points) < 0
+    ).length;
+    const total = behaviorOnlyRecords.length;
+    const pct = (value: number) => (total > 0 ? Math.round((value / total) * 100) : 0);
+    return {
+      total,
+      positive,
+      neutral,
+      needsWork,
+      positivePct: pct(positive),
+      neutralPct: pct(neutral),
+      needsWorkPct: pct(needsWork),
+    };
+  }, [behaviorOnlyRecords]);
+
   const assessmentRows = useMemo<AssessmentRow[]>(() => {
     return assessments.flatMap(({ term, assignment }, indexA) => {
       const termName = String(term?.name ?? "Term");
@@ -293,6 +406,159 @@ export default function StudentProfilePage() {
       });
     });
   }, [assessments]);
+
+  const yearClassIds = useMemo(() => {
+    const all = asArray<AnyObj>(allClassesData);
+    const byYear = selectedYearId
+      ? all.filter((c) => String(c?.year_id ?? "") === selectedYearId)
+      : [];
+    return byYear
+      .map((c) => String(c?.id ?? ""))
+      .filter((id) => !!id);
+  }, [allClassesData, selectedYearId]);
+
+  const { data: yearStudentsData = [], isLoading: yearStudentsLoading } = useQuery({
+    queryKey: ["year-students-for-profile-switcher", selectedYearId, yearClassIds.join(",")],
+    queryFn: async () => {
+      if (!selectedYearId || yearClassIds.length === 0) return [];
+      const perClass = await Promise.all(
+        yearClassIds.map(async (cid) => {
+          try {
+            const rows = await fetchStudents(cid);
+            return asArray<AnyObj>(rows).map((s) => ({
+              ...s,
+              __source_class_id: cid,
+            }));
+          } catch {
+            return [];
+          }
+        })
+      );
+      const flat = perClass.flat();
+      const dedup = new Map<string, AnyObj>();
+      flat.forEach((s) => {
+        const id = String(s?.id ?? "");
+        if (!id || dedup.has(id)) return;
+        dedup.set(id, s);
+      });
+      return Array.from(dedup.values());
+    },
+    enabled: Boolean(selectedYearId) && yearClassIds.length > 0,
+  });
+
+  const switcherStudents = useMemo(() => {
+    const source =
+      selectedYearId && asArray<AnyObj>(yearStudentsData).length > 0
+        ? asArray<AnyObj>(yearStudentsData)
+        : asArray<AnyObj>(classStudentsData);
+
+    return source.map((s) => ({
+      id: String(s?.id ?? ""),
+      name: String(s?.student_name ?? s?.name ?? `Student ${s?.id ?? ""}`),
+      status: String(s?.status ?? "active").toLowerCase(),
+      classId: String(s?.class_id ?? s?.class?.id ?? s?.__source_class_id ?? classId),
+      className: String(s?.class?.class_name ?? s?.class_name ?? ""),
+    }));
+  }, [selectedYearId, yearStudentsData, classStudentsData, classId]);
+
+  const filteredClassStudents = useMemo(() => {
+    if (studentStatusFilter === "all") return switcherStudents;
+    return switcherStudents.filter((s) => s.status === studentStatusFilter);
+  }, [switcherStudents, studentStatusFilter]);
+
+  const currentStudentIndex = useMemo(
+    () => filteredClassStudents.findIndex((s) => s.id === studentId),
+    [filteredClassStudents, studentId]
+  );
+
+  const navigateToStudent = (nextId: string) => {
+    if (!nextId || nextId === studentId) return;
+    const target =
+      filteredClassStudents.find((s) => s.id === nextId) ??
+      switcherStudents.find((s) => s.id === nextId);
+    const nextClassId = String(target?.classId ?? classId);
+    router.push(`/dashboard/students/${nextClassId}/${nextId}/student_dashboard`);
+  };
+
+  const navigateToClass = async (nextClassId: string) => {
+    if (!nextClassId || nextClassId === classId) return;
+    try {
+      setClassSwitchLoading(true);
+      const nextStudentsRaw = await fetchStudents(nextClassId);
+      const nextStudents = asArray<AnyObj>(nextStudentsRaw)
+        .map((s) => ({
+          id: String(s?.id ?? ""),
+          status: String(s?.status ?? "active").toLowerCase(),
+        }))
+        .filter((s) => !!s.id);
+
+      const filtered =
+        studentStatusFilter === "all"
+          ? nextStudents
+          : nextStudents.filter((s) => s.status === studentStatusFilter);
+
+      const target = (filtered[0] ?? nextStudents[0])?.id;
+      if (!target) {
+        message.warning("No students found in this class.");
+        return;
+      }
+
+      router.push(`/dashboard/students/${nextClassId}/${target}/student_dashboard`);
+    } finally {
+      setClassSwitchLoading(false);
+    }
+  };
+
+  const yearOptions = useMemo(
+    () =>
+      asArray<AnyObj>(yearsData).map((y) => ({
+        value: String(y?.id ?? ""),
+        label: String(y?.name ?? `Year ${y?.id ?? ""}`),
+      })),
+    [yearsData]
+  );
+
+  const classOptions = useMemo(() => {
+    const all = asArray<AnyObj>(allClassesData);
+    const filtered = selectedYearId
+      ? all.filter((c) => String(c?.year_id ?? "") === selectedYearId)
+      : all;
+    return filtered.map((c) => ({
+      value: String(c?.id ?? ""),
+      label: c?.year_name
+        ? `${String(c?.class_name ?? "Class")} (${String(c?.year_name)})`
+        : String(c?.class_name ?? "Class"),
+    }));
+  }, [allClassesData, selectedYearId]);
+
+  useEffect(() => {
+    const currentClass = asArray<AnyObj>(allClassesData).find(
+      (c) => String(c?.id ?? "") === classId
+    );
+    const currentYearId = String(currentClass?.year_id ?? "");
+    if (currentYearId) {
+      setSelectedYearId(currentYearId);
+      return;
+    }
+    if (!selectedYearId && yearOptions.length > 0) {
+      setSelectedYearId(String(yearOptions[0].value));
+    }
+  }, [allClassesData, classId, yearOptions, selectedYearId]);
+
+  const handleYearChange = async (nextYearId: string) => {
+    setSelectedYearId(nextYearId);
+    const options = asArray<AnyObj>(allClassesData).filter(
+      (c) => String(c?.year_id ?? "") === String(nextYearId)
+    );
+    if (options.length === 0) {
+      message.warning("No classes found in this year group.");
+      return;
+    }
+    const firstClassId = String(options[0]?.id ?? "");
+    if (firstClassId && firstClassId !== classId) {
+      await navigateToClass(firstClassId);
+    }
+  };
 
   const trackerTopicRows = useMemo<TrackerTopicRow[]>(() => {
     return trackers.flatMap((assigned, idxA) => {
@@ -450,6 +716,78 @@ export default function StudentProfilePage() {
               </Tag>
             </div>
           </div>
+          <div className="w-full md:max-w-[760px] space-y-2">
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-5">
+              <Select
+                showSearch
+                value={selectedYearId || undefined}
+                optionFilterProp="label"
+                placeholder="Year group"
+                onChange={(v) => {
+                  void handleYearChange(v);
+                }}
+                options={yearOptions}
+              />
+              <Select
+                value={studentStatusFilter}
+                onChange={(v) => setStudentStatusFilter(v)}
+                options={[
+                  { value: "all", label: "All statuses" },
+                  { value: "active", label: "Active" },
+                  { value: "inactive", label: "Inactive" },
+                ]}
+              />
+              <Select
+                showSearch
+                value={selectedStudentId}
+                loading={classStudentsLoading || yearStudentsLoading}
+                optionFilterProp="label"
+                placeholder="Search student"
+                className="md:col-span-3"
+                onChange={(v) => {
+                  setSelectedStudentId(v);
+                  navigateToStudent(v);
+                }}
+                options={filteredClassStudents.map((s) => ({
+                  value: s.id,
+                  label: s.className
+                    ? `${s.name} (${s.status}) - ${s.className}`
+                    : `${s.name} (${s.status})`,
+                }))}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                icon={<LeftOutlined />}
+                disabled={currentStudentIndex <= 0}
+                onClick={() => {
+                  if (currentStudentIndex > 0) {
+                    navigateToStudent(filteredClassStudents[currentStudentIndex - 1].id);
+                  }
+                }}
+              >
+                Previous
+              </Button>
+              <Button
+                icon={<RightOutlined />}
+                iconPosition="end"
+                disabled={
+                  currentStudentIndex < 0 ||
+                  currentStudentIndex >= filteredClassStudents.length - 1
+                }
+                onClick={() => {
+                  if (
+                    currentStudentIndex >= 0 &&
+                    currentStudentIndex < filteredClassStudents.length - 1
+                  ) {
+                    navigateToStudent(filteredClassStudents[currentStudentIndex + 1].id);
+                  }
+                }}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
             <Statistic
               title="Completed"
@@ -524,6 +862,77 @@ export default function StudentProfilePage() {
           {completedTasks} / {totalTasks} tasks completed
         </div>
       </Card>
+
+      <Row gutter={[16, 16]}>
+        <Col xs={24} lg={12}>
+          <Card title="Tracker Progress Overview" className="rounded-2xl">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <Card size="small">
+                <Statistic title="Completed Topics" value={trackerTopicDone} valueStyle={{ color: "#389e0d" }} />
+              </Card>
+              <Card size="small">
+                <Statistic title="Pending Topics" value={trackerTopicPending} valueStyle={{ color: "#fa8c16" }} />
+              </Card>
+              <Card size="small">
+                <Statistic title="Completion" value={trackerCompletionPercent} suffix="%" />
+              </Card>
+            </div>
+
+            <div className="mt-4">
+              <div className="mb-1 text-xs text-gray-500">All Tracker Topics</div>
+              <Progress
+                percent={trackerCompletionPercent}
+                strokeColor={trackerCompletionPercent >= 70 ? "#52c41a" : trackerCompletionPercent >= 40 ? "#faad14" : "#ff4d4f"}
+              />
+            </div>
+
+            <div className="mt-4 rounded-xl border bg-[#f9fbfa] p-3">
+              <div className="text-sm font-semibold text-gray-800">Stories of the Prophets</div>
+              <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
+                <Tag color="green">Finished: {storiesTopicDone}</Tag>
+                <Tag color="orange">Pending: {storiesTopicPending}</Tag>
+                <Tag color="blue">Total: {storiesTopicTotal}</Tag>
+              </div>
+              <Progress
+                className="mt-2"
+                percent={storiesCompletionPercent}
+                strokeColor={storiesCompletionPercent >= 70 ? "#52c41a" : storiesCompletionPercent >= 40 ? "#faad14" : "#ff4d4f"}
+              />
+            </div>
+          </Card>
+        </Col>
+
+        <Col xs={24} lg={12}>
+          <Card title="Behaviour Health" className="rounded-2xl">
+            <div className="mb-3 grid grid-cols-1 gap-2 md:grid-cols-3">
+              <Card size="small">
+                <Statistic title="Positive" value={behaviorSummary.positive} valueStyle={{ color: "#389e0d" }} />
+              </Card>
+              <Card size="small">
+                <Statistic title="Neutral" value={behaviorSummary.neutral} valueStyle={{ color: "#595959" }} />
+              </Card>
+              <Card size="small">
+                <Statistic title="Needs Work" value={behaviorSummary.needsWork} valueStyle={{ color: "#cf1322" }} />
+              </Card>
+            </div>
+
+            <div className="space-y-2">
+              <div>
+                <div className="mb-1 text-xs text-gray-500">Positive ({behaviorSummary.positivePct}%)</div>
+                <Progress percent={behaviorSummary.positivePct} strokeColor="#52c41a" />
+              </div>
+              <div>
+                <div className="mb-1 text-xs text-gray-500">Neutral ({behaviorSummary.neutralPct}%)</div>
+                <Progress percent={behaviorSummary.neutralPct} strokeColor="#8c8c8c" />
+              </div>
+              <div>
+                <div className="mb-1 text-xs text-gray-500">Needs Work ({behaviorSummary.needsWorkPct}%)</div>
+                <Progress percent={behaviorSummary.needsWorkPct} strokeColor="#ff4d4f" />
+              </div>
+            </div>
+          </Card>
+        </Col>
+      </Row>
 
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={12}>
