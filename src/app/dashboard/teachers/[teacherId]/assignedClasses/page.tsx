@@ -4,6 +4,10 @@ import { useParams, useRouter } from "next/navigation";
 import { Card, Tag, Divider, Avatar, Spin, message } from "antd";
 import { BookOpen, Mail, Phone, Users, Calendar } from "lucide-react";
 import { getAssignClassesTeacher } from "@/services/teacherApi";
+import { fetchYearsBySchool, fetchAssignYears } from "@/services/yearsApi";
+import { fetchClasses } from "@/services/classesApi";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store/store";
 
 interface Teacher {
   id: number;
@@ -33,6 +37,16 @@ interface AssignedClass {
   class_id: number;
   teacher_id: number;
   subject: string;
+  status?: string;
+  assignment_status?: string;
+  is_active?: boolean | number | string;
+  active?: boolean | number | string;
+  deleted_at?: string | null;
+  pivot?: {
+    status?: string;
+    is_active?: boolean | number | string;
+    deleted_at?: string | null;
+  };
   created_at: string;
   updated_at: string;
   teacher: Teacher;
@@ -49,8 +63,10 @@ export default function TeacherAssignedClasses() {
   const { teacherId } = useParams();
   const router = useRouter();
   const [assignedClasses, setAssignedClasses] = useState<AssignedClass[]>([]);
+  const [teacherInfo, setTeacherInfo] = useState<Teacher | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { currentUser } = useSelector((state: RootState) => state.auth);
 
   useEffect(() => {
     const fetchAssignedClasses = async () => {
@@ -59,7 +75,96 @@ export default function TeacherAssignedClasses() {
         const response: ApiResponse = await getAssignClassesTeacher(teacherId);
 
         if (response.status === 200) {
-          setAssignedClasses(response.data);
+          const rawRows = Array.isArray(response.data) ? response.data : [];
+          setTeacherInfo(rawRows.length > 0 ? rawRows[0].teacher : null);
+
+          // Build metadata map from backend relation endpoint (subject/date),
+          // but derive assignment truth from class.assigned_teachers status.
+          const relationMetaByClassId = new Map<number, AssignedClass>();
+          rawRows.forEach((row) => {
+            if (!row?.class_id) return;
+            const existing = relationMetaByClassId.get(row.class_id);
+            if (!existing) {
+              relationMetaByClassId.set(row.class_id, row);
+              return;
+            }
+            const existingTs = new Date(existing.updated_at || existing.created_at || 0).getTime();
+            const rowTs = new Date(row.updated_at || row.created_at || 0).getTime();
+            if (rowTs >= existingTs) relationMetaByClassId.set(row.class_id, row);
+          });
+
+          const schoolId = Number(
+            (currentUser as any)?.school?.id ??
+              (currentUser as any)?.school_id ??
+              (currentUser as any)?.school ??
+              0
+          );
+
+          let years: any[] = [];
+          if (schoolId > 0) {
+            years = (await fetchYearsBySchool(schoolId)) ?? [];
+          }
+          if (!Array.isArray(years) || years.length === 0) {
+            const assignedYears = (await fetchAssignYears()) ?? [];
+            years = Array.from(
+              new Map(
+                (assignedYears as any[])
+                  .map((item: any) => item?.classes?.year)
+                  .filter(Boolean)
+                  .map((year: any) => [year.id, year])
+              ).values()
+            );
+          }
+
+          const classLists = await Promise.all(
+            (years || []).map(async (year: any) => {
+              try {
+                return (await fetchClasses(String(year?.id))) ?? [];
+              } catch {
+                return [];
+              }
+            })
+          );
+          const classes = classLists.flat();
+
+          const normalizedAssigned = classes
+            .map((cls: any) => {
+              const assignedRow = (cls?.assigned_teachers || []).find(
+                (t: any) =>
+                  Number(t?.teacher_id) === Number(teacherId) &&
+                  String(t?.status || "").toLowerCase() === "assigned"
+              );
+              if (!assignedRow) return null;
+
+              const meta = relationMetaByClassId.get(Number(cls?.id));
+              return {
+                id: Number(meta?.id ?? assignedRow?.id ?? cls?.id),
+                class_id: Number(cls?.id),
+                teacher_id: Number(teacherId),
+                subject: String(meta?.subject ?? ""),
+                created_at: String(meta?.created_at ?? assignedRow?.created_at ?? cls?.updated_at ?? ""),
+                updated_at: String(meta?.updated_at ?? assignedRow?.updated_at ?? cls?.updated_at ?? ""),
+                teacher: (meta?.teacher ?? rawRows[0]?.teacher) as Teacher,
+                classes: {
+                  id: Number(cls?.id),
+                  school_id: Number(cls?.school_id ?? 0),
+                  year_id: Number(cls?.year_id ?? 0),
+                  class_name: String(cls?.class_name ?? "Class"),
+                  number_of_terms: String(cls?.number_of_terms ?? ""),
+                  created_at: String(cls?.created_at ?? ""),
+                  updated_at: String(cls?.updated_at ?? ""),
+                } as Class,
+              } as AssignedClass;
+            })
+            .filter(Boolean) as AssignedClass[];
+
+          normalizedAssigned.sort((a, b) =>
+            String(a?.classes?.class_name || "").localeCompare(
+              String(b?.classes?.class_name || "")
+            )
+          );
+
+          setAssignedClasses(normalizedAssigned);
         } else {
           setError("Failed to fetch assigned classes");
           message.error("Failed to fetch assigned classes");
@@ -76,7 +181,7 @@ export default function TeacherAssignedClasses() {
     if (teacherId) {
       fetchAssignedClasses();
     }
-  }, [teacherId]);
+  }, [teacherId, currentUser]);
 
   if (isLoading) {
     return (
@@ -96,9 +201,6 @@ export default function TeacherAssignedClasses() {
       </div>
     );
   }
-
-  const teacherInfo =
-    assignedClasses.length > 0 ? assignedClasses[0].teacher : null;
 
   const handleViewStudents = (classId: number | string) => {
     router.push(`/dashboard/students/${classId}`);
