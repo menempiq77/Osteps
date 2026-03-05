@@ -255,25 +255,91 @@ export default function DashboardPage() {
   const studentYearName = currentUser?.studentYearName;
   const studentClassName = currentUser?.studentClassName;
 
-  const nextUpcomingTask = useMemo(() => {
-    if (!studentDashboard?.data?.class?.term) return null;
+  const studentActiveAssessments = useMemo(() => {
+    const terms = studentDashboard?.data?.class?.term;
+    if (!Array.isArray(terms)) return [];
 
-    return studentDashboard.data.class.term
+    const now = Date.now();
+
+    const parseDueTimestamp = (dueDate: unknown): number | null => {
+      if (!dueDate) return null;
+      const raw = String(dueDate).trim();
+      if (!raw) return null;
+
+      // Date-only values are treated as end-of-day local time so tasks remain visible during the due date.
+      const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(raw);
+      const parsed = dateOnly ? Date.parse(`${raw}T23:59:59`) : Date.parse(raw);
+      return Number.isFinite(parsed) ? parsed : null;
+    };
+
+    const activeTasks = terms
       .flatMap((term: any) =>
-        term.assign_assessments
-          ?.filter((a: any) => a.status === "assigned")
-          ?.flatMap((assigned: any) =>
-            assigned.assessment?.tasks?.map((task: any) => ({
+        (term?.assign_assessments ?? [])
+          .filter((a: any) => String(a?.status ?? "").toLowerCase() === "assigned")
+          .flatMap((assigned: any) =>
+            (assigned?.assessment?.tasks ?? []).map((task: any) => ({
               ...task,
-              termName: term.name,
-              assessmentName: assigned.assessment?.name,
+              termName: term?.name ?? "Term",
+              assessmentName: assigned?.assessment?.name ?? "Assessment",
+              assessmentId: assigned?.assessment?.id ?? assigned?.assessment_id ?? null,
+              dueTs: parseDueTimestamp(task?.due_date),
             }))
-          ) || []
+          )
       )
-      .sort(
-        (a: any, b: any) =>
-          new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
-      )[0] || null; // only first item
+      .filter((task: any) => task?.dueTs === null || task.dueTs >= now)
+      .sort((a: any, b: any) => {
+        if (a.dueTs === null && b.dueTs === null) return 0;
+        if (a.dueTs === null) return 1;
+        if (b.dueTs === null) return -1;
+        return a.dueTs - b.dueTs;
+      });
+
+    const grouped = new Map<string, any>();
+    activeTasks.forEach((task: any) => {
+      const key = String(task.assessmentId ?? "");
+      if (!key) return;
+
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          assessmentId: task.assessmentId,
+          assessmentName: task.assessmentName,
+          termName: task.termName,
+          dueTs: task.dueTs,
+          dueDate: task.due_date || null,
+          updatedAt: task.updated_at || null,
+          taskCount: 1,
+        });
+        return;
+      }
+
+      const current = grouped.get(key);
+      const nextDue =
+        current.dueTs === null
+          ? task.dueTs
+          : task.dueTs === null
+          ? current.dueTs
+          : Math.min(current.dueTs, task.dueTs);
+
+      const nextDueDate = nextDue === task.dueTs ? (task.due_date || current.dueDate) : current.dueDate;
+      const nextUpdated = [current.updatedAt, task.updated_at]
+        .filter(Boolean)
+        .sort((a: string, b: string) => Date.parse(b) - Date.parse(a))[0] || null;
+
+      grouped.set(key, {
+        ...current,
+        dueTs: nextDue ?? null,
+        dueDate: nextDueDate,
+        updatedAt: nextUpdated,
+        taskCount: Number(current.taskCount || 0) + 1,
+      });
+    });
+
+    return Array.from(grouped.values()).sort((a: any, b: any) => {
+      if (a.dueTs === null && b.dueTs === null) return 0;
+      if (a.dueTs === null) return 1;
+      if (b.dueTs === null) return -1;
+      return a.dueTs - b.dueTs;
+    });
   }, [studentDashboard]);
 
   // Role-based data
@@ -720,40 +786,52 @@ export default function DashboardPage() {
 
           {/* Cards Grid */}
           <Row gutter={[16, 16]}>
-           {nextUpcomingTask && (
-                <Col xs={24} md={12}>
-                  <Link href={`/dashboard/students/assignments`}>
+            {studentActiveAssessments.length > 0 ? (
+              studentActiveAssessments.map((assessment: any, index: number) => (
+                <Col xs={24} md={24} key={`${assessment.assessmentId ?? index}`}>
+                  <Link
+                    href={
+                      assessment.assessmentId
+                        ? `/dashboard/students/assignments/${assessment.assessmentId}`
+                        : "/dashboard/students/assignments"
+                    }
+                  >
                     <Card
                       hoverable
-                      className="border-0 shadow-sm hover:shadow-md transition-all"
+                      className="border-0 shadow-sm hover:shadow-md transition-all h-full"
                     >
                       <div className="flex justify-between items-center">
                         <div>
                           <h3 className="text-lg font-semibold text-gray-800">
-                            {nextUpcomingTask.task_name}
+                            {assessment.assessmentName || "Assessment"}
                           </h3>
-                          <p className="text-sm text-gray-500">
-                            Due: {new Date(nextUpcomingTask.due_date).toLocaleDateString()}
-                          </p>
+                          {assessment.dueDate ? (
+                            <p className="text-sm text-gray-500">
+                              Due: {new Date(assessment.dueDate).toLocaleDateString()}
+                            </p>
+                          ) : (
+                            <p className="text-sm text-gray-500">No due date</p>
+                          )}
                         </div>
-                        <div
-                          className="p-3 rounded-lg"
-                          style={{ backgroundColor: THEME_COLOR_LIGHT }}
-                        >
-                          <ClipboardList
-                            className="h-6 w-6"
-                            style={{ color: THEME_COLOR }}
-                          />
-                        </div>
+                      </div>
+                      <div className="mt-2">
+                        <span className="inline-block rounded-md bg-gray-100 px-3 py-1 text-sm text-gray-700">
+                          Assignment
+                        </span>
                       </div>
                       <div className="mt-4 flex justify-between items-end">
                         <div>
                           <p className="text-base font-medium text-gray-700">
-                            {nextUpcomingTask.assessmentName} ({nextUpcomingTask.termName})
+                            {assessment.termName}
                           </p>
                           <p className="text-xs text-gray-400 mt-1">
-                            Updated {timeAgo(nextUpcomingTask.updated_at)}
+                            {assessment.taskCount} task{assessment.taskCount === 1 ? "" : "s"}
                           </p>
+                          {assessment.updatedAt ? (
+                            <p className="text-xs text-gray-400 mt-1">
+                              Updated {timeAgo(assessment.updatedAt)}
+                            </p>
+                          ) : null}
                         </div>
                         <Button
                           type="primary"
@@ -762,13 +840,20 @@ export default function DashboardPage() {
                             borderColor: THEME_COLOR,
                           }}
                         >
-                          View Task
+                          View Details
                         </Button>
                       </div>
                     </Card>
                   </Link>
                 </Col>
-             )}
+              ))
+            ) : (
+              <Col span={24}>
+                <Card className="border-0 shadow-sm">
+                  <p className="text-sm text-gray-600">No active tasks available right now.</p>
+                </Card>
+              </Col>
+            )}
           </Row>
         </div>
       ) : (

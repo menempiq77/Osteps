@@ -53,8 +53,8 @@ function normalizeSectionsWithQuiz(sections: ProphetStorySection[]): ProphetStor
 	return next;
 }
 
-// NOTE: Per current scope, we are enriching the first five prophets.
-// Other stories fall back to the generic placeholder.
+// Stories are sourced and adapted for student readability from Ibn Kathir's
+// "Stories of the Prophets" with Qur'anic references.
 const STORY_CONTENT_BY_SLUG: Record<string, StoryContent> = {
 	adam: {
 		shortIntro:
@@ -1281,37 +1281,116 @@ const STORY_CONTENT_BY_SLUG: Record<string, StoryContent> = {
 	},
 };
 
-export const PROPHET_STORIES: ProphetStory[] = PROPHETS.map((p) => {
-	const content = STORY_CONTENT_BY_SLUG[p.slug];
+const SUPPLEMENTAL_IBN_KATHIR_STORIES: Partial<Record<string, StoryContent>> = {
+	ismail: {
+		shortIntro:
+			"Ismail (peace be upon him) was the son of Ibrahim and Hajar. Ibn Kathir narrates his infancy in Makkah, Zamzam, helping build the Ka'bah, and the great trial of sacrifice that showed complete submission to Allah.",
+		sections: [
+			{ title: "Part 1: Birth of Ismail", body: "Ismail (peace be upon him) was born to Ibrahim and Hajar as a major blessing after years of waiting. Allah honored his family with a prophetic line through him." },
+			{ title: "Part 2: Valley of Makkah", body: "By Allah's command, Ibrahim left Hajar and baby Ismail in the barren valley of Makkah. Hajar asked if this was Allah's command; when told yes, she trusted fully." },
+			{ title: "Part 3: Search between Safa and Marwah", body: "When water ran low, Hajar ran between Safa and Marwah seeking help. Her effort and trust became a lasting symbol in Islamic worship." },
+			{ title: "Part 4: Zamzam springs", body: "Allah sent relief: Zamzam sprang near Ismail. This divine provision turned a barren valley into a place of life and future guidance." },
+			{ title: "Part 5: Settlement of Makkah", body: "Travelers settled around Zamzam. Ismail grew among them and learned Arabic. Allah prepared him for prophethood and service to tawhid." },
+			{ title: "Part 6: The sacrifice vision", body: "Ibrahim saw in a dream that he must sacrifice his son. He consulted Ismail, who replied with obedience and patience, showing full trust in Allah." },
+			{ title: "Part 7: Trial fulfilled, ransom granted", body: "When father and son submitted, Allah replaced the sacrifice with a great ram and praised their sincerity. Their submission became a model for all believers." },
+			{ title: "Part 8: Building the Ka'bah", body: "Ibrahim and Ismail raised the foundations of the Ka'bah, praying: 'Our Lord, accept from us.' Their work established the center of pure worship." },
+			{ title: "Part 9: Dua for a messenger", body: "They supplicated for a messenger among their descendants who would teach the Book and wisdom. This dua was fulfilled in Prophet Muhammad (peace be upon him)." },
+			{ title: "Part 10: Ismail's legacy", body: "Ismail remained truthful to promises, committed to prayer, and patient. His life combines obedience, trust, effort, and leadership in worship." },
+			{ title: "Moral lessons", body: " Obedience is strongest when command is difficult.\n\n Tawakkul means trust plus effort.\n\n Family cooperation in worship builds lasting legacy.\n\n Allah rewards sincere submission with honor." },
+			{ title: "Practical actions for students", body: " Read Qur'an 2:125-129 and 37:100-111.\n\n Practice immediate obedience in one difficult duty this week.\n\n Make dua with your family after salah for guidance and acceptance." },
+		],
+		quranSurahs: ["Al-Baqarah", "As-Saffat", "Ibrahim", "Maryam"],
+	},
+	ishaq: {
+		shortIntro:
+			"Ishaq (peace be upon him) was the son of Ibrahim and Sarah, given as glad tidings in old age. Ibn Kathir highlights him as a blessed prophet from whom many later prophets descended.",
+		sections: [
+			{ title: "Part 1: Glad tidings", body: "Angels visited Ibrahim and gave glad tidings of a son, Ishaq, and after him Yaqub. This showed Allah's power beyond normal expectation." },
+			{ title: "Part 2: Sarah's amazement", body: "Sarah was astonished because of old age, but Allah's decree is never limited by age or circumstance." },
+			{ title: "Part 3: Birth of Ishaq", body: "Ishaq was born as a mercy and fulfillment of Allah's promise. His birth strengthened faith in divine promise and timing." },
+			{ title: "Part 4: House of prophethood", body: "Allah blessed Ibrahim's family with guidance and made Ishaq part of a prophetic household centered on worship and truth." },
+			{ title: "Part 5: Character and worship", body: "Ishaq grew as a righteous servant devoted to Allah. He inherited the prophetic mission of calling to tawhid." },
+			{ title: "Part 6: Continuity of message", body: "Through Ishaq's line came many prophets from Bani Isra'il. This continuity showed Allah's ongoing guidance to humanity." },
+			{ title: "Part 7: Test and gratitude", body: "The family remained grateful after blessing, recognizing that every child and every mission is an amanah from Allah." },
+			{ title: "Part 8: Leadership in faith", body: "Ishaq's life demonstrates quiet leadership: preserving worship, truthfulness, and prophetic ethics in family and community." },
+			{ title: "Part 9: Promise and patience", body: "The story teaches that delayed blessings are not denied blessings. Allah gives at the best time with the best wisdom." },
+			{ title: "Part 10: Legacy through Yaqub", body: "Ishaq's son Yaqub continued the line of prophethood. This family legacy became one of the greatest in sacred history." },
+			{ title: "Moral lessons", body: " Allah's promises are certain.\n\n Delay can be part of mercy.\n\n Blessed families are built on worship and gratitude.\n\n Guidance must be preserved across generations." },
+			{ title: "Practical actions for students", body: " Read Qur'an 11:69-73 and 37:112-113.\n\n Write one dua asking Allah to bless your family with faith.\n\n Thank Allah daily for family blessings and guidance." },
+		],
+		quranSurahs: ["Hud", "As-Saffat", "Adh-Dhariyat"],
+	},
+	yaqub: {
+		shortIntro:
+			"Yaqub (peace be upon him), also known as Israel, was the son of Ishaq and father of Yusuf. Ibn Kathir presents him as a prophet of deep patience, wise parenting, and unwavering trust in Allah.",
+		sections: [
+			{ title: "Part 1: Blessed lineage", body: "Yaqub was raised in the house of prophethood, inheriting knowledge and worship from Ibrahim and Ishaq." },
+			{ title: "Part 2: Father of many sons", body: "Allah gave Yaqub children, including Yusuf and his brother Binyamin. He cared deeply for all while remaining just." },
+			{ title: "Part 3: Yusuf's dream", body: "Yaqub understood Yusuf's dream and advised him with wisdom, protecting him from jealousy among brothers." },
+			{ title: "Part 4: Loss of Yusuf", body: "When brothers brought false news, Yaqub responded with 'beautiful patience' and placed his grief before Allah alone." },
+			{ title: "Part 5: Years of patience", body: "He endured long separation without despair, trusting Allah's mercy while continuing to guide his family." },
+			{ title: "Part 6: Reliance with planning", body: "Yaqub combined tawakkul with practical steps, advising his sons carefully while affirming Allah is the best protector." },
+			{ title: "Part 7: Hope never dies", body: "He instructed his sons not to despair of Allah's mercy, proving that hope is a core part of faith." },
+			{ title: "Part 8: Reunion and relief", body: "Allah reunited Yaqub with Yusuf after long hardship. Grief turned to gratitude through Allah's perfect decree." },
+			{ title: "Part 9: Family restored", body: "With forgiveness and humility, the family was restored. Yaqub witnessed Allah complete His promise." },
+			{ title: "Part 10: Final counsel", body: "Before death, Yaqub advised his children to remain on worship of Allah alone, preserving tawhid for future generations." },
+			{ title: "Moral lessons", body: " Beautiful patience is active faith.\n\n Never despair of Allah's mercy.\n\n Wise parenting includes emotional care and spiritual guidance.\n\n Tawakkul includes both trust and responsible action." },
+			{ title: "Practical actions for students", body: " Read Qur'an 12 carefully with translation.\n\n Practice saying 'I seek help from Allah' in hardship.\n\n Make one reconciliation step in family relationships this week." },
+		],
+		quranSurahs: ["Yusuf", "Al-Baqarah"],
+	},
+	"dhul-kifl": {
+		shortIntro:
+			"Dhul-Kifl (peace be upon him) is mentioned among the patient and righteous. Ibn Kathir records that he was known for keeping commitments, judging justly, and persevering in obedience.",
+		sections: [
+			{ title: "Part 1: Mention in the Qur'an", body: "Allah mentions Dhul-Kifl among honored prophets and righteous servants, linking him with patience and steadfastness." },
+			{ title: "Part 2: Meaning of his name", body: "Classical explanations relate his title to taking responsibility and fulfilling a weighty commitment with excellence." },
+			{ title: "Part 3: Commitment to worship", body: "Reports describe strong discipline in prayer, fasting, and justice, showing consistency rather than occasional zeal." },
+			{ title: "Part 4: Promise kept", body: "Dhul-Kifl became known for fulfilling what he pledged, even under pressure, fatigue, or temptation." },
+			{ title: "Part 5: Justice and leadership", body: "He judged between people fairly and did not allow anger or favoritism to distort decisions." },
+			{ title: "Part 6: Patience under trial", body: "His rank came through endurance, not comfort. He remained committed to obedience through difficulty." },
+			{ title: "Part 7: Sincerity over image", body: "Dhul-Kifl's model is quiet integrity: keeping covenants with Allah and people without seeking praise." },
+			{ title: "Part 8: Rank among the patient", body: "Allah grouped him with prophets known for sabr, showing that patience is a path to divine mercy." },
+			{ title: "Part 9: Legacy of reliability", body: "His story teaches the Ummah that reliability, trust, and covenant-keeping are prophetic qualities." },
+			{ title: "Part 10: Living his example", body: "Dhul-Kifl's message for students: be consistent, keep your word, and choose justice over convenience." },
+			{ title: "Moral lessons", body: " Keeping promises is worship.\n\n Patience is proof of sincerity.\n\n Justice requires self-control.\n\n Quiet consistency is better than inconsistent intensity." },
+			{ title: "Practical actions for students", body: " Keep one weekly worship commitment for 4 weeks.\n\n Complete every promise you make this week.\n\n Reflect on Qur'an 21:85 and 38:48." },
+		],
+		quranSurahs: ["Al-Anbiya", "Sad"],
+	},
+	"al-yasa": {
+		shortIntro:
+			"Al-Yasa (peace be upon him), successor to Ilyas in guiding Bani Isra'il, is listed by Allah among the chosen and righteous. Ibn Kathir presents him as a prophet of continuity, reform, and steadfast instruction.",
+		sections: [
+			{ title: "Part 1: Mention in the Qur'an", body: "Al-Yasa is named among the prophets whom Allah favored above many peoples and counted among the righteous." },
+			{ title: "Part 2: Continuity after Ilyas", body: "Reports describe Al-Yasa continuing the mission after Ilyas, preserving tawhid and prophetic teaching in his people." },
+			{ title: "Part 3: Calling to Allah alone", body: "He renewed the call to worship Allah alone and warned against corruption and idolatrous tendencies." },
+			{ title: "Part 4: Teaching and correction", body: "Al-Yasa focused on teaching, correction, and restoring obedience to revelation when people drifted away." },
+			{ title: "Part 5: Steadfast leadership", body: "He served with patience and moral strength, leading by principle instead of popularity." },
+			{ title: "Part 6: Service over status", body: "The prophetic path he followed was service and sacrifice, not personal power." },
+			{ title: "Part 7: Reform through constancy", body: "His reform was gradual and consistent: teaching truth repeatedly and correcting falsehood patiently." },
+			{ title: "Part 8: Chosen among the best", body: "Allah's wording about Al-Yasa emphasizes divine selection and righteousness as standards of true rank." },
+			{ title: "Part 9: Lesson for future generations", body: "Al-Yasa's legacy shows the need to preserve faith institutions and pass guidance from one generation to the next." },
+			{ title: "Part 10: The prophetic standard", body: "His life teaches endurance in teaching, loyalty to revelation, and sincerity in public service." },
+			{ title: "Moral lessons", body: " Guidance must be preserved continuously.\n\n Reform needs patience and structure.\n\n Real rank is with Allah, not crowds.\n\n Teaching truth is long-term work." },
+			{ title: "Practical actions for students", body: " Read Qur'an 6:86 and 38:48.\n\n Choose one habit to sustain for 30 days.\n\n Teach one authentic lesson weekly to a sibling or friend." },
+		],
+		quranSurahs: ["Al-Anam", "Sad"],
+	},
+};
 
-	const safeContent: StoryContent =
-		content ??
-		({
-			shortIntro: "Student-friendly story content coming soon.",
-			sections: [
-				{
-					title: "Part 1",
-					body: "Content will be added soon.",
-				},
-				{
-					title: "Moral lessons",
-					body: " Seek knowledge.\n\n Practice good character.",
-				},
-				{
-					title: "Practical actions for students",
-					body: " Do one good deed today.\n\n Make dua for guidance.",
-				},
-				DEFAULT_QUIZ_SECTION,
-			],
-			quranSurahs: [],
-		} satisfies StoryContent);
+export const PROPHET_STORIES: ProphetStory[] = PROPHETS.map((p) => {
+	const content = STORY_CONTENT_BY_SLUG[p.slug] ?? SUPPLEMENTAL_IBN_KATHIR_STORIES[p.slug];
+	if (!content) {
+		throw new Error(`Missing Stories of the Prophets content for slug: ${p.slug}`);
+	}
 
 	return {
 		slug: p.slug,
 		name: formatProphetNamesWithPbuh(p.name),
-		shortIntro: safeContent.shortIntro,
-		sections: normalizeSectionsWithQuiz(safeContent.sections),
-		quranSurahs: safeContent.quranSurahs,
+		shortIntro: content.shortIntro,
+		sections: normalizeSectionsWithQuiz(content.sections),
+		quranSurahs: content.quranSurahs,
 	};
 });
 

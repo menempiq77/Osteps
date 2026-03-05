@@ -6,7 +6,6 @@ import {
   addAssessment,
   deleteAssessment,
   deleteAssignTermQuiz,
-  fetchAssessment,
   fetchSchoolAssessment,
   updateAssessment,
 } from "@/services/api";
@@ -28,7 +27,6 @@ interface Assessment {
 
 export default function Page() {
   const { termId, classId } = useParams();
-  const [currentTermId, setCurrentTermId] = useState(1);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,12 +44,17 @@ export default function Page() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const { activeSubjectId, canUseSubjectContext } = useSubjectContext();
   const isTeacher = currentUser?.role === "TEACHER";
+  const normalizedTermId = typeof termId === "string" ? termId : "";
+  const schoolIdNum = Number(currentUser?.school ?? 0);
+  const isContextReady = schoolIdNum > 0 && (!canUseSubjectContext || !!activeSubjectId);
 
-  const schoolId = currentUser?.school;
-
-  useEffect(() => {
-    setCurrentTermId(termId);
-  }, [termId]);
+  const refreshAssessments = async () => {
+    const data = await fetchSchoolAssessment(schoolIdNum, activeSubjectId ?? undefined);
+    const sortedAssessments = (data ?? []).sort(
+      (a: { position?: number }, b: { position?: number }) => (a?.position ?? 0) - (b?.position ?? 0)
+    );
+    setAssessments(sortedAssessments);
+  };
 
   useEffect(() => {
     const savedYearId = localStorage.getItem("selectedYearId");
@@ -60,35 +63,59 @@ export default function Page() {
     }
   }, [classId]);
 
-  const loadAssessment = async () => {
-    try {
-      const data = await fetchSchoolAssessment(schoolId, activeSubjectId ?? undefined);
-      const sortedAssessments = data.sort((a, b) => a.position - b.position);
-      setAssessments(sortedAssessments);
-      setLoading(false);
-    } catch (err) {
-      setError("Failed to load Assessment");
-      setLoading(false);
-      console.error(err);
-    }
-  };
-
   useEffect(() => {
-    if (currentTermId && (!canUseSubjectContext || !!activeSubjectId)) {
-      loadAssessment();
-      loadQuizzes(schoolId);
-    }
-  }, [currentTermId, activeSubjectId, canUseSubjectContext]);
+    if (!isContextReady) return;
+
+    let cancelled = false;
+
+    const loadAll = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const [assessmentResult, quizResult] = await Promise.allSettled([
+          fetchSchoolAssessment(schoolIdNum, activeSubjectId ?? undefined),
+          fetchQuizes(String(schoolIdNum), activeSubjectId ?? undefined),
+        ]);
+
+        if (cancelled) return;
+
+        if (assessmentResult.status === "fulfilled") {
+          const sortedAssessments = (assessmentResult.value ?? []).sort(
+            (a: { position?: number }, b: { position?: number }) => (a?.position ?? 0) - (b?.position ?? 0)
+          );
+          setAssessments(sortedAssessments);
+        } else {
+          setError("Failed to load assessments");
+          setAssessments([]);
+          console.error(assessmentResult.reason);
+        }
+
+        if (quizResult.status === "fulfilled") {
+          setQuizzes(quizResult.value ?? []);
+        } else {
+          // Quizzes are secondary on this page; keep page usable even if this fails.
+          setQuizzes([]);
+          console.error("Failed to load quizzes", quizResult.reason);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    loadAll();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [schoolIdNum, activeSubjectId, canUseSubjectContext, isContextReady]);
 
   const loadQuizzes = async (schoolId: string) => {
     try {
-      setLoading(true);
       const response = await fetchQuizes(schoolId, activeSubjectId ?? undefined);
       setQuizzes(response);
     } catch (error) {
-      console.error("Failed to load quizzes");
-    } finally {
-      setLoading(false);
+      setQuizzes([]);
+      console.error("Failed to load quizzes", error);
     }
   };
 
@@ -103,20 +130,20 @@ export default function Page() {
 
       if (assessmentData.type === "quiz") {
         newAssessment = await assignAssesmentQuiz(
-          parseInt(termId as string),
+          parseInt(normalizedTermId),
           parseInt(assessmentData.name),
           activeSubjectId ?? undefined
         );
       } else {
         newAssessment = await addAssessment({
           name: assessmentData.name,
-          school_id: schoolId,
+          school_id: schoolIdNum,
           type: assessmentData.type,
         });
       }
 
       setAssessments([...assessments, newAssessment]);
-      await loadAssessment();
+      await refreshAssessments();
       setOpen(false);
       setIsAddingQuiz(false);
     } catch (err) {
@@ -135,7 +162,7 @@ export default function Page() {
       const updatedAssessment = await updateAssessment(editingAssessment.id, {
         name: assessmentData.name,
         type: assessmentData.type,
-        school_id: schoolId,
+        school_id: schoolIdNum,
       });
 
       setAssessments(
@@ -145,7 +172,7 @@ export default function Page() {
             : assessment
         )
       );
-      await loadAssessment();
+      await refreshAssessments();
       setOpen(false);
       setEditingAssessment(null);
     } catch (err) {
@@ -263,14 +290,14 @@ export default function Page() {
             initialData={{
               name: editingAssessment.name,
               type: editingAssessment.type,
-              term_id: termId,
+              term_id: normalizedTermId,
             }}
           />
         ) : (
           <AddAssessmentForm
             onSubmit={handleAddAssessment}
             isQuiz={isAddingQuiz}
-            termId={termId}
+            termId={normalizedTermId}
             quizzes={quizzes}
           />
         )}
@@ -281,7 +308,7 @@ export default function Page() {
         onDeleteAssessment={confirmDelete}
         onEditAssessment={handleEditClick}
         quizzes={quizzes}
-        termId={termId}
+        termId={normalizedTermId}
       />
       {/* Delete Confirmation Dialog */}
       <Modal

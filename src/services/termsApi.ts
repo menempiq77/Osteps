@@ -10,6 +10,7 @@ const getAuthHeader = (): Record<string, string> => {
 export const fetchTerm = async (classId: number) => {
   const response = await fetch(`${API_BASE_URL}/get-term/${classId}`, {
     headers: getAuthHeader(),
+    cache: "no-store",
   });
   if (!response.ok) throw new Error('Failed to fetch terms');
   const data = await response.json();

@@ -5,7 +5,7 @@ import { Calendar } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import AssignmentDrawer from "@/components/ui/AssignmentDrawer";
 import { Breadcrumb, Button, Spin, Tag, Tooltip } from "antd";
-import { fetchTasks, markUrlTaskAsComplete } from "@/services/api";
+import { fetchTasks } from "@/services/api";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { IMG_BASE_URL } from "@/lib/config";
@@ -150,22 +150,6 @@ export default function AssignmentDetailPage() {
       setIsDrawerOpen(true);
     }
   };
-  const handleMarkAsComplete = async (task: Task) => {
-    try {
-      setLoading(true);
-
-      await markUrlTaskAsComplete(task.id);
-
-      setTasks((prev) =>
-        prev.map((t) => (t.id === task.id ? { ...t, status: "completed" } : t))
-      );
-    } catch (error) {
-      console.error("Failed to mark task as complete:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const getStatusBadge = (status: string = "not-completed") => {
     const isCompleted = status.toLowerCase() === "completed";
 
@@ -296,20 +280,16 @@ export default function AssignmentDetailPage() {
                         </div>
                       ) : (
                         <>
-                          {task?.task_type !== "url" && (
-                            <>
-                              <div>
-                                <span className="text-gray-500">
-                                  Self Assessment:
-                                </span>
-                                <span className="ml-2 font-medium">
-                                  {task?.self_assessment_marks || 0} /{" "}
-                                  {task?.allocated_marks || 0}
-                                </span>
-                              </div>
-                              <div className="text-gray-300">|</div>
-                            </>
-                          )}
+                          <div>
+                            <span className="text-gray-500">
+                              Self Assessment:
+                            </span>
+                            <span className="ml-2 font-medium">
+                              {task?.self_assessment_marks || 0} /{" "}
+                              {task?.allocated_marks || 0}
+                            </span>
+                          </div>
+                          <div className="text-gray-300">|</div>
                           <div>
                             <span className="text-gray-500">
                               Teacher Assessment:
@@ -382,19 +362,8 @@ export default function AssignmentDetailPage() {
                   </div>
 
                   {/* If task type is URL → show Mark as Complete */}
-                  {task?.task_type === "url" ? (
-                    <Button
-                      type="default"
-                      className={`flex items-center gap-1 !bg-primary !border-primary !text-white`}
-                      onClick={() => handleMarkAsComplete(task)}
-                      disabled={task.status === "completed"}
-                    >
-                      {task.status === "completed"
-                        ? "Completed"
-                        : "Mark as Complete"}
-                    </Button>
-                  ) : isDueDateExpired(task.due_date) &&
-                    task.status !== "completed" ? (
+                  {isDueDateExpired(task.due_date) &&
+                  task.status !== "completed" ? (
                     <Tooltip title="The due date for this task has expired">
                       <Button
                         type="default"
@@ -406,12 +375,18 @@ export default function AssignmentDetailPage() {
                     </Tooltip>
                   ) : (
                     <Button
-                      type="default"
-                      className={`flex items-center gap-1 !bg-primary !border-primary !text-white`}
+                      type="primary"
+                      className="flex items-center gap-1"
                       onClick={() => handleOpenDrawer(task)}
-                      disabled={task.status === "completed"}
+                      disabled={
+                        task.status === "completed" &&
+                        isDueDateExpired(task.due_date)
+                      }
                     >
-                      {task.status === "completed"
+                      {task.status === "completed" &&
+                      !isDueDateExpired(task.due_date)
+                        ? "Edit Submission"
+                        : task.status === "completed"
                         ? "Submitted"
                         : task?.type !== "quiz"
                         ? "Submit Work"
@@ -427,10 +402,18 @@ export default function AssignmentDetailPage() {
 
       <AssignmentDrawer
         isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
+        onClose={() => {
+          setIsDrawerOpen(false);
+          void loadTasks();
+        }}
         selectedSubject={selectedTask?.task_name || "Task"}
         selectedTask={selectedTask}
         assessmentId={assignmentId}
+        canEditSubmission={
+          !!selectedTask &&
+          selectedTask?.type !== "quiz" &&
+          !isDueDateExpired(selectedTask?.due_date)
+        }
       />
     </div>
   );

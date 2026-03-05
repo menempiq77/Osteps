@@ -697,33 +697,7 @@ export const CHECKPOINT_DATA: Record<string, CheckpointConfig> = {
 export function getCheckpointData(prophet: string): CheckpointConfig {
   const data = CHECKPOINT_DATA[prophet];
   if (!data) {
-    // Return generic checkpoint for prophets without specific data
-    return {
-      part4: {
-        events: [
-          { id: "call", label: "The prophet calls to Allah" },
-          { id: "resist", label: "People resist the message" },
-          { id: "patient", label: "The prophet remains patient" },
-          { id: "result", label: "Allah's will prevails" },
-        ],
-      },
-      part8: {
-        pairs: [
-          { id: "call", left: "Prophet calls to truth", right: "Some people believe" },
-          { id: "test", left: "Believers are tested", right: "Faith becomes stronger" },
-          { id: "reject", left: "Disbelievers reject", right: "They face consequences" },
-          { id: "truth", left: "Truth remains", right: "Falsehood perishes" },
-        ],
-      },
-      part12: {
-        options: [
-          { id: "A", label: "Following desires is freedom", isCorrect: false },
-          { id: "B", label: "Truth changes with time", isCorrect: false },
-          { id: "C", label: "Following Allah's guidance brings success in this life and the next", isCorrect: true },
-          { id: "D", label: "Worldly success is the only goal", isCorrect: false },
-        ],
-      },
-    };
+    throw new Error(`Missing checkpoint data for prophet slug: ${prophet}`);
   }
   return data;
 }

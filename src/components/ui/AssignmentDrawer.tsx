@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Drawer,
   Button,
@@ -19,12 +19,14 @@ import { uploadTaskByStudent } from "@/services/api";
 interface Task {
   id: string;
   name: string;
-  type: "audio" | "video" | "pdf";
+  type: "audio" | "video" | "pdf" | "url";
   url?: string;
   status: string;
   mark?: string;
   comment?: string;
   selfAssessment?: number;
+  self_assessment_marks?: number;
+  additional_notes?: string;
   allocated_marks: number;
   task_type?: string;
 }
@@ -35,6 +37,7 @@ interface AssignmentDrawerProps {
   selectedSubject: string;
   selectedTask?: Task | null;
   assessmentId?: number;
+  canEditSubmission?: boolean;
 }
 
 const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
@@ -43,6 +46,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
   selectedSubject,
   selectedTask,
   assessmentId,
+  canEditSubmission = false,
 }) => {
   const [form] = Form.useForm();
   const [fileList, setFileList] = useState<UploadFile[]>([]);
@@ -52,6 +56,15 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
 
   const isNATask =
     !selectedTask?.task_type || selectedTask?.task_type === "null";
+
+  useEffect(() => {
+    if (!isOpen || !selectedTask) return;
+    form.setFieldsValue({
+      selfAssessment:
+        selectedTask?.selfAssessment ?? selectedTask?.self_assessment_marks ?? undefined,
+      notes: selectedTask?.additional_notes ?? "",
+    });
+  }, [isOpen, selectedTask, form]);
 
   const handleFileChange = (info: any) => {
     let newFileList = [...info.fileList];
@@ -180,7 +193,17 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
 
   const renderUploadArea = () => {
     // if (selectedTask?.status === "completed") return null;
-    if (selectedTask?.status === "completed" || isNATask) return null;
+    if ((!canEditSubmission && selectedTask?.status === "completed") || isNATask) return null;
+    if (selectedTask?.task_type === "url") {
+      return (
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <p className="text-sm text-gray-700">
+            Open the attached URL, complete the task, then submit your self
+            assessment below.
+          </p>
+        </div>
+      );
+    }
 
     const acceptType =
       selectedTask?.task_type === "audio"
@@ -244,7 +267,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
         open={isOpen}
         width={600}
         footer={
-          selectedTask?.status !== "completed" ? (
+          (selectedTask?.status !== "completed" || canEditSubmission) ? (
             <div className="flex justify-end">
               <Button
                 type="primary"
@@ -252,7 +275,9 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
                 loading={isSubmitting}
                 className="w-full !bg-primary !border-primary"
               >
-                Submit Assignment
+                {selectedTask?.status === "completed"
+                  ? "Update Submission"
+                  : "Submit Assignment"}
               </Button>
             </div>
           ) : null
@@ -265,20 +290,21 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
               <p className="text-gray-600">{selectedTask.description}</p>
             </div>
 
-            {selectedTask.status === "completed" ? (
+            {selectedTask.status === "completed" && !canEditSubmission ? (
               <>
                 <div>
                   <h4 className="font-medium text-gray-800">Your Submission</h4>
                   {renderFilePreview()}
                 </div>
 
-                {selectedTask.selfAssessment && (
+                {(selectedTask.selfAssessment !== undefined ||
+                  selectedTask.self_assessment_marks !== undefined) && (
                   <div>
                     <h4 className="font-medium text-gray-800">
                       Self Assessment
                     </h4>
                     <p className="text-gray-600">
-                      {selectedTask.selfAssessment}
+                      {selectedTask.selfAssessment ?? selectedTask.self_assessment_marks}
                     </p>
                   </div>
                 )}

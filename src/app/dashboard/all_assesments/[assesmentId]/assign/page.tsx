@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { Breadcrumb, Button, Select, Spin, message } from "antd";
 import Link from "next/link";
@@ -9,22 +9,24 @@ import { RootState } from "@/store/store";
 import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { fetchTerm } from "@/services/termsApi";
+import { addTerm, fetchTerm } from "@/services/termsApi";
 import { assignAssessmentToTerm, unassignAssessmentFromTerm } from "@/services/api";
+import { useSubjectContext } from "@/contexts/SubjectContext";
 
 export default function AssignAssessmentPage() {
   const { assesmentId } = useParams<{ assesmentId: string }>();
-  console.log("assementId", assesmentId)
-  
+
   const [loading, setLoading] = useState(true);
   const [messageApi, contextHolder] = message.useMessage();
   const [years, setYears] = useState<any[]>([]);
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
+  const [generatingTerms, setGeneratingTerms] = useState(false);
 
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const isTeacher = currentUser?.role === "TEACHER";
   const schoolId = currentUser?.school;
+  const { activeSubjectId, canUseSubjectContext } = useSubjectContext();
 
   const queryClient = useQueryClient();
 
@@ -46,9 +48,10 @@ export default function AssignAssessmentPage() {
         const res = await fetchYearsBySchool(schoolId);
         yearsData = res;
       }
-      setYears(yearsData);
-      if (yearsData.length > 0) {
-        setSelectedYear(yearsData[0].id.toString());
+      const safeYears = Array.isArray(yearsData) ? yearsData : [];
+      setYears(safeYears);
+      if (safeYears.length > 0) {
+        setSelectedYear(safeYears[0].id.toString());
       }
     } catch (err) {
       console.error(err);
@@ -59,8 +62,10 @@ export default function AssignAssessmentPage() {
   };
 
   useEffect(() => {
+    if (!schoolId) return;
+    if (canUseSubjectContext && !activeSubjectId) return;
     loadYears();
-  }, []);
+  }, [schoolId, activeSubjectId, canUseSubjectContext]);
 
   /** Fetch classes for selected year */
   const {
@@ -88,21 +93,84 @@ export default function AssignAssessmentPage() {
     enabled: !!selectedYear,
   });
 
+  const classList = useMemo(() => (Array.isArray(classes) ? classes : []), [classes]);
+
+  useEffect(() => {
+    if (!selectedClass && classList.length > 0) {
+      setSelectedClass(String(classList[0].id));
+    }
+  }, [classList, selectedClass]);
+
   /** Fetch terms for selected class */
   const {
     data: terms = [],
     isLoading: termsLoading,
   } = useQuery({
-    queryKey: ["terms", selectedClass, assesmentId],
+    queryKey: ["terms", selectedClass, assesmentId, activeSubjectId ?? "legacy"],
     queryFn: () => fetchTerm(Number(selectedClass)),
     enabled: !!selectedClass,
   });
+
+  const termList = useMemo(() => (Array.isArray(terms) ? terms : []), [terms]);
+
+  const selectedClassRecord = classList.find(
+    (cls: any) => String(cls.id) === String(selectedClass)
+  );
+
+  const resolveClassTermCount = (value: unknown): number => {
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    const normalized = String(value ?? "").trim().toLowerCase();
+    if (normalized === "two") return 2;
+    if (normalized === "three") return 3;
+    const parsed = Number(normalized);
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+    return 0;
+  };
+
+  const configuredTermCount = useMemo(
+    () => resolveClassTermCount(selectedClassRecord?.number_of_terms),
+    [selectedClassRecord]
+  );
+
+  const visibleTerms = useMemo(() => {
+    const sorted = [...termList].sort((a: any, b: any) => Number(a?.id ?? 0) - Number(b?.id ?? 0));
+    if (configuredTermCount > 0) {
+      return sorted.slice(0, configuredTermCount);
+    }
+    return sorted;
+  }, [termList, configuredTermCount]);
+
+  const handleGenerateDefaultTerms = async () => {
+    if (!selectedClassRecord) return;
+    const totalTerms = configuredTermCount > 0 ? configuredTermCount : 3;
+    const missingCount = Math.max(0, totalTerms - termList.length);
+    if (missingCount === 0) {
+      messageApi.info("Terms already match this class setup.");
+      return;
+    }
+
+    try {
+      setGeneratingTerms(true);
+      for (let i = termList.length + 1; i <= totalTerms; i++) {
+        await addTerm(Number(selectedClassRecord.id), { name: `Term ${i}` });
+      }
+      await queryClient.invalidateQueries({
+        queryKey: ["terms", selectedClass, assesmentId, activeSubjectId ?? "legacy"],
+      });
+      messageApi.success(`Created ${missingCount} missing term(s) for ${selectedClassRecord.class_name}`);
+    } catch (error) {
+      console.error(error);
+      messageApi.error("Failed to generate terms");
+    } finally {
+      setGeneratingTerms(false);
+    }
+  };
 
   const handleAssignTerm = async (termId: number) => {
     try {
       await assignAssessmentToTerm(Number(assesmentId), termId);
       messageApi.success("Assessment assigned successfully!");
-      queryClient.invalidateQueries({ queryKey: ["terms", selectedClass, assesmentId] });
+      queryClient.invalidateQueries({ queryKey: ["terms", selectedClass, assesmentId, activeSubjectId ?? "legacy"] });
     } catch (error) {
       console.error(error);
       messageApi.error("Failed to assign assessment");
@@ -113,7 +181,7 @@ export default function AssignAssessmentPage() {
     try {
       await unassignAssessmentFromTerm(Number(assesmentId), termId);
       messageApi.success("Assessment unassigned successfully!");
-      queryClient.invalidateQueries({ queryKey: ["terms", selectedClass, assesmentId] });
+      queryClient.invalidateQueries({ queryKey: ["terms", selectedClass, assesmentId, activeSubjectId ?? "legacy"] });
     } catch (error) {
       console.error(error);
       messageApi.error("Failed to unassign assessment");
@@ -134,7 +202,7 @@ export default function AssignAssessmentPage() {
       <Breadcrumb
         items={[
           { title: <Link href="/dashboard">Dashboard</Link> },
-          { title: <Link href="/dashboard/all_assessments">All Assessments</Link> },
+          { title: <Link href="/dashboard/all_assesments">All Assessments</Link> },
           { title: <span>Assign Assessment</span> },
         ]}
         className="!mb-4"
@@ -178,7 +246,7 @@ export default function AssignAssessmentPage() {
             loading={classesLoading}
             disabled={!selectedYear}
           >
-            {classes?.map((cls: any) => (
+            {classList.map((cls: any) => (
               <Select.Option key={cls.id} value={cls.id.toString()}>
                 {cls.class_name}
               </Select.Option>
@@ -205,8 +273,8 @@ export default function AssignAssessmentPage() {
                   <Spin />
                 </td>
               </tr>
-            ) : terms.length > 0 ? (
-              terms.map((term: any, index: number) => {
+            ) : visibleTerms.length > 0 ? (
+              visibleTerms.map((term: any, index: number) => {
                 const status =
                   term.assign_assessments?.find(
                     (a: any) => a.assessment_id === Number(assesmentId)
@@ -246,7 +314,18 @@ export default function AssignAssessmentPage() {
             ) : (
               <tr>
                 <td colSpan={4} className="p-4 text-center text-gray-500">
-                  No terms found.
+                  <div className="flex flex-col items-center gap-3">
+                    <span>No terms found.</span>
+                    <Button
+                      type="default"
+                      size="small"
+                      loading={generatingTerms}
+                      onClick={handleGenerateDefaultTerms}
+                      disabled={!selectedClassRecord}
+                    >
+                      Generate default terms
+                    </Button>
+                  </div>
                 </td>
               </tr>
             )}
