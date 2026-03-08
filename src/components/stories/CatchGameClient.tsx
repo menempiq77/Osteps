@@ -27,13 +27,15 @@ const GAME_HEIGHT = 500;
 const BASKET_WIDTH = 60;
 const BASKET_HEIGHT = 60;
 const ITEM_SIZE = 40;
-const TARGET_SCORE_EASY = 15;
-const TARGET_SCORE_MEDIUM = 20;
-const TARGET_SCORE_HARD = 25;
+const TARGET_SCORE_EASY = 12;
+const TARGET_SCORE_MEDIUM = 18;
+const TARGET_SCORE_HARD = 24;
 const LIVES_EASY = 3;
 const LIVES_MEDIUM = 3;
 const LIVES_HARD = 2;
-const GAME_DURATION = 120; // 2 minutes in seconds
+const GAME_DURATION_EASY = 120;
+const GAME_DURATION_MEDIUM = 105;
+const GAME_DURATION_HARD = 90;
 
 export default function CatchGameClient({
   goodItems,
@@ -44,6 +46,11 @@ export default function CatchGameClient({
 }: CatchGameProps) {
   const TARGET_SCORE = difficulty === "easy" ? TARGET_SCORE_EASY : difficulty === "medium" ? TARGET_SCORE_MEDIUM : TARGET_SCORE_HARD;
   const INITIAL_LIVES = difficulty === "easy" ? LIVES_EASY : difficulty === "medium" ? LIVES_MEDIUM : LIVES_HARD;
+  const GAME_DURATION = difficulty === "easy" ? GAME_DURATION_EASY : difficulty === "medium" ? GAME_DURATION_MEDIUM : GAME_DURATION_HARD;
+  const SPAWN_INTERVAL_MS = difficulty === "easy" ? 1100 : difficulty === "medium" ? 900 : 750;
+  const SPEED_MIN = difficulty === "easy" ? 1.8 : difficulty === "medium" ? 2.2 : 2.6;
+  const SPEED_RANGE = difficulty === "easy" ? 1.6 : difficulty === "medium" ? 2.0 : 2.4;
+  const BAD_ITEM_CHANCE = difficulty === "easy" ? 0.22 : difficulty === "medium" ? 0.3 : 0.38;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [basketX, setBasketX] = useState(GAME_WIDTH / 2 - BASKET_WIDTH / 2);
   const [fallingItems, setFallingItems] = useState<FallingItem[]>([]);
@@ -106,7 +113,7 @@ export default function CatchGameClient({
     if (gameOver || gameWon) return;
 
     spawnTimerRef.current = setInterval(() => {
-      const isGood = Math.random() > 0.3; // 70% good items, 30% bad
+      const isGood = Math.random() > BAD_ITEM_CHANCE;
       const items = isGood ? goodItems : badItems;
       const item = items[Math.floor(Math.random() * items.length)];
 
@@ -115,17 +122,17 @@ export default function CatchGameClient({
         item,
         x: Math.random() * (GAME_WIDTH - ITEM_SIZE),
         y: -ITEM_SIZE,
-        speed: 2 + Math.random() * 2,
+        speed: SPEED_MIN + Math.random() * SPEED_RANGE,
         isGood,
       };
 
       setFallingItems((prev) => [...prev, newItem]);
-    }, 1000);
+    }, SPAWN_INTERVAL_MS);
 
     return () => {
       if (spawnTimerRef.current) clearInterval(spawnTimerRef.current);
     };
-  }, [gameOver, gameWon, goodItems, badItems]);
+  }, [gameOver, gameWon, goodItems, badItems, BAD_ITEM_CHANCE, SPAWN_INTERVAL_MS, SPEED_MIN, SPEED_RANGE]);
 
   // Game loop
   useEffect(() => {

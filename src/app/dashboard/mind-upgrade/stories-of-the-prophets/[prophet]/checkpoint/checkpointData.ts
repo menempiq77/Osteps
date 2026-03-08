@@ -75,26 +75,26 @@ export const CHECKPOINT_DATA: Record<string, CheckpointConfig> = {
   nuh: {
     part4: {
       events: [
-        { id: "call", label: "Nuh calls his people to worship Allah alone" },
-        { id: "reject", label: "The people mock and reject him" },
-        { id: "continue", label: "Nuh continues calling for 950 years" },
-        { id: "command", label: "Allah commands him to build the ark" },
+        { id: "idols", label: "Idolatry spreads through honoring righteous people excessively" },
+        { id: "call", label: "Nuh calls to tawhid day and night, publicly and privately" },
+        { id: "reject", label: "Leaders mock him and look down on poor believers" },
+        { id: "ark", label: "Allah commands Nuh to build the Ark despite mockery" },
       ],
     },
     part8: {
       pairs: [
-        { id: "call", left: "Nuh calls his people day and night", right: "They increase in their disbelief" },
-        { id: "patience", left: "950 years of patience", right: "Ultimate trust in Allah's plan" },
-        { id: "ark", left: "Building the ark on dry land", right: "People mock but Allah protects" },
-        { id: "flood", left: "The flood comes", right: "Only believers are saved" },
+        { id: "idols", left: "Names of idols are preserved in Qur'an", right: "Shirk often grows gradually" },
+        { id: "patience", left: "950 years of preaching", right: "Success measured by faithfulness, not speed" },
+        { id: "family", left: "Nuh's son refuses to board", right: "Lineage does not save without iman" },
+        { id: "ark", left: "Allah commands boarding with His name", right: "Salvation comes through obedience" },
       ],
     },
     part12: {
       options: [
-        { id: "A", label: "Give up when people don't listen quickly", isCorrect: false },
-        { id: "B", label: "Results matter more than effort", isCorrect: false },
-        { id: "C", label: "Continue calling to truth with patience, trusting Allah's wisdom", isCorrect: true },
-        { id: "D", label: "Success is measured by numbers of followers", isCorrect: false },
+        { id: "A", label: "Dawah should stop if people mock you", isCorrect: false },
+        { id: "B", label: "Family connection is enough for salvation", isCorrect: false },
+        { id: "C", label: "Protect tawhid and stay patient in truth, even when response is small", isCorrect: true },
+        { id: "D", label: "Long delay means Allah's promise failed", isCorrect: false },
       ],
     },
   },
@@ -210,26 +210,26 @@ export const CHECKPOINT_DATA: Record<string, CheckpointConfig> = {
   ismail: {
     part4: {
       events: [
-        { id: "left", label: "Ibrahim leaves Ismail and Hajar in Makkah" },
-        { id: "trust", label: "Hajar trusts Allah's plan completely" },
-        { id: "water", label: "Water springs from Zamzam" },
-        { id: "build", label: "Ibrahim and Ismail build the Ka'bah" },
+        { id: "left", label: "Ibrahim leaves Hajar and infant Ismail in the barren valley" },
+        { id: "run", label: "Hajar runs between Safa and Marwah seeking help" },
+        { id: "zamzam", label: "Allah brings Zamzam as relief and provision" },
+        { id: "jurhum", label: "Jurhum settles, and Makkah begins to grow" },
       ],
     },
     part8: {
       pairs: [
-        { id: "desert", left: "Left in empty desert", right: "Complete trust in Allah" },
-        { id: "search", left: "Hajar runs between hills", right: "Effort with trust brings provision" },
-        { id: "zamzam", left: "Zamzam springs forth", right: "Allah's mercy for those who trust" },
-        { id: "build", left: "Building the Ka'bah", right: "Establishing worship of One Allah" },
+        { id: "effort", left: "Hajar's urgent effort", right: "Tawakkul with action, not passivity" },
+        { id: "visit", left: "Ibrahim's message about the household threshold", right: "Character and gratitude shape a home" },
+        { id: "kaba", left: "Ibrahim and Ismail raise the Ka'bah", right: "Worship-centered legacy for all nations" },
+        { id: "dua", left: "Dua for a messenger among descendants", right: "Long-term vision for guidance" },
       ],
     },
     part12: {
       options: [
-        { id: "A", label: "Trust means don't make effort", isCorrect: false },
-        { id: "B", label: "Difficult situations mean Allah has abandoned you", isCorrect: false },
-        { id: "C", label: "Trust Allah completely while making effort, knowing He provides", isCorrect: true },
-        { id: "D", label: "Question every command", isCorrect: false },
+        { id: "A", label: "Hardship proves Allah has left you", isCorrect: false },
+        { id: "B", label: "Faith means waiting without effort", isCorrect: false },
+        { id: "C", label: "Submit to Allah, act responsibly, and keep making dua", isCorrect: true },
+        { id: "D", label: "Legacy is built by comfort, not sacrifice", isCorrect: false },
       ],
     },
   },
@@ -237,26 +237,26 @@ export const CHECKPOINT_DATA: Record<string, CheckpointConfig> = {
   ishaq: {
     part4: {
       events: [
-        { id: "promise", label: "Allah promises Ibrahim a son in old age" },
-        { id: "news", label: "Angels bring news of Ishaq" },
-        { id: "born", label: "Ishaq is born to Sarah" },
-        { id: "continue", label: "Prophethood continues through his line" },
+        { id: "angels", label: "Angels visit Ibrahim and announce Ishaq" },
+        { id: "wonder", label: "Sarah is amazed at a child in old age" },
+        { id: "decree", label: "Allah's decree overrides normal expectations" },
+        { id: "line", label: "Blessed prophetic line continues through Ishaq and Yaqub" },
       ],
     },
     part8: {
       pairs: [
-        { id: "wait", left: "Long years of waiting", right: "Testing patience and trust" },
-        { id: "news", left: "Angels bring glad tidings", right: "Allah's promise fulfilled perfectly" },
-        { id: "family", left: "Blessed family established", right: "Legacy of faith and prophethood" },
-        { id: "line", left: "Many prophets from his lineage", right: "Blessing continues through generations" },
+        { id: "wait", left: "Years of delay before blessing", right: "Allah's timing is wise and precise" },
+        { id: "promise", left: "Glad tidings despite old age", right: "Divine promise is never impossible" },
+        { id: "rank", left: "Ishaq named among chosen prophets", right: "Belief in all messengers is required" },
+        { id: "reports", left: "Historical family reports", right: "Read with care beside Qur'anic certainties" },
       ],
     },
     part12: {
       options: [
-        { id: "A", label: "Allah's promises don't always come true", isCorrect: false },
-        { id: "B", label: "Age prevents Allah's will", isCorrect: false },
-        { id: "C", label: "Allah fulfills His promises perfectly in His perfect timing", isCorrect: true },
-        { id: "D", label: "Blessings are random", isCorrect: false },
+        { id: "A", label: "Only what has many details is important in faith", isCorrect: false },
+        { id: "B", label: "Old age limits Allah's decree", isCorrect: false },
+        { id: "C", label: "Allah's promise is true, and belief honors all prophets", isCorrect: true },
+        { id: "D", label: "Historical reports and Qur'an have identical certainty", isCorrect: false },
       ],
     },
   },
@@ -264,26 +264,26 @@ export const CHECKPOINT_DATA: Record<string, CheckpointConfig> = {
   yaqub: {
     part4: {
       events: [
-        { id: "love", label: "Yaqub loves his son Yusuf deeply" },
-        { id: "lost", label: "Yusuf is taken away" },
-        { id: "patience", label: "Yaqub remains patient for years" },
-        { id: "reunite", label: "Allah reunites them" },
+        { id: "dream", label: "Yusuf tells Yaqub his dream" },
+        { id: "warn", label: "Yaqub warns him not to tell jealous brothers" },
+        { id: "trial", label: "Brothers bring false claim about Yusuf" },
+        { id: "sabr", label: "Yaqub responds with beautiful patience" },
       ],
     },
     part8: {
       pairs: [
-        { id: "test", left: "Losing beloved son", right: "Test of patience and faith" },
-        { id: "eyes", left: "Cried until his eyes became white", right: "Never complained about Allah" },
-        { id: "hope", left: "Never lost hope", right: "Said 'I complain to Allah alone'" },
-        { id: "reunite", left: "Patience rewarded", right: "Family reunited by Allah's mercy" },
+        { id: "sabr", left: "Beautiful patience", right: "No rebellion against Allah's decree" },
+        { id: "complaint", left: "He complained of grief only to Allah", right: "Faithful emotional honesty" },
+        { id: "planning", left: "He advised sons with practical caution", right: "Tawakkul with planning" },
+        { id: "hope", left: "Do not despair of Allah's relief", right: "Hope is part of creed" },
       ],
     },
     part12: {
       options: [
-        { id: "A", label: "Crying means weak faith", isCorrect: false },
-        { id: "B", label: "Loss means Allah doesn't care", isCorrect: false },
-        { id: "C", label: "Beautiful patience means trusting Allah while feeling pain, never despairing", isCorrect: true },
-        { id: "D", label: "Hide your feelings completely", isCorrect: false },
+        { id: "A", label: "Patience means pretending you feel no pain", isCorrect: false },
+        { id: "B", label: "Planning shows weak trust in Allah", isCorrect: false },
+        { id: "C", label: "Trust Allah deeply, act wisely, and never despair of His mercy", isCorrect: true },
+        { id: "D", label: "Family advice is less important than personal worship", isCorrect: false },
       ],
     },
   },
@@ -318,26 +318,26 @@ export const CHECKPOINT_DATA: Record<string, CheckpointConfig> = {
   ayyub: {
     part4: {
       events: [
-        { id: "wealth", label: "Ayyub had great wealth and family" },
-        { id: "test", label: "He loses everything - wealth, health, family" },
-        { id: "patience", label: "He remains patient, never complains" },
-        { id: "restore", label: "Allah restores everything doubled" },
+        { id: "blessing", label: "Ayyub lives as a grateful servant with many blessings" },
+        { id: "loss", label: "He is tested by loss of wealth, children, and health" },
+        { id: "dua", label: "He turns to Allah with a humble dua in hardship" },
+        { id: "restore", label: "Allah heals him and restores his family and blessings" },
       ],
     },
     part8: {
       pairs: [
-        { id: "loss", left: "Lost wealth and children", right: "Said 'Allah gave, Allah took'" },
-        { id: "sick", left: "Became severely ill", right: "Never questioned Allah's wisdom" },
-        { id: "alone", left: "People left him except his wife", right: "Remained grateful for Allah" },
-        { id: "dua", left: "Made simple humble dua", right: "Allah responded with complete cure" },
+        { id: "sabr", left: "Long severe illness", right: "Patience with worship and dhikr" },
+        { id: "wife", left: "His wife stayed loyal", right: "Family support during trials" },
+        { id: "dua", left: "Adversity has touched me, You are Most Merciful", right: "Adab and hope in dua" },
+        { id: "ease", left: "Bundle command in Surah Sad", right: "Allah gives merciful ease in hardship" },
       ],
     },
     part12: {
       options: [
-        { id: "A", label: "Good people don't face hardship", isCorrect: false },
-        { id: "B", label: "Complain when tested", isCorrect: false },
-        { id: "C", label: "True patience means submitting to Allah in all circumstances with gratitude", isCorrect: true },
-        { id: "D", label: "Health and wealth are signs of faith", isCorrect: false },
+        { id: "A", label: "Hardship proves Allah does not love you", isCorrect: false },
+        { id: "B", label: "Patience means staying silent but resentful", isCorrect: false },
+        { id: "C", label: "Remain grateful, disciplined, and returning to Allah through every test", isCorrect: true },
+        { id: "D", label: "Faith is measured only by comfort and wealth", isCorrect: false },
       ],
     },
   },
@@ -561,26 +561,26 @@ export const CHECKPOINT_DATA: Record<string, CheckpointConfig> = {
   yunus: {
     part4: {
       events: [
-        { id: "leave", label: "Yunus leaves his people in anger" },
-        { id: "ship", label: "Boards a ship that faces a storm" },
-        { id: "whale", label: "Swallowed by a whale" },
-        { id: "dua", label: "Makes sincere dua in darkness" },
+        { id: "warn", label: "Yunus warns his people against disbelief" },
+        { id: "leave", label: "He leaves before receiving Allah's permission" },
+        { id: "sea", label: "Lots on the ship lead to him being cast into the sea" },
+        { id: "dua", label: "In darkness, he makes the famous dua of repentance" },
       ],
     },
     part8: {
       pairs: [
-        { id: "frustrate", left: "Left in frustration", right: "Learned about patience" },
-        { id: "whale", left: "Darkness of the whale", right: "Perfect place for reflection" },
-        { id: "dua", left: "Called to Allah sincerely", right: "Immediate response" },
-        { id: "return", left: "Returned to his people", right: "They had believed" },
+        { id: "lots", left: "Lots repeatedly fell to Yunus", right: "Submission to Allah's decree" },
+        { id: "darkness", left: "Night, sea, and fish darkness", right: "Complete dependence on Allah" },
+        { id: "dua", left: "La ilaha illa Anta, subhanaka...", right: "Tawhid, tasbih, and repentance together" },
+        { id: "nation", left: "People of Yunus repented", right: "Belief benefited them before punishment" },
       ],
     },
     part12: {
       options: [
-        { id: "A", label: "Leave when people don't respond quickly", isCorrect: false },
-        { id: "B", label: "Frustration justifies abandoning duty", isCorrect: false },
-        { id: "C", label: "Return to Allah sincerely, trust His timing and wisdom", isCorrect: true },
-        { id: "D", label: "Results must be immediate", isCorrect: false },
+        { id: "A", label: "Strong emotions justify hasty decisions", isCorrect: false },
+        { id: "B", label: "Repentance is only for major sinners, not believers", isCorrect: false },
+        { id: "C", label: "When you slip, return quickly to Allah with sincere repentance and trust", isCorrect: true },
+        { id: "D", label: "Communities cannot change once they reject truth", isCorrect: false },
       ],
     },
   },

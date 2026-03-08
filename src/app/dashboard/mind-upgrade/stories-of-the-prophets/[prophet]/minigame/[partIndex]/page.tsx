@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getDifficultyContent } from "@/components/stories/miniGameContent";
 import { resolveMiniGame } from "@/components/stories/miniGameConfig";
@@ -9,22 +9,26 @@ import type { Difficulty } from "@/components/stories/miniGameConfig";
 import { inferCourseKeyFromSlug, submitMindMiniGameCompletion } from "@/services/mindUpgradeApi";
 
 type PageProps = {
-  params: Promise<{ topic: string; checkpointNum: string }>;
+  params: Promise<{ prophet: string; partIndex: string }>;
 };
 
-export default function AqeedahMiniGamePage({ params }: PageProps) {
-  const { topic, checkpointNum } = use(params);
+export default function ProphetMiniGamePage({ params }: PageProps) {
+  const resolved = useMemo(() => params, [params]);
+  const { prophet, partIndex } = use(resolved);
   const router = useRouter();
-  const checkpoint = parseInt(checkpointNum, 10);
+  const checkpoint = useMemo(() => parseInt(partIndex, 10), [partIndex]);
   // Use lazy initialization to avoid setState in useEffect
   const [difficulty, setDifficulty] = useState<Difficulty>(() => 
-    getMinigameLevel(topic, checkpoint)
+    getMinigameLevel(prophet, checkpoint)
   );
 
   let entry;
   let meta;
   try {
-    const result = resolveMiniGame(topic, checkpoint);
+    if (!prophet || !Number.isFinite(checkpoint)) {
+      throw new Error("Invalid minigame route parameters.");
+    }
+    const result = resolveMiniGame(prophet, checkpoint);
     entry = result.entry;
     meta = result.meta;
   } catch (error) {
@@ -41,15 +45,15 @@ export default function AqeedahMiniGamePage({ params }: PageProps) {
 
   const handleGameComplete = (won: boolean) => {
     // Record outcome
-    setMinigameOutcome(topic, checkpoint, won ? "won" : "lost");
+    setMinigameOutcome(prophet, checkpoint, won ? "won" : "lost");
     
     // Award XP
     const xpAmount = won ? 30 : 15;
-    addMiniGameXP(topic, xpAmount);
-    const courseKey = inferCourseKeyFromSlug(topic);
+    addMiniGameXP(prophet, xpAmount);
+    const courseKey = "stories_of_the_prophets";
     void submitMindMiniGameCompletion({
       course_key: courseKey,
-      unit_key: `${courseKey}:${topic}:checkpoint-${checkpoint}:minigame`,
+      unit_key: `${courseKey}:${prophet}:checkpoint-${checkpoint}:minigame`,
       xp: xpAmount,
     }).catch(() => {
       // Non-blocking: learning flow continues, event is queued for retry.
@@ -58,25 +62,25 @@ export default function AqeedahMiniGamePage({ params }: PageProps) {
     if (won) {
       // Advance difficulty or mark complete
       const nextLevel = difficulty === "easy" ? "medium" : difficulty === "medium" ? "hard" : difficulty;
-      setMinigameLevel(topic, checkpoint, nextLevel);
+      setMinigameLevel(prophet, checkpoint, nextLevel);
       
       if (difficulty === "hard") {
         // Already at hard and won, mark as played and go back
-        markMiniGamePlayed(topic, checkpoint);
-        router.push(`/dashboard/mind-upgrade/aqeedah/${topic}`);
+        markMiniGamePlayed(prophet, checkpoint);
+        router.push(`/dashboard/mind-upgrade/stories-of-the-prophets/${prophet}`);
       } else {
         // Won at easy or medium, update difficulty state to show next level
         setDifficulty(nextLevel);
       }
     } else {
       // Loss: go back to story
-      markMiniGamePlayed(topic, checkpoint);
-      router.push(`/dashboard/mind-upgrade/aqeedah/${topic}`);
+      markMiniGamePlayed(prophet, checkpoint);
+      router.push(`/dashboard/mind-upgrade/stories-of-the-prophets/${prophet}`);
     }
   };
 
-  // Get difficulty-specific content
-  const difficultyContent = getDifficultyContent(difficulty, topic);
+  // Get difficulty-specific content with prophet-specific theming
+  const difficultyContent = getDifficultyContent(difficulty, prophet);
 
   const renderGame = () => {
     try {
@@ -84,7 +88,7 @@ export default function AqeedahMiniGamePage({ params }: PageProps) {
         content: difficultyContent, 
         difficulty,
         onComplete: handleGameComplete, 
-        slug: topic, 
+        slug: prophet, 
         checkpoint 
       });
     } catch (error) {
@@ -115,4 +119,3 @@ export default function AqeedahMiniGamePage({ params }: PageProps) {
     </div>
   );
 }
-

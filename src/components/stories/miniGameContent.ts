@@ -340,6 +340,256 @@ export const difficultyConfigs: DifficultyConfig = {
   },
 };
 
-export function getDifficultyContent(difficulty: Difficulty): MiniGameContent {
-  return difficultyConfigs[difficulty];
+// Prophet-specific content overrides for themed games
+const prophetContentOverrides: Partial<Record<string, Partial<MiniGameContent>>> = {
+  adam: {
+    snake: {
+      theme: "Collect the Knowledge Allah Taught Adam",
+      collectibles: [
+        { emoji: "📚", label: "Names of All Things" },
+        { emoji: "🧠", label: "Divine Knowledge" },
+        { emoji: "🌟", label: "Wisdom" },
+        { emoji: "✨", label: "Understanding" },
+        { emoji: "💫", label: "Recognition" },
+        { emoji: "🎯", label: "Truth" },
+        { emoji: "🔆", label: "Insight" },
+        { emoji: "💎", label: "Clear Speech" },
+      ],
+    },
+    whack: {
+      theme: "Whack Satan's Whispers, Protect Faith",
+      temptations: [
+        { emoji: "😈", label: "Satan's Promise" },
+        { emoji: "🍃", label: "Forbidden Tree" },
+        { emoji: "🌀", label: "Immortality Lie" },
+        { emoji: "💤", label: "Heedlessness" },
+        { emoji: "🎭", label: "False Trust" },
+      ],
+      virtues: [
+        { emoji: "🤲", label: "Repentance" },
+        { emoji: "💚", label: "Obedience" },
+        { emoji: "🛡️", label: "Vigilance" },
+        { emoji: "📖", label: "Remembrance" },
+        { emoji: "✨", label: "Gratitude" },
+      ],
+    },
+    wordsearch: {
+      theme: "Find Key Words from Adam's Story",
+      words: ["ADAM", "IBLIS", "PARADISE", "KNOWLEDGE", "REPENT"],
+      letters: [
+        "A", "D", "A", "M", "X", "R",
+        "I", "B", "L", "I", "S", "E",
+        "P", "A", "R", "A", "D", "I", "S", "E",
+        "K", "N", "O", "W", "L", "E", "D", "G", "E",
+        "R", "E", "P", "E", "N", "T",
+      ],
+    },
+  },
+  
+  nuh: {
+    snake: {
+      theme: "Navigate Nuh's 950-Year Journey",
+      collectibles: [
+        { emoji: "🛶", label: "Build the Ark" },
+        { emoji: "⏳", label: "Patience" },
+        { emoji: "☔", label: "Warning Signs" },
+        { emoji: "🕊️", label: "Hope" },
+        { emoji: "🌊", label: "Faith in Flood" },
+        { emoji: "⛰️", label: "Safety" },
+        { emoji: "🌈", label: "Promise" },
+        { emoji: "🙏", label: "Perseverance" },
+      ],
+    },
+    catch: {
+      theme: "Save the Few Believers",
+      goodItems: [
+        { emoji: "🙏", label: "True Believer" },
+        { emoji: "👨‍👩‍👦", label: "Faithful Family" },
+        { emoji: "💎", label: "Pure Heart" },
+        { emoji: "🛶", label: "Board the Ark" },
+      ],
+      badItems: [
+        { emoji: "🗿", label: "Idol Worship" },
+        { emoji: "😤", label: "Mockery" },
+        { emoji: "🚫", label: "Rejection" },
+        { emoji: "💢", label: "Arrogance" },
+      ],
+    },
+  },
+  
+  ibrahim: {
+    whack: {
+      theme: "Smash the Idols Like Ibrahim",
+      temptations: [
+        { emoji: "🗿", label: "Stone Idol" },
+        { emoji: "🌙", label: "Moon Worship" },
+        { emoji: "☀️", label: "Sun Worship" },
+        { emoji: "⭐", label: "Star Worship" },
+        { emoji: "👑", label: "King's Command" },
+      ],
+      virtues: [
+        { emoji: "☝️", label: "Tawhid" },
+        { emoji: "🔥", label: "Courage" },
+        { emoji: "🤲", label: "Trust Allah" },
+        { emoji: "💪", label: "Stand Firm" },
+        { emoji: "🛡️", label: "Protection" },
+      ],
+    },
+    catch: {
+      theme: "Catch the Signs of Tawhid",
+      goodItems: [
+        { emoji: "☝️", label: "One Allah" },
+        { emoji: "🕋", label: "Build Kaaba" },
+        { emoji: "🐏", label: "Sacrifice Test" },
+        { emoji: "💚", label: "Submission" },
+      ],
+      badItems: [
+        { emoji: "🗿", label: "Idolatry" },
+        { emoji: "🔥", label: "Fire of Nimrod" },
+        { emoji: "😠", label: "Opposition" },
+      ],
+    },
+  },
+  
+  yusuf: {
+    memory: {
+      theme: "Remember Yusuf's Journey",
+      pairs: [
+        { id: "1", content: "Dream", emoji: "🌙" },
+        { id: "2", content: "Well", emoji: "🕳️" },
+        { id: "3", content: "Egypt", emoji: "🏛️" },
+        { id: "4", content: "Prison", emoji: "🔒" },
+        { id: "5", content: "Interpretation", emoji: "💭" },
+        { id: "6", content: "Minister", emoji: "👑" },
+        { id: "7", content: "Forgiveness", emoji: "💚" },
+        { id: "8", content: "Reunion", emoji: "👨‍👩‍👦" },
+      ],
+    },
+    catch: {
+      theme: "Catch Virtues, Avoid Temptations",
+      goodItems: [
+        { emoji: "💎", label: "Patience" },
+        { emoji: "🛡️", label: "Chastity" },
+        { emoji: "💚", label: "Forgiveness" },
+        { emoji: "🤲", label: "Trust Allah" },
+        { emoji: "🌟", label: "Gratitude" },
+      ],
+      badItems: [
+        { emoji: "😡", label: "Jealousy" },
+        { emoji: "🎭", label: "Temptation" },
+        { emoji: "💢", label: "Envy" },
+      ],
+    },
+  },
+  
+  musa: {
+    snake: {
+      theme: "Follow Musa's Staff Miracle",
+      collectibles: [
+        { emoji: "🪄", label: "Staff of Musa" },
+        { emoji: "🐍", label: "Serpent Miracle" },
+        { emoji: "💪", label: "Courage" },
+        { emoji: "🌊", label: "Sea Parts" },
+        { emoji: "⚡", label: "Divine Power" },
+        { emoji: "📜", label: "Ten Commandments" },
+        { emoji: "✨", label: "Truth Prevails" },
+        { emoji: "🏔️", label: "Mount Sinai" },
+      ],
+    },
+    whack: {
+      theme: "Defeat Pharaoh's Tyranny",
+      temptations: [
+        { emoji: "👑", label: "Pharaoh's Pride" },
+        { emoji: "⛓️", label: "Slavery" },
+        { emoji: "🎭", label: "Magic" },
+        { emoji: "💰", label: "Worldly Power" },
+      ],
+      virtues: [
+        { emoji: "🗣️", label: "Speak Truth" },
+        { emoji: "💪", label: "Stand Up" },
+        { emoji: "🤲", label: "Call to Allah" },
+        { emoji: "⚡", label: "Divine Help" },
+      ],
+    },
+  },
+  
+  yunus: {
+    snake: {
+      theme: "Journey Through the Whale",
+      collectibles: [
+        { emoji: "🐋", label: "Whale's Belly" },
+        { emoji: "🌊", label: "Deep Sea" },
+        { emoji: "🤲", label: "The Dua" },
+        { emoji: "💚", label: "Repentance" },
+        { emoji: "🌅", label: "Rescue" },
+        { emoji: "🙏", label: "Patience" },
+        { emoji: "✨", label: "Return" },
+      ],
+    },
+    wordsearch: {
+      theme: "Find Yunus's Famous Dua",
+      words: ["YUNUS", "WHALE", "DUA", "RETURN", "PATIENCE"],
+      letters: [
+        "Y", "U", "N", "U", "S", "X",
+        "W", "H", "A", "L", "E", "D",
+        "D", "U", "A", "R", "T", "U",
+        "R", "E", "T", "U", "R", "N",
+        "P", "A", "T", "I", "E", "N", "C", "E",
+      ],
+    },
+  },
+  
+  muhammad: {
+    memory: {
+      theme: "Remember the Final Revelation",
+      pairs: [
+        { id: "1", content: "Hira Cave", emoji: "🏔️" },
+        { id: "2", content: "Angel Jibreel", emoji: "👼" },
+        { id: "3", content: "Quran", emoji: "📖" },
+        { id: "4", content: "Hijra", emoji: "🏃" },
+        { id: "5", content: "Madinah", emoji: "🕌" },
+        { id: "6", content: "Victory", emoji: "🎯" },
+        { id: "7", content: "Sunnah", emoji: "🌟" },
+        { id: "8", content: "Ummah", emoji: "👥" },
+      ],
+    },
+    catch: {
+      theme: "Catch the Teachings of Islam",
+      goodItems: [
+        { emoji: "📖", label: "Quran" },
+        { emoji: "🕌", label: "Prayer" },
+        { emoji: "💰", label: "Zakat" },
+        { emoji: "🤝", label: "Brotherhood" },
+        { emoji: "💚", label: "Mercy" },
+        { emoji: "⚖️", label: "Justice" },
+      ],
+      badItems: [
+        { emoji: "🗿", label: "Jahiliyyah" },
+        { emoji: "💢", label: "Oppression" },
+        { emoji: "🎭", label: "Hypocrisy" },
+      ],
+    },
+  },
+};
+
+export function getDifficultyContent(difficulty: Difficulty, slug?: string): MiniGameContent {
+  const baseContent = difficultyConfigs[difficulty];
+  
+  // If no slug provided or no overrides for this prophet, return base content
+  if (!slug || !prophetContentOverrides[slug]) {
+    return baseContent;
+  }
+  
+  // Merge prophet-specific content with base content
+  const prophetOverride = prophetContentOverrides[slug];
+  return {
+    snake: prophetOverride.snake ?? baseContent.snake,
+    memory: prophetOverride.memory ?? baseContent.memory,
+    catch: prophetOverride.catch ?? baseContent.catch,
+    whack: prophetOverride.whack ?? baseContent.whack,
+    wordsearch: prophetOverride.wordsearch ?? baseContent.wordsearch,
+    quicktap: prophetOverride.quicktap ?? baseContent.quicktap,
+    tileslider: prophetOverride.tileslider ?? baseContent.tileslider,
+    pathmaze: prophetOverride.pathmaze ?? baseContent.pathmaze,
+  };
 }

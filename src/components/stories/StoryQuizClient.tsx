@@ -149,6 +149,15 @@ function toCandidateNarrativeText(body: string) {
   return (parts[0] ?? trimmed).trim() || trimmed;
 }
 
+function shouldUseSectionForQuiz(title: string) {
+  const t = (title ?? "").trim().toLowerCase();
+  if (!t) return true;
+  if (t.startsWith("quiz")) return false;
+  if (t.includes("moral lesson")) return false;
+  if (t.includes("practical action")) return false;
+  return true;
+}
+
 function splitSentences(text: string) {
   const cleaned = text.replace(/\s+/g, " ").trim();
   if (!cleaned) return [];
@@ -159,10 +168,10 @@ function splitSentences(text: string) {
 }
 
 function extractWords(text: string) {
-  // Keep letters, numbers, apostrophes, and hyphens.
+  // Keep a broad safe set for browser compatibility (avoid Unicode property regex).
   const cleaned = text
     .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s'\-]/gu, " ")
+    .replace(/[^a-z0-9\s'\-]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 
@@ -179,6 +188,7 @@ function buildQuestions(slug: string, sections: { title: string; body: string }[
   const rand = mulberry32(hashStringToUint32(slug));
 
   const narrativeTexts = sections
+    .filter((s) => shouldUseSectionForQuiz(s.title))
     .map((s) => toCandidateNarrativeText(formatProphetNamesWithPbuh(s.body)))
     .filter((t) => t.trim().length > 0);
 
@@ -302,7 +312,19 @@ export default function StoryQuizClient({
   sections,
 }: Props) {
   const router = useRouter();
-  const questions = useMemo(() => buildQuestions(slug, sections), [slug, sections]);
+  const questions = useMemo(() => {
+    try {
+      return buildQuestions(slug, sections);
+    } catch {
+      return [
+        {
+          prompt: "Quiz is temporarily unavailable for this story.",
+          options: ["OK"],
+          correctIndex: 0,
+        },
+      ];
+    }
+  }, [slug, sections]);
   const total = questions.length;
 
   const stored = useMemo(() => {

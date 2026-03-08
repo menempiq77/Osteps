@@ -11,7 +11,6 @@ const nextConfig: NextConfig = {
   },
   reactStrictMode: true,
   compress: process.env.NODE_ENV === 'production',
-  output: 'standalone',
   productionBrowserSourceMaps: false,
   images: {
     formats: ['image/avif', 'image/webp'],

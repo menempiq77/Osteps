@@ -22,8 +22,8 @@ type CardType = {
 };
 
 const GAME_DURATION_EASY = 150;
-const GAME_DURATION_MEDIUM = 120;
-const GAME_DURATION_HARD = 120;
+const GAME_DURATION_MEDIUM = 115;
+const GAME_DURATION_HARD = 95;
 
 export default function MemoryCardsClient({
   pairs,
@@ -32,6 +32,8 @@ export default function MemoryCardsClient({
   onComplete,
 }: MemoryCardsGameProps) {
   const GAME_DURATION = difficulty === "easy" ? GAME_DURATION_EASY : difficulty === "medium" ? GAME_DURATION_MEDIUM : GAME_DURATION_HARD;
+  const MATCH_DELAY_MS = difficulty === "easy" ? 550 : difficulty === "medium" ? 500 : 450;
+  const MISMATCH_DELAY_MS = difficulty === "easy" ? 1100 : difficulty === "medium" ? 900 : 800;
   
   const [flippedCards, setFlippedCards] = useState<string[]>([]);
   const [matchedPairs, setMatchedPairs] = useState(0);
@@ -91,7 +93,7 @@ export default function MemoryCardsClient({
           if (matchedPairs + 1 === pairs.length) {
             setGameWon(true);
           }
-        }, 500);
+        }, MATCH_DELAY_MS);
       } else {
         // No match - flip back
         setTimeout(() => {
@@ -103,10 +105,10 @@ export default function MemoryCardsClient({
             )
           );
           setFlippedCards([]);
-        }, 1000);
+        }, MISMATCH_DELAY_MS);
       }
     }
-  }, [flippedCards, cards, matchedPairs, pairs.length]);
+  }, [flippedCards, cards, matchedPairs, pairs.length, MATCH_DELAY_MS, MISMATCH_DELAY_MS]);
 
   const handleCardClick = (uniqueId: string) => {
     if (gameWon || gameOver) return;

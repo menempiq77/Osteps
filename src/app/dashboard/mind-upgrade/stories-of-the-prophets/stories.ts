@@ -1,5 +1,6 @@
 import { PROPHETS } from "./prophets";
 import { formatProphetNamesWithPbuh } from "@/components/stories/pbuh";
+import { PDF_BOOK_STORY_CONTENT } from "./pdfBookStoryContent";
 
 export type ProphetStorySection = {
 	title: string | { en: string; ar: string };
@@ -53,64 +54,166 @@ function normalizeSectionsWithQuiz(sections: ProphetStorySection[]): ProphetStor
 	return next;
 }
 
+const NON_NUMBERED_SECTION_PREFIXES = [
+	"moral lessons",
+	"practical actions",
+	"quiz",
+	"classroom questions",
+	"teacher notes",
+];
+
+function isNonNumberedSectionTitle(title: string): boolean {
+	const normalized = title.trim().toLowerCase();
+	return NON_NUMBERED_SECTION_PREFIXES.some((prefix) => normalized.startsWith(prefix));
+}
+
+function stripPartPrefix(title: string): string {
+	return title.replace(/^part\s+\d+\s*:\s*/i, "").trim();
+}
+
+function normalizeSectionTitleValue(value: string, partNumber: number): string {
+	if (isNonNumberedSectionTitle(value)) return value;
+	const coreTitle = stripPartPrefix(value) || value.trim();
+	return `Part ${partNumber}: ${coreTitle}`;
+}
+
+function normalizeSectionTitle(section: ProphetStorySection, partNumber: number): ProphetStorySection {
+	if (typeof section.title === "string") {
+		return {
+			...section,
+			title: normalizeSectionTitleValue(section.title, partNumber),
+		};
+	}
+
+	return {
+		...section,
+		title: {
+			en: normalizeSectionTitleValue(section.title.en ?? "", partNumber),
+			ar: normalizeSectionTitleValue(section.title.ar ?? "", partNumber),
+		},
+	};
+}
+
+function normalizeSectionNumbering(sections: ProphetStorySection[]): ProphetStorySection[] {
+	let partCounter = 0;
+
+	return sections.map((section) => {
+		const currentTitle = getText(section.title);
+		if (isNonNumberedSectionTitle(currentTitle)) {
+			return section;
+		}
+
+		partCounter += 1;
+		return normalizeSectionTitle(section, partCounter);
+	});
+}
+
 // Stories are sourced and adapted for student readability from Ibn Kathir's
 // "Stories of the Prophets" with Qur'anic references.
 const STORY_CONTENT_BY_SLUG: Record<string, StoryContent> = {
 	adam: {
 		shortIntro:
-			"Adam (peace be upon him) was the first human and first prophet sent to mankind. Allah created him with special honor—teaching him knowledge that even the angels did not possess. His life teaches us about obedience to Allah's commands, the real danger of pride and whispering, sincere repentance, and the importance of remaining steadfast in faith despite Satan's continuous attempts to mislead us.",
+			"Prophet Adam (peace be upon him) was the first human being and the first prophet. His story begins before human life on earth itself, with Allah announcing his creation to the angels, honoring him with knowledge, testing him in Paradise, and teaching mankind the path of repentance after error. It is a story of dignity, temptation, fall, forgiveness, and the beginning of the human journey under Allah's guidance.",
 		sections: [
 			{
-				title: "Part 1: Allah announces Adam's creation to the angels",
-				body: `Allah the Almighty revealed to the angels: "Verily, I am going to place mankind generations after generations on earth" (Qur'an 2:30). The angels were surprised and asked: "Will You place therein those who will make mischief therein and shed blood, while we glorify You with praises and thanks (exalted be You above all that they associate with You as partners) and sanctify You?" (Qur'an 2:30).\n\nAllah replied with perfect knowledge: "I know that which you do not know" (Qur'an 2:30).\n\nAllah then commanded Gabriel to bring clay from different parts of the earth. But the earth said: "I seek refuge in Allah from your decreasing my quantity or disfiguring me." Gabriel returned without taking anything. Then Allah sent Michael, and again the earth sought refuge and was granted it. Finally, Allah sent the Angel of Death, who said: "I also seek refuge with Allah from returning without carrying out His command." So the Angel of Death took clay from the face of the earth and mixed it, taking white, red, and black clay from different places (as recorded in Ibn Kathir from the narrations of Ibn Masud and the Prophet's companions).\n\nAllah shaped this clay: "So when I have fashioned him completely and breathed into him (Adam) the soul which I created for him then fall you down prostrating yourselves unto him" (Qur'an 15:29).`,
+				title: "Part 1: Before mankind began, Allah announced Adam's creation",
+				body: `The story of Prophet Adam (peace be upon him) begins before there was any human life on earth. Allah informed the angels that He was going to place generations of mankind upon the earth. The angels, who knew only obedience and glorification, asked about the wisdom of creating beings who would commit wrong and shed blood, while they themselves glorified Allah continuously.
+
+Allah answered them with words that open the entire human story: He knew what they did not know. That answer established from the beginning that mankind would not be understood only by what they might do wrong. Human beings were being created for a wisdom deeper than the angels could yet see.`,
 			},
 			{
-				title: "Part 2: The creation of Adam and his special honor",
-				body: `Adam's body lay as clay for forty years before Allah breathed His spirit into him. When Allah's spirit entered Adam, something miraculous happened. The Prophet Muhammad (peace and blessings be upon him) said: "Allah created Adam from dust after He mixed the clay and left him for some time until it became sticky mud, after which Allah shaped him. After that Allah left him till it became like potter's clay. When the spirit reached Adam's head, Adam sneezed. Allah said: 'May your Lord have mercy upon you, O Adam!'" (Sahih al-Bukhari).\n\nWhen the spirit reached Adam's eyes, he looked at the fruits of Paradise. When it reached his abdomen, he felt hunger and jumped up eagerly to eat from Paradise's fruits — showing that mankind is created with haste and immediate desire (Qur'an 21:37).\n\nAllah then commanded: "When I breathe My spirit into him prostrate before him" (Qur'an 15:29). The angels obeyed immediately. But one being did not prostrate — Iblis.`,
+				title: "Part 2: Clay from the earth and the shaping of the first man",
+				body: `Ibn Kathir records narrations that Allah commanded angels to bring clay from the earth, and that the clay was taken from different parts of it. This is one reason human beings differ in color, temperament, and outward form. The first human was not made from one narrow piece of the world, but from material taken from the earth itself.
+
+Then Allah shaped Prophet Adam (peace be upon him). Before the soul was breathed into him, his form stood as a created figure of clay. This stage of the story carries a powerful reminder: the one who would be honored above much of creation began from humble earth. Human dignity is real, but it is a dignity given by Allah, not one that gives room for pride.`,
 			},
 			{
-				title: "Part 3: The pride of Iblis and his refusal",
-				body: `Iblis was a jinn who lived among the angels. When Allah commanded the angels to prostrate to Adam (peace be upon him), Iblis refused out of pure pride. Allah asked him: "O Iblis! What is your reason for not being among the prostrators?" (Qur'an 15:32).\n\nIblis answered with arrogance: "I am not the one to prostrate myself to a human being, whom You created from sounding clay of altered black smooth mud" (Qur'an 15:33) and "I am better than him (Adam), You created me from fire and him You created from clay" (Qur'an 7:12).\n\nAllah responded with justice: "Then get out from here for verily you are Rajim (an outcast or cursed one). Verily the curse shall be upon you till Day of Recompense (Day of Resurrection)" (Qur'an 15:34-35).\n\nIbn Kathir explains: If we compare clay and fire, we see that clay contains qualities of calmness, clemency, perseverance and growth; whereas fire contains heedlessness, insignificance, haste, and incineration. Allah's wisdom chose clay as the better substance for creating mankind.`,
+				title: "Part 3: The soul enters and life begins",
+				body: `When Allah breathed the soul into Prophet Adam (peace be upon him), life began in the first human being. Ibn Kathir includes reports that when the soul reached his head he sneezed, and Allah taught him words of praise and mercy. As the soul moved through his body, the human experience itself began: sight, appetite, movement, desire, and awareness.
+
+This moment is profound. The first human was not a random creature thrown into existence without direction. He came into life already under the teaching of Allah. His first experience was not abandonment. It was divine attention, instruction, and care.`,
 			},
 			{
-				title: "Part 4: Allah teaches Adam knowledge of all things",
-				body: `Allah granted Adam (peace be upon him) a gift that elevated him above all creation: knowledge. "Allah taught Adam all the names of everything, then He showed them to the angels and said: 'Tell Me the names of these if you are truthful'" (Qur'an 2:31).\n\nThe angels immediately recognized their own limitation. They said: "Glory be to You, we have no knowledge except what You have taught us. Verily, it is You, the All-Knower, the All-Wise" (Qur'an 2:32).\n\nThen Allah addressed Adam: "O Adam! Inform them of their names," and when he had informed them of their names, Allah said: "Did I not tell you that I know the unseen in the heavens and the earth, and I know what you reveal and what you have been hiding?" (Qur'an 2:33).\n\nThis knowledge was not random — Allah implanted in Adam an insatiable love of learning and a desire to pass knowledge to his children. This was the true reason for his creation and the secret of his glorification above other creatures.`,
+				title: "Part 4: Prophet Adam (peace be upon him) is honored with knowledge",
+				body: `Then Allah taught Prophet Adam (peace be upon him) the names of all things. This was one of the greatest honors given to him and one of the clearest signs of why mankind was created with such unique responsibility. Allah then presented that knowledge before the angels, who acknowledged openly that they knew only what Allah had taught them.
+
+When Prophet Adam (peace be upon him) informed them of the names, the wisdom of his creation became clearer. He had been given a gift that marked the human story forever: knowledge. That is why the story of mankind begins not with brute force, but with learning. The first human is honored through knowledge before he is tested through desire.`,
 			},
 			{
-				title: "Part 5: Eve is created as a companion",
-				body: `Allah designed the perfect solution for Adam's (peace be upon him) solitude. "And of His signs is that He created for you from yourselves mates that you may dwell in tranquility with them; and He has put between you affection and mercy" (Qur'an 30:21).\n\nMore specifically, Allah revealed: "It is He Who created you from a single soul, and made from it his mate that he might dwell with her" (Qur'an 7:189).\n\nAccording to Ibn Kathir's report from Ibn Abbas: When Adam was sleeping in Paradise, Allah took one of his ribs and created Eve (Hawa) from it. When Adam awoke and saw her, he immediately recognized her as part of himself. He said: "This is my wife, created from my rib. She is the closest of all people to me."\n\nAllah also revealed: "O mankind! Reverence your Guardian Lord, who created you from a single soul, created of like nature its mate, and from the two created countless men and women" (Qur'an 4:1).\n\nThis intimate connection between spouses—created from one soul—establishes the foundation of mercy, compassion, and respect that should characterize the relationship between husband and wife.`,
+				title: "Part 5: The command to prostrate and the pride of Iblis",
+				body: `Allah commanded the angels to prostrate to Prophet Adam (peace be upon him) as an act of honor by Allah's order. They obeyed. But one being refused: Iblis. His refusal did not come from confusion. It came from pride. He argued that he was better than Adam because he was created from fire while Adam was created from clay.
+
+This was the first open act of arrogant rebellion in the human story. Iblis looked at the material and ignored the command. He looked at himself and ignored the wisdom of Allah. That is why his sin was not merely disobedience. It was self-exalting pride. And that pride became the root of his curse and the beginning of his enmity toward mankind.`,
 			},
 			{
-				title: "Part 6: The test — Allah's clear command in Paradise",
-				body: `Allah placed Adam (peace be upon him) and Eve in the most glorious place: Paradise. But paradise required a test of obedience. "And We said: 'O Adam! Dwell you and your wife in the Garden and eat from where you desire, but approach not this tree or you both will be among the wrongdoers'" (Qur'an 2:35).\n\nAllah further warned them specifically about Satan: "Then We said: 'O Adam! Verily, this is an enemy to you and to your wife. So let him not drive you both out of the Garden so that you be thrown into misery. Verily, you have not to hunger therein nor go naked. And you suffer not from thirst therein nor from the sun's heat. Then the Satan whispered to them both in order to uncover that which was hidden from them of their private parts, he said: Your Lord did not forbid you this tree save you should become angels or become of the immortals'" (Qur'an 20:117-120).\n\nThe test was clear. The boundary was set. The danger was warned. All that remained was to see if they would obey their Lord or yield to temptation.`,
+				title: "Part 6: Hawa is created and tranquility enters the story",
+				body: `Allah created Hawa for Prophet Adam (peace be upon him), making from him his spouse so that he might find tranquility with her. The human story was never meant to be one of isolated existence only. From its beginning, it included companionship, mercy, and mutual closeness.
+
+Ibn Kathir records reports that she was created from Adam, and this deep connection became part of the story of human family life. Before children, nations, and civilizations, there was one man and one woman under the care of Allah, living in a place of peace and provision.`,
 			},
 			{
-				title: "Part 7: Satan's cunning whispers and deception",
-				body: `Satan began his whispering campaign with a seemingly innocent question designed to plant doubt. "And the Satan whispered to him saying: 'O Adam! Shall I lead you to the Tree of Eternity and to a kingdom that will never waste away?'" (Qur'an 20:120).\n\nHe made attractive promises: "O Adam! Shall I direct you to the tree of immortality and a kingdom that will never decay?" (Qur'an 20:120).\n\nAllah reveals the exact nature of Satan's lies: "The Satan made them fail therein, and he said: 'Your Lord did not forbid you this tree save you should become angels, or become of the immortals.' And he swore by Allah to them both (saying): 'Surely, I am one of the sincere well-wishers for you both'" (Qur'an 7:20-21).\n\nNotice Satan's tactics:\n1. He questioned Allah's reason ("Why did He forbid it?")\n2. He made a false promise (immortality and power)\n3. He swore an oath to gain their trust and make his words seem certain\n4. He presented himself as a sincere advisor\n\nThis is the pattern of temptation: doubt Allah's wisdom, promise worldly gain, build false credibility, and make sin seem reasonable.`,
+				title: "Part 7: Paradise, ease, and the one forbidden tree",
+				body: `Allah placed Prophet Adam (peace be upon him) and Hawa in Paradise and allowed them to eat freely from its blessings. But one tree was forbidden to them. The command was clear. The boundary was simple. This is important because the test in Paradise was not confusion over right and wrong. It was obedience in the presence of abundance.
+
+Allah also warned them plainly about Iblis, telling them that he was an enemy and that they should not let him drive them out of Paradise into hardship. The danger was identified before the temptation came. That makes what happened next one of the most important lessons for all mankind.`,
 			},
 			{
-				title: "Part 8: The moment of shame and recognition of loss",
-				body: `The consequences came immediately. "Thus he brought about their fall with deception. So when they tasted the tree, their shame became apparent to them, and they began to sew together the leaves of the Garden in order to cover themselves; and their Lord called out to them (saying): 'Did I not forbid you that tree and tell you that Satan is an open enemy unto you?'" (Qur'an 7:22).\n\nQur'an describes the moment: "So they both ate of the tree, and so their private parts became apparent to them, and they began to sew together, for their covering, leaves from the Paradise, and their Lord called out to them (saying): 'Did I not forbid you that tree and tell you that Satan is an open enemy unto you?'" (Qur'an 20:121).\n\nIbn Kathir explains that in that moment, Adam and Eve felt a contraction of the heart—a spiritual pain that came with the realization of their disobedience. They were no longer in a state of innocence. They had chosen heedlessness over obedience. They had believed the liar over their Lord.\n\nThey tried to hide with leaves, not realizing that nothing can be hidden from Allah, the All-Knowing, the All-Seeing. They had lost something invaluable: Allah's pleasure and the purity they once possessed.`,
+				title: "Part 8: The whisper, the deception, and the fall",
+				body: `Iblis came to them through whispering and deception. He did not present disobedience as ugly. He wrapped it in false promises. He suggested that the forbidden tree was connected to immortality and an everlasting kingdom. He even swore that he was a sincere adviser to them.
+
+This reveals the pattern of temptation for all generations after Prophet Adam (peace be upon him): Satan beautifies sin, questions divine wisdom, promises gain, and disguises himself as a helper. Under that deception, Prophet Adam (peace be upon him) and Hawa ate from the tree. Immediately the consequences appeared, and they became aware of their exposure and loss. The first human mistake had entered the story.`,
 			},
 			{
-				title: "Part 9: Sincere repentance and Allah's forgiveness",
-				body: `In that moment of shame and loss, Adam (peace be upon him) and Eve did not despair. They did not make excuses or blame one another. Instead, they turned to their Lord with broken hearts and sincere repentance. "They said: 'Our Lord! We have wronged ourselves. If You forgive us not, and bestow not upon us Your Mercy, we shall certainly be lost'" (Qur'an 7:23).\n\nTheir repentance was accepted with immediate mercy. Allah revealed: "Then his Lord chose him, and turned to him with forgiveness, and gave him guidance" (Qur'an 20:122) and "So Adam received some words from his Lord, and his Lord turned to him with forgiveness" (Qur'an 2:37).\n\nIn Sahih al-Bukhari, it is narrated that when Allah forgave Adam (peace be upon him), He showed the superiority of repentance. The Prophet Muhammad (peace be upon him) said: "Adam and Moses will argue on the Day of Resurrection. Moses will say, 'You are Adam who caused mankind to fall into error and misery.' Adam will reply, 'You are Moses whom Allah chose with His messages and His speech. You blame me for a sin that Allah has forgiven me? The Lord wrote my forgiveness fifty years before He created the heavens and the earth.'" This hadith shows that Allah's forgiveness of Adam was predetermined and absolute.\n\nThe lesson is profound: repentance, when sincere and immediate, restores the servant to Allah's favor. No one should despair of Allah's mercy.`,
+				title: "Part 9: Shame, realization, and the first repentance",
+				body: `What makes the story of Prophet Adam (peace be upon him) so beautiful is that it does not stop at the sin. The moment of error became the beginning of repentance. Adam and Hawa did not argue with Allah. They did not justify themselves. They did not turn against one another. They confessed the truth: they had wronged themselves, and if Allah did not forgive them and show them mercy, they would be among the losers.
+
+Allah then taught Prophet Adam (peace be upon him) words of repentance, and his repentance was accepted. This is one of the greatest lessons in the entire human story. Mankind begins not with sin alone, but with the opening of tawbah. The first father of humanity teaches every later sinner that the road back to Allah remains open through sincerity, humility, and return.`,
 			},
 			{
-				title: "Part 10: Descent to earth and the purpose of life",
-				body: `The descent to earth was not a punishment for sin; it was a dignified continuation of Allah's plan. After accepting their repentance, Allah said to Adam (peace be upon him): "Go down, all of you together from the Paradise to the earth. Then whenever there comes to you Guidance from Me, and whoever follows My Guidance, there shall be no fear on them, nor shall they grieve. But those who disbelieve and belie Our Ayat (proofs, evidence, verses, signs, revelations, and in the Qur'an), such are the dwellers of the Fire. They will abide therein forever" (Qur'an 2:38-39).\n\nAllah also revealed: "He said: 'Get out from this place, disgraced and expelled. If there comes to you Guidance from Me, then whoever follows My Guidance shall neither go astray, nor fall into distress and misery. And whoever turns away from My Reminder (i.e., neither believes in this Qur'an nor acts on its teachings) verily, for him is a life of hardship'" (Qur'an 20:123-124).\n\nThe earth became a place of test and struggle—a place where mankind would prove their submission through trials, not ease. Yet it was also a place of purpose: to worship Allah alone, to establish justice, to spread knowledge, and to prepare for the final return to the Hereafter.\n\nAllah informed Adam: "And We said: 'O Adam! Dwell you and your wife in the Garden and eat from where you desire, but approach not this tree or you both will be among the wrongdoers. Then Satan whispered to them, saying: 'Your Lord did not forbid you this tree save you should become angels or become of the immortals.' And he swore by Allah to them both (saying): 'Surely, I am one of the sincere well-wishers for you both.' So he brought about their fall with deception" (Qur'an 7:19-22). Yet after repentance came wisdom—and now Adam (peace be upon him) and his children would live by that wisdom.`,
+				title: "Part 10: Descent to earth and the real beginning of human life",
+				body: `After repentance was accepted, Allah sent them down to the earth. This descent was not outside Allah's original knowledge and wisdom. The earth would become the place of struggle, worship, guidance, family, labor, temptation, and test. Here mankind would live under the ongoing tension between revelation and whispering, obedience and desire.
+
+But Allah did not send them down abandoned. He promised that guidance would come, and whoever followed that guidance would have no fear and would not grieve in the final sense. So the story of earth began with both warning and hope: Satan would remain an enemy, but divine guidance would remain available.`,
 			},
 			{
-				title: "Part 11: Adam's life on earth and continuous struggle",
-				body: `Adam (peace be upon him) descended to earth with knowledge, repentance, and divine guidance. Ibn Kathir narrates: On earth, Adam faced struggle, hardship, and the constant whispers of Satan. Yet he was equipped with something invaluable—the knowledge Allah had taught him and the experience of having repented at the very beginning of his existence.\n\nAllah revealed: "And We said: 'Get down all of you from this place. Then whenever there comes to you Guidance from Me, and whoever follows My Guidance, there shall be no fear on them, nor shall they grieve. But those who disbelieve and belie Our Ayat (proofs, evidence, verses, signs, revelations, and in the Qur'an), such are the dwellers of the Fire. They will abide therein forever'" (Qur'an 2:38-39).\n\nIbn Kathir reports that Adam lived 130 years on earth after his descent, and it is mentioned that on Friday, just as mankind was created on Friday, Adam did his greatest act of worship. Allah also blessed Adam's descendants with knowledge and prophethood—the ability to know His messages and guidance.\n\nIn an authenticated narration from Abdul Razzaq: Adam was given knowledge of all crafts and skills. He knew agriculture, weaving, tailoring, and the arts. This knowledge flowed through his children, allowing them to build civilizations, establish justice, and spread monotheism across the earth.\n\nYet the struggle continued. Satan kept his promise: "I will sit in wait against them on Your Straight Path. Then I will come to them from before them and behind them, from their right and from their left" (Qur'an 7:16-17). Adam (peace be upon him) and his children had to remain vigilant, turning back to Allah again and again, repenting, and choosing obedience.`,
+				title: "Part 11: Prophet Adam (peace be upon him) on earth",
+				body: `Ibn Kathir records that Prophet Adam (peace be upon him) lived on earth with knowledge, worship, repentance, and the burden of teaching his children. He knew what it meant to be tempted, what it meant to lose, and what it meant to return to Allah. This made him the perfect first prophet for mankind: not an angel untouched by struggle, but a human being taught by Allah how to rise after error.
+
+Reports also mention that he taught his descendants skills and ways of living. This fits the broader meaning of his story: human civilization begins with guidance, not with purposeless wandering. The first human being was also the first teacher, carrying the earliest knowledge, worship, and warning into human history.`,
+			},
+			{
+				title: "Part 12: Why the story of Prophet Adam (peace be upon him) is the story of all of us",
+				body: `The story of Prophet Adam (peace be upon him) is the story of mankind in miniature. It begins with honor, moves through knowledge, confronts pride, enters temptation, falls into error, returns through repentance, and continues under guidance on earth. Every human life carries echoes of that first story.
+
+That is why Adam is not only the first man in a historical sense. He is also the first mirror in which mankind sees itself. His dignity teaches us our nobility. His mistake teaches us our weakness. His repentance teaches us our hope. And his story teaches us that the path back to Allah is one of the greatest gifts ever given to humanity.`,
 			},
 			{
 				title: "Moral lessons",
-				body: ` Pride and arrogance (like Iblis's refusal to obey) lead to eternal punishment and separation from Allah's mercy.\n\n Knowledge is the greatest gift — seek it sincerely and use it to draw closer to Allah (Qur'an 2:31-33).\n\n Satan's whispers are real, but they start small. Protect yourself through constant vigilance, dhikr (remembrance), and obedience to Allah's commands (Qur'an 7:20-22).\n\n Sincere repentance immediately after sin is accepted by Allah, even if the sin seems grave (Qur'an 2:37; Qur'an 7:23).\n\n Guidance from Allah is available to everyone, but following it requires choosing obedience over desire (Qur'an 2:38-39).\n\n The struggle between good and evil is continuous in this life, but Allah never leaves us without guidance.`,
+				body: ` Human beings are honored by Allah, but that honor should produce humility, not pride.
+
+ Knowledge is one of the greatest gifts Allah gave mankind.
+
+ Pride, like the pride of Iblis, is spiritually destructive.
+
+ Satan works through whispering, beautifying sin, and false promises.
+
+ The first human mistake was followed by the first human repentance.
+
+ Allah does not leave people without guidance in the struggle of life.
+
+ Returning to Allah after error is part of the human story from its very beginning.`,
 			},
 			{
 				title: "Practical actions for students",
-				body: ` Memorize and reflect on Qur'an 2:37: "Then Adam received from his Lord Words. His Lord pardoned him. Verily He is the One Who forgives, the most Merciful." Make this your du'a when you make mistakes.\n\n Make istighfar (say "Astaghfirullah") 100 times this week, especially when you feel tempted to disobey.\n\n Identify one area where Shaytan commonly whispers to you, and create a specific protection plan (like avoiding that place, friend, or activity; or reading Qur'an, making dhikr).\n\n Practice sincere repentance: When you disobey, immediately say: "Our Lord! We have wronged ourselves. If You forgive us not, and bestow not upon us Your Mercy, we shall certainly be of the losers" (Qur'an 7:23).\n\n Write down three things you learned from Adam's (peace be upon him) obedience and three things you learned from his mistake. Use these lessons to guide your own choices this week.`,
+				body: ` Memorize and reflect on the du'a of repentance from Qur'an 7:23.
+
+ When you make a mistake this week, repent immediately instead of delaying.
+
+ Choose one area where Satan often whispers to you and make a practical plan to protect yourself.
+
+ Thank Allah for one form of knowledge He has given you, and use it in a good way.
+
+ Read Qur'an 2:30-39, 7:11-27, 20:115-123, and 15:28-42.`,
 			},
 		],
 		quranSurahs: [
@@ -128,55 +231,101 @@ const STORY_CONTENT_BY_SLUG: Record<string, StoryContent> = {
 
 	idris: {
 		shortIntro:
-			"Idris (peace be upon him) is mentioned in the Qur’an as truthful and a prophet, and Allah says He raised him to a high station. Ibn Kathir includes reports about his calling people to worship, and wise sayings about gratitude, discipline, and self-accountability.",
+			"Prophet Idris (peace be upon him) is mentioned in the Qur'an as a man of truth and a prophet whom Allah raised to a high station. His story is quieter than some of the longer prophetic stories, but it carries deep lessons in truthfulness, disciplined worship, wisdom, justice, migration for faith, and steady devotion in a time when corruption was beginning to spread. Ibn Kathir presents Prophet Idris (peace be upon him) as a prophet of knowledge, restraint, and spiritual seriousness.",
 		sections: [
 			{
-				title: "Part 1: Mentioned with honor in the Qur'an",
-				body: `Allah praises Idris (peace be upon him) with the highest honor: "Mention in the Book (Qur'an) Idris (Enoch). Verily! He was a man of truth (and) a prophet. We raised him to a high station" (Qur'an 19:56-57).\n\nIdris (peace be upon him) holds a unique place in Islamic history. He was the first from the Children of Adam to receive prophethood after Adam and Seth (peace be upon them). He lived in the generations after Seth, serving as a lighthouse of guidance when darkness was spreading among mankind.\n\nAllah emphasized three qualities about Idris: first, that he was a "man of truth" (sidiq)—not merely someone who spoke truth, but someone whose entire life embodied truthfulness in every deed and word. Second, that he was a prophet (nabi)—chosen by Allah to carry His message. Third, that Allah "raised him to a high station"—honoring him with a position so elevated that the Qur'an leaves its exact nature to Allah's knowledge, saying "we stay with what Allah revealed." This elevation reflects Allah's complete satisfaction with Idris's faithfulness and service.`,
+				title: "Part 1: A prophet remembered with honor in the Qur'an",
+				body: `Allah mentions Prophet Idris (peace be upon him) with remarkable honor: he was a man of truth, a prophet, and one whom Allah raised to a high station. Even though the Qur'an gives only brief direct mention of him, those words are enough to show that he held a noble rank among the earliest prophets.
+
+That briefness itself is important. Not every great servant of Allah is known through a long dramatic story. Some are known through the weight of their character. In the case of Prophet Idris (peace be upon him), the Qur'an centers three qualities: truthfulness, prophethood, and elevation by Allah. Those three are enough to tell us that his life was one of unusual purity and faithfulness.`,
 			},
 			{
-				title: "Part 2: A caller to the way of the prophets",
-				body: `Idris (peace be upon him) was born and raised in Babylon following the teachings and religion of Prophet Adam (peace be upon him) and his son Seth (peace be upon him). When Allah sent him as a prophet, Idris called the people back to his forefathers' pure religion—the worship of Allah alone with no partners.\n\nBut the response was discouraging. Ibn Kathir reports that only a few listened to him, while the majority turned away. The people were attached to their worldly desires and comfortable in their ways. They resisted his call, mocked his message, and refused to accept his guidance.\n\nYet Idris (peace be upon him) did not give up. He knew the truth was from Allah, and the small number of believers did not diminish its value. His example teaches us: do not measure success by popularity. The measure of success is obedience to Allah and faithfulness to His message, regardless of how many people respond.`,
+				title: "Part 2: Living in the generations after Adam",
+				body: `Ibn Kathir places Prophet Idris (peace be upon him) among the early generations after Prophet Adam (peace be upon him) and after Seth. He lived at a time when humanity was still close to its earliest beginnings, but moral and spiritual decline had already begun to show itself in human life.
+
+This setting matters because Prophet Idris (peace be upon him) stood in an age when people still had traces of earlier prophetic guidance, yet they were beginning to drift. He was not sent into total ignorance without precedent. He was sent to revive and preserve the path of tawhid before corruption could harden further.`,
 			},
 			{
-				title: "Part 3: Migration to Egypt for guidance",
-				body: `As the corruption in Babylon intensified and the rejection intensified, Idris (peace be upon him) and his followers made a courageous decision. They left Babylon—the land of their ancestors, their homes, and their possessions—and traveled to Egypt to continue their mission of guidance.\n\nIbn Kathir records that Idris (peace be upon him) chose to migrate to a place where he could freely call people to Allah's religion without constant hostility and harm. This was a profound choice: to leave everything familiar for the sake of Allah's deen.\n\nThis migration teaches an essential principle: sometimes protecting your faith and your followers' faith requires leaving a harmful environment. If a place pulls you toward sin, weakens your worship, or surrounds you with constant hostility to Islam, then changing that environment is not weakness—it is wisdom. Allah honored Idris for making this difficult choice, for it preserved his mission and allowed him to continue guiding others.`,
+				title: "Part 3: Prophet Idris (peace be upon him) calls people back to Allah",
+				body: `When Allah sent Prophet Idris (peace be upon him), he called people back to the religion of their righteous forefathers: worship Allah alone, live truthfully, and do not let the world carry you into heedlessness. Ibn Kathir notes that only a smaller number responded positively, while many turned away from his teaching.
+
+This is one of the earliest examples in prophetic history of a messenger standing firm even when response was limited. Prophet Idris (peace be upon him) did not abandon the truth because it was not popular. He remained committed to the message because a prophet measures success by obedience to Allah, not by the size of the audience.`,
 			},
 			{
-				title: "Part 4: Teaching worship and discipline",
-				body: `In Egypt, Idris (peace be upon him) carried on his mission with renewed focus. Ibn Kathir records that he taught the people certain prayers and instructed them to fast on certain days and to give a portion of their wealth to the poor.\n\nNotice that Idris (peace be upon him) did not just preach abstract ideas. He gave specific, practical instructions: "Pray these prayers." "Fast on these days." "Give this portion to the poor." His teaching was concrete and actionable.\n\nIdris understood that worship is not a fleeting emotion or occasional motivation. Worship is discipline—consistent, daily, structured discipline. You pray at specific times. You fast on specific days. You give regularly. Through this discipline, the heart grows strong. Through repetition and structure, faith becomes part of your identity.\n\nThis is Idris's legacy for us: Build your connection with Allah through disciplined worship, not temporary feelings. Establish routines of prayer, fasting, and charity. These habits transform the heart far more effectively than momentary inspiration.`,
+				title: "Part 4: Migration for the sake of preserving faith",
+				body: `Ibn Kathir records that when corruption and resistance grew stronger, Prophet Idris (peace be upon him) and those with him moved from Babylon toward Egypt. This migration was not a search for comfort. It was a movement for the sake of faith and continued guidance.
+
+That makes his story powerful in a quiet way. Sometimes serving Allah means remaining and enduring. At other times it means leaving a place where truth is suffocated and carrying the mission elsewhere. Prophet Idris (peace be upon him) shows that protecting faith can require hard relocation, separation from familiar land, and beginning again under Allah's care.`,
 			},
 			{
-				title: "Part 5: Calling people to justice and fairness",
-				body: `Idris (peace be upon him) understood that true worship is inseparable from just dealings with people. Ibn Kathir records that in Egypt, Idris called people to what is just and fair. He taught them to treat each other with honesty, fairness, and compassion.\n\nThis is a critical lesson: Prophets do not merely teach rituals; they teach character transformation. Idris taught prayer and fasting, but he also taught people to correct injustice (dhulm) and to deal fairly in all their transactions. He taught them to be truthful in business, merciful to the weak, and generous to the poor.\n\nTrue religion makes you better toward others. If your Islam makes you harsh, selfish, dishonest, or cruel, then you have not truly understood the message. But if your Islam makes you honest, fair, kind, and helpful—then you have understood the heart of Idris's mission. This balance—worship of Allah combined with justice toward creation—is what Idris called people to, and it is what made his message complete.`,
+				title: "Part 5: A prophet of discipline, not only inspiration",
+				body: `In Egypt, Prophet Idris (peace be upon him) continued teaching people practical acts of worship. Ibn Kathir records that he instructed them in prayer, fasting, and giving from their wealth to the poor. This reveals something essential about his mission: he was not calling people to vague spirituality. He was building disciplined servants of Allah.
+
+Worship in his teaching was structured, regular, and embodied. Prayer trained the heart. Fasting trained restraint. Charity trained gratitude and mercy. Prophet Idris (peace be upon him) teaches us that faith grows strong not through occasional emotional moments, but through repeated obedience lived day after day.`,
 			},
 			{
-				title: "Part 6: Gratitude through sharing blessings",
-				body: `Among the profound wise sayings recorded by Ibn Kathir from Idris (peace be upon him) is: "None can show better gratitude for Allah's favors than he who shares them with others."\n\nThis wisdom cuts to the heart of what gratitude means. Gratitude is not merely words—"Alhamdulillah, thank you Allah." True gratitude is action. It is using what Allah gave you to help others. If Allah blessed you with wealth, gratitude means sharing it with those in need. If Allah gave you knowledge, gratitude means teaching others. If Allah gave you strength, gratitude means working to help the weak.\n\nIdris (peace be upon him) recognized that true shukr (gratitude) is demonstrated through generosity. When you share your blessings with others, you are acknowledging that those blessings came from Allah and that Allah's generosity deserves to be mirrored in your own generosity. This is why Idris instructed people to "give a portion of their wealth to the poor." Sharing is gratitude in action.`,
+				title: "Part 6: Justice and fairness as part of religion",
+				body: `Ibn Kathir also presents Prophet Idris (peace be upon him) as a caller to justice and fairness. He did not separate worship of Allah from treatment of people. He taught that honesty, fairness, and compassion are part of the path of obedience, not secondary decorations around religion.
+
+That balance matters. A person who prays but cheats people has not understood prophetic guidance. A person who fasts but acts with cruelty has missed the purpose of worship. Prophet Idris (peace be upon him) called people to both devotion toward Allah and fairness toward creation, and that combination is one of the marks of real prophetic teaching.`,
 			},
 			{
-				title: "Part 7: Self-accountability and muhasabah",
-				body: `Idris (peace be upon him) taught a powerful principle of self-discipline that Ibn Kathir recorded: "Happy is he who looks at his own deeds and appoints them as pleaders to his Lord."\n\nThis speaks to the Islamic practice of muhasabah—self-reckoning and accountability. It means regularly examining your own actions, not judging others but examining yourself. Ask yourself: "Did I act with kindness today? Did I cheat anyone? Did I help someone in need? Did I pray with presence of heart? Did I waste my time?"\n\nThe phrase "appoints them as pleaders to his Lord" is profound. It means: let your good deeds speak for you before Allah on the Day of Judgment. But this is only possible if you consciously choose to do good deeds, if you are intentional and aware of your actions.\n\nIdris teaches us that happiness and success come through muhasabah—through the discipline of examining ourselves first before blaming others, of fixing our own character before judging others' characters. This self-awareness and accountability protected Idris (peace be upon him) from pride and kept him focused on pleasing Allah alone.`,
+				title: "Part 7: His wisdom on gratitude and sharing blessings",
+				body: `Among the wise sayings Ibn Kathir attributes to Prophet Idris (peace be upon him) is the idea that no one shows gratitude for Allah's favors better than the one who shares those favors with others. This is a profound insight into what gratitude really means.
+
+Gratitude is not only a word on the tongue. It is action. If Allah gave you knowledge, gratitude means teaching beneficially. If Allah gave you wealth, gratitude means giving. If Allah gave you strength, gratitude means helping those who are weaker. Prophet Idris (peace be upon him) understood that blessings become more meaningful when they are used in service, not hoarded in pride.`,
 			},
 			{
-				title: "Part 8: Avoiding excess and extravagance",
-				body: `Idris (peace be upon him) warned his followers with wisdom: "He who indulges in excess will not benefit from it."\n\nExcess (israf) means going beyond the boundaries of need, spending more than necessary, eating more than your body needs, sleeping more than necessary, or acquiring more possessions than you can properly use. Ibn Kathir emphasizes that Idris saw excess as spiritually destructive.\n\nThink about it: if you eat to excess, you become sluggish and heavy—your body weakens and your mind clouds. If you spend to excess, you become enslaved to earning more money. If you indulge in entertainments to excess, your time vanishes and your focus scatters. If you talk to excess, you lose wisdom and gain only exhaustion.\n\nBut discipline—keeping things balanced and moderate—protects everything: your time, your health, your finances, and most importantly, your iman. When you choose restraint, you prove to yourself that you are in control, not your desires. This self-mastery is what keeps the heart strong and the connection with Allah pure.\n\nIdris (peace be upon him) lived this principle, and it made him a beacon of strength even in times of widespread corruption.`,
+				title: "Part 8: Self-accountability and mastery over the self",
+				body: `Ibn Kathir records words of wisdom from Prophet Idris (peace be upon him) about looking closely at one's own deeds. This is the path of muhasabah: self-accountability. Before a person judges others, he must examine himself. Before blaming the world, he must ask what his own hands, tongue, heart, and habits are doing.
+
+This makes Prophet Idris (peace be upon him) deeply relevant to any believer trying to grow. He teaches that spiritual strength comes from honest self-examination. A careless soul becomes weak because it never stops to review itself. But a heart that checks itself regularly becomes more awake, more disciplined, and more sincere before Allah.`,
 			},
 			{
-				title: "Part 9: Raised to a high station",
-				body: `After a lifetime of faithful service, calling people to Allah, teaching discipline, and maintaining justice, Allah honored Idris (peace be upon him) with an incomparable honor. Allah revealed: "We raised him to a high station" (Qur'an 19:57).\n\nThe Qur'an does not specify exactly what this elevation was, and Islamic scholarship varies on this matter. Some scholars mention it in relation to the heavens based on hadith reports about Prophet Muhammad's (peace be upon him) night journey. But Allah's wisdom chooses to leave the exact nature of this station unknown to us. We know only that it was so high, so elevated, that the Qur'an explicitly mentions it as a unique honor.\n\nThis teaches a profound lesson: Allah's rewards are real and they will come, even if the world does not see them right now. Idris (peace be upon him) was mocked by most of his people. His migration was painful. His struggle was long. But Allah saw his truthfulness, his dedication, his sacrifice—and Allah rewarded him.\n\nNever think that your good deeds are wasted because no one notices them. Allah notices. Allah rewards. And the rewards of Allah are far greater and more lasting than any worldly recognition.`,
+				title: "Part 9: Warning against excess and wasted life",
+				body: `Another wise teaching linked to Prophet Idris (peace be upon him) is a warning against excess. Excess in food, wealth, talk, possessions, or indulgence may feel enjoyable for a moment, but it weakens the soul over time. Ibn Kathir presents him as a man who understood restraint and lived with seriousness, not frivolous waste.
+
+That is one reason he stands out as a prophet of discipline. He knew that desires become dangerous when they stop being governed. A believer does not destroy himself by enjoying what Allah made lawful, but he can weaken himself by turning lawful things into obsession, waste, and distraction. Prophet Idris (peace be upon him) taught balance, and balance protects iman.`,
 			},
 			{
-				title: "Part 10: Patience and steadfastness in faith",
-				body: `After describing Idris's elevation, Allah groups him with the greatest of the patient ones: "And Ismail (peace be upon him) and Idris (peace be upon him) and Dhul-Kifl—each was of the patient ones. We admitted them to Our Mercy" (Qur'an 21:85-86).\n\nNote that Allah does not just say Idris was patient; Allah places him alongside Ismail (peace be upon him), who was willing to be sacrificed, and Dhul-Kifl (peace be upon him), another righteous prophet. This grouping shows Idris's rank among the greatest prophets.\n\nWhat was Idris's patience? It was enduring decades of rejection. It was migrating from his homeland when his people refused guidance. It was maintaining his discipline and teaching truth even when only a few listened. It was continuing to preach justice and worship even when the world resisted. It was living a life of worship and accountability without seeking worldly reward.\n\nIdris's truthfulness (sidq) was not merely honest speech—it was an entire life of steady, unshakeable commitment to Allah. Every day was worship. Every deed reflected his dedication. Every word aligned with his actions. This integrity, maintained through patience and hardship, is what made Idris (peace be upon him) a beacon of light in the dark ages, and it is what earned him Allah's mercy and elevation.`,
+				title: "Part 10: Raised to a high station by Allah",
+				body: `After a life of truthfulness, worship, discipline, wisdom, and steadfast service, Allah honored Prophet Idris (peace be upon him) by raising him to a high station. The exact nature of that elevation is not fully detailed in the Qur'an, and Muslim scholars mention different reports while remaining anchored to what Allah explicitly revealed.
+
+What matters most is the meaning: Allah saw his truthfulness and raised him. That is the enduring lesson of his story. A servant may live quietly, be ignored by many people, and still be held in extraordinary honor by Allah. Prophet Idris (peace be upon him) is a proof that deep truthfulness, steady worship, and sincere discipline never go unseen by the Lord.`,
+			},
+			{
+				title: "Part 11: Why Prophet Idris (peace be upon him) still matters",
+				body: `The story of Prophet Idris (peace be upon him) matters because many believers imagine greatness only in dramatic moments: great battles, public miracles, and famous confrontations. But his life teaches another kind of greatness: inner truthfulness, disciplined worship, self-accountability, migration for faith, justice in dealings, and wisdom lived consistently.
+
+He stands as an early prophetic model of serious faith. He shows that a person can be elevated by Allah through daily integrity, not only through visible public triumph. That is why his story, though brief in direct revelation, remains powerful in meaning.`,
 			},
 			{
 				title: "Moral lessons",
-				body: ` Truthfulness (sidq) is the foundation of faith—it means aligning your entire life with Allah's truth, not just speaking honestly (Qur'an 19:56).\n\n Consistency in worship and discipline builds unshakeable character far more than temporary motivation (Idris's example in Egypt).\n\n Gratitude is demonstrated through action and generosity—true shukr means sharing your blessings with others (Ibn Kathir's recorded saying).\n\n Self-accountability (muhasabah) protects the heart—examine your own deeds before judging others and let your good deeds speak for you on the Day of Judgment (Ibn Kathir).\n\n Avoiding excess in speech, food, possessions, and entertainment protects your iman, health, time, and spiritual focus (Ibn Kathir).\n\n Patience in calling people to Allah's way is rewarded by Allah, even if the world does not recognize your efforts (Qur'an 21:85).\n\n True religion is the balance between worship of Allah and justice toward people—the two cannot be separated (Idris's mission).`,
+				body: ` Truthfulness is more than honest speech; it is a whole life aligned with Allah.
+
+ Real worship grows through discipline and consistency, not temporary emotion.
+
+ Protecting faith may require leaving a harmful environment.
+
+ Justice toward people is part of religion, not separate from it.
+
+ Gratitude is shown by sharing blessings, not only speaking about them.
+
+ Self-accountability protects the heart from pride and carelessness.
+
+ Allah raises the sincere servant even if the world barely notices him.`,
 			},
 			{
 				title: "Practical actions for students",
-				body: ` **Practice muhasabah**: Every evening for one week, spend 5 minutes writing down 3 good deeds you did and 2 mistakes you made. This builds self-awareness like Idris taught.\n\n **Establish a discipline habit**: Choose one worship practice (e.g., Qur'an after Fajr, or tahajjud once weekly) and commit to it for 40 days. This mirrors Idris's emphasis on structured discipline over temporary feelings.\n\n **Share a blessing**: Identify one blessing Allah gave you (knowledge, money, skill, strength) and use it to help someone in need this week. This is gratitude in action, as Idris taught.\n\n **Reduce one excess**: Identify one thing you do in excess (screen time, snacking, talking/gossiping) and consciously reduce it for one week. Track your progress and notice how you feel—clearer, stronger, more focused. This is the benefit Idris promised.\n\n **Live the balance**: Practice one act of kindness or justice at school, home, or with friends—be honest in a transaction, stand up for someone being treated unfairly, or help someone who cannot repay you. This embodies Idris's teaching that religion is both worship AND justice.`,
+				body: ` Choose one act of worship this week and do it at the same time every day to build discipline.
+
+ Spend five minutes tonight reviewing your actions honestly before sleep.
+
+ Share one blessing Allah gave you with someone else this week.
+
+ Reduce one excess in your life, whether in food, screen time, spending, or speech.
+
+ Read Qur'an 19:56-57 and 21:85-86 and reflect on how little wording can carry great honor.`,
 			},
 		],
 		quranSurahs: ["Maryam", "Al-Anbiya"],
@@ -184,59 +333,99 @@ const STORY_CONTENT_BY_SLUG: Record<string, StoryContent> = {
 
 	nuh: {
 		shortIntro:
-			"Nuh (peace be upon him) called his people to worship Allah alone for 950 years with patience. Ibn Kathir explains how idolatry began, how Nuh warned and reasoned with his people, and how Allah saved the believers and destroyed persistent shirk and ظلم.",
+			"Prophet Nuh (peace be upon him) was the first messenger sent to a people who had sunk into idolatry after earlier generations of righteousness. His story is one of extraordinary patience, long years of calling to Allah, mockery from his people, the building of the Ark, the heartbreak of a son who refused faith, and the flood that ended a civilization built on stubborn shirk. Ibn Kathir presents Prophet Nuh (peace be upon him) as a prophet of endurance, clarity, and complete loyalty to tawhid.",
 		sections: [
 			{
-				title: "Part 1: How idolatry began",
-				body: `Ibn Kathir explains that Nuh’s (peace be upon him) people fell into idolatry gradually. At first they honored righteous people, then made statues “to remember them,” then later generations began worshipping those statues. The Qur’an names their idols: Wadd, Suwa‘, Yaghuth, Ya‘uq, and Nasr (Qur’an 71:23).\n\nA hadith mentioned by Ibn Kathir warns about taking graves as places of worship and placing images; the Prophet Muhammad (peace and blessings be upon him) warned against this (Sahih al-Bukhari, as cited by Ibn Kathir).\n\nLesson: shirk often begins with a “small step.” Protect tawhid by keeping worship purely for Allah.`,
+				title: "Part 1: How a righteous memory became idolatry",
+				body: `Ibn Kathir explains that the people before Prophet Nuh (peace be upon him) did not fall into idolatry all at once. It began gradually. There had been righteous people among them, and later generations wanted to preserve their memory. Images and statues were made at first as reminders, not as declared gods. But with time, knowledge weakened and Satan beautified falsehood until people began worshipping what had only been made to remember the pious.
+
+This is why the story of Prophet Nuh (peace be upon him) begins with a warning that remains relevant forever: shirk often begins with seemingly small steps, emotional exaggeration, and neglect of clear tawhid. By the time Prophet Nuh (peace be upon him) was sent, his people were deeply attached to idols such as Wadd, Suwa', Yaghuth, Ya'uq, and Nasr. Their religion had become a corruption of memory and desire.`,
 			},
 			{
-				title: "Part 2: Nuh’s clear message",
-				body: `Allah sent Nuh (peace be upon him) as a plain warner: worship Allah alone, be dutiful to Him, and obey the messenger so that Allah forgives sins and gives respite (Qur’an 71:1–4).\n\nLesson: prophets begin with tawhid and sincere repentance.`,
+				title: "Part 2: Prophet Nuh (peace be upon him) is sent as the first messenger",
+				body: `Allah sent Prophet Nuh (peace be upon him) to his people as a clear warner. He came with the simplest and greatest truth: worship Allah alone, fear Him, obey the messenger, and seek forgiveness before the punishment arrives. His message was not complicated, political, or philosophical. It was the call of every prophet: tawhid first.
+
+This is what makes his long mission so powerful. He was not trying to introduce novelty. He was restoring the pure worship of Allah after people had drifted into false devotion and inherited corruption.`,
 			},
 			{
-				title: "Part 3: Patience day and night",
-				body: `Nuh (peace be upon him) described his struggle: “I have called my people night and day… but my call added nothing but to their flight… they thrust their fingers into their ears…” (Qur’an 71:5–7).\n\nLesson: da‘wah requires patience and good manners — even when people refuse.`,
+				title: "Part 3: He called them night and day",
+				body: `One of the most moving parts of the story is how Prophet Nuh (peace be upon him) described his own da'wah. He called his people night and day. He spoke publicly and privately. He addressed them openly, then came to them in more personal ways. He used every lawful means to reach their hearts.
+
+Yet the more he called, the more they fled. They put their fingers in their ears. They wrapped themselves in their garments. They insisted on arrogance. This is not just a story of preaching; it is a story of preaching carried through rejection for an astonishing length of time. Ibn Kathir presents him as the model of persistence when results appear painfully slow.`,
 			},
 			{
-				title: "Part 4: The proud leaders resist",
-				body: `The leaders attacked Nuh (peace be upon him) by insulting his followers. They wanted status, not truth. Nuh refused to push believers away and reminded them he does not claim treasures or unseen knowledge (Qur’an 11:25–31).\n\nLesson: Allah honors iman, not social class.`,
+				title: "Part 4: The proud leaders attack the believers",
+				body: `The elite of his people did not only reject Prophet Nuh (peace be upon him). They also looked down on those who believed in him. They measured worth by status and power, not by iman. They saw the poorer believers around him and used that as a reason to mock the message itself.
+
+But Prophet Nuh (peace be upon him) refused to drive the believers away just to impress the leaders. He made it clear that he was not a keeper of treasures, not a claimant to unseen knowledge independent of revelation, and not someone who would sell the truth in exchange for approval. This is a crucial part of his story: the messenger stands with the believers even when society ranks them as low.`,
 			},
 			{
-				title: "Part 5: A very long mission",
-				body: `Allah tells us Nuh (peace be upon him) stayed among his people “a thousand years less fifty years” (Qur’an 29:14).\n\nLesson: keep doing the right thing for Allah — even when results are slow.`,
+				title: "Part 5: Nine hundred and fifty years of patience",
+				body: `Allah tells us that Prophet Nuh (peace be upon him) remained among his people for a thousand years minus fifty. That is nine hundred and fifty years of calling, warning, teaching, enduring, and waiting. Few statements in revelation communicate perseverance as powerfully as this one.
+
+Think about what that means. Generations rose and passed while he remained calling to the same truth. Children grew into adults and repeated the disbelief of their elders. Yet Prophet Nuh (peace be upon him) did not abandon the mission because it was long. He stayed because Allah had sent him, and the messenger's duty is to convey, not to control the outcome.`,
 			},
 			{
-				title: "Part 6: The du’a and Allah’s decree",
-				body: `When Allah revealed that no others would believe, Nuh (peace be upon him) made du‘a against persistent disbelief (Qur’an 71:26–27).\n\nLesson: Allah’s judgment comes after proof, warning, and stubborn refusal.`,
+				title: "Part 6: The decree comes after proof is complete",
+				body: `Eventually Allah revealed to Prophet Nuh (peace be upon him) that no one else from his people would believe beyond those who already had faith. That was the moment when the mission shifted from extended warning to the nearing decree. Only after long proof, repeated invitation, and stubborn rejection did the final judgment move forward.
+
+Then Prophet Nuh (peace be upon him) made du'a against the persistent disbelievers, asking Allah not to leave on the earth any dwelling of the rejecters. This was not impatience. It came after generations of refusal, after mercy had already been offered again and again.`,
 			},
 			{
-				title: "Part 7: Building the ark despite mockery",
-				body: `Allah commanded Nuh (peace be upon him): “Construct the ship under Our Eyes and with Our Inspiration” (Qur’an 11:37). People mocked, but he continued.\n\nLesson: obedience may look “strange” to people who do not believe — stay firm with Allah.`,
+				title: "Part 7: Building the Ark under Allah's command",
+				body: `Allah commanded Prophet Nuh (peace be upon him) to build the Ark under divine guidance and inspiration. Imagine the scene: a prophet building a ship while people around him mocked him, laughed at him, and treated him as if he had lost all sense. Yet he continued with complete obedience.
+
+This is one of the clearest lessons in his story. Obedience to Allah may look strange to people who only judge by immediate appearances. But the believer does not measure truth by public reaction. Prophet Nuh (peace be upon him) kept building because the command had come from Allah, and that was enough.`,
 			},
 			{
-				title: "Part 8: The sign and boarding the ark",
-				body: `Allah gave a clear sign: the oven gushed forth (Qur’an 11:40). Nuh (peace be upon him) boarded believers and took pairs of creatures. Ibn Kathir notes only a few believed.\n\nLesson: faith is not about crowd size.`,
+				title: "Part 8: The sign appears and the believers board",
+				body: `Then the sign came: the oven gushed forth, just as Allah had indicated. That was the signal that the decree had begun. Prophet Nuh (peace be upon him) boarded the believers, and pairs of creatures were brought onto the Ark. Ibn Kathir notes that the number of believers was small, despite the enormous length of the mission.
+
+This part of the story destroys the illusion that numbers prove truth. Prophet Nuh (peace be upon him) was one of the greatest prophets, yet only a few believed with him. Success with Allah is not measured by crowd size. It is measured by truthfulness and obedience.`,
 			},
 			{
-				title: "Part 9: A painful lesson about family",
-				body: `Nuh (peace be upon him) called to his son to embark, but his son relied on a mountain. A wave came between them and he drowned (Qur’an 11:41–43).\n\nLesson: family ties do not replace iman. Safety is in Allah’s mercy and obedience.`,
+				title: "Part 9: The heartbreak of his son",
+				body: `One of the most painful scenes in the story is when Prophet Nuh (peace be upon him) called out to his son and invited him to board the Ark. His son refused, believing a mountain would protect him from the flood. In that moment, family affection met divine truth in one of the hardest ways imaginable.
+
+A wave came between them, and the son was among those drowned. The lesson is severe, but it is clear: lineage does not save without faith. Even the son of a prophet cannot be protected by family connection when he rejects Allah's command. This scene gives the story of Prophet Nuh (peace be upon him) a deep emotional weight that should never be overlooked.`,
 			},
 			{
-				title: "Part 10: The end of the flood and a new beginning",
-				body: `Allah ended the flood: “O Earth! Swallow up your water, and O sky! Withhold…” (Qur’an 11:44–48). The believers disembarked with peace and blessings.\n\nLesson: after hardship, Allah can open a clean new beginning for those who obey Him.`,
+				title: "Part 10: The flood ends and a new beginning begins",
+				body: `Then Allah commanded the earth to swallow its water and the sky to withhold. The flood ended, the Ark came to rest, and the believers stepped into a new beginning by Allah's mercy. The civilization built on stubborn shirk had ended, and a purified beginning was granted to those who obeyed.
+
+This ending shows another great lesson in the story of Prophet Nuh (peace be upon him): after immense hardship, Allah can open a new chapter so completely that the past world seems like something washed away. For the obedient, the end of one world can be the beginning of another blessed one.`,
 			},
 			{
-				title: "Part 11: Nuh’s final advice",
-				body: `Ibn Kathir mentions a hadith about Nuh’s (peace be upon him) final advice: he commanded tawhid and warned against shirk and pride (Sahih al-Bukhari, as cited by Ibn Kathir).\n\nLesson: end your life with the most important truth: worship Allah alone and keep your heart humble.`,
+				title: "Part 11: His final legacy of tawhid and humility",
+				body: `Ibn Kathir mentions reports about the final counsel of Prophet Nuh (peace be upon him): hold firmly to tawhid and stay far away from shirk and pride. This is fitting, because his whole life revolved around these two truths. Tawhid raises a servant; pride destroys him.
+
+That is why the story of Prophet Nuh (peace be upon him) is not just the story of a flood. It is the story of the first great battle between revealed tawhid and entrenched shirk in human history, carried by a prophet whose patience became one of the greatest examples ever given to mankind.`,
 			},
 			{
 				title: "Moral lessons",
-				body: ` Patience in da‘wah (Qur’an 29:14).\n\n Guard tawhid and avoid “small steps” toward shirk (Qur’an 71:23).\n\n Obedience during ridicule (Qur’an 11:37).\n\n Family ties do not save without iman (Qur’an 11:41–43).`,
+				body: ` Shirk often begins gradually, so tawhid must be guarded carefully.
+
+ Long patience in da'wah is still obedience, even when results are small.
+
+ Social status does not matter before Allah; iman does.
+
+ Public ridicule must not stop obedience to Allah.
+
+ Family ties do not save without faith.
+
+ After hardship, Allah can open a completely new beginning.`,
 			},
 			{
 				title: "Practical actions for students",
-				body: ` Stay consistent on salah this week, especially when you feel lazy.\n\n Don’t join mockery — be respectful when someone reminds you of Allah.\n\n Make du’a for guidance for 3 people by name.\n\n Do one worship act secretly (to fight showing off).`,
+				body: ` Protect your tawhid by avoiding any practice that gives worship, fear, or hope in an ultimate sense to other than Allah.
+
+ Stay consistent in one act of worship this week even if no one notices it.
+
+ Make du'a for guidance for at least three people by name.
+
+ Read Qur'an 71, Qur'an 11:25-49, and Qur'an 29:14.
+
+ When people ignore a good reminder you give, do not quit immediately; learn patience from Prophet Nuh (peace be upon him).`,
 			},
 		],
 		quranSurahs: ["Hud", "Nuh", "Al-Muminun", "Ash-Shuara", "Al-Araf", "Al-Ankabut"],
@@ -244,55 +433,93 @@ const STORY_CONTENT_BY_SLUG: Record<string, StoryContent> = {
 
 	hud: {
 		shortIntro:
-			"Hud (peace be upon him) warned the people of ‘Ad against arrogance and worshipping others besides Allah. Ibn Kathir highlights Hud’s clear call to tawhid, their stubborn pride, and Allah’s severe wind that destroyed them — while Allah saved the believers.",
+			"Prophet Hud (peace be upon him) was sent to the people of 'Ad, a mighty nation of strength, wealth, and towering buildings. His story is one of power without humility, warning without response, and a punishment that came in the form of a devastating wind. Ibn Kathir presents Prophet Hud (peace be upon him) as a prophet of firmness, dignity, and complete reliance upon Allah in the face of a proud and intimidating people.",
 		sections: [
 			{
-				title: "Part 1: A powerful nation that became arrogant",
-				body: `After the people of Nuh were destroyed, Allah created another nation called ʿĀd.\n\nThe people of ʿĀd lived in a land between Yemen and Oman. They were very strong, tall, and powerful. They built great buildings and high towers. No nation at that time was stronger than them.\n\nAllah had given them strength, wealth, and skills. But instead of being thankful, they became arrogant. They said proudly:\n\n> "Who is stronger than us?"\n\nAllah says: "And to ʿĀd, We sent their brother Hud." (Qur'an 7:65)\n\nLesson: Strength without gratitude becomes arrogance and oppression.`,
+				title: "Part 1: The rise of a powerful nation",
+				body: `After the people of Nuh were destroyed, another nation rose in prominence: the people of 'Ad. They lived in a region associated with strength, physical power, and impressive construction. They built lofty structures and took pride in their abilities. Compared to the peoples around them, they appeared formidable, secure, and difficult to challenge.
+
+But worldly power can become a trap when it is no longer tied to gratitude. Allah had given the people of 'Ad strength, resources, and status, yet instead of using those blessings in obedience, they became arrogant. Their strength entered their language, their attitude, and their treatment of truth.`,
 			},
 			{
-				title: "Part 2: Hud is sent from among them",
-				body: `The people worshipped idols instead of Allah. Their rulers were unjust, and no one dared to speak against them.\n\nSo Allah sent to them Prophet Hud (peace be upon him) — one of their own people.\n\nHud said to them:\n\n> "O my people! Worship Allah. You have no god but Him."\n\nAllah tells us: "And to ʿĀd, We sent their brother Hud." (Qur'an 7:65)\n\nHud reminded them that Allah was the One who gave them strength. He warned them not to be proud and to stop worshipping idols.\n\nLesson: Allah's guidance is close — not distant or impossible.`,
+				title: "Part 2: Prophet Hud (peace be upon him) is sent from among them",
+				body: `Allah sent Prophet Hud (peace be upon him) to them from among their own people. He was not a foreigner speaking about a community he did not understand. They knew him, his background, and his truthfulness. This made his call even clearer and their rejection even more blameworthy.
+
+His message was the message of every prophet: worship Allah alone, abandon false gods, and stop walking the path of arrogance and corruption. He reminded them that the One who gave them strength was the same One who could remove it in a moment.`,
 			},
 			{
-				title: "Part 3: The core call: worship Allah alone",
-				body: `But the people of ʿĀd mocked him.\n\nThey said:\n\n> "We see you as foolish."\n> "We think you are a liar."\n\nAllah says: "The chiefs of those who disbelieved among his people said: 'We surely see you in foolishness.'" (Qur'an 7:66)\n\nHud replied calmly:\n\n> "O my people! There is no foolishness in me. I am a messenger from the Lord of the worlds."\n\nAllah says: "I convey to you the messages of my Lord, and I am a trustworthy adviser to you." (Qur'an 7:68)\n\nLesson: Tawhid comes first, and sincere teachers do not sell the truth.`,
+				title: "Part 3: A proud people reject a clear message",
+				body: `But the leaders of 'Ad answered with mockery. They called Prophet Hud (peace be upon him) foolish and treated his warning as weakness. This is often how pride responds to revelation: instead of answering the truth, it attacks the dignity of the one who brings it.
+
+Prophet Hud (peace be upon him) answered with calm certainty. There was no foolishness in him, he said. He was a messenger from the Lord of the worlds, conveying the messages of his Lord and advising them sincerely. This exchange captures the heart of the story: arrogance on one side, clear prophetic dignity on the other.`,
 			},
 			{
-				title: "Part 4: A promise of mercy if they repent",
-				body: `Hud warned them that if they continued to disbelieve, Allah's punishment would come.\n\nThey challenged him and said:\n\n> "Bring to us what you threaten us with, if you are truthful."\n\nHud answered:\n\n> "I put my trust in Allah, my Lord and your Lord."\n\nAllah tells us that Hud said: "So plot against me all together and give me no respite. I put my trust in Allah, my Lord and your Lord." (Qur'an 11:55–56)\n\nLesson: Repentance is a path to mercy and blessing.`,
+				title: "Part 4: He calls them to repentance and increase",
+				body: `Prophet Hud (peace be upon him) did not only warn them of punishment. He invited them to mercy. Ibn Kathir highlights that he called them to seek forgiveness from Allah and repent so that Allah would send rain upon them and increase them in strength. This is a beautiful dimension of his story: even while confronting arrogance, he still opened the door of return.
+
+The message was clear. Repentance would not diminish them. It would restore and increase them. But corrupt pride often interprets repentance as humiliation, when in reality it is the path back to honor before Allah.`,
 			},
 			{
-				title: "Part 5: The accusations and the challenge",
-				body: `Soon, Allah tested them.\n\nRain stopped falling. The land became dry. Plants died. The heat became severe.\n\nThe people of ʿĀd came to Hud and asked about the drought.\n\nHud said:\n\n> "Allah is angry with you. If you believe in Him, rain will come, and you will become stronger."\n\nBut they refused and mocked him again.\n\nLesson: When people insult you for faith, keep dignity and rely on Allah.`,
+				title: "Part 5: Drought as a warning before destruction",
+				body: `Before the final punishment came, the people of 'Ad were tested with hardship. Ibn Kathir and the Qur'anic storyline show warning before destruction, not destruction without notice. Their land was affected, their ease was disturbed, and they were given space to reflect and return.
+
+But hardship does not always soften a proud people. Sometimes it only exposes what is already inside them. Instead of repenting, they remained stubborn and continued to speak as if power itself could protect them from the decree of Allah.`,
 			},
 			{
-				title: "Part 6: Teaching the reality of the Hereafter",
-				body: `Then one day, they saw huge clouds coming toward their valley.\n\nThey became happy and said:\n\n> "This is a cloud bringing us rain!"\n\nBut Allah says: "Nay, but it is the torment you were asking to be hastened — a wind wherein is a painful punishment." (Qur'an 46:24)\n\nLesson: Belief in the Hereafter helps you stay fair and patient in this life.`,
+				title: "Part 6: Prophet Hud (peace be upon him) stands with complete tawakkul",
+				body: `As the confrontation deepened, Prophet Hud (peace be upon him) made one of the strongest declarations of trust in Allah found in the prophetic stories. He placed his reliance completely on Allah, his Lord and their Lord, and declared that they could all plot against him together if they wished.
+
+This was not recklessness. It was the courage of a prophet who knew that no creature moves except under the authority of Allah. The people of 'Ad had visible power, but Prophet Hud (peace be upon him) had something greater: certainty in the Lord of the worlds.`,
 			},
 			{
-				title: "Part 7: Drought as a warning",
-				body: `Allah sent a furious, violent wind.\n\nThe wind lasted seven nights and eight days.\n\nAllah says: "And as for ʿĀd, they were destroyed by a furious violent wind, which Allah imposed on them for seven nights and eight days." (Qur'an 69:6–7)\n\nLesson: When blessings are removed, do self-check and return to Allah.`,
+				title: "Part 7: A cloud appears, and they mistake punishment for relief",
+				body: `Then came one of the most striking moments in the story. The people saw a cloud advancing toward their valleys. They rejoiced, thinking it was the rain they needed. To them it looked like relief. But the Qur'an makes clear that it was the very punishment they had demanded to be hastened.
+
+This is one of the deepest lessons in the story of Prophet Hud (peace be upon him): not everything that looks exciting, strong, or long-awaited is mercy. A believer learns caution before Allah, because what appears pleasant on the outside may carry destruction within it.`,
 			},
 			{
-				title: "Part 8: Mistaking punishment for a blessing",
-				body: `The wind destroyed:\n\nHouses, Tents, Trees, and People.\n\nThe strong men of ʿĀd were left lying like hollow trunks of palm trees.\n\nNothing survived…\n\nLesson: Not every "exciting sign" is good. A believer stays humble and cautious.`,
+				title: "Part 8: The furious wind over seven nights and eight days",
+				body: `Allah sent upon them a furious, violent wind that continued for seven nights and eight days. The people who had once boasted of their strength were thrown down and ruined by a force they could not resist. Their great structures and physical might could not defend them.
+
+The Qur'an describes them as if they were hollow trunks of palm trees. It is a powerful image: the nation that once stood tall in arrogance was reduced to lifeless bodies under a decree from the One they had refused to obey.`,
 			},
 			{
-				title: "Part 9: The violent wind and the end of ‘Ad",
-				body: `Except:\n\n👉 Prophet Hud and the believers.\n\nAllah saved them all.\n\nThe land of ʿĀd became ruins — a warning for all nations after them.\n\nLesson: No empire is safe from Allah's decree when ظلم becomes stubborn defiance.`,
+				title: "Part 9: The fall of 'Ad and the survival of the believers",
+				body: `When the punishment ended, the people of 'Ad were gone. Their pride, their towers, and their claims of unmatched strength did not remain. What remained was the truth of Allah's warning and the salvation of Prophet Hud (peace be upon him) and those who believed with him.
+
+This is one of the repeated laws in the prophetic stories: what saves is not worldly strength, tribe, or architecture. What saves is faith, obedience, and Allah's mercy. The believers were protected not by their own power but by the One who controls all power.`,
 			},
 			{
-				title: "Part 10: The believers are saved",
-				body: `Allah says: "And We saved those who believed." (Qur'an 11:58)\n\nIbn Kathir describes how the believers were protected from the violent wind and lived afterward in worship and peace.\n\nTheir faith was their shield — not their buildings or their strength.\n\nLesson: Allah's protection is for faith and obedience, not for status or buildings.`,
+				title: "Part 10: Why the story of Prophet Hud (peace be upon him) still matters",
+				body: `The story of Prophet Hud (peace be upon him) is not just about an ancient nation destroyed by wind. It is about what happens when strength becomes pride, when blessings erase gratitude, and when truth is mocked because it threatens the ego. It is also about the unshakable calm of a prophet who stands before a powerful people and still speaks with certainty.
+
+For every generation after 'Ad, the lesson remains: no civilization is safe if it rebels against Allah in arrogance. And no believer is truly weak when he relies upon Allah with sincerity.`,
 			},
 			{
 				title: "Moral lessons",
-				body: ` Strength and wealth can lead to arrogance — if people forget Allah.\n\n Pride blinds the heart — the people of ʿĀd rejected the truth because of pride.\n\n Allah gives warnings before punishment — Hud warned them many times.\n\n Mocking prophets leads to destruction — they laughed at Hud, but Allah destroyed them.\n\n Allah always saves the believers — true strength is obedience to Allah.`,
+				body: ` Strength without gratitude becomes arrogance.
+
+ Repentance increases blessing; pride blocks mercy.
+
+ Mocking truth does not weaken truth; it only exposes the mocker.
+
+ What looks like relief may be punishment if a people are defiant.
+
+ No human power can resist Allah's decree.
+
+ Allah always saves the believers.`,
 			},
 			{
 				title: "Practical actions for students",
-				body: ` Memorize and reflect on Qur'an 7:65-68 about Hud's message.\n\n Thank Allah daily for strength and health — don't be arrogant.\n\n Make istighfar 50 times today and ask for humility.\n\n Share the story of ʿĀd with family or friends as a warning against pride.`,
+				body: ` Thank Allah explicitly this week for one strength, skill, or advantage you have.
+
+ Make istighfar daily and connect it to humility, not habit only.
+
+ Read Qur'an 7:65-72, 11:50-60, and 46:21-26.
+
+ If you succeed at something this week, say alhamdulillah before speaking about yourself.
+
+ Reflect on one area where pride could quietly enter your heart and write how to fight it.`,
 			},
 		],
 		quranSurahs: ["Hud", "Al-Araf", "Al-Ahqaf", "Al-Haqqah", "Al-Muminun"],
@@ -300,55 +527,93 @@ const STORY_CONTENT_BY_SLUG: Record<string, StoryContent> = {
 
 	salih: {
 		shortIntro:
-			"Salih (peace be upon him) called Thamud to worship Allah alone. Ibn Kathir explains the miracle of the she‑camel, the covenant not to harm it, the people’s stubbornness, and the punishment that followed — teaching students to respect Allah’s signs and stop wrongdoing early.",
+			"Prophet Salih (peace be upon him) was sent to the powerful people of Thamud, a nation known for skill, strength, and carved homes in the mountains. His story is one of warning, miracle, arrogance, and the destruction that follows when people attack the very sign they asked Allah to show them. Ibn Kathir presents the she-camel as a decisive test, and the story remains a warning against pride, delay in repentance, and disrespect for Allah's signs.",
 		sections: [
 			{
-				title: "Part 1: A strong nation after ‘Ad",
-				body: `After the people of ʿĀd were destroyed, Allah created another nation called Thamūd.\n\nThe people of Thamūd lived in rocky mountains. They were very skilled builders. They carved houses inside the rocks and felt completely safe.\n\nAllah gave them strength, skills, and security. But they became arrogant and ungrateful. They worshipped idols instead of Allah.\n\nLesson: Comfort can become a test. If you forget Allah, blessings can turn into arrogance and oppression.`,
+				title: "Part 1: A nation of stone, skill, and arrogance",
+				body: `After the destruction of the people of 'Ad, another nation rose in strength: Thamud. They lived among rocky lands and mountains, and they became famous for carving homes directly into the stone. Their buildings gave them a feeling of permanence and safety. They looked at their power, their engineering, and their environment and felt almost untouchable.
+
+But strength is not the same as guidance. Allah had given them ability, resources, and stability, yet instead of gratitude they fell into arrogance. They worshipped other than Allah and became proud of the very blessings that should have led them back to Him.`,
 			},
 			{
-				title: "Part 2: Salih’s message",
-				body: `So Allah sent them a prophet from among themselves — Prophet Ṣāliḥ (peace be upon him).\n\nAllah says: "And to Thamūd, We sent their brother Ṣāliḥ." (Qur'an 7:73)\n\nṢāliḥ said to his people:\n\n> "O my people! Worship Allah. You have no god but Him."\n\nHe reminded them that Allah created them and gave them homes in the mountains. He warned them not to spread corruption on the earth.\n\nLesson: The message of every prophet begins with tawhid — worship Allah alone.`,
+				title: "Part 2: Prophet Salih (peace be upon him) rises from among them",
+				body: `Allah sent Prophet Salih (peace be upon him) to Thamud from among their own people. He was not a stranger to them. They knew him, his lineage, and his character. That made their rejection even more serious, because they were not rejecting an unknown outsider. They were rejecting a truthful man from among themselves after clear warning had come.
+
+His message began where every prophetic message begins: worship Allah alone, fear Him, and stop spreading corruption on the earth. He reminded them that the One who gave them homes in the mountains and strength in the land was the One deserving of worship, gratitude, and obedience.`,
 			},
 			{
-				title: "Part 3: They demand a miracle",
-				body: `But the leaders of Thamūd mocked him and said:\n\n> "You are bewitched."\n> "We do not believe what you say."\n\nThey challenged Ṣāliḥ and demanded a miracle. They said:\n\n> "Bring us a sign, if you are truthful."\n\nAllah answered their challenge. By Allah's command, a she-camel came out of a rock.\n\nLesson: Demanding signs increases responsibility. If a person is proud, even clear signs may not help.`,
+				title: "Part 3: Pride makes them demand a sign",
+				body: `But the leaders of Thamud did not respond with humility. Like many arrogant peoples before them, they demanded a miracle while already preparing themselves not to submit. They challenged Prophet Salih (peace be upon him) and asked him to bring a clear sign if he were truly sent by Allah.
+
+This is an important turning point in the story. Asking for proof is not always sincere. Sometimes people ask for signs only because they believe they will still find a way to deny them. When a heart is proud, even miracles can become material for rebellion instead of guidance.`,
 			},
 			{
-				title: "Part 4: The she-camel as a clear sign",
-				body: `Ṣāliḥ said:\n\n> "This is the she-camel of Allah. Let her eat from Allah's land, and do not harm her."\n\nAllah says: "This is the she-camel of Allah, a sign for you. So leave her to eat in Allah's land, and do not touch her with harm." (Qur'an 7:73)\n\nṢāliḥ warned them clearly:\n\n> "She will drink on one day, and you will drink on another."\n\nLesson: When Allah shows a sign, the correct response is humility and obedience.`,
+				title: "Part 4: The she-camel emerges as a living miracle",
+				body: `Allah answered their demand with a sign they could not dismiss: the she-camel. Ibn Kathir presents her as a clear miracle from Allah and a visible proof standing before the eyes of the people. She was not merely an unusual animal. She was a divine sign tied directly to the truthfulness of Prophet Salih (peace be upon him).
+
+Then came the command that turned the miracle into a test: do not harm her. She was to graze in Allah's land, and there was to be an appointed sharing of water. One day was for her drinking, and another day was for the people. This meant the miracle was not just to amaze them for a moment. It was meant to test whether they would obey Allah after seeing the sign they had demanded.`,
 			},
 			{
-				title: "Part 5: A test with rules",
-				body: `For a time, they obeyed.\n\nBut later, the arrogant leaders planned evil. They killed the she-camel and felt proud of what they had done.\n\nThey said to Ṣāliḥ:\n\n> "Bring us the punishment, if you are truthful."\n\nLesson: Faith is proven by obeying limits, not just being amazed by miracles.`,
+				title: "Part 5: A sign becomes a test of character",
+				body: `For a period of time, the sign stood among them. They saw it. They knew what it meant. They understood the command tied to it. Yet the deeper sickness in their hearts remained. The problem with Thamud was not lack of evidence. It was hatred of limits. They wanted the sign, but they did not want the obedience that came with the sign.
+
+This is why the story of Prophet Salih (peace be upon him) is so relevant: some people are impressed by religion only until religion begins to regulate their desires, their resources, and their pride. Once obedience costs them something, admiration turns into resentment.`,
 			},
 			{
-				title: "Part 6: Complaints and stubbornness",
-				body: `Ṣāliḥ replied:\n\n> "Enjoy yourselves in your homes for three days. This is a promise that will not be broken."\n\nAllah says: "So enjoy yourselves in your homes for three days. That is a promise not to be denied." (Qur'an 11:65)\n\nLesson: When a reminder feels "annoying," check your heart and return to Allah.`,
+				title: "Part 6: They kill the she-camel and challenge the prophet",
+				body: `Eventually the arrogant among them conspired against the she-camel and killed her. This was not a small act of disobedience. It was direct aggression against a sign of Allah. They had asked for a miracle, received it, and then attacked it when it required humility from them.
+
+After killing the she-camel, they spoke with even greater boldness and demanded that Prophet Salih (peace be upon him) bring the punishment if he were truthful. This is how arrogance behaves when it reaches its ugliest stage: it sins openly and then mocks the warning that follows.`,
 			},
 			{
-				title: "Part 7: The conspiracy to kill the sign",
-				body: `After three days, Allah's punishment came.\n\nA terrible cry and earthquake struck them.\n\nAllah says: "So the earthquake seized them, and they lay dead in their homes." (Qur'an 7:78)\n\nThe mighty people of Thamūd were destroyed. Their rock houses could not protect them.\n\nLesson: Communities fall when wrongdoing becomes celebrated.`,
+				title: "Part 7: The final three-day warning",
+				body: `Prophet Salih (peace be upon him) then gave them a clear and final warning: enjoy yourselves in your homes for three days. That was not vague language. It was a countdown. It was mercy in the form of one last notice before punishment.
+
+Even then, the story shows that people who have hardened themselves may hear the clearest warning and still not return. Delay can become a trap. A sinner thinks there is still time, then more time, then later. But when Allah's decree arrives, the time for repentance closes with it.`,
 			},
 			{
-				title: "Part 8: A final warning",
-				body: `Only Prophet Ṣāliḥ and the believers were saved by Allah.\n\nTheir faith was their shield — not their rock houses or their skills as builders.\n\nAllah always protects those who believe and obey Him, even when destruction comes to those around them.\n\nLesson: Allah gives chances to repent. Do not waste them.`,
+				title: "Part 8: Plots against Prophet Salih (peace be upon him)",
+				body: `Ibn Kathir also records that some among them went beyond attacking the sign and plotted against Prophet Salih (peace be upon him) himself and against his household. That reveals the full moral collapse of the people. When falsehood cannot bear truth, it moves from mockery to violence.
+
+But no conspiracy can overtake the decree of Allah. The same people who believed themselves secure in stone houses and tribal power were already moving under a judgment from which none of their planning could save them.`,
 			},
 			{
-				title: "Part 9: Plotting against the prophet",
-				body: `The arrogant leaders felt confident in their power and their rock houses. They thought their buildings would protect them from Allah's punishment.\n\nBut they did not understand that no material thing — not strength, not skills, not buildings, not anything — can protect a person from Allah's decree.\n\nLesson: Allah protects believers in ways we do not expect.`,
+				title: "Part 9: The cry and the destruction of Thamud",
+				body: `Then the punishment came. A terrible cry and overwhelming blast struck them, and the people of Thamud fell lifeless in their homes. The very houses carved into the mountains, the symbols of their confidence and technical power, became silent witnesses against them.
+
+This ending carries one of the strongest lessons in prophetic history: skill, architecture, and worldly advancement cannot protect a people who rebel against Allah. Their knowledge of stone could not shield them from the Lord who created stone, mountain, sky, and soul.`,
 			},
 			{
-				title: "Part 10: The punishment and the lesson",
-				body: `Skills and technology cannot protect people from Allah. The people of Thamūd had knowledge of architecture and engineering. They could carve houses from solid rock. But when Allah sent His punishment, none of their skills saved them.\n\nTheir arrogance led them to reject Ṣāliḥ's warning. They harmed Allah's sign (the she-camel) and celebrated their wrongdoing. They chose destruction over obedience.\n\nLesson: Allah's justice is real. Delaying repentance is dangerous. Learn from history before repeating the sin.`,
+				title: "Part 10: The believers are saved and the lesson remains",
+				body: `Prophet Salih (peace be upon him) and the believers were saved by Allah's mercy. Those who obeyed did not survive because they had superior physical strength or better buildings. They survived because Allah protects the people of faith.
+
+The story of Prophet Salih (peace be upon him) remains a warning for every later generation: do not become proud of your civilization, your technology, or your ability. If those gifts do not lead to humility before Allah, they can become part of the evidence against you. The people of Thamud were strong, but their arrogance was stronger, and that arrogance destroyed them.`,
 			},
 			{
 				title: "Moral lessons",
-				body: ` Skills and technology cannot protect people from Allah.\n\n Arrogance leads to destruction.\n\n Miracles do not benefit those who reject truth.\n\n Harming Allah's signs brings severe punishment.\n\n Allah always saves the believers.`,
+				body: ` Blessings can become a path to arrogance if they are not tied to gratitude.
+
+ Miracles do not benefit the person who has already decided to reject the truth.
+
+ Allah's signs must be honored, not tested with rebellion.
+
+ Delaying repentance after clear warning is dangerous.
+
+ Human skill and technology cannot protect anyone from Allah's decree.
+
+ Allah always saves the believers.`,
 			},
 			{
 				title: "Practical actions for students",
-				body: ` Thank Allah for the skills and talents He gave you.\n\n Never feel arrogant about what you know or what you can do.\n\n Read Qur'an 7:73-78 about the she-camel and the punishment.\n\n List one way you can be humble this week instead of proud.`,
+				body: ` Thank Allah this week for one ability or skill you usually take for granted.
+
+ If you are corrected about a wrong action, respond early instead of delaying repentance.
+
+ Read Qur'an 7:73-79, 11:61-68, and 91:11-15.
+
+ Reflect on one area where success could make a person proud, and write how to protect yourself with gratitude.
+
+ Treat every sign of Allah, whether in revelation or life, with respect instead of casual neglect.`,
 			},
 		],
 		quranSurahs: ["Hud", "Al-Araf", "An-Naml", "Al-Hijr", "Al-Isra", "Ash-Shams"],
@@ -412,55 +677,93 @@ const STORY_CONTENT_BY_SLUG: Record<string, StoryContent> = {
 
 	lut: {
 		shortIntro:
-			"Lut (peace be upon him) was sent to warn the people of Sodom against their unprecedented immorality. Ibn Kathir describes their open sins, the rejection of Lut's message, his wife's betrayal, the arrival of angels, and Allah's punishment that destroyed them all except the believers.",
+			"Prophet Lut (peace be upon him) was sent to a people who had fallen into shocking and open corruption. His story is one of lonely truth-telling in the face of public immorality, mockery, and social collapse. Ibn Kathir describes his courage, the betrayal inside his own home, the arrival of the angels, the final night escape, and the destruction that came upon a people who refused purity and fought against guidance.",
 		sections: [
 			{
-				title: "Part 1: A nation drowning in sin",
-				body: `Prophet Lut (peace be upon him) was sent by Allah to the people of Sodom.\n\nHis people committed evil acts that no nation before them had ever done. They used to commit immorality openly, men went to men instead of women, they attacked travelers, and they did evil acts in their gatherings. They felt proud of their sins.\n\nLesson: Open immorality brings Allah's punishment.`,
+				title: "Part 1: A people who normalized corruption",
+				body: `Prophet Lut (peace be upon him) was sent to a people whose society had become deeply diseased. Their sin was not hidden shame followed by repentance. It had become open behavior, public identity, and collective pride. Ibn Kathir explains that they committed acts no people before them had made into a public way of life. Their corruption touched desire, public gatherings, and even how they treated travelers and guests.
+
+That is one of the frightening things about their story: evil had stopped feeling evil to them. When a society reaches that point, warning becomes harder because people no longer feel they need to be corrected. They begin to defend the very behavior that is destroying them.`,
 			},
 			{
-				title: "Part 2: Lut's clear warning",
-				body: `Allah sent Prophet Lut to warn them.\n\nLut stood before his people and said:\n\n> "Do you commit such immorality as no one among the worlds has done before you?" (Qur'an 7:80)\n\nHe warned them clearly about their actions and said:\n\n> "Indeed, you approach men with desire instead of women. Rather, you are a transgressing people." (Qur'an 7:81)\n\nLesson: A prophet must speak truth even when rejected.`,
+				title: "Part 2: Prophet Lut (peace be upon him) speaks the truth openly",
+				body: `Into this dark atmosphere Allah sent Prophet Lut (peace be upon him). He did not soften the truth until it lost meaning, and he did not speak in vague language that avoided the real sickness of the people. He confronted them directly and told them that they were committing an immorality no one among the worlds had done before them in that way.
+
+This took enormous courage. Prophet Lut (peace be upon him) was standing against a community, a culture, and a public mindset. Yet he remained a prophet: clear, principled, and unashamed of revelation. His story teaches that mercy does not mean hiding the truth. It means speaking the truth because souls are in danger.`,
 			},
 			{
-				title: "Part 3: The call to purity",
-				body: `Lut called them to purity, obedience, and fear of Allah.\n\nBut the people mocked him. They replied with arrogance and said:\n\n> "Bring us the punishment of Allah, if you are of the truthful." (Qur'an 29:29)\n\nThey also said:\n\n> "Expel the family of Lut from your city. Indeed, they are people who want to remain pure." (Qur'an 27:56)\n\nLesson: Mocking truth hardens the heart.`,
+				title: "Part 3: The call to purity became a reason for mockery",
+				body: `Prophet Lut (peace be upon him) called them to purity, obedience, and fear of Allah. He did not simply condemn their evil; he invited them to something better. But the people had fallen so far that purity itself began to offend them. They mocked him and treated his righteousness as a threat.
+
+One of the most shocking lines in his story is that they wanted to expel the family of Prophet Lut (peace be upon him) because they wanted to remain pure. That is the reversal created by corruption: the clean become strangers, and the shameless become the judges of society. Once that reversal becomes normal, destruction draws near.`,
 			},
 			{
-				title: "Part 4: Almost no one believed",
-				body: `Almost no one believed in Lut.\n\nThousands of people in the city heard his message, yet only a few believers followed him. Most chose their desires over truth.\n\nLut's family was split. Some believed, and some rejected the message.\n\nEven inside his own house, Lut faced rejection.\n\nLesson: Truth does not need numbers — it needs courage.`,
+				title: "Part 4: Loneliness in calling to Allah",
+				body: `Very few people believed in Prophet Lut (peace be upon him). The city heard his warnings again and again, but most people preferred desire to truth. This made his mission one of the loneliest prophetic missions. He was not supported by crowds, and he did not see large numbers responding around him.
+
+Even more painful, the test reached into his own home. A prophet can guide, warn, and teach, but he cannot force faith into hearts. This is an important part of the story: truth is not measured by numbers. A prophet may stand nearly alone and still be completely right before Allah.`,
 			},
 			{
-				title: "Part 5: The wife's betrayal",
-				body: `The wife of Prophet Lut did not believe.\n\nShe did not commit the immoral act herself, but she rejected the message, supported her sinful people, and used to inform them when guests came to Lut's house.\n\nAllah gives her as an example and says: "Allah sets forth an example for those who disbelieve: the wife of Nuh and the wife of Lut." (Qur'an 66:10)\n\nLesson: Supporting sin is betrayal, even if you do not commit it yourself.`,
+				title: "Part 5: Betrayal inside the house",
+				body: `The wife of Prophet Lut (peace be upon him) did not stand with revelation. She did not carry the mission of her husband, and she did not share his concern for purity and obedience. Ibn Kathir explains that her betrayal was not one of immorality in the marital sense, but betrayal of faith and loyalty to the prophetic mission. She supported the sinful people and informed them when guests came to the house.
+
+This makes her one of the clearest warnings in the Qur'an: closeness to a prophet is worthless without faith. Living in the same house as a righteous person does not save anyone who sides with falsehood. That is why Allah mentions the wife of Prophet Lut (peace be upon him) as an example for those who disbelieve.`,
 			},
 			{
-				title: "Part 6: The test with the angels",
-				body: `One day, angels came to Lut in the form of handsome men.\n\nLut became very worried and said: "This is a difficult day."\n\nHe took the guests quietly into his house. But his wife saw them and went out to inform the people.\n\nSoon, the people rushed to Lut's house with evil intentions.\n\nLesson: Family ties do not save without faith.`,
+				title: "Part 6: The angels arrive as honored guests",
+				body: `Then came the final and decisive test. Angels arrived in the form of handsome young men as guests to Prophet Lut (peace be upon him). The moment he saw them, he felt fear and distress. He knew exactly what kind of people lived around him, and he feared for his guests before he feared for himself.
+
+He brought them into his house, but the betrayal inside the home moved quickly. His wife informed the people. Soon the city that had rejected every moral warning came rushing toward the house, not in repentance, not in curiosity, but in pursuit of sin. The scene grew more tense by the moment.`,
 			},
 			{
-				title: "Part 7: Lut pleads at the door",
-				body: `Lut stood at the door and pleaded with them.\n\nHe said:\n\n> "O my people, fear Allah and do not disgrace me concerning my guests." (Qur'an 11:78)\n\nBut they refused and pushed forward.\n\nAt that moment, the guests revealed the truth: "O Lut, we are messengers of your Lord."\n\nThe angels struck the people with blindness, and they could not reach the door.\n\nLesson: Allah's protection comes at the right moment for believers.`,
+				title: "Part 7: Prophet Lut (peace be upon him) stands at the door",
+				body: `Prophet Lut (peace be upon him) stood between the mob and his guests. He pleaded with them to fear Allah and not disgrace him concerning those under his protection. It was a painful and humiliating moment for a prophet: to stand at the door of his own house while his people pressed forward in shamelessness.
+
+But at the exact point when the situation seemed most desperate, the guests revealed the truth. They were messengers from Allah. The people were struck and prevented from reaching what they intended. Here the story shows a repeated divine pattern: Allah may delay relief, but when relief comes, it comes with perfect precision.`,
 			},
 			{
-				title: "Part 8: The command to leave",
-				body: `The angels then commanded Lut:\n\nLeave the city at night. Take your family except your wife. Do not look back.\n\nLut obeyed without hesitation. His daughters who believed followed him. But his wife stayed behind because she did not believe.\n\nEvery moment was critical. Every step away from the city was a step toward safety.\n\nLesson: Obedience must be immediate and complete.`,
+				title: "Part 8: The command to leave before dawn",
+				body: `The angels then gave Prophet Lut (peace be upon him) the command that would separate the saved from the destroyed: leave at night with the believers from your family, and let no one look back. But one person would not be saved: his wife. She belonged inwardly to the people of corruption, so she would share their end.
+
+The departure of Prophet Lut (peace be upon him) from the city must have been filled with urgency, silence, and heaviness. Every step away from the city was a step toward safety, but also a witness that the people had chosen their fate by refusing every call to return to Allah.`,
 			},
 			{
-				title: "Part 9: The destruction of Sodom",
-				body: `When Allah's command came:\n\nThe city was turned upside down. Stones of baked clay rained down. The people were completely destroyed.\n\nAllah says: "So when Our command came, We turned the town upside down and rained upon them stones of baked clay." (Qur'an 11:82)\n\nThe wife of Lut was destroyed with the disbelievers because she betrayed the message and sided with evil.\n\nLesson: Allah's punishment is just and certain.`,
+				title: "Part 9: The city is overturned",
+				body: `Then the punishment of Allah came. The town was turned upside down, and stones of baked clay were sent down upon the people. Their homes, their streets, and their confidence collapsed under a decree they had mocked when they demanded that the punishment be brought.
+
+The wife of Prophet Lut (peace be upon him) was destroyed with them because she had chosen their side against revelation. This ending is severe, but its justice is clear. The people were not destroyed without warning. They had been warned, reminded, confronted, and given time. But when corruption becomes stubborn after proof has come, punishment follows.`,
 			},
 			{
-				title: "Part 10: Only the believers were saved",
-				body: `Only Prophet Lut and the believers were saved.\n\nAllah rescued them from the destruction. They escaped the punishment because they believed and obeyed.\n\nThis story became a warning sign for all future generations. The ruins of Sodom serve as proof of what happens to those who persist in sin and reject Allah's prophets.\n\nLesson: Allah always saves the obedient believers.`,
+				title: "Part 10: What remains after the smoke clears",
+				body: `Only Prophet Lut (peace be upon him) and the believers were saved. The people who had once mocked him disappeared, while the one they treated as weak was carried out by Allah's mercy. This is one of the great endings of the prophetic stories: survival does not belong to the powerful, but to those protected by Allah.
+
+The story of Prophet Lut (peace be upon him) remained as a warning for generations after him. It teaches that shamelessness, public corruption, hostility to purity, and rejection of the prophets are not small social problems. They are signs of a society moving toward ruin. And it teaches something else just as clearly: Allah never abandons the obedient believers, even when they seem to stand almost alone.`,
 			},
 			{
 				title: "Moral lessons",
-				body: ` Open immorality brings Allah's punishment.\n\n Mocking truth hardens the heart.\n\n Supporting sin is betrayal.\n\n Family ties do not save without faith.\n\n Allah always saves the obedient believers.`,
+				body: ` When evil becomes public and defended, a society becomes spiritually dangerous.
+
+ Purity may be mocked by corrupt people, but it remains honorable before Allah.
+
+ Supporting falsehood is betrayal, even without committing the sin directly.
+
+ Family ties do not save anyone without faith.
+
+ Allah's relief may come late in appearance, but never late in reality.
+
+ Allah always saves the obedient believers.`,
 			},
 			{
 				title: "Practical actions for students",
-				body: ` Stay away from people and places where sin is celebrated openly.\n\n Speak truth gently, even when people mock you.\n\n Never support wrong actions, even to protect family.\n\n Read Qur'an 7:80-84 and 11:77-82 about Lut's story.\n\n Commit today to purity in your words, actions, and thoughts.`,
+				body: ` Stay away from places where shameless sin is celebrated as normal.
+
+ Practice speaking truth respectfully even when it is unpopular.
+
+ Never defend a wrong action just because the wrongdoer is close to you.
+
+ Read Qur'an 7:80-84, 11:77-83, and 66:10.
+
+ Make one concrete effort this week to protect purity in your speech, media, and friendships.`,
 			},
 		],
 		quranSurahs: ["Hud", "Al-Araf", "An-Naml", "Al-Ankabut", "At-Tahrim", "As-Shu'ara"],
@@ -578,818 +881,1551 @@ const STORY_CONTENT_BY_SLUG: Record<string, StoryContent> = {
 		quranSurahs: ["Yusuf", "Al-Baqarah", "At-Tawbah"],
 	},
 	ayyub: {
-		shortIntro: "The story of Prophet Ayyub, who was tested with loss of wealth, children, and health, yet remained patient and faithful. Allah restored everything to him and praised him as an excellent servant.",
+		shortIntro:
+			"Prophet Ayyub (peace be upon him) was tested in wealth, family, and health for a long period, yet he remained thankful and returned constantly to Allah. Ibn Kathir highlights his discipline, gentle dua, and Allah's complete restoration and praise: 'Indeed, We found him patient. What an excellent servant.'",
 		sections: [
 			{
 				title: "Part 1: A righteous servant blessed by Allah",
-				body: `Prophet Ayyub was a righteous servant of Allah.\n\nAllah blessed Ayyub with great wealth, many children, good health, and strong faith.\n\nAyyub was thankful to Allah in all situations. He worshipped Allah sincerely and helped the poor with his blessings.`,
+				body: `Ayyub was a righteous prophet from a noble lineage. Ibn Kathir describes him as a man of worship, gratitude, and service.\n\nAllah had blessed him with family, livestock, land, health, and good reputation. He used these blessings in obedience and charity.\n\nHis early life teaches that blessings are a trust, not a reason for pride.`,
 			},
 			{
 				title: "Part 2: The first test - loss of wealth",
-				body: `Allah tested Prophet Ayyub with severe trials.\n\nFirst, Ayyub lost his wealth. All his possessions and riches disappeared.\n\nDespite this loss, Ayyub remained patient and did not lose faith in Allah.`,
+				body: `Allah tested Ayyub by removing his wealth. His fields, flocks, and possessions were gone.\n\nAyyub did not rebel, accuse, or despair. He knew Allah gives and Allah takes with perfect wisdom.\n\nHis response was sabr with worship, not sabr with bitterness.`,
 			},
 			{
 				title: "Part 3: The second test - loss of children",
-				body: `Then, Allah tested him by taking away all his children.\n\nThis was a deep grief for Ayyub, but he remained steadfast in his faith and trust in Allah.\n\nHe knew that everything belongs to Allah and returns to Allah.`,
+				body: `Ayyub was then tested with the loss of his children. This grief is among the hardest trials for any parent.\n\nYet he stayed firm upon faith, hoping for Allah's reward and meeting in the Hereafter.\n\nHe recognized that people and possessions are not owned by us absolutely; all return to their Creator.`,
 			},
 			{
 				title: "Part 4: The third test - a long and painful illness",
-				body: `After losing his wealth and children, Allah tested Ayyub with a severe and prolonged illness.\n\nHis body became weak and diseased. People avoided him because of his illness.\n\nYet Ayyub continued to remember Allah and maintain his patience.`,
+				body: `After those losses, Ayyub faced a prolonged illness. Ibn Kathir mentions that his trial became very severe and long.\n\nPeople distanced themselves from him. His body weakened, but his heart remained alive with dhikr and trust.\n\nHis story separates physical weakness from spiritual weakness. The body may break, but faith can remain strong.`,
 			},
 			{
 				title: "Part 5: His faithful wife and continued remembrance",
-				body: `During all his suffering, only Ayyub's faithful wife stayed with him and served him patiently.\n\nShe cared for him with compassion despite their poverty and his illness.\n\nDespite all his trials, Ayyub never complained about Allah. He remained patient and continued remembering Allah with gratitude.`,
+				body: `During this period, his wife remained loyal and served him with patience. She worked and cared for him despite hardship.\n\nAyyub kept worshipping Allah and guarding his tongue from objection to divine decree.\n\nThis part of the story teaches family loyalty in hardship and spiritual discipline under pressure.`,
 			},
 			{
-				title: "Part 6: The humble duʿāʾ without complaint",
-				body: `After a very long time of suffering, Ayyub turned to Allah with humility and sincerity.\n\nHe did not complain about his situation — he only asked Allah for mercy.\n\nAllah tells us his duʿāʾ: "Indeed, adversity has touched me, and You are the Most Merciful of the merciful." (Qur'an 21:83)\n\nHis supplication was filled with hope and trust in Allah's mercy.`,
+				title: "Part 6: The humble dua without complaint",
+				body: `After long suffering, Ayyub made one of the most beautiful duas in the Qur'an: "Indeed, harm has touched me, and You are the Most Merciful of the merciful" (Qur'an 21:83).\n\nHe did not demand, argue, or accuse. He simply confessed need and praised Allah's mercy.\n\nThis is adab in dua: humility, hope, and trust.`,
 			},
 			{
 				title: "Part 7: Allah's command - strike the ground",
-				body: `Allah immediately answered Ayyub's humble duʿāʾ.\n\nAllah commanded: "Strike the ground with your foot." (Qur'an 38:42)\n\nWhen Ayyub struck the ground, a spring of water appeared.\n\nAllah ordered him to wash from it and drink from it for healing.`,
+				body: `Allah answered him and commanded: "Strike with your foot; here is cool water to wash and drink" (Qur'an 38:42).\n\nA spring appeared by Allah's command. Ayyub washed and drank from it.\n\nThe cure came from Allah alone, but with a practical action from Ayyub. This combines tawakkul and action.`,
 			},
 			{
 				title: "Part 8: Complete restoration of health and strength",
-				body: `By Allah's command, Ayyub's health returned immediately.\n\nHis strength returned, and his youth returned. Allah completely healed him from the disease that had afflicted him for so long.\n\nAllah says: "So We answered him and removed what afflicted him of harm, and We restored to him his family and the like thereof with them." (Qur'an 21:84)\n\nThis was a complete miracle of Allah's mercy.`,
+				body: `Allah removed his suffering completely and restored his health and dignity.\n\nThe Qur'an states: "So We answered him and removed what was with him of harm, and We gave him back his family and the like of them with them, as mercy from Us" (Qur'an 21:84).\n\nRestoration after patience is one of the great themes of this story.`,
 			},
 			{
 				title: "Part 9: Restoration of family and blessings",
-				body: `Not only did Allah restore Ayyub's health, but He also restored his family.\n\nAllah gave him back his children and blessed him with even more children after that.\n\nAllah's mercy was complete — He restored everything that had been taken away and gave him additional blessings as a sign of His love for His patient servant.`,
+				body: `Allah restored his family life and multiplied his blessings. Ibn Kathir explains that Allah compensated Ayyub with both return and increase.\n\nThis teaches that Allah can return what was lost, replace what was lost, or reserve the reward for the Hereafter - all are mercy.\n\nBelievers are not promised an easy path, but they are promised perfect justice from their Lord.`,
 			},
 			{
 				title: "Part 10: The oath and Allah's mercy through ease",
-				body: `During his illness, Ayyub made an oath to discipline his wife gently.\n\nBut after Allah cured him, Allah showed him mercy and ease in fulfilling this oath.\n\nAllah commanded him to take a bundle of grass and strike lightly once so he would not break his oath.\n\nAllah praised Ayyub and said: "Indeed, We found him patient. An excellent servant! Indeed, he was constantly returning to Allah." (Qur'an 38:44)\n\nAyyub was a model of patience, faith, and obedience.`,
+				body: `Ayyub had made an oath during hardship. After healing, Allah gave him a merciful legal ease: "Take in your hand a bundle and strike with it, and do not break your oath" (Qur'an 38:44).\n\nThen Allah praised him: "Indeed, We found him patient. What an excellent servant. Indeed, he was always turning back [to Allah]" (Qur'an 38:44).\n\nHis story ends not with pain, but with honor.`,
 			},
 			{
 				title: "Moral lessons",
-				body: ` Patience during hardship is beloved to Allah.\n\n True faith does not disappear during suffering.\n\n Complaining to Allah in duʿāʾ is different from complaining about Allah.\n\n Allah's mercy comes after patience and trust.\n\n Hardship is a test, not a punishment, for believers.`,
+				body: ` Hardship is not proof of Allah's anger; it can be elevation for believers.\n\n Patience is not passive - it is disciplined worship under pressure.\n\n Complaining to Allah in dua is worship; complaining about Allah is dangerous.\n\n Family support during trials is part of righteous character.\n\n Allah can heal and restore in ways beyond expectation.`,
 			},
 			{
 				title: "Practical actions for students",
-				body: ` Remain patient when facing difficulties in school or life.\n\n Remember Allah and make duʿāʾ when you face trials.\n\n Do not avoid visiting or helping sick people.\n\n Have faith that Allah's mercy will follow your patience, just as it did for Prophet Ayyub.`,
-			},
-		],
-		quranSurahs: ["Ayyub (Sura 38)", "Al-Anbiya (Sura 21)"],
-	},
-	"dhul-kifl": {
-		shortIntro: "The story of Prophet Dhul-Kifl, a righteous servant among the Children of Israel, known for his patience, justice, and self-control. He was chosen to lead with wisdom and held true to his promises despite all tests.",
-		sections: [
-			{
-				title: "Part 1: A righteous servant among Israel",
-				body: `Prophet Dhul-Kifl was a righteous servant of Allah.\n\nHe lived among the people of Israel and was known for his patience, justice, and strong self-control.\n\nHe was a person of great character and faith in Allah.`,
-			},
-			{
-				title: "Part 2: The old prophet's search for a successor",
-				body: `After a prophet from the Children of Israel grew old, he wanted someone to take responsibility for the people.\n\nHe asked the people: "Who will take my place, judge between the people with justice, fast during the day, pray at night, and never become angry?"\n\nThis was a great responsibility that required someone of exceptional character and faith.`,
-			},
-			{
-				title: "Part 3: Many fail the test",
-				body: `Many people from the community tried to accept this responsibility.\n\nBut they all failed. No one had the strength, patience, and self-control needed for this important role.\n\nThey found it impossible to meet all these requirements — justice, fasting, night prayer, and controlling anger — all at the same time.`,
-			},
-			{
-				title: "Part 4: Dhul-Kifl accepts the responsibility",
-				body: `When it seemed no one could accept this burden, Dhul-Kifl stepped forward.\n\nHe said he would take this responsibility and fulfill it completely.\n\nUnlike others, Dhul-Kifl had true faith, deep patience, and complete trust in Allah's help.`,
-			},
-			{
-				title: "Part 5: He judges with perfect justice",
-				body: `Dhul-Kifl became the leader and judge of his people.\n\nHe judged fairly between them, never favoring the rich over the poor, and never letting personal feelings affect his decisions.\n\nEvery judgment he made was based on truth, justice, and the law of Allah.`,
-			},
-			{
-				title: "Part 6: He fasts and prays throughout his life",
-				body: `Despite his responsibility as a leader, Dhul-Kifl fasted during the day without fail.\n\nAt night, instead of resting, he stood in prayer to Allah, worshipping and seeking Allah's guidance and strength.\n\nHe maintained this discipline throughout his life, year after year, never missing his worship.`,
-			},
-			{
-				title: "Part 7: The test of anger - Shaytan's provocation",
-				body: `One day, Shaytan tried to test Dhul-Kifl's patience and self-control.\n\nShaytan came to him repeatedly at difficult times, trying to provoke his anger and make him lose control.\n\nShaytan wanted to make him break his promise and abandon his commitment to never become angry.`,
-			},
-			{
-				title: "Part 8: Dhul-Kifl's perfect patience",
-				body: `But Dhul-Kifl remained completely calm and patient.\n\nNo matter what Shaytan did or how many times he tried, Dhul-Kifl never allowed anger to control him.\n\nHe controlled every emotion, every thought, and every reaction. His faith in Allah gave him the strength to overcome all of Shaytan's attempts.`,
-			},
-			{
-				title: "Part 9: Allah's praise for his excellence",
-				body: `Because of his perfect patience, righteousness, and self-control, Allah honored Dhul-Kifl with His praise.\n\nAllah says: "And Ismail, Idris, and Dhul-Kifl — all were among the patient." (Qur'an 21:85)\n\nAllah also says: "And remember Ismail, al-Yasa, and Dhul-Kifl, and all are among the excellent." (Qur'an 38:48)\n\nAllah praised him for his patience, self-control, keeping promises, and justice.`,
-			},
-			{
-				title: "Part 10: His legacy - consistency in worship",
-				body: `Dhul-Kifl's life teaches us that true greatness comes from keeping our promises to Allah.\n\nHe showed that leadership means serving others with justice, and that strength comes from self-control, not from power.\n\nHis consistency in worship, fasting, night prayer, and fair judgment made him one of Allah's best servants.\n\nHe stands as an example of how patience and dedication to Allah's way raises a person's rank in this life and the Hereafter.`,
-			},
-			{
-				title: "Moral lessons",
-				body: ` Keeping promises is a sign of true faith.\n\n Controlling anger is the true strength.\n\n Leadership is responsibility, not power over others.\n\n Patience and consistency raise a person's rank with Allah.\n\n Allah honors those who remain constant in worship and justice.`,
-			},
-			{
-				title: "Practical actions for students",
-				body: ` Keep every promise you make — large or small.\n\n When you feel angry, control yourself and remember Allah.\n\n Be fair and just in all your decisions.\n\n Maintain regular prayer and good deeds — never break your routine.\n\n Lead by serving others, not by commanding them.`,
-			},
-		],
-		quranSurahs: ["Al-Anbiya (Sura 21)", "Sad (Sura 38)"],
-	},
-	yunus: {
-		shortIntro: "The story of Prophet Yunus, sent to the people of Nineveh. When they rejected him, he left before Allah's command and was tested with being swallowed by a great fish. His sincere repentance saved him and brought his entire nation to faith.",
-		sections: [
-			{
-				title: "Part 1: A righteous prophet sent to Nineveh",
-				body: `Prophet Yunus was a righteous servant of Allah sent to guide a people.\n\nAllah sent him to the people of Nineveh to call them to faith and obedience.\n\nYunus was a patient and faithful messenger of Allah.`,
-			},
-			{
-				title: "Part 2: His call to his people",
-				body: `Yunus came to his people with a clear message:\n\nWorship Allah alone and abandon all idolatry and disbelief.\n\nLeave your sins and obey Allah's commands.\n\nYunus called them with wisdom and compassion, inviting them to the path of truth.`,
-			},
-			{
-				title: "Part 3: The people reject him",
-				body: `But the people of Nineveh rejected Yunus and did not listen to his message.\n\nThey mocked him and refused to believe in what he brought them.\n\nDespite his sincere efforts, they turned away from the truth.`,
-			},
-			{
-				title: "Part 4: Warning of Allah's punishment",
-				body: `Yunus warned them that if they continued to disbelieve and disobey Allah, they would face Allah's severe punishment.\n\nHe told them that Allah's punishment would come to those who reject His prophets and persist in their sins.\n\nStill, they refused to listen to his warning.`,
-			},
-			{
-				title: "Part 5: He leaves before Allah's command",
-				body: `When Yunus saw that his people continued to reject him, he became frustrated and left the city.\n\nBut he left before Allah commanded him to leave.\n\nThis was a mistake on Yunus's part, because a prophet should wait for Allah's command.\n\nAllah tested him for this action.`,
-			},
-			{
-				title: "Part 6: The ship and the violent storm",
-				body: `Yunus boarded a ship that was full of passengers sailing through the sea.\n\nA violent and terrible storm came suddenly.\n\nThe ship was in great danger and was about to sink.\n\nAll the people on the ship were terrified and afraid they would die.`,
-			},
-			{
-				title: "Part 7: The lots and Yunus is thrown into the sea",
-				body: `The people agreed to draw lots to decide who was causing this disaster and should be thrown into the sea to save the others.\n\nThey drew lots again and again.\n\nEach time, the lot fell on Yunus.\n\nSo the people threw Yunus into the sea to save themselves and the ship.`,
-			},
-			{
-				title: "Part 8: The great fish and darkness",
-				body: `As Yunus sank into the sea, Allah commanded a great fish to swallow him — but to do him no harm.\n\nYunus found himself in complete darkness.\n\nHe was inside the belly of the fish, deep in the ocean, with no way to escape.\n\nBut it was in this darkness and despair that Yunus truly understood his mistake.`,
-			},
-			{
-				title: "Part 9: His sincere repentance and duʿāʾ",
-				body: `Inside the fish, Yunus realized what he had done wrong.\n\nHe turned to Allah with sincere repentance and called upon Him with complete humility:\n\n"There is no god but You. Glory be to You! Indeed, I was among the wrongdoers." (Qur'an 21:87)\n\nAllah immediately responded to him: "So We responded to him and saved him from distress." (Qur'an 21:88)\n\nAllah commanded the fish to release Yunus onto the shore.`,
-			},
-			{
-				title: "Part 10: Salvation, healing, and his people's belief",
-				body: `When Yunus came out of the fish, he was weak and sick.\n\nAllah caused a gourd plant to grow over him to give him shade and help him heal.\n\nAfter his recovery, Allah sent Yunus back to his people.\n\nThis time, something miraculous happened — his people believed in his message.\n\nThey repented sincerely and turned to Allah before the punishment came.\n\nAllah accepted their repentance and removed the punishment from them.\n\nAllah says: "So why was there not a town that believed and benefited from its belief, except the people of Yunus?" (Qur'an 10:98)\n\nYunus continued guiding them in faith and obedience.`,
-			},
-			{
-				title: "Moral lessons",
-				body: ` A prophet must wait for Allah's command before leaving.\n\n No mistake is too great for sincere repentance.\n\n Duʿāʾ in hardship brings Allah's help.\n\n Allah's mercy is greater than His punishment.\n\n True repentance can save an entire nation from punishment.`,
-			},
-			{
-				title: "Practical actions for students",
-				body: ` When you make a mistake, return to Allah sincerely and ask for forgiveness.\n\n Do not give up on people — Allah can change hearts at any time.\n\n Call people to faith with patience and wisdom.\n\n Remember that Allah's mercy is always available to those who truly repent.\n\n Have faith that sincere repentance and duʿāʾ bring Allah's help.`,
-			},
-		],
-		quranSurahs: ["Yunus (Sura 10)", "Al-Anbiya (Sura 21)", "As-Saffat (Sura 37)"],
-	},
-	musa: {
-		shortIntro: "The complete story of Prophet Musa, one of the greatest messengers of Allah. From his miraculous birth to his confrontation with Pharaoh, the exodus, receiving the Tablets, and his journey of faith spanning forty years. His story is full of trials, miracles, and eternal lessons.",
-		sections: [
-			{
-				title: "Part 1: Birth and early life under Pharaoh's oppression",
-				body: `Prophet Musa was born in Egypt during the reign of Pharaoh, the great tyrant.\n\nPharaoh ruled Egypt with cruelty and claimed to be a god. He oppressed the Children of Israel and ordered every newborn male child from them to be killed.\n\nWhen Musa was born, his mother was terrified. Allah inspired her with guidance: "Suckle him; but when you fear for him, cast him into the river, and fear not, nor grieve. Surely We shall return him to you and make him one of the messengers." (Qur'an 28:7)\n\nHis mother placed the baby Musa in a wooden chest and cast it into the river.`,
-			},
-			{
-				title: "Part 2: Musa is raised in Pharaoh's palace",
-				body: `The river carried the chest to Pharaoh's palace.\n\nPharaoh's wife found him and said: "A comfort of the eye for me and for you. Do not kill him." (Qur'an 28:9)\n\nShe took him into the palace. Allah returned Musa to his own mother so that she could nurse him: "Thus We restored him to his mother, so that her eye might be comforted." (Qur'an 28:13)\n\nMusa grew up inside the palace of the enemy of Allah, raised by Pharaoh's own wife, yet his heart remained faithful to Allah.`,
-			},
-			{
-				title: "Part 3: Reaching adulthood and the Egyptian incident",
-				body: `When Musa reached adulthood, Allah granted him great strength, wisdom, and knowledge.\n\nOne day, Musa saw an Israelite fighting an Egyptian in the street. Musa tried to separate them, and he struck the Egyptian unintentionally, and the man died.\n\nMusa was shocked and said: "This is from the work of Shaytan." (Qur'an 28:15)\n\nFearing that he would be punished by Pharaoh, Musa fled Egypt, leaving everything behind.`,
-			},
-			{
-				title: "Part 4: Musa's life in Madyan",
-				body: `Musa traveled alone through the desert until he reached the land of Madyan.\n\nThere he found two women trying to water their animals but could not. Musa helped them and watered their flock.\n\nTheir father invited Musa to stay with him, offering him shelter, work, and later marriage to one of his daughters.\n\nMusa lived in Madyan for many years, working as a faithful shepherd, serving his father-in-law with dedication and honesty.`,
-			},
-			{
-				title: "Part 5: The call at Mount Tur — Allah's revelation",
-				body: `While returning to Egypt after many years, Musa saw a fire in the distance.\n\nHe went toward it, and Allah called him from a burning bush: "O Musa! Indeed, I am Allah, Lord of the worlds." (Qur'an 28:30)\n\nAllah commanded him to worship Him alone and to establish prayer.\n\nMusa asked for a sign of his truthfulness, and Allah gave him great miracles: His staff became a living serpent, and when he put his hand in his robe and took it out, it shone bright white without any harm.`,
-			},
-			{
-				title: "Part 6: Preparation and his brother Aaron",
-				body: `Musa was afraid and hesitant about his mission.\n\nHe asked Allah: "And my tongue is not fluent, so send with me my brother Aaron." (Qur'an 28:34)\n\nAllah responded: "We will strengthen your arm with your brother, and We will give you both authority." (Qur'an 28:35)\n\nMusa and Aaron prepared for their great mission to Pharaoh.`,
-			},
-			{
-				title: "Part 7: Confrontation with Pharaoh and his denial",
-				body: `Musa and Aaron went to Pharaoh and said: "Indeed, we are messengers from the Lord of the worlds." (Qur'an 26:16)\n\nBut Pharaoh mocked them, denied Allah, and arrogantly claimed divinity.\n\nHe said: "What is the Lord of the worlds?" (Qur'an 26:23)\n\nPharaoh refused to listen and rejected their message completely.`,
-			},
-			{
-				title: "Part 8: The nine signs and the magicians",
-				body: `Allah sent nine clear signs to prove Musa's truthfulness: Flood, Locusts, Lice, Frogs, Blood, Drought, Loss of crops, the staff that swallowed what the magicians created, and the shining hand.\n\nEach sign was more powerful than the previous one, but Pharaoh rejected them all in arrogance and denial.\n\nThen Pharaoh gathered all the magicians of Egypt to compete with Musa.\n\nMusa threw his staff, and it swallowed all their magic and deception.\n\nThe magicians saw the truth and believed, saying: "We believe in the Lord of Musa and Aaron." (Qur'an 20:70)\n\nBut Pharaoh tortured them and tried to destroy them. Yet they remained firm in their faith.`,
-			},
-			{
-				title: "Part 9: The exodus and the sea splitting",
-				body: `Allah commanded Musa to leave Egypt at night with the believers.\n\nPharaoh gathered his army and chased them.\n\nWhen the believers reached the sea, they panicked, thinking they would be caught.\n\nBut Musa said: "No, indeed. With me is my Lord; He will guide me." (Qur'an 26:62)\n\nAllah commanded: "Strike the sea with your staff." (Qur'an 26:63)\n\nThe sea split into twelve dry paths, and each tribe knew its own path.\n\nThe believers crossed safely.\n\nBut Pharaoh and his army followed them into the sea, and Allah caused the sea to close upon them.\n\nAllah says: "So today We will save you in body, that you may be a sign for those after you." (Qur'an 10:92)`,
-			},
-			{
-				title: "Part 10: The Tablets, the golden calf, trials, and his legacy",
-				body: `After reaching safety, Allah gave Musa the Tablets containing the Torah and clear guidance.\n\nBut while he was away, some people worshipped a golden calf. When Musa returned, he destroyed the calf and corrected them.\n\nAllah commanded them to slaughter a cow as a test, but they argued and delayed, showing their stubbornness.\n\nBecause of their refusal to enter the Holy Land, Allah decreed: "It is forbidden to them for forty years; they will wander in the land." (Qur'an 5:26)\n\nYet Allah provided for them: Manna and quails from heaven, water from rocks, and shade from clouds.\n\nMusa also learned humility and patience from a righteous servant of Allah, understanding that Allah's wisdom is beyond human understanding.\n\nWhen death approached, Musa asked Allah to bring him near the Holy Land. The Prophet said Musa died close to the Holy Land, and only Allah knows his grave.\n\nMusa stands as one of the greatest messengers of Allah, whose life teaches patience, faith, and unwavering obedience.`,
-			},
-			{
-				title: "Moral lessons",
-				body: ` Allah plans all events long before they happen.\n\n Tyranny never lasts — truth always triumphs.\n\n Miracles do not benefit stubborn and arrogant hearts.\n\n True leadership requires patience and reliance on Allah.\n\n Obedience to Allah brings victory in this life and the Hereafter.`,
-			},
-			{
-				title: "Practical actions for students",
-				body: ` Trust in Allah's plan even when you cannot see the outcome.\n\n Stand firm for truth even when facing powerful opposition.\n\n Help others selflessly and with kindness.\n\n Never give up on your mission even after facing rejection.\n\n Remember that Allah's wisdom is greater than our understanding — seek knowledge with humility.`,
-			},
-		],
-		quranSurahs: ["Al-Qasas (Sura 28)", "As-Shu'ara (Sura 26)", "Taha (Sura 20)", "Al-A'raf (Sura 7)", "Al-Baqarah (Sura 2)"],
-	},
-	harun: {
-		shortIntro: "The story of Prophet Harun, the brother of Prophet Musa and his chosen helper. Allah made him a prophet to support Musa in guiding the Children of Israel. His character of gentleness, patience, and mercy stands as a model for all leaders.",
-		sections: [
-			{
-				title: "Part 1: Musa asks Allah for a helper",
-				body: `Prophet Musa received the honor of being chosen as a messenger of Allah.\n\nBut when given this enormous responsibility, Musa asked Allah for help and support.\n\nHe said: "Grant me a helper from my family — Harun, my brother. Increase through him my strength." (Qur'an 20:29-31)\n\nMusa told Allah that Harun spoke more clearly and was calm and gentle, qualities needed to help deliver the message to the people.`,
-			},
-			{
-				title: "Part 2: Allah grants Harun as a prophet",
-				body: `Allah accepted Musa's request and made Harun a prophet alongside his brother.\n\nAllah said: "We will strengthen your arm with your brother, and give you both authority." (Qur'an 28:35)\n\nAllah declared: "And We granted him his brother Harun as a prophet." (Qur'an 19:53)\n\nThis was a great honor for Harun — to be chosen as a prophet to support his brother in such an important mission.`,
-			},
-			{
-				title: "Part 3: Standing before Pharaoh",
-				body: `When Musa and Harun went to confront Pharaoh, they went together.\n\nThey said: "Indeed, we are messengers of the Lord of the worlds." (Qur'an 26:16)\n\nHarun stood beside Musa as an equal partner in the mission, facing Pharaoh's arrogance and cruelty.\n\nThey brought clear signs and miracles, but Pharaoh remained stubborn and denied the truth.`,
-			},
-			{
-				title: "Part 4: Harun's support through challenges",
-				body: `Throughout their confrontation with Pharaoh, Harun remained loyal and supportive.\n\nWhen Pharaoh mocked them and threatened them with punishment, Harun stayed strong in his faith and his support for Musa.\n\nHe helped deliver the message despite the dangers and the threats from the tyrant.\n\nAllah sent the nine great signs to prove their truthfulness, but Pharaoh rejected them all.`,
-			},
-			{
-				title: "Part 5: Leadership of the people after the exodus",
-				body: `After Allah saved the Children of Israel from Pharaoh and drowned him in the sea, the people were free at last.\n\nMusa appointed Harun as the leader of the people to guide them while he went to receive the Torah from Allah.\n\nMusa said to him: "Take my place among my people, act rightly, and do not follow the way of those who spread corruption." (Qur'an 7:142)\n\nHarun accepted this responsibility with patience and mercy.`,
-			},
-			{
-				title: "Part 6: Harun's gentleness and clear advice",
-				body: `Harun was known for his gentleness, patience, and mercy toward the people.\n\nHe treated them with kindness while trying to guide them to the right path.\n\nHe spoke clearly and had a gentle way of giving advice that touched people's hearts.\n\nHe used wisdom and compassion in his leadership rather than force or harshness.`,
-			},
-			{
-				title: "Part 7: The trial of the golden calf",
-				body: `While Musa was away receiving Allah's revelation, a man named as-Samiri led the people to make a golden calf.\n\nThey began to worship this false idol instead of Allah.\n\nHarun tried to stop them. He said: "O my people, you are only being tested by this, and indeed your Lord is the Most Merciful, so follow me and obey my command." (Qur'an 20:90)\n\nBut the people refused to listen to him and continued in their mistake.`,
-			},
-			{
-				title: "Part 8: Harun's difficult choice",
-				body: `Harun faced a very difficult situation. The people refused to obey and were turning away from Allah.\n\nBut Harun feared that if he used force to stop them, the community would split into groups and fight each other.\n\nHe chose to wait patiently, continuing to give them gentle advice and warnings.\n\nHe hoped that when Musa returned, the situation could be resolved without the community being torn apart.`,
-			},
-			{
-				title: "Part 9: Musa's anger and Harun's explanation",
-				body: `When Musa returned and saw the people worshipping the golden calf, he became very angry.\n\nIn his anger, he grabbed Harun by the beard and head.\n\nHarun immediately explained: "O son of my mother, the people overpowered me and almost killed me. So do not make enemies rejoice over me, and do not place me among the wrongdoing people." (Qur'an 7:150)\n\nHarun explained that he had tried to prevent this but was overcome by the people's stubbornness.`,
-			},
-			{
-				title: "Part 10: His legacy - loyalty, gentleness, and righteousness",
-				body: `Musa understood Harun's situation and both of them prayed for forgiveness.\n\nHarun remained known for his gentleness, patience, mercy, clear speech, and loyalty to his brother and to Allah.\n\nHe was a true helper and support in the great mission of calling people to Allah.\n\nAllah always mentioned Harun with honor, alongside his brother Musa.\n\nProphet Harun died before Prophet Musa, and Musa was deeply saddened by his death.\n\nHarun died as a righteous prophet, faithful to his mission to the very end, and his legacy teaches us about the power of gentleness and cooperation in guiding others.`,
-			},
-			{
-				title: "Moral lessons",
-				body: ` Support and cooperation strengthen any mission.\n\n Gentleness is a form of true strength.\n\n Leadership requires patience and mercy toward people.\n\n Preserving unity in the community is important.\n\n Prophets are loyal, sincere, and devoted to their mission.`,
-			},
-			{
-				title: "Practical actions for students",
-				body: ` Help your friends and family in their challenges — be like Harun to Musa.\n\n Use gentleness and patience when advising others.\n\n Choose wisdom and mercy over force when facing difficulties.\n\n Be loyal to those you care about, even when they are mistaken.\n\n Show clear support to those working toward good, even when they face opposition.`,
-			},
-		],
-		quranSurahs: ["Taha (Sura 20)", "Al-A'raf (Sura 7)", "Maryam (Sura 19)", "Al-Qasas (Sura 28)", "Al-Ahzab (Sura 33)"],
-	},
-	dawud: {
-		shortIntro: "The story of Prophet Dawud, both a prophet and a king, combining faith, strength, wisdom, and justice. From his youth defeating the giant Jalut to his kingship, worship, and humility, his life shows how to lead with power and devotion to Allah.",
-		sections: [
-			{
-				title: "Part 1: Early life during the time of Talut",
-				body: `Prophet Dawud lived during the time when Allah appointed Talut as king over the Children of Israel.\n\nThe enemies of the Children of Israel were strong and oppressive.\n\nThe greatest enemy of the Children of Israel was a giant named Jalut, huge and powerful, feared by all.\n\nDawud was born during this time of struggle and challenge for his people.`,
-			},
-			{
-				title: "Part 2: The challenge of Jalut and fear of the army",
-				body: `When the armies of the Children of Israel and their enemies met in battle, Jalut stepped forward with confidence.\n\nHe was massive and terrifying, and he challenged the entire army of the Children of Israel.\n\nBut the soldiers were afraid. No one dared to step forward to face this giant.\n\nThe whole army trembled with fear, unsure if anyone had the courage to fight Jalut.`,
-			},
-			{
-				title: "Part 3: Young Dawud steps forward with faith",
-				body: `Dawud was still young, not a king, not a military commander, not a seasoned soldier.\n\nBut Dawud stepped forward with a strong faith in Allah.\n\nHe believed that Allah could give him victory over any enemy, no matter how big or strong.\n\nDawud said he would fight Jalut, trusting completely in Allah's help and support.`,
-			},
-			{
-				title: "Part 4: Dawud strikes down the giant Jalut",
-				body: `By Allah's permission and power, Dawud struck Jalut and killed him.\n\nAllah says: "So they defeated them by permission of Allah, and Dawud killed Jalut." (Qur'an 2:251)\n\nThis was a miraculous victory — a young boy defeating the greatest giant and warrior of his time.\n\nBecause of this victory, Allah honored Dawud greatly among his people.`,
-			},
-			{
-				title: "Part 5: Allah grants him kingship and prophethood",
-				body: `After the death of Talut, Allah granted Dawud both kingship and prophethood.\n\nAllah says: "And Allah gave him the kingdom and wisdom, and taught him what He willed." (Qur'an 2:251)\n\nDawud ruled with perfect justice, complete humility, and deep fear of Allah.\n\nHe combined the strength of a king with the devotion of a prophet.`,
-			},
-			{
-				title: "Part 6: The Zabur revelation and beautiful voice",
-				body: `Allah revealed to Dawud the Zabur, the Psalms, containing guidance and wisdom.\n\nAllah blessed Dawud with an extremely beautiful voice.\n\nWhen Dawud glorified Allah and recited the Zabur, something miraculous happened:\n\nThe mountains echoed his glorification, and the birds gathered around him and glorified Allah with him.\n\nAllah says: "Indeed, We subjected the mountains with him, glorifying Allah in the evening and morning, and the birds gathered." (Qur'an 38:18-19)`,
-			},
-			{
-				title: "Part 7: Extreme devotion and worship throughout life",
-				body: `Dawud was extremely devoted in his worship of Allah, even while being a king.\n\nThe Prophet Muhammad said that the best fasting was the fasting of Dawud: he fasted one day and broke his fast the next day.\n\nDawud also prayed much of the night, standing in worship when others slept.\n\nHe combined the duties of kingship with deep devotion to Allah and constant worship.`,
-			},
-			{
-				title: "Part 8: Strength, skills, and humility",
-				body: `Allah strengthened Dawud physically and gave him great power.\n\nAllah also taught him special skills to benefit his people.\n\nAllah taught him to make coats of armor to protect people from violence.\n\nAllah says: "And We taught him the making of coats of armor for you, to protect you from your violence." (Qur'an 21:80)\n\nDespite all his power and skill, Dawud remained deeply humble before Allah.`,
-			},
-			{
-				title: "Part 9: The test of judgment and quick repentance",
-				body: `One day while Dawud was in his place of worship, two men suddenly entered his presence.\n\nOne man complained that the other had wronged him regarding a sheep — he had one sheep while the other had many, yet wanted to take his one.\n\nDawud judged quickly saying the rich man was wrong in his dispute.\n\nThen Dawud immediately realized that Allah had tested him — he should have listened more carefully before judging.\n\nAllah says: "And Dawud realized that We had tested him, so he sought forgiveness from his Lord and fell down bowing and repented." (Qur'an 38:24)\n\nAllah forgave him for his quick repentance.`,
-			},
-			{
-				title: "Part 10: His legacy - strength with worship and preparing Sulayman",
-				body: `Allah praised Dawud greatly, describing him as strong, patient, and constantly returning to Allah.\n\nAllah said: "O Dawud, indeed We have made you a successor on the earth, so judge between the people in truth and do not follow desire." (Qur'an 38:26)\n\nAllah also said: "Indeed, We found him patient. What an excellent servant! Indeed, he was one who constantly returned to Allah." (Qur'an 38:17)\n\nAllah blessed Dawud with a righteous son, Sulayman, who inherited knowledge, wisdom, and prophethood.\n\nDawud lived a life of worship, justice, leadership, and humility until his death.\n\nAfter him, Sulayman became king and prophet, continuing his father's legacy of combining power with devotion to Allah.`,
-			},
-			{
-				title: "Moral lessons",
-				body: ` Victory comes from faith in Allah, not from size or earthly power.\n\n Leadership requires justice and fairness toward all people.\n\n Worship must continue even with authority and power.\n\n Quick repentance and humility raise one's rank with Allah.\n\n True strength lies in humility and devotion, not in pride.`,
-			},
-			{
-				title: "Practical actions for students",
-				body: ` Trust in Allah even when facing opponents who seem stronger or more powerful.\n\n Always judge fairly and listen carefully before making decisions.\n\n Balance your responsibilities with worship and prayer to Allah.\n\n When you make a mistake, repent quickly and sincerely.\n\n Teach younger people wisdom and justice, preparing them to lead with integrity.`,
-			},
-		],
-		quranSurahs: ["As-Saffat (Sura 37)", "Sad (Sura 38)", "Al-Anbiya (Sura 21)", "Al-Baqarah (Sura 2)", "An-Nisa (Sura 4)"],
-	},
-	sulayman: {
-		shortIntro: "The complete story of Prophet Sulayman, son of Prophet Dawud. Allah granted him prophethood, kingship, and miraculous powers that no one before or after him received. From commanding the wind and jinn to his encounter with Queen of Sheba, his life shows power combined with profound humility.",
-		sections: [
-			{
-				title: "Part 1: Early wisdom shown as a young man",
-				body: `Prophet Sulayman was known from a young age for his intelligence and wisdom.\n\nOne day, a dispute was brought before his father Dawud and Sulayman.\n\nTwo men argued about a field and sheep: one owned a field and the other owned sheep that entered the field at night and destroyed the crops.\n\nAllah inspired Sulayman with a deeper understanding and better judgment.\n\nAllah says: "And We gave understanding of it to Sulayman, and to each We gave judgment and knowledge." (Qur'an 21:79)\n\nThis demonstrated that Sulayman was chosen for great leadership.`,
-			},
-			{
-				title: "Part 2: Kingship and prophethood after Dawud",
-				body: `After Prophet Dawud passed away, Sulayman became king, prophet, and judge of his people.\n\nSulayman realized the tremendous responsibility he carried.\n\nHe prayed to Allah with a special supplication:\n\n"My Lord, forgive me and grant me a kingdom that will not belong to anyone after me." (Qur'an 38:35)\n\nAllah accepted his supplication and granted him a kingdom like none other.`,
-			},
-			{
-				title: "Part 3: Allah made the wind obedient to him",
-				body: `Allah made the wind completely obedient to Sulayman's command.\n\nWith the wind, Sulayman and his army could travel vast distances:\n\nIn the morning, the wind carried them for a month's journey.\n\nIn the evening, the wind carried them for another month's journey.\n\nAllah says: "And to Sulayman We subjected the wind." (Qur'an 34:12)\n\nThis was a miraculous power that allowed him to protect his kingdom and travel wherever needed.`,
-			},
-			{
-				title: "Part 4: Allah placed the jinn under his command",
-				body: `Allah placed all the jinn under Sulayman's command.\n\nThey worked for him by permission of Allah:\n\nThey built palaces and monuments for him.\n\nThey made statues and decorative items.\n\nThey dived into the sea on his behalf.\n\nThey worked in heavy labor and construction.\n\nAllah says: "And among the jinn were those who worked for him by permission of his Lord." (Qur'an 34:12-13)\n\nIf any jinn disobeyed Sulayman's orders, Allah punished them.`,
-			},
-			{
-				title: "Part 5: Allah taught him the language of animals",
-				body: `Allah taught Sulayman the language of birds and all animals.\n\nHe could understand what they said and speak to them.\n\nSulayman said: "O people, we have been taught the language of birds, and we have been given from all things." (Qur'an 27:16)\n\nThis was an extraordinary gift that showed Allah's favor upon Sulayman.\n\nNone before him or after him received such a power.`,
-			},
-			{
-				title: "Part 6: The ant and his humility",
-				body: `While marching with his great army, Sulayman heard an ant warning others to enter their homes.\n\nThe ant was afraid that Sulayman's army would crush them without noticing.\n\nSulayman smiled in amusement at the ant's concern.\n\nThen Sulayman immediately thanked Allah and prayed:\n\n"My Lord, enable me to be grateful for Your favor." (Qur'an 27:19)\n\nThis showed Sulayman's humility despite his enormous power and authority.\n\nHe was grateful to Allah and mindful of all His creations.`,
-			},
-			{
-				title: "Part 7: The hoopoe bird and Queen Bilqis of Sheba",
-				body: `While reviewing his army, Sulayman noticed that the hoopoe bird was missing from those gathered before him.\n\nHe said: "Why do I not see the hoopoe? Is it absent?" (Qur'an 27:20)\n\nWhen the hoopoe returned, it brought news of a powerful kingdom — the Queen of Sheba and her people.\n\nThe hoopoe said they worshipped the sun instead of Allah.\n\nSulayman decided to test them and guide them to the truth.\n\nHe sent the hoopoe with a letter to the Queen saying: "Do not be arrogant toward me, but come to me in submission." (Qur'an 27:31)`,
-			},
-			{
-				title: "Part 8: The throne of Queen Bilqis brought swiftly",
-				body: `Sulayman asked his council: "Who will bring me her throne before she arrives?"\n\nA jinn from among the jinn offered: "I will bring it to you before you rise from your place." (Qur'an 27:39)\n\nBut a man who had knowledge from the Book said: "I will bring it to you in the blink of an eye."\n\nBefore Sulayman could even blink, the throne was brought before him.\n\nSulayman said: "This is from the favor of my Lord to test me." (Qur'an 27:40)\n\nThe throne was transformed to be according to his wish.`,
-			},
-			{
-				title: "Part 9: The glass palace and Queen's faith",
-				body: `Sulayman asked his people to prepare the throne for him.\n\nHe then prepared his palace for Queen Bilqis.\n\nThe floor was made of glass, so when she entered, she thought it was water.\n\nShe was astonished and lifted her garments, surprised.\n\nSulayman explained to her: "It is a courtyard paved with glass." (Qur'an 27:44)\n\nWhen she entered the palace and saw the majesty of Sulayman's kingdom and his knowledge, she realized:\n\nSulayman's wisdom and power came from Allah.\n\nHe was a true prophet of Allah.\n\nShe said: "I submit with Sulayman to Allah, Lord of the worlds." (Qur'an 27:44)`,
-			},
-			{
-				title: "Part 10: His death and the worm eating his staff",
-				body: `Sulayman continued ruling with perfect justice and wisdom.\n\nHe was devoted to Allah and used his power to guide people to faith.\n\nWhen death came for Sulayman, something remarkable happened.\n\nSulayman died while leaning on his staff.\n\nThe jinn continued working, not realizing that he had died.\n\nOnly when a worm ate through his staff and his body fell to the ground did they know.\n\nAllah says: "When We decreed death for him, nothing showed them his death except a creature of the earth eating his staff." (Qur'an 34:14)\n\nThis event proved that the jinn do not have knowledge of the unseen — only Allah knows all hidden things.\n\nSulayman left behind a legacy of justice, wisdom, humility, and perfect submission to Allah.`,
-			},
-			{
-				title: "Moral lessons",
-				body: ` Power and authority are tests from Allah, not honors in themselves.\n\n Gratitude and humility protect a person from arrogance.\n\n Knowledge and wisdom are greater than earthly power.\n\n True leadership must guide people toward faith in Allah.\n\n Even the greatest kings and prophets must face death — nothing is eternal except Allah.`,
-			},
-			{
-				title: "Practical actions for students",
-				body: ` Use any power or authority you have to help others and guide them toward good.\n\n Be grateful to Allah for everything He gives you, and never become arrogant.\n\n Seek knowledge and wisdom as treasures greater than money or power.\n\n Be kind and considerate toward all of Allah's creation, even the smallest creatures.\n\n Remember that power and position are temporary — focus on pleasing Allah.`,
-			},
-		],
-		quranSurahs: ["An-Naml (Sura 27)", "Sad (Sura 38)", "Saba (Sura 34)", "Al-Anbiya (Sura 21)"],
-	},
-	ilyas: {
-		shortIntro: "The story of Prophet Ilyas, sent to guide the Children of Israel who had turned to worshipping the idol Baal. He called them to abandon false gods and return to Allah alone. Despite rejection, he remained firm in truth and Allah saved him and the believers.",
-		sections: [
-			{
-				title: "Part 1: Sent to the Children of Israel",
-				body: `Prophet Ilyas was sent by Allah to guide the Children of Israel.\n\nThis was after the time of Prophet Sulayman, when the people had begun to drift away from the true path.\n\nAllah chose Ilyas to be His messenger and to call the people back to worshipping Allah alone.`,
-			},
-			{
-				title: "Part 2: His people turn to idol worship",
-				body: `The people among whom Ilyas lived had turned away from Allah completely.\n\nThey had abandoned the worship of Allah, the Creator and Sustainer of all things.\n\nInstead, they worshipped an idol called Baal, a false god that could neither help nor harm anyone.\n\nThis was a terrible sin and a clear deviation from the path of truth.`,
-			},
-			{
-				title: "Part 3: Ilyas calls them to abandon the idol",
-				body: `Allah sent Prophet Ilyas to correct his people and call them back to the truth.\n\nIlyas stood before his people with courage and said:\n\n"Will you not fear Allah? Do you call upon Baal and leave the Best of creators — Allah, your Lord and the Lord of your forefathers?" (Qur'an 37:124-126)\n\nHe called them clearly to abandon Baal and return to worshipping Allah alone.`,
-			},
-			{
-				title: "Part 4: Reminding them Allah is the true Creator",
-				body: `Ilyas reminded his people of the truth they had forgotten:\n\nAllah alone gives life and death.\n\nAllah alone controls all things in the heavens and earth.\n\nIdols like Baal cannot help anyone or harm anyone — they have no power at all.\n\nWorshipping Baal was complete falsehood and turning away from the truth.`,
-			},
-			{
-				title: "Part 5: Clear warnings about false worship",
-				body: `Ilyas warned his people with clear and direct words.\n\nHe told them that worshipping false gods would lead to punishment from Allah.\n\nHe explained that Allah is the only One worthy of worship, the One who created them and provides for them.\n\nHe called them to leave their false idols and turn back to Allah with sincere repentance.`,
-			},
-			{
-				title: "Part 6: His people reject and mock him",
-				body: `Despite Ilyas's clear message and sincere efforts, the people rejected him.\n\nThey mocked him and refused to abandon their worship of Baal.\n\nThey were arrogant and stubborn, preferring their false traditions over the truth that Ilyas brought.\n\nThey continued in their disbelief and idol worship.`,
-			},
-			{
-				title: "Part 7: Only a small group believed",
-				body: `Out of all the people, only a small group believed in Ilyas's message.\n\nThese believers accepted the truth and turned away from idol worship to worship Allah alone.\n\nThey were few in number, but they were sincere in their faith.\n\nThe majority rejected the message and continued in their disbelief.`,
-			},
-			{
-				title: "Part 8: Allah's judgment on the disbelievers",
-				body: `Because of their stubborn disbelief and rejection of Allah's messenger, Allah decreed punishment upon them.\n\nAllah tells us: "But they denied him, so indeed they will be brought for punishment, except the chosen servants of Allah." (Qur'an 37:127-128)\n\nThose who rejected Ilyas and persisted in worshipping Baal were destroyed by Allah's judgment.\n\nThis was a warning that no one can escape Allah's justice.`,
-			},
-			{
-				title: "Part 9: Ilyas and the believers saved",
-				body: `While the disbelievers faced Allah's punishment, Ilyas and those who believed with him were saved.\n\nAllah honored His prophet and protected him from harm.\n\nThe believers who stood with Ilyas were also rescued from the punishment that befell the disbelievers.\n\nThis showed that Allah always saves His sincere servants who stand firm for the truth.`,
-			},
-			{
-				title: "Part 10: His honored status and legacy",
-				body: `Allah raised the rank of Ilyas among the prophets and honored him greatly.\n\nAllah said: "And indeed, Ilyas was among the messengers." (Qur'an 37:123)\n\nAllah also said: "Peace be upon Ilyas." (Qur'an 37:130)\n\nAnd Allah praised him: "Indeed, thus do We reward the doers of good." (Qur'an 37:131)\n\nIlyas was firm in calling to truth, patient with rejection, sincere in worship, and fearless before false gods.\n\nAllah preserved his mention among later generations and said: "Indeed, he was of Our believing servants." (Qur'an 37:132)\n\nHis legacy teaches us to stand for truth no matter how few people support us.`,
-			},
-			{
-				title: "Moral lessons",
-				body: ` Idol worship can return if people forget Allah and His guidance.\n\n Calling people to truth requires great courage and firm faith.\n\n The majority rejecting a message does not mean it is false.\n\n Allah always saves His sincere servants who stand for truth.\n\n True honor comes from faith in Allah, not from large numbers of followers.`,
-			},
-			{
-				title: "Practical actions for students",
-				body: ` Stand firm for what is right, even if others mock or reject you.\n\n Never worship anything except Allah alone — reject all false idols and ideas.\n\n Be courageous in calling people to truth and goodness.\n\n Do not follow the majority simply because they are many — follow the truth.\n\n Trust that Allah will protect and honor those who remain sincere in faith.`,
-			},
-		],
-		quranSurahs: ["As-Saffat (Sura 37)"],
-	},
-	"al-yasa": {
-		shortIntro: "The story of Prophet Al-Yasa, sent to the Children of Israel after Prophet Ilyas. He continued the mission of calling people to worship Allah alone, restoring justice, and guiding with patience. Though not widely known, he was honored by Allah among the excellent prophets.",
-		sections: [
-			{
-				title: "Part 1: Sent after Prophet Ilyas",
-				body: `Prophet Al-Yasa was a prophet of Allah sent to guide the Children of Israel.\n\nHe came after Prophet Ilyas, continuing the mission of guiding the people back to the straight path.\n\nAllah chose Al-Yasa to be a messenger and leader for his people during a difficult time.`,
-			},
-			{
-				title: "Part 2: His people turn away from Allah again",
-				body: `After the time of Ilyas, many people again turned away from Allah and His guidance.\n\nSome continued to worship false gods and idols instead of worshipping Allah alone.\n\nMany became unjust in their dealings with each other and disobedient to Allah's commands.\n\nThe people had forgotten the lessons of the past prophets.`,
-			},
-			{
-				title: "Part 3: His mission - call back to Allah",
-				body: `Allah chose Al-Yasa to call the people back to the truth.\n\nHis mission was to call people back to worship Allah alone, without any partners or idols.\n\nHe was sent to restore justice among the people and teach them the right way to live.\n\nHe guided them with patience and firmness, never compromising on the truth.`,
-			},
-			{
-				title: "Part 4: His message - the same as all prophets",
-				body: `Al-Yasa brought the same fundamental message that all prophets before him had brought:\n\nWorship Allah alone and do not associate any partners with Him.\n\nObey Allah's commands and follow His guidance.\n\nLeave false worship and turn back to the truth.\n\nThis message was consistent with what Ibrahim, Musa, Ilyas, and all the prophets had taught.`,
-			},
-			{
-				title: "Part 5: His strong character and faith",
-				body: `Al-Yasa was known for his exceptional character and devotion to Allah.\n\nHe had strong faith in Allah and never wavered in his mission.\n\nHe showed great patience in the face of rejection and hardship.\n\nHe was consistent in his worship of Allah, maintaining his devotion throughout his life.\n\nHe was firm against wrongdoing and never compromised on principles of truth and justice.`,
-			},
-			{
-				title: "Part 6: Leadership with justice",
-				body: `Al-Yasa ruled and judged with perfect justice among the Children of Israel.\n\nHe reminded them constantly of Allah's blessings upon them.\n\nHe warned them of the punishment that would come if they continued to disobey Allah.\n\nHe treated all people fairly, whether rich or poor, and maintained justice in all his decisions.`,
-			},
-			{
-				title: "Part 7: His persistence despite resistance",
-				body: `Though many people resisted Al-Yasa's message and rejected his guidance, he did not give up.\n\nHe continued calling them to the truth with patience and determination.\n\nSome people obeyed and followed him, but many refused and persisted in their disobedience.\n\nDespite all the hardship and rejection, Al-Yasa remained firm in his mission until the end of his life.`,
-			},
-			{
-				title: "Part 8: Allah's praise and honor",
-				body: `Allah mentioned Al-Yasa with great honor among the prophets in the Qur'an.\n\nAllah says: "And remember Ismail, Al-Yasa, and Dhul-Kifl, and all are among the excellent." (Qur'an 38:48)\n\nAllah also mentioned him among the patient ones: "And Ismail, Idris, and Dhul-Kifl — all were among the patient." (Qur'an 21:85)\n\nThis shows that Al-Yasa was excellent in character, patient in hardship, and deeply honored by Allah.`,
-			},
-			{
-				title: "Part 9: Struggle and Allah's support",
-				body: `Throughout his life, Al-Yasa faced rejection and hardship from many of his people.\n\nSome people obeyed him and followed the truth, but many did not.\n\nHe continued guiding them faithfully until the very end of his life, never abandoning his mission.\n\nAllah supported him and preserved his message, honoring him as one of His faithful messengers.`,
-			},
-			{
-				title: "Part 10: His death and lasting legacy",
-				body: `Al-Yasa completed his mission with complete sincerity and devotion to Allah.\n\nHe died as a righteous servant of Allah, having fulfilled his responsibility as a prophet.\n\nHe left behind a powerful legacy:\n\nA reminder of the importance of obedience to Allah.\n\nAn example of patience in the face of rejection and hardship.\n\nA place among the honored prophets whom Allah praised in the Qur'an.\n\nThough not every prophet is widely known or famous, all are honored by Allah for their faithfulness.`,
-			},
-			{
-				title: "Moral lessons",
-				body: ` Guidance must continue even after the passing of great prophets.\n\n Consistency in worship and obedience is beloved to Allah.\n\n Patience is a defining sign of true leadership and faith.\n\n Allah honors those who remain firm in their mission.\n\n Not every prophet is famous among people, but all are honored by Allah.`,
-			},
-			{
-				title: "Practical actions for students",
-				body: ` Continue doing good even when others around you are not — be consistent like Al-Yasa.\n\n Be patient when facing difficulties or rejection from others.\n\n Stand firm for justice in all situations, even when it is difficult.\n\n Remember that Allah values your faithfulness more than your fame.\n\n Never give up on calling people to good, even if they resist at first.`,
+				body: ` Memorize and repeat Ayyub's dua this week: "Rabbi anni massaniya ad-durru wa anta arham ar-rahimin" (Qur'an 21:83).\n\n When stressed, avoid negative speech and replace it with dhikr and dua.\n\n Visit or message one sick person and support them practically.\n\n Keep one worship habit consistent for 7 days to train sabr.\n\n Write one page on how tests can increase faith instead of decrease it.`,
 			},
 		],
 		quranSurahs: ["Sad (Sura 38)", "Al-Anbiya (Sura 21)"],
 	},
-	zakariyya: {
-		shortIntro: "The story of Prophet Zakariyya, a righteous prophet from the Children of Israel known for piety, kindness, and constant worship. Despite old age and his wife's barrenness, he never lost hope. Allah answered his sincere supplication and blessed him with Prophet Yahya.",
+	"dhul-kifl": {
+		shortIntro:
+			"Prophet Dhul-Kifl (peace be upon him) is one of the more quietly mentioned prophets in the Qur'an, yet Allah honored him with magnificent praise by naming him among the patient and the excellent. The reports mentioned by Ibn Kathir present him as a man of covenant, discipline, justice, and astonishing self-control: one who accepted a difficult responsibility when others could not, ruled fairly, kept a life of fasting and night prayer, and would not allow anger to defeat him. His story is not about dramatic conquest, but about something rarer: steady faithfulness.",
 		sections: [
 			{
-				title: "Part 1: A righteous guardian of worship",
-				body: `Prophet Zakariyya was a righteous prophet from the Children of Israel.\n\nHe was known throughout his community for his piety, kindness, and constant worship of Allah.\n\nHe served as a guardian of the place of worship and cared deeply for the people of faith.\n\nHe dedicated his life to guiding people and serving Allah with devotion.`,
+				title: "Part 1: Praised by Allah even with few details",
+				body: `The story of Prophet Dhul-Kifl (peace be upon him) begins with something very important: Allah mentioned him in the Qur'an with honor. Allah placed him among those known for patience and among those described as excellent. This alone gives him a high and noble rank.
+
+Ibn Kathir notes that some scholars considered him a prophet, while some described him as an exceptionally righteous and just man. What is certain is that Allah praised him. And when Allah praises someone in the Qur'an, that praise is more valuable than long stories without certainty.`,
 			},
 			{
-				title: "Part 2: Caring for Maryam and witnessing miracles",
-				body: `Zakariyya was entrusted with the care of Maryam, the mother of Prophet Isa.\n\nWhenever Zakariyya entered her prayer place, he found provision with her — food that appeared miraculously.\n\nHe asked her: "O Maryam, from where did this come to you?"\n\nShe replied: "It is from Allah. Indeed, Allah provides for whom He wills without account." (Qur'an 3:37)\n\nSeeing Allah's blessings upon Maryam strengthened Zakariyya's faith and filled his heart with hope.`,
+				title: "Part 2: A heavy responsibility no one wanted",
+				body: `The historical reports preserved by Ibn Kathir describe a moment when an elderly prophet among the Children of Israel needed someone to take on a crushing responsibility after him. This was not just a title or public position. It was a life of sacrifice.
+
+The conditions were severe: the one who took this role would judge between people with justice, fast during the day, pray at night, and never give in to anger. Many people may desire leadership when it brings honor, but very few accept it when it comes wrapped in worship, patience, burden, and accountability.`,
 			},
 			{
-				title: "Part 3: His old age and desire for a righteous heir",
-				body: `Zakariyya was very old, and his wife was barren — unable to have children.\n\nAccording to natural circumstances, it seemed impossible for them to have a child.\n\nYet despite his old age and these difficulties, Zakariyya never lost hope in Allah's power and mercy.\n\nHe feared that after his death, there would be no one to continue guiding the people properly.`,
+				title: "Part 3: When others stepped back, Prophet Dhul-Kifl (peace be upon him) stepped forward",
+				body: `The reports say that when others failed to carry these conditions, Prophet Dhul-Kifl (peace be upon him) accepted them. He did not step forward because the burden was easy. He stepped forward because he feared Allah and trusted that divine help would carry him through what human strength alone could not bear.
+
+This is one of the most powerful moments in his story. Greatness often begins when a person says yes to a difficult amanah that others avoid.`,
 			},
 			{
-				title: "Part 4: His sincere and secret supplication",
-				body: `Zakariyya turned to Allah with complete humility and made supplication in secret.\n\nAllah tells us his words: "My Lord, indeed my bones have weakened, and my head has filled with white hair, and never have I been disappointed in my supplication to You." (Qur'an 19:4)\n\nHe asked Allah: "Grant me from Yourself an heir who will inherit from me and from the family of Yaqub and make him, my Lord, pleasing to You." (Qur'an 19:5-6)\n\nHis supplication was sincere, humble, and filled with trust in Allah's power.`,
+				title: "Part 4: A life built on justice and covenant",
+				body: `After taking that responsibility, Prophet Dhul-Kifl (peace be upon him) became known for justice among his people. He did not bend rulings for the rich, overlook wrongdoing because of status, or allow private feelings to shape public judgment.
+
+The meaning often attached to his name points toward sufficiency, responsibility, or a double portion of burden or reward. In the spirit of these reports, his life appears as the life of a man who carried what others could not and remained reliable under the weight of duty.`,
 			},
 			{
-				title: "Part 5: Allah's answer - glad tidings of Yahya",
-				body: `Allah immediately answered Zakariyya's sincere supplication.\n\nThe angels called to him while he was standing in prayer:\n\n"O Zakariyya, indeed Allah gives you good news of a son, whose name will be Yahya." (Qur'an 19:7)\n\nAllah described this blessed child as one who would be pure, righteous, a prophet, and one who would never disobey Allah.\n\nThis was an extraordinary gift from Allah — a miracle beyond all natural expectations.`,
+				title: "Part 5: Fasting by day and prayer by night",
+				body: `The reports about Prophet Dhul-Kifl (peace be upon him) describe him as a man of intense discipline. He did not separate leadership from worship. During the day he fasted. During the night he stood in prayer. Between those two acts, he judged among the people and carried their affairs.
+
+This made his life a continuous act of obedience. His public authority was supported by private worship, and his private worship strengthened his public justice. That combination is rare, and it is one reason his story remains so striking.`,
 			},
 			{
-				title: "Part 6: His amazement at Allah's power",
-				body: `Zakariyya was amazed at this news.\n\nHe asked Allah: "My Lord, how will I have a son when my wife is barren and I am very old?"\n\nAllah replied with words that show His infinite power: "Thus says your Lord: It is easy for Me." (Qur'an 19:9)\n\nThis response reminded Zakariyya that Allah's power has no limits — what is impossible for humans is easy for Allah.`,
+				title: "Part 6: The real battlefield was anger",
+				body: `One of the best-known reports about Prophet Dhul-Kifl (peace be upon him) is that Shaytan tried hard to break him through anger. This is deeply meaningful. Shaytan did not test him only through wealth or fear or laziness. He targeted the part of leadership that ruins many good people: losing control of the self.
+
+Again and again the provocation came, at difficult times and in frustrating moments, trying to make him snap, become unfair, or betray the calm discipline he had promised to maintain.`,
 			},
 			{
-				title: "Part 7: The sign - three days of silence",
-				body: `Zakariyya asked Allah for a sign to confirm this miracle.\n\nAllah gave him a clear sign: "Your sign is that you will not speak to the people for three nights, while being sound." (Qur'an 19:10)\n\nFor three days and nights, Zakariyya could not speak to people, though he was healthy in every other way.\n\nBut he continued remembering Allah through gestures and devoted himself to worship during this time.`,
+				title: "Part 7: Prophet Dhul-Kifl (peace be upon him) defeated Shaytan without a sword",
+				body: `But Prophet Dhul-Kifl (peace be upon him) remained patient. He did not let anger drive him. He did not let irritation become injustice. He did not allow provocation to turn into sin. In this way, he defeated one of the hardest enemies a human being faces: the undisciplined self when it is inflamed by anger.
+
+This is part of what makes his story so powerful. There is no giant battlefield here, no public spectacle. Yet the victory is immense. To control anger when one has authority is among the greatest forms of strength.`,
 			},
 			{
-				title: "Part 8: Birth and righteousness of Yahya",
-				body: `Allah granted Zakariyya a blessed son — Prophet Yahya.\n\nAllah says about Yahya: "O Yahya, take the Scripture with determination." (Qur'an 19:12)\n\nAllah described Yahya as wise from childhood, merciful to all people, pure in character, devoted to his parents, and never arrogant or disobedient.\n\nYahya grew up to become one of the greatest prophets, fulfilling everything Allah had promised about him.`,
+				title: "Part 8: Allah named him among the patient and the excellent",
+				body: `The Qur'an honors Prophet Dhul-Kifl (peace be upon him) in two beautiful ways. Allah places him among those who were patient, and Allah also places him among those who were excellent. These two praises summarize his whole story.
+
+He was patient in worship, patient in leadership, patient in covenant, patient in self-control, and patient under testing. And because of that patience, he rose to the rank of excellence. Not loud greatness, but deep greatness. Not fame, but honor with Allah.`,
 			},
 			{
-				title: "Part 9: Living in times of corruption and trial",
-				body: `Despite his righteousness and devotion, Zakariyya lived in a time of great corruption and evil.\n\nHe continued guiding the people patiently, calling them to worship Allah and follow the truth.\n\nHe faced rejection and harm from those who opposed the message of truth.\n\nYet he remained firm in his worship of Allah and his mission until the very end of his life.`,
-			},
-			{
-				title: "Part 10: Martyrdom and eternal honor",
-				body: `The enemies of truth plotted against Zakariyya because of his unwavering commitment to Allah's message.\n\nAccording to Ibn Kathir, Zakariyya was killed unjustly by his people who rejected his guidance.\n\nHe died as a martyr, faithful to Allah until his very last breath.\n\nDespite this tragic end, Allah honored Zakariyya greatly and preserved his mention among the prophets for all time.\n\nHis story teaches us that even the most righteous servants of Allah may face persecution, but Allah grants them eternal honor and reward.`,
+				title: "Part 9: Why his story matters so much",
+				body: `The story of Prophet Dhul-Kifl (peace be upon him) matters because many people imagine greatness only in dramatic acts. But his story teaches another form of greatness: keeping your word, staying disciplined when no one sees you, ruling fairly when emotions pull hard, and continuing worship when duty is exhausting.
+
+He shows that constancy can be more difficult than excitement, and more beloved to Allah than display.`,
 			},
 			{
 				title: "Moral lessons",
-				body: ` Never lose hope in making duʿāʾ to Allah — He always answers.\n\n Allah can give blessings beyond all natural limits and expectations.\n\n Righteous children are one of the greatest blessings from Allah.\n\n Quiet, secret worship can be more powerful than public displays.\n\n Truth may be opposed and prophets may suffer, but Allah honors His sincere servants.`,
+				body: ` Greatness often appears in consistency rather than spectacle.
+
+ Keeping a covenant with Allah is a sign of strong faith.
+
+ The ability to control anger is one of the highest forms of strength.
+
+ Leadership without worship becomes dangerous, and worship without responsibility can become incomplete.
+
+ Allah honors those who remain patient, disciplined, and just over time.`,
 			},
 			{
 				title: "Practical actions for students",
-				body: ` Make duʿāʾ regularly and never lose hope that Allah will answer.\n\n Be patient and trust Allah even when things seem impossible.\n\n Worship Allah in secret with sincerity, not just in public.\n\n Be grateful for righteous friends and family members.\n\n Stand firm for truth even when others oppose you, trusting that Allah will honor your faithfulness.`,
+				body: ` Keep the promises you make, especially the ones connected to Allah.
+
+ Train yourself to pause when angry before speaking or reacting.
+
+ Build a steady routine of worship instead of depending only on bursts of motivation.
+
+ Be fair when judging between friends, classmates, or siblings.
+
+ Respect quiet people of discipline, because Allah may raise them higher than the famous.`,
 			},
 		],
-		quranSurahs: ["Maryam (Sura 19)", "Al-Imran (Sura 3)", "Al-Anbiya (Sura 21)"],
+		quranSurahs: ["Al-Anbiya (Sura 21)", "Sad (Sura 38)"],
 	},
-	yahya: {
-		shortIntro: "The story of Prophet Yahya, the miracle son of Prophet Zakariyya. Given wisdom from childhood, known for extreme purity and self-control, he fearlessly spoke truth against corruption. He was martyred for refusing to stay silent about sin, and Allah honored him with eternal peace.",
+	dawud: {
+		shortIntro: "Prophet Dawud (peace be upon him) was both a prophet and a king, a man in whom Allah joined courage, worship, wisdom, justice, and humility. His story begins with a young believer stepping forward when trained warriors were afraid, then unfolds into one of the most beautiful lives of leadership in the Qur'an: defeating Jalut by Allah's permission, receiving kingship and prophethood, singing the praises of Allah until mountains and birds echoed with him, ruling with justice, repenting immediately when tested, and raising Prophet Sulayman (peace be upon him) to continue the legacy after him.",
 		sections: [
 			{
-				title: "Part 1: A miracle child - answer to sincere supplication",
-				body: `Prophet Yahya was the son of Prophet Zakariyya.\n\nHe was a miracle child, born after many long years of supplication from his father.\n\nAllah chose Yahya from before his birth, making him a special servant destined for prophethood.\n\nHis very existence was a sign of Allah's power and mercy.`,
+				title: "Part 1: A fearful battlefield and a young believer",
+				body: `The story of Prophet Dawud (peace be upon him) begins at a moment of fear and tension among the Children of Israel. Their enemy was led by the mighty Jalut, a giant warrior whose strength terrified soldiers before battle had even begun. Men looked at his size, his armor, and his reputation and felt their courage collapse.
+
+It was in this atmosphere that a young man stepped forward. He was not yet a king, not a famous commander, and not the one anyone expected to save the day. He was Dawud (peace be upon him), still young, but carrying something more powerful than military experience: complete trust in Allah.`,
 			},
 			{
-				title: "Part 2: A blessed birth with a unique name",
-				body: `Allah gave glad tidings of Yahya to Zakariyya while he was standing in prayer.\n\nAllah said: "O Zakariyya, indeed We give you good news of a son whose name will be Yahya; We have not assigned to any before this name." (Qur'an 19:7)\n\nThis name was chosen by Allah Himself, not by his parents.\n\nThis showed Yahya's special and honored status before Allah even before his birth.`,
+				title: "Part 2: Prophet Dawud (peace be upon him) faces Jalut",
+				body: `When everyone else hesitated, Prophet Dawud (peace be upon him) offered himself to face Jalut. He had already learned courage in a quieter place, protecting the sheep of his family and confronting danger in the open land. So when the battlefield came, he did not see himself as weak. He saw Allah as sufficient.
+
+He did not depend on heavy armor or the appearance of strength. He carried simple means, but his heart was full of certainty. This is one of the strongest moments in his story: a young servant standing before a giant, not with pride in himself, but with trust in his Lord.`,
 			},
 			{
-				title: "Part 3: Wisdom given from childhood",
-				body: `Unlike other children who play and learn slowly, Yahya was given wisdom at a very young age.\n\nAllah says: "O Yahya, take the Scripture with determination. And We gave him wisdom while yet a boy." (Qur'an 19:12)\n\nFrom his early childhood, Yahya was serious about worship, knowledge, and complete obedience to Allah.\n\nHe understood matters of faith and guidance that even adults struggled to comprehend.`,
+				title: "Part 3: Jalut falls and history changes",
+				body: `By Allah's permission, Prophet Dawud (peace be upon him) struck Jalut down and killed him. The Qur'an records the turning point with powerful simplicity: "So they defeated them by permission of Allah, and Dawud killed Jalut." (Qur'an 2:251)
+
+This was more than a military victory. It was the moment Allah raised Prophet Dawud (peace be upon him) before his people and changed the course of his life. The giant who terrified armies fell before a young believer because victory does not belong to size, weapons, or appearances. It belongs to Allah alone.`,
 			},
 			{
-				title: "Part 4: Extreme purity and noble character",
-				body: `Allah described Yahya with rare and noble qualities that few people possess.\n\nAllah says: "And affection from Us and purity, and he was righteous." (Qur'an 19:13)\n\nYahya was known for extreme purity in thought, word, and action.\n\nHe had strong self-control and avoided all worldly desires and temptations.\n\nHe was in constant remembrance of Allah and never disobeyed Him in anything, large or small.`,
+				title: "Part 4: From victory to prophethood and kingship",
+				body: `After this victory, Allah granted Prophet Dawud (peace be upon him) both kingship and wisdom. In time, he became not only a ruler but also a prophet charged with guiding people by revelation. The Qur'an says that Allah gave him the kingdom, wisdom, and taught him what He willed.
+
+This joining of prophethood and kingship is one of the special features of his story. He was not merely a spiritual teacher far from public affairs, nor merely a ruler concerned with worldly power. He was both: a servant who governed by truth and a prophet who ruled with fear of Allah.`,
 			},
 			{
-				title: "Part 5: Perfect obedience to his parents",
-				body: `Yahya was especially kind, respectful, and obedient to his parents.\n\nAllah says: "And dutiful to his parents, and he was not a disobedient tyrant." (Qur'an 19:14)\n\nHe honored them, served them, and never showed them any disrespect or disobedience.\n\nThis shows that kindness and obedience to parents is one of the greatest signs of righteousness and faith.`,
+				title: "Part 5: The Zabur, the mountains, and the birds",
+				body: `Allah gave Prophet Dawud (peace be upon him) the Zabur and blessed him with an extraordinarily beautiful voice. When he recited and glorified Allah, something remarkable happened: the mountains echoed his tasbih, and the birds gathered and joined in praise.
+
+Imagine the scene: a prophet standing in worship, his voice filled with sincerity, the natural world around him brought into harmony by Allah's command. This is one of the most moving images in his story. His kingship did not distance him from worship. It deepened it. And his worship became so beloved that creation itself seemed to respond.`,
 			},
 			{
-				title: "Part 6: His mission to the Children of Israel",
-				body: `Yahya was sent as a prophet to guide the Children of Israel back to the straight path.\n\nHe called them to sincere repentance and turning back to Allah.\n\nHe warned them against corruption, injustice, and disobedience to Allah's commands.\n\nHe reminded them constantly to follow and obey the law that Allah had revealed to them.`,
+				title: "Part 6: A king whose heart belonged to worship",
+				body: `Prophet Dawud (peace be upon him) was known for deep devotion to Allah. The Prophet Muhammad described his worship as a model: he fasted every other day and stood much of the night in prayer. Even while carrying the burdens of rule, justice, and public responsibility, he remained a man of constant return to Allah.
+
+This balance is one of the greatest lessons of his story. He did not say that public leadership excused him from private worship. Nor did he let worship become an excuse to neglect the needs of people. He carried both.`,
 			},
 			{
-				title: "Part 7: Supporting and confirming Prophet Isa",
-				body: `Yahya's mission included supporting and confirming the message of Prophet Isa (Jesus).\n\nAllah says about Yahya: "Confirming a word from Allah, and honorable, chaste, and a prophet from among the righteous." (Qur'an 3:39)\n\nHe prepared the people for the coming of Prophet Isa and testified to his truthfulness.\n\nBoth prophets worked to guide the Children of Israel to worship Allah alone.`,
+				title: "Part 7: Strength, skill, and humble labor",
+				body: `Allah gave Prophet Dawud (peace be upon him) not only spiritual excellence but physical strength and practical skill. Allah softened iron for him and taught him how to make coats of armor that would protect people in battle. This was a gift of technology, craftsmanship, and service.
+
+Yet even as king, Prophet Dawud (peace be upon him) did not live as a man spoiled by power. Reports describe him earning through the work of his own hands rather than depending arrogantly on the wealth of rule. This made his leadership cleaner, humbler, and more sincere.`,
 			},
 			{
-				title: "Part 8: Fearless in speaking truth against corruption",
-				body: `According to Ibn Kathir, Yahya was completely fearless in speaking the truth, no matter the consequences.\n\nHe openly condemned immorality, unlawful marriages, and corruption among the leaders and powerful people.\n\nHe refused to remain silent about sin and injustice, even when it put him in danger.\n\nHis honesty and courage made the powerful and corrupt people very angry with him.`,
+				title: "Part 8: The test of judgment and immediate repentance",
+				body: `One day, while Prophet Dawud (peace be upon him) was in his place of worship, two disputants suddenly came before him. One complained that the other, who had many sheep, wanted to take his single sheep as well. Prophet Dawud (peace be upon him) responded quickly, recognizing the apparent injustice.
+
+Then he realized that Allah had tested him. He had judged before hearing fully from the other side. This is what makes his story so noble: the moment he understood, he did not defend himself, justify himself, or hide behind his status. He immediately sought forgiveness from Allah, fell in repentance, and returned to his Lord.
+
+Allah forgave him and taught him again to judge between people in truth and not to follow desire.`,
 			},
 			{
-				title: "Part 9: Martyrdom - killed for standing for truth",
-				body: `Ibn Kathir narrates that Yahya was killed unjustly by tyrants from among his people.\n\nHe was martyred specifically because he refused to stay silent about sin and corruption.\n\nThe evil people could not tolerate his truthfulness and his condemnation of their sins.\n\nHis death was a great crime, and Allah severely condemned those who killed the prophets.\n\nYahya gave his life for the sake of truth and obedience to Allah.`,
+				title: "Part 9: What made Prophet Dawud (peace be upon him) great",
+				body: `The greatness of Prophet Dawud (peace be upon him) was not that he never faced challenge, nor that he possessed power. His greatness was that every blessing increased his obedience, and every test drove him back to Allah more quickly. The Qur'an praises him as strong, patient, and constantly returning to Allah.
+
+He ruled with justice, worshipped with sincerity, worked with humility, repented with speed, and used every gift as an amanah. This is why he remains one of the most complete examples of leadership under revelation.`,
 			},
 			{
-				title: "Part 10: Allah's eternal honor and peace upon him",
-				body: `Despite his tragic martyrdom, Allah honored Yahya with the highest dignity and peace.\n\nAllah says: "Peace be upon him the day he was born, the day he dies, and the day he will be raised alive." (Qur'an 19:15)\n\nThis honor and peace is given only to the purest and most devoted servants of Allah.\n\nYahya's legacy teaches us that true courage means standing firm for truth, even when it costs everything.\n\nAllah honored him in this life and the next, and his name is remembered with reverence among all believers.`,
+				title: "Part 10: His legacy and the preparation of Sulayman",
+				body: `Allah blessed Prophet Dawud (peace be upon him) with a righteous son, Prophet Sulayman (peace be upon him), who inherited knowledge, prophethood, and dominion after him. Even before his death, signs of Sulayman's wisdom began to appear, showing that the house of Dawud would continue as a house of gratitude and guidance.
+
+So the story of Prophet Dawud (peace be upon him) ends not only with his own excellence, but with a legacy passed forward: power joined to worship, judgment joined to humility, and leadership joined to gratitude. After him came Prophet Sulayman (peace be upon him), continuing the line of a father whose life had already become a lesson for all generations.`,
 			},
 			{
 				title: "Moral lessons",
-				body: ` Righteousness and devotion to Allah can begin even in childhood.\n\n Purity and self-control are signs of true strength, not weakness.\n\n Speaking truth against corruption may cost one's life, but it is beloved to Allah.\n\n Obedience and kindness to parents is an essential part of worship.\n\n Allah honors and grants eternal peace to those who stand firm for truth.`,
+				body: ` Courage is strongest when it comes from trust in Allah rather than trust in self.
+
+ Leadership becomes noble when joined to worship, humility, and justice.
+
+ Talents and practical skills are gifts from Allah and should be used to benefit people.
+
+ A great believer repents immediately when shown a mistake.
+
+ True success is not fame or kingship, but being a servant who constantly returns to Allah.`,
 			},
 			{
 				title: "Practical actions for students",
-				body: ` Take your studies of Islam seriously from a young age, like Yahya did.\n\n Control your desires and avoid things that displease Allah.\n\n Always be kind, respectful, and obedient to your parents.\n\n Speak up against wrongdoing, even when it is difficult or unpopular.\n\n Remember that standing for truth brings Allah's honor, even if people reject you.`,
+				body: ` Face difficult situations with trust in Allah instead of fear of appearances.
+
+ Build both private worship and public responsibility together.
+
+ Use your skills to help and protect others, not only to impress them.
+
+ Listen carefully before judging between people or taking sides.
+
+ When you make a mistake, repent quickly instead of defending your ego.`,
+			},
+		],
+		quranSurahs: ["Al-Baqarah (Sura 2)", "Al-Anbiya (Sura 21)", "Saba (Sura 34)", "Sad (Sura 38)", "Al-Isra (Sura 17)"],
+	},
+	sulayman: {
+		shortIntro: "Prophet Sulayman (peace be upon him) was the son of Prophet Dawud (peace be upon him) and one of the most extraordinary kings and prophets in history. Allah gave him wisdom, judgment, prophethood, and a kingdom unlike any other: the wind obeyed him, the jinn worked under his command, birds and animals were understood by him, and rulers were brought to submit before the truth he carried. Yet the beauty of his story is not merely power. It is the way Prophet Sulayman (peace be upon him) kept returning every blessing back to Allah with humility, gratitude, and obedience.",
+		sections: [
+			{
+				title: "Part 1: Wisdom appeared in him while still young",
+				body: `Even before becoming king, Prophet Sulayman (peace be upon him) showed signs of unusual wisdom. Ibn Kathir mentions the famous case of the field damaged by sheep, when a dispute was brought before Prophet Dawud (peace be upon him). Allah inspired Prophet Sulayman (peace be upon him) with a more balanced judgment: the field should be restored while the owners benefited fairly in the meantime.
+
+The Qur'an says: "And We gave understanding of it to Sulayman, and to each of them We gave judgment and knowledge." (Qur'an 21:79)
+
+This early moment is important. It shows that his greatness did not begin only with kingship. Allah had already placed in him the mind of a prophet and the insight of a ruler.`,
+			},
+			{
+				title: "Part 2: He inherited prophethood and dominion from Dawud",
+				body: `After the death of Prophet Dawud (peace be upon him), Prophet Sulayman (peace be upon him) inherited prophethood and dominion. This inheritance was not about wealth, because prophets do not leave behind worldly inheritance for their families. It was the inheritance of knowledge, leadership, sacred responsibility, and rule by revelation.
+
+The Qur'an says: "And Sulayman inherited Dawud." (Qur'an 27:16)
+
+With that inheritance came enormous responsibility. He was now both prophet and king, carrying the burden of justice over people and the burden of faith before Allah.`,
+			},
+			{
+				title: "Part 3: His remarkable dua for a unique kingdom",
+				body: `Prophet Sulayman (peace be upon him) turned to Allah with a remarkable dua. After trial, repentance, and return to his Lord, he asked: "My Lord, forgive me and grant me a kingdom that will not belong to anyone after me. Indeed, You are the Bestower." (Qur'an 38:35)
+
+Allah answered this dua and gave him a kingdom unlike any other. But this kingdom was not given as luxury for its own sake. It was a test, a trust, and a sign. Through it, Allah would show the world what power looks like when it belongs to a prophet who remains a grateful servant.`,
+			},
+			{
+				title: "Part 4: The wind, the jinn, and the vast kingdom",
+				body: `Allah subjected the wind to Prophet Sulayman (peace be upon him), carrying him vast distances with astonishing speed. A morning journey could cover what normally took a month, and an evening journey could cover another month.
+
+Allah also subjected the jinn to him. They built structures, worked with metal, dived into the sea, and carried out difficult labor by Allah's permission. This made Prophet Sulayman (peace be upon him) ruler over a kingdom unlike anything people had seen: armies of human beings, jinn, and birds, all organized under divine favor.
+
+Yet even in such magnificence, his story is never the story of self-worship. Again and again, he attributes everything back to Allah.`,
+			},
+			{
+				title: "Part 5: The language of birds and the gratitude of a prophet",
+				body: `Allah taught Prophet Sulayman (peace be upon him) the language of birds and gave him understanding of creatures in a way no ordinary ruler could possess. He announced this gift openly, but not with arrogance. Rather, he said it as recognition of Allah's favor: that they had been taught the speech of birds and given from all things.
+
+This is one of the most striking features of his story. Every time power increases, gratitude also increases. Prophet Sulayman (peace be upon him) never lets extraordinary gifts turn into pride. Instead, they deepen his awareness that he is being tested by Allah.`,
+			},
+			{
+				title: "Part 6: The ant in the valley",
+				body: `One of the most beautiful scenes in the story of Prophet Sulayman (peace be upon him) is the moment his army approached a valley of ants. One ant warned the others to enter their dwellings so that Sulayman and his army would not crush them unknowingly.
+
+When Prophet Sulayman (peace be upon him) heard her words, he smiled. But he did not respond with amusement alone. He immediately turned to Allah in gratitude and made dua that he be enabled to thank Allah for His favor and to do righteous deeds that please Him.
+
+This scene reveals his heart. A lesser ruler might have been entertained by his own power. Prophet Sulayman (peace be upon him) heard the ant and remembered Allah.`,
+			},
+			{
+				title: "Part 7: The missing hoopoe and the news of Sheba",
+				body: `Then came one of the most dramatic episodes of his life. While inspecting the birds, Prophet Sulayman (peace be upon him) noticed that the hoopoe was missing. He demanded an explanation, and when the bird returned, it brought astonishing news: far away in Sheba there was a queen with a great throne and a prosperous kingdom, but she and her people worshipped the sun instead of Allah.
+
+The hoopoe's report immediately turned into a mission of da'wah. Prophet Sulayman (peace be upon him) sent a letter calling the queen not to exalt herself against him, but to come in submission to Allah. His concern was not treasure, conquest, or pride. It was that a powerful people had turned their worship away from the Creator.`,
+			},
+			{
+				title: "Part 8: Bilqis, the throne, and submission to Allah",
+				body: `The Queen of Sheba, Bilqis, responded intelligently. She consulted her advisors, tested the situation with gifts, and eventually traveled to meet Prophet Sulayman (peace be upon him). But before she arrived, one of the greatest signs in his story occurred: her throne was brought before him in an instant by one who had knowledge from the Book.
+
+When Prophet Sulayman (peace be upon him) saw this, he did not boast. He said: "This is from the favor of my Lord to test me whether I will be grateful or ungrateful." (Qur'an 27:40)
+
+Then Bilqis entered his palace and saw wonders that shattered her previous worldview. She realized that this was not the kingdom of a magician or a vain tyrant. This was a prophet supported by Allah. At last she declared: "My Lord, indeed I have wronged myself, and I submit with Sulayman to Allah, Lord of the worlds." (Qur'an 27:44)
+
+This was one of the greatest victories of his mission: not merely political success, but the guidance of a ruler and her people toward Allah.`,
+			},
+			{
+				title: "Part 9: His kingdom was power under worship",
+				body: `The life of Prophet Sulayman (peace be upon him) teaches that power itself is not evil. What matters is who it belongs to and how it is used. In his case, authority served worship, justice, reform, organization, and gratitude. He ruled a kingdom of immense strength, yet remained a servant who kept returning to Allah.
+
+Even moments that could have become distractions, like his admiration for fine horses, became occasions of repentance, reflection, and turning back to Allah. That is why the Qur'an praises him not only for dominion but for being an excellent servant who constantly returned in repentance.`,
+			},
+			{
+				title: "Part 10: His death and the humiliation of false claims",
+				body: `The death of Prophet Sulayman (peace be upon him) was itself a lesson written into history. He died while leaning upon his staff, overseeing the labor of the jinn. Yet the jinn continued working, unaware that he had already died. Only when a creature of the earth ate through his staff and his body fell did they realize the truth.
+
+This destroyed a dangerous illusion: the claim that the jinn know the unseen. If they had known the unseen, they would never have remained in humiliating labor thinking their master still watched them. Through the death of Prophet Sulayman (peace be upon him), Allah made clear that unseen knowledge belongs to Him alone.
+
+So his life ended just as it had been lived: as a sign, a lesson, and a proof of Allah's wisdom.`,
+			},
+			{
+				title: "Moral lessons",
+				body: ` Wisdom and leadership should begin with obedience to Allah.
+
+ Great power becomes beautiful only when joined to gratitude and humility.
+
+ Every blessing is a test of whether a person will be grateful or arrogant.
+
+ Calling rulers and powerful people to Allah is part of prophetic mission.
+
+ No one knows the unseen except Allah alone.`,
+			},
+			{
+				title: "Practical actions for students",
+				body: ` When Allah gives you a gift, train yourself to say and feel that it is from Him.
+
+ Use ability, influence, or leadership to serve truth rather than your ego.
+
+ Reflect on nature and creation as signs that increase gratitude.
+
+ Do not be impressed by power unless it is connected to obedience to Allah.
+
+ Correct false ideas about fortune-telling, hidden knowledge, and the unseen with the lesson of Sulayman's death.`,
+			},
+		],
+		quranSurahs: ["An-Naml (Sura 27)", "Saba (Sura 34)", "Sad (Sura 38)", "Al-Anbiya (Sura 21)"],
+	},
+	ilyas: {
+		shortIntro: "Prophet Ilyas (peace be upon him) was one of the courageous prophets sent to the Children of Israel when they had fallen into idol worship and begun calling upon Baal instead of Allah. His story is the story of a lone voice of tawhid rising in a society that had become attached to false gods, false traditions, and stubborn disbelief. He spoke with clarity, warned with courage, stood firm when only a few believed, and was honored by Allah as one of the messengers and among the righteous doers of good.",
+		sections: [
+			{
+				title: "Part 1: Sent when the Children of Israel had drifted far away",
+				body: `Prophet Ilyas (peace be upon him) was sent to the Children of Israel in a period when they had once again drifted away from the worship of Allah. After generations of prophets and guidance, many among them had grown weak in faith and had opened the door to corruption and idol worship.
+
+Ibn Kathir places his mission after the Israelites had already suffered repeated cycles of obedience and decline. This gave the story of Prophet Ilyas (peace be upon him) a painful background: he was not speaking to a people unfamiliar with revelation, but to a people who had known guidance and still turned away from it.`,
+			},
+			{
+				title: "Part 2: The people began worshipping Baal",
+				body: `The great trial of Prophet Ilyas (peace be upon him) was that his people had become devoted to an idol called Baal. Instead of worshipping Allah, the Lord who created them, sustained them, and controlled all things, they directed their reverence and dependence toward a powerless false god.
+
+This was not a small mistake. It was a direct collapse into shirk. A people who should have remembered Allah through revelation had allowed superstition, custom, and false worship to take root in their society.`,
+			},
+			{
+				title: "Part 3: Prophet Ilyas (peace be upon him) confronted them openly",
+				body: `Prophet Ilyas (peace be upon him) did not hide the truth or soften it until it lost its meaning. He stood before his people and called them directly back to Allah. The Qur'an preserves his challenge in words full of force and clarity:
+
+"Will you not fear Allah? Do you call upon Baal and leave the Best of creators, Allah, your Lord and the Lord of your forefathers?" (Qur'an 37:124-126)
+
+These words cut through the heart of the matter. Why call upon an idol when Allah alone is the Creator? Why cling to a false object of worship when the Lord of the worlds is the One who created their fathers and would judge them all?`,
+			},
+			{
+				title: "Part 4: He reminded them who truly controls life",
+				body: `Prophet Ilyas (peace be upon him) reminded his people that Baal had no power at all. It could not give life, bring death, send provision, hear prayer, remove harm, or grant benefit. It was only an idol around which people had built delusion, ritual, and inherited falsehood.
+
+Allah alone is the Creator, the Sustainer, and the Lord of all causes. By returning again and again to this truth, Prophet Ilyas (peace be upon him) was not merely arguing against one idol. He was tearing down an entire false worldview built on dependence upon other than Allah.`,
+			},
+			{
+				title: "Part 5: The courage of his warning",
+				body: `Calling a society away from its public idol is never an easy task. Baal worship was not only a private belief; it had become part of the social order. To challenge it was to challenge pride, custom, and power all at once.
+
+Yet Prophet Ilyas (peace be upon him) warned them without fear. He told them clearly that worshipping false gods would lead to Allah's punishment, and that safety lay only in repentance, sincerity, and returning to tawhid. His warning came from mercy, not anger. He wanted to save them before judgment came.`,
+			},
+			{
+				title: "Part 6: Most of the people rejected him",
+				body: `Despite the clarity of his message, the majority of the people rejected Prophet Ilyas (peace be upon him). They mocked him, clung to their old practices, and preferred inherited falsehood over revealed truth. This is one of the saddest patterns in prophetic history: people often defend the very things destroying them.
+
+The story of Prophet Ilyas (peace be upon him) therefore becomes a story of standing against the crowd. He did not measure truth by numbers. He remained firm because truth comes from Allah, whether many accept it or few.`,
+			},
+			{
+				title: "Part 7: Only a small group believed",
+				body: `In the midst of widespread rejection, a small group responded to the call of Prophet Ilyas (peace be upon him). They abandoned idol worship and returned to the worship of Allah alone. Though few in number, they were sincere, and that sincerity mattered more than the size of the crowd.
+
+This detail gives the story a deeply important lesson: prophets are not judged by popularity. A small circle of truth can be greater in Allah's sight than a whole nation gathered around falsehood.`,
+			},
+			{
+				title: "Part 8: Allah judged the deniers and saved His prophet",
+				body: `The Qur'an states that the people denied Prophet Ilyas (peace be upon him), and therefore they would be brought for punishment, except for the chosen servants of Allah. This means that disbelief did not simply end as an argument. It led to consequence.
+
+Those who rejected the prophet and persisted in worshipping Baal faced Allah's judgment. But Prophet Ilyas (peace be upon him) and the believers with him were saved. In this, Allah showed a recurring truth in the stories of the prophets: those who stand with revelation may be few, but they are never abandoned by their Lord.`,
+			},
+			{
+				title: "Part 9: Allah honored Prophet Ilyas (peace be upon him) forever",
+				body: `Allah honored Prophet Ilyas (peace be upon him) with magnificent praise in the Qur'an. Allah declared that he was among the messengers. Allah also said: "Peace be upon Ilyas." And then Allah added: "Indeed, thus do We reward the doers of good."
+
+This is a remarkable ending. A prophet rejected by many people was given lasting honor by the Lord of the worlds. The people may have mocked, denied, or opposed him, but Allah preserved his name with peace, praise, and reward.
+
+His story teaches that real success is not public acceptance. It is to be truthful before Allah and to leave this world having stood firmly for tawhid.`,
+			},
+			{
+				title: "Moral lessons",
+				body: ` Shirk can return when people become careless with revelation.
+
+ A prophet's courage appears in speaking clearly against public falsehood.
+
+ The truth does not become false because most people reject it.
+
+ A small group of sincere believers is more valuable than a large crowd upon error.
+
+ Allah honors those who stand firmly for tawhid even if people do not.`,
+			},
+			{
+				title: "Practical actions for students",
+				body: ` Learn to identify modern forms of false devotion that pull hearts away from Allah.
+
+ Stand for what is true even when it is unpopular.
+
+ Do not follow a belief or trend just because it is inherited or socially accepted.
+
+ Stay close to sincere believers even if they are few.
+
+ Ask Allah to make tawhid the strongest truth in your heart.`,
+			},
+		],
+		quranSurahs: ["As-Saffat (Sura 37)", "Al-An'am (Sura 6)"],
+	},
+	"al-yasa": {
+		shortIntro:
+			"Prophet Al-Yasa (peace be upon him) was one of Allah's honored prophets from the Children of Israel, raised to continue the mission after Prophet Ilyas (peace be upon him). His story is quieter than some of the other prophets, but it carries a powerful lesson: after a great reformer passes away, someone still must remain steady, preserve the truth, and keep calling people back to Allah. Ibn Kathir presents Prophet Al-Yasa (peace be upon him) as a prophet of continuity, patience, and excellence in a time when sins were spreading and tyrants were rising.",
+		sections: [
+			{
+				title: "Part 1: After Prophet Ilyas came Prophet Al-Yasa (peace be upon him)",
+				body: `After the mission of Prophet Ilyas (peace be upon him), Allah did not leave the Children of Israel without guidance. He raised Prophet Al-Yasa (peace be upon him) to continue the work of calling people back to tawhid, obedience, and reform.
+
+This was an important moment. Often, a community may respond strongly to one prophet, but after he passes away, people begin to slip back into old habits. That is why the role of Prophet Al-Yasa (peace be upon him) was so important. He was not starting a new religion. He was preserving the truth already revealed and keeping the people connected to the path of Allah.`,
+			},
+			{
+				title: "Part 2: A time of growing corruption",
+				body: `Ibn Kathir explains that after Prophet Ilyas (peace be upon him), dissension increased among the people. Events became more turbulent. Sins spread widely, and tyranny grew stronger. Some rulers became oppressive, and even the prophets were not safe from the violence of wicked people.
+
+This gave the story of Prophet Al-Yasa (peace be upon him) a serious and difficult setting. He was not preaching to a calm, obedient society. He was standing in a time when moral decline had already begun to deepen.`,
+			},
+			{
+				title: "Part 3: Close to Prophet Ilyas and shaped by struggle",
+				body: `Reports mentioned by Ibn Kathir state that Prophet Al-Yasa (peace be upon him) was connected closely to Prophet Ilyas (peace be upon him). Some narrations say he was his cousin. Others mention that he had hidden with him in a cave to escape from a tyrant ruler.
+
+Whether in kinship, companionship, or shared struggle, the message is clear: Prophet Al-Yasa (peace be upon him) was formed in an atmosphere of faith under pressure. He knew what it meant to preserve truth when falsehood had power. He did not inherit an easy mission. He inherited a dangerous one.`,
+			},
+			{
+				title: "Part 4: He carried the same message forward",
+				body: `When Prophet Al-Yasa (peace be upon him) became the prophet among his people, he called them to the same core message taught by the prophets before him: worship Allah alone, obey revelation, reject corruption, and prepare for the Hereafter.
+
+Ibn Kathir presents him as abiding by the message and law of Prophet Ilyas (peace be upon him), not changing it and not compromising it. This itself is a form of greatness. Not every prophetic mission is remembered for dramatic miracles in public view. Some are remembered for steadfast preservation of truth.`,
+			},
+			{
+				title: "Part 5: A prophet of steady excellence",
+				body: `The Qur'an honors Prophet Al-Yasa (peace be upon him) in a very striking way. Allah mentions him among a noble line of prophets and says that they are among the chosen and the best.
+
+That praise tells us something profound about his character. Prophet Al-Yasa (peace be upon him) was not honored because of fame among people, but because of excellence with Allah. He remained firm in worship, sound in religious understanding, and sincere in calling people to what would save them in the Hereafter.
+
+His story teaches that consistency itself can be a form of prophetic heroism.`,
+			},
+			{
+				title: "Part 6: Leading people when hearts are unstable",
+				body: `One of the hardest tasks in religious leadership is not starting reform, but continuing it after people become tired, divided, or forgetful. Prophet Al-Yasa (peace be upon him) had to guide people whose hearts were unstable and whose society had already been damaged by sin and political oppression.
+
+He continued teaching, correcting, warning, and reminding. He had to preserve order where disorder was spreading, and faith where negligence was rising. This required patience, courage, and a long-view commitment to Allah's cause.`,
+			},
+			{
+				title: "Part 7: His struggle was not loud, but it was great",
+				body: `There are prophets whose stories are filled with dramatic confrontations, and there are prophets whose greatness appears in quiet endurance. The story of Prophet Al-Yasa (peace be upon him) belongs to the second kind.
+
+He remained among his people, calling them back to Allah while corruption spread and tyrants grew stronger. He did not abandon the mission because it was difficult, and he did not dilute the truth to gain acceptance. His struggle may sound quiet on the page, but in reality it was immense: to keep revelation alive in a society moving in the opposite direction.`,
+			},
+			{
+				title: "Part 8: Allah named him among the best",
+				body: `Allah says: "And remember Ismail, Al-Yasa, and Dhul-Kifl, and all are among the excellent." (Qur'an 38:48)
+
+He is also included among those prophets whom Allah favored and guided. This is enough to show his rank. The believer may not know as many details about Prophet Al-Yasa (peace be upon him) as about Musa or Ibrahim, but Allah's praise is more than enough to establish his honor.
+
+To be named by Allah among the excellent is a distinction greater than any worldly reputation.`,
+			},
+			{
+				title: "Part 9: A legacy of continuity and faithfulness",
+				body: `Prophet Al-Yasa (peace be upon him) completed his mission as a faithful servant of Allah. He preserved the path of truth after another prophet, carried guidance forward in a difficult age, and stood as a reminder that the work of da'wah cannot stop when circumstances become hard.
+
+His story leaves behind a powerful legacy: not every servant of Allah is famous among people, but the ones who remain true, patient, and excellent are never forgotten by their Lord.`,
+			},
+			{
+				title: "Moral lessons",
+				body: ` Great work often means continuing the truth after others have started it.
+
+ Not every prophet's greatness appears in dramatic public events; some shine through steady endurance.
+
+ Reform must be preserved, not only launched.
+
+ Allah values faithfulness, excellence, and consistency even when people overlook them.
+
+ A difficult environment is not an excuse to abandon the mission of truth.`,
+			},
+			{
+				title: "Practical actions for students",
+				body: ` Stay consistent in worship even after initial excitement fades.
+
+ Be willing to continue good work that others started instead of always wanting attention for yourself.
+
+ Stand firm in truth when your environment becomes careless or negative.
+
+ Respect quiet, faithful people who preserve goodness in a community.
+
+ Ask Allah to make you excellent in sincerity, not just visible to others.`,
+			},
+		],
+		quranSurahs: ["Sad (Sura 38)", "Al-An'am (Sura 6)"],
+	},
+	harun: {
+		shortIntro: "Prophet Harun (peace be upon him) was the noble brother of Prophet Musa (peace be upon him) and one of the prophets sent to confront Pharaoh and guide Bani Isra'il. His story is one of support, eloquence, patience, and wise leadership under pressure. Ibn Kathir presents Prophet Harun (peace be upon him) as a partner in the mission of tawhid, a helper requested by Musa himself, and a prophet who faced one of the hardest internal crises in the history of Bani Isra'il when the people turned to the golden calf.",
+		sections: [
+			{
+				title: "Part 1: A brother chosen for prophetic support",
+				body: `When Allah commanded Prophet Musa (peace be upon him) to go to Pharaoh, Musa asked his Lord for help from within his own family. He asked that his brother, Prophet Harun (peace be upon him), be appointed as a minister and support for him. Musa knew Harun was more eloquent in speech and would strengthen the mission.
+
+Allah accepted this dua. That itself is one of the great honors of Prophet Harun (peace be upon him). He was not a minor figure added later. He was chosen by Allah in response to the request of another great prophet, and he entered the struggle against tyranny as a messenger beside his brother.`,
+			},
+			{
+				title: "Part 2: Sent with Musa to the court of Pharaoh",
+				body: `Prophet Harun (peace be upon him) stood with Prophet Musa (peace be upon him) in one of the most dangerous missions ever given to prophets. They went to Pharaoh, the arrogant ruler who claimed lordship and oppressed the Children of Israel. Their task was not merely political resistance. It was the call to tawhid before one of the greatest tyrants in history.
+
+Ibn Kathir presents their mission as united and complementary. Musa carried the major confrontation and signs, while Prophet Harun (peace be upon him) strengthened, supported, and shared in delivery of the message.`,
+			},
+			{
+				title: "Part 3: Eloquence in the service of truth",
+				body: `One of the reasons Prophet Musa (peace be upon him) asked for Prophet Harun (peace be upon him) was his clarity and eloquence in speech. This was not a worldly talent used for pride. It was a gift placed in the service of revelation.
+
+Prophet Harun (peace be upon him) teaches that clear speech, calm explanation, and strong communication can be acts of worship when they are used to defend truth and guide people.`,
+			},
+			{
+				title: "Part 4: Witnessing the downfall of Pharaoh",
+				body: `Prophet Harun (peace be upon him) shared in the great stages of liberation for Bani Isra'il. He witnessed the struggle with Pharaoh, the exposure of falsehood before the magicians, the plagues, the exodus, and finally the drowning of Pharaoh and his army by Allah's decree.
+
+These events were not only dramatic victories. They were lessons for the believers. Tyranny can look permanent, but Allah can destroy it in a moment.`,
+			},
+			{
+				title: "Part 5: Left in charge during Musa's absence",
+				body: `When Prophet Musa (peace be upon him) went to the appointed meeting with Allah, he left Prophet Harun (peace be upon him) in charge of Bani Isra'il. This was a heavy trust. Leadership over a difficult people is not a small matter, especially when hearts are unstable and old habits of weakness remain.
+
+Prophet Harun (peace be upon him) was therefore not only a helper in public mission. He was also entrusted with stewardship over the community in a delicate moment.`,
+			},
+			{
+				title: "Part 6: The crisis of the golden calf",
+				body: `Then came one of the most painful scenes in the history of Bani Isra'il. During Musa's absence, the Samiri led many of the people into the worship of the golden calf. After being saved from Pharaoh and witnessing major signs, they still fell into a terrible fitnah.
+
+Ibn Kathir shows that Prophet Harun (peace be upon him) did not remain silent in approval. He warned them clearly. He told them that they were being tested, that their Lord was the Most Merciful, and that they should follow him and obey his command.`,
+			},
+			{
+				title: "Part 7: Patience under internal rebellion",
+				body: `The people did not simply disagree with Prophet Harun (peace be upon him). They overpowered him. He feared that if he used force immediately, the community would break apart into even greater bloodshed and division before Musa returned. So he remained firm in truth while trying to contain the damage as much as possible.
+
+This is one of the deepest lessons in his story. Leadership is not only about denouncing wrong. Sometimes it is about choosing the wisest course among dangerous options while never compromising the truth itself.`,
+			},
+			{
+				title: "Part 8: Explaining himself to Musa",
+				body: `When Prophet Musa (peace be upon him) returned and saw the people around the calf, he was overcome with anger for Allah's sake. He confronted Prophet Harun (peace be upon him) strongly. At that moment Prophet Harun (peace be upon him) answered with humility and urgency.
+
+He explained that the people had considered him weak and were close to killing him, and that he feared causing a split among Bani Isra'il. This response shows that Prophet Harun (peace be upon him) had remained truthful, but also judged the situation according to what would prevent an even wider collapse before Musa's return.`,
+			},
+			{
+				title: "Part 9: A prophet of mercy, truth, and restraint",
+				body: `The story of Prophet Harun (peace be upon him) is not the story of cowardice. It is the story of principled restraint. Some people act harshly and call it strength. But prophetic strength includes mercy, wisdom, and control.
+
+Ibn Kathir's account helps us understand that preserving unity does not mean approving falsehood. It means resisting falsehood in the most truthful and wise way possible when circumstances become dangerous.`,
+			},
+			{
+				title: "Part 10: His rank among the prophets",
+				body: `The Qur'an honors Prophet Harun (peace be upon him) clearly. Allah mentions him repeatedly beside Musa and identifies him as a prophet. He was not simply a righteous assistant. He was a messenger, a man of revelation, and one of the honored servants of Allah.
+
+His role also teaches believers something beautiful about brotherhood and shared mission. Two brothers stood together in revelation, one supporting the other, each carrying the burden of truth.`,
+			},
+			{
+				title: "Moral lessons",
+				body: ` Different strengths can serve the same mission of truth.
+
+ Supporting a righteous leader is itself a noble form of service to Allah.
+
+ Clear warning against falsehood must be joined with wisdom and patience.
+
+ Community crises often require restraint, not impulsive reaction.
+
+ Preserving unity never means accepting shirk or approving corruption.`,
+			},
+			{
+				title: "Practical actions for students",
+				body: ` Support good work done by others instead of always wanting the main role.
+
+ Use your strongest skill, speech, writing, organization, or patience, in the service of something pleasing to Allah.
+
+ When conflict appears, tell the truth clearly but do not make the situation worse through ego.
+
+ Read Qur'an 7:142-151, 20:90-94, and 25:35.
+
+ Ask Allah to make you both truthful and wise when dealing with people.`,
+			},
+		],
+		quranSurahs: ["Al-A'raf (Sura 7)", "Ta-Ha (Sura 20)", "Al-Furqan (Sura 25)", "Maryam (Sura 19)"],
+	},
+	zakariyya: {
+		shortIntro: "Prophet Zakariyya (peace be upon him) was a noble prophet from the Children of Israel, known for age, gentleness, worship, and steadfast service to Allah. Though he had grown weak with old age and his wife had remained barren for years, his heart never lost hope in the mercy of his Lord. His story is moving and deeply human: an elderly prophet caring for Maryam, witnessing Allah's hidden gifts, whispering a private dua in the silence of worship, and then receiving the miracle of Prophet Yahya (peace be upon him) as a son and successor.",
+		sections: [
+			{
+				title: "Part 1: An old prophet still serving Allah",
+				body: `The years had left their mark on Prophet Zakariyya (peace be upon him). Ibn Kathir describes him as elderly, bent with age, and physically weak, yet still constant in worship and service. Even in old age, he continued going to the place of worship, teaching people, reminding them of Allah, and caring for their religious life.
+
+He was not known as a wealthy man or a ruler of worldly power. His greatness was in his sincerity, kindness, and quiet devotion. He lived for the message, not for status.
+
+But in his heart there was one sadness that remained with him for many years: he had no child, and his wife was barren. He feared that after his death, the people would be left without strong guidance and that the sacred teachings would be weakened or altered.`,
+			},
+			{
+				title: "Part 2: Guardian of Maryam and witness to a miracle",
+				body: `Allah honored Prophet Zakariyya (peace be upon him) by making him the guardian of Maryam (peace be upon her). He looked after her in the sanctuary, checking on her and caring for her spiritual and physical well-being.
+
+Then something remarkable happened. Whenever Prophet Zakariyya (peace be upon him) entered her prayer chamber, he found provision with her, fresh food and fruit that no one had brought and that sometimes appeared out of season.
+
+He asked her in surprise, "O Maryam, from where does this come to you?" She answered with certainty that it was from Allah, for Allah provides to whom He wills without measure.
+
+This moment touched the heart of Prophet Zakariyya (peace be upon him). If Allah could provide for Maryam in a way beyond all normal expectation, then surely Allah could also bless an old prophet and his barren wife with a child.`,
+			},
+			{
+				title: "Part 3: A longing that never died",
+				body: `By every worldly measure, the matter seemed impossible. Prophet Zakariyya (peace be upon him) had reached extreme old age, and his wife had long been unable to bear children. Yet prophets do not measure hope by the limits of creation. They measure by the power of the Creator.
+
+His wish for a child was not a selfish wish for pride, wealth, or family name. He wanted a righteous heir who would inherit knowledge, prophethood, and service to the religion. He wanted someone who would continue the call to Allah after him and protect the people from drifting into corruption.`,
+			},
+			{
+				title: "Part 4: The whispered dua in secret",
+				body: `So Prophet Zakariyya (peace be upon him) turned to Allah in one of the most tender duas in the Qur'an. He did not shout, complain, or despair. He called upon his Lord quietly and secretly, with the adab of a servant who knows that Allah hears even the faintest whisper.
+
+He said that his bones had grown weak and his head had filled with white hair, but that he had never been disappointed in calling upon his Lord. Then he asked for an heir who would inherit from him and from the family of Yaqub, meaning the inheritance of guidance and sacred responsibility, not merely wealth.
+
+This is one of the most beautiful scenes in his story: an old prophet, physically frail but spiritually strong, placing his impossible hope before the One for whom nothing is impossible.`,
+			},
+			{
+				title: "Part 5: Glad tidings while standing in prayer",
+				body: `Allah answered Prophet Zakariyya (peace be upon him) while he was standing in prayer. The angels called to him with glad tidings that would change the rest of his life: he would be granted a son named Yahya.
+
+This name itself was part of the miracle. Allah said that no one had been given that name before. And the child would not be ordinary. He would be noble, pure, righteous, chaste, and a prophet from among the righteous.
+
+The answer came exactly where the dua had risen from: in worship, in humility, and in complete dependence upon Allah.`,
+			},
+			{
+				title: "Part 6: Amazement before divine power",
+				body: `Like any truthful servant hearing miraculous news, Prophet Zakariyya (peace be upon him) was amazed. He asked how he could have a son when he had reached extreme old age and his wife was barren.
+
+The answer came with complete clarity: this matter was easy for Allah. The One who had created Zakariyya himself from nothing could certainly grant him a child despite age and barrenness.
+
+In that answer is a powerful lesson: human impossibility is not a barrier when Allah wills something to be.`,
+			},
+			{
+				title: "Part 7: The sign of silence and remembrance",
+				body: `Prophet Zakariyya (peace be upon him) then asked Allah for a sign. Allah gave him a remarkable sign: for three nights, or three days according to another verse, he would not be able to speak to people even though he remained physically sound.
+
+This was not a punishment. It was a sign of certainty, wonder, and transition. During those days, he turned even more intensely toward the remembrance of Allah and signaled to his people that they too should glorify Allah morning and evening.
+
+Silence became worship. His inability to speak to people only made his heart more occupied with his Lord.`,
+			},
+			{
+				title: "Part 8: The birth of Yahya and a father's joy",
+				body: `Then the promise was fulfilled. Allah granted Prophet Zakariyya (peace be upon him) a blessed son: Prophet Yahya (peace be upon him).
+
+What joy must have filled the heart of this elderly prophet. The child he had hoped for in secret had now arrived by Allah's mercy. And soon it became clear that Yahya was exactly the righteous child Zakariyya had prayed for. Allah gave him wisdom while still a child, purity in character, mercy, dutifulness to his parents, and the rank of prophethood.
+
+The answer to Zakariyya's dua was not just a son. It was the birth of another prophet.`,
+			},
+			{
+				title: "Part 9: Patience in an age of corruption",
+				body: `The story of Prophet Zakariyya (peace be upon him) was not a story of comfort from beginning to end. He lived in a time when many people had become weak in religion and vulnerable to corruption. The need for guidance was urgent, which is exactly why he had feared leaving the people without righteous leadership.
+
+Even after receiving Allah's gift, he remained a patient caller to truth. He continued worshipping, teaching, and guiding while others resisted, neglected, or betrayed the message. His life shows that miracles do not remove the need for patience; they strengthen the believer to continue.`,
+			},
+			{
+				title: "Part 10: Martyrdom and lasting honor",
+				body: `Like many prophets before and after him, Prophet Zakariyya (peace be upon him) faced the hostility of those who rejected truth. Reports mentioned by Ibn Kathir state that he was eventually killed unjustly by his people.
+
+This ending is painful, but it is also noble. He died as a martyr, remaining faithful to Allah until his final breath. The enemies of truth may have harmed his body, but they could never erase his rank, his sincerity, or his place among the prophets.
+
+So the story of Prophet Zakariyya (peace be upon him) closes with both sorrow and honor: sorrow at the cruelty of those who reject guidance, and honor for a prophet whose old age, private dua, patience, and faith continue to inspire believers forever.`,
+			},
+			{
+				title: "Moral lessons",
+				body: ` Never stop making dua, even when the situation looks impossible.
+
+ Allah's power is not limited by age, weakness, or natural barriers.
+
+ A righteous child and a righteous successor are among the greatest gifts from Allah.
+
+ Secret worship and humble dua carry immense power.
+
+ Prophets may be harmed by people, but Allah preserves their honor forever.`,
+			},
+			{
+				title: "Practical actions for students",
+				body: ` Make private dua regularly and ask Allah with humility and certainty.
+
+ Do not let age, weakness, or difficulty make you despair of Allah's mercy.
+
+ Care about leaving behind good influence, knowledge, and righteous work.
+
+ Stay patient in serving Allah even when your efforts are quiet or unnoticed.
+
+ Reflect on Allah's gifts in the lives of others and let that increase your hope, not your envy.`,
 			},
 		],
 		quranSurahs: ["Maryam (Sura 19)", "Al-Imran (Sura 3)", "Al-Anbiya (Sura 21)"],
 	},
 	isa: {
-		shortIntro: "The complete story of Prophet Isa ibn Maryam, one of the great messengers of Allah sent to the Children of Israel. Born miraculously without a father, he spoke from the cradle, performed miracles by Allah's permission, and was raised alive to the heavens. His story is filled with miracles, mercy, tests, and clear truth.",
+		shortIntro: "Prophet Isa ibn Maryam (peace be upon him) is one of the greatest messengers of Allah. Ibn Kathir presents his story with deep detail: the choosing of Mary, miraculous birth without a father, cradle speech, powerful miracles by Allah's permission, call to pure tawhid, opposition from hostile priests, the disciples, the heavenly table, and Allah's raising of Isa while refuting all false claims of divinity.",
 		sections: [
 			{
-				title: "Part 1: Maryam chosen and honored by Allah",
-				body: `Before the birth of Isa, Allah chose a pure and righteous woman named Maryam.\n\nShe was devoted to worship and protected by Allah from all evil.\n\nAllah says: "Indeed, Allah chose Adam, Nuh, the family of Ibrahim, and the family of Imran over the worlds." (Qur'an 3:33)\n\nMaryam was from this honored family, and Allah elevated her status above all women of her time.`,
+				title: "Allah Declares He Has No Son",
+				body: `In many verses of the Glorious Qur'an Allah the Exalted denied the claim that He has a son. A delegation from Najran discussed the Trinity, and Allah clarified that Isa is a servant and messenger - created in Maryam's womb by divine command, just as Adam was created without father and mother.\n\nIbn Kathir emphasizes that Isa's miraculous creation is a sign of Allah's power, not evidence of sonship or divinity.`,
 			},
 			{
-				title: "Part 2: Angel Jibril's visit and the announcement",
-				body: `Maryam withdrew from her people to a place of worship, dedicating herself to Allah.\n\nThen Allah sent Angel Jibril to her in the form of a perfect human man.\n\nMaryam was frightened and sought refuge in Allah.\n\nThe angel said: "I am only a messenger of your Lord to give you a pure boy." (Qur'an 19:19)\n\nMaryam asked: "How can I have a son when no man has touched me?"\n\nThe angel replied: "It is easy for Allah." (Qur'an 19:21)`,
+				title: "The Birth of Mary - Quranic and Historical Context",
+				body: `Allah the Almighty said He chose Adam, Nuh, the family of Ibrahim, and the family of Imran. The wife of Imran vowed what was in her womb for Allah's service. When she delivered a daughter, she named her Mary and sought protection for her and her offspring from Satan (Qur'an 3:33-36).\n\nIbn Kathir narrates Hannah's long yearning for a child, her vow, the death of Imran during pregnancy, and Maryam's delivery into temple care. Through drawing lots, Zakariyah became her guardian, and Allah honored this choice.`,
 			},
 			{
-				title: "Part 3: The miraculous birth without a father",
-				body: `Maryam gave birth to Isa without a father — a miracle and sign from Allah.\n\nThis showed Allah's absolute power to create as He wills, without any means.\n\nDuring the birth, Maryam felt pain and sorrow, being alone and afraid of what people would say.\n\nBut Allah comforted her, saying: "Do not grieve. Your Lord has provided beneath you a stream." (Qur'an 19:24)\n\nAllah also told her to shake the palm tree, and fresh dates fell for her to eat.`,
+				title: "Mary's Sustenance and High Status",
+				body: `Whenever Zakariyah entered her prayer chamber, he found provision with her. She said: "It is from Allah. Verily, Allah provides sustenance to whom He wills without limit" (Qur'an 3:37).\n\nIbn Kathir also cites prophetic narrations honoring Mary among the greatest women. These scenes prepared the believer to understand the coming miracle of Isa's birth.`,
 			},
 			{
-				title: "Part 4: Speaking from the cradle - the first miracle",
-				body: `Allah commanded Maryam to remain silent and let the baby speak for her.\n\nWhen she returned to her people carrying the baby, they accused her of wrongdoing.\n\nMaryam simply pointed to the baby Isa in her arms.\n\nThen, miraculously, Isa spoke from the cradle as a newborn infant.\n\nHe said: "Indeed, I am the servant of Allah. He has given me the Scripture and made me a prophet." (Qur'an 19:30)\n\nThis was the first miracle of Prophet Isa, proving his mother's innocence and his own prophethood.`,
+				title: "Mary Receives News of Jesus",
+				body: `While Mary was in worship, an angel came in the form of a man. She sought refuge in Allah. He said: "I am only a Messenger from your Lord, to announce to you a righteous son." She asked how this could be when no man had touched her. The answer came: "That is easy for Allah" (Qur'an 19:18-21).\n\nThis announcement established both Mary's purity and Allah's absolute creative power.`,
 			},
 			{
-				title: "Part 5: His message and call to pure monotheism",
-				body: `When Isa grew up, Allah sent him as a prophet to the Children of Israel.\n\nHis mission was to call people to worship Allah alone, without any partners.\n\nHe came to confirm the Torah that was revealed before him.\n\nHe also came to correct the corruption and deviations among the Children of Israel.\n\nIsa said clearly: "Indeed, Allah is my Lord and your Lord, so worship Him." (Qur'an 3:51)\n\nHe never claimed divinity for himself — he was a servant and messenger of Allah.`,
+				title: "The Birth of Jesus and Return to the City",
+				body: `Mary withdrew to a distant place and gave birth by a palm tree. She cried in distress, then Allah comforted her with water and ripe dates (Qur'an 19:22-26).\n\nWhen she returned carrying Isa, the people accused her. She pointed to the infant, and Isa spoke in the cradle: "Verily! I am a slave of Allah. He has given me the Scripture and made me a Prophet..." (Qur'an 19:27-33).\n\nIbn Kathir presents this as public vindication of Mary and immediate declaration of Isa's servanthood.`,
 			},
 			{
-				title: "Part 6: Miracles by Allah's permission",
-				body: `Allah supported Isa with many extraordinary miracles, all by Allah's permission.\n\nAllah says: "I heal the blind and the leper, and I give life to the dead — by Allah's permission." (Qur'an 3:49)\n\nOther miracles included:\n\nSpeaking as a baby in the cradle.\n\nMaking a bird from clay, breathing into it, and it becoming a real bird by Allah's permission.\n\nKnowing what people ate in their homes and what they stored away.\n\nAll these miracles were to prove his prophethood, not to claim any divinity — they were all by Allah's permission and power.`,
+				title: "Jesus's Message and Moral Reform",
+				body: `As Isa grew, he called people to Allah alone, denounced hypocrisy, and revived the spirit of revelation, not merely ritual formalism. Ibn Kathir describes his confrontation with priestly corruption, materialism, and misuse of religious authority.\n\nHe taught purity of heart, mercy, repentance, and the true spirit of the Torah while confirming that worship belongs only to Allah.`,
 			},
 			{
-				title: "Part 7: The disciples - sincere believers",
-				body: `A group of sincere followers believed in Isa and his message.\n\nThey were called Al-Hawariyyun — the disciples.\n\nThey said with complete sincerity: "We believe in Allah, and bear witness that we are Muslims." (Qur'an 3:52)\n\nThey supported Isa in his mission and helped spread his message.\n\nThey asked Isa for a sign from Allah to strengthen their hearts and increase their faith.`,
+				title: "Miracles by Allah's Permission",
+				body: `Allah supported Isa with miracles: healing the blind and leper, reviving the dead, forming a bird from clay and breathing into it by Allah's leave, and informing people what they ate and stored (Qur'an 3:48-54, 5:110-111).\n\nIbn Kathir narrates additional reports about revivals of the dead and the massive public impact these signs had on belief and disbelief alike.`,
 			},
 			{
-				title: "Part 8: The table from heaven - a great sign",
-				body: `The disciples asked Isa to pray to Allah for a table of food to descend from heaven.\n\nIsa prayed sincerely to Allah, and Allah answered his prayer.\n\nAllah sent down the table, called Al-Ma'idah, as a great miracle and sign.\n\nBut Allah warned them: if anyone disbelieves after seeing this sign, they would face severe punishment.\n\nThis was a great test of their faith — would they remain believers after witnessing such a clear miracle?`,
+				title: "The Disciples and the Heavenly Table",
+				body: `The disciples declared faith and asked to be recorded among witnesses. They requested a table spread from heaven to reassure their hearts. Isa prayed, and Allah warned that disbelief after this sign would bring severe punishment (Qur'an 5:112-116).\n\nIbn Kathir reports that this became a major sign and test: gratitude and submission for the sincere, while later generations drifted into distortion.`,
 			},
 			{
-				title: "Part 9: The plot against Isa and Allah's perfect plan",
-				body: `The leaders among the Children of Israel became jealous and angry at Isa's message.\n\nThey rejected him and plotted to kill him.\n\nAllah tells us: "They planned, and Allah planned. And Allah is the best of planners." (Qur'an 3:54)\n\nThe truth is clear: They did not kill him, and they did not crucify him.\n\nAllah says: "They did not kill him, nor did they crucify him, but it was made to appear so to them." (Qur'an 4:157)\n\nAllah saved His prophet from their evil plot.`,
+				title: "Plot to Kill Jesus and Allah's Rescue",
+				body: `The hostile leadership plotted against Isa and moved toward execution. Ibn Kathir records widespread conspiracy and betrayal narratives, while the Qur'anic ruling is decisive:\n\n"They killed him not, nor crucified him, but it was made to appear so to them... But Allah raised him up unto Himself" (Qur'an 4:157-159), and "O Isa! I will take you and raise you to Myself" (Qur'an 3:55).\n\nThus Allah saved His messenger and defeated the plot.`,
 			},
 			{
-				title: "Part 10: Allah raises him alive and his return",
-				body: `Allah raised Isa alive to the heavens, body and soul.\n\nAllah says clearly: "Rather, Allah raised him to Himself." (Qur'an 4:158)\n\nIsa did not die, and he was not killed. Allah saved him and honored him by raising him to the heavens.\n\nAccording to Ibn Kathir, Isa will return to earth near the end of time.\n\nWhen he returns, he will:\n\nBreak the false beliefs about him.\n\nEstablish justice on earth.\n\nFollow the law of Prophet Muhammad.\n\nHe will be a sign of the Last Day approaching.\n\nIsa remains alive with Allah, and he will return as a follower of the final messenger, Muhammad.`,
+				title: "Quranic Refutation of False Beliefs",
+				body: `Ibn Kathir's chapter concludes with broad Qur'anic refutations: Allah has no son; Isa is messenger and servant; worship is for Allah alone; and trinity claims are false (Qur'an 4:171-173, 5:72-75, 9:30-32, 19:88-95, 112:1-4).\n\nIsa himself declared: "And verily Allah is my Lord and your Lord, so worship Him. That is the Straight Path."`,
 			},
 			{
 				title: "Moral lessons",
-				body: ` Allah creates as He wills — nothing is impossible for Him.\n\n Miracles do not mean divinity — all power belongs to Allah alone.\n\n Worship belongs only to Allah, not to any of His creation.\n\n Truth is often opposed by those in power, but Allah protects His messengers.\n\n Allah always protects His prophets and defeats the plots of their enemies.`,
+				body: ` Isa (peace be upon him) is a noble messenger, not divine, and his miracles were by Allah's permission.\n\n The purity of Maryam is a central truth protected by revelation and miracle.\n\n Religious leadership without sincerity can become corruption and oppression.\n\n Allah's plan prevails over every conspiracy against truth.\n\n Tawhid is the final and unchanging message of all prophets.`,
 			},
 			{
 				title: "Practical actions for students",
-				body: ` Never worship any created being — worship Allah alone.\n\n Believe in all the prophets of Allah, including Isa, as servants and messengers of Allah.\n\n Do not be deceived by false beliefs — study authentic Islamic teachings about Prophet Isa.\n\n Trust that Allah will always protect truth and His faithful servants.\n\n Remember that miracles are signs from Allah, not proof of divinity.`,
+				body: ` Memorize and reflect on Qur'an 19:30 and 3:51 to understand Isa's own call to servanthood and tawhid.\n\n Study one authentic tafsir passage weekly on verses about Isa and Maryam.\n\n Correct any mistaken statements about Isa with adab and clear evidence.\n\n Make dua for firmness on tawhid and protection from confusion.\n\n Practice mercy and truthfulness together, as taught in the prophetic mission.`,
 			},
 		],
-		quranSurahs: ["Maryam (Sura 19)", "Al-Imran (Sura 3)", "An-Nisa (Sura 4)", "Al-Ma'idah (Sura 5)"],
+		quranSurahs: ["Maryam (Sura 19)", "Al-Imran (Sura 3)", "An-Nisa (Sura 4)", "Al-Ma'idah (Sura 5)", "At-Tawbah (Sura 9)", "Al-Ikhlas (Sura 112)"] ,
 	},
 	muhammad: {
-		shortIntro: "The complete life of Prophet Muhammad, peace be upon him, the final messenger of Allah sent to all of humanity. Born as an orphan in Makkah, he received the final revelation at age 40, called people to worship Allah alone, endured persecution with patience, migrated to Madinah, built the Islamic state, and completed the message before his death. His life is the perfect example for all Muslims until the Last Day.",
+		shortIntro:
+			"Prophet Muhammad (peace and blessings be upon him) is the final messenger sent to all humanity. Ibn Kathir's chapter moves in a detailed historical flow: noble birth and orphanhood in Makkah, al-Amin character, first revelation in Hira, years of persecution, Hijrah and state formation in Madinah, Badr-Uhud-Khandaq, Hudaybiyyah, conquest of Makkah, delegations and expansion of Islam, Farewell Hajj, and completion of the message.",
 		sections: [
 			{
-				title: "Part 1: The world before his birth and his blessed lineage",
-				body: `Arabia lived in Jahiliyyah (ignorance):\n\nIdol worship (360 idols in the Ka'bah).\n\nTribal wars with no mercy.\n\nAlcohol, gambling, injustice.\n\nWomen treated as property.\n\nBaby girls buried alive.\n\nAllah chose Arabia for His final message.\n\nProphet Muhammad was born in Makkah in 570 CE, the Year of the Elephant.\n\nHis lineage: Muhammad ibn Abdullah ibn Abdul-Muttalib ibn Hashim (from the tribe of Quraysh, descendants of Isma'il ibn Ibrahim).\n\nFather Abdullah died before his birth.\n\nMother Aminah died when he was 6.\n\nGrandfather Abdul-Muttalib cared for him.\n\nThen uncle Abu Talib raised him.\n\nAllah prepared him through orphanhood, teaching compassion.`,
+				title: "Description of Muhammad",
+				body:
+`Ibn Kathir records that Prophet Muhammad (peace and blessings be upon him) was born in Makkah on Monday, 12 Rabi al-Awwal, in the Year of the Elephant.
+
+He was from the noble Quraysh line through Ismail, son of Ibrahim (peace be upon them). His father Abdullah died before his birth. His mother Aminah died when he was six. His grandfather Abd al-Muttalib cared for him, then his uncle Abu Talib.
+
+These early losses trained him in patience, trust in Allah, and compassion for the weak and orphaned.`,
 			},
 			{
-				title: "Part 2: His childhood, youth, and early reputation",
-				body: `He lived among Banu Sa'd.\n\nBreastfed by Halimah.\n\nKnown for calm behavior and intelligence.\n\nWorked as a shepherd (like all prophets).\n\nHe never:\n\nBowed to idols.\n\nDrank alcohol.\n\nLied or cheated.\n\nPeople called him:\n\nAl-Amin (The Trustworthy).\n\nAs-Sadiq (The Truthful).\n\nEveryone in Makkah knew him as honest and noble, even before prophethood.`,
+				title: "Journey to Busra and Recognition by Bahira",
+				body:
+`At around twelve, he traveled with Abu Talib toward Busra in Syria. Ibn Kathir mentions the monk Bahira recognizing signs of future prophethood and advising that the boy be protected.
+
+This incident became part of the early signs narrative in seerah and increased concern for his safety.
+
+He returned to Makkah with growing maturity, dignity, and a reputation for trust.`,
 			},
 			{
-				title: "Part 3: Marriage to Khadijah and rebuilding the Ka'bah",
-				body: `At age 25, he married Khadijah bint Khuwaylid:\n\nNoble.\n\nWealthy.\n\nIntelligent.\n\n15 years older.\n\nShe trusted him fully and later became the first believer in Islam.\n\nYears later, Quraysh rebuilt the Ka'bah after flood damage.\n\nThey fought over who would place the Black Stone.\n\nMuhammad:\n\nPut the stone on a cloth.\n\nHad all tribes lift together.\n\nPlaced it himself.\n\nAllah showed his wisdom before prophethood.`,
+				title: "Part 3: Al-Amin and Solitary Reflection",
+				body:
+`In Makkah he became known as al-Amin for honesty, fairness, and reliability. He stayed away from idolatrous corruption and protected rights where possible.
+
+Ibn Kathir describes his thoughtful nature and concern over lawlessness, tribal injustice, and spiritual decline. This inner burden prepared him for revelation and mission.`,
 			},
 			{
-				title: "Part 4: The first revelation at age 40",
-				body: `He used to worship in Cave Hira'.\n\nAngel Jibril came and said: "Read!"\n\nThe Prophet replied: "I cannot read."\n\nThen revelation came:\n\n"Read in the Name of your Lord who created" (Qur'an 96:1–5)\n\nHe returned home trembling.\n\nKhadijah said: "Allah will never disgrace you."\n\nWaraqah ibn Nawfal confirmed: "You are the Prophet of this nation."\n\nRevelation paused for a short time.\n\nThe Prophet was anxious.\n\nThen Allah revealed:\n\n"O you wrapped in garments, arise and warn" (Qur'an 74:1–2)\n\nThe mission began.`,
+				title: "Part 4: Marriage to Khadijah and Public Trust",
+				body:
+`At age twenty-five he led Khadijah's trade caravan with exceptional integrity. She later proposed marriage, and this marriage became a major source of support, stability, and mercy.
+
+Ibn Kathir also records his kindness with family and dependents, including Zayd ibn Harithah, whom he treated with honor and affection.
+
+When Quraysh disputed over placing the Black Stone during rebuilding of the Kabah, he solved the crisis by placing the stone on a cloth, having all tribal leaders lift it together, then setting it in place himself. This prevented civil conflict and strengthened his standing as a trusted arbiter.`,
 			},
 			{
-				title: "Part 5: Beginning of the mission - private and public da'wah",
-				body: `Private Da'wah:\n\nKhadijah.\n\nAbu Bakr.\n\n'Ali.\n\nZayd ibn Harithah.\n\nPublic Da'wah:\n\nHe stood on Mount Safa and called Quraysh.\n\nHe warned them to worship Allah alone.\n\nThey mocked him.\n\nThey rejected the message.\n\nBut he continued calling them patiently and with wisdom.`,
+				title: "Part 5: Seclusion in Hira and First Revelation",
+				body:
+`Before prophethood he increasingly withdrew to Cave Hira for worship and reflection. There Jibril came with the first command: "Read," and the opening verses of Surah Al-Alaq were revealed (Quran 96:1-5).
+
+He returned shaken to Khadijah, who reassured him and took him to Waraqah ibn Nawfal, who affirmed that the same angelic messenger who came to Musa had now come to him.
+
+After a pause in revelation, the command came to rise and warn (Quran 74:1-3), marking the beginning of active mission.`,
 			},
 			{
-				title: "Part 6: Persecution in Makkah and the Year of Sadness",
-				body: `Muslims were:\n\nBeaten.\n\nStarved.\n\nTortured.\n\nExamples:\n\nBilal dragged on hot sand.\n\nSumayyah killed (first martyr).\n\nBoycott lasted 3 years:\n\nNo food.\n\nNo marriage.\n\nNo trade.\n\nThen came the Year of Sadness:\n\nTwo huge losses:\n\nKhadijah (ra) died.\n\nAbu Talib died.\n\nProtection ended.\n\nThe persecution increased after this.`,
+				title: "Part 6: Early Converts and Public Call",
+				body:
+`The earliest believers included Khadijah, Ali, Zayd ibn Harithah, and Abu Bakr (may Allah be pleased with them), followed by others from different social classes.
+
+Ibn Kathir describes an initial private phase, then public proclamation of tawhid in Makkah. The Prophet (peace and blessings be upon him) called Quraysh to leave idols and worship Allah alone.
+
+Opposition intensified because this message challenged false religion, tribal pride, and unjust social order.`,
 			},
 			{
-				title: "Part 7: Ta'if rejection, Isra & Mi'raj, and Hijrah to Madinah",
-				body: `He went to Ta'if seeking support.\n\nThey:\n\nMocked him.\n\nThrew stones.\n\nMade him bleed.\n\nAngel offered destruction.\n\nHe replied: "I hope their children will worship Allah."\n\nThen came Al-Isra & Al-Mi'raj:\n\nNight journey to Jerusalem.\n\nAscended through the heavens.\n\nMet prophets.\n\nSalah made obligatory.\n\n"Glory be to Him who took His servant by night" (17:1)\n\nLater, Quraysh planned assassination.\n\nHe left with Abu Bakr.\n\nIn Cave Thawr:\n\n"Do not grieve, Allah is with us" (9:40)\n\nArrived in Madinah to great joy.`,
+				title: "Part 7: Quraysh Resistance and Demands for Miracles",
+				body:
+`Quraysh tried many methods: ridicule, accusations, social pressure, and offers of wealth and leadership if he would stop the message. He refused all compromise.
+
+Ibn Kathir notes repeated demands for extraordinary signs while they rejected the clearest sign already present: the Quran itself. The Prophet warned them through Qur'anic recitation and examples of destroyed nations who denied earlier messengers.
+
+The Prophet stayed firm, patient, and truthful despite intensifying hostility.`,
 			},
 			{
-				title: "Part 8: Building the Islamic state and major battles",
-				body: `He built the Islamic state:\n\nBuilt mosque.\n\nUnited Muhajirun & Ansar.\n\nEstablished law & justice.\n\nWrote treaties.\n\nMajor Battles:\n\nBadr:\n\n313 Muslims vs 1000.\n\nAngels supported Muslims.\n\n"Allah helped you at Badr" (3:123)\n\nUhud:\n\nArchers disobeyed.\n\nMuslims lost.\n\nProphet injured.\n\nLesson: obedience.\n\nKhandaq:\n\nTrench strategy.\n\nEnemies retreated.\n\nAllah protected the believers.`,
+				title: "Part 8: Persecution and First Hijrah to Abyssinia",
+				body:
+`As torture and oppression increased, the Prophet permitted believers to migrate to Abyssinia under the just ruler al-Najashi.
+
+Ibn Kathir includes Ja'far ibn Abi Talib's clear explanation of Islam before the king: truthfulness, prayer, charity, chastity, justice, and rejection of idolatry.
+
+The Muslims found temporary safety there, showing that preserving faith can require migration when persecution becomes severe.`,
 			},
 			{
-				title: "Part 9: Hudaybiyah, conquest of Makkah, and final years",
-				body: `Hudaybiyah:\n\nSeemed unfair, but Allah said:\n\n"Indeed We have given you a clear victory" (48:1)\n\nIslam spread rapidly.\n\nConquest of Makkah:\n\nNo revenge.\n\nHe said: "Go, you are free."\n\nDestroyed idols.\n\n"Truth has come and falsehood has vanished" (17:81)\n\nFinal Years:\n\nLetters to kings.\n\nTribes accepted Islam.\n\nYear of Delegations.\n\nIslam spread throughout Arabia and beyond.`,
+				title: "Part 9: Boycott, Year of Sadness, and Taif",
+				body:
+`Quraysh imposed a harsh boycott on Banu Hashim and Banu al-Muttalib. Ibn Kathir describes severe hardship before the pact was finally broken.
+
+Then came the Year of Sadness with the deaths of Abu Talib and Khadijah (may Allah be pleased with her), losing both external protection and inner support.
+
+He later went to Taif seeking support, but was rejected and harmed. Even then he hoped their future generations would worship Allah.`,
 			},
 			{
-				title: "Part 10: Farewell pilgrimage and his death",
-				body: `Farewell Pilgrimage:\n\nHe said:\n\nNo racism.\n\nWomen have rights.\n\nHold Qur'an & Sunnah.\n\n"Today I have perfected your religion" (5:3)\n\nDeath of the Prophet:\n\nHe fell ill.\n\nLast advice: "Prayer… prayer…"\n\nDied in 'A'ishah's room.\n\nAbu Bakr said:\n\n"Whoever worshipped Muhammad, he has died. Whoever worships Allah, Allah is Ever-Living."\n\nHis legacy:\n\nHe completed the message.\n\nHe left the Qur'an and Sunnah.\n\nHe is the final prophet.\n\nHe is the example for all of humanity until the Last Day.`,
+				title: "Part 10: Al-Isra wal-Miraj and Five Daily Prayers",
+				body:
+`Allah honored His Messenger with the night journey from al-Masjid al-Haram to al-Masjid al-Aqsa, then ascension through the heavens.
+
+Ibn Kathir records narrations of meeting prophets in the heavens and the command of fifty prayers, then repeated return for reduction until five remained, with reward of fifty in value.
+
+This event strengthened believers and established salah as the daily pillar connecting the ummah to Allah.`,
+			},
+			{
+				title: "Part 11: Pledges of Aqabah and the Hijrah",
+				body:
+`Delegations from Yathrib accepted Islam and pledged support at al-Aqabah, opening the path for Hijrah.
+
+When Quraysh plotted assassination, the Prophet departed with Abu Bakr. They stayed in the Cave of Thawr while pursuers searched nearby.
+
+Ibn Kathir also narrates the pursuit of Suraqah ibn Malik, whose horse repeatedly stumbled as he attempted to capture them, and he eventually withdrew. The Prophet reached Quba, then entered Madinah to great welcome.`,
+			},
+			{
+				title: "Part 11: Building the Madinah state and Charter",
+				body:
+`In Madinah, he built the mosque, established brotherhood between Muhajirun and Ansar, and organized a revealed social order.
+
+Ibn Kathir records the Charter of Madinah: one civic community, rights and obligations, defense cooperation, and reference of disputes to Allah and His Messenger.
+
+This transformed tribal conflict into covenant-based governance and justice.`,
+			},
+			{
+				title: "Part 12: Badr and its consequences",
+				body:
+`At Badr, a small Muslim force faced a larger Makkan army. Allah granted decisive victory and strengthened the believers (Quran 3:123-127).
+
+Ibn Kathir notes the discipline of command, strategic placement, and the moral effect of victory on Arabia.
+
+Treatment of prisoners showed prophetic balance: firmness in justice with mercy and human dignity.`,
+			},
+			{
+				title: "Part 13: Uhud and lessons in obedience",
+				body:
+`At Uhud, the Muslims initially advanced but the battle turned when some archers left their assigned position. The Prophet was injured and many companions were martyred.
+
+The Quran explained the setback as a test, purification, and lesson in obedience and unity.
+
+Ibn Kathir highlights that temporary loss did not break the mission; it educated the ummah.`,
+			},
+			{
+				title: "Part 14: Confederates, internal betrayal, and perseverance",
+				body:
+`In the Battle of al-Khandaq (the Confederates), Madinah faced a coalition attack. The trench strategy blocked direct assault.
+
+The siege brought fear, hunger, and pressure, along with internal betrayal by hostile elements.
+
+Through patience, unity, and Allah's aid, the coalition failed and withdrew.`,
+			},
+			{
+				title: "Part 15: Hudaybiyyah and strategic opening",
+				body:
+`The Treaty of Hudaybiyyah appeared difficult to many companions but became a turning point. Ibn Kathir presents it as clear political wisdom and a manifest opening (Quran 48).
+
+Truce conditions reduced warfare, allowed wider interaction, and accelerated entry into Islam.
+
+This period shows prophetic leadership through foresight, restraint, and long-term planning.`,
+			},
+			{
+				title: "Part 16: Letters to rulers and expansion of call",
+				body:
+`Ibn Kathir records the Prophet's letters to regional rulers, including Heraclius of Byzantium, inviting them to Islam with clarity and dignity.
+
+Some responses were respectful, some hostile, but the message had moved beyond Arabia's tribal frame into global invitation.
+
+This stage demonstrates the universality of his mission.`,
+			},
+			{
+				title: "Part 17: Conquest of Makkah and removal of idols",
+				body:
+`After treaty violations by Quraysh allies, the Prophet marched on Makkah and entered with broad amnesty and minimal bloodshed.
+
+He purified the Kabah from idols and proclaimed the triumph of truth over falsehood (Quran 17:81).
+
+Ibn Kathir emphasizes this as victory without revenge and power with mercy.`,
+			},
+			{
+				title: "Part 18: Hunayn, Tabuk era, and Year of Delegations",
+				body:
+`After Makkah, major confrontations such as Hunayn occurred, followed by wider consolidation of Muslim authority.
+
+In the following phase, Arab delegations came to Madinah in large numbers, accepting Islam and forming covenant relations.
+
+The ninth year became known as the Year of Delegations, marking the end of idolatrous political dominance in Arabia.`,
+			},
+			{
+				title: "Part 19: Farewell Hajj and completion of guidance",
+				body:
+`In the Farewell Hajj, he taught core principles: sanctity of life and wealth, justice in social dealings, trust obligations, and brotherhood of believers.
+
+His sermon at Arafah summarized prophetic ethics for the ummah: no oppression, no tribal superiority, and responsibility before Allah.
+
+This phase marked completion and full delivery of the mission.`,
+			},
+			{
+				title: "Part 20: Final illness, passing, and Abu Bakr's clarity",
+				body:
+`In his final illness he remained concerned with prayer, justice, and trusts. He passed away in the room of Aishah (may Allah be pleased with her).
+
+When people were shaken, Abu Bakr recited the decisive truth: "Muhammad is no more than a messenger; messengers passed away before him" (Quran 3:144). He said: whoever worshipped Muhammad, Muhammad has died; whoever worships Allah, Allah is Ever-Living.
+
+Ibn Kathir closes by affirming that the Prophet fully delivered revelation and left the ummah on clear guidance.`,
 			},
 			{
 				title: "Moral lessons",
-				body: ` Mercy is strength, not weakness.\n\n Patience builds nations and changes the world.\n\n Islam transforms societies from darkness to light.\n\n The Prophet is our perfect example in worship, character, leadership, and patience.\n\n The message of Islam is complete and will never be changed until the Last Day.`,
+				body: ` Prophetic leadership combines worship, law, mercy, strategy, and courage.
+
+ The Makkan phase teaches sabr under persecution; the Madinan phase teaches governance with justice.
+
+ Victory is not revenge; it is restoration of truth with mercy.
+
+ Treaties, diplomacy, and patience are prophetic strengths, not weakness.
+
+ Finality of prophethood requires loyalty to Quran and authentic Sunnah in belief and action.`,
 			},
 			{
 				title: "Practical actions for students",
-				body: ` Follow the Sunnah of the Prophet in daily life.\n\n Study his biography (Seerah) regularly.\n\n Send blessings upon him: "Peace and blessings be upon him."\n\n Defend his honor and teachings.\n\n Be merciful, patient, and honest like him in all situations.`,
+				body: ` Read one section of seerah weekly and write one action point from it.
+
+ Send daily salawat on the Prophet (peace and blessings be upon him).
+
+ Practice one Sunnah trait each week: truthfulness, mercy, patience, or promise-keeping.
+
+ In conflict, choose justice and forgiveness over ego and retaliation.
+
+ Protect the five daily prayers, especially on time and with focus.`,
 			},
 		],
-		quranSurahs: ["Al-Alaq (Sura 96)", "Al-Muddaththir (Sura 74)", "Al-Isra (Sura 17)", "At-Tawbah (Sura 9)", "Al-Imran (Sura 3)", "Al-Fath (Sura 48)", "Al-Ma'idah (Sura 5)"],
+		quranSurahs: ["Al-Alaq (Sura 96)", "Al-Muddaththir (Sura 74)", "Al-Isra (Sura 17)", "An-Najm (Sura 53)", "Al-Imran (Sura 3)", "Al-Anfal (Sura 8)", "Al-Ahzab (Sura 33)", "Al-Fath (Sura 48)", "At-Tawbah (Sura 9)", "Al-Ma'idah (Sura 5)", "Al-Hujurat (Sura 49)", "Muhammad (Sura 47)"],
 	},
 };
 
 const SUPPLEMENTAL_IBN_KATHIR_STORIES: Partial<Record<string, StoryContent>> = {
 	ismail: {
 		shortIntro:
-			"Ismail (peace be upon him) was the son of Ibrahim and Hajar. Ibn Kathir narrates his infancy in Makkah, Zamzam, helping build the Ka'bah, and the great trial of sacrifice that showed complete submission to Allah.",
+			"Prophet Ismail (peace be upon him) was the noble son of Prophet Ibrahim (peace be upon him) and Hajar. His story is one of desert hardship, trust in Allah, family obedience, the rise of Makkah, the spring of Zamzam, the rebuilding of the Ka'bah, and the unforgettable test of sacrifice. It is a story in which a child in a barren valley becomes part of a legacy that would shape the worship of millions until the end of time.",
 		sections: [
-			{ title: "Part 1: Birth of Ismail", body: "Ismail (peace be upon him) was born to Ibrahim and Hajar as a major blessing after years of waiting. Allah honored his family with a prophetic line through him." },
-			{ title: "Part 2: Valley of Makkah", body: "By Allah's command, Ibrahim left Hajar and baby Ismail in the barren valley of Makkah. Hajar asked if this was Allah's command; when told yes, she trusted fully." },
-			{ title: "Part 3: Search between Safa and Marwah", body: "When water ran low, Hajar ran between Safa and Marwah seeking help. Her effort and trust became a lasting symbol in Islamic worship." },
-			{ title: "Part 4: Zamzam springs", body: "Allah sent relief: Zamzam sprang near Ismail. This divine provision turned a barren valley into a place of life and future guidance." },
-			{ title: "Part 5: Settlement of Makkah", body: "Travelers settled around Zamzam. Ismail grew among them and learned Arabic. Allah prepared him for prophethood and service to tawhid." },
-			{ title: "Part 6: The sacrifice vision", body: "Ibrahim saw in a dream that he must sacrifice his son. He consulted Ismail, who replied with obedience and patience, showing full trust in Allah." },
-			{ title: "Part 7: Trial fulfilled, ransom granted", body: "When father and son submitted, Allah replaced the sacrifice with a great ram and praised their sincerity. Their submission became a model for all believers." },
-			{ title: "Part 8: Building the Ka'bah", body: "Ibrahim and Ismail raised the foundations of the Ka'bah, praying: 'Our Lord, accept from us.' Their work established the center of pure worship." },
-			{ title: "Part 9: Dua for a messenger", body: "They supplicated for a messenger among their descendants who would teach the Book and wisdom. This dua was fulfilled in Prophet Muhammad (peace be upon him)." },
-			{ title: "Part 10: Ismail's legacy", body: "Ismail remained truthful to promises, committed to prayer, and patient. His life combines obedience, trust, effort, and leadership in worship." },
-			{ title: "Moral lessons", body: " Obedience is strongest when command is difficult.\n\n Tawakkul means trust plus effort.\n\n Family cooperation in worship builds lasting legacy.\n\n Allah rewards sincere submission with honor." },
-			{ title: "Practical actions for students", body: " Read Qur'an 2:125-129 and 37:100-111.\n\n Practice immediate obedience in one difficult duty this week.\n\n Make dua with your family after salah for guidance and acceptance." },
+			{
+				title: "Part 1: A child left in a silent valley",
+				body: `The story of Prophet Ismail (peace be upon him) begins in one of the most moving scenes in prophetic history. By the command of Allah, Prophet Ibrahim (peace be upon him) brought Hajar and her infant son Ismail to a barren valley where there was no cultivated land, no settled town, and no visible source of life. It was the place where the Sacred House would one day stand, but at that moment it looked empty, harsh, and silent.
+
+When Prophet Ibrahim (peace be upon him) turned to leave, Hajar followed him and asked whether Allah had commanded this. When he answered yes, her heart settled even though the valley remained empty before her. She said with certainty that Allah would not neglect them. Then Prophet Ibrahim (peace be upon him) raised one of the most beautiful du'as in the Qur'an, asking Allah to make hearts incline toward them and to provide them with fruits. The story of Makkah begins not with buildings, but with tawakkul, tears, and dua.`,
+			},
+			{
+				title: "Part 2: A mother's running between hope and fear",
+				body: `Soon the little water and food were gone. The cries of baby Prophet Ismail (peace be upon him) grew urgent with thirst, and Hajar could not stand still. She ran to Safa, looking for help. She saw no one. Then she rushed to Marwah. Again, nothing. Back and forth she ran, again and again, driven by desperation, love, and trust in Allah.
+
+This running was not panic without faith. It was faith in motion. Ibn Kathir records this event as the origin of sa'y in Hajj. Hajar teaches every believer that tawakkul is not passive. She trusted Allah completely, but she also used every effort available to her.`,
+			},
+			{
+				title: "Part 3: Zamzam bursts forth beside Prophet Ismail (peace be upon him)",
+				body: `Then relief came from where no human being could have expected it. By Allah's mercy, water sprang forth near Prophet Ismail (peace be upon him). The angel had come, and the dry valley suddenly held life. Hajar hurried to gather and contain the water, protecting it carefully.
+
+Ibn Kathir transmits the prophetic report that if she had not gathered it, Zamzam would have flowed as an open stream. But even as a contained spring, it became one of the greatest signs in sacred history. The crying child in the desert had become the means by which Allah brought forth a well that would serve believers for generations upon generations.`,
+			},
+			{
+				title: "Part 4: From empty desert to a growing settlement",
+				body: `Travelers from Jurhum noticed birds circling over the valley and realized there must be water there. When they arrived and found Zamzam, they asked Hajar permission to settle nearby, and she agreed while preserving her connection to the well. In this way, the valley that had looked abandoned began to fill with life.
+
+Prophet Ismail (peace be upon him) grew up among Jurhum. He learned Arabic from them, became known for noble character, and matured in a place that Allah was preparing for a far greater future. A lonely valley was slowly becoming Makkah, and the child once left there helpless was growing into one of Allah's honored prophets.`,
+			},
+			{
+				title: "Part 5: Ibrahim's return and the lessons of the household",
+				body: `Years later, Prophet Ibrahim (peace be upon him) returned to visit Prophet Ismail (peace be upon him). On one visit he met Ismail's wife while Ismail was away and found in her words ingratitude and hardship of spirit. So he left a subtle message for his son: change the threshold of your door. Prophet Ismail (peace be upon him) understood immediately that his father was instructing him to separate from that marriage.
+
+On a later visit, Prophet Ibrahim (peace be upon him) met another wife of Prophet Ismail (peace be upon him), and this time he heard gratitude, contentment, and better character. So he left a different message: keep your threshold. Ibn Kathir includes this account to show that righteous homes are built not only on lineage, but on gratitude, faith, and character.`,
+			},
+			{
+				title: "Part 6: Father and son raise the Ka'bah",
+				body: `Then came one of the greatest honors in the life of Prophet Ismail (peace be upon him). Allah commanded Prophet Ibrahim (peace be upon him) to raise the foundations of the Ka'bah, and Prophet Ismail (peace be upon him) stood beside him helping with the work. One brought stones, the other placed them, and both were engaged not in worldly construction but in sacred worship.
+
+As they built, they made dua with humility: our Lord, accept this from us; indeed, You are the All-Hearing, the All-Knowing. That is one of the most beautiful parts of the story. Even while performing one of the greatest acts in history, they did not rely on the greatness of the act itself. They asked Allah to accept it. This is the adab of prophets.`,
+			},
+			{
+				title: "Part 7: A prayer that reached the final Prophet",
+				body: `After the House was raised, Prophet Ibrahim (peace be upon him) and Prophet Ismail (peace be upon him) asked Allah for more than a building. They asked for a messenger to arise among their descendants who would recite revelation, teach the Book and wisdom, and purify the people.
+
+Muslim scholars explain that this dua was fulfilled in Prophet Muhammad (peace and blessings be upon him). That means the story of Prophet Ismail (peace be upon him) is tied not only to Makkah and the Ka'bah, but also to the final message sent to humanity. His life stands at the beginning of a line that reaches the Seal of the Prophets.`,
+			},
+			{
+				title: "Part 8: The test of sacrifice",
+				body: `Then came the test that made the name of Prophet Ismail (peace be upon him) unforgettable in the hearts of believers. Prophet Ibrahim (peace be upon him) saw in a dream that he was sacrificing his son. This was no ordinary dream. It was revelation, and it carried a command that would test both father and son at the deepest level.
+
+When Prophet Ibrahim (peace be upon him) spoke to Prophet Ismail (peace be upon him), the response of the son was as extraordinary as the obedience of the father. He said: do what you are commanded; you will find me, if Allah wills, among the patient. There was no dramatic resistance, no rebellion, no attempt to escape. There was surrender, courage, and trust in Allah. This scene is one of the purest expressions of Islam in its literal sense: submission.`,
+			},
+			{
+				title: "Part 9: Allah replaces the sacrifice and honors them both",
+				body: `When both father and son had fully submitted, Allah replaced the sacrifice with a great ransom. The knife did not take the life of Prophet Ismail (peace be upon him), because the point of the trial had already been fulfilled. The obedience had been proven. The love of Allah had been placed above every other attachment.
+
+Ibn Kathir highlights this as one of the clearest proofs that Allah does not waste sincere obedience. That is why the Ummah remembers this event every year in Eid al-Adha. It is not remembered as distant history only, but as living gratitude, living submission, and living trust.`,
+			},
+			{
+				title: "Part 10: Prophet Ismail (peace be upon him) as a prophet of promise and prayer",
+				body: `The Qur'an describes Prophet Ismail (peace be upon him) as truthful to his promise and as one who commanded his family to pray and give zakah. This description is powerful because it shows his greatness not only in dramatic moments, but in steady daily faithfulness.
+
+Ibn Kathir presents Prophet Ismail (peace be upon him) as a prophet of obedience, covenant-keeping, prayer, family leadership, and long-term service to tawhid. His life began with thirst in the desert, moved through sacrifice and construction of the Ka'bah, and ended as a legacy woven permanently into Hajj, Makkah, and the final prophetic message.`,
+			},
+			{
+				title: "Moral lessons",
+				body: ` Tawakkul means trust in Allah joined with serious effort.\n\n A barren place can become blessed by Allah's decree.\n\n Gratitude strengthens homes; ingratitude weakens them.\n\n The greatest acts require humility and dua for acceptance.\n\n Obedience to Allah is the highest proof of love.\n\n Family cooperation in worship can shape generations.`,
+			},
+			{
+				title: "Practical actions for students",
+				body: ` Read and reflect on Qur'an 14:37-38, 2:127-129, 19:54-55, and 37:100-111.\n\n Write one dua for your family and repeat it daily for 7 days.\n\n Keep one promise this week with complete honesty.\n\n In one difficulty, practice Hajar's example: trust Allah and still take every lawful step you can.\n\n When you complete a good deed, make dua for acceptance instead of admiring yourself.`,
+			},
 		],
-		quranSurahs: ["Al-Baqarah", "As-Saffat", "Ibrahim", "Maryam"],
+		quranSurahs: ["Al-Baqarah", "Ibrahim", "As-Saffat", "Maryam"],
 	},
 	ishaq: {
 		shortIntro:
-			"Ishaq (peace be upon him) was the son of Ibrahim and Sarah, given as glad tidings in old age. Ibn Kathir highlights him as a blessed prophet from whom many later prophets descended.",
+			"Ishaq (peace be upon him) was the son granted to Ibrahim and Sarah in old age. Ibn Kathir notes that the Qur'an gives concise mention of his life while affirming his prophethood, blessing, and role in the continuation of the prophetic line.",
 		sections: [
-			{ title: "Part 1: Glad tidings", body: "Angels visited Ibrahim and gave glad tidings of a son, Ishaq, and after him Yaqub. This showed Allah's power beyond normal expectation." },
-			{ title: "Part 2: Sarah's amazement", body: "Sarah was astonished because of old age, but Allah's decree is never limited by age or circumstance." },
-			{ title: "Part 3: Birth of Ishaq", body: "Ishaq was born as a mercy and fulfillment of Allah's promise. His birth strengthened faith in divine promise and timing." },
-			{ title: "Part 4: House of prophethood", body: "Allah blessed Ibrahim's family with guidance and made Ishaq part of a prophetic household centered on worship and truth." },
-			{ title: "Part 5: Character and worship", body: "Ishaq grew as a righteous servant devoted to Allah. He inherited the prophetic mission of calling to tawhid." },
-			{ title: "Part 6: Continuity of message", body: "Through Ishaq's line came many prophets from Bani Isra'il. This continuity showed Allah's ongoing guidance to humanity." },
-			{ title: "Part 7: Test and gratitude", body: "The family remained grateful after blessing, recognizing that every child and every mission is an amanah from Allah." },
-			{ title: "Part 8: Leadership in faith", body: "Ishaq's life demonstrates quiet leadership: preserving worship, truthfulness, and prophetic ethics in family and community." },
-			{ title: "Part 9: Promise and patience", body: "The story teaches that delayed blessings are not denied blessings. Allah gives at the best time with the best wisdom." },
-			{ title: "Part 10: Legacy through Yaqub", body: "Ishaq's son Yaqub continued the line of prophethood. This family legacy became one of the greatest in sacred history." },
-			{ title: "Moral lessons", body: " Allah's promises are certain.\n\n Delay can be part of mercy.\n\n Blessed families are built on worship and gratitude.\n\n Guidance must be preserved across generations." },
-			{ title: "Practical actions for students", body: " Read Qur'an 11:69-73 and 37:112-113.\n\n Write one dua asking Allah to bless your family with faith.\n\n Thank Allah daily for family blessings and guidance." },
+			{
+				title: "Part 1: Glad tidings to Ibrahim and Sarah",
+				body: `Ibn Kathir records the Qur'anic account of angels visiting Ibrahim, then giving glad tidings of Ishaq and, after him, Yaqub (Qur'an 11:69-73). The news came when both Ibrahim and Sarah were advanced in age.\n\nThis established from the beginning that Ishaq's birth was a sign of Allah's unlimited power.`,
+			},
+			{
+				title: "Part 2: Sarah's amazement and the angels' response",
+				body: `Sarah reacted in astonishment at receiving news of a child in old age. The angels answered by redirecting her to Allah's decree and mercy, reminding the family that divine promise is never restricted by human expectation.\n\nIbn Kathir emphasizes this as a lesson in yaqeen (certainty) when circumstances seem impossible.`,
+			},
+			{
+				title: "Part 3: Ishaq as a blessed prophet",
+				body: `The Qur'an repeatedly includes Ishaq among the chosen and righteous prophets. Ibn Kathir presents him as part of the purified house of Ibrahim, carrying the same call of tawhid and obedience.\n\nHis life is less detailed in the Qur'an than some prophets, but his rank and blessing are clear.`,
+			},
+			{
+				title: "Part 4: Continuity of revelation through his line",
+				body: `Through Ishaq came Yaqub and many prophets among Bani Isra'il. Ibn Kathir treats this as a major dimension of Ishaq's legacy: continuity of guidance through generations.\n\nThis continuity is not lineage pride; it is responsibility to preserve revelation.`,
+			},
+			{
+				title: "Part 5: Reports about marriage and family",
+				body: `Ibn Kathir transmits historical reports that Ishaq married and was granted children, including Yaqub. He also cites details narrated by commentators regarding family tensions and migration.\n\nImportant note for students: many biographical details here come through historical reports and not explicit Qur'anic narration, so they are read with care.`,
+			},
+			{
+				title: "Part 6: The role of patience before blessing",
+				body: `Before Ishaq's birth there were long years of waiting. Ibn Kathir uses this to teach that delayed answers are not denied mercy. Allah grants at the appointed time with complete wisdom.\n\nThe household of Ibrahim remained grateful before and after blessing.`,
+			},
+			{
+				title: "Part 7: House of prophethood and worship",
+				body: `Ishaq grew within a home built on sacrifice, revelation, and obedience. That environment shaped a prophetic household where faith, dua, and worship were central.\n\nIbn Kathir highlights this as a model that spiritual legacy is built intentionally inside families.`,
+			},
+			{
+				title: "Part 8: Ishaq's rank in Islamic belief",
+				body: `Muslims affirm Ishaq as a true prophet and make no distinction in belief between Allah's messengers (Qur'an 2:136). Respecting all prophets is part of correct creed.\n\nIbn Kathir links Ishaq's mention to this broader Qur'anic principle.`,
+			},
+			{
+				title: "Part 9: Closing years and transmitted reports",
+				body: `Ibn Kathir includes reports about Ishaq's later life and death, including burial near his fathers. These details are transmitted in historical narrations and are not all equally strong in chain.\n\nStudents should distinguish between what is explicitly Qur'anic and what is reported historically.`,
+			},
+			{
+				title: "Part 10: Ishaq's enduring legacy",
+				body: `Ishaq's enduring legacy is faithful continuity: revelation preserved through generations, family worship sustained, and prophetic ethics transmitted.\n\nHis story teaches calm certainty, gratitude after waiting, and honor through obedience rather than worldly status.`,
+			},
+			{
+				title: "Moral lessons",
+				body: ` Allah's promise is true even when means look impossible.\n\n Not every authentic lesson needs long narrative detail.\n\n Families become blessed through worship and obedience.\n\n Distinguish clearly between Qur'anic certainty and historical reports.`,
+			},
+			{
+				title: "Practical actions for students",
+				body: ` Read Qur'an 11:69-73, 37:112-113, and 2:136.\n\n Make one dua daily for family guidance and consistency in worship.\n\n When studying seerah/history, label facts as "Qur'an explicit" or "historical report" to build disciplined understanding.`,
+			},
 		],
-		quranSurahs: ["Hud", "As-Saffat", "Adh-Dhariyat"],
+		quranSurahs: ["Hud", "As-Saffat", "Adh-Dhariyat", "Al-Baqarah"],
 	},
 	yaqub: {
 		shortIntro:
-			"Yaqub (peace be upon him), also known as Israel, was the son of Ishaq and father of Yusuf. Ibn Kathir presents him as a prophet of deep patience, wise parenting, and unwavering trust in Allah.",
+			"Prophet Ya'qub (peace be upon him), the son of Ishaq and grandson of Ibrahim, was a prophet of deep worship, family leadership, insight, and extraordinary patience. His story is not built around one dramatic miracle alone, but around years of love, grief, wisdom, and trust in Allah. Through separation, fear, and prolonged sorrow, Prophet Ya'qub (peace be upon him) remained a model of sabr jamil, hope, and unwavering tawhid.",
 		sections: [
-			{ title: "Part 1: Blessed lineage", body: "Yaqub was raised in the house of prophethood, inheriting knowledge and worship from Ibrahim and Ishaq." },
-			{ title: "Part 2: Father of many sons", body: "Allah gave Yaqub children, including Yusuf and his brother Binyamin. He cared deeply for all while remaining just." },
-			{ title: "Part 3: Yusuf's dream", body: "Yaqub understood Yusuf's dream and advised him with wisdom, protecting him from jealousy among brothers." },
-			{ title: "Part 4: Loss of Yusuf", body: "When brothers brought false news, Yaqub responded with 'beautiful patience' and placed his grief before Allah alone." },
-			{ title: "Part 5: Years of patience", body: "He endured long separation without despair, trusting Allah's mercy while continuing to guide his family." },
-			{ title: "Part 6: Reliance with planning", body: "Yaqub combined tawakkul with practical steps, advising his sons carefully while affirming Allah is the best protector." },
-			{ title: "Part 7: Hope never dies", body: "He instructed his sons not to despair of Allah's mercy, proving that hope is a core part of faith." },
-			{ title: "Part 8: Reunion and relief", body: "Allah reunited Yaqub with Yusuf after long hardship. Grief turned to gratitude through Allah's perfect decree." },
-			{ title: "Part 9: Family restored", body: "With forgiveness and humility, the family was restored. Yaqub witnessed Allah complete His promise." },
-			{ title: "Part 10: Final counsel", body: "Before death, Yaqub advised his children to remain on worship of Allah alone, preserving tawhid for future generations." },
-			{ title: "Moral lessons", body: " Beautiful patience is active faith.\n\n Never despair of Allah's mercy.\n\n Wise parenting includes emotional care and spiritual guidance.\n\n Tawakkul includes both trust and responsible action." },
-			{ title: "Practical actions for students", body: " Read Qur'an 12 carefully with translation.\n\n Practice saying 'I seek help from Allah' in hardship.\n\n Make one reconciliation step in family relationships this week." },
+			{
+				title: "Part 1: A prophet born into a house of revelation",
+				body: `Prophet Ya'qub (peace be upon him) was born into one of the most honored households in human history. He was the son of Prophet Ishaq (peace be upon him) and the grandson of Prophet Ibrahim (peace be upon him). He grew up in a home where revelation, worship, and obedience to Allah were not occasional acts but the center of life itself.
+
+This matters because the story of Prophet Ya'qub (peace be upon him) begins long before the loss of Prophet Yusuf (peace be upon him). He was already a prophet shaped by tawhid, discipline, and inherited responsibility. Belonging to a noble family did not make his path easy. It made his responsibility greater.`,
+			},
+			{
+				title: "Part 2: Early reports, movement, and the growth of his household",
+				body: `Ibn Kathir records historical reports about the early life of Prophet Ya'qub (peace be upon him), including family tensions, movement to other lands, and the building of his household over time. Some of these details come through transmitted historical narrations rather than direct Qur'anic wording, so they are read with respect and care.
+
+What remains clear is that Prophet Ya'qub (peace be upon him) was not merely a private worshipper. He was a leader of a family that would grow into a major prophetic line. His home would become the setting for one of the greatest tests of patience ever experienced by a prophet.`,
+			},
+			{
+				title: "Part 3: A father with many sons and a heavy trust",
+				body: `Allah gave Prophet Ya'qub (peace be upon him) many children, including Prophet Yusuf (peace be upon him) and Binyamin. A large family can be a blessing, but it can also become a place where love, jealousy, insecurity, and competition appear. As a prophet and father, Prophet Ya'qub (peace be upon him) had to guide hearts, not only manage a household.
+
+His role was larger than providing food and order. He had to preserve faith, teach character, and watch over the spiritual condition of his children. That is why his story feels so human and so powerful. It is the story of a prophet living inside the emotional complexity of family life.`,
+			},
+			{
+				title: "Part 4: The dream of Yusuf and a father's insight",
+				body: `When Prophet Yusuf (peace be upon him) came to his father with the dream of the eleven stars, the sun, and the moon prostrating, Prophet Ya'qub (peace be upon him) immediately understood that this dream carried great meaning. He did not laugh it away as childish imagination, nor did he announce it publicly. He understood both the beauty of the dream and the danger surrounding it.
+
+So he warned Prophet Yusuf (peace be upon him) not to tell the dream to his brothers. This was not secrecy without reason. It was wisdom. Prophet Ya'qub (peace be upon him) knew that jealousy can grow in hearts even within the same family. In this one moment, we see him clearly: loving, insightful, protective, and deeply aware of human weakness.`,
+			},
+			{
+				title: "Part 5: The night of the shirt and the beginning of grief",
+				body: `Then came the wound that would define so much of his life. The brothers returned at night weeping, carrying the false story that a wolf had eaten Prophet Yusuf (peace be upon him). They brought a shirt stained with false blood, but Prophet Ya'qub (peace be upon him) saw what they were hiding. The shirt did not convince him, and the behavior of his sons did not calm his heart.
+
+That was the moment in which he uttered one of the most famous responses in the Qur'an: beautiful patience. This did not mean he felt no pain. It meant he would not rebel against Allah. He would carry grief with dignity, sorrow with faith, and pain without accusing his Lord. This is what makes his patience so extraordinary.`,
+			},
+			{
+				title: "Part 6: Long years of absence, tears, and endurance",
+				body: `The loss of Prophet Yusuf (peace be upon him) was not a short test. It lasted for years. Prophet Ya'qub (peace be upon him) lived with memory, uncertainty, and aching absence. Every passing day stretched the test further. He had no grave to visit, no clear answer, no closure. Only longing, suspicion, and hope.
+
+Over time his grief became visible even in his body. His sorrow deepened and his eyes turned white from sadness. Yet even after so many years, he did not lose hope in Allah. This is one of the strongest lessons in his story: true hope is not measured by how easy the situation looks. It is measured by how firmly the heart remains attached to Allah when the situation looks impossible.`,
+			},
+			{
+				title: "Part 7: Another test through Binyamin",
+				body: `The trial of Prophet Ya'qub (peace be upon him) did not end with Yusuf. Later, when the food crisis drove his sons to Egypt and they were told to bring Binyamin, the old wound opened again. This was not simply a travel decision for him. It was the fear of losing another beloved son after the first had already been taken.
+
+Still, Prophet Ya'qub (peace be upon him) did not act recklessly or blindly. He took a solemn promise from his sons and then sent them with practical instruction, telling them not to enter by one gate but by different gates. In the same breath, he made clear that no plan can stand independently of Allah. Judgment belongs only to Allah. This is tawakkul in its correct form: take the means, but never trust the means more than the Lord of the means.`,
+			},
+			{
+				title: "Part 8: He complained only to Allah",
+				body: `When the second wave of grief struck and Binyamin too was held back, the pain of Prophet Ya'qub (peace be upon him) became even more intense. His sons could see that he was breaking under grief, but they did not understand the depth of his faith. He answered them with words that remain a lesson for all believers: he complained of his sorrow and grief only to Allah, and he knew from Allah what they did not know.
+
+This is one of the most beautiful parts of his story. He did not deny his sadness. He did not pretend to be untouched. He cried, remembered, and longed. But he carried all of that to Allah. That is the difference between despair and faith-filled grief.`,
+			},
+			{
+				title: "Part 9: Do not despair of Allah's mercy",
+				body: `Then came one of the greatest commands of hope in the Qur'an. Prophet Ya'qub (peace be upon him) told his sons to go and search for Prophet Yusuf (peace be upon him) and his brother, and not to despair of relief from Allah. After all the years, all the tears, all the disappointment, he was still teaching hope.
+
+That command is not only family advice. It is creed. Despair is not a mark of realism in Islam. It is a spiritual failure. Prophet Ya'qub (peace be upon him) was training his children, and all who read his story after them, to understand that Allah can open closed doors long after human beings think the story has ended.`,
+			},
+			{
+				title: "Part 10: The smell of Yusuf and the return of light",
+				body: `At last the hidden plan of Allah opened fully. The shirt of Prophet Yusuf (peace be upon him) was brought, and even before the caravan arrived, Prophet Ya'qub (peace be upon him) sensed that relief was near. When the shirt was placed upon his face, his sight returned by the mercy of Allah.
+
+Then came the reunion after all those years of separation. The father who had wept through the long night of patience was reunited with the son whose loss had pierced his heart so deeply. Ibn Kathir presents this reunion as the victory of sabr over betrayal, of trust over appearances, and of Allah's hidden wisdom over human plotting.`,
+			},
+			{
+				title: "Part 11: His greatest concern at the end of life",
+				body: `Even after all these emotional trials, the greatest concern of Prophet Ya'qub (peace be upon him) was not personal relief. It was tawhid. Before death, he gathered his children and asked what they would worship after him. They answered that they would worship the God of their fathers Ibrahim, Ismail, and Ishaq, one God, and that they would submit to Him.
+
+This final scene shows his true greatness. His story is not only about sorrow and reunion. It is about preserving the religion of Allah inside the family, across generations, until the last breath. That is why his legacy is so enduring. He was a prophet of tears, yes, but also a prophet of covenant, worship, and unwavering truth.`,
+			},
+			{
+				title: "Moral lessons",
+				body: ` Beautiful patience means deep human sorrow without rebellion against Allah.\n\n Wise parenting includes love, foresight, and protection from jealousy.\n\n A believer may cry intensely and still be full of faith.\n\n Hope in Allah is an obligation even during prolonged hardship.\n\n Tawakkul means taking practical steps while depending only on Allah.\n\n The greatest family legacy is preservation of tawhid.`,
+			},
+			{
+				title: "Practical actions for students",
+				body: ` Read Qur'an 12:4-6, 12:18, 12:67, 12:83-87, and 2:132-133.\n\n In a hardship, delay complaint to people and make dua to Allah first.\n\n Write one sentence of family advice you would want remembered after you.\n\n For one week, remove despair language from your speech and replace it with dua, sabr, and action.\n\n Reflect on one situation in your life where Allah may be working through delay, not denial.`,
+			},
 		],
-		quranSurahs: ["Yusuf", "Al-Baqarah"],
-	},
-	"dhul-kifl": {
-		shortIntro:
-			"Dhul-Kifl (peace be upon him) is mentioned among the patient and righteous. Ibn Kathir records that he was known for keeping commitments, judging justly, and persevering in obedience.",
-		sections: [
-			{ title: "Part 1: Mention in the Qur'an", body: "Allah mentions Dhul-Kifl among honored prophets and righteous servants, linking him with patience and steadfastness." },
-			{ title: "Part 2: Meaning of his name", body: "Classical explanations relate his title to taking responsibility and fulfilling a weighty commitment with excellence." },
-			{ title: "Part 3: Commitment to worship", body: "Reports describe strong discipline in prayer, fasting, and justice, showing consistency rather than occasional zeal." },
-			{ title: "Part 4: Promise kept", body: "Dhul-Kifl became known for fulfilling what he pledged, even under pressure, fatigue, or temptation." },
-			{ title: "Part 5: Justice and leadership", body: "He judged between people fairly and did not allow anger or favoritism to distort decisions." },
-			{ title: "Part 6: Patience under trial", body: "His rank came through endurance, not comfort. He remained committed to obedience through difficulty." },
-			{ title: "Part 7: Sincerity over image", body: "Dhul-Kifl's model is quiet integrity: keeping covenants with Allah and people without seeking praise." },
-			{ title: "Part 8: Rank among the patient", body: "Allah grouped him with prophets known for sabr, showing that patience is a path to divine mercy." },
-			{ title: "Part 9: Legacy of reliability", body: "His story teaches the Ummah that reliability, trust, and covenant-keeping are prophetic qualities." },
-			{ title: "Part 10: Living his example", body: "Dhul-Kifl's message for students: be consistent, keep your word, and choose justice over convenience." },
-			{ title: "Moral lessons", body: " Keeping promises is worship.\n\n Patience is proof of sincerity.\n\n Justice requires self-control.\n\n Quiet consistency is better than inconsistent intensity." },
-			{ title: "Practical actions for students", body: " Keep one weekly worship commitment for 4 weeks.\n\n Complete every promise you make this week.\n\n Reflect on Qur'an 21:85 and 38:48." },
-		],
-		quranSurahs: ["Al-Anbiya", "Sad"],
-	},
-	"al-yasa": {
-		shortIntro:
-			"Al-Yasa (peace be upon him), successor to Ilyas in guiding Bani Isra'il, is listed by Allah among the chosen and righteous. Ibn Kathir presents him as a prophet of continuity, reform, and steadfast instruction.",
-		sections: [
-			{ title: "Part 1: Mention in the Qur'an", body: "Al-Yasa is named among the prophets whom Allah favored above many peoples and counted among the righteous." },
-			{ title: "Part 2: Continuity after Ilyas", body: "Reports describe Al-Yasa continuing the mission after Ilyas, preserving tawhid and prophetic teaching in his people." },
-			{ title: "Part 3: Calling to Allah alone", body: "He renewed the call to worship Allah alone and warned against corruption and idolatrous tendencies." },
-			{ title: "Part 4: Teaching and correction", body: "Al-Yasa focused on teaching, correction, and restoring obedience to revelation when people drifted away." },
-			{ title: "Part 5: Steadfast leadership", body: "He served with patience and moral strength, leading by principle instead of popularity." },
-			{ title: "Part 6: Service over status", body: "The prophetic path he followed was service and sacrifice, not personal power." },
-			{ title: "Part 7: Reform through constancy", body: "His reform was gradual and consistent: teaching truth repeatedly and correcting falsehood patiently." },
-			{ title: "Part 8: Chosen among the best", body: "Allah's wording about Al-Yasa emphasizes divine selection and righteousness as standards of true rank." },
-			{ title: "Part 9: Lesson for future generations", body: "Al-Yasa's legacy shows the need to preserve faith institutions and pass guidance from one generation to the next." },
-			{ title: "Part 10: The prophetic standard", body: "His life teaches endurance in teaching, loyalty to revelation, and sincerity in public service." },
-			{ title: "Moral lessons", body: " Guidance must be preserved continuously.\n\n Reform needs patience and structure.\n\n Real rank is with Allah, not crowds.\n\n Teaching truth is long-term work." },
-			{ title: "Practical actions for students", body: " Read Qur'an 6:86 and 38:48.\n\n Choose one habit to sustain for 30 days.\n\n Teach one authentic lesson weekly to a sibling or friend." },
-		],
-		quranSurahs: ["Al-Anam", "Sad"],
+		quranSurahs: ["Yusuf", "Al-Baqarah", "Hud"],
 	},
 };
 
+const IBN_KATHIR_BATCH_ADDITIONS: Record<string, ProphetStorySection[]> = {
+	adam: [
+		{
+			title: "Book check (Batch 1: Prophets 1-5)",
+			body: `Ibn Kathir also records early events after Adam's descent: repentance accepted, guidance promised to his descendants, and the beginning of life's test between revelation and Shaytan's whispering.\n\nThe book further includes the account of Adam's children (Qabil and Habil) as an early lesson in jealousy, accountability, and the sanctity of life (Qur'an 5:27-31).`,
+		},
+	],
+	idris: [
+		{
+			title: "Book check (Batch 1: Prophets 1-5)",
+			body: `Ibn Kathir highlights Idris as among the earliest prophets after Adam and Seth, with emphasis on truthful character and disciplined worship.\n\nHe also transmits reports that Idris taught writing, order, and social responsibility, and includes his wise sayings on gratitude, self-accountability, and restraint.`,
+		},
+	],
+	nuh: [
+		{
+			title: "Book check (Batch 1: Prophets 1-5)",
+			body: `Ibn Kathir emphasizes that idolatry started gradually through exaggerating righteous people, then images, then worship.\n\nHe also narrates Nuh's final counsel: hold firmly to tawhid, avoid shirk, and avoid arrogance. The flood account is tied to divine justice after prolonged warning and proof.`,
+		},
+	],
+	hud: [
+		{
+			title: "Book check (Batch 1: Prophets 1-5)",
+			body: `Ibn Kathir's account of 'Ad stresses strength, architecture, and arrogance. Hud repeatedly called them to seek forgiveness and repentance so Allah would increase them in strength.\n\nThe punishment came as a destructive wind over seven nights and eight days, while believers were saved by Allah's mercy (Qur'an 69:6-8, 11:58).`,
+		},
+	],
+	salih: [
+		{
+			title: "Book check (Batch 1: Prophets 1-5)",
+			body: `Ibn Kathir gives detailed focus to the she-camel miracle, the water-sharing test, and the deliberate conspiracy to kill the sign and then plot against Salih.\n\nAfter their crime, Salih warned of three remaining days before punishment; then came the cry/earthquake, and only believers were saved.`,
+		},
+	],
+	ibrahim: [
+		{
+			title: "Book check (Batch 2: Prophets 6-10)",
+			body: `Ibn Kathir expands Ibrahim's story beyond idol-breaking: his debates with his father, people, and king; migration for Allah; and major covenant tests.\n\nKey additions include the guests (angels), destruction news for Lut's people, and repeated duas for Makkah, family faith, and future guidance.`,
+		},
+	],
+	lut: [
+		{
+			title: "Book check (Batch 2: Prophets 6-10)",
+			body: `Ibn Kathir highlights Lut's repeated warnings, social corruption, and the final night command to leave without looking back.\n\nHis wife is presented as an example of betrayal of faith. The punishment is described as overturning the town and raining marked stones.`,
+		},
+	],
+	ismail: [
+		{
+			title: "Book check (Batch 2: Prophets 6-10)",
+			body: `Ibn Kathir includes hadith-rich details of Hajar's running between Safa and Marwah, Zamzam's emergence, Jurhum settlement, and Ibrahim's visits.\n\nHe also links Ismail's legacy to raising the Ka'bah, covenantal worship, eloquence among Arabs, and the line culminating in the final Prophet.`,
+		},
+	],
+	ishaq: [
+		{
+			title: "Book check (Batch 2: Prophets 6-10)",
+			body: `Ibn Kathir presents Ishaq's birth as a direct sign of divine promise despite old age and impossibility by normal means.\n\nHe clarifies that Qur'anic certainty centers on Ishaq's prophethood, blessing, and continuation of guidance through Yaqub, while some biographical details are historical reports.`,
+		},
+	],
+	yaqub: [
+		{
+			title: "Book check (Batch 2: Prophets 6-10)",
+			body: `Ibn Kathir repeatedly stresses Yaqub's sabr jamil: deep grief without objection to Allah's decree, plus active family leadership.\n\nHis final concern was preservation of tawhid among his children (Qur'an 2:132-133), making creed continuity his greatest legacy.`,
+		},
+	],
+	yusuf: [
+		{
+			title: "Book check (Batch 3: Prophets 11-15)",
+			body: `Ibn Kathir treats Surah Yusuf as a complete arc of trial to empowerment: jealousy, well, temptation, prison, governance, and forgiveness.\n\nHe also emphasizes Yusuf's tawhid dawah in prison and his refusal to leave prison before public vindication of his innocence.`,
+		},
+	],
+	ayyub: [
+		{
+			title: "Book check (Batch 3: Prophets 11-15)",
+			body: `Ibn Kathir highlights the long duration of Ayyub's suffering, his guarded tongue, and his concise dua with adab.\n\nThe "bundle" ruling in Surah Sad is a key legal-ethical mercy point: oath fulfillment with compassion and without injustice.`,
+		},
+	],
+	shuayb: [
+		{
+			title: "Book check (Batch 3: Prophets 11-15)",
+			body: `Ibn Kathir gives major weight to financial ethics in Shuayb's message: full measure, full weight, and no corruption on earth.\n\nHe links moral collapse in trade to societal collapse, then records the final destruction after warnings were mocked.`,
+		},
+	],
+	musa: [
+		{
+			title: "Book check (Batch 3: Prophets 11-15)",
+			body: `Ibn Kathir's Musa account is one of the longest: birth under tyranny, revelation, confrontation with Pharaoh, exodus, Torah, calf trial, and wilderness years.\n\nIt also includes key episodes: al-Khidr journey, the cow case, and many corrections for Bani Isra'il's repeated disobedience.`,
+		},
+	],
+	harun: [
+		{
+			title: "Book check (Batch 3: Prophets 11-15)",
+			body: `Ibn Kathir emphasizes Harun's role as Musa's supported partner in mission and his restraint during the calf fitnah.\n\nHe maintained unity as far as possible, warned the people clearly, and explained he was overpowered by the rebels.`,
+		},
+	],
+	yahya: [
+		{
+			title: "Book check (Batch 5: Prophets 21-25)",
+			body: `Ibn Kathir stresses Yahya's purity, early wisdom, and fearlessness in truth. He is presented as an example of disciplined youth and principled speech.\n\nHis martyrdom reports are included as part of the cost of refusing to normalize corruption.`,
+		},
+	],
+	isa: [
+		{
+			title: "Book check (Batch 5: Prophets 21-25)",
+			body: `Ibn Kathir covers miraculous birth, signs by Allah's permission, support to his mother, call to worship Allah alone, and rejection by some among Bani Isra'il.\n\nHe also emphasizes Islamic creed: Isa was neither killed nor crucified as claimed, and Allah raised him; his return is among major end-time signs.`,
+		},
+	],
+	muhammad: [
+		{
+			title: "Book check (Batch 5: Prophets 21-25)",
+			body: `Ibn Kathir presents Muhammad (peace and blessings be upon him) as final messenger and completion of prophetic chain, with emphasis on revelation, character, and universal mission.\n\nCore additions include finality of prophethood, preservation of Qur'an, and mercy-oriented leadership in law, worship, and social justice.`,
+		},
+	],
+};
+
+const IBN_KATHIR_SOURCE_CHAPTER: Record<string, string> = {
+	adam: "Prophet Adam",
+	idris: "Prophet Idris (Enoch)",
+	nuh: "Prophet Nuh (Noah)",
+	hud: "Prophet Hud",
+	salih: "Prophet Salih",
+	ibrahim: "Prophet Ibrahim (Abraham)",
+	lut: "Prophet Lot (Lot)",
+	ismail: "Prophet Isma'il (Ishmael)",
+	ishaq: "Prophet Ishaq (Isaac)",
+	yaqub: "Prophet Yaqub (Jacob)",
+	yusuf: "Prophet Yusuf (Joseph)",
+	ayyub: "Prophet Ayoub (Job)",
+	shuayb: "Prophet Shuaib",
+	musa: "Prophet Musa (Moses) & Harun (Aaron)",
+	harun: "Prophet Musa (Moses) & Harun (Aaron)",
+	"dhul-kifl": "Prophet Dhul-Kifl",
+	dawud: "Prophet Dawud (David)",
+	sulayman: "Prophet Sulaiman (Soloman)",
+	ilyas: "Prophet Elyas (Elisha)",
+	"al-yasa": "Prophet Elyas (Elisha) and related later-prophet sections",
+	yunus: "Prophet Yunus (Jonah)",
+	zakariyya: "Prophet Zakariyah (Zechariah)",
+	yahya: "Prophet Yahya (John)",
+	isa: "Prophet Isa (Jesus)",
+	muhammad: "Prophet Muhammad",
+};
+
+const IBN_KATHIR_CLASSROOM_PROMPTS: Record<string, ProphetStorySection[]> = {
+	adam: [
+		{
+			title: "Classroom questions (Batch 1: Prophets 1-5)",
+			body: ` What was Iblis's core sin, and how does that appear in school life today?\n\n Why is "knowledge" central in Adam's story?\n\n What is the difference between making a mistake and persisting in arrogance?\n\n How can students practice immediate repentance this week?`,
+		},
+	],
+	idris: [
+		{
+			title: "Classroom questions (Batch 1: Prophets 1-5)",
+			body: ` Why does Idris's story connect worship with discipline?\n\n Which of Idris's wise sayings is most practical for teenagers and why?\n\n How does self-accountability (muhasabah) improve character?\n\n What is one "excess" students can reduce this week?`,
+		},
+	],
+	nuh: [
+		{
+			title: "Classroom questions (Batch 1: Prophets 1-5)",
+			body: ` Why does shirk often begin with "small steps"?\n\n What methods did Nuh use in dawah (public/private, day/night)?\n\n What lesson comes from the story of Nuh's son?\n\n How should students define success when results are slow?`,
+		},
+	],
+	hud: [
+		{
+			title: "Classroom questions (Batch 1: Prophets 1-5)",
+			body: ` How can strength and wealth become a test instead of a blessing?\n\n What signs of arrogance appear in 'Ad?\n\n Why do people reject reminders even when they are clear?\n\n What protects a student from pride?`,
+		},
+	],
+	salih: [
+		{
+			title: "Classroom questions (Batch 1: Prophets 1-5)",
+			body: ` Why did Thamud demand a miracle, then reject it?\n\n What does the she-camel test teach about respecting limits?\n\n How does delaying repentance increase danger?\n\n What modern examples resemble "harming clear signs"?`,
+		},
+	],
+	ibrahim: [
+		{
+			title: "Classroom questions (Batch 2: Prophets 6-10)",
+			body: ` How did Ibrahim use reasoning against idolatry?\n\n Why is migration for Allah a recurring theme in his story?\n\n What do his family duas teach about long-term vision?\n\n How can students practice principled courage without disrespect?`,
+		},
+	],
+	lut: [
+		{
+			title: "Classroom questions (Batch 2: Prophets 6-10)",
+			body: ` Why did Lut continue warning despite severe mockery?\n\n What does his wife's story teach about loyalty to truth?\n\n Why was immediate obedience in leaving the city essential?\n\n How can students reject public sin without becoming harsh?`,
+		},
+	],
+	ismail: [
+		{
+			title: "Classroom questions (Batch 2: Prophets 6-10)",
+			body: ` What is the difference between tawakkul and passivity in Hajar's effort?\n\n Why is Ismail's obedience central to his prophetic rank?\n\n How does building the Ka'bah connect worship and legacy?\n\n What promise can a student keep this week to imitate Ismail's reliability?`,
+		},
+	],
+	ishaq: [
+		{
+			title: "Classroom questions (Batch 2: Prophets 6-10)",
+			body: ` What does Ishaq's birth in old age teach about Allah's decree?\n\n Why must students distinguish Qur'anic certainty from extra reports?\n\n How does family lineage become responsibility, not pride?\n\n What makes a family spiritually blessed across generations?`,
+		},
+	],
+	yaqub: [
+		{
+			title: "Classroom questions (Batch 2: Prophets 6-10)",
+			body: ` What is "beautiful patience" in practical behavior?\n\n Why did Yaqub pair planning with tawakkul?\n\n How can grief remain faithful without becoming despair?\n\n What final advice would you leave your family about tawhid?`,
+		},
+	],
+	yusuf: [
+		{
+			title: "Classroom questions (Batch 3: Prophets 11-15)",
+			body: ` Which stage in Yusuf's life best defines integrity and why?\n\n Why did Yusuf prioritize clearing his name before leaving prison?\n\n How did he use authority ethically after hardship?\n\n What does prophetic forgiveness look like in school conflicts?`,
+		},
+	],
+	ayyub: [
+		{
+			title: "Classroom questions (Batch 3: Prophets 11-15)",
+			body: ` What is the adab of dua in Ayyub's supplication?\n\n How can someone suffer deeply and still stay spiritually strong?\n\n Why is family support part of the story's lesson?\n\n What daily habit builds sabr in teenagers?`,
+		},
+	],
+	shuayb: [
+		{
+			title: "Classroom questions (Batch 3: Prophets 11-15)",
+			body: ` Why is business honesty treated as a faith issue?\n\n How does cheating harm both individuals and society?\n\n Why did Shuayb reject compromise under pressure?\n\n What small school-level actions reflect economic integrity?`,
+		},
+	],
+	musa: [
+		{
+			title: "Classroom questions (Batch 3: Prophets 11-15)",
+			body: ` Which trial in Musa's life best teaches leadership under pressure?\n\n Why did miracles not benefit Pharaoh's arrogant heart?\n\n How do we balance courage with humility in confronting wrong?\n\n What does Musa's story teach about repeated repentance after failure?`,
+		},
+	],
+	harun: [
+		{
+			title: "Classroom questions (Batch 3: Prophets 11-15)",
+			body: ` Why was Harun's supportive role essential to Musa's mission?\n\n What does his response during the calf fitnah teach about crisis leadership?\n\n How do we preserve unity without approving wrongdoing?\n\n What does healthy teamwork look like in Islamic service?`,
+		},
+	],
+	"dhul-kifl": [
+		{
+			title: "Classroom questions (Batch 4: Prophets 16-20)",
+			body: ` Why is Dhul-Kifl linked to patience and excellence even with fewer details?\n\n What do promises reveal about a person's faith?\n\n How does anger control improve judgment?\n\n What covenant can students commit to and keep this month?`,
+		},
+	],
+	dawud: [
+		{
+			title: "Classroom questions (Batch 4: Prophets 16-20)",
+			body: ` How did Dawud combine worship with governance?\n\n Why is justice impossible without careful listening?\n\n What does his story teach about talent as an amanah?\n\n How can students use strengths without arrogance?`,
+		},
+	],
+	sulayman: [
+		{
+			title: "Classroom questions (Batch 4: Prophets 16-20)",
+			body: ` Why did Sulayman repeatedly attribute power to Allah's favor?\n\n How does his death story correct beliefs about unseen knowledge?\n\n What leadership habits in his story should students imitate?\n\n How can gratitude protect people in high positions?`,
+		},
+	],
+	ilyas: [
+		{
+			title: "Classroom questions (Batch 4: Prophets 16-20)",
+			body: ` Why does idol worship reappear across generations?\n\n What made Ilyas steadfast despite small support?\n\n How can students stand firm without being socially aggressive?\n\n What is one modern "false idol" teenagers may follow?`,
+		},
+	],
+	"al-yasa": [
+		{
+			title: "Classroom questions (Batch 4: Prophets 16-20)",
+			body: ` Why is continuity after a great leader difficult?\n\n How does Al-Yasa's story teach consistency over hype?\n\n What systems help preserve guidance in a community?\n\n What weekly routine can students sustain for 30 days?`,
+		},
+	],
+	yunus: [
+		{
+			title: "Classroom questions (Batch 5: Prophets 21-25)",
+			body: ` What does Yunus's dua teach about repentance language?\n\n Why is acting in emotion risky in leadership?\n\n How did Allah turn correction into mercy?\n\n What should a student do immediately after a mistake?`,
+		},
+	],
+	zakariyya: [
+		{
+			title: "Classroom questions (Batch 5: Prophets 21-25)",
+			body: ` Why is private dua emphasized in Zakariyya's story?\n\n How did hope survive old age and impossible means?\n\n What kind of legacy did he ask Allah for?\n\n How can students make sincere dua without show?`,
+		},
+	],
+	yahya: [
+		{
+			title: "Classroom questions (Batch 5: Prophets 21-25)",
+			body: ` What does "wisdom in youth" challenge in our assumptions?\n\n How are purity and courage connected in Yahya's story?\n\n Why is respect for parents highlighted with prophethood?\n\n What does moral bravery look like for teenagers today?`,
+		},
+	],
+	isa: [
+		{
+			title: "Classroom questions (Batch 5: Prophets 21-25)",
+			body: ` Which beliefs about Isa are essential in Islamic creed?\n\n Why must miracles be described as "by Allah's permission"?\n\n How did Isa combine mercy with truth?\n\n Why is correct belief about prophets necessary for salvation?`,
+		},
+	],
+	muhammad: [
+		{
+			title: "Classroom questions (Batch 5: Prophets 21-25)",
+			body: ` What does "final messenger" require from Muslims today?\n\n How did prophetic character shape justice and mercy together?\n\n Why is Qur'an preservation central to his mission?\n\n What sunnah habit can students adopt consistently this week?`,
+		},
+	],
+};
+
+const IBN_KATHIR_TEACHER_NOTES: Record<string, ProphetStorySection[]> = {
+	adam: [{ title: "Teacher notes", body: ` Lesson objectives:\n\n Understand repentance, obedience, and Shaytan's deception.\n\n Explain why knowledge is an honor and responsibility.\n\n Distinguish mistake-plus-repentance from arrogance.` }],
+	idris: [{ title: "Teacher notes", body: ` Lesson objectives:\n\n Define sidq (truthfulness) as a full-life commitment.\n\n Practice muhasabah as a daily discipline.\n\n Connect worship routines to character formation.` }],
+	nuh: [{ title: "Teacher notes", body: ` Lesson objectives:\n\n Describe how shirk can begin gradually.\n\n Identify multiple methods of prophetic dawah.\n\n Explain patient perseverance without number-based success.` }],
+	hud: [{ title: "Teacher notes", body: ` Lesson objectives:\n\n Analyze arrogance as a social and spiritual disease.\n\n Connect gratitude to preservation of blessings.\n\n Explain why warnings preceded punishment.` }],
+	salih: [{ title: "Teacher notes", body: ` Lesson objectives:\n\n Explain the she-camel as a test of obedience.\n\n Analyze rebellion after clear evidence.\n\n Recognize urgency of repentance before consequences.` }],
+	ibrahim: [{ title: "Teacher notes", body: ` Lesson objectives:\n\n Evaluate rational argument against false worship.\n\n Explain sacrifice and migration for Allah's sake.\n\n Trace Ibrahim's long-term family and ummah vision through dua.` }],
+	lut: [{ title: "Teacher notes", body: ` Lesson objectives:\n\n Explain prophetic courage in morally hostile societies.\n\n Distinguish family ties from faith-based loyalty.\n\n Analyze urgency and completeness of obedience in crisis.` }],
+	ismail: [{ title: "Teacher notes", body: ` Lesson objectives:\n\n Explain tawakkul as trust with action.\n\n Identify obedience and reliability in Ismail's character.\n\n Connect Ka'bah-building to intergenerational worship legacy.` }],
+	ishaq: [{ title: "Teacher notes", body: ` Lesson objectives:\n\n Explain divine promise beyond material probabilities.\n\n Distinguish Qur'anic certainties from historical reports.\n\n Connect family blessing to guidance responsibility.` }],
+	yaqub: [{ title: "Teacher notes", body: ` Lesson objectives:\n\n Define sabr jamil in practical emotional behavior.\n\n Balance planning with trust in Allah.\n\n Explain why hope in Allah is creed, not mood.` }],
+	yusuf: [{ title: "Teacher notes", body: ` Lesson objectives:\n\n Trace integrity across Yusuf's trials.\n\n Explain justice, patience, and forgiveness in leadership.\n\n Apply prophetic conflict resolution in student life.` }],
+	ayyub: [{ title: "Teacher notes", body: ` Lesson objectives:\n\n Explain sabr during prolonged hardship.\n\n Analyze adab of dua in Ayyub's supplication.\n\n Identify restorative mercy after faithful endurance.` }],
+	shuayb: [{ title: "Teacher notes", body: ` Lesson objectives:\n\n Connect economic honesty to faith.\n\n Identify social damage caused by cheating and corruption.\n\n Explain steadfast truth under pressure.` }],
+	musa: [{ title: "Teacher notes", body: ` Lesson objectives:\n\n Trace major stages of Musa's mission and leadership.\n\n Explain reliance on Allah in confrontation with tyranny.\n\n Analyze repeated correction, repentance, and covenant discipline.` }],
+	harun: [{ title: "Teacher notes", body: ` Lesson objectives:\n\n Explain helper-leadership in prophetic missions.\n\n Analyze Harun's strategy during the calf crisis.\n\n Balance unity-preservation with truth-speaking.` }],
+	"dhul-kifl": [{ title: "Teacher notes", body: ` Lesson objectives:\n\n Explain patience and covenant-keeping as prophetic virtues.\n\n Practice anger control as ethical strength.\n\n Connect consistency in worship to moral reliability.` }],
+	dawud: [{ title: "Teacher notes", body: ` Lesson objectives:\n\n Explain integration of worship, skill, and governance.\n\n Analyze justice through careful hearing and humility.\n\n Identify gratitude in power and talent use.` }],
+	sulayman: [{ title: "Teacher notes", body: ` Lesson objectives:\n\n Explain power as test, not entitlement.\n\n Analyze gratitude language in leadership moments.\n\n Correct beliefs about unseen knowledge using his death account.` }],
+	ilyas: [{ title: "Teacher notes", body: ` Lesson objectives:\n\n Explain resistance to idolatry and social falsehood.\n\n Analyze steadfastness with low public support.\n\n Apply principled firmness with respectful communication.` }],
+	"al-yasa": [{ title: "Teacher notes", body: ` Lesson objectives:\n\n Explain continuity of guidance after major prophets.\n\n Value consistency over short-term enthusiasm.\n\n Identify structures that preserve communal faith practice.` }],
+	yunus: [{ title: "Teacher notes", body: ` Lesson objectives:\n\n Explain repentance formula in Yunus's dua.\n\n Analyze emotional haste and prophetic correction.\n\n Show how communities can still change through repentance.` }],
+	zakariyya: [{ title: "Teacher notes", body: ` Lesson objectives:\n\n Explain sincere private dua and certainty in Allah's power.\n\n Analyze hope beyond age and apparent impossibility.\n\n Connect righteous legacy with prophetic concern.` }],
+	yahya: [{ title: "Teacher notes", body: ` Lesson objectives:\n\n Explain wisdom and purity in youth.\n\n Connect moral courage with taqwa.\n\n Highlight respect for parents as prophetic character.` }],
+	isa: [{ title: "Teacher notes", body: ` Lesson objectives:\n\n Clarify Islamic creed regarding Isa and his miracles.\n\n Emphasize "by Allah's permission" in miracle narratives.\n\n Distinguish authentic belief from theological exaggeration.` }],
+	muhammad: [{ title: "Teacher notes", body: ` Lesson objectives:\n\n Explain finality of prophethood and universality of message.\n\n Analyze prophetic character as model for justice and mercy.\n\n Connect Qur'an preservation to ongoing guidance responsibility.` }],
+};
+
 export const PROPHET_STORIES: ProphetStory[] = PROPHETS.map((p) => {
-	const content = STORY_CONTENT_BY_SLUG[p.slug] ?? SUPPLEMENTAL_IBN_KATHIR_STORIES[p.slug];
+	const content =
+		STORY_CONTENT_BY_SLUG[p.slug] ??
+		SUPPLEMENTAL_IBN_KATHIR_STORIES[p.slug] ??
+		PDF_BOOK_STORY_CONTENT[p.slug];
 	if (!content) {
 		throw new Error(`Missing Stories of the Prophets content for slug: ${p.slug}`);
+	}
+	const teacherNotes = IBN_KATHIR_TEACHER_NOTES[p.slug] ?? [];
+	const sectionsFinal = content.sections.slice();
+	if (teacherNotes.length > 0 && sectionsFinal.length > 0) {
+		const objectives = teacherNotes.map((n) => n.body).join("\n\n");
+		const first = sectionsFinal[0];
+		const firstBody = getText(first.body);
+		sectionsFinal[0] = {
+			...first,
+			body: `Learning objectives:\n\n${objectives}\n\n${firstBody}`,
+		};
 	}
 
 	return {
 		slug: p.slug,
 		name: formatProphetNamesWithPbuh(p.name),
 		shortIntro: content.shortIntro,
-		sections: normalizeSectionsWithQuiz(content.sections),
+		sections: normalizeSectionsWithQuiz(
+			normalizeSectionNumbering(sectionsFinal)
+		),
 		quranSurahs: content.quranSurahs,
 	};
 });
@@ -1397,3 +2433,4 @@ export const PROPHET_STORIES: ProphetStory[] = PROPHETS.map((p) => {
 export function getProphetStoryBySlug(slug: string): ProphetStory | undefined {
 	return PROPHET_STORIES.find((p) => p.slug === slug);
 }
+

@@ -11,9 +11,12 @@ type Props = {
   onComplete: (won: boolean) => void;
 };
 
-const GAME_DURATION = 120;
+const GAME_DURATION_EASY = 130;
+const GAME_DURATION_MEDIUM = 110;
+const GAME_DURATION_HARD = 95;
 
 export default function WordSearchClient({ words, letters, theme, difficulty = "easy", onComplete }: Props) {
+  const GAME_DURATION = difficulty === "easy" ? GAME_DURATION_EASY : difficulty === "medium" ? GAME_DURATION_MEDIUM : GAME_DURATION_HARD;
   const GRID_SIZE = Math.sqrt(letters.length);
   
   const [timeLeft, setTimeLeft] = useState(GAME_DURATION);
@@ -36,6 +39,15 @@ export default function WordSearchClient({ words, letters, theme, difficulty = "
     }, 1000);
     return () => clearInterval(timer);
   }, [ended]);
+
+  useEffect(() => {
+    setTimeLeft(GAME_DURATION);
+    setFound(new Set());
+    setEnded(false);
+    setSelectedCells([]);
+    setIsSelecting(false);
+    setHighlightedCells(new Set());
+  }, [difficulty, letters, words, GAME_DURATION]);
 
   const grid = useMemo(() => letters, [letters]);
 

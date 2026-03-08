@@ -19,6 +19,10 @@ export default function PathMazeClient({ grid, difficulty = "easy", onComplete }
   const [cells] = useState(grid);
   const [timeLeft, setTimeLeft] = useState(GAME_DURATION);
   const [ended, setEnded] = useState(false);
+  const BOARD_SIZE = useMemo(() => {
+    const size = Math.sqrt(cells.length);
+    return Number.isInteger(size) ? size : 6;
+  }, [cells.length]);
   const startIndex = useMemo(() => findIndex(cells, "S"), [cells]);
   const endIndex = useMemo(() => findIndex(cells, "E"), [cells]);
   const [player, setPlayer] = useState(startIndex);
@@ -49,12 +53,12 @@ export default function PathMazeClient({ grid, difficulty = "easy", onComplete }
 
   const move = (dr: number, dc: number) => {
     if (ended) return;
-    const row = Math.floor(player / 6);
-    const col = player % 6;
+    const row = Math.floor(player / BOARD_SIZE);
+    const col = player % BOARD_SIZE;
     const nr = row + dr;
     const nc = col + dc;
-    if (nr < 0 || nr >= 6 || nc < 0 || nc >= 6) return;
-    const nextIndex = nr * 6 + nc;
+    if (nr < 0 || nr >= BOARD_SIZE || nc < 0 || nc >= BOARD_SIZE) return;
+    const nextIndex = nr * BOARD_SIZE + nc;
     if (cells[nextIndex] === "#") return;
     setPlayer(nextIndex);
   };
@@ -78,7 +82,7 @@ export default function PathMazeClient({ grid, difficulty = "easy", onComplete }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  });
+  }, [ended, player, BOARD_SIZE, cells]);
 
   const win = player === endIndex;
   const format = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
@@ -96,7 +100,7 @@ export default function PathMazeClient({ grid, difficulty = "easy", onComplete }
           <span className="text-amber-700">Time: {format(timeLeft)}</span>
         </div>
 
-        <div className="grid grid-cols-6 gap-1">
+        <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${BOARD_SIZE}, minmax(0, 1fr))` }}>
           {cells.map((cell, idx) => {
             const isPlayer = idx === player;
             const isEnd = idx === endIndex;
@@ -118,6 +122,13 @@ export default function PathMazeClient({ grid, difficulty = "easy", onComplete }
               </div>
             );
           })}
+        </div>
+
+        <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
+          <button onClick={() => move(-1, 0)} className="rounded bg-emerald-100 px-3 py-2 font-bold text-emerald-800 hover:bg-emerald-200">Up</button>
+          <button onClick={() => move(0, -1)} className="rounded bg-emerald-100 px-3 py-2 font-bold text-emerald-800 hover:bg-emerald-200">Left</button>
+          <button onClick={() => move(0, 1)} className="rounded bg-emerald-100 px-3 py-2 font-bold text-emerald-800 hover:bg-emerald-200">Right</button>
+          <button onClick={() => move(1, 0)} className="col-span-3 rounded bg-emerald-100 px-3 py-2 font-bold text-emerald-800 hover:bg-emerald-200">Down</button>
         </div>
       </div>
 

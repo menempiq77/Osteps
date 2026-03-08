@@ -16,13 +16,15 @@ type Position = { x: number; y: number };
 
 const GRID_SIZE = 20;
 const CELL_SIZE = 20;
-const INITIAL_SPEED_EASY = 200;
-const INITIAL_SPEED_MEDIUM = 150;
-const INITIAL_SPEED_HARD = 100;
-const TARGET_EASY = 10;
+const INITIAL_SPEED_EASY = 220;
+const INITIAL_SPEED_MEDIUM = 170;
+const INITIAL_SPEED_HARD = 130;
+const TARGET_EASY = 8;
 const TARGET_MEDIUM = 10;
 const TARGET_HARD = 12;
-const GAME_DURATION = 120; // 2 minutes in seconds
+const GAME_DURATION_EASY = 120;
+const GAME_DURATION_MEDIUM = 105;
+const GAME_DURATION_HARD = 90;
 
 export default function SnakeGameClient({
   collectibles,
@@ -31,7 +33,11 @@ export default function SnakeGameClient({
   onComplete,
 }: SnakeGameProps) {
   const INITIAL_SPEED = difficulty === "easy" ? INITIAL_SPEED_EASY : difficulty === "medium" ? INITIAL_SPEED_MEDIUM : INITIAL_SPEED_HARD;
-  const TARGET = difficulty === "easy" ? TARGET_EASY : difficulty === "medium" ? TARGET_MEDIUM : TARGET_HARD;
+  const GAME_DURATION = difficulty === "easy" ? GAME_DURATION_EASY : difficulty === "medium" ? GAME_DURATION_MEDIUM : GAME_DURATION_HARD;
+  const TARGET = Math.min(
+    difficulty === "easy" ? TARGET_EASY : difficulty === "medium" ? TARGET_MEDIUM : TARGET_HARD,
+    collectibles.length
+  );
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [snake, setSnake] = useState<Position[]>([{ x: 10, y: 10 }]);
   const [food, setFood] = useState<Position>({ x: 15, y: 15 });
@@ -48,11 +54,21 @@ export default function SnakeGameClient({
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Generate random food position
-  const generateFood = () => {
-    const newFood = {
+  const generateFood = (occupied: Position[] = snake) => {
+    let attempts = 0;
+    let newFood = {
       x: Math.floor(Math.random() * GRID_SIZE),
       y: Math.floor(Math.random() * GRID_SIZE),
     };
+
+    while (occupied.some((segment) => segment.x === newFood.x && segment.y === newFood.y) && attempts < 200) {
+      newFood = {
+        x: Math.floor(Math.random() * GRID_SIZE),
+        y: Math.floor(Math.random() * GRID_SIZE),
+      };
+      attempts++;
+    }
+
     setFood(newFood);
   };
 
@@ -107,6 +123,18 @@ export default function SnakeGameClient({
     return () => window.removeEventListener("keydown", handleKeyPress);
   }, [gameOver, gameWon]);
 
+  useEffect(() => {
+    setSnake([{ x: 10, y: 10 }]);
+    nextDirectionRef.current = { x: 1, y: 0 };
+    setScore(0);
+    setCurrentCollectible(0);
+    setGameOver(false);
+    setGameWon(false);
+    setTimeLeft(GAME_DURATION);
+    setIsPaused(false);
+    generateFood([{ x: 10, y: 10 }]);
+  }, [difficulty, GAME_DURATION]);
+
   // Handle touch controls
   const handleTouchStart = (e: React.TouchEvent) => {
     const touch = e.touches[0];
@@ -156,20 +184,21 @@ export default function SnakeGameClient({
         if (prevSnake.some((segment) => segment.x === newHead.x && segment.y === newHead.y)) {
           setGameOver(true);
           return prevSnake;
-        }TARGET
-
+        }
         const newSnake = [newHead, ...prevSnake];
 
         // Check if food is eaten
         if (newHead.x === food.x && newHead.y === food.y) {
-          setScore((s) => s + 1);
-          
-          if (score + 1 >= collectibles.length) {
-            setGameWon(true);
-          } else {
-            setCurrentCollectible((c) => c + 1);
-            generateFood();
-          }
+          setScore((s) => {
+            const nextScore = s + 1;
+            if (nextScore >= TARGET) {
+              setGameWon(true);
+            } else {
+              setCurrentCollectible((c) => c + 1);
+              generateFood(newSnake);
+            }
+            return nextScore;
+          });
           
           return newSnake; // Snake grows
         }
@@ -182,7 +211,7 @@ export default function SnakeGameClient({
     return () => {
       if (gameLoopRef.current) clearInterval(gameLoopRef.current);
     };
-  }, [gameOver, gameWon, isPaused, food, score, collectibles.length]);
+  }, [gameOver, gameWon, isPaused, food, TARGET]);
 
   // Timer countdown
   useEffect(() => {

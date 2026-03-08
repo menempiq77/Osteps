@@ -484,12 +484,33 @@ export default function CheckpointPage({ params }: PageProps) {
     return Number.isFinite(parsed) ? parsed : 0;
   }, [partIndex]);
 
-  const data = useMemo(() => getCheckpointData(prophet), [prophet]);
+  const data = useMemo(() => {
+    if (!prophet) return null;
+    try {
+      return getCheckpointData(prophet);
+    } catch {
+      return null;
+    }
+  }, [prophet]);
   const part4Events = useMemo(() => data?.part4.events ?? [], [data]);
   const part8Pairs = useMemo(() => data?.part8.pairs ?? [], [data]);
   const part12Options = useMemo(() => data?.part12.options ?? [], [data]);
 
-  if (!data || partNum === 0) return null;
+  if (!data || partNum === 0) {
+    return (
+      <main style={{ minHeight: "100vh", padding: "44px 20px", background: "linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%)" }}>
+        <div style={{ maxWidth: "720px", margin: "0 auto", background: "white", borderRadius: "18px", padding: "32px", border: "1px solid rgba(0,0,0,0.08)" }}>
+          <h1 style={{ fontSize: "28px", fontWeight: 800, marginBottom: "10px", color: "#0f172a" }}>Checkpoint unavailable</h1>
+          <p style={{ color: "#475569", fontWeight: 600, lineHeight: 1.7, marginBottom: "18px" }}>
+            This checkpoint route could not be resolved for the current story.
+          </p>
+          <Link href={prophet ? `/dashboard/mind-upgrade/stories-of-the-prophets/${prophet}` : "/dashboard/mind-upgrade/stories-of-the-prophets"} style={{ display: "inline-block", padding: "12px 18px", borderRadius: "10px", background: "#0ea5e9", color: "white", textDecoration: "none", fontWeight: 800 }}>
+            Back to Story
+          </Link>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <CheckpointContent

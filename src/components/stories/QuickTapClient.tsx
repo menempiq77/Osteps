@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useState } from "react";
 import { Difficulty } from "./miniGameConfig";
@@ -9,15 +9,21 @@ type Props = {
   onComplete: (won: boolean) => void;
 };
 
-const GAME_DURATION = 120;
+const GAME_DURATION_EASY = 120;
+const GAME_DURATION_MEDIUM = 100;
+const GAME_DURATION_HARD = 85;
 
 export default function QuickTapClient({ prompts, difficulty = "easy", onComplete }: Props) {
+  const GAME_DURATION = difficulty === "easy" ? GAME_DURATION_EASY : difficulty === "medium" ? GAME_DURATION_MEDIUM : GAME_DURATION_HARD;
   const [timeLeft, setTimeLeft] = useState(GAME_DURATION);
   const [current, setCurrent] = useState(0);
   const [score, setScore] = useState(0);
   const [ended, setEnded] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const totalPrompts = prompts.length;
+  const win = current >= totalPrompts;
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -37,37 +43,58 @@ export default function QuickTapClient({ prompts, difficulty = "easy", onComplet
     return () => clearInterval(timer);
   }, [ended]);
 
+  useEffect(() => {
+    setTimeLeft(GAME_DURATION);
+    setCurrent(0);
+    setScore(0);
+    setEnded(false);
+    setFeedback(null);
+    if (inputRef.current) inputRef.current.value = "";
+  }, [difficulty, prompts, GAME_DURATION]);
+
   const handleInput = (value: string) => {
     if (ended) return;
     const target = prompts[current];
     if (!target) return;
+
     if (value.trim().toLowerCase() === target.toLowerCase()) {
       const nextCurrent = current + 1;
       setScore((s) => s + 1);
       setFeedback("Nice!");
       setCurrent(nextCurrent);
-      inputRef.current!.value = "";
-      if (nextCurrent >= prompts.length) {
+      if (inputRef.current) inputRef.current.value = "";
+      if (nextCurrent >= totalPrompts) {
         setEnded(true);
       }
-    } else {
-      setFeedback("Try again");
+      return;
     }
+
+    setFeedback("Try again");
+  };
+
+  const handleRetry = () => {
+    setTimeLeft(GAME_DURATION);
+    setCurrent(0);
+    setScore(0);
+    setEnded(false);
+    setFeedback(null);
+    if (inputRef.current) inputRef.current.value = "";
+    setTimeout(() => inputRef.current?.focus(), 0);
   };
 
   const format = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-  const win = current >= prompts.length;
 
   return (
     <div className="flex flex-col items-center gap-4 p-6">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-amber-800">Quick Tap ⚡</h2>
+        <h2 className="text-2xl font-bold text-amber-800">Quick Tap</h2>
         <p className="text-gray-600">Type the prompt quickly</p>
       </div>
 
       <div className="w-full max-w-xl rounded-xl bg-white p-5 shadow">
         <div className="mb-3 flex items-center justify-between text-sm font-bold">
           <span className="text-amber-700">Score: {score}</span>
+          <span className="text-blue-700">Progress: {Math.min(current, totalPrompts)}/{totalPrompts}</span>
           <span className="text-indigo-700">Time: {format(timeLeft)}</span>
         </div>
 
@@ -86,17 +113,27 @@ export default function QuickTapClient({ prompts, difficulty = "easy", onComplet
       </div>
 
       {ended && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl p-6 max-w-sm text-center shadow-lg">
-            <div className="text-5xl mb-3">{win ? "🎉" : "⏰"}</div>
-            <h3 className="text-2xl font-bold mb-2">{win ? "Quick fingers!" : "Time's up"}</h3>
-            <p className="text-xl font-bold text-amber-600 mb-4">{win ? "+30 XP" : "+15 XP"}</p>
-            <button
-              onClick={() => onComplete(win)}
-              className="inline-flex justify-center rounded-lg bg-amber-500 px-5 py-3 font-bold text-white shadow hover:bg-amber-600"
-            >
-              Continue Story →
-            </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="max-w-sm rounded-2xl bg-white p-6 text-center shadow-lg">
+            <div className="mb-3 text-5xl">{win ? "🎉" : "⏰"}</div>
+            <h3 className="mb-2 text-2xl font-bold">{win ? "Quick fingers!" : "Time's up"}</h3>
+            <p className="mb-4 text-xl font-bold text-amber-600">{win ? "+30 XP" : "+15 XP"}</p>
+            <div className="flex justify-center gap-3">
+              {!win ? (
+                <button
+                  onClick={handleRetry}
+                  className="inline-flex justify-center rounded-lg bg-slate-100 px-5 py-3 font-bold text-slate-800 shadow hover:bg-slate-200"
+                >
+                  Retry
+                </button>
+              ) : null}
+              <button
+                onClick={() => onComplete(win)}
+                className="inline-flex justify-center rounded-lg bg-amber-500 px-5 py-3 font-bold text-white shadow hover:bg-amber-600"
+              >
+                Continue Story
+              </button>
+            </div>
           </div>
         </div>
       )}

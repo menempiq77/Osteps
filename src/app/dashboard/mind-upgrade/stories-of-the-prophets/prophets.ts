@@ -1,4 +1,4 @@
-export type Prophet = {
+﻿export type Prophet = {
   slug: string;
   name: string;
   subtitle: string;
@@ -19,7 +19,7 @@ export const PROPHETS: Prophet[] = [
   { slug: "yusuf", name: "Yusuf (peace be upon him)", subtitle: "Truth, patience, forgiveness", icon: "11" },
   { slug: "ayyub", name: "Ayyub (peace be upon him)", subtitle: "Patience in hardship", icon: "12" },
   { slug: "shuayb", name: "Shu'ayb (peace be upon him)", subtitle: "Honesty in trade", icon: "13" },
-  { slug: "musa", name: "Musa (peace be upon him)", subtitle: "Standing up to ظلم", icon: "14" },
+  { slug: "musa", name: "Musa (peace be upon him)", subtitle: "Standing up to oppression", icon: "14" },
   { slug: "harun", name: "Harun (peace be upon him)", subtitle: "Support and teamwork", icon: "15" },
   { slug: "dhul-kifl", name: "Dhul-Kifl (peace be upon him)", subtitle: "Keeping promises", icon: "16" },
   { slug: "dawud", name: "Dawud (peace be upon him)", subtitle: "Justice and worship", icon: "17" },

@@ -8,6 +8,7 @@ import { getProphetStoryBySlug } from "../stories";
 import StoryStepper from "@/components/stories/StoryStepper";
 import { RootState } from "@/store/store";
 import { fetchStudentMindAssignments } from "@/services/mindUpgradeApi";
+import ClientErrorBoundary from "@/components/ui/ClientErrorBoundary";
 
 type PageProps = {
   params: Promise<{ prophet: string }>;
@@ -139,11 +140,13 @@ export default function ProphetStoryPage({ params }: PageProps) {
                   : null}
               </div>
             ) : (
-              <StoryStepper
-                story={story}
-                basePath="/dashboard/mind-upgrade/stories-of-the-prophets"
-                previewMode={canPreviewAll}
-              />
+              <ClientErrorBoundary fallbackTitle="Story page error">
+                <StoryStepper
+                  story={story}
+                  basePath="/dashboard/mind-upgrade/stories-of-the-prophets"
+                  previewMode={canPreviewAll}
+                />
+              </ClientErrorBoundary>
             )}
 
             <div

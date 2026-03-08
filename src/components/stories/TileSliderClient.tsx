@@ -15,8 +15,48 @@ function isSolved(arr: number[]) {
   return arr.every((v, i) => (i === arr.length - 1 ? v === 0 : v === i + 1));
 }
 
+function inversionCount(arr: number[]) {
+  const values = arr.filter((v) => v !== 0);
+  let count = 0;
+  for (let i = 0; i < values.length; i++) {
+    for (let j = i + 1; j < values.length; j++) {
+      if (values[i] > values[j]) count++;
+    }
+  }
+  return count;
+}
+
+function isSolvable(arr: number[], size: number) {
+  const inversions = inversionCount(arr);
+  if (size % 2 === 1) return inversions % 2 === 0;
+
+  const blankIndex = arr.indexOf(0);
+  const blankRowFromBottom = size - Math.floor(blankIndex / size);
+  if (blankRowFromBottom % 2 === 0) return inversions % 2 === 1;
+  return inversions % 2 === 0;
+}
+
+function shuffledBoard(base: number[], size: number) {
+  if (size <= 1) return base;
+  let next = [...base];
+  let attempts = 0;
+  do {
+    for (let i = next.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [next[i], next[j]] = [next[j], next[i]];
+    }
+    attempts++;
+  } while ((isSolved(next) || !isSolvable(next, size)) && attempts < 1000);
+  return next;
+}
+
 export default function TileSliderClient({ tiles, difficulty = "easy", onComplete }: Props) {
-  const [board, setBoard] = useState<number[]>(tiles);
+  const BOARD_SIZE = useMemo(() => {
+    const size = Math.sqrt(tiles.length);
+    return Number.isInteger(size) ? size : 3;
+  }, [tiles.length]);
+
+  const [board, setBoard] = useState<number[]>(() => shuffledBoard(tiles, BOARD_SIZE));
   const [timeLeft, setTimeLeft] = useState(GAME_DURATION);
   const [moves, setMoves] = useState(0);
   const [ended, setEnded] = useState(false);
@@ -39,10 +79,10 @@ export default function TileSliderClient({ tiles, difficulty = "easy", onComplet
 
   const tryMove = (idx: number) => {
     if (ended) return;
-    const row = Math.floor(idx / 3);
-    const col = idx % 3;
-    const erow = Math.floor(emptyIndex / 3);
-    const ecol = emptyIndex % 3;
+    const row = Math.floor(idx / BOARD_SIZE);
+    const col = idx % BOARD_SIZE;
+    const erow = Math.floor(emptyIndex / BOARD_SIZE);
+    const ecol = emptyIndex % BOARD_SIZE;
     const canMove = (Math.abs(row - erow) + Math.abs(col - ecol)) === 1;
     if (!canMove) return;
     setBoard((prev) => {
@@ -55,6 +95,13 @@ export default function TileSliderClient({ tiles, difficulty = "easy", onComplet
     });
     setMoves((m) => m + 1);
   };
+
+  useEffect(() => {
+    setBoard(shuffledBoard(tiles, BOARD_SIZE));
+    setMoves(0);
+    setEnded(false);
+    setTimeLeft(GAME_DURATION);
+  }, [tiles, BOARD_SIZE]);
 
   const format = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   const win = isSolved(board);
@@ -72,7 +119,7 @@ export default function TileSliderClient({ tiles, difficulty = "easy", onComplet
           <span className="text-amber-700">Time: {format(timeLeft)}</span>
         </div>
 
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${BOARD_SIZE}, minmax(0, 1fr))` }}>
           {board.map((val, idx) => (
             <button
               key={idx}

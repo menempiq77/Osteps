@@ -69,14 +69,14 @@ const FOUNDATIONS_SECTIONS: ProphetStorySection[] = [
   {
     title: { en: "Part 1: What is 'Aqidah and why it matters", ar: "الجزء الأول: ما هي العقيدة ولماذا هي مهمة" },
     body: {
-      en: "'Aqidah is what a Muslim believes with full certainty in the heart. It is not an opinion, a guess, or a feeling; it is a firm belief that does not change. If the foundation (belief) is correct, actions are accepted. If the foundation is corrupt, actions lose value. Just like a building: a strong foundation makes a strong building; a weak foundation collapses.\n\nQur'an: \"Your God is One God. There is no god but Him.\" (Al-Baqarah 2:163)\n\nThink: a pure foundation means you rely on Allah alone, not on charms, luck, or people.",
+      en: "Al-'Aqidah Al-Wasitiyyah begins by grounding the reader in what creed means. 'Aqidah is what a Muslim believes with full certainty in the heart. It is not an opinion, a guess, or a feeling; it is a firm belief that does not change. If the foundation of belief is correct, actions are accepted. If the foundation is corrupt, actions lose value. Just like a building: a strong foundation makes a strong building; a weak foundation collapses.\n\nThe PDF also explains that i'tiqad means certain assertion and that this science focuses on the statements of the Salaf in matters of belief, especially where deviant ideas appeared. Many of these issues concern Allah's names and attributes, the unseen, the Hereafter, Paradise, Hell, and other core matters of faith.\n\nThe book itself is one of the most famous concise books in Islamic creed, written by Shaykh al-Islam Ibn Taymiyyah. So this course is not starting from scattered topics; it is starting from a structured creed text with a clear Sunni foundation.\n\nQur'an: \"Your God is One God. There is no god but Him.\" (Al-Baqarah 2:163)\n\nThink: a pure foundation means you rely on Allah alone, not on charms, luck, or people.",
       ar: "العقيدة هي ما يؤمن به المسلم بيقين تام في القلب. ليست رأياً أو تخميناً أو شعوراً، بل اعتقاد راسخ لا يتغير. إذا كان الأساس (الاعتقاد) صحيحاً، قُبلت الأعمال. وإذا كان الأساس فاسداً، فقدت الأعمال قيمتها. تماماً كالبناء: الأساس القوي يجعل البناء قوياً، والأساس الضعيف ينهار.\n\nقال الله تعالى: ﴿إِلَٰهُكُمْ إِلَٰهٌ وَاحِدٌ ۖ لَّا إِلَٰهَ إِلَّا هُوَ﴾ (البقرة: ١٦٣)\n\nتأمل: الأساس النقي يعني أنك تتوكل على الله وحده، لا على التمائم أو الحظ أو الناس."
     }
   },
   {
     title: { en: "Part 2: Who is being described (Saved and Victorious Group)", ar: "الجزء الثاني: من هم الموصوفون (الفرقة الناجية والطائفة المنصورة)" },
     body: {
-      en: "Ibn Taymiyyah opens by saying: this is the belief of the Saved Group and Victorious Group until the Day of Judgment: Ahl al-Sunnah wal-Jama'ah.\n\nSaved Group (Al-Firqat an-Najiyah): they are saved from punishment because they are upon correct belief. Hadith: \"My Ummah will split into seventy-three groups. All of them will be in the Fire except one.\" They asked: Who are they, O Messenger of Allah? He said: \"Those who follow what I and my companions are upon.\"\n\nVictorious Group (At-Ta'ifah al-Mansurah): they remain upon the truth and are victorious by evidence and clarity until the Day of Judgment. Hadith: \"There will remain a group from my Ummah upon the truth, victorious, until the Hour is established.\"\n\nVictory here is proof and clarity, not worldly power.",
+      en: "The formal introduction of the book begins with praise of Allah, testimony to His oneness, and testimony that Muhammad is His servant and Messenger. Then Ibn Taymiyyah states: this is the belief of the Saved Group and Victorious Group until the Day of Judgment: Ahl al-Sunnah wal-Jama'ah.\n\nSaved Group (Al-Firqat an-Najiyah): they are saved from punishment because they are upon correct belief. Hadith: \"My Ummah will split into seventy-three groups. All of them will be in the Fire except one.\" They asked: Who are they, O Messenger of Allah? He said: \"Those who follow what I and my companions are upon.\"\n\nVictorious Group (At-Ta'ifah al-Mansurah): they remain upon the truth and are victorious by evidence and clarity until the Day of Judgment. Hadith: \"There will remain a group from my Ummah upon the truth, victorious, until the Hour is established.\"\n\nVictory here is proof and clarity, not worldly power. The PDF commentary also makes clear that they are called saved because they are saved in the Hereafter, and victorious because they remain established upon truth in this life.",
       ar: "يفتتح ابن تيمية بقوله: هذا اعتقاد الفرقة الناجية والطائفة المنصورة إلى قيام الساعة: أهل السنة والجماعة.\n\nالفرقة الناجية: هم الناجون من العذاب لأنهم على الاعتقاد الصحيح. قال النبي ﷺ: «ستفترق أمتي على ثلاث وسبعين فرقة، كلها في النار إلا واحدة» قالوا: من هي يا رسول الله؟ قال: «من كان على مثل ما أنا عليه وأصحابي».\n\nالطائفة المنصورة: يبقون على الحق ومنتصرون بالحجة والبيان إلى يوم القيامة. قال النبي ﷺ: «لا تزال طائفة من أمتي على الحق ظاهرين حتى تقوم الساعة».\n\nالنصرة هنا بالحجة والبيان، لا بالقوة الدنيوية."
     }
   },
@@ -1003,7 +1003,7 @@ const ISTIWA_SECTIONS: ProphetStorySection[] = [
       "Closely connected to Al-Istiwā' is Allah's Highness ('Uluww).\n\nAllah is:\n• high above His creation\n• above the heavens\n• above the Throne\n• separate from creation\n\nThis highness is:\n• highness of essence (Allah's being itself is high)\n• highness of status (Allah's position is supreme)\n• highness of power and authority (Allah's command is absolute)\n\nAllah's highness is not just physical distance. It includes His complete dominion, His absolute authority, and His supreme status above all creation. Nothing rivals Allah. Nothing compares to Allah. No creation reaches the level of Allah's status and power. This highness is one of Allah's attributes that believers must affirm.",
   },
   {
-    title: "Part 5: Additional Qur'anic Proofs of Highness",
+    title: "Part 5: Allah Is Above Everything - Additional Qur'anic Proofs of Highness",
     body:
       "The book also mentions verses showing that things are raised to Allah, which proves His highness:\n\n\"To Him ascend good words.\" (35:10)\n\n\"Rather, Allah raised him to Himself.\" (4:158)\n\n\"Do you feel secure that He who is above the heaven...?\" (67:16)\n\nHere, \"above the heaven\" refers to absolute highness, not that Allah is contained within creation.\n\nWhen good words ascend to Allah, it means they reach Allah who is high above. When Allah raised Prophet Isa (Jesus) to Himself, it means He elevated him to a high position with Allah. When the Qur'an says Allah is \"above the heaven,\" it means He is above it in a way befitting His majesty. All of these verses prove that Allah is truly and absolutely high above His creation.",
   },
@@ -1052,7 +1052,7 @@ const ISTIWA_SECTIONS: ProphetStorySection[] = [
 
 const OMNIPRESENCE_CLOSENESS_SECTIONS: ProphetStorySection[] = [
   {
-    title: "Part 1: Qur'anic Evidence Used in the Book",
+    title: "Part 1: The Closeness of Allah to His Worshippers",
     body:
       "Ibn Taymiyyah affirms the Attribute of Closeness (Ma'iyyah) using clear verses from the Qur'an cited in Al-'Aqidah Al-Wāsitiyyah. Allah says:\n\n\"And He is with you wherever you are, and Allah sees what you do.\" (Surah Al-Ħadīd 57:4)\n\n\"Indeed, Allah is with those who fear Him and those who do good.\" (Surah An-Naḥl 16:128)\n\n\"Indeed, Allah is with the patient.\" (Surah Al-Baqarah 2:153)\n\n\"Do not grieve; indeed Allah is with us.\" (Surah At-Tawbah 9:40)\n\n\"Indeed, I am with you both; I hear and I see.\" (Surah Tā-Hā 20:46)\n\nThese verses establish the attribute of being \"with\" creation. They show that Allah is close to His servants in knowledge, support, and care.",
   },
@@ -1067,7 +1067,7 @@ const OMNIPRESENCE_CLOSENESS_SECTIONS: ProphetStorySection[] = [
       "General Closeness: Allah is with all creation by:\n• knowledge\n• hearing\n• seeing\n• control\n\n\"And He is with you wherever you are.\" (Al-Ħadīd 57:4)\n\nThis includes believers and non-believers. All creatures are under Allah's supervision. Whether a person acknowledges it or not, Allah is aware of them. Allah knows everything they do. Allah sees their actions. Allah controls their affairs. This general closeness applies to everyone without exception.\n\nIt means that\n• no one can hide from Allah\n• Allah's knowledge encompasses all\n• Allah's control is complete\n• escape is impossible",
   },
   {
-    title: "Part 4: Special Closeness",
+    title: "Part 4: Special Closeness to the Believers",
     body:
       "Special Closeness: Allah is with specific people by:\n• support\n• help\n• protection\n• guidance\n\n\"Indeed, Allah is with those who fear Him and those who do good.\" (An-Naḥl 16:128)\n\n\"Indeed, Allah is with the patient.\" (Al-Baqarah 2:153)\n\n\"Do not grieve; indeed Allah is with us.\" (At-Tawbah 9:40)\n\nThis special closeness is only for believers. Those who fear Allah and do good deeds experience Allah's help, protection, and guidance in a special way. When believers face trials, Allah is with them giving them strength. When they face enemies, Allah is with them giving them victory. When they feel afraid, Allah is with them giving them comfort. This is a special mercy from Allah to His believing servants.",
   },
@@ -1249,7 +1249,7 @@ const SEEING_ALLAH_SECTIONS: ProphetStorySection[] = [
       "The book relies on mutawātir (mass-transmitted) hadiths, including:\n\nThe Prophet \ufe0f said: \"You will see your Lord as you see the full moon on a clear night; you will have no difficulty seeing Him.\"\n\nThis hadith proves:\n• seeing Allah is real\n• believers will see Him clearly\n• the comparison is about clarity of seeing, not resemblance\n\nNotice the Prophet \ufe0f did not say \"You will see your Lord and He looks like the moon.\" That would be resemblance. Instead, he said you will see Him as you see the moon — meaning you will see Him clearly without any obstruction or difficulty. Just as you can look at the full moon on a clear night without straining, you will see Allah without any barrier.\n\nThis hadith is narrated by multiple Companions and is considered mutawātir (mass-transmitted), meaning it reached such a level of authenticity that it is beyond doubt.",
   },
   {
-    title: "Part 4: When Will the Believers See Allah?",
+    title: "Part 4: Seeing Allah on the Day of Judgment and in Paradise",
     body:
       "According to the creed explained in the book:\n• Believers will see Allah in the Hereafter\n• They will see Him in Paradise\n• They will see Him on the Day of Judgment\n\nThis is the greatest reward for the believers.\n\nThe scholars explain that believers will see Allah on multiple occasions:\n• On the Day of Judgment during the reckoning\n• In Paradise, where they will see Him regularly\n\nThe most frequent narrations focus on seeing Allah in Paradise. This seeing will be the greatest pleasure and joy in Paradise. It will surpass all other blessings. Even the beauty and comfort of Paradise cannot compare to the joy of seeing Allah.",
   },
@@ -1303,7 +1303,7 @@ const SUNNAH_EVIDENCE_SECTIONS: ProphetStorySection[] = [
       "In Al-'Aqidah Al-Wāsitiyyah, Ibn Taymiyyah explains that belief in Allah's Names and Attributes is taken from two sources only:\n• the Qur'an\n• the authentic Sunnah of the Prophet \ufe0f\n\nThe Sunnah is revelation from Allah, just like the Qur'an.\n\nAllah says: \"Nor does he speak from his own desire. It is only a revelation revealed.\" (Surah An-Najm 53:3–4)\n\nThis proves that what the Prophet \ufe0f said about Allah is true, correct, and divinely revealed. When the Prophet \ufe0f teaches us about Allah's attributes, he is not giving his personal opinion. He is conveying revelation from Allah. Therefore, the Sunnah is as authoritative as the Qur'an in matters of belief.",
   },
   {
-    title: "Part 2: The Sunnah Confirms What Is in the Qur'an",
+    title: "Part 2: The Sunnah Confirms the Qur'an and Adds Further Details",
     body:
       "Ibn Taymiyyah shows that the Sunnah:\n• explains the Qur'an\n• confirms Allah's Attributes\n• adds details not always mentioned explicitly in the Qur'an\n\nThe Sunnah never contradicts the Qur'an; it supports and clarifies it.\n\nFor example, the Qur'an mentions that Allah speaks, hears, and sees. The Sunnah provides more details about how these attributes manifest, such as Allah speaking to individuals on the Day of Judgment. The Sunnah does not contradict the Qur'an. It complements it. Together, they provide a complete picture of Allah's attributes.",
   },
@@ -1348,7 +1348,7 @@ const SUNNAH_EVIDENCE_SECTIONS: ProphetStorySection[] = [
       "The book rejects the approach of those who:\n• reject hadith in 'aqidah\n• reinterpret attributes metaphorically\n• prefer logic over revelation\n\nIbn Taymiyyah clarifies that:\n• the safest path is following the Salaf\n• revelation comes before reason\n• reason submits to authentic texts\n\nSome people, influenced by Greek philosophy, tried to interpret these attributes metaphorically. They said descending means \"sending mercy,\" or laughter means \"accepting deeds.\" But this is distortion. The Companions did not do this. The early scholars did not do this. This is innovation. The safest path is to follow the Salaf — accept the texts as they are, without distortion.",
   },
   {
-    title: "Part 11: Agreement Between Qur'an and Sunnah",
+    title: "Part 11: Attributes in the Sunnah Mentioned in the Qur'an and Beyond",
     body:
       "Ibn Taymiyyah emphasizes:\n• every attribute mentioned in the Sunnah agrees with the Qur'an\n• there is no contradiction between them\n• both come from Allah\n\nRejecting authentic Sunnah is rejecting revelation.\n\nSome people try to create a division. They say, \"We accept what is in the Qur'an, but not what is in the hadith.\" This is deviation. The Qur'an and Sunnah are both revelation. They both come from Allah. What the Prophet \ufe0f said is revelation just as the Qur'an is revelation. To reject authentic Sunnah is to reject part of the revelation.",
   },
@@ -1397,7 +1397,7 @@ const HEREAFTER_SECTIONS: ProphetStorySection[] = [
       "Ibn Taymiyyah cites many verses, including:\n\n\"And after that you will surely die. Then indeed, on the Day of Resurrection, you will be resurrected.\" (Surah Al-Mu'minūn 23:15–16)\n\n\"As We began the first creation, We will repeat it.\" (Surah Al-Anbiyā' 21:104)\n\n\"Every soul will taste death, and you will only be given your full compensation on the Day of Resurrection.\" (Surah Āl 'Imrān 3:185)\n\nThese verses prove:\n• resurrection is real\n• recompense is real\n• the Hereafter is inevitable\n\nThe Qur'an repeatedly emphasizes the certainty of the Hereafter. Death is certain. Resurrection is certain. Judgment is certain. Final destination is certain. No one can escape it.",
   },
   {
-    title: "Part 4: Belief in Resurrection (Al-Ba'th)",
+    title: "Part 4: The Resurrection (Al-Ba'th)",
     body:
       "Resurrection means:\n• Allah will bring people back to life\n• bodies and souls will be reunited\n• people will rise from their graves\n\nResurrection is:\n• physical and real\n• not spiritual only\n• not imaginary\n\nAllah is fully capable of recreating people, just as He created them the first time.\n\n\"As We began the first creation, We will repeat it.\" (Al-Anbiyā' 21:104)\n\nSome people doubt resurrection. They ask: How can bodies that have turned to dust be brought back? But Allah who created them from nothing can easily recreate them. The same power that created the universe can resurrect the dead. This is not difficult for Allah.",
   },
@@ -2610,7 +2610,7 @@ export const AQEEDAH_TOPICS: ProphetStory[] = TOPIC_TITLES.map((title, idx) => {
       slug,
       name: titleName,
       shortIntro:
-        "Affirm the Attribute of Settling on the Throne and Highness: Allah rose over the Throne in a manner befitting His majesty. He is above all creation, above the heavens, above the Throne. His highness is in essence, status, and power. Do not ask how; do not distort; affirm exactly as revealed. Highness and closeness are both true.",
+        "Affirm Allah's rising over the Throne and His absolute highness exactly as revealed in Al-'Aqidah Al-Wasitiyyah: real, true, and befitting His majesty, without distortion, denial, asking how, or resemblance. Allah is above the heavens, above the Throne, and above all creation, while His highness and His closeness to creation do not contradict.",
       sections: ISTIWA_SECTIONS,
       quranSurahs: [
         "Al-A'raf",
@@ -2629,7 +2629,7 @@ export const AQEEDAH_TOPICS: ProphetStory[] = TOPIC_TITLES.map((title, idx) => {
       slug,
       name: titleName,
       shortIntro:
-        "Affirm the Attribute of Closeness (Omnipresence): Allah is with His creation by His knowledge, hearing, seeing, and support. He sees and hears all things and nothing escapes His awareness. Yet Allah remains above the Throne in His essence. Closeness and highness are both true and do not contradict.",
+        "Affirm Allah's closeness to His worshippers as explained in the book: Allah is with creation by knowledge, hearing, seeing, aid, and care, not by being mixed into creation. He remains above the Throne in His essence, and the creed of Ahl al-Sunnah affirms both closeness and highness together.",
       sections: OMNIPRESENCE_CLOSENESS_SECTIONS,
       quranSurahs: [
         "Al-Hadid",
@@ -2646,7 +2646,7 @@ export const AQEEDAH_TOPICS: ProphetStory[] = TOPIC_TITLES.map((title, idx) => {
       slug,
       name: titleName,
       shortIntro:
-        "Affirm the Attribute of Speech (Al-Kalam): Allah truly speaks whenever He wills and however He wills. His speech is real, perfect, and heard. The Qur'an is the speech of Allah. Allah spoke directly to Musa, making him Kalimullah (the one Allah spoke to). His speech is a real attribute befitting His majesty, without resemblance to creation.",
+        "Affirm Allah's attribute of speech exactly as revealed: Allah truly speaks whenever He wills, with speech that is real and perfect and befitting His majesty. He spoke directly to Musa, the Qur'an is from His speech, and Ahl al-Sunnah affirm this without distortion, denial, or asking how.",
       sections: SPEECH_SECTIONS,
       quranSurahs: [
         "An-Nisa",
@@ -2663,7 +2663,7 @@ export const AQEEDAH_TOPICS: ProphetStory[] = TOPIC_TITLES.map((title, idx) => {
       slug,
       name: titleName,
       shortIntro:
-        "Affirm That the Qur'an Is the Speech of Allah: The Qur'an is the uncreated speech of Allah, revealed through Jibril to the Prophet Muhammad. It came from Allah and will return to Him. It is not created like other things. It is the words of Allah, complete, preserved, and guidance for all humanity. This is the core belief of Ahl al-Sunnah.",
+        "Affirm that the Qur'an is the speech of Allah, uncreated, revealed from Him, truly spoken by Him, and returning to Him. It is not created speech, not human wording, and not merely abstract meaning. This is one of the central creed statements of Ahl al-Sunnah in Al-'Aqidah Al-Wasitiyyah.",
       sections: QURAN_IS_SPEECH_SECTIONS,
       quranSurahs: [
         "At-Tawbah",
@@ -2679,7 +2679,7 @@ export const AQEEDAH_TOPICS: ProphetStory[] = TOPIC_TITLES.map((title, idx) => {
       slug,
       name: titleName,
       shortIntro:
-        "Affirm That Believers Will See Allah in the Hereafter: The believers will see Allah with their own eyes in Paradise and on the Day of Judgment. This is the greatest reward and joy, proven by Qur'an, Sunnah, and the consensus of the Companions. Seeing Allah does not mean He resembles creation; it is real seeing without asking how or comparing to creation.",
+        "Affirm that the believers will truly see Allah in the Hereafter, on the Day of Judgment and in Paradise, as the greatest delight and reward. This belief is established by the Qur'an, the Sunnah, and the consensus of the Companions, and it is affirmed without resemblance, denial, or asking how.",
       sections: SEEING_ALLAH_SECTIONS,
       quranSurahs: [
         "Al-Qiyamah",
@@ -2694,7 +2694,7 @@ export const AQEEDAH_TOPICS: ProphetStory[] = TOPIC_TITLES.map((title, idx) => {
       slug,
       name: titleName,
       shortIntro:
-        "Affirm Evidence from the Sunnah Regarding Allah's Attributes: The authentic Sunnah is revelation from Allah and is equal to the Qur'an in authority for matters of belief. The Companions accepted hadiths about Allah's attributes as they came, without reinterpretation or denial. Attributes like descending, laughter, wonder, fingers, and foot are affirmed as real without asking how or resembling creation. This is the methodology of Ahl al-Sunnah.",
+        "Affirm the evidences from the Sunnah regarding Allah's attributes: authentic hadith is revelation and authoritative in creed just as it is in law. The Sunnah confirms attributes already mentioned in the Qur'an and also reports further affirmed attributes, all of which Ahl al-Sunnah accept without reinterpretation, denial, resemblance, or asking how.",
       sections: SUNNAH_EVIDENCE_SECTIONS,
       quranSurahs: [
         "An-Najm",
@@ -2707,7 +2707,7 @@ export const AQEEDAH_TOPICS: ProphetStory[] = TOPIC_TITLES.map((title, idx) => {
       slug,
       name: titleName,
       shortIntro:
-        "Affirm Belief in the Hereafter: Belief in the Hereafter is a core foundation of faith. It includes believing in death, the grave, resurrection, gathering, judgment, Paradise, and Hellfire as real truths that will occur exactly as Allah informed. Resurrection is physical and real. Allah's judgment accounts for every action with perfect justice. Paradise and Hellfire are real, already created, and eternal. This belief shapes behavior and motivates righteousness.",
+        "Affirm belief in the Hereafter exactly as reported in revelation: death, the grave, resurrection, gathering, judgment, records, scales, Paradise, and Hellfire are real, not symbolic. The book treats this as a core pillar of creed that shapes worship, behavior, accountability, fear, and hope.",
       sections: HEREAFTER_SECTIONS,
       quranSurahs: [
         "Al-Mu'minun",
@@ -2724,7 +2724,7 @@ export const AQEEDAH_TOPICS: ProphetStory[] = TOPIC_TITLES.map((title, idx) => {
       slug,
       name: titleName,
       shortIntro:
-        "Affirm the Trial of the Grave and Resurrection: The trial of the grave is real; every person is questioned by two angels about their Lord, religion, and Prophet. The grave contains punishment or bliss. Resurrection is physical and real; Allah will recreate bodies and reunite them with souls. These are affirmed by Qur'an and Sunnah. Denying resurrection is disbelief. The grave is the first stage of the Hereafter.",
+        "Affirm the trial of the grave, its punishment and bliss, and the physical resurrection after death. These are real truths established by the Qur'an and authentic Sunnah, and the book presents them as part of the unseen that must be believed exactly as reported. The grave is the first stage of the Hereafter, and denial of resurrection is disbelief.",
       sections: GRAVE_RESURRECTION_SECTIONS,
       quranSurahs: [
         "Ibrahim",
