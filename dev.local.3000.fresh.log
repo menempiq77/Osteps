@@ -1,0 +1,260 @@
+
+> sms@0.1.0 dev
+> next dev
+
+   ▲ Next.js 15.5.12
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.0.104:3000
+   - Experiments (use with caution):
+     ⨯ devtoolSegmentExplorer
+
+ ✓ Starting...
+ ✓ Ready in 2.9s
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 703ms (114 modules)
+ ○ Compiling /dashboard/all_assesments/[assesmentId]/assign ...
+ ✓ Compiled /dashboard/all_assesments/[assesmentId]/assign in 14.8s (2154 modules)
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /dashboard/all_assesments/1/assign 200 in 14824ms
+ ✓ Compiled in 1036ms (959 modules)
+ GET /dashboard/all_assesments/1/assign 200 in 224ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /dashboard/all_assesments/1/assign 200 in 80ms
+ HEAD /dashboard/all_assesments/1/assign 200 in 2205ms
+ GET /dashboard/all_assesments/1/assign 200 in 1090ms
+ ✓ Compiled /favicon.ico in 352ms (1203 modules)
+ GET /favicon.ico 200 in 566ms
+ GET /favicon.ico 200 in 100ms
+ ○ Compiling /dashboard/all_assesments ...
+ ✓ Compiled /dashboard/manager in 21.2s (6072 modules)
+ GET /favicon.ico 200 in 16024ms
+ GET /dashboard/all_assesments 200 in 21743ms
+ GET /dashboard/manager 200 in 14154ms
+ GET /dashboard/manager 200 in 12247ms
+ GET /dashboard/manager 200 in 53ms
+ GET /favicon.ico 200 in 108ms
+ GET /dashboard/all_assesments 200 in 118ms
+ GET /favicon.ico 200 in 87ms
+ GET /dashboard/all_assesments/1/assign 200 in 220ms
+ GET /favicon.ico 200 in 107ms
+ ✓ Compiled in 1368ms (6055 modules)
+ GET /dashboard/all_assesments/1/assign 200 in 342ms
+ ✓ Compiled in 1265ms (6055 modules)
+ GET /dashboard/all_assesments/1/assign 200 in 144ms
+ ✓ Compiled in 1439ms (6055 modules)
+ GET /dashboard/all_assesments/1/assign 200 in 469ms
+ ✓ Compiled in 608ms (2911 modules)
+ GET /dashboard/all_assesments/1/assign 200 in 60ms
+ ⨯ Error: Cannot find module './1331.js'
+Require stack:
+- C:\Windows-\Osteps-main\Osteps\.next\server\webpack-runtime.js
+- C:\Windows-\Osteps-main\Osteps\.next\server\app\dashboard\all_assesments\[assesmentId]\assign\page.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\require.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\load-components.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\utils.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\swc\options.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\swc\index.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\next-config-ts\transpile-config.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\config.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\next.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\lib\start-server.js
+    at <unknown> (C:\Windows-\Osteps-main\Osteps\.next\server\app\dashboard\all_assesments\page.js:2:17935)
+    at Object.<anonymous> (C:\Windows-\Osteps-main\Osteps\.next\server\app\dashboard\all_assesments\page.js:2:18124) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array],
+  page: '/dashboard/all_assesments'
+}
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 4s (6400 modules)
+ GET /dashboard/all_assesments 500 in 5417ms
+ GET /dashboard/all_assesments 200 in 385ms
+ GET /dashboard/all_assesments 200 in 78ms
+ GET /dashboard/all_assesments 200 in 65ms
+ GET /dashboard/all_assesments 200 in 1039ms
+ ○ Compiling /favicon.ico ...
+ ✓ Compiled /favicon.ico in 658ms (3355 modules)
+ ⨯ Error: Cannot find module './1331.js'
+Require stack:
+- C:\Windows-\Osteps-main\Osteps\.next\server\webpack-runtime.js
+- C:\Windows-\Osteps-main\Osteps\.next\server\app\favicon.ico\route.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\require.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\load-components.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\utils.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\swc\options.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\swc\index.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\next-config-ts\transpile-config.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\config.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\next.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\lib\start-server.js
+    at <unknown> (C:\Windows-\Osteps-main\Osteps\.next\server\app\favicon.ico\route.js:1:58712)
+    at Object.<anonymous> (C:\Windows-\Osteps-main\Osteps\.next\server\app\favicon.ico\route.js:1:58764) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array],
+  page: '/favicon.ico'
+}
+ GET /favicon.ico 500 in 837ms
+ GET /dashboard/all_assesments/1/assign 200 in 704ms
+ ⨯ Error: Cannot find module './1331.js'
+Require stack:
+- C:\Windows-\Osteps-main\Osteps\.next\server\webpack-runtime.js
+- C:\Windows-\Osteps-main\Osteps\.next\server\app\favicon.ico\route.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\require.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\load-components.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\utils.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\swc\options.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\swc\index.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\next-config-ts\transpile-config.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\config.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\next.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\lib\start-server.js
+    at <unknown> (C:\Windows-\Osteps-main\Osteps\.next\server\app\favicon.ico\route.js:1:58712)
+    at Object.<anonymous> (C:\Windows-\Osteps-main\Osteps\.next\server\app\favicon.ico\route.js:1:58764) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array],
+  page: '/favicon.ico'
+}
+ GET /favicon.ico 500 in 112ms
+ ⨯ Failed to generate static paths for /dashboard/all_assesments/[assesmentId]/assign:
+[Error: Cannot find module './vendor-chunks/@tanstack.js'
+Require stack:
+- C:\Windows-\Osteps-main\Osteps\.next\server\webpack-runtime.js
+- C:\Windows-\Osteps-main\Osteps\.next\server\app\dashboard\all_assesments\[assesmentId]\assign\page.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\require.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\load-components.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\utils.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\dev\static-paths-worker.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\compiled\jest-worker\processChild.js] {
+  type: 'Error',
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array]
+}
+ ⨯ Error: Cannot find module './1331.js'
+Require stack:
+- C:\Windows-\Osteps-main\Osteps\.next\server\webpack-runtime.js
+- C:\Windows-\Osteps-main\Osteps\.next\server\app\favicon.ico\route.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\require.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\load-components.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\utils.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\swc\options.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\swc\index.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\next-config-ts\transpile-config.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\config.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\next.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\lib\start-server.js
+    at <unknown> (C:\Windows-\Osteps-main\Osteps\.next\server\app\favicon.ico\route.js:1:58712)
+    at Object.<anonymous> (C:\Windows-\Osteps-main\Osteps\.next\server\app\favicon.ico\route.js:1:58764) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array],
+  page: '/favicon.ico'
+}
+ GET /favicon.ico 500 in 101ms
+ ⨯ Error: Cannot find module './1331.js'
+Require stack:
+- C:\Windows-\Osteps-main\Osteps\.next\server\webpack-runtime.js
+- C:\Windows-\Osteps-main\Osteps\.next\server\app\favicon.ico\route.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\require.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\load-components.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\utils.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\swc\options.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\swc\index.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\next-config-ts\transpile-config.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\config.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\next.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\lib\start-server.js
+    at <unknown> (C:\Windows-\Osteps-main\Osteps\.next\server\app\favicon.ico\route.js:1:58712)
+    at Object.<anonymous> (C:\Windows-\Osteps-main\Osteps\.next\server\app\favicon.ico\route.js:1:58764) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array],
+  page: '/favicon.ico'
+}
+ GET /favicon.ico 500 in 105ms
+ ⨯ Error: Cannot find module './1331.js'
+Require stack:
+- C:\Windows-\Osteps-main\Osteps\.next\server\webpack-runtime.js
+- C:\Windows-\Osteps-main\Osteps\.next\server\app\favicon.ico\route.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\require.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\load-components.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\utils.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\swc\options.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\swc\index.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\next-config-ts\transpile-config.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\config.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\next.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\lib\start-server.js
+    at <unknown> (C:\Windows-\Osteps-main\Osteps\.next\server\app\favicon.ico\route.js:1:58712)
+    at Object.<anonymous> (C:\Windows-\Osteps-main\Osteps\.next\server\app\favicon.ico\route.js:1:58764) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array],
+  page: '/favicon.ico'
+}
+ GET /favicon.ico 500 in 110ms
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 6.3s (7494 modules)
+ GET /dashboard 200 in 7312ms
+ ⨯ Error: Cannot find module './1331.js'
+Require stack:
+- C:\Windows-\Osteps-main\Osteps\.next\server\webpack-runtime.js
+- C:\Windows-\Osteps-main\Osteps\.next\server\app\dashboard\page.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\require.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\load-components.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\utils.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\swc\options.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\swc\index.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\next-config-ts\transpile-config.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\config.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\next.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\lib\start-server.js
+    at <unknown> (C:\Windows-\Osteps-main\Osteps\.next\server\app\favicon.ico\route.js:1:58712)
+    at Object.<anonymous> (C:\Windows-\Osteps-main\Osteps\.next\server\app\favicon.ico\route.js:1:58764) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array],
+  page: '/favicon.ico'
+}
+ GET /favicon.ico 500 in 90ms
+ GET /dashboard 200 in 166ms
+ ⨯ Error: Cannot find module './1331.js'
+Require stack:
+- C:\Windows-\Osteps-main\Osteps\.next\server\webpack-runtime.js
+- C:\Windows-\Osteps-main\Osteps\.next\server\app\dashboard\page.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\require.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\load-components.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\utils.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\swc\options.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\swc\index.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\next-config-ts\transpile-config.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\config.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\next.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\lib\start-server.js
+    at <unknown> (C:\Windows-\Osteps-main\Osteps\.next\server\app\favicon.ico\route.js:1:58712)
+    at Object.<anonymous> (C:\Windows-\Osteps-main\Osteps\.next\server\app\favicon.ico\route.js:1:58764) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array],
+  page: '/favicon.ico'
+}
+ GET /favicon.ico 500 in 124ms
+ ○ Compiling /dashboard/mind-upgrade ...
+ ✓ Compiled /dashboard/mind-upgrade in 3.2s (7479 modules)
+ GET /dashboard/mind-upgrade 200 in 4080ms
+ ⨯ Error: Cannot find module './1331.js'
+Require stack:
+- C:\Windows-\Osteps-main\Osteps\.next\server\webpack-runtime.js
+- C:\Windows-\Osteps-main\Osteps\.next\server\app\dashboard\mind-upgrade\page.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\require.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\load-components.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\utils.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\swc\options.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\swc\index.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\next-config-ts\transpile-config.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\config.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\next.js
+- C:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\lib\start-server.js
+    at <unknown> (C:\Windows-\Osteps-main\Osteps\.next\server\app\favicon.ico\route.js:1:58712)
+    at Object.<anonymous> (C:\Windows-\Osteps-main\Osteps\.next\server\app\favicon.ico\route.js:1:58764) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array],
+  page: '/favicon.ico'
+}
+ GET /favicon.ico 500 in 122ms
+
+C:\Windows-\Osteps-main\Osteps>

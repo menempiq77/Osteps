@@ -1,0 +1,241 @@
+
+> sms@0.1.0 dev
+> npm run dev:clean && next dev --port 3000
+
+
+> sms@0.1.0 dev:clean
+> node -e "require('fs').rmSync('.next',{recursive:true,force:true})"
+
+   ▲ Next.js 15.5.12
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.0.104:3000
+   - Experiments (use with caution):
+     ⨯ devtoolSegmentExplorer
+
+ ✓ Starting...
+ ✓ Ready in 2.2s
+ ✓ Compiled /middleware in 441ms (114 modules)
+ ○ Compiling /dashboard/mind-upgrade/stories-of-the-prophets ...
+ ✓ Compiled /dashboard/mind-upgrade/stories-of-the-prophets in 6.1s (1846 modules)
+ GET /dashboard/mind-upgrade/stories-of-the-prophets 200 in 4050ms
+ GET /dashboard/mind-upgrade/stories-of-the-prophets 200 in 6567ms
+ ✓ Compiled in 558ms (805 modules)
+ ✓ Compiled /favicon.ico in 282ms (1049 modules)
+ GET /favicon.ico 200 in 396ms
+ GET /favicon.ico 200 in 16ms
+ GET /dashboard/mind-upgrade/stories-of-the-prophets 200 in 339ms
+ GET /favicon.ico 200 in 21ms
+ ○ Compiling /dashboard/mind-upgrade/stories-of-the-prophets/[prophet] ...
+ ✓ Compiled /dashboard/mind-upgrade/stories-of-the-prophets/[prophet] in 2.2s (1889 modules)
+ ✓ Compiled in 613ms (821 modules)
+ GET /dashboard/mind-upgrade/stories-of-the-prophets/adam 200 in 3394ms
+ GET /dashboard/mind-upgrade/stories-of-the-prophets/adam 200 in 84ms
+ GET /dashboard/mind-upgrade/stories-of-the-prophets/adam 200 in 126ms
+ GET /favicon.ico 200 in 546ms
+ GET /dashboard/mind-upgrade/stories-of-the-prophets/adam 200 in 603ms
+ GET /dashboard/mind-upgrade/stories-of-the-prophets 200 in 67ms
+ GET /favicon.ico 200 in 84ms
+ GET /dashboard/mind-upgrade/stories-of-the-prophets/idris 200 in 64ms
+ GET /favicon.ico 200 in 120ms
+ GET /dashboard/mind-upgrade/stories-of-the-prophets 200 in 117ms
+ GET /favicon.ico 200 in 285ms
+ GET /dashboard/mind-upgrade/stories-of-the-prophets/yahya 200 in 52ms
+ GET /favicon.ico 200 in 36ms
+ GET /dashboard/mind-upgrade/stories-of-the-prophets 200 in 57ms
+ GET /favicon.ico 200 in 46ms
+ GET /dashboard/mind-upgrade/stories-of-the-prophets/muhammad 200 in 50ms
+ GET /favicon.ico 200 in 40ms
+ ✓ Compiled in 533ms (1872 modules)
+ GET /dashboard/mind-upgrade/stories-of-the-prophets/muhammad 200 in 141ms
+ ✓ Compiled in 704ms (1872 modules)
+ GET /dashboard/mind-upgrade/stories-of-the-prophets/muhammad 200 in 72ms
+ ⨯ Failed to generate static paths for /dashboard/mind-upgrade/stories-of-the-prophets/[prophet]:
+[Error: Cannot find module './vendor-chunks/@tanstack.js'
+Require stack:
+- c:\Windows-\Osteps-main\Osteps\.next\server\webpack-runtime.js
+- c:\Windows-\Osteps-main\Osteps\.next\server\app\dashboard\mind-upgrade\stories-of-the-prophets\[prophet]\page.js
+- c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\require.js
+- c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\load-components.js
+- c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\utils.js
+- c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\dev\static-paths-worker.js
+- c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\compiled\jest-worker\processChild.js] {
+  type: 'Error',
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array]
+}
+ ⨯ Error: Could not find the module "c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\client\components\layout-router.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>) {
+  digest: '2072318117'
+}
+ ⨯ Error: Could not find the module "c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\client\components\render-from-template-context.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>)
+    at stringify (<anonymous>)
+    at stringify (<anonymous>) {
+  digest: '2575533221'
+}
+ ⨯ Error: Could not find the module "c:\Windows-\Osteps-main\Osteps\src\app\provider.tsx#Providers" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>) {
+  digest: '2661163795'
+}
+ ⨯ Error: Could not find the module "c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\client\components\layout-router.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>) {
+  digest: '1253972179'
+}
+ ⨯ Error: Could not find the module "c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\client\components\render-from-template-context.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>) {
+  digest: '4285190355'
+}
+ ⨯ Error: Could not find the module "c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\client\components\client-segment.js#ClientSegmentRoot" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '2594994361'
+}
+ ⨯ Error: Could not find the module "c:\Windows-\Osteps-main\Osteps\src\app\dashboard\layout.tsx#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '342308469'
+}
+ ⨯ Error: Could not find the module "c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\client\components\layout-router.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '3790181273'
+}
+ ⨯ Error: Could not find the module "c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\client\components\render-from-template-context.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '1279050905'
+}
+ ⨯ Error: Could not find the module "c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\client\components\layout-router.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '3790181273'
+}
+ ⨯ Error: Could not find the module "c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\client\components\render-from-template-context.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '1279050905'
+}
+ ⨯ Error: Could not find the module "c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\client\components\layout-router.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '3790181273'
+}
+ ⨯ Error: Could not find the module "c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\client\components\render-from-template-context.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '1279050905'
+}
+ ⨯ Error: Could not find the module "c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\client\components\layout-router.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '3790181273'
+}
+ ⨯ Error: Could not find the module "c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\client\components\render-from-template-context.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '1279050905'
+}
+ ⨯ Error: Could not find the module "c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\client\components\client-page.js#ClientPageRoot" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '3340693817'
+}
+ ⨯ Error: Could not find the module "c:\Windows-\Osteps-main\Osteps\src\app\dashboard\mind-upgrade\stories-of-the-prophets\[prophet]\page.tsx#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '902718709'
+}
+ ⨯ Error: Could not find the module "c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\lib\framework\boundary-components.js#OutletBoundary" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '3995902233'
+}
+ ⨯ Error: Could not find the module "c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\client\components\metadata\async-metadata.js#AsyncMetadataOutlet" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>) {
+  digest: '2004430483'
+}
+ ⨯ Error: Could not find the module "c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\lib\framework\boundary-components.js#ViewportBoundary" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>) {
+  digest: '3191415347'
+}
+ ⨯ Error: Could not find the module "c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\lib\framework\boundary-components.js#MetadataBoundary" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>) {
+  digest: '1457466259'
+}
+ ⨯ Error: Could not find the module "c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\client\components\builtin\global-error.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '581097177'
+}
+ ⨯ Error: Could not find the module "c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\lib\metadata\generate\icon-mark.js#IconMark" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '3188633419'
+}
+ ⨯ Error: Could not find the module "c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\lib\framework\boundary-components.js#ViewportBoundary" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>) {
+  digest: '4202520699'
+}
+ ⨯ Error: Could not find the module "c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\lib\framework\boundary-components.js#MetadataBoundary" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>) {
+  digest: '926706395'
+}
+ ⨯ Error: Could not find the module "c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\client\components\builtin\global-error.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '3420651281'
+}
+[0m[7m Server [0m Error: Could not find the module "c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\client\components\builtin\global-error.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>:1:18) {
+  environmentName: 'Server',
+  digest: '3420651281'
+}
+ ⨯ Error: Could not find the module "c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\client\components\builtin\global-error.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>:1:18) {
+  environmentName: 'Server',
+  digest: '3420651281'
+}
+ ⨯ Error: Could not find the module "c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\client\components\builtin\global-error.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>:1:18) {
+  environmentName: 'Server',
+  digest: '3420651281',
+  page: '/dashboard/mind-upgrade/stories-of-the-prophets/muhammad'
+}
+ ⨯ Error: Could not find the module "c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\lib\metadata\generate\icon-mark.js#IconMark" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '3439621763'
+}
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 3.5s (2203 modules)
+ GET /dashboard/mind-upgrade/stories-of-the-prophets/muhammad 200 in 2498ms
+ GET /dashboard/mind-upgrade/stories-of-the-prophets/muhammad 500 in 12688ms
+ ⨯ Failed to generate static paths for /dashboard/mind-upgrade/stories-of-the-prophets/[prophet]:
+[Error: Cannot find module './vendor-chunks/@tanstack.js'
+Require stack:
+- c:\Windows-\Osteps-main\Osteps\.next\server\webpack-runtime.js
+- c:\Windows-\Osteps-main\Osteps\.next\server\app\dashboard\mind-upgrade\stories-of-the-prophets\[prophet]\page.js
+- c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\require.js
+- c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\load-components.js
+- c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\utils.js
+- c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\dev\static-paths-worker.js
+- c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\compiled\jest-worker\processChild.js] {
+  type: 'Error',
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array]
+}
+ ○ Compiling /favicon.ico ...
+ ✓ Compiled /favicon.ico in 742ms (1262 modules)
+ ⨯ Error: Cannot find module './1331.js'
+Require stack:
+- c:\Windows-\Osteps-main\Osteps\.next\server\webpack-runtime.js
+- c:\Windows-\Osteps-main\Osteps\.next\server\app\favicon.ico\route.js
+- c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\require.js
+- c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\load-components.js
+- c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\utils.js
+- c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\swc\options.js
+- c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\swc\index.js
+- c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\build\next-config-ts\transpile-config.js
+- c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\config.js
+- c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\next.js
+- c:\Windows-\Osteps-main\Osteps\node_modules\next\dist\server\lib\start-server.js
+    at <unknown> (c:\Windows-\Osteps-main\Osteps\.next\server\app\favicon.ico\route.js:1:58712)
+    at Object.<anonymous> (c:\Windows-\Osteps-main\Osteps\.next\server\app\favicon.ico\route.js:1:58764) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array],
+  page: '/favicon.ico'
+}
+ GET /favicon.ico 500 in 1144ms

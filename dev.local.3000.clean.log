@@ -1,0 +1,80 @@
+
+> sms@0.1.0 dev
+> next dev --turbopack --port 3000
+
+   ▲ Next.js 15.5.12 (Turbopack)
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.0.104:3000
+   - Experiments (use with caution):
+     ⨯ devtoolSegmentExplorer
+
+ ✓ Starting...
+Creating turbopack project { dir: 'C:\\Windows-\\Osteps-main\\Osteps', testMode: true }
+ ✓ Compiled middleware in 267ms
+ ✓ Ready in 2.5s
+ ○ Compiling /dashboard/mind-upgrade ...
+ ✓ Compiled /dashboard/mind-upgrade in 13.4s
+ GET /dashboard/mind-upgrade 200 in 14761ms
+ ○ Compiling / ...
+ GET /favicon.ico?favicon.55d8382c.ico 200 in 2860ms
+ ✓ Compiled / in 4.9s
+ GET / 200 in 5220ms
+ GET /favicon.ico?favicon.55d8382c.ico 200 in 661ms
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 5.9s
+ GET /dashboard 200 in 6163ms
+ GET /dashboard 200 in 300ms
+ GET /favicon.ico?favicon.55d8382c.ico 200 in 612ms
+ ○ Compiling /dashboard/manager ...
+ ✓ Compiled /dashboard/manager in 2.1s
+ GET /dashboard/manager 200 in 2240ms
+ GET /favicon.ico?favicon.55d8382c.ico 200 in 592ms
+ ○ Compiling /dashboard/all_assesments ...
+ ✓ Compiled /dashboard/all_assesments in 4.1s
+ GET /dashboard/all_assesments 200 in 4289ms
+ GET /favicon.ico?favicon.55d8382c.ico 200 in 742ms
+ ○ Compiling /dashboard/all_assesments/[assesmentId]/assign ...
+ ✓ Compiled /dashboard/all_assesments/[assesmentId]/assign in 2.2s
+ GET /dashboard/all_assesments/1/assign 200 in 3918ms
+ GET /favicon.ico?favicon.55d8382c.ico 200 in 630ms
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Windows-\Osteps-main\Osteps\.next\server\app\dashboard\all_assesments\[assesmentId]\assign\page\build-manifest.json'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Windows-\\Osteps-main\\Osteps\\.next\\server\\app\\dashboard\\all_assesments\\[assesmentId]\\assign\\page\\build-manifest.json'
+}
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 2.3s
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Windows-\Osteps-main\Osteps\.next\static\development\_buildManifest.js.tmp.qbbzwfnboq'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Windows-\\Osteps-main\\Osteps\\.next\\static\\development\\_buildManifest.js.tmp.qbbzwfnboq'
+}
+[Error: ENOENT: no such file or directory, open 'C:\Windows-\Osteps-main\Osteps\.next\server\app\dashboard\all_assesments\[assesmentId]\assign\page\build-manifest.json'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Windows-\\Osteps-main\\Osteps\\.next\\server\\app\\dashboard\\all_assesments\\[assesmentId]\\assign\\page\\build-manifest.json'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Windows-\Osteps-main\Osteps\.next\static\development\_buildManifest.js.tmp.r9qex5qu4w'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Windows-\\Osteps-main\\Osteps\\.next\\static\\development\\_buildManifest.js.tmp.r9qex5qu4w'
+}
+[Error: ENOENT: no such file or directory, open 'C:\Windows-\Osteps-main\Osteps\.next\static\development\_buildManifest.js.tmp.47e09t34ug9'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Windows-\\Osteps-main\\Osteps\\.next\\static\\development\\_buildManifest.js.tmp.47e09t34ug9'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Windows-\Osteps-main\Osteps\.next\server\app\favicon.ico\[__metadata_id__]\route\app-paths-manifest.json'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Windows-\\Osteps-main\\Osteps\\.next\\server\\app\\favicon.ico\\[__metadata_id__]\\route\\app-paths-manifest.json'
+}
+[?25h
+
+C:\Windows-\Osteps-main\Osteps>

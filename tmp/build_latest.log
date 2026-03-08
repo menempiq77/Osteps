@@ -1,0 +1,21 @@
+
+> sms@0.1.0 build
+> next build
+
+   ▲ Next.js 15.5.12
+   - Experiments (use with caution):
+     ⨯ devtoolSegmentExplorer
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 31.1s
+   Skipping validation of types
+   Skipping linting
+   Collecting page data ...
+
+> Build error occurred
+[Error: ENOENT: no such file or directory, open 'c:\Windows-\Osteps-main\Osteps\.next\server\pages-manifest.json'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'c:\\Windows-\\Osteps-main\\Osteps\\.next\\server\\pages-manifest.json'
+}

@@ -1,0 +1,13 @@
+
+> sms@0.1.0 start
+> next start -p 3000
+
+   ▲ Next.js 15.5.12
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.0.104:3000
+
+ ✓ Starting...
+ ⚠ "next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.
+ ✓ Ready in 1368ms
+
+C:\Windows-\Osteps-main\Osteps>

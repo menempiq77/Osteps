@@ -1,0 +1,17 @@
+
+> sms@0.1.0 dev
+> next dev --turbopack
+
+ ⚠ Port 3000 is in use by process 4052, using available port 3002 instead.
+   ▲ Next.js 15.5.12 (Turbopack)
+   - Local:        http://localhost:3002
+   - Network:      http://192.168.0.104:3002
+   - Experiments (use with caution):
+     ⨯ devtoolSegmentExplorer
+
+ ✓ Starting...
+Creating turbopack project { dir: 'C:\\Windows-\\Osteps-main\\Osteps', testMode: true }
+ ✓ Compiled middleware in 405ms
+ ✓ Ready in 4.6s
+
+C:\Windows-\Osteps-main\Osteps>

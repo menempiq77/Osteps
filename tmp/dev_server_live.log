@@ -1,0 +1,23 @@
+
+> sms@0.1.0 dev
+> npm run dev:clean && next dev -p 3000
+
+
+> sms@0.1.0 dev:clean
+> node -e "require('fs').rmSync('.next',{recursive:true,force:true})"
+
+   ▲ Next.js 15.5.12
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.0.104:3000
+   - Experiments (use with caution):
+     ⨯ devtoolSegmentExplorer
+
+ ✓ Starting...
+ ✓ Ready in 2.6s
+ ✓ Compiled /middleware in 421ms (114 modules)
+ ○ Compiling /dashboard/mind-upgrade/stories-of-the-prophets/[prophet] ...
+ ✓ Compiled /dashboard/mind-upgrade/stories-of-the-prophets/[prophet] in 6.9s (1868 modules)
+ ✓ Compiled in 390ms (816 modules)
+ GET /dashboard/mind-upgrade/stories-of-the-prophets/muhammad 200 in 8226ms
+ ✓ Compiled /favicon.ico in 220ms (1060 modules)
+ GET /favicon.ico 200 in 354ms
