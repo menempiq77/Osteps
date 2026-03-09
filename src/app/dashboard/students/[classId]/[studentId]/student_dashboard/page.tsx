@@ -286,7 +286,20 @@ export default function StudentProfilePage() {
     0
   );
 
-  const trackers = asArray<AnyObj>(student?.class?.assign_trackers);
+  const trackers = useMemo(() => {
+    const classTrackers = asArray<AnyObj>(student?.class?.assign_trackers);
+    const directTrackers = asArray<AnyObj>(student?.assign_trackers);
+    const merged = [...classTrackers, ...directTrackers];
+    const seen = new Set<string>();
+    return merged.filter((row, index) => {
+      const trackerId = row?.tracker_id ?? row?.tracker?.id ?? `tracker-${index}`;
+      const studentKey = row?.student_id ? `student-${row.student_id}` : "class";
+      const key = `${trackerId}-${studentKey}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [student]);
 
   const trackerPointsFromTrackers = trackers.reduce((sum, assigned) => {
     const topics = asArray<AnyObj>(assigned?.tracker?.topics);

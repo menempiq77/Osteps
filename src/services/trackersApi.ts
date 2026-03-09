@@ -68,21 +68,73 @@ export const deleteTracker = async (id: number) => {
 };
 
 // assign tracker to class
-export const assignTrackerToClass = async (trackerId: number, classId: number, subjectId?: number) => {
-  const response = await api.post(`/assign-tracker-class`, withSubjectPayload({
-    tracker_id: trackerId,
-    class_id: classId,
-  }, subjectId));
+export const assignTracker = async (
+  payload: {
+    tracker_id: number;
+    class_id?: number;
+    class_ids?: number[];
+    student_id?: number;
+    student_ids?: number[];
+    year_ids?: number[];
+    assign_all_students?: boolean;
+  },
+  subjectId?: number
+) => {
+  const response = await api.post(`/assign-tracker-class`, withSubjectPayload(payload, subjectId));
   return response.data;
 };
 
 // unassign tracker from class
-export const unassignTrackerFromClass = async (trackerId: number, classId: number, subjectId?: number) => {
-  const response = await api.post(`/unassign-tracker-class`, withSubjectPayload({
-    tracker_id: trackerId,
-    class_id: classId,
-  }, subjectId));
+export const unassignTracker = async (
+  payload: {
+    tracker_id: number;
+    class_id?: number;
+    student_id?: number;
+  },
+  subjectId?: number
+) => {
+  const response = await api.post(`/unassign-tracker-class`, withSubjectPayload(payload, subjectId));
   return response.data;
+};
+
+export const assignTrackerToClass = async (trackerId: number, classId: number, subjectId?: number) =>
+  assignTracker({ tracker_id: trackerId, class_id: classId }, subjectId);
+
+export const unassignTrackerFromClass = async (trackerId: number, classId: number, subjectId?: number) =>
+  unassignTracker({ tracker_id: trackerId, class_id: classId }, subjectId);
+
+export type TrackerAssignmentRow = {
+  id: number;
+  tracker_id: number;
+  class_id?: number | null;
+  class_name?: string;
+  student_id?: number | null;
+  student_name?: string;
+  year_id?: number | null;
+  year_name?: string | null;
+  status?: string;
+};
+
+export const fetchTrackerAssignments = async (
+  trackerId: number,
+  filters?: {
+    class_id?: string | number;
+    year_id?: string | number;
+    active_only?: boolean;
+  },
+  subjectId?: number
+): Promise<TrackerAssignmentRow[]> => {
+  const response = await api.get(`/manage-tracker-assignments`, {
+    params: withSubjectQuery(
+      {
+        tracker_id: trackerId,
+        ...filters,
+      },
+      subjectId
+    ),
+  });
+  const data = response?.data?.data ?? response?.data ?? [];
+  return Array.isArray(data) ? data : [];
 };
 
 // Fetch Tracker approval requests

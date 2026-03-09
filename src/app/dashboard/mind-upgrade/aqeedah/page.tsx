@@ -80,7 +80,7 @@ export default function AqeedahPage() {
             </div>
 
             <div className="aqeedah-chip rounded-xl px-4 py-2 text-sm font-semibold">
-              {t({ en: "Pass: 7/10", ar: "Pass: 7/10" })}
+              {t({ en: "Pass requirement: 7/10", ar: "Pass requirement: 7/10" })}
             </div>
           </div>
         </section>

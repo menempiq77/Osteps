@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { AddTrackerModal } from "../modals/trackerModals/AddTrackerModal";
 import { EditTrackerModal } from "../modals/trackerModals/EditTrackerModal";
+import TrackerAssignDrawer from "./TrackerAssignDrawer";
 import { useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
@@ -57,6 +58,7 @@ export default function AllTrackerList() {
 
   const [editTracker, setEditTracker] = useState<Tracker | null>(null);
   const [deleteTracker, setDeleteTracker] = useState<Tracker | null>(null);
+  const [assignTracker, setAssignTracker] = useState<Tracker | null>(null);
   const [isAddTrackerModalOpen, setIsAddTrackerModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
@@ -177,7 +179,8 @@ export default function AllTrackerList() {
   };
 
   const handleAssignTracker = (trackerId: string) => {
-    router.push(`/dashboard/all_trackers/${trackerId}/assign`);
+    const tracker = trackers.find((item: Tracker) => item.id === trackerId) ?? null;
+    setAssignTracker(tracker);
   };
 
   if (isLoading)
@@ -278,7 +281,7 @@ export default function AllTrackerList() {
                     {currentUser?.role !== "STUDENT" && (
                       <div className="flex flex-wrap md:flex-col items-center justify-end gap-1">
                         {tracker?.is_topic === 1 && (
-                          <Tooltip title="Assign to Classes">
+                          <Tooltip title="Assign Tracker">
                             <Button
                               type="text"
                               icon={<TeamOutlined className="text-sm" />}
@@ -352,6 +355,12 @@ export default function AllTrackerList() {
           Are you sure you want to delete this tracker? <br /> This action cannot be undone.
         </p>
       </Modal>
+
+      <TrackerAssignDrawer
+        tracker={assignTracker ? { id: assignTracker.id, name: assignTracker.name } : null}
+        open={!!assignTracker}
+        onClose={() => setAssignTracker(null)}
+      />
     </div>
   );
 }
