@@ -487,7 +487,7 @@ export default function LessonDeckClient({ lesson }: Props) {
     });
 
     return (
-      <div className={"rounded-2xl border border-fuchsia-200 bg-fuchsia-50 " + (compact ? "p-4" : "p-5")}>
+      <div className={"rounded-2xl border border-fuchsia-200 bg-[linear-gradient(180deg,_#fff7ff_0%,_#fcfaff_100%)] " + (compact ? "p-4" : "p-5")}>
         <div className="text-xs font-black uppercase tracking-[0.18em] text-fuchsia-700">
           {getText(value.title, "en")}
         </div>
@@ -496,11 +496,14 @@ export default function LessonDeckClient({ lesson }: Props) {
             {getText(value.instruction, "en")}
           </div>
         ) : null}
-        <div className="mt-4 rounded-2xl border border-fuchsia-100 bg-white/80 p-4">
-          <div className="text-xs font-black uppercase tracking-[0.16em] text-fuchsia-700">
-            Drag the meaning cards
+        <div className="mt-4 rounded-2xl border border-fuchsia-100 bg-white/90 p-4 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-xs font-black uppercase tracking-[0.16em] text-fuchsia-700">
+              Meaning cards
+            </div>
+            <div className="text-xs font-semibold text-slate-500">Drag one card into each matching box.</div>
           </div>
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-3 grid gap-2 md:grid-cols-2">
             {options.map((option) => {
               const inUse = selectedValues.includes(option);
               return (
@@ -514,7 +517,7 @@ export default function LessonDeckClient({ lesson }: Props) {
                     event.dataTransfer.effectAllowed = "move";
                   }}
                   className={
-                    "rounded-full border px-4 py-2 text-left text-sm font-bold transition " +
+                    "rounded-2xl border px-4 py-3 text-left text-sm font-bold leading-6 transition " +
                     (isChecked
                       ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
                       : inUse
@@ -528,7 +531,7 @@ export default function LessonDeckClient({ lesson }: Props) {
             })}
           </div>
         </div>
-        <div className="mt-4 grid gap-3">
+        <div className="mt-5 grid gap-3">
           {value.prompts.map((item, index) => {
             const itemKey = `${answerKey}:${index}`;
             const selected = matchingAnswers[itemKey] ?? "";
@@ -537,15 +540,25 @@ export default function LessonDeckClient({ lesson }: Props) {
             return (
               <div
                 key={itemKey}
-                className="grid gap-3 rounded-xl border border-white/80 bg-white/90 p-4 md:grid-cols-[minmax(0,1fr)_240px]"
+                className="grid gap-4 rounded-2xl border border-white/90 bg-white/95 p-4 shadow-sm md:grid-cols-[minmax(0,1fr)_320px] md:items-center"
               >
-                <div className={"font-semibold text-slate-800 " + (compact ? "text-sm leading-6" : "text-base leading-7")}>
-                  <span className="mr-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-fuchsia-600 text-xs font-black text-white">
-                    {index + 1}
-                  </span>
-                  {getText(item.prompt, "en")}
+                <div className="min-w-0">
+                  <div className="mb-2 flex items-center gap-3">
+                    <span className="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-fuchsia-600 text-xs font-black text-white">
+                      {index + 1}
+                    </span>
+                    <div className="text-xs font-black uppercase tracking-[0.14em] text-fuchsia-700">
+                      Phrase
+                    </div>
+                  </div>
+                  <div className={"font-semibold text-slate-800 " + (compact ? "text-sm leading-6" : "text-lg leading-7")}>
+                    {getText(item.prompt, "en")}
+                  </div>
                 </div>
                 <div className="grid gap-2">
+                  <div className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+                    Matching meaning
+                  </div>
                   <div
                     onDragOver={(event) => {
                       if (isChecked) return;
@@ -569,10 +582,10 @@ export default function LessonDeckClient({ lesson }: Props) {
                       });
                     }}
                     className={
-                      "flex min-h-[52px] items-center rounded-xl border border-dashed px-3 py-3 text-sm font-semibold transition " +
+                      "flex min-h-[74px] items-center rounded-2xl border border-dashed px-4 py-3 text-sm font-semibold leading-6 transition " +
                       (selected
                         ? "border-fuchsia-300 bg-fuchsia-50 text-slate-800"
-                        : "border-slate-300 bg-white text-slate-400")
+                        : "border-slate-300 bg-slate-50 text-slate-400")
                     }
                   >
                     {selected || "Drop the correct meaning here"}
@@ -592,7 +605,7 @@ export default function LessonDeckClient({ lesson }: Props) {
             );
           })}
         </div>
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/80 bg-white/80 px-4 py-3">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-fuchsia-100 bg-white/90 px-4 py-3 shadow-sm">
           <div className="text-sm font-semibold text-slate-600">
             {isChecked
               ? `Score: ${score}/${value.prompts.length}`
