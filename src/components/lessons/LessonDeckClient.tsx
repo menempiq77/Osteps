@@ -155,6 +155,7 @@ export default function LessonDeckClient({ lesson }: Props) {
   const [savedStates, setSavedStates] = useState<Record<string, boolean>>({});
   const [partsMenuOpen, setPartsMenuOpen] = useState(false);
   const [matchingAnswers, setMatchingAnswers] = useState<Record<string, string>>({});
+  const [matchingScores, setMatchingScores] = useState<Record<string, number>>({});
 
   const slides = useMemo(() => buildSlides(lesson), [lesson]);
   const totalSections = lesson.sections.length + 1;
@@ -287,6 +288,8 @@ export default function LessonDeckClient({ lesson }: Props) {
     setCompletedIndices([]);
     setResponses({});
     setSavedStates({});
+    setMatchingAnswers({});
+    setMatchingScores({});
     try {
       window.localStorage.removeItem(progressKey(lesson.slug));
       window.localStorage.removeItem(`${progressKey(lesson.slug)}:responses`);
@@ -457,10 +460,16 @@ export default function LessonDeckClient({ lesson }: Props) {
   ) {
     const options = value.prompts.map((item) => getText(item.answer, "en"));
     const answerKey = `${lesson.slug}:match:${sectionIndex}`;
+    const isChecked = Object.prototype.hasOwnProperty.call(matchingScores, answerKey);
+    const score = matchingScores[answerKey] ?? 0;
     const selectedValues = Object.entries(matchingAnswers)
       .filter(([key]) => key.startsWith(`${answerKey}:`))
       .map(([, selected]) => selected)
       .filter(Boolean);
+    const allAnswered = value.prompts.every((_, index) => {
+      const itemKey = `${answerKey}:${index}`;
+      return Boolean(matchingAnswers[itemKey]);
+    });
 
     return (
       <div className={"rounded-2xl border border-fuchsia-200 bg-fuchsia-50 " + (compact ? "p-4" : "p-5")}>
@@ -483,14 +492,17 @@ export default function LessonDeckClient({ lesson }: Props) {
                 <button
                   key={`${answerKey}:bank:${option}`}
                   type="button"
-                  draggable={!inUse}
+                  draggable={!inUse && !isChecked}
                   onDragStart={(event) => {
+                    if (isChecked) return;
                     event.dataTransfer.setData("text/plain", option);
                     event.dataTransfer.effectAllowed = "move";
                   }}
                   className={
                     "rounded-full border px-4 py-2 text-left text-sm font-bold transition " +
-                    (inUse
+                    (isChecked
+                      ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
+                      : inUse
                       ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
                       : "cursor-grab border-fuchsia-200 bg-white text-slate-700 hover:border-fuchsia-300 hover:bg-fuchsia-50 active:cursor-grabbing")
                   }
@@ -521,10 +533,12 @@ export default function LessonDeckClient({ lesson }: Props) {
                 <div className="grid gap-2">
                   <div
                     onDragOver={(event) => {
+                      if (isChecked) return;
                       event.preventDefault();
                       event.dataTransfer.dropEffect = "move";
                     }}
                     onDrop={(event) => {
+                      if (isChecked) return;
                       event.preventDefault();
                       const droppedValue = event.dataTransfer.getData("text/plain");
                       if (!droppedValue) return;
@@ -549,34 +563,41 @@ export default function LessonDeckClient({ lesson }: Props) {
                     {selected || "Drop the correct meaning here"}
                   </div>
                   <div className="flex items-center justify-between gap-2">
-                    {selected ? (
-                      <div className={"text-xs font-black uppercase tracking-[0.12em] " + (correct ? "text-emerald-600" : "text-amber-700")}>
-                        {correct ? "Correct match" : "Try again"}
+                    <div className="text-xs font-black uppercase tracking-[0.12em] text-slate-400">
+                      {selected ? "Answer placed" : "Waiting for match"}
+                    </div>
+                    {isChecked ? (
+                      <div className={"text-xs font-black uppercase tracking-[0.12em] " + (correct ? "text-emerald-600" : "text-rose-600")}>
+                        {correct ? "Correct" : "Incorrect"}
                       </div>
-                    ) : (
-                      <div className="text-xs font-black uppercase tracking-[0.12em] text-slate-400">
-                        Waiting for match
-                      </div>
-                    )}
-                    {selected ? (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setMatchingAnswers((current) => ({
-                            ...current,
-                            [itemKey]: "",
-                          }))
-                        }
-                        className="text-xs font-black uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700"
-                      >
-                        Clear
-                      </button>
                     ) : null}
                   </div>
                 </div>
               </div>
             );
           })}
+        </div>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/80 bg-white/80 px-4 py-3">
+          <div className="text-sm font-semibold text-slate-600">
+            {isChecked ? `Score: ${score}/4` : "Place all four answers, then check your score."}
+          </div>
+          <button
+            type="button"
+            disabled={!allAnswered || isChecked}
+            onClick={() => {
+              const nextScore = value.prompts.reduce((total, item, index) => {
+                const itemKey = `${answerKey}:${index}`;
+                return total + (matchingAnswers[itemKey] === getText(item.answer, "en") ? 1 : 0);
+              }, 0);
+              setMatchingScores((current) => ({
+                ...current,
+                [answerKey]: nextScore,
+              }));
+            }}
+            className="rounded-full bg-fuchsia-600 px-5 py-2 text-sm font-black text-white transition hover:bg-fuchsia-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+          >
+            Check answers
+          </button>
         </div>
       </div>
     );
