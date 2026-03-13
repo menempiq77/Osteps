@@ -58,6 +58,9 @@ function buildSlides(lesson: CourseLesson): PresentationSlide[] {
       if (section.learningObjective) opener.push({ type: "learningObjective", value: section.learningObjective });
       if (section.image) opener.push({ type: "image", value: section.image });
       if (section.callout) opener.push({ type: "callout", value: section.callout });
+      if (section.responsePrompt) {
+        opener.push({ type: "responsePrompt", value: section.responsePrompt });
+      }
       if (opener.length) {
         sectionSlides.push({
           id: `${lesson.slug}-${sectionIndex}-0`,
@@ -65,15 +68,6 @@ function buildSlides(lesson: CourseLesson): PresentationSlide[] {
           slideIndexWithinSection: 0,
           title,
           blocks: opener,
-        });
-      }
-      if (section.responsePrompt) {
-        sectionSlides.push({
-          id: `${lesson.slug}-${sectionIndex}-${sectionSlides.length}`,
-          sectionIndex,
-          slideIndexWithinSection: sectionSlides.length,
-          title,
-          blocks: [{ type: "responsePrompt", value: section.responsePrompt }],
         });
       }
     } else {
