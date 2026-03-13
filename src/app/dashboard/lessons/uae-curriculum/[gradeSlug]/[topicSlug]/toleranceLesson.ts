@@ -112,6 +112,10 @@ export const toleranceLesson: CourseLesson = {
           {
             prompt: "Be easygoing in buying and selling",
             answer: "Show fairness, patience, and kindness in daily dealings."
+          },
+          {
+            prompt: "May Allah have mercy on a man who is tolerant",
+            answer: "Tolerance is a quality that brings Allah's mercy."
           }
         ]
       },

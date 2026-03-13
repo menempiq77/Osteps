@@ -145,6 +145,18 @@ function slideCountForSection(slides: PresentationSlide[], sectionIndex: number)
   return slides.filter((slide) => slide.sectionIndex === sectionIndex).length;
 }
 
+function buildShuffledOptions(options: string[], seed: string) {
+  const seeded = options.map((option, index) => {
+    const weight = Array.from(`${seed}:${option}:${index}`).reduce(
+      (total, char, position) => total + char.charCodeAt(0) * (position + 1),
+      0
+    );
+    return { option, weight };
+  });
+
+  return seeded.sort((a, b) => a.weight - b.weight).map((item) => item.option);
+}
+
 export default function LessonDeckClient({ lesson }: Props) {
   const deckRef = useRef<HTMLDivElement | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -458,8 +470,11 @@ export default function LessonDeckClient({ lesson }: Props) {
     sectionIndex: number,
     compact = false
   ) {
-    const options = value.prompts.map((item) => getText(item.answer, "en"));
     const answerKey = `${lesson.slug}:match:${sectionIndex}`;
+    const options = buildShuffledOptions(
+      value.prompts.map((item) => getText(item.answer, "en")),
+      answerKey
+    );
     const isChecked = Object.prototype.hasOwnProperty.call(matchingScores, answerKey);
     const score = matchingScores[answerKey] ?? 0;
     const selectedValues = Object.entries(matchingAnswers)
@@ -579,7 +594,9 @@ export default function LessonDeckClient({ lesson }: Props) {
         </div>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/80 bg-white/80 px-4 py-3">
           <div className="text-sm font-semibold text-slate-600">
-            {isChecked ? `Score: ${score}/4` : "Place all four answers, then check your score."}
+            {isChecked
+              ? `Score: ${score}/${value.prompts.length}`
+              : `Place all ${value.prompts.length} answers, then check your score.`}
           </div>
           <button
             type="button"
