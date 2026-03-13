@@ -137,6 +137,10 @@ function lastSlideIndexForSection(slides: PresentationSlide[], sectionIndex: num
   return -1;
 }
 
+function slideCountForSection(slides: PresentationSlide[], sectionIndex: number) {
+  return slides.filter((slide) => slide.sectionIndex === sectionIndex).length;
+}
+
 export default function LessonDeckClient({ lesson }: Props) {
   const deckRef = useRef<HTMLDivElement | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -159,6 +163,7 @@ export default function LessonDeckClient({ lesson }: Props) {
   const progressPct = Math.min(100, Math.round((completedIndices.length / totalSections) * 100));
   const isFirstFullscreenSlide = activeSlideIndex === 0;
   const isLastFullscreenSlide = activeSlideIndex === slides.length - 1;
+  const slidesInActiveSection = slideCountForSection(slides, activeSlide?.sectionIndex ?? -1);
   const isLastSlideOfSection =
     activeSlide?.sectionIndex === quizIndex ||
     activeSlideIndex === lastSlideIndexForSection(slides, activeSlide?.sectionIndex ?? -1);
@@ -616,10 +621,17 @@ export default function LessonDeckClient({ lesson }: Props) {
           <div className="min-h-0 flex-1 rounded-[28px] border border-slate-200 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.10)]">
             <div className="flex h-full flex-col overflow-hidden">
               <div className="shrink-0 border-b border-slate-200 bg-[linear-gradient(135deg,_rgba(13,148,136,0.10),_rgba(255,255,255,0.92)_48%,_rgba(20,184,166,0.08))] px-8 py-5">
-                <div className="text-xs font-black uppercase tracking-[0.22em] text-teal-600">
-                  {activeSlide.sectionIndex === quizIndex
-                    ? "Assessment"
-                    : `Slide ${activeSlide.slideIndexWithinSection + 1}`}
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="text-xs font-black uppercase tracking-[0.22em] text-teal-600">
+                    {activeSlide.sectionIndex === quizIndex
+                      ? "Assessment"
+                      : `Slide ${activeSlide.slideIndexWithinSection + 1} of ${slidesInActiveSection}`}
+                  </div>
+                  {!isLastSlideOfSection && activeSlide.sectionIndex !== quizIndex ? (
+                    <div className="rounded-full bg-teal-100 px-3 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-teal-800">
+                      More in this part
+                    </div>
+                  ) : null}
                 </div>
                 <div className="mt-1 text-4xl font-black leading-tight text-slate-900">
                   {activeSlide.title}
@@ -666,7 +678,7 @@ export default function LessonDeckClient({ lesson }: Props) {
                       disabled={activeSlide.sectionIndex === quizIndex}
                       className="rounded-lg bg-gradient-to-r from-teal-500 to-emerald-500 px-6 py-3 font-black text-white shadow-md transition-all hover:shadow-lg active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      {isLastSlideOfSection ? "Mark Done & Next" : "Next"}
+                      {isLastSlideOfSection ? "Mark Done & Next" : "Next Slide"}
                     </button>
                   </div>
                 </div>
