@@ -13,6 +13,8 @@ type LessonProgress = {
 
 type SlideBlock =
   | { type: "learningObjective"; value: NonNullable<LessonSection["learningObjective"]> }
+  | { type: "learningObjectives"; value: NonNullable<LessonSection["learningObjectives"]> }
+  | { type: "successCriteria"; value: NonNullable<LessonSection["successCriteria"]> }
   | { type: "image"; value: NonNullable<LessonSection["image"]> }
   | { type: "callout"; value: NonNullable<LessonSection["callout"]> }
   | { type: "body"; paragraphs: string[] }
@@ -74,6 +76,8 @@ function buildSlides(lesson: CourseLesson): PresentationSlide[] {
       const intro: SlideBlock[] = [];
       if (section.learningObjective) intro.push({ type: "learningObjective", value: section.learningObjective });
       if (section.image) intro.push({ type: "image", value: section.image });
+      if (section.learningObjectives) intro.push({ type: "learningObjectives", value: section.learningObjectives });
+      if (section.successCriteria) intro.push({ type: "successCriteria", value: section.successCriteria });
       if (section.callout) intro.push({ type: "callout", value: section.callout });
       if (intro.length) {
         sectionSlides.push({
@@ -355,6 +359,56 @@ export default function LessonDeckClient({ lesson }: Props) {
     );
   }
 
+  function renderLearningObjectives(
+    values: NonNullable<LessonSection["learningObjectives"]>,
+    compact = false
+  ) {
+    return (
+      <div className={"rounded-2xl border border-indigo-200 bg-indigo-50 " + (compact ? "p-4" : "p-5")}>
+        <div className="text-xs font-black uppercase tracking-[0.18em] text-indigo-700">
+          Learning objectives
+        </div>
+        <div className="mt-4 grid gap-3">
+          {values.map((value, index) => (
+            <div key={`lo-${index}`} className="flex gap-3 rounded-xl bg-white/80 px-4 py-3">
+              <div className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-indigo-600 text-xs font-black text-white">
+                {index + 1}
+              </div>
+              <div className={"font-semibold text-slate-800 " + (compact ? "text-sm leading-7" : "text-base leading-8")}>
+                {getText(value, "en")}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  function renderSuccessCriteria(
+    values: NonNullable<LessonSection["successCriteria"]>,
+    compact = false
+  ) {
+    return (
+      <div className={"rounded-2xl border border-emerald-200 bg-emerald-50 " + (compact ? "p-4" : "p-5")}>
+        <div className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">
+          Success criteria
+        </div>
+        <div className="mt-4 grid gap-3">
+          {values.map((value, index) => (
+            <div key={`sc-${index}`} className="flex gap-3 rounded-xl bg-white/80 px-4 py-3">
+              <div className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-emerald-600 text-xs font-black text-white">
+                {index + 1}
+              </div>
+              <div className={"font-semibold text-slate-800 " + (compact ? "text-sm leading-7" : "text-base leading-8")}>
+                {getText(value, "en")}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   function renderCallout(value: NonNullable<LessonSection["callout"]>, compact = false) {
     return (
       <div className={"rounded-2xl border border-amber-200 bg-amber-50 " + (compact ? "p-4" : "p-5")}>
@@ -467,6 +521,10 @@ export default function LessonDeckClient({ lesson }: Props) {
     switch (block.type) {
       case "learningObjective":
         return renderLearningObjective(block.value, presentationMode);
+      case "learningObjectives":
+        return renderLearningObjectives(block.value, presentationMode);
+      case "successCriteria":
+        return renderSuccessCriteria(block.value, presentationMode);
       case "image":
         return renderImage(block.value, presentationMode);
       case "callout":
@@ -491,6 +549,8 @@ export default function LessonDeckClient({ lesson }: Props) {
       <div className="grid gap-6">
         {activeSection.learningObjective ? renderLearningObjective(activeSection.learningObjective) : null}
         {activeSection.image ? renderImage(activeSection.image) : null}
+        {activeSection.learningObjectives ? renderLearningObjectives(activeSection.learningObjectives) : null}
+        {activeSection.successCriteria ? renderSuccessCriteria(activeSection.successCriteria) : null}
         {activeSection.callout ? renderCallout(activeSection.callout) : null}
         {paragraphs.length ? renderBodyParagraphs(paragraphs) : null}
         {activeSection.responsePrompt ? renderResponsePrompt(activeSection.responsePrompt, activeIndex) : null}

@@ -8,6 +8,8 @@ export type LessonSection = {
   title: string | { en: string; ar: string };
   body: string | { en: string; ar: string };
   learningObjective?: string | { en: string; ar: string };
+  learningObjectives?: Array<string | { en: string; ar: string }>;
+  successCriteria?: Array<string | { en: string; ar: string }>;
   image?: {
     src: string;
     alt: string | { en: string; ar: string };

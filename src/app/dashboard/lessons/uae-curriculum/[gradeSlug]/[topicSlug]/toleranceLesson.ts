@@ -55,6 +55,20 @@ export const toleranceLesson: CourseLesson = {
     },
     {
       title: { en: "Part 2: The concept of tolerance in Islam", ar: "الجزء 2: مفهوم التسامح في الإسلام" },
+      image: {
+        src: "https://images.pexels.com/photos/3184418/pexels-photo-3184418.jpeg?cs=srgb&dl=pexels-fauxels-3184418.jpg&fm=jpg",
+        alt: "Students in a respectful group discussion, showing listening, cooperation, and positive dialogue.",
+        caption: "Tolerance grows through respectful dialogue, listening, and cooperation."
+      },
+      learningObjectives: [
+        "Explain the concept of tolerance in Islam using key ideas from the lesson.",
+        "Analyse how mercy, forgiveness, kind dialogue, and doing good help build a tolerant society."
+      ],
+      successCriteria: [
+        "I can define tolerance in Islam using at least two accurate key ideas.",
+        "I can identify how one Islamic value such as mercy or forgiveness supports tolerance.",
+        "I can compare a tolerant response with a harsh response and justify which one matches Islamic teaching."
+      ],
       body: {
         en:
           "Islam calls Muslims to practice tolerance in all areas of life in order to build a cohesive and connected society. Although the Qur'an does not always mention the exact word 'tolerance', it establishes the meaning through mercy, forgiveness, kind dialogue, and doing good.\n\n" +
