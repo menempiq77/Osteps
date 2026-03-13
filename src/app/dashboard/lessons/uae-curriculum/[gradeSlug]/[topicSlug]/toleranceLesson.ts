@@ -70,14 +70,8 @@ export const toleranceLesson: CourseLesson = {
         "I can compare a tolerant response with a harsh response and justify which one matches Islamic teaching."
       ],
       body: {
-        en:
-          "Islam calls Muslims to practice tolerance in all areas of life in order to build a cohesive and connected society. Although the Qur'an does not always mention the exact word 'tolerance', it establishes the meaning through mercy, forgiveness, kind dialogue, and doing good.\n\n" +
-          "Tolerance is not limited to social relationships. It also includes economic, political, and intellectual life. It means leniency, peace, mercy, rejecting violence, showing kindness in dealing with others, accepting difference, and not forcing people.\n\n" +
-          "Allah says: \"We sent you not, but as a mercy for all worlds.\" (Al-Anbiya' 107)",
-        ar:
-          "يدعو الإسلام المسلمين إلى ممارسة التسامح مع الناس في جميع مجالات الحياة؛ لبناء مجتمع مترابط ومتآلف. ورغم أن القرآن الكريم لا يذكر لفظ التسامح دائماً بصورة مباشرة، فإنه يقرر معناه من خلال الرحمة والعفو والحوار الحسن والإحسان.\n\n" +
-          "ولا يقتصر التسامح على العلاقات الاجتماعية فقط، بل يشمل الجوانب الاقتصادية والسياسية والفكرية. وهو يعني اللين والسلام والرحمة ورفض العنف، وحسن التعامل مع الآخرين، وقبول الاختلاف، وعدم إكراه الناس.\n\n" +
-          "قال الله تعالى: ﴿وَمَا أَرْسَلْنَاكَ إِلَّا رَحْمَةً لِلْعَالَمِينَ﴾ [الأنبياء: 107]."
+        en: "",
+        ar: ""
       }
     },
     {
