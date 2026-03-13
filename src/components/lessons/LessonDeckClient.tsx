@@ -457,6 +457,10 @@ export default function LessonDeckClient({ lesson }: Props) {
   ) {
     const options = value.prompts.map((item) => getText(item.answer, "en"));
     const answerKey = `${lesson.slug}:match:${sectionIndex}`;
+    const selectedValues = Object.entries(matchingAnswers)
+      .filter(([key]) => key.startsWith(`${answerKey}:`))
+      .map(([, selected]) => selected)
+      .filter(Boolean);
 
     return (
       <div className={"rounded-2xl border border-fuchsia-200 bg-fuchsia-50 " + (compact ? "p-4" : "p-5")}>
@@ -468,6 +472,35 @@ export default function LessonDeckClient({ lesson }: Props) {
             {getText(value.instruction, "en")}
           </div>
         ) : null}
+        <div className="mt-4 rounded-2xl border border-fuchsia-100 bg-white/80 p-4">
+          <div className="text-xs font-black uppercase tracking-[0.16em] text-fuchsia-700">
+            Drag the meaning cards
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {options.map((option) => {
+              const inUse = selectedValues.includes(option);
+              return (
+                <button
+                  key={`${answerKey}:bank:${option}`}
+                  type="button"
+                  draggable={!inUse}
+                  onDragStart={(event) => {
+                    event.dataTransfer.setData("text/plain", option);
+                    event.dataTransfer.effectAllowed = "move";
+                  }}
+                  className={
+                    "rounded-full border px-4 py-2 text-left text-sm font-bold transition " +
+                    (inUse
+                      ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
+                      : "cursor-grab border-fuchsia-200 bg-white text-slate-700 hover:border-fuchsia-300 hover:bg-fuchsia-50 active:cursor-grabbing")
+                  }
+                >
+                  {option}
+                </button>
+              );
+            })}
+          </div>
+        </div>
         <div className="mt-4 grid gap-3">
           {value.prompts.map((item, index) => {
             const itemKey = `${answerKey}:${index}`;
@@ -486,28 +519,60 @@ export default function LessonDeckClient({ lesson }: Props) {
                   {getText(item.prompt, "en")}
                 </div>
                 <div className="grid gap-2">
-                  <select
-                    value={selected}
-                    onChange={(event) =>
-                      setMatchingAnswers((current) => ({
-                        ...current,
-                        [itemKey]: event.target.value,
-                      }))
+                  <div
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      event.dataTransfer.dropEffect = "move";
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      const droppedValue = event.dataTransfer.getData("text/plain");
+                      if (!droppedValue) return;
+                      setMatchingAnswers((current) => {
+                        const next = { ...current };
+                        Object.keys(next).forEach((key) => {
+                          if (key.startsWith(`${answerKey}:`) && next[key] === droppedValue) {
+                            next[key] = "";
+                          }
+                        });
+                        next[itemKey] = droppedValue;
+                        return next;
+                      });
+                    }}
+                    className={
+                      "flex min-h-[52px] items-center rounded-xl border border-dashed px-3 py-3 text-sm font-semibold transition " +
+                      (selected
+                        ? "border-fuchsia-300 bg-fuchsia-50 text-slate-800"
+                        : "border-slate-300 bg-white text-slate-400")
                     }
-                    className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-semibold text-slate-700 outline-none focus:border-fuchsia-400"
                   >
-                    <option value="">Choose the best match</option>
-                    {options.map((option) => (
-                      <option key={`${itemKey}:${option}`} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                  {selected ? (
-                    <div className={"text-xs font-black uppercase tracking-[0.12em] " + (correct ? "text-emerald-600" : "text-amber-700")}>
-                      {correct ? "Correct match" : "Try again"}
-                    </div>
-                  ) : null}
+                    {selected || "Drop the correct meaning here"}
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    {selected ? (
+                      <div className={"text-xs font-black uppercase tracking-[0.12em] " + (correct ? "text-emerald-600" : "text-amber-700")}>
+                        {correct ? "Correct match" : "Try again"}
+                      </div>
+                    ) : (
+                      <div className="text-xs font-black uppercase tracking-[0.12em] text-slate-400">
+                        Waiting for match
+                      </div>
+                    )}
+                    {selected ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setMatchingAnswers((current) => ({
+                            ...current,
+                            [itemKey]: "",
+                          }))
+                        }
+                        className="text-xs font-black uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700"
+                      >
+                        Clear
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             );
