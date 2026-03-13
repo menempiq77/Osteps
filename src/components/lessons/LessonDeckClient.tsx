@@ -554,6 +554,7 @@ export default function LessonDeckClient({ lesson }: Props) {
                 <button
                   type="button"
                   onClick={() => goTo(index)}
+                  title={getText(section.title, "en")}
                   className={
                     "flex items-center gap-2 rounded-full border px-3 py-2 transition-all " +
                     (active
@@ -575,9 +576,6 @@ export default function LessonDeckClient({ lesson }: Props) {
                   >
                     {completed ? "✓" : index + 1}
                   </span>
-                  <span className="max-w-[180px] truncate text-sm font-bold">
-                    {getText(section.title, "en")}
-                  </span>
                 </button>
                 <span className="text-slate-300">→</span>
               </div>
@@ -586,6 +584,7 @@ export default function LessonDeckClient({ lesson }: Props) {
           <button
             type="button"
             onClick={() => goTo(quizIndex)}
+            title="Quiz"
             className={
               "flex items-center gap-2 rounded-full border px-3 py-2 transition-all " +
               (isOnQuizSection
@@ -607,7 +606,6 @@ export default function LessonDeckClient({ lesson }: Props) {
             >
               {completedIndices.includes(quizIndex) ? "✓" : totalSections}
             </span>
-            <span className="text-sm font-bold">Quiz</span>
           </button>
         </div>
       </div>
