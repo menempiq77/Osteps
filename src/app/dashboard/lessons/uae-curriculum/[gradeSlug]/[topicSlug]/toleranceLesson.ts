@@ -42,7 +42,7 @@ export const toleranceLesson: CourseLesson = {
       responsePrompt: {
         title: "Post your response",
         prompt:
-          "What should a Muslim student do to stop the harm and protect the victim?\nRecall a time when someone was mocked or excluded.\nWhat happened next?\nWhich response helped most?",
+          "What should a Muslim student do to stop the harm and protect the victim? Recall a time when someone was mocked or excluded. What happened next? Which response helped most?",
         placeholder:
           "I would first...",
         buttonLabel: "Save comment"
