@@ -75,22 +75,28 @@ export const toleranceLesson: CourseLesson = {
       }
     },
     {
-      title: { en: "Part 3: Qur'anic foundations of tolerance", ar: "الجزء 3: الأسس القرآنية للتسامح" },
+      title: { en: "Verse and Hadith", ar: "آية وحديث" },
       body: {
         en:
-          "The lesson presents four key Qur'anic foundations:\n\n" +
-          "1. Mercy: \"It is part of the mercy of Allah that you deal gently with them...\" (Ali 'Imran 159)\n" +
-          "2. Forgiveness: \"Hold to forgiveness; command what is right; but turn away from the ignorant.\" (Al-A'raf 199)\n" +
-          "3. Kind dialogue and disputation: \"And dispute not with the People of the Book except in the best way.\" (Al-'Ankabut 46)\n" +
-          "4. Doing good to others: \"...but do good, as Allah has been good to you.\" (Al-Qasas 77)\n\n" +
-          "These verses show that Islam builds tolerance through mercy, patient speech, justice, and ihsan.",
+          "Qur'an verse\n\n" +
+          "Arabic:\n" +
+          "خُذِ الْعَفْوَ وَأْمُرْ بِالْعُرْفِ وَأَعْرِضْ عَنِ الْجَاهِلِينَ\n\n" +
+          "Translation:\n" +
+          "\"Hold to forgiveness; command what is right; but turn away from the ignorant.\" (Al-A'raf 199)\n\n" +
+          "Transliteration:\n" +
+          "Khudhi al-'afwa wa'mur bil-'urfi wa a'rid 'ani al-jahilin.\n\n" +
+          "Hadith\n\n" +
+          "Arabic:\n" +
+          "رَحِمَ اللَّهُ رَجُلًا سَمْحًا إِذَا بَاعَ وَإِذَا اشْتَرَى وَإِذَا اقْتَضَى\n\n" +
+          "English:\n" +
+          "\"May Allah have mercy on a man who is tolerant and easygoing when he sells, when he buys, and when he asks for his due.\"",
         ar:
-          "يعرض الدرس أربع دعائم قرآنية رئيسة للتسامح:\n\n" +
-          "1. الرحمة: ﴿فَبِمَا رَحْمَةٍ مِّنَ اللَّهِ لِنتَ لَهُمْ﴾ [آل عمران: 159].\n" +
-          "2. العفو: ﴿خُذِ الْعَفْوَ وَأْمُرْ بِالْعُرْفِ وَأَعْرِضْ عَنِ الْجَاهِلِينَ﴾ [الأعراف: 199].\n" +
-          "3. الحوار الحسن: ﴿وَلَا تُجَادِلُوا أَهْلَ الْكِتَابِ إِلَّا بِالَّتِي هِيَ أَحْسَنُ﴾ [العنكبوت: 46].\n" +
-          "4. الإحسان: ﴿وَأَحْسِن كَمَا أَحْسَنَ اللَّهُ إِلَيْكَ﴾ [القصص: 77].\n\n" +
-          "وتدل هذه الآيات على أن الإسلام يرسخ التسامح بالرحمة، ولين الخطاب، والعدل، والإحسان."
+          "الآية القرآنية:\n\n" +
+          "خُذِ الْعَفْوَ وَأْمُرْ بِالْعُرْفِ وَأَعْرِضْ عَنِ الْجَاهِلِينَ\n\n" +
+          "المعنى:\n" +
+          "التمسك بالعفو والأمر بالخير والإعراض عن الجاهلين.\n\n" +
+          "الحديث الشريف:\n\n" +
+          "رَحِمَ اللَّهُ رَجُلًا سَمْحًا إِذَا بَاعَ وَإِذَا اشْتَرَى وَإِذَا اقْتَضَى"
       }
     },
     {
