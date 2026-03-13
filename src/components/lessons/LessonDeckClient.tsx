@@ -626,8 +626,8 @@ export default function LessonDeckClient({ lesson }: Props) {
                 </div>
               </div>
 
-              <div className="min-h-0 flex-1 overflow-hidden px-8 py-6">
-                <div className="mx-auto flex h-full max-w-5xl flex-col justify-center gap-5 overflow-hidden">
+              <div className="min-h-0 flex-1 overflow-y-auto px-8 py-6">
+                <div className="mx-auto flex min-h-full max-w-5xl flex-col justify-start gap-5">
                   {activeSlide.blocks.map((block, index) => (
                     <div key={`${activeSlide.id}-${block.type}-${index}`} className="min-h-0">
                       {renderSlideBlock(block, activeSlide.sectionIndex, true)}
