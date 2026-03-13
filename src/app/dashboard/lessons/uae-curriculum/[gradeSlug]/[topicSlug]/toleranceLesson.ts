@@ -54,11 +54,11 @@ export const toleranceLesson: CourseLesson = {
       }
     },
     {
-      title: { en: "Part 2: The concept of tolerance in Islam", ar: "الجزء 2: مفهوم التسامح في الإسلام" },
+      title: { en: "Tolerance in Islam", ar: "التسامح في الإسلام" },
       image: {
-        src: "https://images.pexels.com/photos/3184418/pexels-photo-3184418.jpeg?cs=srgb&dl=pexels-fauxels-3184418.jpg&fm=jpg",
-        alt: "Students in a respectful group discussion, showing listening, cooperation, and positive dialogue.",
-        caption: "Tolerance grows through respectful dialogue, listening, and cooperation."
+        src: "https://images.pexels.com/photos/1184572/pexels-photo-1184572.jpeg?cs=srgb&dl=pexels-fauxels-1184572.jpg&fm=jpg",
+        alt: "A diverse group working together respectfully around a table, showing cooperation and positive interaction.",
+        caption: "Tolerance in Islam supports respectful cooperation and peaceful coexistence."
       },
       learningObjectives: [
         "Explain the concept of tolerance in Islam using key ideas from the lesson.",

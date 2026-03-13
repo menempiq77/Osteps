@@ -348,7 +348,7 @@ export default function LessonDeckClient({ lesson }: Props) {
         <img
           src={value.src}
           alt={getText(value.alt, "en")}
-          className={compact ? "h-52 w-full object-contain bg-slate-100 xl:h-64" : "h-64 w-full object-contain bg-slate-100 md:h-80"}
+          className={compact ? "h-52 w-full object-cover xl:h-64" : "h-64 w-full object-cover md:h-80"}
         />
         {value.caption ? (
           <div className="border-t border-slate-200 px-4 py-3 text-sm font-semibold text-slate-600">
