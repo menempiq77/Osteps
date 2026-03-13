@@ -538,6 +538,82 @@ export default function LessonDeckClient({ lesson }: Props) {
     </div>
   );
 
+  const horizontalPartsRail = (
+    <div className="rounded-2xl border border-white/70 bg-white/85 p-4 shadow-sm backdrop-blur">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="text-sm font-black text-slate-900">Parts</div>
+        <div className="text-xs font-bold text-slate-500">Preview mode: all parts unlocked</div>
+      </div>
+      <div className="overflow-x-auto pb-1">
+        <div className="flex min-w-max items-center gap-2">
+          {lesson.sections.map((section, index) => {
+            const active = index === activeIndex;
+            const completed = completedIndices.includes(index);
+            return (
+              <div key={`${lesson.slug}-chain-${index}`} className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => goTo(index)}
+                  className={
+                    "flex items-center gap-2 rounded-full border px-3 py-2 transition-all " +
+                    (active
+                      ? "border-teal-500 bg-teal-50 text-teal-900"
+                      : completed
+                      ? "border-green-200 bg-green-50 text-green-800"
+                      : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50")
+                  }
+                >
+                  <span
+                    className={
+                      "flex h-8 w-8 items-center justify-center rounded-full text-xs font-black " +
+                      (completed
+                        ? "bg-green-500 text-white"
+                        : active
+                        ? "bg-teal-500 text-white"
+                        : "bg-slate-100 text-slate-600")
+                    }
+                  >
+                    {completed ? "✓" : index + 1}
+                  </span>
+                  <span className="max-w-[180px] truncate text-sm font-bold">
+                    {getText(section.title, "en")}
+                  </span>
+                </button>
+                <span className="text-slate-300">→</span>
+              </div>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => goTo(quizIndex)}
+            className={
+              "flex items-center gap-2 rounded-full border px-3 py-2 transition-all " +
+              (isOnQuizSection
+                ? "border-teal-500 bg-teal-50 text-teal-900"
+                : completedIndices.includes(quizIndex)
+                ? "border-green-200 bg-green-50 text-green-800"
+                : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50")
+            }
+          >
+            <span
+              className={
+                "flex h-8 w-8 items-center justify-center rounded-full text-xs font-black " +
+                (completedIndices.includes(quizIndex)
+                  ? "bg-green-500 text-white"
+                  : isOnQuizSection
+                  ? "bg-teal-500 text-white"
+                  : "bg-slate-100 text-slate-600")
+              }
+            >
+              {completedIndices.includes(quizIndex) ? "✓" : totalSections}
+            </span>
+            <span className="text-sm font-bold">Quiz</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   if (isFullscreen) {
     return (
       <div
@@ -722,14 +798,8 @@ export default function LessonDeckClient({ lesson }: Props) {
         </button>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[340px_1fr]">
-        <div className="rounded-2xl border border-white/70 bg-white/85 p-5 shadow-sm backdrop-blur">
-          <div className="mb-4 flex items-center justify-between">
-            <div className="text-lg font-black text-gray-900">Parts</div>
-            <div className="text-xs font-bold text-gray-500">Preview mode: all parts unlocked</div>
-          </div>
-          {partsRail}
-        </div>
+      <div className="grid gap-5">
+        {horizontalPartsRail}
 
         <div className="rounded-[30px] border border-slate-200 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.10)]">
           <div className="rounded-t-[30px] border-b border-slate-200 bg-[linear-gradient(135deg,_rgba(13,148,136,0.10),_rgba(255,255,255,0.92)_48%,_rgba(20,184,166,0.08))] px-6 py-5 md:px-10">
