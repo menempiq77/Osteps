@@ -5,6 +5,7 @@ import React from "react";
 type Props = {
   children: React.ReactNode;
   fallbackTitle?: string;
+  fallback?: React.ReactNode;
 };
 
 type State = {
@@ -34,6 +35,10 @@ export default class ClientErrorBoundary extends React.Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
+      if (this.props.fallback) {
+        return this.props.fallback;
+      }
+
       return (
         <div
           style={{

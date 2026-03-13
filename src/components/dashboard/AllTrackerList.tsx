@@ -210,7 +210,7 @@ export default function AllTrackerList() {
           <>
             <Button
               type="primary"
-              className="premium-pill-btn cursor-pointer !bg-[#38C16C] !border-[#38C16C] !text-white hover:!bg-[#32ad5f] hover:!border-[#32ad5f]"
+              className="premium-pill-btn cursor-pointer !bg-primary !text-white hover:!bg-primary/90 !border-0"
               icon={<PlusOutlined />}
               onClick={() => setIsAddTrackerModalOpen(true)}
             >
@@ -239,7 +239,7 @@ export default function AllTrackerList() {
                     <div className="flex-1 min-w-0">
                       <h3
                         onClick={() => handleTrackerClick(tracker?.id, tracker?.type)}
-                        className="text-base md:text-lg font-bold text-green-600 hover:text-green-800 cursor-pointer transition-colors mb-2 group-hover:underline"
+                        className="mb-2 cursor-pointer text-base font-bold text-[var(--theme-dark)] transition-colors group-hover:underline hover:text-[var(--primary)] md:text-lg"
                       >
                         {tracker?.name}
                       </h3>

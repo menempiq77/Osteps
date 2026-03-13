@@ -25,6 +25,7 @@ import {
   ClipboardList,
   Wrench,
   Brain,
+  BookText,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { logout } from "@/features/auth/authSlice";
@@ -176,6 +177,11 @@ const Sidebar = () => {
         icon: Wrench,
       },
       {
+        name: "Lessons",
+        href: "/dashboard/lessons",
+        icon: BookText,
+      },
+      {
         name: "Mind-upgrade",
         href: "/dashboard/mind-upgrade",
         icon: Brain,
@@ -213,6 +219,11 @@ const Sidebar = () => {
         name: "Tools",
         href: "/dashboard/tools",
         icon: Wrench,
+      },
+      {
+        name: "Lessons",
+        href: "/dashboard/lessons",
+        icon: BookText,
       },
       {
         name: "Mind-upgrade",
@@ -256,6 +267,11 @@ const Sidebar = () => {
         name: "Tools",
         href: "/dashboard/tools",
         icon: Wrench,
+      },
+      {
+        name: "Lessons",
+        href: "/dashboard/lessons",
+        icon: BookText,
       },
       {
         name: "Answer a Question",
@@ -310,6 +326,11 @@ const Sidebar = () => {
         name: "Mind-upgrade",
         href: "/dashboard/mind-upgrade",
         icon: Brain,
+      },
+      {
+        name: "Lessons",
+        href: "/dashboard/lessons",
+        icon: BookText,
       },
       {
         name: "Behavior",

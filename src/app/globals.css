@@ -144,14 +144,26 @@
 
 .premium-page {
   background:
-    radial-gradient(900px 420px at 0% -8%, rgba(56, 193, 108, 0.12), transparent 55%),
-    radial-gradient(780px 380px at 100% -12%, rgba(14, 116, 144, 0.12), transparent 58%);
+    radial-gradient(
+      900px 420px at 0% -8%,
+      color-mix(in srgb, var(--primary) 14%, transparent),
+      transparent 55%
+    ),
+    radial-gradient(
+      780px 380px at 100% -12%,
+      color-mix(in srgb, var(--theme-scroll-end) 14%, transparent),
+      transparent 58%
+    );
 }
 
 .premium-hero {
   border-radius: 18px !important;
   border: 1px solid var(--premium-border) !important;
-  background: linear-gradient(120deg, rgba(56, 193, 108, 0.12), rgba(14, 116, 144, 0.08)) !important;
+  background: linear-gradient(
+    120deg,
+    color-mix(in srgb, var(--primary) 16%, white),
+    color-mix(in srgb, var(--theme-scroll-end) 10%, white)
+  ) !important;
   box-shadow: var(--premium-shadow-soft);
 }
 
@@ -164,8 +176,12 @@
 
 .premium-filter-panel {
   border-radius: 16px !important;
-  border: 1px solid rgba(56, 193, 108, 0.25) !important;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(240, 253, 244, 0.7)) !important;
+  border: 1px solid color-mix(in srgb, var(--primary) 26%, white) !important;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.96),
+    color-mix(in srgb, var(--primary) 10%, white)
+  ) !important;
   box-shadow: var(--premium-shadow-soft);
 }
 
@@ -205,12 +221,12 @@
 
 .premium-pill-btn.ant-btn {
   border-radius: 999px !important;
-  border-color: rgba(56, 193, 108, 0.35) !important;
+  border-color: color-mix(in srgb, var(--primary) 35%, white) !important;
   font-weight: 600 !important;
 }
 
 .premium-pill-btn.ant-btn-primary {
-  background: linear-gradient(90deg, #0f766e, #0e7490) !important;
+  background: linear-gradient(90deg, var(--primary), var(--theme-scroll-end)) !important;
   border-color: transparent !important;
 }
 
