@@ -93,6 +93,28 @@ export const toleranceLesson: CourseLesson = {
           ]
         }
       ],
+      matchingActivity: {
+        title: "Match up",
+        instruction: "Match each phrase to the idea it teaches.",
+        prompts: [
+          {
+            prompt: "Hold to forgiveness",
+            answer: "Choose pardon instead of reacting with anger."
+          },
+          {
+            prompt: "Command what is right",
+            answer: "Encourage good behaviour and guide others wisely."
+          },
+          {
+            prompt: "Turn away from the ignorant",
+            answer: "Do not continue arguments with harsh or foolish people."
+          },
+          {
+            prompt: "Be easygoing in buying and selling",
+            answer: "Show fairness, patience, and kindness in daily dealings."
+          }
+        ]
+      },
       body: {
         en: "",
         ar: ""

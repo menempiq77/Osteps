@@ -16,6 +16,7 @@ type SlideBlock =
   | { type: "learningObjectives"; value: NonNullable<LessonSection["learningObjectives"]> }
   | { type: "successCriteria"; value: NonNullable<LessonSection["successCriteria"]> }
   | { type: "infoBoxes"; value: NonNullable<LessonSection["infoBoxes"]> }
+  | { type: "matchingActivity"; value: NonNullable<LessonSection["matchingActivity"]> }
   | { type: "image"; value: NonNullable<LessonSection["image"]> }
   | { type: "callout"; value: NonNullable<LessonSection["callout"]> }
   | { type: "body"; paragraphs: string[] }
@@ -80,6 +81,9 @@ function buildSlides(lesson: CourseLesson): PresentationSlide[] {
       if (section.learningObjectives) intro.push({ type: "learningObjectives", value: section.learningObjectives });
       if (section.successCriteria) intro.push({ type: "successCriteria", value: section.successCriteria });
       if (section.infoBoxes) intro.push({ type: "infoBoxes", value: section.infoBoxes });
+      if (section.matchingActivity) {
+        intro.push({ type: "matchingActivity", value: section.matchingActivity });
+      }
       if (section.callout) intro.push({ type: "callout", value: section.callout });
       if (intro.length) {
         sectionSlides.push({
@@ -148,10 +152,9 @@ export default function LessonDeckClient({ lesson }: Props) {
   const [activeSlideIndex, setActiveSlideIndex] = useState(0);
   const [completedIndices, setCompletedIndices] = useState<number[]>([]);
   const [responses, setResponses] = useState<Record<string, string>>({});
-  const [stickyNotes, setStickyNotes] = useState<Record<string, string>>({});
   const [savedStates, setSavedStates] = useState<Record<string, boolean>>({});
   const [partsMenuOpen, setPartsMenuOpen] = useState(false);
-  const [stickyNoteOpen, setStickyNoteOpen] = useState(false);
+  const [matchingAnswers, setMatchingAnswers] = useState<Record<string, string>>({});
 
   const slides = useMemo(() => buildSlides(lesson), [lesson]);
   const totalSections = lesson.sections.length + 1;
@@ -189,16 +192,6 @@ export default function LessonDeckClient({ lesson }: Props) {
       const raw = window.localStorage.getItem(`${progressKey(lesson.slug)}:responses`);
       if (!raw) return;
       setResponses(JSON.parse(raw) as Record<string, string>);
-    } catch {
-      // ignore
-    }
-  }, [lesson.slug]);
-
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(`${progressKey(lesson.slug)}:sticky-notes`);
-      if (!raw) return;
-      setStickyNotes(JSON.parse(raw) as Record<string, string>);
     } catch {
       // ignore
     }
@@ -297,7 +290,6 @@ export default function LessonDeckClient({ lesson }: Props) {
     try {
       window.localStorage.removeItem(progressKey(lesson.slug));
       window.localStorage.removeItem(`${progressKey(lesson.slug)}:responses`);
-      window.localStorage.removeItem(`${progressKey(lesson.slug)}:sticky-notes`);
       window.localStorage.removeItem(`islamic_curriculum_lesson_quiz_v1:${lesson.slug}`);
     } catch {
       // ignore
@@ -308,26 +300,6 @@ export default function LessonDeckClient({ lesson }: Props) {
     const key = `${lesson.slug}:${sectionIndex}`;
     try {
       window.localStorage.setItem(`${progressKey(lesson.slug)}:responses`, JSON.stringify(responses));
-      setSavedStates((current) => ({ ...current, [key]: true }));
-      window.setTimeout(() => {
-        setSavedStates((current) => ({ ...current, [key]: false }));
-      }, 1800);
-    } catch {
-      // ignore
-    }
-  }
-
-  function stickyNoteKey(sectionIndex: number) {
-    return `${lesson.slug}:sticky:${sectionIndex}`;
-  }
-
-  function saveStickyNote(sectionIndex: number) {
-    const key = stickyNoteKey(sectionIndex);
-    try {
-      window.localStorage.setItem(
-        `${progressKey(lesson.slug)}:sticky-notes`,
-        JSON.stringify(stickyNotes)
-      );
       setSavedStates((current) => ({ ...current, [key]: true }));
       window.setTimeout(() => {
         setSavedStates((current) => ({ ...current, [key]: false }));
@@ -478,6 +450,73 @@ export default function LessonDeckClient({ lesson }: Props) {
     );
   }
 
+  function renderMatchingActivity(
+    value: NonNullable<LessonSection["matchingActivity"]>,
+    sectionIndex: number,
+    compact = false
+  ) {
+    const options = value.prompts.map((item) => getText(item.answer, "en"));
+    const answerKey = `${lesson.slug}:match:${sectionIndex}`;
+
+    return (
+      <div className={"rounded-2xl border border-fuchsia-200 bg-fuchsia-50 " + (compact ? "p-4" : "p-5")}>
+        <div className="text-xs font-black uppercase tracking-[0.18em] text-fuchsia-700">
+          {getText(value.title, "en")}
+        </div>
+        {value.instruction ? (
+          <div className={"mt-2 font-semibold text-slate-700 " + (compact ? "text-sm leading-6" : "text-sm leading-7")}>
+            {getText(value.instruction, "en")}
+          </div>
+        ) : null}
+        <div className="mt-4 grid gap-3">
+          {value.prompts.map((item, index) => {
+            const itemKey = `${answerKey}:${index}`;
+            const selected = matchingAnswers[itemKey] ?? "";
+            const correct = selected.length > 0 && selected === getText(item.answer, "en");
+
+            return (
+              <div
+                key={itemKey}
+                className="grid gap-3 rounded-xl border border-white/80 bg-white/90 p-4 md:grid-cols-[minmax(0,1fr)_240px]"
+              >
+                <div className={"font-semibold text-slate-800 " + (compact ? "text-sm leading-6" : "text-base leading-7")}>
+                  <span className="mr-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-fuchsia-600 text-xs font-black text-white">
+                    {index + 1}
+                  </span>
+                  {getText(item.prompt, "en")}
+                </div>
+                <div className="grid gap-2">
+                  <select
+                    value={selected}
+                    onChange={(event) =>
+                      setMatchingAnswers((current) => ({
+                        ...current,
+                        [itemKey]: event.target.value,
+                      }))
+                    }
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-semibold text-slate-700 outline-none focus:border-fuchsia-400"
+                  >
+                    <option value="">Choose the best match</option>
+                    {options.map((option) => (
+                      <option key={`${itemKey}:${option}`} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                  {selected ? (
+                    <div className={"text-xs font-black uppercase tracking-[0.12em] " + (correct ? "text-emerald-600" : "text-amber-700")}>
+                      {correct ? "Correct match" : "Try again"}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   function renderCallout(value: NonNullable<LessonSection["callout"]>, compact = false) {
     return (
       <div className={"rounded-2xl border border-amber-200 bg-amber-50 " + (compact ? "p-4" : "p-5")}>
@@ -601,6 +640,8 @@ export default function LessonDeckClient({ lesson }: Props) {
         return renderSuccessCriteria(block.value, presentationMode);
       case "infoBoxes":
         return renderInfoBoxes(block.value, presentationMode);
+      case "matchingActivity":
+        return renderMatchingActivity(block.value, sectionIndex, presentationMode);
       case "image":
         return renderImage(block.value, presentationMode);
       case "callout":
@@ -628,6 +669,7 @@ export default function LessonDeckClient({ lesson }: Props) {
         {activeSection.learningObjectives ? renderLearningObjectives(activeSection.learningObjectives) : null}
         {activeSection.successCriteria ? renderSuccessCriteria(activeSection.successCriteria) : null}
         {activeSection.infoBoxes ? renderInfoBoxes(activeSection.infoBoxes) : null}
+        {activeSection.matchingActivity ? renderMatchingActivity(activeSection.matchingActivity, activeIndex) : null}
         {activeSection.callout ? renderCallout(activeSection.callout) : null}
         {paragraphs.length ? renderBodyParagraphs(paragraphs) : null}
         {activeSection.responsePrompt ? renderResponsePrompt(activeSection.responsePrompt, activeIndex) : null}
@@ -749,70 +791,12 @@ export default function LessonDeckClient({ lesson }: Props) {
     </div>
   );
 
-  const currentStickyKey = stickyNoteKey(Math.min(activeIndex, lesson.sections.length - 1));
-  const stickyNoteModal = stickyNoteOpen && !isOnQuizSection ? (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-4">
-      <button
-        type="button"
-        aria-label="Close sticky note"
-        onClick={() => setStickyNoteOpen(false)}
-        className="absolute inset-0"
-      />
-      <div className="relative z-10 w-full max-w-xl rounded-[28px] border border-amber-300 bg-[#fff7cf] p-6 shadow-[0_24px_80px_rgba(15,23,42,0.22)]">
-        <div className="mb-4 flex items-start justify-between gap-4">
-          <div>
-            <div className="text-xs font-black uppercase tracking-[0.18em] text-amber-700">Sticky note</div>
-            <div className="mt-2 text-2xl font-black text-slate-900">My understanding</div>
-            <div className="mt-1 text-sm font-semibold text-slate-600">
-              Write a simple understanding or a practical application in 4 short lines.
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setStickyNoteOpen(false)}
-            className="rounded-full border border-amber-300 bg-white px-4 py-2 text-xs font-black text-slate-700"
-          >
-            Close
-          </button>
-        </div>
-
-        <textarea
-          value={stickyNotes[currentStickyKey] ?? ""}
-          onChange={(event) =>
-            setStickyNotes((current) => ({
-              ...current,
-              [currentStickyKey]: event.target.value,
-            }))
-          }
-          placeholder={"Line 1\nLine 2\nLine 3\nLine 4"}
-          className="min-h-[220px] w-full rounded-2xl border border-amber-300 bg-[#fffbe3] px-4 py-4 text-base leading-8 text-slate-800 outline-none transition focus:border-amber-400"
-        />
-
-        <div className="mt-4 flex items-center justify-between gap-3">
-          <div className="text-xs font-semibold text-slate-600">Keep it short and practical.</div>
-          <button
-            type="button"
-            onClick={() => saveStickyNote(Math.min(activeIndex, lesson.sections.length - 1))}
-            className="rounded-full bg-amber-500 px-5 py-2 text-sm font-black text-white transition hover:bg-amber-600"
-          >
-            Save note
-          </button>
-        </div>
-
-        {savedStates[currentStickyKey] ? (
-          <div className="mt-3 text-sm font-bold text-green-600">Sticky note saved.</div>
-        ) : null}
-      </div>
-    </div>
-  ) : null;
-
   if (isFullscreen) {
     return (
       <div
         ref={deckRef}
         className="flex h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(20,184,166,0.12),_transparent_30%),linear-gradient(180deg,_#f8fffe_0%,_#eef7f5_100%)] text-slate-900"
       >
-        {stickyNoteModal}
         {partsMenuOpen ? (
           <button
             type="button"
@@ -871,15 +855,6 @@ export default function LessonDeckClient({ lesson }: Props) {
                   {completedIndices.length}/{totalSections} complete
                 </div>
               </div>
-              {!isOnQuizSection ? (
-                <button
-                  type="button"
-                  onClick={() => setStickyNoteOpen(true)}
-                  className="rounded-full border border-amber-300 bg-amber-50 px-4 py-2 text-xs font-black text-amber-800 shadow-sm transition hover:bg-amber-100"
-                >
-                  Sticky note
-                </button>
-              ) : null}
               <button
                 type="button"
                 onClick={toggleFullscreen}
@@ -967,7 +942,6 @@ export default function LessonDeckClient({ lesson }: Props) {
       ref={deckRef}
       className="rounded-[28px] border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(20,184,166,0.16),_transparent_32%),linear-gradient(180deg,_#f8fffe_0%,_#eef7f5_100%)] p-4 md:p-6"
     >
-      {stickyNoteModal}
       <div className="mb-5 rounded-2xl border border-white/70 bg-white/85 p-5 shadow-sm backdrop-blur">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
@@ -977,15 +951,6 @@ export default function LessonDeckClient({ lesson }: Props) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {!isOnQuizSection ? (
-              <button
-                type="button"
-                onClick={() => setStickyNoteOpen(true)}
-                className="rounded-full border border-amber-300 bg-amber-50 px-4 py-2 text-xs font-black text-amber-800 shadow-sm transition hover:bg-amber-100"
-              >
-                Sticky note
-              </button>
-            ) : null}
             <button
               type="button"
               onClick={toggleFullscreen}

@@ -14,6 +14,14 @@ export type LessonSection = {
     label: string | { en: string; ar: string };
     lines: Array<string | { en: string; ar: string }>;
   }>;
+  matchingActivity?: {
+    title: string | { en: string; ar: string };
+    instruction?: string | { en: string; ar: string };
+    prompts: Array<{
+      prompt: string | { en: string; ar: string };
+      answer: string | { en: string; ar: string };
+    }>;
+  };
   image?: {
     src: string;
     alt: string | { en: string; ar: string };
