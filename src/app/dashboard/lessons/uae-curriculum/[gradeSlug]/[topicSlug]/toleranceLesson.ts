@@ -76,27 +76,26 @@ export const toleranceLesson: CourseLesson = {
     },
     {
       title: { en: "Verse and Hadith", ar: "آية وحديث" },
+      infoBoxes: [
+        {
+          label: "Qur'an",
+          lines: [
+            "Arabic:\nخُذِ الْعَفْوَ وَأْمُرْ بِالْعُرْفِ وَأَعْرِضْ عَنِ الْجَاهِلِينَ",
+            "English:\n\"Hold to forgiveness; command what is right; but turn away from the ignorant.\" (Al-A'raf 199)",
+            "Transliteration:\nKhudhi al-'afwa wa'mur bil-'urfi wa a'rid 'ani al-jahilin."
+          ]
+        },
+        {
+          label: "Hadith",
+          lines: [
+            "Arabic:\nرَحِمَ اللَّهُ رَجُلًا سَمْحًا إِذَا بَاعَ وَإِذَا اشْتَرَى وَإِذَا اقْتَضَى",
+            "English:\n\"May Allah have mercy on a man who is tolerant and easygoing when he sells, when he buys, and when he asks for his due.\""
+          ]
+        }
+      ],
       body: {
-        en:
-          "Qur'an verse\n\n" +
-          "Arabic:\n" +
-          "خُذِ الْعَفْوَ وَأْمُرْ بِالْعُرْفِ وَأَعْرِضْ عَنِ الْجَاهِلِينَ\n\n" +
-          "Translation:\n" +
-          "\"Hold to forgiveness; command what is right; but turn away from the ignorant.\" (Al-A'raf 199)\n\n" +
-          "Transliteration:\n" +
-          "Khudhi al-'afwa wa'mur bil-'urfi wa a'rid 'ani al-jahilin.\n\n" +
-          "Hadith\n\n" +
-          "Arabic:\n" +
-          "رَحِمَ اللَّهُ رَجُلًا سَمْحًا إِذَا بَاعَ وَإِذَا اشْتَرَى وَإِذَا اقْتَضَى\n\n" +
-          "English:\n" +
-          "\"May Allah have mercy on a man who is tolerant and easygoing when he sells, when he buys, and when he asks for his due.\"",
-        ar:
-          "الآية القرآنية:\n\n" +
-          "خُذِ الْعَفْوَ وَأْمُرْ بِالْعُرْفِ وَأَعْرِضْ عَنِ الْجَاهِلِينَ\n\n" +
-          "المعنى:\n" +
-          "التمسك بالعفو والأمر بالخير والإعراض عن الجاهلين.\n\n" +
-          "الحديث الشريف:\n\n" +
-          "رَحِمَ اللَّهُ رَجُلًا سَمْحًا إِذَا بَاعَ وَإِذَا اشْتَرَى وَإِذَا اقْتَضَى"
+        en: "",
+        ar: ""
       }
     },
     {

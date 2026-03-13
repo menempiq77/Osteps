@@ -15,6 +15,7 @@ type SlideBlock =
   | { type: "learningObjective"; value: NonNullable<LessonSection["learningObjective"]> }
   | { type: "learningObjectives"; value: NonNullable<LessonSection["learningObjectives"]> }
   | { type: "successCriteria"; value: NonNullable<LessonSection["successCriteria"]> }
+  | { type: "infoBoxes"; value: NonNullable<LessonSection["infoBoxes"]> }
   | { type: "image"; value: NonNullable<LessonSection["image"]> }
   | { type: "callout"; value: NonNullable<LessonSection["callout"]> }
   | { type: "body"; paragraphs: string[] }
@@ -78,6 +79,7 @@ function buildSlides(lesson: CourseLesson): PresentationSlide[] {
       if (section.image) intro.push({ type: "image", value: section.image });
       if (section.learningObjectives) intro.push({ type: "learningObjectives", value: section.learningObjectives });
       if (section.successCriteria) intro.push({ type: "successCriteria", value: section.successCriteria });
+      if (section.infoBoxes) intro.push({ type: "infoBoxes", value: section.infoBoxes });
       if (section.callout) intro.push({ type: "callout", value: section.callout });
       if (intro.length) {
         sectionSlides.push({
@@ -409,6 +411,36 @@ export default function LessonDeckClient({ lesson }: Props) {
     );
   }
 
+  function renderInfoBoxes(
+    values: NonNullable<LessonSection["infoBoxes"]>,
+    compact = false
+  ) {
+    return (
+      <div className="grid gap-4">
+        {values.map((box, index) => (
+          <div
+            key={`info-box-${index}`}
+            className={"rounded-2xl border border-violet-200 bg-violet-50 " + (compact ? "p-4" : "p-5")}
+          >
+            <div className="text-xs font-black uppercase tracking-[0.18em] text-violet-700">
+              {getText(box.label, "en")}
+            </div>
+            <div className="mt-4 grid gap-3">
+              {box.lines.map((line, lineIndex) => (
+                <div
+                  key={`info-line-${index}-${lineIndex}`}
+                  className={"whitespace-pre-line rounded-xl bg-white/80 px-4 py-3 text-slate-800 " + (compact ? "text-sm leading-7" : "text-base leading-8")}
+                >
+                  {getText(line, "en")}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   function renderCallout(value: NonNullable<LessonSection["callout"]>, compact = false) {
     return (
       <div className={"rounded-2xl border border-amber-200 bg-amber-50 " + (compact ? "p-4" : "p-5")}>
@@ -525,6 +557,8 @@ export default function LessonDeckClient({ lesson }: Props) {
         return renderLearningObjectives(block.value, presentationMode);
       case "successCriteria":
         return renderSuccessCriteria(block.value, presentationMode);
+      case "infoBoxes":
+        return renderInfoBoxes(block.value, presentationMode);
       case "image":
         return renderImage(block.value, presentationMode);
       case "callout":
@@ -551,6 +585,7 @@ export default function LessonDeckClient({ lesson }: Props) {
         {activeSection.image ? renderImage(activeSection.image) : null}
         {activeSection.learningObjectives ? renderLearningObjectives(activeSection.learningObjectives) : null}
         {activeSection.successCriteria ? renderSuccessCriteria(activeSection.successCriteria) : null}
+        {activeSection.infoBoxes ? renderInfoBoxes(activeSection.infoBoxes) : null}
         {activeSection.callout ? renderCallout(activeSection.callout) : null}
         {paragraphs.length ? renderBodyParagraphs(paragraphs) : null}
         {activeSection.responsePrompt ? renderResponsePrompt(activeSection.responsePrompt, activeIndex) : null}

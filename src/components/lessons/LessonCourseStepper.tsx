@@ -10,6 +10,10 @@ export type LessonSection = {
   learningObjective?: string | { en: string; ar: string };
   learningObjectives?: Array<string | { en: string; ar: string }>;
   successCriteria?: Array<string | { en: string; ar: string }>;
+  infoBoxes?: Array<{
+    label: string | { en: string; ar: string };
+    lines: Array<string | { en: string; ar: string }>;
+  }>;
   image?: {
     src: string;
     alt: string | { en: string; ar: string };
