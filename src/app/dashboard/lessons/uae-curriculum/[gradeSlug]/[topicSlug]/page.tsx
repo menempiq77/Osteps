@@ -61,8 +61,8 @@ export default function TopicLessonPage({
   }
 
   return (
-    <div className="p-3 md:p-6">
-      <div className="premium-page rounded-2xl p-3 md:p-4">
+    <div className="px-2 py-2 md:px-3 md:py-3">
+      <div className="premium-page rounded-xl p-2 md:p-3">
         <Breadcrumb
           items={[
             { title: <Link href="/dashboard">Dashboard</Link> },
@@ -74,16 +74,16 @@ export default function TopicLessonPage({
           className="!mb-3"
         />
 
-        <div className="premium-hero mb-6 rounded-xl px-4 py-4">
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="premium-hero mb-3 rounded-xl px-3 py-2">
+          <div className="flex flex-wrap items-center gap-1.5">
             <Tag color="processing">{grade.title}</Tag>
             <Tag color="green">50 mins</Tag>
             <Tag color="gold">Bilingual</Tag>
           </div>
-          <h1 className="mt-3 text-2xl font-bold text-[var(--theme-dark)]">
+          <h1 className="mt-1.5 text-lg font-semibold text-[var(--theme-dark)]">
             {topic.en} / {topic.ar}
           </h1>
-          <p className="mt-2 max-w-3xl text-sm text-slate-600">
+          <p className="mt-1 max-w-3xl text-xs text-slate-500">
             {typeof currentLesson.shortIntro === "string"
               ? currentLesson.shortIntro
               : currentLesson.shortIntro.en}

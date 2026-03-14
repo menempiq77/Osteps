@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CourseLesson, LessonSection } from "./LessonCourseStepper";
 import LessonQuizClient from "./LessonQuizClient";
@@ -16,6 +18,7 @@ type SlideBlock =
   | { type: "learningObjectives"; value: NonNullable<LessonSection["learningObjectives"]> }
   | { type: "successCriteria"; value: NonNullable<LessonSection["successCriteria"]> }
   | { type: "infoBoxes"; value: NonNullable<LessonSection["infoBoxes"]> }
+  | { type: "groupTasks"; value: NonNullable<LessonSection["groupTasks"]> }
   | { type: "matchingActivity"; value: NonNullable<LessonSection["matchingActivity"]> }
   | { type: "image"; value: NonNullable<LessonSection["image"]> }
   | { type: "callout"; value: NonNullable<LessonSection["callout"]> }
@@ -32,9 +35,14 @@ type PresentationSlide = {
 };
 
 const PROGRESS_PREFIX = "islamic_curriculum_lesson_progress_v2";
+const PART_ORDER_PREFIX = "islamic_curriculum_lesson_part_order_v1";
 
 function progressKey(slug: string) {
   return `${PROGRESS_PREFIX}:${slug}`;
+}
+
+function partOrderKey(slug: string) {
+  return `${PART_ORDER_PREFIX}:${slug}`;
 }
 
 function getText(value: string | { en: string; ar: string }, language: "en" | "ar") {
@@ -81,6 +89,7 @@ function buildSlides(lesson: CourseLesson): PresentationSlide[] {
       if (section.learningObjectives) intro.push({ type: "learningObjectives", value: section.learningObjectives });
       if (section.successCriteria) intro.push({ type: "successCriteria", value: section.successCriteria });
       if (section.infoBoxes) intro.push({ type: "infoBoxes", value: section.infoBoxes });
+      if (section.groupTasks) intro.push({ type: "groupTasks", value: section.groupTasks });
       if (section.matchingActivity) {
         intro.push({ type: "matchingActivity", value: section.matchingActivity });
       }
@@ -159,6 +168,7 @@ function buildShuffledOptions(options: string[], seed: string) {
 
 export default function LessonDeckClient({ lesson }: Props) {
   const deckRef = useRef<HTMLDivElement | null>(null);
+  const pathname = usePathname();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [activeSlideIndex, setActiveSlideIndex] = useState(0);
@@ -168,10 +178,22 @@ export default function LessonDeckClient({ lesson }: Props) {
   const [partsMenuOpen, setPartsMenuOpen] = useState(false);
   const [matchingAnswers, setMatchingAnswers] = useState<Record<string, string>>({});
   const [matchingScores, setMatchingScores] = useState<Record<string, number>>({});
+  const [reorderAnswers, setReorderAnswers] = useState<Record<string, string[]>>({});
+  const [dragOver, setDragOver] = useState<Record<string, number | null>>({});
+  const [partOrder, setPartOrder] = useState<number[]>([]);
+  const [partDragOverIndex, setPartDragOverIndex] = useState<number | null>(null);
 
   const slides = useMemo(() => buildSlides(lesson), [lesson]);
   const totalSections = lesson.sections.length + 1;
   const quizIndex = totalSections - 1;
+  const defaultPartOrder = useMemo(
+    () => Array.from({ length: totalSections }, (_, index) => index),
+    [totalSections]
+  );
+  const orderedParts =
+    partOrder.length === totalSections && new Set(partOrder).size === totalSections
+      ? partOrder
+      : defaultPartOrder;
   const isOnQuizSection = activeIndex === quizIndex;
   const activeSection = lesson.sections[Math.min(activeIndex, lesson.sections.length - 1)];
   const activeSlide = slides[Math.min(activeSlideIndex, slides.length - 1)];
@@ -212,6 +234,28 @@ export default function LessonDeckClient({ lesson }: Props) {
 
   useEffect(() => {
     try {
+      const raw = window.localStorage.getItem(partOrderKey(lesson.slug));
+      if (!raw) {
+        setPartOrder(defaultPartOrder);
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      if (
+        Array.isArray(parsed) &&
+        parsed.length === totalSections &&
+        parsed.every((value) => typeof value === "number")
+      ) {
+        setPartOrder(parsed as number[]);
+        return;
+      }
+      setPartOrder(defaultPartOrder);
+    } catch {
+      setPartOrder(defaultPartOrder);
+    }
+  }, [defaultPartOrder, lesson.slug, totalSections]);
+
+  useEffect(() => {
+    try {
       window.localStorage.setItem(
         progressKey(lesson.slug),
         JSON.stringify({
@@ -223,6 +267,14 @@ export default function LessonDeckClient({ lesson }: Props) {
       // ignore
     }
   }, [activeIndex, completedIndices, lesson.slug]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(partOrderKey(lesson.slug), JSON.stringify(orderedParts));
+    } catch {
+      // ignore
+    }
+  }, [lesson.slug, orderedParts]);
 
   useEffect(() => {
     const nextSlideIndex = firstSlideIndexForSection(slides, activeIndex);
@@ -259,6 +311,48 @@ export default function LessonDeckClient({ lesson }: Props) {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }
 
+  function sectionOrderPosition(sectionIndex: number) {
+    return orderedParts.indexOf(sectionIndex);
+  }
+
+  function adjacentSectionIndex(sectionIndex: number, direction: -1 | 1) {
+    const currentPosition = sectionOrderPosition(sectionIndex);
+    if (currentPosition < 0) return null;
+    const nextPosition = currentPosition + direction;
+    if (nextPosition < 0 || nextPosition >= orderedParts.length) return null;
+    return orderedParts[nextPosition] ?? null;
+  }
+
+  function goToAdjacentSection(sectionIndex: number, direction: -1 | 1) {
+    const target = adjacentSectionIndex(sectionIndex, direction);
+    if (target === null) return;
+    goTo(target);
+  }
+
+  function goToPreviousFullscreenItem() {
+    const currentSectionIndex = activeSlide.sectionIndex;
+    const currentSectionFirstSlide = firstSlideIndexForSection(slides, currentSectionIndex);
+
+    if (activeSlideIndex > currentSectionFirstSlide) {
+      goToSlide(activeSlideIndex - 1);
+      return;
+    }
+
+    const previousSection = adjacentSectionIndex(currentSectionIndex, -1);
+    if (previousSection === null) return;
+    const previousSectionLastSlide = lastSlideIndexForSection(slides, previousSection);
+    if (previousSectionLastSlide >= 0) {
+      goToSlide(previousSectionLastSlide);
+    }
+  }
+
+  function canGoPreviousFullscreen() {
+    const currentSectionIndex = activeSlide.sectionIndex;
+    const currentSectionFirstSlide = firstSlideIndexForSection(slides, currentSectionIndex);
+    if (activeSlideIndex > currentSectionFirstSlide) return true;
+    return adjacentSectionIndex(currentSectionIndex, -1) !== null;
+  }
+
   function goToSlide(slideIndex: number) {
     const next = Math.min(Math.max(slideIndex, 0), slides.length - 1);
     const slide = slides[next];
@@ -281,6 +375,14 @@ export default function LessonDeckClient({ lesson }: Props) {
 
       if (isLastSlideOfSection) {
         markSectionCompleted(activeSlide.sectionIndex);
+        const nextSection = adjacentSectionIndex(activeSlide.sectionIndex, 1);
+        if (nextSection !== null) {
+          const nextSectionSlideIndex = firstSlideIndexForSection(slides, nextSection);
+          if (nextSectionSlideIndex >= 0) {
+            goToSlide(nextSectionSlideIndex);
+          }
+        }
+        return;
       }
 
       if (!isLastFullscreenSlide) {
@@ -291,7 +393,10 @@ export default function LessonDeckClient({ lesson }: Props) {
 
     if (activeIndex === quizIndex) return;
     markSectionCompleted(activeIndex);
-    goTo(Math.min(activeIndex + 1, totalSections - 1));
+    const nextSection = adjacentSectionIndex(activeIndex, 1);
+    if (nextSection !== null) {
+      goTo(nextSection);
+    }
   }
 
   function resetProgress() {
@@ -302,13 +407,32 @@ export default function LessonDeckClient({ lesson }: Props) {
     setSavedStates({});
     setMatchingAnswers({});
     setMatchingScores({});
+    setReorderAnswers({});
+    setDragOver({});
+    setPartOrder(defaultPartOrder);
+    setPartDragOverIndex(null);
     try {
       window.localStorage.removeItem(progressKey(lesson.slug));
       window.localStorage.removeItem(`${progressKey(lesson.slug)}:responses`);
       window.localStorage.removeItem(`islamic_curriculum_lesson_quiz_v1:${lesson.slug}`);
+      window.localStorage.removeItem(partOrderKey(lesson.slug));
     } catch {
       // ignore
     }
+  }
+
+  function reorderPart(fromIndex: number, toIndex: number) {
+    if (fromIndex === toIndex) return;
+    setPartOrder((current) => {
+      const source =
+        current.length === totalSections && new Set(current).size === totalSections
+          ? current
+          : defaultPartOrder;
+      const next = [...source];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
   }
 
   function saveResponse(sectionIndex: number) {
@@ -341,21 +465,18 @@ export default function LessonDeckClient({ lesson }: Props) {
     compact = false
   ) {
     return (
-      <div className={"rounded-2xl border border-blue-200 bg-blue-50 " + (compact ? "p-4" : "p-5")}>
-        <div className="flex items-start gap-4">
+      <div className={"rounded-xl border border-blue-200 bg-blue-50 " + (compact ? "p-3" : "p-3")}>
+        <div className="flex items-start gap-3">
           <img
             src="/lessons/bloom-taxonomy-badge.svg"
             alt="Bloom taxonomy badge"
-            className={
-              "mt-1 flex-shrink-0 rounded-full border border-blue-200 bg-white p-1 " +
-              (compact ? "h-10 w-10" : "h-12 w-12")
-            }
+            className="mt-0.5 h-8 w-8 flex-shrink-0 rounded-full border border-blue-200 bg-white p-1"
           />
           <div className="min-w-0">
-            <div className="text-xs font-black uppercase tracking-[0.18em] text-blue-700">
+            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-700">
               Learning objective
             </div>
-            <div className={"mt-2 font-semibold text-slate-800 " + (compact ? "text-sm leading-7" : "text-base leading-8")}>
+            <div className={"mt-1 font-medium text-slate-800 " + (compact ? "text-xs leading-5" : "text-sm leading-6")}>
               {getText(value, "en")}
             </div>
           </div>
@@ -366,18 +487,18 @@ export default function LessonDeckClient({ lesson }: Props) {
 
   function renderImage(value: NonNullable<LessonSection["image"]>, compact = false) {
     return (
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
         <img
           src={value.src}
           alt={getText(value.alt, "en")}
           className={
             compact
-              ? "h-36 w-full object-contain bg-slate-100 md:h-40 xl:h-44"
-              : "h-64 w-full object-contain bg-slate-100 md:h-80"
+              ? "h-40 w-full object-cover object-center md:h-48"
+              : "h-56 w-full object-cover object-center md:h-72"
           }
         />
         {value.caption ? (
-          <div className="border-t border-slate-200 px-4 py-3 text-sm font-semibold text-slate-600">
+          <div className="border-t border-slate-100 px-3 py-2 text-xs font-medium text-slate-500">
             {getText(value.caption, "en")}
           </div>
         ) : null}
@@ -390,17 +511,17 @@ export default function LessonDeckClient({ lesson }: Props) {
     compact = false
   ) {
     return (
-      <div className={"rounded-2xl border border-indigo-200 bg-indigo-50 " + (compact ? "p-4" : "p-5")}>
-        <div className="text-xs font-black uppercase tracking-[0.18em] text-indigo-700">
+      <div className={"rounded-xl border border-indigo-200 bg-indigo-50 " + (compact ? "p-3" : "p-3")}>
+        <div className="text-[10px] font-black uppercase tracking-[0.18em] text-indigo-700">
           Learning objectives
         </div>
-        <div className="mt-4 grid gap-3">
+        <div className="mt-2 grid gap-2">
           {values.map((value, index) => (
-            <div key={`lo-${index}`} className="flex gap-3 rounded-xl bg-white/80 px-4 py-3">
-              <div className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-indigo-600 text-xs font-black text-white">
+            <div key={`lo-${index}`} className="flex gap-2 rounded-lg bg-white/80 px-3 py-2">
+              <div className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-black text-white">
                 {index + 1}
               </div>
-              <div className={"font-semibold text-slate-800 " + (compact ? "text-sm leading-7" : "text-base leading-8")}>
+              <div className={"font-medium text-slate-800 " + (compact ? "text-xs leading-5" : "text-sm leading-6")}>
                 {getText(value, "en")}
               </div>
             </div>
@@ -415,17 +536,17 @@ export default function LessonDeckClient({ lesson }: Props) {
     compact = false
   ) {
     return (
-      <div className={"rounded-2xl border border-emerald-200 bg-emerald-50 " + (compact ? "p-4" : "p-5")}>
-        <div className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">
+      <div className={"rounded-xl border border-emerald-200 bg-emerald-50 " + (compact ? "p-3" : "p-3")}>
+        <div className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-700">
           Success criteria
         </div>
-        <div className="mt-4 grid gap-3">
+        <div className="mt-2 grid gap-2">
           {values.map((value, index) => (
-            <div key={`sc-${index}`} className="flex gap-3 rounded-xl bg-white/80 px-4 py-3">
-              <div className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-emerald-600 text-xs font-black text-white">
+            <div key={`sc-${index}`} className="flex gap-2 rounded-lg bg-white/80 px-3 py-2">
+              <div className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-black text-white">
                 {index + 1}
               </div>
-              <div className={"font-semibold text-slate-800 " + (compact ? "text-sm leading-7" : "text-base leading-8")}>
+              <div className={"font-medium text-slate-800 " + (compact ? "text-xs leading-5" : "text-sm leading-6")}>
                 {getText(value, "en")}
               </div>
             </div>
@@ -440,27 +561,105 @@ export default function LessonDeckClient({ lesson }: Props) {
     compact = false
   ) {
     return (
-      <div className="grid gap-4">
-        {values.map((box, index) => (
-          <div
-            key={`info-box-${index}`}
-            className={"rounded-2xl border border-violet-200 bg-violet-50 " + (compact ? "p-4" : "p-5")}
-          >
-            <div className="text-xs font-black uppercase tracking-[0.18em] text-violet-700">
-              {getText(box.label, "en")}
-            </div>
-            <div className="mt-4 grid gap-3">
-              {box.lines.map((line, lineIndex) => (
-                <div
-                  key={`info-line-${index}-${lineIndex}`}
-                  className={"whitespace-pre-line rounded-xl bg-white/80 px-4 py-3 text-slate-800 " + (compact ? "text-sm leading-7" : "text-base leading-8")}
-                >
-                  {getText(line, "en")}
+      <div className="grid gap-2">
+        {values.map((box, index) => {
+          const labelText = getText(box.label, "en");
+          const normalizedLabel = labelText.toLowerCase().replace(/[^a-z]/g, "");
+          const isQuranBox = normalizedLabel.includes("quran");
+
+          return (
+            <div
+              key={`info-box-${index}`}
+              className="relative overflow-hidden rounded-xl border border-[var(--theme-border)] bg-[var(--theme-soft)] px-3 py-2.5"
+              style={
+                isQuranBox
+                  ? {
+                      backgroundColor: "var(--theme-soft)",
+                      backgroundImage:
+                        "linear-gradient(to bottom, rgba(255,255,255,0.78), rgba(255,255,255,0.82)), url('/lessons/quran-bg-pattern.svg')",
+                      backgroundSize: "cover",
+                      backgroundPosition: "center",
+                    }
+                  : undefined
+              }
+            >
+              <div className="relative z-10">
+                <div className="mb-2 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--theme-dark)]">
+                  {labelText}
                 </div>
-              ))}
+                <div className="grid gap-1.5">
+                  {box.lines.map((line, lineIndex) => {
+                    const isBilingual = typeof line === "object" && "ar" in line;
+                    if (isBilingual) {
+                      return (
+                        <div key={`info-line-${index}-${lineIndex}`}>
+                          <p dir="rtl" className="font-arabic text-right text-[15px] leading-7 text-slate-900">
+                            {(line as { en: string; ar: string }).ar}
+                          </p>
+                          <p className="mt-0.5 text-xs leading-5 text-slate-600">
+                            {(line as { en: string; ar: string }).en}
+                          </p>
+                        </div>
+                      );
+                    }
+                    return (
+                      <p key={`info-line-${index}-${lineIndex}`} className="text-[11px] italic text-slate-400">
+                        {line as string}
+                      </p>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  function renderGroupTasks(
+    value: NonNullable<LessonSection["groupTasks"]>,
+    compact = false
+  ) {
+    return (
+      <div className="rounded-xl border border-[var(--theme-border)] bg-white p-3 shadow-sm">
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <div className="text-xs font-bold text-[var(--theme-dark)]">
+              {getText(value.title ?? "Group Work", "en")}
+            </div>
+            {value.instruction ? (
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500">
+                {getText(value.instruction, "en")}
+              </p>
+            ) : null}
           </div>
-        ))}
+          <div className="rounded-full bg-[var(--theme-soft)] px-3 py-1 text-[10px] font-semibold text-[var(--theme-dark)]">
+            Choose one group and open its workspace
+          </div>
+        </div>
+
+        <div className="grid gap-2 md:grid-cols-2">
+          {value.groups.map((group, index) => (
+            <Link
+              key={`group-task-${index}`}
+              href={`${pathname}/groups/${group.slug}`}
+              className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-3 transition hover:border-[var(--theme-border)] hover:bg-[var(--theme-soft)]"
+            >
+              <div className="min-w-0">
+                <div className="text-[11px] font-black uppercase tracking-[0.14em] text-[var(--theme-dark)]">
+                  {getText(group.name, "en")}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--theme-dark)] text-[10px] font-black text-white">
+                  {index + 1}
+                </div>
+                <span className="text-xs font-semibold text-slate-500">Join</span>
+              </div>
+            </Link>
+          ))}
+        </div>
       </div>
     );
   }
@@ -471,160 +670,105 @@ export default function LessonDeckClient({ lesson }: Props) {
     compact = false
   ) {
     const answerKey = `${lesson.slug}:match:${sectionIndex}`;
-    const options = buildShuffledOptions(
+    const isChecked = Object.prototype.hasOwnProperty.call(matchingScores, answerKey);
+    const score = matchingScores[answerKey] ?? 0;
+
+    const defaultOrder = buildShuffledOptions(
       value.prompts.map((item) => getText(item.answer, "en")),
       answerKey
     );
-    const isChecked = Object.prototype.hasOwnProperty.call(matchingScores, answerKey);
-    const score = matchingScores[answerKey] ?? 0;
-    const selectedValues = Object.entries(matchingAnswers)
-      .filter(([key]) => key.startsWith(`${answerKey}:`))
-      .map(([, selected]) => selected)
-      .filter(Boolean);
-    const allAnswered = value.prompts.every((_, index) => {
-      const itemKey = `${answerKey}:${index}`;
-      return Boolean(matchingAnswers[itemKey]);
-    });
+    const ordered = reorderAnswers[answerKey] ?? defaultOrder;
+    const overIndex = dragOver[answerKey] ?? null;
 
     return (
-      <div className={"rounded-2xl border border-fuchsia-200 bg-[linear-gradient(180deg,_#fff7ff_0%,_#fcfaff_100%)] " + (compact ? "p-4" : "p-5")}>
-        <div className="text-xs font-black uppercase tracking-[0.18em] text-fuchsia-700">
-          {getText(value.title, "en")}
+      <div className="rounded-xl border border-[var(--theme-border)] bg-white p-3">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <div className="text-xs font-bold text-[var(--theme-dark)]">{getText(value.title, "en")}</div>
+          <div className="text-[10px] text-slate-400">Drag ↕ the meanings to match each phrase</div>
         </div>
-        {value.instruction ? (
-          <div className={"mt-2 font-semibold text-slate-700 " + (compact ? "text-sm leading-6" : "text-sm leading-7")}>
-            {getText(value.instruction, "en")}
-          </div>
-        ) : null}
-        <div className="mt-4 rounded-2xl border border-fuchsia-100 bg-white/90 p-4 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
-            <div className="text-xs font-black uppercase tracking-[0.16em] text-fuchsia-700">
-              Meaning cards
-            </div>
-            <div className="text-xs font-semibold text-slate-500">Drag one card into each matching box.</div>
-          </div>
-          <div className="mt-3 grid gap-2 md:grid-cols-2">
-            {options.map((option) => {
-              const inUse = selectedValues.includes(option);
-              return (
-                <button
-                  key={`${answerKey}:bank:${option}`}
-                  type="button"
-                  draggable={!inUse && !isChecked}
-                  onDragStart={(event) => {
-                    if (isChecked) return;
-                    event.dataTransfer.setData("text/plain", option);
-                    event.dataTransfer.effectAllowed = "move";
-                  }}
-                  className={
-                    "rounded-2xl border px-4 py-3 text-left text-sm font-bold leading-6 transition " +
-                    (isChecked
-                      ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
-                      : inUse
-                      ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
-                      : "cursor-grab border-fuchsia-200 bg-white text-slate-700 hover:border-fuchsia-300 hover:bg-fuchsia-50 active:cursor-grabbing")
-                  }
-                >
-                  {option}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        <div className="mt-5 overflow-hidden rounded-2xl border border-slate-300 bg-white shadow-sm">
-          <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] border-b border-slate-300 bg-slate-50">
-            <div className="border-r border-slate-300 px-4 py-3 text-center text-base font-black text-slate-900">
-              Phrase
-            </div>
-            <div className="px-4 py-3 text-center text-base font-black text-slate-900">
-              Matching meaning
-            </div>
+        <div className="overflow-hidden rounded-lg border border-slate-200">
+          <div className="grid grid-cols-2 border-b border-slate-200 bg-slate-50 text-xs font-semibold text-slate-500">
+            <div className="border-r border-slate-200 px-3 py-2">Phrase</div>
+            <div className="px-3 py-2">Meaning</div>
           </div>
           {value.prompts.map((item, index) => {
-            const itemKey = `${answerKey}:${index}`;
-            const selected = matchingAnswers[itemKey] ?? "";
-            const correct = selected.length > 0 && selected === getText(item.answer, "en");
-
+            const answer = ordered[index] ?? "";
+            const correct = isChecked && answer === getText(item.answer, "en");
+            const wrong = isChecked && !correct;
+            const isOver = overIndex === index;
             return (
               <div
-                key={itemKey}
-                className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] border-b border-slate-300 last:border-b-0"
+                key={`row-${index}`}
+                className={"grid grid-cols-2 border-b border-slate-100 last:border-b-0 transition-colors " + (isOver && !isChecked ? "bg-[var(--theme-soft)]" : "")}
               >
-                <div className="border-r border-slate-300 px-4 py-4 text-center font-black text-slate-900">
-                  <span className="mr-3 inline-flex h-8 w-8 items-center justify-center rounded-full bg-fuchsia-600 text-xs font-black text-white">
+                <div className="flex items-center gap-2 border-r border-slate-100 px-3 py-2">
+                  <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-[var(--theme-dark)] text-[9px] font-black text-white">
                     {index + 1}
                   </span>
-                  <span className={compact ? "text-sm leading-6" : "text-lg leading-7"}>
-                    {getText(item.prompt, "en")}
-                  </span>
+                  <span className="text-xs font-medium text-slate-800">{getText(item.prompt, "en")}</span>
                 </div>
-                <div className="px-4 py-3">
+                <div
+                  className="px-2 py-1.5"
+                  draggable={!isChecked}
+                  onDragStart={(e) => { e.dataTransfer.setData("text/plain", String(index)); e.dataTransfer.effectAllowed = "move"; }}
+                  onDragOver={(e) => { e.preventDefault(); setDragOver((d) => ({ ...d, [answerKey]: index })); }}
+                  onDragLeave={() => setDragOver((d) => ({ ...d, [answerKey]: null }))}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDragOver((d) => ({ ...d, [answerKey]: null }));
+                    const from = Number(e.dataTransfer.getData("text/plain"));
+                    if (from === index) return;
+                    setReorderAnswers((current) => {
+                      const prev = current[answerKey] ?? defaultOrder;
+                      const next = [...prev];
+                      const [moved] = next.splice(from, 1);
+                      next.splice(index, 0, moved);
+                      return { ...current, [answerKey]: next };
+                    });
+                  }}
+                >
                   <div
-                    onDragOver={(event) => {
-                      if (isChecked) return;
-                      event.preventDefault();
-                      event.dataTransfer.dropEffect = "move";
-                    }}
-                    onDrop={(event) => {
-                      if (isChecked) return;
-                      event.preventDefault();
-                      const droppedValue = event.dataTransfer.getData("text/plain");
-                      if (!droppedValue) return;
-                      setMatchingAnswers((current) => {
-                        const next = { ...current };
-                        Object.keys(next).forEach((key) => {
-                          if (key.startsWith(`${answerKey}:`) && next[key] === droppedValue) {
-                            next[key] = "";
-                          }
-                        });
-                        next[itemKey] = droppedValue;
-                        return next;
-                      });
-                    }}
                     className={
-                      "flex min-h-[70px] items-center justify-center rounded-xl border border-dashed px-4 py-3 text-center text-sm font-semibold leading-6 transition " +
-                      (selected
-                        ? "border-fuchsia-300 bg-fuchsia-50 text-slate-800"
-                        : "border-slate-300 bg-slate-50 text-slate-400")
+                      "flex cursor-grab items-center gap-1.5 rounded-lg border px-2 py-1.5 text-xs font-medium select-none active:cursor-grabbing " +
+                      (isChecked
+                        ? correct
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-800 cursor-default"
+                          : "border-rose-200 bg-rose-50 text-rose-800 cursor-default"
+                        : "border-slate-200 bg-slate-50 text-slate-700 hover:border-[var(--theme-border)] hover:bg-[var(--theme-soft)]")
                     }
                   >
-                    {selected || "Drop the correct meaning here"}
+                    {!isChecked && <span className="text-slate-300 text-base leading-none">⠿</span>}
+                    <span className="flex-1">{answer}</span>
+                    {isChecked && (
+                      <span className={"font-bold " + (correct ? "text-emerald-600" : "text-rose-500")}>
+                        {correct ? "✓" : "✗"}
+                      </span>
+                    )}
                   </div>
-                  <div className="mt-2 flex items-center justify-between gap-2">
-                    <div className="text-xs font-black uppercase tracking-[0.12em] text-slate-400">
-                      {selected ? "Answer placed" : "Waiting for match"}
+                  {isChecked && wrong ? (
+                    <div className="mt-0.5 pl-1 text-[10px] text-emerald-600">
+                      ✓ {getText(item.answer, "en")}
                     </div>
-                    {isChecked ? (
-                      <div className={"text-xs font-black uppercase tracking-[0.12em] " + (correct ? "text-emerald-600" : "text-rose-600")}>
-                        {correct ? "Correct" : "Incorrect"}
-                      </div>
-                    ) : null}
-                  </div>
+                  ) : null}
                 </div>
               </div>
             );
           })}
         </div>
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-fuchsia-100 bg-white/90 px-4 py-3 shadow-sm">
-          <div className="text-sm font-semibold text-slate-600">
-            {isChecked
-              ? `Score: ${score}/${value.prompts.length}`
-              : `Place all ${value.prompts.length} answers, then check your score.`}
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <div className="text-xs text-slate-500">
+            {isChecked ? `Score: ${score}/${value.prompts.length}` : "Drag meanings into the right order."}
           </div>
           <button
             type="button"
-            disabled={!allAnswered || isChecked}
+            disabled={isChecked}
             onClick={() => {
-              const nextScore = value.prompts.reduce((total, item, index) => {
-                const itemKey = `${answerKey}:${index}`;
-                return total + (matchingAnswers[itemKey] === getText(item.answer, "en") ? 1 : 0);
-              }, 0);
-              setMatchingScores((current) => ({
-                ...current,
-                [answerKey]: nextScore,
-              }));
+              const current = reorderAnswers[answerKey] ?? defaultOrder;
+              const nextScore = value.prompts.reduce((total, item, idx) =>
+                total + (current[idx] === getText(item.answer, "en") ? 1 : 0), 0);
+              setMatchingScores((s) => ({ ...s, [answerKey]: nextScore }));
             }}
-            className="rounded-full bg-fuchsia-600 px-5 py-2 text-sm font-black text-white transition hover:bg-fuchsia-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+            className="rounded-full bg-[var(--theme-dark)] px-4 py-1.5 text-xs font-bold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:bg-slate-300"
           >
             Check answers
           </button>
@@ -635,14 +779,14 @@ export default function LessonDeckClient({ lesson }: Props) {
 
   function renderCallout(value: NonNullable<LessonSection["callout"]>, compact = false) {
     return (
-      <div className={"rounded-2xl border border-amber-200 bg-amber-50 " + (compact ? "p-4" : "p-5")}>
-        <div className="text-xs font-black uppercase tracking-[0.18em] text-amber-700">
+      <div className={"rounded-xl border border-amber-200 bg-amber-50 " + (compact ? "p-3" : "p-3")}>
+        <div className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-700">
           {getText(value.label, "en")}
         </div>
-        <div className={"mt-2 font-black text-slate-900 " + (compact ? "text-lg" : "text-xl")}>
+        <div className={"mt-1 font-bold text-slate-900 " + (compact ? "text-sm" : "text-base")}>
           {getText(value.title, "en")}
         </div>
-        <div className={"mt-4 whitespace-pre-line text-slate-700 " + (compact ? "text-sm leading-7" : "text-base leading-8")}>
+        <div className={"mt-2 whitespace-pre-line text-slate-700 " + (compact ? "text-xs leading-5" : "text-sm leading-7")}>
           {getText(value.body, "en")}
         </div>
       </div>
@@ -655,23 +799,20 @@ export default function LessonDeckClient({ lesson }: Props) {
     compact = false
   ) {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className={"flex items-center gap-3 border-b border-slate-200 " + (compact ? "px-4 py-3" : "px-5 py-4")}>
+      <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className={"flex items-center gap-2.5 border-b border-slate-100 " + (compact ? "px-3 py-2" : "px-4 py-2.5")}>
           <div
-            className={
-              "flex items-center justify-center rounded-full bg-blue-600 text-sm font-black text-white " +
-              (compact ? "h-10 w-10" : "h-11 w-11")
-            }
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-xs font-black text-white"
           >
             You
           </div>
           <div>
-            <div className="text-sm font-black text-slate-900">{getText(value.title, "en")}</div>
-            <div className="text-xs font-semibold text-slate-500">Share your evidence-based response</div>
+            <div className="text-xs font-bold text-slate-900">{getText(value.title, "en")}</div>
+            <div className="text-[10px] font-medium text-slate-400">Share your evidence-based response</div>
           </div>
         </div>
-        <div className={compact ? "px-4 py-3" : "px-5 py-4"}>
-          <div className={"mb-3 whitespace-pre-line font-semibold text-slate-700 " + (compact ? "text-sm leading-6" : "text-sm leading-7")}>
+        <div className={compact ? "px-3 py-2" : "px-4 py-3"}>
+          <div className={"mb-2 whitespace-pre-line font-medium text-slate-600 " + (compact ? "text-xs leading-5" : "text-xs leading-6")}>
             {getText(value.prompt, "en")}
           </div>
           <textarea
@@ -684,24 +825,24 @@ export default function LessonDeckClient({ lesson }: Props) {
             }
             placeholder={getText(value.placeholder ?? "Write your comment here...", "en")}
             className={
-              "w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-base leading-8 text-slate-800 outline-none transition focus:border-blue-400 focus:bg-white " +
-              (compact ? "min-h-[120px]" : "min-h-[160px]")
+              "w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm leading-6 text-slate-800 outline-none transition focus:border-blue-400 focus:bg-white " +
+              (compact ? "min-h-[80px]" : "min-h-[110px]")
             }
           />
-          <div className={"flex items-center justify-between gap-3 " + (compact ? "mt-3" : "mt-4")}>
-            <div className="text-xs font-semibold text-slate-500">
+          <div className={"flex items-center justify-between gap-2 " + (compact ? "mt-2" : "mt-2")}>
+            <div className="text-[10px] font-medium text-slate-400">
               Use evidence from the Qur&apos;an, Hadith, life, Islamic stories, or science.
             </div>
             <button
               type="button"
               onClick={() => saveResponse(sectionIndex)}
-              className="rounded-full bg-blue-600 px-5 py-2 text-sm font-black text-white transition hover:bg-blue-700"
+              className="rounded-full bg-blue-600 px-4 py-1.5 text-xs font-bold text-white transition hover:bg-blue-700"
             >
               {getText(value.buttonLabel ?? "Post comment", "en")}
             </button>
           </div>
           {savedStates[`${lesson.slug}:${sectionIndex}`] ? (
-            <div className="mt-3 text-sm font-bold text-green-600">Comment saved.</div>
+            <div className="mt-2 text-xs font-semibold text-green-600">Comment saved.</div>
           ) : null}
         </div>
       </div>
@@ -710,18 +851,14 @@ export default function LessonDeckClient({ lesson }: Props) {
 
   function renderBodyParagraphs(paragraphs: string[], compact = false) {
     return (
-      <div className="grid gap-4">
+      <div className="grid gap-3">
         {paragraphs.map((paragraph, index) => (
-          <div
+          <p
             key={`paragraph-${index}`}
-            className={
-              "rounded-2xl border border-slate-200 bg-white shadow-sm " + (compact ? "p-5" : "p-6")
-            }
+            className={"whitespace-pre-line text-slate-700 " + (compact ? "text-sm leading-6" : "text-[0.925rem] leading-7")}
           >
-            <div className={"whitespace-pre-line text-slate-700 " + (compact ? "text-base leading-8" : "text-lg leading-9")}>
-              {paragraph}
-            </div>
-          </div>
+            {paragraph}
+          </p>
         ))}
       </div>
     );
@@ -756,6 +893,8 @@ export default function LessonDeckClient({ lesson }: Props) {
         return renderSuccessCriteria(block.value, presentationMode);
       case "infoBoxes":
         return renderInfoBoxes(block.value, presentationMode);
+      case "groupTasks":
+        return renderGroupTasks(block.value, presentationMode);
       case "matchingActivity":
         return renderMatchingActivity(block.value, sectionIndex, presentationMode);
       case "image":
@@ -779,12 +918,13 @@ export default function LessonDeckClient({ lesson }: Props) {
     const paragraphs = splitBodyIntoParagraphs(activeSection.body);
 
     return (
-      <div className="grid gap-6">
+      <div className="grid gap-3">
         {activeSection.learningObjective ? renderLearningObjective(activeSection.learningObjective) : null}
         {activeSection.image ? renderImage(activeSection.image) : null}
         {activeSection.learningObjectives ? renderLearningObjectives(activeSection.learningObjectives) : null}
         {activeSection.successCriteria ? renderSuccessCriteria(activeSection.successCriteria) : null}
         {activeSection.infoBoxes ? renderInfoBoxes(activeSection.infoBoxes) : null}
+        {activeSection.groupTasks ? renderGroupTasks(activeSection.groupTasks) : null}
         {activeSection.matchingActivity ? renderMatchingActivity(activeSection.matchingActivity, activeIndex) : null}
         {activeSection.callout ? renderCallout(activeSection.callout) : null}
         {paragraphs.length ? renderBodyParagraphs(paragraphs) : null}
@@ -799,69 +939,112 @@ export default function LessonDeckClient({ lesson }: Props) {
         key={`${lesson.slug}-section-${index}`}
         type="button"
         onClick={() => (isFullscreen ? goToSlide(firstSlideIndexForSection(slides, index)) : goTo(index))}
+        draggable
+        onDragStart={(event) => {
+          event.dataTransfer.setData("text/plain", String(sectionOrderPosition(index)));
+          event.dataTransfer.effectAllowed = "move";
+        }}
+        onDragOver={(event) => {
+          event.preventDefault();
+          setPartDragOverIndex(sectionOrderPosition(index));
+        }}
+        onDragLeave={() => setPartDragOverIndex((current) => (current === sectionOrderPosition(index) ? null : current))}
+        onDrop={(event) => {
+          event.preventDefault();
+          const fromIndex = Number(event.dataTransfer.getData("text/plain"));
+          const toIndex = sectionOrderPosition(index);
+          if (!Number.isNaN(fromIndex) && toIndex >= 0) {
+            reorderPart(fromIndex, toIndex);
+          }
+          setPartDragOverIndex(null);
+        }}
+        onDragEnd={() => setPartDragOverIndex(null)}
         className={
-          "flex items-center gap-3 rounded-xl border-2 px-4 py-3 text-left font-bold transition-all " +
+          "flex cursor-grab items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm font-medium transition-all active:cursor-grabbing " +
+          (partDragOverIndex === sectionOrderPosition(index) ? "ring-2 ring-slate-200 " : "") +
           (active
-            ? "border-teal-500 bg-teal-50 text-teal-900 shadow-sm"
-            : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50")
+            ? "border-teal-500 bg-teal-50 text-teal-900"
+            : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50")
         }
       >
         <span
           className={
-            "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-black " +
+            "flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-black " +
             (completed ? "bg-green-500 text-white" : active ? "bg-teal-500 text-white" : "bg-gray-100 text-gray-600")
           }
         >
           {completed ? "✓" : quiz ? totalSections : index + 1}
         </span>
-        <span className="flex-1">{label}</span>
+        <span className="flex-1 leading-snug">{label}</span>
       </button>
     );
   }
 
   const partsRail = (
     <div className="grid gap-2">
-      {lesson.sections.map((section, index) =>
-        renderPartButton(
-          index,
-          getText(section.title, "en"),
-          index === activeIndex,
-          completedIndices.includes(index)
-        )
+      {orderedParts.map((sectionIndex) =>
+        sectionIndex === quizIndex
+          ? renderPartButton(quizIndex, "Quiz", isOnQuizSection, completedIndices.includes(quizIndex), true)
+          : renderPartButton(
+              sectionIndex,
+              getText(lesson.sections[sectionIndex].title, "en"),
+              sectionIndex === activeIndex,
+              completedIndices.includes(sectionIndex)
+            )
       )}
-      {renderPartButton(quizIndex, "Quiz", isOnQuizSection, completedIndices.includes(quizIndex), true)}
     </div>
   );
 
   const horizontalPartsRail = (
-    <div className="rounded-2xl border border-white/70 bg-white/85 p-4 shadow-sm backdrop-blur">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="text-sm font-black text-slate-900">Parts</div>
-        <div className="text-xs font-bold text-slate-500">Preview mode: all parts unlocked</div>
+    <div className="rounded-xl border border-white/70 bg-white/85 px-3 py-2.5 shadow-sm backdrop-blur">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <div className="text-xs font-bold text-slate-700">Parts</div>
+        <div className="text-[10px] font-semibold text-slate-400">Preview mode: all parts unlocked</div>
       </div>
       <div className="overflow-x-auto pb-1">
         <div className="flex min-w-max items-center gap-2">
-          {lesson.sections.map((section, index) => {
-            const active = index === activeIndex;
-            const completed = completedIndices.includes(index);
+          {orderedParts.map((sectionIndex, orderIndex) => {
+            const active = sectionIndex === activeIndex;
+            const completed = completedIndices.includes(sectionIndex);
+            const isQuizPart = sectionIndex === quizIndex;
             return (
-              <div key={`${lesson.slug}-chain-${index}`} className="flex items-center gap-2">
+              <div key={`${lesson.slug}-chain-${sectionIndex}`} className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => goTo(index)}
-                  title={getText(section.title, "en")}
+                  onClick={() => goTo(sectionIndex)}
+                  title={isQuizPart ? "Quiz" : getText(lesson.sections[sectionIndex].title, "en")}
+                  draggable
+                  onDragStart={(event) => {
+                    event.dataTransfer.setData("text/plain", String(orderIndex));
+                    event.dataTransfer.effectAllowed = "move";
+                  }}
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    setPartDragOverIndex(orderIndex);
+                  }}
+                  onDragLeave={() => setPartDragOverIndex((current) => (current === orderIndex ? null : current))}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    const fromIndex = Number(event.dataTransfer.getData("text/plain"));
+                    if (!Number.isNaN(fromIndex)) {
+                      reorderPart(fromIndex, orderIndex);
+                    }
+                    setPartDragOverIndex(null);
+                  }}
+                  onDragEnd={() => setPartDragOverIndex(null)}
                   className={
-                    "flex items-center gap-2 rounded-full border px-3 py-2 transition-all " +
+                    "flex cursor-grab items-center gap-1.5 rounded-full border px-2.5 py-1.5 transition-all active:cursor-grabbing " +
+                    (partDragOverIndex === orderIndex ? "ring-2 ring-slate-200 " : "") +
                     (active
                       ? "border-teal-500 bg-teal-50 text-teal-900"
                       : completed
                       ? "border-green-200 bg-green-50 text-green-800"
-                      : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50")
+                      : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50")
                   }
                 >
                   <span
                     className={
-                      "flex h-8 w-8 items-center justify-center rounded-full text-xs font-black " +
+                      "flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-black " +
                       (completed
                         ? "bg-green-500 text-white"
                         : active
@@ -869,39 +1052,13 @@ export default function LessonDeckClient({ lesson }: Props) {
                         : "bg-slate-100 text-slate-600")
                     }
                   >
-                    {completed ? "✓" : index + 1}
+                    {completed ? "✓" : sectionIndex + 1}
                   </span>
                 </button>
-                <span className="text-slate-300">→</span>
+                {orderIndex < orderedParts.length - 1 ? <span className="text-slate-200">›</span> : null}
               </div>
             );
           })}
-          <button
-            type="button"
-            onClick={() => goTo(quizIndex)}
-            title="Quiz"
-            className={
-              "flex items-center gap-2 rounded-full border px-3 py-2 transition-all " +
-              (isOnQuizSection
-                ? "border-teal-500 bg-teal-50 text-teal-900"
-                : completedIndices.includes(quizIndex)
-                ? "border-green-200 bg-green-50 text-green-800"
-                : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50")
-            }
-          >
-            <span
-              className={
-                "flex h-8 w-8 items-center justify-center rounded-full text-xs font-black " +
-                (completedIndices.includes(quizIndex)
-                  ? "bg-green-500 text-white"
-                  : isOnQuizSection
-                  ? "bg-teal-500 text-white"
-                  : "bg-slate-100 text-slate-600")
-              }
-            >
-              {completedIndices.includes(quizIndex) ? "✓" : totalSections}
-            </span>
-          </button>
         </div>
       </div>
     </div>
@@ -911,7 +1068,7 @@ export default function LessonDeckClient({ lesson }: Props) {
     return (
       <div
         ref={deckRef}
-        className="flex h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(20,184,166,0.12),_transparent_30%),linear-gradient(180deg,_#f8fffe_0%,_#eef7f5_100%)] text-slate-900"
+        className="flex h-screen overflow-hidden bg-slate-50 text-slate-900"
       >
         {partsMenuOpen ? (
           <button
@@ -983,7 +1140,7 @@ export default function LessonDeckClient({ lesson }: Props) {
 
           <div className="min-h-0 flex-1 rounded-[28px] border border-slate-200 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.10)]">
             <div className="flex h-full flex-col overflow-hidden">
-              <div className="shrink-0 border-b border-slate-200 bg-[linear-gradient(135deg,_rgba(13,148,136,0.10),_rgba(255,255,255,0.92)_48%,_rgba(20,184,166,0.08))] px-8 py-5">
+              <div className="shrink-0 border-b border-slate-200 bg-slate-50 px-8 py-5">
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="text-xs font-black uppercase tracking-[0.22em] text-teal-600">
                     {activeSlide.sectionIndex === quizIndex
@@ -1029,9 +1186,9 @@ export default function LessonDeckClient({ lesson }: Props) {
                   <div className="flex flex-wrap items-center gap-3">
                     <button
                       type="button"
-                      onClick={() => goToSlide(activeSlideIndex - 1)}
-                      disabled={isFirstFullscreenSlide}
-                      className="rounded-lg border-2 border-gray-200 bg-white px-5 py-3 font-bold text-gray-700 transition-all hover:border-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                      onClick={goToPreviousFullscreenItem}
+                      disabled={!canGoPreviousFullscreen()}
+                      className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-600 transition hover:border-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       Previous
                     </button>
@@ -1039,7 +1196,7 @@ export default function LessonDeckClient({ lesson }: Props) {
                       type="button"
                       onClick={markDoneAndAdvance}
                       disabled={activeSlide.sectionIndex === quizIndex}
-                      className="rounded-lg bg-gradient-to-r from-teal-500 to-emerald-500 px-6 py-3 font-black text-white shadow-md transition-all hover:shadow-lg active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="rounded-lg bg-gradient-to-r from-teal-500 to-emerald-500 px-5 py-2 text-sm font-bold text-white shadow transition hover:shadow-md active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {isLastSlideOfSection ? "Mark Done & Next" : "Next Slide"}
                     </button>
@@ -1056,71 +1213,69 @@ export default function LessonDeckClient({ lesson }: Props) {
   return (
     <div
       ref={deckRef}
-      className="rounded-[28px] border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(20,184,166,0.16),_transparent_32%),linear-gradient(180deg,_#f8fffe_0%,_#eef7f5_100%)] p-4 md:p-6"
+      className="rounded-2xl border border-slate-200 bg-slate-50 p-3"
     >
-      <div className="mb-5 rounded-2xl border border-white/70 bg-white/85 p-5 shadow-sm backdrop-blur">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <div>
-            <div className="text-sm font-bold text-gray-700">Lesson Progress</div>
-            <div className="text-2xl font-black text-gray-900">
-              {completedIndices.length}/{totalSections} parts completed
+      <div className="mb-3 rounded-xl border border-white/70 bg-white/85 px-4 py-2.5 shadow-sm backdrop-blur">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="text-xs font-semibold text-gray-500">Progress</div>
+            <div className="text-sm font-bold text-gray-900">
+              {completedIndices.length}/{totalSections} parts done
             </div>
           </div>
           <div className="flex items-center gap-2">
             <button
               type="button"
+              onClick={resetProgress}
+              className="text-xs font-semibold text-gray-400 hover:text-gray-600"
+            >
+              Reset
+            </button>
+            <button
+              type="button"
               onClick={toggleFullscreen}
-              className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+              className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
             >
               Fullscreen
             </button>
           </div>
         </div>
-
-        <div className="mb-3 h-3 overflow-hidden rounded-full bg-gray-100">
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100">
           <div
             className="h-full rounded-full bg-gradient-to-r from-teal-500 to-emerald-500 transition-all duration-300"
             style={{ width: `${progressPct}%` }}
           />
         </div>
-
-        <button
-          type="button"
-          onClick={resetProgress}
-          className="text-sm font-bold text-gray-500 hover:text-gray-700"
-        >
-          Reset progress
-        </button>
       </div>
 
-      <div className="grid gap-5">
+      <div className="grid gap-3">
         {horizontalPartsRail}
 
-        <div className="rounded-[30px] border border-slate-200 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.10)]">
-          <div className="rounded-t-[30px] border-b border-slate-200 bg-[linear-gradient(135deg,_rgba(13,148,136,0.10),_rgba(255,255,255,0.92)_48%,_rgba(20,184,166,0.08))] px-6 py-5 md:px-10">
-            <div className="mb-1 text-xs font-bold uppercase tracking-[0.24em] text-teal-600">
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.07)]">
+          <div className="rounded-t-2xl border-b border-slate-100 bg-slate-100 px-4 py-3 md:px-5">
+            <div className="mb-0.5 text-[10px] font-bold uppercase tracking-[0.2em] text-teal-600">
               {isOnQuizSection ? "Assessment" : `Part ${activeIndex + 1} of ${totalSections}`}
             </div>
-            <div className="text-3xl font-black leading-tight text-slate-900 md:text-4xl">
+            <div className="text-lg font-bold leading-snug text-slate-900 md:text-xl">
               {isOnQuizSection ? "Final Quiz" : getText(activeSection.title, "en")}
             </div>
             {completedIndices.includes(activeIndex) ? (
-              <div className="mt-2 inline-flex items-center gap-1 text-sm font-bold text-green-600">
+              <div className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-green-600">
                 <span>✓</span> Completed
               </div>
             ) : null}
           </div>
 
-          <div className="min-h-[560px] px-6 py-8 md:px-10 md:py-10">
+          <div className="px-4 py-4 md:px-5">
             <div className="mx-auto max-w-4xl">{renderStandardSection()}</div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-b-[30px] border-t border-slate-200 bg-slate-50/90 px-6 py-5 md:px-10">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-b-2xl border-t border-slate-100 bg-slate-50/80 px-4 py-3 md:px-5">
             <button
               type="button"
-              onClick={() => goTo(activeIndex - 1)}
-              disabled={activeIndex === 0}
-              className="rounded-lg border-2 border-gray-200 bg-white px-5 py-3 font-bold text-gray-700 transition-all hover:border-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+              onClick={() => goToAdjacentSection(activeIndex, -1)}
+              disabled={adjacentSectionIndex(activeIndex, -1) === null}
+              className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-600 transition hover:border-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Previous
             </button>
@@ -1129,7 +1284,7 @@ export default function LessonDeckClient({ lesson }: Props) {
               type="button"
               onClick={markDoneAndAdvance}
               disabled={activeIndex === quizIndex}
-              className="rounded-lg bg-gradient-to-r from-teal-500 to-emerald-500 px-6 py-3 font-black text-white shadow-md transition-all hover:shadow-lg active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-lg bg-gradient-to-r from-teal-500 to-emerald-500 px-5 py-2 text-sm font-bold text-white shadow transition hover:shadow-md active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {activeIndex < totalSections - 2 ? "Mark Done & Next" : activeIndex === totalSections - 2 ? "Mark Done & Open Quiz" : "Mark Done"}
             </button>

@@ -80,16 +80,14 @@ export const toleranceLesson: CourseLesson = {
         {
           label: "Qur'an",
           lines: [
-            "Arabic:\nخُذِ الْعَفْوَ وَأْمُرْ بِالْعُرْفِ وَأَعْرِضْ عَنِ الْجَاهِلِينَ",
-            "English:\n\"Hold to forgiveness; command what is right; but turn away from the ignorant.\" (Al-A'raf 199)",
-            "Transliteration:\nKhudhi al-'afwa wa'mur bil-'urfi wa a'rid 'ani al-jahilin."
+            { en: "\"Hold to forgiveness; command what is right; but turn away from the ignorant.\" — Al-A'raf 199", ar: "خُذِ الْعَفْوَ وَأْمُرْ بِالْعُرْفِ وَأَعْرِضْ عَنِ الْجَاهِلِينَ" },
+            "Khudhi al-'afwa wa'mur bil-'urfi wa a'rid 'ani al-jahilin."
           ]
         },
         {
           label: "Hadith",
           lines: [
-            "Arabic:\nرَحِمَ اللَّهُ رَجُلًا سَمْحًا إِذَا بَاعَ وَإِذَا اشْتَرَى وَإِذَا اقْتَضَى",
-            "English:\n\"May Allah have mercy on a man who is tolerant and easygoing when he sells, when he buys, and when he asks for his due.\""
+            { en: "\"May Allah have mercy on a man who is tolerant and easygoing when he sells, when he buys, and when he asks for his due.\"", ar: "رَحِمَ اللَّهُ رَجُلًا سَمْحًا إِذَا بَاعَ وَإِذَا اشْتَرَى وَإِذَا اقْتَضَى" }
           ]
         }
       ],
@@ -125,20 +123,180 @@ export const toleranceLesson: CourseLesson = {
       }
     },
     {
-      title: { en: "Part 4: Reflect and deduce from the Qur'an", ar: "الجزء 4: أتأمل وأستدل من القرآن" },
+      title: { en: "Group Work", ar: "العمل الجماعي" },
+      groupTasks: {
+        title: "Five-group workshop on tolerance",
+        instruction:
+          "Each group completes a different task. Use the source pack under your group, quote evidence from the Qur'an and Sunnah, add at least one relevant image, organise your ideas neatly, and prepare a short presentation. Every member must complete one role.",
+        groups: [
+          {
+            slug: "analyse-the-concept",
+            name: "Group 1 - Analyse the concept",
+            learningObjective:
+              "Explain the concept of tolerance in Islam and identify the Qur'anic values that build it.",
+            task:
+              "Analyse the meaning of tolerance in Islam. Build a clear explanation that shows how mercy, forgiveness, kind dialogue, and doing good create a cohesive society. End with a short conclusion about why tolerance is a foundational principle in Islam.",
+            evidence: [
+              "Ali 'Imran 159",
+              "Al-A'raf 199",
+              "Al-'Ankabut 46",
+              "Al-Qasas 77",
+              "Al-Anbiya' 107"
+            ],
+            sourceNotes: [
+              "Tolerance in Islam means leniency, peace, mercy, rejection of violence, kindness in dealing with others, acceptance of differences, and not forcing others to do something.",
+              "Mercy: 'It is part of the mercy of Allah that you deal gently with them...' (Ali 'Imran 159).",
+              "Forgiveness: 'Hold to forgiveness; command what is right; but turn away from the ignorant.' (Al-A'raf 199).",
+              "Kind dialogue: 'Dispute not with the People of the Book except in a way that is best.' (Al-'Ankabut 46).",
+              "Doing good: 'Do good, as Allah has been good to you.' (Al-Qasas 77).",
+              "The Prophet's mission itself was mercy for all humanity: 'We sent you not, but as a mercy for all worlds.' (Al-Anbiya' 107)."
+            ],
+            memberRoles: [
+              "Lead analyst: writes the group definition of tolerance.",
+              "Qur'an researcher: selects and explains the strongest verses.",
+              "Evidence checker: makes sure every point is supported accurately.",
+              "Designer: organises the page or slide and adds one relevant image.",
+              "Presenter: delivers the final explanation to the class."
+            ],
+            finalProduct:
+              "A one-page analysis sheet or two-slide presentation with a title, key definition, four tolerance values, Qur'an evidence, one relevant image, and a final conclusion."
+          },
+          {
+            slug: "compare-models",
+            name: "Group 2 - Compare Prophetic and historical models",
+            learningObjective:
+              "Compare examples of tolerance from the life of the Prophet ﷺ and Islamic history.",
+            task:
+              "Compare at least four examples of tolerance: the Prophet's character, the Charter of Madinah, the prisoners of Badr, the funeral of the Jew, and examples from Umar ibn Al-Khattab or Amr ibn Al-'As. Show what is similar, what is different, and what each example teaches.",
+            evidence: [
+              "Hadith of Aishah about the Prophet's character",
+              "'Is he not a soul?'",
+              "Charter of Madinah",
+              "Prisoners of Badr",
+              "Examples of Umar ibn Al-Khattab and Amr ibn Al-'As"
+            ],
+            sourceNotes: [
+              "Aishah said the Prophet ﷺ did not respond to evil with evil; rather, he pardoned and forgave.",
+              "The Charter of Madinah was one of the first written constitutions and protected rights for Muslims and non-Muslims alike.",
+              "The Prophet ﷺ treated prisoners of Badr generously and allowed teaching Muslim children as ransom for literate captives.",
+              "When told a funeral was for a Jew, the Prophet ﷺ said: 'Is he not a soul?'",
+              "Umar ibn Al-Khattab guaranteed safety for the people of Jerusalem, their lives, property, and churches.",
+              "Amr ibn Al-'As guaranteed safety for the people of Egypt and their churches, and the Copts welcomed Islamic rule because of justice and tolerance."
+            ],
+            memberRoles: [
+              "Comparison leader: creates the compare/contrast table.",
+              "Sunnah researcher: finds the Prophetic evidence and hadith quotations.",
+              "History researcher: explains the examples from Madinah, Jerusalem, and Egypt.",
+              "Visual organiser: adds a timeline, comparison chart, or one suitable image.",
+              "Presenter: explains what all examples prove about Islam."
+            ],
+            finalProduct:
+              "A comparison table or poster showing at least four examples, the evidence for each one, the value shown, and one short concluding judgment about Islam's tolerance."
+          },
+          {
+            slug: "mind-map-or-poster",
+            name: "Group 3 - Create a mind map or poster",
+            learningObjective:
+              "Organise the values, importance, and methods of tolerance into a clear visual summary.",
+            task:
+              "Create a mind map or poster titled 'Tolerance in Islam'. Your visual must organise values of tolerance, the importance of tolerance, tolerance-enhancing methods, and practical examples from life. It must be attractive, easy to read, and supported with evidence.",
+            evidence: [
+              "Al-An'am 108",
+              "Al-A'raf 199",
+              "Al-Baqarah 109",
+              "Yusuf 92",
+              "Ali 'Imran 134",
+              "Al-Baqarah 256"
+            ],
+            sourceNotes: [
+              "Main values: respecting others and forgiving insults.",
+              "Respecting others includes respecting people regardless of religion, colour, or race.",
+              "Forgiving insults is supported by 'Hold to forgiveness...' and 'So pardon and overlook...'.",
+              "At the Conquest of Makkah, the Prophet ﷺ forgave those who harmed him and said: 'No blame upon you today. Allah will forgive you.'",
+              "Tolerance leads to Paradise, purifies hearts, spreads peace, strengthens societies, and ensures security.",
+              "Tolerance-enhancing methods include controlling anger, keeping good company, remembering accountability before Allah, and studying the Prophet's biography.",
+              "Students may also reflect on: 'There is no compulsion in religion.' (Al-Baqarah 256)."
+            ],
+            memberRoles: [
+              "Mind-map leader: decides the main headings and branches.",
+              "Evidence writer: adds Qur'an verses and key quotations.",
+              "Example finder: supplies real-life and Prophetic examples.",
+              "Designer: arranges colours, layout, and at least one relevant image.",
+              "Presenter: explains how the poster links values, importance, and methods."
+            ],
+            finalProduct:
+              "A finished mind map or poster with headings, sub-points, Qur'an evidence, one Prophetic or historical example, at least one picture, and a short oral explanation."
+          },
+          {
+            slug: "judge-life-scenarios",
+            name: "Group 4 - Judge life scenarios",
+            learningObjective:
+              "Judge life situations in the light of Islamic tolerance and justify the best response with evidence.",
+            task:
+              "Analyse real-life scenarios and judge which response matches Islamic tolerance. Include situations with a teacher, father, non-Muslim neighbour, non-Muslim cleaner, a friend who wronged you, and a non-Muslim student asking for help. Explain the best response and support it with evidence.",
+            evidence: [
+              "Hadith: leniency in buying, selling, and asking for one's due",
+              "Al-A'raf 199",
+              "Al-Baqarah 109",
+              "Al-An'am 108",
+              "'Is he not a soul?'"
+            ],
+            sourceNotes: [
+              "The Prophet ﷺ taught leniency in markets: 'May Allah's mercy be on him who is lenient in his buying, selling, and in demanding back his money.'",
+              "The lesson asks students to explain how to practice tolerance with the teacher, father, non-Muslim neighbour, and non-Muslim cleaner.",
+              "Students also answer: how would you act if a friend wronged you, or if a non-Muslim student asked for help?",
+              "Respecting others means not insulting people because of religion, colour, or race.",
+              "Forgiving insults and turning away from ignorant behaviour are central applications of tolerance.",
+              "Tolerance rejects violence and supports kindness, justice, and peace in everyday life."
+            ],
+            memberRoles: [
+              "Scenario judge: selects the most tolerant response for each case.",
+              "Evidence finder: links each judgment to Qur'an or Sunnah.",
+              "Writer: turns the ideas into short justified paragraphs.",
+              "Case designer: adds icons or one suitable real-life image.",
+              "Presenter: explains why the judged responses are strongest."
+            ],
+            finalProduct:
+              "A scenario board or role-card presentation showing each situation, the best response, the reason, and the supporting Islamic evidence."
+          },
+          {
+            slug: "build-the-argument",
+            name: "Group 5 - Build the argument and defend the topic",
+            learningObjective:
+              "Support positions of tolerance and oppose positions of violence or intransigence using reasoned argument and evidence.",
+            task:
+              "Prepare a reasoned response to the claim that Islam is a religion of violence and inflexibility. Use Qur'an, Sunnah, Prophetic biography, Islamic history, UAE evidence, and the harms of violence. End with a persuasive class presentation.",
+            evidence: [
+              "Ali 'Imran 134",
+              "Al-Mumtahanah 8",
+              "UAE commitment to tolerance",
+              "Sheikh Zayed's advice against arrogance",
+              "Examples from Madinah, Jerusalem, and Egypt"
+            ],
+            sourceNotes: [
+              "The lesson asks students to respond logically to claims that Islam is a religion of violence and inflexibility.",
+              "Allah does not forbid kind and just dealings with those who do not fight Muslims because of religion. (Al-Mumtahanah 8)",
+              "Tolerance restrains anger, pardons people, and is loved by Allah. (Ali 'Imran 134)",
+              "The UAE commits to tolerance and rejects violence in domestic and international relations.",
+              "Violence spreads anger, hatred, fear, broken trust, and division in both the individual and society.",
+              "Sheikh Zayed said: 'The greatest advice I give to my sons is to avoid arrogance...'",
+              "Historical examples from the Prophet ﷺ, Umar ibn Al-Khattab, and Amr ibn Al-'As show coexistence, justice, and protection of rights."
+            ],
+            memberRoles: [
+              "Argument leader: builds the main claim and counterclaim.",
+              "Qur'an/Sunnah specialist: supplies the strongest evidence.",
+              "History and UAE specialist: adds historical and national proof.",
+              "Slide designer: organises the argument and adds one relevant image or infographic.",
+              "Speaker: presents the final defence confidently to the class."
+            ],
+            finalProduct:
+              "A persuasive poster, debate board, or short slide deck that refutes the false claim and proves that Islam establishes mercy, justice, dignity, and coexistence."
+          }
+        ]
+      },
       body: {
-        en:
-          "Infer tolerance from these verses:\n\n" +
-          "1. \"Invite to the way of your Lord with wisdom and good instruction, and argue with them in the best manner.\" (An-Nahl 125)\n" +
-          "This teaches wisdom, respectful dialogue, and persuasive preaching without harshness.\n\n" +
-          "2. \"Allah does not forbid you from dealing kindly and justly with those who do not fight you because of religion or drive you from your homes. Indeed, Allah loves those who are just.\" (Al-Mumtahanah 8)\n" +
-          "This teaches kindness, justice, and fair dealing with peaceful people of other faiths.",
-        ar:
-          "يستدل على التسامح من الآيتين الآتيتين:\n\n" +
-          "1. ﴿ادْعُ إِلَىٰ سَبِيلِ رَبِّكَ بِالْحِكْمَةِ وَالْمَوْعِظَةِ الْحَسَنَةِ وَجَادِلْهُم بِالَّتِي هِيَ أَحْسَنُ﴾ [النحل: 125].\n" +
-          "وتدل على الحكمة، وحسن الدعوة، والحوار الراقي، وترك الشدة في المخاطبة.\n\n" +
-          "2. ﴿لَا يَنْهَاكُمُ اللَّهُ عَنِ الَّذِينَ لَمْ يُقَاتِلُوكُمْ فِي الدِّينِ... أَن تَبَرُّوهُمْ وَتُقْسِطُوا إِلَيْهِمْ﴾ [الممتحنة: 8].\n" +
-          "وتدل على البر، والعدل، وحسن المعاملة مع غير المسلمين المسالمين."
+        en: "",
+        ar: ""
       }
     },
     {

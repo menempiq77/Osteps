@@ -14,6 +14,20 @@ export type LessonSection = {
     label: string | { en: string; ar: string };
     lines: Array<string | { en: string; ar: string }>;
   }>;
+  groupTasks?: {
+    title?: string | { en: string; ar: string };
+    instruction?: string | { en: string; ar: string };
+    groups: Array<{
+      slug: string;
+      name: string | { en: string; ar: string };
+      learningObjective: string | { en: string; ar: string };
+      task: string | { en: string; ar: string };
+      evidence: Array<string | { en: string; ar: string }>;
+      sourceNotes: Array<string | { en: string; ar: string }>;
+      memberRoles: Array<string | { en: string; ar: string }>;
+      finalProduct: string | { en: string; ar: string };
+    }>;
+  };
   matchingActivity?: {
     title: string | { en: string; ar: string };
     instruction?: string | { en: string; ar: string };
