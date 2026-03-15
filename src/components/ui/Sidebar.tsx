@@ -50,11 +50,17 @@ const Sidebar = () => {
     !canUseSubjectContext ||
     !activeSubject ||
     /islam|islamiat|islamic/i.test(activeSubject.name);
+  const primaryAdminEmail = "abdelmonem@gmail.com";
 
   const roleKey = (currentUser?.role ?? "")
     .trim()
     .toUpperCase()
     .replace(/\s+/g, "_");
+  const isPrimaryAdmin =
+    currentUser?.email?.toLowerCase?.() === primaryAdminEmail;
+  const roleDisplay = isPrimaryAdmin
+    ? "SUPER ADMIN"
+    : (roleKey || currentUser?.role || "").toString().replace("_", " ");
 
   const isSUPER_ADMIN = roleKey === "SUPER_ADMIN";
 
@@ -412,7 +418,7 @@ const Sidebar = () => {
           <Link href="/">
             {isOpen && (
               <h2 className="font-semibold text-white text-lg">
-                  {(roleKey || currentUser?.role || "").toString().replace("_", " ")}
+                  {roleDisplay}
               </h2>
             )}
           </Link>
@@ -562,7 +568,7 @@ const Sidebar = () => {
                     {currentUser.email}
                   </p>
                   <p className="text-xs text-gray-500 capitalize">
-                    {(roleKey || currentUser.role).replace("_", " ")}
+                    {roleDisplay}
                   </p>
                 </div>
               )}

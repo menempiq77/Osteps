@@ -34,6 +34,8 @@ type SuperAdminBasic = {
   password?: string;
 };
 
+const PRIMARY_ADMIN_EMAIL = "abdelmonem@gmail.com";
+
 // Main Component
 export default function SuperAdminsList() {
   const [superAdmins, setSuperAdmins] = useState<SuperAdmin[]>([]);
@@ -49,7 +51,7 @@ export default function SuperAdminsList() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
   const { currentUser } = useSelector((state: RootState) => state.auth);
-  const isAdmin = currentUser?.role === "ADMIN";
+  const canManageAdmins = currentUser?.role === "ADMIN";
 
   const loadAdmins = async () => {
     try {
@@ -140,14 +142,14 @@ export default function SuperAdminsList() {
         className="!mb-2"
       />
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Sub Admins</h1>
-        {!isAdmin && (
+        <h1 className="text-2xl font-bold">Admin Management</h1>
+        {canManageAdmins && (
           <Button
             type="primary"
             className="!bg-primary !text-white !border-none"
             onClick={() => setIsAddSuperAdminModalOpen(true)}
           >
-            Add Sub Admin
+            Add Admin
           </Button>
         )}
       </div>
@@ -172,7 +174,7 @@ export default function SuperAdminsList() {
                     Role
                   </span>
                 </th>
-                {!isAdmin && (
+                {canManageAdmins && (
                   <th className="p-4 text-xs md:text-sm">Actions</th>
                 )}
               </tr>
@@ -180,14 +182,30 @@ export default function SuperAdminsList() {
             <tbody>
               {superAdmins?.length > 0 ? (
                 superAdmins?.map((admin) => (
+                  (() => {
+                    const isPrimaryAdmin =
+                      admin.email?.toLowerCase?.() === PRIMARY_ADMIN_EMAIL;
+
+                    return (
                   <tr
                     key={admin.id}
                     className="border-b border-gray-200 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
                   >
-                    <td className="p-2 md:p-4">{admin.name}</td>
+                    <td className="p-2 md:p-4">
+                      <div className="flex items-center justify-center gap-2">
+                        <span>{admin.name}</span>
+                        {isPrimaryAdmin && (
+                          <span className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                            Primary
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="p-2 md:p-4">{admin.email}</td>
-                    <td className="p-2 md:p-4">{admin.role || "N/A"}</td>
-                    {!isAdmin && (
+                    <td className="p-2 md:p-4">
+                      {isPrimaryAdmin ? "SUPER ADMIN" : "SUB ADMIN"}
+                    </td>
+                    {canManageAdmins && (
                       <td className="relative p-2 md:p-4 flex justify-center space-x-3">
                         <Button
                           title="Edit"
@@ -196,18 +214,22 @@ export default function SuperAdminsList() {
                           icon={<EditOutlined />}
                         />
 
-                        <Button
-                          title="Delete"
-                          onClick={() => {
-                            setDeleteSuperAdmin(admin);
-                            setIsDeleteModalOpen(true);
-                          }}
-                          className="!text-red-500 hover:!text-red-700 !border-none !shadow-none "
-                          icon={<DeleteOutlined />}
-                        />
+                        {!isPrimaryAdmin && (
+                          <Button
+                            title="Delete"
+                            onClick={() => {
+                              setDeleteSuperAdmin(admin);
+                              setIsDeleteModalOpen(true);
+                            }}
+                            className="!text-red-500 hover:!text-red-700 !border-none !shadow-none "
+                            icon={<DeleteOutlined />}
+                          />
+                        )}
                       </td>
                     )}
                   </tr>
+                    );
+                  })()
                 ))
               ) : (
                 <tr>

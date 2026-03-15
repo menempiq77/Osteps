@@ -10,6 +10,7 @@ import {
   updateSchool,
 } from "@/services/schoolApi";
 import Link from "next/link";
+import axios from "axios";
 
 export default function SuperAdminDashboard() {
   const [schools, setSchools] = useState<any[]>([]);
@@ -125,7 +126,10 @@ export default function SuperAdminDashboard() {
       messageApi?.success("Deleted school Successfully!");
     } catch (err) {
       setError("Failed to delete school");
-      messageApi?.error("Failed to delete school");
+      const errorMessage = axios.isAxiosError(err)
+        ? (err.response?.data?.msg as string) || "Failed to delete school"
+        : "Failed to delete school";
+      messageApi?.error(errorMessage);
       console.error(err);
       setDeletingId(null);
     }
@@ -155,11 +159,18 @@ export default function SuperAdminDashboard() {
       <div className="premium-hero flex items-center justify-between mb-6 rounded-xl px-4 py-3">
         <h1 className="text-2xl font-bold">Schools</h1>
         <Button
+          type="primary"
           onClick={() => {
             setEditingSchool(null);
             setOpen(true);
           }}
-          className="premium-pill-btn !bg-primary !text-white hover:!bg-primary/90 !border-0"
+          className="premium-pill-btn !border-0 !font-semibold"
+          style={{
+            background: "linear-gradient(90deg, var(--primary), var(--theme-scroll-end))",
+            color: "#ffffff",
+            minWidth: "140px",
+            borderColor: "transparent",
+          }}
         >
           Add School
         </Button>
@@ -172,13 +183,40 @@ export default function SuperAdminDashboard() {
           setOpen(false);
           setEditingSchool(null);
         }}
-        footer={null}
+        footer={[
+          <Button
+            key="cancel"
+            onClick={() => {
+              setOpen(false);
+              setEditingSchool(null);
+            }}
+          >
+            Cancel
+          </Button>,
+          <Button
+            key="submit"
+            type="primary"
+            htmlType="submit"
+            form="school-form"
+            className="!bg-primary !text-white !border-0"
+          >
+            {editingSchool ? "Update School" : "Create School"}
+          </Button>,
+        ]}
         destroyOnHidden
         centered
+        styles={{
+          body: {
+            maxHeight: "70vh",
+            overflowY: "auto",
+            paddingBottom: 16,
+          },
+        }}
       >
         <AddSchoolForm
           onSubmit={handleAddOrEditSchool}
           defaultValues={editingSchool}
+          formId="school-form"
         />
       </Modal>
 

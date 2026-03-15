@@ -11,9 +11,11 @@ const { RangePicker } = DatePicker;
 export default function AddSchoolForm({
   onSubmit,
   defaultValues,
+  formId = "school-form",
 }: {
   onSubmit: (data: any) => void;
   defaultValues?: any;
+  formId?: string;
 }) {
   const {
     control,
@@ -47,7 +49,7 @@ export default function AddSchoolForm({
 
 
   return (
-    <Form   onFinish={handleSubmit(onSubmit)} layout="vertical">
+    <Form id={formId} onFinish={handleSubmit(onSubmit)} layout="vertical">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 
           <Form.Item
@@ -133,9 +135,6 @@ export default function AddSchoolForm({
           </Form.Item>
         </div>
 
-        <Button htmlType="submit" className="w-full !bg-primary !text-white hover:!bg-primary/90 !border-0">
-          {defaultValues ? "Update School" : "Create School"}
-        </Button>
     </Form>
   );
 }
