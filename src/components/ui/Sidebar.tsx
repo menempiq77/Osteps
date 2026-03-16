@@ -35,6 +35,7 @@ import { fetchUnseenAnnouncementCount } from "@/services/announcementApi";
 import { fetchUnreadCount, markAllNotificationsAsRead } from "@/services/notificationsApi";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import { isSharedPath } from "@/lib/subjectRouting";
+import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
 
 const Sidebar = () => {
   const pathname = usePathname();
@@ -63,6 +64,24 @@ const Sidebar = () => {
     : (roleKey || currentUser?.role || "").toString().replace("_", " ");
 
   const isSUPER_ADMIN = roleKey === "SUPER_ADMIN";
+  const isStudent = roleKey === "STUDENT";
+
+  const { data: studentSubjectClasses = [] } = useQuery({
+    queryKey: ["sidebar-student-subject-classes", activeSubjectId],
+    queryFn: async () => {
+      if (!activeSubjectId) return [];
+      const classes = await fetchSubjectClasses({ subject_id: Number(activeSubjectId) });
+      return Array.isArray(classes) ? classes : [];
+    },
+    enabled: isStudent && !!activeSubjectId,
+    staleTime: 1000 * 60,
+  });
+
+  const studentSubjectClassId =
+    (Array.isArray(studentSubjectClasses) && studentSubjectClasses[0]?.id) || currentUser?.studentClass;
+  const studentTrackerHref = studentSubjectClassId
+    ? `/dashboard/trackers/${studentSubjectClassId}`
+    : "/dashboard/subject-cards";
 
   // Announcement unread count
   const { data: announcementData } = useQuery({
@@ -156,7 +175,7 @@ const Sidebar = () => {
       },
     ],
     SCHOOL_ADMIN: [
-      { name: "Dashboard", href: "/dashboard", icon: Home },
+      { name: "Dashboard", href: "/dashboard/subject-cards", icon: Home },
       { name: "Manager", href: "/dashboard/manager", icon: Layers },
       { name: "View", href: "/dashboard/view", icon: FolderOpen },
       {
@@ -200,7 +219,7 @@ const Sidebar = () => {
       },
     ],
     HOD: [
-      { name: "Dashboard", href: "/dashboard", icon: Home },
+      { name: "Dashboard", href: "/dashboard/subject-cards", icon: Home },
       { name: "Manager", href: "/dashboard/manager", icon: Layers },
       { name: "View", href: "/dashboard/view", icon: FolderOpen },
       {
@@ -244,10 +263,10 @@ const Sidebar = () => {
       },
     ],
     TEACHER: [
-      { name: "Dashboard", href: "/dashboard", icon: Home },
+      { name: "Dashboard", href: "/dashboard/subject-cards", icon: Home },
       { name: "My Classes", href: "/dashboard/years", icon: Layers },
       { name: "View", href: "/dashboard/view", icon: FolderOpen },
-      { name: "Subjects", href: "/dashboard/subjects", icon: BookOpen },
+      { name: "Subjects", href: "/dashboard/subject-cards", icon: BookOpen },
       { name: "Manage Quiz", href: "/dashboard/quiz", icon: ClipboardList },
       { name: "Trackers", href: "/dashboard/all_trackers", icon: BarChart3 },
       {
@@ -292,16 +311,16 @@ const Sidebar = () => {
       },
     ],
     STUDENT: [
-      { name: "Dashboard", href: "/dashboard", icon: Home },
+      { name: "Dashboard", href: "/dashboard/subject-cards", icon: Home },
       {
         name: "Assesments",
         href: "/dashboard/students/assignments",
         icon: GraduationCap,
       },
-      { name: "Subjects", href: "/dashboard/subjects", icon: BookOpen },
+      { name: "Subjects", href: "/dashboard/subject-cards", icon: BookOpen },
       {
         name: "Trackers",
-        href: `/dashboard/trackers/${currentUser?.studentClass}`,
+        href: studentTrackerHref,
         icon: BarChart3,
       },
       {

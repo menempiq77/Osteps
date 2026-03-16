@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const SUBJECT_CONTEXT_ENABLED = process.env.NEXT_PUBLIC_SUBJECT_CONTEXT_ENABLED === "true";
+const SUBJECT_CONTEXT_ENABLED = process.env.NEXT_PUBLIC_SUBJECT_CONTEXT_ENABLED !== "false";
 
 const SUBJECT_SCOPED_PREFIXES = [
   "/dashboard",
@@ -24,6 +24,7 @@ const SUBJECT_SCOPED_PREFIXES = [
 ];
 
 const SHARED_PREFIXES = [
+  "/dashboard/subject-cards",
   "/dashboard/library",
   "/dashboard/time_table",
   "/dashboard/announcements",
@@ -34,9 +35,17 @@ const SHARED_PREFIXES = [
   "/dashboard/admins/settings",
 ];
 
+const SHARED_EXACT_PATHS = [
+  "/dashboard/students",
+  "/dashboard/teachers",
+];
+
 const startsWithPrefix = (path: string, prefix: string): boolean => path === prefix || path.startsWith(`${prefix}/`);
 
-const isSharedPath = (path: string): boolean => SHARED_PREFIXES.some((prefix) => startsWithPrefix(path, prefix));
+const isSharedPath = (path: string): boolean => {
+  if (SHARED_EXACT_PATHS.includes(path)) return true;
+  return SHARED_PREFIXES.some((prefix) => startsWithPrefix(path, prefix));
+};
 
 const isSubjectScopedLegacyPath = (path: string): boolean => {
   if (path.startsWith("/dashboard/s/")) return false;
@@ -75,6 +84,16 @@ export function middleware(req: NextRequest) {
     return NextResponse.rewrite(rewriteUrl);
   }
 
+  // For exact /dashboard, redirect academic users to subject-cards picker
+  if (pathname === "/dashboard") {
+    const cookieSubject = req.cookies.get("osteps_subject_id")?.value;
+    if (cookieSubject && /^\d+$/.test(cookieSubject)) {
+      const redirectUrl = req.nextUrl.clone();
+      redirectUrl.pathname = "/dashboard/subject-cards";
+      return NextResponse.redirect(redirectUrl);
+    }
+  }
+
   if (isSubjectScopedLegacyPath(pathname)) {
     const querySubject = url.searchParams.get("subject_id");
     const cookieSubject = req.cookies.get("osteps_subject_id")?.value;
@@ -90,7 +109,7 @@ export function middleware(req: NextRequest) {
   }
 
   return NextResponse.next();
-}
+}  
 
 export const config = {
   matcher: ["/dashboard/:path*"],

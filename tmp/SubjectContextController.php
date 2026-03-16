@@ -12,7 +12,7 @@ class SubjectContextController extends Controller
     public function myContext(Request $request): JsonResponse
     {
         $user = $request->user();
-        $role = strtoupper((string) ($user->role ?? ''));
+        $role = $this->resolveRole($user);
 
         $subjects = collect();
 
@@ -22,6 +22,22 @@ class SubjectContextController extends Controller
                 ->select('id', 'name', 'code')
                 ->orderBy('name')
                 ->get();
+        } elseif ($role === 'STUDENT') {
+            $studentId = DB::table('students')->where('user_id', $user->id)->value('id');
+
+            if ($studentId) {
+                $subjects = DB::table('student_subject_enrollments as sse')
+                    ->join('subject_classes as sc', 'sc.id', '=', 'sse.subject_class_id')
+                    ->join('subjects as s', 's.id', '=', 'sc.subject_id')
+                    ->where('sse.student_id', (int) $studentId)
+                    ->where('sse.is_active', 1)
+                    ->where('sc.is_active', 1)
+                    ->where('s.school_id', $user->school_id)
+                    ->select('s.id', 's.name', 's.code')
+                    ->distinct()
+                    ->orderBy('s.name')
+                    ->get();
+            }
         } else {
             $subjects = DB::table('user_subject_assignments as usa')
                 ->join('subjects as s', 's.id', '=', 'usa.subject_id')
@@ -33,8 +49,8 @@ class SubjectContextController extends Controller
                 ->get();
         }
 
-        // fallback for legacy users: expose school subjects
-        if ($subjects->isEmpty() && $user->school_id) {
+        // fallback for legacy school admins only
+        if ($subjects->isEmpty() && $user->school_id && $role === 'SCHOOL_ADMIN') {
             $subjects = DB::table('subjects')
                 ->where('school_id', $user->school_id)
                 ->select('id', 'name', 'code')
@@ -45,6 +61,10 @@ class SubjectContextController extends Controller
         $defaultSubjectId = DB::table('user_subject_preferences')
             ->where('user_id', $user->id)
             ->value('last_subject_id');
+
+        if ($defaultSubjectId && !$subjects->contains(fn ($subject) => (int) $subject->id === (int) $defaultSubjectId)) {
+            $defaultSubjectId = null;
+        }
 
         if (!$defaultSubjectId) {
             $defaultSubjectId = optional($subjects->first())->id;
@@ -151,12 +171,25 @@ class SubjectContextController extends Controller
     {
         $this->ensureRole($request, ['SCHOOL_ADMIN', 'HOD']);
 
+        $role = $this->resolveRole($request->user());
+        $hodSubjectIds = [];
+        if ($role === 'HOD') {
+            $hodSubjectIds = DB::table('user_subject_assignments')
+                ->where('user_id', $request->user()->id)
+                ->where('role_scope', 'HOD')
+                ->where('is_active', 1)
+                ->pluck('subject_id')
+                ->map(fn ($id) => (int) $id)
+                ->toArray();
+        }
+
         $items = DB::table('user_subject_assignments as usa')
             ->join('users as u', 'u.id', '=', 'usa.user_id')
             ->join('subjects as s', 's.id', '=', 'usa.subject_id')
             ->where('usa.is_active', 1)
             ->when($request->filled('role_scope'), fn ($q) => $q->where('usa.role_scope', $request->string('role_scope')))
             ->where('s.school_id', $request->user()->school_id)
+            ->when($role === 'HOD', fn ($q) => $q->whereIn('usa.subject_id', $hodSubjectIds))
             ->select('usa.user_id', 'u.name as user_name', 'usa.role_scope', 'usa.subject_id', 's.name as subject_name')
             ->orderBy('u.name')
             ->orderBy('s.name')
@@ -170,11 +203,28 @@ class SubjectContextController extends Controller
 
     private function userCanAccessSubject($user, int $subjectId): bool
     {
-        $role = strtoupper((string) ($user->role ?? ''));
+        $role = $this->resolveRole($user);
         if ($role === 'SCHOOL_ADMIN') {
             return DB::table('subjects')
                 ->where('id', $subjectId)
                 ->where('school_id', $user->school_id)
+                ->exists();
+        }
+
+        if ($role === 'STUDENT') {
+            $studentId = DB::table('students')->where('user_id', $user->id)->value('id');
+            if (!$studentId) {
+                return false;
+            }
+
+            return DB::table('student_subject_enrollments as sse')
+                ->join('subject_classes as sc', 'sc.id', '=', 'sse.subject_class_id')
+                ->join('subjects as s', 's.id', '=', 'sc.subject_id')
+                ->where('sse.student_id', (int) $studentId)
+                ->where('sse.is_active', 1)
+                ->where('sc.is_active', 1)
+                ->where('s.id', $subjectId)
+                ->where('s.school_id', $user->school_id)
                 ->exists();
         }
 
@@ -187,12 +237,17 @@ class SubjectContextController extends Controller
 
     private function ensureRole(Request $request, array $allowedRoles): void
     {
-        $role = strtoupper((string) ($request->user()->role ?? ''));
+        $role = $this->resolveRole($request->user());
         if (!in_array($role, $allowedRoles, true)) {
             abort(response()->json([
                 'status_code' => 403,
                 'msg' => 'Forbidden role.',
             ], 403));
         }
+    }
+
+    private function resolveRole(object $user): string
+    {
+        return strtoupper(str_replace(' ', '_', (string) ($user->role ?? $user->user_type ?? '')));
     }
 }

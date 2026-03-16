@@ -16,6 +16,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Resources\TopicResource;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 class TopicController extends Controller
 {
     public function getTopicsWithProgress1($trackerId) //pending
@@ -125,9 +126,11 @@ class TopicController extends Controller
 //     }
 // }
 
-    public function getTopicsWithProgress($trackerId)
+    public function getTopicsWithProgress(Request $request, $trackerId)
     {
         try {
+            $this->ensureTrackerAccess($request, (int) $trackerId, false);
+
             $id = Tracker::find($trackerId);
 
             if(!$id)
@@ -210,10 +213,14 @@ class TopicController extends Controller
 
     public function reorderTopics(Request $request)
     {
-        // dd("sd");
         $request->validate([
             'orders' => 'required|array',
         ]);
+
+        foreach ($request->orders as $item) {
+            $topicId = (int) ($item['id'] ?? 0);
+            $this->ensureTopicAccess($request, $topicId, true);
+        }
 
         foreach ($request->orders as $item) {
             Topic::where('id', $item['id'])
@@ -236,6 +243,7 @@ class TopicController extends Controller
         ]);
 
         try {
+            $this->ensureTrackerAccess($request, (int) $request->tracker_id, true);
 
             // Get all students assigned to the tracker (via class_id or pivot table)
             $tracker = Tracker::with('classes.students')->find($request->tracker_id);
@@ -315,6 +323,8 @@ class TopicController extends Controller
         ]);
 
         try {
+            $this->ensureTopicAccess($request, (int) $id, true);
+
             $topic = Topic::find($id);
 
             $topic->update([
@@ -340,6 +350,8 @@ class TopicController extends Controller
     public function deleteTopic($id)
     {
         try {
+            $this->ensureTopicAccess(request(), (int) $id, true);
+
             $topic = Topic::find($id);
             $topic->delete();
 
@@ -461,9 +473,12 @@ class TopicController extends Controller
         }
     }
 
-    public function getStudentTrackerTopics($studentId, $trackerId)
+    public function getStudentTrackerTopics(Request $request, $studentId, $trackerId)
     {
         try {
+            $this->ensureTrackerAccess($request, (int) $trackerId, false);
+            $this->ensureStudentTargetAccess($request, (int) $studentId);
+
             $trackers = Tracker::with([
                 'topics' => function ($query) use ($studentId) {
                     $query->with([
@@ -525,6 +540,13 @@ class TopicController extends Controller
     public function addTopicMarks(Request $request)
     {
         try {
+            $request->validate([
+                'topic_id' => 'required|integer|exists:topics,id',
+                'marks' => 'required',
+            ]);
+
+            $this->ensureTopicAccess($request, (int) $request->topic_id, true);
+
             // $tracker = Tracker::with('topics')->where('student_id', $id)->get();
             $topic = Topic::find($request->topic_id);
             $topic->marks = $request->marks;
@@ -544,9 +566,11 @@ class TopicController extends Controller
         }
     }
 
-    public function getTrackerTopics($id)
+    public function getTrackerTopics(Request $request, $id)
     {
         try {
+            $this->ensureTrackerAccess($request, (int) $id, false);
+
             $tracker = Tracker::find($id);
             if (!$tracker) {
                 return response()->json([
@@ -569,9 +593,12 @@ class TopicController extends Controller
         }
     }
 
-    public function getStudentTopicsProgress($trackerId, $studentId)
+    public function getStudentTopicsProgress(Request $request, $trackerId, $studentId)
     {
         try {
+            $this->ensureTrackerAccess($request, (int) $trackerId, false);
+            $this->ensureStudentTargetAccess($request, (int) $studentId);
+
             $tracker = Tracker::find($trackerId);
             if (!$tracker) {
                 return response()->json([
@@ -618,6 +645,9 @@ class TopicController extends Controller
                 'marks' => 'required'
             ]);
 
+            $this->ensureTopicAccess($request, (int) $request->topic_id, true);
+            $this->ensureStudentTargetAccess($request, (int) $request->student_id);
+
             $user = Auth::user();
 
             // find existing marks
@@ -638,7 +668,7 @@ class TopicController extends Controller
                 ]);
 
                 // teacher can still update
-                if ($user->role === 'STUDENT') {
+                if ($this->resolveRole($user) === 'STUDENT') {
                     return response()->json([
                         'msg' => 'Teacher has finalized the marks. Student cannot update.',
                         'status_code' => 403
@@ -646,7 +676,7 @@ class TopicController extends Controller
                 }
             }
 
-            $isTeacher = $user->role !== 'STUDENT';
+            $isTeacher = $this->resolveRole($user) !== 'STUDENT';
 
             $marksValue = $request->marks;
             if (is_array($marksValue)) {
@@ -701,6 +731,102 @@ class TopicController extends Controller
                 'status_code' => 500,
             ]);
         }
+    }
+
+    private function ensureTopicAccess(Request $request, int $topicId, bool $write): void
+    {
+        $trackerId = (int) DB::table('topics')->where('id', $topicId)->value('tracker_id');
+        if ($trackerId <= 0) {
+            abort(response()->json(['msg' => 'Topic not found', 'status_code' => 404], 404));
+        }
+
+        $this->ensureTrackerAccess($request, $trackerId, $write);
+    }
+
+    private function ensureStudentTargetAccess(Request $request, int $studentId): void
+    {
+        $role = $this->resolveRole($request->user());
+        if ($role !== 'STUDENT') {
+            return;
+        }
+
+        $ownStudentId = (int) DB::table('students')->where('user_id', $request->user()->id)->value('id');
+        if ($ownStudentId !== $studentId) {
+            abort(response()->json(['msg' => 'Forbidden', 'status_code' => 403], 403));
+        }
+    }
+
+    private function ensureTrackerAccess(Request $request, int $trackerId, bool $write): void
+    {
+        $user = $request->user();
+        $role = $this->resolveRole($user);
+
+        if ($write && !in_array($role, ['SCHOOL_ADMIN', 'HOD', 'TEACHER'], true)) {
+            abort(response()->json(['msg' => 'Forbidden role', 'status_code' => 403], 403));
+        }
+
+        if ($role === 'SCHOOL_ADMIN') {
+            return;
+        }
+
+        if ($role === 'STUDENT') {
+            $student = DB::table('students')->where('user_id', $user->id)->select('id', 'class_id')->first();
+            if (!$student) {
+                abort(response()->json(['msg' => 'Forbidden', 'status_code' => 403], 403));
+            }
+
+            $allowed = DB::table('assign_trackers')
+                ->where('tracker_id', $trackerId)
+                ->where(function ($query) use ($student) {
+                    $query->where('student_id', (int) $student->id)
+                        ->orWhere(function ($inner) use ($student) {
+                            $inner->whereNull('student_id')
+                                ->where('class_id', (int) $student->class_id);
+                        });
+                })
+                ->exists();
+
+            if (!$allowed) {
+                abort(response()->json(['msg' => 'Forbidden', 'status_code' => 403], 403));
+            }
+
+            return;
+        }
+
+        if (in_array($role, ['HOD', 'TEACHER'], true)) {
+            $teacherId = (int) DB::table('teachers')->where('user_id', $user->id)->value('id');
+            if ($teacherId <= 0) {
+                abort(response()->json(['msg' => 'Forbidden', 'status_code' => 403], 403));
+            }
+
+            $classIds = DB::table('assign_teachers')
+                ->where('teacher_id', $teacherId)
+                ->pluck('class_id')
+                ->map(fn ($id) => (int) $id)
+                ->toArray();
+
+            if (count($classIds) === 0) {
+                abort(response()->json(['msg' => 'Forbidden', 'status_code' => 403], 403));
+            }
+
+            $allowed = DB::table('assign_trackers')
+                ->where('tracker_id', $trackerId)
+                ->whereIn('class_id', $classIds)
+                ->exists();
+
+            if (!$allowed) {
+                abort(response()->json(['msg' => 'Forbidden', 'status_code' => 403], 403));
+            }
+
+            return;
+        }
+
+        abort(response()->json(['msg' => 'Forbidden', 'status_code' => 403], 403));
+    }
+
+    private function resolveRole(object $user): string
+    {
+        return strtoupper(str_replace(' ', '_', (string) ($user->role ?? $user->user_type ?? '')));
     }
 
 }

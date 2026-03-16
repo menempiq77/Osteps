@@ -23,7 +23,7 @@ const SubjectContext = createContext<SubjectContextValue | null>(null);
 
 const isRoleEligible = (role: string | undefined): boolean => {
   const roleKey = (role ?? "").trim().toUpperCase().replace(/\s+/g, "_");
-  return ["SCHOOL_ADMIN", "HOD", "TEACHER", "STUDENT"].includes(roleKey);
+  return ["SCHOOL_ADMIN", "ADMIN", "HOD", "TEACHER", "STUDENT"].includes(roleKey);
 };
 
 export function SubjectContextProvider({ children }: { children: React.ReactNode }) {
@@ -53,7 +53,7 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
 
       setLoading(true);
       try {
-        const context = await fetchMySubjectContext();
+        const context = await fetchMySubjectContext({ role: currentUser?.role });
         if (!mounted) return;
 
         const available = context.assigned_subjects ?? [];
@@ -124,8 +124,13 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
     storeSubjectId(subjectId, selectedSubject?.name ?? null);
     void setLastSubject(subjectId);
 
+    const isSubjectCardsPath =
+      pathname === "/dashboard/subject-cards" ||
+      /^\/dashboard\/s\/\d+\/subject-cards$/.test(pathname);
     if (options?.navigate !== false) {
-      const next = toSubjectScopedPath(pathname, subjectId);
+      const next = isSubjectCardsPath
+        ? `/dashboard/s/${subjectId}`
+        : toSubjectScopedPath(pathname, subjectId);
       router.push(next);
     }
   };

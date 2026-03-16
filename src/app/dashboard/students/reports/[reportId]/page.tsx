@@ -35,6 +35,9 @@ export default function Page() {
   const { reportId } = useParams();
   const router = useRouter();
   const { currentUser } = useSelector((state: RootState) => state.auth);
+  const roleKey = String(currentUser?.role || "").toUpperCase();
+  const isStudentRole = roleKey === "STUDENT";
+  const canEditMarks = roleKey === "SCHOOL_ADMIN" || roleKey === "HOD" || roleKey === "TEACHER";
   const [apiData, setApiData] = useState<StudentData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -131,6 +134,9 @@ export default function Page() {
   };
 
   const studentsWithTotals = apiData
+    .filter((student) =>
+      !isStudentRole || String(student.student_id) === String(currentUser?.student)
+    )
     .filter(
       (student) =>
         student.student_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -286,6 +292,7 @@ export default function Page() {
                               type="text"
                               value={task.teacher_assessment_marks || ""}
                               onChange={(e) => {
+                                if (!canEditMarks) return;
                                 const taskIndex = student.tasks.findIndex(
                                   (t) => t.task_name === taskName
                                 );
@@ -297,7 +304,8 @@ export default function Page() {
                                   task.task_id
                                 );
                               }}
-                              className="w-12 text-center bg-gray-50 border border-gray-300 rounded-md px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                              disabled={!canEditMarks}
+                              className="w-12 text-center bg-gray-50 border border-gray-300 rounded-md px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500"
                             />
                             <span className="text-xs text-gray-400 ml-1">
                               / {task.allocated_marks}

@@ -147,10 +147,13 @@ export default function DashboardLayout({
 
   const isImmersiveLessonGroupRoute =
     pathname.startsWith("/dashboard/lessons/uae-curriculum/") && pathname.includes("/groups/");
+  const isSubjectCardsEntryRoute =
+    pathname === "/dashboard/subject-cards" ||
+    /^\/dashboard\/s\/\d+\/subject-cards$/.test(pathname);
 
   useEffect(() => {
     if (isHydrated && !currentUser) {
-      router.push("/");
+      window.location.replace("/");
     }
   }, [currentUser, router, isHydrated]);
 
@@ -161,12 +164,23 @@ export default function DashboardLayout({
     return () => clearTimeout(timer);
   }, [pathname, isHydrated]);
 
-  if (!isHydrated || !currentUser) {
+  if (!currentUser) {
     return (
-      <div className="min-h-screen bg-[#FAF9F6] flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+      <div className="min-h-screen bg-[#FAF9F6] flex items-center justify-center px-4">
+        <div className="max-w-md text-center">
+          <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-full border border-[var(--theme-border)] bg-white text-[var(--theme-dark)]">
+            !
+          </div>
+          <h1 className="text-xl font-semibold text-gray-900">Sign in required</h1>
+          <p className="mt-3 text-sm text-gray-600">
+            This dashboard page requires an active session. Use the sign-in page to continue.
+          </p>
+          <a
+            href="/"
+            className="mt-5 inline-flex rounded-lg border border-[var(--theme-border)] bg-white px-4 py-2 text-sm font-medium text-[var(--theme-dark)] transition hover:bg-[var(--theme-soft)]"
+          >
+            Go to Sign In
+          </a>
         </div>
       </div>
     );
@@ -174,6 +188,16 @@ export default function DashboardLayout({
 
   const shouldApplyMaxWidth =
     !isImmersiveLessonGroupRoute && !pathname.startsWith("/dashboard/students/reports");
+
+  if (isSubjectCardsEntryRoute) {
+    return (
+      <SubjectContextProvider>
+        <div className="dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] p-3 md:p-6">
+          <div className="mx-auto max-w-7xl">{children}</div>
+        </div>
+      </SubjectContextProvider>
+    );
+  }
 
   return (
     <SubjectContextProvider>

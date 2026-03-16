@@ -468,7 +468,7 @@ class MindUpgradeController extends Controller
             ->get();
 
         if ($assignments->isEmpty()) {
-            abort(403, 'Course is not assigned to your class.');
+            abort(response()->json(['status_code' => 403, 'msg' => 'Course is not assigned to your class.'], 403));
         }
 
         $now = Carbon::now();
@@ -482,7 +482,7 @@ class MindUpgradeController extends Controller
             return;
         }
 
-        abort(403, 'Course assignment is not currently active.');
+        abort(response()->json(['status_code' => 403, 'msg' => 'Course assignment is not currently active.'], 403));
     }
 
     private function calculateQuizXp(int $score, int $total): int
@@ -498,7 +498,7 @@ class MindUpgradeController extends Controller
     {
         $studentId = (int) DB::table('students')->where('user_id', $userId)->value('id');
         if (!$studentId) {
-            abort(403, 'Student account not found.');
+            abort(response()->json(['status_code' => 403, 'msg' => 'Student account not found.'], 403));
         }
         return $studentId;
     }
@@ -524,7 +524,7 @@ class MindUpgradeController extends Controller
     {
         $role = $this->resolveRole($request->user());
         if (!in_array($role, $allowed, true)) {
-            abort(403, 'Forbidden');
+            abort(response()->json(['status_code' => 403, 'msg' => 'Forbidden'], 403));
         }
     }
 

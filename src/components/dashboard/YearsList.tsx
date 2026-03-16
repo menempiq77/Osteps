@@ -1,5 +1,6 @@
 "use client";
 import { RootState } from "@/store/store";
+import { useSubjectContext } from "@/contexts/SubjectContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
@@ -32,6 +33,7 @@ export default function YearsList({
   yearStats = {},
 }: YearsListProps) {
   const router = useRouter();
+  const { activeSubjectId } = useSubjectContext();
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [localYears, setLocalYears] = useState<Year[]>(years || []);
   const [draggingYearId, setDraggingYearId] = useState<number | null>(null);
@@ -244,7 +246,13 @@ export default function YearsList({
                     </button>
                     <button
                       type="button"
-                      onClick={() => router.push(`/dashboard/students/all?yearId=${year.id}`)}
+                      onClick={() =>
+                        router.push(
+                          `/dashboard/students/all?yearId=${year.id}${
+                            activeSubjectId ? `&subjectId=${activeSubjectId}` : ""
+                          }`
+                        )
+                      }
                       className="cursor-pointer rounded-full border border-slate-200 bg-white/85 px-2 py-1 text-slate-700 hover:bg-slate-100/90"
                     >
                       {stats.students} students

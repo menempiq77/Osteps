@@ -1,5 +1,6 @@
 "use client";
 import { RootState } from "@/store/store";
+import { useSubjectContext } from "@/contexts/SubjectContext";
 import { useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { useEffect, useState } from "react";
@@ -10,6 +11,7 @@ import {
   FolderOpenOutlined,
   MenuOutlined,
   TeamOutlined,
+  ReadOutlined,
 } from "@ant-design/icons";
 import { Modal } from "antd";
 import { message } from "antd";
@@ -40,6 +42,7 @@ export default function ClassesList({
   classStats = {},
 }: ClassesListProps) {
   const router = useRouter();
+  const { activeSubjectId } = useSubjectContext();
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [localClasses, setLocalClasses] = useState<Class[]>(classes || []);
   const [classToDelete, setClassToDelete] = useState<Class | null>(null);
@@ -75,6 +78,10 @@ export default function ClassesList({
     router.push(`/dashboard/students/${classId}`);
   };
 
+  const handleStory = (classId: string) => {
+    router.push(`/dashboard/classes/${classId}/story`);
+  };
+
   const handleDeleteClick = (cls: Class) => {
     if (!hasAccess) {
       messageApi.warning("Only School Admin can delete classes.");
@@ -108,6 +115,7 @@ export default function ClassesList({
           move: "border-amber-200 text-amber-700",
           students: "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100",
           terms: "border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100",
+          story: "border-lime-200 bg-lime-50 text-lime-700 hover:bg-lime-100",
           edit: "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100",
         };
       case "red":
@@ -120,6 +128,7 @@ export default function ClassesList({
           move: "border-rose-200 text-rose-700",
           students: "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100",
           terms: "border-red-200 bg-red-50 text-red-700 hover:bg-red-100",
+          story: "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100",
           edit: "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100",
         };
       case "blue":
@@ -132,6 +141,7 @@ export default function ClassesList({
           move: "border-sky-200 text-sky-700",
           students: "border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100",
           terms: "border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100",
+          story: "border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100",
           edit: "border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100",
         };
       case "purple":
@@ -144,6 +154,7 @@ export default function ClassesList({
           move: "border-violet-200 text-violet-700",
           students: "border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100",
           terms: "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700 hover:bg-fuchsia-100",
+          story: "border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100",
           edit: "border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100",
         };
       case "green":
@@ -157,6 +168,7 @@ export default function ClassesList({
           move: "border-emerald-200 text-emerald-700",
           students: "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
           terms: "border-green-200 bg-green-50 text-green-700 hover:bg-green-100",
+          story: "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
           edit: "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
         };
     }
@@ -237,7 +249,13 @@ export default function ClassesList({
                     </div>
                     <button
                       type="button"
-                      onClick={() => router.push(`/dashboard/students/all?classId=${cls.id}`)}
+                      onClick={() =>
+                        router.push(
+                          `/dashboard/students/all?classId=${cls.id}${
+                            activeSubjectId ? `&subjectId=${activeSubjectId}` : ""
+                          }`
+                        )
+                      }
                       className="cursor-pointer inline-flex items-center rounded-full border border-slate-200 bg-white/85 px-2 py-0.5 text-xs text-slate-700 hover:bg-slate-100/90"
                     >
                       {stats.students} students
@@ -260,6 +278,14 @@ export default function ClassesList({
                     >
                       <BookOutlined />
                       Terms
+                    </button>
+                    <button
+                      onClick={() => handleStory(cls.id)}
+                      className={`cursor-pointer inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs ${tone.story}`}
+                      title="Class Story"
+                    >
+                      <ReadOutlined />
+                      Story
                     </button>
 
                     {hasAccess && (

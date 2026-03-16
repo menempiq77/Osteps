@@ -25,7 +25,12 @@ const extractContext = (payload: any): SubjectContextResponse => {
   };
 };
 
-export const fetchMySubjectContext = async (): Promise<SubjectContextResponse> => {
+export const fetchMySubjectContext = async (options?: {
+  role?: string;
+}): Promise<SubjectContextResponse> => {
+  const roleKey = String(options?.role || "").trim().toUpperCase();
+  const isSchoolAdmin = roleKey === "SCHOOL_ADMIN" || roleKey === "ADMIN";
+
   try {
     const res = await api.get("/subjects/my-context");
     const normalized = extractContext(res.data);
@@ -34,7 +39,16 @@ export const fetchMySubjectContext = async (): Promise<SubjectContextResponse> =
     // fallback below
   }
 
-  // Fallback for older backend: school-wide subjects list.
+  // Strict privacy fallback: only School Admin can fallback to school-wide subjects.
+  if (!isSchoolAdmin) {
+    return {
+      assigned_subjects: [],
+      default_subject_id: null,
+      subject_roles: [],
+    };
+  }
+
+  // Legacy fallback for School Admin only.
   const subjects = normalizeSubjects(await fetchSubjects());
   return {
     assigned_subjects: subjects,

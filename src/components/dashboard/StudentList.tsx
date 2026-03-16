@@ -10,6 +10,7 @@ import {
   Form,
   Input,
   Modal,
+  Popconfirm,
   Spin,
   message,
 } from "antd";
@@ -1682,8 +1683,10 @@ export default function StudentList() {
     });
   }, [orderedStudents, seatMap]);
 
-  const isLoading = studentsLoading || summaryLoading;
-  if (isLoading) {
+  const isInitialLoading =
+    (studentsLoading && students.length === 0) ||
+    (summaryLoading && behaviorSummary.length === 0);
+  if (isInitialLoading) {
     return (
       <div className="p-3 md:p-6 flex justify-center items-center h-64">
         <Spin size="large" />
@@ -1743,6 +1746,9 @@ export default function StudentList() {
               </button>
             )}
           </div>
+          <Button onClick={() => router.push(`/dashboard/classes/${classIdStr}/story`)}>
+            Class Story
+          </Button>
           {hasAccess && (
             <Button
               type="primary"
@@ -1949,7 +1955,15 @@ export default function StudentList() {
               Drag student cards to arrange seats. Snap: {GRID}px.
             </div>
             <div className="flex items-center gap-2">
-              <Button onClick={handleResetLayout}>Reset Auto Layout</Button>
+              <Popconfirm
+                title="Reset auto layout?"
+                description="This will rearrange all seats automatically."
+                okText="Yes, reset"
+                cancelText="Cancel"
+                onConfirm={handleResetLayout}
+              >
+                <Button>Reset Auto Layout</Button>
+              </Popconfirm>
               <Button
                 type="primary"
                 className="!bg-primary !text-white hover:!bg-primary/90 !border-none"

@@ -67,6 +67,21 @@ export default function TeacherAssignedClasses() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { currentUser } = useSelector((state: RootState) => state.auth);
+  const roleKey = String(currentUser?.role || "").toUpperCase();
+  const canViewTeacherAssignments = roleKey === "SCHOOL_ADMIN" || roleKey === "HOD";
+
+  if (!canViewTeacherAssignments) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-4 md:p-6">
+        <div className="max-w-4xl mx-auto">
+          <Card className="p-6 text-center">
+            <div className="text-lg font-semibold text-gray-800 mb-2">Access Restricted</div>
+            <p className="text-gray-600">Only School Admin and HOD can view teacher assignments.</p>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   useEffect(() => {
     const fetchAssignedClasses = async () => {

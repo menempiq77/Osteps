@@ -16,6 +16,7 @@ import { RootState } from "@/store/store";
 import { useRouter } from "next/navigation";
 import { fetchSubjects } from "@/services/subjectsApi";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSubjectContext } from "@/contexts/SubjectContext";
 
 type Teacher = {
   id: string;
@@ -48,11 +49,13 @@ export default function TeacherList() {
   const [deleteTeacher, setDeleteTeacher] = useState<Teacher | null>(null);
   const [isAddTeacherModalOpen, setIsAddTeacherModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>("all");
   const [messageApi, contextHolder] = message.useMessage();
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const isHOD = currentUser?.role === "HOD";
   const hasAccess = currentUser?.role === "SCHOOL_ADMIN";
   const schoolId = currentUser?.school;
+  const { subjects: assignedSubjects } = useSubjectContext();
 
   const queryClient = useQueryClient();
 
@@ -95,6 +98,31 @@ export default function TeacherList() {
       messageApi.error("Failed to fetch subjects");
     },
   });
+
+  const filteredTeachers = (() => {
+    let rows = teachers;
+
+    if (hasAccess && selectedSubjectFilter !== "all") {
+      const wanted = selectedSubjectFilter.trim().toLowerCase();
+      rows = rows.filter((teacher) =>
+        Array.isArray(teacher.subjects) &&
+        teacher.subjects.some((subjectName) => String(subjectName || "").trim().toLowerCase() === wanted)
+      );
+    }
+
+    if (!isHOD) return rows;
+    const allowedSubjectNames = new Set(
+      (assignedSubjects || []).map((subject) => String(subject.name || "").trim().toLowerCase())
+    );
+    if (!allowedSubjectNames.size) return [];
+
+    return rows.filter((teacher) =>
+      Array.isArray(teacher.subjects) &&
+      teacher.subjects.some((subjectName) =>
+        allowedSubjectNames.has(String(subjectName || "").trim().toLowerCase())
+      )
+    );
+  })();
 
   const handleSaveEdit = async (
     teacher: TeacherBasic & { password?: string }
@@ -193,7 +221,23 @@ export default function TeacherList() {
         className="!mb-2"
       />
       <div className="premium-hero flex items-center justify-between mb-6 rounded-xl px-4 py-3">
-        <h1 className="text-2xl font-bold uppercase">Teachers</h1>
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl font-bold uppercase">Teachers</h1>
+          {hasAccess && (
+            <Select
+              value={selectedSubjectFilter}
+              onChange={(value) => setSelectedSubjectFilter(value)}
+              className="min-w-[240px]"
+              options={[
+                { label: "All Subjects", value: "all" },
+                ...subjects.map((subject: Subject) => ({
+                  label: subject.name,
+                  value: String(subject.name || "").trim().toLowerCase(),
+                })),
+              ]}
+            />
+          )}
+        </div>
 
         {hasAccess && (
           <Button
@@ -242,8 +286,8 @@ export default function TeacherList() {
               </tr>
             </thead>
             <tbody>
-              {teachers && teachers.length > 0 ? (
-                teachers?.map((teacher) => (
+              {filteredTeachers && filteredTeachers.length > 0 ? (
+                filteredTeachers?.map((teacher) => (
                   <tr
                     key={teacher.id}
                     className="border-b border-gray-300 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
@@ -309,7 +353,7 @@ export default function TeacherList() {
               ) : (
                 <tr>
                   <td colSpan={6} className="text-center p-4">
-                    No teachers found.
+                    No teachers found in your assigned subjects.
                   </td>
                 </tr>
               )}

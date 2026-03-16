@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { loginUser } from '@/services/api';
+import { API_BASE_URL } from '@/lib/config';
 import { User, AuthState } from './types';
 
 const initialState: AuthState = {
@@ -10,6 +11,26 @@ const initialState: AuthState = {
   error: null,
 };
 
+const getLoginErrorMessage = (error: any) => {
+  const apiMessage = error?.response?.data?.message;
+  if (apiMessage) {
+    return apiMessage;
+  }
+
+  const errorCode = String(error?.code || '');
+  const errorMessage = String(error?.message || '');
+  const isNetworkError =
+    errorCode === 'ERR_NETWORK' ||
+    errorMessage.toLowerCase().includes('network error') ||
+    errorMessage.toLowerCase().includes('failed to fetch');
+
+  if (isNetworkError) {
+    return `Cannot reach API at ${API_BASE_URL}. Start the local backend or update NEXT_PUBLIC_API_BASE_URL.`;
+  }
+
+  return 'Login failed';
+};
+
 // Async login
 export const login = createAsyncThunk(
   'auth/login',
@@ -18,7 +39,7 @@ export const login = createAsyncThunk(
       const response = await loginUser(login, password);
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Login failed');
+      return rejectWithValue(getLoginErrorMessage(error));
     }
   }
 );

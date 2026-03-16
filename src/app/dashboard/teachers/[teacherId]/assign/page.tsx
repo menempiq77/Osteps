@@ -18,8 +18,28 @@ export default function AssignTeacherPage() {
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { currentUser } = useSelector((state: RootState) => state.auth);
+  const roleKey = String(currentUser?.role || "").toUpperCase();
+  const canManageAssignments = roleKey === "SCHOOL_ADMIN";
   const isTeacher = currentUser?.role === "TEACHER";
   const schoolId = currentUser?.school;
+
+  if (!canManageAssignments) {
+    return (
+      <div className="p-3 md:p-6">
+        <Breadcrumb
+          items={[
+            { title: <Link href="/dashboard">Dashboard</Link> },
+            { title: <Link href="/dashboard/teachers">All Teacher</Link> },
+            { title: <span>Assign Teacher</span> },
+          ]}
+          className="!mb-4"
+        />
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
+          Only School Admin can assign or unassign teachers.
+        </div>
+      </div>
+    );
+  }
 
   const loadYears = async () => {
     try {

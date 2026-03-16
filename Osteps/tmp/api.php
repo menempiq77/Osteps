@@ -46,6 +46,13 @@ use App\Http\Controllers\Api\StudentProfileController;
 use App\Http\Controllers\Api\SubjectController;
 use App\Http\Controllers\Api\ToolsController;
 
+if (!function_exists('resolveApiRole')) {
+    function resolveApiRole($user): string
+    {
+        return strtoupper(str_replace(' ', '_', (string) ($user->role ?? $user->user_type ?? '')));
+    }
+}
+
 Route::get('/user', function (Request $request) {             
     return $request->user();
 })->middleware('auth:sanctum');
@@ -355,15 +362,103 @@ Route::middleware(['auth:sanctum'])->group(function(){
 
     //Behaviour type Apis
     Route::get('get-behaviour',[BehaviourController::class,'getBehaviour'])->name('get-behaviour');
-    Route::post('add-behaviour',[BehaviourController::class,'addBehaviour'])->name('add-behaviour');
-    Route::put('update-behaviour/{id}',[BehaviourController::class,'updateBehaviour'])->name('update-behaviour');
-    Route::delete('delete-behaviour/{id}',[BehaviourController::class,'deleteBehaviour'])->name('delete-behaviour');
+    Route::post('add-behaviour', function (Request $request) {
+        $role = resolveApiRole($request->user());
+        $isAdmin = in_array($role, ['SCHOOL_ADMIN', 'ADMIN'], true);
+        $isStaff = in_array($role, ['HOD', 'TEACHER'], true);
+
+        if (!$isAdmin && !$isStaff) {
+            return response()->json(['status_code' => 403, 'msg' => 'Forbidden role.'], 403);
+        }
+
+        if (!$isAdmin && (int) $request->input('subject_id', 0) <= 0) {
+            return response()->json(['status_code' => 422, 'msg' => 'subject_id is required for this role.'], 422);
+        }
+
+        return app(BehaviourController::class)->addBehaviour($request);
+    })->name('add-behaviour');
+
+    Route::put('update-behaviour/{id}', function (Request $request, $id) {
+        $role = resolveApiRole($request->user());
+        $isAdmin = in_array($role, ['SCHOOL_ADMIN', 'ADMIN'], true);
+        $isStaff = in_array($role, ['HOD', 'TEACHER'], true);
+
+        if (!$isAdmin && !$isStaff) {
+            return response()->json(['status_code' => 403, 'msg' => 'Forbidden role.'], 403);
+        }
+
+        if (!$isAdmin && (int) $request->input('subject_id', 0) <= 0) {
+            return response()->json(['status_code' => 422, 'msg' => 'subject_id is required for this role.'], 422);
+        }
+
+        return app(BehaviourController::class)->updateBehaviour($request, $id);
+    })->name('update-behaviour');
+
+    Route::delete('delete-behaviour/{id}', function (Request $request, $id) {
+        $role = resolveApiRole($request->user());
+        $isAdmin = in_array($role, ['SCHOOL_ADMIN', 'ADMIN'], true);
+        $isStaff = in_array($role, ['HOD', 'TEACHER'], true);
+
+        if (!$isAdmin && !$isStaff) {
+            return response()->json(['status_code' => 403, 'msg' => 'Forbidden role.'], 403);
+        }
+
+        if (!$isAdmin && (int) $request->input('subject_id', 0) <= 0) {
+            return response()->json(['status_code' => 422, 'msg' => 'subject_id is required for this role.'], 422);
+        }
+
+        return app(BehaviourController::class)->deleteBehaviour($id);
+    })->name('delete-behaviour');
 
     //Student Behaviour
     Route::get('get-studentBehaviour/{student_id}',[StudentBehaviourController::class,'getStudentBehaviour'])->name('get-studentBehaviour');
-    Route::post('add-studentBehaviour',[StudentBehaviourController::class,'addStudentBehaviour'])->name('add-studentBehaviour');
-    Route::put('update-studentBehaviour/{id}',[StudentBehaviourController::class,'updateStudentBehaviour'])->name('update-studentBehaviour');
-    Route::delete('delete-studentBehaviour/{id}',[StudentBehaviourController::class,'deleteStudentBehaviour'])->name('delete-studentBehaviour');
+    Route::post('add-studentBehaviour', function (Request $request) {
+        $role = resolveApiRole($request->user());
+        $isAdmin = in_array($role, ['SCHOOL_ADMIN', 'ADMIN'], true);
+        $isStaff = in_array($role, ['HOD', 'TEACHER'], true);
+
+        if (!$isAdmin && !$isStaff) {
+            return response()->json(['status_code' => 403, 'msg' => 'Forbidden role.'], 403);
+        }
+
+        if (!$isAdmin && (int) $request->input('subject_id', 0) <= 0) {
+            return response()->json(['status_code' => 422, 'msg' => 'subject_id is required for this role.'], 422);
+        }
+
+        return app(StudentBehaviourController::class)->addStudentBehaviour($request);
+    })->name('add-studentBehaviour');
+
+    Route::put('update-studentBehaviour/{id}', function (Request $request, $id) {
+        $role = resolveApiRole($request->user());
+        $isAdmin = in_array($role, ['SCHOOL_ADMIN', 'ADMIN'], true);
+        $isStaff = in_array($role, ['HOD', 'TEACHER'], true);
+
+        if (!$isAdmin && !$isStaff) {
+            return response()->json(['status_code' => 403, 'msg' => 'Forbidden role.'], 403);
+        }
+
+        if (!$isAdmin && (int) $request->input('subject_id', 0) <= 0) {
+            return response()->json(['status_code' => 422, 'msg' => 'subject_id is required for this role.'], 422);
+        }
+
+        return app(StudentBehaviourController::class)->updateStudentBehaviour($request, $id);
+    })->name('update-studentBehaviour');
+
+    Route::delete('delete-studentBehaviour/{id}', function (Request $request, $id) {
+        $role = resolveApiRole($request->user());
+        $isAdmin = in_array($role, ['SCHOOL_ADMIN', 'ADMIN'], true);
+        $isStaff = in_array($role, ['HOD', 'TEACHER'], true);
+
+        if (!$isAdmin && !$isStaff) {
+            return response()->json(['status_code' => 403, 'msg' => 'Forbidden role.'], 403);
+        }
+
+        if (!$isAdmin && (int) $request->input('subject_id', 0) <= 0) {
+            return response()->json(['status_code' => 422, 'msg' => 'subject_id is required for this role.'], 422);
+        }
+
+        return app(StudentBehaviourController::class)->deleteStudentBehaviour($id);
+    })->name('delete-studentBehaviour');
 
     /////leaderboard Apis/
     Route::get('get-student-scores/{id}',[LeaderBoardController::class,'getStudentsTotalMarks'])->name('get-student-scores');

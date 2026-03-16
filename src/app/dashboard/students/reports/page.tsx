@@ -81,7 +81,7 @@ export default function ReportsPage() {
    const router = useRouter();
   const searchParams = useSearchParams();
   const { currentUser } = useSelector((state: RootState) => state.auth);
-  const { activeSubjectId, canUseSubjectContext } = useSubjectContext();
+  const { activeSubjectId, canUseSubjectContext, subjects } = useSubjectContext();
 
   // Get student ID and class ID from URL
   const urlStudentId = searchParams.get('studentId');
@@ -99,10 +99,14 @@ export default function ReportsPage() {
   
   // Add state to track if we should apply URL filter
   const [applyUrlFilter, setApplyUrlFilter] = useState(true);
+  const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>("all");
   
   const isSchoolAdmin = currentUser?.role === "SCHOOL_ADMIN";
   const isHOD = currentUser?.role === "HOD";
+  const isTeacher = currentUser?.role === "TEACHER";
+  const isStudent = currentUser?.role === "STUDENT";
   const schoolId = currentUser?.school;
+  const scopedSubjectId = selectedSubjectFilter === "all" ? undefined : Number(selectedSubjectFilter);
 
   // Clear URL filter when component mounts with URL params
   useEffect(() => {
@@ -110,6 +114,13 @@ export default function ReportsPage() {
       setApplyUrlFilter(true);
     }
   }, [urlStudentId, urlClassId]);
+
+  useEffect(() => {
+    if (selectedSubjectFilter !== "all") return;
+    if (activeSubjectId) {
+      setSelectedSubjectFilter(String(activeSubjectId));
+    }
+  }, [activeSubjectId, selectedSubjectFilter]);
 
   useEffect(() => {
     const loadGrades = async (schoolId: string) => {
@@ -134,8 +145,8 @@ export default function ReportsPage() {
         setError(null);
 
         let response;
-        if (isSchoolAdmin || isHOD) {
-          const adminData = await fetchAllYearClasses(activeSubjectId ?? undefined);
+        if (isSchoolAdmin) {
+          const adminData = await fetchAllYearClasses(scopedSubjectId);
 
           response = adminData.school_classs.map((cls: any) => {
             const year = adminData.years.find((y: any) => y.id === cls.year_id);
@@ -156,7 +167,7 @@ export default function ReportsPage() {
             };
           });
         } else {
-          response = await fetchAssignedYearClasses(activeSubjectId ?? undefined);
+          response = await fetchAssignedYearClasses(scopedSubjectId);
         }
 
         setAssignedClasses(response);
@@ -189,7 +200,7 @@ export default function ReportsPage() {
     };
 
     fetchData();
-  }, [isSchoolAdmin, isHOD, urlClassId, applyUrlFilter, activeSubjectId]);
+  }, [isSchoolAdmin, isHOD, urlClassId, applyUrlFilter, activeSubjectId, selectedSubjectFilter]);
 
   const uniqueYearIds = [...new Set(assignedClasses?.map(item => item.classes.year.id))];
   const years = uniqueYearIds.map(id => {
@@ -212,18 +223,18 @@ export default function ReportsPage() {
 
   useEffect(() => {
     const fetchData = async (schoolId: string) => {
-      const reportData = await fetchReportAssessments(schoolId, activeSubjectId ?? undefined);
+      const reportData = await fetchReportAssessments(schoolId, scopedSubjectId);
       setAssesmentData(reportData);
     };
-    if (!canUseSubjectContext || activeSubjectId) {
+    if (!canUseSubjectContext || activeSubjectId || selectedSubjectFilter === "all") {
       fetchData(schoolId);
     }
-  }, [schoolId, activeSubjectId, canUseSubjectContext]);
+  }, [schoolId, activeSubjectId, canUseSubjectContext, selectedSubjectFilter]);
 
   useEffect(() => {
     const fetchData = async (schoolId: string) => {
       try {
-        const response = await fetchWholeAssessmentsReport(schoolId, activeSubjectId ?? undefined);
+        const response = await fetchWholeAssessmentsReport(schoolId, scopedSubjectId);
         setWholeAssesmentData(response);
         setLoading(false);
       } catch (error) {
@@ -231,10 +242,10 @@ export default function ReportsPage() {
         setLoading(false);
       }
     };
-    if (!canUseSubjectContext || activeSubjectId) {
+    if (!canUseSubjectContext || activeSubjectId || selectedSubjectFilter === "all") {
       fetchData(schoolId);
     }
-  }, [selectedYear, selectedClass, schoolId, activeSubjectId, canUseSubjectContext]);
+  }, [selectedYear, selectedClass, schoolId, activeSubjectId, canUseSubjectContext, selectedSubjectFilter]);
 
   const getCurrentClass = () => {
     return assignedClasses?.find(
@@ -378,13 +389,14 @@ export default function ReportsPage() {
   // Filter by search term AND URL student ID (only if applyUrlFilter is true)
   const filteredData = transformedData?.filter((student) => {
     const matchesSearch = student?.student?.toLowerCase()?.includes(searchTerm?.toLowerCase());
+    const studentScopeMatch = !isStudent || String(student?.student_id) === String(currentUser?.student);
     
     // Only filter by URL student ID if we're still applying the URL filter
     if (urlStudentId && applyUrlFilter) {
-      return student?.student_id?.toString() === urlStudentId && matchesSearch;
+      return student?.student_id?.toString() === urlStudentId && matchesSearch && studentScopeMatch;
     }
     
-    return matchesSearch;
+    return matchesSearch && studentScopeMatch;
   });
 
   const filteredAssessments = wholeAssesmentData.filter((assessment) => {
@@ -500,6 +512,22 @@ export default function ReportsPage() {
           <Card>
             <p className="font-medium">Filters</p>
             <div className="mb-6 flex flex-wrap gap-2">
+              {(isSchoolAdmin || isHOD || isTeacher || isStudent) && (
+                <Select
+                  value={selectedSubjectFilter}
+                  onChange={(value) => setSelectedSubjectFilter(value)}
+                  style={{ width: 220 }}
+                  placeholder="Select Subject"
+                >
+                  <Select.Option value="all">All Subjects</Select.Option>
+                  {subjects.map((subject) => (
+                    <Select.Option key={subject.id} value={String(subject.id)}>
+                      {subject.name}
+                    </Select.Option>
+                  ))}
+                </Select>
+              )}
+
                <Input
                 type="text"
                 placeholder="Search students..."

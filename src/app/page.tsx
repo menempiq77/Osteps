@@ -5,6 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/store/store";
 import { useRouter } from "next/navigation";
 import { login } from "@/features/auth/authSlice";
+import { API_BASE_URL } from "@/lib/config";
 import Image from "next/image";
 import Logo from "@/assets/images/Logo2.jpg";
 import LoginImg from "@/assets/images/login.png";
@@ -123,6 +124,12 @@ export default function LoginPage() {
                     {status === 'loading' ? "Signing in..." : "Sign In"}
                   </Button>
                 </Form.Item>
+
+                {process.env.NODE_ENV !== "production" && (
+                  <div className="mt-4 text-center text-xs text-gray-500 font-['Raleway']">
+                    Local API target: {API_BASE_URL}
+                  </div>
+                )}
 
                 {error && (
                   <div className="text-red-500 text-center text-sm mt-4 font-['Raleway']">

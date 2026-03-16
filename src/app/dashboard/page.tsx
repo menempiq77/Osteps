@@ -43,6 +43,7 @@ import { fetchStudents } from "@/services/studentsApi";
 import { fetchSchoolLogo } from "@/services/api";
 import { IMG_BASE_URL } from "@/lib/config";
 import { useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import { fetchStaffSubjectAssignments, fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
 import { shouldUseLegacyUnscopedSubjectData } from "@/lib/subjectScope";
@@ -57,6 +58,7 @@ const THEME_COLOR_DARK = "var(--theme-dark)";
 export default function DashboardPage() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const { activeSubjectId, activeSubject, canUseSubjectContext } = useSubjectContext();
+  const pathname = usePathname();
   const isSUPER_ADMIN = currentUser?.role === "SUPER_ADMIN";
   const isSCHOOL_ADMIN = currentUser?.role === "SCHOOL_ADMIN";
   const isTEACHER = currentUser?.role === "TEACHER";
@@ -68,6 +70,24 @@ export default function DashboardPage() {
   const isSubjectWorkspaceMode =
     canUseSubjectContext && !!activeSubjectId && !isLegacySubjectView;
   const router = useRouter();
+  const role = String(currentUser?.role || "").trim().toUpperCase();
+  const shouldUseSubjectCardsEntry =
+    canUseSubjectContext &&
+    pathname === "/dashboard" &&
+    ["SCHOOL_ADMIN", "ADMIN", "HOD", "TEACHER", "STUDENT"].includes(role);
+
+  useEffect(() => {
+    if (!shouldUseSubjectCardsEntry) return;
+
+    router.replace("/dashboard/subject-cards");
+
+    if (typeof window === "undefined") return;
+    const fallbackRedirect = window.setTimeout(() => {
+      window.location.replace("/dashboard/subject-cards");
+    }, 1200);
+
+    return () => window.clearTimeout(fallbackRedirect);
+  }, [shouldUseSubjectCardsEntry, router]);
 
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -687,6 +707,17 @@ export default function DashboardPage() {
     "color-mix(in srgb, var(--primary) 35%, black)",
     THEME_COLOR_DARK,
   ];
+
+  if (shouldUseSubjectCardsEntry) {
+    return (
+      <div className="p-3 md:p-6 flex flex-col justify-center items-center h-64 gap-4">
+        <Spin size="large" />
+        <Button type="default" onClick={() => window.location.replace("/dashboard/subject-cards")}>
+          Open Subject Cards
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="premium-page p-3 md:p-6 space-y-6 min-h-screen !font-[Raleway]">

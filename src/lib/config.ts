@@ -1,6 +1,10 @@
 // src/lib/config.ts
-export const API_BASE_URL = 'https://dashboard.osteps.com/api';
-export const IMG_BASE_URL = 'https://dashboard.osteps.com';
+const isProduction = process.env.NODE_ENV === 'production';
 
-// export const API_BASE_URL = 'http://osteps-bakcend.test/api';
-// export const IMG_BASE_URL = 'http://osteps-bakcend.test';
+export const API_BASE_URL =
+	process.env.NEXT_PUBLIC_API_BASE_URL ||
+	(isProduction ? 'https://dashboard.osteps.com/api' : 'http://localhost:8000/api');
+
+export const IMG_BASE_URL =
+	process.env.NEXT_PUBLIC_IMG_BASE_URL ||
+	(isProduction ? 'https://dashboard.osteps.com' : 'http://localhost:8000');

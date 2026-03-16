@@ -1,0 +1,378 @@
+{
+  "info": {
+    "name": "Osteps Behavior Role Matrix",
+    "_postman_id": "7b8d9f2a-6f6d-4b59-9f1d-0f8a33d84c2a",
+    "description": "Validates behavior mutation route guards by role (SCHOOL_ADMIN/ADMIN/HOD/TEACHER/STUDENT).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8000" },
+    { "key": "subjectId", "value": "1" },
+    { "key": "studentId", "value": "1" },
+    { "key": "behaviourTypeId", "value": "1" },
+    { "key": "behaviorId", "value": "1" },
+    { "key": "studentBehaviorId", "value": "1" },
+    { "key": "token_admin", "value": "" },
+    { "key": "token_hod", "value": "" },
+    { "key": "token_teacher", "value": "" },
+    { "key": "token_student", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "School Admin",
+      "item": [
+        {
+          "name": "POST add-behaviour (no subject_id) -> 200/201",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_admin}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Behavior Type Admin\"\n}"
+            },
+            "url": "{{baseUrl}}/api/add-behaviour"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200 or 201', function () {",
+                  "  pm.expect([200,201]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST add-studentBehaviour (no subject_id) -> 200/201",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_admin}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"student_id\": {{studentId}},\n  \"behaviour_type_id\": {{behaviourTypeId}},\n  \"points\": 1,\n  \"note\": \"Admin mutation test\"\n}"
+            },
+            "url": "{{baseUrl}}/api/add-studentBehaviour"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200 or 201', function () {",
+                  "  pm.expect([200,201]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "HOD",
+      "item": [
+        {
+          "name": "POST add-behaviour (missing subject_id) -> 422",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_hod}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Behavior Type HOD No Subject\"\n}"
+            },
+            "url": "{{baseUrl}}/api/add-behaviour"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 422', function () {",
+                  "  pm.response.to.have.status(422);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST add-behaviour (with subject_id) -> 200/201",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_hod}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Behavior Type HOD\",\n  \"subject_id\": {{subjectId}}\n}"
+            },
+            "url": "{{baseUrl}}/api/add-behaviour"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200 or 201', function () {",
+                  "  pm.expect([200,201]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST add-studentBehaviour (missing subject_id) -> 422",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_hod}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"student_id\": {{studentId}},\n  \"behaviour_type_id\": {{behaviourTypeId}},\n  \"points\": 1,\n  \"note\": \"HOD no subject\"\n}"
+            },
+            "url": "{{baseUrl}}/api/add-studentBehaviour"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 422', function () {",
+                  "  pm.response.to.have.status(422);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST add-studentBehaviour (with subject_id) -> 200/201",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_hod}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"student_id\": {{studentId}},\n  \"behaviour_type_id\": {{behaviourTypeId}},\n  \"points\": 1,\n  \"note\": \"HOD with subject\",\n  \"subject_id\": {{subjectId}}\n}"
+            },
+            "url": "{{baseUrl}}/api/add-studentBehaviour"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200 or 201', function () {",
+                  "  pm.expect([200,201]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Teacher",
+      "item": [
+        {
+          "name": "POST add-behaviour (missing subject_id) -> 422",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_teacher}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Behavior Type Teacher No Subject\"\n}"
+            },
+            "url": "{{baseUrl}}/api/add-behaviour"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 422', function () {",
+                  "  pm.response.to.have.status(422);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST add-behaviour (with subject_id) -> 200/201",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_teacher}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Behavior Type Teacher\",\n  \"subject_id\": {{subjectId}}\n}"
+            },
+            "url": "{{baseUrl}}/api/add-behaviour"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200 or 201', function () {",
+                  "  pm.expect([200,201]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST add-studentBehaviour (missing subject_id) -> 422",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_teacher}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"student_id\": {{studentId}},\n  \"behaviour_type_id\": {{behaviourTypeId}},\n  \"points\": 1,\n  \"note\": \"Teacher no subject\"\n}"
+            },
+            "url": "{{baseUrl}}/api/add-studentBehaviour"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 422', function () {",
+                  "  pm.response.to.have.status(422);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST add-studentBehaviour (with subject_id) -> 200/201",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_teacher}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"student_id\": {{studentId}},\n  \"behaviour_type_id\": {{behaviourTypeId}},\n  \"points\": 1,\n  \"note\": \"Teacher with subject\",\n  \"subject_id\": {{subjectId}}\n}"
+            },
+            "url": "{{baseUrl}}/api/add-studentBehaviour"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200 or 201', function () {",
+                  "  pm.expect([200,201]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Student",
+      "item": [
+        {
+          "name": "POST add-behaviour (with subject_id) -> 403",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_student}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Student Forbidden\",\n  \"subject_id\": {{subjectId}}\n}"
+            },
+            "url": "{{baseUrl}}/api/add-behaviour"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 403', function () {",
+                  "  pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST add-studentBehaviour (with subject_id) -> 403",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_student}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"student_id\": {{studentId}},\n  \"behaviour_type_id\": {{behaviourTypeId}},\n  \"subject_id\": {{subjectId}}\n}"
+            },
+            "url": "{{baseUrl}}/api/add-studentBehaviour"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 403', function () {",
+                  "  pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -24,6 +24,7 @@ import {
 } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
+import { useSubjectContext } from "@/contexts/SubjectContext";
 import BehaviorModal from "@/components/modals/behaviorModals/BehaviorModal";
 import BehaviorTypeModal from "@/components/modals/behaviorModals/BehaviorTypeModal";
 import {
@@ -95,8 +96,6 @@ const StudentBehaviorPage = () => {
   const [behaviors, setBehaviors] = useState<Behavior[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const isStudent = currentUser?.role !== "STUDENT";
-  const isTeacher = currentUser?.role === "TEACHER";
   const [editingBehavior, setEditingBehavior] = useState(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
@@ -122,6 +121,18 @@ const StudentBehaviorPage = () => {
   const [pendingIntent, setPendingIntent] = useState<"positive" | "negative" | null>(null);
   const [pendingOpenAdd, setPendingOpenAdd] = useState(false);
   const [autoOpenedFromQuery, setAutoOpenedFromQuery] = useState(false);
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string>("all");
+  const { subjects, activeSubjectId } = useSubjectContext();
+  const roleKey = String(currentUser?.role || "").toUpperCase();
+  const isSchoolAdmin = roleKey === "SCHOOL_ADMIN";
+  const isHODRole = roleKey === "HOD";
+  const isTeacher = roleKey === "TEACHER";
+  const useAssignedYears = isTeacher || isHODRole;
+  const isStudentRole = roleKey === "STUDENT";
+  const canManageBehavior = roleKey === "SCHOOL_ADMIN" || roleKey === "HOD" || roleKey === "TEACHER";
+  const effectiveSubjectId = selectedSubjectId === "all" ? undefined : Number(selectedSubjectId);
+  const canMutateBehavior =
+    isSchoolAdmin || ((isHODRole || isTeacher) && selectedSubjectId !== "all");
 
   useEffect(() => {
     const classId = searchParams.get("classId");
@@ -141,7 +152,7 @@ const StudentBehaviorPage = () => {
       setLoading(true);
       let yearsData: any[] = [];
 
-      if (isTeacher) {
+      if (useAssignedYears) {
         const res = await fetchAssignYears();
         const years = res
           .map((item: any) => item?.classes?.year)
@@ -169,12 +180,24 @@ const StudentBehaviorPage = () => {
     loadYears();
   }, []);
 
+  useEffect(() => {
+    if (!subjects.length) return;
+    if (selectedSubjectId !== "all") return;
+    if (activeSubjectId) {
+      setSelectedSubjectId(String(activeSubjectId));
+      return;
+    }
+    if (!isSchoolAdmin && subjects[0]?.id) {
+      setSelectedSubjectId(String(subjects[0].id));
+    }
+  }, [subjects, activeSubjectId, selectedSubjectId, isSchoolAdmin]);
+
   /** Fetch classes for selected year */
   const { data: classes = [], isLoading: classesLoading } = useQuery({
-    queryKey: ["classes", selectedYear, isTeacher],
+    queryKey: ["classes", selectedYear, useAssignedYears],
     queryFn: async () => {
       if (!selectedYear) return [];
-      if (isTeacher) {
+      if (useAssignedYears) {
         const res = await fetchAssignYears();
         let classesData = res
           .map((item: any) => item.classes)
@@ -228,6 +251,12 @@ const StudentBehaviorPage = () => {
   }, [selectedClass, pendingStudentId]);
 
   useEffect(() => {
+    if (isStudentRole && currentUser?.student) {
+      setSelectedStudentId(String(currentUser.student));
+    }
+  }, [isStudentRole, currentUser?.student]);
+
+  useEffect(() => {
     if (!pendingClassId || !classes?.length) return;
     const hasClass = classes.some(
       (cls: any) => String(cls.id).toLowerCase() === String(pendingClassId).toLowerCase()
@@ -240,7 +269,7 @@ const StudentBehaviorPage = () => {
   const loadBehaviorTypes = async () => {
     try {
       setIsLoading(true);
-      const behaviourType = await fetchBehaviourType();
+      const behaviourType = await fetchBehaviourType(effectiveSubjectId);
       setBehaviorTypes(behaviourType);
     } catch (err) {
       setError("Failed to load behaviour Type");
@@ -256,7 +285,7 @@ const StudentBehaviorPage = () => {
     }
     try {
       setIsLoading(true);
-      const behaviourData = await fetchBehaviour(selectedStudentId);
+      const behaviourData = await fetchBehaviour(selectedStudentId, effectiveSubjectId);
       setBehaviors(behaviourData);
     } catch (err) {
       setError("Failed to load behaviour");
@@ -269,7 +298,7 @@ const StudentBehaviorPage = () => {
   useEffect(() => {
     loadBehavior();
     loadBehaviorTypes();
-  }, [selectedStudentId]);
+  }, [selectedStudentId, selectedSubjectId]);
 
   useEffect(() => {
     if (!pendingOpenAdd || autoOpenedFromQuery || !selectedStudentId || !behaviorTypes.length) {
@@ -381,18 +410,23 @@ const StudentBehaviorPage = () => {
         teacher_id: currentUser?.id,
       };
 
+      if (!isSchoolAdmin && selectedSubjectId === "all") {
+        message.error("Select a subject before saving behavior.");
+        return;
+      }
+
       if (editingBehavior) {
         await updateBehaviour(editingBehavior.id, {
           student_id: selectedStudentId,
           ...behaviorData,
-        });
+        }, effectiveSubjectId);
         message.success("Behavior updated successfully!");
       } else {
         // Add new behavior
         await addBehaviour({
           student_id: selectedStudentId,
           ...behaviorData,
-        });
+        }, effectiveSubjectId);
         message.success("Behavior recorded successfully!");
       }
       await loadBehavior();
@@ -408,9 +442,13 @@ const StudentBehaviorPage = () => {
   const handleTypeSubmit = async () => {
     try {
       const values = await typeForm.validateFields();
+      if (!isSchoolAdmin && selectedSubjectId === "all") {
+        message.error("Select a subject before saving behavior type.");
+        return;
+      }
       if (editingType) {
         // Update existing type
-        const updatedType = await updateBehaviourType(editingType.id, values);
+        const updatedType = await updateBehaviourType(editingType.id, values, effectiveSubjectId);
         setBehaviorTypes(
           behaviorTypes.map((type) =>
             type.id === editingType.id ? updatedType.data : type
@@ -419,7 +457,7 @@ const StudentBehaviorPage = () => {
         message.success("Behavior type updated successfully!");
       } else {
         // Add new type
-        const newType = await addBehaviourType(values);
+        const newType = await addBehaviourType(values, effectiveSubjectId);
         setBehaviorTypes([...behaviorTypes, newType.data]);
         message.success("Behavior type added successfully!");
       }
@@ -434,7 +472,11 @@ const StudentBehaviorPage = () => {
 
   const deleteBehavior = async (behaviorId: string) => {
     try {
-      await deleteBehaviour(behaviorId);
+      if (!isSchoolAdmin && selectedSubjectId === "all") {
+        message.error("Select a subject before deleting behavior.");
+        return;
+      }
+      await deleteBehaviour(behaviorId, effectiveSubjectId);
       await loadBehavior();
       message.success("Behavior deleted successfully!");
     } catch (error) {
@@ -445,7 +487,11 @@ const StudentBehaviorPage = () => {
 
   const deleteBehaviorType = async (typeId) => {
     try {
-      await deleteBehaviourType(typeId);
+      if (!isSchoolAdmin && selectedSubjectId === "all") {
+        message.error("Select a subject before deleting behavior type.");
+        return;
+      }
+      await deleteBehaviourType(typeId, effectiveSubjectId);
       setBehaviorTypes(behaviorTypes.filter((type) => type.id !== typeId));
       message.success("Behavior type deleted successfully!");
     } catch (error) {
@@ -598,9 +644,13 @@ const StudentBehaviorPage = () => {
       {contextHolder}
       <div className="flex justify-between items-start mb-6">
         <h1 className="text-2xl font-bold mb-4">Student Behavior</h1>
-        {isStudent && (
+        {canManageBehavior && (
           <Space>
-            <Button onClick={() => showTypeModal()} icon={<PlusOutlined />}>
+            <Button
+              onClick={() => showTypeModal()}
+              icon={<PlusOutlined />}
+              disabled={!canMutateBehavior}
+            >
               Add Behavior Type
             </Button>
             <Button
@@ -608,6 +658,7 @@ const StudentBehaviorPage = () => {
               onClick={() => showBehaviorModal()}
               icon={<PlusOutlined />}
               className="!bg-primary "
+              disabled={!canMutateBehavior}
             >
               Add Behavior
             </Button>
@@ -616,8 +667,31 @@ const StudentBehaviorPage = () => {
       </div>
       <div className="mb-6">
         <Card className="p-4">
-          {isStudent && (
+          {canManageBehavior && (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="flex flex-col">
+                <label className="text-xs font-medium text-gray-500 mb-1">
+                  Subject
+                </label>
+                <Select
+                  value={selectedSubjectId}
+                  onChange={(value) => setSelectedSubjectId(value)}
+                  className="w-full"
+                >
+                  <Select.Option value="all">All Subjects</Select.Option>
+                  {subjects.map((subject) => (
+                    <Select.Option key={subject.id} value={String(subject.id)}>
+                      {subject.name}
+                    </Select.Option>
+                  ))}
+                </Select>
+                {!isSchoolAdmin && selectedSubjectId === "all" ? (
+                  <span className="mt-1 text-xs text-amber-600">
+                    Select a specific subject to add/edit/delete behavior.
+                  </span>
+                ) : null}
+              </div>
+
               {/* Year Select */}
               <div className="flex flex-col">
                 <label className="text-xs font-medium text-gray-500 mb-1">
@@ -689,6 +763,28 @@ const StudentBehaviorPage = () => {
                       <div className="flex items-center">
                         <span>{student.student_name}</span>
                       </div>
+                    </Select.Option>
+                  ))}
+                </Select>
+              </div>
+            </div>
+          )}
+
+          {isStudentRole && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="flex flex-col">
+                <label className="text-xs font-medium text-gray-500 mb-1">
+                  Subject
+                </label>
+                <Select
+                  value={selectedSubjectId}
+                  onChange={(value) => setSelectedSubjectId(value)}
+                  className="w-full"
+                >
+                  <Select.Option value="all">All Subjects</Select.Option>
+                  {subjects.map((subject) => (
+                    <Select.Option key={subject.id} value={String(subject.id)}>
+                      {subject.name}
                     </Select.Option>
                   ))}
                 </Select>
@@ -776,7 +872,7 @@ const StudentBehaviorPage = () => {
           renderItem={(item) => (
             <List.Item
               actions={
-                isStudent
+                canMutateBehavior
                   ? [
                       <div className="">
                         <Button
@@ -837,7 +933,7 @@ const StudentBehaviorPage = () => {
           renderItem={(item) => (
             <List.Item
               actions={
-                isStudent
+                canMutateBehavior
                   ? [
                       <div className="">
                         <Popconfirm
@@ -880,7 +976,7 @@ const StudentBehaviorPage = () => {
       </Card>
 
       {/* Behavior Types Management Section */}
-      {isStudent && (
+      {canManageBehavior && (
         <Card title="Behavior Types" className="mt-6">
           <List
             dataSource={behaviorTypes}
@@ -890,6 +986,7 @@ const StudentBehaviorPage = () => {
                   <Button
                     icon={<EditOutlined />}
                     onClick={() => showTypeModal(type)}
+                    disabled={!canMutateBehavior}
                   >
                     Edit
                   </Button>,
@@ -898,8 +995,9 @@ const StudentBehaviorPage = () => {
                     onConfirm={() => deleteBehaviorType(type.id)}
                     okText="Yes"
                     cancelText="No"
+                    disabled={!canMutateBehavior}
                   >
-                    <Button icon={<DeleteOutlined />} danger>
+                    <Button icon={<DeleteOutlined />} danger disabled={!canMutateBehavior}>
                       Delete
                     </Button>
                   </Popconfirm>,

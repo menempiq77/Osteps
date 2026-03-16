@@ -25,6 +25,7 @@ import { RootState } from "@/store/store";
 import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
 import { fetchClasses } from "@/services/classesApi";
 import { fetchStudents, updateStudent } from "@/services/studentsApi";
+import { useSubjectContext } from "@/contexts/SubjectContext";
 
 type StudentListRow = {
   key: string;
@@ -42,6 +43,7 @@ type StudentListRow = {
   gender: "Male" | "Female" | "Unknown";
   genderRaw: "male" | "female" | "";
   nationality: string;
+  subjectNames: string[];
   isSen: boolean;
   senDetails: string;
 };
@@ -78,12 +80,15 @@ export default function AllStudentsPage() {
   const searchParams = useSearchParams();
   const preselectedYearId = searchParams.get("yearId") || "";
   const preselectedClassId = searchParams.get("classId") || "";
+  const preselectedSubjectId = searchParams.get("subjectId") || "";
   const queryClient = useQueryClient();
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const role = currentUser?.role;
   const canView = role === "SCHOOL_ADMIN" || role === "HOD" || role === "TEACHER";
   const canEdit = role === "SCHOOL_ADMIN";
+  const isSchoolAdmin = role === "SCHOOL_ADMIN";
   const schoolId = Number((currentUser as { school?: number | string } | null)?.school ?? 0);
+  const { subjects } = useSubjectContext();
   const [messageApi, contextHolder] = message.useMessage();
   const [editForm] = Form.useForm();
 
@@ -93,6 +98,7 @@ export default function AllStudentsPage() {
   const [classFilters, setClassFilters] = useState<string[]>(
     preselectedClassId ? [preselectedClassId] : []
   );
+  const [subjectFilter, setSubjectFilter] = useState<string>(preselectedSubjectId || "all");
   const [genderFilters, setGenderFilters] = useState<Array<"Male" | "Female">>([]);
   const [editingStudent, setEditingStudent] = useState<StudentListRow | null>(null);
 
@@ -161,6 +167,23 @@ export default function AllStudentsPage() {
                 const sid = canonicalStudentId || updateIds[0] || "";
                 const profileId = primaryId || fallbackId || sid;
 
+                const rawSubjects = Array.isArray(student.subjects)
+                  ? student.subjects
+                  : student.subject_name
+                    ? [student.subject_name]
+                    : student.subject
+                      ? [student.subject]
+                      : [];
+
+                const subjectNames = rawSubjects
+                  .map((item: any) => {
+                    if (typeof item === "string") return item;
+                    if (item && typeof item === "object") return String(item.name ?? item.subject_name ?? "");
+                    return "";
+                  })
+                  .map((name: string) => name.trim())
+                  .filter(Boolean);
+
                 const fromApiGender = normalizeGenderRaw(
                   student.gender ??
                     student.student_gender ??
@@ -190,6 +213,7 @@ export default function AllStudentsPage() {
                   userName: String(student.user_name ?? student.username ?? ""),
                   email: String(student.email ?? ""),
                   nationality,
+                  subjectNames,
                   isSen,
                   senDetails,
                   yearId: Number(classYearId ?? 0),
@@ -230,6 +254,7 @@ export default function AllStudentsPage() {
 
   const filteredStudents = useMemo(() => {
     const q = nameFilter.trim().toLowerCase();
+    const wantedSubject = subjectFilter.trim().toLowerCase();
     return students.filter((row) => {
       const nameMatch = !q || row.name.toLowerCase().includes(q);
       const yearMatch = yearFilter === "all" || row.yearGroup === yearFilter;
@@ -238,9 +263,12 @@ export default function AllStudentsPage() {
         classFilters.length === 0 || classFilters.includes(String(row.classId));
       const genderMatch =
         genderFilters.length === 0 || genderFilters.includes(row.gender);
-      return nameMatch && yearMatch && yearIdMatch && classMatch && genderMatch;
+      const subjectMatch =
+        subjectFilter === "all" ||
+        row.subjectNames.some((subject) => String(subject || "").trim().toLowerCase() === wantedSubject);
+      return nameMatch && yearMatch && yearIdMatch && classMatch && genderMatch && subjectMatch;
     });
-  }, [students, nameFilter, yearFilter, yearIdFilter, classFilters, genderFilters]);
+  }, [students, nameFilter, yearFilter, yearIdFilter, classFilters, genderFilters, subjectFilter]);
 
   const classOptions = useMemo(() => {
     const unique = Array.from(
@@ -256,6 +284,7 @@ export default function AllStudentsPage() {
     setYearFilter("all");
     setYearIdFilter("");
     setClassFilters([]);
+    setSubjectFilter("all");
     setGenderFilters([]);
   };
 
@@ -454,6 +483,22 @@ export default function AllStudentsPage() {
             allowClear
           />
 
+          {isSchoolAdmin && (
+            <Select
+              value={subjectFilter}
+              onChange={(value) => setSubjectFilter(value)}
+              style={{ width: 240 }}
+              placeholder="Filter by subject"
+              options={[
+                { label: "All Subjects", value: "all" },
+                ...subjects.map((subject) => ({
+                  label: subject.name,
+                  value: String(subject.name || "").trim().toLowerCase(),
+                })),
+              ]}
+            />
+          )}
+
           <Select
             mode="multiple"
             value={genderFilters}
@@ -513,6 +558,21 @@ export default function AllStudentsPage() {
                   title: "Class",
                   dataIndex: "className",
                   key: "className",
+                },
+                {
+                  title: "Subjects",
+                  dataIndex: "subjectNames",
+                  key: "subjectNames",
+                  render: (value: string[]) => {
+                    if (!Array.isArray(value) || value.length === 0) return <Tag>Not linked</Tag>;
+                    return (
+                      <Space size={[4, 4]} wrap>
+                        {value.map((name) => (
+                          <Tag key={name}>{name}</Tag>
+                        ))}
+                      </Space>
+                    );
+                  },
                 },
                 {
                   title: "Gender",

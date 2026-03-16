@@ -1,6 +1,7 @@
 const SUBJECT_STORAGE_KEY = "osteps-active-subject-id";
 const SUBJECT_NAME_STORAGE_KEY = "osteps-active-subject-name";
-const SUBJECT_CONTEXT_FLAG = process.env.NEXT_PUBLIC_SUBJECT_CONTEXT_ENABLED === "true";
+const SUBJECT_CONTEXT_FLAG =
+  process.env.NEXT_PUBLIC_SUBJECT_CONTEXT_ENABLED !== "false";
 
 export const isSubjectContextEnabled = (): boolean => SUBJECT_CONTEXT_FLAG;
 

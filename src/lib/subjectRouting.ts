@@ -19,9 +19,10 @@ const SUBJECT_SCOPED_PREFIXES = [
   "/dashboard/subject-staff",
 ];
 
-const SUBJECT_CONTEXT_ENABLED = process.env.NEXT_PUBLIC_SUBJECT_CONTEXT_ENABLED === "true";
+const SUBJECT_CONTEXT_ENABLED = process.env.NEXT_PUBLIC_SUBJECT_CONTEXT_ENABLED !== "false";
 
 const SHARED_PREFIXES = [
+  "/dashboard/subject-cards",
   "/dashboard/library",
   "/dashboard/time_table",
   "/dashboard/announcements",
@@ -30,6 +31,11 @@ const SHARED_PREFIXES = [
   "/dashboard/students/settings",
   "/dashboard/teachers/settings",
   "/dashboard/admins/settings",
+];
+
+const SHARED_EXACT_PATHS = [
+  "/dashboard/students",
+  "/dashboard/teachers",
 ];
 
 const normalize = (path: string): string => {
@@ -44,6 +50,7 @@ const startsWithPrefix = (path: string, prefix: string): boolean => {
 
 export const isSharedPath = (path: string): boolean => {
   const normalized = normalize(path);
+  if (SHARED_EXACT_PATHS.includes(normalized)) return true;
   return SHARED_PREFIXES.some((prefix) => startsWithPrefix(normalized, prefix));
 };
 

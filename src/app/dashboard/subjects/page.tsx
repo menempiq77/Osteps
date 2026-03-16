@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { Breadcrumb, Button, Modal, Spin, message } from "antd";
 import { useSelector } from "react-redux";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { RootState } from "@/store/store";
 import {
   fetchSubjects,
@@ -21,6 +22,7 @@ interface Subject {
 }
 
 export default function Page() {
+  const router = useRouter();
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -47,8 +49,21 @@ export default function Page() {
   };
 
   useEffect(() => {
-     loadSubjects();
+    if (!hasAccess) {
+      router.replace("/dashboard/subject-cards");
+      return;
+    }
+
+    loadSubjects();
   }, []);
+
+  if (!hasAccess) {
+    return (
+      <div className="p-3 md:p-6 flex justify-center items-center h-64">
+        <Spin size="large" />
+      </div>
+    );
+  }
 
   const handleSubmitSubject = async (formData: {
     name: string;

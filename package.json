@@ -7,7 +7,9 @@
     "dev": "npm run dev:clean && next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:behavior-matrix": "npx --yes newman@latest run postman/behavior-role-matrix.postman_collection.json -e postman/behavior-role-matrix.postman_environment.json",
+    "test:behavior-matrix:auto": "powershell -ExecutionPolicy Bypass -File .\\postman\\login-and-run-behavior-matrix.ps1"
   },
   "dependencies": {
     "@ant-design/icons": "^6.0.0",
