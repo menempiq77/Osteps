@@ -7,6 +7,31 @@ type Params = {
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
+const SUBJECT_ROUTE_ROOTS = new Set([
+  "manager",
+  "view",
+  "leaderboard",
+  "years",
+  "classes",
+  "grades",
+  "quiz",
+  "teachers",
+  "student_behavior",
+  "all_assesments",
+  "all_trackers",
+  "viewtrackers",
+  "students",
+  "mind-upgrade",
+  "subjects",
+  "subject-cards",
+  "library",
+  "time_table",
+  "announcements",
+  "tools",
+  "school-admin",
+  "admins",
+]);
+
 const appendSearchParams = (path: string, searchParams: SearchParams): string => {
   const params = new URLSearchParams();
 
@@ -37,7 +62,12 @@ export default async function SubjectScopedAliasPage({
     redirect("/dashboard");
   }
 
-  const suffix = (slug ?? []).join("/");
+  const segments = slug ?? [];
+  const effectiveSegments =
+    segments.length > 0 && !SUBJECT_ROUTE_ROOTS.has(String(segments[0] ?? "").toLowerCase())
+      ? segments.slice(1)
+      : segments;
+  const suffix = effectiveSegments.join("/");
   const destinationPath = suffix ? `/dashboard/${suffix}` : "/dashboard";
 
   const nextSearchParams: SearchParams = {

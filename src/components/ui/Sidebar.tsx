@@ -34,7 +34,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchUnseenAnnouncementCount } from "@/services/announcementApi";
 import { fetchUnreadCount, markAllNotificationsAsRead } from "@/services/notificationsApi";
 import { useSubjectContext } from "@/contexts/SubjectContext";
-import { isSharedPath } from "@/lib/subjectRouting";
+import { isSharedPath, toSubjectScopedPath } from "@/lib/subjectRouting";
 import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
 
 const Sidebar = () => {
@@ -314,13 +314,13 @@ const Sidebar = () => {
       },
     ],
     STUDENT: [
-      { name: "Dashboard", href: "/dashboard/subject-cards", icon: Home },
+      { name: "Dashboard", href: "/dashboard", icon: Home },
       {
         name: "Assesments",
         href: "/dashboard/students/assignments",
         icon: GraduationCap,
       },
-      { name: "Subjects", href: "/dashboard/subject-cards", icon: BookOpen },
+      { name: "Subjects", href: "/dashboard", icon: BookOpen },
       {
         name: "Trackers",
         href: studentTrackerHref,
@@ -415,7 +415,7 @@ const Sidebar = () => {
           ? {
               ...item,
               name: `${formattedActiveSubjectName} Dashboard`,
-              href: `/dashboard/s/${activeSubjectId}`,
+              href: toSubjectScopedPath("/dashboard", activeSubjectId, formattedActiveSubjectName),
             }
           : item
       );

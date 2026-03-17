@@ -13,6 +13,7 @@ import {
   updateYear as updateYearApi,
   fetchYearsBySchool,
   fetchAssignYears,
+  fetchSubjectYears,
 } from "@/services/yearsApi";
 import { fetchClasses } from "@/services/classesApi";
 import { fetchStudents } from "@/services/studentsApi";

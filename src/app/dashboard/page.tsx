@@ -86,7 +86,7 @@ export default function DashboardPage() {
   const shouldUseSubjectCardsEntry =
     canUseSubjectContext &&
     pathname === "/dashboard" &&
-    ["SCHOOL_ADMIN", "ADMIN", "HOD", "TEACHER", "STUDENT"].includes(role);
+    ["SCHOOL_ADMIN", "ADMIN", "HOD", "TEACHER"].includes(role);
 
   useEffect(() => {
     if (!shouldUseSubjectCardsEntry) return;

@@ -11,7 +11,7 @@ import { addClass, deleteClass, fetchClasses, updateClass } from "@/services/cla
 import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
 import { fetchStudents } from "@/services/studentsApi";
 import { useSubjectContext } from "@/contexts/SubjectContext";
-import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
+import { createSubjectClass, fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
 interface ApiClass {
   id: string;
   class_name: string;
@@ -20,6 +20,7 @@ interface ApiClass {
   number_of_terms: string;
   teacher_name?: string;
   color?: string;
+  base_class_label?: string;
 }
 
 type SubjectClassRow = {
@@ -29,16 +30,16 @@ type SubjectClassRow = {
   name?: string | null;
 };
 
-const readSubjectYearMap = (schoolId?: number | string) => {
-  if (typeof window === "undefined") return {} as Record<string, number[]>;
-  try {
-    const raw = localStorage.getItem(`subject-years-${schoolId ?? "global"}`);
-    const parsed = raw ? JSON.parse(raw) : {};
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
-};
+const normalizeLabel = (value: unknown) => String(value ?? "").trim().toLowerCase();
+
+const mapSubjectClassToApiClass = (row: SubjectClassRow): ApiClass => ({
+  id: String(row.id ?? ""),
+  class_name: String(row.base_class_label ?? row.name ?? `Class ${row.id ?? ""}`),
+  teacher_id: 0,
+  year_id: Number(row.year_id ?? 0),
+  number_of_terms: "three",
+  base_class_label: String(row.base_class_label ?? row.name ?? ""),
+});
 
 export default function Page() {
   const searchParams = useSearchParams();
@@ -116,56 +117,13 @@ export default function Page() {
       setLoading(true);
 
       if (isSubjectWorkspaceMode && activeSubjectId) {
-        const schoolId = Number(currentUser?.school);
-        if (!schoolId) {
-          setError("School is missing for current user");
-          return;
-        }
-
-        const years = await fetchYearsBySchool(schoolId);
         const subjectClasses = (await fetchSubjectClasses({
           subject_id: Number(activeSubjectId),
+          year_id: year_id ? Number(year_id) : undefined,
         })) as SubjectClassRow[];
-        const subjectYearMap = readSubjectYearMap(schoolId);
-        const savedYearIds = (subjectYearMap[String(activeSubjectId)] || [])
-          .map((id) => Number(id))
-          .filter((id) => Number.isFinite(id) && id > 0);
-        const subjectClassYearIds = (Array.isArray(subjectClasses) ? subjectClasses : [])
-          .map((item) => Number(item?.year_id))
-          .filter((id) => Number.isFinite(id) && id > 0);
-        const allowedYearIds = new Set(
-          (savedYearIds.length > 0 ? savedYearIds : subjectClassYearIds)
+        classesData = (Array.isArray(subjectClasses) ? subjectClasses : []).map(
+          mapSubjectClassToApiClass
         );
-        const allowedBaseLabels = new Set(
-          (Array.isArray(subjectClasses) ? subjectClasses : [])
-            .map((item) => String(item?.base_class_label ?? "").trim().toLowerCase())
-            .filter(Boolean)
-        );
-        const candidateYears = year_id
-          ? (years || []).filter(
-              (year: any) =>
-                Number(year.id) === Number(year_id) && allowedYearIds.has(Number(year.id))
-            )
-          : (years || []).filter((year: any) => allowedYearIds.has(Number(year.id)));
-        const groupedByYear = await Promise.all(
-          candidateYears.map(async (year: any) => {
-            try {
-              return (await fetchClasses(String(year.id))) as ApiClass[];
-            } catch {
-              return [] as ApiClass[];
-            }
-          })
-        );
-
-        const uniqueClasses = Array.from(
-          new Map(groupedByYear.flat().map((cls: any) => [String(cls.id), cls])).values()
-        );
-        classesData =
-          allowedBaseLabels.size > 0
-            ? uniqueClasses.filter((cls: any) =>
-                allowedBaseLabels.has(String(cls?.class_name ?? "").trim().toLowerCase())
-              )
-            : uniqueClasses;
       } else if (isTeacher) {
         const res = await fetchAssignYears();
 
@@ -226,6 +184,53 @@ useEffect(() => {
     const entries = await Promise.all(
       classes.map(async (cls) => {
         try {
+          if (isSubjectWorkspaceMode && activeSubjectId) {
+            const yearClasses = ((await fetchClasses(String(cls.year_id))) || []) as Array<{
+              id: string | number;
+              class_name?: string;
+            }>;
+            const targetLabel = normalizeLabel(cls.base_class_label ?? cls.class_name);
+            const matchedBaseClass = yearClasses.find(
+              (item) => normalizeLabel(item.class_name) === targetLabel
+            );
+
+            if (!matchedBaseClass) {
+              return [String(cls.id), { students: 0 }] as const;
+            }
+
+            const students = await fetchStudents(matchedBaseClass.id);
+            const total = Array.isArray(students)
+              ? students.filter((student: any) => {
+                  const rawSubjects = Array.isArray(student.subjects)
+                    ? student.subjects
+                    : student.subject_name
+                      ? [student.subject_name]
+                      : student.subject
+                        ? [student.subject]
+                        : [];
+                  return rawSubjects.some((item: any) => {
+                    const name =
+                      typeof item === "string"
+                        ? item
+                        : item && typeof item === "object"
+                          ? item.name ?? item.subject_name ?? ""
+                          : "";
+                    return (
+                      String(name ?? "")
+                        .replace(/islamiat/gi, "Islamic")
+                        .trim()
+                        .toLowerCase() ===
+                      String(activeSubject?.name ?? "")
+                        .replace(/islamiat/gi, "Islamic")
+                        .trim()
+                        .toLowerCase()
+                    );
+                  });
+                }).length
+              : 0;
+            return [String(cls.id), { students: total }] as const;
+          }
+
           const students = await fetchStudents(cls.id);
           const total = Array.isArray(students)
             ? isSubjectWorkspaceMode
@@ -294,6 +299,34 @@ useEffect(() => {
     try {
       if (!year_id) {
         throw new Error("Year parameter is missing");
+      }
+
+      if (isSubjectWorkspaceMode && activeSubjectId) {
+        const response = await createSubjectClass({
+          subject_id: Number(activeSubjectId),
+          year_id: parseInt(year_id),
+          name: classData.class_name,
+          base_class_label: classData.class_name,
+        });
+
+        const subjectClasses = (await fetchSubjectClasses({
+          subject_id: Number(activeSubjectId),
+          year_id: parseInt(year_id),
+        })) as SubjectClassRow[];
+        const nextClasses = applySavedOrder(
+          applySavedColors((Array.isArray(subjectClasses) ? subjectClasses : []).map(mapSubjectClassToApiClass))
+        );
+        const createdId = String(response?.data?.id ?? subjectClasses.at(-1)?.id ?? "");
+        setClasses(nextClasses.map((item) =>
+          String(item.id) === createdId ? { ...item, color: classData.color || item.color || "green" } : item
+        ));
+        writeClassesColorMap({
+          ...readClassesColorMap(),
+          [createdId]: classData.color || "green",
+        });
+        setModalOpen(false);
+        messageApi.success("Class added successfully");
+        return;
       }
 
       const response = await addClass({
@@ -428,6 +461,7 @@ useEffect(() => {
           initialData={currentClass}
           visible={modalOpen}
           onCancel={() => setModalOpen(false)}
+          hideTerms={isSubjectWorkspaceMode}
         />
       </Modal>
 
@@ -440,6 +474,7 @@ useEffect(() => {
         }}
         onReorderClasses={handleReorderClasses}
         classStats={classStats}
+        subjectScoped={isSubjectWorkspaceMode}
       />
     </div>
   );

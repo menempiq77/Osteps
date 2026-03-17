@@ -13,10 +13,12 @@ import {
   updateYear as updateYearApi,
   fetchYearsBySchool,
   fetchAssignYears,
+  fetchSubjectYears,
 } from "@/services/yearsApi";
 import { fetchClasses } from "@/services/classesApi";
 import { fetchStudents } from "@/services/studentsApi";
 import { useSubjectContext } from "@/contexts/SubjectContext";
+import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
 
 interface Year {
   id: number;
@@ -28,23 +30,8 @@ interface Year {
   color?: string;
 }
 
-const readSubjectYearMap = (schoolId?: number | string) => {
-  if (typeof window === "undefined") return {} as Record<string, number[]>;
-  try {
-    const raw = localStorage.getItem(`subject-years-${schoolId ?? "global"}`);
-    const parsed = raw ? JSON.parse(raw) : {};
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
-};
-
-const writeSubjectYearMap = (
-  schoolId: number | string | undefined,
-  nextMap: Record<string, number[]>
-) => {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(`subject-years-${schoolId ?? "global"}`, JSON.stringify(nextMap));
+type SubjectClassRow = {
+  year_id?: number | string | null;
 };
 
 export default function Page() {
@@ -61,11 +48,17 @@ export default function Page() {
   >({});
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [messageApi, contextHolder] = message.useMessage();
-  const { activeSubjectId, canUseSubjectContext } = useSubjectContext();
+  const { activeSubjectId, activeSubject, canUseSubjectContext } = useSubjectContext();
   const schoolId = currentUser?.school;
   const isTeacher = currentUser?.role === "TEACHER";
   const hasAccess = currentUser?.role === "SCHOOL_ADMIN";
   const isSubjectWorkspaceMode = canUseSubjectContext && !!activeSubjectId;
+  const formattedSubjectName = String(activeSubject?.name ?? "")
+    .replace(/islamiat/gi, "Islamic")
+    .trim();
+  const pageTitle = isSubjectWorkspaceMode && formattedSubjectName
+    ? `Academic Years - ${formattedSubjectName}`
+    : "Academic Years";
   const yearOrderStorageKey = `years-order-${schoolId ?? "global"}`;
   const yearColorStorageKey = `years-colors-${schoolId ?? "global"}`;
 
@@ -117,16 +110,23 @@ export default function Page() {
       let yearsData = [];
 
       if (isSubjectWorkspaceMode && activeSubjectId) {
-        const schoolYears = await fetchYearsBySchool(Number(schoolId));
-        const savedMap = readSubjectYearMap(schoolId);
-        const savedSubjectYearIds = new Set(
-          (savedMap[String(activeSubjectId)] || [])
-            .map((id) => Number(id))
-            .filter((id) => Number.isFinite(id) && id > 0)
-        );
-        yearsData = (Array.isArray(schoolYears) ? schoolYears : []).filter((year: any) =>
-          savedSubjectYearIds.has(Number(year?.id))
-        );
+        try {
+          yearsData = await fetchSubjectYears(Number(activeSubjectId));
+        } catch {
+          // Strict fallback: derive allowed years from subject class assignments only
+          const schoolYears = await fetchYearsBySchool(Number(schoolId));
+          const subjectClasses = (await fetchSubjectClasses({
+            subject_id: Number(activeSubjectId),
+          })) as SubjectClassRow[];
+          const subjectClassYearIds = (Array.isArray(subjectClasses) ? subjectClasses : [])
+            .map((item) => Number(item?.year_id))
+            .filter((id) => Number.isFinite(id) && id > 0);
+
+          const allowedIds = new Set(subjectClassYearIds);
+          yearsData = (Array.isArray(schoolYears) ? schoolYears : []).filter((year: any) =>
+            allowedIds.has(Number(year?.id))
+          );
+        }
       } else if (isTeacher) {
         const res = await fetchAssignYears();
 
@@ -225,43 +225,38 @@ export default function Page() {
       } else {
         const newYear = await addYearApi(yearData);
         const yearWithColor = { ...newYear, color: color || "green" };
-        if (isSubjectWorkspaceMode && activeSubjectId) {
-          const subjectYearMap = readSubjectYearMap(schoolId);
-          const existingIds = new Set(
-            (subjectYearMap[String(activeSubjectId)] || [])
-              .map((id) => Number(id))
-              .filter((id) => Number.isFinite(id) && id > 0)
-          );
-          existingIds.add(Number(newYear.id));
-          writeSubjectYearMap(schoolId, {
-            ...subjectYearMap,
-            [String(activeSubjectId)]: Array.from(existingIds),
-          });
-        }
         setYears((prevYears) => [...prevYears, yearWithColor]);
         writeYearColorMap({
           ...readYearColorMap(),
           [String(newYear.id)]: yearWithColor.color as string,
         });
       }
-      const updatedYears = await fetchYearsBySchool(schoolId);
       if (isSubjectWorkspaceMode && activeSubjectId) {
-        const subjectYearMap = readSubjectYearMap(schoolId);
-        const allowedIds = new Set(
-          (subjectYearMap[String(activeSubjectId)] || [])
-            .map((id) => Number(id))
-            .filter((id) => Number.isFinite(id) && id > 0)
-        );
-        setYears(
-          applySavedOrder(
-            applySavedYearColors(
-              (Array.isArray(updatedYears) ? updatedYears : []).filter((year: any) =>
-                allowedIds.has(Number(year?.id))
+        try {
+          const subjectYears = await fetchSubjectYears(Number(activeSubjectId));
+          setYears(applySavedOrder(applySavedYearColors(subjectYears || [])));
+        } catch {
+          const updatedYears = await fetchYearsBySchool(schoolId);
+          const subjectClasses = (await fetchSubjectClasses({
+            subject_id: Number(activeSubjectId),
+          })) as SubjectClassRow[];
+          const allowedIds = new Set(
+            (Array.isArray(subjectClasses) ? subjectClasses : [])
+              .map((item) => Number(item?.year_id))
+              .filter((id) => Number.isFinite(id) && id > 0)
+          );
+          setYears(
+            applySavedOrder(
+              applySavedYearColors(
+                (Array.isArray(updatedYears) ? updatedYears : []).filter((year: any) =>
+                  allowedIds.has(Number(year?.id))
+                )
               )
             )
-          )
-        );
+          );
+        }
       } else {
+        const updatedYears = await fetchYearsBySchool(schoolId);
         setYears(applySavedYearColors(updatedYears));
       }
 
@@ -303,18 +298,10 @@ export default function Page() {
 
     try {
       if (isSubjectWorkspaceMode && activeSubjectId) {
-        const subjectYearMap = readSubjectYearMap(schoolId);
-        const nextIds = (subjectYearMap[String(activeSubjectId)] || []).filter(
-          (id) => Number(id) !== Number(yearToDelete)
-        );
-        writeSubjectYearMap(schoolId, {
-          ...subjectYearMap,
-          [String(activeSubjectId)]: nextIds,
-        });
         setYears(years.filter((year) => year.id !== yearToDelete));
         setIsDeleteModalOpen(false);
         setYearToDelete(null);
-        messageApi.success("Year removed from this subject only");
+        messageApi.success("Year hidden in current list. To fully separate, remove or reassign subject classes in this year.");
         return;
       }
 
@@ -371,7 +358,7 @@ export default function Page() {
             title: <Link href="/dashboard">Dashboard</Link>,
           },
           {
-            title: <span>Academic Years</span>,
+            title: <span>{pageTitle}</span>,
           },
         ]}
         className="!mb-2"
@@ -379,9 +366,11 @@ export default function Page() {
       <div className="premium-hero mb-6 rounded-2xl p-4 md:p-5">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold">Academic Years</h1>
+            <h1 className="text-2xl font-bold">{pageTitle}</h1>
             <p className="text-sm text-gray-600 mt-1">
-              Manage your years as folders and drag cards to set your preferred order.
+              {isSubjectWorkspaceMode && formattedSubjectName
+                ? `Manage ${formattedSubjectName} academic years as folders and drag cards to set your preferred order.`
+                : "Manage your years as folders and drag cards to set your preferred order."}
             </p>
           </div>
           {currentUser?.role !== "STUDENT" &&

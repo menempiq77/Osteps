@@ -96,6 +96,7 @@ Route::middleware(['auth:sanctum'])->group(function(){
     //Add Years
     Route::get('get-year',[YearController::class,'getYear'])->name('get-year');
     Route::get('get-school-year/{id}',[YearController::class,'getSchoolYear'])->name('get-school-year');
+    Route::get('get-subject-years/{subjectId}',[YearController::class,'getSubjectYears'])->name('get-subject-years');
     Route::post('add-year',[YearController::class,'addYear'])->name('add-year');
     Route::post('update-year/{id}',[YearController::class,'updateYear'])->name('update-year');
     Route::post('delete-year/{id}',[YearController::class,'deleteYear'])->name('delete-year');

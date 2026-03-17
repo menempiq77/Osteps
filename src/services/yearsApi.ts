@@ -27,6 +27,12 @@ export const fetchYearsBySchool = async (schoolId: number) => {
   return response.data.data;
 };
 
+// fetch Years By Subject (subject-specific)
+export const fetchSubjectYears = async (subjectId: number) => {
+  const response = await api.get(`/get-subject-years/${subjectId}`);
+  return response.data.data;
+};
+
 // get-assign-year
 export const fetchAssignYears = async () => {
   const response = await api.get(`/get-assign-year`);

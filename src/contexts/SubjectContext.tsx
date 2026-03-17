@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { fetchMySubjectContext, setLastSubject } from "@/services/subjectContextApi";
@@ -29,6 +29,7 @@ const isRoleEligible = (role: string | undefined): boolean => {
 export function SubjectContextProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { currentUser } = useSelector((state: RootState) => state.auth);
 
   const [subjects, setSubjects] = useState<SubjectBrief[]>([]);
@@ -37,6 +38,8 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
 
   const role = currentUser?.role;
   const canUseSubjectContext = isSubjectContextEnabled() && isRoleEligible(role);
+  const resolvedActiveSubject =
+    subjects.find((subject) => subject.id === activeSubjectId) ?? null;
 
   useEffect(() => {
     let mounted = true;
@@ -61,9 +64,15 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
 
         const fromPath = extractSubjectIdFromPath(pathname);
         const fromStorage = getStoredSubjectId();
+        const fromQuery = (() => {
+          const param = searchParams.get("subject_id");
+          if (!param) return null;
+          const id = Number(param);
+          return Number.isFinite(id) && id > 0 ? id : null;
+        })();
         const fallback = context.default_subject_id ?? available[0]?.id ?? null;
 
-        const candidate = [fromPath, fromStorage, fallback]
+        const candidate = [fromPath, fromQuery, fromStorage, fallback]
           .filter((value): value is number => Number.isFinite(value as number) && Number(value) > 0)
           .find((value) => available.some((subject) => subject.id === value)) ?? null;
 
@@ -88,7 +97,7 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
     return () => {
       mounted = false;
     };
-  }, [canUseSubjectContext, currentUser, pathname]);
+  }, [canUseSubjectContext, currentUser, pathname, searchParams]);
 
   useEffect(() => {
     if (!canUseSubjectContext || loading) return;
@@ -102,7 +111,7 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
         const fallbackSubject = subjects.find((subject) => subject.id === fallback) ?? null;
         storeSubjectId(fallback, fallbackSubject?.name ?? null);
         void setLastSubject(fallback);
-        router.replace(toSubjectScopedPath("/dashboard", fallback));
+        router.replace(toSubjectScopedPath("/dashboard", fallback, fallbackSubject?.name ?? null));
       } else {
         router.replace("/dashboard");
       }
@@ -110,7 +119,8 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
     }
 
     if (isSubjectScopedPath(pathname)) {
-      router.replace(toSubjectScopedPath(pathname, activeSubjectId));
+      const activeSubject = subjects.find((subject) => subject.id === activeSubjectId) ?? null;
+      router.replace(toSubjectScopedPath(pathname, activeSubjectId, activeSubject?.name ?? null));
     }
   }, [activeSubjectId, canUseSubjectContext, loading, pathname, router, subjects]);
 
@@ -126,31 +136,31 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
 
     const isSubjectCardsPath =
       pathname === "/dashboard/subject-cards" ||
-      /^\/dashboard\/s\/\d+\/subject-cards$/.test(pathname);
+      /^\/dashboard\/s\/\d+(?:\/[^/]+)?\/subject-cards$/.test(pathname);
     if (options?.navigate !== false) {
       const next = isSubjectCardsPath
-        ? `/dashboard/s/${subjectId}`
-        : toSubjectScopedPath(pathname, subjectId);
+        ? toSubjectScopedPath("/dashboard", subjectId, selectedSubject?.name ?? null)
+        : toSubjectScopedPath(pathname, subjectId, selectedSubject?.name ?? null);
       router.push(next);
     }
   };
 
   const toSubjectHref = (href: string) => {
     if (!activeSubjectId) return href;
-    return toSubjectScopedPath(href, activeSubjectId);
+    return toSubjectScopedPath(href, activeSubjectId, resolvedActiveSubject?.name ?? null);
   };
 
   const value = useMemo<SubjectContextValue>(
     () => ({
       subjects,
       activeSubjectId,
-      activeSubject: subjects.find((subject) => subject.id === activeSubjectId) ?? null,
+      activeSubject: resolvedActiveSubject,
       loading,
       canUseSubjectContext,
       setActiveSubjectId,
       toSubjectHref,
     }),
-    [subjects, activeSubjectId, loading, canUseSubjectContext]
+    [subjects, activeSubjectId, resolvedActiveSubject, loading, canUseSubjectContext]
   );
 
   return <SubjectContext.Provider value={value}>{children}</SubjectContext.Provider>;

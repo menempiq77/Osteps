@@ -19,6 +19,7 @@ interface AddClassFormProps {
   } | null;
   visible: boolean;
   onCancel: () => void;
+  hideTerms?: boolean;
 }
 
 export default function AddClassForm({
@@ -26,6 +27,7 @@ export default function AddClassForm({
   initialData,
   visible,
   onCancel,
+  hideTerms = false,
 }: AddClassFormProps) {
   const [form] = Form.useForm();
 
@@ -63,17 +65,19 @@ export default function AddClassForm({
       </Form.Item>
 
       {/* Number of Terms */}
-      <Form.Item
-        name="number_of_terms"
-        label="Number of Terms"
-        rules={[{ required: true, message: "Please select number of terms" }]}
-      >
-        <Select placeholder="Select terms">
-          <Select.Option value="first">One Term</Select.Option>
-          <Select.Option value="two">Two Term</Select.Option>
-          <Select.Option value="three">Three Term</Select.Option>
-        </Select>
-      </Form.Item>
+      {!hideTerms ? (
+        <Form.Item
+          name="number_of_terms"
+          label="Number of Terms"
+          rules={[{ required: true, message: "Please select number of terms" }]}
+        >
+          <Select placeholder="Select terms">
+            <Select.Option value="first">One Term</Select.Option>
+            <Select.Option value="two">Two Term</Select.Option>
+            <Select.Option value="three">Three Term</Select.Option>
+          </Select>
+        </Form.Item>
+      ) : null}
 
       <Form.Item
         name="color"

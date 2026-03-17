@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import Link from "next/link";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { Button, Card, Empty, Spin, Tag } from "antd";
-import { ArrowRightOutlined, BookOutlined, TeamOutlined } from "@ant-design/icons";
-import { RootState } from "@/store/store";
+import { ArrowRightOutlined, BookOutlined, TeamOutlined, LogoutOutlined } from "@ant-design/icons";
+import { RootState, AppDispatch } from "@/store/store";
 import { useSubjectContext } from "@/contexts/SubjectContext";
+import { useRouter } from "next/navigation";
+import { logout } from "@/features/auth/authSlice";
 
 const roleLabel = (role?: string) => {
   const normalized = String(role || "").trim().toUpperCase();
@@ -25,16 +27,38 @@ const isSchoolAdminRole = (role?: string | null): boolean => {
 
 export default function SubjectCardsPage() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
+  const dispatch = useDispatch<AppDispatch>();
+  const router = useRouter();
   const { subjects, loading, canUseSubjectContext, activeSubjectId, setActiveSubjectId } =
     useSubjectContext();
 
   const role = String(currentUser?.role || "").trim().toUpperCase();
+  const isStudent = role === "STUDENT";
+
+  const handleLogout = () => {
+    dispatch(logout());
+    router.push("/");
+  };
 
   const canEnterSubjectWorkspace = useMemo(() => {
     return ["SCHOOL_ADMIN", "ADMIN", "HOD", "TEACHER", "STUDENT"].includes(role);
   }, [role]);
 
+  useEffect(() => {
+    if (!loading && isStudent) {
+      router.replace("/dashboard");
+    }
+  }, [isStudent, loading, router]);
+
   if (loading) {
+    return (
+      <div className="p-3 md:p-6 flex justify-center items-center h-64">
+        <Spin size="large" />
+      </div>
+    );
+  }
+
+  if (isStudent) {
     return (
       <div className="p-3 md:p-6 flex justify-center items-center h-64">
         <Spin size="large" />
@@ -55,10 +79,23 @@ export default function SubjectCardsPage() {
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border border-[var(--theme-border)] bg-white p-6">
-        <h1 className="text-2xl font-semibold text-slate-800">Choose a Subject Dashboard</h1>
-        <p className="mt-2 text-sm text-slate-500">
-          {roleLabel(currentUser?.role)} workspace: open a subject dashboard to continue.
-        </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold text-slate-800">Choose a Subject Dashboard</h1>
+            <p className="mt-2 text-sm text-slate-500">
+              {roleLabel(currentUser?.role)} workspace: open a subject dashboard to continue.
+            </p>
+          </div>
+          <Button
+            type="primary"
+            danger
+            icon={<LogoutOutlined />}
+            onClick={handleLogout}
+            className="whitespace-nowrap"
+          >
+            Sign Out
+          </Button>
+        </div>
       </div>
 
       {subjects.length === 0 ? (

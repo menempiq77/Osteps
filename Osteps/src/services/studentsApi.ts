@@ -2,6 +2,7 @@
 import axios from 'axios';
 import { store } from '@/store/store';
 import { API_BASE_URL } from '@/lib/config';
+import { withSubjectQuery } from '@/lib/subjectScope';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -18,7 +19,9 @@ api.interceptors.request.use((config) => {
 
 // fetch Students
 export const fetchStudents = async (classId: string | number) => {
-  const response = await api.get(`/get-student/${classId}`);
+  const response = await api.get(`/get-student/${classId}`, {
+    params: withSubjectQuery({}),
+  });
   return response.data.data;
 };
 // add Student
@@ -97,7 +100,9 @@ export default api;
 
 // fetch Students profile data
 export const fetchStudentProfileData = async (studentId: string | number) => {
-  const response = await api.get(`/get-studentProfile/${studentId}`);
+  const response = await api.get(`/get-studentProfile/${studentId}`, {
+    params: withSubjectQuery({}),
+  });
   return response.data.data;
 };
 

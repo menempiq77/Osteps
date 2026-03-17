@@ -1,6 +1,7 @@
 "use client";
 import { RootState } from "@/store/store";
 import { useSubjectContext } from "@/contexts/SubjectContext";
+import { fetchClasses } from "@/services/classesApi";
 import { useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { useEffect, useState } from "react";
@@ -24,6 +25,7 @@ interface Class {
   number_of_terms: string;
   teacher_name?: string;
   color?: string;
+  base_class_label?: string;
 }
 
 interface ClassesListProps {
@@ -44,7 +46,7 @@ export default function ClassesList({
   subjectScoped = false,
 }: ClassesListProps) {
   const router = useRouter();
-  const { activeSubjectId } = useSubjectContext();
+  const { activeSubjectId, toSubjectHref } = useSubjectContext();
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [localClasses, setLocalClasses] = useState<Class[]>(classes || []);
   const [classToDelete, setClassToDelete] = useState<Class | null>(null);
@@ -76,16 +78,44 @@ export default function ClassesList({
     router.push(`/dashboard/classes/${classId}/terms`);
   };
 
-  const handleViewStudents = (classId: string) => {
+  const normalizeLabel = (value: unknown) =>
+    String(value ?? "").trim().toLowerCase();
+
+  const handleViewStudents = async (classId: string) => {
     if (subjectScoped && activeSubjectId) {
       const subjectClass = localClasses.find((item) => item.id === classId);
       const yearId = subjectClass?.year_id;
+      const classLabel = subjectClass?.base_class_label || subjectClass?.class_name;
+
+      if (yearId && classLabel) {
+        try {
+          const yearClasses = (await fetchClasses(String(yearId))) as Array<{
+            id: string | number;
+            class_name?: string;
+          }>;
+          const matched = (Array.isArray(yearClasses) ? yearClasses : []).find(
+            (item) => normalizeLabel(item?.class_name) === normalizeLabel(classLabel)
+          );
+
+          if (matched?.id != null) {
+            router.push(toSubjectHref(`/dashboard/students/${matched.id}`));
+            return;
+          }
+        } catch {
+          // fallback below
+        }
+      }
+
       router.push(
-        `/dashboard/students/all?subjectId=${activeSubjectId}${yearId ? `&yearId=${yearId}` : ""}`
+        toSubjectHref(
+          `/dashboard/students/all?yearId=${yearId ?? ""}&subjectClassLabel=${encodeURIComponent(
+            classLabel ?? ""
+          )}`
+        )
       );
       return;
     }
-    router.push(`/dashboard/students/${classId}`);
+    router.push(toSubjectHref(`/dashboard/students/${classId}`));
   };
 
   const handleStory = (classId: string) => {
@@ -198,7 +228,7 @@ export default function ClassesList({
                   }}
                 >
                   <button
-                    onClick={() => handleViewStudents(cls.id)}
+                    onClick={() => void handleViewStudents(cls.id)}
                     className="inline-flex cursor-pointer items-center gap-2 text-left text-[15px] font-semibold"
                     style={{ color: accentColor }}
                   >
@@ -209,13 +239,7 @@ export default function ClassesList({
                   <div className="flex flex-wrap items-center gap-3 text-[13px] text-slate-600">
                     <button
                       type="button"
-                      onClick={() =>
-                        router.push(
-                          `/dashboard/students/all?classId=${cls.id}${
-                            activeSubjectId ? `&subjectId=${activeSubjectId}` : ""
-                          }`
-                        )
-                      }
+                      onClick={() => void handleViewStudents(cls.id)}
                       className="cursor-pointer hover:text-[var(--theme-dark)]"
                     >
                       Students: {stats.students}
@@ -234,7 +258,7 @@ export default function ClassesList({
                       </span>
                     )}
                     <button
-                      onClick={() => handleViewStudents(cls.id)}
+                      onClick={() => void handleViewStudents(cls.id)}
                       className="cursor-pointer text-slate-600 hover:text-[var(--theme-dark)]"
                       title="Students"
                     >

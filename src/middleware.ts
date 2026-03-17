@@ -38,6 +38,31 @@ const SHARED_EXACT_PATHS = [
   "/dashboard/teachers",
 ];
 
+const SUBJECT_ROUTE_ROOTS = new Set([
+  "manager",
+  "view",
+  "leaderboard",
+  "years",
+  "classes",
+  "grades",
+  "quiz",
+  "teachers",
+  "student_behavior",
+  "all_assesments",
+  "all_trackers",
+  "viewtrackers",
+  "students",
+  "mind-upgrade",
+  "subjects",
+  "subject-cards",
+  "library",
+  "time_table",
+  "announcements",
+  "tools",
+  "school-admin",
+  "admins",
+]);
+
 const startsWithPrefix = (path: string, prefix: string): boolean => path === prefix || path.startsWith(`${prefix}/`);
 
 const isSharedPath = (path: string): boolean => {
@@ -51,6 +76,20 @@ const isSubjectScopedLegacyPath = (path: string): boolean => {
   return SUBJECT_SCOPED_PREFIXES.some((prefix) => startsWithPrefix(path, prefix));
 };
 
+const stripReadableSubjectSegment = (suffix: string): string => {
+  const trimmed = String(suffix ?? "").replace(/^\/+/, "");
+  if (!trimmed) return "";
+
+  const segments = trimmed.split("/").filter(Boolean);
+  if (segments.length === 0) return "";
+  if (SUBJECT_ROUTE_ROOTS.has(String(segments[0] ?? "").toLowerCase())) {
+    return `/${segments.join("/")}`;
+  }
+
+  const remaining = segments.slice(1);
+  return remaining.length > 0 ? `/${remaining.join("/")}` : "";
+};
+
 export function middleware(req: NextRequest) {
   const url = req.nextUrl.clone();
   const { pathname } = url;
@@ -61,7 +100,8 @@ export function middleware(req: NextRequest) {
 
   if (!SUBJECT_CONTEXT_ENABLED) {
     if (pathname.startsWith("/dashboard/s/")) {
-      const suffix = pathname.replace(/^\/dashboard\/s\/\d+/, "") || "";
+      const rawSuffix = pathname.replace(/^\/dashboard\/s\/\d+/, "") || "";
+      const suffix = stripReadableSubjectSegment(rawSuffix);
       const redirectUrl = req.nextUrl.clone();
       redirectUrl.pathname = `/dashboard${suffix}`;
       redirectUrl.searchParams.delete("subject_id");
@@ -75,21 +115,11 @@ export function middleware(req: NextRequest) {
     if (!match) return NextResponse.next();
 
     const subjectId = match[1];
-    const suffix = match[2] ?? "";
+    const suffix = stripReadableSubjectSegment(match[2] ?? "");
     const rewriteUrl = req.nextUrl.clone();
     rewriteUrl.pathname = `/dashboard${suffix}`;
     rewriteUrl.searchParams.set("subject_id", subjectId);
     return NextResponse.rewrite(rewriteUrl);
-  }
-
-  // For exact /dashboard, redirect academic users to subject-cards picker
-  if (pathname === "/dashboard") {
-    const cookieSubject = req.cookies.get("osteps_subject_id")?.value;
-    if (cookieSubject && /^\d+$/.test(cookieSubject)) {
-      const redirectUrl = req.nextUrl.clone();
-      redirectUrl.pathname = "/dashboard/subject-cards";
-      return NextResponse.redirect(redirectUrl);
-    }
   }
 
   if (isSubjectScopedLegacyPath(pathname)) {

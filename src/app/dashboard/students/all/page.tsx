@@ -102,6 +102,7 @@ export default function AllStudentsPage() {
   const preselectedYearId = searchParams.get("yearId") || "";
   const preselectedClassId = searchParams.get("classId") || "";
   const preselectedSubjectId = searchParams.get("subjectId") || "";
+  const preselectedSubjectClassLabel = searchParams.get("subjectClassLabel") || "";
   const queryClient = useQueryClient();
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const role = currentUser?.role;
@@ -298,12 +299,15 @@ export default function AllStudentsPage() {
     const q = nameFilter.trim().toLowerCase();
     const wantedSubject = subjectFilter.trim().toLowerCase();
     const wantedSubjectId = Number(subjectFilter);
+    const wantedSubjectClassLabel = preselectedSubjectClassLabel.trim().toLowerCase();
     return students.filter((row) => {
       const nameMatch = !q || row.name.toLowerCase().includes(q);
       const yearMatch = yearFilter === "all" || row.yearGroup === yearFilter;
       const yearIdMatch = !yearIdFilter || String(row.yearId) === yearIdFilter;
       const classMatch =
         classFilters.length === 0 || classFilters.includes(String(row.classId));
+      const subjectClassMatch =
+        !wantedSubjectClassLabel || row.className.trim().toLowerCase() === wantedSubjectClassLabel;
       const genderMatch =
         genderFilters.length === 0 || genderFilters.includes(row.gender);
       const subjectMatch =
@@ -312,9 +316,26 @@ export default function AllStudentsPage() {
           wantedSubjectId > 0 &&
           row.subjectIds.some((id) => Number(id) === wantedSubjectId)) ||
         row.subjectNames.some((subject) => String(subject || "").trim().toLowerCase() === wantedSubject);
-      return nameMatch && yearMatch && yearIdMatch && classMatch && genderMatch && subjectMatch;
+      return (
+        nameMatch &&
+        yearMatch &&
+        yearIdMatch &&
+        classMatch &&
+        subjectClassMatch &&
+        genderMatch &&
+        subjectMatch
+      );
     });
-  }, [students, nameFilter, yearFilter, yearIdFilter, classFilters, genderFilters, subjectFilter]);
+  }, [
+    students,
+    nameFilter,
+    yearFilter,
+    yearIdFilter,
+    classFilters,
+    genderFilters,
+    subjectFilter,
+    preselectedSubjectClassLabel,
+  ]);
 
   const classOptions = useMemo(() => {
     const unique = Array.from(

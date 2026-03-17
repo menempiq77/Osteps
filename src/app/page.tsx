@@ -18,7 +18,10 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (currentUser) {
-      router.push('/dashboard');
+      const redirectPath = currentUser.role === 'SCHOOL_ADMIN' 
+        ? '/dashboard/subject-cards' 
+        : '/dashboard';
+      router.push(redirectPath);
     }
   }, [currentUser, router]);
 
