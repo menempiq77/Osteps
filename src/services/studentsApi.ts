@@ -7,6 +7,124 @@ const api = axios.create({
   baseURL: API_BASE_URL,
 });
 
+const YEAR7_LOCAL_CLASS_BY_ID: Record<number, string> = {
+  20: "7IsA",
+  21: "7IsB1",
+  22: "7IsB2",
+};
+
+const YEAR7_LOCAL_TARGETS: Record<string, string> = {
+  asser: "7IsA",
+  ayman: "7IsA",
+  elias: "7IsA",
+  gemma: "7IsA",
+  kitty: "7IsA",
+  "mohammed a": "7IsA",
+  tia: "7IsA",
+  "zayed m": "7IsA",
+  "zayed z": "7IsA",
+  "hamza kaan bilikozen": "7IsB1",
+  hanna: "7IsB1",
+  kayla: "7IsB1",
+  lara: "7IsB1",
+  malek: "7IsB1",
+  "mayra b": "7IsB1",
+  mohsin: "7IsB1",
+  myrah: "7IsB1",
+  noor: "7IsB1",
+  omar: "7IsB1",
+  "saif alif ezzy": "7IsB1",
+  selim: "7IsB1",
+  yousof: "7IsB1",
+  zaynab: "7IsB1",
+  aarish: "7IsB2",
+  daniel: "7IsB2",
+  elif: "7IsB2",
+  "erich mcfarland": "7IsB2",
+  kerem: "7IsB2",
+  "mohammad ss": "7IsB2",
+  qasim: "7IsB2",
+  rania: "7IsB2",
+  salwan: "7IsB2",
+  sophia: "7IsB2",
+  yaseen: "7IsB2",
+  zayd: "7IsB2",
+};
+
+const normalizeYear7StudentKey = (value: unknown) =>
+  String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+
+const getLocalYear7TargetClass = (student: Record<string, any>, sourceClassId: number): string => {
+  const nameKey = normalizeYear7StudentKey(student.student_name ?? student.name ?? "");
+  const mapped = YEAR7_LOCAL_TARGETS[nameKey];
+  if (mapped) return mapped;
+  return YEAR7_LOCAL_CLASS_BY_ID[sourceClassId] ?? "";
+};
+
+const getRawStudents = async (classId: string | number) => {
+  const response = await api.get(`/get-student/${classId}`);
+  return response.data.data;
+};
+
+const getLocallyRestoredYear7Students = async (requestedClassId: number) => {
+  const requestedClassLabel = YEAR7_LOCAL_CLASS_BY_ID[requestedClassId];
+  if (!requestedClassLabel) {
+    return getRawStudents(requestedClassId);
+  }
+
+  const classIds = Object.keys(YEAR7_LOCAL_CLASS_BY_ID).map((id) => Number(id));
+  const rowsByClass = await Promise.all(
+    classIds.map(async (classId) => {
+      const rows = await getRawStudents(classId);
+      return (Array.isArray(rows) ? rows : []).map((student: Record<string, any>) => ({
+        ...student,
+        __local_source_class_id: classId,
+      }));
+    })
+  );
+
+  const uniqueStudents = Array.from(
+    new Map(
+      rowsByClass
+        .flat()
+        .map((student) => [
+          String(student.id ?? student.student_id ?? `${student.user_name}-${student.student_name}`),
+          student,
+        ])
+    ).values()
+  );
+
+  return uniqueStudents
+    .filter((student) => {
+      const sourceClassId = Number(student.__local_source_class_id ?? requestedClassId);
+      return getLocalYear7TargetClass(student, sourceClassId) === requestedClassLabel;
+    })
+    .map(({ __local_source_class_id, ...student }) => student)
+    .concat(
+      requestedClassLabel === "7IsB1" &&
+        !uniqueStudents.some(
+          (student) =>
+            normalizeYear7StudentKey(student.student_name ?? student.name ?? "") ===
+            "hamza kaan bilikozen"
+        )
+        ? [
+            {
+              id: "local-year7-hamza-kaan-bilikozen",
+              student_id: "local-year7-hamza-kaan-bilikozen",
+              student_name: "Hamza Kaan Bilikozen",
+              user_name: "Hamza Kaan Bilikozen",
+              class_id: requestedClassId,
+              class_name: requestedClassLabel,
+              status: "active",
+            },
+          ]
+        : []
+    );
+};
+
 // Request interceptor to add auth token
 api.interceptors.request.use((config) => {
   const token = store.getState().auth.token;
@@ -18,8 +136,11 @@ api.interceptors.request.use((config) => {
 
 // fetch Students
 export const fetchStudents = async (classId: string | number) => {
-  const response = await api.get(`/get-student/${classId}`);
-  return response.data.data;
+  const numericClassId = Number(classId);
+  if (Number.isFinite(numericClassId) && YEAR7_LOCAL_CLASS_BY_ID[numericClassId]) {
+    return getLocallyRestoredYear7Students(numericClassId);
+  }
+  return getRawStudents(classId);
 };
 // add Student
 export const addStudent = async (studentData: {

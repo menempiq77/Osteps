@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { Button, message } from "antd";
+import { Button, Input, message } from "antd";
 import YearForm from "@/components/dashboard/YearForm";
 import YearsList from "@/components/dashboard/YearsList";
 import { useSelector } from "react-redux";
@@ -28,14 +28,31 @@ interface Year {
   color?: string;
 }
 
-const normalizeSubjectLabel = (value: unknown) =>
-  String(value ?? "").replace(/islamiat/gi, "Islamic").trim().toLowerCase();
+const readSubjectYearMap = (schoolId?: number | string) => {
+  if (typeof window === "undefined") return {} as Record<string, number[]>;
+  try {
+    const raw = localStorage.getItem(`subject-years-${schoolId ?? "global"}`);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+const writeSubjectYearMap = (
+  schoolId: number | string | undefined,
+  nextMap: Record<string, number[]>
+) => {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(`subject-years-${schoolId ?? "global"}`, JSON.stringify(nextMap));
+};
 
 export default function Page() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [years, setYears] = useState<Year[]>([]);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [yearToDelete, setYearToDelete] = useState<number | null>(null);
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentYear, setCurrentYear] = useState<Year | null>(null);
@@ -44,7 +61,7 @@ export default function Page() {
   >({});
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [messageApi, contextHolder] = message.useMessage();
-  const { activeSubjectId, activeSubject, canUseSubjectContext } = useSubjectContext();
+  const { activeSubjectId, canUseSubjectContext } = useSubjectContext();
   const schoolId = currentUser?.school;
   const isTeacher = currentUser?.role === "TEACHER";
   const hasAccess = currentUser?.role === "SCHOOL_ADMIN";
@@ -101,40 +118,15 @@ export default function Page() {
 
       if (isSubjectWorkspaceMode && activeSubjectId) {
         const schoolYears = await fetchYearsBySchool(Number(schoolId));
-        const activeSubjectName = normalizeSubjectLabel(activeSubject?.name);
-        const yearChecks = await Promise.all(
-          (Array.isArray(schoolYears) ? schoolYears : []).map(async (year: any) => {
-            try {
-              const classes = ((await fetchClasses(String(year.id))) || []) as Array<{ id: number | string }>;
-              for (const cls of classes) {
-                const students = await fetchStudents(cls.id);
-                const hasSubject = (Array.isArray(students) ? students : []).some((student: any) => {
-                  const rawSubjects = Array.isArray(student.subjects)
-                    ? student.subjects
-                    : student.subject_name
-                      ? [student.subject_name]
-                      : student.subject
-                        ? [student.subject]
-                        : [];
-                  return rawSubjects.some((item: any) => {
-                    const name =
-                      typeof item === "string"
-                        ? item
-                        : item && typeof item === "object"
-                          ? item.name ?? item.subject_name ?? ""
-                          : "";
-                    return normalizeSubjectLabel(name) === activeSubjectName;
-                  });
-                });
-                if (hasSubject) return year;
-              }
-              return null;
-            } catch {
-              return null;
-            }
-          })
+        const savedMap = readSubjectYearMap(schoolId);
+        const savedSubjectYearIds = new Set(
+          (savedMap[String(activeSubjectId)] || [])
+            .map((id) => Number(id))
+            .filter((id) => Number.isFinite(id) && id > 0)
         );
-        yearsData = yearChecks.filter(Boolean);
+        yearsData = (Array.isArray(schoolYears) ? schoolYears : []).filter((year: any) =>
+          savedSubjectYearIds.has(Number(year?.id))
+        );
       } else if (isTeacher) {
         const res = await fetchAssignYears();
 
@@ -197,7 +189,7 @@ export default function Page() {
     };
 
     loadYearStats();
-  }, [years]);
+  }, [years, isSubjectWorkspaceMode, activeSubjectId]);
 
   const persistYearOrder = (orderedYears: Year[]) => {
     if (typeof window === "undefined") return;
@@ -233,6 +225,19 @@ export default function Page() {
       } else {
         const newYear = await addYearApi(yearData);
         const yearWithColor = { ...newYear, color: color || "green" };
+        if (isSubjectWorkspaceMode && activeSubjectId) {
+          const subjectYearMap = readSubjectYearMap(schoolId);
+          const existingIds = new Set(
+            (subjectYearMap[String(activeSubjectId)] || [])
+              .map((id) => Number(id))
+              .filter((id) => Number.isFinite(id) && id > 0)
+          );
+          existingIds.add(Number(newYear.id));
+          writeSubjectYearMap(schoolId, {
+            ...subjectYearMap,
+            [String(activeSubjectId)]: Array.from(existingIds),
+          });
+        }
         setYears((prevYears) => [...prevYears, yearWithColor]);
         writeYearColorMap({
           ...readYearColorMap(),
@@ -240,7 +245,25 @@ export default function Page() {
         });
       }
       const updatedYears = await fetchYearsBySchool(schoolId);
-      setYears(applySavedYearColors(updatedYears));
+      if (isSubjectWorkspaceMode && activeSubjectId) {
+        const subjectYearMap = readSubjectYearMap(schoolId);
+        const allowedIds = new Set(
+          (subjectYearMap[String(activeSubjectId)] || [])
+            .map((id) => Number(id))
+            .filter((id) => Number.isFinite(id) && id > 0)
+        );
+        setYears(
+          applySavedOrder(
+            applySavedYearColors(
+              (Array.isArray(updatedYears) ? updatedYears : []).filter((year: any) =>
+                allowedIds.has(Number(year?.id))
+              )
+            )
+          )
+        );
+      } else {
+        setYears(applySavedYearColors(updatedYears));
+      }
 
       setIsModalOpen(false);
       setCurrentYear(null);
@@ -262,6 +285,7 @@ export default function Page() {
       return;
     }
     setYearToDelete(id);
+    setDeleteConfirmationText("");
     setIsDeleteModalOpen(true);
   };
 
@@ -278,10 +302,41 @@ export default function Page() {
     if (!yearToDelete) return;
 
     try {
+      if (isSubjectWorkspaceMode && activeSubjectId) {
+        const subjectYearMap = readSubjectYearMap(schoolId);
+        const nextIds = (subjectYearMap[String(activeSubjectId)] || []).filter(
+          (id) => Number(id) !== Number(yearToDelete)
+        );
+        writeSubjectYearMap(schoolId, {
+          ...subjectYearMap,
+          [String(activeSubjectId)]: nextIds,
+        });
+        setYears(years.filter((year) => year.id !== yearToDelete));
+        setIsDeleteModalOpen(false);
+        setYearToDelete(null);
+        messageApi.success("Year removed from this subject only");
+        return;
+      }
+
+      const stats = yearStats[yearToDelete] ?? { classes: 0, students: 0 };
+      if (stats.classes > 0 || stats.students > 0) {
+        messageApi.warning(
+          "This year group still contains classes or students. Delete is blocked."
+        );
+        return;
+      }
+
+      const targetYear = years.find((year) => year.id === yearToDelete);
+      if (!targetYear || deleteConfirmationText.trim() !== targetYear.name) {
+        messageApi.warning("Type the exact year group name to confirm deletion.");
+        return;
+      }
+
       await deleteYearApi(yearToDelete);
       setYears(years.filter((year) => year.id !== yearToDelete));
       setIsDeleteModalOpen(false);
       setYearToDelete(null);
+      setDeleteConfirmationText("");
       messageApi.success("Year deleted successfully");
     } catch (err) {
       setError("Failed to delete year");
@@ -289,6 +344,16 @@ export default function Page() {
       messageApi.error("Failed to delete Year");
     }
   };
+
+  const yearPendingDelete = years.find((year) => year.id === yearToDelete) ?? null;
+  const pendingDeleteStats = yearToDelete
+    ? yearStats[yearToDelete] ?? { classes: 0, students: 0 }
+    : { classes: 0, students: 0 };
+  const canPermanentlyDeleteYear =
+    !!yearPendingDelete &&
+    pendingDeleteStats.classes === 0 &&
+    pendingDeleteStats.students === 0 &&
+    deleteConfirmationText.trim() === yearPendingDelete.name;
 
   if (loading)
     return (
@@ -379,17 +444,53 @@ export default function Page() {
         onCancel={() => {
           setIsDeleteModalOpen(false);
           setYearToDelete(null);
+          setDeleteConfirmationText("");
         }}
-        okText="Delete"
-        okButtonProps={{ danger: true }}
-        cancelText="Cancel"
+        okText={isSubjectWorkspaceMode ? "Remove" : "Delete permanently"}
+        okButtonProps={{
+          danger: true,
+          disabled: !isSubjectWorkspaceMode && !canPermanentlyDeleteYear,
+        }}
+        cancelText={isSubjectWorkspaceMode ? "Cancel" : "Close"}
         centered
       >
         {yearToDelete && (
-          <p>
-            Are you sure you want to delete this year? This action cannot be
-            undone.
-          </p>
+          <div className="space-y-4 text-sm text-slate-700">
+            <div>
+              <p className="font-semibold text-slate-900">
+                {yearPendingDelete?.name}
+              </p>
+              <p className="mt-1">
+                Classes: <span className="font-medium">{pendingDeleteStats.classes}</span>
+                {"  "}Students:{" "}
+                <span className="font-medium">{pendingDeleteStats.students}</span>
+              </p>
+            </div>
+
+            {isSubjectWorkspaceMode ? (
+              <p>
+                This will only remove the year group from the current subject page.
+                It will not delete the real school year or its data.
+              </p>
+            ) : pendingDeleteStats.classes > 0 || pendingDeleteStats.students > 0 ? (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-amber-900">
+                This year group cannot be deleted because it still contains classes
+                or students. A safer archive flow should be used instead.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p>
+                  This year group is empty. To delete it permanently, type the exact
+                  name below.
+                </p>
+                <Input
+                  value={deleteConfirmationText}
+                  onChange={(event) => setDeleteConfirmationText(event.target.value)}
+                  placeholder={yearPendingDelete?.name || "Type year group name"}
+                />
+              </div>
+            )}
+          </div>
         )}
       </Modal>
     </div>

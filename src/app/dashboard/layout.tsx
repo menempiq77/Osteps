@@ -348,22 +348,94 @@ export default function DashboardLayout({
       </div>
       )}
       <style jsx global>{`
-        .dashboard-theme-scope [class*="text-green-"] {
+        .dashboard-theme-scope [class*="text-green-"],
+        .dashboard-theme-scope [class*="text-emerald-"],
+        .dashboard-theme-scope [class*="text-sky-"],
+        .dashboard-theme-scope [class*="text-blue-"],
+        .dashboard-theme-scope [class*="text-violet-"],
+        .dashboard-theme-scope [class*="text-fuchsia-"],
+        .dashboard-theme-scope [class*="text-amber-"],
+        .dashboard-theme-scope [class*="text-yellow-"],
+        .dashboard-theme-scope [class*="text-orange-"],
+        .dashboard-theme-scope [class*="text-rose-"],
+        .dashboard-theme-scope [class*="text-red-"],
+        .dashboard-theme-scope [class*="text-lime-"],
+        .dashboard-theme-scope [class*="text-indigo-"] {
           color: var(--theme-dark) !important;
         }
-        .dashboard-theme-scope [class*="bg-green-50"] {
+        .dashboard-theme-scope [class*="bg-green-50"],
+        .dashboard-theme-scope [class*="bg-emerald-50"],
+        .dashboard-theme-scope [class*="bg-sky-50"],
+        .dashboard-theme-scope [class*="bg-blue-50"],
+        .dashboard-theme-scope [class*="bg-violet-50"],
+        .dashboard-theme-scope [class*="bg-fuchsia-50"],
+        .dashboard-theme-scope [class*="bg-amber-50"],
+        .dashboard-theme-scope [class*="bg-yellow-50"],
+        .dashboard-theme-scope [class*="bg-orange-50"],
+        .dashboard-theme-scope [class*="bg-rose-50"],
+        .dashboard-theme-scope [class*="bg-red-50"],
+        .dashboard-theme-scope [class*="bg-lime-50"],
+        .dashboard-theme-scope [class*="bg-indigo-50"] {
           background-color: color-mix(in srgb, var(--primary) 12%, white) !important;
         }
-        .dashboard-theme-scope [class*="bg-green-100"] {
+        .dashboard-theme-scope [class*="bg-green-100"],
+        .dashboard-theme-scope [class*="bg-emerald-100"],
+        .dashboard-theme-scope [class*="bg-sky-100"],
+        .dashboard-theme-scope [class*="bg-blue-100"],
+        .dashboard-theme-scope [class*="bg-violet-100"],
+        .dashboard-theme-scope [class*="bg-fuchsia-100"],
+        .dashboard-theme-scope [class*="bg-amber-100"],
+        .dashboard-theme-scope [class*="bg-yellow-100"],
+        .dashboard-theme-scope [class*="bg-orange-100"],
+        .dashboard-theme-scope [class*="bg-rose-100"],
+        .dashboard-theme-scope [class*="bg-red-100"],
+        .dashboard-theme-scope [class*="bg-lime-100"],
+        .dashboard-theme-scope [class*="bg-indigo-100"] {
           background-color: color-mix(in srgb, var(--primary) 20%, white) !important;
         }
-        .dashboard-theme-scope [class*="border-green-"] {
+        .dashboard-theme-scope [class*="border-green-"],
+        .dashboard-theme-scope [class*="border-emerald-"],
+        .dashboard-theme-scope [class*="border-sky-"],
+        .dashboard-theme-scope [class*="border-blue-"],
+        .dashboard-theme-scope [class*="border-violet-"],
+        .dashboard-theme-scope [class*="border-fuchsia-"],
+        .dashboard-theme-scope [class*="border-amber-"],
+        .dashboard-theme-scope [class*="border-yellow-"],
+        .dashboard-theme-scope [class*="border-orange-"],
+        .dashboard-theme-scope [class*="border-rose-"],
+        .dashboard-theme-scope [class*="border-red-"],
+        .dashboard-theme-scope [class*="border-lime-"],
+        .dashboard-theme-scope [class*="border-indigo-"] {
           border-color: color-mix(in srgb, var(--primary) 45%, white) !important;
         }
-        .dashboard-theme-scope [class*="hover:text-green-"]:hover {
+        .dashboard-theme-scope [class*="hover:text-green-"]:hover,
+        .dashboard-theme-scope [class*="hover:text-emerald-"]:hover,
+        .dashboard-theme-scope [class*="hover:text-sky-"]:hover,
+        .dashboard-theme-scope [class*="hover:text-blue-"]:hover,
+        .dashboard-theme-scope [class*="hover:text-violet-"]:hover,
+        .dashboard-theme-scope [class*="hover:text-fuchsia-"]:hover,
+        .dashboard-theme-scope [class*="hover:text-amber-"]:hover,
+        .dashboard-theme-scope [class*="hover:text-yellow-"]:hover,
+        .dashboard-theme-scope [class*="hover:text-orange-"]:hover,
+        .dashboard-theme-scope [class*="hover:text-rose-"]:hover,
+        .dashboard-theme-scope [class*="hover:text-red-"]:hover,
+        .dashboard-theme-scope [class*="hover:text-lime-"]:hover,
+        .dashboard-theme-scope [class*="hover:text-indigo-"]:hover {
           color: var(--theme-dark) !important;
         }
-        .dashboard-theme-scope [class*="hover:bg-green-"]:hover {
+        .dashboard-theme-scope [class*="hover:bg-green-"]:hover,
+        .dashboard-theme-scope [class*="hover:bg-emerald-"]:hover,
+        .dashboard-theme-scope [class*="hover:bg-sky-"]:hover,
+        .dashboard-theme-scope [class*="hover:bg-blue-"]:hover,
+        .dashboard-theme-scope [class*="hover:bg-violet-"]:hover,
+        .dashboard-theme-scope [class*="hover:bg-fuchsia-"]:hover,
+        .dashboard-theme-scope [class*="hover:bg-amber-"]:hover,
+        .dashboard-theme-scope [class*="hover:bg-yellow-"]:hover,
+        .dashboard-theme-scope [class*="hover:bg-orange-"]:hover,
+        .dashboard-theme-scope [class*="hover:bg-rose-"]:hover,
+        .dashboard-theme-scope [class*="hover:bg-red-"]:hover,
+        .dashboard-theme-scope [class*="hover:bg-lime-"]:hover,
+        .dashboard-theme-scope [class*="hover:bg-indigo-"]:hover {
           background-color: color-mix(in srgb, var(--primary) 20%, white) !important;
         }
         .dashboard-route-transition {

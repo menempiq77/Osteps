@@ -46,7 +46,7 @@ import { IMG_BASE_URL } from "@/lib/config";
 import { useRouter } from "next/navigation";
 import { usePathname } from "next/navigation";
 import { useSubjectContext } from "@/contexts/SubjectContext";
-import { fetchStaffSubjectAssignments, fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
+import { fetchStaffSubjectAssignments } from "@/services/subjectWorkspaceApi";
 import { shouldUseLegacyUnscopedSubjectData } from "@/lib/subjectScope";
 
 export const dynamic = "force-dynamic";
@@ -192,19 +192,10 @@ export default function DashboardPage() {
     queryFn: async () => {
       if (!activeSubjectId) return null;
 
-      const [subjectClasses, staffAssignments, years] = await Promise.all([
-        fetchSubjectClasses({ subject_id: Number(activeSubjectId) }),
+      const [staffAssignments, years] = await Promise.all([
         fetchStaffSubjectAssignments(),
         schoolId > 0 ? fetchYearsBySchool(schoolId) : Promise.resolve([]),
       ]);
-
-      const classes = Array.isArray(subjectClasses) ? subjectClasses : [];
-      const classCount = classes.length;
-      const yearCount = new Set(
-        classes
-          .map((item: any) => Number(item?.year_id))
-          .filter((value) => Number.isFinite(value) && value > 0)
-      ).size;
 
       const scopedStaff = (Array.isArray(staffAssignments) ? staffAssignments : []).filter(
         (item: any) =>
@@ -223,7 +214,10 @@ export default function DashboardPage() {
         await Promise.all(
           allYears.map(async (year: any) => {
             try {
-              return await fetchClasses(String(year?.id));
+              return (await fetchClasses(String(year?.id))).map((cls: any) => ({
+                ...cls,
+                year_id: Number(cls?.year_id ?? year?.id ?? 0),
+              }));
             } catch {
               return [];
             }
@@ -231,20 +225,51 @@ export default function DashboardPage() {
         )
       ).flat();
 
-      const studentLists = await Promise.all(
+      const classStudentRows = await Promise.all(
         schoolClasses.map(async (cls: any) => {
           try {
-            return await fetchStudents(cls?.id);
+            const students = await fetchStudents(cls?.id);
+            return { cls, students: Array.isArray(students) ? students : [] };
           } catch {
-            return [];
+            return { cls, students: [] };
           }
         })
       );
 
       const activeSubjectName = String(activeSubject?.name || "").trim().toLowerCase();
+      const scopedClasses = classStudentRows.filter(({ students }) =>
+        students.some((student: any) => {
+          const rawSubjects = Array.isArray(student?.subjects)
+            ? student.subjects
+            : student?.subject_name
+              ? [student.subject_name]
+              : student?.subject
+                ? [student.subject]
+                : [];
+
+          const names = rawSubjects
+            .map((item: any) => {
+              if (typeof item === "string") return item;
+              if (item && typeof item === "object") return String(item.name ?? item.subject_name ?? "");
+              return "";
+            })
+            .map((name: string) => name.trim().toLowerCase())
+            .filter(Boolean);
+
+          return names.includes(activeSubjectName);
+        })
+      );
+
+      const classCount = scopedClasses.length;
+      const yearCount = new Set(
+        scopedClasses
+          .map(({ cls }) => Number(cls?.year_id))
+          .filter((value) => Number.isFinite(value) && value > 0)
+      ).size;
+
       const studentCount = new Set(
-        studentLists
-          .flat()
+        scopedClasses
+          .flatMap(({ students }) => students)
           .filter((student: any) => {
             const rawSubjects = Array.isArray(student?.subjects)
               ? student.subjects

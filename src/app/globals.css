@@ -309,6 +309,51 @@
   filter: brightness(1.02);
 }
 
+/* Global loading spinner refresh */
+.ant-spin {
+  color: var(--primary) !important;
+}
+
+.ant-spin .ant-spin-dot {
+  width: 52px !important;
+  height: 52px !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ant-spin .ant-spin-dot::before {
+  content: "";
+  width: 52px;
+  height: 52px;
+  border-radius: 999px;
+  border: 4px solid color-mix(in srgb, var(--primary) 20%, white);
+  border-top-color: var(--primary);
+  border-right-color: color-mix(in srgb, var(--theme-scroll-end) 85%, white);
+  box-shadow:
+    0 10px 24px color-mix(in srgb, var(--theme-shadow) 30%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  animation: premium-spin-ring 0.9s linear infinite;
+}
+
+.ant-spin .ant-spin-dot-item {
+  display: none !important;
+}
+
+.ant-spin-nested-loading > div > .ant-spin,
+.ant-spin-spinning {
+  max-height: none !important;
+}
+
+@keyframes premium-spin-ring {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 
 /* Checkbox field inner colors */
 :where(.css-dev-only-do-not-override-mncuj7).ant-checkbox-checked .ant-checkbox-inner{

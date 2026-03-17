@@ -11,6 +11,7 @@ import { addClass, deleteClass, fetchClasses, updateClass } from "@/services/cla
 import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
 import { fetchStudents } from "@/services/studentsApi";
 import { useSubjectContext } from "@/contexts/SubjectContext";
+import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
 interface ApiClass {
   id: string;
   class_name: string;
@@ -21,8 +22,23 @@ interface ApiClass {
   color?: string;
 }
 
-const normalizeSubjectLabel = (value: unknown) =>
-  String(value ?? "").replace(/islamiat/gi, "Islamic").trim().toLowerCase();
+type SubjectClassRow = {
+  id?: number | string;
+  year_id?: number | string | null;
+  base_class_label?: string | null;
+  name?: string | null;
+};
+
+const readSubjectYearMap = (schoolId?: number | string) => {
+  if (typeof window === "undefined") return {} as Record<string, number[]>;
+  try {
+    const raw = localStorage.getItem(`subject-years-${schoolId ?? "global"}`);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+};
 
 export default function Page() {
   const searchParams = useSearchParams();
@@ -107,9 +123,30 @@ export default function Page() {
         }
 
         const years = await fetchYearsBySchool(schoolId);
+        const subjectClasses = (await fetchSubjectClasses({
+          subject_id: Number(activeSubjectId),
+        })) as SubjectClassRow[];
+        const subjectYearMap = readSubjectYearMap(schoolId);
+        const savedYearIds = (subjectYearMap[String(activeSubjectId)] || [])
+          .map((id) => Number(id))
+          .filter((id) => Number.isFinite(id) && id > 0);
+        const subjectClassYearIds = (Array.isArray(subjectClasses) ? subjectClasses : [])
+          .map((item) => Number(item?.year_id))
+          .filter((id) => Number.isFinite(id) && id > 0);
+        const allowedYearIds = new Set(
+          (savedYearIds.length > 0 ? savedYearIds : subjectClassYearIds)
+        );
+        const allowedBaseLabels = new Set(
+          (Array.isArray(subjectClasses) ? subjectClasses : [])
+            .map((item) => String(item?.base_class_label ?? "").trim().toLowerCase())
+            .filter(Boolean)
+        );
         const candidateYears = year_id
-          ? (years || []).filter((year: any) => Number(year.id) === Number(year_id))
-          : (years || []);
+          ? (years || []).filter(
+              (year: any) =>
+                Number(year.id) === Number(year_id) && allowedYearIds.has(Number(year.id))
+            )
+          : (years || []).filter((year: any) => allowedYearIds.has(Number(year.id)));
         const groupedByYear = await Promise.all(
           candidateYears.map(async (year: any) => {
             try {
@@ -123,37 +160,12 @@ export default function Page() {
         const uniqueClasses = Array.from(
           new Map(groupedByYear.flat().map((cls: any) => [String(cls.id), cls])).values()
         );
-        const activeSubjectName = normalizeSubjectLabel(activeSubject?.name);
-        const filteredClassResults = await Promise.all(
-          uniqueClasses.map(async (cls: any) => {
-            try {
-              const students = await fetchStudents(cls.id);
-              const hasSubject = (Array.isArray(students) ? students : []).some((student: any) => {
-                const rawSubjects = Array.isArray(student.subjects)
-                  ? student.subjects
-                  : student.subject_name
-                    ? [student.subject_name]
-                    : student.subject
-                      ? [student.subject]
-                      : [];
-                return rawSubjects.some((item: any) => {
-                  const name =
-                    typeof item === "string"
-                      ? item
-                      : item && typeof item === "object"
-                        ? item.name ?? item.subject_name ?? ""
-                        : "";
-                  return normalizeSubjectLabel(name) === activeSubjectName;
-                });
-              });
-              return hasSubject ? cls : null;
-            } catch {
-              return null;
-            }
-          })
-        );
-
-        classesData = filteredClassResults.filter(Boolean);
+        classesData =
+          allowedBaseLabels.size > 0
+            ? uniqueClasses.filter((cls: any) =>
+                allowedBaseLabels.has(String(cls?.class_name ?? "").trim().toLowerCase())
+              )
+            : uniqueClasses;
       } else if (isTeacher) {
         const res = await fetchAssignYears();
 
@@ -232,7 +244,16 @@ useEffect(() => {
                         : item && typeof item === "object"
                           ? item.name ?? item.subject_name ?? ""
                           : "";
-                    return normalizeSubjectLabel(name) === normalizeSubjectLabel(activeSubject?.name);
+                    return (
+                      String(name ?? "")
+                        .replace(/islamiat/gi, "Islamic")
+                        .trim()
+                        .toLowerCase() ===
+                      String(activeSubject?.name ?? "")
+                        .replace(/islamiat/gi, "Islamic")
+                        .trim()
+                        .toLowerCase()
+                    );
                   });
                 }).length
               : students.length

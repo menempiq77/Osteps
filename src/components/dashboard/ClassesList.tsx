@@ -113,90 +113,52 @@ export default function ClassesList({
     }
   };
 
-  const getClassTone = (color?: string) => {
-    switch (color) {
+  const getPaletteColor = (palette?: string) => {
+    switch (palette) {
       case "yellow":
-        return {
-          card: "border-amber-200 bg-gradient-to-b from-amber-50 to-white hover:shadow-md hover:-translate-y-0.5",
-          dragCard: "border-amber-300 bg-amber-100/70",
-          top: "bg-amber-200/80 border-amber-300/70",
-          title: "hover:text-amber-700",
-          icon: "text-amber-500",
-          move: "border-amber-200 text-amber-700",
-          students: "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100",
-          terms: "border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100",
-          story: "border-lime-200 bg-lime-50 text-lime-700 hover:bg-lime-100",
-          edit: "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100",
-        };
+        return "#d97706";
       case "red":
-        return {
-          card: "border-rose-200 bg-gradient-to-b from-rose-50 to-white hover:shadow-md hover:-translate-y-0.5",
-          dragCard: "border-rose-300 bg-rose-100/70",
-          top: "bg-rose-200/80 border-rose-300/70",
-          title: "hover:text-rose-700",
-          icon: "text-rose-500",
-          move: "border-rose-200 text-rose-700",
-          students: "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100",
-          terms: "border-red-200 bg-red-50 text-red-700 hover:bg-red-100",
-          story: "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100",
-          edit: "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100",
-        };
+        return "#dc2626";
       case "blue":
-        return {
-          card: "border-sky-200 bg-gradient-to-b from-sky-50 to-white hover:shadow-md hover:-translate-y-0.5",
-          dragCard: "border-sky-300 bg-sky-100/70",
-          top: "bg-sky-200/80 border-sky-300/70",
-          title: "hover:text-sky-700",
-          icon: "text-sky-500",
-          move: "border-sky-200 text-sky-700",
-          students: "border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100",
-          terms: "border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100",
-          story: "border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100",
-          edit: "border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100",
-        };
+        return "#2563eb";
       case "purple":
-        return {
-          card: "border-violet-200 bg-gradient-to-b from-violet-50 to-white hover:shadow-md hover:-translate-y-0.5",
-          dragCard: "border-violet-300 bg-violet-100/70",
-          top: "bg-violet-200/80 border-violet-300/70",
-          title: "hover:text-violet-700",
-          icon: "text-violet-500",
-          move: "border-violet-200 text-violet-700",
-          students: "border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100",
-          terms: "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700 hover:bg-fuchsia-100",
-          story: "border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100",
-          edit: "border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100",
-        };
+        return "#7c3aed";
       case "green":
       default:
-        return {
-          card: "border-emerald-200 bg-gradient-to-b from-emerald-50 to-white hover:shadow-md hover:-translate-y-0.5",
-          dragCard: "border-emerald-300 bg-emerald-100/70",
-          top: "bg-emerald-200/80 border-emerald-300/70",
-          title: "hover:text-emerald-700",
-          icon: "text-emerald-500",
-          move: "border-emerald-200 text-emerald-700",
-          students: "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
-          terms: "border-green-200 bg-green-50 text-green-700 hover:bg-green-100",
-          story: "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
-          edit: "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
-        };
+        return "var(--primary)";
     }
   };
 
   return (
     <div className="overflow-auto">
       {contextHolder}
-      <div className="relative overflow-auto rounded-2xl border border-emerald-100 bg-gradient-to-b from-white to-emerald-50/30 p-4 md:p-5 shadow-sm">
+      <div
+        className="relative overflow-auto rounded-2xl p-4 shadow-sm md:p-5"
+        style={{
+          border: "1px solid color-mix(in srgb, var(--primary) 20%, white)",
+          background:
+            "linear-gradient(180deg, rgba(255,255,255,0.98), color-mix(in srgb, var(--primary) 10%, white))",
+        }}
+      >
         {canManageOrder && (
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs text-emerald-700">
+          <div
+            className="mb-4 inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs"
+            style={{
+              border: "1px solid color-mix(in srgb, var(--primary) 35%, white)",
+              backgroundColor: "color-mix(in srgb, var(--primary) 10%, white)",
+              color: "var(--theme-dark)",
+            }}
+          >
             <MenuOutlined />
             Drag class folders to reorder
           </div>
         )}
 
         {localClasses?.length === 0 ? (
-          <div className="p-8 text-center text-gray-500 bg-white rounded-xl border border-dashed border-emerald-200">
+          <div
+            className="rounded-xl border border-dashed bg-white p-8 text-center text-gray-500"
+            style={{ borderColor: "color-mix(in srgb, var(--primary) 35%, white)" }}
+          >
             <div className="text-lg mb-2">No classes found</div>
             {!isStudent && (
               <p className="text-sm text-gray-400">
@@ -205,60 +167,46 @@ export default function ClassesList({
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
+          <div className="space-y-2 mb-6">
             {localClasses.map((cls) => {
-              const tone = getClassTone(cls.color);
               const stats = classStats[String(cls.id)] ?? { students: 0 };
+              const accentColor = getPaletteColor(cls.color);
               return (
-              <div
-                key={cls.id}
-                draggable={canManageOrder}
-                onDragStart={() => setDraggingClassId(cls.id)}
-                onDragOver={(e) => {
-                  if (canManageOrder) e.preventDefault();
-                }}
-                onDrop={() => {
-                  if (canManageOrder && draggingClassId) {
-                    reorderClasses(draggingClassId, cls.id);
-                  }
-                }}
-                onDragEnd={() => setDraggingClassId(null)}
-                className={`relative rounded-xl border transition-all duration-200 ${
-                  draggingClassId === cls.id
-                    ? tone.dragCard
-                    : tone.card
-                }`}
-              >
-                <div className={`h-8 rounded-t-xl border-b ${tone.top}`} />
-                <div className="p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <button
-                      onClick={() => handleViewStudents(cls.id)}
-                      className={`cursor-pointer text-left text-base font-semibold text-gray-800 transition-colors ${tone.title}`}
-                    >
-                      <span className="inline-flex items-center gap-2">
-                        <FolderOpenOutlined className={tone.icon} />
-                        {cls.class_name}
-                      </span>
-                    </button>
+                <div
+                  key={cls.id}
+                  draggable={canManageOrder}
+                  onDragStart={() => setDraggingClassId(cls.id)}
+                  onDragOver={(e) => {
+                    if (canManageOrder) e.preventDefault();
+                  }}
+                  onDrop={() => {
+                    if (canManageOrder && draggingClassId) {
+                      reorderClasses(draggingClassId, cls.id);
+                    }
+                  }}
+                  onDragEnd={() => setDraggingClassId(null)}
+                  className="flex flex-wrap items-center gap-3 rounded-lg border bg-white px-3 py-2 text-sm"
+                  style={{
+                    borderColor:
+                      draggingClassId === cls.id
+                        ? `color-mix(in srgb, ${accentColor} 45%, white)`
+                        : `color-mix(in srgb, ${accentColor} 18%, white)`,
+                    backgroundColor:
+                      draggingClassId === cls.id
+                        ? `color-mix(in srgb, ${accentColor} 10%, white)`
+                        : "rgba(255,255,255,0.96)",
+                  }}
+                >
+                  <button
+                    onClick={() => handleViewStudents(cls.id)}
+                    className="inline-flex cursor-pointer items-center gap-2 text-left text-[15px] font-semibold"
+                    style={{ color: accentColor }}
+                  >
+                    <FolderOpenOutlined />
+                    {cls.class_name}
+                  </button>
 
-                    {canManageOrder && (
-                      <span className={`inline-flex items-center gap-1 rounded-full border bg-white px-2 py-1 text-[11px] cursor-grab ${tone.move}`}>
-                        <MenuOutlined />
-                        Move
-                      </span>
-                    )}
-                  </div>
-
-                    <div className="mt-2 space-y-1 text-sm text-gray-600">
-                    {!subjectScoped ? (
-                      <div>
-                        {cls.number_of_terms === "two" ? "Two Terms" : "Three Terms"}
-                      </div>
-                    ) : null}
-                    <div className="text-xs text-gray-500">
-                      Teacher: {cls.teacher_name || "Not assigned"}
-                    </div>
+                  <div className="flex flex-wrap items-center gap-3 text-[13px] text-slate-600">
                     <button
                       type="button"
                       onClick={() =>
@@ -268,67 +216,72 @@ export default function ClassesList({
                           }`
                         )
                       }
-                      className="cursor-pointer inline-flex items-center rounded-full border border-slate-200 bg-white/85 px-2 py-0.5 text-xs text-slate-700 hover:bg-slate-100/90"
+                      className="cursor-pointer hover:text-[var(--theme-dark)]"
                     >
-                      {stats.students} students
+                      Students: {stats.students}
                     </button>
+                    <span>Teacher: {cls.teacher_name || "Not assigned"}</span>
+                    {!subjectScoped ? (
+                      <span>{cls.number_of_terms === "two" ? "Two Terms" : "Three Terms"}</span>
+                    ) : null}
                   </div>
 
-                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <div className="ml-auto flex flex-wrap items-center gap-3 text-[12px]">
+                    {canManageOrder && (
+                      <span className="inline-flex cursor-grab items-center gap-1 text-slate-500">
+                        <MenuOutlined />
+                        Move
+                      </span>
+                    )}
                     <button
                       onClick={() => handleViewStudents(cls.id)}
-                      className={`cursor-pointer inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs ${tone.students}`}
+                      className="cursor-pointer text-slate-600 hover:text-[var(--theme-dark)]"
                       title="Students"
                     >
-                      <TeamOutlined />
-                      Students
+                      <TeamOutlined /> Students
                     </button>
                     {!subjectScoped ? (
                       <button
                         onClick={() => handleTerms(cls.id)}
-                        className={`cursor-pointer inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs ${tone.terms}`}
+                        className="cursor-pointer text-slate-600 hover:text-[var(--theme-dark)]"
                         title="Terms"
                       >
-                        <BookOutlined />
-                        Terms
+                        <BookOutlined /> Terms
                       </button>
                     ) : null}
                     {!subjectScoped ? (
                       <button
                         onClick={() => handleStory(cls.id)}
-                        className={`cursor-pointer inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs ${tone.story}`}
+                        className="cursor-pointer text-slate-600 hover:text-[var(--theme-dark)]"
                         title="Class Story"
                       >
-                        <ReadOutlined />
-                        Story
+                        <ReadOutlined /> Story
                       </button>
                     ) : null}
 
                     {hasAccess && !subjectScoped && (
                       <button
                         onClick={() => onEditClass(cls)}
-                        className={`cursor-pointer inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs ${tone.edit}`}
+                        className="cursor-pointer text-slate-600 hover:text-[var(--theme-dark)]"
                         title="Edit"
                       >
-                        <EditOutlined />
-                        Edit
+                        <EditOutlined /> Edit
                       </button>
                     )}
 
                     {hasAccess && !subjectScoped && (
                       <button
                         onClick={() => handleDeleteClick(cls)}
-                        className="cursor-pointer inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs text-rose-700 hover:bg-rose-100"
+                        className="cursor-pointer text-rose-600 hover:text-rose-700"
                         title="Delete"
                       >
-                        <DeleteOutlined />
-                        Delete
+                        <DeleteOutlined /> Delete
                       </button>
                     )}
                   </div>
                 </div>
-              </div>
-            )})}
+              );
+            })}
           </div>
         )}
       </div>
