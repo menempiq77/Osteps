@@ -13,13 +13,14 @@ class SubjectContextController extends Controller
     {
         $user = $request->user();
         $role = $this->resolveRole($user);
+        $schoolId = $this->resolveSchoolId($user);
 
         $subjects = collect();
 
         if ($role === 'SCHOOL_ADMIN') {
             $subjects = DB::table('subjects')
-                ->where('school_id', $user->school_id)
-                ->select('id', 'name', 'code')
+                ->where('school_id', $schoolId)
+                ->selectRaw($this->subjectSelectSql('subjects'))
                 ->orderBy('name')
                 ->get();
         } elseif ($role === 'STUDENT') {
@@ -32,8 +33,8 @@ class SubjectContextController extends Controller
                     ->where('sse.student_id', (int) $studentId)
                     ->where('sse.is_active', 1)
                     ->where('sc.is_active', 1)
-                    ->where('s.school_id', $user->school_id)
-                    ->select('s.id', 's.name', 's.code')
+                    ->where('s.school_id', $schoolId)
+                    ->selectRaw($this->subjectSelectSql('s'))
                     ->distinct()
                     ->orderBy('s.name')
                     ->get();
@@ -43,17 +44,18 @@ class SubjectContextController extends Controller
                 ->join('subjects as s', 's.id', '=', 'usa.subject_id')
                 ->where('usa.user_id', $user->id)
                 ->where('usa.is_active', 1)
-                ->select('s.id', 's.name', 's.code')
+                ->where('s.school_id', $schoolId)
+                ->selectRaw($this->subjectSelectSql('s'))
                 ->distinct()
                 ->orderBy('s.name')
                 ->get();
         }
 
         // fallback for legacy school admins only
-        if ($subjects->isEmpty() && $user->school_id && $role === 'SCHOOL_ADMIN') {
+        if ($subjects->isEmpty() && $schoolId > 0 && $role === 'SCHOOL_ADMIN') {
             $subjects = DB::table('subjects')
-                ->where('school_id', $user->school_id)
-                ->select('id', 'name', 'code')
+                ->where('school_id', $schoolId)
+                ->selectRaw($this->subjectSelectSql('subjects'))
                 ->orderBy('name')
                 ->get();
         }
@@ -126,9 +128,10 @@ class SubjectContextController extends Controller
         ]);
 
         $subjectIds = collect($payload['subject_ids'])->map(fn ($id) => (int) $id)->unique()->values();
+        $schoolId = $this->resolveSchoolId($request->user());
 
         $validIds = DB::table('subjects')
-            ->where('school_id', $request->user()->school_id)
+            ->where('school_id', $schoolId)
             ->whereIn('id', $subjectIds->all())
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
@@ -185,12 +188,13 @@ class SubjectContextController extends Controller
 
         $items = DB::table('user_subject_assignments as usa')
             ->join('users as u', 'u.id', '=', 'usa.user_id')
+            ->join('teachers as t', 't.user_id', '=', 'usa.user_id')
             ->join('subjects as s', 's.id', '=', 'usa.subject_id')
             ->where('usa.is_active', 1)
             ->when($request->filled('role_scope'), fn ($q) => $q->where('usa.role_scope', $request->string('role_scope')))
-            ->where('s.school_id', $request->user()->school_id)
+            ->where('s.school_id', $this->resolveSchoolId($request->user()))
             ->when($role === 'HOD', fn ($q) => $q->whereIn('usa.subject_id', $hodSubjectIds))
-            ->select('usa.user_id', 'u.name as user_name', 'usa.role_scope', 'usa.subject_id', 's.name as subject_name')
+            ->select('usa.user_id', 'u.name as user_name', 'usa.role_scope', 'usa.subject_id', 's.name as subject_name', 't.id as teacher_id', 't.role as teacher_role')
             ->orderBy('u.name')
             ->orderBy('s.name')
             ->get();
@@ -204,10 +208,11 @@ class SubjectContextController extends Controller
     private function userCanAccessSubject($user, int $subjectId): bool
     {
         $role = $this->resolveRole($user);
+        $schoolId = $this->resolveSchoolId($user);
         if ($role === 'SCHOOL_ADMIN') {
             return DB::table('subjects')
                 ->where('id', $subjectId)
-                ->where('school_id', $user->school_id)
+                ->where('school_id', $schoolId)
                 ->exists();
         }
 
@@ -224,7 +229,7 @@ class SubjectContextController extends Controller
                 ->where('sse.is_active', 1)
                 ->where('sc.is_active', 1)
                 ->where('s.id', $subjectId)
-                ->where('s.school_id', $user->school_id)
+                ->where('s.school_id', $schoolId)
                 ->exists();
         }
 
@@ -249,5 +254,28 @@ class SubjectContextController extends Controller
     private function resolveRole(object $user): string
     {
         return strtoupper(str_replace(' ', '_', (string) ($user->role ?? $user->user_type ?? '')));
+    }
+
+    private function resolveSchoolId($user): int
+    {
+        $school = $user->school ?? null;
+
+        return (int) (
+            $user->school_id ??
+            $user->schoolId ??
+            (is_object($school) ? ($school->id ?? 0) : $school) ??
+            0
+        );
+    }
+
+    private function subjectSelectSql(string $alias): string
+    {
+        $qualifiedCode = $alias . '.code';
+
+        if (Schema::hasColumn('subjects', 'code')) {
+            return "{$alias}.id, {$alias}.name, {$qualifiedCode} as code";
+        }
+
+        return "{$alias}.id, {$alias}.name, NULL as code";
     }
 }

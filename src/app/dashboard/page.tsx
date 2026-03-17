@@ -38,7 +38,8 @@ import {
   fetchStudentDashboardData,
   searchStudentProfile,
 } from "@/services/dashboardApis";
-import { fetchAssignYears } from "@/services/yearsApi";
+import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
+import { fetchClasses } from "@/services/classesApi";
 import { fetchStudents } from "@/services/studentsApi";
 import { fetchSchoolLogo } from "@/services/api";
 import { IMG_BASE_URL } from "@/lib/config";
@@ -54,6 +55,12 @@ export const dynamic = "force-dynamic";
 const THEME_COLOR = "var(--primary)";
 const THEME_COLOR_LIGHT = "var(--theme-soft)";
 const THEME_COLOR_DARK = "var(--theme-dark)";
+const formatSubjectDashboardName = (value?: string | null) =>
+  String(value || "Subject").replace(/islamiat/gi, "Islamic").trim();
+const ISLAMIC_DASHBOARD_IMAGE =
+  "https://commons.wikimedia.org/wiki/Special:Redirect/file/The_Green_Dome%2C_Masjid_Nabawi%2C_Madina.jpg";
+const ARABIC_DASHBOARD_IMAGE =
+  "https://commons.wikimedia.org/wiki/Special:Redirect/file/The_Arabic_Alphabet._Ottoman_Calligraphy_%28CBL_T_490%2C_ff.1b-2a%29.jpg";
 
 export default function DashboardPage() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
@@ -63,6 +70,11 @@ export default function DashboardPage() {
   const isSCHOOL_ADMIN = currentUser?.role === "SCHOOL_ADMIN";
   const isTEACHER = currentUser?.role === "TEACHER";
   const isHOD = currentUser?.role === "HOD";
+  const schoolId = Number(
+    (currentUser as { school?: number | string; school_id?: number | string } | null)?.school ??
+      (currentUser as { school?: number | string; school_id?: number | string } | null)?.school_id ??
+      0
+  );
   const isLegacySubjectView =
     canUseSubjectContext &&
     !!activeSubjectId &&
@@ -176,38 +188,99 @@ export default function DashboardPage() {
     data: subjectScopedOverview,
     error: subjectScopedOverviewError,
   } = useQuery({
-    queryKey: ["subject-scoped-overview", activeSubjectId],
+    queryKey: ["subject-scoped-overview", activeSubjectId, schoolId, currentUser?.role],
     queryFn: async () => {
       if (!activeSubjectId) return null;
-      const [classes, staffAssignments] = await Promise.all([
+
+      const [subjectClasses, staffAssignments, years] = await Promise.all([
         fetchSubjectClasses({ subject_id: Number(activeSubjectId) }),
         fetchStaffSubjectAssignments(),
+        schoolId > 0 ? fetchYearsBySchool(schoolId) : Promise.resolve([]),
       ]);
 
-      const classCount = Array.isArray(classes) ? classes.length : 0;
-      const scopedStaff = (Array.isArray(staffAssignments) ? staffAssignments : []).filter(
-        (item: any) => Number(item?.subject_id) === Number(activeSubjectId)
-      );
-      const teacherCount = new Set(
-        scopedStaff
-          .filter((item: any) => String(item?.role_scope || "").toUpperCase() === "TEACHER")
-          .map((item: any) => Number(item?.user_id))
+      const classes = Array.isArray(subjectClasses) ? subjectClasses : [];
+      const classCount = classes.length;
+      const yearCount = new Set(
+        classes
+          .map((item: any) => Number(item?.year_id))
+          .filter((value) => Number.isFinite(value) && value > 0)
       ).size;
+
+      const scopedStaff = (Array.isArray(staffAssignments) ? staffAssignments : []).filter(
+        (item: any) =>
+          Number(item?.subject_id) === Number(activeSubjectId) &&
+          Number(item?.teacher_id) > 0
+      );
+      const teacherCount = new Set(scopedStaff.map((item: any) => Number(item?.user_id))).size;
       const hodCount = new Set(
         scopedStaff
           .filter((item: any) => String(item?.role_scope || "").toUpperCase() === "HOD")
           .map((item: any) => Number(item?.user_id))
       ).size;
 
+      const allYears = Array.isArray(years) ? years : [];
+      const schoolClasses = (
+        await Promise.all(
+          allYears.map(async (year: any) => {
+            try {
+              return await fetchClasses(String(year?.id));
+            } catch {
+              return [];
+            }
+          })
+        )
+      ).flat();
+
+      const studentLists = await Promise.all(
+        schoolClasses.map(async (cls: any) => {
+          try {
+            return await fetchStudents(cls?.id);
+          } catch {
+            return [];
+          }
+        })
+      );
+
+      const activeSubjectName = String(activeSubject?.name || "").trim().toLowerCase();
+      const studentCount = new Set(
+        studentLists
+          .flat()
+          .filter((student: any) => {
+            const rawSubjects = Array.isArray(student?.subjects)
+              ? student.subjects
+              : student?.subject_name
+                ? [student.subject_name]
+                : student?.subject
+                  ? [student.subject]
+                  : [];
+
+            const names = rawSubjects
+              .map((item: any) => {
+                if (typeof item === "string") return item;
+                if (item && typeof item === "object") return String(item.name ?? item.subject_name ?? "");
+                return "";
+              })
+              .map((name: string) => name.trim().toLowerCase())
+              .filter(Boolean);
+
+            return names.includes(activeSubjectName);
+          })
+          .map((student: any) => Number(student?.id))
+          .filter((id) => Number.isFinite(id) && id > 0)
+      ).size;
+
       return {
+        yearCount,
         classCount,
         teacherCount,
         hodCount,
+        studentCount,
       };
     },
     enabled:
       !!activeSubjectId &&
       isSubjectWorkspaceMode &&
+      schoolId > 0 &&
       (currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "HOD" || currentUser?.role === "TEACHER"),
     retry: false,
   });
@@ -391,19 +464,24 @@ export default function DashboardPage() {
           return {
             stats: [
               {
-                title: "Subject Classes",
+                title: "Total Years",
+                value: subjectScopedOverview?.yearCount || 0,
+                link: "/dashboard/years",
+              },
+              {
+                title: "Total Classes",
                 value: subjectScopedOverview?.classCount || 0,
-                link: "/dashboard/subject-classes",
+                link: "/dashboard/classes",
               },
               {
-                title: "Subject Teachers",
+                title: "Total Teachers",
                 value: subjectScopedOverview?.teacherCount || 0,
-                link: "/dashboard/subject-staff",
+                link: "/dashboard/teachers",
               },
               {
-                title: "Subject HODs",
-                value: subjectScopedOverview?.hodCount || 0,
-                link: "/dashboard/subject-staff",
+                title: "Total Students",
+                value: subjectScopedOverview?.studentCount || 0,
+                link: "/dashboard/students/all",
               },
             ],
             barChartData: [],
@@ -456,14 +534,19 @@ export default function DashboardPage() {
           return {
             stats: [
               {
-                title: "Subject Classes",
+                title: "Total Classes",
                 value: subjectScopedOverview?.classCount || 0,
-                link: "/dashboard/subject-classes",
+                link: "/dashboard/classes",
               },
               {
-                title: "Subject Teachers",
+                title: "Total Teachers",
                 value: subjectScopedOverview?.teacherCount || 0,
-                link: "/dashboard/subject-staff",
+                link: "/dashboard/teachers",
+              },
+              {
+                title: "Total Students",
+                value: subjectScopedOverview?.studentCount || 0,
+                link: "/dashboard/students/all",
               },
             ],
             barChartData: [],
@@ -511,19 +594,24 @@ export default function DashboardPage() {
           return {
             stats: [
               {
-                title: "Subject Classes",
+                title: "Total Years",
+                value: subjectScopedOverview?.yearCount || 0,
+                link: "/dashboard/years",
+              },
+              {
+                title: "Total Classes",
                 value: subjectScopedOverview?.classCount || 0,
-                link: "/dashboard/subject-classes",
+                link: "/dashboard/classes",
               },
               {
-                title: "Subject Teachers",
+                title: "Total Teachers",
                 value: subjectScopedOverview?.teacherCount || 0,
-                link: "/dashboard/subject-staff",
+                link: "/dashboard/teachers",
               },
               {
-                title: "Subject HODs",
-                value: subjectScopedOverview?.hodCount || 0,
-                link: "/dashboard/subject-staff",
+                title: "Total Students",
+                value: subjectScopedOverview?.studentCount || 0,
+                link: "/dashboard/students/all",
               },
             ],
             barChartData: [],
@@ -628,15 +716,6 @@ export default function DashboardPage() {
       "Total Students": (
         <GraduationCap className="h-5 w-5" style={{ color: THEME_COLOR }} />
       ),
-      "Subject Classes": (
-        <LayoutDashboard className="h-5 w-5" style={{ color: THEME_COLOR }} />
-      ),
-      "Subject Teachers": (
-        <Users className="h-5 w-5" style={{ color: THEME_COLOR }} />
-      ),
-      "Subject HODs": (
-        <UserCog className="h-5 w-5" style={{ color: THEME_COLOR }} />
-      ),
     },
     TEACHER: {
       "My Classes": (
@@ -647,12 +726,6 @@ export default function DashboardPage() {
       ),
       "Pending Assignments": (
         <ClipboardList className="h-5 w-5" style={{ color: THEME_COLOR }} />
-      ),
-      "Subject Classes": (
-        <LayoutDashboard className="h-5 w-5" style={{ color: THEME_COLOR }} />
-      ),
-      "Subject Teachers": (
-        <Users className="h-5 w-5" style={{ color: THEME_COLOR }} />
       ),
     },
     HOD: {
@@ -667,15 +740,6 @@ export default function DashboardPage() {
       ),
       "Pending Assignments": (
         <ClipboardList className="h-5 w-5" style={{ color: THEME_COLOR }} />
-      ),
-      "Subject Classes": (
-        <LayoutDashboard className="h-5 w-5" style={{ color: THEME_COLOR }} />
-      ),
-      "Subject Teachers": (
-        <Users className="h-5 w-5" style={{ color: THEME_COLOR }} />
-      ),
-      "Subject HODs": (
-        <UserCog className="h-5 w-5" style={{ color: THEME_COLOR }} />
       ),
     },
     STUDENT: {
@@ -739,14 +803,19 @@ export default function DashboardPage() {
           <div className="flex items-start justify-between">
             <div>
               <h1 className="text-2xl font-semibold text-gray-800 mb-1">
-                Welcome, {String(currentUser?.name || "User").replace(/_/g, " ")}!
+                {isSubjectWorkspaceMode
+                  ? `${formatSubjectDashboardName(activeSubject?.name)} Dashboard`
+                  : `Welcome, ${String(currentUser?.name || "User").replace(/_/g, " ")}!`}
               </h1>
               <p className="text-lg text-gray-600 mb-3">
-                We're glad to have you back!
+                {isSubjectWorkspaceMode
+                  ? `Welcome, ${String(currentUser?.name || "User").replace(/_/g, " ")} - ${formatSubjectDashboardName(activeSubject?.name)}!`
+                  : "We're glad to have you back!"}
               </p>
               <p className="text-gray-500 mb-4">
-                Let's get started. Explore your dashboard to manage your
-                activities.
+                {isSubjectWorkspaceMode
+                  ? `View the latest information for ${formatSubjectDashboardName(activeSubject?.name)}.`
+                  : "Let's get started. Explore your dashboard to manage your activities."}
               </p>
             </div>
             {currentUser?.role !== "SUPER_ADMIN" && schoolLogo ? (
@@ -758,25 +827,45 @@ export default function DashboardPage() {
                 />
               </div>
             ) : (
-              <div
-                className="hidden md:block p-3 rounded-lg"
-                style={{ backgroundColor: THEME_COLOR_LIGHT }}
-              >
-                <svg
-                  className="w-16 h-16"
-                  style={{ color: THEME_COLOR }}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+              isSubjectWorkspaceMode &&
+              /islam|islamiat|islamic/i.test(String(activeSubject?.name || "")) ? (
+                <div className="hidden md:block h-32 w-32 overflow-hidden rounded-2xl border border-[var(--theme-border)] bg-white shadow-sm">
+                  <img
+                    src={ISLAMIC_DASHBOARD_IMAGE}
+                    alt="Al-Masjid an-Nabawi"
+                    className="h-full w-full object-cover"
                   />
-                </svg>
-              </div>
+                </div>
+              ) : isSubjectWorkspaceMode &&
+                /arabic|arab/i.test(String(activeSubject?.name || "")) ? (
+                <div className="hidden md:block h-32 w-32 overflow-hidden rounded-2xl border border-[var(--theme-border)] bg-white shadow-sm">
+                  <img
+                    src={ARABIC_DASHBOARD_IMAGE}
+                    alt="Arabic alphabet calligraphy"
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+              ) : (
+                <div
+                  className="hidden md:block p-3 rounded-lg"
+                  style={{ backgroundColor: THEME_COLOR_LIGHT }}
+                >
+                  <svg
+                    className="w-16 h-16"
+                    style={{ color: THEME_COLOR }}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                    />
+                  </svg>
+                </div>
+              )
             )}
           </div>
         </div>

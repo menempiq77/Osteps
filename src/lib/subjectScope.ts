@@ -26,23 +26,9 @@ export const getStoredSubjectName = (): string | null => {
   }
 };
 
-const isLegacyIslamiatSubject = (subjectName: string | null): boolean => {
-  if (!subjectName) return false;
-  const normalized = subjectName.trim().toLowerCase();
-  return (
-    normalized.includes("islamiat") ||
-    normalized.includes("islamiyat") ||
-    normalized.includes("islamic")
-  );
-};
-
 export const shouldUseLegacyUnscopedSubjectData = (subjectId?: number | null): boolean => {
   if (!isSubjectContextEnabled()) return true;
-  const activeId = getStoredSubjectId();
-  const resolved = subjectId ?? activeId;
-  if (!resolved || !activeId) return false;
-  if (Number(activeId) !== Number(resolved)) return false;
-  return isLegacyIslamiatSubject(getStoredSubjectName());
+  return false;
 };
 
 export const resolveScopedSubjectId = (subjectId?: number | null): number | null => {

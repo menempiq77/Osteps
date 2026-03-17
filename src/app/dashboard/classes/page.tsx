@@ -10,7 +10,7 @@ import Link from "next/link";
 import { addClass, deleteClass, fetchClasses, updateClass } from "@/services/classesApi";
 import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
 import { fetchStudents } from "@/services/studentsApi";
-
+import { useSubjectContext } from "@/contexts/SubjectContext";
 interface ApiClass {
   id: string;
   class_name: string;
@@ -20,6 +20,9 @@ interface ApiClass {
   teacher_name?: string;
   color?: string;
 }
+
+const normalizeSubjectLabel = (value: unknown) =>
+  String(value ?? "").replace(/islamiat/gi, "Islamic").trim().toLowerCase();
 
 export default function Page() {
   const searchParams = useSearchParams();
@@ -33,8 +36,10 @@ export default function Page() {
   const [classStats, setClassStats] = useState<Record<string, { students: number }>>({});
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [messageApi, contextHolder] = message.useMessage();
+  const { activeSubjectId, activeSubject, canUseSubjectContext } = useSubjectContext();
   const hasAccess = currentUser?.role === "SCHOOL_ADMIN";
   const isTeacher = currentUser?.role === "TEACHER";
+  const isSubjectWorkspaceMode = canUseSubjectContext && !!activeSubjectId;
   const classesOrderStorageKey = `classes-order-${year_id ?? "all"}-${currentUser?.school ?? "global"}`;
   const classesColorStorageKey = `classes-colors-${currentUser?.school ?? "global"}`;
 
@@ -94,7 +99,62 @@ export default function Page() {
     try {
       setLoading(true);
 
-      if (isTeacher) {
+      if (isSubjectWorkspaceMode && activeSubjectId) {
+        const schoolId = Number(currentUser?.school);
+        if (!schoolId) {
+          setError("School is missing for current user");
+          return;
+        }
+
+        const years = await fetchYearsBySchool(schoolId);
+        const candidateYears = year_id
+          ? (years || []).filter((year: any) => Number(year.id) === Number(year_id))
+          : (years || []);
+        const groupedByYear = await Promise.all(
+          candidateYears.map(async (year: any) => {
+            try {
+              return (await fetchClasses(String(year.id))) as ApiClass[];
+            } catch {
+              return [] as ApiClass[];
+            }
+          })
+        );
+
+        const uniqueClasses = Array.from(
+          new Map(groupedByYear.flat().map((cls: any) => [String(cls.id), cls])).values()
+        );
+        const activeSubjectName = normalizeSubjectLabel(activeSubject?.name);
+        const filteredClassResults = await Promise.all(
+          uniqueClasses.map(async (cls: any) => {
+            try {
+              const students = await fetchStudents(cls.id);
+              const hasSubject = (Array.isArray(students) ? students : []).some((student: any) => {
+                const rawSubjects = Array.isArray(student.subjects)
+                  ? student.subjects
+                  : student.subject_name
+                    ? [student.subject_name]
+                    : student.subject
+                      ? [student.subject]
+                      : [];
+                return rawSubjects.some((item: any) => {
+                  const name =
+                    typeof item === "string"
+                      ? item
+                      : item && typeof item === "object"
+                        ? item.name ?? item.subject_name ?? ""
+                        : "";
+                  return normalizeSubjectLabel(name) === activeSubjectName;
+                });
+              });
+              return hasSubject ? cls : null;
+            } catch {
+              return null;
+            }
+          })
+        );
+
+        classesData = filteredClassResults.filter(Boolean);
+      } else if (isTeacher) {
         const res = await fetchAssignYears();
 
         classesData = res
@@ -142,7 +202,7 @@ export default function Page() {
   };
 
   loadClasses();
-}, [year_id, isTeacher, currentUser?.school]);
+}, [year_id, isTeacher, currentUser?.school, isSubjectWorkspaceMode, activeSubjectId]);
 
 useEffect(() => {
   const loadClassStats = async () => {
@@ -155,7 +215,28 @@ useEffect(() => {
       classes.map(async (cls) => {
         try {
           const students = await fetchStudents(cls.id);
-          const total = Array.isArray(students) ? students.length : 0;
+          const total = Array.isArray(students)
+            ? isSubjectWorkspaceMode
+              ? students.filter((student: any) => {
+                  const rawSubjects = Array.isArray(student.subjects)
+                    ? student.subjects
+                    : student.subject_name
+                      ? [student.subject_name]
+                      : student.subject
+                        ? [student.subject]
+                        : [];
+                  return rawSubjects.some((item: any) => {
+                    const name =
+                      typeof item === "string"
+                        ? item
+                        : item && typeof item === "object"
+                          ? item.name ?? item.subject_name ?? ""
+                          : "";
+                    return normalizeSubjectLabel(name) === normalizeSubjectLabel(activeSubject?.name);
+                  });
+                }).length
+              : students.length
+            : 0;
           return [String(cls.id), { students: total }] as const;
         } catch {
           return [String(cls.id), { students: 0 }] as const;
@@ -166,7 +247,7 @@ useEffect(() => {
   };
 
   loadClassStats();
-}, [classes]);
+}, [classes, isSubjectWorkspaceMode, activeSubject?.name]);
 
   const handleReorderClasses = (ordered: {
     id: string;

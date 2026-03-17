@@ -15,8 +15,6 @@ const SUBJECT_SCOPED_PREFIXES = [
   "/dashboard/students/reports",
   "/dashboard/mind-upgrade",
   "/dashboard/subjects",
-  "/dashboard/subject-classes",
-  "/dashboard/subject-staff",
 ];
 
 const SUBJECT_CONTEXT_ENABLED = process.env.NEXT_PUBLIC_SUBJECT_CONTEXT_ENABLED !== "false";

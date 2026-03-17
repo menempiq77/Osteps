@@ -23,8 +23,6 @@ return new class extends Migration {
                 $subjectId = DB::table('subjects')->insertGetId([
                     'school_id' => $school->id,
                     'name' => 'Islamiat',
-                    'code' => 'ISL',
-                    'description' => 'Legacy mapped default subject',
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);

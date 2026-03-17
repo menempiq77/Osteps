@@ -6,13 +6,16 @@ import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
 import {
+  Alert,
   Breadcrumb,
   Button,
   Card,
   Checkbox,
+  Drawer,
   Form,
   Input,
   Modal,
+  Radio,
   Select,
   Space,
   Spin,
@@ -26,9 +29,15 @@ import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
 import { fetchClasses } from "@/services/classesApi";
 import { fetchStudents, updateStudent } from "@/services/studentsApi";
 import { useSubjectContext } from "@/contexts/SubjectContext";
+import {
+  assignStudentsToSubjects,
+  checkSubjectWorkspaceAvailability,
+  fetchSubjectClasses,
+} from "@/services/subjectWorkspaceApi";
 
 type StudentListRow = {
   key: string;
+  enrollmentStudentId: string;
   studentId: string;
   profileId: string;
   updateIds: string[];
@@ -43,6 +52,7 @@ type StudentListRow = {
   gender: "Male" | "Female" | "Unknown";
   genderRaw: "male" | "female" | "";
   nationality: string;
+  subjectIds: number[];
   subjectNames: string[];
   isSen: boolean;
   senDetails: string;
@@ -61,6 +71,14 @@ type ClassItem = {
   year?: { id?: number | string; name?: string };
 };
 
+type SubjectClassOption = {
+  id: number;
+  subjectId: number;
+  name: string;
+  yearId: number;
+  baseClassLabel: string;
+};
+
 const normalizeGender = (raw: unknown): "Male" | "Female" | "Unknown" => {
   const value = String(raw ?? "").trim().toLowerCase();
   if (!value) return "Unknown";
@@ -75,6 +93,9 @@ const normalizeGenderRaw = (raw: unknown): "male" | "female" | "" => {
   if (["female", "f", "girl"].includes(value)) return "female";
   return "";
 };
+
+const displaySubjectName = (value: unknown): string =>
+  String(value ?? "").replace(/islamiat/gi, "Islamic").trim();
 
 export default function AllStudentsPage() {
   const searchParams = useSearchParams();
@@ -101,6 +122,16 @@ export default function AllStudentsPage() {
   const [subjectFilter, setSubjectFilter] = useState<string>(preselectedSubjectId || "all");
   const [genderFilters, setGenderFilters] = useState<Array<"Male" | "Female">>([]);
   const [editingStudent, setEditingStudent] = useState<StudentListRow | null>(null);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [assignDrawerOpen, setAssignDrawerOpen] = useState(false);
+  const [assignLoading, setAssignLoading] = useState(false);
+  const [assignFeatureAvailable, setAssignFeatureAvailable] = useState<boolean | null>(null);
+  const [assignFeatureMessage, setAssignFeatureMessage] = useState("");
+  const [assignScope, setAssignScope] = useState<"selected" | "filtered" | "all_filtered">(
+    "selected"
+  );
+  const [assignForm] = Form.useForm();
+  const selectedAssignSubjectIds = Form.useWatch("subject_ids", assignForm) as number[] | undefined;
 
 
   const {
@@ -181,8 +212,17 @@ export default function AllStudentsPage() {
                     if (item && typeof item === "object") return String(item.name ?? item.subject_name ?? "");
                     return "";
                   })
-                  .map((name: string) => name.trim())
+                  .map((name: string) => displaySubjectName(name))
                   .filter(Boolean);
+                const subjectIds = rawSubjects
+                  .map((item: any) => {
+                    if (item && typeof item === "object") {
+                      const value = Number(item.id ?? item.subject_id);
+                      return Number.isFinite(value) && value > 0 ? value : null;
+                    }
+                    return null;
+                  })
+                  .filter((value: number | null): value is number => Number.isFinite(value as number));
 
                 const fromApiGender = normalizeGenderRaw(
                   student.gender ??
@@ -206,6 +246,7 @@ export default function AllStudentsPage() {
                 const senDetails = String(student.sen_details ?? student.senDetails ?? "");
                 return {
                   key: `${cls.id}-${student.id ?? student.student_id ?? Math.random()}`,
+                  enrollmentStudentId: primaryId || fallbackId || "",
                   studentId: sid,
                   profileId,
                   updateIds,
@@ -213,6 +254,7 @@ export default function AllStudentsPage() {
                   userName: String(student.user_name ?? student.username ?? ""),
                   email: String(student.email ?? ""),
                   nationality,
+                  subjectIds,
                   subjectNames,
                   isSen,
                   senDetails,
@@ -255,6 +297,7 @@ export default function AllStudentsPage() {
   const filteredStudents = useMemo(() => {
     const q = nameFilter.trim().toLowerCase();
     const wantedSubject = subjectFilter.trim().toLowerCase();
+    const wantedSubjectId = Number(subjectFilter);
     return students.filter((row) => {
       const nameMatch = !q || row.name.toLowerCase().includes(q);
       const yearMatch = yearFilter === "all" || row.yearGroup === yearFilter;
@@ -265,6 +308,9 @@ export default function AllStudentsPage() {
         genderFilters.length === 0 || genderFilters.includes(row.gender);
       const subjectMatch =
         subjectFilter === "all" ||
+        (Number.isFinite(wantedSubjectId) &&
+          wantedSubjectId > 0 &&
+          row.subjectIds.some((id) => Number(id) === wantedSubjectId)) ||
         row.subjectNames.some((subject) => String(subject || "").trim().toLowerCase() === wantedSubject);
       return nameMatch && yearMatch && yearIdMatch && classMatch && genderMatch && subjectMatch;
     });
@@ -279,6 +325,77 @@ export default function AllStudentsPage() {
       .sort((a, b) => String(a.label).localeCompare(String(b.label)));
   }, [students]);
 
+  const assignSubjectOptions = useMemo(() => {
+    const unique = new Map<string, { label: string; value: number }>();
+
+    for (const subject of subjects) {
+      const value = Number(subject.id);
+      if (!Number.isFinite(value) || value <= 0) continue;
+
+      const label = String(subject.name || "").replace(/islamiat/gi, "Islamic").trim();
+      const key = label.toLowerCase();
+      if (!label || unique.has(key)) continue;
+
+      unique.set(key, { label, value });
+    }
+
+    return Array.from(unique.values()).sort((a, b) => a.label.localeCompare(b.label));
+  }, [subjects]);
+
+  const { data: assignSubjectClasses = [] } = useQuery<SubjectClassOption[]>({
+    queryKey: ["assign-subject-classes", assignDrawerOpen, subjects.map((subject) => Number(subject.id)).join(",")],
+    enabled: isSchoolAdmin && assignDrawerOpen && subjects.length > 0,
+    queryFn: async () => {
+      const rows = await Promise.all(
+        subjects.map(async (subject) => {
+          const subjectId = Number(subject.id);
+          if (!Number.isFinite(subjectId) || subjectId <= 0) return [] as SubjectClassOption[];
+          try {
+            const items = await fetchSubjectClasses({ subject_id: subjectId });
+            return (Array.isArray(items) ? items : []).map((item: any) => ({
+              id: Number(item.id),
+              subjectId,
+              name: String(item.name || `Class ${item.id}`),
+              yearId: Number(item.year_id ?? 0),
+              baseClassLabel: String(item.base_class_label || ""),
+            }));
+          } catch {
+            return [] as SubjectClassOption[];
+          }
+        })
+      );
+
+      return rows
+        .flat()
+        .filter((item) => Number.isFinite(item.id) && item.id > 0)
+        .sort((a, b) => a.name.localeCompare(b.name));
+    },
+  });
+
+  const filteredAssignSubjectClassOptions = useMemo(() => {
+    const allowedSubjectIds = new Set(
+      (Array.isArray(selectedAssignSubjectIds) ? selectedAssignSubjectIds : [])
+        .map((id) => Number(id))
+        .filter((id) => Number.isFinite(id) && id > 0)
+    );
+
+    return assignSubjectClasses
+      .filter((item) => allowedSubjectIds.size === 0 || allowedSubjectIds.has(Number(item.subjectId)))
+      .map((item) => {
+        const subjectName =
+          assignSubjectOptions.find((option) => Number(option.value) === Number(item.subjectId))?.label ||
+          `Subject ${item.subjectId}`;
+        const yearName =
+          students.find((row) => Number(row.yearId) === Number(item.yearId))?.yearGroup ||
+          (item.yearId > 0 ? `Year ${item.yearId}` : "No year");
+        const detail = item.baseClassLabel ? `, ${item.baseClassLabel}` : "";
+        return {
+          label: `${subjectName} - ${item.name} (${yearName}${detail})`,
+          value: item.id,
+        };
+      });
+  }, [assignSubjectClasses, selectedAssignSubjectIds, assignSubjectOptions, students]);
+
   const resetFilters = () => {
     setNameFilter("");
     setYearFilter("all");
@@ -286,6 +403,102 @@ export default function AllStudentsPage() {
     setClassFilters([]);
     setSubjectFilter("all");
     setGenderFilters([]);
+  };
+
+  const openAssignDrawer = () => {
+    if (!isSchoolAdmin) {
+      messageApi.warning("Only School Admin can assign students to subjects.");
+      return;
+    }
+    setAssignScope(selectedRowKeys.length > 0 ? "selected" : "all_filtered");
+    assignForm.resetFields();
+    setAssignFeatureAvailable(null);
+    setAssignFeatureMessage("");
+    setAssignDrawerOpen(true);
+    void probeAssignFeature();
+  };
+
+  const probeAssignFeature = async () => {
+    const fallbackSubjectId = Number(subjects[0]?.id ?? 0);
+    if (!fallbackSubjectId) {
+      setAssignFeatureAvailable(false);
+      setAssignFeatureMessage("No subjects are available yet for assignment.");
+      return;
+    }
+
+    const result = await checkSubjectWorkspaceAvailability(fallbackSubjectId);
+    setAssignFeatureAvailable(result.available);
+    setAssignFeatureMessage(result.message || "");
+  };
+
+  const selectAllFiltered = () => {
+    if (!isSchoolAdmin) return;
+    setSelectedRowKeys(filteredStudents.map((row) => row.key));
+    messageApi.success(`Selected ${filteredStudents.length} students (from current filters).`);
+  };
+
+  const submitAssign = async () => {
+    if (!isSchoolAdmin) return;
+    if (assignFeatureAvailable === false) {
+      messageApi.error(assignFeatureMessage || "Student-to-subject assignment is not available.");
+      return;
+    }
+    const values = await assignForm.validateFields();
+    const subjectIds = Array.from(
+      new Set(
+        (Array.isArray(values.subject_ids) ? values.subject_ids : [])
+          .map((id) => Number(id))
+          .filter((id) => Number.isFinite(id) && id > 0)
+      )
+    );
+    const subjectClassIds = Array.from(
+      new Set(
+        (Array.isArray(values.subject_class_ids) ? values.subject_class_ids : [])
+          .map((id: unknown) => Number(id))
+          .filter((id) => Number.isFinite(id) && id > 0)
+      )
+    );
+    if (subjectIds.length === 0 && subjectClassIds.length === 0) {
+      messageApi.warning("Please choose at least one subject or class.");
+      return;
+    }
+
+    const targetRows =
+      assignScope === "selected"
+        ? filteredStudents.filter((row) => new Set(selectedRowKeys).has(row.key))
+        : filteredStudents;
+
+    const studentIds = Array.from(
+      new Set(
+        targetRows
+          .map((row) => Number(row.enrollmentStudentId || row.studentId || row.profileId))
+          .filter((id) => Number.isFinite(id) && id > 0)
+      )
+    );
+    if (studentIds.length === 0) {
+      messageApi.warning("No students selected.");
+      return;
+    }
+
+    setAssignLoading(true);
+    try {
+      await assignStudentsToSubjects({
+        subjectIds,
+        subjectClassIds,
+        studentIds,
+        subjects: subjects.map((subject) => ({ id: Number(subject.id), name: subject.name })),
+      });
+      messageApi.success(
+        `Assigned ${studentIds.length} student${studentIds.length === 1 ? "" : "s"} to ${subjectIds.length} subject${subjectIds.length === 1 ? "" : "s"}.`
+      );
+      setAssignDrawerOpen(false);
+      setSelectedRowKeys([]);
+      await queryClient.invalidateQueries({ queryKey: ["all-students-list", role, schoolId] });
+    } catch (error: any) {
+      messageApi.error(error?.response?.data?.msg || error?.message || "Failed to assign students.");
+    } finally {
+      setAssignLoading(false);
+    }
   };
 
   const editMutation = useMutation({
@@ -492,8 +705,8 @@ export default function AllStudentsPage() {
               options={[
                 { label: "All Subjects", value: "all" },
                 ...subjects.map((subject) => ({
-                  label: subject.name,
-                  value: String(subject.name || "").trim().toLowerCase(),
+                  label: displaySubjectName(subject.name),
+                  value: displaySubjectName(subject.name).toLowerCase(),
                 })),
               ]}
             />
@@ -516,6 +729,19 @@ export default function AllStudentsPage() {
           />
 
           <Button onClick={resetFilters}>Reset Filters</Button>
+          {isSchoolAdmin && (
+            <>
+              <Button onClick={() => setSelectedRowKeys([])} disabled={selectedRowKeys.length === 0}>
+                Clear selection ({selectedRowKeys.length})
+              </Button>
+              <Button onClick={selectAllFiltered} disabled={filteredStudents.length === 0}>
+                Select all (filtered) ({filteredStudents.length})
+              </Button>
+              <Button type="primary" onClick={openAssignDrawer} disabled={filteredStudents.length === 0}>
+                Assign to subject
+              </Button>
+            </>
+          )}
         </Space>
 
         {isLoading ? (
@@ -535,6 +761,14 @@ export default function AllStudentsPage() {
               rowKey="key"
               dataSource={filteredStudents}
               pagination={{ pageSize: 20, showSizeChanger: true }}
+              rowSelection={
+                isSchoolAdmin
+                  ? {
+                      selectedRowKeys,
+                      onChange: (keys) => setSelectedRowKeys(keys),
+                    }
+                  : undefined
+              }
               columns={[
                 {
                   title: "Student Name",
@@ -600,6 +834,82 @@ export default function AllStudentsPage() {
           </>
         )}
       </Card>
+
+      {isSchoolAdmin && (
+        <Drawer
+          title="Assign selected students to one or more subjects"
+          open={assignDrawerOpen}
+          onClose={() => setAssignDrawerOpen(false)}
+          width={420}
+          destroyOnClose
+        >
+          <Form layout="vertical" form={assignForm} initialValues={{ scope: assignScope }}>
+            {assignFeatureAvailable === false && assignFeatureMessage ? (
+              <Alert
+                className="mb-4"
+                type="warning"
+                showIcon
+                message="Assignment unavailable"
+                description={assignFeatureMessage}
+              />
+            ) : null}
+
+            <Form.Item label="Assign scope">
+              <Radio.Group value={assignScope} onChange={(e) => setAssignScope(e.target.value)}>
+                <Space direction="vertical">
+                  <Radio value="selected" disabled={selectedRowKeys.length === 0}>
+                    Selected only ({selectedRowKeys.length})
+                  </Radio>
+                  <Radio value="all_filtered">
+                    All in current filters ({filteredStudents.length})
+                  </Radio>
+                </Space>
+              </Radio.Group>
+            </Form.Item>
+
+            <Form.Item
+              name="subject_ids"
+              label="Subjects"
+            >
+              <Select
+                mode="multiple"
+                showSearch
+                optionFilterProp="label"
+                placeholder="Select one or more subjects"
+                options={assignSubjectOptions}
+                maxTagCount="responsive"
+              />
+            </Form.Item>
+
+            <Form.Item name="subject_class_ids" label="Existing Classes">
+              <Select
+                mode="multiple"
+                showSearch
+                optionFilterProp="label"
+                placeholder="Select any existing subject classes"
+                options={filteredAssignSubjectClassOptions}
+                maxTagCount="responsive"
+              />
+            </Form.Item>
+
+            <Typography.Text type="secondary" className="block mb-4">
+              You can now assign students to any existing subject class. If you choose only a subject and no class, the system will still use that subject&apos;s default class.
+            </Typography.Text>
+
+            <Space>
+              <Button onClick={() => setAssignDrawerOpen(false)}>Cancel</Button>
+              <Button
+                type="primary"
+                loading={assignLoading || assignFeatureAvailable === null}
+                disabled={assignFeatureAvailable === false}
+                onClick={submitAssign}
+              >
+                Assign
+              </Button>
+            </Space>
+          </Form>
+        </Drawer>
+      )}
 
       <Modal
         title={`Edit Student${editingStudent ? `: ${editingStudent.name}` : ""}`}

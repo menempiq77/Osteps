@@ -12,6 +12,7 @@ class SubjectClassController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
+        $schoolId = $this->resolveSchoolId($user);
         $subjectId = (int) $request->query('subject_id', 0);
 
         if ($subjectId <= 0) {
@@ -24,7 +25,7 @@ class SubjectClassController extends Controller
         $isSchoolAdmin = $this->resolveRole($user) === 'SCHOOL_ADMIN';
 
         $items = DB::table('subject_classes')
-            ->where('school_id', $user->school_id)
+            ->where('school_id', $schoolId)
             ->where('subject_id', $subjectId)
             ->when($request->filled('year_id'), fn ($q) => $q->where('year_id', (int) $request->query('year_id')))
             ->when(!$isSchoolAdmin && count($assignedSubjectClassIds) > 0, fn ($q) => $q->whereIn('id', $assignedSubjectClassIds))
@@ -50,9 +51,13 @@ class SubjectClassController extends Controller
         ]);
 
         $this->ensureSubjectAccess($request->user(), (int) $payload['subject_id']);
+        $schoolId = $this->resolveSchoolId($request->user());
+        if ($schoolId <= 0) {
+            return response()->json(['status_code' => 422, 'msg' => 'School context is missing for this user.'], 422);
+        }
 
         $id = DB::table('subject_classes')->insertGetId([
-            'school_id' => $request->user()->school_id,
+            'school_id' => $schoolId,
             'subject_id' => (int) $payload['subject_id'],
             'year_id' => $payload['year_id'] ?? null,
             'name' => $payload['name'],
@@ -97,7 +102,8 @@ class SubjectClassController extends Controller
             return response()->json(['status_code' => 422, 'msg' => 'One or more students are invalid.'], 422);
         }
 
-        $outsideSchool = $studentRows->first(fn ($student) => (int) $student->school_id !== (int) $request->user()->school_id);
+        $schoolId = $this->resolveSchoolId($request->user());
+        $outsideSchool = $studentRows->first(fn ($student) => (int) $student->school_id !== $schoolId);
         if ($outsideSchool) {
             return response()->json(['status_code' => 403, 'msg' => 'One or more students are outside your school.'], 403);
         }
@@ -120,14 +126,75 @@ class SubjectClassController extends Controller
         return response()->json(['status_code' => 200, 'msg' => 'Students enrolled.']);
     }
 
+    public function syncStudentsSubjects(Request $request): JsonResponse
+    {
+        $role = $this->resolveRole($request->user());
+        if (!in_array($role, ['SCHOOL_ADMIN', 'HOD', 'TEACHER'], true)) {
+            return response()->json(['status_code' => 403, 'msg' => 'Forbidden role.'], 403);
+        }
+
+        $payload = $request->validate([
+            'student_ids' => ['required', 'array', 'min:1'],
+            'student_ids.*' => ['required', 'integer', 'exists:students,id'],
+            'subject_ids' => ['required', 'array', 'min:1'],
+            'subject_ids.*' => ['required', 'integer', 'exists:subjects,id'],
+        ]);
+
+        $schoolId = $this->resolveSchoolId($request->user());
+        $studentIds = collect($payload['student_ids'])->map(fn ($id) => (int) $id)->unique()->values();
+        $subjectIds = collect($payload['subject_ids'])->map(fn ($id) => (int) $id)->unique()->values();
+
+        $studentRows = DB::table('students')
+            ->whereIn('id', $studentIds->all())
+            ->select('id', 'school_id')
+            ->get();
+
+        if ($studentRows->count() !== $studentIds->count()) {
+            return response()->json(['status_code' => 422, 'msg' => 'One or more students are invalid.'], 422);
+        }
+
+        $outsideSchool = $studentRows->first(fn ($student) => (int) $student->school_id !== $schoolId);
+        if ($outsideSchool) {
+            return response()->json(['status_code' => 403, 'msg' => 'One or more students are outside your school.'], 403);
+        }
+
+        $validSubjectIds = DB::table('subjects')
+            ->where('school_id', $schoolId)
+            ->whereIn('id', $subjectIds->all())
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->toArray();
+
+        if (count($validSubjectIds) !== $subjectIds->count()) {
+            return response()->json(['status_code' => 422, 'msg' => 'One or more subjects are outside your school.'], 422);
+        }
+
+        foreach ($subjectIds as $subjectId) {
+            $this->ensureSubjectAccess($request->user(), $subjectId);
+        }
+
+        DB::table('student_subject_enrollments as sse')
+            ->join('subject_classes as sc', 'sc.id', '=', 'sse.subject_class_id')
+            ->whereIn('sse.student_id', $studentIds->all())
+            ->where('sc.school_id', $schoolId)
+            ->whereNotIn('sc.subject_id', $subjectIds->all())
+            ->update([
+                'sse.is_active' => 0,
+                'sse.updated_at' => now(),
+            ]);
+
+        return response()->json(['status_code' => 200, 'msg' => 'Student subjects synchronized.']);
+    }
+
     private function ensureSubjectAccess($user, int $subjectId): void
     {
         $role = $this->resolveRole($user);
 
         if ($role === 'SCHOOL_ADMIN') {
+            $schoolId = $this->resolveSchoolId($user);
             $exists = DB::table('subjects')
                 ->where('id', $subjectId)
-                ->where('school_id', $user->school_id)
+                ->where('school_id', $schoolId)
                 ->exists();
             if (!$exists) {
                 abort(response()->json(['status_code' => 403, 'msg' => 'Subject is outside your school.'], 403));
@@ -184,5 +251,17 @@ class SubjectClassController extends Controller
     private function resolveRole(object $user): string
     {
         return strtoupper(str_replace(' ', '_', (string) ($user->role ?? $user->user_type ?? '')));
+    }
+
+    private function resolveSchoolId($user): int
+    {
+        $school = $user->school ?? null;
+
+        return (int) (
+            $user->school_id ??
+            $user->schoolId ??
+            (is_object($school) ? ($school->id ?? 0) : $school) ??
+            0
+        );
     }
 }

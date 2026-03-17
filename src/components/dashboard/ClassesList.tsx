@@ -32,6 +32,7 @@ interface ClassesListProps {
   onEditClass: (cls: Class) => void;
   onReorderClasses?: (classes: Class[]) => void;
   classStats?: Record<string, { students: number }>;
+  subjectScoped?: boolean;
 }
 
 export default function ClassesList({
@@ -40,6 +41,7 @@ export default function ClassesList({
   onEditClass,
   onReorderClasses,
   classStats = {},
+  subjectScoped = false,
 }: ClassesListProps) {
   const router = useRouter();
   const { activeSubjectId } = useSubjectContext();
@@ -75,6 +77,14 @@ export default function ClassesList({
   };
 
   const handleViewStudents = (classId: string) => {
+    if (subjectScoped && activeSubjectId) {
+      const subjectClass = localClasses.find((item) => item.id === classId);
+      const yearId = subjectClass?.year_id;
+      router.push(
+        `/dashboard/students/all?subjectId=${activeSubjectId}${yearId ? `&yearId=${yearId}` : ""}`
+      );
+      return;
+    }
     router.push(`/dashboard/students/${classId}`);
   };
 
@@ -240,10 +250,12 @@ export default function ClassesList({
                     )}
                   </div>
 
-                  <div className="mt-2 space-y-1 text-sm text-gray-600">
-                    <div>
-                      {cls.number_of_terms === "two" ? "Two Terms" : "Three Terms"}
-                    </div>
+                    <div className="mt-2 space-y-1 text-sm text-gray-600">
+                    {!subjectScoped ? (
+                      <div>
+                        {cls.number_of_terms === "two" ? "Two Terms" : "Three Terms"}
+                      </div>
+                    ) : null}
                     <div className="text-xs text-gray-500">
                       Teacher: {cls.teacher_name || "Not assigned"}
                     </div>
@@ -271,24 +283,28 @@ export default function ClassesList({
                       <TeamOutlined />
                       Students
                     </button>
-                    <button
-                      onClick={() => handleTerms(cls.id)}
-                      className={`cursor-pointer inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs ${tone.terms}`}
-                      title="Terms"
-                    >
-                      <BookOutlined />
-                      Terms
-                    </button>
-                    <button
-                      onClick={() => handleStory(cls.id)}
-                      className={`cursor-pointer inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs ${tone.story}`}
-                      title="Class Story"
-                    >
-                      <ReadOutlined />
-                      Story
-                    </button>
+                    {!subjectScoped ? (
+                      <button
+                        onClick={() => handleTerms(cls.id)}
+                        className={`cursor-pointer inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs ${tone.terms}`}
+                        title="Terms"
+                      >
+                        <BookOutlined />
+                        Terms
+                      </button>
+                    ) : null}
+                    {!subjectScoped ? (
+                      <button
+                        onClick={() => handleStory(cls.id)}
+                        className={`cursor-pointer inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs ${tone.story}`}
+                        title="Class Story"
+                      >
+                        <ReadOutlined />
+                        Story
+                      </button>
+                    ) : null}
 
-                    {hasAccess && (
+                    {hasAccess && !subjectScoped && (
                       <button
                         onClick={() => onEditClass(cls)}
                         className={`cursor-pointer inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs ${tone.edit}`}
@@ -299,7 +315,7 @@ export default function ClassesList({
                       </button>
                     )}
 
-                    {hasAccess && (
+                    {hasAccess && !subjectScoped && (
                       <button
                         onClick={() => handleDeleteClick(cls)}
                         className="cursor-pointer inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs text-rose-700 hover:bg-rose-100"

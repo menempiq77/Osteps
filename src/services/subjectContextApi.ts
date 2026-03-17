@@ -28,8 +28,11 @@ const extractContext = (payload: any): SubjectContextResponse => {
 export const fetchMySubjectContext = async (options?: {
   role?: string;
 }): Promise<SubjectContextResponse> => {
-  const roleKey = String(options?.role || "").trim().toUpperCase();
-  const isSchoolAdmin = roleKey === "SCHOOL_ADMIN" || roleKey === "ADMIN";
+  const roleKey = String(options?.role || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "_");
+  const isSchoolAdmin = roleKey === "SCHOOL_ADMIN";
 
   try {
     const res = await api.get("/subjects/my-context");
@@ -49,12 +52,21 @@ export const fetchMySubjectContext = async (options?: {
   }
 
   // Legacy fallback for School Admin only.
-  const subjects = normalizeSubjects(await fetchSubjects());
-  return {
-    assigned_subjects: subjects,
-    default_subject_id: subjects[0]?.id ?? null,
-    subject_roles: [],
-  };
+  try {
+    const subjects = normalizeSubjects(await fetchSubjects());
+    return {
+      assigned_subjects: subjects,
+      default_subject_id: subjects[0]?.id ?? null,
+      subject_roles: [],
+    };
+  } catch {
+    // If backend is unreachable/misconfigured, keep a safe empty response.
+    return {
+      assigned_subjects: [],
+      default_subject_id: null,
+      subject_roles: [],
+    };
+  }
 };
 
 export const setLastSubject = async (subjectId: number): Promise<void> => {

@@ -47,10 +47,13 @@ const Sidebar = () => {
   const [orderedItems, setOrderedItems] = useState<any[]>([]);
   const [draggingItemName, setDraggingItemName] = useState<string | null>(null);
   const { toSubjectHref, canUseSubjectContext, activeSubjectId, activeSubject } = useSubjectContext();
-  const isIslamiatContext =
+  const isIslamicContext =
     !canUseSubjectContext ||
     !activeSubject ||
     /islam|islamiat|islamic/i.test(activeSubject.name);
+  const formattedActiveSubjectName = String(activeSubject?.name || "")
+    .replace(/islamiat/gi, "Islamic")
+    .trim();
   const primaryAdminEmail = "abdelmonem@gmail.com";
 
   const roleKey = (currentUser?.role ?? "")
@@ -401,11 +404,35 @@ const Sidebar = () => {
 
   useEffect(() => {
     let navItems = ((navigation as any)[roleKey] || []) as any[];
-    if (!isIslamiatContext) {
+    if (
+      canUseSubjectContext &&
+      activeSubjectId &&
+      formattedActiveSubjectName &&
+      ["SCHOOL_ADMIN", "HOD", "TEACHER", "STUDENT"].includes(roleKey)
+    ) {
+      navItems = navItems.map((item: any, index: number) =>
+        index === 0 && item.name === "Dashboard"
+          ? {
+              ...item,
+              name: `${formattedActiveSubjectName} Dashboard`,
+              href: `/dashboard/s/${activeSubjectId}`,
+            }
+          : item
+      );
+    }
+    if (!isIslamicContext) {
       navItems = navItems.filter((item: any) => item.name !== "Mind-upgrade");
     }
     setOrderedItems(applySavedSidebarOrder(navItems));
-  }, [roleKey, announcementUnreadCount, questionUnreadCount, isIslamiatContext]);
+  }, [
+    roleKey,
+    announcementUnreadCount,
+    questionUnreadCount,
+    isIslamicContext,
+    canUseSubjectContext,
+    activeSubjectId,
+    formattedActiveSubjectName,
+  ]);
 
   const handleReorderSidebarItems = (draggedName: string, targetName: string) => {
     if (!draggedName || !targetName || draggedName === targetName) return;

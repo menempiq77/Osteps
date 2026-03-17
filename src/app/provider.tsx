@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Provider } from "react-redux";
 import { PersistGate } from "redux-persist/integration/react";
 import { LanguageProvider } from "./LanguageContext";
+import { SubjectContextProvider } from "@/contexts/SubjectContext";
 import { persistor, store } from "@/store/store";
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -24,10 +25,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <Provider store={store}>
         <PersistGate loading={null} persistor={persistor}>
           <LanguageProvider>
-            {children}
-            {process.env.NODE_ENV === "development" && (
-              <ReactQueryDevtools initialIsOpen={false} />
-            )}
+            <SubjectContextProvider>
+              {children}
+              {process.env.NODE_ENV === "development" && (
+                <ReactQueryDevtools initialIsOpen={false} />
+              )}
+            </SubjectContextProvider>
           </LanguageProvider>
         </PersistGate>
       </Provider>

@@ -7,11 +7,14 @@ import { useSubjectContext } from "@/contexts/SubjectContext";
 export default function SubjectSwitcher() {
   const { subjects, activeSubjectId, loading, canUseSubjectContext, setActiveSubjectId } = useSubjectContext();
 
+  const displaySubjectName = (value: unknown) =>
+    String(value ?? "").replace(/islamiat/gi, "Islamic").trim();
+
   const options = useMemo(
     () =>
       subjects.map((subject) => ({
         value: subject.id,
-        label: subject.name,
+        label: displaySubjectName(subject.name),
       })),
     [subjects]
   );

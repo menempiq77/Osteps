@@ -7,6 +7,7 @@ import SubjectSwitcher from "@/components/ui/SubjectSwitcher";
 import { SubjectContextProvider } from "@/contexts/SubjectContext";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { getStoredSubjectName } from "@/lib/subjectScope";
 
 const THEME_STORAGE_KEY = "osteps-dashboard-theme";
 const THEMES = {
@@ -94,8 +95,15 @@ export default function DashboardLayout({
   const [isHydrated, setIsHydrated] = useState(false);
   const [isRouteTransitioning, setIsRouteTransitioning] = useState(false);
   const [themeName, setThemeName] = useState<ThemeName>("green");
+  const [storedSubjectName, setStoredSubjectName] = useState<string | null>(null);
+
+  const formatSubjectName = (value?: string | null) =>
+    String(value || "Subject").replace(/islamiat/gi, "Islamic").trim();
 
   const formatSegmentLabel = (segment: string) => {
+    if (segment === "dashboard" && /^\/dashboard\/s\/\d+$/.test(pathname) && storedSubjectName) {
+      return `${formatSubjectName(storedSubjectName)} Dashboard`;
+    }
     const cleaned = decodeURIComponent(segment).replace(/[-_]+/g, " ").trim();
     if (!cleaned) return "";
     return cleaned
@@ -132,6 +140,11 @@ export default function DashboardLayout({
 
   useEffect(() => {
     if (!isHydrated) return;
+    setStoredSubjectName(getStoredSubjectName());
+  }, [isHydrated, pathname]);
+
+  useEffect(() => {
+    if (!isHydrated) return;
     const raw = localStorage.getItem(THEME_STORAGE_KEY) as ThemeName | null;
     const nextTheme: ThemeName =
       raw && Object.prototype.hasOwnProperty.call(THEMES, raw) ? raw : "green";
@@ -150,6 +163,8 @@ export default function DashboardLayout({
   const isSubjectCardsEntryRoute =
     pathname === "/dashboard/subject-cards" ||
     /^\/dashboard\/s\/\d+\/subject-cards$/.test(pathname);
+  const isStandaloneTeacherRoute =
+    pathname === "/dashboard/teachers" || pathname.startsWith("/dashboard/teachers/");
 
   useEffect(() => {
     if (isHydrated && !currentUser) {
@@ -189,11 +204,42 @@ export default function DashboardLayout({
   const shouldApplyMaxWidth =
     !isImmersiveLessonGroupRoute && !pathname.startsWith("/dashboard/students/reports");
 
+  const renderNavigationButtons = (compact = false) => (
+    <div className={`flex items-center gap-2 ${compact ? "justify-end" : ""}`}>
+      <button
+        type="button"
+        onClick={() => router.push("/dashboard/subject-cards")}
+        className="rounded-lg border border-[var(--theme-border)] bg-white px-3 py-1.5 text-sm font-medium text-[var(--theme-dark)] transition hover:bg-[var(--theme-soft)]"
+      >
+        Home
+      </button>
+      <button
+        type="button"
+        onClick={() => window.history.back()}
+        className="rounded-lg border border-[var(--theme-border)] bg-[var(--theme-soft)] px-3 py-1.5 text-sm font-medium text-[var(--theme-dark)] transition hover:bg-[var(--theme-soft-2)]"
+      >
+        Back
+      </button>
+      <button
+        type="button"
+        onClick={() => window.history.forward()}
+        className="rounded-lg border border-[var(--theme-border)] bg-[var(--theme-soft)] px-3 py-1.5 text-sm font-medium text-[var(--theme-dark)] transition hover:bg-[var(--theme-soft-2)]"
+      >
+        Next
+      </button>
+    </div>
+  );
+
   if (isSubjectCardsEntryRoute) {
     return (
       <SubjectContextProvider>
         <div className="dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] p-3 md:p-6">
-          <div className="mx-auto max-w-7xl">{children}</div>
+          <div className="mx-auto max-w-7xl">
+            <div className="mb-4 flex justify-end">
+              {renderNavigationButtons(true)}
+            </div>
+            {children}
+          </div>
         </div>
       </SubjectContextProvider>
     );
@@ -201,6 +247,23 @@ export default function DashboardLayout({
 
   return (
     <SubjectContextProvider>
+      {isStandaloneTeacherRoute ? (
+        <div className="dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] p-3 md:p-6">
+          <div className="mx-auto max-w-7xl">
+            <div className="mb-4 flex justify-end">
+              {renderNavigationButtons(true)}
+            </div>
+            <div
+              key={pathname}
+              className={`dashboard-route-transition ${
+                isRouteTransitioning ? "dashboard-route-transition-active" : ""
+              }`}
+            >
+              {children}
+            </div>
+          </div>
+        </div>
+      ) : (
       <div
         className={
           "dashboard-theme-scope min-h-screen " +
@@ -266,20 +329,7 @@ export default function DashboardLayout({
                         />
                       ))}
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => window.history.back()}
-                      className="rounded-lg border border-[var(--theme-border)] bg-[var(--theme-soft)] px-3 py-1.5 text-sm font-medium text-[var(--theme-dark)] transition hover:bg-[var(--theme-soft-2)]"
-                    >
-                      Back
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => window.history.forward()}
-                      className="rounded-lg border border-[var(--theme-border)] bg-[var(--theme-soft)] px-3 py-1.5 text-sm font-medium text-[var(--theme-dark)] transition hover:bg-[var(--theme-soft-2)]"
-                    >
-                      Next
-                    </button>
+                    {renderNavigationButtons()}
                   </div>
                 </div>
               </div>
@@ -296,6 +346,7 @@ export default function DashboardLayout({
           </div>
         </div>
       </div>
+      )}
       <style jsx global>{`
         .dashboard-theme-scope [class*="text-green-"] {
           color: var(--theme-dark) !important;

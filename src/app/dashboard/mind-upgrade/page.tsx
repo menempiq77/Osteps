@@ -308,7 +308,7 @@ export default function MindUpgradePage() {
 
         {!isMindEnabledForSubject ? (
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm font-semibold text-amber-800">
-            Mind-upgrade is currently enabled only for Islamiat subject context.
+            Mind-upgrade is currently enabled only for Islamic subject context.
           </div>
         ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

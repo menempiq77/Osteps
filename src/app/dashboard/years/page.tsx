@@ -16,6 +16,7 @@ import {
 } from "@/services/yearsApi";
 import { fetchClasses } from "@/services/classesApi";
 import { fetchStudents } from "@/services/studentsApi";
+import { useSubjectContext } from "@/contexts/SubjectContext";
 
 interface Year {
   id: number;
@@ -26,6 +27,9 @@ interface Year {
   updated_at?: string;
   color?: string;
 }
+
+const normalizeSubjectLabel = (value: unknown) =>
+  String(value ?? "").replace(/islamiat/gi, "Islamic").trim().toLowerCase();
 
 export default function Page() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -40,9 +44,11 @@ export default function Page() {
   >({});
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [messageApi, contextHolder] = message.useMessage();
+  const { activeSubjectId, activeSubject, canUseSubjectContext } = useSubjectContext();
   const schoolId = currentUser?.school;
   const isTeacher = currentUser?.role === "TEACHER";
   const hasAccess = currentUser?.role === "SCHOOL_ADMIN";
+  const isSubjectWorkspaceMode = canUseSubjectContext && !!activeSubjectId;
   const yearOrderStorageKey = `years-order-${schoolId ?? "global"}`;
   const yearColorStorageKey = `years-colors-${schoolId ?? "global"}`;
 
@@ -93,7 +99,43 @@ export default function Page() {
     try {
       let yearsData = [];
 
-      if (isTeacher) {
+      if (isSubjectWorkspaceMode && activeSubjectId) {
+        const schoolYears = await fetchYearsBySchool(Number(schoolId));
+        const activeSubjectName = normalizeSubjectLabel(activeSubject?.name);
+        const yearChecks = await Promise.all(
+          (Array.isArray(schoolYears) ? schoolYears : []).map(async (year: any) => {
+            try {
+              const classes = ((await fetchClasses(String(year.id))) || []) as Array<{ id: number | string }>;
+              for (const cls of classes) {
+                const students = await fetchStudents(cls.id);
+                const hasSubject = (Array.isArray(students) ? students : []).some((student: any) => {
+                  const rawSubjects = Array.isArray(student.subjects)
+                    ? student.subjects
+                    : student.subject_name
+                      ? [student.subject_name]
+                      : student.subject
+                        ? [student.subject]
+                        : [];
+                  return rawSubjects.some((item: any) => {
+                    const name =
+                      typeof item === "string"
+                        ? item
+                        : item && typeof item === "object"
+                          ? item.name ?? item.subject_name ?? ""
+                          : "";
+                    return normalizeSubjectLabel(name) === activeSubjectName;
+                  });
+                });
+                if (hasSubject) return year;
+              }
+              return null;
+            } catch {
+              return null;
+            }
+          })
+        );
+        yearsData = yearChecks.filter(Boolean);
+      } else if (isTeacher) {
         const res = await fetchAssignYears();
 
         const years = res
@@ -118,7 +160,7 @@ export default function Page() {
   };
 
   loadYears();
-}, [schoolId, isTeacher]);
+}, [schoolId, isTeacher, isSubjectWorkspaceMode, activeSubjectId]);
 
   useEffect(() => {
     const loadYearStats = async () => {

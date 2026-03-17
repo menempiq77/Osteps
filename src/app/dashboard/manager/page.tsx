@@ -8,7 +8,6 @@ import {
   GraduationCap,
   BarChart3,
   BookOpen,
-  UserCircle,
   NotebookPen,
 } from "lucide-react";
 
@@ -36,12 +35,6 @@ const managerCards = [
     description: "Manage subjects and curriculum mappings.",
     href: "/dashboard/subjects",
     icon: BookOpen,
-  },
-  {
-    title: "Teachers",
-    description: "Manage teacher accounts and assignments.",
-    href: "/dashboard/teachers",
-    icon: UserCircle,
   },
   {
     title: "Behavior",

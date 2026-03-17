@@ -19,8 +19,6 @@ const SUBJECT_SCOPED_PREFIXES = [
   "/dashboard/students/reports",
   "/dashboard/mind-upgrade",
   "/dashboard/subjects",
-  "/dashboard/subject-classes",
-  "/dashboard/subject-staff",
 ];
 
 const SHARED_PREFIXES = [
