@@ -33,7 +33,7 @@ export default function YearsList({
   yearStats = {},
 }: YearsListProps) {
   const router = useRouter();
-  const { activeSubjectId } = useSubjectContext();
+  const { activeSubjectId, toSubjectHref } = useSubjectContext();
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [localYears, setLocalYears] = useState<Year[]>(years || []);
   const [draggingYearId, setDraggingYearId] = useState<number | null>(null);
@@ -61,8 +61,7 @@ export default function YearsList({
 
   const handleViewClasses = (yearId: number) => {
     localStorage.setItem("selectedYearId", yearId.toString());
-
-    router.push(`/dashboard/classes?year=${yearId}`);
+    router.push(toSubjectHref(`/dashboard/classes?year=${yearId}`));
   };
 
   const getPaletteColor = (palette?: string) => {
@@ -157,9 +156,11 @@ export default function YearsList({
                       type="button"
                       onClick={() =>
                         router.push(
-                          `/dashboard/students/all?yearId=${year.id}${
-                            activeSubjectId ? `&subjectId=${activeSubjectId}` : ""
-                          }`
+                          toSubjectHref(
+                            `/dashboard/students/all?yearId=${year.id}${
+                              activeSubjectId ? `&subjectId=${activeSubjectId}` : ""
+                            }`
+                          )
                         )
                       }
                       className="cursor-pointer hover:text-[var(--theme-dark)]"

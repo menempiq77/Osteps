@@ -41,7 +41,7 @@ const nextConfig: NextConfig = {
     return config;
   },
   async headers() {
-    return [
+    const baseHeaders = [
       {
         source: '/(.*)',
         headers: [
@@ -60,6 +60,8 @@ const nextConfig: NextConfig = {
         ],
       },
     ];
+
+    return baseHeaders;
   },
 };
 

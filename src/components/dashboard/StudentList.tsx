@@ -1,9 +1,10 @@
 ﻿"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
+import { useSubjectContext } from "@/contexts/SubjectContext";
 import {
   Breadcrumb,
   Button,
@@ -50,6 +51,14 @@ import {
   SeatingLayoutItem,
   StudentBehaviorSummary,
 } from "@/types/studentViews";
+import { extractSubjectIdFromPath } from "@/lib/subjectRouting";
+import { resolveSubjectWorkspaceClassContext } from "@/lib/subjectClassResolution";
+import { studentMatchesSubjectScope } from "@/lib/subjectStudentScope";
+import {
+  makeSubjectHintScopeKey,
+  mergeSubjectStudentHints,
+  readSubjectStudentHints,
+} from "@/lib/subjectStudentHints";
 
 type Student = {
   id: string;
@@ -133,6 +142,16 @@ const safeNumber = (value: unknown) => {
 };
 
 const toStudentId = (id: string | number) => String(id);
+const extractStudentSubjectClassIds = (student: Record<string, any>) =>
+  [
+    student?.subject_class_id,
+    student?.subjectClassId,
+    student?.pivot?.subject_class_id,
+  ]
+    .flatMap((value) => (Array.isArray(value) ? value : [value]))
+    .map((value) => String(value ?? "").trim())
+    .filter(Boolean);
+
 const normalizeText = (value: string) =>
   value.toLowerCase().replace(/[\s_-]+/g, " ").trim();
 const normalizeGenderRaw = (raw: unknown): "male" | "female" | "" => {
@@ -285,14 +304,22 @@ const getSeatingApiUnavailableMessage = (error: SeatingApiErrorShape | null) => 
 
 export default function StudentList() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { classId } = useParams();
   const classIdStr = Array.isArray(classId) ? classId[0] : classId;
+  const routeSubjectId = extractSubjectIdFromPath(pathname);
+  const queryYearId = searchParams.get("yearId") || "";
+  const querySubjectClassLabel = searchParams.get("subjectClassLabel") || "";
+  const querySubjectClassId = searchParams.get("subjectClassId") || "";
   const queryClient = useQueryClient();
   const { currentUser } = useSelector((state: RootState) => state.auth);
+  const { activeSubjectId, activeSubject, toSubjectHref } = useSubjectContext();
   const [messageApi, contextHolder] = message.useMessage();
   const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<"behavior" | "seating">("behavior");
   const [isAddStudentModalOpen, setIsAddStudentModalOpen] = useState(false);
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [editStudent, setEditStudent] = useState<Student | null>(null);
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -301,6 +328,8 @@ export default function StudentList() {
   );
   const [isWholeClassActionModalOpen, setIsWholeClassActionModalOpen] = useState(false);
   const [isWholeClassBehaviorMode, setIsWholeClassBehaviorMode] = useState(false);
+  const [isSelectedStudentsBehaviorMode, setIsSelectedStudentsBehaviorMode] =
+    useState(false);
   const [isBehaviorModalOpen, setIsBehaviorModalOpen] = useState(false);
   const [isBehaviorSubmitting, setIsBehaviorSubmitting] = useState(false);
   const [behaviorIntent, setBehaviorIntent] = useState<"positive" | "negative">(
@@ -343,6 +372,7 @@ export default function StudentList() {
   const [fallbackPointsByStudent, setFallbackPointsByStudent] = useState<
     Record<string, { total: number; positive: number; negative: number }>
   >({});
+  const [fallbackRefreshCounter, setFallbackRefreshCounter] = useState(0);
   const [isRandomModalOpen, setIsRandomModalOpen] = useState(false);
   const [isPickingRandom, setIsPickingRandom] = useState(false);
   const [randomStudent, setRandomStudent] = useState<any | null>(null);
@@ -356,6 +386,15 @@ export default function StudentList() {
   const [attendanceByStudent, setAttendanceByStudent] = useState<
     Record<string, AttendanceState>
   >({});
+  const [attendanceModeBaseline, setAttendanceModeBaseline] = useState<
+    Record<string, AttendanceState> | null
+  >(null);
+  const [recentAddedHints, setRecentAddedHints] = useState<{
+    ids: string[];
+    usernames: string[];
+    emails: string[];
+    names: string[];
+  }>({ ids: [], usernames: [], emails: [], names: [] });
   const [attendanceSyncing, setAttendanceSyncing] = useState(false);
   const dragStartedRef = useRef(false);
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
@@ -366,6 +405,14 @@ export default function StudentList() {
   const hasAccess = role === "SCHOOL_ADMIN";
   const canArrangeSeats =
     role === "SCHOOL_ADMIN" || role === "HOD" || role === "TEACHER";
+  const scopedSubjectId =
+    Number.isFinite(Number(routeSubjectId)) && Number(routeSubjectId) > 0
+      ? Number(routeSubjectId)
+      : Number(activeSubjectId ?? 0) > 0
+        ? Number(activeSubjectId)
+        : null;
+  const isSubjectWorkspaceMode = !!scopedSubjectId;
+  const scopedSubjectClassId = String(querySubjectClassId || "").trim();
   const schoolTimeZone = useMemo(() => {
     const userAny = currentUser as any;
     return (
@@ -382,68 +429,178 @@ export default function StudentList() {
     [schoolTimeZone]
   );
 
-  const { data: studentsData, isLoading: studentsLoading } = useQuery({
-    queryKey: ["students", classIdStr],
-    queryFn: () => fetchStudents(classIdStr as string),
-    enabled: !!classIdStr,
+  const {
+    data: resolvedSubjectClassContext,
+    isLoading: resolvingSubjectClass,
+  } = useQuery({
+    queryKey: [
+      "subject-workspace-class-resolution",
+      scopedSubjectId,
+      classIdStr,
+      scopedSubjectClassId,
+      queryYearId,
+      querySubjectClassLabel,
+    ],
+    enabled: isSubjectWorkspaceMode && !!classIdStr,
+    queryFn: async () => {
+      return resolveSubjectWorkspaceClassContext({
+        subjectId: Number(scopedSubjectId),
+        routeClassId: classIdStr as string,
+        subjectClassId: scopedSubjectClassId || undefined,
+        yearId: queryYearId || undefined,
+        classLabel: querySubjectClassLabel || undefined,
+      });
+    },
   });
-  const students = (studentsData || EMPTY_LIST) as Student[];
+
+  const effectiveSubjectClassId = isSubjectWorkspaceMode
+    ? String(
+        resolvedSubjectClassContext?.subjectClassId || scopedSubjectClassId || ""
+      ).trim()
+    : "";
+  const fallbackRouteClassId = String(classIdStr || "").trim();
+  const effectiveClassId = isSubjectWorkspaceMode
+    ? String(resolvedSubjectClassContext?.linkedClassId || "").trim()
+    : fallbackRouteClassId;
+  const subjectClassResolutionMissing =
+    isSubjectWorkspaceMode && !resolvingSubjectClass && !effectiveClassId;
+  const subjectHintScopeKey = makeSubjectHintScopeKey(
+    scopedSubjectId,
+    effectiveSubjectClassId
+  );
+  const studentsQueryKey = [
+    "students",
+    String(scopedSubjectId ?? "school"),
+    effectiveSubjectClassId || String(classIdStr || ""),
+    effectiveClassId || "unresolved",
+  ] as const;
+  const behaviorSummaryQueryKey = [
+    "class-students-behavior-summary",
+    String(scopedSubjectId ?? "school"),
+    effectiveSubjectClassId || String(classIdStr || ""),
+    effectiveClassId || "unresolved",
+  ] as const;
+  const seatingScopeId = isSubjectWorkspaceMode
+    ? `subject:${scopedSubjectId}:class:${effectiveSubjectClassId || classIdStr}`
+    : String(effectiveClassId || classIdStr || "");
+
+  const { data: studentsData, isLoading: studentsLoading } = useQuery({
+    queryKey: studentsQueryKey,
+    queryFn: () =>
+      fetchStudents(
+        effectiveClassId as string,
+        scopedSubjectId,
+        isSubjectWorkspaceMode ? effectiveSubjectClassId : undefined
+      ),
+    enabled:
+      !!effectiveClassId &&
+      (!isSubjectWorkspaceMode ||
+        (!resolvingSubjectClass && !!effectiveSubjectClassId)),
+  });
+  const students = useMemo(
+    () => {
+      const rows = (studentsData || EMPTY_LIST) as Record<string, any>[];
+      if (!isSubjectWorkspaceMode) return rows as Student[];
+      if (!effectiveSubjectClassId) return [] as Student[];
+      // Backend now scopes by subject_class_id for subject pages, so trust server rows.
+      return rows as Student[];
+    },
+    [
+      studentsData,
+      isSubjectWorkspaceMode,
+      effectiveSubjectClassId,
+    ]
+  );
+
+  useEffect(() => {
+    setRecentAddedHints(readSubjectStudentHints(subjectHintScopeKey));
+  }, [subjectHintScopeKey]);
+
+  const rememberRecentAddedStudent = (studentLike: any, fallbackInput?: any) => {
+    const id = String(studentLike?.id ?? studentLike?.student_id ?? "").trim();
+    const userName = String(studentLike?.user_name ?? fallbackInput?.user_name ?? "")
+      .trim()
+      .toLowerCase();
+    const email = String(studentLike?.email ?? fallbackInput?.email ?? "")
+      .trim()
+      .toLowerCase();
+    const name = String(studentLike?.student_name ?? fallbackInput?.student_name ?? "")
+      .trim()
+      .toLowerCase();
+
+    const nextHints = mergeSubjectStudentHints(subjectHintScopeKey, {
+      ids: id ? [id] : [],
+      usernames: userName ? [userName] : [],
+      emails: email ? [email] : [],
+      names: name ? [name] : [],
+    });
+    setRecentAddedHints(nextHints);
+  };
 
   const {
-    data: behaviorSummaryData,
+    data: behaviorSummaryData = [],
     isLoading: summaryLoading,
     isError: summaryError,
   } = useQuery({
-    queryKey: ["class-students-behavior-summary", classIdStr],
-    queryFn: () => fetchClassStudentsBehaviorSummary(classIdStr as string),
-    enabled: !!classIdStr,
+    queryKey: behaviorSummaryQueryKey,
+    queryFn: () => fetchClassStudentsBehaviorSummary(effectiveClassId as string, scopedSubjectId),
+    enabled:
+      !!effectiveClassId &&
+      (!isSubjectWorkspaceMode ||
+        (!resolvingSubjectClass && !!effectiveSubjectClassId)),
   });
-  const behaviorSummary = (behaviorSummaryData ||
-    EMPTY_LIST) as StudentBehaviorSummary[];
+  const behaviorSummary = useMemo(() => {
+    const visibleIds = new Set(students.map((student) => toStudentId(student.id)));
+    return ((behaviorSummaryData || EMPTY_LIST) as StudentBehaviorSummary[]).filter((item) =>
+      visibleIds.has(toStudentId(item.student_id))
+    );
+  }, [behaviorSummaryData, students]);
 
   const { data: behaviorTypesData } = useQuery({
-    queryKey: ["behavior-types"],
-    queryFn: fetchBehaviourType,
+    queryKey: ["behavior-types", String(scopedSubjectId ?? "school")],
+    queryFn: () => fetchBehaviourType(scopedSubjectId ?? undefined),
     enabled: !!canArrangeSeats,
   });
   const behaviorTypes = (behaviorTypesData || EMPTY_LIST) as BehaviorType[];
 
   const seatingQuery = useQuery({
-    queryKey: ["class-seating-layout", classIdStr],
-    queryFn: () => fetchClassSeatingLayout(classIdStr as string),
-    enabled: !!classIdStr && canArrangeSeats,
+    queryKey: ["class-seating-layout", seatingScopeId],
+    queryFn: () => fetchClassSeatingLayout(seatingScopeId),
+    enabled: !!seatingScopeId && canArrangeSeats,
     retry: 1,
   });
 
   const seatingApiError = (seatingQuery.error || null) as SeatingApiErrorShape | null;
-  const seatingApiReady = !!classIdStr && canArrangeSeats && !seatingQuery.isError;
+  const seatingApiReady = !!seatingScopeId && canArrangeSeats && !seatingQuery.isError;
   const seatingUnavailableMessage = getSeatingApiUnavailableMessage(seatingApiError);
 
   const addStudentMutation = useMutation({
-    mutationFn: apiAddStudent,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["students", classIdStr] });
-      queryClient.invalidateQueries({
-        queryKey: ["class-students-behavior-summary", classIdStr],
-      });
+    mutationFn: (payload: any) => apiAddStudent(payload, scopedSubjectId),
+    onSuccess: (data: any, variables: any) => {
+      rememberRecentAddedStudent(data, variables);
+      queryClient.refetchQueries({ queryKey: studentsQueryKey });
+      queryClient.refetchQueries({ queryKey: behaviorSummaryQueryKey });
       setIsAddStudentModalOpen(false);
       messageApi.success("Student added successfully.");
     },
-    onError: () => {
-      messageApi.error("Failed to add student.");
+    onError: (error: unknown) => {
+      const backendMessage =
+        (error as { message?: string })?.message?.trim() ||
+        (error as any)?.response?.data?.msg ||
+        (error as any)?.response?.data?.message ||
+        "Failed to add student.";
+      messageApi.error(backendMessage);
     },
   });
 
   const updateStudentMutation = useMutation({
     mutationFn: ({ id, values }: { id: string; values: any }) =>
-      apiUpdateStudent(id, values),
+      apiUpdateStudent(id, values, scopedSubjectId),
     onSuccess: () => {
       console.log('[Student Update] Success - refetching student data');
       // Force immediate refetch instead of just invalidating
-      queryClient.refetchQueries({ queryKey: ["students", classIdStr] });
-      queryClient.refetchQueries({
-        queryKey: ["class-students-behavior-summary", classIdStr],
-      });
+      queryClient.refetchQueries({ queryKey: studentsQueryKey });
+      queryClient.refetchQueries({ queryKey: behaviorSummaryQueryKey });
       setEditStudent(null);
       messageApi.success("Student updated successfully.");
     },
@@ -458,11 +615,9 @@ export default function StudentList() {
   const deleteStudentMutation = useMutation({
     mutationFn: apiDeleteStudent,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["students", classIdStr] });
-      queryClient.invalidateQueries({
-        queryKey: ["class-students-behavior-summary", classIdStr],
-      });
-      queryClient.invalidateQueries({ queryKey: ["class-seating-layout", classIdStr] });
+      queryClient.invalidateQueries({ queryKey: studentsQueryKey });
+      queryClient.invalidateQueries({ queryKey: behaviorSummaryQueryKey });
+      queryClient.invalidateQueries({ queryKey: ["class-seating-layout", seatingScopeId] });
       setIsDeleteModalOpen(false);
       setStudentToDelete(null);
       messageApi.success("Student deleted successfully.");
@@ -486,7 +641,7 @@ export default function StudentList() {
       let lastError: unknown;
       for (const id of ids) {
         try {
-          const response = await uploadStudentAvatar(classIdStr as string, id, file);
+          const response = await uploadStudentAvatar(effectiveClassId as string, id, file);
           return { response, usedId: id, cacheStudentId };
         } catch (error) {
           lastError = error;
@@ -498,7 +653,7 @@ export default function StudentList() {
       const studentId = variables.cacheStudentId;
       const serverPath = extractAvatarPath(result?.response);
       queryClient.setQueryData(
-        ["class-students-behavior-summary", classIdStr],
+        behaviorSummaryQueryKey,
         (old: StudentBehaviorSummary[] | undefined) => {
           if (!old) return old;
           return old.map((item) =>
@@ -509,7 +664,7 @@ export default function StudentList() {
         }
       );
       queryClient.setQueryData(
-        ["students", classIdStr],
+        studentsQueryKey,
         (old: Student[] | undefined) => {
           if (!old) return old;
           return old.map((item) =>
@@ -546,7 +701,7 @@ export default function StudentList() {
 
   const saveSeatingMutation = useMutation({
     mutationFn: (items: SeatingLayoutItem[]) =>
-      saveClassSeatingLayout(classIdStr as string, {
+      saveClassSeatingLayout(seatingScopeId, {
         items,
         room_meta: {
           width: canvasWidth,
@@ -558,7 +713,7 @@ export default function StudentList() {
         },
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["class-seating-layout", classIdStr] });
+      queryClient.invalidateQueries({ queryKey: ["class-seating-layout", seatingScopeId] });
       setLocalSeatingDirty(false);
       messageApi.success("Seating plan saved.");
     },
@@ -584,13 +739,15 @@ export default function StudentList() {
   });
 
   const addBehaviorMutation = useMutation({
-    mutationFn: (payload: any) => addBehaviour(payload),
+    mutationFn: (payload: any) => addBehaviour(payload, scopedSubjectId ?? undefined),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["class-students-behavior-summary", classIdStr],
+        queryKey: behaviorSummaryQueryKey,
       });
+      setFallbackRefreshCounter((c) => c + 1);
       messageApi.success("Behavior recorded successfully.");
       setIsBehaviorModalOpen(false);
+      setSelectedStudentAction(null);
       behaviorForm.resetFields();
     },
     onError: () => {
@@ -645,7 +802,7 @@ export default function StudentList() {
         student_name: item.student_name || fromStudents?.student_name || "Student",
         user_name: item.user_name || fromStudents?.user_name || "",
         email: fromStudents?.email || "",
-        class_id: fromStudents?.class_id || Number(classIdStr) || 0,
+        class_id: fromStudents?.class_id || Number(effectiveClassId) || 0,
         status: (item.status || fromStudents?.status || "active") as
           | "active"
           | "inactive"
@@ -665,7 +822,7 @@ export default function StudentList() {
           safeNumber(item.total_points) || fallbackPointsByStudent[id]?.total || 0,
       };
     });
-  }, [behaviorSummary, students, summaryError, classIdStr, fallbackPointsByStudent]);
+  }, [behaviorSummary, students, summaryError, effectiveClassId, fallbackPointsByStudent]);
 
   useEffect(() => {
     const shouldUseFallback =
@@ -683,7 +840,10 @@ export default function StudentList() {
       try {
         const results = await Promise.all(
           students.map(async (student) => {
-            const records = await fetchBehaviour(Number(student.id));
+            const records = await fetchBehaviour(
+              Number(student.id),
+              scopedSubjectId ?? undefined
+            );
             let total = 0;
             let positive = 0;
             let negative = 0;
@@ -722,7 +882,7 @@ export default function StudentList() {
     return () => {
       cancelled = true;
     };
-  }, [summaryError, behaviorSummary.length, students, behaviorTypes]);
+  }, [summaryError, behaviorSummary.length, students, behaviorTypes, fallbackRefreshCounter]);
 
   const wholeClassSummary = useMemo(() => {
     return orderedStudents.reduce(
@@ -913,7 +1073,7 @@ export default function StudentList() {
       student_name: row.student_name,
       email: row.email || "",
       user_name: row.user_name,
-      class_id: Number(classIdStr),
+      class_id: Number(effectiveClassId),
       password: row.password,
       status: row.status || "active",
       gender: row.gender,
@@ -921,6 +1081,9 @@ export default function StudentList() {
       nationality: row.nationality || undefined,
       is_sen: !!row.is_sen,
       sen_details: row.is_sen ? row.sen_details || "" : "",
+      ...(effectiveSubjectClassId
+        ? { subject_class_id: Number(effectiveSubjectClassId) }
+        : {}),
     }));
 
     if (payloads.length <= 1) {
@@ -934,7 +1097,8 @@ export default function StudentList() {
     for (const payload of payloads) {
       try {
         // eslint-disable-next-line no-await-in-loop
-        await apiAddStudent(payload);
+        const added = await apiAddStudent(payload, scopedSubjectId);
+        rememberRecentAddedStudent(added, payload);
         successCount += 1;
       } catch {
         failedCount += 1;
@@ -942,10 +1106,8 @@ export default function StudentList() {
     }
 
     if (successCount > 0) {
-      queryClient.invalidateQueries({ queryKey: ["students", classIdStr] });
-      queryClient.invalidateQueries({
-        queryKey: ["class-students-behavior-summary", classIdStr],
-      });
+      queryClient.refetchQueries({ queryKey: studentsQueryKey });
+      queryClient.refetchQueries({ queryKey: behaviorSummaryQueryKey });
       setIsAddStudentModalOpen(false);
     }
 
@@ -984,11 +1146,15 @@ export default function StudentList() {
       student_name: values.student_name,
       email: values.email,
       user_name: values.user_name,
-      class_id: Number(classIdStr),
+      class_id: Number(effectiveClassId),
       status: values.status,
       // Backend expects password key on update; empty string keeps current password.
       password: nextPassword,
     };
+
+    if (effectiveSubjectClassId) {
+      payload.subject_class_id = Number(effectiveSubjectClassId);
+    }
 
     // Include gender in payload if we have a valid value (from form or existing data)
     if (nextGender === "male" || nextGender === "female") {
@@ -1235,6 +1401,7 @@ export default function StudentList() {
     intent: "positive" | "negative"
   ) => {
     setIsWholeClassBehaviorMode(false);
+    setIsSelectedStudentsBehaviorMode(false);
     setSelectedStudentAction(student);
     setIsBehaviorModalOpen(false);
     setBehaviorIntent(intent);
@@ -1252,8 +1419,33 @@ export default function StudentList() {
 
   const openWholeClassBehaviorModalFor = (intent: "positive" | "negative") => {
     setIsWholeClassBehaviorMode(true);
+    setIsSelectedStudentsBehaviorMode(false);
     setSelectedStudentAction(null);
     setIsWholeClassActionModalOpen(false);
+    setIsBehaviorModalOpen(false);
+    setBehaviorIntent(intent);
+    const filtered = behaviorTypes.filter((type) =>
+      intent === "positive" ? Number(type.points) > 0 : Number(type.points) < 0
+    );
+    const firstType = filtered[0] || behaviorTypes[0];
+    behaviorForm.setFieldsValue({
+      type: firstType?.id,
+      description: "",
+      date: new Date().toISOString().split("T")[0],
+    });
+    setIsBehaviorModalOpen(true);
+  };
+
+  const openSelectedStudentsBehaviorModalFor = (
+    intent: "positive" | "negative"
+  ) => {
+    if (!selectedStudentsInView.length) {
+      messageApi.warning("Tick at least one student first.");
+      return;
+    }
+    setIsWholeClassBehaviorMode(false);
+    setIsSelectedStudentsBehaviorMode(true);
+    setSelectedStudentAction(null);
     setIsBehaviorModalOpen(false);
     setBehaviorIntent(intent);
     const filtered = behaviorTypes.filter((type) =>
@@ -1280,6 +1472,48 @@ export default function StudentList() {
         messageApi.error("Please select a valid behavior type.");
         return;
       }
+      if (isSelectedStudentsBehaviorMode) {
+        if (!selectedStudentsInView.length) {
+          messageApi.warning("No selected students found.");
+          return;
+        }
+        let successCount = 0;
+        let failedCount = 0;
+        for (const student of selectedStudentsInView) {
+          try {
+            // eslint-disable-next-line no-await-in-loop
+            await addBehaviour({
+              student_id: student.id,
+              behaviour_id: selectedType.id,
+              description: values.description,
+              date: values.date || new Date().toISOString().split("T")[0],
+              teacher_id: currentUser?.id,
+            }, scopedSubjectId ?? undefined);
+            successCount += 1;
+          } catch {
+            failedCount += 1;
+          }
+        }
+        queryClient.invalidateQueries({
+          queryKey: behaviorSummaryQueryKey,
+        });
+        setFallbackRefreshCounter((c) => c + 1);
+        if (failedCount === 0) {
+          messageApi.success(`Behavior added to ${successCount} selected students.`);
+        } else if (successCount > 0) {
+          messageApi.warning(
+            `Added to ${successCount} selected students, ${failedCount} failed.`
+          );
+        } else {
+          messageApi.error("Failed to apply behavior to selected students.");
+        }
+        setIsBehaviorModalOpen(false);
+        setIsSelectedStudentsBehaviorMode(false);
+        setSelectedStudentAction(null);
+        behaviorForm.resetFields();
+        setIsBehaviorSubmitting(false);
+        return;
+      }
       if (isWholeClassBehaviorMode) {
         if (!presentStudents.length) {
           messageApi.warning("No present students found in this class.");
@@ -1296,15 +1530,16 @@ export default function StudentList() {
               description: values.description,
               date: values.date || new Date().toISOString().split("T")[0],
               teacher_id: currentUser?.id,
-            });
+            }, scopedSubjectId ?? undefined);
             successCount += 1;
           } catch {
             failedCount += 1;
           }
         }
         queryClient.invalidateQueries({
-          queryKey: ["class-students-behavior-summary", classIdStr],
+          queryKey: behaviorSummaryQueryKey,
         });
+        setFallbackRefreshCounter((c) => c + 1);
         if (failedCount === 0) {
           messageApi.success(`Behavior added to all ${successCount} present students.`);
         } else if (successCount > 0) {
@@ -1316,6 +1551,7 @@ export default function StudentList() {
         }
         setIsBehaviorModalOpen(false);
         setIsWholeClassBehaviorMode(false);
+        setSelectedStudentAction(null);
         behaviorForm.resetFields();
         setIsBehaviorSubmitting(false);
         return;
@@ -1379,22 +1615,24 @@ export default function StudentList() {
         name: "Attendance Absent",
         points: 0,
         color: "volcano",
-      } as any);
+      } as any, scopedSubjectId ?? undefined);
       createdId = created?.data?.id || created?.id;
     } catch {
       const created = await addBehaviourType({
         name: "Attendance Absent",
-      } as any);
+      } as any, scopedSubjectId ?? undefined);
       createdId = created?.data?.id || created?.id;
     }
     if (createdId) {
-      await queryClient.invalidateQueries({ queryKey: ["behavior-types"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["behavior-types", String(scopedSubjectId ?? "school")],
+      });
       return String(createdId);
     }
 
     const refreshed = (await queryClient.fetchQuery({
-      queryKey: ["behavior-types"],
-      queryFn: fetchBehaviourType,
+      queryKey: ["behavior-types", String(scopedSubjectId ?? "school")],
+      queryFn: () => fetchBehaviourType(scopedSubjectId ?? undefined),
     })) as BehaviorType[];
     const type = refreshed.find(
       (item) => normalizeText(item.name || "") === "attendance absent"
@@ -1426,22 +1664,24 @@ export default function StudentList() {
         name: "Attendance Present",
         points: 0,
         color: "green",
-      } as any);
+      } as any, scopedSubjectId ?? undefined);
       createdId = created?.data?.id || created?.id;
     } catch {
       const created = await addBehaviourType({
         name: "Attendance Present",
-      } as any);
+      } as any, scopedSubjectId ?? undefined);
       createdId = created?.data?.id || created?.id;
     }
     if (createdId) {
-      await queryClient.invalidateQueries({ queryKey: ["behavior-types"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["behavior-types", String(scopedSubjectId ?? "school")],
+      });
       return String(createdId);
     }
 
     const refreshed = (await queryClient.fetchQuery({
-      queryKey: ["behavior-types"],
-      queryFn: fetchBehaviourType,
+      queryKey: ["behavior-types", String(scopedSubjectId ?? "school")],
+      queryFn: () => fetchBehaviourType(scopedSubjectId ?? undefined),
     })) as BehaviorType[];
     const type = refreshed.find(
       (item) => normalizeText(item.name || "") === "attendance present"
@@ -1463,7 +1703,10 @@ export default function StudentList() {
       const rows = await Promise.all(
         orderedStudents.map(async (student) => {
           const studentId = toStudentId(student.id);
-          const records = await fetchBehaviour(Number(studentId));
+          const records = await fetchBehaviour(
+            Number(studentId),
+            scopedSubjectId ?? undefined
+          );
           const attendanceRecordsToday = (records || [])
             .filter((record: any) => (record?.date || "").slice(0, 10) === attendanceDate)
             .filter((record: any) => {
@@ -1510,21 +1753,51 @@ export default function StudentList() {
   );
 
   useEffect(() => {
+    if (isAttendanceMode) return;
     if (!orderedStudents.length || !behaviorTypes.length) return;
     loadAttendanceForToday();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [attendanceLoadKey, behaviorTypes.length, attendanceDate]);
+  }, [attendanceLoadKey, behaviorTypes.length, attendanceDate, isAttendanceMode]);
+
+  const buildAttendanceSnapshot = () => {
+    const snapshot: Record<string, AttendanceState> = {};
+    orderedStudents.forEach((student) => {
+      const studentId = toStudentId(student.id);
+      const entry = attendanceByStudent[studentId];
+      snapshot[studentId] = {
+        isPresent: entry?.isPresent !== false,
+        attendanceRecordId: entry?.attendanceRecordId,
+      };
+    });
+    return snapshot;
+  };
+
+  const setStudentAttendanceLocal = (student: any, markPresent: boolean) => {
+    const studentId = toStudentId(student.id);
+    setAttendanceByStudent((prev) => ({
+      ...prev,
+      [studentId]: {
+        isPresent: markPresent,
+        attendanceRecordId: prev[studentId]?.attendanceRecordId,
+      },
+    }));
+  };
 
   const setStudentAttendance = async (
     student: any,
     markPresent: boolean,
-    options?: { silent?: boolean; skipSyncFlag?: boolean }
+    options?: {
+      silent?: boolean;
+      skipSyncFlag?: boolean;
+      rollbackState?: AttendanceState;
+    }
   ) => {
     const studentId = toStudentId(student.id);
     const previous = attendanceByStudent[studentId];
     const previousState: AttendanceState = {
-      isPresent: previous?.isPresent !== false,
-      attendanceRecordId: previous?.attendanceRecordId,
+      isPresent: options?.rollbackState?.isPresent ?? previous?.isPresent !== false,
+      attendanceRecordId:
+        options?.rollbackState?.attendanceRecordId ?? previous?.attendanceRecordId,
     };
 
     setAttendanceByStudent((prev) => ({
@@ -1551,7 +1824,7 @@ export default function StudentList() {
         ...(teacherId ? { teacher_id: teacherId } : {}),
       };
 
-      const response = await addBehaviour(payload as any);
+      const response = await addBehaviour(payload as any, scopedSubjectId ?? undefined);
       const newRecordId = response?.data?.id || response?.id;
       if (newRecordId) {
         setAttendanceByStudent((prev) => ({
@@ -1570,9 +1843,10 @@ export default function StudentList() {
       }
       if (!options?.silent) {
         queryClient.invalidateQueries({
-          queryKey: ["class-students-behavior-summary", classIdStr],
+          queryKey: behaviorSummaryQueryKey,
         });
       }
+      return true;
     } catch (error: any) {
       setAttendanceByStudent((prev) => ({
         ...prev,
@@ -1586,8 +1860,76 @@ export default function StudentList() {
           "Failed to update attendance.";
         messageApi.error(String(backendMessage));
       }
+      return false;
     } finally {
       if (!options?.skipSyncFlag) setAttendanceSyncing(false);
+    }
+  };
+
+  const handleAttendanceModeToggle = async () => {
+    if (attendanceSyncing) return;
+
+    if (!isAttendanceMode) {
+      setAttendanceModeBaseline(buildAttendanceSnapshot());
+      setIsAttendanceMode(true);
+      messageApi.info(
+        "Attendence mode is on. Tap students to set present or absent, then press Attendence again to save."
+      );
+      return;
+    }
+
+    const baseline = attendanceModeBaseline || {};
+    const changedStudents = orderedStudents.filter((student) => {
+      const studentId = toStudentId(student.id);
+      const currentPresent = attendanceByStudent[studentId]?.isPresent !== false;
+      const baselinePresent = baseline[studentId]?.isPresent ?? true;
+      return currentPresent !== baselinePresent;
+    });
+
+    if (!changedStudents.length) {
+      setIsAttendanceMode(false);
+      setAttendanceModeBaseline(null);
+      messageApi.success("No attendance changes to save.");
+      return;
+    }
+
+    setAttendanceSyncing(true);
+    let successCount = 0;
+    let failedCount = 0;
+    try {
+      for (const student of changedStudents) {
+        const studentId = toStudentId(student.id);
+        const markPresent = attendanceByStudent[studentId]?.isPresent !== false;
+        const saved = await setStudentAttendance(student, markPresent, {
+          silent: true,
+          skipSyncFlag: true,
+          rollbackState: baseline[studentId],
+        });
+        if (saved) successCount += 1;
+        else failedCount += 1;
+      }
+
+      if (successCount > 0) {
+        queryClient.invalidateQueries({
+          queryKey: behaviorSummaryQueryKey,
+        });
+      }
+
+      if (failedCount === 0) {
+        messageApi.success(
+          `Attendence saved for ${successCount} student${successCount === 1 ? "" : "s"}.`
+        );
+      } else if (successCount > 0) {
+        messageApi.warning(
+          `Attendence saved for ${successCount} student${successCount === 1 ? "" : "s"}, ${failedCount} failed.`
+        );
+      } else {
+        messageApi.error("Failed to save attendence.");
+      }
+    } finally {
+      setAttendanceSyncing(false);
+      setIsAttendanceMode(false);
+      setAttendanceModeBaseline(null);
     }
   };
 
@@ -1606,7 +1948,7 @@ export default function StudentList() {
         markPresent ? "All students marked present." : "All students marked absent."
       );
       queryClient.invalidateQueries({
-        queryKey: ["class-students-behavior-summary", classIdStr],
+        queryKey: behaviorSummaryQueryKey,
       });
     } finally {
       setAttendanceSyncing(false);
@@ -1619,6 +1961,60 @@ export default function StudentList() {
       return entry?.isPresent !== false;
     });
   }, [orderedStudents, attendanceByStudent]);
+
+  const selectedStudentsInView = useMemo(() => {
+    const selectedSet = new Set(selectedStudentIds);
+    return orderedStudents.filter((student) =>
+      selectedSet.has(toStudentId(student.id))
+    );
+  }, [orderedStudents, selectedStudentIds]);
+
+  const selectedCountInView = selectedStudentsInView.length;
+  const allSelectedInView =
+    orderedStudents.length > 0 && selectedCountInView === orderedStudents.length;
+  const someSelectedInView =
+    selectedCountInView > 0 && selectedCountInView < orderedStudents.length;
+
+  useEffect(() => {
+    if (!selectedStudentIds.length) return;
+    const visibleIds = new Set(orderedStudents.map((student) => toStudentId(student.id)));
+    setSelectedStudentIds((prev) => prev.filter((id) => visibleIds.has(id)));
+  }, [orderedStudents, selectedStudentIds.length]);
+
+  const toggleSelectAllInView = () => {
+    if (!orderedStudents.length) return;
+    if (allSelectedInView) {
+      setSelectedStudentIds([]);
+      return;
+    }
+    setSelectedStudentIds(orderedStudents.map((student) => toStudentId(student.id)));
+  };
+
+  const markSelectedAttendance = async (markPresent: boolean) => {
+    if (!selectedStudentsInView.length) {
+      messageApi.warning("Select at least one student first.");
+      return;
+    }
+    setAttendanceSyncing(true);
+    try {
+      for (const student of selectedStudentsInView) {
+        await setStudentAttendance(student, markPresent, {
+          silent: true,
+          skipSyncFlag: true,
+        });
+      }
+      messageApi.success(
+        markPresent
+          ? `Marked ${selectedStudentsInView.length} selected students present.`
+          : `Marked ${selectedStudentsInView.length} selected students absent.`
+      );
+      queryClient.invalidateQueries({
+        queryKey: behaviorSummaryQueryKey,
+      });
+    } finally {
+      setAttendanceSyncing(false);
+    }
+  };
 
   const handleResetLayout = () => {
     setSeatingItems(buildAutoLayout(orderedStudents, canvasWidth));
@@ -1684,6 +2080,7 @@ export default function StudentList() {
   }, [orderedStudents, seatMap]);
 
   const isInitialLoading =
+    (isSubjectWorkspaceMode && resolvingSubjectClass) ||
     (studentsLoading && students.length === 0) ||
     (summaryLoading && behaviorSummary.length === 0);
   if (isInitialLoading) {
@@ -1712,6 +2109,12 @@ export default function StudentList() {
         ]}
         className="!mb-2"
       />
+
+      {subjectClassResolutionMissing ? (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          Unable to safely resolve this subject class. Please go back and open the class again.
+        </div>
+      ) : null}
 
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -1746,13 +2149,28 @@ export default function StudentList() {
               </button>
             )}
           </div>
-          <Button onClick={() => router.push(`/dashboard/classes/${classIdStr}/story`)}>
+          <Button
+            onClick={() => {
+              const params = new URLSearchParams();
+              if (queryYearId) params.set("yearId", queryYearId);
+              if (querySubjectClassLabel) params.set("subjectClassLabel", querySubjectClassLabel);
+              if (effectiveSubjectClassId) params.set("subjectClassId", effectiveSubjectClassId);
+              const suffix = params.toString() ? `?${params.toString()}` : "";
+              router.push(
+                toSubjectHref(
+                  `/dashboard/classes/${effectiveClassId || classIdStr}/story${suffix}`
+                )
+              );
+            }}
+            disabled={isSubjectWorkspaceMode && !effectiveSubjectClassId}
+          >
             Class Story
           </Button>
           {hasAccess && (
             <Button
               type="primary"
               className="!bg-primary !text-white hover:!bg-primary/90 !border-none"
+              disabled={isSubjectWorkspaceMode && !effectiveSubjectClassId}
               onClick={() => setIsAddStudentModalOpen(true)}
             >
               Add Student
@@ -1775,28 +2193,69 @@ export default function StudentList() {
       {viewMode === "behavior" && (
         <div className="mb-4 rounded-xl border border-emerald-100 bg-white px-3 py-2">
           <div className="flex flex-wrap items-center gap-2">
+            {hasAccess && isSubjectWorkspaceMode && effectiveSubjectClassId && orderedStudents.length > 0 ? (
+              <label className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={allSelectedInView}
+                  ref={(element) => {
+                    if (!element) return;
+                    element.indeterminate = someSelectedInView;
+                  }}
+                  onChange={toggleSelectAllInView}
+                  className="h-4 w-4 cursor-pointer accent-red-500"
+                />
+                {allSelectedInView ? "Untick All" : "Tick All"}
+              </label>
+            ) : null}
+
             <Button
               type={isAttendanceMode ? "primary" : "default"}
               className={isAttendanceMode ? "!bg-primary !border-none" : ""}
-              onClick={() => setIsAttendanceMode((prev) => !prev)}
-            >
-              {isAttendanceMode ? "Attendance Mode On" : "Attendance Mode"}
-            </Button>
-            <Button
-              onClick={() => markAllAttendance(true)}
               loading={attendanceSyncing}
-              disabled={!orderedStudents.length}
+              onClick={handleAttendanceModeToggle}
             >
-              Mark All Present
+              {isAttendanceMode ? "Save Attendence" : "Attendence"}
             </Button>
-            <Button
-              danger
-              onClick={() => markAllAttendance(false)}
-              loading={attendanceSyncing}
-              disabled={!orderedStudents.length}
-            >
-              Mark All Absent
-            </Button>
+
+            {hasAccess && isSubjectWorkspaceMode && effectiveSubjectClassId ? (
+              <>
+                <Button
+                  onClick={() => openSelectedStudentsBehaviorModalFor("positive")}
+                  disabled={!selectedCountInView}
+                  className="!border-emerald-300 !text-emerald-700"
+                >
+                  Give Points ({selectedCountInView})
+                </Button>
+                <Button
+                  onClick={() => openSelectedStudentsBehaviorModalFor("negative")}
+                  disabled={!selectedCountInView}
+                  className="!border-red-300 !text-red-600"
+                >
+                  Deduct Points ({selectedCountInView})
+                </Button>
+              </>
+            ) : null}
+
+            {!isSubjectWorkspaceMode ? (
+              <>
+                <Button
+                  onClick={() => markAllAttendance(true)}
+                  loading={attendanceSyncing}
+                  disabled={!orderedStudents.length}
+                >
+                  Mark All Present
+                </Button>
+                <Button
+                  danger
+                  onClick={() => markAllAttendance(false)}
+                  loading={attendanceSyncing}
+                  disabled={!orderedStudents.length}
+                >
+                  Mark All Absent
+                </Button>
+              </>
+            ) : null}
             <span className="text-xs text-slate-500 ml-1">
               Present now: {presentStudents.length} / {orderedStudents.length}
             </span>
@@ -1848,28 +2307,56 @@ export default function StudentList() {
                   onClick={() => {
                     if (attendanceSyncing) return;
                     if (isAttendanceMode) {
-                      setStudentAttendance(student, !isPresent);
+                      setStudentAttendanceLocal(student, !isPresent);
                       return;
                     }
                     handleStudentClick(studentId);
                   }}
-                  className={`rounded-3xl bg-white border border-gray-200 p-4 shadow-sm transition cursor-pointer ${
+                  className={`relative rounded-3xl bg-white border border-gray-200 p-4 shadow-sm transition cursor-pointer ${
+                    selectedStudentIds.includes(studentId) ? "ring-2 ring-red-400" : ""
+                  } ${
                     isPresent
                       ? "hover:shadow-md"
-                      : "border-red-300 bg-red-100/70 hover:shadow-md"
+                      : "border-slate-600 bg-slate-700/45 opacity-90 hover:shadow-md"
                   }`}
                 >
+                  {hasAccess && isSubjectWorkspaceMode && effectiveSubjectClassId && (
+                    <div
+                      className="absolute top-2 left-2 z-10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedStudentIds((prev) =>
+                          prev.includes(studentId)
+                            ? prev.filter((id) => id !== studentId)
+                            : [...prev, studentId]
+                        );
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedStudentIds.includes(studentId)}
+                        onChange={() => {}}
+                        className="w-4 h-4 accent-red-500 cursor-pointer"
+                      />
+                    </div>
+                  )}
                   <div className="flex items-start justify-between">
                     <div
                       className={`h-16 w-16 rounded-full overflow-hidden flex items-center justify-center text-2xl font-semibold uppercase ${
                         isPresent
                           ? "bg-emerald-100 text-emerald-700"
-                          : "bg-red-200 text-red-700"
+                          : "bg-slate-600 text-slate-200"
                       }`}
                     >
                       {imageSrc ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={imageSrc} alt={student.student_name} className="h-full w-full object-cover" />
+                        <img
+                          src={imageSrc}
+                          alt={student.student_name}
+                          className={`h-full w-full object-cover ${
+                            isPresent ? "" : "grayscale brightness-75"
+                          }`}
+                        />
                       ) : (
                         student.student_name?.charAt(0) || "S"
                       )}
@@ -1885,17 +2372,21 @@ export default function StudentList() {
                   </div>
 
                   <div className="mt-2">
-                    <div className="text-lg font-semibold text-slate-800 truncate capitalize">
+                    <div className={`text-lg font-semibold truncate capitalize ${
+                      isPresent ? "text-slate-800" : "text-slate-200"
+                    }`}>
                       {student.student_name}
                     </div>
-                    <div className="text-xs text-slate-500 truncate">@{student.user_name || "N/A"}</div>
+                    <div className={`text-xs truncate ${isPresent ? "text-slate-500" : "text-slate-300"}`}>
+                      @{student.user_name || "N/A"}
+                    </div>
                   </div>
 
                   <div className="mt-3 flex items-center justify-between">
                     <div
                       className={`text-xs px-2 py-0.5 rounded-full ${
                         !isPresent
-                          ? "bg-red-100 text-red-700"
+                          ? "bg-slate-600 text-slate-200"
                           : student.status === "active"
                           ? "bg-green-100 text-green-700"
                           : student.status === "inactive"
@@ -1910,13 +2401,17 @@ export default function StudentList() {
                       onClick={(e) => {
                         e.stopPropagation();
                         if (attendanceSyncing) return;
+                        if (isAttendanceMode) {
+                          setStudentAttendanceLocal(student, !isPresent);
+                          return;
+                        }
                         setStudentAttendance(student, !isPresent);
                       }}
                       disabled={attendanceSyncing}
                       className={`text-xs px-2 py-1 rounded-full border ${
                         isPresent
                           ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                          : "border-red-200 bg-red-50 text-red-600"
+                          : "border-slate-600 bg-slate-600 text-slate-200"
                       }`}
                     >
                       {isPresent ? "Present" : "Absent"}
@@ -2236,7 +2731,7 @@ export default function StudentList() {
         open={isAddStudentModalOpen}
         onCancel={() => setIsAddStudentModalOpen(false)}
         onOk={handleAddNewStudent}
-        classId={Number(classIdStr)}
+        classId={Number(effectiveClassId || classIdStr)}
       />
 
       <Modal
@@ -2336,11 +2831,18 @@ export default function StudentList() {
                 Change Avatar
               </Button>
               <Button
-                onClick={() =>
+                onClick={() => {
+                  const params = new URLSearchParams();
+                  if (queryYearId) params.set("yearId", queryYearId);
+                  if (querySubjectClassLabel) params.set("subjectClassLabel", querySubjectClassLabel);
+                  if (effectiveSubjectClassId) params.set("subjectClassId", effectiveSubjectClassId);
+                  const suffix = params.toString() ? `?${params.toString()}` : "";
                   router.push(
-                    `/dashboard/students/${classIdStr}/${selectedStudentAction.id}/student_dashboard`
-                  )
-                }
+                    toSubjectHref(
+                      `/dashboard/students/${effectiveClassId || classIdStr}/${selectedStudentAction.id}/student_dashboard${suffix}`
+                    )
+                  );
+                }}
                 className="col-span-2"
               >
                 Open Student Profile
@@ -2487,10 +2989,17 @@ export default function StudentList() {
           if (isBehaviorSubmitting) return;
           setIsBehaviorModalOpen(false);
           setIsWholeClassBehaviorMode(false);
+          setIsSelectedStudentsBehaviorMode(false);
           behaviorForm.resetFields();
         }}
         onOk={handleInlineBehaviorSave}
-        studentName={isWholeClassBehaviorMode ? "Whole Class" : selectedStudentAction?.student_name || "Student"}
+        studentName={
+          isWholeClassBehaviorMode
+            ? "Whole Class"
+            : isSelectedStudentsBehaviorMode
+            ? `Selected Students (${selectedCountInView})`
+            : selectedStudentAction?.student_name || "Student"
+        }
         behaviorTypes={filteredModalBehaviorTypes}
         form={behaviorForm}
         isEditing={false}

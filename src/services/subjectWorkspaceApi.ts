@@ -12,6 +12,8 @@ type AssignStudentsToSubjectsPayload = {
   studentIds: number[];
   subjects?: Array<{ id: number; name?: string | null }>;
   subjectClassIds?: number[];
+  forceReassign?: boolean;
+  allowCrossClass?: boolean;
 };
 
 const getBackendErrorMessage = (error: any): string => {
@@ -37,9 +39,33 @@ export const isMissingSubjectWorkspaceRoute = (error: any): boolean => {
   );
 };
 
-export const fetchSubjectClasses = async (params: { subject_id: number; year_id?: number }) => {
+export const fetchSubjectClasses = async (params: {
+  subject_id: number;
+  year_id?: number;
+  include_inactive?: boolean;
+}) => {
   const res = await api.get("/subject-classes", { params });
   return res?.data?.data ?? [];
+};
+
+export const archiveSubjectClass = async (subjectClassId: number) => {
+  const res = await api.post(`/subject-classes/${subjectClassId}/archive`);
+  return res.data;
+};
+
+export const restoreSubjectClass = async (subjectClassId: number) => {
+  const res = await api.post(`/subject-classes/${subjectClassId}/restore`);
+  return res.data;
+};
+
+export const permanentlyDeleteSubjectClass = async (subjectClassId: number) => {
+  const res = await api.delete(`/subject-classes/${subjectClassId}`);
+  return res.data;
+};
+
+export const deactivateSubjectClassesByYear = async (payload: { subject_id: number; year_id: number }) => {
+  const res = await api.post("/subject-classes/deactivate-by-year", payload);
+  return res.data;
 };
 
 export const createSubjectClass = async (payload: SubjectClassPayload) => {
@@ -47,8 +73,18 @@ export const createSubjectClass = async (payload: SubjectClassPayload) => {
   return res.data;
 };
 
-export const enrollStudentsToSubjectClass = async (payload: { subject_class_id: number; student_ids: number[] }) => {
+export const enrollStudentsToSubjectClass = async (payload: {
+  subject_class_id: number;
+  student_ids: number[];
+  force_reassign?: boolean;
+  allow_cross_class?: boolean;
+}) => {
   const res = await api.post("/subject-classes/enroll-students", payload);
+  return res.data;
+};
+
+export const unenrollStudentsFromSubjectClass = async (payload: { subject_class_id: number; student_ids: number[] }) => {
+  const res = await api.post("/subject-classes/unenroll-students", payload);
   return res.data;
 };
 
@@ -82,8 +118,14 @@ const ensureDefaultSubjectClass = async (
 ): Promise<{ id: number; name?: string | null }> => {
   try {
     const existing = await fetchSubjectClasses({ subject_id: Number(subjectId) });
-    if (Array.isArray(existing) && existing.length > 0) {
+    if (Array.isArray(existing) && existing.length === 1) {
       return existing[0];
+    }
+
+    if (Array.isArray(existing) && existing.length > 1) {
+      throw new Error(
+        `Please choose a specific class for ${String(subjectName || `subject ${subjectId}`)}. This subject has multiple classes.`
+      );
     }
 
     await createSubjectClass({
@@ -113,6 +155,8 @@ export const assignStudentsToSubjects = async ({
   studentIds,
   subjects = [],
   subjectClassIds = [],
+  forceReassign = false,
+  allowCrossClass = false,
 }: AssignStudentsToSubjectsPayload) => {
   const uniqueSubjectIds = Array.from(
     new Set(subjectIds.map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0))
@@ -130,7 +174,6 @@ export const assignStudentsToSubjects = async ({
   if (uniqueStudentIds.length === 0) {
     throw new Error("Please choose at least one student.");
   }
-
   const results = [] as Array<{ subjectId: number; subjectClassId: number }>;
   const processedSubjectIds = new Set<number>();
 
@@ -162,6 +205,8 @@ export const assignStudentsToSubjects = async ({
       await enrollStudentsToSubjectClass({
         subject_class_id: Number(subjectClassId),
         student_ids: uniqueStudentIds,
+        force_reassign: forceReassign || undefined,
+        allow_cross_class: allowCrossClass || undefined,
       });
 
       const resolvedSubjectId = Number(selectedClass.subject_id);
@@ -180,6 +225,8 @@ export const assignStudentsToSubjects = async ({
     await enrollStudentsToSubjectClass({
       subject_class_id: Number(subjectClass.id),
       student_ids: uniqueStudentIds,
+      force_reassign: forceReassign || undefined,
+      allow_cross_class: allowCrossClass || undefined,
     });
     results.push({ subjectId, subjectClassId: Number(subjectClass.id) });
   }

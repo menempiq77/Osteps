@@ -11,7 +11,24 @@ import { addClass, deleteClass, fetchClasses, updateClass } from "@/services/cla
 import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
 import { fetchStudents } from "@/services/studentsApi";
 import { useSubjectContext } from "@/contexts/SubjectContext";
-import { createSubjectClass, fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
+import {
+  archiveSubjectClass,
+  createSubjectClass,
+  fetchSubjectClasses,
+  permanentlyDeleteSubjectClass,
+  restoreSubjectClass,
+} from "@/services/subjectWorkspaceApi";
+import { filterStudentsBySubjectScope, studentMatchesSubjectScope } from "@/lib/subjectStudentScope";
+import {
+  makeSubjectHintScopeKey,
+  matchesSubjectStudentHint,
+  readSubjectStudentHints,
+} from "@/lib/subjectStudentHints";
+import {
+  readSubjectClassBaseMap,
+  resolveSubjectClassLinkedIdWithFallback,
+  writeSubjectClassBaseEntry,
+} from "@/lib/subjectClassResolution";
 interface ApiClass {
   id: string;
   class_name: string;
@@ -21,6 +38,8 @@ interface ApiClass {
   teacher_name?: string;
   color?: string;
   base_class_label?: string;
+  linked_class_id?: string;
+  is_active?: boolean;
 }
 
 type SubjectClassRow = {
@@ -28,9 +47,25 @@ type SubjectClassRow = {
   year_id?: number | string | null;
   base_class_label?: string | null;
   name?: string | null;
+  class_id?: number | string | null;
+  base_class_id?: number | string | null;
+  class?: { id?: number | string | null } | null;
+  classes?: { id?: number | string | null } | null;
+  base_class?: { id?: number | string | null } | null;
+  is_active?: number | boolean | null;
 };
 
 const normalizeLabel = (value: unknown) => String(value ?? "").trim().toLowerCase();
+
+const extractStudentSubjectClassIds = (student: Record<string, any>) =>
+  [
+    student?.subject_class_id,
+    student?.subjectClassId,
+    student?.pivot?.subject_class_id,
+  ]
+    .flatMap((value) => (Array.isArray(value) ? value : [value]))
+    .map((value) => String(value ?? "").trim())
+    .filter(Boolean);
 
 const mapSubjectClassToApiClass = (row: SubjectClassRow): ApiClass => ({
   id: String(row.id ?? ""),
@@ -39,6 +74,18 @@ const mapSubjectClassToApiClass = (row: SubjectClassRow): ApiClass => ({
   year_id: Number(row.year_id ?? 0),
   number_of_terms: "three",
   base_class_label: String(row.base_class_label ?? row.name ?? ""),
+  linked_class_id: String(
+    row.class_id ??
+      row.base_class_id ??
+      row.class?.id ??
+      row.classes?.id ??
+      row.base_class?.id ??
+      ""
+  ).trim(),
+  // Treat null/undefined is_active as inactive (null means the column existed but was never set to 1,
+  // so the backend already excludes it from default queries via WHERE is_active = 1).
+  // Only undefined means "backend has no is_active column at all" — fall back to active for compat.
+  is_active: row.is_active === undefined ? true : Number(row.is_active) === 1,
 });
 
 export default function Page() {
@@ -51,14 +98,18 @@ export default function Page() {
   const [error, setError] = useState<string | null>(null);
   const [currentClass, setCurrentClass] = useState<ApiClass | null>(null);
   const [classStats, setClassStats] = useState<Record<string, { students: number }>>({});
+  const [isDeleteClassModalOpen, setIsDeleteClassModalOpen] = useState(false);
+  const [classToDelete, setClassToDelete] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [messageApi, contextHolder] = message.useMessage();
-  const { activeSubjectId, activeSubject, canUseSubjectContext } = useSubjectContext();
+  const { activeSubjectId, activeSubject, canUseSubjectContext, loading: subjectContextLoading } = useSubjectContext();
   const hasAccess = currentUser?.role === "SCHOOL_ADMIN";
   const isTeacher = currentUser?.role === "TEACHER";
   const isSubjectWorkspaceMode = canUseSubjectContext && !!activeSubjectId;
-  const classesOrderStorageKey = `classes-order-${year_id ?? "all"}-${currentUser?.school ?? "global"}`;
-  const classesColorStorageKey = `classes-colors-${currentUser?.school ?? "global"}`;
+  const subjectStorageSuffix = isSubjectWorkspaceMode && activeSubjectId ? `-s${activeSubjectId}` : "";
+  const classesOrderStorageKey = `classes-order-${year_id ?? "all"}-${currentUser?.school ?? "global"}${subjectStorageSuffix}`;
+  const classesColorStorageKey = `classes-colors-${currentUser?.school ?? "global"}${subjectStorageSuffix}`;
 
   const readClassesColorMap = (): Record<string, string> => {
     if (typeof window === "undefined") return {};
@@ -111,6 +162,7 @@ export default function Page() {
   };
 
  useEffect(() => {
+  if (subjectContextLoading) return;
   const loadClasses = async () => {
     let classesData: any[] = [];
     try {
@@ -120,9 +172,23 @@ export default function Page() {
         const subjectClasses = (await fetchSubjectClasses({
           subject_id: Number(activeSubjectId),
           year_id: year_id ? Number(year_id) : undefined,
+          include_inactive: true,
         })) as SubjectClassRow[];
-        classesData = (Array.isArray(subjectClasses) ? subjectClasses : []).map(
-          mapSubjectClassToApiClass
+        classesData = await Promise.all(
+          (Array.isArray(subjectClasses) ? subjectClasses : []).map(async (row) => {
+            const mapped = mapSubjectClassToApiClass(row);
+            const linkedClassId = await resolveSubjectClassLinkedIdWithFallback(
+              row,
+              Number(activeSubjectId)
+            );
+            return {
+              ...mapped,
+              linked_class_id: linkedClassId || mapped.linked_class_id,
+            };
+          })
+        );
+        classesData = classesData.filter(
+          (row) => Boolean(row) && Boolean(row.id) && Boolean(row.is_active) !== showArchived
         );
       } else if (isTeacher) {
         const res = await fetchAssignYears();
@@ -132,7 +198,7 @@ export default function Page() {
           .filter((cls: any) => cls);
 
         classesData = Array.from(
-          new Map(classesData.map((cls: any) => [cls.id, cls])).values()
+          new Map(classesData.map((cls: any) => [String(cls.id), cls] as const)).values()
         );
 
         if (year_id) {
@@ -155,7 +221,7 @@ export default function Page() {
           classesData = byYear.flat();
 
           classesData = Array.from(
-            new Map(classesData.map((cls: any) => [cls.id, cls])).values()
+            new Map(classesData.map((cls: any) => [String(cls.id), cls] as const)).values()
           );
         } else {
           classesData = await fetchClasses(year_id);
@@ -172,7 +238,7 @@ export default function Page() {
   };
 
   loadClasses();
-}, [year_id, isTeacher, currentUser?.school, isSubjectWorkspaceMode, activeSubjectId]);
+}, [year_id, isTeacher, currentUser?.school, isSubjectWorkspaceMode, activeSubjectId, subjectContextLoading, showArchived]);
 
 useEffect(() => {
   const loadClassStats = async () => {
@@ -181,53 +247,76 @@ useEffect(() => {
       return;
     }
 
+    const baseClassesByYear = new Map<number, any[]>();
+    const getBaseClassesForYear = async (yearId: number) => {
+      if (baseClassesByYear.has(yearId)) {
+        return baseClassesByYear.get(yearId) as any[];
+      }
+      try {
+        const rows = await fetchClasses(String(yearId));
+        const list = Array.isArray(rows) ? rows : [];
+        baseClassesByYear.set(yearId, list);
+        return list;
+      } catch {
+        baseClassesByYear.set(yearId, []);
+        return [];
+      }
+    };
+
     const entries = await Promise.all(
       classes.map(async (cls) => {
         try {
           if (isSubjectWorkspaceMode && activeSubjectId) {
-            const yearClasses = ((await fetchClasses(String(cls.year_id))) || []) as Array<{
-              id: string | number;
-              class_name?: string;
-            }>;
-            const targetLabel = normalizeLabel(cls.base_class_label ?? cls.class_name);
-            const matchedBaseClass = yearClasses.find(
-              (item) => normalizeLabel(item.class_name) === targetLabel
-            );
+            const storedBaseId = readSubjectClassBaseMap(Number(activeSubjectId))[String(cls.id)] ?? "";
+            let linkedClassId = String(cls.linked_class_id ?? "").trim() || storedBaseId;
 
-            if (!matchedBaseClass) {
+            if (!linkedClassId && Number(cls.year_id) > 0) {
+              const baseRows = await getBaseClassesForYear(Number(cls.year_id));
+              const targetLabel = normalizeLabel(cls.base_class_label || cls.class_name);
+              const matched = (Array.isArray(baseRows) ? baseRows : []).find(
+                (row: any) => normalizeLabel(row?.class_name ?? row?.name) === targetLabel
+              );
+              linkedClassId = String(matched?.id ?? "").trim();
+            }
+
+            if (!linkedClassId) {
               return [String(cls.id), { students: 0 }] as const;
             }
 
-            const students = await fetchStudents(matchedBaseClass.id);
-            const total = Array.isArray(students)
-              ? students.filter((student: any) => {
-                  const rawSubjects = Array.isArray(student.subjects)
-                    ? student.subjects
-                    : student.subject_name
-                      ? [student.subject_name]
-                      : student.subject
-                        ? [student.subject]
-                        : [];
-                  return rawSubjects.some((item: any) => {
-                    const name =
-                      typeof item === "string"
-                        ? item
-                        : item && typeof item === "object"
-                          ? item.name ?? item.subject_name ?? ""
-                          : "";
-                    return (
-                      String(name ?? "")
-                        .replace(/islamiat/gi, "Islamic")
-                        .trim()
-                        .toLowerCase() ===
-                      String(activeSubject?.name ?? "")
-                        .replace(/islamiat/gi, "Islamic")
-                        .trim()
-                        .toLowerCase()
-                    );
-                  });
-                }).length
-              : 0;
+            const students = await fetchStudents(linkedClassId, Number(activeSubjectId));
+            const studentRows = Array.isArray(students) ? students : [];
+            const inScopeRows = filterStudentsBySubjectScope(
+              studentRows,
+              {
+                subjectId: Number(activeSubjectId),
+                subjectName: activeSubject?.name,
+                subjectClassId: cls.id,
+              }
+            );
+
+            const hintScopeKey = makeSubjectHintScopeKey(Number(activeSubjectId), cls.id);
+            const hintBucket = readSubjectStudentHints(hintScopeKey);
+            const hintedRows = studentRows.filter((student: any) => {
+              if (
+                studentMatchesSubjectScope(student, {
+                  subjectId: Number(activeSubjectId),
+                  subjectName: activeSubject?.name,
+                  subjectClassId: cls.id,
+                })
+              ) {
+                return false;
+              }
+
+              const scopedIds = extractStudentSubjectClassIds(student);
+              if (scopedIds.length > 0) return false;
+              return matchesSubjectStudentHint(student, hintBucket);
+            });
+
+            const total = new Set(
+              [...inScopeRows, ...hintedRows]
+                .map((student: any) => String(student?.id ?? "").trim())
+                .filter(Boolean)
+            ).size;
             return [String(cls.id), { students: total }] as const;
           }
 
@@ -302,6 +391,16 @@ useEffect(() => {
       }
 
       if (isSubjectWorkspaceMode && activeSubjectId) {
+        // Create a base class first so add-student API has a valid class_id
+        const baseClassResponse = await addClass({
+          class_name: classData.class_name,
+          number_of_terms: classData.number_of_terms || "three",
+          year_id: parseInt(year_id),
+        });
+        const baseClassId = String(
+          baseClassResponse?.data?.id ?? baseClassResponse?.id ?? ""
+        ).trim();
+
         const response = await createSubjectClass({
           subject_id: Number(activeSubjectId),
           year_id: parseInt(year_id),
@@ -309,12 +408,38 @@ useEffect(() => {
           base_class_label: classData.class_name,
         });
 
+        // Store subject_class → base_class mapping in localStorage for student add flow
+        const createdSubjectClassId = String(
+          response?.data?.id ?? response?.id ?? ""
+        ).trim();
+        if (baseClassId && createdSubjectClassId) {
+          writeSubjectClassBaseEntry(
+            Number(activeSubjectId),
+            createdSubjectClassId,
+            baseClassId
+          );
+        }
+
         const subjectClasses = (await fetchSubjectClasses({
           subject_id: Number(activeSubjectId),
           year_id: parseInt(year_id),
         })) as SubjectClassRow[];
         const nextClasses = applySavedOrder(
-          applySavedColors((Array.isArray(subjectClasses) ? subjectClasses : []).map(mapSubjectClassToApiClass))
+          applySavedColors(
+            await Promise.all(
+              (Array.isArray(subjectClasses) ? subjectClasses : []).map(async (row) => {
+                const mapped = mapSubjectClassToApiClass(row);
+                const linkedClassId = await resolveSubjectClassLinkedIdWithFallback(
+                  row,
+                  Number(activeSubjectId)
+                );
+                return {
+                  ...mapped,
+                  linked_class_id: linkedClassId || mapped.linked_class_id,
+                };
+              })
+            )
+          )
         );
         const createdId = String(response?.data?.id ?? subjectClasses.at(-1)?.id ?? "");
         setClasses(nextClasses.map((item) =>
@@ -343,9 +468,21 @@ useEffect(() => {
       setModalOpen(false);
       messageApi.success("Class added successfully");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add class");
+      let backendMessage =
+        (err as any)?.response?.data?.msg ||
+        (err as any)?.response?.data?.message ||
+        (err as any)?.response?.data?.data?.message ||
+        (err instanceof Error ? err.message : "Failed to add class");
+      
+      // Detect duplicate key constraint violation and provide friendly message
+      const messageStr = String(backendMessage ?? "");
+      if (messageStr.includes("Duplicate entry") && messageStr.includes("subject_classes_school_subject_name_unique")) {
+        backendMessage = `A class named "${classData.class_name}" already exists for this subject. Please use a different name.`;
+      }
+      
+      setError(String(backendMessage));
       console.error(err);
-      messageApi.error("Failed to delete Class");
+      messageApi.error(String(backendMessage || "Failed to add class"));
     }
   };
 
@@ -359,10 +496,9 @@ useEffect(() => {
         throw new Error("Class ID is missing");
       }
 
-      const updatedClass = await updateClass(parseInt(currentClass.id), {
+      const updatedClass = await updateClass(String(currentClass.id), {
         class_name: classData.class_name,
         number_of_terms: classData.number_of_terms,
-        year_id: currentClass.year_id,
       });
 
       setClasses(
@@ -386,19 +522,71 @@ useEffect(() => {
     }
   };
 
-  const handleDeleteClass = async (id: string) => {
+  const confirmDeleteClass = (id: string) => {
     if (!hasAccess) {
       messageApi.warning("Only School Admin can delete classes.");
       return;
     }
+    setClassToDelete(id);
+    setIsDeleteClassModalOpen(true);
+  };
+
+  const handleDeleteClass = async () => {
+    if (!classToDelete) return;
+    const id = classToDelete;
+
+    if (isSubjectWorkspaceMode && activeSubjectId) {
+      try {
+        if (showArchived) {
+          await permanentlyDeleteSubjectClass(Number(id));
+          messageApi.success("Class deleted permanently.");
+        } else {
+          await archiveSubjectClass(Number(id));
+          messageApi.success("Class archived.");
+        }
+        setClasses(classes.filter((cls) => String(cls.id) !== String(id)));
+        setIsDeleteClassModalOpen(false);
+        setClassToDelete(null);
+        return;
+      } catch (err) {
+        const backendMessage =
+          (err as any)?.response?.data?.msg ||
+          (err as any)?.response?.data?.message ||
+          (err as Error)?.message ||
+          (showArchived ? "Failed to delete class permanently." : "Failed to archive class.");
+        setError(String(backendMessage));
+        messageApi.error(String(backendMessage));
+        return;
+      }
+    }
+
     try {
       await deleteClass(parseInt(id));
       setClasses(classes.filter((cls) => cls.id !== id));
+      setIsDeleteClassModalOpen(false);
+      setClassToDelete(null);
       messageApi.success("Class deleted successfully");
     } catch (err) {
       setError("Failed to delete class");
       console.error(err);
       messageApi.error("Failed to delete Class");
+    }
+  };
+
+  const handleRestoreClass = async (id: string) => {
+    if (!isSubjectWorkspaceMode || !activeSubjectId) return;
+    try {
+      await restoreSubjectClass(Number(id));
+      setClasses(classes.filter((cls) => String(cls.id) !== String(id)));
+      messageApi.success("Class restored.");
+    } catch (err) {
+      const backendMessage =
+        (err as any)?.response?.data?.msg ||
+        (err as any)?.response?.data?.message ||
+        (err as Error)?.message ||
+        "Failed to restore class.";
+      setError(String(backendMessage));
+      messageApi.error(String(backendMessage));
     }
   };
 
@@ -432,18 +620,46 @@ useEffect(() => {
           <div>
             <h1 className="text-2xl font-bold">Classes</h1>
             <p className="text-sm text-gray-600 mt-1">
-              Organize classes as folders and drag cards to set display order.
+              {isSubjectWorkspaceMode
+                ? "Manage active and archived subject classes from one place."
+                : "Organize classes as folders and drag cards to set display order."}
             </p>
           </div>
-          {hasAccess && !!year_id && (
-            <Button
-              type="primary"
-              className="!bg-emerald-600 !border-emerald-600 !text-white hover:!bg-emerald-700 !cursor-pointer"
-              onClick={() => setModalOpen(true)}
-            >
-              Add Class
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {isSubjectWorkspaceMode ? (
+              <div className="inline-flex rounded-full border border-emerald-200 bg-white p-1">
+                <button
+                  onClick={() => setShowArchived(false)}
+                  className={`px-4 py-1.5 rounded-full text-xs md:text-sm transition ${
+                    !showArchived
+                      ? "bg-emerald-100 text-emerald-700"
+                      : "text-gray-600 hover:text-emerald-700"
+                  }`}
+                >
+                  Active
+                </button>
+                <button
+                  onClick={() => setShowArchived(true)}
+                  className={`px-4 py-1.5 rounded-full text-xs md:text-sm transition ${
+                    showArchived
+                      ? "bg-amber-100 text-amber-700"
+                      : "text-gray-600 hover:text-amber-700"
+                  }`}
+                >
+                  Archived
+                </button>
+              </div>
+            ) : null}
+            {hasAccess && !!year_id && !showArchived && (
+              <Button
+                type="primary"
+                className="!bg-emerald-600 !border-emerald-600 !text-white hover:!bg-emerald-700 !cursor-pointer"
+                onClick={() => setModalOpen(true)}
+              >
+                Add Class
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -465,9 +681,58 @@ useEffect(() => {
         />
       </Modal>
 
+      <Modal
+        title={
+          isSubjectWorkspaceMode
+            ? showArchived
+              ? "Delete Class Forever"
+              : "Archive Class"
+            : "Delete Class"
+        }
+        open={isDeleteClassModalOpen}
+        onOk={handleDeleteClass}
+        onCancel={() => {
+          setIsDeleteClassModalOpen(false);
+          setClassToDelete(null);
+        }}
+        okText={isSubjectWorkspaceMode ? (showArchived ? "Delete Forever" : "Archive") : "Delete"}
+        okButtonProps={{ danger: true }}
+        cancelText="Cancel"
+        centered
+      >
+        {classToDelete && (() => {
+          const cls = classes.find((c) => String(c.id) === String(classToDelete));
+          const stats = classStats[String(classToDelete)] ?? { students: 0 };
+          return (
+            <div className="space-y-3 text-sm text-slate-700">
+              <p className="font-semibold text-slate-900">
+                {cls?.class_name ?? `Class ${classToDelete}`}
+              </p>
+              <p>Students: <span className="font-medium">{stats.students}</span></p>
+              {isSubjectWorkspaceMode ? (
+                showArchived ? (
+                  <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-3 text-rose-900">
+                    This will permanently delete the archived subject class and remove its related subject enrollments and subject-class assignments. This cannot be undone.
+                  </div>
+                ) : (
+                  <p>
+                    This will archive the class from the current subject workspace. Archived classes are removed from normal assignment flows and can be restored later from the Archived view.
+                  </p>
+                )
+              ) : (
+                <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-3 text-rose-900">
+                  This will permanently delete the class and cannot be undone. Are you sure?
+                </div>
+              )}
+            </div>
+          );
+        })()}
+      </Modal>
+
       <ClassesList
         classes={classes}
-        onDeleteClass={handleDeleteClass}
+        onDeleteClass={confirmDeleteClass}
+        onRestoreClass={handleRestoreClass}
         onEditClass={(cls) => {
           setCurrentClass(cls);
           setModalOpen(true);
@@ -475,6 +740,7 @@ useEffect(() => {
         onReorderClasses={handleReorderClasses}
         classStats={classStats}
         subjectScoped={isSubjectWorkspaceMode}
+        archivedView={showArchived}
       />
     </div>
   );

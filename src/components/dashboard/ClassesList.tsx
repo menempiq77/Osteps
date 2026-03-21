@@ -1,20 +1,24 @@
 "use client";
 import { RootState } from "@/store/store";
 import { useSubjectContext } from "@/contexts/SubjectContext";
-import { fetchClasses } from "@/services/classesApi";
 import { useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { useEffect, useState } from "react";
+import {
+  readSubjectClassBaseMap,
+  resolveBaseClassIdByYearAndLabel,
+  writeSubjectClassBaseEntry,
+} from "@/lib/subjectClassResolution";
 import {
   EditOutlined,
   DeleteOutlined,
   BookOutlined,
   FolderOpenOutlined,
   MenuOutlined,
+  RollbackOutlined,
   TeamOutlined,
   ReadOutlined,
 } from "@ant-design/icons";
-import { Modal } from "antd";
 import { message } from "antd";
 
 interface Class {
@@ -26,31 +30,34 @@ interface Class {
   teacher_name?: string;
   color?: string;
   base_class_label?: string;
+  linked_class_id?: string;
 }
 
 interface ClassesListProps {
   classes: Class[];
   onDeleteClass: (id: string) => void;
+  onRestoreClass?: (id: string) => void;
   onEditClass: (cls: Class) => void;
   onReorderClasses?: (classes: Class[]) => void;
   classStats?: Record<string, { students: number }>;
   subjectScoped?: boolean;
+  archivedView?: boolean;
 }
 
 export default function ClassesList({
   classes,
   onDeleteClass,
+  onRestoreClass,
   onEditClass,
   onReorderClasses,
   classStats = {},
   subjectScoped = false,
+  archivedView = false,
 }: ClassesListProps) {
   const router = useRouter();
   const { activeSubjectId, toSubjectHref } = useSubjectContext();
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [localClasses, setLocalClasses] = useState<Class[]>(classes || []);
-  const [classToDelete, setClassToDelete] = useState<Class | null>(null);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [draggingClassId, setDraggingClassId] = useState<string | null>(null);
   const [messageApi, contextHolder] = message.useMessage();
   const hasAccess = currentUser?.role === "SCHOOL_ADMIN";
@@ -75,11 +82,12 @@ export default function ClassesList({
   };
 
   const handleTerms = (classId: string) => {
+    if (subjectScoped && activeSubjectId) {
+      router.push(toSubjectHref(`/dashboard/classes/${classId}/terms`));
+      return;
+    }
     router.push(`/dashboard/classes/${classId}/terms`);
   };
-
-  const normalizeLabel = (value: unknown) =>
-    String(value ?? "").trim().toLowerCase();
 
   const handleViewStudents = async (classId: string) => {
     if (subjectScoped && activeSubjectId) {
@@ -87,38 +95,44 @@ export default function ClassesList({
       const yearId = subjectClass?.year_id;
       const classLabel = subjectClass?.base_class_label || subjectClass?.class_name;
 
-      if (yearId && classLabel) {
-        try {
-          const yearClasses = (await fetchClasses(String(yearId))) as Array<{
-            id: string | number;
-            class_name?: string;
-          }>;
-          const matched = (Array.isArray(yearClasses) ? yearClasses : []).find(
-            (item) => normalizeLabel(item?.class_name) === normalizeLabel(classLabel)
-          );
+      const params = new URLSearchParams();
+      if (yearId) params.set("yearId", String(yearId));
+      if (classLabel) params.set("subjectClassLabel", classLabel);
+      params.set("subjectClassId", String(classId));
 
-          if (matched?.id != null) {
-            router.push(toSubjectHref(`/dashboard/students/${matched.id}`));
-            return;
-          }
-        } catch {
-          // fallback below
-        }
+      // Recover missing subject-class links by matching the visible label to its base class.
+      const apiLinkedId = String(subjectClass?.linked_class_id ?? "").trim();
+      const storedBaseId = String(
+        readSubjectClassBaseMap(Number(activeSubjectId))[String(classId)] ?? ""
+      ).trim();
+      const inferredBaseId =
+        !apiLinkedId && !storedBaseId && yearId && classLabel
+          ? await resolveBaseClassIdByYearAndLabel(Number(yearId), classLabel)
+          : "";
+
+      if (inferredBaseId) {
+        writeSubjectClassBaseEntry(Number(activeSubjectId), String(classId), inferredBaseId);
       }
 
-      router.push(
-        toSubjectHref(
-          `/dashboard/students/all?yearId=${yearId ?? ""}&subjectClassLabel=${encodeURIComponent(
-            classLabel ?? ""
-          )}`
-        )
-      );
+      const resolvedLinkedId = apiLinkedId || storedBaseId || inferredBaseId;
+      if (!resolvedLinkedId) {
+        messageApi.warning(
+          "Could not resolve this subject class safely. Please refresh and try again."
+        );
+        return;
+      }
+
+      router.push(toSubjectHref(`/dashboard/students/${resolvedLinkedId}?${params.toString()}`));
       return;
     }
     router.push(toSubjectHref(`/dashboard/students/${classId}`));
   };
 
   const handleStory = (classId: string) => {
+    if (subjectScoped && activeSubjectId) {
+      router.push(toSubjectHref(`/dashboard/classes/${classId}/story`));
+      return;
+    }
     router.push(`/dashboard/classes/${classId}/story`);
   };
 
@@ -127,20 +141,7 @@ export default function ClassesList({
       messageApi.warning("Only School Admin can delete classes.");
       return;
     }
-    setClassToDelete(cls);
-    setIsDeleteModalOpen(true);
-  };
-
-  const confirmDelete = () => {
-    if (!hasAccess) {
-      messageApi.warning("Only School Admin can delete classes.");
-      return;
-    }
-    if (classToDelete) {
-      onDeleteClass(classToDelete.id);
-      setIsDeleteModalOpen(false);
-      setClassToDelete(null);
-    }
+    onDeleteClass(cls.id);
   };
 
   const getPaletteColor = (palette?: string) => {
@@ -180,7 +181,7 @@ export default function ClassesList({
             }}
           >
             <MenuOutlined />
-            Drag class folders to reorder
+            {archivedView ? "Archived classes" : "Drag class folders to reorder"}
           </div>
         )}
 
@@ -251,20 +252,22 @@ export default function ClassesList({
                   </div>
 
                   <div className="ml-auto flex flex-wrap items-center gap-3 text-[12px]">
-                    {canManageOrder && (
+                    {canManageOrder && !archivedView && (
                       <span className="inline-flex cursor-grab items-center gap-1 text-slate-500">
                         <MenuOutlined />
                         Move
                       </span>
                     )}
-                    <button
-                      onClick={() => void handleViewStudents(cls.id)}
-                      className="cursor-pointer text-slate-600 hover:text-[var(--theme-dark)]"
-                      title="Students"
-                    >
-                      <TeamOutlined /> Students
-                    </button>
-                    {!subjectScoped ? (
+                    {!archivedView ? (
+                      <button
+                        onClick={() => void handleViewStudents(cls.id)}
+                        className="cursor-pointer text-slate-600 hover:text-[var(--theme-dark)]"
+                        title="Students"
+                      >
+                        <TeamOutlined /> Students
+                      </button>
+                    ) : null}
+                    {!subjectScoped && !archivedView ? (
                       <button
                         onClick={() => handleTerms(cls.id)}
                         className="cursor-pointer text-slate-600 hover:text-[var(--theme-dark)]"
@@ -273,7 +276,7 @@ export default function ClassesList({
                         <BookOutlined /> Terms
                       </button>
                     ) : null}
-                    {!subjectScoped ? (
+                    {!subjectScoped && !archivedView ? (
                       <button
                         onClick={() => handleStory(cls.id)}
                         className="cursor-pointer text-slate-600 hover:text-[var(--theme-dark)]"
@@ -283,7 +286,7 @@ export default function ClassesList({
                       </button>
                     ) : null}
 
-                    {hasAccess && !subjectScoped && (
+                    {hasAccess && !subjectScoped && !archivedView && (
                       <button
                         onClick={() => onEditClass(cls)}
                         className="cursor-pointer text-slate-600 hover:text-[var(--theme-dark)]"
@@ -293,13 +296,23 @@ export default function ClassesList({
                       </button>
                     )}
 
-                    {hasAccess && !subjectScoped && (
+                    {hasAccess && subjectScoped && archivedView && onRestoreClass ? (
+                      <button
+                        onClick={() => onRestoreClass(cls.id)}
+                        className="cursor-pointer text-emerald-600 hover:text-emerald-700"
+                        title="Restore"
+                      >
+                        <RollbackOutlined /> Restore
+                      </button>
+                    ) : null}
+
+                    {hasAccess && (
                       <button
                         onClick={() => handleDeleteClick(cls)}
                         className="cursor-pointer text-rose-600 hover:text-rose-700"
-                        title="Delete"
+                        title={subjectScoped ? (archivedView ? "Delete Forever" : "Archive") : "Delete"}
                       >
-                        <DeleteOutlined /> Delete
+                        <DeleteOutlined /> {subjectScoped ? (archivedView ? "Delete Forever" : "Archive") : "Delete"}
                       </button>
                     )}
                   </div>
@@ -310,28 +323,6 @@ export default function ClassesList({
         )}
       </div>
 
-      {/* Delete Confirmation Dialog */}
-      <Modal
-        title="Confirm Deletion"
-        open={isDeleteModalOpen}
-        onOk={confirmDelete}
-        onCancel={() => {
-          setIsDeleteModalOpen(false);
-          setClassToDelete(null);
-        }}
-        okText="Delete"
-        okButtonProps={{ danger: true }}
-        cancelText="Cancel"
-        centered
-      >
-        {classToDelete && (
-          <p>
-            Are you sure you want to delete the class{" "}
-            <strong>{classToDelete.class_name}</strong>? This action cannot be
-            undone.
-          </p>
-        )}
-      </Modal>
     </div>
   );
 }

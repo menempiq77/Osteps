@@ -25,9 +25,11 @@ import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Megaphone } from "lucide-react";
 import { fetchSchools } from "@/services/schoolApi";
+import { useSubjectContext } from "@/contexts/SubjectContext";
 
 const { TextArea } = Input;
 const { Option } = Select;
+const PRIMARY_ADMIN_EMAIL = "abdelmonem@gmail.com";
 
 type Announcement = {
   id: string;
@@ -63,6 +65,14 @@ const roleOptions: Record<string, { value: string; label: string }[]> = {
 
 export default function AnnouncementsPage() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
+  const { activeSubjectId, activeSubject } = useSubjectContext();
+  const scopedSubjectName = String(activeSubject?.name || "").replace(/islamiat/gi, "Islamic").trim();
+  const isPrimaryPlatformAdmin =
+    String(currentUser?.email ?? "").trim().toLowerCase() === PRIMARY_ADMIN_EMAIL;
+  const effectiveRole =
+    currentUser?.role === "SUPER_ADMIN" || isPrimaryPlatformAdmin
+      ? "SUPER_ADMIN"
+      : String(currentUser?.role ?? "").trim().toUpperCase();
   const queryClient = useQueryClient();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [announcementToDelete, setAnnouncementToDelete] = useState<
@@ -80,7 +90,7 @@ export default function AnnouncementsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
   const [messageApi, contextHolder] = message.useMessage();
-  const isSuperAdmin = currentUser?.role === "SUPER_ADMIN";
+  const isSuperAdmin = effectiveRole === "SUPER_ADMIN";
   const [schools, setSchools] = useState<any[]>([]);
   const [schoolsLoading, setSchoolsLoading] = useState(true);
   const [markingId, setMarkingId] = useState<number | null>(null);
@@ -101,9 +111,9 @@ export default function AnnouncementsPage() {
   }, []);
 
   const { data: unseenCount = 0 } = useQuery({
-      queryKey: ["unseen-announcement-count", currentUser?.role],
+      queryKey: ["unseen-announcement-count", effectiveRole, activeSubjectId ?? "all"],
       queryFn: fetchUnseenAnnouncementCount,
-      enabled: !!currentUser?.role,
+      enabled: !!effectiveRole,
     });
 
   // Fetch announcements with React Query
@@ -113,7 +123,7 @@ export default function AnnouncementsPage() {
     error,
     refetch,
   } = useQuery<Announcement[]>({
-    queryKey: ["announcements"],
+    queryKey: ["announcements", activeSubjectId ?? "all"],
     queryFn: fetchAnnouncements,
   });
 
@@ -253,7 +263,7 @@ export default function AnnouncementsPage() {
   };
 
   const handleNewAnnouncement = () => {
-    const options = roleOptions[currentUser?.role ?? ""] || [];
+    const options = roleOptions[effectiveRole] || [];
     setAnnouncementForm({
       id: null,
       title: "",
@@ -275,25 +285,25 @@ export default function AnnouncementsPage() {
   };
 
   const canCreateAnnouncement =
-    currentUser?.role === "SUPER_ADMIN" ||
-    currentUser?.role === "SCHOOL_ADMIN" ||
-    currentUser?.role === "HOD" ||
-    currentUser?.role === "TEACHER";
+    effectiveRole === "SUPER_ADMIN" ||
+    effectiveRole === "SCHOOL_ADMIN" ||
+    effectiveRole === "HOD" ||
+    effectiveRole === "TEACHER";
 
   const canDeleteAnnouncement = (announcement: Announcement) => {
     return (
-      currentUser?.role === "SUPER_ADMIN" ||
-      currentUser?.role === "SCHOOL_ADMIN" ||
-      currentUser?.role === "HOD" ||
+      effectiveRole === "SUPER_ADMIN" ||
+      effectiveRole === "SCHOOL_ADMIN" ||
+      effectiveRole === "HOD" ||
       announcement.authorId === currentUser?.id
     );
   };
 
   const canEditAnnouncement = (announcement: Announcement) => {
     return (
-      currentUser?.role === "SUPER_ADMIN" ||
-      currentUser?.role === "SCHOOL_ADMIN" ||
-      currentUser?.role === "HOD" ||
+      effectiveRole === "SUPER_ADMIN" ||
+      effectiveRole === "SCHOOL_ADMIN" ||
+      effectiveRole === "HOD" ||
       announcement.authorId === currentUser?.id
     );
   };
@@ -302,19 +312,19 @@ export default function AnnouncementsPage() {
     const rolesArray = announcement.roles?.map((r: any) => r.role_name) || [];
 
     if (rolesArray.includes("ALL")) return true;
-    if (currentUser?.role === "SUPER_ADMIN") return true;
+    if (effectiveRole === "SUPER_ADMIN") return true;
 
-    if (currentUser?.role === "SCHOOL_ADMIN") return true;
+    if (effectiveRole === "SCHOOL_ADMIN") return true;
 
-    if (currentUser?.role === "HOD") {
+    if (effectiveRole === "HOD") {
       return rolesArray.some((r) => ["HOD", "TEACHER", "STUDENT"].includes(r));
     }
 
-    if (currentUser?.role === "TEACHER") {
+    if (effectiveRole === "TEACHER") {
       return rolesArray.some((r) => ["TEACHER", "STUDENT"].includes(r));
     }
 
-    if (currentUser?.role === "STUDENT") {
+    if (effectiveRole === "STUDENT") {
       return rolesArray.includes("STUDENT") || rolesArray.length === 0;
     }
 
@@ -361,7 +371,7 @@ export default function AnnouncementsPage() {
       <div className="premium-hero flex justify-between items-center mb-6 rounded-xl px-4 py-3">
         <h1 className="text-2xl font-medium flex items-center gap-3">
           <Megaphone />
-          Announcements
+          {scopedSubjectName ? `${scopedSubjectName} Announcements` : "Announcements"}
         </h1>
         {canCreateAnnouncement && (
           <Button
@@ -452,7 +462,7 @@ export default function AnnouncementsPage() {
                 mode="multiple"
                 value={announcementForm.role}
                 onChange={(value) => {
-                  const options = roleOptions[currentUser?.role ?? ""] || [];
+                  const options = roleOptions[effectiveRole] || [];
 
                   if (value.includes("ALL")) {
                     const allExceptAll = options
@@ -473,7 +483,7 @@ export default function AnnouncementsPage() {
                 placeholder="Select roles"
                 className="w-full hover:!border-primary focus:!border-primary focus:ring-1 focus:!ring-primary transition-colors"
               >
-                {(roleOptions[currentUser?.role ?? ""] || []).map((opt) => (
+                {(roleOptions[effectiveRole] || []).map((opt) => (
                   <Option key={opt.value} value={opt.value}>
                     {opt.label}
                   </Option>

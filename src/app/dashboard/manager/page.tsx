@@ -7,7 +7,6 @@ import {
   ClipboardList,
   GraduationCap,
   BarChart3,
-  BookOpen,
   NotebookPen,
 } from "lucide-react";
 
@@ -29,12 +28,6 @@ const managerCards = [
     description: "Create quizzes and maintain quiz content.",
     href: "/dashboard/quiz",
     icon: ClipboardList,
-  },
-  {
-    title: "Subjects",
-    description: "Manage subjects and curriculum mappings.",
-    href: "/dashboard/subjects",
-    icon: BookOpen,
   },
   {
     title: "Behavior",

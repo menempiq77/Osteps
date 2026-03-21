@@ -2,6 +2,7 @@
 import axios from 'axios';
 import { store } from '@/store/store';
 import { API_BASE_URL } from '@/lib/config';
+import { resolveScopedSubjectId, withSubjectQuery } from '@/lib/subjectScope';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -63,11 +64,17 @@ export const deleteResource = async (id: number) => {
 //Library apis Started
 // fetch Library items
 export const fetchLibrary = async () => {
-  const response = await api.get('/get-library');
+  const response = await api.get('/get-library', {
+    params: withSubjectQuery({}),
+  });
   return response.data.data;
 };
 // add Library item
 export const addLibrary = async (libraryData: FormData): Promise<any> => {
+  const subjectId = resolveScopedSubjectId();
+  if (subjectId && !libraryData.has('subject_id')) {
+    libraryData.append('subject_id', String(subjectId));
+  }
   const response = await api.post('/add-library', libraryData, {
     headers: {
       'Content-Type': 'multipart/form-data',
@@ -77,6 +84,10 @@ export const addLibrary = async (libraryData: FormData): Promise<any> => {
 };
 // edit Library item
 export const updateLibrary = async (id: string, libraryData: FormData) => {
+  const subjectId = resolveScopedSubjectId();
+  if (subjectId && !libraryData.has('subject_id')) {
+    libraryData.append('subject_id', String(subjectId));
+  }
   const response = await api.post(`/update-library/${id}`, libraryData, {
     headers: {
       'Content-Type': 'multipart/form-data',

@@ -1,6 +1,7 @@
 // src/services/announcementApi.ts
 import { API_BASE_URL } from '@/lib/config';
 import { store } from '@/store/store';
+import { withSubjectPayload, withSubjectQuery } from '@/lib/subjectScope';
 
 const getAuthHeader = (): Record<string, string> => {
   const token = store.getState().auth.token;
@@ -8,7 +9,12 @@ const getAuthHeader = (): Record<string, string> => {
 };
 
 export const fetchAnnouncements = async () => {
-  const response = await fetch(`${API_BASE_URL}/get-announcement`, {
+  const params = new URLSearchParams();
+  const scoped = withSubjectQuery({});
+  if (typeof scoped.subject_id === 'number') {
+    params.set('subject_id', String(scoped.subject_id));
+  }
+  const response = await fetch(`${API_BASE_URL}/get-announcement${params.toString() ? `?${params.toString()}` : ''}`, {
     headers: getAuthHeader(),
   });
   if (!response.ok) throw new Error('Failed to fetch announcements');
@@ -23,7 +29,7 @@ export const addAnnouncement = async (announcementData: { name: string }) => {
       'Content-Type': 'application/json',
       ...getAuthHeader(),
     },
-    body: JSON.stringify(announcementData),
+    body: JSON.stringify(withSubjectPayload(announcementData as any)),
   });
   if (!response.ok) throw new Error('Failed to add announcement');
   return response.json();
@@ -36,7 +42,7 @@ export const updateAnnouncement = async (id: string, announcementData: any) => {
       'Content-Type': 'application/json',
       ...getAuthHeader(),
     },
-    body: JSON.stringify(announcementData),
+    body: JSON.stringify(withSubjectPayload(announcementData)),
   });
   if (!response.ok) throw new Error('Failed to update announcement');
   return response.json();
@@ -53,7 +59,12 @@ export const deleteAnnouncement = async (id: number) => {
 
 /** Fetch unseen announcement count */
 export const fetchUnseenAnnouncementCount = async () => {
-  const response = await fetch(`${API_BASE_URL}/unseen-announcement-count`, {
+  const params = new URLSearchParams();
+  const scoped = withSubjectQuery({});
+  if (typeof scoped.subject_id === 'number') {
+    params.set('subject_id', String(scoped.subject_id));
+  }
+  const response = await fetch(`${API_BASE_URL}/unseen-announcement-count${params.toString() ? `?${params.toString()}` : ''}`, {
     headers: getAuthHeader(),
   });
   if (!response.ok) throw new Error('Failed to fetch unseen announcement count');

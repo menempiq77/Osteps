@@ -31,6 +31,7 @@ import {
   UploadOutlined,
 } from "@ant-design/icons";
 import { RootState } from "@/store/store";
+import { useSubjectContext } from "@/contexts/SubjectContext";
 import {
   addStoryComment,
   createClassStoryPost,
@@ -154,6 +155,7 @@ export default function ClassStoryPage() {
   const { classId } = useParams<{ classId: string }>();
   const queryClient = useQueryClient();
   const { currentUser } = useSelector((state: RootState) => state.auth);
+  const { activeSubjectId } = useSubjectContext();
   const [messageApi, contextHolder] = message.useMessage();
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -185,13 +187,14 @@ export default function ClassStoryPage() {
     userRole === "TEACHER" || userRole === "HOD" || userRole === "SCHOOL_ADMIN";
   const canModerate = canCreatePost;
   const canInteract = Boolean(currentUser?.id);
-  const feedQueryKey = ["class-story-feed", classId, userRole, currentUser?.id] as const;
+  const feedQueryKey = ["class-story-feed", classId, activeSubjectId, userRole, currentUser?.id] as const;
 
   const { data: feed = [], isLoading } = useQuery({
     queryKey: feedQueryKey,
     queryFn: () =>
       fetchClassStoryFeed({
         classId,
+        subjectId: activeSubjectId,
         role: userRole,
         userId: currentUser?.id,
         preferStudentMaterials: userRole === "STUDENT",
@@ -268,12 +271,14 @@ export default function ClassStoryPage() {
       if (editingPostId) {
         return updateClassStoryPost({
           postId: editingPostId,
+          subjectId: activeSubjectId,
           input: payload,
         });
       }
 
       return createClassStoryPost({
         classId,
+        subjectId: activeSubjectId,
         input: payload,
         authorId: currentUser.id,
         authorName: currentUser.name || currentUser.email,
@@ -327,7 +332,7 @@ export default function ClassStoryPage() {
     if (!draft || !currentUser?.id || !canInteract) return;
 
     if (editingComment && editingComment.itemId === item.id) {
-      updateStoryComment({ commentId: editingComment.commentId, body: draft });
+      updateStoryComment({ commentId: editingComment.commentId, subjectId: activeSubjectId, body: draft });
       setEditingComment(null);
       setCommentDrafts((prev) => ({ ...prev, [item.id]: "" }));
       queryClient.invalidateQueries({ queryKey: feedQueryKey });
@@ -337,6 +342,7 @@ export default function ClassStoryPage() {
     addStoryComment({
       itemId: item.id,
       classId,
+      subjectId: activeSubjectId,
       body: draft,
       authorId: currentUser.id,
       authorName: currentUser.name || currentUser.email,
@@ -352,6 +358,7 @@ export default function ClassStoryPage() {
     setStoryReaction({
       itemId: item.id,
       classId,
+      subjectId: activeSubjectId,
       userId: currentUser.id,
       reaction,
     });
@@ -371,7 +378,7 @@ export default function ClassStoryPage() {
   };
 
   const reactionBadges = (item: StoryFeedItem) => {
-    const summary = getStoryReactionSummary(item.id);
+    const summary = getStoryReactionSummary(item.id, activeSubjectId);
     return STORY_REACTION_OPTIONS.filter((entry) => (summary[entry.key] ?? 0) > 0).map((entry) => (
       <span
         key={entry.key}
@@ -474,7 +481,7 @@ export default function ClassStoryPage() {
         ) : (
           <div className="space-y-5">
             {filteredFeed.map((item) => {
-              const comments = fetchStoryComments(item.id);
+              const comments = fetchStoryComments(item.id, activeSubjectId);
               const inlineUrl = item.attachmentType === "link" ? item.attachmentUrl : extractFirstUrl(item.body);
               const youtubeVideoId = inlineUrl ? getYoutubeVideoId(inlineUrl) : undefined;
               const canRenderDirectVideo = inlineUrl && isDirectVideoUrl(inlineUrl);
@@ -531,7 +538,7 @@ export default function ClassStoryPage() {
                             <Popconfirm
                               title="Delete this post?"
                               onConfirm={async () => {
-                                await deleteClassStoryPost({ postId: item.sourceId });
+                                await deleteClassStoryPost({ postId: item.sourceId, subjectId: activeSubjectId });
                                 queryClient.invalidateQueries({ queryKey: feedQueryKey });
                                 if (editingPostId === item.sourceId) {
                                   resetComposer();
@@ -720,7 +727,7 @@ export default function ClassStoryPage() {
                                 <Popconfirm
                                   title="Delete comment?"
                                   onConfirm={() => {
-                                    deleteStoryComment({ commentId: comment.id });
+                                    deleteStoryComment({ commentId: comment.id, subjectId: activeSubjectId });
                                     queryClient.invalidateQueries({ queryKey: feedQueryKey });
                                   }}
                                 >

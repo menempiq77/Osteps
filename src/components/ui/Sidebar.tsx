@@ -46,6 +46,7 @@ const Sidebar = () => {
   const [isOpen, setIsOpen] = useState(!isMobile);
   const [orderedItems, setOrderedItems] = useState<any[]>([]);
   const [draggingItemName, setDraggingItemName] = useState<string | null>(null);
+  const [preferredActiveItemName, setPreferredActiveItemName] = useState<string | null>(null);
   const { toSubjectHref, canUseSubjectContext, activeSubjectId, activeSubject } = useSubjectContext();
   const isIslamicContext =
     !canUseSubjectContext ||
@@ -132,16 +133,43 @@ const Sidebar = () => {
   const normalizePath = (value?: string) =>
     value ? value.split("?")[0].replace(/\/+$/, "") || "/" : "/";
 
-  const isItemActive = (href: string) => {
-    const current = normalizePath(pathname || "");
-    const routedHref =
+  const resolveItemTarget = (href: string) =>
+    normalizePath(
       canUseSubjectContext && !isSharedPath(href) && activeSubjectId
         ? toSubjectHref(href)
-        : href;
-    const target = normalizePath(routedHref);
-    if (current === target) return true;
-    if (target === "/dashboard") return current === "/dashboard";
-    return current.startsWith(`${target}/`);
+        : href
+    );
+
+  const getMatchedItemsForCurrentPath = () => {
+    const current = normalizePath(pathname || "");
+    return orderedItems.filter((item: any) => {
+      const target = resolveItemTarget(item.href);
+      if (current === target) return true;
+      if (target === "/dashboard") return current === "/dashboard";
+      return current.startsWith(`${target}/`);
+    });
+  };
+
+  const isItemActive = (href: string, itemName?: string) => {
+    const current = normalizePath(pathname || "");
+    const target = resolveItemTarget(href);
+    const matchesCurrent =
+      current === target ||
+      (target === "/dashboard" ? current === "/dashboard" : current.startsWith(`${target}/`));
+    if (!matchesCurrent) return false;
+
+    const matchedItems = getMatchedItemsForCurrentPath();
+    if (matchedItems.length <= 1) return true;
+
+    const preferred = preferredActiveItemName
+      ? matchedItems.find((item: any) => item.name === preferredActiveItemName)
+      : null;
+
+    if (preferred) {
+      return preferred.href === href && preferred.name === itemName;
+    }
+
+    return matchedItems[0]?.href === href && matchedItems[0]?.name === itemName;
   };
 
   const navigation = {
@@ -374,6 +402,7 @@ const Sidebar = () => {
   };
 
   const sidebarOrderStorageKey = `sidebar-order-${roleKey || "UNKNOWN"}`;
+  const sidebarPreferredActiveStorageKey = `sidebar-active-item-${roleKey || "UNKNOWN"}`;
 
   const applySavedSidebarOrder = (items: any[]) => {
     if (typeof window === "undefined") return items;
@@ -433,6 +462,31 @@ const Sidebar = () => {
     activeSubjectId,
     formattedActiveSubjectName,
   ]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setPreferredActiveItemName(window.localStorage.getItem(sidebarPreferredActiveStorageKey));
+  }, [sidebarPreferredActiveStorageKey]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const matchedItems = getMatchedItemsForCurrentPath();
+    if (matchedItems.length === 1) {
+      window.localStorage.setItem(sidebarPreferredActiveStorageKey, matchedItems[0].name);
+      setPreferredActiveItemName(matchedItems[0].name);
+      return;
+    }
+
+    if (matchedItems.length > 1) {
+      const stillValid = preferredActiveItemName
+        ? matchedItems.some((item: any) => item.name === preferredActiveItemName)
+        : false;
+      if (!stillValid) {
+        window.localStorage.setItem(sidebarPreferredActiveStorageKey, matchedItems[0].name);
+        setPreferredActiveItemName(matchedItems[0].name);
+      }
+    }
+  }, [pathname, orderedItems, preferredActiveItemName, sidebarPreferredActiveStorageKey]);
 
   const handleReorderSidebarItems = (draggedName: string, targetName: string) => {
     if (!draggedName || !targetName || draggedName === targetName) return;
@@ -522,14 +576,17 @@ const Sidebar = () => {
                       ? toSubjectHref(item.href)
                       : item.href
                   }
-                  onClick={
-                    item.name === "Ask a Question" ||
-                    item.name === "Answer a Question"
-                      ? handleQuestionClick
-                      : undefined
-                  }
+                  onClick={() => {
+                    setPreferredActiveItemName(item.name);
+                    if (typeof window !== "undefined") {
+                      window.localStorage.setItem(sidebarPreferredActiveStorageKey, item.name);
+                    }
+                    if (item.name === "Ask a Question" || item.name === "Answer a Question") {
+                      handleQuestionClick();
+                    }
+                  }}
                   className={`sidebar-nav-item group flex items-center p-3 mb-1 rounded-lg cursor-pointer shadow-none transition-all duration-200 relative overflow-hidden ${
-                    isItemActive(item.href)
+                    isItemActive(item.href, item.name)
                       ? "sidebar-nav-item-active font-semibold sidebar-item-active"
                       : "text-gray-600 hover:text-[var(--theme-dark)] hover:bg-[var(--theme-soft)]"
                   }`}

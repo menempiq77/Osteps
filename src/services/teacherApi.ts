@@ -2,6 +2,7 @@
 import axios from 'axios';
 import { store } from '@/store/store';
 import { API_BASE_URL } from '@/lib/config';
+import { withSubjectPayload, withSubjectQuery } from '@/lib/subjectScope';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -18,7 +19,9 @@ api.interceptors.request.use((config) => {
 
 // fetch Teachers
 export const fetchTeachers = async () => {
-  const response = await api.get('/get-teacher');
+  const response = await api.get('/get-teacher', {
+    params: withSubjectQuery({}),
+  });
   return response.data.data;
 };
 // fetch TeachersByStudent
@@ -28,7 +31,7 @@ export const fetchTeachersByStudent = async () => {
 };
 // add Teacher
 export const addTeacher = async (teacherData: { name: string }) => {
-  const response = await api.post('/add-teacher', teacherData);
+  const response = await api.post('/add-teacher', withSubjectPayload(teacherData as any));
   return response.data;
 };
 //assign teacher
@@ -50,7 +53,7 @@ export const getAssignClassesTeacher = async (teacherId: string | number) => {
 };
 // edit Teacher
 export const updateTeacher = async (id: string, teacherData: any) => {
-  const response = await api.post(`/update-teacher/${id}`, teacherData);
+  const response = await api.post(`/update-teacher/${id}`, withSubjectPayload(teacherData));
   return response.data;
 };
 // delete Teacher

@@ -14,6 +14,7 @@ import {
 
 type FeedParams = {
   classId: string;
+  subjectId?: number | null;
   role?: string;
   userId?: string;
   preferStudentMaterials?: boolean;
@@ -21,9 +22,18 @@ type FeedParams = {
 
 type RawRecord = Record<string, unknown>;
 
-const POSTS_STORAGE_KEY = "class-story-posts-v1";
-const COMMENTS_STORAGE_KEY = "class-story-comments-v1";
-const REACTIONS_STORAGE_KEY = "class-story-reactions-v1";
+const storyStorageKey = (
+  scope: "posts" | "comments" | "reactions",
+  subjectId?: number | null
+): string => {
+  const base =
+    scope === "posts"
+      ? "class-story-posts-v1"
+      : scope === "comments"
+        ? "class-story-comments-v1"
+        : "class-story-reactions-v1";
+  return subjectId ? `${base}-s${subjectId}` : base;
+};
 
 export const STORY_REACTION_OPTIONS: Array<{ key: StoryReactionType; emoji: string; label: string }> = [
   { key: "like", emoji: "👍", label: "Like" },
@@ -114,8 +124,8 @@ const canSeeAnnouncement = (rawRole: unknown, currentRole?: string) => {
   return normalizedTargets.includes("ALL") || normalizedTargets.includes(normalizedCurrent);
 };
 
-const getReactionSummary = (itemIdValue: string): StoryReactionSummary => {
-  const reactions = readStorageArray<StoryReaction>(REACTIONS_STORAGE_KEY).filter(
+const getReactionSummary = (itemIdValue: string, subjectId?: number | null): StoryReactionSummary => {
+  const reactions = readStorageArray<StoryReaction>(storyStorageKey("reactions", subjectId)).filter(
     (entry) => entry.itemId === itemIdValue
   );
 
@@ -129,9 +139,9 @@ const getTotalReactions = (summary: StoryReactionSummary) => {
   return Object.values(summary).reduce((sum, count) => sum + (count ?? 0), 0);
 };
 
-const getViewerReaction = (itemIdValue: string, userId?: string) => {
+const getViewerReaction = (itemIdValue: string, userId?: string, subjectId?: number | null) => {
   if (!userId) return null;
-  const reactions = readStorageArray<StoryReaction>(REACTIONS_STORAGE_KEY);
+  const reactions = readStorageArray<StoryReaction>(storyStorageKey("reactions", subjectId));
   const entry = reactions.find((reaction) => reaction.itemId === itemIdValue && reaction.userId === userId);
   return entry?.reaction ?? null;
 };
@@ -261,8 +271,8 @@ const toAssignmentItems = (items: unknown, classId: string): StoryFeedItem[] => 
     });
 };
 
-const toPostItems = (classId: string): StoryFeedItem[] => {
-  const posts = readStorageArray<StoryPostRecord>(POSTS_STORAGE_KEY);
+const toPostItems = (classId: string, subjectId?: number | null): StoryFeedItem[] => {
+  const posts = readStorageArray<StoryPostRecord>(storyStorageKey("posts", subjectId));
 
   return posts
     .filter((post) => post.classId === classId)
@@ -288,17 +298,17 @@ const toPostItems = (classId: string): StoryFeedItem[] => {
     }));
 };
 
-const withEngagementCounts = (items: StoryFeedItem[], userId?: string): StoryFeedItem[] => {
-  const comments = readStorageArray<StoryComment>(COMMENTS_STORAGE_KEY);
+const withEngagementCounts = (items: StoryFeedItem[], userId?: string, subjectId?: number | null): StoryFeedItem[] => {
+  const comments = readStorageArray<StoryComment>(storyStorageKey("comments", subjectId));
 
   return items.map((item) => {
-    const summary = getReactionSummary(item.id);
+    const summary = getReactionSummary(item.id, subjectId);
     return {
       ...item,
       likeCount: summary.like ?? 0,
       totalReactions: getTotalReactions(summary),
       reactionSummary: summary,
-      viewerReaction: getViewerReaction(item.id, userId),
+      viewerReaction: getViewerReaction(item.id, userId, subjectId),
       commentCount: comments.filter((entry) => entry.itemId === item.id).length,
     };
   });
@@ -306,13 +316,14 @@ const withEngagementCounts = (items: StoryFeedItem[], userId?: string): StoryFee
 
 export const fetchClassStoryFeed = async ({
   classId,
+  subjectId,
   role,
   userId,
   preferStudentMaterials,
 }: FeedParams): Promise<StoryFeedItem[]> => {
   const [announcementResult, materialResult, assignmentResult] = await Promise.allSettled([
     fetchAnnouncements(),
-    preferStudentMaterials ? fetchStudentMaterials() : fetchMaterials(),
+    preferStudentMaterials ? fetchStudentMaterials(subjectId) : fetchMaterials(subjectId),
     fetchManageAssignments({ class_id: classId }),
   ]);
 
@@ -329,20 +340,22 @@ export const fetchClassStoryFeed = async ({
       ? toAssignmentItems(assignmentResult.value, classId)
       : [];
 
-  const posts = toPostItems(classId);
+  const posts = toPostItems(classId, subjectId);
 
-  return withEngagementCounts([...posts, ...announcements, ...assignments, ...materials], userId).sort(
+  return withEngagementCounts([...posts, ...announcements, ...assignments, ...materials], userId, subjectId).sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 };
 
 export const createClassStoryPost = async (params: {
   classId: string;
+  subjectId?: number | null;
   input: StoryPostInput;
   authorId: string;
   authorName: string;
 }): Promise<StoryPostRecord> => {
-  const posts = readStorageArray<StoryPostRecord>(POSTS_STORAGE_KEY);
+  const postsKey = storyStorageKey("posts", params.subjectId);
+  const posts = readStorageArray<StoryPostRecord>(postsKey);
   const created: StoryPostRecord = {
     id: `post-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     classId: params.classId,
@@ -356,15 +369,17 @@ export const createClassStoryPost = async (params: {
     attachmentType: params.input.attachmentType,
   };
 
-  writeStorageArray(POSTS_STORAGE_KEY, [created, ...posts]);
+  writeStorageArray(postsKey, [created, ...posts]);
   return created;
 };
 
 export const updateClassStoryPost = async (params: {
   postId: string;
+  subjectId?: number | null;
   input: StoryPostInput;
 }): Promise<StoryPostRecord | null> => {
-  const posts = readStorageArray<StoryPostRecord>(POSTS_STORAGE_KEY);
+  const postsKey = storyStorageKey("posts", params.subjectId);
+  const posts = readStorageArray<StoryPostRecord>(postsKey);
   const index = posts.findIndex((post) => post.id === params.postId);
   if (index < 0) return null;
 
@@ -380,29 +395,33 @@ export const updateClassStoryPost = async (params: {
 
   const next = [...posts];
   next[index] = updated;
-  writeStorageArray(POSTS_STORAGE_KEY, next);
+  writeStorageArray(postsKey, next);
   return updated;
 };
 
-export const deleteClassStoryPost = async (params: { postId: string }) => {
-  const posts = readStorageArray<StoryPostRecord>(POSTS_STORAGE_KEY);
+export const deleteClassStoryPost = async (params: { postId: string; subjectId?: number | null }) => {
+  const postsKey = storyStorageKey("posts", params.subjectId);
+  const commentsKey = storyStorageKey("comments", params.subjectId);
+  const reactionsKey = storyStorageKey("reactions", params.subjectId);
+
+  const posts = readStorageArray<StoryPostRecord>(postsKey);
   const nextPosts = posts.filter((post) => post.id !== params.postId);
-  writeStorageArray(POSTS_STORAGE_KEY, nextPosts);
+  writeStorageArray(postsKey, nextPosts);
 
   const postItemId = itemId("post", params.postId);
-  const comments = readStorageArray<StoryComment>(COMMENTS_STORAGE_KEY).filter(
+  const comments = readStorageArray<StoryComment>(commentsKey).filter(
     (comment) => comment.itemId !== postItemId
   );
-  writeStorageArray(COMMENTS_STORAGE_KEY, comments);
+  writeStorageArray(commentsKey, comments);
 
-  const reactions = readStorageArray<StoryReaction>(REACTIONS_STORAGE_KEY).filter(
+  const reactions = readStorageArray<StoryReaction>(reactionsKey).filter(
     (reaction) => reaction.itemId !== postItemId
   );
-  writeStorageArray(REACTIONS_STORAGE_KEY, reactions);
+  writeStorageArray(reactionsKey, reactions);
 };
 
-export const fetchStoryComments = (itemIdValue: string): StoryComment[] => {
-  const comments = readStorageArray<StoryComment>(COMMENTS_STORAGE_KEY);
+export const fetchStoryComments = (itemIdValue: string, subjectId?: number | null): StoryComment[] => {
+  const comments = readStorageArray<StoryComment>(storyStorageKey("comments", subjectId));
   return comments
     .filter((entry) => entry.itemId === itemIdValue)
     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
@@ -411,11 +430,13 @@ export const fetchStoryComments = (itemIdValue: string): StoryComment[] => {
 export const addStoryComment = (params: {
   itemId: string;
   classId: string;
+  subjectId?: number | null;
   body: string;
   authorId: string;
   authorName: string;
 }): StoryComment => {
-  const comments = readStorageArray<StoryComment>(COMMENTS_STORAGE_KEY);
+  const commentsKey = storyStorageKey("comments", params.subjectId);
+  const comments = readStorageArray<StoryComment>(commentsKey);
   const created: StoryComment = {
     id: `comment-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     itemId: params.itemId,
@@ -426,12 +447,13 @@ export const addStoryComment = (params: {
     createdAt: new Date().toISOString(),
   };
 
-  writeStorageArray(COMMENTS_STORAGE_KEY, [...comments, created]);
+  writeStorageArray(commentsKey, [...comments, created]);
   return created;
 };
 
-export const updateStoryComment = (params: { commentId: string; body: string }): StoryComment | null => {
-  const comments = readStorageArray<StoryComment>(COMMENTS_STORAGE_KEY);
+export const updateStoryComment = (params: { commentId: string; subjectId?: number | null; body: string }): StoryComment | null => {
+  const commentsKey = storyStorageKey("comments", params.subjectId);
+  const comments = readStorageArray<StoryComment>(commentsKey);
   const index = comments.findIndex((comment) => comment.id === params.commentId);
   if (index < 0) return null;
 
@@ -443,14 +465,15 @@ export const updateStoryComment = (params: { commentId: string; body: string }):
 
   const next = [...comments];
   next[index] = updated;
-  writeStorageArray(COMMENTS_STORAGE_KEY, next);
+  writeStorageArray(commentsKey, next);
   return updated;
 };
 
-export const deleteStoryComment = (params: { commentId: string }) => {
-  const comments = readStorageArray<StoryComment>(COMMENTS_STORAGE_KEY);
+export const deleteStoryComment = (params: { commentId: string; subjectId?: number | null }) => {
+  const commentsKey = storyStorageKey("comments", params.subjectId);
+  const comments = readStorageArray<StoryComment>(commentsKey);
   writeStorageArray(
-    COMMENTS_STORAGE_KEY,
+    commentsKey,
     comments.filter((comment) => comment.id !== params.commentId)
   );
 };
@@ -458,6 +481,7 @@ export const deleteStoryComment = (params: { commentId: string }) => {
 export const setStoryReaction = (params: {
   itemId: string;
   classId: string;
+  subjectId?: number | null;
   userId: string;
   reaction: StoryReactionType;
 }): {
@@ -465,7 +489,8 @@ export const setStoryReaction = (params: {
   summary: StoryReactionSummary;
   totalReactions: number;
 } => {
-  const reactions = readStorageArray<StoryReaction>(REACTIONS_STORAGE_KEY);
+  const reactionsKey = storyStorageKey("reactions", params.subjectId);
+  const reactions = readStorageArray<StoryReaction>(reactionsKey);
   const index = reactions.findIndex(
     (entry) => entry.itemId === params.itemId && entry.userId === params.userId
   );
@@ -498,9 +523,9 @@ export const setStoryReaction = (params: {
     ];
   }
 
-  writeStorageArray(REACTIONS_STORAGE_KEY, next);
+  writeStorageArray(reactionsKey, next);
 
-  const summary = getReactionSummary(params.itemId);
+  const summary = getReactionSummary(params.itemId, params.subjectId);
   return {
     reaction: appliedReaction,
     summary,
@@ -511,10 +536,11 @@ export const setStoryReaction = (params: {
 export const getStoryReactionByUser = (params: {
   itemId: string;
   userId: string;
+  subjectId?: number | null;
 }): StoryReactionType | null => {
-  return getViewerReaction(params.itemId, params.userId);
+  return getViewerReaction(params.itemId, params.userId, params.subjectId);
 };
 
-export const getStoryReactionSummary = (itemIdValue: string): StoryReactionSummary => {
-  return getReactionSummary(itemIdValue);
+export const getStoryReactionSummary = (itemIdValue: string, subjectId?: number | null): StoryReactionSummary => {
+  return getReactionSummary(itemIdValue, subjectId);
 };

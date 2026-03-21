@@ -165,6 +165,11 @@ export default function DashboardLayout({
     /^\/dashboard\/s\/\d+\/subject-cards$/.test(pathname);
   const isStandaloneTeacherRoute =
     pathname === "/dashboard/teachers" || pathname.startsWith("/dashboard/teachers/");
+  const isAllStudentsStandaloneRoute =
+    pathname === "/dashboard/students/all-students" ||
+    pathname === "/dashboard/students/all-school" ||
+    pathname === "/dashboard/students/all";
+  const isGlobalStudentProfileRoute = pathname.startsWith("/dashboard/students/all-students/profile/");
 
   useEffect(() => {
     if (isHydrated && !currentUser) {
@@ -247,7 +252,7 @@ export default function DashboardLayout({
 
   return (
     <SubjectContextProvider>
-      {isStandaloneTeacherRoute ? (
+      {isStandaloneTeacherRoute || isAllStudentsStandaloneRoute || isGlobalStudentProfileRoute ? (
         <div className="dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] p-3 md:p-6">
           <div className="mx-auto max-w-7xl">
             <div className="mb-4 flex justify-end">

@@ -8,8 +8,9 @@ const getAuthHeader = (): Record<string, string> => {
 };
 
 // Fetch all materials
-export const fetchMaterials = async () => {
-  const response = await fetch(`${API_BASE_URL}/get-material`, {
+export const fetchMaterials = async (subjectId?: number | null) => {
+  const query = subjectId ? `?subject_id=${subjectId}` : "";
+  const response = await fetch(`${API_BASE_URL}/get-material${query}`, {
     headers: getAuthHeader(),
   });
   if (!response.ok) throw new Error('Failed to fetch materials');
@@ -18,8 +19,9 @@ export const fetchMaterials = async () => {
 };
 
 // Fetch all materials
-export const fetchStudentMaterials = async () => {
-  const response = await fetch(`${API_BASE_URL}/get-student-material`, {
+export const fetchStudentMaterials = async (subjectId?: number | null) => {
+  const query = subjectId ? `?subject_id=${subjectId}` : "";
+  const response = await fetch(`${API_BASE_URL}/get-student-material${query}`, {
     headers: getAuthHeader(),
   });
   if (!response.ok) throw new Error('Failed to fetch materials');

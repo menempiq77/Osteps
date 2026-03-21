@@ -506,7 +506,11 @@ Route::middleware(['auth:sanctum'])->group(function(){
 
     Route::get('subject-classes', [SubjectClassController::class, 'index'])->name('subject-classes-index');
     Route::post('subject-classes', [SubjectClassController::class, 'store'])->name('subject-classes-store');
+    Route::post('subject-classes/{id}/archive', [SubjectClassController::class, 'archive'])->name('subject-classes-archive');
+    Route::post('subject-classes/{id}/restore', [SubjectClassController::class, 'restore'])->name('subject-classes-restore');
+    Route::delete('subject-classes/{id}', [SubjectClassController::class, 'destroy'])->name('subject-classes-destroy');
     Route::post('subject-classes/enroll-students', [SubjectClassController::class, 'enrollStudents'])->name('subject-classes-enroll-students');
+    Route::post('subject-classes/deactivate-by-year', [SubjectClassController::class, 'deactivateByYear'])->name('subject-classes-deactivate-by-year');
 
     Route::get('get-studentProfile/{studentId}',[StudentProfileController::class,'studentProfile'])->name('get-studentProfile');
     Route::post('search-studentProfile',[StudentProfileController::class,'searchStudentProfile'])->name('search-studentProfile');

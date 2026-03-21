@@ -21,6 +21,8 @@ const SUBJECT_CONTEXT_ENABLED = process.env.NEXT_PUBLIC_SUBJECT_CONTEXT_ENABLED 
 
 const SHARED_PREFIXES = [
   "/dashboard/subject-cards",
+  "/dashboard/students/all-school",
+  "/dashboard/students/all-students",
   "/dashboard/library",
   "/dashboard/time_table",
   "/dashboard/announcements",
@@ -61,10 +63,16 @@ const SUBJECT_ROUTE_ROOTS = new Set([
   "admins",
 ]);
 
-const normalize = (path: string): string => {
-  const value = path.split("?")[0].replace(/\/+$/, "");
-  return value.length === 0 ? "/" : value;
+const splitPathAndQuery = (path: string): { pathname: string; query: string } => {
+  const [rawPathname, rawQuery = ""] = String(path ?? "").split("?");
+  const pathname = rawPathname.replace(/\/+$/, "") || "/";
+  return {
+    pathname,
+    query: rawQuery ? `?${rawQuery}` : "",
+  };
 };
+
+const normalize = (path: string): string => splitPathAndQuery(path).pathname;
 
 const startsWithPrefix = (path: string, prefix: string): boolean => {
   if (path === prefix) return true;
@@ -115,21 +123,23 @@ export const toSubjectScopedPath = (
   subjectId: number,
   subjectName?: string | null
 ): string => {
-  const normalized = normalize(path);
-  if (!SUBJECT_CONTEXT_ENABLED) return stripSubjectScope(normalized);
-  const suffix = normalized.startsWith("/dashboard/s/")
-    ? stripSubjectScope(normalized).replace("/dashboard", "") || ""
-    : normalized.replace("/dashboard", "") || "";
-  if (!normalized.startsWith("/dashboard/s/") && !isSubjectScopedPath(normalized)) return normalized;
-  return `/dashboard/s/${subjectId}/${toSubjectPathSegment(subjectName)}${suffix}`;
+  const { pathname, query } = splitPathAndQuery(path);
+  if (!SUBJECT_CONTEXT_ENABLED) return `${stripSubjectScope(pathname)}${query}`;
+  const suffix = pathname.startsWith("/dashboard/s/")
+    ? stripSubjectScope(pathname).replace("/dashboard", "") || ""
+    : pathname.replace("/dashboard", "") || "";
+  if (!pathname.startsWith("/dashboard/s/") && !isSubjectScopedPath(pathname)) {
+    return `${pathname}${query}`;
+  }
+  return `/dashboard/s/${subjectId}/${toSubjectPathSegment(subjectName)}${suffix}${query}`;
 };
 
 export const stripSubjectScope = (path: string): string => {
-  const normalized = normalize(path);
-  const match = normalized.match(/^\/dashboard\/s\/\d+(\/.*)?$/);
-  if (!match) return normalized;
+  const { pathname, query } = splitPathAndQuery(path);
+  const match = pathname.match(/^\/dashboard\/s\/\d+(\/.*)?$/);
+  if (!match) return `${pathname}${query}`;
   const suffix = stripReadableSubjectSegment(match[1] ?? "");
-  return `/dashboard${suffix}`;
+  return `/dashboard${suffix}${query}`;
 };
 
 export const extractSubjectIdFromPath = (path: string): number | null => {

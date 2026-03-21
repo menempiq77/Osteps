@@ -43,10 +43,15 @@ export const storeSubjectId = (subjectId: number, subjectName?: string | null): 
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(SUBJECT_STORAGE_KEY, String(subjectId));
+    let normalizedSubjectName = "";
     if (typeof subjectName === "string") {
-      window.localStorage.setItem(SUBJECT_NAME_STORAGE_KEY, subjectName);
+      normalizedSubjectName = subjectName.trim();
+      window.localStorage.setItem(SUBJECT_NAME_STORAGE_KEY, normalizedSubjectName);
     }
     document.cookie = `osteps_subject_id=${subjectId}; path=/; max-age=${60 * 60 * 24 * 365}`;
+    if (normalizedSubjectName) {
+      document.cookie = `osteps_subject_name=${encodeURIComponent(normalizedSubjectName)}; path=/; max-age=${60 * 60 * 24 * 365}`;
+    }
   } catch {
     // ignore
   }

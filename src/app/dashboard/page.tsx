@@ -44,12 +44,109 @@ import { fetchStudents } from "@/services/studentsApi";
 import { fetchSchoolLogo } from "@/services/api";
 import { IMG_BASE_URL } from "@/lib/config";
 import { useRouter } from "next/navigation";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useSubjectContext } from "@/contexts/SubjectContext";
-import { fetchStaffSubjectAssignments } from "@/services/subjectWorkspaceApi";
+import { fetchStaffSubjectAssignments, fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
 import { shouldUseLegacyUnscopedSubjectData } from "@/lib/subjectScope";
+import { filterStudentsBySubjectScope, studentMatchesSubjectScope } from "@/lib/subjectStudentScope";
+import { extractSubjectIdFromPath, toSubjectScopedPath } from "@/lib/subjectRouting";
+import { readSubjectClassBaseMap } from "@/lib/subjectClassResolution";
+import {
+  makeSubjectHintScopeKey,
+  matchesSubjectStudentHint,
+  readSubjectStudentHints,
+} from "@/lib/subjectStudentHints";
 
 export const dynamic = "force-dynamic";
+
+const resolveSubjectClassYearId = (row: any): number =>
+  Number(
+    row?.year_id ??
+      row?.class?.year_id ??
+      row?.classes?.year_id ??
+      row?.base_class?.year_id ??
+      0
+  );
+
+const resolveSubjectClassLinkedId = (row: any): string =>
+  String(
+    row?.class_id ??
+      row?.base_class_id ??
+      row?.class?.id ??
+      row?.classes?.id ??
+      row?.base_class?.id ??
+      ""
+  ).trim();
+
+const resolveSubjectClassLabel = (row: any): string =>
+  String(
+    row?.base_class_label ??
+      row?.class?.class_name ??
+      row?.classes?.class_name ??
+      row?.base_class?.class_name ??
+      row?.name ??
+      ""
+  ).trim();
+
+const normalizeClassLabel = (value: unknown) =>
+  String(value ?? "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+
+const extractStudentSubjectClassIds = (student: Record<string, any>) =>
+  [
+    student?.subject_class_id,
+    student?.subjectClassId,
+    student?.pivot?.subject_class_id,
+  ]
+    .flatMap((value) => (Array.isArray(value) ? value : [value]))
+    .map((value) => String(value ?? "").trim())
+    .filter(Boolean);
+
+const hasAnySubjectMarkers = (student: Record<string, any>) =>
+  extractStudentSubjectClassIds(student).length > 0 ||
+  (Array.isArray(student?.subjects) && student.subjects.length > 0) ||
+  !!student?.subject_name ||
+  !!student?.subject;
+
+const readHiddenSubjectYears = (subjectId?: number | null): Set<number> => {
+  if (typeof window === "undefined") return new Set<number>();
+  const id = Number(subjectId ?? 0);
+  if (!Number.isFinite(id) || id <= 0) return new Set<number>();
+  const key = `hidden-subject-years-s${id}`;
+  try {
+    const raw = localStorage.getItem(key);
+    const parsed = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(parsed)) return new Set<number>();
+    return new Set(
+      parsed
+        .map((value) => Number(value))
+        .filter((value) => Number.isFinite(value) && value > 0)
+    );
+  } catch {
+    return new Set<number>();
+  }
+};
+
+const readAddedSubjectYears = (subjectId?: number | null): Set<number> => {
+  if (typeof window === "undefined") return new Set<number>();
+  const id = Number(subjectId ?? 0);
+  if (!Number.isFinite(id) || id <= 0) return new Set<number>();
+  const key = `added-subject-years-s${id}`;
+  try {
+    const raw = localStorage.getItem(key);
+    const parsed = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(parsed)) return new Set<number>();
+    return new Set(
+      parsed
+        .map((value) => Number(value))
+        .filter((value) => Number.isFinite(value) && value > 0)
+    );
+  } catch {
+    return new Set<number>();
+  }
+};
 
 // Custom theme colors
 const THEME_COLOR = "var(--primary)";
@@ -62,10 +159,36 @@ const ISLAMIC_DASHBOARD_IMAGE =
 const ARABIC_DASHBOARD_IMAGE =
   "https://commons.wikimedia.org/wiki/Special:Redirect/file/The_Arabic_Alphabet._Ottoman_Calligraphy_%28CBL_T_490%2C_ff.1b-2a%29.jpg";
 
+const getStudentsListLink = (options: {
+  isSubjectWorkspaceMode: boolean;
+  activeSubjectId?: number | null;
+  activeSubjectName?: string | null;
+}) => {
+  if (
+    options.isSubjectWorkspaceMode &&
+    Number.isFinite(Number(options.activeSubjectId)) &&
+    Number(options.activeSubjectId) > 0
+  ) {
+    return toSubjectScopedPath(
+      "/dashboard/students/all",
+      Number(options.activeSubjectId),
+      options.activeSubjectName ?? undefined
+    );
+  }
+
+  return "/dashboard/students/all-students";
+};
+
 export default function DashboardPage() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
-  const { activeSubjectId, activeSubject, canUseSubjectContext } = useSubjectContext();
+  const {
+    activeSubjectId,
+    activeSubject,
+    canUseSubjectContext,
+    loading: subjectContextLoading,
+  } = useSubjectContext();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const isSUPER_ADMIN = currentUser?.role === "SUPER_ADMIN";
   const isSCHOOL_ADMIN = currentUser?.role === "SCHOOL_ADMIN";
   const isTEACHER = currentUser?.role === "TEACHER";
@@ -81,7 +204,18 @@ export default function DashboardPage() {
     shouldUseLegacyUnscopedSubjectData(activeSubjectId);
   const isSubjectWorkspaceMode =
     canUseSubjectContext && !!activeSubjectId && !isLegacySubjectView;
+  const pathSubjectId = extractSubjectIdFromPath(pathname);
+  const querySubjectId = Number(searchParams.get("subject_id") ?? 0);
+  const hasRequestedSubjectContext =
+    Number.isFinite(Number(pathSubjectId)) && Number(pathSubjectId) > 0
+      ? true
+      : Number.isFinite(querySubjectId) && querySubjectId > 0;
   const router = useRouter();
+  const studentsListLink = getStudentsListLink({
+    isSubjectWorkspaceMode,
+    activeSubjectId,
+    activeSubjectName: activeSubject?.name,
+  });
   const role = String(currentUser?.role || "").trim().toUpperCase();
   const shouldUseSubjectCardsEntry =
     canUseSubjectContext &&
@@ -186,113 +320,135 @@ export default function DashboardPage() {
 
   const {
     data: subjectScopedOverview,
+    isLoading: subjectScopedOverviewLoading,
     error: subjectScopedOverviewError,
   } = useQuery({
     queryKey: ["subject-scoped-overview", activeSubjectId, schoolId, currentUser?.role],
     queryFn: async () => {
       if (!activeSubjectId) return null;
 
-      const [staffAssignments, years] = await Promise.all([
+      const [staffAssignments, subjectClasses] = await Promise.all([
         fetchStaffSubjectAssignments(),
-        schoolId > 0 ? fetchYearsBySchool(schoolId) : Promise.resolve([]),
+        fetchSubjectClasses({ subject_id: Number(activeSubjectId) }),
       ]);
 
       const scopedStaff = (Array.isArray(staffAssignments) ? staffAssignments : []).filter(
         (item: any) =>
           Number(item?.subject_id) === Number(activeSubjectId) &&
-          Number(item?.teacher_id) > 0
+          Number(item?.user_id ?? item?.teacher_id) > 0
       );
-      const teacherCount = new Set(scopedStaff.map((item: any) => Number(item?.user_id))).size;
+      const teacherCount = new Set(
+        scopedStaff
+          .map((item: any) => Number(item?.user_id ?? item?.teacher_id))
+          .filter((id: number) => Number.isFinite(id) && id > 0)
+      ).size;
       const hodCount = new Set(
         scopedStaff
           .filter((item: any) => String(item?.role_scope || "").toUpperCase() === "HOD")
-          .map((item: any) => Number(item?.user_id))
+          .map((item: any) => Number(item?.user_id ?? item?.teacher_id))
+          .filter((id: number) => Number.isFinite(id) && id > 0)
       ).size;
+      const scopedClasses = (Array.isArray(subjectClasses) ? subjectClasses : []).filter((row: any) => {
+        const parsedYearId = resolveSubjectClassYearId(row);
+        return Number.isFinite(parsedYearId) && parsedYearId > 0;
+      });
 
-      const allYears = Array.isArray(years) ? years : [];
-      const schoolClasses = (
-        await Promise.all(
-          allYears.map(async (year: any) => {
-            try {
-              return (await fetchClasses(String(year?.id))).map((cls: any) => ({
-                ...cls,
-                year_id: Number(cls?.year_id ?? year?.id ?? 0),
-              }));
-            } catch {
-              return [];
+      const classCount = scopedClasses.length;
+      const yearsFromClasses = scopedClasses
+        .map((row: any) => resolveSubjectClassYearId(row))
+        .filter((value) => Number.isFinite(value) && value > 0);
+      const yearCount = new Set(yearsFromClasses).size;
+
+      const scopedStudentIds = new Set<number>();
+      const baseClassesByYear = new Map<number, any[]>();
+      const getBaseClassesForYear = async (yearId: number) => {
+        if (baseClassesByYear.has(yearId)) {
+          return baseClassesByYear.get(yearId) as any[];
+        }
+        try {
+          const rows = await fetchClasses(String(yearId));
+          const list = Array.isArray(rows) ? rows : [];
+          baseClassesByYear.set(yearId, list);
+          return list;
+        } catch {
+          baseClassesByYear.set(yearId, []);
+          return [];
+        }
+      };
+
+      await Promise.all(
+        scopedClasses.map(async (row: any) => {
+          const storedBaseId = readSubjectClassBaseMap(Number(activeSubjectId))[String(row?.id ?? "").trim()] ?? "";
+          let linkedClassId = resolveSubjectClassLinkedId(row) || storedBaseId;
+          const subjectClassId = String(row?.id ?? "").trim();
+
+          if (!linkedClassId) {
+            const resolvedYearId = resolveSubjectClassYearId(row);
+            const subjectLabel = normalizeClassLabel(resolveSubjectClassLabel(row));
+            if (resolvedYearId > 0 && subjectLabel) {
+              const baseRows = await getBaseClassesForYear(resolvedYearId);
+              const matchedBaseClass = (Array.isArray(baseRows) ? baseRows : []).find(
+                (baseRow: any) =>
+                  normalizeClassLabel(baseRow?.class_name ?? baseRow?.name) === subjectLabel
+              );
+              linkedClassId = String(matchedBaseClass?.id ?? "").trim();
             }
-          })
-        )
-      ).flat();
+          }
 
-      const classStudentRows = await Promise.all(
-        schoolClasses.map(async (cls: any) => {
+          if (!linkedClassId || !subjectClassId) return;
+
           try {
-            const students = await fetchStudents(cls?.id);
-            return { cls, students: Array.isArray(students) ? students : [] };
+            const students = await fetchStudents(linkedClassId, Number(activeSubjectId));
+            const studentRows = Array.isArray(students) ? students : [];
+            const inScopeRows = filterStudentsBySubjectScope(
+              studentRows,
+              {
+                subjectId: Number(activeSubjectId),
+                subjectName: activeSubject?.name,
+                subjectClassId,
+              }
+            );
+
+            const hintScopeKey = makeSubjectHintScopeKey(Number(activeSubjectId), subjectClassId);
+            const hintBucket = readSubjectStudentHints(hintScopeKey);
+            const hintedRows = studentRows.filter((student: any) => {
+              if (
+                studentMatchesSubjectScope(student, {
+                  subjectId: Number(activeSubjectId),
+                  subjectName: activeSubject?.name,
+                  subjectClassId,
+                })
+              ) {
+                return false;
+              }
+
+              const scopedIds = extractStudentSubjectClassIds(student);
+              if (scopedIds.length > 0) return false;
+              return matchesSubjectStudentHint(student, hintBucket);
+            });
+
+            const combinedRows = [...inScopeRows, ...hintedRows];
+
+            const safeFallbackRows =
+              combinedRows.length === 0 &&
+              studentRows.length > 0 &&
+              !studentRows.some((student: any) => hasAnySubjectMarkers(student))
+                ? studentRows
+                : [];
+
+            [...combinedRows, ...safeFallbackRows].forEach((student: any) => {
+              const id = Number(student?.id);
+              if (Number.isFinite(id) && id > 0) {
+                scopedStudentIds.add(id);
+              }
+            });
           } catch {
-            return { cls, students: [] };
+            // Ignore per-class failures and continue aggregate count.
           }
         })
       );
 
-      const activeSubjectName = String(activeSubject?.name || "").trim().toLowerCase();
-      const scopedClasses = classStudentRows.filter(({ students }) =>
-        students.some((student: any) => {
-          const rawSubjects = Array.isArray(student?.subjects)
-            ? student.subjects
-            : student?.subject_name
-              ? [student.subject_name]
-              : student?.subject
-                ? [student.subject]
-                : [];
-
-          const names = rawSubjects
-            .map((item: any) => {
-              if (typeof item === "string") return item;
-              if (item && typeof item === "object") return String(item.name ?? item.subject_name ?? "");
-              return "";
-            })
-            .map((name: string) => name.trim().toLowerCase())
-            .filter(Boolean);
-
-          return names.includes(activeSubjectName);
-        })
-      );
-
-      const classCount = scopedClasses.length;
-      const yearCount = new Set(
-        scopedClasses
-          .map(({ cls }) => Number(cls?.year_id))
-          .filter((value) => Number.isFinite(value) && value > 0)
-      ).size;
-
-      const studentCount = new Set(
-        scopedClasses
-          .flatMap(({ students }) => students)
-          .filter((student: any) => {
-            const rawSubjects = Array.isArray(student?.subjects)
-              ? student.subjects
-              : student?.subject_name
-                ? [student.subject_name]
-                : student?.subject
-                  ? [student.subject]
-                  : [];
-
-            const names = rawSubjects
-              .map((item: any) => {
-                if (typeof item === "string") return item;
-                if (item && typeof item === "object") return String(item.name ?? item.subject_name ?? "");
-                return "";
-              })
-              .map((name: string) => name.trim().toLowerCase())
-              .filter(Boolean);
-
-            return names.includes(activeSubjectName);
-          })
-          .map((student: any) => Number(student?.id))
-          .filter((id) => Number.isFinite(id) && id > 0)
-      ).size;
+      const studentCount = scopedStudentIds.size;
 
       return {
         yearCount,
@@ -304,6 +460,7 @@ export default function DashboardPage() {
     },
     enabled:
       !!activeSubjectId &&
+      !subjectContextLoading &&
       isSubjectWorkspaceMode &&
       schoolId > 0 &&
       (currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "HOD" || currentUser?.role === "TEACHER"),
@@ -506,7 +663,7 @@ export default function DashboardPage() {
               {
                 title: "Total Students",
                 value: subjectScopedOverview?.studentCount || 0,
-                link: "/dashboard/students/all",
+                link: studentsListLink,
               },
             ],
             barChartData: [],
@@ -536,7 +693,7 @@ export default function DashboardPage() {
             {
               title: "Total Students",
               value: schoolDashboard?.school?.students_count || 0,
-              link: "/dashboard/students/all",
+              link: "/dashboard/students/all-students",
             },
           ],
           barChartData: [
@@ -571,7 +728,7 @@ export default function DashboardPage() {
               {
                 title: "Total Students",
                 value: subjectScopedOverview?.studentCount || 0,
-                link: "/dashboard/students/all",
+                link: studentsListLink,
               },
             ],
             barChartData: [],
@@ -597,7 +754,7 @@ export default function DashboardPage() {
                 teacherDerivedCounts?.studentCount ??
                 schoolDashboard?.assigned_students_count ??
                 0,
-              link: "/dashboard/students/all",
+              link: "/dashboard/students/all-students",
             },
           ],
           barChartData: [
@@ -636,7 +793,7 @@ export default function DashboardPage() {
               {
                 title: "Total Students",
                 value: subjectScopedOverview?.studentCount || 0,
-                link: "/dashboard/students/all",
+                link: studentsListLink,
               },
             ],
             barChartData: [],
@@ -666,7 +823,7 @@ export default function DashboardPage() {
             {
               title: "Total Students",
               value: schoolDashboard?.school?.students_count || 0,
-              link: "/dashboard/students/all",
+              link: "/dashboard/students/all-students",
             },
           ],
           barChartData: [
@@ -804,6 +961,14 @@ export default function DashboardPage() {
         <Button type="default" onClick={() => window.location.replace("/dashboard/subject-cards")}>
           Open Subject Cards
         </Button>
+      </div>
+    );
+  }
+
+  if (canUseSubjectContext && hasRequestedSubjectContext && subjectContextLoading) {
+    return (
+      <div className="p-3 md:p-6 flex justify-center items-center h-64">
+        <Spin size="large" />
       </div>
     );
   }
@@ -1003,44 +1168,52 @@ export default function DashboardPage() {
         </div>
       ) : (
         <>
-          {/* Stats Cards */}
-          <Row gutter={[16, 16]}>
-            {stats.map((stat, index) => {
-              const icon = currentUser?.role
-                ? (statIcons[currentUser?.role] as Record<string, JSX.Element>)[
-                    stat.title
-                  ]
-                : null;
+          {isSubjectWorkspaceMode && subjectScopedOverviewLoading ? (
+            <div className="p-3 md:p-6 flex justify-center items-center h-40">
+              <Spin size="large" />
+            </div>
+          ) : (
+            <>
+              {/* Stats Cards */}
+              <Row gutter={[16, 16]}>
+                {stats.map((stat, index) => {
+                  const icon = currentUser?.role
+                    ? (statIcons[currentUser?.role] as Record<string, JSX.Element>)[
+                        stat.title
+                      ]
+                    : null;
 
-              return (
-                <Col
-                  key={index}
-                  xs={24}
-                  md={
-                    currentUser?.role === "SCHOOL_ADMIN" ||
-                    currentUser?.role === "HOD"
-                      ? 6
-                      : 12
-                  }
-                >
-                <Link href={stat?.link || "#"}>
-                  <Card className="premium-card border-0 hover:shadow-md transition-all">
-                    <Statistic
-                      title={
-                        <span className="text-[#000000] font-medium !font-['Raleway']">
-                          {stat?.title}
-                        </span>
+                  return (
+                    <Col
+                      key={index}
+                      xs={24}
+                      md={
+                        currentUser?.role === "SCHOOL_ADMIN" ||
+                        currentUser?.role === "HOD"
+                          ? 6
+                          : 12
                       }
-                      value={stat?.value}
-                      prefix={icon}
-                      valueStyle={{ color: THEME_COLOR_DARK }}
-                    />
-                  </Card>
-                </Link>
-                </Col>
-              );
-            })}
-          </Row>
+                    >
+                    <Link href={stat?.link || "#"}>
+                      <Card className="premium-card border-0 hover:shadow-md transition-all">
+                        <Statistic
+                          title={
+                            <span className="text-[#000000] font-medium !font-['Raleway']">
+                              {stat?.title}
+                            </span>
+                          }
+                          value={stat?.value}
+                          prefix={icon}
+                          valueStyle={{ color: THEME_COLOR_DARK }}
+                        />
+                      </Card>
+                    </Link>
+                    </Col>
+                  );
+                })}
+              </Row>
+            </>
+          )}
 
           {/* Charts Section */}
           {barChartData.length > 0 && pieChartData.length > 0 && (

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Alert,
   Button,
@@ -40,6 +40,9 @@ import { deleteBehaviour } from "@/services/behaviorApi";
 import { fetchStudentProfileData, fetchStudents } from "@/services/studentsApi";
 import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
 import { fetchClasses } from "@/services/classesApi";
+import { readStudentProfileOverride } from "@/lib/studentProfileOverrides";
+import { extractSubjectIdFromPath } from "@/lib/subjectRouting";
+import { studentMatchesSubjectScope } from "@/lib/subjectStudentScope";
 
 type AnyObj = Record<string, any>;
 
@@ -107,10 +110,20 @@ function isAbsentRecord(row: AnyObj): boolean {
 
 export default function StudentProfilePage() {
   const params = useParams<{ classId?: string; studentId?: string }>();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const queryClient = useQueryClient();
   const classId = String(params?.classId ?? "");
   const studentId = String(params?.studentId ?? "");
+  const pathSubjectId = Number(extractSubjectIdFromPath(pathname) ?? 0);
+  const querySubjectId = Number(searchParams.get("subject_id") ?? 0);
+  const scopedSubjectId =
+    Number.isFinite(pathSubjectId) && pathSubjectId > 0
+      ? pathSubjectId
+      : Number.isFinite(querySubjectId) && querySubjectId > 0
+      ? querySubjectId
+      : null;
   const { currentUser, token } = useSelector((state: RootState) => state.auth);
   const canManageAttendance =
     currentUser?.role === "SCHOOL_ADMIN" ||
@@ -121,16 +134,17 @@ export default function StudentProfilePage() {
   const [selectedStudentId, setSelectedStudentId] = useState<string>(studentId);
   const [selectedYearId, setSelectedYearId] = useState<string>("");
   const [classSwitchLoading, setClassSwitchLoading] = useState(false);
+  const [redirectingBlockedStudent, setRedirectingBlockedStudent] = useState(false);
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["student-profile-v2", classId, studentId],
-    queryFn: () => fetchStudentProfileData(studentId),
+    queryKey: ["student-profile-v2", classId, studentId, scopedSubjectId ?? "school"],
+    queryFn: () => fetchStudentProfileData(studentId, scopedSubjectId),
     enabled: Boolean(studentId),
   });
 
   const { data: classStudentsData = [], isLoading: classStudentsLoading } = useQuery({
-    queryKey: ["class-students-for-profile-switcher", classId],
-    queryFn: () => fetchStudents(classId),
+    queryKey: ["class-students-for-profile-switcher", classId, scopedSubjectId ?? "school"],
+    queryFn: () => fetchStudents(classId, scopedSubjectId),
     enabled: Boolean(classId),
   });
 
@@ -231,7 +245,19 @@ export default function StudentProfilePage() {
 
   const student = useMemo<AnyObj | null>(() => {
     if (!data || typeof data !== "object" || Array.isArray(data)) return null;
-    return data as AnyObj;
+    const baseStudent = data as AnyObj;
+    const override = readStudentProfileOverride([studentId, baseStudent?.id]);
+    if (!override) return baseStudent;
+
+    return {
+      ...baseStudent,
+      is_sen:
+        typeof override.isSen === "boolean" ? override.isSen : baseStudent?.is_sen,
+      sen_details:
+        typeof override.senDetails === "string"
+          ? override.senDetails
+          : baseStudent?.sen_details,
+    } as AnyObj;
   }, [data]);
 
   const behaviourRecords = useMemo(() => {
@@ -431,13 +457,18 @@ export default function StudentProfilePage() {
   }, [allClassesData, selectedYearId]);
 
   const { data: yearStudentsData = [], isLoading: yearStudentsLoading } = useQuery({
-    queryKey: ["year-students-for-profile-switcher", selectedYearId, yearClassIds.join(",")],
+    queryKey: [
+      "year-students-for-profile-switcher",
+      selectedYearId,
+      yearClassIds.join(","),
+      scopedSubjectId ?? "school",
+    ],
     queryFn: async () => {
       if (!selectedYearId || yearClassIds.length === 0) return [];
       const perClass = await Promise.all(
         yearClassIds.map(async (cid) => {
           try {
-            const rows = await fetchStudents(cid);
+            const rows = await fetchStudents(cid, scopedSubjectId);
             return asArray<AnyObj>(rows).map((s) => ({
               ...s,
               __source_class_id: cid,
@@ -479,6 +510,18 @@ export default function StudentProfilePage() {
     return switcherStudents.filter((s) => s.status === studentStatusFilter);
   }, [switcherStudents, studentStatusFilter]);
 
+  const explicitScopedMatchInClassList = useMemo(() => {
+    if (!scopedSubjectId) return true;
+    const scopedRows = asArray<AnyObj>(classStudentsData);
+    return scopedRows.some(
+      (row) =>
+        String(row?.id ?? "") === String(studentId) &&
+        studentMatchesSubjectScope(row, {
+          subjectId: Number(scopedSubjectId),
+        })
+    );
+  }, [classStudentsData, scopedSubjectId, studentId]);
+
   const currentStudentIndex = useMemo(
     () => filteredClassStudents.findIndex((s) => s.id === studentId),
     [filteredClassStudents, studentId]
@@ -497,7 +540,7 @@ export default function StudentProfilePage() {
     if (!nextClassId || nextClassId === classId) return;
     try {
       setClassSwitchLoading(true);
-      const nextStudentsRaw = await fetchStudents(nextClassId);
+      const nextStudentsRaw = await fetchStudents(nextClassId, scopedSubjectId);
       const nextStudents = asArray<AnyObj>(nextStudentsRaw)
         .map((s) => ({
           id: String(s?.id ?? ""),
@@ -522,27 +565,84 @@ export default function StudentProfilePage() {
     }
   };
 
-  const yearOptions = useMemo(
-    () =>
-      asArray<AnyObj>(yearsData).map((y) => ({
-        value: String(y?.id ?? ""),
-        label: String(y?.name ?? `Year ${y?.id ?? ""}`),
-      })),
-    [yearsData]
-  );
+  const yearOptions = useMemo(() => {
+    const classRows = asArray<AnyObj>(allClassesData);
+    const validYearIds = new Set(
+      classRows
+        .map((row) => String(row?.year_id ?? "").trim())
+        .filter(Boolean)
+    );
+
+    const unique = new Map<string, { value: string; label: string }>();
+    asArray<AnyObj>(yearsData).forEach((year) => {
+      const id = String(year?.id ?? "").trim();
+      if (!id) return;
+      if (!validYearIds.has(id)) return;
+      if (unique.has(id)) return;
+
+      const fallbackLabel = `Year ${id}`;
+      const label = String(year?.name ?? fallbackLabel).trim() || fallbackLabel;
+      unique.set(id, { value: id, label });
+    });
+
+    return Array.from(unique.values());
+  }, [yearsData, allClassesData]);
 
   const classOptions = useMemo(() => {
     const all = asArray<AnyObj>(allClassesData);
     const filtered = selectedYearId
       ? all.filter((c) => String(c?.year_id ?? "") === selectedYearId)
       : all;
-    return filtered.map((c) => ({
-      value: String(c?.id ?? ""),
-      label: c?.year_name
-        ? `${String(c?.class_name ?? "Class")} (${String(c?.year_name)})`
-        : String(c?.class_name ?? "Class"),
-    }));
+
+    const unique = new Map<string, { value: string; label: string }>();
+    filtered.forEach((row) => {
+      const id = String(row?.id ?? "").trim();
+      if (!id || unique.has(id)) return;
+      const label = row?.year_name
+        ? `${String(row?.class_name ?? "Class")} (${String(row?.year_name)})`
+        : String(row?.class_name ?? "Class");
+      unique.set(id, { value: id, label });
+    });
+
+    return Array.from(unique.values());
   }, [allClassesData, selectedYearId]);
+
+  const isStudentInActiveSubject = useMemo(() => {
+    if (!student || !scopedSubjectId) return true;
+    const subjects = asArray<AnyObj>(student?.subjects);
+    const subjectIds = subjects
+      .map((item) => Number(item?.id ?? item?.subject_id ?? 0))
+      .filter((value) => Number.isFinite(value) && value > 0);
+    if (subjectIds.length === 0) {
+      return explicitScopedMatchInClassList;
+    }
+    return subjectIds.includes(Number(scopedSubjectId));
+  }, [student, scopedSubjectId, explicitScopedMatchInClassList]);
+
+  useEffect(() => {
+    if (isLoading) return;
+    if (!scopedSubjectId) return;
+    if (isStudentInActiveSubject) return;
+    if (redirectingBlockedStudent) return;
+
+    setRedirectingBlockedStudent(true);
+
+    const scopedMatch = pathname.match(/^\/dashboard\/s\/(\d+)(\/[^/]+)?\//);
+    const scopedPrefix = scopedMatch ? `/dashboard/s/${scopedMatch[1]}${scopedMatch[2] || ""}` : null;
+    const fallbackPath = scopedPrefix
+      ? `${scopedPrefix}/students/all`
+      : "/dashboard/students/all-students";
+
+    message.warning("This student is not available in the current subject workspace.");
+    router.replace(fallbackPath);
+  }, [
+    isLoading,
+    scopedSubjectId,
+    isStudentInActiveSubject,
+    redirectingBlockedStudent,
+    pathname,
+    router,
+  ]);
 
   useEffect(() => {
     const currentClass = asArray<AnyObj>(allClassesData).find(
@@ -713,6 +813,18 @@ export default function StudentProfilePage() {
     );
   }
 
+  if (!isStudentInActiveSubject) {
+    return (
+      <div className="p-4 md:p-6">
+        <Alert
+          type="warning"
+          showIcon
+          message="This student is not available in the current subject workspace."
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-7xl space-y-4 p-3 md:p-6">
       <Card className="rounded-2xl">
@@ -845,6 +957,40 @@ export default function StudentProfilePage() {
           <Button icon={<FilePdfOutlined />} onClick={exportPdf}>
             Print / PDF
           </Button>
+        </div>
+        <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <Card size="small" title="Gender">
+            <div className="font-medium text-gray-900">
+              {String(
+                student?.gender ??
+                  student?.student_gender ??
+                  student?.sex ??
+                  student?.student_sex ??
+                  "Unknown"
+              ) || "Unknown"}
+            </div>
+          </Card>
+          <Card size="small" title="Nationality">
+            <div className="font-medium text-gray-900">
+              {String(
+                student?.nationality ??
+                  student?.student_nationality ??
+                  student?.country ??
+                  student?.citizenship ??
+                  "Not set"
+              ) || "Not set"}
+            </div>
+          </Card>
+          <Card size="small" title="SEN Status">
+            <Tag color={student?.is_sen ? "gold" : "default"}>
+              {student?.is_sen ? "SEN Student" : "No SEN Flag"}
+            </Tag>
+          </Card>
+          <Card size="small" title="SEN Details">
+            <div className="whitespace-pre-wrap text-sm text-gray-700">
+              {String(student?.sen_details ?? student?.senDetails ?? "").trim() || "No SEN details saved."}
+            </div>
+          </Card>
         </div>
       </Card>
 

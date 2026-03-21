@@ -14,25 +14,7 @@ interface LeaderboardResponse {
   data: LeaderboardEntry[];
 }
 
-const YEAR7_LOCAL_POINTS_BY_NAME: Record<string, number> = {
-  "Hanna": 53,
-  "Saif Alif Ezzy": 48,
-  "Selim": 47,
-  "Noor": 45,
-  "Erich Mcfarland": 34,
-  "Mayra B": 24,
-  "Omar": 21,
-  "Daniel": 18,
-  "Yousof": 18,
-  "Aarish": 10,
-  "Mohsin": 10,
-  "Zaynab": 5,
-  "Malek": 3,
-  "Ayman": 2,
-  "Hamza Kaan Bilikozen": 0,
-};
 
-const YEAR7_LOCAL_CLASS_IDS = new Set(["20", "21", "22"]);
 
 const normalizePayload = (payload: any): LeaderboardResponse => {
   if (payload && Array.isArray(payload.data)) {
@@ -157,62 +139,11 @@ const buildClassLeaderboardFromSchoolData = async (
   };
 };
 
-const buildLocalYear7Leaderboard = async (
-  classId: string,
-  subjectId?: number
-): Promise<LeaderboardResponse | null> => {
-  if (!YEAR7_LOCAL_CLASS_IDS.has(classId)) return null;
-
-  const res = await api.get(`/get-student/${classId}`, {
-    params: withSubjectQuery({}, subjectId),
-  });
-  const students = Array.isArray(res?.data?.data) ? res.data.data : [];
-
-  const mapped = students
-    .map((student: any) => {
-      const studentName =
-        student?.student_name ??
-        student?.user_name ??
-        student?.name ??
-        student?.user?.name ??
-        "";
-      const totalMarks = YEAR7_LOCAL_POINTS_BY_NAME[studentName] ?? 0;
-
-      return {
-        student_id: student?.id ?? student?.student_id,
-        student_name: studentName || "Unknown",
-        total_marks: totalMarks,
-        class_name:
-          student?.class_name ??
-          student?.class?.class_name ??
-          student?.class ??
-          "",
-      } as LeaderboardEntry;
-    })
-    .filter((student: LeaderboardEntry) => !!student.student_id)
-    .sort((a: LeaderboardEntry, b: LeaderboardEntry) => (b.total_marks ?? 0) - (a.total_marks ?? 0));
-
-  return {
-    status_code: 200,
-    msg: "LeaderBoard Data Fetched Successfully",
-    data: mapped,
-  };
-};
-
 export const fetchLeaderBoardData = async (
   classId: string | number,
   subjectId?: number
 ): Promise<LeaderboardResponse> => {
   const id = String(classId);
-
-  try {
-    const localYear7Leaderboard = await buildLocalYear7Leaderboard(id, subjectId);
-    if ((localYear7Leaderboard?.data ?? []).length > 0) {
-      return localYear7Leaderboard;
-    }
-  } catch {
-    // continue to API-backed fallbacks
-  }
 
   let primary: LeaderboardResponse | null = null;
   let primaryError: Error | null = null;

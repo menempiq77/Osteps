@@ -1,12 +1,17 @@
 import api from "./studentsApi";
 import { StudentBehaviorSummary } from "@/types/studentViews";
+import { withSubjectQuery } from "@/lib/subjectScope";
 
 export const fetchClassStudentsBehaviorSummary = async (
-  classId: string | number
+  classId: string | number,
+  subjectId?: number | null
 ): Promise<StudentBehaviorSummary[]> => {
   try {
     const response = await api.get(
-      `/classes/${classId}/students-behavior-summary`
+      `/classes/${classId}/students-behavior-summary`,
+      {
+        params: withSubjectQuery({}, subjectId),
+      }
     );
     return response.data?.data || [];
   } catch (error: any) {

@@ -26,7 +26,10 @@ export const fetchBehaviourType = async (subjectId?: number) => {
   return response.data.data;
 };
 // add BehaviourType
-export const addBehaviourType = async (behaviourTypeData: { name: string }, subjectId?: number) => {
+export const addBehaviourType = async (
+  behaviourTypeData: Record<string, any>,
+  subjectId?: number
+) => {
   const response = await api.post('/add-behaviour', withSubjectPayload(behaviourTypeData, subjectId));
   return response.data;
 };
@@ -52,7 +55,10 @@ export const fetchBehaviour = async (studentId: number, subjectId?: number) => {
   return response.data.data;
 };
 // add behaviour
-export const addBehaviour = async (behaviourData: { name: string }, subjectId?: number) => {
+export const addBehaviour = async (
+  behaviourData: Record<string, any>,
+  subjectId?: number
+) => {
   const response = await api.post('/add-studentBehaviour', withSubjectPayload(behaviourData, subjectId));
   return response.data;
 };

@@ -13,12 +13,14 @@ import {
   updateYear as updateYearApi,
   fetchYearsBySchool,
   fetchAssignYears,
-  fetchSubjectYears,
 } from "@/services/yearsApi";
 import { fetchClasses } from "@/services/classesApi";
 import { fetchStudents } from "@/services/studentsApi";
 import { useSubjectContext } from "@/contexts/SubjectContext";
-import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
+import { deactivateSubjectClassesByYear, fetchSubjectClasses, isMissingSubjectWorkspaceRoute } from "@/services/subjectWorkspaceApi";
+import { filterStudentsBySubjectScope, studentMatchesSubjectScope } from "@/lib/subjectStudentScope";
+import { makeSubjectHintScopeKey, matchesSubjectStudentHint, readSubjectStudentHints } from "@/lib/subjectStudentHints";
+import { readSubjectClassBaseMap } from "@/lib/subjectClassResolution";
 
 interface Year {
   id: number;
@@ -31,8 +33,76 @@ interface Year {
 }
 
 type SubjectClassRow = {
+  id?: number | string | null;
   year_id?: number | string | null;
+  name?: string | null;
+  base_class_label?: string | null;
+  class_id?: number | string | null;
+  base_class_id?: number | string | null;
+  class?: {
+    id?: number | string | null;
+    year_id?: number | string | null;
+  } | null;
+  classes?: {
+    id?: number | string | null;
+    year_id?: number | string | null;
+  } | null;
+  base_class?: {
+    id?: number | string | null;
+    year_id?: number | string | null;
+  } | null;
 };
+
+const resolveSubjectClassYearId = (row: SubjectClassRow): number =>
+  Number(
+    row.year_id ??
+      row.class?.year_id ??
+      row.classes?.year_id ??
+      row.base_class?.year_id ??
+      0
+  );
+
+const resolveSubjectClassLinkedId = (row: SubjectClassRow): string =>
+  String(
+    row.class_id ??
+      row.base_class_id ??
+      row.class?.id ??
+      row.classes?.id ??
+      row.base_class?.id ??
+      ""
+  ).trim();
+
+const resolveSubjectClassLabel = (row: SubjectClassRow): string =>
+  String(
+    row.base_class_label ??
+      row.name ??
+      row.class?.id ??
+      row.classes?.id ??
+      row.base_class?.id ??
+      ""
+  ).trim();
+
+const normalizeClassLabel = (value: unknown) =>
+  String(value ?? "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+
+const extractStudentSubjectClassIds = (student: Record<string, any>) =>
+  [
+    student?.subject_class_id,
+    student?.subjectClassId,
+    student?.pivot?.subject_class_id,
+  ]
+    .flatMap((value) => (Array.isArray(value) ? value : [value]))
+    .map((value) => String(value ?? "").trim())
+    .filter(Boolean);
+
+const hasAnySubjectMarkers = (student: Record<string, any>) =>
+  extractStudentSubjectClassIds(student).length > 0 ||
+  (Array.isArray(student?.subjects) && student.subjects.length > 0) ||
+  !!student?.subject_name ||
+  !!student?.subject;
 
 export default function Page() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -48,7 +118,7 @@ export default function Page() {
   >({});
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [messageApi, contextHolder] = message.useMessage();
-  const { activeSubjectId, activeSubject, canUseSubjectContext } = useSubjectContext();
+  const { activeSubjectId, activeSubject, canUseSubjectContext, loading: subjectContextLoading } = useSubjectContext();
   const schoolId = currentUser?.school;
   const isTeacher = currentUser?.role === "TEACHER";
   const hasAccess = currentUser?.role === "SCHOOL_ADMIN";
@@ -59,8 +129,53 @@ export default function Page() {
   const pageTitle = isSubjectWorkspaceMode && formattedSubjectName
     ? `Academic Years - ${formattedSubjectName}`
     : "Academic Years";
-  const yearOrderStorageKey = `years-order-${schoolId ?? "global"}`;
-  const yearColorStorageKey = `years-colors-${schoolId ?? "global"}`;
+  const subjectStorageSuffix = isSubjectWorkspaceMode && activeSubjectId ? `-s${activeSubjectId}` : "";
+  const yearOrderStorageKey = `years-order-${schoolId ?? "global"}${subjectStorageSuffix}`;
+  const yearColorStorageKey = `years-colors-${schoolId ?? "global"}${subjectStorageSuffix}`;
+  const hiddenYearsStorageKey = activeSubjectId ? `hidden-subject-years-s${activeSubjectId}` : null;
+  const addedYearsStorageKey = activeSubjectId ? `added-subject-years-s${activeSubjectId}` : null;
+
+  const readHiddenYears = (): number[] => {
+    if (typeof window === "undefined" || !hiddenYearsStorageKey) return [];
+    try {
+      const raw = localStorage.getItem(hiddenYearsStorageKey);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed.map(Number).filter(Boolean) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const addHiddenYear = (yearId: number) => {
+    if (typeof window === "undefined" || !hiddenYearsStorageKey) return;
+    const next = Array.from(new Set([...readHiddenYears(), yearId]));
+    localStorage.setItem(hiddenYearsStorageKey, JSON.stringify(next));
+  };
+
+  const readAddedYears = (): number[] => {
+    if (typeof window === "undefined" || !addedYearsStorageKey) return [];
+    try {
+      const raw = localStorage.getItem(addedYearsStorageKey);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed)
+        ? parsed.map((value) => Number(value)).filter((value) => Number.isFinite(value) && value > 0)
+        : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const addAddedYear = (yearId: number) => {
+    if (typeof window === "undefined" || !addedYearsStorageKey) return;
+    const next = Array.from(new Set([...readAddedYears(), yearId]));
+    localStorage.setItem(addedYearsStorageKey, JSON.stringify(next));
+  };
+
+  const removeAddedYear = (yearId: number) => {
+    if (typeof window === "undefined" || !addedYearsStorageKey) return;
+    const next = readAddedYears().filter((id) => id !== yearId);
+    localStorage.setItem(addedYearsStorageKey, JSON.stringify(next));
+  };
 
   const readYearColorMap = (): Record<string, string> => {
     if (typeof window === "undefined") return {};
@@ -105,40 +220,37 @@ export default function Page() {
   };
 
   useEffect(() => {
+    if (subjectContextLoading) return;
     const loadYears = async () => {
     try {
       let yearsData = [];
 
       if (isSubjectWorkspaceMode && activeSubjectId) {
-        try {
-          yearsData = await fetchSubjectYears(Number(activeSubjectId));
-        } catch {
-          // Strict fallback: derive allowed years from subject class assignments only
-          const schoolYears = await fetchYearsBySchool(Number(schoolId));
-          const subjectClasses = (await fetchSubjectClasses({
-            subject_id: Number(activeSubjectId),
-          })) as SubjectClassRow[];
-          const subjectClassYearIds = (Array.isArray(subjectClasses) ? subjectClasses : [])
-            .map((item) => Number(item?.year_id))
-            .filter((id) => Number.isFinite(id) && id > 0);
+        const schoolYears = await fetchYearsBySchool(Number(schoolId));
+        // Only fetch active classes (backend filters by is_active=1 by default)
+        const subjectClasses = (await fetchSubjectClasses({
+          subject_id: Number(activeSubjectId),
+        })) as SubjectClassRow[];
+        const subjectClassYearIds = (Array.isArray(subjectClasses) ? subjectClasses : [])
+          .map((item) => resolveSubjectClassYearId(item))
+          .filter((id) => Number.isFinite(id) && id > 0);
 
-          const allowedIds = new Set(subjectClassYearIds);
-          yearsData = (Array.isArray(schoolYears) ? schoolYears : []).filter((year: any) =>
-            allowedIds.has(Number(year?.id))
-          );
-        }
+        const allowedIds = new Set([...subjectClassYearIds, ...readAddedYears()]);
+        yearsData = (Array.isArray(schoolYears) ? schoolYears : []).filter((year: any) =>
+          allowedIds.has(Number(year?.id))
+        );
       } else if (isTeacher) {
         const res = await fetchAssignYears();
 
         const years = res
-          .map((item) => item.classes?.year)
-          .filter((year) => year);
+          .map((item: any) => item.classes?.year)
+          .filter((year: any) => year);
 
         yearsData = Array.from(
-          new Map(years.map((year) => [year.id, year])).values()
+          new Map(years.map((year: any) => [year.id, year])).values()
         );
       } else {
-        const res = await fetchYearsBySchool(schoolId);
+        const res = await fetchYearsBySchool(Number(schoolId));
         yearsData = res;
       }
 
@@ -152,7 +264,7 @@ export default function Page() {
   };
 
   loadYears();
-}, [schoolId, isTeacher, isSubjectWorkspaceMode, activeSubjectId]);
+}, [schoolId, isTeacher, isSubjectWorkspaceMode, activeSubjectId, subjectContextLoading]);
 
   useEffect(() => {
     const loadYearStats = async () => {
@@ -164,21 +276,109 @@ export default function Page() {
       const statsEntries = await Promise.all(
         years.map(async (year) => {
           try {
-            const classes = ((await fetchClasses(String(year.id))) || []) as Array<{
-              id: number | string;
-            }>;
-            const studentCounts = await Promise.all(
-              classes.map(async (cls) => {
-                try {
-                  const students = await fetchStudents(cls.id);
-                  return Array.isArray(students) ? students.length : 0;
-                } catch {
-                  return 0;
+            if (isSubjectWorkspaceMode && activeSubjectId) {
+              const baseClassesByYear = new Map<number, any[]>();
+              const getBaseClassesForYear = async (yearId: number) => {
+                if (baseClassesByYear.has(yearId)) {
+                  return baseClassesByYear.get(yearId) as any[];
                 }
-              })
-            );
-            const totalStudents = studentCounts.reduce((sum, count) => sum + count, 0);
-            return [year.id, { classes: classes.length, students: totalStudents }] as const;
+                try {
+                  const baseRows = await fetchClasses(String(yearId));
+                  const list = Array.isArray(baseRows) ? baseRows : [];
+                  baseClassesByYear.set(yearId, list);
+                  return list;
+                } catch {
+                  baseClassesByYear.set(yearId, []);
+                  return [];
+                }
+              };
+
+              const subjectClasses = (await fetchSubjectClasses({
+                subject_id: Number(activeSubjectId),
+                year_id: Number(year.id),
+              })) as SubjectClassRow[];
+              const classesForYear = (Array.isArray(subjectClasses) ? subjectClasses : []).filter(
+                (row) => resolveSubjectClassYearId(row) === Number(year.id)
+              );
+              const studentCounts = await Promise.all(
+                classesForYear.map(async (row) => {
+                  const subjectClassId = String(row?.id ?? "").trim();
+                  const storedBaseId = readSubjectClassBaseMap(Number(activeSubjectId))[subjectClassId] ?? "";
+                  let linkedClassId = resolveSubjectClassLinkedId(row) || storedBaseId;
+
+                  if (!linkedClassId) {
+                    const resolvedYearId = resolveSubjectClassYearId(row) || Number(year.id);
+                    const subjectLabel = normalizeClassLabel(resolveSubjectClassLabel(row));
+                    if (resolvedYearId > 0 && subjectLabel) {
+                      const baseRows = await getBaseClassesForYear(resolvedYearId);
+                      const matchedBaseClass = (Array.isArray(baseRows) ? baseRows : []).find(
+                        (baseRow: any) =>
+                          normalizeClassLabel(baseRow?.class_name ?? baseRow?.name) === subjectLabel
+                      );
+                      linkedClassId = String(matchedBaseClass?.id ?? "").trim();
+                    }
+                  }
+
+                  if (!linkedClassId || !subjectClassId) return 0;
+                  try {
+                    const students = await fetchStudents(
+                      linkedClassId,
+                      Number(activeSubjectId)
+                    );
+                    const studentRows = Array.isArray(students) ? students : [];
+                    const inScopeRows = filterStudentsBySubjectScope(
+                      studentRows,
+                      {
+                        subjectId: Number(activeSubjectId),
+                        subjectName: activeSubject?.name,
+                        subjectClassId,
+                      }
+                    );
+
+                    const hintScopeKey = makeSubjectHintScopeKey(Number(activeSubjectId), subjectClassId);
+                    const hintBucket = readSubjectStudentHints(hintScopeKey);
+                    const hintedRows = studentRows.filter((student: any) => {
+                      if (
+                        studentMatchesSubjectScope(student, {
+                          subjectId: Number(activeSubjectId),
+                          subjectName: activeSubject?.name,
+                          subjectClassId,
+                        })
+                      ) {
+                        return false;
+                      }
+
+                      const scopedIds = extractStudentSubjectClassIds(student);
+                      if (scopedIds.length > 0) return false;
+                      return matchesSubjectStudentHint(student, hintBucket);
+                    });
+
+                    const combinedRows = [...inScopeRows, ...hintedRows];
+                    const safeFallbackRows =
+                      combinedRows.length === 0 &&
+                      studentRows.length > 0 &&
+                      !studentRows.some((student: any) => hasAnySubjectMarkers(student))
+                        ? studentRows
+                        : [];
+
+                    return new Set(
+                      [...combinedRows, ...safeFallbackRows]
+                        .map((student: any) => String(student?.id ?? "").trim())
+                        .filter(Boolean)
+                    ).size;
+                  } catch {
+                    return 0;
+                  }
+                })
+              );
+              const totalStudents = studentCounts.reduce((sum, count) => sum + count, 0);
+              return [
+                year.id,
+                { classes: classesForYear.length, students: totalStudents },
+              ] as const;
+            }
+
+            return [year.id, { classes: 0, students: 0 }] as const;
           } catch {
             return [year.id, { classes: 0, students: 0 }] as const;
           }
@@ -189,7 +389,7 @@ export default function Page() {
     };
 
     loadYearStats();
-  }, [years, isSubjectWorkspaceMode, activeSubjectId]);
+  }, [years, isSubjectWorkspaceMode, activeSubjectId, activeSubject?.name]);
 
   const persistYearOrder = (orderedYears: Year[]) => {
     if (typeof window === "undefined") return;
@@ -215,48 +415,83 @@ export default function Page() {
         currentUser?.role === "SCHOOL_ADMIN"
           ? { ...payload, school_id: currentUser?.school }
           : payload;
+      let createdYearId: number | null = null;
 
       if (currentYear) {
-        await updateYearApi(currentYear.id, yearData);
+        await updateYearApi(String(currentYear.id), yearData);
         writeYearColorMap({
           ...readYearColorMap(),
           [String(currentYear.id)]: color || currentYear.color || "green",
         });
       } else {
-        const newYear = await addYearApi(yearData);
-        const yearWithColor = { ...newYear, color: color || "green" };
-        setYears((prevYears) => [...prevYears, yearWithColor]);
-        writeYearColorMap({
-          ...readYearColorMap(),
-          [String(newYear.id)]: yearWithColor.color as string,
-        });
+        const addResponse = await addYearApi(yearData);
+        const createdYearRaw =
+          addResponse?.data?.year ??
+          addResponse?.data ??
+          addResponse?.year ??
+          addResponse;
+
+        createdYearId = Number(
+          createdYearRaw?.id ??
+            addResponse?.data?.id ??
+            addResponse?.id ??
+            0
+        );
+
+        if (Number.isFinite(createdYearId) && createdYearId > 0) {
+          const yearWithColor = {
+            ...createdYearRaw,
+            id: createdYearId,
+            name: String(createdYearRaw?.name ?? yearData.name ?? "").trim(),
+            color: color || "green",
+          } as Year;
+          setYears((prevYears) => [...prevYears, yearWithColor]);
+          writeYearColorMap({
+            ...readYearColorMap(),
+            [String(createdYearId)]: yearWithColor.color as string,
+          });
+        }
       }
       if (isSubjectWorkspaceMode && activeSubjectId) {
-        try {
-          const subjectYears = await fetchSubjectYears(Number(activeSubjectId));
-          setYears(applySavedOrder(applySavedYearColors(subjectYears || [])));
-        } catch {
-          const updatedYears = await fetchYearsBySchool(schoolId);
-          const subjectClasses = (await fetchSubjectClasses({
-            subject_id: Number(activeSubjectId),
-          })) as SubjectClassRow[];
-          const allowedIds = new Set(
-            (Array.isArray(subjectClasses) ? subjectClasses : [])
-              .map((item) => Number(item?.year_id))
-              .filter((id) => Number.isFinite(id) && id > 0)
-          );
-          setYears(
-            applySavedOrder(
-              applySavedYearColors(
-                (Array.isArray(updatedYears) ? updatedYears : []).filter((year: any) =>
-                  allowedIds.has(Number(year?.id))
-                )
+        const updatedYears = await fetchYearsBySchool(Number(schoolId));
+        if (!currentYear && (!createdYearId || createdYearId <= 0)) {
+          const candidate = (Array.isArray(updatedYears) ? updatedYears : [])
+            .filter((year: any) =>
+              String(year?.name ?? "").trim().toLowerCase() ===
+              String(yearData?.name ?? "").trim().toLowerCase()
+            )
+            .at(-1);
+          const resolvedId = Number(candidate?.id ?? 0);
+          if (Number.isFinite(resolvedId) && resolvedId > 0) {
+            createdYearId = resolvedId;
+          }
+        }
+        if (!currentYear && createdYearId && createdYearId > 0) {
+          addAddedYear(createdYearId);
+        }
+        const subjectClasses = (await fetchSubjectClasses({
+          subject_id: Number(activeSubjectId),
+        })) as SubjectClassRow[];
+        const allowedIds = new Set(
+          [
+            ...(Array.isArray(subjectClasses) ? subjectClasses : [])
+            .map((item) => resolveSubjectClassYearId(item))
+            .filter((id) => Number.isFinite(id) && id > 0),
+            ...readAddedYears(),
+          ]
+        );
+        const hiddenIds = new Set(readHiddenYears());
+        setYears(
+          applySavedOrder(
+            applySavedYearColors(
+              (Array.isArray(updatedYears) ? updatedYears : []).filter((year: any) =>
+                allowedIds.has(Number(year?.id)) && !hiddenIds.has(Number(year?.id))
               )
             )
-          );
-        }
+          )
+        );
       } else {
-        const updatedYears = await fetchYearsBySchool(schoolId);
+        const updatedYears = await fetchYearsBySchool(Number(schoolId));
         setYears(applySavedYearColors(updatedYears));
       }
 
@@ -268,7 +503,7 @@ export default function Page() {
     } catch (err) {
       setError(currentYear ? "Failed to update year" : "Failed to add year");
       console.error(err);
-      messageApi.success(
+      messageApi.error(
         currentYear ? "Failed to update year" : "Failed to add year"
       );
     }
@@ -298,10 +533,24 @@ export default function Page() {
 
     try {
       if (isSubjectWorkspaceMode && activeSubjectId) {
+        // Best-effort backend call — silently ignored if the endpoint isn't deployed yet
+        try {
+          await deactivateSubjectClassesByYear({
+            subject_id: Number(activeSubjectId),
+            year_id: yearToDelete,
+          });
+        } catch (backendErr) {
+          if (!isMissingSubjectWorkspaceRoute(backendErr)) {
+            throw backendErr;
+          }
+          // Route not deployed yet — fall through to local-only removal
+        }
+        addHiddenYear(yearToDelete); // Legacy: kept for backward compat until fully migrated
+        removeAddedYear(yearToDelete);
         setYears(years.filter((year) => year.id !== yearToDelete));
         setIsDeleteModalOpen(false);
         setYearToDelete(null);
-        messageApi.success("Year hidden in current list. To fully separate, remove or reassign subject classes in this year.");
+        messageApi.success("Year removed from this subject's workspace.");
         return;
       }
 

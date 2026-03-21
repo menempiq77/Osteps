@@ -11,8 +11,12 @@ import {
 } from "@/services/schoolApi";
 import Link from "next/link";
 import axios from "axios";
+import { usePathname, useRouter } from "next/navigation";
+import { extractSubjectIdFromPath } from "@/lib/subjectRouting";
 
 export default function SuperAdminDashboard() {
+  const pathname = usePathname();
+  const router = useRouter();
   const [schools, setSchools] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -20,6 +24,12 @@ export default function SuperAdminDashboard() {
   const [editingSchool, setEditingSchool] = useState<any | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [messageApi, contextHolder] = message.useMessage();
+
+  useEffect(() => {
+    if (extractSubjectIdFromPath(pathname)) {
+      router.replace("/dashboard/schools");
+    }
+  }, [pathname, router]);
 
   const loadSchools = async () => {
     try {

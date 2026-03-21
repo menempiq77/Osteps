@@ -29,6 +29,7 @@ import { fetchClasses } from "@/services/classesApi";
 import { fetchTeachers } from "@/services/teacherApi";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import TimetableModal from "@/components/dashboard/TimetableModal";
+import { useSubjectContext } from "@/contexts/SubjectContext";
 
 const { Option } = Select;
 
@@ -49,9 +50,11 @@ function Timetable() {
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [selectedTeacher, setSelectedTeacher] = useState("");
   const [messageApi, contextHolder] = message.useMessage();
+  const { activeSubjectId, activeSubject } = useSubjectContext();
+  const scopedSubjectName = String(activeSubject?.name || "").replace(/islamiat/gi, "Islamic").trim();
 
   const { data: events = [], isLoading: isTimetableLoading } = useQuery({
-    queryKey: ["timetable"],
+    queryKey: ["timetable", activeSubjectId ?? "all"],
     queryFn: fetchTimetableData,
     select: (res) =>
       res?.map((item: any) => ({
@@ -392,7 +395,7 @@ function Timetable() {
             title: <Link href="/dashboard">Dashboard</Link>,
           },
           {
-            title: <span>Timetable</span>,
+            title: <span>{scopedSubjectName ? `${scopedSubjectName} Timetable` : "Timetable"}</span>,
           },
         ]}
         className="!mb-2"
