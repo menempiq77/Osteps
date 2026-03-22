@@ -4,6 +4,7 @@ export interface SubjectBrief {
   id: number;
   name: string;
   code?: string | null;
+  class_label?: string | null;
 }
 
 export interface SubjectRole {

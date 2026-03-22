@@ -34,7 +34,7 @@ class SubjectContextController extends Controller
                     ->where('sse.is_active', 1)
                     ->where('sc.is_active', 1)
                     ->where('s.school_id', $schoolId)
-                    ->selectRaw($this->subjectSelectSql('s'))
+                    ->selectRaw($this->subjectSelectSql('s') . ', sc.base_class_label as class_label')
                     ->distinct()
                     ->orderBy('s.name')
                     ->get();

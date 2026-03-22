@@ -9,6 +9,7 @@ const normalizeSubjects = (raw: any): SubjectBrief[] => {
       id: Number(item?.id),
       name: String(item?.name ?? ""),
       code: item?.code ?? null,
+      class_label: item?.class_label ?? null,
     }))
     .filter((item) => Number.isFinite(item.id) && item.id > 0 && item.name.trim().length > 0);
 };
@@ -27,12 +28,16 @@ const extractContext = (payload: any): SubjectContextResponse => {
 
 export const fetchMySubjectContext = async (options?: {
   role?: string;
+  knownSubjects?: Array<{ id: number; name: string; code?: string | null }>;
+  studentId?: number | null;
+  studentClassId?: number | null;
 }): Promise<SubjectContextResponse> => {
   const roleKey = String(options?.role || "")
     .trim()
     .toUpperCase()
     .replace(/\s+/g, "_");
   const isSchoolAdmin = roleKey === "SCHOOL_ADMIN";
+  const isStudent = roleKey === "STUDENT";
 
   try {
     const res = await api.get("/subjects/my-context");
@@ -40,6 +45,55 @@ export const fetchMySubjectContext = async (options?: {
     if (normalized.assigned_subjects.length > 0) return normalized;
   } catch {
     // fallback below
+  }
+
+  // For students: fetch their enrolled subjects from class student list.
+  if (isStudent) {
+    const sid = Number(options?.studentId ?? 0);
+    const classId = Number(options?.studentClassId ?? 0);
+    if (Number.isFinite(classId) && classId > 0 && Number.isFinite(sid) && sid > 0) {
+      try {
+        const res = await api.get(`/get-student/${classId}`);
+        const students: any[] = res.data?.data ?? res.data ?? [];
+        const me = Array.isArray(students)
+          ? students.find((s: any) => Number(s?.id) === sid)
+          : null;
+        if (me?.subjects) {
+          const enrolled = normalizeSubjects(me.subjects);
+          if (enrolled.length > 0) {
+            return {
+              assigned_subjects: enrolled,
+              default_subject_id: enrolled[0]?.id ?? null,
+              subject_roles: [],
+            };
+          }
+        }
+      } catch {
+        // continue to other fallbacks
+      }
+    }
+
+    // Use knownSubjects from login response if available.
+    const known = normalizeSubjects(options?.knownSubjects ?? []);
+    if (known.length > 0) {
+      return {
+        assigned_subjects: known,
+        default_subject_id: known[0]?.id ?? null,
+        subject_roles: [],
+      };
+    }
+
+    // Last resort: fetch all school subjects so student isn't stuck.
+    try {
+      const subjects = normalizeSubjects(await fetchSubjects());
+      return {
+        assigned_subjects: subjects,
+        default_subject_id: subjects[0]?.id ?? null,
+        subject_roles: [],
+      };
+    } catch {
+      return { assigned_subjects: [], default_subject_id: null, subject_roles: [] };
+    }
   }
 
   // Strict privacy fallback: only School Admin can fallback to school-wide subjects.
