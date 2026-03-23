@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Card, Col, Row, Select, Space, Spin, Statistic, Table, Tag, Typography } from "antd";
-import { fetchStudentProfileData } from "@/services/studentsApi";
+import { fetchStudentProfileData, fetchStudents } from "@/services/studentsApi";
 import { readStudentProfileOverride } from "@/lib/studentProfileOverrides";
 
 type AnyObj = Record<string, any>;
@@ -45,6 +45,36 @@ const resolveSenDetails = (student: AnyObj): string => {
 	return String(details ?? "").trim();
 };
 
+const extractSubjectNamesFromRecord = (record: AnyObj | null | undefined): string[] => {
+	if (!record || typeof record !== "object") return [];
+
+	const rawSubjects = [
+		...asArray<AnyObj>(record?.subjects),
+		...asArray<AnyObj>(record?.assigned_subjects),
+		...asArray<AnyObj>(record?.active_subjects),
+		...(record?.subject_name ? [record.subject_name] : []),
+		...(record?.subject ? [record.subject] : []),
+	];
+
+	const names = rawSubjects
+		.map((item) => {
+			if (typeof item === "string") return normalizeSubjectName(item);
+			if (item && typeof item === "object") {
+				return normalizeSubjectName(
+					item?.name ??
+					item?.subject_name ??
+					item?.subject?.name ??
+					item?.subject?.subject_name ??
+					""
+				);
+			}
+			return "";
+		})
+		.filter(Boolean);
+
+	return Array.from(new Set(names));
+};
+
 export default function GlobalStudentProfilePage() {
 	const params = useParams<{ studentId?: string }>();
 	const studentId = String(params?.studentId ?? "").trim();
@@ -78,13 +108,36 @@ export default function GlobalStudentProfilePage() {
 		} as AnyObj;
 	}, [data, studentId]);
 
+	const classIdForSubjectFallback = Number(student?.class_id ?? student?.class?.id ?? 0);
+
+	const { data: classStudentsForSubjectFallback = [] } = useQuery({
+		queryKey: ["global-student-profile-class-subjects", classIdForSubjectFallback],
+		queryFn: () => fetchStudents(classIdForSubjectFallback, 0),
+		enabled: classIdForSubjectFallback > 0,
+	});
+
+	const classStudentSubjectFallback = useMemo(() => {
+		const rows = asArray<AnyObj>(classStudentsForSubjectFallback);
+		if (rows.length === 0) return null;
+
+		return (
+			rows.find(
+				(row) =>
+					String(row?.id ?? "").trim() === studentId ||
+					String(row?.student_id ?? "").trim() === studentId ||
+					String(row?.profile_id ?? "").trim() === studentId
+			) ?? null
+		);
+	}, [classStudentsForSubjectFallback, studentId]);
+
 	const subjectTags = useMemo(() => {
-		const subjects = asArray<AnyObj>(student?.subjects);
-		const names = subjects
-			.map((item) => normalizeSubjectName(item?.name ?? item?.subject_name ?? item))
-			.filter(Boolean);
-		return Array.from(new Set(names));
-	}, [student]);
+		return Array.from(
+			new Set([
+				...extractSubjectNamesFromRecord(student),
+				...extractSubjectNamesFromRecord(classStudentSubjectFallback),
+			])
+		);
+	}, [student, classStudentSubjectFallback]);
 
 	const behaviorRows = useMemo(() => {
 		const rows = asArray<AnyObj>(student?.behaviour);

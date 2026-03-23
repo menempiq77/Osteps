@@ -52,6 +52,7 @@ const SUBJECT_ROUTE_ROOTS = new Set([
   "all_trackers",
   "viewtrackers",
   "students",
+  "behavior",
   "mind-upgrade",
   "subjects",
   "subject-cards",
@@ -77,17 +78,6 @@ const normalize = (path: string): string => splitPathAndQuery(path).pathname;
 const startsWithPrefix = (path: string, prefix: string): boolean => {
   if (path === prefix) return true;
   return path.startsWith(`${prefix}/`);
-};
-
-export const toSubjectPathSegment = (subjectName?: string | null): string => {
-  const normalized = String(subjectName ?? "")
-    .replace(/islamiat/gi, "Islamic")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-
-  return normalized || "subject";
 };
 
 const stripReadableSubjectSegment = (suffix: string): string => {
@@ -131,7 +121,7 @@ export const toSubjectScopedPath = (
   if (!pathname.startsWith("/dashboard/s/") && !isSubjectScopedPath(pathname)) {
     return `${pathname}${query}`;
   }
-  return `/dashboard/s/${subjectId}/${toSubjectPathSegment(subjectName)}${suffix}${query}`;
+  return `/dashboard/s/${subjectId}${suffix}${query}`;
 };
 
 export const stripSubjectScope = (path: string): string => {

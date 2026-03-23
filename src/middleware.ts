@@ -54,6 +54,7 @@ const SUBJECT_ROUTE_ROOTS = new Set([
   "all_trackers",
   "viewtrackers",
   "students",
+  "behavior",
   "mind-upgrade",
   "subjects",
   "subject-cards",
@@ -73,6 +74,7 @@ const isSharedPath = (path: string): boolean => {
 };
 
 const isSubjectScopedLegacyPath = (path: string): boolean => {
+  if (path === "/dashboard") return false;
   if (path.startsWith("/dashboard/s/")) return false;
   if (isSharedPath(path)) return false;
   return SUBJECT_SCOPED_PREFIXES.some((prefix) => startsWithPrefix(path, prefix));
@@ -90,17 +92,6 @@ const stripReadableSubjectSegment = (suffix: string): string => {
 
   const remaining = segments.slice(1);
   return remaining.length > 0 ? `/${remaining.join("/")}` : "";
-};
-
-const toSubjectPathSegment = (subjectName?: string | null): string => {
-  const normalized = String(subjectName ?? "")
-    .replace(/islamiat/gi, "Islamic")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-
-  return normalized || "subject";
 };
 
 const isGlobalStudentsPath = (path: string): boolean => {
@@ -122,6 +113,17 @@ export function middleware(req: NextRequest) {
   // Keep explicit all-school routes strictly outside subject-scoped routes,
   // but allow subject-scoped /students/all for subject-only lists.
   if (pathname.startsWith("/dashboard/s/")) {
+    const canonicalScopedMatch = pathname.match(/^\/dashboard\/s\/(\d+)\/([^/]+)(\/.*)?$/);
+    if (
+      canonicalScopedMatch &&
+      !SUBJECT_ROUTE_ROOTS.has(String(canonicalScopedMatch[2] ?? "").toLowerCase()) &&
+      canonicalScopedMatch[3]
+    ) {
+      const redirectUrl = req.nextUrl.clone();
+      redirectUrl.pathname = `/dashboard/s/${canonicalScopedMatch[1]}${canonicalScopedMatch[3]}`;
+      return NextResponse.redirect(redirectUrl);
+    }
+
     const scopedSharedStudentsMatch = pathname.match(
       /^\/dashboard\/s\/\d+(?:\/[^/]+)?\/(students\/(?:all-school|all-students)(?:\/.*)?)$/
     );
@@ -187,16 +189,12 @@ export function middleware(req: NextRequest) {
     }
 
     const querySubject = url.searchParams.get("subject_id");
-    const querySubjectName = url.searchParams.get("subject_name");
     const cookieSubject = req.cookies.get("osteps_subject_id")?.value;
-    const cookieSubjectName = req.cookies.get("osteps_subject_name")?.value;
     const resolvedSubject = querySubject ?? cookieSubject ?? null;
-    const resolvedSubjectName = querySubjectName ?? (cookieSubjectName ? decodeURIComponent(cookieSubjectName) : null);
-
     if (resolvedSubject && /^\d+$/.test(resolvedSubject)) {
       const suffix = pathname.replace("/dashboard", "") || "";
       const redirectUrl = req.nextUrl.clone();
-      redirectUrl.pathname = `/dashboard/s/${resolvedSubject}/${toSubjectPathSegment(resolvedSubjectName)}${suffix}`;
+      redirectUrl.pathname = `/dashboard/s/${resolvedSubject}${suffix}`;
       redirectUrl.searchParams.delete("subject_id");
       redirectUrl.searchParams.delete("subject_name");
       return NextResponse.redirect(redirectUrl);

@@ -1,10 +1,19 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { useSelector, useDispatch } from "react-redux";
 import { Button, Card, Empty, Spin, Tag } from "antd";
-import { ArrowRightOutlined, BookOutlined, TeamOutlined, LogoutOutlined } from "@ant-design/icons";
+import {
+  ArrowRightOutlined,
+  BookOutlined,
+  CalendarOutlined,
+  LogoutOutlined,
+  NotificationOutlined,
+  QuestionCircleOutlined,
+  SolutionOutlined,
+  TeamOutlined,
+} from "@ant-design/icons";
 import { RootState, AppDispatch } from "@/store/store";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import { useRouter } from "next/navigation";
@@ -34,6 +43,7 @@ export default function SubjectCardsPage() {
 
   const role = String(currentUser?.role || "").trim().toUpperCase();
   const isStudent = role === "STUDENT";
+  const accountDisplayName = String(currentUser?.name || "User").trim() || "User";
 
   const handleLogout = () => {
     dispatch(logout());
@@ -44,21 +54,7 @@ export default function SubjectCardsPage() {
     return ["SCHOOL_ADMIN", "ADMIN", "HOD", "TEACHER", "STUDENT"].includes(role);
   }, [role]);
 
-  useEffect(() => {
-    if (!loading && isStudent) {
-      router.replace("/dashboard");
-    }
-  }, [isStudent, loading, router]);
-
   if (loading) {
-    return (
-      <div className="p-3 md:p-6 flex justify-center items-center h-64">
-        <Spin size="large" />
-      </div>
-    );
-  }
-
-  if (isStudent) {
     return (
       <div className="p-3 md:p-6 flex justify-center items-center h-64">
         <Spin size="large" />
@@ -75,16 +71,72 @@ export default function SubjectCardsPage() {
   }
 
   const isSchoolAdmin = isSchoolAdminRole(currentUser?.role ?? null);
+  const studentQuickLinks = [
+    {
+      name: "Library",
+      href: "/dashboard/library",
+      description: "Open your shared reading and learning resources.",
+      icon: BookOutlined,
+    },
+    {
+      name: "Timetable",
+      href: "/dashboard/time_table",
+      description: "Check your schedule for classes and activities.",
+      icon: CalendarOutlined,
+    },
+    {
+      name: "Announcements",
+      href: "/dashboard/announcements",
+      description: "Read the latest updates sent to students.",
+      icon: NotificationOutlined,
+    },
+    {
+      name: "Ask a Question",
+      href: "/dashboard/questions",
+      description: "Send questions and view replies from teachers.",
+      icon: QuestionCircleOutlined,
+    },
+    {
+      name: "Behavior",
+      href: `/dashboard/behavior/${currentUser?.student}`,
+      description: "Review your behaviour notes and updates.",
+      icon: SolutionOutlined,
+    },
+  ];
 
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border border-[var(--theme-border)] bg-white p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold text-slate-800">Choose a Subject Dashboard</h1>
+            <h1 className="text-2xl font-semibold text-slate-800">
+              {isStudent ? "Choose a Subject" : "Choose a Subject Dashboard"}
+            </h1>
             <p className="mt-2 text-sm text-slate-500">
-              {roleLabel(currentUser?.role)} workspace: open a subject dashboard to continue.
+              {isStudent
+                ? "Select a subject to view your dashboard."
+                : `${roleLabel(currentUser?.role)} workspace: open a subject dashboard to continue.`}
             </p>
+            {(isStudent || isSchoolAdmin) && (
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <div className="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-soft)] px-4 py-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                    Account Role
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-slate-800">
+                    {roleLabel(currentUser?.role)}
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-soft)] px-4 py-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                    {isStudent ? "Student Name" : "Account Name"}
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-slate-800">
+                    {accountDisplayName}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           <Button
             type="primary"
@@ -145,7 +197,39 @@ export default function SubjectCardsPage() {
         </div>
       )}
 
-      {isSchoolAdmin && (
+      {isStudent && (
+        <div className="rounded-2xl border border-[var(--theme-border)] bg-white p-6 space-y-4">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-lg font-semibold text-slate-800">Student Tools</h2>
+            <span className="text-xs font-medium text-slate-500">
+              Quick access to the pages you use most.
+            </span>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {studentQuickLinks.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link key={item.name} href={item.href}>
+                  <Card
+                    hoverable
+                    className="!rounded-2xl !border-[var(--theme-border)] !shadow-sm h-full"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Icon className="text-lg text-[var(--primary)]" />
+                      <div>
+                        <div className="font-semibold text-slate-800">{item.name}</div>
+                        <div className="text-xs text-slate-500">{item.description}</div>
+                      </div>
+                    </div>
+                  </Card>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {isSchoolAdmin && !isStudent && (
         <div className="rounded-2xl border border-[var(--theme-border)] bg-white p-6 space-y-4">
           <div className="flex items-center justify-between gap-2">
             <h2 className="text-lg font-semibold text-slate-800">

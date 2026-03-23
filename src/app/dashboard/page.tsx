@@ -220,7 +220,7 @@ export default function DashboardPage() {
   const shouldUseSubjectCardsEntry =
     canUseSubjectContext &&
     pathname === "/dashboard" &&
-    ["SCHOOL_ADMIN", "ADMIN", "HOD", "TEACHER"].includes(role);
+    ["SCHOOL_ADMIN", "ADMIN", "HOD", "TEACHER", "STUDENT"].includes(role);
 
   useEffect(() => {
     if (!shouldUseSubjectCardsEntry) return;
@@ -616,6 +616,15 @@ export default function DashboardPage() {
       return a.dueTs - b.dueTs;
     });
   }, [studentDashboard]);
+
+  // Redirect to subject-cards — show a clean loading state, no dashboard flash
+  if (shouldUseSubjectCardsEntry) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Spin size="large" />
+      </div>
+    );
+  }
 
   // Role-based data
   const getDashboardData = () => {

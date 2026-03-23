@@ -56,10 +56,15 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
 
       setLoading(true);
       try {
-        const context = await fetchMySubjectContext({ role: currentUser?.role });
+        const context = await fetchMySubjectContext({
+          role: currentUser?.role,
+          knownSubjects: currentUser?.assigned_subjects,
+          studentId: currentUser?.student,
+          studentClassId: currentUser?.studentClass,
+        });
         if (!mounted) return;
 
-        const available = context.assigned_subjects ?? [];
+        let available = context.assigned_subjects ?? [];
         setSubjects(available);
 
         const fromPath = extractSubjectIdFromPath(pathname);
