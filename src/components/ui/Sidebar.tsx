@@ -4,28 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/store/store";
 import {
-  Home,
-  Users,
-  GraduationCap,
-  BookOpen,
-  Settings,
-  Megaphone,
-  BarChart2,
-  UserCircle,
-  HelpCircle,
-  NotebookPen,
   LucideLogOut,
-  BarChart3,
-  Award,
-  FolderOpen,
-  Library,
-  FileBarChart,
-  CheckSquare,
-  Layers,
-  ClipboardList,
-  Wrench,
-  Brain,
-  BookText,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { logout } from "@/features/auth/authSlice";
@@ -34,8 +13,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchUnseenAnnouncementCount } from "@/services/announcementApi";
 import { fetchUnreadCount, markAllNotificationsAsRead } from "@/services/notificationsApi";
 import { useSubjectContext } from "@/contexts/SubjectContext";
-import { isSharedPath, toSubjectScopedPath } from "@/lib/subjectRouting";
+import { isSharedPath, stripSubjectScope } from "@/lib/subjectRouting";
 import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
+import {
+  buildDashboardNavigation,
+  formatDashboardSubjectName,
+  normalizeDashboardRole,
+} from "@/lib/dashboardNavigation";
 
 const Sidebar = () => {
   const pathname = usePathname();
@@ -52,15 +36,10 @@ const Sidebar = () => {
     !canUseSubjectContext ||
     !activeSubject ||
     /islam|islamiat|islamic/i.test(activeSubject.name);
-  const formattedActiveSubjectName = String(activeSubject?.name || "")
-    .replace(/islamiat/gi, "Islamic")
-    .trim();
+  const formattedActiveSubjectName = formatDashboardSubjectName(activeSubject?.name);
   const primaryAdminEmail = "abdelmonem@gmail.com";
 
-  const roleKey = (currentUser?.role ?? "")
-    .trim()
-    .toUpperCase()
-    .replace(/\s+/g, "_");
+  const roleKey = normalizeDashboardRole(currentUser?.role);
   const isPrimaryAdmin =
     currentUser?.email?.toLowerCase?.() === primaryAdminEmail;
   const roleDisplay = isPrimaryAdmin
@@ -71,7 +50,7 @@ const Sidebar = () => {
   const isStudent = roleKey === "STUDENT";
 
   const { data: studentSubjectClasses = [] } = useQuery({
-    queryKey: ["sidebar-student-subject-classes", activeSubjectId],
+    queryKey: ["dashboard-student-subject-classes", activeSubjectId],
     queryFn: async () => {
       if (!activeSubjectId) return [];
       const classes = await fetchSubjectClasses({ subject_id: Number(activeSubjectId) });
@@ -140,22 +119,66 @@ const Sidebar = () => {
         : href
     );
 
+  const isDashboardRootTarget = (target: string) =>
+    /^\/dashboard(?:\/s\/\d+(?:\/[^/]+)?)?$/.test(normalizePath(target));
+
+  const matchesStudentRoute = (
+    itemName: string | undefined,
+    comparableCurrent: string
+  ) => {
+    const normalizedName = String(itemName || "").trim().toLowerCase();
+    if (!normalizedName) return false;
+
+    if (normalizedName.endsWith("dashboard")) {
+      return comparableCurrent === "/dashboard";
+    }
+    if (normalizedName === "assesments") {
+      return /^\/dashboard\/students\/assignments(?:\/|$)/.test(comparableCurrent);
+    }
+    if (normalizedName === "trackers") {
+      return /^\/dashboard\/trackers(?:\/|$)/.test(comparableCurrent);
+    }
+    if (normalizedName === "leaderboard") {
+      return /^\/dashboard\/leaderboard(?:\/|$)/.test(comparableCurrent);
+    }
+    if (normalizedName === "shared materials") {
+      return /^\/dashboard\/shared_materials(?:\/|$)/.test(comparableCurrent);
+    }
+    if (normalizedName === "mind-upgrade") {
+      return /^\/dashboard\/mind-upgrade(?:\/|$)/.test(comparableCurrent);
+    }
+    if (normalizedName === "lessons") {
+      return /^\/dashboard\/lessons(?:\/|$)/.test(comparableCurrent);
+    }
+    if (normalizedName === "settings") {
+      return /^\/dashboard\/students\/settings(?:\/|$)/.test(comparableCurrent);
+    }
+
+    return false;
+  };
+
+  const itemMatchesCurrentPath = (item: any, current: string) => {
+    if (roleKey === "STUDENT") {
+      const comparableCurrent = normalizePath(stripSubjectScope(current));
+      return matchesStudentRoute(item?.name, comparableCurrent);
+    }
+
+    const target = resolveItemTarget(item.href);
+    if (current === target) return true;
+    if (isDashboardRootTarget(target)) return false;
+    return current.startsWith(`${target}/`);
+  };
+
   const getMatchedItemsForCurrentPath = () => {
     const current = normalizePath(pathname || "");
-    return orderedItems.filter((item: any) => {
-      const target = resolveItemTarget(item.href);
-      if (current === target) return true;
-      if (target === "/dashboard") return current === "/dashboard";
-      return current.startsWith(`${target}/`);
-    });
+    return orderedItems.filter((item: any) => itemMatchesCurrentPath(item, current));
   };
 
   const isItemActive = (href: string, itemName?: string) => {
     const current = normalizePath(pathname || "");
+    const currentItem = { href, name: itemName };
+    const matchesCurrent = itemMatchesCurrentPath(currentItem, current);
     const target = resolveItemTarget(href);
-    const matchesCurrent =
-      current === target ||
-      (target === "/dashboard" ? current === "/dashboard" : current.startsWith(`${target}/`));
     if (!matchesCurrent) return false;
 
     const matchedItems = getMatchedItemsForCurrentPath();
@@ -170,235 +193,6 @@ const Sidebar = () => {
     }
 
     return matchedItems[0]?.href === href && matchedItems[0]?.name === itemName;
-  };
-
-  const navigation = {
-    SUPER_ADMIN: [
-      { name: "Dashboard", href: "/dashboard", icon: Home },
-      { name: "Schools", href: "/dashboard/schools", icon: GraduationCap },
-      { name: "Admins", href: "/dashboard/admins", icon: Users },
-      {
-        name: "Announcements",
-        href: "/dashboard/announcements",
-        icon: Megaphone,
-        badge: announcementUnreadCount,
-      },
-      {
-        name: "Settings",
-        href: "/dashboard/admins/settings",
-        icon: Settings,
-      },
-    ],
-    ADMIN: [
-      { name: "Dashboard", href: "/dashboard", icon: Home },
-      { name: "Schools", href: "/dashboard/schools", icon: GraduationCap },
-      { name: "Admins", href: "/dashboard/admins", icon: Users },
-      {
-        name: "Announcements",
-        href: "/dashboard/announcements",
-        icon: Megaphone,
-        badge: announcementUnreadCount,
-      },
-      {
-        name: "Settings",
-        href: "/dashboard/admins/settings",
-        icon: Settings,
-      },
-    ],
-    SCHOOL_ADMIN: [
-      { name: "Dashboard", href: "/dashboard/subject-cards", icon: Home },
-      { name: "Manager", href: "/dashboard/manager", icon: Layers },
-      { name: "View", href: "/dashboard/view", icon: FolderOpen },
-      {
-        name: "Leaderboard",
-        href: `/dashboard/leaderboard/`,
-        icon: Award,
-      },
-      { name: "Library", href: "/dashboard/library", icon: Library },
-      {
-        name: "Content Approvals",
-        href: "/dashboard/approvals",
-        icon: CheckSquare,
-      },
-      { name: "Timetable", href: "/dashboard/time_table", icon: BookOpen },
-      {
-        name: "Announcements",
-        href: "/dashboard/announcements",
-        icon: Megaphone,
-        badge: announcementUnreadCount,
-      },
-      {
-        name: "Tools",
-        href: "/dashboard/tools",
-        icon: Wrench,
-      },
-      {
-        name: "Lessons",
-        href: "/dashboard/lessons",
-        icon: BookText,
-      },
-      {
-        name: "Mind-upgrade",
-        href: "/dashboard/mind-upgrade",
-        icon: Brain,
-        
-      },
-      {
-        name: "Settings",
-        href: "/dashboard/school-admin/settings",
-        icon: Settings,
-      },
-    ],
-    HOD: [
-      { name: "Dashboard", href: "/dashboard/subject-cards", icon: Home },
-      { name: "Manager", href: "/dashboard/manager", icon: Layers },
-      { name: "View", href: "/dashboard/view", icon: FolderOpen },
-      {
-        name: "Leaderboard",
-        href: `/dashboard/leaderboard/`,
-        icon: Award,
-      },
-      { name: "Library", href: "/dashboard/library", icon: Library },
-      {
-        name: "Content Approvals",
-        href: "/dashboard/approvals",
-        icon: CheckSquare,
-      },
-      { name: "Timetable", href: "/dashboard/time_table", icon: BookOpen },
-      {
-        name: "Announcements",
-        href: "/dashboard/announcements",
-        icon: Megaphone,
-        badge: announcementUnreadCount,
-      },
-      {
-        name: "Tools",
-        href: "/dashboard/tools",
-        icon: Wrench,
-      },
-      {
-        name: "Lessons",
-        href: "/dashboard/lessons",
-        icon: BookText,
-      },
-      {
-        name: "Mind-upgrade",
-        href: "/dashboard/mind-upgrade",
-        icon: Brain,
-        
-      },
-      {
-        name: "Settings",
-        href: "/dashboard/school-admin/settings",
-        icon: Settings,
-      },
-    ],
-    TEACHER: [
-      { name: "Dashboard", href: "/dashboard/subject-cards", icon: Home },
-      { name: "My Classes", href: "/dashboard/years", icon: Layers },
-      { name: "View", href: "/dashboard/view", icon: FolderOpen },
-      { name: "Subjects", href: "/dashboard/subject-cards", icon: BookOpen },
-      { name: "Manage Quiz", href: "/dashboard/quiz", icon: ClipboardList },
-      { name: "Trackers", href: "/dashboard/all_trackers", icon: BarChart3 },
-      {
-        name: "Leaderboard",
-        href: `/dashboard/leaderboard`,
-        icon: Award,
-      },
-      { name: "My Materials", href: "/dashboard/materials", icon: FolderOpen },
-      { name: "Library", href: "/dashboard/library", icon: Library },
-      { name: "Timetable", href: "/dashboard/time_table", icon: BookOpen },
-      {
-        name: "Announcements",
-        href: "/dashboard/announcements",
-        icon: Megaphone,
-        badge: announcementUnreadCount,
-      },
-      {
-        name: "Behavior",
-        href: `/dashboard/student_behavior`,
-        icon: NotebookPen,
-      },
-      {
-        name: "Tools",
-        href: "/dashboard/tools",
-        icon: Wrench,
-      },
-      {
-        name: "Lessons",
-        href: "/dashboard/lessons",
-        icon: BookText,
-      },
-      {
-        name: "Answer a Question",
-        href: "/dashboard/questions",
-        icon: HelpCircle,
-        badge: questionUnreadCount,
-      },
-      {
-        name: "Settings",
-        href: "/dashboard/teachers/settings",
-        icon: Settings,
-      },
-    ],
-    STUDENT: [
-      { name: "Dashboard", href: "/dashboard", icon: Home },
-      {
-        name: "Assesments",
-        href: "/dashboard/students/assignments",
-        icon: GraduationCap,
-      },
-      { name: "Subjects", href: "/dashboard", icon: BookOpen },
-      {
-        name: "Trackers",
-        href: studentTrackerHref,
-        icon: BarChart3,
-      },
-      {
-        name: "Leaderboard",
-        href: `/dashboard/leaderboard`,
-        icon: Award,
-      },
-      {
-        name: "Shared Materials",
-        href: "/dashboard/shared_materials",
-        icon: FolderOpen,
-      },
-      { name: "Library", href: "/dashboard/library", icon: Library },
-      { name: "Timetable", href: "/dashboard/time_table", icon: BookOpen },
-      {
-        name: "Announcements",
-        href: "/dashboard/announcements",
-        icon: Megaphone,
-        badge: announcementUnreadCount,
-      },
-      {
-        name: "Ask a Question",
-        href: "/dashboard/questions",
-        icon: HelpCircle,
-        badge: questionUnreadCount,
-      },
-      {
-        name: "Mind-upgrade",
-        href: "/dashboard/mind-upgrade",
-        icon: Brain,
-      },
-      {
-        name: "Lessons",
-        href: "/dashboard/lessons",
-        icon: BookText,
-      },
-      {
-        name: "Behavior",
-        href: `/dashboard/behavior/${currentUser?.student}`,
-        icon: NotebookPen,
-      },
-      {
-        name: "Settings",
-        href: "/dashboard/students/settings",
-        icon: Settings,
-      },
-    ],
   };
 
   const sidebarOrderStorageKey = `sidebar-order-${roleKey || "UNKNOWN"}`;
@@ -432,26 +226,16 @@ const Sidebar = () => {
   };
 
   useEffect(() => {
-    let navItems = ((navigation as any)[roleKey] || []) as any[];
-    if (
-      canUseSubjectContext &&
-      activeSubjectId &&
-      formattedActiveSubjectName &&
-      ["SCHOOL_ADMIN", "HOD", "TEACHER", "STUDENT"].includes(roleKey)
-    ) {
-      navItems = navItems.map((item: any, index: number) =>
-        index === 0 && item.name === "Dashboard"
-          ? {
-              ...item,
-              name: `${formattedActiveSubjectName} Dashboard`,
-              href: toSubjectScopedPath("/dashboard", activeSubjectId, formattedActiveSubjectName),
-            }
-          : item
-      );
-    }
-    if (!isIslamicContext) {
-      navItems = navItems.filter((item: any) => item.name !== "Mind-upgrade");
-    }
+    const navItems = buildDashboardNavigation({
+      roleKey,
+      announcementUnreadCount,
+      questionUnreadCount,
+      isIslamicContext,
+      canUseSubjectContext,
+      activeSubjectId,
+      formattedActiveSubjectName,
+      studentTrackerHref,
+    });
     setOrderedItems(applySavedSidebarOrder(navItems));
   }, [
     roleKey,
@@ -461,6 +245,7 @@ const Sidebar = () => {
     canUseSubjectContext,
     activeSubjectId,
     formattedActiveSubjectName,
+    studentTrackerHref,
   ]);
 
   useEffect(() => {
@@ -778,5 +563,3 @@ const Sidebar = () => {
 };
 
 export default Sidebar;
-
-

@@ -4,6 +4,7 @@ import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import Sidebar from "@/components/ui/Sidebar";
 import SubjectSwitcher from "@/components/ui/SubjectSwitcher";
+import QuickLauncher from "@/components/ui/QuickLauncher";
 import { SubjectContextProvider } from "@/contexts/SubjectContext";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -96,6 +97,10 @@ export default function DashboardLayout({
   const [isRouteTransitioning, setIsRouteTransitioning] = useState(false);
   const [themeName, setThemeName] = useState<ThemeName>("green");
   const [storedSubjectName, setStoredSubjectName] = useState<string | null>(null);
+  const unscopedPathname = pathname.replace(
+    /^\/dashboard\/s\/\d+(?:\/[^/]+)?(?=\/|$)/,
+    "/dashboard"
+  );
 
   const formatSubjectName = (value?: string | null) =>
     String(value || "Subject").replace(/islamiat/gi, "Islamic").trim();
@@ -170,6 +175,17 @@ export default function DashboardLayout({
     pathname === "/dashboard/students/all-school" ||
     pathname === "/dashboard/students/all";
   const isGlobalStudentProfileRoute = pathname.startsWith("/dashboard/students/all-students/profile/");
+  const isStudentStandaloneUtilityRoute =
+    currentUser?.role === "STUDENT" &&
+    (
+      unscopedPathname === "/dashboard/library" ||
+      unscopedPathname === "/dashboard/time_table" ||
+      unscopedPathname === "/dashboard/announcements" ||
+      unscopedPathname === "/dashboard/questions" ||
+      unscopedPathname.startsWith("/dashboard/questions/") ||
+      unscopedPathname.startsWith("/dashboard/behavior") ||
+      /\/behavior\//.test(pathname)
+    );
 
   useEffect(() => {
     if (isHydrated && !currentUser) {
@@ -211,6 +227,7 @@ export default function DashboardLayout({
 
   const renderNavigationButtons = (compact = false) => (
     <div className={`flex items-center gap-2 ${compact ? "justify-end" : ""}`}>
+      <QuickLauncher />
       <button
         type="button"
         onClick={() => router.push("/dashboard/subject-cards")}
@@ -252,7 +269,10 @@ export default function DashboardLayout({
 
   return (
     <SubjectContextProvider>
-      {isStandaloneTeacherRoute || isAllStudentsStandaloneRoute || isGlobalStudentProfileRoute ? (
+      {isStandaloneTeacherRoute ||
+      isAllStudentsStandaloneRoute ||
+      isGlobalStudentProfileRoute ||
+      isStudentStandaloneUtilityRoute ? (
         <div className="dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] p-3 md:p-6">
           <div className="mx-auto max-w-7xl">
             <div className="mb-4 flex justify-end">

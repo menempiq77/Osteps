@@ -1,12 +1,16 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
-import { Card, Tag, Select, List, Avatar, Statistic, Breadcrumb } from "antd";
+import { Card, Tag, Select, List, Avatar, Statistic, Breadcrumb, Spin, Alert } from "antd";
 import { ArrowUpOutlined, ArrowDownOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
+import { useParams } from "next/navigation";
 import { RootState } from "@/store/store";
 import { fetchBehaviourType } from "@/services/behaviorApi";
-import { fetchStudentProfileData } from "@/services/studentsApi";
+import { fetchStudentProfileData, fetchStudents } from "@/services/studentsApi";
 import { useSubjectContext } from "@/contexts/SubjectContext";
+import { filterStudentsBySubjectScope } from "@/lib/subjectStudentScope";
+import { resolveSubjectClassLinkedIdWithFallback } from "@/lib/subjectClassResolution";
+import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
 import Link from "next/link";
 
 const { Option } = Select;
@@ -24,14 +28,26 @@ type Behavior = {
   description: string;
   date: string;
   created_at?: string;
-  teacher?: string;
+  teacher?: {
+    teacher_name?: string;
+  } | string;
   points: number;
   teacher_name: string;
   subject_name?: string;
   class_name?: string;
+  subject_class_name?: string;
   subject?: {
     name?: string;
     subject_name?: string;
+  };
+  subject_context?: {
+    subject_class_name?: string;
+    base_class_label?: string;
+  };
+  subject_class?: {
+    id?: string | number;
+    name?: string;
+    base_class_label?: string;
   };
   class?: {
     class_name?: string;
@@ -57,18 +73,259 @@ type Behavior = {
   __className?: string;
 };
 
+type SubjectClassRow = {
+  id?: number | string | null;
+  name?: string | null;
+  base_class_label?: string | null;
+  class_id?: number | string | null;
+  base_class_id?: number | string | null;
+  class?: {
+    id?: number | string | null;
+    class_name?: string | null;
+  } | null;
+  classes?: {
+    id?: number | string | null;
+    class_name?: string | null;
+  } | null;
+  base_class?: {
+    id?: number | string | null;
+    class_name?: string | null;
+  } | null;
+};
+
+type StudentSubjectSummary = {
+  id?: number | string | null;
+  subject_id?: number | string | null;
+  name?: string | null;
+  subject_name?: string | null;
+  subject_class_id?: number | string | null;
+  subject_class_name?: string | null;
+  class_label?: string | null;
+  base_class_label?: string | null;
+};
+
+type SubjectEntry = {
+  key: string;
+  subjectId: number;
+  subjectName: string;
+  className: string;
+};
+
 interface CurrentUser {
   student?: string;
+  studentClass?: string | number;
   avatar?: string;
   name?: string;
   class?: string;
   role?: string;
+  studentClassName?: string;
 }
 
 const normalizeSubjectName = (value: unknown) =>
   String(value ?? "").replace(/islamiat/gi, "Islamic").trim();
 
 const normalizeStudentId = (value: unknown) => String(value ?? "").trim();
+
+const extractProfileClassName = (profileData: Record<string, any> | null | undefined): string =>
+  String(
+    profileData?.subject_class_name ??
+      profileData?.subject_context?.subject_class_name ??
+      profileData?.subject_context?.base_class_label ??
+      profileData?.subject_class?.name ??
+      profileData?.subject_class?.base_class_label ??
+      profileData?.class?.class_name ??
+      profileData?.class?.name ??
+      profileData?.classes?.class_name ??
+      profileData?.classes?.name ??
+      profileData?.class_name ??
+      ""
+  ).trim();
+
+const extractStudentCandidateIds = (student: Record<string, any>): string[] =>
+  Array.from(
+    new Set(
+      [
+        student?.id,
+        student?.student_id,
+        student?.profile_id,
+        student?.studentId,
+        student?.profileId,
+        student?.user_id,
+        student?.user?.id,
+        student?.profile?.id,
+      ]
+        .map(normalizeStudentId)
+        .filter(Boolean)
+    )
+  );
+
+const extractStudentSubjectClassIds = (student: Record<string, any>): string[] =>
+  [
+    student?.subject_class_id,
+    student?.subjectClassId,
+    student?.pivot?.subject_class_id,
+    ...(Array.isArray(student?.subjects)
+      ? (student.subjects as Array<Record<string, unknown>>).map(
+          (subject) => subject?.subject_class_id
+        )
+      : []),
+  ]
+    .flatMap((value) => (Array.isArray(value) ? value : [value]))
+    .map((value) => String(value ?? "").trim())
+    .filter(Boolean);
+
+const resolveSubjectClassDisplayName = (row: SubjectClassRow): string =>
+  String(
+    // Use the linked/base class label first so each subject resolves to the
+    // student's actual class for that subject, not the workspace row title.
+    row?.base_class_label ??
+      row?.class?.class_name ??
+      row?.classes?.class_name ??
+      row?.base_class?.class_name ??
+      row?.name ??
+      ""
+  ).trim();
+
+const matchesCurrentStudent = (
+  student: Record<string, any>,
+  studentId: string,
+  subjectClassId?: string
+): boolean => {
+  const candidateIds = extractStudentCandidateIds(student);
+  if (!candidateIds.includes(studentId)) return false;
+
+  const wantedSubjectClassId = String(subjectClassId ?? "").trim();
+  if (!wantedSubjectClassId) return true;
+
+  const candidateSubjectClassIds = extractStudentSubjectClassIds(student);
+  if (candidateSubjectClassIds.length === 0) return true;
+
+  return candidateSubjectClassIds.includes(wantedSubjectClassId);
+};
+
+const extractStudentSubjectClassName = (subject: StudentSubjectSummary): string =>
+  String(
+    subject?.subject_class_name ??
+      subject?.class_label ??
+      subject?.base_class_label ??
+      ""
+  ).trim();
+
+const buildStudentSubjectFallbackMap = (
+  students: Array<Record<string, any>>,
+  studentId: string
+): Map<number, SubjectEntry> => {
+  const matchedStudent = (Array.isArray(students) ? students : []).find((student) =>
+    matchesCurrentStudent(student, studentId)
+  );
+
+  const map = new Map<number, SubjectEntry>();
+  const subjects = Array.isArray(matchedStudent?.subjects)
+    ? (matchedStudent.subjects as StudentSubjectSummary[])
+    : [];
+
+  for (const subject of subjects) {
+    const subjectId = Number(subject?.id ?? subject?.subject_id ?? 0);
+    const subjectName = normalizeSubjectName(
+      subject?.name ?? subject?.subject_name ?? ""
+    );
+    const className = extractStudentSubjectClassName(subject);
+
+    if (!Number.isFinite(subjectId) || subjectId <= 0 || !subjectName || !className) {
+      continue;
+    }
+
+    map.set(subjectId, {
+      key: `${subjectName}::${className}`,
+      subjectId,
+      subjectName,
+      className,
+    });
+  }
+
+  return map;
+};
+
+const resolveSubjectEntryForStudent = async (params: {
+  studentId: string;
+  subjectId: number;
+  subjectName: string;
+  fallbackClassName?: string;
+}): Promise<SubjectEntry> => {
+  const fallbackClassName = String(params.fallbackClassName ?? "").trim() || "No Class";
+  let rows: SubjectClassRow[] = [];
+  try {
+    const subjectClasses = (await fetchSubjectClasses({
+      subject_id: params.subjectId,
+    })) as SubjectClassRow[];
+    rows = Array.isArray(subjectClasses) ? subjectClasses : [];
+  } catch {
+    return {
+      key: `${params.subjectName}::${fallbackClassName}`,
+      subjectId: params.subjectId,
+      subjectName: params.subjectName,
+      className: fallbackClassName,
+    };
+  }
+
+  if (rows.length === 1) {
+    const className = resolveSubjectClassDisplayName(rows[0]) || fallbackClassName;
+    return {
+      key: `${params.subjectName}::${className}`,
+      subjectId: params.subjectId,
+      subjectName: params.subjectName,
+      className,
+    };
+  }
+
+  for (const row of rows) {
+    const subjectClassId = String(row?.id ?? "").trim();
+    const linkedClassId = await resolveSubjectClassLinkedIdWithFallback(
+      row,
+      params.subjectId
+    );
+    if (!linkedClassId) continue;
+
+    let classStudents: Array<Record<string, any>> = [];
+    try {
+      classStudents = (await fetchStudents(
+        linkedClassId,
+        params.subjectId,
+        subjectClassId || undefined
+      )) as Array<Record<string, any>>;
+    } catch {
+      continue;
+    }
+
+    const studentRows = Array.isArray(classStudents) ? classStudents : [];
+    const scopedStudents = filterStudentsBySubjectScope(studentRows, {
+      subjectId: params.subjectId,
+      subjectName: params.subjectName,
+      subjectClassId,
+    });
+    const candidateRows = scopedStudents.length > 0 ? scopedStudents : studentRows;
+    const matchedStudent = candidateRows.find((student) =>
+      matchesCurrentStudent(student, params.studentId, subjectClassId)
+    );
+
+    if (matchedStudent) {
+      const className = resolveSubjectClassDisplayName(row) || fallbackClassName;
+      return {
+        key: `${params.subjectName}::${className}`,
+        subjectId: params.subjectId,
+        subjectName: params.subjectName,
+        className,
+      };
+    }
+  }
+
+  return {
+    key: `${params.subjectName}::${fallbackClassName}`,
+    subjectId: params.subjectId,
+    subjectName: params.subjectName,
+    className: fallbackClassName,
+  };
+};
 
 const extractBehaviorSubjectName = (behavior: Behavior): string => {
   const raw =
@@ -85,6 +342,11 @@ const extractBehaviorSubjectName = (behavior: Behavior): string => {
 const extractBehaviorClassName = (behavior: Behavior): string => {
   const raw =
     behavior?.__className ??
+    behavior?.subject_context?.subject_class_name ??
+    behavior?.subject_class?.name ??
+    behavior?.subject_class_name ??
+    behavior?.subject_context?.base_class_label ??
+    behavior?.subject_class?.base_class_label ??
     behavior?.class?.class_name ??
     behavior?.class?.name ??
     behavior?.classes?.class_name ??
@@ -108,40 +370,38 @@ const resolveBehaviorMeta = (
 };
 
 const StudentBehaviorPage = () => {
+  const params = useParams<{ studentId?: string }>();
   const [filter, setFilter] = useState("all");
   const [selectedGroupKey, setSelectedGroupKey] = useState<string | null>(null);
   // const { currentUser } = useSelector((state: RootState) => state.auth);
   const { currentUser } = useSelector((state: RootState) => state.auth) as {
     currentUser: CurrentUser;
   };
-  const { subjects } = useSubjectContext();
+  const { subjects, loading: subjectContextLoading } = useSubjectContext();
   const [behaviorTypes, setBehaviorTypes] = useState<BehaviorType[]>([]);
   const [behaviors, setBehaviors] = useState<Behavior[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isBehaviorLoading, setIsBehaviorLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [subjectEntries, setSubjectEntries] = useState<
-    { key: string; subjectId: number; subjectName: string; className: string }[]
-  >([]);
+  const [subjectEntries, setSubjectEntries] = useState<SubjectEntry[]>([]);
+  const routeStudentId = String(params?.studentId ?? "").trim();
+  const effectiveStudentId = routeStudentId || String(currentUser?.student ?? "").trim();
 
   const loadBehaviorTypes = async () => {
     try {
-      setIsLoading(true);
       // Student self-view should aggregate behavior across all assigned subjects.
       const behaviourType = await fetchBehaviourType(0);
       setBehaviorTypes(behaviourType);
     } catch (err) {
       setError("Failed to load behaviour Type");
       console.error(err);
-    } finally {
-      setIsLoading(false);
     }
   };
   const loadBehavior = async () => {
     try {
-      setIsLoading(true);
-      const studentId = String(currentUser?.student ?? "").trim();
+      setIsBehaviorLoading(true);
+      setError(null);
+      const studentId = effectiveStudentId;
       if (!studentId) {
-        setBehaviors([]);
         return;
       }
 
@@ -152,37 +412,105 @@ const StudentBehaviorPage = () => {
           ? studentProfile.behaviour
           : [];
         setBehaviors(behaviourData);
+        setSubjectEntries([]);
         return;
       }
 
-      // Use class_label from subject context (returned by backend for students).
-      // Fallback to the student's base class name from Redux.
-      const studentBaseClassName = String((currentUser as any)?.studentClassName || "").trim();
+      let studentBaseProfile: Record<string, any> | null = null;
+      let studentBaseClassId = Number(currentUser?.studentClass ?? 0);
+      let studentBaseClassName = String(currentUser?.studentClassName ?? "").trim();
 
-      const subjectClassMap = new Map<number, { subjectName: string; className: string; profileData: any }>();
+      if (!studentBaseClassId || !studentBaseClassName) {
+        try {
+          studentBaseProfile = await fetchStudentProfileData(studentId, 0);
+        } catch {
+          studentBaseProfile = null;
+        }
 
-      for (const subject of assignedSubjects) {
-        const subjectName =
-          normalizeSubjectName(subject?.name) || `Subject ${subject.id}`;
-        const className = String(subject?.class_label || "").trim() || studentBaseClassName || "No Class";
+        if (!studentBaseClassId) {
+          studentBaseClassId = Number(
+            studentBaseProfile?.class_id ?? studentBaseProfile?.class?.id ?? 0
+          );
+        }
 
-        const studentProfile = await fetchStudentProfileData(studentId, subject.id);
-        subjectClassMap.set(subject.id, { subjectName, className, profileData: studentProfile });
+        if (!studentBaseClassName) {
+          studentBaseClassName = extractProfileClassName(studentBaseProfile);
+        }
       }
 
-      // Build subject entries from the resolved map.
-      const entries = assignedSubjects.map((subject) => {
-        const info = subjectClassMap.get(subject.id) ?? {
-          subjectName: normalizeSubjectName(subject?.name) || `Subject ${subject.id}`,
-          className: "No Class",
-        };
-        return {
-          key: `${info.subjectName}::${info.className}`,
-          subjectId: subject.id,
-          subjectName: info.subjectName,
-          className: info.className,
-        };
-      });
+      let studentSubjectFallbackMap = new Map<number, SubjectEntry>();
+      if (studentBaseClassId > 0) {
+        try {
+          const classStudents = (await fetchStudents(
+            studentBaseClassId,
+            0
+          )) as Array<Record<string, any>>;
+          studentSubjectFallbackMap = buildStudentSubjectFallbackMap(
+            classStudents,
+            studentId
+          );
+        } catch {
+          studentSubjectFallbackMap = new Map<number, SubjectEntry>();
+        }
+      }
+
+      const subjectResults = await Promise.all(
+        assignedSubjects.map(async (subject) => {
+          const subjectId = Number(subject?.id ?? 0);
+          const subjectName = normalizeSubjectName(subject?.name) || `Subject ${subjectId}`;
+          const profileData = await fetchStudentProfileData(studentId, subjectId);
+          const profileClassName = extractProfileClassName(profileData);
+          const rosterFallback = studentSubjectFallbackMap.get(subjectId);
+          const fallbackClassName =
+            rosterFallback?.className ||
+            String(subject?.class_label ?? "").trim() ||
+            profileClassName ||
+            studentBaseClassName ||
+            "No Class";
+          let subjectEntry: SubjectEntry = {
+            key: `${rosterFallback?.subjectName ?? subjectName}::${fallbackClassName}`,
+            subjectId,
+            subjectName: rosterFallback?.subjectName ?? subjectName,
+            className: fallbackClassName,
+          };
+
+          try {
+            subjectEntry = await resolveSubjectEntryForStudent({
+              studentId,
+              subjectId,
+              subjectName,
+              fallbackClassName,
+            });
+          } catch {
+            // Keep the profile-derived fallback when subject-class resolution is unavailable.
+          }
+
+          return {
+            subjectId,
+            subjectName: subjectEntry.subjectName,
+            className: subjectEntry.className,
+            profileData,
+          };
+        })
+      );
+
+      const subjectClassMap = new Map<number, { subjectName: string; className: string; profileData: any }>(
+        subjectResults.map((result) => [
+          result.subjectId,
+          {
+            subjectName: result.subjectName,
+            className: result.className,
+            profileData: result.profileData,
+          },
+        ])
+      );
+
+      const entries: SubjectEntry[] = subjectResults.map((result) => ({
+        key: `${result.subjectName}::${result.className}`,
+        subjectId: result.subjectId,
+        subjectName: result.subjectName,
+        className: result.className,
+      }));
       setSubjectEntries(entries);
 
       // Collect behaviors from the already-fetched profile data.
@@ -239,7 +567,7 @@ const StudentBehaviorPage = () => {
             );
             if (matchedEntry) {
               matchedSubjectName = matchedEntry.subjectName;
-              matchedClassName = ownClassName || matchedEntry.className;
+              matchedClassName = matchedEntry.className;
             } else {
               matchedSubjectName = ownSubjectName;
               matchedClassName = ownClassName || className;
@@ -259,14 +587,15 @@ const StudentBehaviorPage = () => {
       setError("Failed to load behaviour");
       console.error(err);
     } finally {
-      setIsLoading(false);
+      setIsBehaviorLoading(false);
     }
   };
 
   useEffect(() => {
+    if (!effectiveStudentId || subjectContextLoading) return;
     loadBehavior();
     loadBehaviorTypes();
-  }, [currentUser?.student, (currentUser as any)?.studentClass, subjects]);
+  }, [effectiveStudentId, subjectContextLoading, (currentUser as any)?.studentClass, subjects]);
 
   const filteredBehaviors = behaviors?.filter((behavior) => {
     const behaviorType = resolveBehaviorMeta(behavior, behaviorTypes);
@@ -384,6 +713,11 @@ const StudentBehaviorPage = () => {
     };
   }, [behaviors, behaviorTypes]);
 
+  const isInitialLoading =
+    (isBehaviorLoading || subjectContextLoading) &&
+    subjectEntries.length === 0 &&
+    behaviors.length === 0;
+
   return (
     <div className="p-3 md:p-6 max-w-6xl mx-auto">
       <Breadcrumb
@@ -400,132 +734,153 @@ const StudentBehaviorPage = () => {
 
       <h1 className="text-2xl font-bold mb-6">Student Behavior</h1>
 
-      <div className="flex flex-wrap gap-3 mb-6">
-        {subjectEntries.map((entry) => {
-          const isActive = entry.key === selectedGroupKey;
-          const group = behaviorGroups.find((g) => g.key === entry.key);
-          const count = group?.count ?? 0;
-          return (
-            <button
-              key={entry.key}
-              type="button"
-              onClick={() => setSelectedGroupKey(entry.key)}
-              className={`rounded-xl border px-4 py-3 text-left transition ${
-                isActive
-                  ? "border-[var(--theme-dark)] bg-[var(--theme-soft-2)] text-[var(--theme-dark)] shadow-sm"
-                  : "border-[var(--theme-border)] bg-white text-slate-700 hover:bg-[var(--theme-soft)]"
-              }`}
-            >
-              <div className="text-sm font-semibold">
-                {entry.subjectName} / {entry.className}
-              </div>
-              <div className="mt-1 text-xs text-slate-500">
-                {count} record{count === 1 ? "" : "s"}
-              </div>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <Card>
-          <Statistic
-            title="Total Points"
-            value={selectedGroup?.totalPoints ?? totalPoints}
-            valueStyle={{
-              color: (selectedGroup?.totalPoints ?? totalPoints) >= 0 ? "#3f8600" : "#cf1322",
-            }}
-            prefix={
-              (selectedGroup?.totalPoints ?? totalPoints) >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />
-            }
-          />
-        </Card>
-        <Card>
-          <Statistic
-            title="Positive Points"
-            value={selectedGroup?.positivePoints ?? totalPositivePoints}
-            valueStyle={{ color: "#3f8600" }}
-            prefix={<ArrowUpOutlined />}
-          />
-        </Card>
-        <Card>
-          <Statistic
-            title="Negative Points"
-            value={selectedGroup?.negativePoints ?? totalNegativePoints}
-            valueStyle={{ color: "#cf1322" }}
-            prefix={<ArrowDownOutlined />}
-          />
-        </Card>
-      </div>
-
-      <Card
-        title={
-          <div className="flex items-center gap-2">
-            <Avatar
-              src={currentUser?.avatar || null}
-              size="large"
-              className="mr-4"
-            >
-              {currentUser?.name?.charAt(0) || "U"}
-            </Avatar>
-            <div>
-              <h2 className="text-lg font-semibold">{currentUser?.name}</h2>
-              <p className="text-gray-500">{currentUser?.class || ""}</p>
-            </div>
+      {isInitialLoading ? (
+        <Card className="mb-6">
+          <div className="flex min-h-[220px] items-center justify-center">
+            <Spin size="large" />
           </div>
-        }
-        extra={
-          <Select
-            value={filter}
-            style={{ width: 120 }}
-            onChange={(value) => setFilter(value)}
-          >
-            <Option value="all">All Behaviors</Option>
-            <Option value="positive">Positive</Option>
-            <Option value="negative">Negative</Option>
-            <Option value="neutral">Neutral</Option>
-          </Select>
-        }
-      >
-        <List
-          itemLayout="vertical"
-          dataSource={selectedGroupBehaviors}
-          renderItem={(item) => (
-            <List.Item>
-              <div className="flex justify-between w-full">
+        </Card>
+      ) : null}
+
+      {!isInitialLoading && error ? (
+        <Alert
+          type="error"
+          showIcon
+          className="mb-6"
+          message={error}
+        />
+      ) : null}
+
+      {isInitialLoading ? null : (
+        <>
+          <div className="flex flex-wrap gap-3 mb-6">
+            {subjectEntries.map((entry) => {
+              const isActive = entry.key === selectedGroupKey;
+              const group = behaviorGroups.find((g) => g.key === entry.key);
+              const count = group?.count ?? 0;
+              return (
+                <button
+                  key={entry.key}
+                  type="button"
+                  onClick={() => setSelectedGroupKey(entry.key)}
+                  className={`rounded-xl border px-4 py-3 text-left transition ${
+                    isActive
+                      ? "border-[var(--theme-dark)] bg-[var(--theme-soft-2)] text-[var(--theme-dark)] shadow-sm"
+                      : "border-[var(--theme-border)] bg-white text-slate-700 hover:bg-[var(--theme-soft)]"
+                  }`}
+                >
+                  <div className="text-sm font-semibold">
+                    {entry.subjectName} / {entry.className}
+                  </div>
+                  <div className="mt-1 text-xs text-slate-500">
+                    {count} record{count === 1 ? "" : "s"}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <Card>
+              <Statistic
+                title="Total Points"
+                value={selectedGroup?.totalPoints ?? totalPoints}
+                valueStyle={{
+                  color: (selectedGroup?.totalPoints ?? totalPoints) >= 0 ? "#3f8600" : "#cf1322",
+                }}
+                prefix={
+                  (selectedGroup?.totalPoints ?? totalPoints) >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />
+                }
+              />
+            </Card>
+            <Card>
+              <Statistic
+                title="Positive Points"
+                value={selectedGroup?.positivePoints ?? totalPositivePoints}
+                valueStyle={{ color: "#3f8600" }}
+                prefix={<ArrowUpOutlined />}
+              />
+            </Card>
+            <Card>
+              <Statistic
+                title="Negative Points"
+                value={selectedGroup?.negativePoints ?? totalNegativePoints}
+                valueStyle={{ color: "#cf1322" }}
+                prefix={<ArrowDownOutlined />}
+              />
+            </Card>
+          </div>
+
+          <Card
+            title={
+              <div className="flex items-center gap-2">
+                <Avatar
+                  src={currentUser?.avatar || null}
+                  size="large"
+                  className="mr-4"
+                >
+                  {currentUser?.name?.charAt(0) || "U"}
+                </Avatar>
                 <div>
-                  {(() => {
-                    const behaviorType = resolveBehaviorMeta(item, behaviorTypes);
-                    return (
-                      <>
-                        <Tag color={behaviorType.color}>
-                          {behaviorType.name}(
-                          {behaviorType.points > 0 ? "+" : ""}
-                          {behaviorType.points})
-                        </Tag>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          <Tag color="blue">{extractBehaviorSubjectName(item)}</Tag>
-                          <Tag>{extractBehaviorClassName(item)}</Tag>
-                        </div>
-                        <p className="mt-2 font-medium">{item.description}</p>
-                        <p className="text-sm text-gray-500">
-                          Recorded by {item.teacher?.teacher_name || "Teacher"}{" "}
-                          on {item.date}
-                        </p>
-                      </>
-                    );
-                  })()}
+                  <h2 className="text-lg font-semibold">{currentUser?.name}</h2>
+                  <p className="text-gray-500">{currentUser?.class || ""}</p>
                 </div>
               </div>
-            </List.Item>
-          )}
-          locale={{
-            emptyText: selectedGroup
-              ? `No behavior comments for ${selectedGroup.subjectName} / ${selectedGroup.className}.`
-              : "No behavior comments.",
-          }}
-        />
-      </Card>
+            }
+            extra={
+              <Select
+                value={filter}
+                style={{ width: 120 }}
+                onChange={(value) => setFilter(value)}
+              >
+                <Option value="all">All Behaviors</Option>
+                <Option value="positive">Positive</Option>
+                <Option value="negative">Negative</Option>
+                <Option value="neutral">Neutral</Option>
+              </Select>
+            }
+          >
+            <List
+              itemLayout="vertical"
+              dataSource={selectedGroupBehaviors}
+              renderItem={(item) => (
+                <List.Item>
+                  <div className="flex justify-between w-full">
+                    <div>
+                      {(() => {
+                        const behaviorType = resolveBehaviorMeta(item, behaviorTypes);
+                        return (
+                          <>
+                            <Tag color={behaviorType.color}>
+                              {behaviorType.name}(
+                              {behaviorType.points > 0 ? "+" : ""}
+                              {behaviorType.points})
+                            </Tag>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              <Tag color="blue">{extractBehaviorSubjectName(item)}</Tag>
+                              <Tag>{extractBehaviorClassName(item)}</Tag>
+                            </div>
+                            <p className="mt-2 font-medium">{item.description}</p>
+                            <p className="text-sm text-gray-500">
+                              Recorded by {item.teacher?.teacher_name || "Teacher"}{" "}
+                              on {item.date}
+                            </p>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                </List.Item>
+              )}
+              locale={{
+                emptyText: selectedGroup
+                  ? `No behavior comments for ${selectedGroup.subjectName} / ${selectedGroup.className}.`
+                  : "No behavior comments.",
+              }}
+            />
+          </Card>
+        </>
+      )}
     </div>
   );
 };
