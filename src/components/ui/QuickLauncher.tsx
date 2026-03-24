@@ -17,9 +17,9 @@ import {
   buildDashboardNavigation,
   buildStudentUtilityLinks,
   formatDashboardSubjectName,
-  normalizeDashboardRole,
   type DashboardNavItem,
 } from "@/lib/dashboardNavigation";
+import { getEffectivePlatformRole, normalizePlatformRole } from "@/lib/platformRole";
 import { isSharedPath } from "@/lib/subjectRouting";
 import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
 
@@ -96,7 +96,7 @@ const SECTION_ICON_STYLES: Record<string, { shell: string; icon: string }> = {
 };
 
 const roleLabel = (role?: string | null) => {
-  const normalized = normalizeDashboardRole(role);
+  const normalized = normalizePlatformRole(role);
   if (normalized === "SUPER_ADMIN") return "Super Admin";
   if (normalized === "ADMIN") return "Admin";
   if (normalized === "SCHOOL_ADMIN") return "School Admin";
@@ -134,7 +134,7 @@ export default function QuickLauncher() {
   const [query, setQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
 
-  const roleKey = normalizeDashboardRole(currentUser?.role);
+  const roleKey = getEffectivePlatformRole(currentUser);
   const isStudent = roleKey === "STUDENT";
   const isIslamicContext =
     !canUseSubjectContext ||
@@ -415,7 +415,7 @@ export default function QuickLauncher() {
                   Quick Launcher
                 </p>
                 <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-300/80">
-                  <span>{roleLabel(currentUser?.role)} shortcuts</span>
+                  <span>{roleLabel(roleKey)} shortcuts</span>
                   {activeSubject ? (
                     <>
                       <span className="text-slate-500">/</span>

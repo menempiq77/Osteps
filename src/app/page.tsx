@@ -6,6 +6,7 @@ import { AppDispatch, RootState } from "@/store/store";
 import { useRouter } from "next/navigation";
 import { login } from "@/features/auth/authSlice";
 import { API_BASE_URL } from "@/lib/config";
+import { getDashboardHomePath } from "@/lib/platformRole";
 import Image from "next/image";
 import Logo from "@/assets/images/Logo2.jpg";
 import LoginImg from "@/assets/images/login.png";
@@ -18,11 +19,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (currentUser) {
-      const role = String(currentUser.role || "").trim().toUpperCase();
-      const redirectPath = ["SCHOOL_ADMIN", "ADMIN", "HOD", "TEACHER", "STUDENT"].includes(role)
-        ? "/dashboard/subject-cards"
-        : "/dashboard";
-      router.push(redirectPath);
+      router.push(getDashboardHomePath(currentUser));
     }
   }, [currentUser, router]);
 

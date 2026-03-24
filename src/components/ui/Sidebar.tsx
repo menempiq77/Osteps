@@ -18,8 +18,8 @@ import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
 import {
   buildDashboardNavigation,
   formatDashboardSubjectName,
-  normalizeDashboardRole,
 } from "@/lib/dashboardNavigation";
+import { getEffectivePlatformRole } from "@/lib/platformRole";
 
 const Sidebar = () => {
   const pathname = usePathname();
@@ -37,14 +37,11 @@ const Sidebar = () => {
     !activeSubject ||
     /islam|islamiat|islamic/i.test(activeSubject.name);
   const formattedActiveSubjectName = formatDashboardSubjectName(activeSubject?.name);
-  const primaryAdminEmail = "abdelmonem@gmail.com";
-
-  const roleKey = normalizeDashboardRole(currentUser?.role);
-  const isPrimaryAdmin =
-    currentUser?.email?.toLowerCase?.() === primaryAdminEmail;
-  const roleDisplay = isPrimaryAdmin
-    ? "SUPER ADMIN"
-    : (roleKey || currentUser?.role || "").toString().replace("_", " ");
+  const roleKey = getEffectivePlatformRole(currentUser);
+  const roleDisplay =
+    roleKey === "SUPER_ADMIN"
+      ? "SUPER ADMIN"
+      : (roleKey || currentUser?.role || "").toString().replace("_", " ");
 
   const isSUPER_ADMIN = roleKey === "SUPER_ADMIN";
   const isStudent = roleKey === "STUDENT";

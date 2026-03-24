@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useSelector, useDispatch } from "react-redux";
 import { Button, Card, Empty, Spin, Tag } from "antd";
@@ -18,6 +18,7 @@ import { RootState, AppDispatch } from "@/store/store";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import { useRouter } from "next/navigation";
 import { logout } from "@/features/auth/authSlice";
+import { getEffectivePlatformRole } from "@/lib/platformRole";
 
 const roleLabel = (role?: string) => {
   const normalized = String(role || "").trim().toUpperCase();
@@ -42,8 +43,14 @@ export default function SubjectCardsPage() {
     useSubjectContext();
 
   const role = String(currentUser?.role || "").trim().toUpperCase();
+  const effectiveRole = getEffectivePlatformRole(currentUser);
   const isStudent = role === "STUDENT";
   const accountDisplayName = String(currentUser?.name || "User").trim() || "User";
+
+  useEffect(() => {
+    if (effectiveRole !== "SUPER_ADMIN") return;
+    router.replace("/dashboard");
+  }, [effectiveRole, router]);
 
   const handleLogout = () => {
     dispatch(logout());
@@ -55,6 +62,14 @@ export default function SubjectCardsPage() {
   }, [role]);
 
   if (loading) {
+    return (
+      <div className="p-3 md:p-6 flex justify-center items-center h-64">
+        <Spin size="large" />
+      </div>
+    );
+  }
+
+  if (effectiveRole === "SUPER_ADMIN") {
     return (
       <div className="p-3 md:p-6 flex justify-center items-center h-64">
         <Spin size="large" />

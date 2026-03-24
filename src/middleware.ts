@@ -23,12 +23,14 @@ const SUBJECT_SCOPED_PREFIXES = [
 
 const SHARED_PREFIXES = [
   "/dashboard/subject-cards",
+  "/dashboard/schools",
   "/dashboard/students/all-school",
   "/dashboard/students/all-students",
   "/dashboard/library",
   "/dashboard/time_table",
   "/dashboard/announcements",
   "/dashboard/tools",
+  "/dashboard/admins",
   "/dashboard/school-admin/settings",
   "/dashboard/students/settings",
   "/dashboard/teachers/settings",
@@ -58,6 +60,7 @@ const SUBJECT_ROUTE_ROOTS = new Set([
   "mind-upgrade",
   "subjects",
   "subject-cards",
+  "schools",
   "library",
   "time_table",
   "announcements",
@@ -130,6 +133,17 @@ export function middleware(req: NextRequest) {
     if (scopedSharedStudentsMatch) {
       const redirectUrl = req.nextUrl.clone();
       redirectUrl.pathname = `/dashboard/${scopedSharedStudentsMatch[1]}`;
+      redirectUrl.searchParams.delete("subject_id");
+      redirectUrl.searchParams.delete("subject_name");
+      return NextResponse.redirect(redirectUrl);
+    }
+
+    const scopedGlobalManagementMatch = pathname.match(
+      /^\/dashboard\/s\/\d+(?:\/[^/]+)?\/((?:schools|admins)(?:\/.*)?)$/
+    );
+    if (scopedGlobalManagementMatch) {
+      const redirectUrl = req.nextUrl.clone();
+      redirectUrl.pathname = `/dashboard/${scopedGlobalManagementMatch[1]}`;
       redirectUrl.searchParams.delete("subject_id");
       redirectUrl.searchParams.delete("subject_name");
       return NextResponse.redirect(redirectUrl);

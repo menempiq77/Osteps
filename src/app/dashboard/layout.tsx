@@ -8,6 +8,7 @@ import QuickLauncher from "@/components/ui/QuickLauncher";
 import { SubjectContextProvider } from "@/contexts/SubjectContext";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { getDashboardHomePath, getEffectivePlatformRole } from "@/lib/platformRole";
 import { getStoredSubjectName } from "@/lib/subjectScope";
 
 const THEME_STORAGE_KEY = "osteps-dashboard-theme";
@@ -97,6 +98,8 @@ export default function DashboardLayout({
   const [isRouteTransitioning, setIsRouteTransitioning] = useState(false);
   const [themeName, setThemeName] = useState<ThemeName>("green");
   const [storedSubjectName, setStoredSubjectName] = useState<string | null>(null);
+  const effectiveRole = getEffectivePlatformRole(currentUser);
+  const dashboardHomePath = getDashboardHomePath(currentUser);
   const unscopedPathname = pathname.replace(
     /^\/dashboard\/s\/\d+(?:\/[^/]+)?(?=\/|$)/,
     "/dashboard"
@@ -168,6 +171,8 @@ export default function DashboardLayout({
   const isSubjectCardsEntryRoute =
     pathname === "/dashboard/subject-cards" ||
     /^\/dashboard\/s\/\d+\/subject-cards$/.test(pathname);
+  const shouldRedirectSuperAdminFromSubjectCards =
+    isHydrated && effectiveRole === "SUPER_ADMIN" && isSubjectCardsEntryRoute;
   const isStandaloneTeacherRoute =
     pathname === "/dashboard/teachers" || pathname.startsWith("/dashboard/teachers/");
   const isAllStudentsStandaloneRoute =
@@ -200,6 +205,11 @@ export default function DashboardLayout({
     return () => clearTimeout(timer);
   }, [pathname, isHydrated]);
 
+  useEffect(() => {
+    if (!shouldRedirectSuperAdminFromSubjectCards) return;
+    router.replace("/dashboard");
+  }, [router, shouldRedirectSuperAdminFromSubjectCards]);
+
   if (!currentUser) {
     return (
       <div className="min-h-screen bg-[#FAF9F6] flex items-center justify-center px-4">
@@ -230,7 +240,7 @@ export default function DashboardLayout({
       <QuickLauncher />
       <button
         type="button"
-        onClick={() => router.push("/dashboard/subject-cards")}
+        onClick={() => router.push(dashboardHomePath)}
         className="rounded-lg border border-[var(--theme-border)] bg-white px-3 py-1.5 text-sm font-medium text-[var(--theme-dark)] transition hover:bg-[var(--theme-soft)]"
       >
         Home
@@ -251,6 +261,14 @@ export default function DashboardLayout({
       </button>
     </div>
   );
+
+  if (shouldRedirectSuperAdminFromSubjectCards) {
+    return (
+      <SubjectContextProvider>
+        <div className="dashboard-theme-scope min-h-screen bg-[var(--theme-soft)]" />
+      </SubjectContextProvider>
+    );
+  }
 
   if (isSubjectCardsEntryRoute) {
     return (
