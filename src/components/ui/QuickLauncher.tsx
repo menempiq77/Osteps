@@ -66,6 +66,34 @@ const SECTION_LABELS: Record<string, { title: string; note: string }> = {
 };
 
 const FILTER_ORDER = ["All", "Subjects", "Workspace", "Teaching", "Communication", "Resources", "Account"];
+const PRIORITY_SUBJECT_DASHBOARDS = ["arabic", "islamic", "islamiat"];
+
+const SECTION_ICON_STYLES: Record<string, { shell: string; icon: string }> = {
+  Subjects: {
+    shell: "border-emerald-300/35 bg-emerald-300/12",
+    icon: "text-emerald-200",
+  },
+  Workspace: {
+    shell: "border-sky-300/35 bg-sky-300/12",
+    icon: "text-sky-200",
+  },
+  Teaching: {
+    shell: "border-violet-300/35 bg-violet-300/12",
+    icon: "text-violet-200",
+  },
+  Communication: {
+    shell: "border-amber-300/35 bg-amber-300/12",
+    icon: "text-amber-200",
+  },
+  Resources: {
+    shell: "border-cyan-300/35 bg-cyan-300/12",
+    icon: "text-cyan-200",
+  },
+  Account: {
+    shell: "border-rose-300/35 bg-rose-300/12",
+    icon: "text-rose-200",
+  },
+};
 
 const roleLabel = (role?: string | null) => {
   const normalized = normalizeDashboardRole(role);
@@ -140,7 +168,9 @@ export default function QuickLauncher() {
       studentTrackerHref,
     });
 
-    return items.map((item) => ({
+    return items
+      .filter((item) => item.section !== "Subjects")
+      .map((item) => ({
       id: `nav-${item.name}-${item.href}`,
       name: item.name,
       description: item.description,
@@ -174,7 +204,21 @@ export default function QuickLauncher() {
   ]);
 
   const subjectEntries = useMemo<LauncherEntry[]>(() => {
-    return subjects.map((subject) => {
+    const prioritizedSubjects = subjects.filter((subject) => {
+      const normalizedName = subject.name.toLowerCase();
+      return PRIORITY_SUBJECT_DASHBOARDS.some((name) => normalizedName.includes(name));
+    });
+
+    const subjectRank = (name: string) => {
+      const normalizedName = name.toLowerCase();
+      if (normalizedName.includes("arabic")) return 0;
+      if (normalizedName.includes("islamic") || normalizedName.includes("islamiat")) return 1;
+      return 2;
+    };
+
+    return prioritizedSubjects
+      .sort((left, right) => subjectRank(left.name) - subjectRank(right.name))
+      .map((subject) => {
       const displayName = formatDashboardSubjectName(subject.name);
       const meta = subject.class_label ? `Class ${subject.class_label}` : subject.code || "Subject workspace";
       return {
@@ -335,7 +379,6 @@ export default function QuickLauncher() {
     }
   };
 
-  const resultCount = filteredSections.reduce((total, group) => total + group.items.length, 0);
   const triggerSquares = Array.from({ length: 9 });
 
   return (
@@ -343,7 +386,7 @@ export default function QuickLauncher() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="group flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--theme-border)] bg-white text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-[var(--primary)] hover:bg-[var(--theme-soft)] hover:text-[var(--theme-dark)] hover:shadow-md"
+        className="group flex h-11 w-11 items-center justify-center rounded-xl border border-slate-700 bg-slate-900 text-slate-200 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-500 hover:bg-slate-800 hover:text-white hover:shadow-md"
         aria-label="Open quick launcher"
       >
         <span className="grid grid-cols-3 gap-1">
@@ -361,22 +404,22 @@ export default function QuickLauncher() {
           <button
             type="button"
             aria-label="Close quick launcher"
-            className="absolute inset-0 bg-slate-950/25 backdrop-blur-[2px]"
+            className="absolute inset-0 bg-slate-950/80"
             onClick={() => setOpen(false)}
           />
 
-          <div className="absolute left-1/2 top-20 w-[min(1180px,calc(100vw-1rem))] -translate-x-1/2 overflow-hidden rounded-[28px] border border-[var(--theme-border)] bg-white shadow-[0_40px_90px_rgba(15,23,42,0.2)]">
-            <div className="flex items-center justify-between border-b border-slate-200 bg-[linear-gradient(135deg,color-mix(in_srgb,var(--theme-soft)_82%,white),white)] px-5 py-4">
+          <div className="absolute inset-0 overflow-hidden border border-slate-700/70 bg-slate-800 shadow-[0_28px_80px_rgba(2,6,23,0.45)]">
+            <div className="flex items-center justify-between border-b border-slate-700 bg-slate-800 px-5 py-3">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--theme-dark)]">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-300/95">
                   Quick Launcher
                 </p>
-                <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-500">
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-300/80">
                   <span>{roleLabel(currentUser?.role)} shortcuts</span>
                   {activeSubject ? (
                     <>
-                      <span className="text-slate-300">/</span>
-                      <span className="font-medium text-slate-700">
+                      <span className="text-slate-500">/</span>
+                      <span className="font-medium text-slate-100/95">
                         {formatDashboardSubjectName(activeSubject.name)}
                       </span>
                     </>
@@ -386,32 +429,32 @@ export default function QuickLauncher() {
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:border-[var(--theme-border)] hover:bg-[var(--theme-soft)] hover:text-[var(--theme-dark)]"
+                className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-600 bg-slate-700/60 text-slate-300 transition hover:border-slate-500 hover:bg-slate-700 hover:text-slate-100"
                 aria-label="Close quick launcher"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <div className="grid max-h-[calc(100vh-7rem)] min-h-[420px] overflow-hidden lg:grid-cols-[270px_minmax(0,1fr)]">
-              <aside className="border-b border-slate-200 bg-slate-50/80 p-5 lg:border-b-0 lg:border-r">
-                <div className="rounded-2xl border border-[var(--theme-border)] bg-white p-3 shadow-sm">
-                  <label className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 focus-within:border-[var(--primary)] focus-within:bg-white">
-                    <Search className="h-4 w-4 text-slate-400" />
+            <div className="grid h-[calc(100vh-65px)] min-h-[420px] overflow-hidden lg:grid-cols-[330px_minmax(0,1fr)]">
+              <aside className="border-b border-slate-700 bg-slate-800 p-4 lg:border-b-0 lg:border-r">
+                <div className="rounded-2xl border border-slate-700 bg-slate-800 p-3 shadow-sm">
+                  <label className="flex items-center gap-3 rounded-xl border border-slate-600 bg-slate-700/45 px-3 py-2.5 focus-within:border-slate-500 focus-within:bg-slate-700/70">
+                    <Search className="h-4 w-4 text-slate-500" />
                     <input
                       ref={searchRef}
                       value={query}
                       onChange={(event) => setQuery(event.target.value)}
                       placeholder="Search pages, tools, or modules"
-                      className="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
+                      className="w-full bg-transparent text-sm text-slate-200 outline-none placeholder:text-slate-400/80"
                     />
                   </label>
 
                   <div className="mt-4">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-300/80">
                       Filters
                     </div>
-                    <div className="mt-3 space-y-2">
+                    <div className="mt-3 space-y-1.5">
                       {availableFilters.map((filter) => {
                         const isActive = activeFilter === filter;
                         return (
@@ -419,61 +462,34 @@ export default function QuickLauncher() {
                             key={filter}
                             type="button"
                             onClick={() => setActiveFilter(filter)}
-                            className={`flex w-full items-center justify-between rounded-2xl border px-3 py-2.5 text-left text-sm transition ${
+                            className={`flex w-full items-center justify-between rounded-2xl border px-3 py-2 text-left text-sm transition ${
                               isActive
-                                ? "border-[var(--primary)] bg-[var(--theme-soft)] text-[var(--theme-dark)] shadow-sm"
-                                : "border-transparent bg-white text-slate-600 hover:border-[var(--theme-border)] hover:bg-[var(--theme-soft)]"
+                                ? "border-slate-500 bg-slate-700/75 text-slate-100 shadow-sm"
+                                : "border-transparent bg-slate-800 text-slate-300/80 hover:border-slate-600 hover:bg-slate-700/50"
                             }`}
                           >
                             <span className="font-medium">{filter === "All" ? "Everything" : filter}</span>
-                            {filter !== "All" ? (
-                              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">
-                                {allEntries.filter((entry) => entry.section === filter).length}
-                              </span>
-                            ) : null}
                           </button>
                         );
                       })}
                     </div>
                   </div>
                 </div>
-
-                <div className="mt-4 rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-soft)] p-4">
-                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    At a glance
-                  </div>
-                  <div className="mt-3 space-y-3 text-sm text-slate-600">
-                    <div className="flex items-center justify-between">
-                      <span>Total shortcuts</span>
-                      <span className="font-semibold text-slate-800">{allEntries.length}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Shown now</span>
-                      <span className="font-semibold text-slate-800">{resultCount}</span>
-                    </div>
-                    {subjects.length > 0 ? (
-                      <div className="flex items-center justify-between">
-                        <span>Assigned subjects</span>
-                        <span className="font-semibold text-slate-800">{subjects.length}</span>
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
               </aside>
 
-              <div className="overflow-y-auto bg-white p-5">
+              <div className="overflow-y-auto bg-slate-800 p-4">
                 {filteredSections.length === 0 ? (
-                  <div className="flex h-full min-h-[260px] flex-col items-center justify-center rounded-[24px] border border-dashed border-[var(--theme-border)] bg-[var(--theme-soft)] px-6 text-center">
-                    <div className="rounded-2xl border border-[var(--theme-border)] bg-white p-4 text-[var(--theme-dark)] shadow-sm">
+                  <div className="flex h-full min-h-[260px] flex-col items-center justify-center rounded-[18px] border border-dashed border-slate-600 bg-slate-700/30 px-6 text-center">
+                    <div className="rounded-2xl border border-slate-600 bg-slate-700/50 p-4 text-slate-300 shadow-sm">
                       <Search className="h-5 w-5" />
                     </div>
-                    <h3 className="mt-4 text-lg font-semibold text-slate-800">No matches yet</h3>
-                    <p className="mt-2 max-w-md text-sm text-slate-500">
+                    <h3 className="mt-4 text-lg font-semibold text-slate-100">No matches yet</h3>
+                    <p className="mt-2 max-w-md text-sm text-slate-400">
                       Try a different search term or switch the filter on the left to reveal more pages.
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-6">
+                  <div className="space-y-4">
                     {filteredSections.map(({ section, items }) => {
                       const sectionMeta = SECTION_LABELS[section] || {
                         title: section,
@@ -482,19 +498,15 @@ export default function QuickLauncher() {
 
                       return (
                         <section key={section}>
-                          <div className="mb-3 flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
+                          <div className="mb-2">
                             <div>
-                              <h3 className="text-lg font-semibold text-slate-800">
+                              <h3 className="text-lg font-semibold text-slate-100/95">
                                 {sectionMeta.title}
                               </h3>
-                              <p className="text-sm text-slate-500">{sectionMeta.note}</p>
-                            </div>
-                            <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-400">
-                              {items.length} item{items.length === 1 ? "" : "s"}
                             </div>
                           </div>
 
-                          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                          <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-3">
                             {items.map((entry) => {
                               const Icon = entry.icon;
                               return (
@@ -502,42 +514,47 @@ export default function QuickLauncher() {
                                   key={entry.id}
                                   type="button"
                                   onClick={() => handleEntryClick(entry)}
-                                  className={`group rounded-[24px] border p-4 text-left transition ${
+                                  className={`group rounded-[16px] border p-3 text-left transition ${
                                     entry.active
-                                      ? "border-[var(--primary)] bg-[var(--theme-soft)] shadow-[0_18px_38px_rgba(22,101,52,0.12)]"
-                                      : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-[var(--theme-border)] hover:bg-[var(--theme-soft)] hover:shadow-[0_16px_34px_rgba(15,23,42,0.1)]"
+                                      ? "border-slate-500 bg-slate-700/70 shadow-[0_12px_28px_rgba(2,6,23,0.26)]"
+                                      : "border-slate-600 bg-slate-700/45 hover:-translate-y-0.5 hover:border-slate-500 hover:bg-slate-700/70 hover:shadow-[0_10px_22px_rgba(2,6,23,0.25)]"
                                   }`}
                                 >
-                                  <div className="flex items-start gap-3">
-                                    <div className="mt-0.5 flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[var(--theme-border)] bg-white text-[var(--theme-dark)] shadow-sm">
-                                      <Icon className="h-5 w-5" />
+                                  <div className="flex items-start gap-2.5">
+                                    <div
+                                      className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border shadow-sm ${
+                                        SECTION_ICON_STYLES[entry.section]?.shell ?? "border-slate-600 bg-slate-800"
+                                      }`}
+                                    >
+                                      <Icon
+                                        className={`h-4 w-4 ${
+                                          SECTION_ICON_STYLES[entry.section]?.icon ?? "text-slate-300"
+                                        }`}
+                                      />
                                     </div>
                                     <div className="min-w-0 flex-1">
                                       <div className="flex flex-wrap items-center gap-2">
-                                        <span className="text-base font-semibold text-slate-800">
+                                        <span className="text-sm font-semibold text-slate-100/95">
                                           {entry.name}
                                         </span>
                                         {entry.badge ? (
-                                          <span className="rounded-full bg-[var(--primary)] px-2 py-0.5 text-[11px] font-semibold text-white">
+                                          <span className="rounded-full bg-slate-600 px-2 py-0.5 text-[11px] font-semibold text-slate-100/90">
                                             {entry.badge}
                                           </span>
                                         ) : null}
                                         {entry.active ? (
-                                          <span className="rounded-full border border-[var(--theme-border)] bg-white px-2 py-0.5 text-[11px] font-semibold text-[var(--theme-dark)]">
+                                          <span className="rounded-full border border-slate-500 bg-slate-600 px-2 py-0.5 text-[11px] font-semibold text-slate-100/95">
                                             Active
                                           </span>
                                         ) : null}
                                       </div>
-                                      <p className="mt-1 text-sm leading-5 text-slate-500">
-                                        {entry.description}
-                                      </p>
                                       {entry.meta ? (
-                                        <div className="mt-3 inline-flex rounded-full bg-white px-2.5 py-1 text-[11px] font-medium text-slate-500 shadow-sm">
+                                        <div className="mt-1.5 inline-flex rounded-full bg-slate-700/80 px-2.5 py-1 text-[11px] font-medium text-slate-300/85">
                                           {entry.meta}
                                         </div>
                                       ) : null}
                                     </div>
-                                    <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-slate-300 transition group-hover:text-[var(--theme-dark)]" />
+                                    <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-slate-500 transition group-hover:text-slate-200" />
                                   </div>
                                 </button>
                               );
