@@ -47,7 +47,6 @@ import { useRouter } from "next/navigation";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import { fetchStaffSubjectAssignments, fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
-import { canUseSubjectWorkspace, getEffectivePlatformRole } from "@/lib/platformRole";
 import { shouldUseLegacyUnscopedSubjectData } from "@/lib/subjectScope";
 import { filterStudentsBySubjectScope, studentMatchesSubjectScope } from "@/lib/subjectStudentScope";
 import { extractSubjectIdFromPath, toSubjectScopedPath } from "@/lib/subjectRouting";
@@ -190,11 +189,10 @@ export default function DashboardPage() {
   } = useSubjectContext();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const effectiveRole = getEffectivePlatformRole(currentUser);
-  const isSUPER_ADMIN = effectiveRole === "SUPER_ADMIN";
-  const isSCHOOL_ADMIN = effectiveRole === "SCHOOL_ADMIN";
-  const isTEACHER = effectiveRole === "TEACHER";
-  const isHOD = effectiveRole === "HOD";
+  const isSUPER_ADMIN = currentUser?.role === "SUPER_ADMIN";
+  const isSCHOOL_ADMIN = currentUser?.role === "SCHOOL_ADMIN";
+  const isTEACHER = currentUser?.role === "TEACHER";
+  const isHOD = currentUser?.role === "HOD";
   const schoolId = Number(
     (currentUser as { school?: number | string; school_id?: number | string } | null)?.school ??
       (currentUser as { school?: number | string; school_id?: number | string } | null)?.school_id ??
@@ -218,10 +216,11 @@ export default function DashboardPage() {
     activeSubjectId,
     activeSubjectName: activeSubject?.name,
   });
+  const role = String(currentUser?.role || "").trim().toUpperCase();
   const shouldUseSubjectCardsEntry =
     canUseSubjectContext &&
     pathname === "/dashboard" &&
-    canUseSubjectWorkspace(currentUser);
+    ["SCHOOL_ADMIN", "ADMIN", "HOD", "TEACHER", "STUDENT"].includes(role);
 
   useEffect(() => {
     if (!shouldUseSubjectCardsEntry) return;
@@ -629,7 +628,7 @@ export default function DashboardPage() {
 
   // Role-based data
   const getDashboardData = () => {
-    switch (effectiveRole) {
+    switch (currentUser?.role) {
       case "SUPER_ADMIN":
         return {
           stats: [
@@ -1018,7 +1017,7 @@ export default function DashboardPage() {
                   : "Let's get started. Explore your dashboard to manage your activities."}
               </p>
             </div>
-            {!isSUPER_ADMIN && schoolLogo ? (
+            {currentUser?.role !== "SUPER_ADMIN" && schoolLogo ? (
               <div className="w-16 h-16 rounded-lg overflow-hidden">
                 <img
                   src={`${IMG_BASE_URL}/storage/${schoolLogo}`}
@@ -1093,7 +1092,7 @@ export default function DashboardPage() {
         </>
       )}
 
-      {effectiveRole === "STUDENT" ? (
+      {currentUser?.role === "STUDENT" ? (
         <div className="space-y-6">
           {/* Enhanced Breadcrumb */}
           <div className="flex items-center text-sm font-medium capitalize text-gray-600">
@@ -1187,16 +1186,19 @@ export default function DashboardPage() {
               {/* Stats Cards */}
               <Row gutter={[16, 16]}>
                 {stats.map((stat, index) => {
-                  const iconMap = statIcons as Record<string, Record<string, JSX.Element>>;
-                  const icon = effectiveRole ? iconMap[effectiveRole]?.[stat.title] ?? null : null;
+                  const icon = currentUser?.role
+                    ? (statIcons[currentUser?.role] as Record<string, JSX.Element>)[
+                        stat.title
+                      ]
+                    : null;
 
                   return (
                     <Col
                       key={index}
                       xs={24}
                       md={
-                        effectiveRole === "SCHOOL_ADMIN" ||
-                        effectiveRole === "HOD"
+                        currentUser?.role === "SCHOOL_ADMIN" ||
+                        currentUser?.role === "HOD"
                           ? 6
                           : 12
                       }

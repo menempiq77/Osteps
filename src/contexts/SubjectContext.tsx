@@ -6,7 +6,6 @@ import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { fetchMySubjectContext, setLastSubject } from "@/services/subjectContextApi";
 import type { SubjectBrief } from "@/types/subjectContext";
-import { canUseSubjectWorkspace } from "@/lib/platformRole";
 import { extractSubjectIdFromPath, isSubjectScopedPath, toSubjectScopedPath } from "@/lib/subjectRouting";
 import { getStoredSubjectId, isSubjectContextEnabled, storeSubjectId } from "@/lib/subjectScope";
 
@@ -22,6 +21,11 @@ type SubjectContextValue = {
 
 const SubjectContext = createContext<SubjectContextValue | null>(null);
 
+const isRoleEligible = (role: string | undefined): boolean => {
+  const roleKey = (role ?? "").trim().toUpperCase().replace(/\s+/g, "_");
+  return ["SCHOOL_ADMIN", "ADMIN", "HOD", "TEACHER", "STUDENT"].includes(roleKey);
+};
+
 export function SubjectContextProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -32,7 +36,8 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
   const [activeSubjectId, setActiveSubjectIdState] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const canUseSubjectContext = isSubjectContextEnabled() && canUseSubjectWorkspace(currentUser);
+  const role = currentUser?.role;
+  const canUseSubjectContext = isSubjectContextEnabled() && isRoleEligible(role);
   const resolvedActiveSubject =
     subjects.find((subject) => subject.id === activeSubjectId) ?? null;
 

@@ -21,14 +21,12 @@ const SUBJECT_CONTEXT_ENABLED = process.env.NEXT_PUBLIC_SUBJECT_CONTEXT_ENABLED 
 
 const SHARED_PREFIXES = [
   "/dashboard/subject-cards",
-  "/dashboard/schools",
   "/dashboard/students/all-school",
   "/dashboard/students/all-students",
   "/dashboard/library",
   "/dashboard/time_table",
   "/dashboard/announcements",
   "/dashboard/tools",
-  "/dashboard/admins",
   "/dashboard/school-admin/settings",
   "/dashboard/students/settings",
   "/dashboard/teachers/settings",
@@ -58,7 +56,6 @@ const SUBJECT_ROUTE_ROOTS = new Set([
   "mind-upgrade",
   "subjects",
   "subject-cards",
-  "schools",
   "library",
   "time_table",
   "announcements",
