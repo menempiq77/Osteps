@@ -406,20 +406,20 @@ const buildBaseNavigation = ({
         keywords: ["points", "ranking"],
       },
       {
-        name: "My Materials",
-        href: "/dashboard/materials",
-        icon: FolderOpen,
-        description: "Access your uploaded teaching materials.",
-        section: "Resources",
-        keywords: ["materials", "files"],
-      },
-      {
         name: "Library",
         href: "/dashboard/library",
         icon: Library,
         description: "Open the shared learning library.",
         section: "Resources",
         keywords: ["books", "materials"],
+      },
+      {
+        name: "My Materials",
+        href: "/dashboard/materials",
+        icon: FolderOpen,
+        description: "Access your uploaded teaching materials.",
+        section: "Resources",
+        keywords: ["materials", "files"],
       },
       {
         name: "Timetable",
@@ -514,6 +514,14 @@ const buildBaseNavigation = ({
         keywords: ["points", "ranking"],
       },
       {
+        name: "Library",
+        href: "/dashboard/library",
+        icon: Library,
+        description: "Open the shared learning library.",
+        section: "Resources",
+        keywords: ["books", "materials"],
+      },
+      {
         name: "Shared Materials",
         href: "/dashboard/shared_materials",
         icon: FolderOpen,
@@ -591,6 +599,12 @@ export const buildDashboardNavigation = ({
     items = items.filter((item) => item.name !== "Mind-upgrade");
   }
 
+  /* Hide Library when inside a subject workspace (Arabic, Islamic, etc.).
+     Library is only available from the main /dashboard/subject-cards page. */
+  if (canUseSubjectContext && activeSubjectId) {
+    items = items.filter((item) => item.name !== "Library");
+  }
+
   return items;
 };
 
@@ -598,14 +612,6 @@ export const buildStudentUtilityLinks = (studentId?: number | null): DashboardNa
   const safeBehaviorHref = studentId ? `/dashboard/behavior/${studentId}` : "/dashboard/subject-cards";
 
   return [
-    {
-      name: "Library",
-      href: "/dashboard/library",
-      icon: Library,
-      description: "Open your shared reading and learning resources.",
-      section: "Resources",
-      keywords: ["books", "reading", "resources"],
-    },
     {
       name: "Timetable",
       href: "/dashboard/time_table",
