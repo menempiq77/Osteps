@@ -498,112 +498,106 @@ export default function LibraryPage() {
         className="!mb-3"
       />
 
-      <Space direction="vertical" size="large" style={{ width: "100%" }}>
-        <div className="rounded-2xl border border-emerald-100 bg-gradient-to-r from-emerald-50 via-white to-lime-50 p-4 md:p-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <Typography.Title level={3} style={{ margin: 0 }}>
-                {isMobile ? "Islamic Library" : "Islamic Library Resources"}
-              </Typography.Title>
-              <p className="mt-1 text-sm text-gray-600">
-                Discover, view, and share learning resources in one place.
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Tag className="m-0 rounded-full border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700">
-                  {totalResourcesCount} Total
-                </Tag>
-                <Tag className="m-0 rounded-full border-sky-200 bg-sky-50 px-3 py-1 text-sky-700">
-                  {visibleResourcesCount} Showing
-                </Tag>
+      <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+        <div className="rounded-2xl border border-emerald-100 bg-white p-4 md:p-5 shadow-sm">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <Typography.Title level={3} style={{ margin: 0 }}>
+                  {"School Library"}
+                </Typography.Title>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Tag className="m-0 rounded-full border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700">
+                    {totalResourcesCount} Total
+                  </Tag>
+                </div>
               </div>
+              {canUpload && (
+                <Button
+                  type="primary"
+                  icon={<UploadOutlined />}
+                  onClick={openUploadModal}
+                  className="flex items-center !h-11 !rounded-xl !bg-primary !border-primary !px-5 !font-medium"
+                >
+                  {isMobile ? "Upload" : "Upload Resource"}
+                </Button>
+              )}
             </div>
-            {canUpload && (
-              <Button
-                type="primary"
-                icon={<UploadOutlined />}
-                onClick={openUploadModal}
-                className="flex items-center !h-11 !rounded-xl !bg-primary !border-primary !px-5 !font-medium"
-              >
-                {isMobile ? "Upload" : "Upload Resource"}
-              </Button>
+
+            <div className="rounded-xl border border-gray-100 bg-gray-50/40 px-3 pt-2">
+              <Tabs
+                activeKey={activeTypeTab}
+                onChange={(key) => {
+                  if (key === "add") {
+                    window.location.href = "/dashboard/library/resourcestype";
+                    return;
+                  }
+                  setActiveTypeTab(key);
+                  setActiveCategoryTab("all");
+                }}
+                tabBarStyle={{
+                  marginBottom: 0,
+                  border: "none",
+                }}
+                tabBarGutter={24}
+                items={typeTabItems}
+              />
+            </div>
+
+            {categories?.length > 0 && (
+              <div className="rounded-xl border border-gray-100 bg-gray-50/40 p-3 md:p-4">
+                <div className="mb-3 text-sm font-medium text-gray-600">
+                  Browse by category
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="middle"
+                    type={activeCategoryTab === "all" ? "primary" : "default"}
+                    shape="round"
+                    onClick={() => setActiveCategoryTab("all")}
+                    className={`transition-all ${
+                      activeCategoryTab === "all"
+                        ? "!bg-primary !hover:bg-green-700"
+                        : "bg-white hover:bg-gray-50 hover:!border-green-600 hover:!text-green-600"
+                    }`}
+                  >
+                    All
+                  </Button>
+
+                  {categories?.map((category) => (
+                    <Button
+                      key={category?.id}
+                      size="middle"
+                      type={
+                        activeCategoryTab === String(category.id)
+                          ? "primary"
+                          : "default"
+                      }
+                      shape="round"
+                      onClick={() => setActiveCategoryTab(String(category.id))}
+                      className={`transition-all ${
+                        activeCategoryTab === String(category.id)
+                          ? "!bg-primary !hover:bg-green-700"
+                          : "bg-white hover:bg-gray-50 border-gray-200 hover:!border-green-600 hover:!text-green-600"
+                      }`}
+                    >
+                      {formatCategoryLabel(category?.name)}
+                    </Button>
+                  ))}
+
+                  {canUpload && (
+                    <Link
+                      href="/dashboard/library/librarycategory"
+                      className="transition-all flex items-center gap-1 bg-white hover:bg-gray-50 border border-dashed rounded-full px-4 !text-green-600 border-green-600"
+                    >
+                      <Plus size={18} /> Add More
+                    </Link>
+                  )}
+                </div>
+              </div>
             )}
           </div>
         </div>
-
-        {/* Main Type Tabs - Modern Design */}
-        <div className="rounded-2xl border border-gray-100 bg-white px-3 pt-2 shadow-sm">
-          <Tabs
-            activeKey={activeTypeTab}
-            onChange={(key) => {
-              if (key === "add") {
-                window.location.href = "/dashboard/library/resourcestype";
-                return;
-              }
-              setActiveTypeTab(key);
-              setActiveCategoryTab("all");
-            }}
-            tabBarStyle={{
-              marginBottom: 0,
-              border: "none",
-            }}
-            tabBarGutter={24}
-            items={typeTabItems}
-          />
-        </div>
-
-        {/* Category Tabs - Modern Pill Design */}
-        {categories?.length > 0 && (
-          <div className="rounded-2xl border border-gray-100 bg-white p-3 md:p-4 shadow-sm">
-            <div className="mb-3 text-sm font-medium text-gray-600">
-              Browse by category
-            </div>
-            <div className="flex flex-wrap gap-2">
-            <Button
-              size="middle"
-              type={activeCategoryTab === "all" ? "primary" : "default"}
-              shape="round"
-              onClick={() => setActiveCategoryTab("all")}
-              className={`transition-all ${
-                activeCategoryTab === "all"
-                  ? "!bg-primary !hover:bg-green-700"
-                  : "bg-white hover:bg-gray-50 hover:!border-green-600 hover:!text-green-600"
-              }`}
-            >
-              All
-            </Button>
-
-            {categories?.map((category) => (
-              <Button
-                key={category?.id}
-                size="middle"
-                type={
-                  activeCategoryTab === String(category.id)
-                    ? "primary"
-                    : "default"
-                }
-                shape="round"
-                onClick={() => setActiveCategoryTab(String(category.id))}
-                className={`transition-all ${
-                  activeCategoryTab === String(category.id)
-                    ? "!bg-primary !hover:bg-green-700"
-                    : "bg-white hover:bg-gray-50 border-gray-200 hover:!border-green-600 hover:!text-green-600"
-                }`}
-              >
-                {formatCategoryLabel(category?.name)}
-              </Button>
-            ))}
-
-            {canUpload && (
-              <Link
-                href="/dashboard/library/librarycategory"
-                className="transition-all flex items-center gap-1 bg-white hover:bg-gray-50 border border-dashed rounded-full px-4 !text-green-600 border-green-600"
-              >
-                <Plus size={18} /> Add More
-              </Link>
-            )}
-            </div>
-          </div>
-        )}
 
         {filteredItems?.length === 0 ? (
           <Card className="shadow-sm rounded-2xl border border-gray-100">

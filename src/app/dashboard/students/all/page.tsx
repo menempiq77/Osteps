@@ -24,10 +24,11 @@ import {
   Typography,
   message,
 } from "antd";
+import { MinusCircleOutlined, PlusOutlined } from "@ant-design/icons";
 import { RootState } from "@/store/store";
 import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
 import { fetchClasses } from "@/services/classesApi";
-import { fetchStudentProfileData, fetchStudents, updateStudent } from "@/services/studentsApi";
+import { addStudent, deleteStudent, fetchStudentProfileData, fetchStudents, updateStudent } from "@/services/studentsApi";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import { filterStudentsBySubjectScope } from "@/lib/subjectStudentScope";
 import {
@@ -277,6 +278,7 @@ export default function AllStudentsPage() {
   const isSubjectWorkspaceMode = canUseSubjectContext && isPathSubjectScoped && scopedSubjectId > 0;
   const [messageApi, contextHolder] = message.useMessage();
   const [editForm] = Form.useForm();
+  const [addForm] = Form.useForm();
 
   const [nameFilter, setNameFilter] = useState("");
   const [yearFilter, setYearFilter] = useState<string>("all");
@@ -287,6 +289,10 @@ export default function AllStudentsPage() {
   const [genderFilters, setGenderFilters] = useState<Array<"Male" | "Female" | "Unknown">>([]);
   const [editingStudent, setEditingStudent] = useState<StudentListRow | null>(null);
   const [editingStudents, setEditingStudents] = useState<StudentListRow[]>([]);
+  const [deletingStudent, setDeletingStudent] = useState<StudentListRow | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [addStudentOpen, setAddStudentOpen] = useState(false);
+  const [addSubmitting, setAddSubmitting] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [assignDrawerOpen, setAssignDrawerOpen] = useState(false);
   const [assignLoading, setAssignLoading] = useState(false);
@@ -930,8 +936,14 @@ export default function AllStudentsPage() {
   }, [subjects]);
 
   const { data: assignSubjectClasses = [] } = useQuery<SubjectClassOption[]>({
-    queryKey: ["assign-subject-classes", assignDrawerOpen, subjects.map((subject) => Number(subject.id)).join(",")],
-    enabled: isSchoolAdmin && assignDrawerOpen && subjects.length > 0,
+    queryKey: [
+      "assign-subject-classes",
+      assignDrawerOpen,
+      addStudentOpen,
+      !!editingStudent,
+      subjects.map((subject) => Number(subject.id)).join(","),
+    ],
+    enabled: isSchoolAdmin && (assignDrawerOpen || addStudentOpen || !!editingStudent) && subjects.length > 0,
     queryFn: async () => {
       const rows = await Promise.all(
         subjects.map(async (subject) => {
@@ -947,8 +959,18 @@ export default function AllStudentsPage() {
                 yearId: Number(item.year_id ?? 0),
                 baseClassLabel: String(item.base_class_label || ""),
                 linkedClassId: Number(
-                  item.class_id ??
+                  item.linked_class_id ??
+                    item.linkedClassId ??
+                    item.linkedClass?.id ??
+                    item.linked_class?.id ??
+                    item.classId ??
+                    item.class_id_value ??
+                    item.class_id ??
+                    item.class?.class_id ??
+                    item.classes?.class_id ??
+                    item.base_class?.class_id ??
                     item.base_class_id ??
+                    item.baseClassId ??
                     item.class?.id ??
                     item.classes?.id ??
                     item.base_class?.id ??
@@ -1678,6 +1700,174 @@ export default function AllStudentsPage() {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (student: StudentListRow) => {
+      if (!canEdit) throw new Error("Only School Admin can delete students.");
+      return deleteStudent(student.studentId);
+    },
+    onSuccess: async () => {
+      messageApi.success("Student deleted successfully.");
+      setDeletingStudent(null);
+      setDeleteConfirmText("");
+      await queryClient.invalidateQueries({ queryKey: ["all-students-list"] });
+      await queryClient.refetchQueries({ queryKey: ["all-students-list"], type: "active" });
+    },
+    onError: (error: unknown) => {
+      const msg = (error as { message?: string })?.message?.trim() || "Failed to delete student.";
+      messageApi.error(msg);
+    },
+  });
+
+  const handleAddStudents = async () => {
+    if (!canEdit) {
+      messageApi.warning("Only School Admin can add students.");
+      return;
+    }
+    let values: { students?: Array<Record<string, unknown>> };
+    try {
+      values = await addForm.validateFields();
+    } catch {
+      return;
+    }
+    const rows = Array.isArray(values?.students) ? values.students : [];
+    const payloadRows = rows
+      .filter((row) => row && row.student_name && row.user_name && row.password)
+      .map((row) => {
+        const selectedSubjectIds = Array.from(
+          new Set(
+            (Array.isArray(row.subject_ids) ? row.subject_ids : [])
+              .map((id) => Number(id))
+              .filter((id) => Number.isFinite(id) && id > 0)
+          )
+        );
+
+        const selectedSubjectClassIds = Array.from(
+          new Set(
+            (
+              Array.isArray(row.class_ids)
+                ? row.class_ids
+                : Array.isArray(row.subject_class_ids)
+                ? row.subject_class_ids
+                : []
+            )
+              .map((id) => Number(id))
+              .filter((id) => Number.isFinite(id) && id > 0)
+          )
+        );
+
+        /* Use the subject-class id itself as the class_id fallback.
+           The backend addStudent accepts class_id for base-class placement,
+           but subject-class enrollment is handled separately via
+           assignStudentsToSubjects → enrollStudentsToSubjectClass. */
+        const resolvedClassId = Number(
+          selectedSubjectClassIds[0] ?? row.class_id ?? 0
+        );
+
+        return {
+          payload: {
+            student_name: String(row.student_name).trim(),
+            user_name: String(row.user_name).trim(),
+            email: row.email ? String(row.email).trim() : "",
+            password: String(row.password),
+            class_id: resolvedClassId,
+            subject_class_id: selectedSubjectClassIds.length > 0 ? selectedSubjectClassIds[0] : undefined,
+            status: String(row.status || "active"),
+            gender: row.gender ? String(row.gender) : undefined,
+            student_gender: row.gender ? String(row.gender) : undefined,
+            nationality: row.nationality ? String(row.nationality).trim() : undefined,
+            is_sen: !!row.is_sen,
+            sen_details: row.is_sen && row.sen_details ? String(row.sen_details).trim() : "",
+          },
+          subjectIds: selectedSubjectIds,
+          subjectClassIds: selectedSubjectClassIds,
+          classId: resolvedClassId,
+        };
+      });
+
+    if (payloadRows.length === 0) {
+      messageApi.warning("Please fill in at least one student.");
+      return;
+    }
+
+    const subjectId = scopedSubjectId > 0 ? scopedSubjectId : null;
+
+    let successCount = 0;
+    let failedCount = 0;
+    let assignmentWarningCount = 0;
+    let firstErrorMessage = "";
+    setAddSubmitting(true);
+    for (const row of payloadRows) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        const added = await addStudent(row.payload, subjectId);
+        successCount += 1;
+
+        if (row.subjectIds.length > 0 || row.subjectClassIds.length > 0) {
+          const createdStudentId = Number(
+            (added as any)?.id ??
+              (added as any)?.student_id ??
+              (added as any)?.studentId ??
+              (added as any)?.data?.id ??
+              (added as any)?.data?.student_id ??
+              0
+          );
+
+          if (!Number.isFinite(createdStudentId) || createdStudentId <= 0) {
+            assignmentWarningCount += 1;
+            continue;
+          }
+
+          try {
+            // eslint-disable-next-line no-await-in-loop
+            await assignStudentsToSubjects({
+              subjectIds: row.subjectIds,
+              studentIds: [createdStudentId],
+              subjects: subjects.map((subject) => ({
+                id: Number(subject.id),
+                name: displaySubjectName(subject.name),
+              })),
+              subjectClassIds: row.subjectClassIds,
+              forceReassign: false,
+              allowCrossClass: true,
+            });
+          } catch {
+            assignmentWarningCount += 1;
+          }
+        }
+      } catch (error: unknown) {
+        failedCount += 1;
+        if (!firstErrorMessage) {
+          firstErrorMessage =
+            (error as { message?: string })?.message?.trim() ||
+            "Failed to add one or more students.";
+        }
+      }
+    }
+    setAddSubmitting(false);
+
+    if (successCount > 0) {
+      await queryClient.invalidateQueries({ queryKey: ["all-students-list"] });
+      await queryClient.refetchQueries({ queryKey: ["all-students-list"], type: "active" });
+      setAddStudentOpen(false);
+      addForm.resetFields();
+    }
+    if (failedCount === 0 && assignmentWarningCount === 0) {
+      messageApi.success(`Added ${successCount} student${successCount === 1 ? "" : "s"} successfully.`);
+    } else if (failedCount === 0 && assignmentWarningCount > 0) {
+      messageApi.warning(
+        `Added ${successCount} student${successCount === 1 ? "" : "s"}; subject assignment pending for ${assignmentWarningCount}.`
+      );
+    } else if (successCount > 0) {
+      messageApi.warning(
+        `Added ${successCount} student${successCount === 1 ? "" : "s"}, ${failedCount} failed${
+          assignmentWarningCount > 0 ? `, ${assignmentWarningCount} assignment warning${assignmentWarningCount === 1 ? "" : "s"}` : ""
+        }.`
+      );
+    } else {
+      messageApi.error(firstErrorMessage || "Failed to add students.");
+    }
+  };
+
   const openEdit = (record: StudentListRow) => {
     if (!canEdit) {
       messageApi.warning("Only School Admin can edit student information.");
@@ -1696,6 +1886,8 @@ export default function AllStudentsPage() {
       user_name: record.userName,
       email: record.email,
       class_id: record.classId,
+      subject_ids: record.subjectIds?.filter((id) => Number.isFinite(id) && id > 0) || [],
+      class_ids: [],
       status: record.status,
       gender: record.genderRaw || undefined,
       nationality: record.nationality || "",
@@ -1770,6 +1962,8 @@ export default function AllStudentsPage() {
             user_name: hydratedRecord.userName,
             email: hydratedRecord.email,
             class_id: hydratedRecord.classId,
+            subject_ids: hydratedRecord.subjectIds?.filter((id) => Number.isFinite(id) && id > 0) || [],
+            class_ids: [],
             status: hydratedRecord.status,
             gender: hydratedRecord.genderRaw || undefined,
             nationality: hydratedRecord.nationality || "",
@@ -1828,7 +2022,50 @@ export default function AllStudentsPage() {
       }
 
       const values = await editForm.validateFields();
-      editMutation.mutate(values);
+
+      /* Resolve class_id from subject class selection, like Add Students flow. */
+      const selectedSubjectClassIds = Array.from(
+        new Set(
+          (Array.isArray(values.class_ids) ? values.class_ids : [])
+            .map((id: unknown) => Number(id))
+            .filter((id: number) => Number.isFinite(id) && id > 0)
+        )
+      );
+      if (selectedSubjectClassIds.length > 0) {
+        values.class_id = selectedSubjectClassIds[0];
+      }
+
+      editMutation.mutate(values, {
+        onSuccess: async () => {
+          /* After update, sync subject assignments if subjects/classes were selected. */
+          const editSubjectIds = Array.from(
+            new Set(
+              (Array.isArray(values.subject_ids) ? values.subject_ids : [])
+                .map((id: unknown) => Number(id))
+                .filter((id: number) => Number.isFinite(id) && id > 0)
+            )
+          );
+          if ((editSubjectIds.length > 0 || selectedSubjectClassIds.length > 0) && editingStudent) {
+            const studentId = Number(
+              editingStudent.studentId || editingStudent.profileId
+            );
+            if (Number.isFinite(studentId) && studentId > 0) {
+              try {
+                await assignStudentsToSubjects({
+                  subjectIds: editSubjectIds,
+                  studentIds: [studentId],
+                  subjects: subjects.map((s) => ({ id: Number(s.id), name: displaySubjectName(s.name) })),
+                  subjectClassIds: selectedSubjectClassIds,
+                  forceReassign: false,
+                  allowCrossClass: true,
+                });
+              } catch {
+                messageApi.warning("Student updated but subject assignment may need manual sync.");
+              }
+            }
+          }
+        },
+      });
     } catch {
       // validation message handled by antd
     }
@@ -1925,6 +2162,13 @@ export default function AllStudentsPage() {
           <Button onClick={resetFilters}>Reset Filters</Button>
           {isSchoolAdmin && (
             <>
+              <Button
+                type="primary"
+                style={{ backgroundColor: "#16a34a", borderColor: "#16a34a" }}
+                onClick={() => { addForm.resetFields(); setAddStudentOpen(true); }}
+              >
+                + Add Student
+              </Button>
               <Button onClick={() => setSelectedRowKeys([])} disabled={selectedRowKeys.length === 0}>
                 Clear selection ({selectedRowKeys.length})
               </Button>
@@ -2070,6 +2314,13 @@ export default function AllStudentsPage() {
                           </Button>
                           <Button size="small" onClick={() => openEdit(record)}>
                             Edit
+                          </Button>
+                          <Button
+                            size="small"
+                            danger
+                            onClick={() => setDeletingStudent(record)}
+                          >
+                            Delet
                           </Button>
                         </>
                       ) : null}
@@ -2350,13 +2601,67 @@ export default function AllStudentsPage() {
                 <Input />
               </Form.Item>
 
-              <Form.Item name="class_id" label="Class">
+              <Form.Item name="subject_ids" label="Subjects">
                 <Select
+                  mode="multiple"
                   showSearch
                   optionFilterProp="label"
-                  options={classTransferOptions}
-                  placeholder="Select class"
+                  options={assignSubjectOptions}
+                  placeholder="Select one or more subjects"
+                  maxTagCount="responsive"
                 />
+              </Form.Item>
+
+              <Form.Item
+                noStyle
+                shouldUpdate={(prevValues, nextValues) =>
+                  JSON.stringify(prevValues?.subject_ids || []) !==
+                  JSON.stringify(nextValues?.subject_ids || [])
+                }
+              >
+                {({ getFieldValue }) => {
+                  const editSubjectIds = Array.from(
+                    new Set(
+                      (Array.isArray(getFieldValue("subject_ids"))
+                        ? getFieldValue("subject_ids")
+                        : []
+                      )
+                        .map((id: unknown) => Number(id))
+                        .filter((id: number) => Number.isFinite(id) && id > 0)
+                    )
+                  );
+                  const allowedSubjectIds = new Set(editSubjectIds);
+                  const editSubjectClassOptions = assignSubjectClasses
+                    .filter(
+                      (item) =>
+                        allowedSubjectIds.size === 0 ||
+                        allowedSubjectIds.has(Number(item.subjectId))
+                    )
+                    .map((item) => {
+                      const subjectName =
+                        assignSubjectOptions.find(
+                          (option) => Number(option.value) === Number(item.subjectId)
+                        )?.label || `Subject ${item.subjectId}`;
+                      const detail = item.baseClassLabel ? ` (${item.baseClassLabel})` : "";
+                      return {
+                        value: item.id,
+                        label: `${subjectName} - ${item.name}${detail}`,
+                      };
+                    });
+
+                  return (
+                    <Form.Item name="class_ids" label="Class">
+                      <Select
+                        mode="multiple"
+                        showSearch
+                        optionFilterProp="label"
+                        options={editSubjectClassOptions}
+                        placeholder="Select one or more classes related to selected subject(s)"
+                        maxTagCount="responsive"
+                      />
+                    </Form.Item>
+                  );
+                }}
               </Form.Item>
 
               <Form.Item name="status" label="Status">
@@ -2420,6 +2725,241 @@ export default function AllStudentsPage() {
             </>
           )}
         </Form>
+      </Modal>
+
+      <Modal
+        title="Add New Students"
+        open={addStudentOpen}
+        onCancel={() => {
+          setAddStudentOpen(false);
+          addForm.resetFields();
+        }}
+        onOk={handleAddStudents}
+        confirmLoading={addSubmitting}
+        okText="Add Students"
+        okButtonProps={{ style: { backgroundColor: "#16a34a", borderColor: "#16a34a" } }}
+        width={600}
+        destroyOnClose
+      >
+        <Form
+          form={addForm}
+          layout="vertical"
+          initialValues={{ students: [{ status: "active", is_sen: false }] }}
+        >
+          <Form.List name="students">
+            {(fields, { add, remove }) => (
+              <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
+                {fields.map((field, idx) => (
+                  <div key={field.key} className="rounded-xl border border-[#D6EFE2] p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <Typography.Text strong>Student {idx + 1}</Typography.Text>
+                      {fields.length > 1 && (
+                        <Button
+                          type="text"
+                          danger
+                          icon={<MinusCircleOutlined />}
+                          onClick={() => remove(field.name)}
+                        >
+                          Remove
+                        </Button>
+                      )}
+                    </div>
+
+                    <Form.Item
+                      name={[field.name, "student_name"]}
+                      label="Student Name"
+                      rules={[{ required: true, message: "Student name is required." }]}
+                    >
+                      <Input placeholder="Full name" />
+                    </Form.Item>
+
+                    <Form.Item
+                      name={[field.name, "user_name"]}
+                      label="Username"
+                      rules={[{ required: true, message: "Username is required." }]}
+                    >
+                      <Input autoComplete="off" />
+                    </Form.Item>
+
+                    <Form.Item
+                      name={[field.name, "email"]}
+                      label="Email (Optional)"
+                      rules={[{ type: "email", message: "Please enter a valid email." }]}
+                    >
+                      <Input placeholder="student@school.com" />
+                    </Form.Item>
+
+                    <Form.Item
+                      name={[field.name, "password"]}
+                      label="Password"
+                      rules={[{ required: true, message: "Password is required." }]}
+                    >
+                      <Input.Password autoComplete="new-password" />
+                    </Form.Item>
+
+                    <Form.Item
+                      name={[field.name, "subject_ids"]}
+                      label="Subjects"
+                      rules={[{ required: true, message: "Please select at least one subject." }]}
+                    >
+                      <Select
+                        mode="multiple"
+                        showSearch
+                        optionFilterProp="label"
+                        options={assignSubjectOptions}
+                        placeholder="Select one or more subjects"
+                        maxTagCount="responsive"
+                      />
+                    </Form.Item>
+
+                    <Form.Item
+                      noStyle
+                      shouldUpdate={(prevValues, nextValues) =>
+                        JSON.stringify(prevValues?.students?.[field.name]?.subject_ids || []) !==
+                        JSON.stringify(nextValues?.students?.[field.name]?.subject_ids || [])
+                      }
+                    >
+                      {({ getFieldValue }) => {
+                        const rowSubjectIds = Array.from(
+                          new Set(
+                            (Array.isArray(getFieldValue(["students", field.name, "subject_ids"]))
+                              ? getFieldValue(["students", field.name, "subject_ids"])
+                              : [])
+                              .map((id: unknown) => Number(id))
+                              .filter((id: number) => Number.isFinite(id) && id > 0)
+                          )
+                        );
+                        const allowedSubjectIds = new Set(rowSubjectIds);
+                        const rowSubjectClassOptions = assignSubjectClasses
+                          .filter(
+                            (item) =>
+                              allowedSubjectIds.size === 0 ||
+                              allowedSubjectIds.has(Number(item.subjectId))
+                          )
+                          .map((item) => {
+                            const subjectName =
+                              assignSubjectOptions.find(
+                                (option) => Number(option.value) === Number(item.subjectId)
+                              )?.label || `Subject ${item.subjectId}`;
+                            const detail = item.baseClassLabel ? ` (${item.baseClassLabel})` : "";
+                            return {
+                              value: item.id,
+                              label: `${subjectName} - ${item.name}${detail}`,
+                            };
+                          });
+
+                        return (
+                          <Form.Item
+                            name={[field.name, "class_ids"]}
+                            label="Class"
+                            rules={[{ required: true, message: "Please select one or more classes." }]}
+                          >
+                            <Select
+                              mode="multiple"
+                              showSearch
+                              optionFilterProp="label"
+                              options={rowSubjectClassOptions}
+                              placeholder="Select one or more classes related to selected subject(s)"
+                              maxTagCount="responsive"
+                            />
+                          </Form.Item>
+                        );
+                      }}
+                    </Form.Item>
+
+                    <Form.Item name={[field.name, "status"]} label="Status" initialValue="active">
+                      <Select
+                        options={[
+                          { label: "Active", value: "active" },
+                          { label: "Inactive", value: "inactive" },
+                          { label: "Suspended", value: "suspended" },
+                        ]}
+                      />
+                    </Form.Item>
+
+                    <Form.Item
+                      name={[field.name, "gender"]}
+                      label="Gender"
+                      rules={[{ required: true, message: "Please select gender." }]}
+                    >
+                      <Select
+                        placeholder="Select gender"
+                        options={[
+                          { label: "Male", value: "male" },
+                          { label: "Female", value: "female" },
+                        ]}
+                      />
+                    </Form.Item>
+
+                    <Form.Item name={[field.name, "nationality"]} label="Nationality">
+                      <Input placeholder="e.g. British, Emirati, Egyptian" />
+                    </Form.Item>
+
+                    <Form.Item name={[field.name, "is_sen"]} valuePropName="checked">
+                      <Checkbox>SEN student</Checkbox>
+                    </Form.Item>
+
+                    <Form.Item
+                      noStyle
+                      shouldUpdate={(prev, next) =>
+                        prev?.students?.[field.name]?.is_sen !== next?.students?.[field.name]?.is_sen
+                      }
+                    >
+                      {({ getFieldValue }) =>
+                        getFieldValue(["students", field.name, "is_sen"]) ? (
+                          <Form.Item
+                            name={[field.name, "sen_details"]}
+                            label="SEN Details"
+                            rules={[{ required: true, message: "Please add SEN details." }]}
+                          >
+                            <Input.TextArea rows={3} placeholder="Support plan, accommodations, key notes..." />
+                          </Form.Item>
+                        ) : null
+                      }
+                    </Form.Item>
+                  </div>
+                ))}
+
+                <Button
+                  type="dashed"
+                  onClick={() => add({ status: "active", is_sen: false })}
+                  block
+                  icon={<PlusOutlined />}
+                >
+                  Add Another Student
+                </Button>
+              </div>
+            )}
+          </Form.List>
+        </Form>
+      </Modal>
+          <Modal
+            title="Permanently Delete Student"
+            open={!!deletingStudent}
+            onCancel={() => { setDeletingStudent(null); setDeleteConfirmText(""); }}
+            onOk={() => { if (deletingStudent) deleteMutation.mutate(deletingStudent); }}
+            confirmLoading={deleteMutation.isPending}
+            okText="Yes, Delete Forever"
+        okButtonProps={{ danger: true, disabled: deleteConfirmText !== "DELETE" }}
+        width={480}
+      >
+        {deletingStudent ? (
+          <div className="space-y-4">
+            <p>
+              You are about to <strong>permanently delete</strong> the student record for{" "}
+              <strong>{deletingStudent.name}</strong>. This cannot be undone and all data will be lost.
+            </p>
+            <p className="text-sm text-gray-500">
+              To confirm, type <strong>DELETE</strong> in the box below:
+            </p>
+            <Input
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder="Type DELETE to confirm"
+              status={deleteConfirmText && deleteConfirmText !== "DELETE" ? "error" : undefined}
+            />
+          </div>
+        ) : null}
       </Modal>
     </div>
   );

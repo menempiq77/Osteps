@@ -71,6 +71,7 @@ export default function SubjectCardsPage() {
   }
 
   const isSchoolAdmin = isSchoolAdminRole(currentUser?.role ?? null);
+  const isStaffWorkspaceRole = ["ADMIN", "HOD", "TEACHER"].includes(role);
   const studentQuickLinks = [
     {
       name: "Library",
@@ -225,6 +226,32 @@ export default function SubjectCardsPage() {
                 </Link>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {isStaffWorkspaceRole && (
+        <div className="rounded-2xl border border-[var(--theme-border)] bg-white p-6 space-y-4">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-lg font-semibold text-slate-800">Shared Resources</h2>
+            <span className="text-xs font-medium text-slate-500">
+              Library access stays here instead of the sidebar.
+            </span>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <Link href="/dashboard/library">
+              <Card hoverable className="!rounded-2xl !border-[var(--theme-border)] !shadow-sm h-full">
+                <div className="flex items-center gap-3">
+                  <BookOutlined className="text-lg text-[var(--primary)]" />
+                  <div>
+                    <div className="font-semibold text-slate-800">Library</div>
+                    <div className="text-xs text-slate-500">
+                      Open shared resources for the current school workspace.
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            </Link>
           </div>
         </div>
       )}
