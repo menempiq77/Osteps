@@ -170,6 +170,7 @@ export default function DashboardLayout({
     /^\/dashboard\/s\/\d+\/subject-cards$/.test(pathname);
   const isStandaloneTeacherRoute =
     pathname === "/dashboard/teachers" || pathname.startsWith("/dashboard/teachers/");
+  const isLibraryRoute = unscopedPathname === "/dashboard/library";
   const isAllStudentsStandaloneRoute =
     pathname === "/dashboard/students/all-students" ||
     pathname === "/dashboard/students/all-school" ||
@@ -189,6 +190,7 @@ export default function DashboardLayout({
 
   useEffect(() => {
     if (isHydrated && !currentUser) {
+      router.replace("/");
       window.location.replace("/");
     }
   }, [currentUser, router, isHydrated]);
@@ -201,25 +203,7 @@ export default function DashboardLayout({
   }, [pathname, isHydrated]);
 
   if (!currentUser) {
-    return (
-      <div className="min-h-screen bg-[#FAF9F6] flex items-center justify-center px-4">
-        <div className="max-w-md text-center">
-          <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-full border border-[var(--theme-border)] bg-white text-[var(--theme-dark)]">
-            !
-          </div>
-          <h1 className="text-xl font-semibold text-gray-900">Sign in required</h1>
-          <p className="mt-3 text-sm text-gray-600">
-            This dashboard page requires an active session. Use the sign-in page to continue.
-          </p>
-          <a
-            href="/"
-            className="mt-5 inline-flex rounded-lg border border-[var(--theme-border)] bg-white px-4 py-2 text-sm font-medium text-[var(--theme-dark)] transition hover:bg-[var(--theme-soft)]"
-          >
-            Go to Sign In
-          </a>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   const shouldApplyMaxWidth =
@@ -272,7 +256,8 @@ export default function DashboardLayout({
       {isStandaloneTeacherRoute ||
       isAllStudentsStandaloneRoute ||
       isGlobalStudentProfileRoute ||
-      isStudentStandaloneUtilityRoute ? (
+      isStudentStandaloneUtilityRoute ||
+      isLibraryRoute ? (
         <div className="dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] p-3 md:p-6">
           <div className="mx-auto max-w-7xl">
             <div className="mb-4 flex justify-end">
@@ -295,7 +280,7 @@ export default function DashboardLayout({
           (isImmersiveLessonGroupRoute ? "bg-white" : "bg-[var(--theme-soft)] flex")
         }
       >
-        {!isImmersiveLessonGroupRoute ? <Sidebar /> : null}
+        {!isImmersiveLessonGroupRoute && !isLibraryRoute ? <Sidebar /> : null}
 
         <div className={(isImmersiveLessonGroupRoute ? "h-screen overflow-hidden" : "flex-1 h-screen overflow-y-auto") + " relative"}>
           <div
@@ -337,7 +322,7 @@ export default function DashboardLayout({
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <SubjectSwitcher />
+                    {!isLibraryRoute ? <SubjectSwitcher /> : null}
                     <div className="flex items-center gap-1 rounded-lg border border-[var(--theme-border)] bg-[var(--theme-soft)] px-2 py-1">
                       {(Object.keys(THEMES) as ThemeName[]).map((name) => (
                         <button
