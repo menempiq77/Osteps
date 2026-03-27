@@ -599,11 +599,15 @@ export const buildDashboardNavigation = ({
     items = items.filter((item) => item.name !== "Mind-upgrade");
   }
 
-  /* Hide Library when inside a subject workspace (Arabic, Islamic, etc.).
-     Library is only available from the main /dashboard/subject-cards page. */
-  if (canUseSubjectContext && activeSubjectId) {
-    items = items.filter((item) => item.name !== "Library");
-  }
+    /* Hide Library when inside a subject workspace (Arabic, Islamic, etc.).
+      Library is only available from the main /dashboard/subject-cards page. */
+    if (canUseSubjectContext && activeSubjectId) {
+     items = items.filter((item) => item.name !== "Library");
+    }
+
+    /* Timetable should not appear in the sidebar.
+      Keep access to /dashboard/time_table from home utilities/cards. */
+    items = items.filter((item) => item.name !== "Timetable");
 
   return items;
 };
