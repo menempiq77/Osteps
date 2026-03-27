@@ -605,9 +605,9 @@ export const buildDashboardNavigation = ({
      items = items.filter((item) => item.name !== "Library");
     }
 
-    /* Timetable should not appear in the sidebar.
-      Keep access to /dashboard/time_table from home utilities/cards. */
-    items = items.filter((item) => item.name !== "Timetable");
+/* Timetable and Announcements should not appear in the sidebar.
+     Keep access via home utilities/cards only. */
+  items = items.filter((item) => item.name !== "Timetable" && item.name !== "Announcements");
 
   return items;
 };
