@@ -261,12 +261,27 @@ class SubjectContextController extends Controller
     {
         $school = $user->school ?? null;
 
-        return (int) (
+        $id = (int) (
             $user->school_id ??
             $user->schoolId ??
             (is_object($school) ? ($school->id ?? 0) : $school) ??
             0
         );
+
+        if ($id > 0) return $id;
+
+        // Fallback: look up teachers table then students table
+        $role = strtoupper(str_replace(' ', '_', (string) ($user->role ?? $user->user_type ?? '')));
+        if (in_array($role, ['TEACHER', 'HOD', 'ADMIN'])) {
+            $id = (int) DB::table('teachers')->where('user_id', $user->id)->value('school_id');
+            if ($id > 0) return $id;
+        }
+        if ($role === 'STUDENT') {
+            $id = (int) DB::table('students')->where('user_id', $user->id)->value('school_id');
+            if ($id > 0) return $id;
+        }
+
+        return 0;
     }
 
     private function subjectSelectSql(string $alias): string

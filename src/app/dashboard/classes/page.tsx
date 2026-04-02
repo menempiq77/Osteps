@@ -169,6 +169,80 @@ export default function Page() {
       setLoading(true);
 
       if (isSubjectWorkspaceMode && activeSubjectId && isTeacher) {
+        let res: any[];
+        let subjectClasses: any[];
+        try {
+          [res, subjectClasses] = await Promise.all([
+            fetchAssignYears(),
+            fetchSubjectClasses({
+              subject_id: Number(activeSubjectId),
+              year_id: year_id ? Number(year_id) : undefined,
+              include_inactive: true,
+            }),
+          ]);
+        } catch {
+          res = await fetchAssignYears();
+          subjectClasses = [];
+        }
+
+        const assignedBaseRows = (Array.isArray(res) ? res : [])
+          .map((item: any) => {
+            const cls = item?.classes;
+            if (!cls) return null;
+            return {
+              ...cls,
+              teacher_name:
+                item?.teacher_name ??
+                item?.teacher?.name ??
+                cls?.teacher_name ??
+                undefined,
+            };
+          })
+          .filter((cls: any) => Boolean(cls));
+
+        const assignedByKey = new Map<string, any[]>();
+        assignedBaseRows.forEach((cls: any) => {
+          const className = String(cls.class_name ?? "").trim().toLowerCase();
+          const yId = String(cls.year_id ?? "");
+          const key = `${className}::${yId}`;
+          const existing = assignedByKey.get(key) ?? [];
+          existing.push(cls);
+          assignedByKey.set(key, existing);
+        });
+
+        if (Array.isArray(subjectClasses) && subjectClasses.length > 0) {
+          classesData = subjectClasses
+            .map((row: SubjectClassRow) => {
+              const label = String(row.base_class_label ?? row.name ?? "").trim().toLowerCase();
+              const yId = String(row.year_id ?? "");
+              const matchedBase = (assignedByKey.get(`${label}::${yId}`) ?? [])[0];
+              if (!matchedBase) return null;
+
+              const mapped = mapSubjectClassToApiClass(row);
+              return {
+                ...mapped,
+                teacher_id: Number(matchedBase?.teacher_id ?? mapped.teacher_id ?? 0),
+                teacher_name: matchedBase?.teacher_name ?? undefined,
+                linked_class_id:
+                  String(mapped.linked_class_id ?? "").trim() ||
+                  String(matchedBase?.id ?? "").trim(),
+              };
+            })
+            .filter((cls): cls is ApiClass => Boolean(cls))
+            .filter(
+              (row) => Boolean(row.id) && Boolean(row.is_active) !== showArchived
+            );
+        } else {
+          classesData = assignedBaseRows;
+          if (year_id) {
+            classesData = classesData.filter(
+              (cls: any) => cls.year_id === Number(year_id)
+            );
+          }
+        }
+
+      } else
+      if (false && isSubjectWorkspaceMode && activeSubjectId && isTeacher) {
         // Teacher + subject workspace: intersect by base_class_label + year_id
         let res: any[];
         let subjectClasses: any[];
@@ -367,11 +441,14 @@ useEffect(() => {
               return matchesSubjectStudentHint(student, hintBucket);
             });
 
-            const total = new Set(
+            const filteredTotal = new Set(
               [...inScopeRows, ...hintedRows]
                 .map((student: any) => String(student?.id ?? "").trim())
                 .filter(Boolean)
             ).size;
+            // Use raw API count as fallback: the API already receives subject_id,
+            // so if students lack scope metadata the raw count is more accurate than 0.
+            const total = filteredTotal > 0 ? filteredTotal : studentRows.length;
             return [String(cls.id), { students: total }] as const;
           }
 
@@ -645,7 +722,7 @@ useEffect(() => {
     }
   };
 
-  if (loading)
+  if (loading && classes.length === 0)
     return (
       <div className="p-3 md:p-6 flex justify-center items-center h-64">
         <Spin size="large" />

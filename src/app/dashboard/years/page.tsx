@@ -394,8 +394,15 @@ export default function Page() {
                         ? studentRows
                         : [];
 
+                    // Use raw API count as fallback when scope filter returns 0
+                    const finalRows = combinedRows.length > 0
+                      ? combinedRows
+                      : safeFallbackRows.length > 0
+                        ? safeFallbackRows
+                        : studentRows;
+
                     return new Set(
-                      [...combinedRows, ...safeFallbackRows]
+                      finalRows
                         .map((student: any) => String(student?.id ?? "").trim())
                         .filter(Boolean)
                     ).size;

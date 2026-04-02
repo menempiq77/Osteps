@@ -110,10 +110,6 @@ export default function ClassesList({
           ? await resolveBaseClassIdByYearAndLabel(Number(yearId), classLabel)
           : "";
 
-      if (inferredBaseId) {
-        writeSubjectClassBaseEntry(Number(activeSubjectId), String(classId), inferredBaseId);
-      }
-
       const resolvedLinkedId = apiLinkedId || storedBaseId || inferredBaseId;
       if (!resolvedLinkedId) {
         messageApi.warning(
@@ -121,6 +117,12 @@ export default function ClassesList({
         );
         return;
       }
+
+      writeSubjectClassBaseEntry(
+        Number(activeSubjectId),
+        String(classId),
+        String(resolvedLinkedId)
+      );
 
       router.push(toSubjectHref(`/dashboard/students/${resolvedLinkedId}?${params.toString()}`));
       return;

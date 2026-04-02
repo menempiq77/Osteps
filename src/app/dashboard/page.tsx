@@ -436,7 +436,15 @@ export default function DashboardPage() {
                 ? studentRows
                 : [];
 
-            [...combinedRows, ...safeFallbackRows].forEach((student: any) => {
+            // Use raw API count as fallback: the API already receives subject_id,
+            // so if students lack scope metadata the raw count is more accurate than 0.
+            const finalRows = combinedRows.length > 0
+              ? combinedRows
+              : safeFallbackRows.length > 0
+                ? safeFallbackRows
+                : studentRows;
+
+            finalRows.forEach((student: any) => {
               const id = Number(student?.id);
               if (Number.isFinite(id) && id > 0) {
                 scopedStudentIds.add(id);

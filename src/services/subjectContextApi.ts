@@ -123,6 +123,76 @@ export const fetchMySubjectContext = async (options?: {
 
   console.log("[SubjectContext] bootstrap — role:", roleKey, "known:", known.length, "userId:", options?.userId);
 
+  // For staff roles, collect subjects from ALL sources and merge so no assignment is lost.
+  if (isStaffWorkspaceRole) {
+    const seenIds = new Set<number>();
+    const merged: SubjectBrief[] = [];
+    const addUnique = (list: SubjectBrief[]) => {
+      for (const s of list) {
+        if (!seenIds.has(s.id)) {
+          seenIds.add(s.id);
+          merged.push(s);
+        }
+      }
+    };
+
+    // Source 1: backend /subjects/my-context
+    let apiDefaultId: number | null = null;
+    let apiSubjectRoles: any[] = [];
+    try {
+      const res = await api.get("/subjects/my-context");
+      const normalized = extractContext(res.data);
+      console.log("[SubjectContext] /subjects/my-context returned", normalized.assigned_subjects.length, "subjects:", normalized.assigned_subjects.map(s => s.name));
+      addUnique(normalized.assigned_subjects);
+      apiDefaultId = normalized.default_subject_id;
+      apiSubjectRoles = normalized.subject_roles;
+    } catch (err: any) {
+      console.warn("[SubjectContext] /subjects/my-context failed:", err?.response?.status, err?.message);
+    }
+
+    // Source 2: knownSubjects from login response
+    if (known.length > 0) {
+      console.log("[SubjectContext] merging knownSubjects from login:", known.map(s => s.name));
+      addUnique(known);
+    }
+
+    // Source 3: derive from teacher's assigned classes ↔ subject-class mappings
+    try {
+      const derived = await fetchTeacherAssignedSubjectsFromClasses();
+      console.log("[SubjectContext] class-based derivation returned", derived.length, "subjects:", derived.map(s => s.name));
+      addUnique(derived);
+    } catch (err: any) {
+      console.warn("[SubjectContext] class-based derivation failed:", err?.message);
+    }
+
+    if (merged.length > 0) {
+      console.log("[SubjectContext] staff merged total:", merged.length, "subjects:", merged.map(s => s.name));
+      return {
+        assigned_subjects: merged,
+        default_subject_id: apiDefaultId ?? merged[0]?.id ?? null,
+        subject_roles: apiSubjectRoles,
+      };
+    }
+
+    // Last resort for staff: show all school subjects so teacher is never stuck
+    console.log("[SubjectContext] falling back to all school subjects for staff role:", roleKey);
+    try {
+      const subjects = normalizeSubjects(await fetchSubjects());
+      if (subjects.length > 0) {
+        return {
+          assigned_subjects: subjects,
+          default_subject_id: subjects[0]?.id ?? null,
+          subject_roles: [],
+        };
+      }
+    } catch (err: any) {
+      console.warn("[SubjectContext] fetchSubjects fallback failed:", err?.message);
+    }
+
+    return { assigned_subjects: [], default_subject_id: null, subject_roles: [] };
+  }
+
+  // Non-staff: try backend API first, then knownSubjects
   try {
     const res = await api.get("/subjects/my-context");
     const normalized = extractContext(res.data);
@@ -177,39 +247,6 @@ export const fetchMySubjectContext = async (options?: {
       };
     } catch {
       return { assigned_subjects: [], default_subject_id: null, subject_roles: [] };
-    }
-  }
-
-  if (isStaffWorkspaceRole) {
-    // Attempt 1: derive from teacher's assigned classes ↔ subject-class mappings
-    try {
-      const subjects = await fetchTeacherAssignedSubjectsFromClasses();
-      console.log("[SubjectContext] class-based derivation returned", subjects.length, "subjects:", subjects.map(s => s.name));
-      if (subjects.length > 0) {
-        return {
-          assigned_subjects: subjects,
-          default_subject_id: subjects[0]?.id ?? null,
-          subject_roles: [],
-        };
-      }
-    } catch (err: any) {
-      console.warn("[SubjectContext] class-based derivation failed:", err?.message);
-    }
-
-    // Attempt 2: show all school subjects as last resort for authenticated staff
-    // (ensures teachers are never stuck on empty subject cards)
-    console.log("[SubjectContext] falling back to all school subjects for staff role:", roleKey);
-    try {
-      const subjects = normalizeSubjects(await fetchSubjects());
-      if (subjects.length > 0) {
-        return {
-          assigned_subjects: subjects,
-          default_subject_id: subjects[0]?.id ?? null,
-          subject_roles: [],
-        };
-      }
-    } catch (err: any) {
-      console.warn("[SubjectContext] fetchSubjects fallback failed:", err?.message);
     }
   }
 

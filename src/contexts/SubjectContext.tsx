@@ -37,7 +37,9 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
   const [loading, setLoading] = useState(true);
 
   const role = currentUser?.role;
+  const userId = currentUser?.id;
   const canUseSubjectContext = isSubjectContextEnabled() && isRoleEligible(role);
+  const subjectIdParam = searchParams.get("subject_id") ?? "";
   const resolvedActiveSubject =
     subjects.find((subject) => subject.id === activeSubjectId) ?? null;
 
@@ -104,7 +106,9 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
     return () => {
       mounted = false;
     };
-  }, [canUseSubjectContext, currentUser, pathname, searchParams]);
+  // Use primitive deps to avoid re-bootstrapping on object-reference changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canUseSubjectContext, userId, role, pathname, subjectIdParam]);
 
   useEffect(() => {
     if (!canUseSubjectContext || loading) return;

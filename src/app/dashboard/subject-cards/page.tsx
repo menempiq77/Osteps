@@ -44,6 +44,8 @@ export default function SubjectCardsPage() {
 
   const role = String(currentUser?.role || "").trim().toUpperCase();
   const isStudent = role === "STUDENT";
+  const showAccountInfoChips =
+    ["TEACHER", "STUDENT", "HOD"].includes(role) || isSchoolAdminRole(currentUser?.role ?? null);
   const settingsHref =
     role === "STUDENT" ? "/dashboard/students/settings"
     : role === "TEACHER" ? "/dashboard/teachers/settings"
@@ -129,7 +131,7 @@ export default function SubjectCardsPage() {
                 ? "Select a subject to view your dashboard."
                 : `${roleLabel(currentUser?.role)} workspace: open a subject dashboard to continue.`}
             </p>
-            {(isStudent || isSchoolAdmin) && (
+            {showAccountInfoChips && (
               <div className="mt-4 flex flex-wrap items-center gap-3">
                 <div className="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-soft)] px-4 py-3">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">

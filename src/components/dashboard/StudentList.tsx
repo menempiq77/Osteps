@@ -460,7 +460,11 @@ export default function StudentList() {
     : "";
   const fallbackRouteClassId = String(classIdStr || "").trim();
   const effectiveClassId = isSubjectWorkspaceMode
-    ? String(resolvedSubjectClassContext?.linkedClassId || "").trim()
+    ? String(
+        resolvedSubjectClassContext?.linkedClassId ||
+          (effectiveSubjectClassId ? fallbackRouteClassId : "") ||
+          ""
+      ).trim()
     : fallbackRouteClassId;
   const subjectClassResolutionMissing =
     isSubjectWorkspaceMode && !resolvingSubjectClass && !effectiveClassId;

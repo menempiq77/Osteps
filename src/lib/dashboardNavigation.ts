@@ -374,14 +374,6 @@ const buildBaseNavigation = ({
         keywords: ["browse", "content"],
       },
       {
-        name: "Subjects",
-        href: "/dashboard/subject-cards",
-        icon: BookOpen,
-        description: "Switch between subject dashboards.",
-        section: "Subjects",
-        keywords: ["subjects", "subject hub"],
-      },
-      {
         name: "Manage Quiz",
         href: "/dashboard/quiz",
         icon: ClipboardList,
