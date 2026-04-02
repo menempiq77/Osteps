@@ -1,5 +1,8 @@
 import api from "@/services/api";
 import { fetchSubjects } from "@/services/subjectsApi";
+import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
+import { fetchAssignYears } from "@/services/yearsApi";
+import { resolveSubjectClassLinkedIdWithFallback } from "@/lib/subjectClassResolution";
 import type { SubjectBrief, SubjectContextResponse } from "@/types/subjectContext";
 
 const normalizeSubjects = (raw: any): SubjectBrief[] => {
@@ -12,6 +15,81 @@ const normalizeSubjects = (raw: any): SubjectBrief[] => {
       class_label: item?.class_label ?? null,
     }))
     .filter((item) => Number.isFinite(item.id) && item.id > 0 && item.name.trim().length > 0);
+};
+
+const normalizeSubjectName = (value: unknown): string =>
+  String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/islamiat/g, "islamic")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+const resolveSubjectsFromNames = (names: string[], subjectPool: SubjectBrief[]): SubjectBrief[] => {
+  if (names.length === 0 || subjectPool.length === 0) return [];
+
+  const poolByNormalized = new Map<string, SubjectBrief>();
+  subjectPool.forEach((subject) => {
+    const normalizedName = normalizeSubjectName(subject.name);
+    if (normalizedName && !poolByNormalized.has(normalizedName)) {
+      poolByNormalized.set(normalizedName, subject);
+    }
+  });
+
+  return Array.from(
+    new Map(
+      names
+        .map((name) => poolByNormalized.get(normalizeSubjectName(name)))
+        .filter((subject): subject is SubjectBrief => Boolean(subject))
+        .map((subject) => [subject.id, subject])
+    ).values()
+  );
+};
+
+const fetchTeacherAssignedSubjectsFromClasses = async (): Promise<SubjectBrief[]> => {
+  const [schoolSubjectsRaw, assignYears] = await Promise.all([fetchSubjects(), fetchAssignYears()]);
+  const schoolSubjects = normalizeSubjects(schoolSubjectsRaw);
+  if (schoolSubjects.length === 0) return [];
+
+  const assignedClassIds = new Set<number>(
+    (Array.isArray(assignYears) ? assignYears : [])
+      .flatMap((item: any) => {
+        const classesValue = item?.classes;
+        if (Array.isArray(classesValue)) return classesValue;
+        return classesValue ? [classesValue] : [];
+      })
+      .map((cls: any) => Number(cls?.id ?? cls?.class_id ?? cls?.classId ?? 0))
+      .filter((id: number) => Number.isFinite(id) && id > 0)
+  );
+
+  if (assignedClassIds.size === 0) return [];
+
+  const matchingSubjects = await Promise.all(
+    schoolSubjects.map(async (subject) => {
+      try {
+        const subjectClasses = await fetchSubjectClasses({
+          subject_id: Number(subject.id),
+          include_inactive: true,
+        });
+
+        const linkedClassIds = await Promise.all(
+          (Array.isArray(subjectClasses) ? subjectClasses : []).map((row: any) =>
+            resolveSubjectClassLinkedIdWithFallback(row, Number(subject.id))
+          )
+        );
+
+        const hasAssignedClass = linkedClassIds.some((linkedClassId) =>
+          assignedClassIds.has(Number(linkedClassId || 0))
+        );
+
+        return hasAssignedClass ? subject : null;
+      } catch {
+        return null;
+      }
+    })
+  );
+
+  return matchingSubjects.filter((subject): subject is SubjectBrief => Boolean(subject));
 };
 
 const extractContext = (payload: any): SubjectContextResponse => {
@@ -31,6 +109,8 @@ export const fetchMySubjectContext = async (options?: {
   knownSubjects?: Array<{ id: number; name: string; code?: string | null }>;
   studentId?: number | null;
   studentClassId?: number | null;
+  userId?: string | number | null;
+  email?: string | null;
 }): Promise<SubjectContextResponse> => {
   const roleKey = String(options?.role || "")
     .trim()
@@ -38,13 +118,27 @@ export const fetchMySubjectContext = async (options?: {
     .replace(/\s+/g, "_");
   const isSchoolAdmin = roleKey === "SCHOOL_ADMIN";
   const isStudent = roleKey === "STUDENT";
+  const isStaffWorkspaceRole = ["ADMIN", "HOD", "TEACHER"].includes(roleKey);
+  const known = normalizeSubjects(options?.knownSubjects ?? []);
+
+  console.log("[SubjectContext] bootstrap — role:", roleKey, "known:", known.length, "userId:", options?.userId);
 
   try {
     const res = await api.get("/subjects/my-context");
     const normalized = extractContext(res.data);
+    console.log("[SubjectContext] /subjects/my-context returned", normalized.assigned_subjects.length, "subjects:", normalized.assigned_subjects.map(s => s.name));
     if (normalized.assigned_subjects.length > 0) return normalized;
-  } catch {
-    // fallback below
+  } catch (err: any) {
+    console.warn("[SubjectContext] /subjects/my-context failed:", err?.response?.status, err?.message);
+  }
+
+  if (known.length > 0) {
+    console.log("[SubjectContext] using knownSubjects from login:", known.map(s => s.name));
+    return {
+      assigned_subjects: known,
+      default_subject_id: known[0]?.id ?? null,
+      subject_roles: [],
+    };
   }
 
   // For students: fetch their enrolled subjects from class student list.
@@ -73,16 +167,6 @@ export const fetchMySubjectContext = async (options?: {
       }
     }
 
-    // Use knownSubjects from login response if available.
-    const known = normalizeSubjects(options?.knownSubjects ?? []);
-    if (known.length > 0) {
-      return {
-        assigned_subjects: known,
-        default_subject_id: known[0]?.id ?? null,
-        subject_roles: [],
-      };
-    }
-
     // Last resort: fetch all school subjects so student isn't stuck.
     try {
       const subjects = normalizeSubjects(await fetchSubjects());
@@ -96,8 +180,42 @@ export const fetchMySubjectContext = async (options?: {
     }
   }
 
+  if (isStaffWorkspaceRole) {
+    // Attempt 1: derive from teacher's assigned classes ↔ subject-class mappings
+    try {
+      const subjects = await fetchTeacherAssignedSubjectsFromClasses();
+      console.log("[SubjectContext] class-based derivation returned", subjects.length, "subjects:", subjects.map(s => s.name));
+      if (subjects.length > 0) {
+        return {
+          assigned_subjects: subjects,
+          default_subject_id: subjects[0]?.id ?? null,
+          subject_roles: [],
+        };
+      }
+    } catch (err: any) {
+      console.warn("[SubjectContext] class-based derivation failed:", err?.message);
+    }
+
+    // Attempt 2: show all school subjects as last resort for authenticated staff
+    // (ensures teachers are never stuck on empty subject cards)
+    console.log("[SubjectContext] falling back to all school subjects for staff role:", roleKey);
+    try {
+      const subjects = normalizeSubjects(await fetchSubjects());
+      if (subjects.length > 0) {
+        return {
+          assigned_subjects: subjects,
+          default_subject_id: subjects[0]?.id ?? null,
+          subject_roles: [],
+        };
+      }
+    } catch (err: any) {
+      console.warn("[SubjectContext] fetchSubjects fallback failed:", err?.message);
+    }
+  }
+
   // Strict privacy fallback: only School Admin can fallback to school-wide subjects.
   if (!isSchoolAdmin) {
+    console.warn("[SubjectContext] strict fallback — returning empty for role:", roleKey);
     return {
       assigned_subjects: [],
       default_subject_id: null,
@@ -114,7 +232,6 @@ export const fetchMySubjectContext = async (options?: {
       subject_roles: [],
     };
   } catch {
-    // If backend is unreachable/misconfigured, keep a safe empty response.
     return {
       assigned_subjects: [],
       default_subject_id: null,

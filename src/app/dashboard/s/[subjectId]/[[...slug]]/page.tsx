@@ -28,6 +28,8 @@ const SUBJECT_ROUTE_ROOTS = new Set([
   "library",
   "time_table",
   "announcements",
+  "approvals",
+  "lessons",
   "tools",
   "school-admin",
   "admins",

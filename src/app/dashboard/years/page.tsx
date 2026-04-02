@@ -225,17 +225,50 @@ export default function Page() {
     try {
       let yearsData = [];
 
-      if (isSubjectWorkspaceMode && activeSubjectId) {
-        const schoolYears = await fetchYearsBySchool(Number(schoolId));
-        // Only fetch active classes (backend filters by is_active=1 by default)
-        const subjectClasses = (await fetchSubjectClasses({
-          subject_id: Number(activeSubjectId),
-        })) as SubjectClassRow[];
+      if (isSubjectWorkspaceMode && activeSubjectId && isTeacher) {
+        // Teacher + subject workspace: intersect by base_class_label + year_id
+        const [res, subjectClasses] = await Promise.all([
+          fetchAssignYears(),
+          fetchSubjectClasses({ subject_id: Number(activeSubjectId) }) as Promise<SubjectClassRow[]>,
+        ]);
+
+        const subjectLabelKeys = new Set(
+          (Array.isArray(subjectClasses) ? subjectClasses : []).map((row) => {
+            const label = String(row.base_class_label ?? row.name ?? "").trim().toLowerCase();
+            const yId = String(row.year_id ?? "");
+            return `${label}::${yId}`;
+          })
+        );
+
+        const filtered = (Array.isArray(res) ? res : []).filter((item: any) => {
+          const cls = item?.classes;
+          if (!cls) return false;
+          const className = String(cls.class_name ?? "").trim().toLowerCase();
+          const yId = String(cls.year_id ?? "");
+          return subjectLabelKeys.has(`${className}::${yId}`);
+        });
+
+        const years = filtered
+          .map((item: any) => item.classes?.year)
+          .filter((year: any) => year);
+
+        yearsData = Array.from(
+          new Map(years.map((year: any) => [year.id, year])).values()
+        );
+      } else if (isSubjectWorkspaceMode && activeSubjectId) {
+        const [schoolYears, subjectClasses] = await Promise.all([
+          fetchYearsBySchool(Number(schoolId)),
+          fetchSubjectClasses({ subject_id: Number(activeSubjectId) }) as Promise<SubjectClassRow[]>,
+        ]);
+
         const subjectClassYearIds = (Array.isArray(subjectClasses) ? subjectClasses : [])
           .map((item) => resolveSubjectClassYearId(item))
           .filter((id) => Number.isFinite(id) && id > 0);
 
-        const allowedIds = new Set([...subjectClassYearIds, ...readAddedYears()]);
+        const allowedIds = new Set([
+          ...subjectClassYearIds,
+          ...readAddedYears(),
+        ]);
         yearsData = (Array.isArray(schoolYears) ? schoolYears : []).filter((year: any) =>
           allowedIds.has(Number(year?.id))
         );

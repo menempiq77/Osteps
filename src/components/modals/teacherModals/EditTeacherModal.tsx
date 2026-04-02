@@ -6,7 +6,16 @@ interface Subject {
   name: string;
 }
 
-type TeacherBasic = {
+type TeacherRecord = {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  role: string;
+  subjects: Array<{ id: number; name: string }>;
+};
+
+type TeacherUpdateInput = {
   id: string;
   name: string;
   phone: string;
@@ -24,10 +33,10 @@ export const EditTeacherModal = ({
   isHOD,
   subjects,
 }: {
-  teacher: TeacherBasic | null;
+  teacher: TeacherRecord | null;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (teacher: TeacherBasic) => void;
+  onSave: (teacher: TeacherUpdateInput) => void;
   isHOD?: boolean;
   subjects: Subject[];
 }) => {
@@ -46,8 +55,10 @@ export const EditTeacherModal = ({
         phone: teacher.phone,
         email: teacher.email,
         role: teacher.role,
-        subjects: teacher.subjects,
-        password: teacher.password,
+        subjects: Array.isArray(teacher.subjects)
+          ? teacher.subjects.map((subject) => Number(subject?.id)).filter((id) => Number.isFinite(id) && id > 0)
+          : [],
+        password: "",
       });
     } else {
       form.resetFields();
@@ -68,7 +79,7 @@ export const EditTeacherModal = ({
         email: values.email.trim(),
         role: values.role.trim(),
         subjects: values.subjects || [],
-        password: values.password,
+        password: values.password?.trim() ? values.password.trim() : undefined,
       });
       message.success("Teacher updated successfully");
       onOpenChange(false);

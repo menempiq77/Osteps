@@ -11,6 +11,7 @@ import {
   LogoutOutlined,
   NotificationOutlined,
   QuestionCircleOutlined,
+  SettingOutlined,
   SolutionOutlined,
   TeamOutlined,
 } from "@ant-design/icons";
@@ -43,6 +44,10 @@ export default function SubjectCardsPage() {
 
   const role = String(currentUser?.role || "").trim().toUpperCase();
   const isStudent = role === "STUDENT";
+  const settingsHref =
+    role === "STUDENT" ? "/dashboard/students/settings"
+    : role === "TEACHER" ? "/dashboard/teachers/settings"
+    : "/dashboard/school-admin/settings";
   const accountDisplayName = String(currentUser?.name || "User").trim() || "User";
 
   const handleLogout = () => {
@@ -102,6 +107,12 @@ export default function SubjectCardsPage() {
       href: `/dashboard/behavior/${currentUser?.student}`,
       description: "Review your behaviour notes and updates.",
       icon: SolutionOutlined,
+    },
+    {
+      name: "Settings",
+      href: settingsHref,
+      description: "Update your account preferences and settings.",
+      icon: SettingOutlined,
     },
   ];
 
@@ -252,6 +263,19 @@ export default function SubjectCardsPage() {
                 </div>
               </Card>
             </Link>
+            <Link href={settingsHref}>
+              <Card hoverable className="!rounded-2xl !border-[var(--theme-border)] !shadow-sm h-full">
+                <div className="flex items-center gap-3">
+                  <SettingOutlined className="text-lg text-[var(--primary)]" />
+                  <div>
+                    <div className="font-semibold text-slate-800">Settings</div>
+                    <div className="text-xs text-slate-500">
+                      Update your account preferences and settings.
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            </Link>
           </div>
         </div>
       )}
@@ -343,6 +367,19 @@ export default function SubjectCardsPage() {
                     <div className="font-semibold text-slate-800">Tools</div>
                     <div className="text-xs text-slate-500">
                       Extra tools that support all subjects.
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            </Link>
+            <Link href={settingsHref}>
+              <Card hoverable className="!rounded-2xl !border-[var(--theme-border)] !shadow-sm h-full">
+                <div className="flex items-center gap-3">
+                  <SettingOutlined className="text-lg text-[var(--primary)]" />
+                  <div>
+                    <div className="font-semibold text-slate-800">Settings</div>
+                    <div className="text-xs text-slate-500">
+                      Update school admin preferences and account settings.
                     </div>
                   </div>
                 </div>

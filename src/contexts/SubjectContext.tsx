@@ -61,6 +61,8 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
           knownSubjects: currentUser?.assigned_subjects,
           studentId: currentUser?.student,
           studentClassId: currentUser?.studentClass,
+          userId: currentUser?.id,
+          email: currentUser?.email,
         });
         if (!mounted) return;
 

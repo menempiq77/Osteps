@@ -3,15 +3,11 @@ import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import {
-  Card,
   Input,
   Select,
-  Badge,
-  Button,
   Modal,
   Spin,
   message,
-  Breadcrumb,
 } from "antd";
 import {
   addAnnouncement,
@@ -21,7 +17,6 @@ import {
   markAnnouncementAsSeen,
   updateAnnouncement,
 } from "@/services/announcementApi";
-import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Megaphone } from "lucide-react";
 import { fetchSchools } from "@/services/schoolApi";
@@ -331,12 +326,6 @@ export default function AnnouncementsPage() {
     return false;
   });
 
-  const badgeRibbonColors = {
-    event: "blue",
-    reminder: "gold",
-    general: "gray",
-  };
-
   function formatDate(dateString: string) {
     return new Date(dateString).toLocaleString("en-US", {
       year: "numeric",
@@ -347,307 +336,300 @@ export default function AnnouncementsPage() {
     });
   }
 
+  const typeIcon: Record<string, string> = { event: "📅", reminder: "🔔", general: "📢" };
+  const typeColor: Record<string, { bg: string; text: string; border: string }> = {
+    event:    { bg: "bg-blue-50",   text: "text-blue-700",   border: "border-blue-200" },
+    reminder: { bg: "bg-amber-50",  text: "text-amber-700",  border: "border-amber-200" },
+    general:  { bg: "bg-gray-50",   text: "text-gray-600",   border: "border-gray-200" },
+  };
+
   if (isLoading)
     return (
-      <div className="p-3 md:p-6 flex justify-center items-center h-64">
+      <div className="flex justify-center items-center h-64">
         <Spin size="large" />
       </div>
     );
 
   return (
-    <div className="premium-page max-w-7xl mx-auto rounded-2xl p-3 md:p-6">
+    <div className="max-w-4xl mx-auto px-3 py-6 md:px-0">
       {contextHolder}
-      <Breadcrumb
-        items={[
-          {
-            title: <Link href="/dashboard">Dashboard</Link>,
-          },
-          {
-            title: <span>Announcements</span>,
-          },
-        ]}
-        className="!mb-2"
-      />
-      <div className="premium-hero flex justify-between items-center mb-6 rounded-xl px-4 py-3">
-        <h1 className="text-2xl font-medium flex items-center gap-3">
-          <Megaphone />
-          {scopedSubjectName ? `${scopedSubjectName} Announcements` : "Announcements"}
-        </h1>
-        {canCreateAnnouncement && (
-          <Button
-            onClick={handleNewAnnouncement}
-            className="premium-pill-btn !bg-primary !text-white hover:!bg-primary/90 hover:!border-primary transition-colors"
-          >
-            New Announcement
-          </Button>
-        )}
+
+      {/* ── Header ── */}
+      <div className="relative mb-8 overflow-hidden rounded-2xl border border-[var(--theme-border)] bg-gradient-to-br from-[var(--theme-soft)] via-white to-[var(--theme-soft-2)] p-6 md:p-8 shadow-sm">
+        <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-[var(--primary)] opacity-[0.06]" />
+        <div className="absolute -left-6 -bottom-6 h-28 w-28 rounded-full bg-[var(--primary)] opacity-[0.04]" />
+
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="mb-1 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-[var(--theme-dark)] opacity-70">
+              <Megaphone size={14} />
+              {scopedSubjectName || "School"}
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 md:text-3xl">
+              Announcements
+            </h1>
+            <p className="mt-1 text-sm text-gray-500">
+              {filteredAnnouncements.length === 0
+                ? "No announcements posted yet"
+                : `${filteredAnnouncements.length} announcement${filteredAnnouncements.length !== 1 ? "s" : ""}`}
+              {unseenCount > 0 && (
+                <span className="ml-2 inline-flex items-center rounded-full bg-[var(--primary)] px-2 py-0.5 text-xs font-semibold text-white">
+                  {unseenCount} new
+                </span>
+              )}
+            </p>
+          </div>
+
+          {canCreateAnnouncement && (
+            <button
+              type="button"
+              onClick={handleNewAnnouncement}
+              className="inline-flex items-center gap-2 rounded-xl border-0 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-all hover:shadow-lg hover:brightness-110 active:scale-[0.97]"
+              style={{ backgroundColor: "var(--primary)" }}
+            >
+              <span className="text-lg leading-none">+</span>
+              New Announcement
+            </button>
+          )}
+        </div>
       </div>
 
+      {/* ── Create / Edit Form ── */}
       {isFormOpen && (
-        <Card
+        <div
           ref={formRef}
-          title={announcementForm.id ? "Edit Announcement" : "New Announcement"}
-          className="premium-card !mb-6"
-          extra={
-            <span className="text-gray-500">
-              Share important updates with the community
-            </span>
-          }
+          className="mb-8 rounded-2xl border border-[var(--theme-border)] bg-white p-5 shadow-sm md:p-7"
         >
+          <h2 className="mb-5 text-lg font-semibold text-gray-800">
+            {announcementForm.id ? "Edit Announcement" : "New Announcement"}
+          </h2>
+
           <div className="space-y-4">
-            {/* Title */}
             <div>
-              <label className="block mb-1 font-medium text-gray-700">
-                Title
-              </label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Title</label>
               <Input
-                placeholder="e.g., 'Exam Schedule'"
+                placeholder="e.g., Exam Schedule Update"
                 value={announcementForm.title}
                 onChange={(e) =>
-                  setAnnouncementForm({
-                    ...announcementForm,
-                    title: e.target.value,
-                  })
+                  setAnnouncementForm({ ...announcementForm, title: e.target.value })
                 }
-                className="hover:!border-primary focus:!border-primary focus:ring-1 focus:!ring-primary transition-colors"
+                className="!rounded-lg hover:!border-[var(--primary)] focus:!border-[var(--primary)] focus:!ring-1 focus:!ring-[var(--primary)]"
               />
             </div>
 
-            {/* Description */}
             <div>
-              <label className="block mb-1 font-medium text-gray-700">
-                Description
-              </label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Description</label>
               <TextArea
-                placeholder="e.g., 'The exam will begin at 8:30 PM...'"
+                placeholder="Write your announcement details here..."
                 value={announcementForm.description}
                 onChange={(e) =>
-                  setAnnouncementForm({
-                    ...announcementForm,
-                    description: e.target.value,
-                  })
+                  setAnnouncementForm({ ...announcementForm, description: e.target.value })
                 }
                 rows={4}
-                className="hover:!border-primary focus:!border-primary focus:ring-1 focus:!ring-primary transition-colors"
+                className="!rounded-lg hover:!border-[var(--primary)] focus:!border-[var(--primary)] focus:!ring-1 focus:!ring-[var(--primary)]"
               />
             </div>
 
-            {/* Announcement Type */}
-            <div>
-              <label className="block mb-1 font-medium text-gray-700">
-                Announcement Type
-              </label>
-              <Select
-                value={announcementForm.type}
-                onChange={(value) =>
-                  setAnnouncementForm({
-                    ...announcementForm,
-                    type: value as any,
-                  })
-                }
-                className="w-full hover:!border-primary focus:!border-primary focus:ring-1 focus:!ring-primary transition-colors"
-              >
-                <Option value="event">Event</Option>
-                <Option value="reminder">Reminder</Option>
-                <Option value="general">General</Option>
-              </Select>
-            </div>
-
-            {/* Target Roles */}
-            <div>
-              <label className="block mb-1 font-medium text-gray-700">
-                Target Roles
-              </label>
-              <Select
-                mode="multiple"
-                value={announcementForm.role}
-                onChange={(value) => {
-                  const options = roleOptions[effectiveRole] || [];
-
-                  if (value.includes("ALL")) {
-                    const allExceptAll = options
-                      .map((opt) => opt.value)
-                      .filter((v) => v !== "ALL");
-
-                    setAnnouncementForm((prev) => ({
-                      ...prev,
-                      role: allExceptAll,
-                    }));
-                  } else {
-                    setAnnouncementForm((prev) => ({
-                      ...prev,
-                      role: value,
-                    }));
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Type</label>
+                <Select
+                  value={announcementForm.type}
+                  onChange={(value) =>
+                    setAnnouncementForm({ ...announcementForm, type: value as any })
                   }
-                }}
-                placeholder="Select roles"
-                className="w-full hover:!border-primary focus:!border-primary focus:ring-1 focus:!ring-primary transition-colors"
-              >
-                {(roleOptions[effectiveRole] || []).map((opt) => (
-                  <Option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </Option>
-                ))}
-              </Select>
+                  className="w-full"
+                >
+                  <Option value="event">📅 Event</Option>
+                  <Option value="reminder">🔔 Reminder</Option>
+                  <Option value="general">📢 General</Option>
+                </Select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Target Roles</label>
+                <Select
+                  mode="multiple"
+                  value={announcementForm.role}
+                  onChange={(value) => {
+                    const options = roleOptions[effectiveRole] || [];
+                    if (value.includes("ALL")) {
+                      setAnnouncementForm((prev) => ({
+                        ...prev,
+                        role: options.map((o) => o.value).filter((v) => v !== "ALL"),
+                      }));
+                    } else {
+                      setAnnouncementForm((prev) => ({ ...prev, role: value }));
+                    }
+                  }}
+                  placeholder="Select roles"
+                  className="w-full"
+                >
+                  {(roleOptions[effectiveRole] || []).map((opt) => (
+                    <Option key={opt.value} value={opt.value}>{opt.label}</Option>
+                  ))}
+                </Select>
+              </div>
             </div>
 
-            {/* Target Schools (only for super admin) */}
             {isSuperAdmin && (
               <div>
-                <label className="block mb-1 font-medium text-gray-700">
-                  Target Schools
-                </label>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Target Schools</label>
                 <Select
                   mode="multiple"
                   value={announcementForm.school_ids}
                   onChange={(value) =>
-                    setAnnouncementForm((prev) => ({
-                      ...prev,
-                      school_ids: value,
-                    }))
+                    setAnnouncementForm((prev) => ({ ...prev, school_ids: value }))
                   }
                   placeholder="Select schools"
-                  className="w-full hover:!border-primary focus:!border-primary focus:ring-1 focus:!ring-primary transition-colors"
+                  className="w-full"
                   loading={schoolsLoading}
                 >
                   {schools.map((school) => (
-                    <Option key={school.id} value={school.id}>
-                      {school.name}
-                    </Option>
+                    <Option key={school.id} value={school.id}>{school.name}</Option>
                   ))}
                 </Select>
               </div>
             )}
 
-            {error && <div className="text-red-500">{error}</div>}
+            {error && <div className="text-sm text-red-500">{String(error)}</div>}
 
-            {/* Actions */}
-            <div className="flex justify-end gap-3">
-              <Button onClick={resetForm}>Cancel</Button>
-              <Button
-                type="primary"
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={resetForm}
+                className="rounded-lg border border-gray-300 bg-white px-5 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
                 onClick={handleSubmitAnnouncement}
-                loading={
-                  announcementForm.id
-                    ? updateMutation.isPending
-                    : addMutation.isPending
-                }
-                className="!bg-primary !text-white hover:!bg-primary/90 hover:!border-primary transition-colors"
+                disabled={announcementForm.id ? updateMutation.isPending : addMutation.isPending}
+                className="inline-flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-semibold text-white shadow transition hover:shadow-md hover:brightness-110 disabled:opacity-60"
+                style={{ backgroundColor: "var(--primary)" }}
               >
                 {announcementForm.id
-                  ? updateMutation.isPending
-                    ? "Updating..."
-                    : "Update Announcement"
-                  : addMutation.isPending
-                  ? "Publishing..."
-                  : "Publish Announcement"}
-              </Button>
+                  ? updateMutation.isPending ? "Updating..." : "Update"
+                  : addMutation.isPending ? "Publishing..." : "Publish"}
+              </button>
             </div>
           </div>
-        </Card>
+        </div>
       )}
 
-      <div className="space-y-4">
-        {filteredAnnouncements.length === 0 ? (
-          <Card className="premium-card text-gray-500 text-center py-8">
-            No announcements yet. Check back later for updates.
-          </Card>
-        ) : (
-          filteredAnnouncements.map((announcement, index) => {
-            const rolesArray =
-              announcement.roles?.map((r: any) => r.role_name) || [];
-
+      {/* ── Announcements List ── */}
+      {filteredAnnouncements.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--theme-border)] bg-white py-20 text-center">
+          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--theme-soft)]">
+            <Megaphone size={28} className="text-[var(--theme-dark)] opacity-60" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-700">No announcements yet</h3>
+          <p className="mt-1 max-w-xs text-sm text-gray-400">
+            When announcements are posted, they will appear here.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {filteredAnnouncements.map((announcement, index) => {
+            const rolesArray = announcement.roles?.map((r: any) => r.role_name) || [];
             const currentUserRecord = announcement.users?.find(
               (u: any) => Number(u.id) === Number(currentUser?.id)
             );
-
             const isSeen = (() => {
-              if (currentUserRecord)
-                return currentUserRecord.pivot?.is_seen === 1;
+              if (currentUserRecord) return currentUserRecord.pivot?.is_seen === 1;
               if (!announcement.users?.length) return true;
               return true;
             })();
+            const tc = typeColor[announcement.type] || typeColor.general;
 
             return (
               <div
                 key={announcement.id || `announcement-${index}`}
-                className={`p-1 rounded-lg transition-all`}
-              >
-                <Badge.Ribbon
-                  text={
-                    announcement?.type?.charAt(0)?.toUpperCase() +
-                    announcement?.type?.slice(1)
+                onClick={() => {
+                  if (!isSeen && announcement.id && markingId === null) {
+                    markSeenMutation.mutate(Number(announcement.id));
                   }
-                  color={badgeRibbonColors[announcement.type]}
-                >
-                  <Card
-                    onClick={() => {
-                      if (!isSeen && announcement.id && markingId === null) {
-                        markSeenMutation.mutate(Number(announcement.id));
-                      }
-                    }}
-                    className={`premium-card hover:shadow-lg transition-shadow rounded-lg ${
-                      isSeen
-                        ? "!bg-white"
-                        : "!bg-blue-50 border border-blue-300"
-                    } relative`}
-                  >
-                    <div className="absolute bottom-4 right-4 flex gap-3">
-                      {canEditAnnouncement(announcement) && (
-                        <span
-                          onClick={() => handleEditAnnouncement(announcement)}
-                          className="text-primary font-medium hover:text-primary/70 transition-colors cursor-pointer"
-                          aria-label="Edit announcement"
-                        >
-                          Edit
-                        </span>
-                      )}
-                      {canDeleteAnnouncement(announcement) && (
-                        <span
-                        onClick={() => confirmDelete(announcement.id)}
-                        className="text-red-500 font-medium hover:text-red-700 transition-colors cursor-pointer"
-                        aria-label="Delete announcement"
-                        >
-                          Delete
-                        </span>
-                      )}
-                      {markingId === Number(announcement.id) && (
-                        <Spin size="small" className="" />
-                      )}
-                    </div>
+                }}
+                className={`group relative rounded-2xl border bg-white p-5 transition-all hover:shadow-md ${
+                  isSeen ? "border-gray-100" : "border-blue-300 bg-blue-50/40 ring-1 ring-blue-200"
+                }`}
+              >
+                {/* Unseen dot */}
+                {!isSeen && (
+                  <span className="absolute right-4 top-4 h-2.5 w-2.5 rounded-full bg-blue-500 shadow" />
+                )}
 
-                    <div>
-                      <div className="flex justify-between items-start gap-2 flex-wrap">
-                        <h3 className="font-medium mb-1">
-                          {announcement.title}
-                        </h3>
-                      </div>
-                      <div className="flex flex-wrap text-xs text-gray-500 gap-2 items-center mb-4">
-                        <span>{formatDate(announcement.created_at)}</span>
-                        <span>•</span>
-                        <span>
-                          Posted For{" "}
-                          {rolesArray.length > 0 ? rolesArray.join(", ") : "—"}
-                        </span>
-                      </div>
-                    </div>
+                {/* Type tag */}
+                <div className="mb-3 flex items-center gap-2">
+                  <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ${tc.bg} ${tc.text} ${tc.border}`}>
+                    {typeIcon[announcement.type] || "📢"}{" "}
+                    {announcement.type?.charAt(0)?.toUpperCase() + announcement.type?.slice(1)}
+                  </span>
+                  <span className="text-xs text-gray-400">{formatDate(announcement.created_at)}</span>
+                </div>
 
-                    <div>
-                      <p className="whitespace-pre-line text-gray-700">
-                        {announcement.description}
-                      </p>
-                    </div>
-                  </Card>
-                </Badge.Ribbon>
+                {/* Title */}
+                <h3 className="mb-1 text-base font-semibold text-gray-900">
+                  {announcement.title}
+                </h3>
+
+                {/* Description */}
+                <p className="whitespace-pre-line text-sm leading-relaxed text-gray-600">
+                  {announcement.description}
+                </p>
+
+                {/* Footer */}
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-3">
+                  <div className="flex flex-wrap gap-1.5">
+                    {rolesArray.length > 0
+                      ? rolesArray.map((role: string) => (
+                          <span
+                            key={role}
+                            className="rounded-md bg-[var(--theme-soft)] px-2 py-0.5 text-[11px] font-medium text-[var(--theme-dark)]"
+                          >
+                            {role}
+                          </span>
+                        ))
+                      : <span className="text-xs text-gray-400">No specific audience</span>}
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    {markingId === Number(announcement.id) && <Spin size="small" />}
+                    {canEditAnnouncement(announcement) && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); handleEditAnnouncement(announcement); }}
+                        className="text-xs font-medium text-[var(--theme-dark)] opacity-0 transition group-hover:opacity-100 hover:underline"
+                      >
+                        Edit
+                      </button>
+                    )}
+                    {canDeleteAnnouncement(announcement) && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); confirmDelete(announcement.id); }}
+                        className="text-xs font-medium text-red-500 opacity-0 transition group-hover:opacity-100 hover:underline"
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
             );
-          })
-        )}
-      </div>
+          })}
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       <Modal
-        title="Confirm Deletion"
+        title={
+          <span className="flex items-center gap-2 text-red-600">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+            Delete Announcement
+          </span>
+        }
         open={deleteOpen}
         onCancel={() => setDeleteOpen(false)}
         onOk={handleDeleteAnnouncement}
@@ -656,7 +638,7 @@ export default function AnnouncementsPage() {
         cancelText="Cancel"
         centered
       >
-        <p>Are you sure you want to delete this announcement?</p>
+        <p className="text-gray-600">This action cannot be undone. Are you sure you want to delete this announcement?</p>
       </Modal>
     </div>
   );

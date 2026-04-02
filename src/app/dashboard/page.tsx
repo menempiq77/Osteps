@@ -468,11 +468,39 @@ export default function DashboardPage() {
   });
 
   const { data: teacherDerivedCounts } = useQuery({
-    queryKey: ["teacher-dashboard-counts", currentUser?.id],
+    queryKey: ["teacher-dashboard-counts", currentUser?.id, activeSubjectId, activeSubject?.name],
     queryFn: async () => {
       if (currentUser?.role !== "TEACHER") return null;
       const assignYears = (await fetchAssignYears()) ?? [];
-      const assignedClasses = (assignYears ?? []).flatMap((item: any) => {
+
+      // When in subject workspace mode, intersect by base_class_label + year_id
+      let scopedAssignments = assignYears ?? [];
+      if (isSubjectWorkspaceMode && activeSubjectId) {
+        const subjectClasses = (await fetchSubjectClasses({
+          subject_id: Number(activeSubjectId),
+        })) ?? [];
+
+        const subjectLabelKeys = new Set(
+          (Array.isArray(subjectClasses) ? subjectClasses : [])
+            .map((row: any) => {
+              const label = String(row.base_class_label ?? row.name ?? "").trim().toLowerCase();
+              const yId = String(row.year_id ?? "");
+              return `${label}::${yId}`;
+            })
+        );
+
+        scopedAssignments = (assignYears ?? []).filter((item: any) => {
+          const cls = item?.classes;
+          if (!cls) return false;
+          const className = String(cls.class_name ?? "").trim().toLowerCase();
+          const yId = String(cls.year_id ?? "");
+          const key = `${className}::${yId}`;
+          return subjectLabelKeys.has(key);
+        });
+
+      }
+
+      const assignedClasses = scopedAssignments.flatMap((item: any) => {
         const classesValue = item?.classes;
         if (Array.isArray(classesValue)) return classesValue;
         if (classesValue) return [classesValue];
@@ -726,17 +754,20 @@ export default function DashboardPage() {
             stats: [
               {
                 title: "Total Classes",
-                value: subjectScopedOverview?.classCount || 0,
+                // subjectScopedOverview uses an admin-only endpoint; fall back to
+                // the teacher's own derived class count from assign_teachers.
+                value:
+                  subjectScopedOverview?.classCount ||
+                  teacherDerivedCounts?.classCount ||
+                  0,
                 link: "/dashboard/classes",
               },
               {
-                title: "Total Teachers",
-                value: subjectScopedOverview?.teacherCount || 0,
-                link: "/dashboard/teachers",
-              },
-              {
                 title: "Total Students",
-                value: subjectScopedOverview?.studentCount || 0,
+                value:
+                  subjectScopedOverview?.studentCount ||
+                  teacherDerivedCounts?.studentCount ||
+                  0,
                 link: studentsListLink,
               },
             ],
@@ -984,7 +1015,7 @@ export default function DashboardPage() {
 
   return (
     <div className="premium-page p-3 md:p-6 space-y-6 min-h-screen !font-[Raleway]">
-      {isSubjectWorkspaceMode && subjectScopedOverviewError && (
+      {isSubjectWorkspaceMode && subjectScopedOverviewError && currentUser?.role !== "TEACHER" && (
         <Alert
           type="warning"
           showIcon

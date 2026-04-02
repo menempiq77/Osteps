@@ -168,7 +168,62 @@ export default function Page() {
     try {
       setLoading(true);
 
-      if (isSubjectWorkspaceMode && activeSubjectId) {
+      if (isSubjectWorkspaceMode && activeSubjectId && isTeacher) {
+        // Teacher + subject workspace: intersect by base_class_label + year_id
+        let res: any[];
+        let subjectClasses: any[];
+        try {
+          [res, subjectClasses] = await Promise.all([
+            fetchAssignYears(),
+            fetchSubjectClasses({
+              subject_id: Number(activeSubjectId),
+              year_id: year_id ? Number(year_id) : undefined,
+              include_inactive: true,
+            }),
+          ]);
+        } catch (e) {
+          // Fallback: if fetchSubjectClasses fails (e.g. 403), just use fetchAssignYears alone
+          res = await fetchAssignYears();
+          subjectClasses = [];
+        }
+
+        const subjectLabelKeys = new Set(
+          (Array.isArray(subjectClasses) ? subjectClasses : []).map((row: any) => {
+            const label = String(row.base_class_label ?? row.name ?? "").trim().toLowerCase();
+            const yId = String(row.year_id ?? "");
+            return `${label}::${yId}`;
+          })
+        );
+
+        let filtered: any[];
+        if (subjectLabelKeys.size > 0) {
+          filtered = (Array.isArray(res) ? res : []).filter((item: any) => {
+            const cls = item?.classes;
+            if (!cls) return false;
+            const className = String(cls.class_name ?? "").trim().toLowerCase();
+            const yId = String(cls.year_id ?? "");
+            const key = `${className}::${yId}`;
+            return subjectLabelKeys.has(key);
+          });
+        } else {
+          // No subject_classes returned — show all teacher classes as fallback
+          filtered = Array.isArray(res) ? res : [];
+        }
+
+        classesData = filtered
+          .map((item: any) => item.classes)
+          .filter((cls: any) => cls);
+
+        classesData = Array.from(
+          new Map(classesData.map((cls: any) => [String(cls.id), cls] as const)).values()
+        );
+
+        if (year_id) {
+          classesData = classesData.filter(
+            (cls: any) => cls.year_id === Number(year_id)
+          );
+        }
+      } else if (isSubjectWorkspaceMode && activeSubjectId) {
         const subjectClasses = (await fetchSubjectClasses({
           subject_id: Number(activeSubjectId),
           year_id: year_id ? Number(year_id) : undefined,

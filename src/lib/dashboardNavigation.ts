@@ -609,6 +609,12 @@ export const buildDashboardNavigation = ({
      Keep access via home utilities/cards only. */
   items = items.filter((item) => item.name !== "Timetable" && item.name !== "Announcements");
 
+  /* Hide Settings from sidebar for non-super-admin roles.
+     Keep access via home utilities/cards only. */
+  if (normalizedRole !== "SUPER_ADMIN" && normalizedRole !== "ADMIN") {
+    items = items.filter((item) => item.name !== "Settings");
+  }
+
   return items;
 };
 

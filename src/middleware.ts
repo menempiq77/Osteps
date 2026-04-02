@@ -19,6 +19,8 @@ const SUBJECT_SCOPED_PREFIXES = [
   "/dashboard/students/reports",
   "/dashboard/mind-upgrade",
   "/dashboard/subjects",
+  "/dashboard/approvals",
+  "/dashboard/lessons",
 ];
 
 const SHARED_PREFIXES = [
@@ -64,6 +66,8 @@ const SUBJECT_ROUTE_ROOTS = new Set([
   "tools",
   "school-admin",
   "admins",
+  "approvals",
+  "lessons",
 ]);
 
 const startsWithPrefix = (path: string, prefix: string): boolean => path === prefix || path.startsWith(`${prefix}/`);

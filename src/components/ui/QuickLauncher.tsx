@@ -8,6 +8,7 @@ import {
   BookOpen,
   ChevronRight,
   Search,
+  Settings,
   Users,
   X,
 } from "lucide-react";
@@ -276,6 +277,24 @@ export default function QuickLauncher() {
         }
       );
     }
+
+    if (["SCHOOL_ADMIN", "HOD", "TEACHER", "STUDENT"].includes(roleKey)) {
+      const settingsHref =
+        roleKey === "STUDENT" ? "/dashboard/students/settings"
+        : roleKey === "TEACHER" ? "/dashboard/teachers/settings"
+        : "/dashboard/school-admin/settings";
+      items.push({
+        id: "extra-settings",
+        name: "Settings",
+        description: "Update your account preferences and settings.",
+        section: "Account",
+        keywords: ["settings", "account", "preferences", "profile"],
+        icon: Settings,
+        href: settingsHref,
+        kind: "link",
+      });
+    }
+
     return items;
   }, [canUseSubjectContext, navigationEntries, roleKey]);
 

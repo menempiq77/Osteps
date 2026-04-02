@@ -173,6 +173,7 @@ export default function DashboardLayout({
   const isLibraryRoute = unscopedPathname === "/dashboard/library";
   const isTimeTableRoute = unscopedPathname === "/dashboard/time_table";
   const isAnnouncementsRoute = unscopedPathname === "/dashboard/announcements";
+  const isSettingsRoute = unscopedPathname.endsWith("/settings");
   const isAllStudentsStandaloneRoute =
     pathname === "/dashboard/students/all-students" ||
     pathname === "/dashboard/students/all-school" ||
@@ -261,7 +262,8 @@ export default function DashboardLayout({
       isStudentStandaloneUtilityRoute ||
       isLibraryRoute ||
       isTimeTableRoute ||
-      isAnnouncementsRoute ? (
+      isAnnouncementsRoute ||
+      isSettingsRoute ? (
         <div className="dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] p-3 md:p-6">
           <div className="mx-auto max-w-7xl">
             <div className="mb-4 flex justify-end">

@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AddTeacherModal } from "../modals/teacherModals/AddTeacherModal";
 import { EditTeacherModal } from "../modals/teacherModals/EditTeacherModal";
+import AssignTeacherModal from "../modals/teacherModals/AssignTeacherModal";
 import { Spin, Modal, Button, Select, message } from "antd";
 import { EditOutlined, DeleteOutlined, TeamOutlined } from "@ant-design/icons";
 import {
@@ -14,25 +15,28 @@ import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { useRouter } from "next/navigation";
 import { fetchSubjects } from "@/services/subjectsApi";
+import { assignStaffSubjects } from "@/services/subjectWorkspaceApi";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 
 type Teacher = {
   id: string;
+  userId: number | null;
   name: string;
   phone: string;
   email: string;
   role: string;
-  subjects: string[];
+  subjects: Array<{ id: number; name: string }>;
 };
 
-type TeacherBasic = {
+type TeacherFormInput = {
   id: string;
   name: string;
   phone: string;
   email: string;
   role: string;
-  subjects: string[];
+  subjects: number[];
+  password?: string;
 };
 interface Subject {
   id: number;
@@ -69,10 +73,11 @@ const applyTeacherTheme = (themeName: TeacherThemeName) => {
 export default function TeacherList() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
-  const [editTeacher, setEditTeacher] = useState<TeacherBasic | null>(null);
+  const [editTeacher, setEditTeacher] = useState<Teacher | null>(null);
   const [deleteTeacher, setDeleteTeacher] = useState<Teacher | null>(null);
   const [isAddTeacherModalOpen, setIsAddTeacherModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [assignTarget, setAssignTarget] = useState<Teacher | null>(null);
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>("all");
   const [themeName, setThemeName] = useState<TeacherThemeName>("green");
   const [messageApi, contextHolder] = message.useMessage();
@@ -94,14 +99,19 @@ export default function TeacherList() {
       const response = await fetchTeachers();
       return response.map((teacher: any) => ({
         id: teacher.id.toString(),
+        userId: Number(teacher.user_id || 0) > 0 ? Number(teacher.user_id) : null,
         name: teacher.teacher_name,
         phone: teacher.phone,
         email: teacher.email,
         role: teacher.role,
         subjects: Array.isArray(teacher.subjects)
-          ? teacher.subjects.map((s: any) =>
-              typeof s === "object" ? s.name : s
-            )
+          ? teacher.subjects.map((s: any) => {
+              const name = typeof s === "object" ? s.name : s;
+              return {
+                id: Number(typeof s === "object" ? s.id : 0),
+                name: String(name || "").replace(/islamiat/gi, "Islamic"),
+              };
+            })
           : [],
       }));
     },
@@ -141,7 +151,7 @@ export default function TeacherList() {
       const wanted = selectedSubjectFilter.trim().toLowerCase();
       rows = rows.filter((teacher) =>
         Array.isArray(teacher.subjects) &&
-        teacher.subjects.some((subjectName) => String(subjectName || "").trim().toLowerCase() === wanted)
+        teacher.subjects.some((subject) => String(subject?.name || "").trim().toLowerCase() === wanted)
       );
     }
 
@@ -153,8 +163,8 @@ export default function TeacherList() {
 
     return rows.filter((teacher) =>
       Array.isArray(teacher.subjects) &&
-      teacher.subjects.some((subjectName) =>
-        allowedSubjectNames.has(String(subjectName || "").trim().toLowerCase())
+      teacher.subjects.some((subject) =>
+        allowedSubjectNames.has(String(subject?.name || "").trim().toLowerCase())
       )
     );
   })();
@@ -165,7 +175,9 @@ export default function TeacherList() {
     const teacherCount = filteredTeachers.filter((teacher) => teacher.role === "TEACHER").length;
     const subjectCount = new Set(
       filteredTeachers.flatMap((teacher) =>
-        Array.isArray(teacher.subjects) ? teacher.subjects.map((subject) => String(subject || "").trim()) : []
+        Array.isArray(teacher.subjects)
+          ? teacher.subjects.map((subject) => String(subject?.name || "").trim())
+          : []
       ).filter(Boolean)
     ).size;
 
@@ -178,10 +190,9 @@ export default function TeacherList() {
     localStorage.setItem(TEACHER_THEME_STORAGE_KEY, nextTheme);
   };
 
-  const handleSaveEdit = async (
-    teacher: TeacherBasic & { password?: string }
-  ) => {
+  const handleSaveEdit = async (teacher: TeacherFormInput) => {
     try {
+      const existingTeacher = teachers.find((item) => item.id === teacher.id) ?? null;
       const payload: any = {
         teacher_name: teacher.name,
         phone: teacher.phone,
@@ -194,6 +205,17 @@ export default function TeacherList() {
       if (teacher.password) payload.password = teacher.password;
 
       await updateTeacher(teacher.id, payload);
+
+      const roleScope = teacher.role === "HOD" ? "HOD" : "TEACHER";
+      const targetUserId = Number(existingTeacher?.userId || 0);
+      if (targetUserId > 0 && Array.isArray(teacher.subjects) && teacher.subjects.length > 0) {
+        await assignStaffSubjects({
+          user_id: targetUserId,
+          subject_ids: teacher.subjects,
+          role_scope: roleScope,
+        });
+      }
+
       await queryClient.invalidateQueries({ queryKey: ["teachers"] });
 
       messageApi?.success(`${teacher.role || "Teacher"} updated successfully`);
@@ -203,9 +225,9 @@ export default function TeacherList() {
     }
   };
 
-  const handleAddNewTeacher = async (teacher: TeacherBasic) => {
+  const handleAddNewTeacher = async (teacher: TeacherFormInput) => {
     try {
-      const response = await addTeacher({
+      await addTeacher({
         teacher_name: teacher.name,
         phone: teacher.phone,
         email: teacher.email,
@@ -214,6 +236,21 @@ export default function TeacherList() {
         subjects: teacher.subjects,
         password: teacher.password,
       });
+
+      const refreshedTeachers = await fetchTeachers();
+      const createdTeacher = (Array.isArray(refreshedTeachers) ? refreshedTeachers : []).find(
+        (item: any) =>
+          String(item?.email || "").trim().toLowerCase() === String(teacher.email || "").trim().toLowerCase()
+      );
+      const createdUserId = Number(createdTeacher?.user_id || 0);
+      const roleScope = teacher.role === "HOD" ? "HOD" : "TEACHER";
+      if (createdUserId > 0 && Array.isArray(teacher.subjects) && teacher.subjects.length > 0) {
+        await assignStaffSubjects({
+          user_id: createdUserId,
+          subject_ids: teacher.subjects,
+          role_scope: roleScope,
+        });
+      }
 
       await queryClient.invalidateQueries({ queryKey: ["teachers"] });
       setIsAddTeacherModalOpen(false);
@@ -249,8 +286,8 @@ export default function TeacherList() {
     router.push(`/dashboard/teachers/${teacherId}/assignedClasses`);
   };
 
-  const handleAssignTeacher = (teacherId: string) => {
-    router.push(`/dashboard/teachers/${teacherId}/assign`);
+  const handleAssignTeacher = (teacher: Teacher) => {
+    setAssignTarget(teacher);
   };
 
   if (isLoading)
@@ -423,10 +460,10 @@ export default function TeacherList() {
                           <div className="flex flex-wrap justify-center gap-2">
                             {teacher.subjects.map((subject) => (
                               <span
-                                key={`${teacher.id}-${subject}`}
+                                key={`${teacher.id}-${subject.id || subject.name}`}
                                 className="rounded-full border border-[var(--theme-border)] bg-[var(--theme-soft)] px-3 py-1 text-[11px] font-semibold text-[var(--theme-dark)]"
                               >
-                                {subject}
+                                {subject.name}
                               </span>
                             ))}
                           </div>
@@ -442,7 +479,7 @@ export default function TeacherList() {
                     {hasAccess && (
                       <td className="relative p-2 md:p-4 flex justify-center space-x-3">
                         <button
-                          onClick={() => handleAssignTeacher(teacher.id)}
+                          onClick={() => handleAssignTeacher(teacher)}
                           className="cursor-pointer text-blue-500 transition hover:text-blue-700"
                           title="Assign to Classes"
                         >
@@ -532,6 +569,19 @@ export default function TeacherList() {
           </p>
         )}
       </Modal>
+
+      {/* Assign Teacher to Classes Modal */}
+      {assignTarget && (
+        <AssignTeacherModal
+          open={!!assignTarget}
+          onClose={() => setAssignTarget(null)}
+          teacherId={assignTarget.id}
+          teacherUserId={assignTarget.userId}
+          teacherName={assignTarget.name}
+          teacherRole={assignTarget.role}
+          teacherSubjects={assignTarget.subjects ?? []}
+        />
+      )}
     </div>
   );
 }
