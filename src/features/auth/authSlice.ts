@@ -84,6 +84,7 @@ const authSlice = createSlice({
           token,
           name,
           school,
+          school_id,
           student,
           profile_path,
           contact,
@@ -101,7 +102,9 @@ const authSlice = createSlice({
           id: id.toString(),
           email,
           role,
-          school: school?.id || null,
+          school:
+            school?.id ||
+            (typeof school_id === "number" && Number.isFinite(school_id) ? school_id : null),
           student: student?.id || null,
           studentClass: student?.class_id || null,
           studentClassName: student?.class?.class_name,

@@ -157,10 +157,245 @@ const Sidebar = () => {
     return false;
   };
 
+  const matchesViewHubRoute = (
+    itemName: string | undefined,
+    href: string | undefined,
+    current: string
+  ) => {
+    const normalizedName = String(itemName || "").trim().toLowerCase();
+    const normalizedHref = normalizePath(stripSubjectScope(href || ""));
+    const comparableCurrent = normalizePath(stripSubjectScope(current));
+    const isViewHubItem = normalizedName === "view" || normalizedHref === "/dashboard/view";
+
+    if (!isViewHubItem) return false;
+
+    return (
+      comparableCurrent === "/dashboard/view" ||
+      /^\/dashboard\/student_assesments(?:\/|$)/.test(comparableCurrent) ||
+      /^\/dashboard\/viewtrackers(?:\/|$)/.test(comparableCurrent) ||
+      /^\/dashboard\/students\/reports(?:\/|$)/.test(comparableCurrent)
+    );
+  };
+
+  const matchesDashboardHubRoute = (
+    itemName: string | undefined,
+    href: string | undefined,
+    current: string
+  ) => {
+    const normalizedName = String(itemName || "").trim().toLowerCase();
+    const normalizedHref = normalizePath(stripSubjectScope(href || ""));
+    const comparableCurrent = normalizePath(stripSubjectScope(current));
+    const isDashboardHubItem =
+      normalizedName.endsWith("dashboard") ||
+      normalizedHref === "/dashboard" ||
+      normalizedHref === "/dashboard/subject-cards";
+
+    if (!isDashboardHubItem) return false;
+
+    return (
+      comparableCurrent === "/dashboard" ||
+      comparableCurrent === "/dashboard/subject-cards" ||
+      /^\/dashboard\/years(?:\/|$)/.test(comparableCurrent) ||
+      /^\/dashboard\/classes(?:\/|$)/.test(comparableCurrent) ||
+      /^\/dashboard\/students\/all(?:\/|$)/.test(comparableCurrent) ||
+      /^\/dashboard\/students\/all-students(?:\/|$)/.test(comparableCurrent) ||
+      /^\/dashboard\/students\/all-school(?:\/|$)/.test(comparableCurrent)
+    );
+  };
+
+  const matchesClassesHubRoute = (
+    itemName: string | undefined,
+    href: string | undefined,
+    current: string
+  ) => {
+    const normalizedName = String(itemName || "").trim().toLowerCase();
+    const normalizedHref = normalizePath(stripSubjectScope(href || ""));
+    const comparableCurrent = normalizePath(stripSubjectScope(current));
+    const isClassesHubItem =
+      normalizedName === "my classes" || normalizedHref === "/dashboard/years";
+
+    if (!isClassesHubItem) return false;
+
+    return (
+      comparableCurrent === "/dashboard/years" ||
+      /^\/dashboard\/years(?:\/|$)/.test(comparableCurrent) ||
+      comparableCurrent === "/dashboard/classes" ||
+      /^\/dashboard\/classes(?:\/|$)/.test(comparableCurrent)
+    );
+  };
+
+  const getRelatedRoutePatterns = (
+    itemName: string | undefined,
+    href: string | undefined
+  ): RegExp[] => {
+    const normalizedName = String(itemName || "").trim().toLowerCase();
+    const normalizedHref = normalizePath(stripSubjectScope(href || ""));
+
+    if (normalizedName.endsWith("dashboard") || normalizedHref === "/dashboard" || normalizedHref === "/dashboard/subject-cards") {
+      return [
+        /^\/dashboard$/,
+        /^\/dashboard\/subject-cards(?:\/|$)/,
+        /^\/dashboard\/years(?:\/|$)/,
+        /^\/dashboard\/classes(?:\/|$)/,
+        /^\/dashboard\/students\/all(?:\/|$)/,
+        /^\/dashboard\/students\/all-students(?:\/|$)/,
+        /^\/dashboard\/students\/all-school(?:\/|$)/,
+      ];
+    }
+
+    if (normalizedName === "my classes" || normalizedHref === "/dashboard/years") {
+      return [
+        /^\/dashboard\/years(?:\/|$)/,
+        /^\/dashboard\/classes(?:\/|$)/,
+      ];
+    }
+
+    if (normalizedName === "view" || normalizedHref === "/dashboard/view") {
+      return [
+        /^\/dashboard\/view(?:\/|$)/,
+        /^\/dashboard\/student_assesments(?:\/|$)/,
+        /^\/dashboard\/viewtrackers(?:\/|$)/,
+        /^\/dashboard\/students\/reports(?:\/|$)/,
+      ];
+    }
+
+    if (normalizedName === "manager" || normalizedHref === "/dashboard/manager") {
+      return [
+        /^\/dashboard\/manager(?:\/|$)/,
+        /^\/dashboard\/subject-staff(?:\/|$)/,
+        /^\/dashboard\/subject-classes(?:\/|$)/,
+        /^\/dashboard\/all_assesments(?:\/|$)/,
+        /^\/dashboard\/all_trackers(?:\/|$)/,
+      ];
+    }
+
+    if (normalizedName === "manage quiz" || normalizedHref === "/dashboard/quiz") {
+      return [
+        /^\/dashboard\/quiz(?:\/|$)/,
+        /^\/dashboard\/quiz\/[^/]+(?:\/|$)/,
+      ];
+    }
+
+    if (normalizedName === "trackers") {
+      return [
+        /^\/dashboard\/all_trackers(?:\/|$)/,
+        /^\/dashboard\/trackers(?:\/|$)/,
+        /^\/dashboard\/viewtrackers(?:\/|$)/,
+      ];
+    }
+
+    if (normalizedName === "leaderboard" || normalizedHref === "/dashboard/leaderboard") {
+      return [
+        /^\/dashboard\/leaderboard(?:\/|$)/,
+        /^\/dashboard\/classes\/[^/]+\/leaderboard(?:\/|$)/,
+      ];
+    }
+
+    if (normalizedName === "library" || normalizedHref === "/dashboard/library") {
+      return [
+        /^\/dashboard\/library(?:\/|$)/,
+        /^\/dashboard\/librarycategory(?:\/|$)/,
+        /^\/dashboard\/library\/librarycategory(?:\/|$)/,
+        /^\/dashboard\/library\/resourcestype(?:\/|$)/,
+      ];
+    }
+
+    if (normalizedName === "my materials" || normalizedName === "shared materials" || normalizedHref === "/dashboard/materials" || normalizedHref === "/dashboard/shared_materials") {
+      return [
+        /^\/dashboard\/materials(?:\/|$)/,
+        /^\/dashboard\/shared_materials(?:\/|$)/,
+      ];
+    }
+
+    if (normalizedName === "announcements" || normalizedHref === "/dashboard/announcements") {
+      return [/^\/dashboard\/announcements(?:\/|$)/];
+    }
+
+    if (normalizedName === "behavior" || normalizedHref === "/dashboard/student_behavior") {
+      return [
+        /^\/dashboard\/student_behavior(?:\/|$)/,
+        /^\/dashboard\/behavior\/[^/]+(?:\/|$)/,
+        /^\/dashboard\/classes\/[^/]+\/behavior\/[^/]+(?:\/|$)/,
+      ];
+    }
+
+    if (normalizedName === "tools" || normalizedHref === "/dashboard/tools") {
+      return [/^\/dashboard\/tools(?:\/|$)/];
+    }
+
+    if (normalizedName === "lessons" || normalizedHref === "/dashboard/lessons") {
+      return [/^\/dashboard\/lessons(?:\/|$)/];
+    }
+
+    if (normalizedName === "mind-upgrade" || normalizedHref === "/dashboard/mind-upgrade") {
+      return [/^\/dashboard\/mind-upgrade(?:\/|$)/];
+    }
+
+    if (normalizedName === "settings") {
+      return [
+        /^\/dashboard\/admins\/settings(?:\/|$)/,
+        /^\/dashboard\/school-admin\/settings(?:\/|$)/,
+        /^\/dashboard\/teachers\/settings(?:\/|$)/,
+        /^\/dashboard\/students\/settings(?:\/|$)/,
+      ];
+    }
+
+    if (normalizedName === "answer a question" || normalizedName === "ask a question" || normalizedHref === "/dashboard/questions") {
+      return [/^\/dashboard\/questions(?:\/|$)/];
+    }
+
+    if (normalizedName === "assesments" || normalizedHref === "/dashboard/students/assignments") {
+      return [/^\/dashboard\/students\/assignments(?:\/|$)/];
+    }
+
+    if (normalizedName === "schools" || normalizedHref === "/dashboard/schools") {
+      return [/^\/dashboard\/schools(?:\/|$)/];
+    }
+
+    if (normalizedName === "admins" || normalizedHref === "/dashboard/admins") {
+      return [/^\/dashboard\/admins(?:\/|$)/];
+    }
+
+    if (normalizedName === "timetable" || normalizedHref === "/dashboard/time_table") {
+      return [/^\/dashboard\/time_table(?:\/|$)/];
+    }
+
+    return [];
+  };
+
+  const matchesRelatedRouteGroup = (
+    itemName: string | undefined,
+    href: string | undefined,
+    current: string
+  ) => {
+    const comparableCurrent = normalizePath(stripSubjectScope(current));
+    const patterns = getRelatedRoutePatterns(itemName, href);
+    return patterns.some((pattern) => pattern.test(comparableCurrent));
+  };
+
   const itemMatchesCurrentPath = (item: any, current: string) => {
     if (roleKey === "STUDENT") {
       const comparableCurrent = normalizePath(stripSubjectScope(current));
-      return matchesStudentRoute(item?.name, comparableCurrent);
+      return (
+        matchesStudentRoute(item?.name, comparableCurrent) ||
+        matchesRelatedRouteGroup(item?.name, item?.href, comparableCurrent)
+      );
+    }
+
+    if (matchesViewHubRoute(item?.name, item?.href, current)) {
+      return true;
+    }
+
+    if (matchesDashboardHubRoute(item?.name, item?.href, current)) {
+      return true;
+    }
+
+    if (matchesClassesHubRoute(item?.name, item?.href, current)) {
+      return true;
+    }
+
+    if (matchesRelatedRouteGroup(item?.name, item?.href, current)) {
+      return true;
     }
 
     const target = resolveItemTarget(item.href);

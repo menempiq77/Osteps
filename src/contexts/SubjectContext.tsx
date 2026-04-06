@@ -26,20 +26,56 @@ const isRoleEligible = (role: string | undefined): boolean => {
   return ["SCHOOL_ADMIN", "ADMIN", "HOD", "TEACHER", "STUDENT"].includes(roleKey);
 };
 
+const normalizeSeedSubjects = (
+  raw: Array<{ id: number; name: string; code?: string | null }> | undefined
+): SubjectBrief[] => {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item) => ({
+      id: Number(item?.id),
+      name: String(item?.name ?? ""),
+      code: item?.code ?? null,
+      class_label: null,
+    }))
+    .filter((item) => Number.isFinite(item.id) && item.id > 0 && item.name.trim().length > 0);
+};
+
 export function SubjectContextProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { currentUser } = useSelector((state: RootState) => state.auth);
 
-  const [subjects, setSubjects] = useState<SubjectBrief[]>([]);
-  const [activeSubjectId, setActiveSubjectIdState] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
-
   const role = currentUser?.role;
   const userId = currentUser?.id;
   const canUseSubjectContext = isSubjectContextEnabled() && isRoleEligible(role);
   const subjectIdParam = searchParams.get("subject_id") ?? "";
+  const seedSubjects = normalizeSeedSubjects(currentUser?.assigned_subjects);
+  const seedActiveSubjectId = (() => {
+    const fromPath = extractSubjectIdFromPath(pathname);
+    const fromStorage = getStoredSubjectId();
+    const fromQuery = (() => {
+      const param = searchParams.get("subject_id");
+      if (!param) return null;
+      const id = Number(param);
+      return Number.isFinite(id) && id > 0 ? id : null;
+    })();
+    const fallback = Number(currentUser?.default_subject_id ?? 0);
+
+    return [fromPath, fromQuery, fromStorage, fallback]
+      .filter((value): value is number => Number.isFinite(value as number) && Number(value) > 0)
+      .find((value) => seedSubjects.some((subject) => subject.id === value)) ?? null;
+  })();
+  const hasSeededContext =
+    canUseSubjectContext && !!currentUser && seedSubjects.length > 0 && !!seedActiveSubjectId;
+
+  const [subjects, setSubjects] = useState<SubjectBrief[]>(() =>
+    hasSeededContext ? seedSubjects : []
+  );
+  const [activeSubjectId, setActiveSubjectIdState] = useState<number | null>(() =>
+    hasSeededContext ? seedActiveSubjectId : null
+  );
+  const [loading, setLoading] = useState(!hasSeededContext);
   const resolvedActiveSubject =
     subjects.find((subject) => subject.id === activeSubjectId) ?? null;
 
@@ -56,7 +92,9 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
         return;
       }
 
-      setLoading(true);
+      if (!hasSeededContext) {
+        setLoading(true);
+      }
       try {
         const context = await fetchMySubjectContext({
           role: currentUser?.role,
@@ -108,7 +146,7 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
     };
   // Use primitive deps to avoid re-bootstrapping on object-reference changes
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canUseSubjectContext, userId, role, pathname, subjectIdParam]);
+  }, [canUseSubjectContext, userId, role, pathname, subjectIdParam, hasSeededContext]);
 
   useEffect(() => {
     if (!canUseSubjectContext || loading) return;

@@ -30,9 +30,13 @@ import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
 import { fetchClasses } from "@/services/classesApi";
 import { addStudent, deleteStudent, fetchStudentProfileData, fetchStudents, updateStudent } from "@/services/studentsApi";
 import { useSubjectContext } from "@/contexts/SubjectContext";
-import { filterStudentsBySubjectScope } from "@/lib/subjectStudentScope";
+import {
+  filterStudentsBySubjectScope,
+  studentMatchesSubjectScope,
+} from "@/lib/subjectStudentScope";
 import {
   type StudentHintBucket,
+  makeSubjectHintScopeKey,
   matchesSubjectStudentHint,
   readSubjectStudentHints,
 } from "@/lib/subjectStudentHints";
@@ -155,6 +159,14 @@ const uniqueNonEmptyStrings = (values: Array<unknown>): string[] =>
     )
   );
 
+const firstNonEmptyString = (...values: Array<unknown>): string => {
+  for (const value of values) {
+    const normalized = String(value ?? "").trim();
+    if (normalized) return normalized;
+  }
+  return "";
+};
+
 const getRowYearGroups = (row: Partial<StudentListRow>): string[] => {
   if (Array.isArray(row.yearGroups) && row.yearGroups.length > 0) {
     return uniqueNonEmptyStrings(row.yearGroups);
@@ -256,6 +268,73 @@ const extractStudentSubjectClassIds = (student: Record<string, any>) =>
     .map((value) => String(value ?? "").trim())
     .filter(Boolean);
 
+const resolveStudentDisplayName = (student: Record<string, any>): string => {
+  const fullName = firstNonEmptyString(
+    [student?.first_name, student?.last_name].filter(Boolean).join(" "),
+    [student?.student?.first_name, student?.student?.last_name].filter(Boolean).join(" ")
+  );
+
+  return (
+    firstNonEmptyString(
+      student?.student_name,
+      student?.name,
+      student?.full_name,
+      student?.studentName,
+      fullName,
+      student?.user?.name,
+      student?.student?.student_name,
+      student?.student?.name,
+      student?.student?.user?.name,
+      student?.profile?.student_name,
+      student?.profile?.name,
+      student?.user_name,
+      student?.username,
+      student?.email
+    ) || "Unknown Student"
+  );
+};
+
+const resolveStudentUserName = (student: Record<string, any>): string =>
+  firstNonEmptyString(
+    student?.user_name,
+    student?.username,
+    student?.user?.user_name,
+    student?.user?.username,
+    student?.student?.user_name,
+    student?.student?.username
+  );
+
+const hasAnySubjectMarkers = (student: Record<string, any>) =>
+  extractStudentSubjectClassIds(student).length > 0 ||
+  (Array.isArray(student?.subjects) && student.subjects.length > 0) ||
+  !!student?.subject_name ||
+  !!student?.subject;
+
+const dedupeStudentRows = <T extends Record<string, unknown>>(rows: T[]): T[] =>
+  Array.from(
+    new Map(
+      (Array.isArray(rows) ? rows : []).map((student, index) => [
+        String(student?.id ?? student?.student_id ?? index),
+        student,
+      ])
+    ).values()
+  );
+
+const extractClassCandidateIds = (row: Partial<ClassItem>): string[] =>
+  Array.from(
+    new Set(
+      [
+        row?.id,
+        row?.linked_class_id,
+        row?.subject_class_id,
+        (row as any)?.class_id,
+        (row as any)?.classId,
+      ]
+        .map((value) => String(value ?? "").trim())
+        .filter(Boolean)
+    )
+  );
+
 export default function AllStudentsPage() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -268,14 +347,27 @@ export default function AllStudentsPage() {
   const canView = role === "SCHOOL_ADMIN" || role === "HOD" || role === "TEACHER";
   const canEdit = role === "SCHOOL_ADMIN";
   const isSchoolAdmin = role === "SCHOOL_ADMIN";
-  const schoolId = Number((currentUser as { school?: number | string } | null)?.school ?? 0);
-  const { subjects, activeSubjectId, activeSubject, canUseSubjectContext } = useSubjectContext();
+  const schoolId = Number(
+    (currentUser as { school?: number | string; school_id?: number | string } | null)?.school ??
+      (currentUser as { school?: number | string; school_id?: number | string } | null)?.school_id ??
+      0
+  );
+  const { subjects, activeSubjectId, activeSubject, canUseSubjectContext, loading: subjectContextLoading } = useSubjectContext();
   const pathSubjectId = Number(extractSubjectIdFromPath(pathname) ?? 0);
   const scopedSubjectId = Number.isFinite(pathSubjectId) && pathSubjectId > 0
     ? pathSubjectId
     : Number(activeSubjectId ?? 0);
+  const scopedSubject =
+    subjects.find((subject) => Number(subject.id) === Number(scopedSubjectId)) ??
+    (Number(activeSubjectId ?? 0) === Number(scopedSubjectId) ? activeSubject : null);
+  const scopedSubjectName = scopedSubject?.name ?? "";
   const isPathSubjectScoped = Number.isFinite(pathSubjectId) && pathSubjectId > 0;
   const isSubjectWorkspaceMode = canUseSubjectContext && isPathSubjectScoped && scopedSubjectId > 0;
+  const isWaitingForSubjectScopedStudents =
+    canView &&
+    isPathSubjectScoped &&
+    canUseSubjectContext &&
+    subjectContextLoading;
   const [messageApi, contextHolder] = message.useMessage();
   const [editForm] = Form.useForm();
   const [addForm] = Form.useForm();
@@ -317,20 +409,35 @@ export default function AllStudentsPage() {
       role,
       schoolId,
       isSubjectWorkspaceMode ? scopedSubjectId : "school",
-      String(activeSubject?.name ?? ""),
+      subjectContextLoading ? "subject-context-loading" : "subject-context-ready",
+      String(scopedSubjectName),
       subjects
         .map((subject) => `${Number(subject.id)}:${displaySubjectName(subject.name)}`)
         .sort()
         .join(","),
     ],
-    enabled: canView,
+    enabled: canView && (!isPathSubjectScoped || !canUseSubjectContext || !subjectContextLoading),
     queryFn: async (): Promise<StudentListRow[]> => {
+      const assignedEntries =
+        role === "TEACHER"
+          ? (((await fetchAssignYears()) || []) as Array<{ classes?: ClassItem | ClassItem[] }>)
+          : [];
+      const teacherAssignedClasses =
+        role === "TEACHER"
+          ? assignedEntries
+              .flatMap((entry) => {
+                const value = entry?.classes;
+                return Array.isArray(value) ? value : value ? [value] : [];
+              })
+              .filter((cls): cls is ClassItem => Boolean(cls))
+          : [];
+
       let years: YearItem[] = [];
       if (schoolId > 0) {
         years = (await fetchYearsBySchool(schoolId)) || [];
       }
 
-      const allBaseClassRows = (
+      const schoolBaseClassRows = (
         await Promise.all(
           (years || []).map(async (year) => {
             try {
@@ -342,6 +449,17 @@ export default function AllStudentsPage() {
         )
       ).flat();
 
+      const allBaseClassRows = Array.from(
+        new Map(
+          [...schoolBaseClassRows, ...teacherAssignedClasses]
+            .map((row) => {
+              const id = String(row?.id ?? "").trim();
+              return id ? ([id, row] as const) : null;
+            })
+            .filter((entry): entry is readonly [string, ClassItem] => Boolean(entry))
+        ).values()
+      );
+
       const baseClassById = new Map<string, ClassItem>(
         allBaseClassRows
           .map((row) => {
@@ -351,8 +469,59 @@ export default function AllStudentsPage() {
           .filter((entry): entry is readonly [string, ClassItem] => Boolean(entry))
       );
 
-      const yearNameById = new Map<string, string>(
-        years.map((year) => [String(year.id), String(year.name ?? "")])
+      const yearNameById = new Map<string, string>([
+        ...years.map((year) => [String(year.id), String(year.name ?? "")] as const),
+        ...teacherAssignedClasses
+          .map((cls) => {
+            const yearId = String(cls?.year?.id ?? cls?.year_id ?? "").trim();
+            const yearName = String(cls?.year?.name ?? cls?.year_name ?? "").trim();
+            return yearId && yearName ? ([yearId, yearName] as const) : null;
+          })
+          .filter((entry): entry is readonly [string, string] => Boolean(entry)),
+      ]);
+
+      const teacherAssignedClassById = new Map<string, ClassItem>(
+        teacherAssignedClasses.flatMap((cls) =>
+          extractClassCandidateIds(cls).map((id) => [id, cls] as const)
+        )
+      );
+      const teacherAssignedClassesByKey = new Map<string, ClassItem[]>();
+      teacherAssignedClasses.forEach((cls) => {
+        const classLabel = normalizeClassLabel(cls?.class_name ?? cls?.name ?? "");
+        const yearId = String(cls?.year?.id ?? cls?.year_id ?? "").trim();
+        if (!classLabel || !yearId) return;
+        const key = `${classLabel}::${yearId}`;
+        const existing = teacherAssignedClassesByKey.get(key) ?? [];
+        existing.push(cls);
+        teacherAssignedClassesByKey.set(key, existing);
+      });
+
+      const findTeacherAssignedClass = (
+        linkedClassId: string,
+        subjectClassId: string,
+        classLabel: string,
+        yearId: number
+      ): ClassItem | undefined => {
+        for (const candidateId of [linkedClassId, subjectClassId]) {
+          const normalizedId = String(candidateId ?? "").trim();
+          if (!normalizedId) continue;
+          const matched = teacherAssignedClassById.get(normalizedId);
+          if (matched) return matched;
+        }
+
+        const key = `${normalizeClassLabel(classLabel)}::${String(yearId)}`;
+        return (teacherAssignedClassesByKey.get(key) ?? [])[0];
+      };
+      // Some teacher accounts return a 200 response with an embedded backend error
+      // from /get-assign-year. When that happens, keep subject classes that can be
+      // fetched directly by subject_class_id instead of hiding the entire page.
+      const canFallbackToSubjectScopedTeacherFetch =
+        role === "TEACHER" &&
+        isSubjectWorkspaceMode &&
+        teacherAssignedClasses.length === 0;
+
+      const scopedSubjectDisplayName = displaySubjectName(
+        scopedSubjectName || activeSubject?.name || ""
       );
 
       const subjectIdToName = new Map<number, string>(
@@ -480,36 +649,70 @@ export default function AllStudentsPage() {
 
       let classList: ClassItem[] = [];
 
-      if (isSubjectWorkspaceMode && activeSubjectId) {
+      if (isSubjectWorkspaceMode && scopedSubjectId) {
         const subjectClasses = (await fetchSubjectClasses({
           subject_id: Number(scopedSubjectId),
         })) as SubjectClassRow[];
 
-        classList = await Promise.all(
-          (Array.isArray(subjectClasses) ? subjectClasses : []).map(async (row) => {
-            const subjectClassId = String(row?.id ?? "").trim();
-            const linkedClassId = await resolveSubjectClassLinkedIdWithFallback(
-              row,
-              Number(scopedSubjectId)
-            );
-            const yearId = resolveSubjectClassYearId(row);
-            const classLabel = resolveSubjectClassLabel(row);
+        classList = (
+          await Promise.all(
+            (Array.isArray(subjectClasses) ? subjectClasses : []).map(async (row) => {
+              const subjectClassId = String(row?.id ?? "").trim();
+              const resolvedLinkedClassId = await resolveSubjectClassLinkedIdWithFallback(
+                row,
+                Number(scopedSubjectId)
+              );
+              const yearId = resolveSubjectClassYearId(row);
+              const classLabel = resolveSubjectClassLabel(row);
+              const teacherAssignedClass =
+                role === "TEACHER"
+                  ? findTeacherAssignedClass(
+                      String(resolvedLinkedClassId ?? "").trim(),
+                      subjectClassId,
+                      classLabel,
+                      yearId
+                    )
+                  : undefined;
+              const canUseTeacherSubjectScopedFallback =
+                canFallbackToSubjectScopedTeacherFetch &&
+                !!subjectClassId &&
+                !!String(resolvedLinkedClassId ?? subjectClassId).trim();
 
-            return {
-              id: linkedClassId || subjectClassId,
-              class_name: classLabel || `Class ${subjectClassId || ""}`,
-              year_id: yearId,
-              year_name: yearNameById.get(String(yearId)) || "Unknown",
-              subject_class_id: subjectClassId,
-              linked_class_id: linkedClassId || undefined,
-            } as ClassItem;
-          })
-        );
+              if (
+                role === "TEACHER" &&
+                !teacherAssignedClass &&
+                !canUseTeacherSubjectScopedFallback
+              ) {
+                return null;
+              }
+
+              const effectiveLinkedClassId = String(
+                teacherAssignedClass?.id ?? resolvedLinkedClassId ?? subjectClassId
+              ).trim();
+              const effectiveYearId = Number(
+                teacherAssignedClass?.year?.id ?? teacherAssignedClass?.year_id ?? yearId ?? 0
+              );
+              const effectiveYearName =
+                String(
+                  teacherAssignedClass?.year?.name ??
+                    teacherAssignedClass?.year_name ??
+                    yearNameById.get(String(effectiveYearId)) ??
+                    ""
+                ).trim() || "Unknown";
+
+              return {
+                id: effectiveLinkedClassId || subjectClassId,
+                class_name: classLabel || `Class ${subjectClassId || ""}`,
+                year_id: effectiveYearId,
+                year_name: effectiveYearName,
+                subject_class_id: subjectClassId,
+                linked_class_id: effectiveLinkedClassId || undefined,
+              } as ClassItem;
+            })
+          )
+        ).filter((cls): cls is ClassItem => Boolean(cls));
       } else if (role === "TEACHER") {
-        const assigned = await fetchAssignYears();
-        classList = (assigned || [])
-          .map((entry: { classes?: ClassItem }) => entry.classes)
-          .filter((cls: ClassItem | undefined): cls is ClassItem => Boolean(cls));
+        classList = teacherAssignedClasses;
       } else {
         classList = allBaseClassRows;
       }
@@ -536,24 +739,62 @@ export default function AllStudentsPage() {
           try {
             const linkedClassId = String(cls.linked_class_id ?? cls.id ?? "").trim();
             if (!linkedClassId) return [] as StudentListRow[];
+            const subjectClassId = String(cls.subject_class_id ?? "").trim();
 
             const classStudents = (await fetchStudents(
               linkedClassId,
-              isSubjectWorkspaceMode ? Number(scopedSubjectId) : undefined
+              isSubjectWorkspaceMode ? Number(scopedSubjectId) : undefined,
+              role === "TEACHER" && isSubjectWorkspaceMode && subjectClassId
+                ? subjectClassId
+                : undefined
             )) as Array<Record<string, unknown>>;
 
             const studentRows = Array.isArray(classStudents) ? classStudents : [];
-            const subjectClassId = String(cls.subject_class_id ?? "").trim();
 
+            const subjectScope = {
+              subjectId: Number(scopedSubjectId),
+              subjectName: scopedSubjectDisplayName,
+              subjectClassId,
+            };
             const inScopeRows = isSubjectWorkspaceMode
-              ? filterStudentsBySubjectScope(studentRows, {
-                  subjectId: Number(scopedSubjectId),
-                  subjectName: activeSubject?.name,
-                  subjectClassId,
-                })
+              ? filterStudentsBySubjectScope(studentRows, subjectScope)
               : studentRows;
+            const hintScopeKey = makeSubjectHintScopeKey(
+              Number(scopedSubjectId),
+              subjectClassId
+            );
+            const hintBucket = readSubjectStudentHints(hintScopeKey);
+            const hintedRows =
+              isSubjectWorkspaceMode && studentRows.length > 0
+                ? studentRows.filter((student) => {
+                    if (studentMatchesSubjectScope(student, subjectScope)) {
+                      return false;
+                    }
 
-            const scopedStudents = inScopeRows;
+                    if (extractStudentSubjectClassIds(student).length > 0) {
+                      return false;
+                    }
+
+                    return matchesSubjectStudentHint(student, hintBucket);
+                  })
+                : [];
+            const combinedRows = dedupeStudentRows([
+              ...(inScopeRows as Array<Record<string, unknown>>),
+              ...(hintedRows as Array<Record<string, unknown>>),
+            ]);
+            const safeFallbackRows =
+              isSubjectWorkspaceMode &&
+              combinedRows.length === 0 &&
+              studentRows.length > 0 &&
+              !studentRows.some((student) => hasAnySubjectMarkers(student))
+                ? studentRows
+                : [];
+            const scopedStudents = isSubjectWorkspaceMode
+              ? dedupeStudentRows([
+                  ...combinedRows,
+                  ...((combinedRows.length === 0 ? safeFallbackRows : []) as Array<Record<string, unknown>>),
+                ])
+              : studentRows;
 
             return scopedStudents.flatMap((student): StudentListRow[] => {
                 const primaryId = String(student.id ?? "").trim();
@@ -735,18 +976,24 @@ export default function AllStudentsPage() {
                   );
                 }
 
-                const yearGroups = uniqueNonEmptyStrings([
-                  ...currentAssignments.map((entry) => entry.yearLabel),
-                  actualYearName,
-                ]);
-                const yearIds = Array.from(
-                  new Set(
-                    [
-                      ...inferredFromSubjectClass.map((entry) => Number(entry.yearId)),
-                      actualYearId,
-                    ].filter((value) => Number.isFinite(value) && value > 0)
-                  )
-                );
+                const yearGroups =
+                  role === "TEACHER" && isSubjectWorkspaceMode
+                    ? uniqueNonEmptyStrings([actualYearName])
+                    : uniqueNonEmptyStrings([
+                        ...currentAssignments.map((entry) => entry.yearLabel),
+                        actualYearName,
+                      ]);
+                const yearIds =
+                  role === "TEACHER" && isSubjectWorkspaceMode
+                    ? (Number.isFinite(actualYearId) && actualYearId > 0 ? [actualYearId] : [])
+                    : Array.from(
+                        new Set(
+                          [
+                            ...inferredFromSubjectClass.map((entry) => Number(entry.yearId)),
+                            actualYearId,
+                          ].filter((value) => Number.isFinite(value) && value > 0)
+                        )
+                      );
                 const classNames = uniqueNonEmptyStrings([
                   ...currentAssignments.map((entry) => entry.baseClassLabel || entry.subjectClassName),
                   actualClassName,
@@ -774,8 +1021,8 @@ export default function AllStudentsPage() {
                   studentId: sid,
                   profileId,
                   updateIds,
-                  name: String(student.student_name ?? student.name ?? "Unknown Student"),
-                  userName: String(student.user_name ?? student.username ?? ""),
+                  name: resolveStudentDisplayName(student),
+                  userName: resolveStudentUserName(student),
                   email: String(student.email ?? ""),
                   nationality,
                   subjectIds,
@@ -1942,8 +2189,8 @@ export default function AllStudentsPage() {
 
           const hydratedRecord: StudentListRow = {
             ...record,
-            name: String(profile.student_name ?? profile.name ?? record.name),
-            userName: String(profile.user_name ?? profile.username ?? record.userName),
+            name: resolveStudentDisplayName({ ...record, ...profile }),
+            userName: resolveStudentUserName({ ...record, ...profile }) || record.userName,
             email: String(profile.email ?? record.email),
             nationality: nextNationality,
             isSen: resolvedIsSen,
@@ -2182,7 +2429,7 @@ export default function AllStudentsPage() {
           )}
         </Space>
 
-        {isLoading ? (
+        {isWaitingForSubjectScopedStudents || isLoading ? (
           <div className="h-48 flex items-center justify-center">
             <Spin size="large" />
           </div>

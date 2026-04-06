@@ -376,6 +376,47 @@ useEffect(() => {
       return;
     }
 
+    const collectScopedStudentRows = (
+      studentRows: Array<Record<string, any>>,
+      subjectClassId: string
+    ) => {
+      const inScopeRows = filterStudentsBySubjectScope(studentRows, {
+        subjectId: Number(activeSubjectId),
+        subjectName: activeSubject?.name,
+        subjectClassId,
+      });
+
+      const hintScopeKey = makeSubjectHintScopeKey(Number(activeSubjectId), subjectClassId);
+      const hintBucket = readSubjectStudentHints(hintScopeKey);
+      const hintedRows = studentRows.filter((student: any) => {
+        if (
+          studentMatchesSubjectScope(student, {
+            subjectId: Number(activeSubjectId),
+            subjectName: activeSubject?.name,
+            subjectClassId,
+          })
+        ) {
+          return false;
+        }
+
+        const scopedIds = extractStudentSubjectClassIds(student);
+        if (scopedIds.length > 0) return false;
+        return matchesSubjectStudentHint(student, hintBucket);
+      });
+
+      const filteredRows = [...inScopeRows, ...hintedRows];
+      if (filteredRows.length > 0) return filteredRows;
+
+      if (
+        studentRows.length > 0 &&
+        !studentRows.some((student: any) => extractStudentSubjectClassIds(student).length > 0)
+      ) {
+        return studentRows;
+      }
+
+      return studentRows;
+    };
+
     const baseClassesByYear = new Map<number, any[]>();
     const getBaseClassesForYear = async (yearId: number) => {
       if (baseClassesByYear.has(yearId)) {
@@ -408,47 +449,46 @@ useEffect(() => {
               linkedClassId = String(matched?.id ?? "").trim();
             }
 
-            if (!linkedClassId) {
+            const subjectClassId = String(cls.id ?? "").trim();
+
+            if (!subjectClassId) {
               return [String(cls.id), { students: 0 }] as const;
             }
 
-            const students = await fetchStudents(linkedClassId, Number(activeSubjectId));
-            const studentRows = Array.isArray(students) ? students : [];
-            const inScopeRows = filterStudentsBySubjectScope(
-              studentRows,
-              {
-                subjectId: Number(activeSubjectId),
-                subjectName: activeSubject?.name,
-                subjectClassId: cls.id,
-              }
+            const requestTargets = Array.from(
+              new Set(
+                [linkedClassId, subjectClassId]
+                  .map((value) => String(value ?? "").trim())
+                  .filter(Boolean)
+              )
             );
 
-            const hintScopeKey = makeSubjectHintScopeKey(Number(activeSubjectId), cls.id);
-            const hintBucket = readSubjectStudentHints(hintScopeKey);
-            const hintedRows = studentRows.filter((student: any) => {
-              if (
-                studentMatchesSubjectScope(student, {
-                  subjectId: Number(activeSubjectId),
-                  subjectName: activeSubject?.name,
-                  subjectClassId: cls.id,
-                })
-              ) {
-                return false;
+            let finalRows: Array<Record<string, any>> = [];
+
+            for (const targetClassId of requestTargets) {
+              const students = await fetchStudents(
+                targetClassId,
+                Number(activeSubjectId),
+                subjectClassId
+              );
+              const studentRows = Array.isArray(students) ? students : [];
+              const candidateRows = collectScopedStudentRows(studentRows, subjectClassId);
+
+              if (candidateRows.length > 0) {
+                finalRows = candidateRows;
+                break;
               }
 
-              const scopedIds = extractStudentSubjectClassIds(student);
-              if (scopedIds.length > 0) return false;
-              return matchesSubjectStudentHint(student, hintBucket);
-            });
+              if (finalRows.length === 0) {
+                finalRows = candidateRows;
+              }
+            }
 
-            const filteredTotal = new Set(
-              [...inScopeRows, ...hintedRows]
+            const total = new Set(
+              finalRows
                 .map((student: any) => String(student?.id ?? "").trim())
                 .filter(Boolean)
             ).size;
-            // Use raw API count as fallback: the API already receives subject_id,
-            // so if students lack scope metadata the raw count is more accurate than 0.
-            const total = filteredTotal > 0 ? filteredTotal : studentRows.length;
             return [String(cls.id), { students: total }] as const;
           }
 

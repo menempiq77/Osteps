@@ -12,6 +12,8 @@ import { fetchAssessment } from "@/services/api";
 import { fetchTerm } from "@/services/termsApi";
 import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
 import { fetchClasses } from "@/services/classesApi";
+import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
+import { resolveSubjectClassLinkedIdWithFallback } from "@/lib/subjectClassResolution";
 
 interface CurrentUser {
   student?: string;
@@ -32,6 +34,7 @@ export default function StudentAssessmentPage() {
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
 
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
+  const [selectedSubjectClassId, setSelectedSubjectClassId] = useState<string | null>(null);
 
   const [terms, setTerms] = useState<any[]>([]);
   const [selectedTermId, setSelectedTermId] = useState<number | null>(null);
@@ -42,7 +45,7 @@ export default function StudentAssessmentPage() {
   const { currentUser } = useSelector((state: RootState) => state.auth) as {
     currentUser: CurrentUser;
   };
-  const { activeSubjectId, canUseSubjectContext } = useSubjectContext();
+  const { activeSubjectId, canUseSubjectContext, toSubjectHref } = useSubjectContext();
 
   const isTeacher = currentUser?.role === "TEACHER";
   const schoolId = currentUser?.school;
@@ -53,7 +56,22 @@ export default function StudentAssessmentPage() {
       setLoading(true);
       let yearsData: any[] = [];
 
-      if (isTeacher) {
+      if (isTeacher && canUseSubjectContext && activeSubjectId) {
+        const [schoolYears, subjectClasses] = await Promise.all([
+          fetchYearsBySchool(schoolId),
+          fetchSubjectClasses({ subject_id: Number(activeSubjectId) }),
+        ]);
+        const allowedYearIds = new Set(
+          (Array.isArray(subjectClasses) ? subjectClasses : [])
+            .map((item: any) =>
+              Number(item?.year_id ?? item?.class?.year_id ?? item?.base_class?.year_id ?? 0)
+            )
+            .filter((id: number) => Number.isFinite(id) && id > 0)
+        );
+        yearsData = (Array.isArray(schoolYears) ? schoolYears : []).filter((year: any) =>
+          allowedYearIds.has(Number(year?.id))
+        );
+      } else if (isTeacher) {
         const res = await fetchAssignYears();
         const years = res
           .map((item: any) => item?.classes?.year)
@@ -83,9 +101,31 @@ export default function StudentAssessmentPage() {
 
   /** ------------------ FETCH CLASSES ------------------ */
   const { data: classes = [], isLoading: classesLoading } = useQuery({
-    queryKey: ["classes", selectedYear, isTeacher],
+    queryKey: ["classes", selectedYear, isTeacher, activeSubjectId, canUseSubjectContext],
     queryFn: async () => {
       if (!selectedYear) return [];
+      if (isTeacher && canUseSubjectContext && activeSubjectId) {
+        const subjectClasses = await fetchSubjectClasses({
+          subject_id: Number(activeSubjectId),
+          year_id: Number(selectedYear),
+        });
+
+        return await Promise.all(
+          (Array.isArray(subjectClasses) ? subjectClasses : []).map(async (row: any) => {
+            const linkedClassId = await resolveSubjectClassLinkedIdWithFallback(
+              row,
+              Number(activeSubjectId)
+            );
+
+            return {
+              id: String(linkedClassId || row?.id || ""),
+              class_name: String(row?.base_class_label ?? row?.name ?? `Class ${row?.id ?? ""}`),
+              subject_class_id: String(row?.id ?? ""),
+              year_id: Number(row?.year_id ?? 0),
+            };
+          })
+        );
+      }
       if (isTeacher) {
         const res = await fetchAssignYears();
         let classesData = res
@@ -103,6 +143,31 @@ export default function StudentAssessmentPage() {
     },
     enabled: !!selectedYear,
   });
+
+  useEffect(() => {
+    if (!Array.isArray(classes) || classes.length === 0) {
+      setSelectedClass(null);
+      setSelectedSubjectClassId(null);
+      return;
+    }
+
+    const currentMatch = classes.find(
+      (cls: any) => String(cls?.id ?? "") === String(selectedClass ?? "")
+    );
+
+    if (currentMatch) {
+      if (currentMatch?.subject_class_id) {
+        setSelectedSubjectClassId(String(currentMatch.subject_class_id));
+      }
+      return;
+    }
+
+    const firstClass = classes[0];
+    setSelectedClass(String(firstClass?.id ?? ""));
+    setSelectedSubjectClassId(
+      firstClass?.subject_class_id ? String(firstClass.subject_class_id) : null
+    );
+  }, [classes, selectedClass]);
 
   /** ------------------ FETCH TERMS ------------------ */
   const loadTerms = async () => {
@@ -161,7 +226,11 @@ export default function StudentAssessmentPage() {
 
   /** ------------------ HANDLERS ------------------ */
   const handleViewTasks = (assessment: any) => {
-    router.push(`/dashboard/student_assesments/${assessment.id}?classId=${selectedClass}`);
+    const params = new URLSearchParams();
+    if (selectedClass) params.set("classId", String(selectedClass));
+    if (selectedSubjectClassId) params.set("subjectClassId", String(selectedSubjectClassId));
+    const nextHref = `/dashboard/student_assesments/${assessment.id}?${params.toString()}`;
+    router.push(canUseSubjectContext && activeSubjectId ? toSubjectHref(nextHref) : nextHref);
   };
 
   const handleTermChange = (termId: number) => {
@@ -208,6 +277,7 @@ export default function StudentAssessmentPage() {
               onChange={(value) => {
                 setSelectedYear(value);
                 setSelectedClass(null);
+                setSelectedSubjectClassId(null);
                 setTerms([]);
                 setSelectedTerm("");
                 setSelectedTermId(null);
@@ -231,7 +301,11 @@ export default function StudentAssessmentPage() {
             <Select
               value={selectedClass || undefined}
               onChange={(value) => {
+                const matchedClass = classes.find((cls: any) => String(cls?.id) === String(value));
                 setSelectedClass(value);
+                setSelectedSubjectClassId(
+                  matchedClass?.subject_class_id ? String(matchedClass.subject_class_id) : null
+                );
                 setTerms([]);
                 setSelectedTerm("");
                 setSelectedTermId(null);

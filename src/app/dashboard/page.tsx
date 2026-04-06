@@ -39,7 +39,6 @@ import {
   searchStudentProfile,
 } from "@/services/dashboardApis";
 import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
-import { fetchClasses } from "@/services/classesApi";
 import { fetchStudents } from "@/services/studentsApi";
 import { fetchSchoolLogo } from "@/services/api";
 import { IMG_BASE_URL } from "@/lib/config";
@@ -50,7 +49,7 @@ import { fetchStaffSubjectAssignments, fetchSubjectClasses } from "@/services/su
 import { shouldUseLegacyUnscopedSubjectData } from "@/lib/subjectScope";
 import { filterStudentsBySubjectScope, studentMatchesSubjectScope } from "@/lib/subjectStudentScope";
 import { extractSubjectIdFromPath, toSubjectScopedPath } from "@/lib/subjectRouting";
-import { readSubjectClassBaseMap } from "@/lib/subjectClassResolution";
+import { resolveSubjectClassLinkedIdWithFallback } from "@/lib/subjectClassResolution";
 import {
   makeSubjectHintScopeKey,
   matchesSubjectStudentHint,
@@ -67,32 +66,6 @@ const resolveSubjectClassYearId = (row: any): number =>
       row?.base_class?.year_id ??
       0
   );
-
-const resolveSubjectClassLinkedId = (row: any): string =>
-  String(
-    row?.class_id ??
-      row?.base_class_id ??
-      row?.class?.id ??
-      row?.classes?.id ??
-      row?.base_class?.id ??
-      ""
-  ).trim();
-
-const resolveSubjectClassLabel = (row: any): string =>
-  String(
-    row?.base_class_label ??
-      row?.class?.class_name ??
-      row?.classes?.class_name ??
-      row?.base_class?.class_name ??
-      row?.name ??
-      ""
-  ).trim();
-
-const normalizeClassLabel = (value: unknown) =>
-  String(value ?? "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
 
 const extractStudentSubjectClassIds = (student: Record<string, any>) =>
   [
@@ -239,6 +212,126 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
 
+  const getSubjectScopedSummary = async (
+    subjectId: number,
+    subjectName?: string | null
+  ): Promise<{ yearCount: number; classCount: number; studentCount: number }> => {
+    const subjectClasses = await fetchSubjectClasses({ subject_id: Number(subjectId) });
+    const scopedClasses = (Array.isArray(subjectClasses) ? subjectClasses : []).filter((row: any) => {
+      const parsedYearId = resolveSubjectClassYearId(row);
+      return Number.isFinite(parsedYearId) && parsedYearId > 0;
+    });
+
+    const classCount = scopedClasses.length;
+    const yearsFromClasses = scopedClasses
+      .map((row: any) => resolveSubjectClassYearId(row))
+      .filter((value) => Number.isFinite(value) && value > 0);
+    const yearCount = new Set(yearsFromClasses).size;
+
+    const scopedStudentIds = new Set<number>();
+
+    const collectScopedStudentRows = (
+      studentRows: Array<Record<string, any>>,
+      subjectClassId: string
+    ) => {
+      const inScopeRows = filterStudentsBySubjectScope(studentRows, {
+        subjectId: Number(subjectId),
+        subjectName,
+        subjectClassId,
+      });
+
+      const hintScopeKey = makeSubjectHintScopeKey(Number(subjectId), subjectClassId);
+      const hintBucket = readSubjectStudentHints(hintScopeKey);
+      const hintedRows = studentRows.filter((student: any) => {
+        if (
+          studentMatchesSubjectScope(student, {
+            subjectId: Number(subjectId),
+            subjectName,
+            subjectClassId,
+          })
+        ) {
+          return false;
+        }
+
+        const scopedIds = extractStudentSubjectClassIds(student);
+        if (scopedIds.length > 0) return false;
+        return matchesSubjectStudentHint(student, hintBucket);
+      });
+
+      const combinedRows = [...inScopeRows, ...hintedRows];
+      const safeFallbackRows =
+        combinedRows.length === 0 &&
+        studentRows.length > 0 &&
+        !studentRows.some((student: any) => hasAnySubjectMarkers(student))
+          ? studentRows
+          : [];
+
+      return combinedRows.length > 0
+        ? combinedRows
+        : safeFallbackRows.length > 0
+          ? safeFallbackRows
+          : studentRows;
+    };
+
+    await Promise.all(
+      scopedClasses.map(async (row: any) => {
+        const subjectClassId = String(row?.id ?? "").trim();
+        const linkedClassId = await resolveSubjectClassLinkedIdWithFallback(
+          row,
+          Number(subjectId)
+        );
+
+        if (!subjectClassId) return;
+
+        try {
+          const requestTargets = Array.from(
+            new Set(
+              [linkedClassId, subjectClassId]
+                .map((value) => String(value ?? "").trim())
+                .filter(Boolean)
+            )
+          );
+
+          let finalRows: Array<Record<string, any>> = [];
+
+          for (const targetClassId of requestTargets) {
+            const students = await fetchStudents(
+              targetClassId,
+              Number(subjectId),
+              subjectClassId
+            );
+            const studentRows = Array.isArray(students) ? students : [];
+            const candidateRows = collectScopedStudentRows(studentRows, subjectClassId);
+
+            if (candidateRows.length > 0) {
+              finalRows = candidateRows;
+              break;
+            }
+
+            if (finalRows.length === 0) {
+              finalRows = candidateRows;
+            }
+          }
+
+          finalRows.forEach((student: any) => {
+            const id = Number(student?.id);
+            if (Number.isFinite(id) && id > 0) {
+              scopedStudentIds.add(id);
+            }
+          });
+        } catch {
+          // Ignore per-class failures and continue aggregate count.
+        }
+      })
+    );
+
+    return {
+      yearCount,
+      classCount,
+      studentCount: scopedStudentIds.size,
+    };
+  };
+
   const handleSearch = async (value: string) => {
     if (!value) {
       setStudents([]);
@@ -323,13 +416,19 @@ export default function DashboardPage() {
     isLoading: subjectScopedOverviewLoading,
     error: subjectScopedOverviewError,
   } = useQuery({
-    queryKey: ["subject-scoped-overview", activeSubjectId, schoolId, currentUser?.role],
+    queryKey: [
+      "subject-scoped-overview",
+      currentUser?.id,
+      activeSubjectId,
+      schoolId,
+      currentUser?.role,
+    ],
     queryFn: async () => {
       if (!activeSubjectId) return null;
 
-      const [staffAssignments, subjectClasses] = await Promise.all([
-        fetchStaffSubjectAssignments(),
-        fetchSubjectClasses({ subject_id: Number(activeSubjectId) }),
+      const [subjectSummary, staffAssignments] = await Promise.all([
+        getSubjectScopedSummary(Number(activeSubjectId), activeSubject?.name),
+        fetchStaffSubjectAssignments().catch(() => []),
       ]);
 
       const scopedStaff = (Array.isArray(staffAssignments) ? staffAssignments : []).filter(
@@ -348,165 +447,32 @@ export default function DashboardPage() {
           .map((item: any) => Number(item?.user_id ?? item?.teacher_id))
           .filter((id: number) => Number.isFinite(id) && id > 0)
       ).size;
-      const scopedClasses = (Array.isArray(subjectClasses) ? subjectClasses : []).filter((row: any) => {
-        const parsedYearId = resolveSubjectClassYearId(row);
-        return Number.isFinite(parsedYearId) && parsedYearId > 0;
-      });
-
-      const classCount = scopedClasses.length;
-      const yearsFromClasses = scopedClasses
-        .map((row: any) => resolveSubjectClassYearId(row))
-        .filter((value) => Number.isFinite(value) && value > 0);
-      const yearCount = new Set(yearsFromClasses).size;
-
-      const scopedStudentIds = new Set<number>();
-      const baseClassesByYear = new Map<number, any[]>();
-      const getBaseClassesForYear = async (yearId: number) => {
-        if (baseClassesByYear.has(yearId)) {
-          return baseClassesByYear.get(yearId) as any[];
-        }
-        try {
-          const rows = await fetchClasses(String(yearId));
-          const list = Array.isArray(rows) ? rows : [];
-          baseClassesByYear.set(yearId, list);
-          return list;
-        } catch {
-          baseClassesByYear.set(yearId, []);
-          return [];
-        }
-      };
-
-      await Promise.all(
-        scopedClasses.map(async (row: any) => {
-          const storedBaseId = readSubjectClassBaseMap(Number(activeSubjectId))[String(row?.id ?? "").trim()] ?? "";
-          let linkedClassId = resolveSubjectClassLinkedId(row) || storedBaseId;
-          const subjectClassId = String(row?.id ?? "").trim();
-
-          if (!linkedClassId) {
-            const resolvedYearId = resolveSubjectClassYearId(row);
-            const subjectLabel = normalizeClassLabel(resolveSubjectClassLabel(row));
-            if (resolvedYearId > 0 && subjectLabel) {
-              const baseRows = await getBaseClassesForYear(resolvedYearId);
-              const matchedBaseClass = (Array.isArray(baseRows) ? baseRows : []).find(
-                (baseRow: any) =>
-                  normalizeClassLabel(baseRow?.class_name ?? baseRow?.name) === subjectLabel
-              );
-              linkedClassId = String(matchedBaseClass?.id ?? "").trim();
-            }
-          }
-
-          if (!linkedClassId || !subjectClassId) return;
-
-          try {
-            const students = await fetchStudents(linkedClassId, Number(activeSubjectId));
-            const studentRows = Array.isArray(students) ? students : [];
-            const inScopeRows = filterStudentsBySubjectScope(
-              studentRows,
-              {
-                subjectId: Number(activeSubjectId),
-                subjectName: activeSubject?.name,
-                subjectClassId,
-              }
-            );
-
-            const hintScopeKey = makeSubjectHintScopeKey(Number(activeSubjectId), subjectClassId);
-            const hintBucket = readSubjectStudentHints(hintScopeKey);
-            const hintedRows = studentRows.filter((student: any) => {
-              if (
-                studentMatchesSubjectScope(student, {
-                  subjectId: Number(activeSubjectId),
-                  subjectName: activeSubject?.name,
-                  subjectClassId,
-                })
-              ) {
-                return false;
-              }
-
-              const scopedIds = extractStudentSubjectClassIds(student);
-              if (scopedIds.length > 0) return false;
-              return matchesSubjectStudentHint(student, hintBucket);
-            });
-
-            const combinedRows = [...inScopeRows, ...hintedRows];
-
-            const safeFallbackRows =
-              combinedRows.length === 0 &&
-              studentRows.length > 0 &&
-              !studentRows.some((student: any) => hasAnySubjectMarkers(student))
-                ? studentRows
-                : [];
-
-            // Use raw API count as fallback: the API already receives subject_id,
-            // so if students lack scope metadata the raw count is more accurate than 0.
-            const finalRows = combinedRows.length > 0
-              ? combinedRows
-              : safeFallbackRows.length > 0
-                ? safeFallbackRows
-                : studentRows;
-
-            finalRows.forEach((student: any) => {
-              const id = Number(student?.id);
-              if (Number.isFinite(id) && id > 0) {
-                scopedStudentIds.add(id);
-              }
-            });
-          } catch {
-            // Ignore per-class failures and continue aggregate count.
-          }
-        })
-      );
-
-      const studentCount = scopedStudentIds.size;
-
       return {
-        yearCount,
-        classCount,
+        yearCount: subjectSummary.yearCount,
+        classCount: subjectSummary.classCount,
         teacherCount,
         hodCount,
-        studentCount,
+        studentCount: subjectSummary.studentCount,
       };
     },
     enabled:
       !!activeSubjectId &&
       !subjectContextLoading &&
       isSubjectWorkspaceMode &&
-      schoolId > 0 &&
       (currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "HOD" || currentUser?.role === "TEACHER"),
     retry: false,
   });
 
-  const { data: teacherDerivedCounts } = useQuery({
+  const {
+    data: teacherDerivedCounts,
+  } = useQuery({
     queryKey: ["teacher-dashboard-counts", currentUser?.id, activeSubjectId, activeSubject?.name],
     queryFn: async () => {
       if (currentUser?.role !== "TEACHER") return null;
+
       const assignYears = (await fetchAssignYears()) ?? [];
 
-      // When in subject workspace mode, intersect by base_class_label + year_id
-      let scopedAssignments = assignYears ?? [];
-      if (isSubjectWorkspaceMode && activeSubjectId) {
-        const subjectClasses = (await fetchSubjectClasses({
-          subject_id: Number(activeSubjectId),
-        })) ?? [];
-
-        const subjectLabelKeys = new Set(
-          (Array.isArray(subjectClasses) ? subjectClasses : [])
-            .map((row: any) => {
-              const label = String(row.base_class_label ?? row.name ?? "").trim().toLowerCase();
-              const yId = String(row.year_id ?? "");
-              return `${label}::${yId}`;
-            })
-        );
-
-        scopedAssignments = (assignYears ?? []).filter((item: any) => {
-          const cls = item?.classes;
-          if (!cls) return false;
-          const className = String(cls.class_name ?? "").trim().toLowerCase();
-          const yId = String(cls.year_id ?? "");
-          const key = `${className}::${yId}`;
-          return subjectLabelKeys.has(key);
-        });
-
-      }
+      const scopedAssignments = assignYears ?? [];
 
       const assignedClasses = scopedAssignments.flatMap((item: any) => {
         const classesValue = item?.classes;
@@ -539,7 +505,7 @@ export default function DashboardPage() {
         studentCount: studentCounts.reduce((sum, count) => sum + count, 0),
       };
     },
-    enabled: currentUser?.role === "TEACHER",
+    enabled: currentUser?.role === "TEACHER" && !isSubjectWorkspaceMode,
   });
   
   const {
@@ -762,20 +728,12 @@ export default function DashboardPage() {
             stats: [
               {
                 title: "Total Classes",
-                // subjectScopedOverview uses an admin-only endpoint; fall back to
-                // the teacher's own derived class count from assign_teachers.
-                value:
-                  subjectScopedOverview?.classCount ||
-                  teacherDerivedCounts?.classCount ||
-                  0,
+                value: subjectScopedOverview?.classCount ?? 0,
                 link: "/dashboard/classes",
               },
               {
                 title: "Total Students",
-                value:
-                  subjectScopedOverview?.studentCount ||
-                  teacherDerivedCounts?.studentCount ||
-                  0,
+                value: subjectScopedOverview?.studentCount ?? 0,
                 link: studentsListLink,
               },
             ],

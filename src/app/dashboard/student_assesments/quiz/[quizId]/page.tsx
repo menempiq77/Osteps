@@ -15,6 +15,7 @@ import { RootState } from "@/store/store";
 import { fetchStudents } from "@/services/studentsApi";
 import { fetchQuizQuestions, fetchSubmittedQuizDetails, quizAnswerMarks } from "@/services/quizApi";
 import TextArea from "antd/es/input/TextArea";
+import { useSubjectContext } from "@/contexts/SubjectContext";
 
 interface Option {
   id: number;
@@ -70,8 +71,10 @@ export default function QuranQuizPage() {
 
   const quizId = params.quizId;
   const classId = searchParams.get("classId");
+  const subjectClassId = searchParams.get("subjectClassId");
   
   const { currentUser } = useSelector((state: RootState) => state.auth);
+  const { activeSubjectId, canUseSubjectContext } = useSubjectContext();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [quizData, setQuizData] = useState<Quiz | null>(null);
@@ -136,7 +139,11 @@ export default function QuranQuizPage() {
     const loadStudents = async () => {
       try {
         setLoading(true);
-        const data = await fetchStudents(Number(classId));
+        const data = await fetchStudents(
+          Number(classId),
+          canUseSubjectContext ? activeSubjectId ?? undefined : undefined,
+          subjectClassId ?? undefined
+        );
         setStudents(data);
         if (data.length > 0) setSelectedStudentId(data[0].id);
       } catch (err) {
@@ -146,7 +153,7 @@ export default function QuranQuizPage() {
       }
     };
     if (classId) loadStudents();
-  }, [classId]);
+  }, [classId, activeSubjectId, canUseSubjectContext, subjectClassId]);
 
   const handleStudentChange = (value: string) => {
     setSelectedStudentId(value);

@@ -20,7 +20,7 @@ import { useSubjectContext } from "@/contexts/SubjectContext";
 import { deactivateSubjectClassesByYear, fetchSubjectClasses, isMissingSubjectWorkspaceRoute } from "@/services/subjectWorkspaceApi";
 import { filterStudentsBySubjectScope, studentMatchesSubjectScope } from "@/lib/subjectStudentScope";
 import { makeSubjectHintScopeKey, matchesSubjectStudentHint, readSubjectStudentHints } from "@/lib/subjectStudentHints";
-import { readSubjectClassBaseMap } from "@/lib/subjectClassResolution";
+import { readSubjectClassBaseMap, resolveSubjectClassLinkedIdWithFallback } from "@/lib/subjectClassResolution";
 
 interface Year {
   id: number;
@@ -310,20 +310,47 @@ export default function Page() {
         years.map(async (year) => {
           try {
             if (isSubjectWorkspaceMode && activeSubjectId) {
-              const baseClassesByYear = new Map<number, any[]>();
-              const getBaseClassesForYear = async (yearId: number) => {
-                if (baseClassesByYear.has(yearId)) {
-                  return baseClassesByYear.get(yearId) as any[];
-                }
-                try {
-                  const baseRows = await fetchClasses(String(yearId));
-                  const list = Array.isArray(baseRows) ? baseRows : [];
-                  baseClassesByYear.set(yearId, list);
-                  return list;
-                } catch {
-                  baseClassesByYear.set(yearId, []);
-                  return [];
-                }
+              const collectScopedStudentRows = (
+                studentRows: Array<Record<string, any>>,
+                subjectClassId: string
+              ) => {
+                const inScopeRows = filterStudentsBySubjectScope(studentRows, {
+                  subjectId: Number(activeSubjectId),
+                  subjectName: activeSubject?.name,
+                  subjectClassId,
+                });
+
+                const hintScopeKey = makeSubjectHintScopeKey(Number(activeSubjectId), subjectClassId);
+                const hintBucket = readSubjectStudentHints(hintScopeKey);
+                const hintedRows = studentRows.filter((student: any) => {
+                  if (
+                    studentMatchesSubjectScope(student, {
+                      subjectId: Number(activeSubjectId),
+                      subjectName: activeSubject?.name,
+                      subjectClassId,
+                    })
+                  ) {
+                    return false;
+                  }
+
+                  const scopedIds = extractStudentSubjectClassIds(student);
+                  if (scopedIds.length > 0) return false;
+                  return matchesSubjectStudentHint(student, hintBucket);
+                });
+
+                const combinedRows = [...inScopeRows, ...hintedRows];
+                const safeFallbackRows =
+                  combinedRows.length === 0 &&
+                  studentRows.length > 0 &&
+                  !studentRows.some((student: any) => hasAnySubjectMarkers(student))
+                    ? studentRows
+                    : [];
+
+                return combinedRows.length > 0
+                  ? combinedRows
+                  : safeFallbackRows.length > 0
+                    ? safeFallbackRows
+                    : studentRows;
               };
 
               const subjectClasses = (await fetchSubjectClasses({
@@ -336,70 +363,44 @@ export default function Page() {
               const studentCounts = await Promise.all(
                 classesForYear.map(async (row) => {
                   const subjectClassId = String(row?.id ?? "").trim();
-                  const storedBaseId = readSubjectClassBaseMap(Number(activeSubjectId))[subjectClassId] ?? "";
-                  let linkedClassId = resolveSubjectClassLinkedId(row) || storedBaseId;
-
-                  if (!linkedClassId) {
-                    const resolvedYearId = resolveSubjectClassYearId(row) || Number(year.id);
-                    const subjectLabel = normalizeClassLabel(resolveSubjectClassLabel(row));
-                    if (resolvedYearId > 0 && subjectLabel) {
-                      const baseRows = await getBaseClassesForYear(resolvedYearId);
-                      const matchedBaseClass = (Array.isArray(baseRows) ? baseRows : []).find(
-                        (baseRow: any) =>
-                          normalizeClassLabel(baseRow?.class_name ?? baseRow?.name) === subjectLabel
-                      );
-                      linkedClassId = String(matchedBaseClass?.id ?? "").trim();
-                    }
-                  }
-
-                  if (!linkedClassId || !subjectClassId) return 0;
-                  try {
-                    const students = await fetchStudents(
-                      linkedClassId,
+                  const storedBaseId =
+                    readSubjectClassBaseMap(Number(activeSubjectId))[subjectClassId] ?? "";
+                  const resolvedLinkedClassId =
+                    (await resolveSubjectClassLinkedIdWithFallback(
+                      row,
                       Number(activeSubjectId)
+                    )) || String(storedBaseId).trim();
+
+                  if (!subjectClassId) return 0;
+                  try {
+                    const requestTargets = Array.from(
+                      new Set(
+                        [resolvedLinkedClassId, subjectClassId]
+                          .map((value) => String(value ?? "").trim())
+                          .filter(Boolean)
+                      )
                     );
-                    const studentRows = Array.isArray(students) ? students : [];
-                    const inScopeRows = filterStudentsBySubjectScope(
-                      studentRows,
-                      {
-                        subjectId: Number(activeSubjectId),
-                        subjectName: activeSubject?.name,
-                        subjectClassId,
-                      }
-                    );
 
-                    const hintScopeKey = makeSubjectHintScopeKey(Number(activeSubjectId), subjectClassId);
-                    const hintBucket = readSubjectStudentHints(hintScopeKey);
-                    const hintedRows = studentRows.filter((student: any) => {
-                      if (
-                        studentMatchesSubjectScope(student, {
-                          subjectId: Number(activeSubjectId),
-                          subjectName: activeSubject?.name,
-                          subjectClassId,
-                        })
-                      ) {
-                        return false;
+                    let finalRows: Array<Record<string, any>> = [];
+
+                    for (const targetClassId of requestTargets) {
+                      const students = await fetchStudents(
+                        targetClassId,
+                        Number(activeSubjectId),
+                        subjectClassId
+                      );
+                      const studentRows = Array.isArray(students) ? students : [];
+                      const candidateRows = collectScopedStudentRows(studentRows, subjectClassId);
+
+                      if (candidateRows.length > 0) {
+                        finalRows = candidateRows;
+                        break;
                       }
 
-                      const scopedIds = extractStudentSubjectClassIds(student);
-                      if (scopedIds.length > 0) return false;
-                      return matchesSubjectStudentHint(student, hintBucket);
-                    });
-
-                    const combinedRows = [...inScopeRows, ...hintedRows];
-                    const safeFallbackRows =
-                      combinedRows.length === 0 &&
-                      studentRows.length > 0 &&
-                      !studentRows.some((student: any) => hasAnySubjectMarkers(student))
-                        ? studentRows
-                        : [];
-
-                    // Use raw API count as fallback when scope filter returns 0
-                    const finalRows = combinedRows.length > 0
-                      ? combinedRows
-                      : safeFallbackRows.length > 0
-                        ? safeFallbackRows
-                        : studentRows;
+                      if (finalRows.length === 0) {
+                        finalRows = candidateRows;
+                      }
+                    }
 
                     return new Set(
                       finalRows

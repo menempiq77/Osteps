@@ -13,6 +13,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { addStudentTaskMarks, fetchStudentTasks } from "@/services/api";
 import { fetchStudents } from "@/services/studentsApi";
 import Link from "next/link";
+import { useSubjectContext } from "@/contexts/SubjectContext";
 
 interface Task {
   id: number;
@@ -49,6 +50,8 @@ export default function AssessmentDrawer() {
   const searchParams = useSearchParams();
   const assessmentId = params.assessmentId;
   const classId = searchParams.get("classId");
+  const subjectClassId = searchParams.get("subjectClassId");
+  const { activeSubjectId, canUseSubjectContext, toSubjectHref } = useSubjectContext();
 
   const [assessmentOpenTaskId, setAssessmentOpenTaskId] = useState<
     number | null
@@ -92,7 +95,11 @@ export default function AssessmentDrawer() {
   const loadStudents = async () => {
     try {
       setLoading(true);
-      const studentsData = await fetchStudents(classId);
+      const studentsData = await fetchStudents(
+        classId,
+        canUseSubjectContext ? activeSubjectId ?? undefined : undefined,
+        subjectClassId ?? undefined
+      );
       setStudents(studentsData);
       if (studentsData.length > 0) {
         setSelectedStudentId(studentsData[0].id);
@@ -178,9 +185,11 @@ export default function AssessmentDrawer() {
     : assementTasks;
 
   const handleViewQuiz = (task: any) => {
-    router.push(
-      `/dashboard/student_assesments/quiz/${task.quiz.id}?classId=${classId}`
-    );
+    const params = new URLSearchParams();
+    if (classId) params.set("classId", String(classId));
+    if (subjectClassId) params.set("subjectClassId", String(subjectClassId));
+    const nextHref = `/dashboard/student_assesments/quiz/${task.quiz.id}?${params.toString()}`;
+    router.push(canUseSubjectContext && activeSubjectId ? toSubjectHref(nextHref) : nextHref);
   };
 
   return (
@@ -192,7 +201,11 @@ export default function AssessmentDrawer() {
               title: <Link href="/dashboard">Dashboard</Link>,
             },
             {
-              title: <Link href="/dashboard/student_assesments">Assessments</Link>,
+              title: (
+                <Link href={canUseSubjectContext && activeSubjectId ? toSubjectHref("/dashboard/student_assesments") : "/dashboard/student_assesments"}>
+                  Assessments
+                </Link>
+              ),
             },
             {
               title: <span>Tasks</span>,
