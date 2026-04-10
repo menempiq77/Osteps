@@ -10,6 +10,7 @@ interface YearFormValues {
   school_id?: number;
   terms?: number;
   color?: string;
+  number_of_terms?: string;
 }
 
 interface YearFormProps {
@@ -34,6 +35,7 @@ export default function YearForm({ onSubmit, defaultValues }: YearFormProps) {
         name: defaultValues.name || "",
         school_id: defaultValues.school_id,
         color: defaultValues.color || "green",
+        number_of_terms: defaultValues.number_of_terms ?? undefined,
         ...(defaultValues.id && { id: defaultValues.id })
       });
     } else {
@@ -75,6 +77,17 @@ export default function YearForm({ onSubmit, defaultValues }: YearFormProps) {
           <Select.Option value="red">Red</Select.Option>
           <Select.Option value="blue">Blue</Select.Option>
           <Select.Option value="purple">Purple</Select.Option>
+        </Select>
+      </Form.Item>
+
+      <Form.Item
+        label="Number of Terms"
+        name="number_of_terms"
+        extra="Sets the term count for all classes in this year group"
+      >
+        <Select placeholder="Select term count" allowClear>
+          <Select.Option value="two">2 Terms</Select.Option>
+          <Select.Option value="three">3 Terms</Select.Option>
         </Select>
       </Form.Item>
 

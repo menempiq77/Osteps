@@ -220,7 +220,8 @@ const Sidebar = () => {
       comparableCurrent === "/dashboard/years" ||
       /^\/dashboard\/years(?:\/|$)/.test(comparableCurrent) ||
       comparableCurrent === "/dashboard/classes" ||
-      /^\/dashboard\/classes(?:\/|$)/.test(comparableCurrent)
+      /^\/dashboard\/classes(?:\/|$)/.test(comparableCurrent) ||
+      /^\/dashboard\/students\/\d+(?:\/|$)/.test(comparableCurrent)
     );
   };
 
@@ -247,6 +248,7 @@ const Sidebar = () => {
       return [
         /^\/dashboard\/years(?:\/|$)/,
         /^\/dashboard\/classes(?:\/|$)/,
+        /^\/dashboard\/students\/\d+(?:\/|$)/,
       ];
     }
 
@@ -266,6 +268,11 @@ const Sidebar = () => {
         /^\/dashboard\/subject-classes(?:\/|$)/,
         /^\/dashboard\/all_assesments(?:\/|$)/,
         /^\/dashboard\/all_trackers(?:\/|$)/,
+        /^\/dashboard\/years(?:\/|$)/,
+        /^\/dashboard\/classes(?:\/|$)/,
+        /^\/dashboard\/grades(?:\/|$)/,
+        /^\/dashboard\/quiz(?:\/|$)/,
+        /^\/dashboard\/student_behavior(?:\/|$)/,
       ];
     }
 

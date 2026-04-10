@@ -5,11 +5,10 @@ import { useSelector } from "react-redux";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Drawer, Select, Space, Typography, message } from "antd";
 import { RootState } from "@/store/store";
-import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
+import { fetchAssignYears, fetchYearsBySchool } from '@/services/yearsApi';
 import { fetchClasses } from "@/services/classesApi";
 import { fetchStudents } from "@/services/studentsApi";
-import { assignTracker, fetchTrackerAssignments, unassignTracker } from "@/services/trackersApi";
-
+import { assignTracker, fetchTrackerAssignments, unassignTracker } from "@/services/trackersApi";import { fetchSubjectClasses } from '@/services/subjectWorkspaceApi';
 type CurrentUser = {
   role?: string;
   school?: string | number | { id?: string | number };
@@ -49,10 +48,12 @@ export default function TrackerAssignDrawer({
   tracker,
   open,
   onClose,
+  subjectId,
 }: {
   tracker: TrackerRef | null;
   open: boolean;
   onClose: () => void;
+  subjectId?: number;
 }) {
   const queryClient = useQueryClient();
   const { currentUser } = useSelector((state: RootState) => state.auth) as {
@@ -70,9 +71,11 @@ export default function TrackerAssignDrawer({
   const numericTrackerId = Number(tracker?.id ?? 0);
 
   const { data: allClasses = [] } = useQuery({
-    queryKey: ["tracker-assign-classes", roleKey, schoolId],
+    queryKey: ["tracker-assign-classes", roleKey, schoolId, subjectId],
     enabled: open,
     queryFn: async (): Promise<ClassOption[]> => {
+      let allFetched: ClassOption[] = [];
+
       if (schoolId) {
         const years = (await fetchYearsBySchool(Number(schoolId))) ?? [];
         const classBuckets = await Promise.all(
@@ -86,28 +89,61 @@ export default function TrackerAssignDrawer({
             }));
           }),
         );
-        return classBuckets.flat();
-      }
-
-      const assignedYears = (await fetchAssignYears()) ?? [];
-      const flattened = assignedYears.flatMap((item: any) => {
-        const cls = item?.classes;
-        if (!cls) return [];
-        return Array.isArray(cls) ? cls : [cls];
-      });
-
-      const uniqueById = new Map<number, ClassOption>();
-      for (const cls of flattened) {
-        const id = Number(cls?.id);
-        if (!id) continue;
-        uniqueById.set(id, {
-          id,
-          year_id: Number(cls?.year_id ?? cls?.year?.id ?? 0) || undefined,
-          class_name: cls?.class_name ?? cls?.name ?? `Class ${id}`,
-          year_name: cls?.year?.name,
+        allFetched = classBuckets.flat();
+      } else {
+        const assignedYears = (await fetchAssignYears()) ?? [];
+        const flattened = assignedYears.flatMap((item: any) => {
+          const cls = item?.classes;
+          if (!cls) return [];
+          return Array.isArray(cls) ? cls : [cls];
         });
+        const uniqueById = new Map<number, ClassOption>();
+        for (const cls of flattened) {
+          const id = Number(cls?.id);
+          if (!id) continue;
+          uniqueById.set(id, {
+            id,
+            year_id: Number(cls?.year_id ?? cls?.year?.id ?? 0) || undefined,
+            class_name: cls?.class_name ?? cls?.name ?? `Class ${id}`,
+            year_name: cls?.year?.name,
+          });
+        }
+        allFetched = Array.from(uniqueById.values());
       }
-      return Array.from(uniqueById.values());
+
+      // Filter by subject: keep only classes linked to the active subject.
+      // subject_classes rows use (year_id + base_class_label) to identify base classes.
+      if (subjectId) {
+        try {
+          const subjectClasses = (await fetchSubjectClasses({ subject_id: subjectId })) ?? [];
+
+          // Build a set of (year_id, normalizedLabel) pairs and a set of direct class_ids
+          const normalize = (s: string) => s.toLowerCase().replace(/[\s_-]+/g, " ").trim();
+          type LabelKey = string; // `${year_id}::${label}`
+          const labelKeys = new Set<LabelKey>();
+          const directClassIds = new Set<number>();
+
+          for (const sc of subjectClasses as any[]) {
+            const directId = Number(sc.class_id ?? sc.base_class_id ?? sc.class?.id ?? sc.classes?.id ?? 0);
+            if (directId > 0) { directClassIds.add(directId); continue; }
+            const yearId = Number(sc.year_id ?? 0);
+            const label = normalize(String(sc.base_class_label ?? sc.name ?? ""));
+            if (yearId > 0 && label) labelKeys.add(`${yearId}::${label}`);
+          }
+
+          if (directClassIds.size > 0 || labelKeys.size > 0) {
+            allFetched = allFetched.filter((cls) => {
+              if (directClassIds.has(cls.id)) return true;
+              const key = `${cls.year_id}::${normalize(cls.class_name)}`;
+              return labelKeys.has(key);
+            });
+          }
+        } catch {
+          // If subject class fetch fails, show all classes as fallback
+        }
+      }
+
+      return allFetched;
     },
   });
 

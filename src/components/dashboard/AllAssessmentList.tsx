@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
-import { EditOutlined, DeleteOutlined, TeamOutlined } from "@ant-design/icons";
+import { EditOutlined, DeleteOutlined, TeamOutlined, FileTextOutlined, BookOutlined } from "@ant-design/icons";
 import { AssessmentTasksDrawer } from "../ui/AssessmentTasksDrawer";
+import AssessmentAssignDrawer from "./AssessmentAssignDrawer";
 import { useParams, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
@@ -64,6 +65,8 @@ export default function AllAssessmentList({
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(false);
   const [assessmentList, setAssessmentList] = useState(assessments);
+  const [assignDrawerOpen, setAssignDrawerOpen] = useState(false);
+  const [assigningAssessment, setAssigningAssessment] = useState<Assessment | null>(null);
 
   const [selectedTermId, setSelectedTermId] = useState<string | null>(
     termId ? termId.toString() : null
@@ -114,8 +117,9 @@ export default function AllAssessmentList({
     setTasks([]);
   };
 
-  const handleAssignAssesment = (assesmentId: string) => {
-    router.push(`/dashboard/all_assesments/${assesmentId}/assign`);
+  const handleAssignAssesment = (assessment: Assessment) => {
+    setAssigningAssessment(assessment);
+    setAssignDrawerOpen(true);
   };
 
   const handleTasksChange = async () => {
@@ -158,49 +162,56 @@ export default function AllAssessmentList({
   };
 
   return (
-    <div className="mt-8 overflow-hidden">
+    <div className="mt-4">
       {contextHolder}
-      <div className="overflow-x-auto bg-white border border-gray-200 rounded-lg shadow-md">
+      <div className="premium-card rounded-xl p-1">
         <DragDropContext onDragEnd={handleDragEnd}>
           <Droppable droppableId="assessmentTable">
             {(provided) => (
-              <table className="w-full" ref={provided.innerRef} {...provided.droppableProps}>
-                <thead>
-                  <tr className="bg-primary">
-                    <th className="px-6 py-3 text-xs font-medium text-white uppercase"></th>
-                    <th className="px-6 py-3 text-xs font-medium text-white uppercase">
-                      Assessment Name
-                    </th>
-                    <th className="px-6 py-3 text-xs font-medium text-white uppercase">
-                      Type
-                    </th>
-                    {canUpload && (
-                      <th className="px-6 py-3 text-xs font-medium text-white uppercase">
-                        Actions
-                      </th>
-                    )}
-                  </tr>
-                </thead>
+              <div
+                ref={provided.innerRef}
+                {...provided.droppableProps}
+                className="flex flex-col gap-2 p-3"
+              >
+                {assessmentList.length > 0 ? (
+                  assessmentList.map((assignment, index) => (
+                    <Draggable
+                      key={assignment.id}
+                      draggableId={assignment.id.toString()}
+                      index={index}
+                    >
+                      {(provided) => (
+                        <div
+                          {...provided.draggableProps}
+                          ref={provided.innerRef}
+                          className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all duration-200 overflow-hidden group"
+                        >
+                          <div className="flex items-center gap-3 p-3 md:p-4">
+                            {/* Drag handle */}
+                            <div
+                              {...provided.dragHandleProps}
+                              className="flex-shrink-0 cursor-grab text-gray-300 hover:text-gray-500 transition-colors"
+                            >
+                              <GripVertical size={18} />
+                            </div>
 
-                <tbody className="divide-y divide-gray-200">
-                  {assessmentList.length > 0 ? (
-                    assessmentList.map((assignment, index) => (
-                      <Draggable
-                        key={assignment.id}
-                        draggableId={assignment.id.toString()}
-                        index={index}
-                      >
-                        {(provided) => (
-                          <tr
-                            {...provided.draggableProps}
-                            {...provided.dragHandleProps}
-                            ref={provided.innerRef}
-                            className="text-xs md:text-sm text-center text-gray-800 even:bg-[#E9FAF1] odd:bg-white hover:bg-[#E9FAF1]"
-                          >
-                            <td className="p-2 md:p-4">
-                              <GripVertical size={18} className="text-gray-400" />
-                            </td>
-                            <td className="p-2 md:p-4">
+                            {/* Type icon */}
+                            <div
+                              className={`flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ${
+                                assignment.type === "quiz"
+                                  ? "bg-blue-50 text-blue-600"
+                                  : "bg-green-50 text-green-600"
+                              }`}
+                            >
+                              {assignment.type === "quiz" ? (
+                                <BookOutlined className="text-base" />
+                              ) : (
+                                <FileTextOutlined className="text-base" />
+                              )}
+                            </div>
+
+                            {/* Name + badge */}
+                            <div className="flex-1 min-w-0">
                               <button
                                 type="button"
                                 onClick={() =>
@@ -210,71 +221,63 @@ export default function AllAssessmentList({
                                     assignment.quiz_id
                                   )
                                 }
-                                className={`text-green-600 hover:text-green-800 hover:underline cursor-pointer ${
-                                  assignment.type === "quiz" ? "font-medium" : ""
-                                }`}
+                                className="text-left font-semibold text-gray-800 hover:text-[var(--primary)] hover:underline cursor-pointer transition-colors text-sm md:text-base block w-full truncate"
                               >
                                 {assignment.name || assignment?.quiz?.name || "Untitled"}
                               </button>
-                            </td>
-
-                            <td className="p-2 md:p-4">
                               <span
-                                className={`px-2 py-1 text-xs rounded-full ${
+                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium mt-1 ${
                                   assignment.type === "quiz"
-                                    ? "bg-blue-100 text-blue-800"
-                                    : "bg-green-100 text-green-800"
+                                    ? "bg-blue-100 text-blue-700"
+                                    : "bg-green-100 text-green-700"
                                 }`}
                               >
                                 {assignment.type === "quiz" ? "Quiz" : "Assessment"}
                               </span>
-                            </td>
+                            </div>
 
+                            {/* Actions — visible on hover */}
                             {canUpload && (
-                              <td className="p-2 md:p-4">
-                                <div className="flex items-center justify-center gap-4">
-                                  <button
-                                    onClick={() => handleAssignAssesment(assignment.id)}
-                                    className="text-blue-500 hover:text-blue-700 cursor-pointer"
-                                    title="Assign to Classes"
-                                  >
-                                    <TeamOutlined />
-                                  </button>
-
-                                  <button
-                                    onClick={() => onEditAssessment?.(assignment)}
-                                    className="text-green-500 hover:text-green-700 cursor-pointer"
-                                  >
-                                    <EditOutlined />
-                                  </button>
-
-                                  <button
-                                    onClick={() => onDeleteAssessment(assignment.id)}
-                                    className="text-red-500 hover:text-red-700 cursor-pointer"
-                                  >
-                                    <DeleteOutlined />
-                                  </button>
-                                </div>
-                              </td>
+                              <div className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  onClick={() => handleAssignAssesment(assignment)}
+                                  className="p-2 rounded-lg text-blue-500 hover:bg-blue-50 hover:text-blue-700 cursor-pointer transition-colors"
+                                  title="Assign to Classes"
+                                >
+                                  <TeamOutlined />
+                                </button>
+                                <button
+                                  onClick={() => onEditAssessment?.(assignment)}
+                                  className="p-2 rounded-lg text-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 cursor-pointer transition-colors"
+                                  title="Edit"
+                                >
+                                  <EditOutlined />
+                                </button>
+                                <button
+                                  onClick={() => onDeleteAssessment(assignment.id)}
+                                  className="p-2 rounded-lg text-red-500 hover:bg-red-50 hover:text-red-700 cursor-pointer transition-colors"
+                                  title="Delete"
+                                >
+                                  <DeleteOutlined />
+                                </button>
+                              </div>
                             )}
-                          </tr>
-                        )}
-                      </Draggable>
-                    ))
-                  ) : (
-                    <tr>
-                      <td
-                        colSpan={canUpload ? 4 : 2}
-                        className="p-4 text-center text-gray-500"
-                      >
-                        No assessments available
-                      </td>
-                    </tr>
-                  )}
-
-                  {provided.placeholder}
-                </tbody>
-              </table>
+                          </div>
+                        </div>
+                      )}
+                    </Draggable>
+                  ))
+                ) : (
+                  <div className="py-16 flex flex-col items-center justify-center text-center">
+                    <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
+                      <FileTextOutlined className="text-2xl text-gray-400" />
+                    </div>
+                    <p className="text-base font-semibold text-gray-600 mb-1">No assessments yet</p>
+                    <p className="text-sm text-gray-400">Add an assessment to get started</p>
+                  </div>
+                )}
+                {provided.placeholder}
+              </div>
             )}
           </Droppable>
         </DragDropContext>
@@ -294,6 +297,13 @@ export default function AllAssessmentList({
         loading={loading}
         setLoading={setLoading}
         selectedTermId={selectedTermId}
+      />
+
+      <AssessmentAssignDrawer
+        assessmentId={assigningAssessment?.id ?? null}
+        assessmentName={assigningAssessment?.name}
+        open={assignDrawerOpen}
+        onClose={() => { setAssignDrawerOpen(false); setAssigningAssessment(null); }}
       />
     </div>
   );

@@ -712,15 +712,16 @@ export function AssessmentTasksDrawer({
                   </Option>
                 ))}
               </Select>
-              <div className="flex justify-end gap-1 mt-2">
+              <div className="flex justify-end gap-2 mt-2">
                 <Button onClick={handleCancel}>Cancel</Button>
-                <Button
-                  variant="solid"
-                  className="!bg-primary !text-white hover:!bg-primary/90 !border-0"
+                <button
+                  type="button"
                   onClick={handleAssignQuiz}
+                  className="rounded-lg px-4 h-8 font-medium text-sm text-white cursor-pointer border-none"
+                  style={{ backgroundColor: "var(--primary)" }}
                 >
                   Assign
-                </Button>
+                </button>
               </div>
             </div>
           )}

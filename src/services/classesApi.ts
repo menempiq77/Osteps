@@ -34,6 +34,7 @@ export const addClass = async (classData: {
 export const updateClass = async (id: string, classData: {
   class_name?: string;
   number_of_terms?: string;
+  year_id?: number;
 }) => {
   const response = await api.post(`/update-class/${id}`, classData);
   return response.data;

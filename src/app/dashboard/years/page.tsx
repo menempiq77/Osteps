@@ -14,7 +14,8 @@ import {
   fetchYearsBySchool,
   fetchAssignYears,
 } from "@/services/yearsApi";
-import { fetchClasses } from "@/services/classesApi";
+import { fetchClasses, updateClass } from "@/services/classesApi";
+import { fetchTerm, addTerm, deleteTerm } from "@/services/termsApi";
 import { fetchStudents } from "@/services/studentsApi";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import { deactivateSubjectClassesByYear, fetchSubjectClasses, isMissingSubjectWorkspaceRoute } from "@/services/subjectWorkspaceApi";
@@ -30,6 +31,7 @@ interface Year {
   created_at?: string;
   updated_at?: string;
   color?: string;
+  number_of_terms?: string;
 }
 
 type SubjectClassRow = {
@@ -449,9 +451,9 @@ export default function Page() {
     persistYearOrder(nextYears);
   };
 
-  const handleSubmitYear = async (data: { name: string; color?: string }) => {
+  const handleSubmitYear = async (data: { name: string; color?: string; number_of_terms?: string }) => {
     try {
-      const { color, ...payload } = data;
+      const { color, number_of_terms, ...payload } = data;
       const yearData =
         currentUser?.role === "SCHOOL_ADMIN"
           ? { ...payload, school_id: currentUser?.school }
@@ -460,6 +462,61 @@ export default function Page() {
 
       if (currentYear) {
         await updateYearApi(String(currentYear.id), yearData);
+        // If number_of_terms changed, propagate to all classes in this year
+        if (number_of_terms) {
+          const termLimitMap: Record<string, number> = { first: 1, two: 2, three: 3 };
+          const termLimit = termLimitMap[number_of_terms] ?? Number(number_of_terms) ?? 3;
+          console.log("[YearEdit] number_of_terms:", number_of_terms, "termLimit:", termLimit);
+          try {
+            const classes = await fetchClasses(String(currentYear.id));
+            console.log("[YearEdit] classes fetched:", classes);
+            await Promise.all(
+              (Array.isArray(classes) ? classes : []).map(async (cls: any) => {
+                const resolvedClassName = String(cls.class_name ?? cls.base_class_label ?? cls.name ?? "").trim();
+                console.log("[YearEdit] updating class", cls.id, "class_name:", resolvedClassName, "with number_of_terms:", number_of_terms);
+                const updateResp = await updateClass(String(cls.id), { class_name: resolvedClassName, number_of_terms, year_id: Number(cls.year_id) });
+                console.log("[YearEdit] updateClass response:", updateResp);
+                // Delete excess terms beyond the new limit
+                if (Number.isFinite(termLimit) && termLimit > 0) {
+                  try {
+                    const terms: any[] = (await fetchTerm(Number(cls.id))) ?? [];
+                    console.log("[YearEdit] terms for class", cls.id, ":", terms);
+                    const sorted = [...terms].sort((a, b) => Number(a.id) - Number(b.id));
+                    // Delete excess terms if reducing
+                    const excess = sorted.slice(termLimit);
+                    await Promise.all(excess.map(async (t: any) => {
+                      try {
+                        const delResp = await deleteTerm(Number(t.id));
+                        console.log("[YearEdit] deleted term", t.id, "response:", delResp);
+                      } catch (e) {
+                        console.error("[YearEdit] failed to delete term", t.id, e);
+                      }
+                    }));
+                    // Add missing terms if increasing
+                    const existing = sorted.slice(0, termLimit);
+                    const missing = termLimit - existing.length;
+                    for (let i = 0; i < missing; i++) {
+                      const termIndex = existing.length + i + 1;
+                      try {
+                        await addTerm(Number(cls.id), { name: `Term ${termIndex}` });
+                        console.log("[YearEdit] added term", termIndex, "for class", cls.id);
+                      } catch (e) {
+                        console.error("[YearEdit] failed to add term", termIndex, e);
+                      }
+                    }
+                  } catch (e) {
+                    console.error("[YearEdit] terms fetch failed for class", cls.id, e);
+                  }
+                }
+              })
+            );
+          } catch (e: any) {
+            console.error("[YearEdit] class update block failed:", e?.message ?? e);
+            if (e?.response?.data) {
+              console.error("[YearEdit] backend validation errors:", JSON.stringify(e.response.data));
+            }
+          }
+        }
         writeYearColorMap({
           ...readYearColorMap(),
           [String(currentYear.id)]: color || currentYear.color || "green",
@@ -564,6 +621,7 @@ export default function Page() {
     setCurrentYear(year);
     setIsModalOpen(true);
   };
+
 
   const handleDeleteYear = async () => {
     if (!hasAccess) {

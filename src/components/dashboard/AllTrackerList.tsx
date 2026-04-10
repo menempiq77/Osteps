@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AddTrackerModal } from "../modals/trackerModals/AddTrackerModal";
 import { EditTrackerModal } from "../modals/trackerModals/EditTrackerModal";
 import TrackerAssignDrawer from "./TrackerAssignDrawer";
@@ -24,6 +24,66 @@ import {
 } from "@/services/trackersApi";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { DeadlineCountdown } from "@/components/common/DeadlineCountdown";
+import { useSubjectContext } from "@/contexts/SubjectContext";
+
+// ─── Subject isolation helpers ───────────────────────────────────────────────
+const TRACKER_SUBJECT_MAP_KEY = "osteps_tracker_subject_map";
+const TRACKER_MAP_MIGRATION_KEY = "osteps_tracker_map_v";
+const TRACKER_MAP_MIGRATION_VERSION = "4"; // bump to wipe stale auto-claim tags
+
+function runTrackerMapWipeIfNeeded() {
+  if (typeof window === "undefined") return;
+  if (localStorage.getItem(TRACKER_MAP_MIGRATION_KEY) !== TRACKER_MAP_MIGRATION_VERSION) {
+    localStorage.removeItem(TRACKER_SUBJECT_MAP_KEY);
+    localStorage.setItem(TRACKER_MAP_MIGRATION_KEY, TRACKER_MAP_MIGRATION_VERSION);
+  }
+}
+
+function readTrackerSubjectMap(): Record<string, number> {
+  if (typeof window === "undefined") return {};
+  runTrackerMapWipeIfNeeded();
+  try { return JSON.parse(localStorage.getItem(TRACKER_SUBJECT_MAP_KEY) || "{}"); }
+  catch { return {}; }
+}
+
+function tagTrackerWithSubject(trackerId: number | string, subjectId: number) {
+  const map = readTrackerSubjectMap();
+  map[String(trackerId)] = subjectId;
+  if (typeof window !== "undefined") {
+    localStorage.setItem(TRACKER_SUBJECT_MAP_KEY, JSON.stringify(map));
+  }
+}
+
+function untagTracker(trackerId: number | string) {
+  const map = readTrackerSubjectMap();
+  delete map[String(trackerId)];
+  if (typeof window !== "undefined") {
+    localStorage.setItem(TRACKER_SUBJECT_MAP_KEY, JSON.stringify(map));
+  }
+}
+
+// Priority: 1) backend subject_id  2) localStorage map  3) null (untagged/legacy)
+function resolveTrackerSubjectId(tracker: any): number | null {
+  const backendId = Number((tracker as any).subject_id || 0);
+  if (backendId > 0) return backendId;
+  const map = readTrackerSubjectMap();
+  const localId = map[String(tracker.id)];
+  return localId !== undefined ? localId : null;
+}
+
+// Show ONLY trackers that match the subject. Untagged (legacy) are hidden from
+// subject workspaces — they appear in the claim banner instead.
+function filterTrackersBySubject(trackers: Tracker[], subjectId: number): Tracker[] {
+  return trackers.filter((t) => {
+    const tid = resolveTrackerSubjectId(t);
+    return tid === subjectId;
+  });
+}
+
+function isTrackerUntagged(tracker: any): boolean {
+  return resolveTrackerSubjectId(tracker) === null;
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 type Tracker = {
   id: string;
@@ -51,6 +111,8 @@ export default function AllTrackerList() {
   const router = useRouter();
   
   const { currentUser } = useSelector((state: RootState) => state.auth);
+  const { activeSubjectId, canUseSubjectContext, activeSubject, loading: subjectContextLoading } = useSubjectContext();
+  const inSubjectContext = canUseSubjectContext && !!activeSubjectId;
   const schoolId = currentUser?.school;
   const isTeacher = currentUser?.role === "TEACHER";
   const canDeleteTrackers =
@@ -61,12 +123,13 @@ export default function AllTrackerList() {
   const [assignTracker, setAssignTracker] = useState<Tracker | null>(null);
   const [isAddTrackerModalOpen, setIsAddTrackerModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isClaiming, setIsClaiming] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
 
   const queryClient = useQueryClient();
 
   const {
-    data: trackers = [],
+    data: rawTrackers = [],
     isLoading,
     isError,
   } = useQuery({
@@ -86,6 +149,54 @@ export default function AllTrackerList() {
     },
   });
 
+  // Filter: show subject-matching trackers + untagged legacy trackers (until claimed).
+  // While context loads: show spinner.
+  const trackers = (subjectContextLoading || isLoading)
+    ? []
+    : inSubjectContext
+      ? filterTrackersBySubject(rawTrackers, Number(activeSubjectId))
+      : rawTrackers;
+
+  const untaggedTrackers = inSubjectContext
+    ? rawTrackers.filter((t: any) => isTrackerUntagged(t))
+    : [];
+
+  const handleClaimAllForSubject = async () => {
+    if (!activeSubjectId || untaggedTrackers.length === 0) return;
+    setIsClaiming(true);
+    try {
+      const results = await Promise.allSettled(
+        untaggedTrackers.map(async (t: any) => {
+          try {
+            // Minimal payload — update endpoint only needs name + subject_id
+            await updateTrackerAPI(t.id, {
+              school_id: Number(schoolId),
+              name: t.name,
+              type: t.type || "topic",
+              progress: Array.isArray(t.progress) ? t.progress : [],
+              deadline: normalizeDeadline(t),
+            }, Number(activeSubjectId));
+          } catch (apiErr: any) {
+            // If update fails, log and fall back to localStorage-only tagging.
+            // This keeps trackers correctly separated on this device.
+            console.warn(
+              `[Claim] Backend update failed for tracker ${t.id} (${t.name}), using localStorage fallback:`,
+              apiErr?.response?.data ?? apiErr?.message ?? apiErr
+            );
+          }
+          // Always tag in localStorage regardless of API outcome
+          tagTrackerWithSubject(t.id, Number(activeSubjectId));
+        })
+      );
+      await queryClient.invalidateQueries({ queryKey: ["trackers", schoolId] });
+    } catch (err: any) {
+      console.error("[Claim] Unexpected error:", err);
+      messageApi.error("Failed to assign trackers. Check browser console.");
+    } finally {
+      setIsClaiming(false);
+    }
+  };
+
   // 🔹 Add tracker mutation
   const addTrackerMutation = useMutation({
     mutationFn: (tracker: any) =>
@@ -96,8 +207,12 @@ export default function AllTrackerList() {
         progress: tracker.progress,
         claim_certificate: tracker.claim_certificate,
         deadline: tracker.deadline ?? null,
-      }),
-    onSuccess: async () => {
+      }, activeSubjectId ?? undefined),
+    onSuccess: async (result: any) => {
+      const newId = result?.data?.id ?? result?.id;
+      if (inSubjectContext && newId) {
+        tagTrackerWithSubject(newId, Number(activeSubjectId));
+      }
       await queryClient.invalidateQueries({ queryKey: ["trackers", schoolId] });
       messageApi.success(isTeacher ? "Tracker added successfully and sent for approval" : "Tracker added successfully!");
       setIsAddTrackerModalOpen(false);
@@ -116,8 +231,11 @@ export default function AllTrackerList() {
         type: "topic",
         progress: tracker.progress,
         deadline: tracker.deadline ?? null,
-      }),
-    onSuccess: async () => {
+      }, activeSubjectId ?? undefined),
+    onSuccess: async (_, tracker: any) => {
+      if (inSubjectContext) {
+        tagTrackerWithSubject(tracker.id, Number(activeSubjectId));
+      }
       await queryClient.invalidateQueries({ queryKey: ["trackers", schoolId] });
       messageApi.success(isTeacher ? "Tracker updated successfully and sent for approval" : "Tracker updated successfully!");
       setEditTracker(null);
@@ -130,7 +248,8 @@ export default function AllTrackerList() {
   // 🔹 Delete tracker mutation
   const deleteTrackerMutation = useMutation({
     mutationFn: (id: number) => deleteTrackerAPI(id),
-    onSuccess: async () => {
+    onSuccess: async (_, id: number) => {
+      untagTracker(id);
       await queryClient.invalidateQueries({ queryKey: ["trackers", schoolId] });
       messageApi.success("Tracker deleted successfully!");
       setDeleteTracker(null);
@@ -175,7 +294,11 @@ export default function AllTrackerList() {
   };
 
   const handleTrackerClick = (trackerId: string) => {
-    router.push(`/dashboard/all_trackers/${trackerId}`);
+    const subjectParam =
+      inSubjectContext && activeSubjectId
+        ? `?subject_id=${activeSubjectId}`
+        : "";
+    router.push(`/dashboard/all_trackers/${trackerId}${subjectParam}`);
   };
 
   const handleAssignTracker = (trackerId: string) => {
@@ -183,7 +306,7 @@ export default function AllTrackerList() {
     setAssignTracker(tracker);
   };
 
-  if (isLoading)
+  if (isLoading || subjectContextLoading)
     return (
       <div className="p-3 md:p-6 flex justify-center items-center h-64">
         <Spin size="large" />
@@ -205,7 +328,9 @@ export default function AllTrackerList() {
         className="!mb-2"
       />
       <div className="premium-hero flex items-center justify-between mb-6 px-4 py-3 rounded-xl">
-        <h1 className="text-2xl font-bold">All Trackers</h1>
+        <h1 className="text-2xl font-bold">
+          {activeSubject?.name ? `${activeSubject.name} - ` : ""}All Trackers
+        </h1>
         {currentUser?.role !== "STUDENT" && (
           <>
             <Button
@@ -226,6 +351,26 @@ export default function AllTrackerList() {
       </div>
 
       <div className="premium-card relative overflow-auto rounded-xl p-1">
+
+        {/* Claim banner — only admins/HODs see this, only in a subject workspace with untagged trackers */}
+        {inSubjectContext && untaggedTrackers.length > 0 && canDeleteTrackers && (
+          <div className="mx-3 mt-3 flex items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
+            <p className="text-sm text-amber-800">
+              <strong>{untaggedTrackers.length} tracker{untaggedTrackers.length > 1 ? "s are" : " is"} not assigned to any subject.</strong>
+              {" "}Click to permanently assign {untaggedTrackers.length > 1 ? "them" : "it"} to <strong>{activeSubject?.name}</strong>.
+            </p>
+            <button
+              type="button"
+              onClick={handleClaimAllForSubject}
+              disabled={isClaiming}
+              className="shrink-0 rounded-lg px-4 h-8 font-medium text-sm text-white cursor-pointer border-none disabled:opacity-60"
+              style={{ backgroundColor: "var(--primary)" }}
+            >
+              {isClaiming ? "Assigning..." : `Assign all to ${activeSubject?.name}`}
+            </button>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-3 p-3">
           {trackers?.length > 0 ? (
             trackers?.map((tracker) => (
@@ -360,6 +505,7 @@ export default function AllTrackerList() {
         tracker={assignTracker ? { id: assignTracker.id, name: assignTracker.name } : null}
         open={!!assignTracker}
         onClose={() => setAssignTracker(null)}
+        subjectId={inSubjectContext ? Number(activeSubjectId) : undefined}
       />
     </div>
   );

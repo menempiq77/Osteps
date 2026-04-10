@@ -30,6 +30,37 @@ interface QuizFormValues {
   name: string;
 }
 
+// ── Subject-isolation helpers (localStorage) ────────────────────────────────
+const QUIZ_SUBJECT_MAP_KEY = "osteps_quiz_subject_map";
+
+function readQuizSubjectMap(): Record<string, number> {
+  if (typeof window === "undefined") return {};
+  try { return JSON.parse(localStorage.getItem(QUIZ_SUBJECT_MAP_KEY) || "{}"); }
+  catch { return {}; }
+}
+
+function tagQuizWithSubject(quizId: number, subjectId: number) {
+  const map = readQuizSubjectMap();
+  map[String(quizId)] = subjectId;
+  if (typeof window !== "undefined") {
+    localStorage.setItem(QUIZ_SUBJECT_MAP_KEY, JSON.stringify(map));
+  }
+}
+
+function untagQuiz(quizId: number) {
+  const map = readQuizSubjectMap();
+  delete map[String(quizId)];
+  if (typeof window !== "undefined") {
+    localStorage.setItem(QUIZ_SUBJECT_MAP_KEY, JSON.stringify(map));
+  }
+}
+
+function filterQuizzesBySubject(quizzes: Quiz[], subjectId: number): Quiz[] {
+  const map = readQuizSubjectMap();
+  return quizzes.filter((q) => map[String(q.id)] === subjectId);
+}
+// ────────────────────────────────────────────────────────────────────────────
+
 export default function QuizPage() {
   const [form] = Form.useForm();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -40,12 +71,13 @@ export default function QuizPage() {
   const [messageApi, contextHolder] = message.useMessage();
   const [submitting, setSubmitting] = useState(false);
   const { currentUser } = useSelector((state: RootState) => state.auth);
-  const { activeSubjectId, canUseSubjectContext } = useSubjectContext();
+  const { activeSubjectId, canUseSubjectContext, loading: subjectContextLoading } = useSubjectContext();
+  const inSubjectContext = canUseSubjectContext && !!activeSubjectId;
   const isTeacher = currentUser?.role === "TEACHER";
 
   const schoolId = currentUser?.school;
 
-  const { data: quizzes = [], isLoading } = useQuery({
+  const { data: rawQuizzes = [], isLoading } = useQuery({
     queryKey: ["quizzes", schoolId, activeSubjectId],
     queryFn: async () => {
       if (!schoolId) return [];
@@ -56,6 +88,11 @@ export default function QuizPage() {
       messageApi.error("Failed to load quizzes");
     },
   });
+
+  // Filter quizzes by subject using localStorage map (backend doesn't filter)
+  const quizzes = inSubjectContext
+    ? filterQuizzesBySubject(rawQuizzes, Number(activeSubjectId))
+    : rawQuizzes;
 
   const showModal = () => {
     setIsModalOpen(true);
@@ -71,7 +108,11 @@ export default function QuizPage() {
 
   const addQuizMutation = useMutation({
     mutationFn: (payload: any) => addQuize(payload, activeSubjectId ?? undefined),
-    onSuccess: async () => {
+    onSuccess: async (result) => {
+      const newId = result?.data?.id ?? result?.id ?? undefined;
+      if (inSubjectContext && newId) {
+        tagQuizWithSubject(Number(newId), Number(activeSubjectId));
+      }
       await queryClient.invalidateQueries({ queryKey: ["quizzes", schoolId] });
       messageApi.success(
         isTeacher
@@ -134,6 +175,7 @@ export default function QuizPage() {
 
   const handleDelete = async () => {
     if (!quizToDelete) return;
+    untagQuiz(Number(quizToDelete));
     await deleteQuizMutation.mutateAsync(Number(quizToDelete));
   };
 
@@ -152,7 +194,7 @@ export default function QuizPage() {
     router.push(`/dashboard/quiz/${quizId}`);
   };
 
-  if (isLoading) {
+  if (isLoading || subjectContextLoading) {
     return (
       <div className="p-3 md:p-6 flex justify-center items-center h-64">
         <Spin size="large" />

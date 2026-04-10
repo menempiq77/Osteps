@@ -10,6 +10,7 @@ import {
   updateAssessment,
 } from "@/services/api";
 import { Breadcrumb, Button, Modal, Spin } from "antd";
+import { PlusOutlined } from "@ant-design/icons";
 import { useParams } from "next/navigation";
 import EditAssessmentForm from "@/components/dashboard/EditAssessmentForm";
 import { assignAssesmentQuiz, fetchQuizes } from "@/services/quizApi";
@@ -25,15 +26,56 @@ interface Assessment {
   term_id: string;
 }
 
+const ASSESSMENT_SUBJECT_MAP_KEY = "osteps_assessment_subject_map";
+const QUIZ_SUBJECT_MAP_KEY = "osteps_quiz_subject_map";
+
+function readQuizSubjectMap(): Record<string, number> {
+  if (typeof window === "undefined") return {};
+  try { return JSON.parse(localStorage.getItem(QUIZ_SUBJECT_MAP_KEY) || "{}"); }
+  catch { return {}; }
+}
+
+function filterQuizzesBySubject(quizzes: any[], subjectId: number): any[] {
+  const map = readQuizSubjectMap();
+  return quizzes.filter((q) => map[String(q.id)] === subjectId);
+}
+
+function readAssessmentSubjectMap(): Record<string, number> {
+  if (typeof window === "undefined") return {};
+  try { return JSON.parse(localStorage.getItem(ASSESSMENT_SUBJECT_MAP_KEY) || "{}"); }
+  catch { return {}; }
+}
+
+function tagAssessmentWithSubject(assessmentId: number | string, subjectId: number) {
+  const map = readAssessmentSubjectMap();
+  map[String(assessmentId)] = subjectId;
+  if (typeof window !== "undefined") {
+    localStorage.setItem(ASSESSMENT_SUBJECT_MAP_KEY, JSON.stringify(map));
+  }
+}
+
+function untagAssessment(assessmentId: number | string) {
+  const map = readAssessmentSubjectMap();
+  delete map[String(assessmentId)];
+  if (typeof window !== "undefined") {
+    localStorage.setItem(ASSESSMENT_SUBJECT_MAP_KEY, JSON.stringify(map));
+  }
+}
+
+function filterAssessmentsBySubject(assessments: Assessment[], subjectId: number): Assessment[] {
+  const map = readAssessmentSubjectMap();
+  return assessments.filter((a) => map[String(a.id)] === subjectId);
+}
+
 export default function Page() {
   const { termId, classId } = useParams();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isAddingQuiz, setIsAddingQuiz] = useState(false);
-  const [assessments, setAssessments] = useState<Assessment[]>([]);
+  const [rawAssessments, setRawAssessments] = useState<Assessment[]>([]);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [quizzes, setQuizzes] = useState([]);
+  const [rawQuizzes, setRawQuizzes] = useState<any[]>([]);
   const [assessmentToDelete, setAssessmentToDelete] = useState<string | null>(
     null
   );
@@ -42,7 +84,14 @@ export default function Page() {
   );
   const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
   const { currentUser } = useSelector((state: RootState) => state.auth);
-  const { activeSubjectId, canUseSubjectContext } = useSubjectContext();
+  const { activeSubjectId, canUseSubjectContext, activeSubject } = useSubjectContext();
+  const inSubjectContext = canUseSubjectContext && !!activeSubjectId;
+  const assessments = inSubjectContext
+    ? filterAssessmentsBySubject(rawAssessments, Number(activeSubjectId))
+    : rawAssessments;
+  const quizzes = inSubjectContext
+    ? filterQuizzesBySubject(rawQuizzes, Number(activeSubjectId))
+    : rawQuizzes;
   const isTeacher = currentUser?.role === "TEACHER";
   const normalizedTermId = typeof termId === "string" ? termId : "";
   const schoolIdNum = Number(currentUser?.school ?? 0);
@@ -53,7 +102,7 @@ export default function Page() {
     const sortedAssessments = (data ?? []).sort(
       (a: { position?: number }, b: { position?: number }) => (a?.position ?? 0) - (b?.position ?? 0)
     );
-    setAssessments(sortedAssessments);
+    setRawAssessments(sortedAssessments);
   };
 
   useEffect(() => {
@@ -83,18 +132,18 @@ export default function Page() {
           const sortedAssessments = (assessmentResult.value ?? []).sort(
             (a: { position?: number }, b: { position?: number }) => (a?.position ?? 0) - (b?.position ?? 0)
           );
-          setAssessments(sortedAssessments);
+          setRawAssessments(sortedAssessments);
         } else {
           setError("Failed to load assessments");
-          setAssessments([]);
+          setRawAssessments([]);
           console.error(assessmentResult.reason);
         }
 
         if (quizResult.status === "fulfilled") {
-          setQuizzes(quizResult.value ?? []);
+          setRawQuizzes(quizResult.value ?? []);
         } else {
           // Quizzes are secondary on this page; keep page usable even if this fails.
-          setQuizzes([]);
+          setRawQuizzes([]);
           console.error("Failed to load quizzes", quizResult.reason);
         }
       } finally {
@@ -112,9 +161,9 @@ export default function Page() {
   const loadQuizzes = async (schoolId: string) => {
     try {
       const response = await fetchQuizes(schoolId, activeSubjectId ?? undefined);
-      setQuizzes(response);
+      setRawQuizzes(response);
     } catch (error) {
-      setQuizzes([]);
+      setRawQuizzes([]);
       console.error("Failed to load quizzes", error);
     }
   };
@@ -142,7 +191,10 @@ export default function Page() {
         });
       }
 
-      setAssessments([...assessments, newAssessment]);
+      const newId = newAssessment?.data?.id ?? newAssessment?.id;
+      if (inSubjectContext && newId) {
+        tagAssessmentWithSubject(newId, Number(activeSubjectId));
+      }
       await refreshAssessments();
       setOpen(false);
       setIsAddingQuiz(false);
@@ -165,13 +217,9 @@ export default function Page() {
         school_id: schoolIdNum,
       });
 
-      setAssessments(
-        assessments.map((assessment) =>
-          assessment.id === editingAssessment.id
-            ? updatedAssessment
-            : assessment
-        )
-      );
+      if (inSubjectContext) {
+        tagAssessmentWithSubject(editingAssessment.id, Number(activeSubjectId));
+      }
       await refreshAssessments();
       setOpen(false);
       setEditingAssessment(null);
@@ -196,15 +244,16 @@ export default function Page() {
     if (!assessmentToDelete) return;
 
     try {
-      const assessment = assessments.find((a) => a.id === assessmentToDelete);
+      const assessment = rawAssessments.find((a) => a.id === assessmentToDelete);
 
       if (assessment?.type === "quiz") {
         await deleteAssignTermQuiz(assessmentToDelete);
       } else {
         await deleteAssessment(assessmentToDelete);
       }
-      setAssessments(
-        assessments.filter((assessment) => assessment.id !== assessmentToDelete)
+      untagAssessment(assessmentToDelete);
+      setRawAssessments(
+        rawAssessments.filter((a) => a.id !== assessmentToDelete)
       );
       setDeleteOpen(false);
       setAssessmentToDelete(null);
@@ -216,49 +265,41 @@ export default function Page() {
 
   if (loading)
     return (
-      <div className="p-3 md:p-6 flex justify-center items-center h-64">
+      <div className="premium-page rounded-2xl p-3 md:p-4 flex justify-center items-center h-64">
         <Spin size="large" />
       </div>
     );
 
   return (
-    <div className="p-3 md:p-6">
+    <div className="premium-page rounded-2xl p-3 md:p-4">
       <Breadcrumb
         items={[
           {
             title: <Link href="/dashboard">Dashboard</Link>,
           },
           {
-            title: <span>All Assesments</span>,
+            title: <span>All Assessments</span>,
           },
         ]}
         className="!mb-2"
       />
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">All Assessments</h1>
+      <div className="premium-hero flex items-center justify-between mb-4 px-4 py-3 rounded-xl">
+        <h1 className="text-2xl font-bold">
+          {activeSubject?.name ? `${activeSubject.name} — ` : ""}All Assessments
+        </h1>
         {!isTeacher && (
-          <div className="flex gap-2">
-            <Button
-              onClick={() => {
-                setIsAddingQuiz(false);
-                setEditingAssessment(null);
-                setOpen(true);
-              }}
-              className="!bg-white !border !border-gray-300"
-            >
-              Add Assessment
-            </Button>
-
-            {/* <Button
-              onClick={() => {
-                setOpen(true);
-                setIsAddingQuiz(true);
-              }}
-              className="!bg-primary !text-white"
-            >
-              Assign Quiz
-            </Button> */}
-          </div>
+          <Button
+            type="primary"
+            className="premium-pill-btn !bg-primary !text-white !border-0 hover:!opacity-90"
+            icon={<PlusOutlined />}
+            onClick={() => {
+              setIsAddingQuiz(false);
+              setEditingAssessment(null);
+              setOpen(true);
+            }}
+          >
+            Add Assessment
+          </Button>
         )}
       </div>
 

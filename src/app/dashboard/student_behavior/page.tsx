@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   Card,
@@ -39,6 +39,8 @@ import {
 } from "@/services/behaviorApi";
 import { fetchStudents } from "@/services/studentsApi";
 import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
+import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
+import { resolveSubjectClassLinkedIdWithFallback } from "@/lib/subjectClassResolution";
 import { useQuery } from "@tanstack/react-query";
 import { fetchClasses } from "@/services/classesApi";
 
@@ -122,6 +124,7 @@ const StudentBehaviorPage = () => {
   const [pendingOpenAdd, setPendingOpenAdd] = useState(false);
   const [autoOpenedFromQuery, setAutoOpenedFromQuery] = useState(false);
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>("all");
+  const didInitSubject = useRef(false);
   const { subjects, activeSubjectId } = useSubjectContext();
   const roleKey = String(currentUser?.role || "").toUpperCase();
   const isSchoolAdmin = roleKey === "SCHOOL_ADMIN";
@@ -146,13 +149,29 @@ const StudentBehaviorPage = () => {
     if (openAdd === "1") setPendingOpenAdd(true);
   }, [searchParams]);
 
-  /** Load years */
-  const loadYears = async () => {
+  /** Load years – filtered by subject when a specific subject is selected */
+  const loadYears = async (subjectIdArg: string, prevSelectedYear: string | null) => {
     try {
       setLoading(true);
       let yearsData: any[] = [];
 
-      if (useAssignedYears) {
+      if (subjectIdArg !== "all") {
+        // Fetch school years + subject-class assignments, then intersect
+        const [schoolYears, subjectClasses] = await Promise.all([
+          fetchYearsBySchool(schoolId),
+          fetchSubjectClasses({ subject_id: Number(subjectIdArg) }),
+        ]);
+        const resolveYearId = (row: any): number =>
+          Number(row?.year_id ?? row?.class?.year_id ?? row?.classes?.year_id ?? row?.base_class?.year_id ?? 0);
+        const subjectYearIds = new Set(
+          (Array.isArray(subjectClasses) ? subjectClasses : [])
+            .map(resolveYearId)
+            .filter((id) => Number.isFinite(id) && id > 0)
+        );
+        yearsData = (Array.isArray(schoolYears) ? schoolYears : []).filter(
+          (year: any) => subjectYearIds.has(Number(year?.id))
+        );
+      } else if (useAssignedYears) {
         const res = await fetchAssignYears();
         const years = res
           .map((item: any) => item?.classes?.year)
@@ -161,12 +180,38 @@ const StudentBehaviorPage = () => {
           new Map(years?.map((year: any) => [year.id, year])).values()
         );
       } else {
-        const res = await fetchYearsBySchool(schoolId);
-        yearsData = res;
+        // All Subjects: union of years that have active subject-class assignments
+        const resolveYearId = (row: any): number =>
+          Number(row?.year_id ?? row?.class?.year_id ?? row?.classes?.year_id ?? row?.base_class?.year_id ?? 0);
+        const [schoolYears, allSubjectClassesArr] = await Promise.all([
+          fetchYearsBySchool(schoolId),
+          Promise.all(subjects.map((s) => fetchSubjectClasses({ subject_id: s.id }).catch(() => []))),
+        ]);
+        const validYearIds = new Set(
+          allSubjectClassesArr
+            .flat()
+            .map(resolveYearId)
+            .filter((id) => Number.isFinite(id) && id > 0)
+        );
+        yearsData = (Array.isArray(schoolYears) ? schoolYears : []).filter(
+          (year: any) => validYearIds.has(Number(year?.id))
+        );
       }
+
       setYears(yearsData);
+
+      // Keep the current year selected only if it still exists in the new list;
+      // otherwise fall back to the first available year.
       if (yearsData.length > 0) {
-        setSelectedYear(yearsData[0].id.toString());
+        const currentStillValid = prevSelectedYear &&
+          yearsData.some((y: any) => y.id.toString() === prevSelectedYear);
+        if (!currentStillValid) {
+          setSelectedYear(yearsData[0].id.toString());
+          setSelectedClass(null);
+        }
+      } else {
+        setSelectedYear(null);
+        setSelectedClass(null);
       }
     } catch (err) {
       console.error(err);
@@ -177,24 +222,30 @@ const StudentBehaviorPage = () => {
   };
 
   useEffect(() => {
-    loadYears();
-  }, []);
+    loadYears(selectedSubjectId, selectedYear);
+    setSelectedClass(null); // class IDs differ between subject-class and school-class
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSubjectId]);
 
+  // One-time initialization: pre-select the active subject from the URL/context.
+  // Uses a ref so re-renders never override the user's manual subject selection.
   useEffect(() => {
+    if (didInitSubject.current) return;
     if (!subjects.length) return;
-    if (selectedSubjectId !== "all") return;
     if (activeSubjectId) {
       setSelectedSubjectId(String(activeSubjectId));
+      didInitSubject.current = true;
       return;
     }
     if (!isSchoolAdmin && subjects[0]?.id) {
       setSelectedSubjectId(String(subjects[0].id));
+      didInitSubject.current = true;
     }
-  }, [subjects, activeSubjectId, selectedSubjectId, isSchoolAdmin]);
+  }, [subjects, activeSubjectId, isSchoolAdmin]);
 
-  /** Fetch classes for selected year */
+  /** Fetch classes for selected year, scoped to subject when one is selected */
   const { data: classes = [], isLoading: classesLoading } = useQuery({
-    queryKey: ["classes", selectedYear, useAssignedYears],
+    queryKey: ["classes", selectedYear, useAssignedYears, effectiveSubjectId],
     queryFn: async () => {
       if (!selectedYear) return [];
       if (useAssignedYears) {
@@ -208,6 +259,31 @@ const StudentBehaviorPage = () => {
         return classesData.filter(
           (cls: any) => cls.year_id === Number(selectedYear)
         );
+      } else if (effectiveSubjectId) {
+        // Subject-specific: fetch subject-classes and resolve linked school class IDs
+        // Uses resolveSubjectClassLinkedIdWithFallback for proper label-based inference
+        // (same pattern as classes/page.tsx)
+        const subjectClasses = await fetchSubjectClasses({
+          subject_id: effectiveSubjectId,
+          year_id: Number(selectedYear),
+        });
+        const resolved = await Promise.all(
+          (Array.isArray(subjectClasses) ? subjectClasses : [])
+            .filter((row: any) => Number(row.is_active ?? 1) === 1)
+            .map(async (row: any) => {
+              const linkedClassId = await resolveSubjectClassLinkedIdWithFallback(
+                row,
+                effectiveSubjectId
+              );
+              return {
+                id: String(row.id),
+                class_name: String(row.base_class_label ?? row.name ?? `Class ${row.id}`),
+                year_id: Number(row.year_id ?? selectedYear),
+                linked_class_id: linkedClassId,
+              };
+            })
+        );
+        return resolved;
       } else {
         return await fetchClasses(Number(selectedYear));
       }
@@ -224,7 +300,27 @@ const StudentBehaviorPage = () => {
 
     try {
       setIsLoading(true);
-      const studentsData = await fetchStudents(selectedClass);
+
+      // When a specific subject is selected, subject-classes are used.
+      // Each class entry has a linked_class_id (base school class ID) and its own id is the subject_class_id.
+      const classEntry = (classes as any[]).find(
+        (c: any) => String(c.id) === String(selectedClass)
+      );
+      const subjectClassId =
+        effectiveSubjectId && classEntry?.linked_class_id
+          ? String(classEntry.id)
+          : null;
+      // Use the linked school class ID when available; otherwise use selectedClass directly.
+      const fetchClassId =
+        effectiveSubjectId && classEntry?.linked_class_id
+          ? classEntry.linked_class_id
+          : selectedClass;
+
+      const studentsData = await fetchStudents(
+        fetchClassId,
+        effectiveSubjectId ?? null,
+        subjectClassId,
+      );
       setStudents(studentsData);
 
       const preferredStudent =
@@ -245,10 +341,11 @@ const StudentBehaviorPage = () => {
     }
   };
 
-  // Load students whenever class selection changes
+  // Load students whenever class or subject selection changes
   useEffect(() => {
     loadStudents();
-  }, [selectedClass, pendingStudentId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedClass, selectedSubjectId, pendingStudentId]);
 
   useEffect(() => {
     if (isStudentRole && currentUser?.student) {
