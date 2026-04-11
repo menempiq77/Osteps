@@ -617,8 +617,18 @@ export default function Page() {
     setIsDeleteModalOpen(true);
   };
 
-  const handleEditClick = (year: Year) => {
-    setCurrentYear(year);
+  const handleEditClick = async (year: Year) => {
+    let yearWithTerms: Year = year;
+    try {
+      const classes = await fetchClasses(String(year.id));
+      const firstClass = Array.isArray(classes) && classes.length > 0 ? classes[0] : null;
+      if (firstClass?.number_of_terms) {
+        yearWithTerms = { ...year, number_of_terms: firstClass.number_of_terms };
+      }
+    } catch {
+      // fall through with no number_of_terms
+    }
+    setCurrentYear(yearWithTerms);
     setIsModalOpen(true);
   };
 

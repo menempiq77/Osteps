@@ -37,6 +37,35 @@ type LauncherEntry = {
   active?: boolean;
   kind: "link" | "subject";
   subjectId?: number;
+  subjectName?: string;
+};
+
+// ── Subject gradient palette (mirrors subject-cards page) ──────────────────
+const SUBJECT_PALETTE = [
+  { from: "#f97316", to: "#c2410c", glow: "rgba(249,115,22,0.4)" },   // orange
+  { from: "#0ea5e9", to: "#0369a1", glow: "rgba(14,165,233,0.4)" },   // sky
+  { from: "#8b5cf6", to: "#5b21b6", glow: "rgba(139,92,246,0.4)" },   // violet
+  { from: "#ec4899", to: "#9d174d", glow: "rgba(236,72,153,0.4)" },   // pink
+  { from: "#14b8a6", to: "#0f766e", glow: "rgba(20,184,166,0.4)" },   // teal
+  { from: "#f59e0b", to: "#b45309", glow: "rgba(245,158,11,0.4)" },   // amber
+  { from: "#6366f1", to: "#3730a3", glow: "rgba(99,102,241,0.4)" },   // indigo
+  { from: "#10b981", to: "#065f46", glow: "rgba(16,185,129,0.4)" },   // emerald
+];
+const SUBJECT_NAME_MAP: Record<string, number> = {
+  arabic: 0, "al arabiyya": 0,
+  islamic: 4, islamiat: 4,
+  quran: 5,
+  english: 1,
+  math: 6, maths: 6,
+  science: 7,
+  history: 3,
+};
+const getSubjectPalette = (name: string, idx: number) => {
+  const n = name.toLowerCase();
+  for (const [key, pi] of Object.entries(SUBJECT_NAME_MAP)) {
+    if (n.includes(key)) return SUBJECT_PALETTE[pi];
+  }
+  return SUBJECT_PALETTE[idx % SUBJECT_PALETTE.length];
 };
 
 const SECTION_LABELS: Record<string, { title: string; note: string }> = {
@@ -69,30 +98,36 @@ const SECTION_LABELS: Record<string, { title: string; note: string }> = {
 const FILTER_ORDER = ["All", "Subjects", "Workspace", "Teaching", "Communication", "Resources", "Account"];
 const PRIORITY_SUBJECT_DASHBOARDS = ["arabic", "islamic", "islamiat"];
 
-const SECTION_ICON_STYLES: Record<string, { shell: string; icon: string }> = {
+const SECTION_ICON_STYLES: Record<string, { shell: string; icon: string; accent: string }> = {
   Subjects: {
     shell: "border-emerald-300/35 bg-emerald-300/12",
-    icon: "text-emerald-200",
+    icon: "text-emerald-300",
+    accent: "#34d399",
   },
   Workspace: {
-    shell: "border-sky-300/35 bg-sky-300/12",
-    icon: "text-sky-200",
+    shell: "border-sky-400/35 bg-sky-400/12",
+    icon: "text-sky-300",
+    accent: "#38bdf8",
   },
   Teaching: {
-    shell: "border-violet-300/35 bg-violet-300/12",
-    icon: "text-violet-200",
+    shell: "border-violet-400/35 bg-violet-400/12",
+    icon: "text-violet-300",
+    accent: "#a78bfa",
   },
   Communication: {
-    shell: "border-amber-300/35 bg-amber-300/12",
-    icon: "text-amber-200",
+    shell: "border-amber-400/35 bg-amber-400/12",
+    icon: "text-amber-300",
+    accent: "#fbbf24",
   },
   Resources: {
-    shell: "border-cyan-300/35 bg-cyan-300/12",
-    icon: "text-cyan-200",
+    shell: "border-cyan-400/35 bg-cyan-400/12",
+    icon: "text-cyan-300",
+    accent: "#22d3ee",
   },
   Account: {
-    shell: "border-rose-300/35 bg-rose-300/12",
-    icon: "text-rose-200",
+    shell: "border-rose-400/35 bg-rose-400/12",
+    icon: "text-rose-300",
+    accent: "#fb7185",
   },
 };
 
@@ -233,6 +268,7 @@ export default function QuickLauncher() {
         active: Number(activeSubjectId) === Number(subject.id),
         kind: "subject",
         subjectId: subject.id,
+        subjectName: displayName,
       };
     });
   }, [activeSubjectId, subjects]);
@@ -526,43 +562,110 @@ export default function QuickLauncher() {
                           </div>
 
                           <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-3">
-                            {items.map((entry) => {
+                            {items.map((entry, entryIdx) => {
                               const Icon = entry.icon;
+
+                              // ── Gradient subject card ──
+                              if (entry.kind === "subject" && entry.subjectName) {
+                                const pal = getSubjectPalette(entry.subjectName, entryIdx);
+                                return (
+                                  <button
+                                    key={entry.id}
+                                    type="button"
+                                    onClick={() => handleEntryClick(entry)}
+                                    className="group relative overflow-hidden rounded-[18px] text-left transition-all duration-200 hover:-translate-y-0.5"
+                                    style={{
+                                      background: `linear-gradient(135deg, ${pal.from} 0%, ${pal.to} 100%)`,
+                                      boxShadow: entry.active
+                                        ? `0 0 0 2.5px ${pal.from}, 0 8px 28px ${pal.glow}`
+                                        : `0 4px 18px ${pal.glow}`,
+                                    }}
+                                  >
+                                    {/* decorative circle */}
+                                    <div
+                                      className="pointer-events-none absolute -top-5 -right-5 h-20 w-20 rounded-full opacity-20"
+                                      style={{ background: "rgba(255,255,255,0.6)" }}
+                                    />
+                                    <div className="relative p-4">
+                                      <div className="flex items-start justify-between gap-2">
+                                        <div
+                                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
+                                          style={{ background: "rgba(255,255,255,0.20)", color: "#fff" }}
+                                        >
+                                          <Icon className="h-4 w-4" />
+                                        </div>
+                                        {entry.active && (
+                                          <span
+                                            className="rounded-full px-2 py-0.5 text-[11px] font-bold text-white"
+                                            style={{ background: "rgba(255,255,255,0.25)" }}
+                                          >
+                                            ✓ Active
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="mt-3">
+                                        <p className="text-sm font-bold text-white leading-snug">{entry.name}</p>
+                                        {entry.meta && (
+                                          <p className="mt-1 text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.70)" }}>
+                                            {entry.meta}
+                                          </p>
+                                        )}
+                                      </div>
+                                      <div
+                                        className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-white"
+                                        style={{ opacity: 0.85 }}
+                                      >
+                                        Open dashboard
+                                        <ChevronRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
+                                      </div>
+                                    </div>
+                                  </button>
+                                );
+                              }
+
+                              // ── Standard dark card ──
+                              const iconStyle = SECTION_ICON_STYLES[entry.section];
                               return (
                                 <button
                                   key={entry.id}
                                   type="button"
                                   onClick={() => handleEntryClick(entry)}
-                                  className={`group rounded-[16px] border p-3 text-left transition ${
+                                  className={`group rounded-[16px] border p-3 text-left transition-all duration-200 ${
                                     entry.active
                                       ? "border-slate-500 bg-slate-700/70 shadow-[0_12px_28px_rgba(2,6,23,0.26)]"
-                                      : "border-slate-600 bg-slate-700/45 hover:-translate-y-0.5 hover:border-slate-500 hover:bg-slate-700/70 hover:shadow-[0_10px_22px_rgba(2,6,23,0.25)]"
+                                      : "border-slate-600/70 bg-slate-700/35 hover:-translate-y-0.5 hover:border-slate-500 hover:bg-slate-700/65 hover:shadow-[0_10px_24px_rgba(2,6,23,0.30)]"
                                   }`}
                                 >
                                   <div className="flex items-start gap-2.5">
                                     <div
                                       className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border shadow-sm ${
-                                        SECTION_ICON_STYLES[entry.section]?.shell ?? "border-slate-600 bg-slate-800"
+                                        iconStyle?.shell ?? "border-slate-600 bg-slate-800"
                                       }`}
                                     >
                                       <Icon
                                         className={`h-4 w-4 ${
-                                          SECTION_ICON_STYLES[entry.section]?.icon ?? "text-slate-300"
+                                          iconStyle?.icon ?? "text-slate-300"
                                         }`}
                                       />
                                     </div>
                                     <div className="min-w-0 flex-1">
                                       <div className="flex flex-wrap items-center gap-2">
-                                        <span className="text-sm font-semibold text-slate-100/95">
+                                        <span className="text-sm font-semibold text-slate-100">
                                           {entry.name}
                                         </span>
                                         {entry.badge ? (
-                                          <span className="rounded-full bg-slate-600 px-2 py-0.5 text-[11px] font-semibold text-slate-100/90">
+                                          <span
+                                            className="rounded-full px-2 py-0.5 text-[11px] font-semibold text-white"
+                                            style={{ background: iconStyle?.accent ?? "#64748b" }}
+                                          >
                                             {entry.badge}
                                           </span>
                                         ) : null}
                                         {entry.active ? (
-                                          <span className="rounded-full border border-slate-500 bg-slate-600 px-2 py-0.5 text-[11px] font-semibold text-slate-100/95">
+                                          <span
+                                            className="rounded-full px-2 py-0.5 text-[11px] font-bold text-white"
+                                            style={{ background: iconStyle?.accent ?? "#64748b", opacity: 0.9 }}
+                                          >
                                             Active
                                           </span>
                                         ) : null}
@@ -573,7 +676,7 @@ export default function QuickLauncher() {
                                         </div>
                                       ) : null}
                                     </div>
-                                    <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-slate-500 transition group-hover:text-slate-200" />
+                                    <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-slate-500 transition group-hover:text-slate-200 group-hover:translate-x-0.5" />
                                   </div>
                                 </button>
                               );

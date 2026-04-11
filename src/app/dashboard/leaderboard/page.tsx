@@ -9,9 +9,11 @@ import {
   Typography,
   Spin,
   Select,
+  Segmented,
   Breadcrumb,
   Button,
   Switch,
+  Divider,
 } from "antd";
 import {
   CrownOutlined,
@@ -38,6 +40,8 @@ import {
   type LeaderboardRow,
 } from "@/lib/leaderboard";
 import { useSubjectContext } from "@/contexts/SubjectContext";
+import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
+import { resolveSubjectClassLinkedIdWithFallback } from "@/lib/subjectClassResolution";
 
 const { Title, Text } = Typography;
 
@@ -119,7 +123,15 @@ const LeaderBoard = () => {
   const { currentUser } = useSelector((state: RootState) => state.auth) as {
     currentUser: CurrentUser;
   };
-  const { activeSubjectId, canUseSubjectContext } = useSubjectContext();
+  const { activeSubjectId, activeSubject, canUseSubjectContext, subjects, setActiveSubjectId } = useSubjectContext();
+  const isSubjectWorkspaceMode = canUseSubjectContext && !!activeSubjectId;
+  // Local subject picker — defaults to the active subject, can be switched within the page
+  const [pickedSubjectId, setPickedSubjectId] = useState<number | null>(
+    activeSubjectId ? Number(activeSubjectId) : null
+  );
+  const pickedSubject = pickedSubjectId
+    ? (subjects ?? []).find((s: any) => Number(s.id) === pickedSubjectId) ?? activeSubject
+    : activeSubject;
   const roleKey = (currentUser?.role ?? "")
     .trim()
     .toUpperCase()
@@ -136,9 +148,7 @@ const LeaderBoard = () => {
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [showMyStudentsOnly, setShowMyStudentsOnly] = useState(false);
-  const [leaderboardScope, setLeaderboardScope] = useState<"class" | "school">(
-    roleKey === "STUDENT" ? "school" : "school"
-  );
+  const [leaderboardScope, setLeaderboardScope] = useState<"school" | "year" | "class">("school");
   const authSchoolId = (() => {
     const schoolValue = (currentUser as any)?.school;
     if (typeof schoolValue === "object" && schoolValue !== null && "id" in schoolValue) {
@@ -162,6 +172,8 @@ const LeaderBoard = () => {
   })();
 
   const [assignYearsData, setAssignYearsData] = useState<any[]>([]);
+  const loadYearsInProgressRef = React.useRef(false);
+  const lastLoadedScopeRef = React.useRef<string>("");
   const teacherAssignedClasses = isTeachingStaff ? extractAssignedClasses(assignYearsData) : [];
   const assignedSchoolId = (() => {
     for (const cls of teacherAssignedClasses) {
@@ -217,6 +229,11 @@ const LeaderBoard = () => {
 
   /** Load years */
   const loadYears = async () => {
+    // Allow re-entry only if the scope+subject changed; block concurrent runs for same combination
+    const scopeKey = `${leaderboardScope}::${resolvedSchoolId ?? ""}::${pickedSubjectId ?? ""}`;
+    if (loadYearsInProgressRef.current && lastLoadedScopeRef.current === scopeKey) return;
+    loadYearsInProgressRef.current = true;
+    lastLoadedScopeRef.current = scopeKey;
     try {
       setLoading(true);
       let yearsData: any[] = [];
@@ -232,7 +249,7 @@ const LeaderBoard = () => {
         const res = await fetchAssignYears();
         setAssignYearsData(res);
 
-        if (leaderboardScope === "school") {
+        if (leaderboardScope === "school" || leaderboardScope === "year") {
           yearsData = await loadSchoolYearsForStaff();
         } else {
           const years = extractAssignedClasses(res)
@@ -251,9 +268,25 @@ const LeaderBoard = () => {
         const res = await fetchYearsBySchool(Number(resolvedSchoolId));
         yearsData = res;
       }
+      // Subject-filter years if in subject workspace mode
+      if (isSubjectWorkspaceMode && pickedSubjectId && yearsData.length > 0) {
+        try {
+          const subjectClasses = await fetchSubjectClasses({ subject_id: pickedSubjectId });
+          const subjectYearIds = new Set(
+            (Array.isArray(subjectClasses) ? subjectClasses : [])
+              .map((r: any) => String(r.year_id ?? ""))
+              .filter(Boolean)
+          );
+          if (subjectYearIds.size > 0) {
+            yearsData = yearsData.filter((y: any) => subjectYearIds.has(String(y?.id ?? "")));
+          }
+        } catch {
+          // fall through with unfiltered years
+        }
+      }
       setYears(yearsData);
       if (yearsData.length > 0) {
-        if (isTeachingStaff && leaderboardScope === "class") {
+        if (leaderboardScope === "year" || (isTeachingStaff && leaderboardScope === "class")) {
           setSelectedYear(yearsData[0].id.toString());
         } else {
           setSelectedYear("__all__");
@@ -263,15 +296,16 @@ const LeaderBoard = () => {
       console.error(err);
     } finally {
       setLoading(false);
+      loadYearsInProgressRef.current = false;
     }
   };
 
   useEffect(() => {
     loadYears();
-  }, [leaderboardScope, resolvedSchoolId]);
+  }, [leaderboardScope, resolvedSchoolId, pickedSubjectId]);
 
   useEffect(() => {
-    if (!isTeachingStaff || leaderboardScope !== "school") {
+    if (!isTeachingStaff || (leaderboardScope !== "school" && leaderboardScope !== "year")) {
       setShowMyStudentsOnly(false);
     }
   }, [isTeachingStaff, leaderboardScope]);
@@ -355,8 +389,82 @@ const LeaderBoard = () => {
     isError: classLeaderboardIsError,
     error: classLeaderboardError,
   } = useQuery({
-    queryKey: ["leaderboard", selectedClass],
-    queryFn: () => fetchLeaderBoardData(selectedClass as string, activeSubjectId ?? undefined),
+    queryKey: ["leaderboard", selectedClass, pickedSubjectId, isSubjectWorkspaceMode],
+    queryFn: async () => {
+      if (!selectedClass) throw new Error("No class selected");
+
+      // Subject workspace: use the same enrollment-first strategy as "Whole School".
+      // Steps:
+      //  1. Get subject_class records for this subject.
+      //  2. Find the record whose resolved linked school-class ID matches `selectedClass`.
+      //     (Whole School resolves label+year → school-class ID, so we match against that.)
+      //  3. Fetch enrolled students using the subject_class_id — the only approach that
+      //     correctly scopes to Arabic-enrolled students without waiting for backend changes.
+      //  4. Intersect enrolled roster with school-self scores (0 marks for unenrolled = hidden).
+      if (isSubjectWorkspaceMode && pickedSubjectId) {
+        // Step 1: subject_class records
+        let subjectClassRecords: any[] = [];
+        try {
+          subjectClassRecords = (await fetchSubjectClasses({ subject_id: pickedSubjectId })) ?? [];
+        } catch { /* fall through */ }
+
+        // Step 2: resolve linked school-class IDs and find the one matching selectedClass
+        let matchedRecord: any = null;
+        let urlClassId = String(selectedClass);
+
+        for (const record of subjectClassRecords) {
+          const linkedId = await resolveSubjectClassLinkedIdWithFallback(record, pickedSubjectId);
+          const candidates = [
+            linkedId,
+            String(record.class_id ?? ""),
+            String(record.base_class_id ?? ""),
+            String(record.id ?? ""),
+          ].filter(Boolean);
+          if (candidates.includes(String(selectedClass))) {
+            matchedRecord = record;
+            urlClassId = linkedId || String(selectedClass);
+            break;
+          }
+        }
+
+        // Step 3: fetch enrolled students (with subject_class_id for future backend support)
+        const subjectClassId = matchedRecord?.id ?? null;
+        const [enrolledStudents, schoolRes] = await Promise.all([
+          fetchStudents(urlClassId, pickedSubjectId, subjectClassId).catch(() => []),
+          fetchSchoolSelfLeaderBoardData().catch(() => ({ data: [] })),
+        ]);
+
+        const enrolled: any[] = Array.isArray(enrolledStudents) ? enrolledStudents : [];
+
+        // Step 4: build score map and intersect
+        const schoolScoreMap: Record<string, any> = {};
+        for (const entry of (schoolRes?.data ?? [])) {
+          const sid = String(entry?.student_id ?? "");
+          if (sid) schoolScoreMap[sid] = entry;
+        }
+
+        const mapped = enrolled
+          .map((s: any) => {
+            const sid = String(s?.id ?? s?.student_id ?? "");
+            const scoreEntry = schoolScoreMap[sid];
+            return {
+              student_id: sid,
+              student_name:
+                s?.student_name ?? s?.user_name ?? s?.name ?? s?.user?.name ?? "Unknown",
+              total_marks: scoreEntry?.total_marks ?? 0,
+              tracker_points: scoreEntry?.tracker_points,
+              mind_points: scoreEntry?.mind_points,
+              class_name: scoreEntry?.class_name ?? "",
+            };
+          })
+          .filter((s: any) => !!s.student_id)
+          .sort((a: any, b: any) => (b.total_marks ?? 0) - (a.total_marks ?? 0));
+
+        return { status_code: 200, msg: "OK", data: mapped };
+      }
+
+      return fetchLeaderBoardData(selectedClass as string, pickedSubjectId ?? undefined);
+    },
     enabled: !isStudent && !!selectedClass && leaderboardScope === "class",
   });
 
@@ -394,7 +502,7 @@ const LeaderBoard = () => {
     error: studentClassLeaderboardError,
   } = useQuery({
     queryKey: ["leaderboard-student-class", studentClassId],
-    queryFn: () => fetchLeaderBoardData(studentClassId as string, activeSubjectId ?? undefined),
+    queryFn: () => fetchLeaderBoardData(studentClassId as string, pickedSubjectId ?? undefined),
     enabled: isStudent && !!studentClassId,
     staleTime: 2 * 60 * 1000,
   });
@@ -423,9 +531,9 @@ const LeaderBoard = () => {
     isError: schoolLeaderboardIsError,
     error: schoolLeaderboardError,
   } = useQuery({
-    queryKey: ["leaderboard-school-self", currentUser?.student, activeSubjectId],
+    queryKey: ["leaderboard-school-self", currentUser?.student, pickedSubjectId],
     queryFn: async () => {
-      const res = await fetchSchoolSelfLeaderBoardData(activeSubjectId ?? undefined);
+      const res = await fetchSchoolSelfLeaderBoardData(pickedSubjectId ?? undefined);
       const rows = res?.data ?? [];
       return rows.map((student: any, index: number) => ({
         key: String(student?.student_id ?? ""),
@@ -446,7 +554,7 @@ const LeaderBoard = () => {
             : null,
       }));
     },
-    enabled: isStudent || leaderboardScope === "school",
+    enabled: isStudent,
     staleTime: 2 * 60 * 1000,
   });
 
@@ -553,17 +661,177 @@ const LeaderBoard = () => {
       "leaderboard-school-staff",
       resolvedSchoolId,
       isTeachingStaff,
-      activeSubjectId,
-      assignYearsData.length,
+      pickedSubjectId,
+      leaderboardScope,
       selectedYear,
-      (classes ?? []).map((cls: any) => getClassId(cls)).filter(Boolean).join("|"),
     ],
     queryFn: async () => {
+      // ── "By Year" scope ──
+      if (leaderboardScope === "year" && selectedYear && selectedYear !== "__all__") {
+        // In subject workspace mode use the same enrollment-first strategy as Whole School,
+        // but scoped to subject_classes that belong to the selected year.
+        if (isSubjectWorkspaceMode && pickedSubjectId) {
+          let subjectClassRecords: any[] = [];
+          try {
+            subjectClassRecords = (await fetchSubjectClasses({ subject_id: pickedSubjectId, year_id: Number(selectedYear) })) ?? [];
+          } catch { /* fall through */ }
+
+          // If year-scoped fetch returned nothing, fetch all and filter client-side
+          if (subjectClassRecords.length === 0) {
+            try {
+              const all = (await fetchSubjectClasses({ subject_id: pickedSubjectId })) ?? [];
+              subjectClassRecords = all.filter(
+                (r: any) => String(r.year_id ?? "") === String(selectedYear)
+              );
+            } catch { /* fall through */ }
+          }
+
+          let allEnrolledStudents: any[] = [];
+          if (subjectClassRecords.length > 0) {
+            const enrolledByClass = await mapWithConcurrency(subjectClassRecords, 5, async (record: any) => {
+              const subjectClassId = record.id;
+              if (!subjectClassId) return [];
+              const linkedId = await resolveSubjectClassLinkedIdWithFallback(record, pickedSubjectId);
+              const urlClassId = linkedId || String(subjectClassId);
+              try {
+                const students = await fetchStudents(urlClassId, pickedSubjectId, subjectClassId);
+                return (Array.isArray(students) ? students : []).map((s: any) => ({
+                  student_id: String(s?.id ?? s?.student_id ?? ""),
+                  student_name: s?.student_name ?? s?.user_name ?? s?.name ?? s?.user?.name ?? "Unknown",
+                  class_id: s?.class_id ?? urlClassId,
+                }));
+              } catch { return []; }
+            });
+            allEnrolledStudents = enrolledByClass.flat().filter((s: any) => !!s.student_id);
+          }
+
+          if (allEnrolledStudents.length === 0) return [];
+
+          let schoolScoreMap: Record<string, any> = {};
+          try {
+            const schoolRes = await fetchSchoolSelfLeaderBoardData();
+            for (const entry of (schoolRes?.data ?? [])) {
+              const sid = String(entry?.student_id ?? "");
+              if (sid) schoolScoreMap[sid] = entry;
+            }
+          } catch { /* students show with 0 marks */ }
+
+          const result = allEnrolledStudents.map((s: any) => {
+            const scoreEntry = schoolScoreMap[s.student_id];
+            return {
+              student_id: s.student_id,
+              student_name: s.student_name,
+              total_marks: scoreEntry?.total_marks ?? 0,
+              tracker_points: scoreEntry?.tracker_points,
+              mind_points: scoreEntry?.mind_points,
+              class_id: s.class_id,
+              class_name: scoreEntry?.class_name ?? "",
+            };
+          });
+          return mergeAndRankLeaderboards([result]);
+        }
+
+        // Non-subject-workspace: aggregate per class using the scores endpoint
+        const yearClasses: any[] = await fetchClasses(String(selectedYear)).catch(() => []);
+        const uniqueClassIds = Array.from(new Set(
+          yearClasses.map((cls: any) => getClassId(cls)).filter(Boolean)
+        ));
+        if (uniqueClassIds.length === 0) return [];
+
+        const leaderboards = await mapWithConcurrency(uniqueClassIds, 5, async (classId) => {
+          const cls = yearClasses.find((c: any) => getClassId(c) === classId);
+          const className = cls?.class_name ?? cls?.name ?? "";
+          try {
+            const res = await fetchLeaderBoardData(classId, pickedSubjectId ?? undefined);
+            return (res?.data ?? []).map((row: any) => ({
+              ...row,
+              class_id: row.class_id ?? classId,
+              class_name: row.class_name ?? className,
+            }));
+          } catch { return []; }
+        });
+        return mergeAndRankLeaderboards(leaderboards);
+      }
+
+      // ── "Whole School" scope in subject workspace mode ──
+      // Strategy: use the subject ENROLLMENT list as the source of truth for WHO to show.
+      // /get-student/{classId}?subject_id=N is filtered server-side by subject enrollment.
+      // /leaderboard/school-self returns all-subject scores (backend ignores subject_id),
+      // so we fetch it once unfiltered and intersect with the enrolled roster.
+      // Students enrolled but with 0 marks always appear (total_marks = 0).
+      if (isSubjectWorkspaceMode && pickedSubjectId) {
+        // Step 1: get subject_class records for this subject
+        let subjectClassRecords: any[] = [];
+        try {
+          subjectClassRecords = (await fetchSubjectClasses({ subject_id: pickedSubjectId })) ?? [];
+        } catch {
+          // ignore — fall through to school-self
+        }
+
+        // Step 2: fetch enrolled students for each subject class.
+        // We pass subject_class_id as a query param so the backend can filter via
+        // student_subject_enrollments when it supports it (see StudentService fix).
+        // The URL class_id also uses the subject_class.id as a hint.
+        let allEnrolledStudents: any[] = [];
+        if (subjectClassRecords.length > 0) {
+          const enrolledByClass = await mapWithConcurrency(subjectClassRecords, 5, async (record: any) => {
+            const subjectClassId = record.id;
+            if (!subjectClassId) return [];
+            // Try direct linked class first; fall back to subject_class id as URL hint
+            const linkedId = await resolveSubjectClassLinkedIdWithFallback(record, pickedSubjectId);
+            const urlClassId = linkedId || String(subjectClassId);
+            try {
+              const students = await fetchStudents(urlClassId, pickedSubjectId, subjectClassId);
+              return (Array.isArray(students) ? students : []).map((s: any) => ({
+                student_id: String(s?.id ?? s?.student_id ?? ""),
+                student_name: s?.student_name ?? s?.user_name ?? s?.name ?? s?.user?.name ?? "Unknown",
+                class_id: s?.class_id ?? urlClassId,
+              }));
+            } catch {
+              return [];
+            }
+          });
+          allEnrolledStudents = enrolledByClass.flat().filter((s: any) => !!s.student_id);
+        }
+
+        if (allEnrolledStudents.length === 0) return [];
+
+        // Step 3: fetch school-self scores once (no subject filter — backend doesn't enforce it yet)
+        // We have the correct roster, so the intersection is correct regardless.
+        let schoolScoreMap: Record<string, any> = {};
+        try {
+          const schoolRes = await fetchSchoolSelfLeaderBoardData();
+          for (const entry of (schoolRes?.data ?? [])) {
+            const sid = String(entry?.student_id ?? "");
+            if (sid) schoolScoreMap[sid] = entry;
+          }
+        } catch {
+          // Students will appear with 0 marks if school-self fails
+        }
+
+        // Step 4: enrich enrolled students with their school scores (0 if not found)
+        const result = allEnrolledStudents.map((s: any) => {
+          const scoreEntry = schoolScoreMap[s.student_id];
+          return {
+            student_id: s.student_id,
+            student_name: s.student_name,
+            total_marks: scoreEntry?.total_marks ?? 0,
+            tracker_points: scoreEntry?.tracker_points,
+            mind_points: scoreEntry?.mind_points,
+            class_id: s.class_id,
+            class_name: scoreEntry?.class_name ?? "",
+          };
+        });
+
+        return mergeAndRankLeaderboards([result]);
+      }
+
+      // ── "Whole School" scope (non-subject or fallback) ──
       if (resolvedSchoolId) {
         try {
           const res = await fetchSchoolLeaderBoardData(
             resolvedSchoolId,
-            activeSubjectId ?? undefined
+            pickedSubjectId ?? undefined
           );
           const rows = res?.data ?? [];
           if (rows.length > 0) {
@@ -575,7 +843,7 @@ const LeaderBoard = () => {
       }
 
       try {
-        const res = await fetchSchoolSelfLeaderBoardData(activeSubjectId ?? undefined);
+        const res = await fetchSchoolSelfLeaderBoardData(pickedSubjectId ?? undefined);
         const rows = res?.data ?? [];
         if (rows.length > 0) {
           return mergeAndRankLeaderboards([rows]);
@@ -606,8 +874,11 @@ const LeaderBoard = () => {
 
       const leaderboards = await mapWithConcurrency(uniqueClassIds, 5, async (classId) => {
         try {
-          const res = await fetchLeaderBoardData(classId, activeSubjectId ?? undefined);
-          return res?.data ?? [];
+          const res = await fetchLeaderBoardData(classId, pickedSubjectId ?? undefined);
+          return (res?.data ?? []).map((row: any) => ({
+            ...row,
+            class_id: row.class_id ?? classId,
+          }));
         } catch (error) {
           return [];
         }
@@ -615,7 +886,10 @@ const LeaderBoard = () => {
 
       return mergeAndRankLeaderboards(leaderboards);
     },
-    enabled: !isStudent && leaderboardScope === "school",
+    enabled:
+      !isStudent &&
+      (leaderboardScope === "school" ||
+        (leaderboardScope === "year" && !!selectedYear && selectedYear !== "__all__")),
     staleTime: 2 * 60 * 1000,
   });
 
@@ -681,7 +955,7 @@ const LeaderBoard = () => {
 
       return { classByStudentId, nameByStudentId };
     },
-    enabled: !isStudent && leaderboardScope === "school" && unresolvedStaffSchoolStudentIds.length > 0,
+    enabled: !isStudent && (leaderboardScope === "school" || leaderboardScope === "year") && unresolvedStaffSchoolStudentIds.length > 0,
     staleTime: 10 * 60 * 1000,
   });
 
@@ -689,7 +963,7 @@ const LeaderBoard = () => {
     loading ||
     (!isStudent &&
       ((leaderboardScope === "class" && (classesLoading || classLeaderboardLoading)) ||
-        (leaderboardScope === "school" && staffSchoolLeaderboardLoading))) ||
+        ((leaderboardScope === "school" || leaderboardScope === "year") && staffSchoolLeaderboardLoading))) ||
     (isStudent &&
       (studentProfileLoading ||
         studentClassLeaderboardLoading ||
@@ -698,7 +972,7 @@ const LeaderBoard = () => {
   const isPageError =
     (!isStudent &&
       ((leaderboardScope === "class" && classLeaderboardIsError) ||
-        (leaderboardScope === "school" && staffSchoolLeaderboardIsError))) ||
+        ((leaderboardScope === "school" || leaderboardScope === "year") && staffSchoolLeaderboardIsError))) ||
     (isStudent && studentProfileIsError);
 
   const pageErrorMessage = !isStudent
@@ -906,7 +1180,12 @@ const LeaderBoard = () => {
   );
 
   const applySchoolFilters = (rows: any[]) => {
-    // When viewing the whole school, show all students without class/year filters
+    // "year" scope: rows are already aggregated per year — return all ranked
+    if (leaderboardScope === "year") {
+      return rankRowsByPoints(rows ?? []);
+    }
+
+    // "school" scope with no filters: show everything
     if (leaderboardScope === "school" && !selectedClass && !selectedYear) {
       return rankRowsByPoints(rows ?? []);
     }
@@ -1091,7 +1370,7 @@ const LeaderBoard = () => {
     },
   ];
 
-  if (isStudent || (!isStudent && leaderboardScope === "school")) {
+  if (isStudent || (!isStudent && (leaderboardScope === "school" || leaderboardScope === "year"))) {
     columns.push({
       title: "Class",
       dataIndex: "className",
@@ -1122,131 +1401,245 @@ const LeaderBoard = () => {
     });
   }
 
+  /* ── Podium top-3 display ── */
+  const PodiumDisplay = ({ rows }: { rows: any[] }) => {
+    const top3 = rows.slice(0, 3);
+    if (top3.length < 2) return null;
+    const [first, second, third] = [top3[0], top3[1], top3[2]];
+    // visual order: 2nd (left), 1st (center/tallest), 3rd (right)
+    const podium = [
+      { student: second, podiumHeight: 72, avatarSize: 44, rankColor: "#C0C0C0", label: "2nd", icon: <TrophyOutlined /> },
+      { student: first,  podiumHeight: 96, avatarSize: 56, rankColor: "#FFD700", label: "1st", icon: <CrownOutlined /> },
+      { student: third,  podiumHeight: 56, avatarSize: 40, rankColor: "#CD7F32", label: "3rd", icon: <StarOutlined /> },
+    ];
+    return (
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "flex-end", gap: 12, padding: "24px 0 0" }}>
+        {podium.map(({ student, podiumHeight, avatarSize, rankColor, label, icon }, idx) => {
+          if (!student) return null;
+          return (
+            <div key={student.key ?? idx} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, minWidth: 80 }}>
+              <Avatar
+                size={avatarSize}
+                style={{ backgroundColor: rankColor, color: "#111827", fontWeight: 700, fontSize: avatarSize * 0.4, boxShadow: `0 2px 8px ${rankColor}88` }}
+              >
+                {student.avatar}
+              </Avatar>
+              <Text strong style={{ fontSize: idx === 1 ? 14 : 12.5, maxWidth: 90, textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }} title={student.name}>
+                {student.name}
+              </Text>
+              <Text style={{ fontSize: 12, color: "#6b7280", fontVariantNumeric: "tabular-nums" }}>{student.points} pts</Text>
+              <div style={{ width: 80, height: podiumHeight, background: rankColor, opacity: 0.82, borderRadius: "8px 8px 0 0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: "#fff" }}>
+                {icon}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   return (
     <div className="premium-page" style={{ maxWidth: 1200, margin: "0 auto", padding: 24 }}>
-      <Card
-        className="premium-hero !mb-4"
+
+      {/* ── Breadcrumb ── */}
+      <Breadcrumb
+        items={[
+          { title: <Link href="/dashboard">Dashboard</Link> },
+          { title: <span>Leaderboard</span> },
+        ]}
+        className="!mb-4"
+      />
+
+      {/* ── Hero ── */}
+      <div
         style={{
-          background:
-            "linear-gradient(120deg, rgba(15,118,110,0.08) 0%, rgba(245,158,11,0.08) 100%)",
-          border: "1px solid rgba(15,118,110,0.2)",
+          background: "linear-gradient(120deg, #0f766e 0%, #0e7490 100%)",
+          borderRadius: 16,
+          padding: "28px 32px",
+          marginBottom: 24,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 16,
+          flexWrap: "wrap",
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <div style={{ background: "rgba(255,255,255,0.15)", borderRadius: 12, width: 52, height: 52, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>
+            🏆
+          </div>
           <div>
-            <Text type="secondary">Leaderboard Overview</Text>
-            <Title level={4} style={{ margin: 0 }}>
-              {isStudent ? "Your Class + Whole School Rankings" : "Class and School Performance Rankings"}
+            <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 13, display: "block", marginBottom: 2 }}>
+              {isSubjectWorkspaceMode && pickedSubject?.name ? pickedSubject.name : "School Performance"}
+            </Text>
+            <Title level={3} style={{ margin: 0, color: "#fff", fontWeight: 700 }}>
+              {isStudent
+                ? "Your Rankings"
+                : isSubjectWorkspaceMode && pickedSubject?.name
+                ? `${pickedSubject.name} Leaderboard`
+                : "Leaderboard"}
             </Title>
           </div>
-          <Tag color="processing">Live</Tag>
+          {/* Subject switcher — only in subject workspace mode with multiple subjects */}
+          {isSubjectWorkspaceMode && (subjects ?? []).length > 1 && (
+            <div style={{ display: "flex", gap: 6, marginLeft: 8 }}>
+              {(subjects ?? []).map((s: any) => {
+                const label =
+                  typeof s.name === "string"
+                    ? s.name.replace(/islamiat/gi, "Islamic")
+                    : String(s.name ?? s.code ?? s.id);
+                const isActive = Number(pickedSubjectId) === Number(s.id);
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => {
+                      loadYearsInProgressRef.current = false;
+                      setPickedSubjectId(Number(s.id));
+                      setActiveSubjectId(Number(s.id), { navigate: false });
+                      setSelectedYear(null);
+                      setSelectedClass(null);
+                    }}
+                    style={{
+                      padding: "5px 14px",
+                      borderRadius: 999,
+                      border: isActive ? "2px solid #fff" : "2px solid rgba(255,255,255,0.35)",
+                      background: isActive ? "#fff" : "rgba(255,255,255,0.12)",
+                      color: isActive ? "#0f766e" : "#fff",
+                      fontWeight: 700,
+                      fontSize: 13,
+                      cursor: "pointer",
+                      transition: "all 0.15s",
+                    }}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
-      </Card>
-     <Breadcrumb
-        items={[
-          {
-            title: <Link href="/dashboard">Dashboard</Link>,
-          },
-          {
-            title: <span>Leaderboard</span>,
-          },
-        ]}
-        className="!mb-6"
-      />
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          {isStudent ? (
+            <>
+              <div style={{ background: "rgba(255,255,255,0.15)", borderRadius: 10, padding: "10px 20px", textAlign: "center" }}>
+                <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 12, display: "block" }}>Class Rank</Text>
+                <Text style={{ color: "#fff", fontWeight: 700, fontSize: 20 }}>{myClassRank ? `#${myClassRank}` : "—"}</Text>
+              </div>
+              <div style={{ background: "rgba(255,255,255,0.15)", borderRadius: 10, padding: "10px 20px", textAlign: "center" }}>
+                <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 12, display: "block" }}>School Rank</Text>
+                <Text style={{ color: "#fff", fontWeight: 700, fontSize: 20 }}>{mySchoolRank ? `#${mySchoolRank}` : "—"}</Text>
+              </div>
+            </>
+          ) : (
+            <div style={{ background: "rgba(255,255,255,0.15)", borderRadius: 10, padding: "10px 20px", textAlign: "center" }}>
+              <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 12, display: "block" }}>Students</Text>
+              <Text style={{ color: "#fff", fontWeight: 700, fontSize: 20 }}>{activeRows.length}</Text>
+            </div>
+          )}
+          <Tag color="processing" style={{ alignSelf: "center", borderRadius: 999, fontWeight: 600, fontSize: 12, padding: "4px 12px" }}>Live</Tag>
+        </div>
+      </div>
 
       {!isStudent ? (
         <>
-          <Card className="premium-filter-panel p-4 !mb-6">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="flex flex-col">
-                <label className="text-xs font-medium text-gray-500 mb-1">
-                  Scope
-                </label>
-                <Select
-                  value={leaderboardScope}
-                  onChange={(value) => setLeaderboardScope(value)}
-                  className="w-full"
-                >
-                  <Select.Option value="class">Class</Select.Option>
-                  <Select.Option value="school">Whole School</Select.Option>
-                </Select>
-              </div>
-              {/* Year Select */}
-              <div className="flex flex-col">
-                <label className="text-xs font-medium text-gray-500 mb-1">
-                  Year
-                </label>
-                <Select
-                  value={selectedYear || undefined}
-                  onChange={(value) => {
-                    setSelectedYear(value);
-                    setSelectedClass(null); // reset class when year changes
-                  }}
-                  className="w-full"
-                  placeholder="Select Year"
-                >
-                  <Select.Option value="__all__">All Years</Select.Option>
-                  {years?.map((year) => (
-                    <Select.Option key={year.id} value={year.id.toString()}>
-                      {year.name}
-                    </Select.Option>
-                  ))}
-                </Select>
-              </div>
-
-              {/* Class Select */}
-              <div className="flex flex-col">
-                <label className="text-xs font-medium text-gray-500 mb-1">
-                  Class
-                </label>
-                <Select
-                  value={selectedClass || undefined}
-                  onChange={(value) =>
-                    setSelectedClass(value === "__all_classes__" ? null : value)
+          {/* ── Filter Panel ── */}
+          <Card
+            className="premium-filter-panel !mb-6"
+            styles={{ body: { padding: "16px 20px" } }}
+          >
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 16 }}>
+              <Segmented
+                value={leaderboardScope}
+                onChange={(value) => {
+                  setLeaderboardScope(value as "school" | "year" | "class");
+                  if (value === "school") {
+                    setSelectedYear("__all__");
+                    setSelectedClass(null);
+                  } else {
+                    setSelectedClass(null);
                   }
-                  className="w-full"
-                  placeholder={leaderboardScope === "school" ? "All Classes" : "Select Class"}
-                  loading={classesLoading}
-                  disabled={!selectedYear}
-                >
-                  {leaderboardScope === "school" && (
-                    <Select.Option value="__all_classes__">All Classes</Select.Option>
-                  )}
-                  {classes?.map((cls: any) => (
-                    <Select.Option key={getClassId(cls)} value={getClassId(cls)}>
-                      {cls.class_name ?? cls.name ?? `Class ${getClassId(cls)}`}
-                    </Select.Option>
-                  ))}
-                </Select>
-              </div>
+                }}
+                options={[
+                  { label: "🏫  Whole School", value: "school" },
+                  { label: "📅  By Year",      value: "year"   },
+                  { label: "📚  By Class",      value: "class"  },
+                ]}
+                size="large"
+              />
+
+              {(leaderboardScope === "year" || leaderboardScope === "class") && (
+                <>
+                  <Divider type="vertical" style={{ height: 32, margin: 0 }} />
+                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    <label style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Year</label>
+                    <Select
+                      value={selectedYear && selectedYear !== "__all__" ? selectedYear : undefined}
+                      onChange={(value) => { setSelectedYear(value); setSelectedClass(null); }}
+                      placeholder="Select year"
+                      style={{ minWidth: 160 }}
+                    >
+                      {years?.map((year) => (
+                        <Select.Option key={year.id} value={year.id.toString()}>{year.name}</Select.Option>
+                      ))}
+                    </Select>
+                  </div>
+                </>
+              )}
+
+              {leaderboardScope === "class" && (
+                <>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    <label style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Class</label>
+                    <Select
+                      value={selectedClass || undefined}
+                      onChange={(value) => setSelectedClass(value)}
+                      placeholder="Select class"
+                      style={{ minWidth: 160 }}
+                      loading={classesLoading}
+                      disabled={!selectedYear || selectedYear === "__all__"}
+                    >
+                      {classes?.map((cls: any) => (
+                        <Select.Option key={getClassId(cls)} value={getClassId(cls)}>
+                          {cls.class_name ?? cls.name ?? `Class ${getClassId(cls)}`}
+                        </Select.Option>
+                      ))}
+                    </Select>
+                  </div>
+                </>
+              )}
             </div>
           </Card>
 
+          {/* ── Main Table Card ── */}
           <Space direction="vertical" size="large" style={{ width: "100%" }}>
-            <Card className="premium-card">
+            <Card className="premium-card" styles={{ body: { padding: "24px" } }}>
               <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <Title level={3} style={{ margin: 0 }}>
-                    {leaderboardScope === "class" ? "Class Leaderboard" : "Whole School Leaderboard"}
-                  </Title>
+
+                {/* Card header */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <Title level={4} style={{ margin: 0 }}>
+                      {leaderboardScope === "class"
+                        ? "Class Leaderboard"
+                        : leaderboardScope === "year"
+                        ? "Year Leaderboard"
+                        : "Whole School Leaderboard"}
+                    </Title>
+                    <Text type="secondary" style={{ fontSize: 13 }}>
+                      {activeRows.length} student{activeRows.length !== 1 ? "s" : ""} ranked
+                    </Text>
+                  </div>
                 </div>
 
-                {leaderboardScope === "school" && activeRows.length === 0 && !staffSchoolLeaderboardLoading && (
-                  <div style={{ padding: "20px", textAlign: "center", background: "#f5f5f5", borderRadius: "8px" }}>
-                    <Text type="secondary">
-                      <strong>No leaderboard data available.</strong>
-                      <div style={{ marginTop: 10 }}>Possible reasons:</div>
-                      <ul style={{ marginTop: 10, textAlign: "left", display: "inline-block" }}>
-                        <li>No students have submitted assessments yet</li>
-                        <li>The backend needs to be updated with the latest changes</li>
-                        <li>Your account may need additional permissions</li>
-                      </ul>
+                {/* Top-3 podium */}
+                {activeRows.length >= 2 && <PodiumDisplay rows={activeRows} />}
+
+                {(leaderboardScope === "school" || leaderboardScope === "year") && activeRows.length === 0 && !staffSchoolLeaderboardLoading && (
+                  <div style={{ padding: "32px 20px", textAlign: "center", background: "#f8fafc", borderRadius: 12 }}>
+                    <div style={{ fontSize: 40, marginBottom: 12 }}>📊</div>
+                    <Text strong style={{ display: "block", marginBottom: 6 }}>No leaderboard data yet</Text>
+                    <Text type="secondary" style={{ fontSize: 13 }}>
+                      Students need to submit assessments before rankings appear.
                     </Text>
                   </div>
                 )}
@@ -1276,67 +1669,41 @@ const LeaderBoard = () => {
           </Space>
         </>
       ) : (
+        /* ── Student view ── */
         <Space direction="vertical" size="large" style={{ width: "100%" }}>
-          <Card className="premium-card p-4 !mb-2">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="flex flex-col">
-                <Text type="secondary">My rank in class</Text>
-                <Title level={4} style={{ margin: 0 }}>
-                  {myClassRank ? `#${myClassRank}` : "N/A"}
-                  <Text type="secondary" style={{ marginLeft: 8 }}>
-                    / {(resolvedStudentClassRows ?? []).length}
-                  </Text>
-                </Title>
-              </div>
-              <div className="flex flex-col">
-                <Text type="secondary">My rank in whole school</Text>
-                <Title level={4} style={{ margin: 0 }}>
-                  {mySchoolRank ? `#${mySchoolRank}` : "N/A"}
-                  <Text type="secondary" style={{ marginLeft: 8 }}>
-                    / {(schoolLeaderboardRows ?? []).length}
-                  </Text>
-                </Title>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="premium-card">
+          <Card className="premium-card" styles={{ body: { padding: "24px" } }}>
             <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-              <Title level={3} style={{ margin: 0 }}>
-                {leaderboardScope === "class"
-                  ? "Class Leaderboard"
-                  : "Whole School Leaderboard"}
-              </Title>
 
-              <div style={{ display: "inline-flex", gap: 10 }}>
-                <Button
-                  type={leaderboardScope === "class" ? "primary" : "default"}
-                  onClick={() => setLeaderboardScope("class")}
-                  className="leaderboard-switch-btn premium-pill-btn"
-                >
-                  My class
-                </Button>
-                <Button
-                  type={leaderboardScope === "school" ? "primary" : "default"}
-                  onClick={() => setLeaderboardScope("school")}
-                  className="leaderboard-switch-btn premium-pill-btn"
-                >
-                  Whole school
-                </Button>
+              {/* Scope switcher */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+                <div>
+                  <Title level={4} style={{ margin: 0 }}>
+                    {leaderboardScope === "class" ? "My Class Leaderboard" : "Whole School Leaderboard"}
+                  </Title>
+                  <Text type="secondary" style={{ fontSize: 13 }}>
+                    {studentActiveRows.length} student{studentActiveRows.length !== 1 ? "s" : ""} ranked
+                  </Text>
+                </div>
+                <Segmented
+                  value={leaderboardScope}
+                  onChange={(value) => setLeaderboardScope(value as "school" | "year" | "class")}
+                  options={[
+                    { label: "📚  My Class",      value: "class"  },
+                    { label: "🏫  Whole School",  value: "school" },
+                  ]}
+                  size="large"
+                />
               </div>
 
-              {leaderboardScope === "class" &&
-                studentClassLeaderboardIsError &&
-                (resolvedStudentClassRows ?? []).length === 0 && (
-                <Text type="danger">
-                  {(studentClassLeaderboardError as any)?.message || "Failed to load class leaderboard"}
-                </Text>
+              {leaderboardScope === "class" && studentClassLeaderboardIsError && (resolvedStudentClassRows ?? []).length === 0 && (
+                <Text type="danger">{(studentClassLeaderboardError as any)?.message || "Failed to load class leaderboard"}</Text>
               )}
               {leaderboardScope === "school" && schoolLeaderboardIsError && (
-                <Text type="danger">
-                  {(schoolLeaderboardError as any)?.message || "Failed to load whole school leaderboard"}
-                </Text>
+                <Text type="danger">{(schoolLeaderboardError as any)?.message || "Failed to load whole school leaderboard"}</Text>
               )}
+
+              {/* Top-3 podium */}
+              {studentActiveRows.length >= 2 && <PodiumDisplay rows={studentActiveRows} />}
 
               <div key={leaderboardScope} className="leaderboard-table-animate">
                 <Table
@@ -1347,18 +1714,6 @@ const LeaderBoard = () => {
                   rowClassName={getRowClassName}
                   scroll={{ x: true }}
                 />
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <Text type="secondary">
-                  Showing {studentActiveRows.length} students
-                </Text>
               </div>
             </Space>
           </Card>
@@ -1385,28 +1740,21 @@ const LeaderBoard = () => {
         .ant-table-container table > tbody > tr > td {
           transition: background-color 0.2s ease;
         }
-        .leaderboard-switch-btn.ant-btn {
-          border-radius: 999px;
-          font-weight: 600;
-          padding-inline: 18px;
-        }
-        .leaderboard-switch-btn.ant-btn-primary {
-          background: linear-gradient(90deg, #0f766e, #0e7490);
-          border-color: transparent;
-        }
         .leaderboard-table-animate {
           animation: leaderboardSwap 280ms ease;
           transform-origin: top center;
         }
         @keyframes leaderboardSwap {
-          0% {
-            opacity: 0;
-            transform: translateY(10px) scale(0.99);
-          }
-          100% {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
+          0% { opacity: 0; transform: translateY(10px) scale(0.99); }
+          100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .ant-segmented-item-selected {
+          background: linear-gradient(90deg, #0f766e, #0e7490) !important;
+          color: #fff !important;
+          font-weight: 600 !important;
+        }
+        .ant-segmented {
+          background: #f1f5f9;
         }
       `}</style>
     </div>

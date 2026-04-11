@@ -86,13 +86,15 @@ const buildClassLeaderboardFromSchoolData = async (
   classId: string,
   subjectId?: number
 ): Promise<LeaderboardResponse> => {
+  // Roster call uses subject_id to get only students enrolled in that subject.
+  // School-self call is NOT filtered by subject_id — scores are not per-subject,
+  // so passing subject_id may return 0. We intersect unfiltered scores with the
+  // filtered roster to produce a subject-scoped leaderboard.
   const [classStudentsRes, schoolRes] = await Promise.all([
     api.get(`/get-student/${classId}`, {
       params: withSubjectQuery({}, subjectId),
     }),
-    api.get("/leaderboard/school-self", {
-      params: withSubjectQuery({}, subjectId),
-    }),
+    api.get("/leaderboard/school-self"),
   ]);
 
   const classStudents = Array.isArray(classStudentsRes?.data?.data)
@@ -164,6 +166,8 @@ export const fetchLeaderBoardData = async (
 
   // Fallback for backends where class leaderboard endpoint is broken:
   // build class leaderboard by filtering school leaderboard using class roster.
+  // /get-student/{classId}?subject_id=X returns only subject-enrolled students,
+  // so the intersection with school-self correctly scopes to that subject.
   try {
     const fromSchoolLeaderboard = await buildClassLeaderboardFromSchoolData(id, subjectId);
     if ((fromSchoolLeaderboard?.data ?? []).length > 0) {

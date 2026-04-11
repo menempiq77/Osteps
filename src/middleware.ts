@@ -28,6 +28,7 @@ const SHARED_PREFIXES = [
   "/dashboard/subject-cards",
   "/dashboard/students/all-school",
   "/dashboard/students/all-students",
+  "/dashboard/students-staff",
   "/dashboard/library",
   "/dashboard/time_table",
   "/dashboard/announcements",
@@ -70,6 +71,7 @@ const SUBJECT_ROUTE_ROOTS = new Set([
   "admins",
   "approvals",
   "lessons",
+  "students-staff",
 ]);
 
 const startsWithPrefix = (path: string, prefix: string): boolean => path === prefix || path.startsWith(`${prefix}/`);
@@ -127,6 +129,17 @@ export function middleware(req: NextRequest) {
     ) {
       const redirectUrl = req.nextUrl.clone();
       redirectUrl.pathname = `/dashboard/s/${canonicalScopedMatch[1]}${canonicalScopedMatch[3]}`;
+      return NextResponse.redirect(redirectUrl);
+    }
+
+    const scopedStudentsStaffMatch = pathname.match(
+      /^\/dashboard\/s\/\d+(?:\/[^/]+)?\/students-staff\/?$/
+    );
+    if (scopedStudentsStaffMatch) {
+      const redirectUrl = req.nextUrl.clone();
+      redirectUrl.pathname = "/dashboard/students-staff";
+      redirectUrl.searchParams.delete("subject_id");
+      redirectUrl.searchParams.delete("subject_name");
       return NextResponse.redirect(redirectUrl);
     }
 
