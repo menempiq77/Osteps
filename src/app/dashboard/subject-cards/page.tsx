@@ -11,6 +11,7 @@ import {
   LogoutOutlined,
   NotificationOutlined,
   QuestionCircleOutlined,
+  ReadOutlined,
   RocketOutlined,
   SettingOutlined,
   SolutionOutlined,
@@ -398,6 +399,7 @@ export default function SubjectCardsPage() {
             <div className="flex-1 h-px bg-slate-100" />
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <QuickLinkCard name="Courses"     href="/dashboard/courses"    desc="Access subject courses including Lessons and Mind-upgrade."       Icon={ReadOutlined} />
             <QuickLinkCard name="Library"     href="/dashboard/library"    desc="Open shared resources for the current school workspace."          Icon={BookOutlined} />
             <QuickLinkCard name="Leaderboard" href={leaderboardHref}       desc="School-wide student rankings across all subjects."               Icon={TrophyOutlined} />
 
@@ -419,6 +421,7 @@ export default function SubjectCardsPage() {
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             <QuickLinkCard name="Students & Staff" href="/dashboard/students-staff"      desc="Manage all students and teachers across subjects."                  Icon={TeamOutlined} />
+            <QuickLinkCard name="Courses"           href="/dashboard/courses"            desc="Access subject courses including Lessons and Mind-upgrade."         Icon={ReadOutlined} />
             <QuickLinkCard name="Library"       href="/dashboard/library"               desc="Shared resources available to subjects you assign."                 Icon={BookOutlined} />
             <QuickLinkCard name="Timetable"     href="/dashboard/time_table"            desc="Build the school timetable across years and classes."               Icon={CalendarOutlined} />
             <QuickLinkCard name="Announcements" href="/dashboard/announcements"         desc="Send announcements to HODs, teachers, and students."                Icon={NotificationOutlined} />

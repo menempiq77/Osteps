@@ -178,6 +178,9 @@ export default function DashboardLayout({
   const isTimeTableRoute = unscopedPathname === "/dashboard/time_table";
   const isToolsRoute = unscopedPathname === "/dashboard/tools" || unscopedPathname.startsWith("/dashboard/tools/");
   const isStudentsStaffRoute = unscopedPathname === "/dashboard/students-staff";
+  const isCoursesRoute = unscopedPathname === "/dashboard/courses" || unscopedPathname.startsWith("/dashboard/courses/");
+  const isLessonsRoute = !isImmersiveLessonGroupRoute && (unscopedPathname === "/dashboard/lessons" || unscopedPathname.startsWith("/dashboard/lessons/"));
+  const isMindUpgradeRoute = unscopedPathname === "/dashboard/mind-upgrade" || unscopedPathname.startsWith("/dashboard/mind-upgrade/");
   const isAnnouncementsRoute = unscopedPathname === "/dashboard/announcements";
   const isSettingsRoute = unscopedPathname.endsWith("/settings");
   const isAllStudentsStandaloneRoute =
@@ -271,6 +274,9 @@ export default function DashboardLayout({
       isTimeTableRoute ||
       isToolsRoute ||
       isStudentsStaffRoute ||
+      isCoursesRoute ||
+      isLessonsRoute ||
+      isMindUpgradeRoute ||
       isAnnouncementsRoute ||
       isSettingsRoute ? (
         <div className="dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] p-3 md:p-6">

@@ -29,6 +29,9 @@ const SHARED_PREFIXES = [
   "/dashboard/students/all-school",
   "/dashboard/students/all-students",
   "/dashboard/students-staff",
+  "/dashboard/courses",
+  "/dashboard/lessons",
+  "/dashboard/mind-upgrade",
   "/dashboard/library",
   "/dashboard/time_table",
   "/dashboard/announcements",
@@ -72,6 +75,8 @@ const SUBJECT_ROUTE_ROOTS = new Set([
   "approvals",
   "lessons",
   "students-staff",
+  "courses",
+  "mind-upgrade",
 ]);
 
 const startsWithPrefix = (path: string, prefix: string): boolean => path === prefix || path.startsWith(`${prefix}/`);
@@ -138,6 +143,39 @@ export function middleware(req: NextRequest) {
     if (scopedStudentsStaffMatch) {
       const redirectUrl = req.nextUrl.clone();
       redirectUrl.pathname = "/dashboard/students-staff";
+      redirectUrl.searchParams.delete("subject_id");
+      redirectUrl.searchParams.delete("subject_name");
+      return NextResponse.redirect(redirectUrl);
+    }
+
+    const scopedCoursesMatch = pathname.match(
+      /^\/dashboard\/s\/\d+(?:\/[^/]+)?\/(courses(?:\/.*)?)$/
+    );
+    if (scopedCoursesMatch) {
+      const redirectUrl = req.nextUrl.clone();
+      redirectUrl.pathname = `/dashboard/${scopedCoursesMatch[1]}`;
+      redirectUrl.searchParams.delete("subject_id");
+      redirectUrl.searchParams.delete("subject_name");
+      return NextResponse.redirect(redirectUrl);
+    }
+
+    const scopedLessonsMatch = pathname.match(
+      /^\/dashboard\/s\/\d+(?:\/[^/]+)?\/(lessons(?:\/.*)?)$/
+    );
+    if (scopedLessonsMatch) {
+      const redirectUrl = req.nextUrl.clone();
+      redirectUrl.pathname = `/dashboard/${scopedLessonsMatch[1]}`;
+      redirectUrl.searchParams.delete("subject_id");
+      redirectUrl.searchParams.delete("subject_name");
+      return NextResponse.redirect(redirectUrl);
+    }
+
+    const scopedMindUpgradeMatch = pathname.match(
+      /^\/dashboard\/s\/\d+(?:\/[^/]+)?\/(mind-upgrade(?:\/.*)?)$/
+    );
+    if (scopedMindUpgradeMatch) {
+      const redirectUrl = req.nextUrl.clone();
+      redirectUrl.pathname = `/dashboard/${scopedMindUpgradeMatch[1]}`;
       redirectUrl.searchParams.delete("subject_id");
       redirectUrl.searchParams.delete("subject_name");
       return NextResponse.redirect(redirectUrl);

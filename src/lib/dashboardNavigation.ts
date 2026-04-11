@@ -591,10 +591,10 @@ export const buildDashboardNavigation = ({
     items = items.filter((item) => item.name !== "Mind-upgrade");
   }
 
-    /* Hide Library and Leaderboard when inside a subject workspace (Arabic, Islamic, etc.).
-      Both are only available from the main /dashboard/subject-cards page. */
+    /* Hide Library, Leaderboard, Tools, Lessons and Mind-upgrade when inside a subject workspace.
+      Access via Courses card on /dashboard/subject-cards. */
     if (canUseSubjectContext && activeSubjectId) {
-     items = items.filter((item) => item.name !== "Library" && item.name !== "Leaderboard" && item.name !== "Tools");
+     items = items.filter((item) => item.name !== "Library" && item.name !== "Leaderboard" && item.name !== "Tools" && item.name !== "Lessons" && item.name !== "Mind-upgrade");
     }
 
 /* Timetable and Announcements should not appear in the sidebar.
