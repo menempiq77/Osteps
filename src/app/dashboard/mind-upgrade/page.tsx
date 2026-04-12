@@ -11,6 +11,8 @@ import { useSubjectContext } from "@/contexts/SubjectContext";
 import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
 import { fetchClasses } from "@/services/classesApi";
 import { fetchStudents } from "@/services/studentsApi";
+import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
+import { resolveSubjectClassLinkedIdWithFallback } from "@/lib/subjectClassResolution";
 import {
   assignMindUpgradeCourses,
   fallbackMindCatalog,
@@ -29,6 +31,7 @@ type CurrentUser = {
 
 type ClassOption = {
   id: number;
+  subject_class_id?: number;
   year_id?: number;
   class_name: string;
   year_name?: string;
@@ -59,7 +62,8 @@ function assignmentStatusLabel(status?: string) {
 
 export default function MindUpgradePage() {
   const queryClient = useQueryClient();
-  const { canUseSubjectContext, activeSubject } = useSubjectContext();
+  const { canUseSubjectContext, activeSubject, activeSubjectId, loading: subjectContextLoading } =
+    useSubjectContext();
   const { currentUser } = useSelector((state: RootState) => state.auth) as {
     currentUser: CurrentUser;
   };
@@ -67,8 +71,8 @@ export default function MindUpgradePage() {
   const roleKey = (currentUser?.role ?? "").trim().toUpperCase().replace(/\s+/g, "_");
   const isStudent = roleKey === "STUDENT";
   const canAssign = roleKey === "SCHOOL_ADMIN" || roleKey === "HOD" || roleKey === "TEACHER";
-  const isMindEnabledForSubject =
-    !canUseSubjectContext || !activeSubject || /islam|islamiat|islamic/i.test(activeSubject.name);
+  const isIslamicSubjectContext = /islam|islamiat|islamic/i.test(String(activeSubject?.name || ""));
+  const isMindEnabledForSubject = !canUseSubjectContext || isIslamicSubjectContext;
   const schoolId = resolveSchoolId(currentUser);
   const [assignDrawerOpen, setAssignDrawerOpen] = useState(false);
   const [selectedCourseKeys, setSelectedCourseKeys] = useState<string[]>(["aqeedah"]);
@@ -122,9 +126,56 @@ export default function MindUpgradePage() {
   }, [isStudent, studentAssignmentsError, catalog, assignmentMap]);
 
   const { data: allClasses = [] } = useQuery({
-    queryKey: ["mind-upgrade-assign-classes", roleKey, schoolId],
-    enabled: canAssign,
+    queryKey: ["mind-upgrade-assign-classes", roleKey, schoolId, activeSubjectId, isMindEnabledForSubject],
+    enabled: canAssign && (!canUseSubjectContext || (!subjectContextLoading && isMindEnabledForSubject)),
     queryFn: async (): Promise<ClassOption[]> => {
+      if (canUseSubjectContext && activeSubjectId && isMindEnabledForSubject && schoolId) {
+        const [years, subjectClasses] = await Promise.all([
+          fetchYearsBySchool(Number(schoolId)),
+          fetchSubjectClasses({ subject_id: Number(activeSubjectId) }),
+        ]);
+
+        const yearMap = new Map<number, string>(
+          (Array.isArray(years) ? years : []).map((year: any) => [Number(year?.id), String(year?.name ?? `Year ${year?.id}`)])
+        );
+
+        const rows = await Promise.all(
+          (Array.isArray(subjectClasses) ? subjectClasses : []).map(async (row: any) => {
+            const linkedClassId = await resolveSubjectClassLinkedIdWithFallback(
+              row,
+              Number(activeSubjectId)
+            );
+            const classId = Number(linkedClassId || row?.class_id || row?.base_class_id || row?.id || 0);
+            const yearId = Number(
+              row?.year_id ?? row?.class?.year_id ?? row?.classes?.year_id ?? row?.base_class?.year_id ?? 0
+            );
+
+            return {
+              id: classId,
+              subject_class_id: Number(row?.id ?? 0) || undefined,
+              year_id: yearId || undefined,
+              class_name: String(
+                row?.base_class_label ??
+                  row?.class?.class_name ??
+                  row?.classes?.class_name ??
+                  row?.base_class?.class_name ??
+                  row?.name ??
+                  `Class ${row?.id ?? ""}`
+              ),
+              year_name: yearMap.get(yearId),
+            };
+          })
+        );
+
+        return Array.from(
+          new Map(
+            rows
+              .filter((cls) => Number.isFinite(cls.id) && cls.id > 0)
+              .map((cls) => [cls.id, cls])
+          ).values()
+        );
+      }
+
       if (schoolId) {
         const years = (await fetchYearsBySchool(Number(schoolId))) ?? [];
         const classBuckets = await Promise.all(
@@ -180,13 +231,19 @@ export default function MindUpgradePage() {
   }, [allClasses, selectedYearIds]);
 
   const { data: classStudents = [] } = useQuery({
-    queryKey: ["mind-upgrade-assign-students", selectedStudentClassIds.join("|")],
+    queryKey: ["mind-upgrade-assign-students", activeSubjectId, selectedStudentClassIds.join("|")],
     enabled: canAssign && assignTarget === "student" && selectedStudentClassIds.length > 0,
     queryFn: async (): Promise<StudentOption[]> => {
       if (selectedStudentClassIds.length === 0) return [];
       const rowsByClass = await Promise.all(
         selectedStudentClassIds.map(async (classId) => {
-          const rows = (await fetchStudents(classId)) ?? [];
+          const classMeta = allClasses.find((item) => Number(item.id) === Number(classId));
+          const rows =
+            (await fetchStudents(
+              classId,
+              canUseSubjectContext && activeSubjectId && isMindEnabledForSubject ? Number(activeSubjectId) : undefined,
+              classMeta?.subject_class_id
+            )) ?? [];
           return rows;
         }),
       );
@@ -207,7 +264,7 @@ export default function MindUpgradePage() {
 
   const { data: manageAssignments = [], isError: manageAssignmentsError } = useQuery({
     queryKey: ["mind-upgrade-manage-assignments", selectedCourseKeys.join("|")],
-    enabled: canAssign && assignDrawerOpen,
+    enabled: canAssign && assignDrawerOpen && (!canUseSubjectContext || isMindEnabledForSubject),
     queryFn: () =>
       fetchManageAssignments({
         course_key: selectedCourseKeys.length === 1 ? selectedCourseKeys[0] : undefined,
@@ -218,6 +275,20 @@ export default function MindUpgradePage() {
   const assignMutation = useMutation({
     mutationFn: assignMindUpgradeCourses,
   });
+
+  const classIdsForSelectedYears = useMemo(
+    () =>
+      allClasses
+        .filter((cls) => cls.year_id && selectedYearIds.includes(Number(cls.year_id)))
+        .map((cls) => Number(cls.id))
+        .filter((id) => Number.isFinite(id) && id > 0),
+    [allClasses, selectedYearIds]
+  );
+
+  const allVisibleClassIds = useMemo(
+    () => allClasses.map((cls) => Number(cls.id)).filter((id) => Number.isFinite(id) && id > 0),
+    [allClasses]
+  );
 
   const unassignMutation = useMutation({
     mutationFn: unassignMindUpgrade,
@@ -232,6 +303,11 @@ export default function MindUpgradePage() {
   });
 
   const handleAssign = () => {
+    if (canUseSubjectContext && !isMindEnabledForSubject) {
+      messageApi.warning("Mind-upgrade assignments are only available for Islamic subject context.");
+      return;
+    }
+
     if (selectedCourseKeys.length === 0) {
       messageApi.warning("Select at least one course.");
       return;
@@ -252,14 +328,31 @@ export default function MindUpgradePage() {
       return;
     }
 
+    if (assignTarget === "year_group" && classIdsForSelectedYears.length === 0) {
+      messageApi.warning("No Islamic classes were found for the selected year group.");
+      return;
+    }
+
+    if (assignTarget === "all_students" && allVisibleClassIds.length === 0) {
+      messageApi.warning("No Islamic classes are available for assignment.");
+      return;
+    }
+
     Promise.all(
       selectedCourseKeys.map((courseKey) =>
         assignMutation.mutateAsync({
           course_key: courseKey,
-          class_ids: assignTarget === "class" ? selectedClassIds : undefined,
+          class_ids:
+            assignTarget === "class"
+              ? selectedClassIds
+              : assignTarget === "year_group"
+              ? classIdsForSelectedYears
+              : assignTarget === "all_students"
+              ? allVisibleClassIds
+              : undefined,
           student_ids: assignTarget === "student" ? selectedStudentIds : undefined,
-          year_ids: assignTarget === "year_group" ? selectedYearIds : undefined,
-          assign_all_students: assignTarget === "all_students" ? true : undefined,
+          year_ids: undefined,
+          assign_all_students: undefined,
           starts_at: startsAt || undefined,
           ends_at: endsAt || undefined,
         }),
@@ -293,7 +386,7 @@ export default function MindUpgradePage() {
                 Strengthen beliefs and values through focused Islamic learning.
               </Typography.Text>
             </div>
-            {canAssign ? (
+            {canAssign && isMindEnabledForSubject ? (
               <Button type="primary" onClick={() => setAssignDrawerOpen(true)}>
                 Assign Courses
               </Button>
@@ -424,7 +517,12 @@ export default function MindUpgradePage() {
                 { value: "class", label: "Classes" },
                 { value: "student", label: "Specific students" },
                 { value: "year_group", label: "Year groups (all classes in year)" },
-                { value: "all_students", label: "All students in school" },
+                {
+                  value: "all_students",
+                  label: canUseSubjectContext && isMindEnabledForSubject
+                    ? "All students in Islamic classes"
+                    : "All students in school",
+                },
               ]}
               style={{ width: "100%" }}
             />
@@ -510,7 +608,9 @@ export default function MindUpgradePage() {
 
           {assignTarget === "all_students" ? (
             <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-700">
-              This will assign the selected course(s) to all students in your school.
+              {canUseSubjectContext && isMindEnabledForSubject
+                ? "This will assign the selected course(s) to students in Islamic subject classes only."
+                : "This will assign the selected course(s) to all students in your school."}
             </div>
           ) : null}
 

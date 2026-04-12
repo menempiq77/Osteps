@@ -182,6 +182,9 @@ export default function DashboardLayout({
   const isLessonsRoute = !isImmersiveLessonGroupRoute && (unscopedPathname === "/dashboard/lessons" || unscopedPathname.startsWith("/dashboard/lessons/"));
   const isMindUpgradeRoute = unscopedPathname === "/dashboard/mind-upgrade" || unscopedPathname.startsWith("/dashboard/mind-upgrade/");
   const isAnnouncementsRoute = unscopedPathname === "/dashboard/announcements";
+  const isReportsRoute = pathname === "/dashboard/students/reports" ||
+    pathname.startsWith("/dashboard/students/reports/") ||
+    /^\/dashboard\/s\/\d+\/students\/reports(\/|$)/.test(pathname);
   const isSettingsRoute = unscopedPathname.endsWith("/settings");
   const isAllStudentsStandaloneRoute =
     pathname === "/dashboard/students/all-students" ||
@@ -278,6 +281,7 @@ export default function DashboardLayout({
       isLessonsRoute ||
       isMindUpgradeRoute ||
       isAnnouncementsRoute ||
+      isReportsRoute ||
       isSettingsRoute ? (
         <div className="dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] p-3 md:p-6">
           <div className="mx-auto max-w-7xl">

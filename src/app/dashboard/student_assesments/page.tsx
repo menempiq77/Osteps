@@ -45,18 +45,22 @@ export default function StudentAssessmentPage() {
   const { currentUser } = useSelector((state: RootState) => state.auth) as {
     currentUser: CurrentUser;
   };
-  const { activeSubjectId, canUseSubjectContext, toSubjectHref } = useSubjectContext();
+  const { activeSubjectId, canUseSubjectContext, toSubjectHref, loading: subjectContextLoading } = useSubjectContext();
 
   const isTeacher = currentUser?.role === "TEACHER";
   const schoolId = currentUser?.school;
 
-  /** ------------------ LOAD YEARS ------------------ */
-  const loadYears = async () => {
-    try {
-      setLoading(true);
-      let yearsData: any[] = [];
+  /** ------------------ LOAD YEARS (via React Query to prevent double-fetch flicker) -- */
+  const yearsQueryKey = canUseSubjectContext
+    ? ["student-assessment-years", "subject", activeSubjectId, schoolId]
+    : isTeacher
+    ? ["student-assessment-years", "teacher", schoolId]
+    : ["student-assessment-years", "school", schoolId];
 
-      if (isTeacher && canUseSubjectContext && activeSubjectId) {
+  const { data: yearsData = [], isLoading: yearsLoading } = useQuery({
+    queryKey: yearsQueryKey,
+    queryFn: async () => {
+      if (canUseSubjectContext && activeSubjectId) {
         const [schoolYears, subjectClasses] = await Promise.all([
           fetchYearsBySchool(schoolId),
           fetchSubjectClasses({ subject_id: Number(activeSubjectId) }),
@@ -68,7 +72,7 @@ export default function StudentAssessmentPage() {
             )
             .filter((id: number) => Number.isFinite(id) && id > 0)
         );
-        yearsData = (Array.isArray(schoolYears) ? schoolYears : []).filter((year: any) =>
+        return (Array.isArray(schoolYears) ? schoolYears : []).filter((year: any) =>
           allowedYearIds.has(Number(year?.id))
         );
       } else if (isTeacher) {
@@ -76,35 +80,35 @@ export default function StudentAssessmentPage() {
         const years = res
           .map((item: any) => item?.classes?.year)
           .filter((year: any) => year);
-        yearsData = Array.from(
+        return Array.from(
           new Map(years?.map((year: any) => [year.id, year])).values()
         );
       } else {
-        const res = await fetchYearsBySchool(schoolId);
-        yearsData = res;
+        return await fetchYearsBySchool(schoolId);
       }
+    },
+    enabled: !subjectContextLoading && !(canUseSubjectContext && !activeSubjectId),
+    staleTime: 5 * 60 * 1000,
+  });
 
-      setYears(yearsData);
-      if (yearsData.length > 0) {
-        setSelectedYear(yearsData[0].id.toString());
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Sync years into selectedYear when data arrives
   useEffect(() => {
-    loadYears();
-  }, []);
+    if (!yearsData || yearsData.length === 0) {
+      setSelectedYear(null);
+      return;
+    }
+    setSelectedYear((prev) => {
+      const stillValid = prev && yearsData.some((y: any) => String(y.id) === prev);
+      return stillValid ? prev : String(yearsData[0].id);
+    });
+  }, [yearsData]);
 
   /** ------------------ FETCH CLASSES ------------------ */
   const { data: classes = [], isLoading: classesLoading } = useQuery({
     queryKey: ["classes", selectedYear, isTeacher, activeSubjectId, canUseSubjectContext],
     queryFn: async () => {
       if (!selectedYear) return [];
-      if (isTeacher && canUseSubjectContext && activeSubjectId) {
+      if (canUseSubjectContext && activeSubjectId) {
         const subjectClasses = await fetchSubjectClasses({
           subject_id: Number(activeSubjectId),
           year_id: Number(selectedYear),
@@ -242,7 +246,7 @@ export default function StudentAssessmentPage() {
   };
 
   /** ------------------ LOADING STATE ------------------ */
-  if (loading)
+  if (subjectContextLoading || (canUseSubjectContext && !activeSubjectId) || yearsLoading)
     return (
       <div className="p-3 md:p-6 flex justify-center items-center h-64">
         <Spin size="large" />
@@ -285,7 +289,7 @@ export default function StudentAssessmentPage() {
               className="w-full"
               placeholder="Select Year"
             >
-              {years?.map((year) => (
+              {yearsData?.map((year: any) => (
                 <Select.Option key={year?.id} value={year?.id?.toString()}>
                   {year?.name}
                 </Select.Option>

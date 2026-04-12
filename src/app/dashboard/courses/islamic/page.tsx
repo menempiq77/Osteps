@@ -1,7 +1,9 @@
 "use client";
 
-import Link from "next/link";
+import { useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { BookOutlined, BulbOutlined } from "@ant-design/icons";
+import { useSubjectContext } from "@/contexts/SubjectContext";
 
 const CARDS = [
   {
@@ -25,6 +27,29 @@ const CARDS = [
 ];
 
 export default function IslamicCoursesPage() {
+  const router = useRouter();
+  const { subjects, canUseSubjectContext, setActiveSubjectId, loading: subjectContextLoading } =
+    useSubjectContext();
+
+  const islamicSubject = useMemo(
+    () =>
+      subjects.find((subject) => /islam|islamiat|islamic/i.test(String(subject?.name || ""))) ??
+      null,
+    [subjects]
+  );
+
+  useEffect(() => {
+    if (!canUseSubjectContext || subjectContextLoading || !islamicSubject) return;
+    setActiveSubjectId(Number(islamicSubject.id), { navigate: false });
+  }, [canUseSubjectContext, islamicSubject, setActiveSubjectId, subjectContextLoading]);
+
+  const openCourse = (href: string) => {
+    if (canUseSubjectContext && islamicSubject) {
+      setActiveSubjectId(Number(islamicSubject.id), { navigate: false });
+    }
+    router.push(href);
+  };
+
   return (
     <div className="space-y-6 pb-10">
       {/* Hero */}
@@ -68,25 +93,26 @@ export default function IslamicCoursesPage() {
       {/* Cards */}
       <div className="grid gap-5 sm:grid-cols-2">
         {CARDS.map((card) => (
-          <Link key={card.name} href={card.href}>
+          <button
+            key={card.name}
+            type="button"
+            onClick={() => openCourse(card.href)}
+            className="group w-full text-left cursor-pointer rounded-3xl border bg-white p-6 flex items-center gap-5
+                       transition-all duration-200 hover:-translate-y-1 hover:shadow-xl"
+            style={{ borderColor: card.border }}
+          >
             <div
-              className="group cursor-pointer rounded-3xl border bg-white p-6 flex items-center gap-5
-                         transition-all duration-200 hover:-translate-y-1 hover:shadow-xl"
-              style={{ borderColor: card.border }}
+              className="flex-shrink-0 h-16 w-16 rounded-2xl flex items-center justify-center text-3xl
+                         transition-transform duration-200 group-hover:scale-110"
+              style={{ background: card.bg, color: card.iconColor, border: `1.5px solid ${card.border}` }}
             >
-              <div
-                className="flex-shrink-0 h-16 w-16 rounded-2xl flex items-center justify-center text-3xl
-                           transition-transform duration-200 group-hover:scale-110"
-                style={{ background: card.bg, color: card.iconColor, border: `1.5px solid ${card.border}` }}
-              >
-                <card.Icon />
-              </div>
-              <div className="min-w-0">
-                <p className="text-base font-bold text-slate-800">{card.name}</p>
-                <p className="text-sm text-slate-500 mt-1 leading-snug">{card.desc}</p>
-              </div>
+              <card.Icon />
             </div>
-          </Link>
+            <div className="min-w-0">
+              <p className="text-base font-bold text-slate-800">{card.name}</p>
+              <p className="text-sm text-slate-500 mt-1 leading-snug">{card.desc}</p>
+            </div>
+          </button>
         ))}
       </div>
     </div>

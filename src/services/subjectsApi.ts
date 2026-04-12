@@ -23,7 +23,7 @@ export const fetchSubjects = async () => {
 };
 
 // Add a new subject
-export const addSubject = async (subjectData: { name: string; description?: string }) => {
+export const addSubject = async (subjectData: { name: string; description?: string; school_id?: number | null }) => {
   const response = await api.post("/add-subject", subjectData);
   return response.data;
 };

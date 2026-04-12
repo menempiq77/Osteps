@@ -31,7 +31,7 @@ const Sidebar = () => {
   const [orderedItems, setOrderedItems] = useState<any[]>([]);
   const [draggingItemName, setDraggingItemName] = useState<string | null>(null);
   const [preferredActiveItemName, setPreferredActiveItemName] = useState<string | null>(null);
-  const { toSubjectHref, canUseSubjectContext, activeSubjectId, activeSubject } = useSubjectContext();
+  const { toSubjectHref, canUseSubjectContext, activeSubjectId, activeSubject, loading: subjectContextLoading } = useSubjectContext();
   const isIslamicContext =
     !canUseSubjectContext ||
     !activeSubject ||
@@ -347,6 +347,10 @@ const Sidebar = () => {
       ];
     }
 
+    if (normalizedName === "content approvals" || normalizedHref === "/dashboard/approvals") {
+      return [/^\/dashboard\/approvals(?:\/|$)/];
+    }
+
     if (normalizedName === "answer a question" || normalizedName === "ask a question" || normalizedHref === "/dashboard/questions") {
       return [/^\/dashboard\/questions(?:\/|$)/];
     }
@@ -468,7 +472,7 @@ const Sidebar = () => {
   };
 
   useEffect(() => {
-    const navItems = buildDashboardNavigation({
+    let navItems = buildDashboardNavigation({
       roleKey,
       announcementUnreadCount,
       questionUnreadCount,
@@ -478,6 +482,18 @@ const Sidebar = () => {
       formattedActiveSubjectName,
       studentTrackerHref,
     });
+    // While subject context is still loading, proactively hide items that will
+    // be filtered once activeSubjectId resolves — prevents a 1-second flash.
+    if (canUseSubjectContext && subjectContextLoading) {
+      navItems = navItems.filter(
+        (item) =>
+          item.name !== "Library" &&
+          item.name !== "Leaderboard" &&
+          item.name !== "Tools" &&
+          item.name !== "Lessons" &&
+          item.name !== "Mind-upgrade"
+      );
+    }
     setOrderedItems(applySavedSidebarOrder(navItems));
   }, [
     roleKey,
@@ -488,6 +504,7 @@ const Sidebar = () => {
     activeSubjectId,
     formattedActiveSubjectName,
     studentTrackerHref,
+    subjectContextLoading,
   ]);
 
   useEffect(() => {

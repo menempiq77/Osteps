@@ -96,7 +96,6 @@ const SECTION_LABELS: Record<string, { title: string; note: string }> = {
 };
 
 const FILTER_ORDER = ["All", "Subjects", "Workspace", "Teaching", "Communication", "Resources", "Account"];
-const PRIORITY_SUBJECT_DASHBOARDS = ["arabic", "islamic", "islamiat"];
 
 const SECTION_ICON_STYLES: Record<string, { shell: string; icon: string; accent: string }> = {
   Subjects: {
@@ -240,37 +239,36 @@ export default function QuickLauncher() {
   ]);
 
   const subjectEntries = useMemo<LauncherEntry[]>(() => {
-    const prioritizedSubjects = subjects.filter((subject) => {
-      const normalizedName = subject.name.toLowerCase();
-      return PRIORITY_SUBJECT_DASHBOARDS.some((name) => normalizedName.includes(name));
-    });
-
     const subjectRank = (name: string) => {
-      const normalizedName = name.toLowerCase();
-      if (normalizedName.includes("arabic")) return 0;
-      if (normalizedName.includes("islamic") || normalizedName.includes("islamiat")) return 1;
+      const n = name.toLowerCase();
+      if (n.includes("arabic")) return 0;
+      if (n.includes("islamic") || n.includes("islamiat")) return 1;
       return 2;
     };
 
-    return prioritizedSubjects
-      .sort((left, right) => subjectRank(left.name) - subjectRank(right.name))
-      .map((subject) => {
-      const displayName = formatDashboardSubjectName(subject.name);
-      const meta = subject.class_label ? `Class ${subject.class_label}` : subject.code || "Subject workspace";
-      return {
-        id: `subject-${subject.id}`,
-        name: `${displayName} Dashboard`,
-        description: `Open ${displayName} and continue where you left off.`,
-        section: "Subjects",
-        keywords: [displayName, subject.code || "", subject.class_label || "", "subject dashboard"],
-        icon: BookOpen,
-        meta,
-        active: Number(activeSubjectId) === Number(subject.id),
-        kind: "subject",
-        subjectId: subject.id,
-        subjectName: displayName,
-      };
-    });
+    return [...subjects]
+      .sort((a, b) => {
+        const rankDiff = subjectRank(a.name) - subjectRank(b.name);
+        if (rankDiff !== 0) return rankDiff;
+        return a.name.localeCompare(b.name);
+      })
+      .map((subject, idx) => {
+        const displayName = formatDashboardSubjectName(subject.name);
+        const meta = subject.class_label ? `Class ${subject.class_label}` : subject.code || "Subject workspace";
+        return {
+          id: `subject-${subject.id}`,
+          name: `${displayName} Dashboard`,
+          description: `Open ${displayName} and continue where you left off.`,
+          section: "Subjects",
+          keywords: [displayName, subject.code || "", subject.class_label || "", "subject dashboard"],
+          icon: BookOpen,
+          meta,
+          active: Number(activeSubjectId) === Number(subject.id),
+          kind: "subject" as const,
+          subjectId: subject.id,
+          subjectName: displayName,
+        };
+      });
   }, [activeSubjectId, subjects]);
 
   const extraEntries = useMemo<LauncherEntry[]>(() => {
@@ -455,113 +453,162 @@ export default function QuickLauncher() {
       </button>
 
       {open ? (
-        <div className="fixed inset-0 z-[120]">
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+          {/* backdrop */}
           <button
             type="button"
             aria-label="Close quick launcher"
-            className="absolute inset-0 bg-slate-950/80"
+            className="absolute inset-0 bg-slate-950/75 backdrop-blur-sm"
             onClick={() => setOpen(false)}
           />
 
-          <div className="absolute inset-0 overflow-hidden border border-slate-700/70 bg-slate-800 shadow-[0_28px_80px_rgba(2,6,23,0.45)]">
-            <div className="flex items-center justify-between border-b border-slate-700 bg-slate-800 px-5 py-3">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-300/95">
-                  Quick Launcher
-                </p>
-                <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-300/80">
-                  <span>{roleLabel(currentUser?.role)} shortcuts</span>
-                  {activeSubject ? (
-                    <>
-                      <span className="text-slate-500">/</span>
-                      <span className="font-medium text-slate-100/95">
-                        {formatDashboardSubjectName(activeSubject.name)}
-                      </span>
-                    </>
-                  ) : null}
+          {/* panel */}
+          <div
+            className="relative z-10 flex w-full max-w-5xl flex-col overflow-hidden rounded-2xl shadow-[0_32px_80px_rgba(2,6,23,0.55)]"
+            style={{
+              background: "linear-gradient(160deg, #0f172a 0%, #1e293b 100%)",
+              border: "1px solid rgba(148,163,184,0.12)",
+              maxHeight: "min(86vh, 780px)",
+            }}
+          >
+            {/* ── Header ── */}
+            <div
+              className="flex flex-shrink-0 items-center justify-between px-5 py-4"
+              style={{ borderBottom: "1px solid rgba(148,163,184,0.10)" }}
+            >
+              <div className="flex items-center gap-3">
+                {/* grid icon */}
+                <div
+                  className="flex h-9 w-9 items-center justify-center rounded-xl"
+                  style={{ background: "rgba(56,193,108,0.15)", border: "1px solid rgba(56,193,108,0.25)" }}
+                >
+                  <span className="grid grid-cols-3 gap-[3px]">
+                    {Array.from({ length: 9 }).map((_, i) => (
+                      <span key={i} className="h-1 w-1 rounded-[2px]" style={{ background: "#38C16C" }} />
+                    ))}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#38C16C" }}>
+                    Quick Launcher
+                  </p>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
+                    <span>{roleLabel(currentUser?.role)} shortcuts</span>
+                    {activeSubject ? (
+                      <>
+                        <span className="text-slate-600">/</span>
+                        <span className="font-semibold text-slate-200">
+                          {formatDashboardSubjectName(activeSubject.name)}
+                        </span>
+                      </>
+                    ) : null}
+                  </div>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-600 bg-slate-700/60 text-slate-300 transition hover:border-slate-500 hover:bg-slate-700 hover:text-slate-100"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-700/60 hover:text-slate-100"
                 aria-label="Close quick launcher"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <div className="grid h-[calc(100vh-65px)] min-h-[420px] overflow-hidden lg:grid-cols-[330px_minmax(0,1fr)]">
-              <aside className="border-b border-slate-700 bg-slate-800 p-4 lg:border-b-0 lg:border-r">
-                <div className="rounded-2xl border border-slate-700 bg-slate-800 p-3 shadow-sm">
-                  <label className="flex items-center gap-3 rounded-xl border border-slate-600 bg-slate-700/45 px-3 py-2.5 focus-within:border-slate-500 focus-within:bg-slate-700/70">
-                    <Search className="h-4 w-4 text-slate-500" />
-                    <input
-                      ref={searchRef}
-                      value={query}
-                      onChange={(event) => setQuery(event.target.value)}
-                      placeholder="Search pages, tools, or modules"
-                      className="w-full bg-transparent text-sm text-slate-200 outline-none placeholder:text-slate-400/80"
-                    />
-                  </label>
+            <div className="flex min-h-0 flex-1 overflow-hidden lg:grid lg:grid-cols-[220px_minmax(0,1fr)]">
+              {/* ── Sidebar ── */}
+              <aside
+                className="flex-shrink-0 p-3"
+                style={{ borderRight: "1px solid rgba(148,163,184,0.10)" }}
+              >
+                {/* search */}
+                <label
+                  className="flex items-center gap-2 rounded-xl px-3 py-2 transition focus-within:ring-1"
+                  style={{
+                    background: "rgba(148,163,184,0.08)",
+                    border: "1px solid rgba(148,163,184,0.14)",
+                  }}
+                >
+                  <Search className="h-3.5 w-3.5 flex-shrink-0 text-slate-500" />
+                  <input
+                    ref={searchRef}
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="Search…"
+                    className="w-full bg-transparent text-sm text-slate-200 outline-none placeholder:text-slate-500"
+                  />
+                </label>
 
-                  <div className="mt-4">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-300/80">
-                      Filters
-                    </div>
-                    <div className="mt-3 space-y-1.5">
-                      {availableFilters.map((filter) => {
-                        const isActive = activeFilter === filter;
-                        return (
-                          <button
-                            key={filter}
-                            type="button"
-                            onClick={() => setActiveFilter(filter)}
-                            className={`flex w-full items-center justify-between rounded-2xl border px-3 py-2 text-left text-sm transition ${
-                              isActive
-                                ? "border-slate-500 bg-slate-700/75 text-slate-100 shadow-sm"
-                                : "border-transparent bg-slate-800 text-slate-300/80 hover:border-slate-600 hover:bg-slate-700/50"
-                            }`}
-                          >
-                            <span className="font-medium">{filter === "All" ? "Everything" : filter}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
+                {/* filters */}
+                <div className="mt-4">
+                  <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
+                    Filters
+                  </p>
+                  <div className="space-y-0.5">
+                    {availableFilters.map((filter) => {
+                      const isActive = activeFilter === filter;
+                      return (
+                        <button
+                          key={filter}
+                          type="button"
+                          onClick={() => setActiveFilter(filter)}
+                          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition"
+                          style={{
+                            background: isActive ? "rgba(56,193,108,0.14)" : "transparent",
+                            border: isActive ? "1px solid rgba(56,193,108,0.28)" : "1px solid transparent",
+                            color: isActive ? "#86efac" : "rgba(148,163,184,0.85)",
+                          }}
+                        >
+                          {isActive && (
+                            <span className="h-1.5 w-1.5 rounded-full flex-shrink-0" style={{ background: "#38C16C" }} />
+                          )}
+                          <span className={isActive ? "font-semibold" : "font-medium"}>
+                            {filter === "All" ? "Everything" : filter}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </aside>
 
-              <div className="overflow-y-auto bg-slate-800 p-4">
+              {/* ── Content ── */}
+              <div className="overflow-y-auto p-4">
                 {filteredSections.length === 0 ? (
-                  <div className="flex h-full min-h-[260px] flex-col items-center justify-center rounded-[18px] border border-dashed border-slate-600 bg-slate-700/30 px-6 text-center">
-                    <div className="rounded-2xl border border-slate-600 bg-slate-700/50 p-4 text-slate-300 shadow-sm">
-                      <Search className="h-5 w-5" />
+                  <div className="flex h-full min-h-[200px] flex-col items-center justify-center rounded-xl px-6 text-center"
+                    style={{ border: "1px dashed rgba(148,163,184,0.15)" }}>
+                    <div
+                      className="flex h-10 w-10 items-center justify-center rounded-xl"
+                      style={{ background: "rgba(148,163,184,0.10)", border: "1px solid rgba(148,163,184,0.15)" }}
+                    >
+                      <Search className="h-4 w-4 text-slate-400" />
                     </div>
-                    <h3 className="mt-4 text-lg font-semibold text-slate-100">No matches yet</h3>
-                    <p className="mt-2 max-w-md text-sm text-slate-400">
-                      Try a different search term or switch the filter on the left to reveal more pages.
+                    <p className="mt-3 text-sm font-semibold text-slate-300">No matches</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Try a different search or switch the filter.
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-5">
                     {filteredSections.map(({ section, items }) => {
                       const sectionMeta = SECTION_LABELS[section] || {
                         title: section,
-                        note: "Important pages and shortcuts for this workspace.",
+                        note: "",
                       };
+                      const accentColor = SECTION_ICON_STYLES[section]?.accent ?? "#64748b";
 
                       return (
                         <section key={section}>
-                          <div className="mb-2">
-                            <div>
-                              <h3 className="text-lg font-semibold text-slate-100/95">
-                                {sectionMeta.title}
-                              </h3>
-                            </div>
+                          <div className="mb-2.5 flex items-center gap-2.5">
+                            <span
+                              className="h-3 w-0.5 rounded-full flex-shrink-0"
+                              style={{ background: accentColor }}
+                            />
+                            <h3 className="text-sm font-bold text-slate-100">{sectionMeta.title}</h3>
+                            <div className="h-px flex-1" style={{ background: "rgba(148,163,184,0.08)" }} />
                           </div>
 
-                          <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-3">
+                          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                             {items.map((entry, entryIdx) => {
                               const Icon = entry.icon;
 
@@ -573,111 +620,108 @@ export default function QuickLauncher() {
                                     key={entry.id}
                                     type="button"
                                     onClick={() => handleEntryClick(entry)}
-                                    className="group relative overflow-hidden rounded-[18px] text-left transition-all duration-200 hover:-translate-y-0.5"
+                                    className="group relative overflow-hidden rounded-xl text-left transition-all duration-200 hover:-translate-y-0.5"
                                     style={{
                                       background: `linear-gradient(135deg, ${pal.from} 0%, ${pal.to} 100%)`,
                                       boxShadow: entry.active
-                                        ? `0 0 0 2.5px ${pal.from}, 0 8px 28px ${pal.glow}`
-                                        : `0 4px 18px ${pal.glow}`,
+                                        ? `0 0 0 2px ${pal.from}, 0 6px 20px ${pal.glow}`
+                                        : `0 3px 14px ${pal.glow}`,
                                     }}
                                   >
-                                    {/* decorative circle */}
                                     <div
-                                      className="pointer-events-none absolute -top-5 -right-5 h-20 w-20 rounded-full opacity-20"
+                                      className="pointer-events-none absolute -top-4 -right-4 h-16 w-16 rounded-full opacity-20"
                                       style={{ background: "rgba(255,255,255,0.6)" }}
                                     />
-                                    <div className="relative p-4">
-                                      <div className="flex items-start justify-between gap-2">
+                                    <div className="relative p-3.5">
+                                      <div className="flex items-center justify-between gap-2">
                                         <div
-                                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
-                                          style={{ background: "rgba(255,255,255,0.20)", color: "#fff" }}
+                                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+                                          style={{ background: "rgba(255,255,255,0.18)", color: "#fff" }}
                                         >
-                                          <Icon className="h-4 w-4" />
+                                          <Icon className="h-3.5 w-3.5" />
                                         </div>
                                         {entry.active && (
                                           <span
-                                            className="rounded-full px-2 py-0.5 text-[11px] font-bold text-white"
-                                            style={{ background: "rgba(255,255,255,0.25)" }}
+                                            className="rounded-full px-2 py-0.5 text-[10px] font-bold text-white"
+                                            style={{ background: "rgba(255,255,255,0.22)" }}
                                           >
                                             ✓ Active
                                           </span>
                                         )}
                                       </div>
-                                      <div className="mt-3">
-                                        <p className="text-sm font-bold text-white leading-snug">{entry.name}</p>
-                                        {entry.meta && (
-                                          <p className="mt-1 text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.70)" }}>
-                                            {entry.meta}
-                                          </p>
-                                        )}
-                                      </div>
+                                      <p className="mt-2.5 text-sm font-bold text-white leading-snug">{entry.name}</p>
+                                      <p
+                                        className="mt-0.5 text-[11px] font-medium"
+                                        style={{ color: "rgba(255,255,255,0.65)" }}
+                                      >
+                                        {entry.meta}
+                                      </p>
                                       <div
-                                        className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-white"
-                                        style={{ opacity: 0.85 }}
+                                        className="mt-2.5 flex items-center gap-1 text-[11px] font-semibold text-white"
+                                        style={{ opacity: 0.80 }}
                                       >
                                         Open dashboard
-                                        <ChevronRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
+                                        <ChevronRight className="h-3 w-3 transition group-hover:translate-x-0.5" />
                                       </div>
                                     </div>
                                   </button>
                                 );
                               }
 
-                              // ── Standard dark card ──
+                              // ── Standard card ──
                               const iconStyle = SECTION_ICON_STYLES[entry.section];
                               return (
                                 <button
                                   key={entry.id}
                                   type="button"
                                   onClick={() => handleEntryClick(entry)}
-                                  className={`group rounded-[16px] border p-3 text-left transition-all duration-200 ${
-                                    entry.active
-                                      ? "border-slate-500 bg-slate-700/70 shadow-[0_12px_28px_rgba(2,6,23,0.26)]"
-                                      : "border-slate-600/70 bg-slate-700/35 hover:-translate-y-0.5 hover:border-slate-500 hover:bg-slate-700/65 hover:shadow-[0_10px_24px_rgba(2,6,23,0.30)]"
-                                  }`}
+                                  className="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all duration-200 hover:-translate-y-0.5"
+                                  style={{
+                                    background: entry.active
+                                      ? "rgba(148,163,184,0.12)"
+                                      : "rgba(148,163,184,0.06)",
+                                    border: entry.active
+                                      ? `1px solid rgba(148,163,184,0.22)`
+                                      : "1px solid rgba(148,163,184,0.10)",
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    (e.currentTarget as HTMLButtonElement).style.background = "rgba(148,163,184,0.12)";
+                                    (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(148,163,184,0.22)";
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    if (!entry.active) {
+                                      (e.currentTarget as HTMLButtonElement).style.background = "rgba(148,163,184,0.06)";
+                                      (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(148,163,184,0.10)";
+                                    }
+                                  }}
                                 >
-                                  <div className="flex items-start gap-2.5">
-                                    <div
-                                      className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border shadow-sm ${
-                                        iconStyle?.shell ?? "border-slate-600 bg-slate-800"
-                                      }`}
-                                    >
-                                      <Icon
-                                        className={`h-4 w-4 ${
-                                          iconStyle?.icon ?? "text-slate-300"
-                                        }`}
-                                      />
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                      <div className="flex flex-wrap items-center gap-2">
-                                        <span className="text-sm font-semibold text-slate-100">
-                                          {entry.name}
+                                  <div
+                                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border ${iconStyle?.shell ?? "border-slate-600 bg-slate-800"}`}
+                                  >
+                                    <Icon className={`h-3.5 w-3.5 ${iconStyle?.icon ?? "text-slate-300"}`} />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                      <span className="text-sm font-semibold text-slate-100 truncate">{entry.name}</span>
+                                      {entry.active && (
+                                        <span
+                                          className="rounded-full px-1.5 py-0.5 text-[10px] font-bold text-white"
+                                          style={{ background: iconStyle?.accent ?? "#64748b" }}
+                                        >
+                                          Active
                                         </span>
-                                        {entry.badge ? (
-                                          <span
-                                            className="rounded-full px-2 py-0.5 text-[11px] font-semibold text-white"
-                                            style={{ background: iconStyle?.accent ?? "#64748b" }}
-                                          >
-                                            {entry.badge}
-                                          </span>
-                                        ) : null}
-                                        {entry.active ? (
-                                          <span
-                                            className="rounded-full px-2 py-0.5 text-[11px] font-bold text-white"
-                                            style={{ background: iconStyle?.accent ?? "#64748b", opacity: 0.9 }}
-                                          >
-                                            Active
-                                          </span>
-                                        ) : null}
-                                      </div>
-                                      {entry.meta ? (
-                                        <div className="mt-1.5 inline-flex rounded-full bg-slate-700/80 px-2.5 py-1 text-[11px] font-medium text-slate-300/85">
-                                          {entry.meta}
-                                        </div>
+                                      )}
+                                      {entry.badge ? (
+                                        <span
+                                          className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold text-white"
+                                          style={{ background: iconStyle?.accent ?? "#64748b" }}
+                                        >
+                                          {entry.badge}
+                                        </span>
                                       ) : null}
                                     </div>
-                                    <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-slate-500 transition group-hover:text-slate-200 group-hover:translate-x-0.5" />
                                   </div>
+                                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-600 transition group-hover:text-slate-300 group-hover:translate-x-0.5" />
                                 </button>
                               );
                             })}

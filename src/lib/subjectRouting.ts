@@ -64,6 +64,7 @@ const SUBJECT_ROUTE_ROOTS = new Set([
   "tools",
   "school-admin",
   "admins",
+  "approvals",
 ]);
 
 const splitPathAndQuery = (path: string): { pathname: string; query: string } => {

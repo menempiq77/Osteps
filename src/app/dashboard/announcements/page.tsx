@@ -38,20 +38,20 @@ type Announcement = {
 };
 const roleOptions: Record<string, { value: string; label: string }[]> = {
   SUPER_ADMIN: [
-    { value: "ALL", label: "ALL" },
+    { value: "ALL", label: "All" },
     { value: "SCHOOL_ADMIN", label: "School Admins" },
-    { value: "HOD", label: "HOD" },
+    { value: "HOD", label: "HODs" },
     { value: "TEACHER", label: "Teachers" },
     { value: "STUDENT", label: "Students" },
   ],
   SCHOOL_ADMIN: [
-    { value: "ALL", label: "ALL" },
-    { value: "HOD", label: "HOD" },
+    { value: "ALL", label: "All" },
+    { value: "HOD", label: "HODs" },
     { value: "TEACHER", label: "Teachers" },
     { value: "STUDENT", label: "Students" },
   ],
   HOD: [
-    { value: "ALL", label: "ALL" },
+    { value: "ALL", label: "All" },
     { value: "TEACHER", label: "Teachers" },
     { value: "STUDENT", label: "Students" },
   ],

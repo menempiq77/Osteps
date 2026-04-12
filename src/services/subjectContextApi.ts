@@ -192,6 +192,33 @@ export const fetchMySubjectContext = async (options?: {
     return { assigned_subjects: [], default_subject_id: null, subject_roles: [] };
   }
 
+  // School Admin always gets ALL school subjects (so newly-created subjects are visible immediately).
+  // We still call /subjects/my-context just to get default_subject_id / subject_roles.
+  if (isSchoolAdmin) {
+    let apiDefaultId: number | null = null;
+    let apiSubjectRoles: any[] = [];
+    try {
+      const res = await api.get("/subjects/my-context");
+      const ctx = extractContext(res.data);
+      apiDefaultId = ctx.default_subject_id;
+      apiSubjectRoles = ctx.subject_roles;
+    } catch { /* not critical — we still fall back to fetchSubjects */ }
+    try {
+      const all = normalizeSubjects(await fetchSubjects());
+      if (all.length > 0) {
+        console.log("[SubjectContext] school-admin fetched all subjects:", all.map(s => s.name));
+        return {
+          assigned_subjects: all,
+          default_subject_id: apiDefaultId ?? all[0]?.id ?? null,
+          subject_roles: apiSubjectRoles,
+        };
+      }
+    } catch (err: any) {
+      console.warn("[SubjectContext] school-admin fetchSubjects failed:", err?.message);
+    }
+    return { assigned_subjects: [], default_subject_id: null, subject_roles: [] };
+  }
+
   // Non-staff: try backend API first, then knownSubjects
   try {
     const res = await api.get("/subjects/my-context");

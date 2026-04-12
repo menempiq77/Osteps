@@ -18,9 +18,15 @@ api.interceptors.request.use((config) => {
 });
 
 // fetch Teachers
-export const fetchTeachers = async () => {
+export const fetchTeachers = async (subjectScope?: number | "all") => {
+  const params =
+    subjectScope === "all"
+      ? {}
+      : typeof subjectScope === "number" && Number.isFinite(subjectScope) && subjectScope > 0
+        ? withSubjectQuery({}, subjectScope)
+        : withSubjectQuery({});
   const response = await api.get('/get-teacher', {
-    params: withSubjectQuery({}),
+    params,
   });
   return response.data.data;
 };

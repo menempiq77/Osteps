@@ -3,11 +3,15 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Spin, Select, Button } from "antd";
 import { ChevronLeft } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
 import { fetchClasses } from "@/services/classesApi";
 import { fetchTrackers } from "@/services/trackersApi";
+import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
+import { resolveSubjectClassLinkedIdWithFallback } from "@/lib/subjectClassResolution";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
+import { useSubjectContext } from "@/contexts/SubjectContext";
 import Link from "next/link";
 import { DeadlineCountdown } from "@/components/common/DeadlineCountdown";
 
@@ -35,19 +39,108 @@ export default function TrackerList() {
   const [error, setError] = useState<string | null>(null);
   const [selectedYear, setSelectedYear] = useState<string | undefined>(undefined);
   const [selectedClass, setSelectedClass] = useState<string | undefined>(undefined);
-  const [years, setYears] = useState<any[]>([]);
-  const [classes, setClasses] = useState<any[]>([]);
   const { currentUser } = useSelector((state: RootState) => state.auth);
+  const { activeSubjectId, canUseSubjectContext, loading: subjectContextLoading } = useSubjectContext();
   const isTeacher = currentUser?.role === "TEACHER";
   const schoolId = currentUser?.school;
 
-  const [yearsLoading, setYearsLoading] = useState(false);
-  const [classesLoading, setClassesLoading] = useState(false);
   const [trackersLoading, setTrackersLoading] = useState(false);
+
+  // ── Years (subject-filtered) ──────────────────────────────────────────────
+  const yearsQueryKey = canUseSubjectContext
+    ? ["vt-years", "subject", activeSubjectId, schoolId]
+    : isTeacher
+    ? ["vt-years", "teacher", schoolId]
+    : ["vt-years", "school", schoolId];
+
+  const { data: years = [], isLoading: yearsLoading } = useQuery({
+    queryKey: yearsQueryKey,
+    queryFn: async () => {
+      if (canUseSubjectContext && activeSubjectId) {
+        const [schoolYears, subjectClasses] = await Promise.all([
+          fetchYearsBySchool(schoolId),
+          fetchSubjectClasses({ subject_id: Number(activeSubjectId) }),
+        ]);
+        const allowedYearIds = new Set(
+          (Array.isArray(subjectClasses) ? subjectClasses : [])
+            .map((item: any) =>
+              Number(item?.year_id ?? item?.class?.year_id ?? item?.base_class?.year_id ?? 0)
+            )
+            .filter((id: number) => Number.isFinite(id) && id > 0)
+        );
+        return (Array.isArray(schoolYears) ? schoolYears : []).filter((year: any) =>
+          allowedYearIds.has(Number(year?.id))
+        );
+      }
+      if (isTeacher) {
+        const res = await fetchAssignYears();
+        const rawYears = res
+          .map((item: any) => item?.classes?.year)
+          .filter((year: any) => year);
+        return Array.from(new Map(rawYears.map((y: any) => [y.id, y])).values());
+      }
+      return await fetchYearsBySchool(schoolId);
+    },
+    enabled: !subjectContextLoading && !(canUseSubjectContext && !activeSubjectId),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Sync selectedYear when years data arrives
+  useEffect(() => {
+    if (!years || years.length === 0) { setSelectedYear(undefined); return; }
+    setSelectedYear((prev) => {
+      const stillValid = prev && (years as any[]).some((y: any) => String(y.id) === prev);
+      return stillValid ? prev : String((years as any[])[0].id);
+    });
+  }, [years]);
+
+  // ── Classes (subject-filtered) ────────────────────────────────────────────
+  const { data: classes = [], isLoading: classesLoading } = useQuery({
+    queryKey: ["vt-classes", selectedYear, canUseSubjectContext, activeSubjectId, isTeacher],
+    queryFn: async () => {
+      if (!selectedYear) return [];
+      if (canUseSubjectContext && activeSubjectId) {
+        const subjectClasses = await fetchSubjectClasses({
+          subject_id: Number(activeSubjectId),
+          year_id: Number(selectedYear),
+        });
+        return await Promise.all(
+          (Array.isArray(subjectClasses) ? subjectClasses : []).map(async (row: any) => {
+            const linkedClassId = await resolveSubjectClassLinkedIdWithFallback(
+              row,
+              Number(activeSubjectId)
+            );
+            return {
+              id: String(linkedClassId || row?.id || ""),
+              class_name: String(row?.base_class_label ?? row?.name ?? `Class ${row?.id ?? ""}`),
+              year_id: Number(row?.year_id ?? 0),
+            };
+          })
+        );
+      }
+      if (isTeacher) {
+        const res = await fetchAssignYears();
+        let classesData = res.map((item: any) => item.classes).filter((cls: any) => cls);
+        classesData = Array.from(new Map(classesData.map((cls: any) => [cls.id, cls])).values());
+        return classesData.filter((cls: any) => cls.year_id === Number(selectedYear));
+      }
+      return await fetchClasses(selectedYear);
+    },
+    enabled: !!selectedYear,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Sync selectedClass when classes data arrives
+  useEffect(() => {
+    if (!classes || (classes as any[]).length === 0) { setSelectedClass(undefined); return; }
+    setSelectedClass((prev) => {
+      const stillValid = prev && (classes as any[]).some((c: any) => String(c.id) === prev);
+      return stillValid ? prev : String((classes as any[])[0].id);
+    });
+  }, [classes]);
 
   const loadTrackers = async () => {
     if (!selectedClass) return;
-
     try {
       setTrackersLoading(true);
       const data = await fetchTrackers(Number(selectedClass));
@@ -77,89 +170,6 @@ export default function TrackerList() {
     }
   };
 
-  const loadYears = async () => {
-  try {
-    setYearsLoading(true);
-    let yearsData: any[] = [];
-
-    if (isTeacher) {
-      const res = await fetchAssignYears();
-      const years = res
-        .map((item: any) => item?.classes?.year)
-        .filter((year: any) => year);
-
-      yearsData = Array.from(
-        new Map(years?.map((year: any) => [year.id, year])).values()
-      );
-    } else {
-      const res = await fetchYearsBySchool(schoolId);
-      yearsData = res;
-    }
-    setYears(yearsData);
-    if (yearsData.length > 0) {
-      setSelectedYear(yearsData[0].id.toString());
-    }
-  } catch (err) {
-    setError("Failed to load years");
-    console.error(err);
-  } finally {
-    setYearsLoading(false);
-  }
-};
-
-const loadClasses = async (yearId: string) => {
-    let classesData: any[] = [];
-    try {
-      setClassesLoading(true);
-
-      if (isTeacher) {
-        const res = await fetchAssignYears();
-
-        classesData = res
-          .map((item: any) => item.classes)
-          .filter((cls: any) => cls);
-
-        classesData = Array.from(
-          new Map(classesData?.map((cls: any) => [cls.id, cls])).values()
-        );
-
-        if (yearId) {
-          classesData = classesData?.filter(
-            (cls: any) => cls.year_id === Number(yearId)
-          );
-        }
-      } else {
-        if (!yearId) {
-          setError("Year parameter is missing in URL");
-          return;
-        }
-        classesData = await fetchClasses(yearId);
-      }
-
-      setClasses(classesData);
-
-      if (classesData.length > 0) {
-        setSelectedClass(classesData[0].id.toString());
-      }
-
-    } catch (err) {
-      setError("Failed to fetch classes");
-      console.error(err);
-    } finally {
-      setClassesLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadYears();
-  }, []);
-
-  useEffect(() => {
-    if (selectedYear) {
-      loadClasses(selectedYear);
-    }
-  }, [selectedYear]);
-
   useEffect(() => {
     if (selectedClass) {
       loadTrackers();
@@ -185,7 +195,7 @@ const loadClasses = async (yearId: string) => {
     router.push(`/dashboard/viewtrackers/${selectedClass}/${trackerId}`);
   };
 
-  if (trackersLoading && years.length === 0) {
+  if (subjectContextLoading || yearsLoading || (canUseSubjectContext && !activeSubjectId)) {
     return (
       <div className="p-3 md:p-6 flex justify-center items-center h-64">
         <Spin size="large" />
@@ -214,7 +224,8 @@ const loadClasses = async (yearId: string) => {
               placeholder="Select Year"
               onChange={(value) => setSelectedYear(value)}
               className="w-full"
-              options={years?.map((item) => ({
+              loading={yearsLoading}
+              options={(years as any[])?.map((item: any) => ({
                 value: item.id.toString(),
                 label: item.name,
               }))}

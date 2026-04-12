@@ -3,25 +3,30 @@ import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import {
-  UploadOutlined,
+  BellOutlined,
+  CheckOutlined,
+  CloseOutlined,
   DeleteOutlined,
   EditOutlined,
-  PlusOutlined,
   FileOutlined,
+  PlusOutlined,
+  UploadOutlined,
 } from "@ant-design/icons";
 import {
+  Badge,
+  Breadcrumb,
   Button,
   Card,
-  Tabs,
-  Modal,
+  Drawer,
   Form,
-  message,
-  Tag,
-  Space,
   Grid,
-  Typography,
+  message,
+  Modal,
+  Space,
   Spin,
-  Breadcrumb,
+  Tabs,
+  Tag,
+  Typography,
 } from "antd";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import UploadResourceModal from "@/components/modals/UploadResourceModal";
@@ -31,10 +36,13 @@ import Link from "next/link";
 import { IMG_BASE_URL } from "@/lib/config";
 import {
   addLibrary,
+  approveLibraryRequest,
   deleteLibrary,
   fetchCategories,
   fetchLibrary,
+  fetchLibraryRequests,
   fetchResources,
+  rejectLibraryRequest,
   updateLibrary,
 } from "@/services/libraryApi";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -81,6 +89,50 @@ export default function LibraryPage() {
   const [messageApi, contextHolder] = message.useMessage();
   const [debugError, setDebugError] = useState<any>(null);
   const queryClient = useQueryClient();
+
+  // ── Approvals bell (SCHOOL_ADMIN only) ──────────────────────────────────
+  const isSchoolAdmin = currentUser?.role === "SCHOOL_ADMIN";
+  const [approvalsOpen, setApprovalsOpen] = useState(false);
+  const [pendingItems, setPendingItems] = useState<any[]>([]);
+  const [approvalsLoading, setApprovalsLoading] = useState(false);
+
+  const loadPendingItems = async () => {
+    if (!isSchoolAdmin) return;
+    try {
+      setApprovalsLoading(true);
+      const data = await fetchLibraryRequests();
+      setPendingItems(data.filter((item: any) => item.status === "pending"));
+    } catch {
+      // silently ignore
+    } finally {
+      setApprovalsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPendingItems();
+  }, [isSchoolAdmin]);
+
+  const handleApprove = async (id: number) => {
+    try {
+      await approveLibraryRequest(id);
+      messageApi.success("Request approved");
+      await loadPendingItems();
+      await queryClient.invalidateQueries({ queryKey: ["libraryItems"] });
+    } catch {
+      messageApi.error("Failed to approve");
+    }
+  };
+
+  const handleReject = async (id: number) => {
+    try {
+      await rejectLibraryRequest(id);
+      messageApi.success("Request rejected");
+      await loadPendingItems();
+    } catch {
+      messageApi.error("Failed to reject");
+    }
+  };
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -503,9 +555,32 @@ export default function LibraryPage() {
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
-                <Typography.Title level={3} style={{ margin: 0 }}>
-                  {"School Library"}
-                </Typography.Title>
+                <div className="flex items-center gap-3">
+                  <Typography.Title level={3} style={{ margin: 0 }}>
+                    {"School Library"}
+                  </Typography.Title>
+                  {isSchoolAdmin && (
+                    <Badge
+                      count={pendingItems.length}
+                      size="small"
+                      offset={[-2, 2]}
+                    >
+                      <button
+                        onClick={() => setApprovalsOpen(true)}
+                        className="flex items-center justify-center h-9 w-9 rounded-xl border
+                                   text-slate-500 transition-all duration-200
+                                   hover:text-amber-600 hover:border-amber-300 hover:bg-amber-50
+                                   active:scale-95"
+                        style={{ borderColor: pendingItems.length > 0 ? "#fcd34d" : "#e2e8f0",
+                                 background: pendingItems.length > 0 ? "#fffbeb" : "#f8fafc",
+                                 color: pendingItems.length > 0 ? "#d97706" : undefined }}
+                        title="Pending upload approvals"
+                      >
+                        <BellOutlined style={{ fontSize: 16 }} />
+                      </button>
+                    </Badge>
+                  )}
+                </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Tag className="m-0 rounded-full border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700">
                     {totalResourcesCount} Total
@@ -807,6 +882,77 @@ export default function LibraryPage() {
           {debugError ? JSON.stringify(debugError, null, 2) : ""}
         </pre>
       </Modal>
+      {/* ── Approvals drawer ─────────────────────────────────────────────── */}
+      {isSchoolAdmin && (
+        <Drawer
+          title={
+            <div className="flex items-center gap-2">
+              <BellOutlined className="text-amber-500" />
+              <span>Pending Upload Approvals</span>
+              {pendingItems.length > 0 && (
+                <span className="ml-1 inline-flex items-center justify-center h-5 min-w-[20px] rounded-full
+                                 bg-amber-100 text-amber-700 text-xs font-bold px-1.5">
+                  {pendingItems.length}
+                </span>
+              )}
+            </div>
+          }
+          open={approvalsOpen}
+          onClose={() => setApprovalsOpen(false)}
+          width={480}
+          styles={{ body: { padding: 0 } }}
+        >
+          <Spin spinning={approvalsLoading}>
+            {pendingItems.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                <CheckOutlined style={{ fontSize: 36, color: "#86efac" }} />
+                <p className="mt-3 text-sm font-medium">No pending requests</p>
+                <p className="text-xs text-slate-300 mt-1">All uploads have been reviewed.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {pendingItems.map((item: any) => (
+                  <div key={item.id} className="px-5 py-4 hover:bg-slate-50 transition-colors">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-slate-800 truncate">{item.title}</p>
+                        {item.description && (
+                          <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{item.description}</p>
+                        )}
+                        <p className="text-xs text-slate-400 mt-1">
+                          {new Date(item.created_at).toLocaleDateString("en-GB", {
+                            day: "2-digit", month: "short", year: "numeric",
+                          })}
+                        </p>
+                      </div>
+                      <div className="flex-shrink-0 flex items-center gap-1.5 mt-0.5">
+                        <button
+                          onClick={() => handleApprove(item.id)}
+                          className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold
+                                     bg-emerald-50 text-emerald-700 border border-emerald-200
+                                     hover:bg-emerald-100 transition-colors active:scale-95"
+                          title="Approve"
+                        >
+                          <CheckOutlined /> Approve
+                        </button>
+                        <button
+                          onClick={() => handleReject(item.id)}
+                          className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold
+                                     bg-red-50 text-red-600 border border-red-200
+                                     hover:bg-red-100 transition-colors active:scale-95"
+                          title="Reject"
+                        >
+                          <CloseOutlined /> Reject
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Spin>
+        </Drawer>
+      )}
     </div>
   );
 }

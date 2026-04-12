@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { GraduationCap, BarChart3, FileBarChart } from "lucide-react";
+import { GraduationCap, BarChart3 } from "lucide-react";
 
 const viewCards = [
   {
@@ -15,12 +15,6 @@ const viewCards = [
     description: "View tracker progress across classes and students.",
     href: "/dashboard/viewtrackers",
     icon: BarChart3,
-  },
-  {
-    title: "Reports",
-    description: "Open student reports and performance summaries.",
-    href: "/dashboard/students/reports",
-    icon: FileBarChart,
   },
 ];
 

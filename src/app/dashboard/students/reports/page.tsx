@@ -10,10 +10,13 @@ import {
   fetchWholeAssessmentsReport,
 } from "@/services/reportApi";
 import { fetchGrades } from "@/services/gradesApi";
+import { fetchYearsBySchool } from "@/services/yearsApi";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import Link from "next/link";
 import { useSubjectContext } from "@/contexts/SubjectContext";
+import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
+import { resolveSubjectClassLinkedIdWithFallback } from "@/lib/subjectClassResolution";
 interface Task {
   student_id: number;
   student_name: string;
@@ -81,7 +84,12 @@ export default function ReportsPage() {
    const router = useRouter();
   const searchParams = useSearchParams();
   const { currentUser } = useSelector((state: RootState) => state.auth);
-  const { activeSubjectId, canUseSubjectContext, subjects } = useSubjectContext();
+  const {
+    activeSubjectId,
+    canUseSubjectContext,
+    subjects,
+    loading: subjectContextLoading,
+  } = useSubjectContext();
 
   // Get student ID and class ID from URL
   const urlStudentId = searchParams.get('studentId');
@@ -100,6 +108,8 @@ export default function ReportsPage() {
   // Add state to track if we should apply URL filter
   const [applyUrlFilter, setApplyUrlFilter] = useState(true);
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>("all");
+  // Tracks whether the combined classes+assessments fetch is still in-flight
+  const [classesReady, setClassesReady] = useState(false);
   
   const isSchoolAdmin = currentUser?.role === "SCHOOL_ADMIN";
   const isHOD = currentUser?.role === "HOD";
@@ -107,6 +117,13 @@ export default function ReportsPage() {
   const isStudent = currentUser?.role === "STUDENT";
   const schoolId = currentUser?.school;
   const scopedSubjectId = selectedSubjectFilter === "all" ? undefined : Number(selectedSubjectFilter);
+  const selectedSubjectName =
+    selectedSubjectFilter === "all"
+      ? "All Subjects"
+      : String(
+          subjects.find((subject) => String(subject.id) === String(selectedSubjectFilter))?.name ||
+            "Subject"
+        ).trim();
 
   // Clear URL filter when component mounts with URL params
   useEffect(() => {
@@ -139,19 +156,87 @@ export default function ReportsPage() {
   }, [schoolId]);
 
   useEffect(() => {
+    if (!schoolId) return;
+    if (subjectContextLoading) return;
+
     const fetchData = async () => {
       try {
         setLoading(true);
+        setClassesReady(false);
         setError(null);
 
-        let response;
-        if (isSchoolAdmin) {
-          const adminData = await fetchAllYearClasses(scopedSubjectId);
+        let response: AssignedClass[] = [];
 
+        if (scopedSubjectId) {
+          const [schoolYears, subjectClassRows] = await Promise.all([
+            fetchYearsBySchool(schoolId),
+            fetchSubjectClasses({ subject_id: scopedSubjectId }),
+          ]);
+
+          const yearMap = new Map(
+            (Array.isArray(schoolYears) ? schoolYears : []).map((year: any) => [
+              Number(year?.id),
+              year,
+            ])
+          );
+
+          const normalizedRows = await Promise.all(
+            (Array.isArray(subjectClassRows) ? subjectClassRows : []).map(async (row: any) => {
+              const linkedClassId = await resolveSubjectClassLinkedIdWithFallback(
+                row,
+                Number(scopedSubjectId)
+              );
+              const resolvedClassId = Number(linkedClassId || row?.class_id || row?.base_class_id || row?.id || 0);
+              const resolvedYearId = Number(
+                row?.year_id ?? row?.class?.year_id ?? row?.classes?.year_id ?? row?.base_class?.year_id ?? 0
+              );
+              const year = yearMap.get(resolvedYearId);
+
+              return {
+                id: Number(row?.id ?? resolvedClassId),
+                class_id: resolvedClassId,
+                teacher_id: Number(row?.teacher_id ?? 0),
+                subject: selectedSubjectName,
+                classes: {
+                  id: resolvedClassId,
+                  year_id: resolvedYearId,
+                  class_name: String(
+                    row?.base_class_label ??
+                      row?.class?.class_name ??
+                      row?.classes?.class_name ??
+                      row?.base_class?.class_name ??
+                      row?.name ??
+                      `Class ${row?.id ?? ""}`
+                  ),
+                  number_of_terms: String(row?.number_of_terms ?? row?.class?.number_of_terms ?? ""),
+                  year: {
+                    id: resolvedYearId,
+                    school_id: Number(year?.school_id ?? schoolId ?? 0),
+                    name: String(year?.name ?? ""),
+                  },
+                  school_id: Number(row?.school_id ?? schoolId ?? 0),
+                  term: Array.isArray(row?.term) ? row.term : [],
+                },
+              };
+            })
+          );
+
+          response = Array.from(
+            new Map(
+              normalizedRows
+                .filter((item) => Number.isFinite(item?.classes?.id) && Number(item.classes.id) > 0)
+                .map((item) => [String(item.classes.id), item])
+            ).values()
+          );
+        } else if (isSchoolAdmin) {
+          const adminData = await fetchAllYearClasses();
           response = adminData.school_classs.map((cls: any) => {
             const year = adminData.years.find((y: any) => y.id === cls.year_id);
             return {
               id: cls.id,
+              subject: "",
+              class_id: cls.id,
+              teacher_id: 0,
               classes: {
                 id: cls.id,
                 year_id: cls.year_id,
@@ -167,85 +252,79 @@ export default function ReportsPage() {
             };
           });
         } else {
-          response = await fetchAssignedYearClasses(scopedSubjectId);
+          response = await fetchAssignedYearClasses();
         }
 
+        const [assessmentResponse, reportData] = await Promise.all([
+          fetchWholeAssessmentsReport(schoolId, scopedSubjectId),
+          fetchReportAssessments(schoolId, scopedSubjectId),
+        ]);
+
         setAssignedClasses(response);
+        setWholeAssesmentData(assessmentResponse);
+        setAssesmentData(reportData);
 
         if (response?.length > 0) {
-          // If classId is provided in URL and we should apply the filter
           if (urlClassId && applyUrlFilter) {
             const matchedClass = response.find(
               (item) => item.classes.id.toString() === urlClassId
             );
-            
             if (matchedClass) {
               setSelectedClass(matchedClass.classes.id.toString());
               setSelectedYear(matchedClass.classes.year.id.toString());
+            } else {
+              const firstYear = response[0]?.classes?.year;
+              const firstClass = response[0]?.classes;
+              setSelectedYear(firstYear?.id?.toString());
+              setSelectedClass(firstClass?.id?.toString());
             }
-          } else if (!selectedClass && !selectedYear) {
-            // Default behavior - select first class and year only if nothing is selected
+          } else {
             const firstYear = response[0]?.classes?.year;
             const firstClass = response[0]?.classes;
             setSelectedYear(firstYear?.id?.toString());
             setSelectedClass(firstClass?.id?.toString());
           }
+        } else {
+          setSelectedYear(null);
+          setSelectedClass(null);
         }
       } catch (error) {
         console.error("Error fetching data:", error);
         setError("Failed to load class data");
       } finally {
         setLoading(false);
+        setClassesReady(true);
       }
     };
 
     fetchData();
-  }, [isSchoolAdmin, isHOD, urlClassId, applyUrlFilter, activeSubjectId, selectedSubjectFilter]);
+  }, [
+    schoolId,
+    subjectContextLoading,
+    scopedSubjectId,
+    selectedSubjectName,
+    isSchoolAdmin,
+    urlClassId,
+    applyUrlFilter,
+  ]);
 
-  const uniqueYearIds = [...new Set(assignedClasses?.map(item => item.classes.year.id))];
+  // assignedClasses is now already subject-filtered (narrowed in the fetch effect above)
+  const effectiveAssignedClasses = assignedClasses;
+
+  const uniqueYearIds = classesReady
+    ? [...new Set(effectiveAssignedClasses.map(item => item.classes.year.id))]
+    : [];
   const years = uniqueYearIds.map(id => {
-    const item = assignedClasses.find(item => item.classes.year.id === id);
-    return {
-      id: item.classes.year.id,
-      name: item.classes.year.name,
-    };
+    const item = effectiveAssignedClasses.find(item => item.classes.year.id === id);
+    return { id: item!.classes.year.id, name: item!.classes.year.name };
   });
 
-  const classes = assignedClasses
-    ?.filter(
-      (item) =>
-        !selectedYear || item.classes.year.id.toString() === selectedYear
-    )
-    ?.map((item) => ({
-      id: item.classes.id,
-      name: item.classes.class_name,
-    }));
+  const classes = effectiveAssignedClasses
+    .filter(item => !selectedYear || item.classes.year.id.toString() === selectedYear)
+    .map(item => ({ id: item.classes.id, name: item.classes.class_name }));
 
-  useEffect(() => {
-    const fetchData = async (schoolId: string) => {
-      const reportData = await fetchReportAssessments(schoolId, scopedSubjectId);
-      setAssesmentData(reportData);
-    };
-    if (!canUseSubjectContext || activeSubjectId || selectedSubjectFilter === "all") {
-      fetchData(schoolId);
-    }
-  }, [schoolId, activeSubjectId, canUseSubjectContext, selectedSubjectFilter]);
-
-  useEffect(() => {
-    const fetchData = async (schoolId: string) => {
-      try {
-        const response = await fetchWholeAssessmentsReport(schoolId, scopedSubjectId);
-        setWholeAssesmentData(response);
-        setLoading(false);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        setLoading(false);
-      }
-    };
-    if (!canUseSubjectContext || activeSubjectId || selectedSubjectFilter === "all") {
-      fetchData(schoolId);
-    }
-  }, [selectedYear, selectedClass, schoolId, activeSubjectId, canUseSubjectContext, selectedSubjectFilter]);
+  // Assessments and whole-report data are now fetched together in the main effect above.
+  // These standalone effects are removed to avoid duplicate fetches / stale overrides.
 
   const getCurrentClass = () => {
     return assignedClasses?.find(
@@ -439,7 +518,7 @@ export default function ReportsPage() {
     }
   };
 
-  if (loading) {
+  if (loading || subjectContextLoading) {
     return (
       <div className="p-3 md:p-6 flex justify-center items-center h-64">
         <Spin size="large" />
@@ -449,16 +528,6 @@ export default function ReportsPage() {
 
   return (
     <div className="p-3 md:p-6 lg:p-12 mx-auto bg-white min-h-screen">
-      <div className="flex items-center gap-4 mb-6">
-      <Link href="/dashboard">
-        <Button
-          icon={<ChevronLeft />}
-          className="text-gray-700 border border-gray-300 hover:bg-gray-100"
-        >
-          Back to Dashboard
-        </Button>
-      </Link>
-      </div>
 
       <h1 className="text-2xl font-bold text-gray-900 mb-6">
         {currentClass?.subject || "Subject"}
@@ -475,7 +544,7 @@ export default function ReportsPage() {
       </div>
 
       <div className="mb-6 flex flex-col lg:flex-row gap-2">
-        <h3 className="font-medium min-w-[120px]">View worksheet:</h3>
+        <h3 className="font-medium min-w-[120px]">Markbook:</h3>
         <div className="flex flex-wrap items-center space-x-2 text-sm text-gray-600">
           {assesmentData?.map((item, index) => (
             <React.Fragment key={index}>
@@ -515,7 +584,11 @@ export default function ReportsPage() {
               {(isSchoolAdmin || isHOD || isTeacher || isStudent) && (
                 <Select
                   value={selectedSubjectFilter}
-                  onChange={(value) => setSelectedSubjectFilter(value)}
+                  onChange={(value) => {
+                    setSelectedSubjectFilter(value);
+                    setSelectedYear(null);
+                    setSelectedClass(null);
+                  }}
                   style={{ width: 220 }}
                   placeholder="Select Subject"
                 >

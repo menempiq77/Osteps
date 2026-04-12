@@ -1,15 +1,19 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useSelector, useDispatch } from "react-redux";
-import { Empty, Spin } from "antd";
+import { Empty, Spin, Modal, Input, Form, message } from "antd";
 import {
+  BarChartOutlined,
   BookOutlined,
   CalendarOutlined,
   CheckCircleFilled,
+  DeleteOutlined,
+  EditOutlined,
   LogoutOutlined,
   NotificationOutlined,
+  PlusOutlined,
   QuestionCircleOutlined,
   ReadOutlined,
   RocketOutlined,
@@ -23,6 +27,7 @@ import { RootState, AppDispatch } from "@/store/store";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import { useRouter } from "next/navigation";
 import { logout } from "@/features/auth/authSlice";
+import { addSubject, updateSubject, deleteSubject } from "@/services/subjectsApi";
 
 // ── Subject colour palette ────────────────────────────────────────────────────
 const PALETTE = [
@@ -67,6 +72,7 @@ const LINK_COLORS: Record<string, LinkColor> = {
   "All Students":  { bg: "#ecfdf5", iconColor: "#059669", border: "#a7f3d0" },
   "Teachers":      { bg: "#eff6ff", iconColor: "#2563eb", border: "#bfdbfe" },
   "Students & Staff": { bg: "#ecfdf5", iconColor: "#059669", border: "#a7f3d0" },
+  "Markbook":      { bg: "#f0fdf4", iconColor: "#16a34a", border: "#86efac" },
   "Tools":         { bg: "#f5f3ff", iconColor: "#7c3aed", border: "#ddd6fe" },
 };
 const DEFAULT_LINK: LinkColor = { bg: "#f0fdf4", iconColor: "#38C16C", border: "#b9e2cd" };
@@ -117,12 +123,23 @@ export default function SubjectCardsPage() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
-  const { subjects, loading, canUseSubjectContext, activeSubjectId, setActiveSubjectId } =
+  const { subjects, loading, canUseSubjectContext, activeSubjectId, setActiveSubjectId, refreshSubjects } =
     useSubjectContext();
 
   const role = String(currentUser?.role || "").trim().toUpperCase();
   const isStudent = role === "STUDENT";
   const isSchoolAdmin = isSchoolAdminRole(currentUser?.role ?? null);
+
+  // ── Create / Edit subject modal state ───────────────────────────────
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [editingSubject, setEditingSubject] = useState<{ id: number; name: string } | null>(null);
+  const [form] = Form.useForm();
+  // ── Delete confirmation modal state ──────────────────────────────────
+  const [deleteConfirmSubject, setDeleteConfirmSubject] = useState<{ id: number; name: string } | null>(null);
+  const [deleteTyped, setDeleteTyped] = useState("");
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const deleteNameMatches = deleteTyped.trim().toLowerCase() === (deleteConfirmSubject?.name ?? "").trim().toLowerCase();
   const isStaffWorkspaceRole = ["ADMIN", "HOD", "TEACHER"].includes(role);
   const showAccountInfoChips = ["TEACHER", "STUDENT", "HOD"].includes(role) || isSchoolAdmin;
   const settingsHref =
@@ -137,6 +154,56 @@ export default function SubjectCardsPage() {
   const handleLogout = () => {
     dispatch(logout());
     router.push("/");
+  };
+
+  // ── Subject CRUD handlers ───────────────────────────────────────────
+  const openCreateModal = () => {
+    setEditingSubject(null);
+    form.resetFields();
+    setModalOpen(true);
+  };
+
+  const openEditModal = (subject: { id: number; name: string }) => {
+    setEditingSubject(subject);
+    form.setFieldsValue({ name: subject.name });
+    setModalOpen(true);
+  };
+
+  const handleModalOk = async () => {
+    let values: { name: string };
+    try {
+      values = await form.validateFields();
+    } catch {
+      return; // antd shows inline validation errors
+    }
+    setModalLoading(true);
+    try {
+      if (editingSubject) {
+        await updateSubject(String(editingSubject.id), { name: values.name.trim(), school_id: currentUser?.school });
+        message.success("Subject updated");
+      } else {
+        await addSubject({ name: values.name.trim(), school_id: currentUser?.school });
+        message.success("Subject created");
+      }
+      refreshSubjects();
+      setModalOpen(false);
+      form.resetFields();
+      setEditingSubject(null);
+    } catch (err: any) {
+      const apiMsg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        "Something went wrong. Please try again.";
+      message.error(apiMsg);
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const handleDeleteSubject = (subject: { id: number; name: string }) => {
+    setDeleteTyped("");
+    setDeleteConfirmSubject(subject);
   };
 
   const canEnterSubjectWorkspace = useMemo(
@@ -282,7 +349,7 @@ export default function SubjectCardsPage() {
             <Empty description="No assigned subjects found." />
           </div>
         ) : (
-          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {subjects.map((subject, idx) => {
               const isActive = Number(activeSubjectId) === Number(subject.id);
               const displayName = typeof subject.name === "string"
@@ -296,7 +363,7 @@ export default function SubjectCardsPage() {
               return (
                 <div
                   key={subject.id}
-                  className="relative overflow-hidden rounded-3xl cursor-pointer
+                  className="relative overflow-hidden rounded-2xl cursor-pointer
                              transition-all duration-300 hover:-translate-y-1"
                   style={{
                     background: `linear-gradient(135deg, ${pal.gradFrom} 0%, ${pal.gradTo} 100%)`,
@@ -308,48 +375,71 @@ export default function SubjectCardsPage() {
                 >
                   {/* decorative circle */}
                   <div
-                    className="pointer-events-none absolute -top-8 -right-8 h-32 w-32 rounded-full opacity-20"
+                    className="pointer-events-none absolute -top-5 -right-5 h-20 w-20 rounded-full opacity-20"
                     style={{ background: "rgba(255,255,255,0.5)" }}
                   />
                   <div
-                    className="pointer-events-none absolute -bottom-4 -left-4 h-20 w-20 rounded-full opacity-15"
+                    className="pointer-events-none absolute -bottom-3 -left-3 h-12 w-12 rounded-full opacity-15"
                     style={{ background: "rgba(255,255,255,0.5)" }}
                   />
 
-                  <div className="relative p-6">
+                  <div className="relative p-4">
+                    {/* admin actions row */}
+                    {isSchoolAdmin && (
+                      <div className="absolute top-3 right-3 flex items-center gap-1">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openEditModal({ id: subject.id, name: subject.name }); }}
+                          className="flex items-center justify-center h-6 w-6 rounded-full
+                                     transition-all duration-200 hover:scale-110"
+                          style={{ background: "rgba(255,255,255,0.25)", color: "#fff" }}
+                          title="Edit subject"
+                        >
+                          <EditOutlined style={{ fontSize: 11 }} />
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeleteSubject({ id: subject.id, name: subject.name }); }}
+                          className="flex items-center justify-center h-6 w-6 rounded-full
+                                     transition-all duration-200 hover:scale-110"
+                          style={{ background: "rgba(255,255,255,0.25)", color: "#fff" }}
+                          title="Delete subject"
+                        >
+                          <DeleteOutlined style={{ fontSize: 11 }} />
+                        </button>
+                      </div>
+                    )}
+
                     {/* active badge */}
                     {isActive && (
                       <div
-                        className="absolute top-4 right-4 flex items-center gap-1.5 rounded-full
-                                   px-3 py-1 text-xs font-bold"
+                        className="absolute top-3 left-3 flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold"
                         style={{ background: "rgba(255,255,255,0.25)", color: "#fff" }}
                       >
-                        <CheckCircleFilled />
+                        <CheckCircleFilled style={{ fontSize: 10 }} />
                         Active
                       </div>
                     )}
 
                     {/* icon */}
                     <div
-                      className="mb-4 h-14 w-14 rounded-2xl flex items-center justify-center text-2xl"
+                      className="mt-6 mb-3 h-10 w-10 rounded-xl flex items-center justify-center text-lg"
                       style={{ background: "rgba(255,255,255,0.20)", color: "#fff" }}
                     >
                       <BookOutlined />
                     </div>
 
                     {/* name */}
-                    <h3 className="text-xl font-bold text-white leading-tight mb-1">
+                    <h3 className="text-sm font-bold text-white leading-tight mb-1 truncate">
                       {displayName}
                     </h3>
                     {displayCode && (
-                      <p className="text-xs font-medium mb-5" style={{ color: "rgba(255,255,255,0.70)" }}>
+                      <p className="text-xs font-medium mb-3 truncate" style={{ color: "rgba(255,255,255,0.70)" }}>
                         {displayCode}
                       </p>
                     )}
 
                     {/* CTA */}
                     <button
-                      className="flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold
+                      className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold
                                  transition-all duration-200 hover:scale-105 active:scale-95"
                       style={{
                         background: "rgba(255,255,255,0.22)",
@@ -357,13 +447,35 @@ export default function SubjectCardsPage() {
                         color: "#fff",
                       }}
                     >
-                      <RocketOutlined />
-                      Open Dashboard
+                      <RocketOutlined style={{ fontSize: 11 }} />
+                      Open
                     </button>
                   </div>
                 </div>
               );
             })}
+
+            {/* ── Create Subject card (SCHOOL_ADMIN only) ──────────────── */}
+            {isSchoolAdmin && (
+              <div
+                onClick={openCreateModal}
+                className="relative overflow-hidden rounded-2xl cursor-pointer
+                           transition-all duration-300 hover:-translate-y-1 hover:shadow-lg
+                           flex flex-col items-center justify-center min-h-[150px]"
+                style={{
+                  border: "2px dashed #94a3b8",
+                  background: "rgba(248,250,252,0.6)",
+                }}
+              >
+                <div
+                  className="mb-2 h-10 w-10 rounded-xl flex items-center justify-center text-lg"
+                  style={{ background: "#e2e8f0", color: "#475569" }}
+                >
+                  <PlusOutlined />
+                </div>
+                <p className="text-xs font-bold text-slate-600">Create a Subject</p>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -399,9 +511,10 @@ export default function SubjectCardsPage() {
             <div className="flex-1 h-px bg-slate-100" />
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            <QuickLinkCard name="Courses"     href="/dashboard/courses"    desc="Access subject courses including Lessons and Mind-upgrade."       Icon={ReadOutlined} />
-            <QuickLinkCard name="Library"     href="/dashboard/library"    desc="Open shared resources for the current school workspace."          Icon={BookOutlined} />
-            <QuickLinkCard name="Leaderboard" href={leaderboardHref}       desc="School-wide student rankings across all subjects."               Icon={TrophyOutlined} />
+            <QuickLinkCard name="Courses"     href="/dashboard/courses"             desc="Access subject courses including Lessons and Mind-upgrade."       Icon={ReadOutlined} />
+            <QuickLinkCard name="Markbook"    href="/dashboard/students/reports"    desc="Open student reports and performance summaries."                 Icon={BarChartOutlined} />
+            <QuickLinkCard name="Library"     href="/dashboard/library"             desc="Open shared resources for the current school workspace."          Icon={BookOutlined} />
+            <QuickLinkCard name="Leaderboard" href={leaderboardHref}                desc="School-wide student rankings across all subjects."               Icon={TrophyOutlined} />
 
           </div>
         </div>
@@ -422,6 +535,7 @@ export default function SubjectCardsPage() {
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             <QuickLinkCard name="Students & Staff" href="/dashboard/students-staff"      desc="Manage all students and teachers across subjects."                  Icon={TeamOutlined} />
             <QuickLinkCard name="Courses"           href="/dashboard/courses"            desc="Access subject courses including Lessons and Mind-upgrade."         Icon={ReadOutlined} />
+            <QuickLinkCard name="Markbook"          href="/dashboard/students/reports"   desc="Open student reports and performance summaries."                    Icon={BarChartOutlined} />
             <QuickLinkCard name="Library"       href="/dashboard/library"               desc="Shared resources available to subjects you assign."                 Icon={BookOutlined} />
             <QuickLinkCard name="Timetable"     href="/dashboard/time_table"            desc="Build the school timetable across years and classes."               Icon={CalendarOutlined} />
             <QuickLinkCard name="Announcements" href="/dashboard/announcements"         desc="Send announcements to HODs, teachers, and students."                Icon={NotificationOutlined} />
@@ -430,6 +544,113 @@ export default function SubjectCardsPage() {
           </div>
         </div>
       )}
+
+      {/* ── Create / Edit subject modal ───────────────────────────────── */}
+      <Modal
+        title={editingSubject ? "Edit Subject" : "Create a Subject"}
+        open={modalOpen}
+        onOk={handleModalOk}
+        onCancel={() => { setModalOpen(false); setEditingSubject(null); form.resetFields(); }}
+        confirmLoading={modalLoading}
+        okText={editingSubject ? "Save" : "Create"}
+        destroyOnClose
+      >
+        <Form form={form} layout="vertical" className="mt-4">
+          <Form.Item
+            name="name"
+            label="Subject Name"
+            rules={[{ required: true, message: "Please enter a subject name" }]}
+          >
+            <Input placeholder="e.g. Math, Art, Science" maxLength={100} autoFocus />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* ── Delete subject confirmation modal ─────────────────────────── */}
+      <Modal
+        title={
+          <div className="flex items-center gap-2 text-red-600">
+            <DeleteOutlined />
+            <span>Delete Subject</span>
+          </div>
+        }
+        open={!!deleteConfirmSubject}
+        onCancel={() => { setDeleteConfirmSubject(null); setDeleteTyped(""); }}
+        footer={
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              onClick={() => { setDeleteConfirmSubject(null); setDeleteTyped(""); }}
+              className="rounded-lg px-4 py-2 text-sm font-semibold border border-slate-200
+                         text-slate-600 hover:bg-slate-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              disabled={!deleteNameMatches || deleteLoading}
+              onClick={async () => {
+                if (!deleteConfirmSubject || !deleteNameMatches) return;
+                setDeleteLoading(true);
+                try {
+                  await deleteSubject(deleteConfirmSubject.id);
+                  message.success(`"${deleteConfirmSubject.name}" has been deleted`);
+                  refreshSubjects();
+                  setDeleteConfirmSubject(null);
+                  setDeleteTyped("");
+                } catch (err: any) {
+                  const apiMsg =
+                    err?.response?.data?.message ||
+                    err?.response?.data?.error ||
+                    err?.message ||
+                    "Failed to delete subject.";
+                  message.error(apiMsg);
+                } finally {
+                  setDeleteLoading(false);
+                }
+              }}
+              className="rounded-lg px-4 py-2 text-sm font-semibold transition-all"
+              style={{
+                background: deleteNameMatches && !deleteLoading ? "#dc2626" : "#fca5a5",
+                color: "#fff",
+                cursor: deleteNameMatches && !deleteLoading ? "pointer" : "not-allowed",
+              }}
+            >
+              {deleteLoading ? "Deleting…" : "Permanently Delete"}
+            </button>
+          </div>
+        }
+        destroyOnClose
+      >
+        <div className="space-y-4 py-2">
+          <div
+            className="rounded-xl p-4 text-sm"
+            style={{ background: "#fef2f2", border: "1px solid #fecaca" }}
+          >
+            <p className="font-semibold text-red-700 mb-1">This action is irreversible.</p>
+            <p className="text-red-600">
+              Deleting <strong>{deleteConfirmSubject?.name}</strong> will permanently remove the
+              subject and all of its data — classes, enrollments, assignments and grades.
+              There is no undo.
+            </p>
+          </div>
+
+          <div>
+            <p className="text-sm text-slate-600 mb-2">
+              To confirm, type the subject name exactly:{" "}
+              <strong className="text-slate-800">{deleteConfirmSubject?.name}</strong>
+            </p>
+            <Input
+              value={deleteTyped}
+              onChange={(e) => setDeleteTyped(e.target.value)}
+              placeholder={`Type "${deleteConfirmSubject?.name}" to confirm`}
+              status={deleteTyped && !deleteNameMatches ? "error" : undefined}
+              autoFocus
+            />
+            {deleteTyped && !deleteNameMatches && (
+              <p className="text-xs text-red-500 mt-1">Name does not match.</p>
+            )}
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -17,6 +17,7 @@ type SubjectContextValue = {
   canUseSubjectContext: boolean;
   setActiveSubjectId: (subjectId: number, options?: { navigate?: boolean }) => void;
   toSubjectHref: (href: string) => string;
+  refreshSubjects: () => void;
 };
 
 const SubjectContext = createContext<SubjectContextValue | null>(null);
@@ -69,6 +70,7 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
   const hasSeededContext =
     canUseSubjectContext && !!currentUser && seedSubjects.length > 0 && !!seedActiveSubjectId;
 
+  const [refreshToken, setRefreshToken] = useState(0);
   const [subjects, setSubjects] = useState<SubjectBrief[]>(() =>
     hasSeededContext ? seedSubjects : []
   );
@@ -144,9 +146,11 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
     return () => {
       mounted = false;
     };
-  // Use primitive deps to avoid re-bootstrapping on object-reference changes
+  // Note: pathname and subjectIdParam are intentionally excluded — the path guard useEffect
+  // handles URL-based subject detection after navigation. Including pathname here re-runs the
+  // full API bootstrap on every page navigation and can override the active subject.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canUseSubjectContext, userId, role, pathname, subjectIdParam, hasSeededContext]);
+  }, [canUseSubjectContext, userId, role, hasSeededContext, refreshToken]);
 
   useEffect(() => {
     if (!canUseSubjectContext || loading) return;
@@ -199,6 +203,8 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
     return toSubjectScopedPath(href, activeSubjectId, resolvedActiveSubject?.name ?? null);
   };
 
+  const refreshSubjects = () => setRefreshToken((t) => t + 1);
+
   const value = useMemo<SubjectContextValue>(
     () => ({
       subjects,
@@ -208,7 +214,9 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
       canUseSubjectContext,
       setActiveSubjectId,
       toSubjectHref,
+      refreshSubjects,
     }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [subjects, activeSubjectId, resolvedActiveSubject, loading, canUseSubjectContext]
   );
 
@@ -226,6 +234,7 @@ export const useSubjectContext = (): SubjectContextValue => {
       canUseSubjectContext: false,
       setActiveSubjectId: () => undefined,
       toSubjectHref: (href: string) => href,
+      refreshSubjects: () => undefined,
     };
   }
   return context;
