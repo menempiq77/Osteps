@@ -479,8 +479,10 @@ export default function StudentList() {
           ""
       ).trim()
     : effectiveClassId;
+  // Show the resolution warning only when we have truly no class ID to work with.
+  // When classIdForStudentsFetch exists we can still load students, so suppress the banner.
   const subjectClassResolutionMissing =
-    isSubjectWorkspaceMode && !resolvingSubjectClass && !effectiveClassId;
+    isSubjectWorkspaceMode && !resolvingSubjectClass && !classIdForStudentsFetch;
   const subjectHintScopeKey = makeSubjectHintScopeKey(
     scopedSubjectId,
     effectiveSubjectClassId
@@ -503,29 +505,48 @@ export default function StudentList() {
 
   const { data: studentsData, isLoading: studentsLoading } = useQuery({
     queryKey: studentsQueryKey,
-    queryFn: () =>
-      fetchStudents(
-        classIdForStudentsFetch as string,
-        scopedSubjectId,
-        isSubjectWorkspaceMode ? effectiveSubjectClassId : undefined
-      ),
+    queryFn: async () => {
+      if (!isSubjectWorkspaceMode) {
+        return fetchStudents(classIdForStudentsFetch as string, scopedSubjectId, undefined);
+      }
+      // In subject workspace mode students may have been enrolled with either the
+      // linked school-class ID or the subject-class ID as their class_id (depending
+      // on which page the student was added from). Try both IDs and return the first
+      // non-empty result — mirroring the dashboard's getSubjectScopedSummary pattern.
+      const candidateIds = Array.from(
+        new Set(
+          [classIdForStudentsFetch, effectiveSubjectClassId, fallbackRouteClassId]
+            .map((id) => String(id ?? "").trim())
+            .filter(Boolean)
+        )
+      );
+      let lastResult: any[] = [];
+      for (const candidateId of candidateIds) {
+        const rows = await fetchStudents(
+          candidateId,
+          scopedSubjectId,
+          effectiveSubjectClassId || undefined
+        );
+        const arr = Array.isArray(rows) ? rows : [];
+        if (arr.length > 0) return arr;
+        lastResult = arr;
+      }
+      return lastResult;
+    },
     enabled:
       !!classIdForStudentsFetch &&
-      (!isSubjectWorkspaceMode ||
-        (!resolvingSubjectClass && !!effectiveSubjectClassId)),
+      (!isSubjectWorkspaceMode || !resolvingSubjectClass),
   });
   const students = useMemo(
     () => {
       const rows = (studentsData || EMPTY_LIST) as Record<string, any>[];
       if (!isSubjectWorkspaceMode) return rows as Student[];
-      if (!effectiveSubjectClassId) return [] as Student[];
-      // Backend now scopes by subject_class_id for subject pages, so trust server rows.
+      // Backend scopes by subject_class_id; trust server rows.
       return rows as Student[];
     },
     [
       studentsData,
       isSubjectWorkspaceMode,
-      effectiveSubjectClassId,
     ]
   );
 
@@ -563,8 +584,7 @@ export default function StudentList() {
     queryFn: () => fetchClassStudentsBehaviorSummary(effectiveClassId as string, scopedSubjectId),
     enabled:
       !!effectiveClassId &&
-      (!isSubjectWorkspaceMode ||
-        (!resolvingSubjectClass && !!effectiveSubjectClassId)),
+      (!isSubjectWorkspaceMode || !resolvingSubjectClass),
   });
   const behaviorSummary = useMemo(() => {
     const visibleIds = new Set(students.map((student) => toStudentId(student.id)));
