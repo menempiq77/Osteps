@@ -466,6 +466,19 @@ export default function StudentList() {
           ""
       ).trim()
     : fallbackRouteClassId;
+  // When the resolution could not confirm a linked school-class ID, fall back to fetching
+  // students by the subject class ID directly (mirrors what All Students page does). This
+  // handles cases where students are enrolled via subject_class_id without a resolved
+  // school class link (e.g. for newly created subjects whose subject_classes row has no
+  // class_id column).
+  const classIdForStudentsFetch = isSubjectWorkspaceMode
+    ? String(
+        resolvedSubjectClassContext?.linkedClassId ||
+          effectiveSubjectClassId ||
+          fallbackRouteClassId ||
+          ""
+      ).trim()
+    : effectiveClassId;
   const subjectClassResolutionMissing =
     isSubjectWorkspaceMode && !resolvingSubjectClass && !effectiveClassId;
   const subjectHintScopeKey = makeSubjectHintScopeKey(
@@ -476,7 +489,7 @@ export default function StudentList() {
     "students",
     String(scopedSubjectId ?? "school"),
     effectiveSubjectClassId || String(classIdStr || ""),
-    effectiveClassId || "unresolved",
+    classIdForStudentsFetch || "unresolved",
   ] as const;
   const behaviorSummaryQueryKey = [
     "class-students-behavior-summary",
@@ -492,12 +505,12 @@ export default function StudentList() {
     queryKey: studentsQueryKey,
     queryFn: () =>
       fetchStudents(
-        effectiveClassId as string,
+        classIdForStudentsFetch as string,
         scopedSubjectId,
         isSubjectWorkspaceMode ? effectiveSubjectClassId : undefined
       ),
     enabled:
-      !!effectiveClassId &&
+      !!classIdForStudentsFetch &&
       (!isSubjectWorkspaceMode ||
         (!resolvingSubjectClass && !!effectiveSubjectClassId)),
   });
