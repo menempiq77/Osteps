@@ -509,10 +509,8 @@ export default function StudentList() {
       if (!isSubjectWorkspaceMode) {
         return fetchStudents(classIdForStudentsFetch as string, scopedSubjectId, undefined);
       }
-      // In subject workspace mode students may have been enrolled with either the
-      // linked school-class ID or the subject-class ID as their class_id (depending
-      // on which page the student was added from). Try both IDs and return the first
-      // non-empty result — mirroring the dashboard's getSubjectScopedSummary pattern.
+      // Build candidate class IDs to try. Students may have been enrolled using
+      // the linked school-class ID or the subject-class ID as their class_id.
       const candidateIds = Array.from(
         new Set(
           [classIdForStudentsFetch, effectiveSubjectClassId, fallbackRouteClassId]
@@ -520,7 +518,7 @@ export default function StudentList() {
             .filter(Boolean)
         )
       );
-      let lastResult: any[] = [];
+      // Pass 1: try WITH subject_class_id (specific enrollment filter for teachers)
       for (const candidateId of candidateIds) {
         const rows = await fetchStudents(
           candidateId,
@@ -529,9 +527,16 @@ export default function StudentList() {
         );
         const arr = Array.isArray(rows) ? rows : [];
         if (arr.length > 0) return arr;
-        lastResult = arr;
       }
-      return lastResult;
+      // Pass 2: try WITHOUT subject_class_id — mirrors All Students page (SCHOOL_ADMIN).
+      // Needed when add-student didn't create a subject_class_id enrollment row, so the
+      // backend's subject_class_id filter would incorrectly exclude the student.
+      for (const candidateId of candidateIds) {
+        const rows = await fetchStudents(candidateId, scopedSubjectId, undefined);
+        const arr = Array.isArray(rows) ? rows : [];
+        if (arr.length > 0) return arr;
+      }
+      return [];
     },
     enabled:
       !!classIdForStudentsFetch &&
