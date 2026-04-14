@@ -316,11 +316,23 @@ const StudentBehaviorPage = () => {
           ? classEntry.linked_class_id
           : selectedClass;
 
-      const studentsData = await fetchStudents(
+      // Pass 1: with subject_class_id filter
+      let studentsData = await fetchStudents(
         fetchClassId,
         effectiveSubjectId ?? null,
         subjectClassId,
       );
+
+      // Pass 2: if empty and subject_class_id was applied, retry without it
+      // (handles students added before enrollment row was created)
+      if (!studentsData?.length && subjectClassId) {
+        studentsData = await fetchStudents(
+          fetchClassId,
+          effectiveSubjectId ?? null,
+          undefined,
+        );
+      }
+
       setStudents(studentsData);
 
       const preferredStudent =
