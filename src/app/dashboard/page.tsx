@@ -294,6 +294,7 @@ export default function DashboardPage() {
 
           let finalRows: Array<Record<string, any>> = [];
 
+          // Pass 1: with subject_class_id
           for (const targetClassId of requestTargets) {
             const students = await fetchStudents(
               targetClassId,
@@ -302,14 +303,17 @@ export default function DashboardPage() {
             );
             const studentRows = Array.isArray(students) ? students : [];
             const candidateRows = collectScopedStudentRows(studentRows, subjectClassId);
+            if (candidateRows.length > 0) { finalRows = candidateRows; break; }
+          }
 
-            if (candidateRows.length > 0) {
-              finalRows = candidateRows;
-              break;
-            }
-
-            if (finalRows.length === 0) {
-              finalRows = candidateRows;
+          // Pass 2: without subject_class_id (enrollment row may not exist)
+          if (finalRows.length === 0) {
+            for (const targetClassId of requestTargets) {
+              const students = await fetchStudents(targetClassId, Number(subjectId), undefined);
+              const studentRows = Array.isArray(students) ? students : [];
+              const candidateRows = collectScopedStudentRows(studentRows, subjectClassId);
+              if (candidateRows.length > 0) { finalRows = candidateRows; break; }
+              if (finalRows.length === 0) finalRows = studentRows;
             }
           }
 
