@@ -59,6 +59,30 @@ const getPalette = (name: string, idx: number) => {
   return PALETTE[idx % PALETTE.length];
 };
 
+// ── Per-subject color override (localStorage) ─────────────────────────────────
+const SUBJECT_COLOR_MAP_KEY = "osteps_subject_color_map";
+
+function readSubjectColorMap(): Record<string, number> {
+  if (typeof window === "undefined") return {};
+  try { return JSON.parse(localStorage.getItem(SUBJECT_COLOR_MAP_KEY) || "{}"); }
+  catch { return {}; }
+}
+
+function storeSubjectColor(subjectId: number, palIdx: number) {
+  const map = readSubjectColorMap();
+  map[String(subjectId)] = palIdx;
+  if (typeof window !== "undefined") {
+    localStorage.setItem(SUBJECT_COLOR_MAP_KEY, JSON.stringify(map));
+  }
+}
+
+function getSubjectPalette(subjectId: number, name: string, idx: number) {
+  const map = readSubjectColorMap();
+  const stored = map[String(subjectId)];
+  if (stored != null && stored >= 0 && stored < PALETTE.length) return PALETTE[stored];
+  return getPalette(name, idx);
+}
+
 // ── Quick-link colour map ─────────────────────────────────────────────────────
 type LinkColor = { bg: string; iconColor: string; border: string };
 const LINK_COLORS: Record<string, LinkColor> = {
@@ -134,6 +158,7 @@ export default function SubjectCardsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
   const [editingSubject, setEditingSubject] = useState<{ id: number; name: string } | null>(null);
+  const [selectedColorIdx, setSelectedColorIdx] = useState<number | null>(null);
   const [form] = Form.useForm();
   // ── Delete confirmation modal state ──────────────────────────────────
   const [deleteConfirmSubject, setDeleteConfirmSubject] = useState<{ id: number; name: string } | null>(null);
@@ -166,6 +191,10 @@ export default function SubjectCardsPage() {
   const openEditModal = (subject: { id: number; name: string }) => {
     setEditingSubject(subject);
     form.setFieldsValue({ name: subject.name });
+    // Pre-select stored color if any
+    const map = readSubjectColorMap();
+    const stored = map[String(subject.id)];
+    setSelectedColorIdx(stored != null ? stored : null);
     setModalOpen(true);
   };
 
@@ -180,6 +209,10 @@ export default function SubjectCardsPage() {
     try {
       if (editingSubject) {
         await updateSubject(String(editingSubject.id), { name: values.name.trim(), school_id: currentUser?.school });
+        // Persist chosen color to localStorage
+        if (selectedColorIdx != null) {
+          storeSubjectColor(editingSubject.id, selectedColorIdx);
+        }
         message.success("Subject updated");
       } else {
         await addSubject({ name: values.name.trim(), school_id: currentUser?.school });
@@ -188,6 +221,7 @@ export default function SubjectCardsPage() {
       refreshSubjects();
       setModalOpen(false);
       form.resetFields();
+      setSelectedColorIdx(null);
       setEditingSubject(null);
     } catch (err: any) {
       const apiMsg =
@@ -358,7 +392,7 @@ export default function SubjectCardsPage() {
               const displayCode = typeof subject.code === "string"
                 ? subject.code.replace(/islamiat/gi, "Islamic")
                 : subject.code;
-              const pal = getPalette(String(displayName), idx);
+              const pal = getSubjectPalette(subject.id, String(displayName), idx);
 
               return (
                 <div
@@ -563,6 +597,33 @@ export default function SubjectCardsPage() {
           >
             <Input placeholder="e.g. Math, Art, Science" maxLength={100} autoFocus />
           </Form.Item>
+          {editingSubject && (
+            <Form.Item label="Card Color">
+              <div className="flex flex-wrap gap-2 mt-1">
+                {PALETTE.map((p, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setSelectedColorIdx(i)}
+                    title={`Color ${i + 1}`}
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 8,
+                      background: `linear-gradient(135deg, ${p.gradFrom} 0%, ${p.gradTo} 100%)`,
+                      border: selectedColorIdx === i
+                        ? `3px solid #1d1d1d`
+                        : "2px solid transparent",
+                      outline: selectedColorIdx === i ? `2px solid ${p.gradFrom}` : "none",
+                      cursor: "pointer",
+                      transition: "transform 0.15s",
+                      transform: selectedColorIdx === i ? "scale(1.2)" : "scale(1)",
+                    }}
+                  />
+                ))}
+              </div>
+            </Form.Item>
+          )}
         </Form>
       </Modal>
 

@@ -95,16 +95,24 @@ export default function AssessmentDrawer() {
   const loadStudents = async () => {
     try {
       setLoading(true);
-      const studentsData = await fetchStudents(
+      // Pass 1: with subject_class_id filter
+      let studentsData = await fetchStudents(
         classId,
         canUseSubjectContext ? activeSubjectId ?? undefined : undefined,
         subjectClassId ?? undefined
       );
+      // Pass 2: if empty and subject_class_id was applied, retry without it
+      if (!studentsData?.length && subjectClassId) {
+        studentsData = await fetchStudents(
+          classId,
+          canUseSubjectContext ? activeSubjectId ?? undefined : undefined,
+          undefined
+        );
+      }
       setStudents(studentsData);
       if (studentsData.length > 0) {
         setSelectedStudentId(studentsData[0].id);
       }
-      setStudents(studentsData);
     } catch (err) {
       setError("Failed to load students");
       console.error(err);

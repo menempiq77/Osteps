@@ -63,6 +63,34 @@ interface NewTopicDraft {
   marks: number | null;
 }
 
+// ── Subject-isolation helpers (localStorage) ────────────────────────────────
+const QUIZ_SUBJECT_MAP_KEY = "osteps_quiz_subject_map";
+
+function readQuizSubjectMap(): Record<string, number> {
+  if (typeof window === "undefined") return {};
+  try { return JSON.parse(localStorage.getItem(QUIZ_SUBJECT_MAP_KEY) || "{}"); }
+  catch { return {}; }
+}
+
+function filterQuizzesBySubject(quizzes: any[], subjectId: number): any[] {
+  const map = readQuizSubjectMap();
+  return quizzes.filter((q) => {
+    // Primary: backend subject_id field (works in InPrivate / across sessions)
+    const backendSubjectId = q.subject_id ?? q.subject?.id ?? null;
+    if (backendSubjectId != null && Number(backendSubjectId) !== 0) {
+      return Number(backendSubjectId) === subjectId;
+    }
+    // Fallback: localStorage map (for quizzes where backend field unavailable)
+    const localSubjectId = map[String(q.id)];
+    if (localSubjectId != null) {
+      return localSubjectId === subjectId;
+    }
+    // No subject info at all: include as unscoped/global quiz
+    return true;
+  });
+}
+// ────────────────────────────────────────────────────────────────────────────
+
 const normalizeProgressOption = (value: string) =>
   String(value || "")
     .replace(/\p{Extended_Pictographic}/gu, "")
@@ -118,9 +146,14 @@ export default function TrackerTopicsPage() {
       setLoading(true);
       const response = await fetchQuizes(
         schoolId,
-        canUseSubjectContext ? activeSubjectId ?? undefined : undefined
+        activeSubjectId ?? undefined
       );
-      setQuizzes(response);
+      // Backend doesn't filter by subject — apply client-side filter using localStorage map
+      const filtered =
+        activeSubjectId
+          ? filterQuizzesBySubject(response, Number(activeSubjectId))
+          : response;
+      setQuizzes(filtered);
     } catch (error) {
       console.error("Failed to load quizzes", error);
       // message.error("Failed to load quizzes");

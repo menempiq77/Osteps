@@ -256,7 +256,23 @@ export default function DashboardLayout({
       <SubjectContextProvider>
         <div className="dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] p-3 md:p-6">
           <div className="mx-auto max-w-7xl">
-            <div className="mb-4 flex justify-end">
+            <div className="mb-4 flex items-center justify-end gap-2">
+              <div className="flex items-center gap-1 rounded-lg border border-[var(--theme-border)] bg-[var(--theme-soft)] px-2 py-1">
+                {(Object.keys(THEMES) as ThemeName[]).map((name) => (
+                  <button
+                    key={name}
+                    type="button"
+                    title={THEMES[name].label}
+                    onClick={() => handleThemeChange(name)}
+                    className={`h-5 w-5 rounded-full border transition ${
+                      themeName === name
+                        ? "scale-110 ring-2 ring-offset-1 ring-[var(--theme-border)]"
+                        : "opacity-80 hover:opacity-100"
+                    }`}
+                    style={{ backgroundColor: THEMES[name].primary }}
+                  />
+                ))}
+              </div>
               {renderNavigationButtons(true)}
             </div>
             {children}
