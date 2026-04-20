@@ -176,6 +176,12 @@ export default function DashboardLayout({
     unscopedPathname === "/dashboard/leaderboard/" ||
     /^\/dashboard\/s\/\d+(?:\/[^/]+)?\/leaderboard\/?$/.test(pathname);
   const isTimeTableRoute = unscopedPathname === "/dashboard/time_table";
+  const isTimetableBuilderRoute =
+    unscopedPathname === "/dashboard/timetable-builder" ||
+    pathname.endsWith("/timetable-builder");
+  const isTimetableGeneratorRoute =
+    unscopedPathname === "/dashboard/timetable-generator" ||
+    pathname.endsWith("/timetable-generator");
   const isToolsRoute = unscopedPathname === "/dashboard/tools" || unscopedPathname.startsWith("/dashboard/tools/");
   const isStudentsStaffRoute = unscopedPathname === "/dashboard/students-staff";
   const isCoursesRoute = unscopedPathname === "/dashboard/courses" || unscopedPathname.startsWith("/dashboard/courses/");
@@ -291,6 +297,8 @@ export default function DashboardLayout({
       isLibraryRoute ||
       isLeaderboardRoute ||
       isTimeTableRoute ||
+      isTimetableBuilderRoute ||
+      isTimetableGeneratorRoute ||
       isToolsRoute ||
       isStudentsStaffRoute ||
       isCoursesRoute ||

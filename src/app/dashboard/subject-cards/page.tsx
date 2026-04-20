@@ -19,6 +19,7 @@ import {
   RocketOutlined,
   SettingOutlined,
   SolutionOutlined,
+  TableOutlined,
   TeamOutlined,
   ToolOutlined,
   TrophyOutlined,
@@ -28,6 +29,7 @@ import { useSubjectContext } from "@/contexts/SubjectContext";
 import { useRouter } from "next/navigation";
 import { logout } from "@/features/auth/authSlice";
 import { addSubject, updateSubject, deleteSubject } from "@/services/subjectsApi";
+import MyScheduleWidget from "@/components/dashboard/MyScheduleWidget";
 
 // ── Subject colour palette ────────────────────────────────────────────────────
 const PALETTE = [
@@ -368,6 +370,16 @@ export default function SubjectCardsPage() {
         </div>
       </div>
 
+      {/* ── My Schedule ─────────────────────────────────────────────────── */}
+      <div>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="h-7 w-1 rounded-full" style={{ background: "var(--primary)" }} />
+          <h2 className="text-lg font-bold text-slate-800">My Schedule</h2>
+          <div className="flex-1 h-px bg-slate-100" />
+        </div>
+        <MyScheduleWidget currentUser={currentUser} isStudent={isStudent} />
+      </div>
+
       {/* ── Subject cards ─────────────────────────────────────────────────── */}
       <div>
         <div className="flex items-center gap-3 mb-5">
@@ -571,8 +583,9 @@ export default function SubjectCardsPage() {
             <QuickLinkCard name="Courses"           href="/dashboard/courses"            desc="Access subject courses including Lessons and Mind-upgrade."         Icon={ReadOutlined} />
             <QuickLinkCard name="Markbook"          href="/dashboard/students/reports"   desc="Open student reports and performance summaries."                    Icon={BarChartOutlined} />
             <QuickLinkCard name="Library"       href="/dashboard/library"               desc="Shared resources available to subjects you assign."                 Icon={BookOutlined} />
-            <QuickLinkCard name="Timetable"     href="/dashboard/time_table"            desc="Build the school timetable across years and classes."               Icon={CalendarOutlined} />
-            <QuickLinkCard name="Announcements" href="/dashboard/announcements"         desc="Send announcements to HODs, teachers, and students."                Icon={NotificationOutlined} />
+            <QuickLinkCard name="Timetable"       href="/dashboard/time_table"           desc="Build the school timetable across years and classes."               Icon={CalendarOutlined} />
+            <QuickLinkCard name="Timetable Builder" href="/dashboard/timetable-builder"  desc="Visual grid builder — click cells to add/edit slots, detect conflicts." Icon={TableOutlined} />
+            <QuickLinkCard name="Announcements"     href="/dashboard/announcements"      desc="Send announcements to HODs, teachers, and students."                Icon={NotificationOutlined} />
             <QuickLinkCard name="Tools"         href="/dashboard/tools"                 desc="Extra tools that support all subjects."                             Icon={ToolOutlined} />
             <QuickLinkCard name="Leaderboard"   href={leaderboardHref}                  desc="See school-wide student rankings across all subjects."              Icon={TrophyOutlined} />
           </div>

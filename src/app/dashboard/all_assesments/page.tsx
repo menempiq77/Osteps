@@ -235,6 +235,24 @@ export default function Page() {
     setOpen(true);
   };
 
+  const handleDuplicateAssessment = async (assessment: Assessment) => {
+    try {
+      const newAssessment = await addAssessment({
+        name: `Copy of ${assessment.name}`,
+        school_id: schoolIdNum,
+        type: assessment.type,
+      } as any);
+      const newId = newAssessment?.data?.id ?? newAssessment?.id;
+      if (inSubjectContext && newId) {
+        tagAssessmentWithSubject(newId, Number(activeSubjectId));
+      }
+      await refreshAssessments();
+    } catch (err) {
+      setError("Failed to duplicate assessment");
+      console.error(err);
+    }
+  };
+
   const confirmDelete = (id: string) => {
     setAssessmentToDelete(id);
     setDeleteOpen(true);
@@ -348,6 +366,7 @@ export default function Page() {
         assessments={assessments}
         onDeleteAssessment={confirmDelete}
         onEditAssessment={handleEditClick}
+        onDuplicateAssessment={handleDuplicateAssessment}
         quizzes={quizzes}
         termId={normalizedTermId}
       />

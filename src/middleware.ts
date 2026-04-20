@@ -34,6 +34,8 @@ const SHARED_PREFIXES = [
   "/dashboard/mind-upgrade",
   "/dashboard/library",
   "/dashboard/time_table",
+  "/dashboard/timetable-builder",
+  "/dashboard/timetable-generator",
   "/dashboard/announcements",
   "/dashboard/tools",
   "/dashboard/school-admin/settings",
@@ -77,6 +79,8 @@ const SUBJECT_ROUTE_ROOTS = new Set([
   "students-staff",
   "courses",
   "mind-upgrade",
+  "timetable-builder",
+  "timetable-generator",
 ]);
 
 const startsWithPrefix = (path: string, prefix: string): boolean => path === prefix || path.startsWith(`${prefix}/`);

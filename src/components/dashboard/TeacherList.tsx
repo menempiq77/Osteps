@@ -10,12 +10,14 @@ import {
   addTeacher,
   updateTeacher,
   deleteTeacher as deleteTeacherApi,
+  assignTeacherToClass,
 } from "@/services/teacherApi";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { useRouter } from "next/navigation";
 import { fetchSubjects } from "@/services/subjectsApi";
-import { assignStaffSubjects } from "@/services/subjectWorkspaceApi";
+import { assignStaffSubjects, fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
+import { resolveSubjectClassLinkedIdWithFallback } from "@/lib/subjectClassResolution";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 
@@ -69,6 +71,28 @@ const applyTeacherTheme = (themeName: TeacherThemeName) => {
   root.style.setProperty("--theme-scroll-end", theme.scrollEnd);
   root.style.setProperty("--theme-name", themeName);
 };
+
+/** Assign a HOD to every linked class of each given subject. Non-blocking per class. */
+async function assignHODToAllSubjectClasses(teacherId: number, subjectIds: number[]) {
+  for (const subjectId of subjectIds) {
+    try {
+      const rows = await fetchSubjectClasses({ subject_id: subjectId, include_inactive: false });
+      for (const row of (Array.isArray(rows) ? rows : [])) {
+        try {
+          const linkedId = await resolveSubjectClassLinkedIdWithFallback(row, subjectId);
+          const classId = Number(linkedId || 0);
+          if (classId > 0) {
+            await assignTeacherToClass(teacherId, classId);
+          }
+        } catch {
+          // continue to next class
+        }
+      }
+    } catch {
+      // continue to next subject
+    }
+  }
+}
 
 export default function TeacherList() {
   const router = useRouter();
@@ -218,6 +242,11 @@ export default function TeacherList() {
 
       await queryClient.invalidateQueries({ queryKey: ["teachers"] });
 
+      // If HOD: auto-assign to all classes of their subjects
+      if (teacher.role === "HOD" && Array.isArray(teacher.subjects) && teacher.subjects.length > 0) {
+        await assignHODToAllSubjectClasses(Number(teacher.id), teacher.subjects);
+      }
+
       messageApi?.success(`${teacher.role || "Teacher"} updated successfully`);
     } catch (err) {
       console.error("Failed to update teacher:", err);
@@ -254,6 +283,13 @@ export default function TeacherList() {
 
       await queryClient.invalidateQueries({ queryKey: ["teachers"] });
       setIsAddTeacherModalOpen(false);
+
+      // If HOD: auto-assign to all classes of their subjects
+      const createdTeacherId = Number(createdTeacher?.id || 0);
+      if (teacher.role === "HOD" && createdTeacherId > 0 && Array.isArray(teacher.subjects) && teacher.subjects.length > 0) {
+        await assignHODToAllSubjectClasses(createdTeacherId, teacher.subjects);
+      }
+
       messageApi?.success(`${teacher.role || "Teacher"} added successfully`);
     } catch (err) {
       console.error("Failed to add teacher:", err);

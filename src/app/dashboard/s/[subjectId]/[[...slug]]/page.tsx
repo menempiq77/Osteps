@@ -28,7 +28,7 @@ const SUBJECT_ROUTE_ROOTS = new Set([
   "subject-cards",
   "library",
   "time_table",
-  "announcements",
+  "timetable-builder",   "timetable-generator",  "announcements",
   "approvals",
   "lessons",
   "tools",

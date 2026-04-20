@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { EditOutlined, DeleteOutlined, TeamOutlined, FileTextOutlined, BookOutlined } from "@ant-design/icons";
+import { EditOutlined, DeleteOutlined, TeamOutlined, FileTextOutlined, BookOutlined, CopyOutlined } from "@ant-design/icons";
 import { AssessmentTasksDrawer } from "../ui/AssessmentTasksDrawer";
 import AssessmentAssignDrawer from "./AssessmentAssignDrawer";
 import { useParams, useRouter } from "next/navigation";
@@ -41,6 +41,7 @@ interface AssessmentListProps {
   assessments: Assessment[];
   onDeleteAssessment: (id: string) => void;
   onEditAssessment?: (assessment: Assessment) => void;
+  onDuplicateAssessment?: (assessment: Assessment) => void;
   quizzes: any[];
   termId: number;
 }
@@ -54,6 +55,7 @@ export default function AllAssessmentList({
   assessments,
   onDeleteAssessment,
   onEditAssessment,
+  onDuplicateAssessment,
   quizzes,
   termId,
 }: AssessmentListProps) {
@@ -245,6 +247,13 @@ export default function AllAssessmentList({
                                   title="Assign to Classes"
                                 >
                                   <TeamOutlined />
+                                </button>
+                                <button
+                                  onClick={() => onDuplicateAssessment?.(assignment)}
+                                  className="p-2 rounded-lg text-violet-500 hover:bg-violet-50 hover:text-violet-700 cursor-pointer transition-colors"
+                                  title="Duplicate"
+                                >
+                                  <CopyOutlined />
                                 </button>
                                 <button
                                   onClick={() => onEditAssessment?.(assignment)}
