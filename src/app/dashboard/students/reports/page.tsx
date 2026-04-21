@@ -108,6 +108,7 @@ export default function ReportsPage() {
   // Add state to track if we should apply URL filter
   const [applyUrlFilter, setApplyUrlFilter] = useState(true);
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>("all");
+  const [selectedTerm, setSelectedTerm] = useState<string>("all");
   // Tracks whether the combined classes+assessments fetch is still in-flight
   const [classesReady, setClassesReady] = useState(false);
   
@@ -335,7 +336,7 @@ export default function ReportsPage() {
   const currentClass = getCurrentClass();
 
   const transformAssessmentData = () => {
-    if (!wholeAssesmentData?.length) return [];
+    if (!wholeAssesmentData?.length) return { students: [], taskColumns: [] };
 
     const filteredAssessments = wholeAssesmentData.filter((assessment) => {
       const classMatch = !selectedClass || assessment?.class_id?.toString() === selectedClass;
@@ -343,127 +344,117 @@ export default function ReportsPage() {
       return classMatch && yearMatch;
     });
 
-    if (!filteredAssessments.length) return [];
+    if (!filteredAssessments.length) return { students: [], taskColumns: [] };
 
-    const maxPossibleTotal = filteredAssessments.reduce((sum, assessment) => {
-      const assessmentTotal = assessment.tasks.reduce((taskSum, task) => {
-        return taskSum + Number(task.allocated_marks);
-      }, 0);
-      return sum + assessmentTotal;
-    }, 0);
+    // Derive term from assessment name (e.g. "Year 7 - Term3 - Assessments" → "Term 3")
+    const extractTerm = (name: string): string => {
+      const m = String(name ?? "").match(/term\s*(\d+)/i);
+      return m ? `Term ${m[1]}` : "Other";
+    };
 
-    const studentsMap = new Map();
-    const mindPointsByStudent = new Map<number, number>();
+    // Build flat list of tasks across all assessments, filtered by selected term
+    const allTaskColumns: { taskId: number; taskName: string; allocatedMarks: number; term: string; assessmentId: number }[] = [];
+    const seenTaskIds = new Set<number>();
+    filteredAssessments.forEach((assessment) => {
+      const term = extractTerm(assessment.assessment_name);
+      if (selectedTerm !== "all" && term !== selectedTerm) return;
+      assessment.tasks.forEach((task) => {
+        if (!seenTaskIds.has(task.task_id)) {
+          seenTaskIds.add(task.task_id);
+          allTaskColumns.push({
+            taskId: task.task_id,
+            taskName: task.task_name,
+            allocatedMarks: Number(task.allocated_marks),
+            term,
+            assessmentId: assessment.assessment_id,
+          });
+        }
+      });
+    });
 
-    filteredAssessments?.forEach((assessment) => {
+    const maxPossibleTotal = allTaskColumns.reduce((s, c) => s + c.allocatedMarks, 0);
+
+    // Build student rows: one entry per student, keyed by student_id
+    const studentsMap = new Map<number, { student_name: string; taskMarks: Map<number, { marks: number; allocated: number; submitted: boolean }> }>();
+
+    filteredAssessments.forEach((assessment) => {
+      const term = extractTerm(assessment.assessment_name);
+      if (selectedTerm !== "all" && term !== selectedTerm) return;
+
       assessment.tasks.forEach((task) => {
         asArray<any>(task.submitted).forEach((submission: any) => {
-          const submissionMindPoints = Number(submission?.mind_points ?? 0);
-          if (Number.isFinite(submissionMindPoints)) {
-            const existingMindPoints = mindPointsByStudent.get(submission.student_id) ?? 0;
-            if (submissionMindPoints > existingMindPoints) {
-              mindPointsByStudent.set(submission.student_id, submissionMindPoints);
-            }
-          }
-
           if (!studentsMap.has(submission.student_id)) {
-            studentsMap.set(submission.student_id, {
-              student_id: submission.student_id,
-              student_name: submission.student_name,
-              tasks: {},
-            });
+            studentsMap.set(submission.student_id, { student_name: submission.student_name, taskMarks: new Map() });
           }
-
-          const student = studentsMap.get(submission.student_id);
-          if (!student.tasks[assessment.assessment_id]) {
-            student.tasks[assessment.assessment_id] = [];
-          }
-
-          student.tasks[assessment.assessment_id].push({
-            task_id: task.task_id,
-            task_name: task.task_name,
-            marks: Number(submission.teacher_assessment_marks),
-            allocated_marks: Number(task.allocated_marks),
-            submitted: true
+          studentsMap.get(submission.student_id)!.taskMarks.set(task.task_id, {
+            marks: Number(submission.teacher_assessment_marks ?? 0),
+            allocated: Number(task.allocated_marks),
+            submitted: true,
           });
         });
 
         asArray<any>(task.not_submitted).forEach((student: any) => {
-          const notSubmittedMindPoints = Number(student?.mind_points ?? 0);
-          if (Number.isFinite(notSubmittedMindPoints)) {
-            const existingMindPoints = mindPointsByStudent.get(student.student_id) ?? 0;
-            if (notSubmittedMindPoints > existingMindPoints) {
-              mindPointsByStudent.set(student.student_id, notSubmittedMindPoints);
-            }
-          }
-
           if (!studentsMap.has(student.student_id)) {
-            studentsMap.set(student.student_id, {
-              student_id: student.student_id,
-              student_name: student.student_name,
-              tasks: {},
+            studentsMap.set(student.student_id, { student_name: student.student_name, taskMarks: new Map() });
+          }
+          if (!studentsMap.get(student.student_id)!.taskMarks.has(task.task_id)) {
+            studentsMap.get(student.student_id)!.taskMarks.set(task.task_id, {
+              marks: 0,
+              allocated: Number(task.allocated_marks),
+              submitted: false,
             });
           }
-
-          const studentData = studentsMap.get(student.student_id);
-          if (!studentData.tasks[assessment.assessment_id]) {
-            studentData.tasks[assessment.assessment_id] = [];
-          }
-
-          studentData.tasks[assessment.assessment_id].push({
-            task_id: task.task_id,
-            task_name: task.task_name,
-            marks: 0,
-            allocated_marks: Number(task.allocated_marks),
-            submitted: false
-          });
         });
       });
     });
 
-    const students = Array.from(studentsMap.values()).map((student) => {
-      const studentData: any = {
-        student: student.student_name,
-        student_id: student.student_id,
-        total: 0,
-        mindPoints: mindPointsByStudent.get(student.student_id) ?? 0,
+    const students = Array.from(studentsMap.entries()).map(([studentId, studentData]) => {
+      let total = 0;
+      const taskMarks: Record<number, { marks: number; allocated: number; submitted: boolean }> = {};
+
+      allTaskColumns.forEach((col) => {
+        const mark = studentData.taskMarks.get(col.taskId);
+        if (mark) {
+          taskMarks[col.taskId] = mark;
+          if (mark.submitted) total += mark.marks;
+        }
+      });
+
+      const percentage = maxPossibleTotal > 0 ? (total / maxPossibleTotal) * 100 : 0;
+      const courseGrade = grades?.find(
+        (g) => percentage >= parseInt(g.min_percentage) && percentage <= parseInt(g.max_percentage)
+      )?.grade ?? "N/A";
+
+      return {
+        student_id: studentId,
+        student: studentData.student_name,
+        taskMarks,
+        total,
         maxPossibleTotal,
-        courseGrade: "N/A",
+        percentage: percentage.toFixed(2),
+        courseGrade,
       };
+    }).sort((a, b) => a.student.localeCompare(b.student));
 
-      filteredAssessments.forEach((assessment) => {
-        const assessmentKey = `assessment_${assessment.assessment_id}`;
-        studentData[assessmentKey] = 0;
-      });
-
-      Object.entries(student.tasks).forEach(([assessmentId, tasks]) => {
-        const typedTasks = asArray<any>(tasks);
-        const assessmentTotal = typedTasks.reduce((sum: number, task: any) => {
-          return sum + (task.marks || 0);
-        }, 0);
-
-        studentData[`assessment_${assessmentId}`] = assessmentTotal;
-        studentData.total += assessmentTotal;
-      });
-
-      if (maxPossibleTotal > 0) {
-        const percentage = (studentData.total / maxPossibleTotal) * 100;
-        studentData.percentage = percentage.toFixed(2);
-        const studentGrade = grades?.find(
-          (grade) =>
-            percentage >= parseInt(grade.min_percentage) &&
-            percentage <= parseInt(grade.max_percentage)
-        );
-        studentData.courseGrade = studentGrade ? studentGrade.grade : "N/A";
-      }
-      studentData.totalWithMind = studentData.total + studentData.mindPoints;
-      return studentData;
-    });
-
-    return students;
+    return { students, taskColumns: allTaskColumns };
   };
 
-  const transformedData = transformAssessmentData();
+  const { students: transformedData, taskColumns } = transformAssessmentData();
+
+  // Available terms from filtered assessments
+  const availableTerms = (() => {
+    const extractTerm = (name: string): string => {
+      const m = String(name ?? "").match(/term\s*(\d+)/i);
+      return m ? `Term ${m[1]}` : "Other";
+    };
+    const classYearAssessments = wholeAssesmentData.filter((assessment) => {
+      const classMatch = !selectedClass || assessment?.class_id?.toString() === selectedClass;
+      const yearMatch = !selectedYear || assessment?.year_id?.toString() === selectedYear;
+      return classMatch && yearMatch;
+    });
+    const terms = Array.from(new Set(classYearAssessments.map((a) => extractTerm(a.assessment_name))));
+    return terms.sort();
+  })();
 
   // Filter by search term AND URL student ID (only if applyUrlFilter is true)
   const filteredData = transformedData?.filter((student) => {
@@ -546,7 +537,7 @@ export default function ReportsPage() {
       <div className="mb-6 flex flex-col lg:flex-row gap-2">
         <h3 className="font-medium min-w-[120px]">Markbook:</h3>
         <div className="flex flex-wrap items-center space-x-2 text-sm text-gray-600">
-          {assesmentData?.map((item, index) => (
+          {assesmentData?.map((item: any, index: number) => (
             <React.Fragment key={index}>
               <span
                 onClick={() => handleViewReportsDetail(item.id)}
@@ -579,8 +570,8 @@ export default function ReportsPage() {
             )}
 
           <Card>
-            <p className="font-medium">Filters</p>
-            <div className="mb-6 flex flex-wrap gap-2">
+            <p className="font-medium mb-3">Filters</p>
+            <div className="mb-4 flex flex-wrap gap-2">
               {(isSchoolAdmin || isHOD || isTeacher || isStudent) && (
                 <Select
                   value={selectedSubjectFilter}
@@ -588,6 +579,7 @@ export default function ReportsPage() {
                     setSelectedSubjectFilter(value);
                     setSelectedYear(null);
                     setSelectedClass(null);
+                    setSelectedTerm("all");
                   }}
                   style={{ width: 220 }}
                   placeholder="Select Subject"
@@ -631,16 +623,44 @@ export default function ReportsPage() {
                 }))}
               />
             </div>
+
+            {/* Term tabs */}
+            {availableTerms.length > 0 && (
+              <div className="flex gap-2 mb-5 border-b border-gray-200 pb-0">
+                <button
+                  onClick={() => setSelectedTerm("all")}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    selectedTerm === "all"
+                      ? "border-green-600 text-green-700"
+                      : "border-transparent text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  All
+                </button>
+                {availableTerms.map((term) => (
+                  <button
+                    key={term}
+                    onClick={() => setSelectedTerm(term)}
+                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                      selectedTerm === term
+                        ? "border-green-600 text-green-700"
+                        : "border-transparent text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    {term}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <table className="max-w-full table-fixed">
               <thead className="bg-[#f0f0f0]">
                 <tr>
-                  <th className="w-24 px-2 border border-gray-300 py-3 text-left align-bottom text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-[#f0f0f0] z-10">
+                  <th className="w-28 px-2 border border-gray-300 py-3 text-left align-bottom text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-[#f0f0f0] z-10">
                     Student
                   </th>
                   {[
-                    ...(filteredAssessments?.map(
-                      (assessment) => assessment.assessment_name
-                    ) || []),
+                    ...taskColumns.map((col) => col.taskName),
                     "Total",
                     "Grade",
                   ].map((header, index) => (
@@ -660,30 +680,40 @@ export default function ReportsPage() {
               </thead>
 
               <tbody className="divide-y divide-gray-200 bg-white shadow">
-                {filteredData?.length > 0 ? (
+                {filteredData && filteredData.length > 0 ? (
                   filteredData.map((student, index) => (
                     <tr key={index} className="hover:bg-gray-50">
                       <td className="px-2 py-2 border border-gray-300 whitespace-nowrap text-sm font-medium text-gray-900 sticky left-0 bg-white z-10">
                         {student.student}
                       </td>
 
-                      {/* Assessment marks */}
-                      {filteredAssessments?.map((assessment) => (
-                        <td
-                          key={assessment.assessment_id}
-                          className="px-2 py-2 border border-gray-300 whitespace-nowrap text-sm text-gray-500 font-medium"
-                        >
-                          {student[`assessment_${assessment.assessment_id}`]}
-                        </td>
-                      ))}
+                      {/* Individual task marks */}
+                      {taskColumns.map((col) => {
+                        const mark = student.taskMarks[col.taskId];
+                        return (
+                          <td
+                            key={col.taskId}
+                            className="px-2 py-2 border border-gray-300 whitespace-nowrap text-sm text-gray-700 font-medium text-center"
+                          >
+                            {mark
+                              ? mark.submitted
+                                ? `${mark.marks}/${col.allocatedMarks}`
+                                : <span className="text-gray-400">-</span>
+                              : <span className="text-gray-300">-</span>
+                            }
+                          </td>
+                        );
+                      })}
 
-                      <td className="px-2 py-2 border border-gray-300 whitespace-nowrap text-sm text-gray-500 font-medium">
-                        {student.total} / {student.maxPossibleTotal}
-                        <span className="block text-xs text-gray-400">
+                      {/* Total */}
+                      <td className="px-2 py-2 border border-gray-300 whitespace-nowrap text-sm text-gray-700 font-semibold text-center">
+                        {student.total}/{student.maxPossibleTotal}
+                        <span className="block text-xs text-gray-400 font-normal">
                           {student.percentage}%
                         </span>
                       </td>
 
+                      {/* Grade */}
                       <td className="px-2 py-3 border border-gray-300 whitespace-nowrap text-sm font-medium text-center">
                         <span
                           className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -706,7 +736,7 @@ export default function ReportsPage() {
                 ) : (
                   <tr>
                     <td
-                      colSpan={filteredAssessments.length + 5}
+                      colSpan={taskColumns.length + 3}
                       className="text-center py-4 text-gray-500"
                     >
                       No students found
