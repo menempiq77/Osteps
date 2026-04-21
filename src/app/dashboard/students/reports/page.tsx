@@ -9,6 +9,7 @@ import {
   fetchReportAssessments,
   fetchWholeAssessmentsReport,
 } from "@/services/reportApi";
+import { addTask, addStudentTaskMarks } from "@/services/api";
 import { fetchGrades } from "@/services/gradesApi";
 import { fetchYearsBySchool } from "@/services/yearsApi";
 import { useSelector } from "react-redux";
@@ -109,6 +110,18 @@ export default function ReportsPage() {
   const [applyUrlFilter, setApplyUrlFilter] = useState(true);
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>("all");
   const [selectedTerm, setSelectedTerm] = useState<string>("all");
+
+  // Inline mark editing
+  const [editingCell, setEditingCell] = useState<{ studentId: number; taskId: number } | null>(null);
+  const [editingValue, setEditingValue] = useState<string>("");
+  const [savingCell, setSavingCell] = useState<{ studentId: number; taskId: number } | null>(null);
+  const [localMarkOverrides, setLocalMarkOverrides] = useState<Record<string, number>>({});
+
+  // Add column modal
+  const [showAddColumnModal, setShowAddColumnModal] = useState(false);
+  const [newColumnName, setNewColumnName] = useState("");
+  const [newColumnMarks, setNewColumnMarks] = useState<number>(10);
+  const [addingColumn, setAddingColumn] = useState(false);
   // Tracks whether the combined classes+assessments fetch is still in-flight
   const [classesReady, setClassesReady] = useState(false);
   
@@ -509,6 +522,87 @@ export default function ReportsPage() {
     }
   };
 
+  // ── Inline mark editing helpers ─────────────────────────────────────────
+  const extractTermHelper = (name: string) => {
+    const m = String(name ?? "").match(/term\s*(\d+)/i);
+    return m ? `Term ${m[1]}` : "Other";
+  };
+
+  const canEdit = isTeacher || isSchoolAdmin || isHOD;
+
+  const getEffectiveMark = (
+    studentId: number,
+    taskId: number,
+    mark: { marks: number; allocated: number; submitted: boolean } | undefined
+  ) => {
+    const key = `${studentId}_${taskId}`;
+    if (localMarkOverrides[key] !== undefined) {
+      return { marks: localMarkOverrides[key], submitted: true };
+    }
+    return mark;
+  };
+
+  const startEditing = (studentId: number, taskId: number, currentMark: number | null) => {
+    if (!canEdit) return;
+    setEditingCell({ studentId, taskId });
+    setEditingValue(currentMark !== null ? String(currentMark) : "");
+  };
+
+  const commitEdit = async (
+    studentId: number,
+    col: { taskId: number; assessmentId: number; allocatedMarks: number }
+  ) => {
+    const valStr = editingValue.trim();
+    setEditingCell(null);
+    if (valStr === "") return;
+    const val = Number(valStr);
+    if (isNaN(val) || val < 0 || val > col.allocatedMarks) return;
+
+    setSavingCell({ studentId, taskId: col.taskId });
+    try {
+      await addStudentTaskMarks(studentId, {
+        assessment_id: col.assessmentId,
+        task_id: col.taskId,
+        teacher_assessment_marks: val,
+        teacher_assessment_feedback: "",
+      });
+      setLocalMarkOverrides((prev) => ({ ...prev, [`${studentId}_${col.taskId}`]: val }));
+    } catch {
+      /* silently fail */
+    } finally {
+      setSavingCell(null);
+    }
+  };
+
+  // ── Add Column ────────────────────────────────────────────────────────────
+  const handleAddColumn = async () => {
+    if (!newColumnName.trim() || !newColumnMarks) return;
+    const targetAssessment =
+      filteredAssessments.find((a) =>
+        selectedTerm === "all" || extractTermHelper(a.assessment_name) === selectedTerm
+      ) ?? filteredAssessments[0];
+
+    if (!targetAssessment) return;
+    setAddingColumn(true);
+    try {
+      const fd = new FormData();
+      fd.append("assessment_id", String(targetAssessment.assessment_id));
+      fd.append("task_name", newColumnName.trim());
+      fd.append("description", "");
+      fd.append("due_date", new Date().toISOString().split("T")[0]);
+      fd.append("allocated_marks", String(newColumnMarks));
+      fd.append("task_type", "null");
+      await addTask(fd);
+      const updated = await fetchWholeAssessmentsReport(schoolId, scopedSubjectId);
+      setWholeAssesmentData(updated);
+      setShowAddColumnModal(false);
+      setNewColumnName("");
+      setNewColumnMarks(10);
+    } finally {
+      setAddingColumn(false);
+    }
+  };
+
   if (loading || subjectContextLoading) {
     return (
       <div className="p-3 md:p-6 flex justify-center items-center h-64">
@@ -653,101 +747,252 @@ export default function ReportsPage() {
               </div>
             )}
 
+            {/* Toolbar */}
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs text-gray-400">
+                {canEdit ? "Click any mark cell to edit it." : ""}
+              </p>
+              {canEdit && filteredAssessments.length > 0 && (
+                <button
+                  onClick={() => setShowAddColumnModal(true)}
+                  className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  <span className="text-lg leading-none">+</span> Add Column
+                </button>
+              )}
+            </div>
+
+            <div className="overflow-x-auto">
             <table className="max-w-full table-fixed">
               <thead className="bg-[#f0f0f0]">
                 <tr>
                   <th className="w-28 px-2 border border-gray-300 py-3 text-left align-bottom text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-[#f0f0f0] z-10">
                     Student
                   </th>
-                  {[
-                    ...taskColumns.map((col) => col.taskName),
-                    "Total",
-                    "Grade",
-                  ].map((header, index) => (
+                  {taskColumns.map((col) => (
                     <th
-                      key={index}
-                      className="w-12 px-2 py-2 border border-gray-300 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      key={col.taskId}
+                      className="w-14 px-1 py-2 border border-gray-300 text-center text-xs font-medium text-gray-600 uppercase tracking-wider"
                       style={{
                         writingMode: "vertical-rl",
                         transform: "rotate(180deg)",
                         whiteSpace: "nowrap",
+                        minWidth: "3rem",
                       }}
                     >
-                      {header}
+                      {col.taskName}
+                      <span className="block text-gray-400 normal-case font-normal">/{col.allocatedMarks}</span>
                     </th>
                   ))}
+                  <th
+                    className="w-16 px-2 py-2 border border-gray-300 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", whiteSpace: "nowrap" }}
+                  >
+                    Total
+                  </th>
+                  <th
+                    className="w-16 px-2 py-2 border border-gray-300 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", whiteSpace: "nowrap" }}
+                  >
+                    %
+                  </th>
+                  <th
+                    className="w-12 px-2 py-2 border border-gray-300 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", whiteSpace: "nowrap" }}
+                  >
+                    Grade
+                  </th>
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-gray-200 bg-white shadow">
+              <tbody className="divide-y divide-gray-200 bg-white">
                 {filteredData && filteredData.length > 0 ? (
-                  filteredData.map((student, index) => (
-                    <tr key={index} className="hover:bg-gray-50">
-                      <td className="px-2 py-2 border border-gray-300 whitespace-nowrap text-sm font-medium text-gray-900 sticky left-0 bg-white z-10">
-                        {student.student}
-                      </td>
+                  filteredData.map((student, index) => {
+                    // Compute effective total using local overrides
+                    let effectiveTotal = 0;
+                    taskColumns.forEach((col) => {
+                      const eff = getEffectiveMark(student.student_id, col.taskId, student.taskMarks[col.taskId]);
+                      if (eff?.submitted) effectiveTotal += eff.marks;
+                    });
+                    const maxPoss = student.maxPossibleTotal;
+                    const effectivePct = maxPoss > 0 ? (effectiveTotal / maxPoss) * 100 : 0;
+                    const effectiveGrade =
+                      grades?.find(
+                        (g) =>
+                          effectivePct >= parseInt(g.min_percentage) &&
+                          effectivePct <= parseInt(g.max_percentage)
+                      )?.grade ?? "N/A";
 
-                      {/* Individual task marks */}
-                      {taskColumns.map((col) => {
-                        const mark = student.taskMarks[col.taskId];
-                        return (
-                          <td
-                            key={col.taskId}
-                            className="px-2 py-2 border border-gray-300 whitespace-nowrap text-sm text-gray-700 font-medium text-center"
+                    return (
+                      <tr key={index} className="hover:bg-gray-50">
+                        <td className="px-2 py-2 border border-gray-300 whitespace-nowrap text-sm font-medium text-gray-900 sticky left-0 bg-white z-10">
+                          {student.student}
+                        </td>
+
+                        {/* Editable task mark cells */}
+                        {taskColumns.map((col) => {
+                          const eff = getEffectiveMark(student.student_id, col.taskId, student.taskMarks[col.taskId]);
+                          const isEditing =
+                            editingCell?.studentId === student.student_id &&
+                            editingCell?.taskId === col.taskId;
+                          const isSaving =
+                            savingCell?.studentId === student.student_id &&
+                            savingCell?.taskId === col.taskId;
+                          const currentMark = eff?.submitted ? eff.marks : null;
+
+                          return (
+                            <td
+                              key={col.taskId}
+                              className={`border border-gray-300 text-sm text-center relative ${
+                                canEdit ? "cursor-pointer hover:bg-yellow-50" : ""
+                              } ${isEditing ? "bg-yellow-50 ring-2 ring-yellow-400 ring-inset" : ""}`}
+                              style={{ minWidth: "3rem", padding: 0 }}
+                              onClick={() => {
+                                if (!isEditing) startEditing(student.student_id, col.taskId, currentMark);
+                              }}
+                            >
+                              {isSaving ? (
+                                <span className="flex items-center justify-center py-2">
+                                  <Spin size="small" />
+                                </span>
+                              ) : isEditing ? (
+                                <input
+                                  autoFocus
+                                  type="number"
+                                  value={editingValue}
+                                  min={0}
+                                  max={col.allocatedMarks}
+                                  onChange={(e) => setEditingValue(e.target.value)}
+                                  onBlur={() => commitEdit(student.student_id, col)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") commitEdit(student.student_id, col);
+                                    if (e.key === "Escape") setEditingCell(null);
+                                  }}
+                                  className="w-full h-full py-2 px-1 text-center text-sm bg-yellow-50 border-0 outline-none focus:outline-none"
+                                  style={{ minWidth: "3rem" }}
+                                />
+                              ) : (
+                                <span className={`block py-2 px-1 font-medium ${currentMark === null ? "text-gray-300" : "text-gray-800"}`}>
+                                  {currentMark !== null ? currentMark : "-"}
+                                </span>
+                              )}
+                            </td>
+                          );
+                        })}
+
+                        {/* Total */}
+                        <td className="px-2 py-2 border border-gray-300 whitespace-nowrap text-sm font-semibold text-center text-gray-800">
+                          {effectiveTotal}/{maxPoss}
+                        </td>
+
+                        {/* Percentage */}
+                        <td className="px-2 py-2 border border-gray-300 whitespace-nowrap text-sm text-center text-gray-600">
+                          {effectivePct.toFixed(1)}%
+                        </td>
+
+                        {/* Grade */}
+                        <td className="px-2 py-2 border border-gray-300 whitespace-nowrap text-sm font-medium text-center">
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
+                              effectiveGrade === "A"
+                                ? "bg-green-100 text-green-800"
+                                : effectiveGrade === "B"
+                                ? "bg-blue-100 text-blue-800"
+                                : effectiveGrade === "C"
+                                ? "bg-yellow-100 text-yellow-800"
+                                : effectiveGrade === "D" || effectiveGrade === "E"
+                                ? "bg-orange-100 text-orange-800"
+                                : "bg-red-100 text-red-800"
+                            }`}
                           >
-                            {mark
-                              ? mark.submitted
-                                ? `${mark.marks}/${col.allocatedMarks}`
-                                : <span className="text-gray-400">-</span>
-                              : <span className="text-gray-300">-</span>
-                            }
-                          </td>
-                        );
-                      })}
-
-                      {/* Total */}
-                      <td className="px-2 py-2 border border-gray-300 whitespace-nowrap text-sm text-gray-700 font-semibold text-center">
-                        {student.total}/{student.maxPossibleTotal}
-                        <span className="block text-xs text-gray-400 font-normal">
-                          {student.percentage}%
-                        </span>
-                      </td>
-
-                      {/* Grade */}
-                      <td className="px-2 py-3 border border-gray-300 whitespace-nowrap text-sm font-medium text-center">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            student.courseGrade === "A"
-                              ? "bg-green-100 text-green-800"
-                              : student.courseGrade === "B"
-                              ? "bg-blue-100 text-blue-800"
-                              : student.courseGrade === "C"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : student.courseGrade === "D" || student.courseGrade === "E"
-                              ? "bg-orange-100 text-orange-800"
-                              : "bg-red-100 text-red-800"
-                          }`}
-                        >
-                          {student.courseGrade}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
+                            {effectiveGrade}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })
                 ) : (
                   <tr>
                     <td
-                      colSpan={taskColumns.length + 3}
-                      className="text-center py-4 text-gray-500"
+                      colSpan={taskColumns.length + 4}
+                      className="text-center py-8 text-gray-400"
                     >
-                      No students found
+                      {selectedClass ? "No students found" : "Select a year and class to view the markbook"}
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
+            </div>
           </Card>
         </div>
       </div>
+
+      {/* ── Add Column Modal ────────────────────────────────────────────── */}
+      {showAddColumnModal && (
+        <div
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowAddColumnModal(false); }}
+        >
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">Add Column</h3>
+            <p className="text-sm text-gray-500 mb-5">
+              Add a new task column to the markbook for the selected class.
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Column Title <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={newColumnName}
+                  onChange={(e) => setNewColumnName(e.target.value)}
+                  placeholder="e.g. T1 Qur'an - Recitation"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Marks Out Of <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  value={newColumnMarks}
+                  min={1}
+                  onChange={(e) => setNewColumnMarks(Number(e.target.value))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+
+              {filteredAssessments.length === 0 && (
+                <p className="text-xs text-red-500">
+                  No assessment found for the selected class. Please select a class with an existing assessment first.
+                </p>
+              )}
+            </div>
+
+            <div className="flex gap-3 mt-6 justify-end">
+              <button
+                onClick={() => { setShowAddColumnModal(false); setNewColumnName(""); setNewColumnMarks(10); }}
+                className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddColumn}
+                disabled={addingColumn || !newColumnName.trim() || !newColumnMarks || filteredAssessments.length === 0}
+                className="px-4 py-2 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {addingColumn && <Spin size="small" />}
+                {addingColumn ? "Adding..." : "Add Column"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
