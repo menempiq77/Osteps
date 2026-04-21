@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
@@ -80,6 +80,10 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
   const [loading, setLoading] = useState(!hasSeededContext);
   const resolvedActiveSubject =
     subjects.find((subject) => subject.id === activeSubjectId) ?? null;
+
+  // Always keep a current-pathname ref so setActiveSubjectId never uses a stale closure value
+  const pathnameRef = useRef(pathname);
+  pathnameRef.current = pathname;
 
   useEffect(() => {
     let mounted = true;
@@ -187,13 +191,14 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
     storeSubjectId(subjectId, selectedSubject?.name ?? null);
     void setLastSubject(subjectId);
 
+    const currentPathname = pathnameRef.current;
     const isSubjectCardsPath =
-      pathname === "/dashboard/subject-cards" ||
-      /^\/dashboard\/s\/\d+(?:\/[^/]+)?\/subject-cards$/.test(pathname);
+      currentPathname === "/dashboard/subject-cards" ||
+      /^\/dashboard\/s\/\d+(?:\/[^/]+)?\/subject-cards$/.test(currentPathname);
     if (options?.navigate !== false) {
       const next = isSubjectCardsPath
         ? toSubjectScopedPath("/dashboard", subjectId, selectedSubject?.name ?? null)
-        : toSubjectScopedPath(pathname, subjectId, selectedSubject?.name ?? null);
+        : toSubjectScopedPath(currentPathname, subjectId, selectedSubject?.name ?? null);
       router.push(next);
     }
   };
