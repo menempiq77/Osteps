@@ -150,6 +150,18 @@ export const fetchMySubjectContext = async (options?: {
 
   // For staff roles, collect subjects from ALL sources and merge so no assignment is lost.
   if (isStaffWorkspaceRole) {
+    // When impersonating: the admin token would return ALL school subjects from every API source.
+    // Use only the knownSubjects passed at impersonation time (teacher's actual assigned subjects).
+    const isAdminImpersonatingStaff =
+      typeof window !== "undefined" && !!localStorage.getItem("osteps_impersonating_admin");
+    if (isAdminImpersonatingStaff) {
+      if (known.length > 0) {
+        console.log("[SubjectContext] impersonation staff — using knownSubjects only:", known.map(s => s.name));
+        return { assigned_subjects: known, default_subject_id: known[0]?.id ?? null, subject_roles: [] };
+      }
+      return { assigned_subjects: [], default_subject_id: null, subject_roles: [] };
+    }
+
     const seenIds = new Set<number>();
     const merged: SubjectBrief[] = [];
     const addUnique = (list: SubjectBrief[]) => {
