@@ -254,7 +254,11 @@ export const fetchMySubjectContext = async (options?: {
         const res = await api.get(`/get-student/${classId}`);
         const students: any[] = res.data?.data ?? res.data ?? [];
         const me = Array.isArray(students)
-          ? students.find((s: any) => Number(s?.id) === sid)
+          ? students.find((s: any) =>
+              Number(s?.id) === sid ||
+              Number(s?.student_id) === sid ||
+              Number(s?.student?.id) === sid
+            )
           : null;
         if (me?.subjects) {
           const enrolled = normalizeSubjects(me.subjects);

@@ -1401,10 +1401,17 @@ export default function AllStudentsPage() {
   const router = useRouter();
   const handleLoginAsStudent = (record: StudentListRow) => {
     if (!currentUser) return;
-    // Build the student's enrolled subject list from the row data
-    const enrolledSubjects = record.subjectIds
+    // Build the student's enrolled subject list from the row data.
+    // currentAssignments is populated even when subjectIds is empty (inferred from subject class mapping).
+    const fromSubjectIds = record.subjectIds
       .map((id, idx) => ({ id, name: record.subjectNames[idx] ?? "" }))
       .filter((s) => s.id > 0 && s.name);
+    const fromAssignments = record.currentAssignments
+      .filter((a) => a.subjectId && a.subjectName)
+      .map((a) => ({ id: a.subjectId!, name: a.subjectName }));
+    const enrolledSubjects = Array.from(
+      new Map([...fromSubjectIds, ...fromAssignments].map((s) => [s.id, s])).values()
+    );
     // Save the current admin state
     localStorage.setItem(
       IMPERSONATION_STORAGE_KEY,

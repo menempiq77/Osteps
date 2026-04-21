@@ -280,7 +280,22 @@ export default function DashboardLayout({
   if (isSubjectCardsEntryRoute) {
     return (
       <SubjectContextProvider>
-        <div className="dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] p-3 md:p-6">
+        {/* Impersonation banner on subject-cards route */}
+        {impersonating && (
+          <div className="fixed top-0 left-0 right-0 z-[9999] flex items-center justify-between bg-amber-500 px-4 py-2 text-white text-sm font-medium shadow-lg">
+            <span>👁️ Viewing as <strong>{currentUser?.name || currentUser?.email}</strong> ({currentUser?.role})</span>
+            <button
+              onClick={handleStopImpersonation}
+              className="ml-4 rounded bg-white px-3 py-1 text-amber-700 font-semibold hover:bg-amber-100 transition-colors"
+            >
+              ← Return to Admin
+            </button>
+          </div>
+        )}
+        <div
+          className="dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] p-3 md:p-6"
+          style={impersonating ? { paddingTop: 56 } : undefined}
+        >
           <div className="mx-auto max-w-7xl">
             <div className="mb-4 flex items-center justify-end gap-2">
               <div className="flex items-center gap-1 rounded-lg border border-[var(--theme-border)] bg-[var(--theme-soft)] px-2 py-1">
