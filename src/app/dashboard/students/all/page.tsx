@@ -381,6 +381,7 @@ export default function AllStudentsPage() {
     preselectedClassId ? [preselectedClassId] : []
   );
   const [genderFilters, setGenderFilters] = useState<Array<"Male" | "Female" | "Unknown">>([]);
+  const [subjectFilter, setSubjectFilter] = useState<number[]>([]);
   const [editingStudent, setEditingStudent] = useState<StudentListRow | null>(null);
   const [editingStudents, setEditingStudents] = useState<StudentListRow[]>([]);
   const [deletingStudent, setDeletingStudent] = useState<StudentListRow | null>(null);
@@ -1101,13 +1102,17 @@ export default function AllStudentsPage() {
         );
       const genderMatch =
         genderFilters.length === 0 || genderFilters.includes(row.gender);
+      const subjectMatch =
+        subjectFilter.length === 0 ||
+        row.subjectIds.some((id) => subjectFilter.includes(id));
       return (
         nameMatch &&
         yearMatch &&
         yearIdMatch &&
         classMatch &&
         subjectClassMatch &&
-        genderMatch
+        genderMatch &&
+        subjectMatch
       );
     });
   }, [
@@ -1117,8 +1122,22 @@ export default function AllStudentsPage() {
     yearIdFilter,
     classFilters,
     genderFilters,
+    subjectFilter,
     preselectedSubjectClassLabel,
   ]);
+
+  const subjectFilterOptions = useMemo(() => {
+    const map = new Map<number, string>();
+    students.forEach((row) => {
+      row.subjectIds.forEach((id, idx) => {
+        if (!map.has(id)) map.set(id, row.subjectNames[idx] ?? "");
+      });
+    });
+    return Array.from(map.entries())
+      .map(([value, label]) => ({ value, label }))
+      .filter((item) => item.label)
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [students]);
 
   const classOptions = useMemo(() => {
     const unique = Array.from(
@@ -1362,6 +1381,7 @@ export default function AllStudentsPage() {
     setYearIdFilter("");
     setClassFilters([]);
     setGenderFilters([]);
+    setSubjectFilter([]);
   };
 
   const pageTitle =
@@ -2444,6 +2464,19 @@ export default function AllStudentsPage() {
             maxTagCount="responsive"
             allowClear
           />
+
+          {subjects.length > 1 && !isSubjectWorkspaceMode && (
+            <Select
+              mode="multiple"
+              value={subjectFilter}
+              onChange={(value) => setSubjectFilter(value as number[])}
+              style={{ width: 260 }}
+              placeholder="Filter by subject"
+              options={subjectFilterOptions}
+              maxTagCount="responsive"
+              allowClear
+            />
+          )}
 
           <Button onClick={resetFilters}>Reset Filters</Button>
           {isSchoolAdmin && (
