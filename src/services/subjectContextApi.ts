@@ -104,6 +104,31 @@ const extractContext = (payload: any): SubjectContextResponse => {
   };
 };
 
+// Derive which subjects are linked to a specific base class (for student impersonation).
+const fetchStudentSubjectsFromBaseClass = async (studentClassId: number): Promise<SubjectBrief[]> => {
+  const allSubjects = normalizeSubjects(await fetchSubjects());
+  if (allSubjects.length === 0) return [];
+
+  const results = await Promise.all(
+    allSubjects.map(async (subject) => {
+      try {
+        const subjectClasses = await fetchSubjectClasses({ subject_id: Number(subject.id), include_inactive: true });
+        const linked = (Array.isArray(subjectClasses) ? subjectClasses : []).some((sc: any) => {
+          const linkedId = Number(
+            sc.class_id ?? sc.base_class_id ?? sc.class?.id ?? sc.classes?.id ?? sc.base_class?.id ?? 0
+          );
+          return linkedId === studentClassId;
+        });
+        return linked ? subject : null;
+      } catch {
+        return null;
+      }
+    })
+  );
+
+  return results.filter((s): s is SubjectBrief => Boolean(s));
+};
+
 export const fetchMySubjectContext = async (options?: {
   role?: string;
   knownSubjects?: Array<{ id: number; name: string; code?: string | null }>;
@@ -249,6 +274,23 @@ export const fetchMySubjectContext = async (options?: {
   if (isStudent) {
     const sid = Number(options?.studentId ?? 0);
     const classId = Number(options?.studentClassId ?? 0);
+
+    // When impersonating: derive subjects from which subject-classes are linked to the student's base class.
+    // This works even for "Not linked" students whose pivot data is missing, because it checks the
+    // subject-class → base-class mapping that the admin configured, not the student's individual enrollment.
+    if (isAdminImpersonating && classId > 0) {
+      try {
+        const derived = await fetchStudentSubjectsFromBaseClass(classId);
+        if (derived.length > 0) {
+          console.log("[SubjectContext] impersonation class-based derivation:", derived.map(s => s.name));
+          return { assigned_subjects: derived, default_subject_id: derived[0]?.id ?? null, subject_roles: [] };
+        }
+      } catch (err: any) {
+        console.warn("[SubjectContext] impersonation class-based derivation failed:", err?.message);
+      }
+      return { assigned_subjects: [], default_subject_id: null, subject_roles: [] };
+    }
+
     if (Number.isFinite(classId) && classId > 0 && Number.isFinite(sid) && sid > 0) {
       try {
         const res = await api.get(`/get-student/${classId}`);
