@@ -219,14 +219,21 @@ export const fetchMySubjectContext = async (options?: {
     return { assigned_subjects: [], default_subject_id: null, subject_roles: [] };
   }
 
-  // Non-staff: try backend API first, then knownSubjects
-  try {
-    const res = await api.get("/subjects/my-context");
-    const normalized = extractContext(res.data);
-    console.log("[SubjectContext] /subjects/my-context returned", normalized.assigned_subjects.length, "subjects:", normalized.assigned_subjects.map(s => s.name));
-    if (normalized.assigned_subjects.length > 0) return normalized;
-  } catch (err: any) {
-    console.warn("[SubjectContext] /subjects/my-context failed:", err?.response?.status, err?.message);
+  // When impersonating via admin token, /subjects/my-context returns all school subjects
+  // (because the admin token has full access). Skip it and rely on class-based fetch instead.
+  const isAdminImpersonating =
+    typeof window !== "undefined" && !!localStorage.getItem("osteps_impersonating_admin");
+
+  // Non-staff: try backend API first, then knownSubjects (skip when impersonating)
+  if (!isAdminImpersonating) {
+    try {
+      const res = await api.get("/subjects/my-context");
+      const normalized = extractContext(res.data);
+      console.log("[SubjectContext] /subjects/my-context returned", normalized.assigned_subjects.length, "subjects:", normalized.assigned_subjects.map(s => s.name));
+      if (normalized.assigned_subjects.length > 0) return normalized;
+    } catch (err: any) {
+      console.warn("[SubjectContext] /subjects/my-context failed:", err?.response?.status, err?.message);
+    }
   }
 
   if (known.length > 0) {
@@ -265,6 +272,10 @@ export const fetchMySubjectContext = async (options?: {
     }
 
     // Last resort: fetch all school subjects so student isn't stuck.
+    // When impersonating, don't fall back to all subjects — return empty so we see only what the student sees.
+    if (isAdminImpersonating) {
+      return { assigned_subjects: [], default_subject_id: null, subject_roles: [] };
+    }
     try {
       const subjects = normalizeSubjects(await fetchSubjects());
       return {

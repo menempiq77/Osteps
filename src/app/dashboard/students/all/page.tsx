@@ -1401,6 +1401,10 @@ export default function AllStudentsPage() {
   const router = useRouter();
   const handleLoginAsStudent = (record: StudentListRow) => {
     if (!currentUser) return;
+    // Build the student's enrolled subject list from the row data
+    const enrolledSubjects = record.subjectIds
+      .map((id, idx) => ({ id, name: record.subjectNames[idx] ?? "" }))
+      .filter((s) => s.id > 0 && s.name);
     // Save the current admin state
     localStorage.setItem(
       IMPERSONATION_STORAGE_KEY,
@@ -1418,7 +1422,7 @@ export default function AllStudentsPage() {
       studentClass: record.classId,
       studentClassName: record.className,
       studentYearName: record.yearGroup,
-      assigned_subjects: [],
+      assigned_subjects: enrolledSubjects,
       subject_roles: [],
     }));
     router.push("/dashboard");
