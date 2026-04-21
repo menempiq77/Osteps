@@ -642,8 +642,6 @@ export default function ReportsPage() {
                       (assessment) => assessment.assessment_name
                     ) || []),
                     "Total",
-                    "Mind Points",
-                    "Total + Mind",
                     "Grade",
                   ].map((header, index) => (
                     <th
@@ -684,12 +682,6 @@ export default function ReportsPage() {
                         <span className="block text-xs text-gray-400">
                           {student.percentage}%
                         </span>
-                      </td>
-                      <td className="px-2 py-2 border border-gray-300 whitespace-nowrap text-sm text-gray-500 font-medium">
-                        {student.mindPoints}
-                      </td>
-                      <td className="px-2 py-2 border border-gray-300 whitespace-nowrap text-sm text-gray-500 font-medium">
-                        {student.totalWithMind}
                       </td>
 
                       <td className="px-2 py-3 border border-gray-300 whitespace-nowrap text-sm font-medium text-center">
