@@ -2379,32 +2379,12 @@ export default function AllStudentsPage() {
       />
 
       <Card className="border border-[#D6EFE2] mb-4">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <Typography.Title level={3} className="!mb-1">
-              {pageTitle}
-            </Typography.Title>
-            <Typography.Text className="text-gray-500">
-              View and filter students by name, year group, class, and gender.
-            </Typography.Text>
-          </div>
-          {isSchoolAdmin && (
-            <div className="flex gap-2 mt-1">
-              <button
-                onClick={() => router.push("/dashboard/students/all-students")}
-                className="px-5 py-2 rounded-lg text-sm font-semibold border-2 border-[var(--primary)] bg-[var(--primary)] text-white transition-all"
-              >
-                Students
-              </button>
-              <button
-                onClick={() => router.push("/dashboard/teachers")}
-                className="px-5 py-2 rounded-lg text-sm font-semibold border-2 border-[var(--primary)] text-[var(--primary)] bg-white hover:bg-[var(--theme-soft)] transition-all"
-              >
-                Teachers
-              </button>
-            </div>
-          )}
-        </div>
+        <Typography.Title level={3} className="!mb-1">
+          {pageTitle}
+        </Typography.Title>
+        <Typography.Text className="text-gray-500">
+          View and filter students by name, year group, class, and gender.
+        </Typography.Text>
         {yearIdFilter && (
           <Typography.Text className="block text-emerald-700 text-sm mt-1">
             Year filter applied from previous page.
