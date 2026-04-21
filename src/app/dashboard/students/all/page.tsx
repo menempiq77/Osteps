@@ -1432,7 +1432,7 @@ export default function AllStudentsPage() {
       assigned_subjects: enrolledSubjects,
       subject_roles: [],
     }));
-    router.push("/dashboard");
+    router.push("/dashboard/subject-cards");
   };
 
   const probeAssignFeature = async () => {

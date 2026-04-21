@@ -317,7 +317,7 @@ export default function TeacherList() {
         : [],
       subject_roles: [],
     }));
-    router.push("/dashboard");
+    router.push("/dashboard/subject-cards");
   };
 
   const handleDeleteTeacher = async (teacherId: string) => {
