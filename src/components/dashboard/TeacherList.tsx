@@ -374,6 +374,22 @@ export default function TeacherList() {
                 from one place.
               </p>
             </div>
+            {hasAccess && (
+              <div className="flex gap-2 mt-1">
+                <button
+                  onClick={() => router.push("/dashboard/students/all-students")}
+                  className="px-5 py-2 rounded-lg text-sm font-semibold border-2 border-[var(--primary)] text-[var(--primary)] bg-white hover:bg-[var(--theme-soft)] transition-all"
+                >
+                  Students
+                </button>
+                <button
+                  onClick={() => router.push("/dashboard/teachers")}
+                  className="px-5 py-2 rounded-lg text-sm font-semibold border-2 border-[var(--primary)] bg-[var(--primary)] text-white transition-all"
+                >
+                  Teachers
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="flex w-full flex-col gap-3 xl:max-w-[640px]">
