@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import {
   Alert,
   Breadcrumb,
@@ -24,8 +24,9 @@ import {
   Typography,
   message,
 } from "antd";
-import { MinusCircleOutlined, PlusOutlined } from "@ant-design/icons";
+import { MinusCircleOutlined, PlusOutlined, LoginOutlined } from "@ant-design/icons";
 import { RootState } from "@/store/store";
+import { IMPERSONATION_STORAGE_KEY, setCurrentUser } from "@/features/auth/authSlice";
 import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
 import { fetchClasses } from "@/services/classesApi";
 import { addStudent, deleteStudent, fetchStudentProfileData, fetchStudents, updateStudent } from "@/services/studentsApi";
@@ -342,6 +343,7 @@ export default function AllStudentsPage() {
   const preselectedClassId = searchParams.get("classId") || "";
   const preselectedSubjectClassLabel = searchParams.get("subjectClassLabel") || "";
   const queryClient = useQueryClient();
+  const dispatch = useDispatch();
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const role = currentUser?.role;
   const canView = role === "SCHOOL_ADMIN" || role === "HOD" || role === "TEACHER";
@@ -1394,6 +1396,32 @@ export default function AllStudentsPage() {
     setAssignFeatureMessage("");
     setAssignDrawerOpen(true);
     void probeAssignFeature();
+  };
+
+  const router = useRouter();
+  const handleLoginAsStudent = (record: StudentListRow) => {
+    if (!currentUser) return;
+    // Save the current admin state
+    localStorage.setItem(
+      IMPERSONATION_STORAGE_KEY,
+      JSON.stringify({ currentUser, token: currentUser.token })
+    );
+    // Switch to student identity (keep admin token for API access)
+    dispatch(setCurrentUser({
+      id: record.profileId || record.studentId,
+      email: record.email,
+      role: "STUDENT",
+      name: record.name,
+      school: currentUser.school,
+      token: currentUser.token,
+      student: Number(record.studentId) || null,
+      studentClass: record.classId,
+      studentClassName: record.className,
+      studentYearName: record.yearGroup,
+      assigned_subjects: [],
+      subject_roles: [],
+    }));
+    router.push("/dashboard");
   };
 
   const probeAssignFeature = async () => {
@@ -2546,6 +2574,21 @@ export default function AllStudentsPage() {
                           View
                         </Button>
                       </Link>
+                      {isSchoolAdmin && (
+                        <Button
+                          size="small"
+                          icon={<LoginOutlined />}
+                          style={{
+                            backgroundColor: "#6366f1",
+                            borderColor: "#6366f1",
+                            color: "#fff",
+                          }}
+                          title="Login as this student"
+                          onClick={() => handleLoginAsStudent(record)}
+                        >
+                          Login As
+                        </Button>
+                      )}
                       {canEdit ? (
                         <>
                           <Button

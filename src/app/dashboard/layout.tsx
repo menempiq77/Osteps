@@ -1,6 +1,6 @@
 "use client";
 
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/store/store";
 import Sidebar from "@/components/ui/Sidebar";
 import SubjectSwitcher from "@/components/ui/SubjectSwitcher";
@@ -9,6 +9,8 @@ import { SubjectContextProvider } from "@/contexts/SubjectContext";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { getStoredSubjectName } from "@/lib/subjectScope";
+import { IMPERSONATION_STORAGE_KEY, isImpersonating, setCurrentUser } from "@/features/auth/authSlice";
+import { User } from "@/features/auth/types";
 
 const THEME_STORAGE_KEY = "osteps-dashboard-theme";
 const THEMES = {
@@ -91,12 +93,14 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const { currentUser } = useSelector((state: RootState) => state.auth);
+  const dispatch = useDispatch();
   const pathname = usePathname();
   const router = useRouter();
   const [isHydrated, setIsHydrated] = useState(false);
   const [isRouteTransitioning, setIsRouteTransitioning] = useState(false);
   const [themeName, setThemeName] = useState<ThemeName>("green");
   const [storedSubjectName, setStoredSubjectName] = useState<string | null>(null);
+  const [impersonating, setImpersonating] = useState(false);
   const unscopedPathname = pathname.replace(
     /^\/dashboard\/s\/\d+(?:\/[^/]+)?(?=\/|$)/,
     "/dashboard"
@@ -142,6 +146,22 @@ export default function DashboardLayout({
   useEffect(() => {
     setIsHydrated(true);
   }, []);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    setImpersonating(isImpersonating());
+  }, [isHydrated, pathname]);
+
+  const handleStopImpersonation = () => {
+    const raw = localStorage.getItem(IMPERSONATION_STORAGE_KEY);
+    localStorage.removeItem(IMPERSONATION_STORAGE_KEY);
+    if (raw) {
+      const { currentUser: adminUser } = JSON.parse(raw) as { currentUser: User; token: string };
+      dispatch(setCurrentUser(adminUser));
+    }
+    setImpersonating(false);
+    router.push("/dashboard/students/all-students");
+  };
 
   useEffect(() => {
     if (!isHydrated) return;
@@ -290,6 +310,19 @@ export default function DashboardLayout({
 
   return (
     <SubjectContextProvider>
+      {/* Impersonation banner */}
+      {impersonating && (
+        <div className="fixed top-0 left-0 right-0 z-[9999] flex items-center justify-between bg-amber-500 px-4 py-2 text-white text-sm font-medium shadow-lg">
+          <span>👁️ Viewing as <strong>{currentUser?.name || currentUser?.email}</strong> ({currentUser?.role})</span>
+          <button
+            onClick={handleStopImpersonation}
+            className="ml-4 rounded bg-white px-3 py-1 text-amber-700 font-semibold hover:bg-amber-100 transition-colors"
+          >
+            ← Return to Admin
+          </button>
+        </div>
+      )}
+      <div style={impersonating ? { paddingTop: 40 } : undefined}>
       {isStandaloneTeacherRoute ||
       isAllStudentsStandaloneRoute ||
       isGlobalStudentProfileRoute ||
@@ -548,6 +581,7 @@ export default function DashboardLayout({
           }
         }
       `}</style>
+      </div>
     </SubjectContextProvider>
   );
 }

@@ -4,7 +4,7 @@ import { AddTeacherModal } from "../modals/teacherModals/AddTeacherModal";
 import { EditTeacherModal } from "../modals/teacherModals/EditTeacherModal";
 import AssignTeacherModal from "../modals/teacherModals/AssignTeacherModal";
 import { Spin, Modal, Button, Select, message } from "antd";
-import { EditOutlined, DeleteOutlined, TeamOutlined } from "@ant-design/icons";
+import { EditOutlined, DeleteOutlined, TeamOutlined, LoginOutlined } from "@ant-design/icons";
 import {
   fetchTeachers,
   addTeacher,
@@ -12,12 +12,13 @@ import {
   deleteTeacher as deleteTeacherApi,
   assignTeacherToClass,
 } from "@/services/teacherApi";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/store/store";
 import { useRouter } from "next/navigation";
 import { fetchSubjects } from "@/services/subjectsApi";
 import { assignStaffSubjects, fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
 import { resolveSubjectClassLinkedIdWithFallback } from "@/lib/subjectClassResolution";
+import { IMPERSONATION_STORAGE_KEY, setCurrentUser } from "@/features/auth/authSlice";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 
@@ -96,6 +97,7 @@ async function assignHODToAllSubjectClasses(teacherId: number, subjectIds: numbe
 
 export default function TeacherList() {
   const router = useRouter();
+  const dispatch = useDispatch();
   const [error, setError] = useState<string | null>(null);
   const [editTeacher, setEditTeacher] = useState<Teacher | null>(null);
   const [deleteTeacher, setDeleteTeacher] = useState<Teacher | null>(null);
@@ -295,6 +297,27 @@ export default function TeacherList() {
       console.error("Failed to add teacher:", err);
       messageApi?.error("Failed to add teacher");
     }
+  };
+
+  const handleLoginAsTeacher = (teacher: Teacher) => {
+    if (!currentUser) return;
+    localStorage.setItem(
+      IMPERSONATION_STORAGE_KEY,
+      JSON.stringify({ currentUser, token: currentUser.token })
+    );
+    dispatch(setCurrentUser({
+      id: String(teacher.id),
+      email: teacher.email || "",
+      role: teacher.role === "HOD" ? "HOD" : "TEACHER",
+      name: teacher.name || "",
+      school: currentUser.school,
+      token: currentUser.token,
+      assigned_subjects: Array.isArray(teacher.subjects)
+        ? teacher.subjects.map((s) => ({ id: s.id, name: s.name }))
+        : [],
+      subject_roles: [],
+    }));
+    router.push("/dashboard");
   };
 
   const handleDeleteTeacher = async (teacherId: string) => {
@@ -514,6 +537,13 @@ export default function TeacherList() {
 
                     {hasAccess && (
                       <td className="relative p-2 md:p-4 flex justify-center space-x-3">
+                        <button
+                          onClick={() => handleLoginAsTeacher(teacher)}
+                          className="cursor-pointer text-indigo-500 transition hover:text-indigo-700"
+                          title="Login as this teacher"
+                        >
+                          <LoginOutlined />
+                        </button>
                         <button
                           onClick={() => handleAssignTeacher(teacher)}
                           className="cursor-pointer text-blue-500 transition hover:text-blue-700"

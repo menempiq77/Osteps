@@ -140,5 +140,12 @@ const authSlice = createSlice({
   },
 });
 
+export const IMPERSONATION_STORAGE_KEY = "osteps_impersonating_admin";
+
+export const isImpersonating = (): boolean => {
+  if (typeof window === "undefined") return false;
+  return !!localStorage.getItem(IMPERSONATION_STORAGE_KEY);
+};
+
 export const { logout, addUser, setCurrentUser } = authSlice.actions;
 export default authSlice.reducer;
