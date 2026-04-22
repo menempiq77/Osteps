@@ -83,8 +83,9 @@ export default function TrackerList() {
   const loadTrackers = async () => {
     try {
       setLoading(true);
-      const subjectId = canUseSubjectContext && activeSubjectId ? activeSubjectId : undefined;
-      const data = await fetchTrackers(Number(classId), subjectId);
+      // classId already scopes results to the student's subject-specific class,
+      // so no additional subject_id filter is needed here.
+      const data = await fetchTrackers(Number(classId));
       setTrackers(
         data.map((tracker: any) => ({
           ...tracker,
