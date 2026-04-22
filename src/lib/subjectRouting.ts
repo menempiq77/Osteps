@@ -32,6 +32,7 @@ const SHARED_PREFIXES = [
   "/dashboard/students/settings",
   "/dashboard/teachers/settings",
   "/dashboard/admins/settings",
+  "/dashboard/trackers",
 ];
 
 const SHARED_EXACT_PATHS = [
