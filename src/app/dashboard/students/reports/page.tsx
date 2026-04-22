@@ -625,23 +625,6 @@ export default function ReportsPage() {
         <span>{currentClass?.subject || "Subject"}</span>
       </div>
 
-      <div className="mb-6 flex flex-col lg:flex-row gap-2">
-        <h3 className="font-medium min-w-[120px]">Markbook:</h3>
-        <div className="flex flex-wrap items-center space-x-2 text-sm text-gray-600">
-          {assesmentData?.map((item: any, index: number) => (
-            <React.Fragment key={index}>
-              <span
-                onClick={() => handleViewReportsDetail(item.id)}
-                className="text-blue-500 cursor-pointer hover:underline"
-              >
-                {item?.name || item?.quiz?.name}
-              </span>
-              <span>|</span>
-            </React.Fragment>
-          ))}
-        </div>
-      </div>
-
       <div className="bg-white overflow-hidden">
         <div className="overflow-x-auto relative rounded-lg shadow-md">
 
