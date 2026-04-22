@@ -149,19 +149,40 @@ export default function AllTrackerList() {
     },
   });
 
-  // Filter: show subject-matching trackers + untagged legacy trackers.
+  // Filter: only show trackers tagged to this subject.
   const trackers = (subjectContextLoading || isLoading)
     ? []
     : inSubjectContext
-      ? rawTrackers.filter((t: any) => {
-          const tid = resolveTrackerSubjectId(t);
-          return tid === Number(activeSubjectId) || tid === null;
-        })
+      ? filterTrackersBySubject(rawTrackers, Number(activeSubjectId))
       : rawTrackers;
 
   const untaggedTrackers = inSubjectContext
     ? rawTrackers.filter((t: any) => isTrackerUntagged(t))
     : [];
+
+  const handleClaimOneForSubject = async (t: any) => {
+    if (!activeSubjectId) return;
+    setIsClaiming(true);
+    try {
+      try {
+        await updateTrackerAPI(t.id, {
+          school_id: Number(schoolId),
+          name: t.name,
+          type: t.type || "topic",
+          progress: Array.isArray(t.progress) ? t.progress : [],
+          deadline: normalizeDeadline(t),
+        }, Number(activeSubjectId));
+      } catch (apiErr: any) {
+        console.warn(`[Claim] Backend update failed for tracker ${t.id}:`, apiErr?.response?.data ?? apiErr?.message);
+      }
+      tagTrackerWithSubject(t.id, Number(activeSubjectId));
+      await queryClient.invalidateQueries({ queryKey: ["trackers", schoolId] });
+    } catch (err: any) {
+      messageApi.error("Failed to assign tracker.");
+    } finally {
+      setIsClaiming(false);
+    }
+  };
 
   const handleClaimAllForSubject = async () => {
     if (!activeSubjectId || untaggedTrackers.length === 0) return;
@@ -354,22 +375,28 @@ export default function AllTrackerList() {
 
       <div className="premium-card relative overflow-auto rounded-xl p-1">
 
-        {/* Claim banner — only admins/HODs see this, only in a subject workspace with untagged trackers */}
+        {/* Untagged trackers — shown per-tracker so admin can assign each to the right subject */}
         {inSubjectContext && untaggedTrackers.length > 0 && canDeleteTrackers && (
-          <div className="mx-3 mt-3 flex items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
-            <p className="text-sm text-amber-800">
-              <strong>{untaggedTrackers.length} tracker{untaggedTrackers.length > 1 ? "s are" : " is"} not assigned to any subject.</strong>
-              {" "}Click to permanently assign {untaggedTrackers.length > 1 ? "them" : "it"} to <strong>{activeSubject?.name}</strong>.
+          <div className="mx-3 mt-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
+            <p className="text-sm font-semibold text-amber-800 mb-2">
+              {untaggedTrackers.length} tracker{untaggedTrackers.length > 1 ? "s are" : " is"} not assigned to any subject. Assign each one to its correct subject:
             </p>
-            <button
-              type="button"
-              onClick={handleClaimAllForSubject}
-              disabled={isClaiming}
-              className="shrink-0 rounded-lg px-4 h-8 font-medium text-sm text-white cursor-pointer border-none disabled:opacity-60"
-              style={{ backgroundColor: "var(--primary)" }}
-            >
-              {isClaiming ? "Assigning..." : `Assign all to ${activeSubject?.name}`}
-            </button>
+            <div className="flex flex-col gap-2">
+              {untaggedTrackers.map((t: any) => (
+                <div key={t.id} className="flex items-center justify-between gap-3 bg-white rounded-lg border border-amber-200 px-3 py-2">
+                  <span className="text-sm font-medium text-gray-800">{t.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleClaimOneForSubject(t)}
+                    disabled={isClaiming}
+                    className="shrink-0 rounded-lg px-3 h-7 font-medium text-xs text-white cursor-pointer border-none disabled:opacity-60"
+                    style={{ backgroundColor: "var(--primary)" }}
+                  >
+                    {isClaiming ? "..." : `Assign to ${activeSubject?.name}`}
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
