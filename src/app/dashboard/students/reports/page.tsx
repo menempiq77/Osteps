@@ -614,7 +614,7 @@ export default function ReportsPage() {
       <h1 className="text-2xl font-bold text-gray-900 mb-6">
         {currentClass?.subject || "Subject"}
       </h1>
-      <div className="flex items-center space-x-4 mb-4 text-sm text-blue-500">
+      <div className="flex items-center space-x-4 mb-4 text-sm text-gray-500">
         <span>Home &gt;</span>
         <span>
           {selectedYear
