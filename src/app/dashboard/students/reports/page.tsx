@@ -9,7 +9,7 @@ import {
   fetchReportAssessments,
   fetchWholeAssessmentsReport,
 } from "@/services/reportApi";
-import { addTask, addStudentTaskMarks, addAssessment, assignAssessmentToTerm, updateTask } from "@/services/api";
+import { addStudentTaskMarks } from "@/services/api";
 import { fetchGrades } from "@/services/gradesApi";
 import { fetchYearsBySchool } from "@/services/yearsApi";
 import { useSelector } from "react-redux";
@@ -116,17 +116,6 @@ export default function ReportsPage() {
   const [editingValue, setEditingValue] = useState<string>("");
   const [savingCell, setSavingCell] = useState<{ studentId: number; taskId: number } | null>(null);
   const [localMarkOverrides, setLocalMarkOverrides] = useState<Record<string, number>>({});
-
-  // Add column modal
-  const [showAddColumnModal, setShowAddColumnModal] = useState(false);
-  const [newColumnName, setNewColumnName] = useState("");
-  const [newColumnMarks, setNewColumnMarks] = useState<number>(10);
-  const [addingColumn, setAddingColumn] = useState(false);
-  const [selectedTermForNewColumn, setSelectedTermForNewColumn] = useState<string>("");
-
-  // Add term modal
-  const [showAddTermModal, setShowAddTermModal] = useState(false);
-  const [addingTerm, setAddingTerm] = useState(false);
 
   // Rename column (task)
   const [renamingTaskId, setRenamingTaskId] = useState<number | null>(null);
@@ -589,57 +578,6 @@ export default function ReportsPage() {
     }
   };
 
-  // ── Add Column ────────────────────────────────────────────────────────────
-  const handleAddColumn = async () => {
-    if (!newColumnName.trim() || !newColumnMarks) return;
-    const termToUse = selectedTermForNewColumn || (selectedTerm !== "all" ? selectedTerm : "");
-    const targetAssessment = termToUse
-      ? filteredAssessments.find((a) => extractTermHelper(a.assessment_name) === termToUse)
-      : filteredAssessments[0];
-
-    if (!targetAssessment) return;
-    setAddingColumn(true);
-    try {
-      const fd = new FormData();
-      fd.append("assessment_id", String(targetAssessment.assessment_id));
-      fd.append("task_name", newColumnName.trim());
-      fd.append("description", "");
-      fd.append("due_date", new Date().toISOString().split("T")[0]);
-      fd.append("allocated_marks", String(newColumnMarks));
-      fd.append("task_type", "null");
-      await addTask(fd);
-      const updated = await fetchWholeAssessmentsReport(schoolId, scopedSubjectId);
-      setWholeAssesmentData(updated);
-      setShowAddColumnModal(false);
-      setNewColumnName("");
-      setNewColumnMarks(10);
-      setSelectedTermForNewColumn("");
-    } finally {
-      setAddingColumn(false);
-    }
-  };
-
-  // ── Add Term ──────────────────────────────────────────────────────────────
-  const handleAddTerm = async (termRecord: { id: number; name: string }) => {
-    if (!selectedClass || !currentClass) return;
-    setAddingTerm(true);
-    try {
-      const className = currentClass.classes.class_name;
-      const assessmentName = `${className} - ${termRecord.name} - Assessments`;
-      const result: any = await addAssessment({ name: assessmentName });
-      const newId = result?.data?.id ?? result?.id ?? result?.assessment?.id;
-      if (newId) {
-        await assignAssessmentToTerm(Number(newId), termRecord.id);
-      }
-      const updated = await fetchWholeAssessmentsReport(schoolId, scopedSubjectId);
-      setWholeAssesmentData(updated);
-      setSelectedTerm(termRecord.name);
-      setShowAddTermModal(false);
-    } finally {
-      setAddingTerm(false);
-    }
-  };
-
   // ── Rename Column ─────────────────────────────────────────────────────────
   const handleRenameColumn = async (col: { taskId: number; allocatedMarks: number }) => {
     const name = renameValue.trim();
@@ -777,8 +715,8 @@ export default function ReportsPage() {
               />
             </div>
 
-            {/* Term tabs + Add Term */}
-            {(availableTerms.length > 0 || (canEdit && selectedClass)) && (
+            {/* Term tabs */}
+            {availableTerms.length > 0 && (
               <div className="flex items-end gap-0 mb-5 border-b border-gray-200">
                 <button
                   onClick={() => setSelectedTerm("all")}
@@ -803,22 +741,6 @@ export default function ReportsPage() {
                     {term}
                   </button>
                 ))}
-                {canEdit && unusedClassTerms.length > 0 && (
-                  <button
-                    onClick={() => setShowAddTermModal(true)}
-                    className="ml-2 px-3 py-2 text-sm text-blue-600 border-b-2 border-transparent hover:border-blue-400 hover:text-blue-700 flex items-center gap-1 -mb-px"
-                  >
-                    <span className="font-bold text-base leading-none">+</span> Add Term
-                  </button>
-                )}
-                {canEdit && unusedClassTerms.length === 0 && selectedClass && availableTerms.length === 0 && (
-                  <button
-                    onClick={() => setShowAddTermModal(true)}
-                    className="ml-2 px-3 py-2 text-sm text-blue-600 border-b-2 border-transparent hover:border-blue-400 flex items-center gap-1 -mb-px"
-                  >
-                    <span className="font-bold text-base leading-none">+</span> Add Term
-                  </button>
-                )}
               </div>
             )}
 
@@ -827,17 +749,6 @@ export default function ReportsPage() {
               <p className="text-xs text-gray-400">
                 {canEdit && taskColumns.length > 0 ? "Click any mark cell to edit · Click column header pencil to rename" : ""}
               </p>
-              {canEdit && filteredAssessments.length > 0 && (
-                <button
-                  onClick={() => {
-                    setSelectedTermForNewColumn(selectedTerm !== "all" ? selectedTerm : availableTerms[0] ?? "");
-                    setShowAddColumnModal(true);
-                  }}
-                  className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  <span className="text-lg leading-none">+</span> Add Column
-                </button>
-              )}
             </div>
 
             <div className="overflow-x-auto">
@@ -1064,154 +975,7 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {/* ── Add Column Modal ────────────────────────────────────────────── */}
-      {showAddColumnModal && (
-        <div
-          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
-          onClick={(e) => { if (e.target === e.currentTarget) setShowAddColumnModal(false); }}
-        >
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">Add Column</h3>
-            <p className="text-sm text-gray-500 mb-5">
-              Add a new task column to the markbook.
-            </p>
 
-            <div className="space-y-4">
-              {/* Term picker — required when "All" is the active tab */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Add to Term <span className="text-red-500">*</span>
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {availableTerms.map((term) => (
-                    <button
-                      key={term}
-                      type="button"
-                      onClick={() => setSelectedTermForNewColumn(term)}
-                      className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
-                        selectedTermForNewColumn === term
-                          ? "bg-green-600 text-white border-green-600"
-                          : "border-gray-300 text-gray-600 hover:border-green-400"
-                      }`}
-                    >
-                      {term}
-                    </button>
-                  ))}
-                </div>
-                {availableTerms.length === 0 && (
-                  <p className="text-xs text-red-500 mt-1">
-                    No terms exist yet. Add a term first.
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Column Title <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={newColumnName}
-                  onChange={(e) => setNewColumnName(e.target.value)}
-                  placeholder="e.g. Qur'an - Recitation"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Marks Out Of <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  value={newColumnMarks}
-                  min={1}
-                  onChange={(e) => setNewColumnMarks(Number(e.target.value))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6 justify-end">
-              <button
-                onClick={() => { setShowAddColumnModal(false); setNewColumnName(""); setNewColumnMarks(10); setSelectedTermForNewColumn(""); }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAddColumn}
-                disabled={
-                  addingColumn ||
-                  !newColumnName.trim() ||
-                  !newColumnMarks ||
-                  !selectedTermForNewColumn ||
-                  availableTerms.length === 0
-                }
-                className="px-4 py-2 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                {addingColumn && <Spin size="small" />}
-                {addingColumn ? "Adding..." : "Add Column"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Add Term Modal ───────────────────────────────────────────────── */}
-      {showAddTermModal && (
-        <div
-          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
-          onClick={(e) => { if (e.target === e.currentTarget) setShowAddTermModal(false); }}
-        >
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">Add Term</h3>
-            <p className="text-sm text-gray-500 mb-5">
-              Choose a term to add to the markbook for{" "}
-              <span className="font-medium">{currentClass?.classes.class_name}</span>.
-            </p>
-
-            {unusedClassTerms.length > 0 ? (
-              <>
-                <div className="flex flex-wrap gap-3 mb-6">
-                  {unusedClassTerms.map((term) => (
-                    <button
-                      key={term.id}
-                      onClick={() => handleAddTerm(term)}
-                      disabled={addingTerm}
-                      className="flex items-center gap-2 px-4 py-3 border-2 border-gray-200 rounded-xl hover:border-green-500 hover:bg-green-50 text-sm font-medium text-gray-700 transition-colors disabled:opacity-50"
-                    >
-                      {addingTerm ? <Spin size="small" /> : <span className="text-green-600 font-bold text-lg">+</span>}
-                      {term.name}
-                    </button>
-                  ))}
-                </div>
-                <p className="text-xs text-gray-400">
-                  Clicking a term will create an assessment sheet for that term and add it to the markbook.
-                </p>
-              </>
-            ) : (
-              <div className="py-4 text-center">
-                <p className="text-sm text-gray-500 mb-2">
-                  All available terms are already in the markbook.
-                </p>
-                <p className="text-xs text-gray-400">
-                  To add more terms, update the class configuration in the admin settings.
-                </p>
-              </div>
-            )}
-
-            <div className="flex justify-end mt-6">
-              <button
-                onClick={() => setShowAddTermModal(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
