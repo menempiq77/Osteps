@@ -9,7 +9,7 @@ import {
   fetchReportAssessments,
   fetchWholeAssessmentsReport,
 } from "@/services/reportApi";
-import { addTask, addStudentTaskMarks } from "@/services/api";
+import { addTask, addStudentTaskMarks, addAssessment, assignAssessmentToTerm, updateTask } from "@/services/api";
 import { fetchGrades } from "@/services/gradesApi";
 import { fetchYearsBySchool } from "@/services/yearsApi";
 import { useSelector } from "react-redux";
@@ -122,6 +122,16 @@ export default function ReportsPage() {
   const [newColumnName, setNewColumnName] = useState("");
   const [newColumnMarks, setNewColumnMarks] = useState<number>(10);
   const [addingColumn, setAddingColumn] = useState(false);
+  const [selectedTermForNewColumn, setSelectedTermForNewColumn] = useState<string>("");
+
+  // Add term modal
+  const [showAddTermModal, setShowAddTermModal] = useState(false);
+  const [addingTerm, setAddingTerm] = useState(false);
+
+  // Rename column (task)
+  const [renamingTaskId, setRenamingTaskId] = useState<number | null>(null);
+  const [renameValue, setRenameValue] = useState<string>("");
+  const [savingRename, setSavingRename] = useState(false);
   // Tracks whether the combined classes+assessments fetch is still in-flight
   const [classesReady, setClassesReady] = useState(false);
   
@@ -469,6 +479,11 @@ export default function ReportsPage() {
     return terms.sort();
   })();
 
+  // Class-level term records that don't yet have an assessment in this markbook
+  const unusedClassTerms = (currentClass?.classes.term ?? []).filter(
+    (t) => !availableTerms.some((at) => at.toLowerCase() === t.name.toLowerCase())
+  );
+
   // Filter by search term AND URL student ID (only if applyUrlFilter is true)
   const filteredData = transformedData?.filter((student) => {
     const matchesSearch = student?.student?.toLowerCase()?.includes(searchTerm?.toLowerCase());
@@ -577,10 +592,10 @@ export default function ReportsPage() {
   // ── Add Column ────────────────────────────────────────────────────────────
   const handleAddColumn = async () => {
     if (!newColumnName.trim() || !newColumnMarks) return;
-    const targetAssessment =
-      filteredAssessments.find((a) =>
-        selectedTerm === "all" || extractTermHelper(a.assessment_name) === selectedTerm
-      ) ?? filteredAssessments[0];
+    const termToUse = selectedTermForNewColumn || (selectedTerm !== "all" ? selectedTerm : "");
+    const targetAssessment = termToUse
+      ? filteredAssessments.find((a) => extractTermHelper(a.assessment_name) === termToUse)
+      : filteredAssessments[0];
 
     if (!targetAssessment) return;
     setAddingColumn(true);
@@ -598,8 +613,52 @@ export default function ReportsPage() {
       setShowAddColumnModal(false);
       setNewColumnName("");
       setNewColumnMarks(10);
+      setSelectedTermForNewColumn("");
     } finally {
       setAddingColumn(false);
+    }
+  };
+
+  // ── Add Term ──────────────────────────────────────────────────────────────
+  const handleAddTerm = async (termRecord: { id: number; name: string }) => {
+    if (!selectedClass || !currentClass) return;
+    setAddingTerm(true);
+    try {
+      const className = currentClass.classes.class_name;
+      const assessmentName = `${className} - ${termRecord.name} - Assessments`;
+      const result: any = await addAssessment({ name: assessmentName });
+      const newId = result?.data?.id ?? result?.id ?? result?.assessment?.id;
+      if (newId) {
+        await assignAssessmentToTerm(Number(newId), termRecord.id);
+      }
+      const updated = await fetchWholeAssessmentsReport(schoolId, scopedSubjectId);
+      setWholeAssesmentData(updated);
+      setSelectedTerm(termRecord.name);
+      setShowAddTermModal(false);
+    } finally {
+      setAddingTerm(false);
+    }
+  };
+
+  // ── Rename Column ─────────────────────────────────────────────────────────
+  const handleRenameColumn = async (col: { taskId: number; allocatedMarks: number }) => {
+    const name = renameValue.trim();
+    if (!name) { setRenamingTaskId(null); return; }
+    setSavingRename(true);
+    try {
+      const fd = new FormData();
+      fd.append("task_name", name);
+      fd.append("description", "");
+      fd.append("due_date", new Date().toISOString().split("T")[0]);
+      fd.append("allocated_marks", String(col.allocatedMarks));
+      fd.append("task_type", "null");
+      await updateTask(String(col.taskId), fd);
+      const updated = await fetchWholeAssessmentsReport(schoolId, scopedSubjectId);
+      setWholeAssesmentData(updated);
+    } finally {
+      setSavingRename(false);
+      setRenamingTaskId(null);
+      setRenameValue("");
     }
   };
 
@@ -718,14 +777,14 @@ export default function ReportsPage() {
               />
             </div>
 
-            {/* Term tabs */}
-            {availableTerms.length > 0 && (
-              <div className="flex gap-2 mb-5 border-b border-gray-200 pb-0">
+            {/* Term tabs + Add Term */}
+            {(availableTerms.length > 0 || (canEdit && selectedClass)) && (
+              <div className="flex items-end gap-0 mb-5 border-b border-gray-200">
                 <button
                   onClick={() => setSelectedTerm("all")}
-                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
                     selectedTerm === "all"
-                      ? "border-green-600 text-green-700"
+                      ? "border-green-600 text-green-700 bg-green-50 rounded-t"
                       : "border-transparent text-gray-500 hover:text-gray-700"
                   }`}
                 >
@@ -735,26 +794,45 @@ export default function ReportsPage() {
                   <button
                     key={term}
                     onClick={() => setSelectedTerm(term)}
-                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
                       selectedTerm === term
-                        ? "border-green-600 text-green-700"
+                        ? "border-green-600 text-green-700 bg-green-50 rounded-t"
                         : "border-transparent text-gray-500 hover:text-gray-700"
                     }`}
                   >
                     {term}
                   </button>
                 ))}
+                {canEdit && unusedClassTerms.length > 0 && (
+                  <button
+                    onClick={() => setShowAddTermModal(true)}
+                    className="ml-2 px-3 py-2 text-sm text-blue-600 border-b-2 border-transparent hover:border-blue-400 hover:text-blue-700 flex items-center gap-1 -mb-px"
+                  >
+                    <span className="font-bold text-base leading-none">+</span> Add Term
+                  </button>
+                )}
+                {canEdit && unusedClassTerms.length === 0 && selectedClass && availableTerms.length === 0 && (
+                  <button
+                    onClick={() => setShowAddTermModal(true)}
+                    className="ml-2 px-3 py-2 text-sm text-blue-600 border-b-2 border-transparent hover:border-blue-400 flex items-center gap-1 -mb-px"
+                  >
+                    <span className="font-bold text-base leading-none">+</span> Add Term
+                  </button>
+                )}
               </div>
             )}
 
             {/* Toolbar */}
             <div className="flex items-center justify-between mb-3">
               <p className="text-xs text-gray-400">
-                {canEdit ? "Click any mark cell to edit it." : ""}
+                {canEdit && taskColumns.length > 0 ? "Click any mark cell to edit · Click column header pencil to rename" : ""}
               </p>
               {canEdit && filteredAssessments.length > 0 && (
                 <button
-                  onClick={() => setShowAddColumnModal(true)}
+                  onClick={() => {
+                    setSelectedTermForNewColumn(selectedTerm !== "all" ? selectedTerm : availableTerms[0] ?? "");
+                    setShowAddColumnModal(true);
+                  }}
                   className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                 >
                   <span className="text-lg leading-none">+</span> Add Column
@@ -765,6 +843,31 @@ export default function ReportsPage() {
             <div className="overflow-x-auto">
             <table className="max-w-full table-fixed">
               <thead className="bg-[#f0f0f0]">
+                {/* Term group header row (only shown in "All" view) */}
+                {selectedTerm === "all" && taskColumns.length > 0 && (() => {
+                  // Group columns by term
+                  const groups: { term: string; count: number }[] = [];
+                  let last = "";
+                  taskColumns.forEach((col) => {
+                    if (col.term !== last) { groups.push({ term: col.term, count: 1 }); last = col.term; }
+                    else { groups[groups.length - 1].count++; }
+                  });
+                  return (
+                    <tr>
+                      <th className="border border-gray-300 bg-[#f0f0f0] sticky left-0 z-10" />
+                      {groups.map((g) => (
+                        <th
+                          key={g.term}
+                          colSpan={g.count}
+                          className="px-2 py-1 border border-gray-300 text-center text-xs font-semibold text-gray-600 bg-gray-100"
+                        >
+                          {g.term}
+                        </th>
+                      ))}
+                      <th colSpan={3} className="border border-gray-300 bg-[#f0f0f0]" />
+                    </tr>
+                  );
+                })()}
                 <tr>
                   <th className="w-28 px-2 border border-gray-300 py-3 text-left align-bottom text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-[#f0f0f0] z-10">
                     Student
@@ -772,7 +875,7 @@ export default function ReportsPage() {
                   {taskColumns.map((col) => (
                     <th
                       key={col.taskId}
-                      className="w-14 px-1 py-2 border border-gray-300 text-center text-xs font-medium text-gray-600 uppercase tracking-wider"
+                      className="w-14 px-1 py-2 border border-gray-300 text-center text-xs font-medium text-gray-600 uppercase tracking-wider group"
                       style={{
                         writingMode: "vertical-rl",
                         transform: "rotate(180deg)",
@@ -780,7 +883,40 @@ export default function ReportsPage() {
                         minWidth: "3rem",
                       }}
                     >
-                      {col.taskName}
+                      {renamingTaskId === col.taskId ? (
+                        <span style={{ writingMode: "horizontal-tb", transform: "none" }} className="flex flex-col gap-1">
+                          <input
+                            autoFocus
+                            value={renameValue}
+                            onChange={(e) => setRenameValue(e.target.value)}
+                            onBlur={() => handleRenameColumn(col)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") handleRenameColumn(col);
+                              if (e.key === "Escape") { setRenamingTaskId(null); setRenameValue(""); }
+                            }}
+                            className="border border-blue-400 rounded px-1 py-0.5 text-xs w-24"
+                          />
+                          {savingRename && <Spin size="small" />}
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1">
+                          {col.taskName}
+                          {canEdit && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setRenamingTaskId(col.taskId);
+                                setRenameValue(col.taskName);
+                              }}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-blue-500 ml-1"
+                              title="Rename column"
+                              style={{ writingMode: "horizontal-tb", transform: "none", fontSize: "10px" }}
+                            >
+                              ✎
+                            </button>
+                          )}
+                        </span>
+                      )}
                       <span className="block text-gray-400 normal-case font-normal">/{col.allocatedMarks}</span>
                     </th>
                   ))}
@@ -937,10 +1073,38 @@ export default function ReportsPage() {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-1">Add Column</h3>
             <p className="text-sm text-gray-500 mb-5">
-              Add a new task column to the markbook for the selected class.
+              Add a new task column to the markbook.
             </p>
 
             <div className="space-y-4">
+              {/* Term picker — required when "All" is the active tab */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Add to Term <span className="text-red-500">*</span>
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {availableTerms.map((term) => (
+                    <button
+                      key={term}
+                      type="button"
+                      onClick={() => setSelectedTermForNewColumn(term)}
+                      className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+                        selectedTermForNewColumn === term
+                          ? "bg-green-600 text-white border-green-600"
+                          : "border-gray-300 text-gray-600 hover:border-green-400"
+                      }`}
+                    >
+                      {term}
+                    </button>
+                  ))}
+                </div>
+                {availableTerms.length === 0 && (
+                  <p className="text-xs text-red-500 mt-1">
+                    No terms exist yet. Add a term first.
+                  </p>
+                )}
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Column Title <span className="text-red-500">*</span>
@@ -949,7 +1113,7 @@ export default function ReportsPage() {
                   type="text"
                   value={newColumnName}
                   onChange={(e) => setNewColumnName(e.target.value)}
-                  placeholder="e.g. T1 Qur'an - Recitation"
+                  placeholder="e.g. Qur'an - Recitation"
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
               </div>
@@ -966,28 +1130,83 @@ export default function ReportsPage() {
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
               </div>
-
-              {filteredAssessments.length === 0 && (
-                <p className="text-xs text-red-500">
-                  No assessment found for the selected class. Please select a class with an existing assessment first.
-                </p>
-              )}
             </div>
 
             <div className="flex gap-3 mt-6 justify-end">
               <button
-                onClick={() => { setShowAddColumnModal(false); setNewColumnName(""); setNewColumnMarks(10); }}
+                onClick={() => { setShowAddColumnModal(false); setNewColumnName(""); setNewColumnMarks(10); setSelectedTermForNewColumn(""); }}
                 className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddColumn}
-                disabled={addingColumn || !newColumnName.trim() || !newColumnMarks || filteredAssessments.length === 0}
+                disabled={
+                  addingColumn ||
+                  !newColumnName.trim() ||
+                  !newColumnMarks ||
+                  !selectedTermForNewColumn ||
+                  availableTerms.length === 0
+                }
                 className="px-4 py-2 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {addingColumn && <Spin size="small" />}
                 {addingColumn ? "Adding..." : "Add Column"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Add Term Modal ───────────────────────────────────────────────── */}
+      {showAddTermModal && (
+        <div
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowAddTermModal(false); }}
+        >
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">Add Term</h3>
+            <p className="text-sm text-gray-500 mb-5">
+              Choose a term to add to the markbook for{" "}
+              <span className="font-medium">{currentClass?.classes.class_name}</span>.
+            </p>
+
+            {unusedClassTerms.length > 0 ? (
+              <>
+                <div className="flex flex-wrap gap-3 mb-6">
+                  {unusedClassTerms.map((term) => (
+                    <button
+                      key={term.id}
+                      onClick={() => handleAddTerm(term)}
+                      disabled={addingTerm}
+                      className="flex items-center gap-2 px-4 py-3 border-2 border-gray-200 rounded-xl hover:border-green-500 hover:bg-green-50 text-sm font-medium text-gray-700 transition-colors disabled:opacity-50"
+                    >
+                      {addingTerm ? <Spin size="small" /> : <span className="text-green-600 font-bold text-lg">+</span>}
+                      {term.name}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-400">
+                  Clicking a term will create an assessment sheet for that term and add it to the markbook.
+                </p>
+              </>
+            ) : (
+              <div className="py-4 text-center">
+                <p className="text-sm text-gray-500 mb-2">
+                  All available terms are already in the markbook.
+                </p>
+                <p className="text-xs text-gray-400">
+                  To add more terms, update the class configuration in the admin settings.
+                </p>
+              </div>
+            )}
+
+            <div className="flex justify-end mt-6">
+              <button
+                onClick={() => setShowAddTermModal(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Close
               </button>
             </div>
           </div>
