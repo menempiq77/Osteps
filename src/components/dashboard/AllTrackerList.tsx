@@ -149,12 +149,14 @@ export default function AllTrackerList() {
     },
   });
 
-  // Filter: show subject-matching trackers + untagged legacy trackers (until claimed).
-  // While context loads: show spinner.
+  // Filter: show subject-matching trackers + untagged legacy trackers.
   const trackers = (subjectContextLoading || isLoading)
     ? []
     : inSubjectContext
-      ? filterTrackersBySubject(rawTrackers, Number(activeSubjectId))
+      ? rawTrackers.filter((t: any) => {
+          const tid = resolveTrackerSubjectId(t);
+          return tid === Number(activeSubjectId) || tid === null;
+        })
       : rawTrackers;
 
   const untaggedTrackers = inSubjectContext
