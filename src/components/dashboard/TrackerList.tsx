@@ -15,6 +15,7 @@ import { FilePdfOutlined, TrophyOutlined, CalendarOutlined, CheckCircleOutlined 
 import { IMG_BASE_URL } from "@/lib/config";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { DeadlineCountdown } from "@/components/common/DeadlineCountdown";
+import { useSubjectContext } from "@/contexts/SubjectContext";
 
 type Tracker = {
   id: string;
@@ -40,6 +41,7 @@ export default function TrackerList() {
   const { classId } = useParams();
   const router = useRouter();
   const { currentUser } = useSelector((state: RootState) => state.auth);
+  const { activeSubjectId, canUseSubjectContext } = useSubjectContext();
   const [trackers, setTrackers] = useState<Tracker[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTrackerId, setActiveTrackerId] = useState<string | null>(null);
@@ -81,7 +83,8 @@ export default function TrackerList() {
   const loadTrackers = async () => {
     try {
       setLoading(true);
-      const data = await fetchTrackers(Number(classId));
+      const subjectId = canUseSubjectContext && activeSubjectId ? activeSubjectId : undefined;
+      const data = await fetchTrackers(Number(classId), subjectId);
       setTrackers(
         data.map((tracker: any) => ({
           ...tracker,
@@ -108,7 +111,7 @@ export default function TrackerList() {
   useEffect(() => {
     if (!classId) return;
     loadTrackers();
-  }, [classId]);
+  }, [classId, activeSubjectId]);
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
