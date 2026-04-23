@@ -2061,12 +2061,19 @@ export default function AllStudentsPage() {
           )
         );
 
-        /* Use the subject-class id itself as the class_id fallback.
-           The backend addStudent accepts class_id for base-class placement,
-           but subject-class enrollment is handled separately via
-           assignStudentsToSubjects → enrollStudentsToSubjectClass. */
+        /* Resolve the base class ID from the subject class's linkedClassId.
+           The backend addStudent expects a school_classes record (base class) as class_id,
+           not a subject_classes record. */
+        const matchedSubjectClass = assignSubjectClasses.find(
+          (cls) => selectedSubjectClassIds.length > 0 && Number(cls.id) === selectedSubjectClassIds[0]
+        );
         const resolvedClassId = Number(
-          selectedSubjectClassIds[0] ?? row.class_id ?? 0
+          (matchedSubjectClass?.linkedClassId && matchedSubjectClass.linkedClassId > 0
+            ? matchedSubjectClass.linkedClassId
+            : null) ??
+          selectedSubjectClassIds[0] ??
+          row.class_id ??
+          0
         );
 
         return {
