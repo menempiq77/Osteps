@@ -186,13 +186,11 @@ export default function Page() {
           name: assessmentData.name,
           school_id: schoolIdNum,
           type: assessmentData.type,
+          subject_id: inSubjectContext ? Number(activeSubjectId) : undefined,
         });
       }
 
       const newId = newAssessment?.data?.id ?? newAssessment?.id;
-      if (inSubjectContext && newId) {
-        tagAssessmentWithSubject(newId, Number(activeSubjectId));
-      }
       await refreshAssessments();
       setOpen(false);
       setIsAddingQuiz(false);

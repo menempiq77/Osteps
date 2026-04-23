@@ -118,7 +118,7 @@ export const fetchAssessmentByStudent = async (termId: number, subjectId?: numbe
   return response.data.data ?? [];
 };
 // add Assessment
-export const addAssessment = async (assessmentData: { name: string }) => {
+export const addAssessment = async (assessmentData: { name: string; school_id?: number; type?: string; subject_id?: number }) => {
   const response = await api.post('/add-assessment', assessmentData);
   return response.data;
 };
