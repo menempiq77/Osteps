@@ -86,12 +86,10 @@ export default function Page() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const { activeSubjectId, canUseSubjectContext, activeSubject } = useSubjectContext();
   const inSubjectContext = canUseSubjectContext && !!activeSubjectId;
-  const assessments = inSubjectContext
-    ? filterAssessmentsBySubject(rawAssessments, Number(activeSubjectId))
-    : rawAssessments;
-  const quizzes = inSubjectContext
-    ? filterQuizzesBySubject(rawQuizzes, Number(activeSubjectId))
-    : rawQuizzes;
+  // Assessments have no subject_id in the DB; show all school assessments
+  // (localStorage-based subject tagging is unreliable across browsers/devices)
+  const assessments = rawAssessments;
+  const quizzes = rawQuizzes;
   const isTeacher = currentUser?.role === "TEACHER";
   const normalizedTermId = typeof termId === "string" ? termId : "";
   const schoolIdNum = Number(currentUser?.school ?? 0);
