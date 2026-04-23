@@ -250,6 +250,17 @@ export default function DashboardLayout({
   const shouldApplyMaxWidth =
     !isImmersiveLessonGroupRoute && !pathname.startsWith("/dashboard/students/reports");
 
+  const userRoleLabel = (() => {
+    const role = (currentUser?.role || "").toUpperCase().replace(/\s+/g, "_");
+    if (role === "STUDENT") return (currentUser as any)?.studentClassName || "Student";
+    if (role === "SCHOOL_ADMIN") return "School Admin";
+    if (role === "HOD") return "HOD";
+    if (role === "TEACHER") return "Teacher";
+    if (role === "SUPER_ADMIN") return "Super Admin";
+    return role;
+  })();
+  const userDisplayName = String(currentUser?.name || currentUser?.email || "").replace(/_/g, " ");
+
   const renderNavigationButtons = (compact = false) => (
     <div className={`flex items-center gap-2 ${compact ? "justify-end" : ""}`}>
       <QuickLauncher />
@@ -357,7 +368,12 @@ export default function DashboardLayout({
       isSettingsRoute ? (
         <div className="dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] p-3 md:p-6">
           <div className="mx-auto max-w-7xl">
-            <div className="mb-4 flex justify-end">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-1.5 rounded-lg border border-[var(--theme-border)] bg-white px-2.5 py-1 text-xs shadow-sm">
+                <span className="font-semibold text-gray-800 truncate max-w-[140px]">{userDisplayName}</span>
+                <span className="text-gray-300">·</span>
+                <span className="font-medium text-[var(--theme-dark)]">{userRoleLabel}</span>
+              </div>
               {renderNavigationButtons(true)}
             </div>
             <div
@@ -438,6 +454,11 @@ export default function DashboardLayout({
                     </div>
                     {renderNavigationButtons()}
                   </div>
+                </div>
+                <div className="mt-2 flex items-center gap-1.5 rounded-lg border border-[var(--theme-border)] bg-[var(--theme-soft)] px-2.5 py-1 text-xs w-fit">
+                  <span className="font-semibold text-gray-800 truncate max-w-[160px]">{userDisplayName}</span>
+                  <span className="text-gray-300">·</span>
+                  <span className="font-medium text-[var(--theme-dark)]">{userRoleLabel}</span>
                 </div>
               </div>
             ) : null}
