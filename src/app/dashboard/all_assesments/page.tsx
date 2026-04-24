@@ -9,7 +9,7 @@ import {
   fetchSchoolAssessment,
   updateAssessment,
 } from "@/services/api";
-import { Breadcrumb, Button, Modal, Spin } from "antd";
+import { Breadcrumb, Button, message, Modal, Spin } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import { useParams } from "next/navigation";
 import EditAssessmentForm from "@/components/dashboard/EditAssessmentForm";
@@ -83,6 +83,7 @@ export default function Page() {
     null
   );
   const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
+  const [messageApi, contextHolder] = message.useMessage();
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const { activeSubjectId, canUseSubjectContext, activeSubject } = useSubjectContext();
   const inSubjectContext = canUseSubjectContext && !!activeSubjectId;
@@ -233,15 +234,16 @@ export default function Page() {
 
   const handleDuplicateAssessment = async (assessment: Assessment) => {
     try {
-      const newAssessment = await addAssessment({
+      await addAssessment({
         name: `Copy of ${assessment.name}`,
         school_id: schoolIdNum,
         type: assessment.type,
         subject_id: inSubjectContext ? Number(activeSubjectId) : undefined,
       } as any);
       await refreshAssessments();
+      messageApi.success(`"${assessment.name}" duplicated`);
     } catch (err) {
-      setError("Failed to duplicate assessment");
+      messageApi.error("Failed to duplicate assessment");
       console.error(err);
     }
   };
@@ -283,6 +285,7 @@ export default function Page() {
 
   return (
     <div className="premium-page rounded-2xl p-3 md:p-4">
+      {contextHolder}
       <Breadcrumb
         items={[
           {
