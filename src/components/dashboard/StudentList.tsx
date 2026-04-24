@@ -2224,7 +2224,7 @@ export default function StudentList() {
         </div>
       </div>
 
-      {viewMode === "behavior" && (
+      {viewMode === "behavior" && !showStory && (
         <div className="mb-4 rounded-xl border border-emerald-100 bg-white px-3 py-2">
           <div className="flex flex-wrap items-center gap-2">
             {hasAccess && isSubjectWorkspaceMode && effectiveSubjectClassId && orderedStudents.length > 0 ? (
@@ -2297,7 +2297,7 @@ export default function StudentList() {
         </div>
       )}
 
-      {viewMode === "behavior" && (
+      {viewMode === "behavior" && !showStory && (
         <div className="rounded-2xl border border-emerald-100 bg-gradient-to-b from-white to-emerald-50/30 p-4 md:p-5 shadow-sm">
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
             <div
