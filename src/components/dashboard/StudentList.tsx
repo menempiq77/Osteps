@@ -318,8 +318,7 @@ export default function StudentList() {
   const { activeSubjectId, activeSubject, toSubjectHref } = useSubjectContext();
   const [messageApi, contextHolder] = message.useMessage();
   const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
-  const [viewMode, setViewMode] = useState<"behavior" | "seating">("behavior");
-  const [showStory, setShowStory] = useState(false);
+  const [viewMode, setViewMode] = useState<"behavior" | "seating" | "story">("behavior");
   const [isAddStudentModalOpen, setIsAddStudentModalOpen] = useState(false);
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [editStudent, setEditStudent] = useState<Student | null>(null);
@@ -2192,14 +2191,18 @@ export default function StudentList() {
                 Seating Plan
               </button>
             )}
+            <button
+              onClick={() => setViewMode("story")}
+              disabled={isSubjectWorkspaceMode && !effectiveSubjectClassId}
+              className={`px-4 py-1.5 rounded-full text-xs md:text-sm transition ${
+                viewMode === "story"
+                  ? "bg-emerald-100 text-emerald-700"
+                  : "text-gray-600 hover:text-emerald-700"
+              } disabled:opacity-40 disabled:cursor-not-allowed`}
+            >
+              Class Story
+            </button>
           </div>
-          <Button
-            onClick={() => setShowStory((prev) => !prev)}
-            disabled={isSubjectWorkspaceMode && !effectiveSubjectClassId}
-            className={showStory ? "!bg-emerald-100 !text-emerald-700 !border-emerald-300" : ""}
-          >
-            Class Story
-          </Button>
           {hasAccess && (
             <Button
               type="primary"
@@ -2224,7 +2227,7 @@ export default function StudentList() {
         </div>
       </div>
 
-      {viewMode === "behavior" && !showStory && (
+      {viewMode === "behavior" && (
         <div className="mb-4 rounded-xl border border-emerald-100 bg-white px-3 py-2">
           <div className="flex flex-wrap items-center gap-2">
             {hasAccess && isSubjectWorkspaceMode && effectiveSubjectClassId && orderedStudents.length > 0 ? (
@@ -2297,7 +2300,7 @@ export default function StudentList() {
         </div>
       )}
 
-      {viewMode === "behavior" && !showStory && (
+      {viewMode === "behavior" && (
         <div className="rounded-2xl border border-emerald-100 bg-gradient-to-b from-white to-emerald-50/30 p-4 md:p-5 shadow-sm">
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
             <div
@@ -2761,7 +2764,7 @@ export default function StudentList() {
         </div>
       )}
 
-      {showStory && (effectiveClassId || classIdStr) && (
+      {viewMode === "story" && (effectiveClassId || classIdStr) && (
         <ClassStoryPanel classId={String(effectiveClassId || classIdStr)} />
       )}
 
