@@ -76,6 +76,10 @@ export default function AllAssessmentList({
   const [messageApi, contextHolder] = message.useMessage();
 
   useEffect(() => {
+    setAssessmentList(assessments);
+  }, [assessments]);
+
+  useEffect(() => {
     if (drawerVisible && selectedAssessment) {
       loadTasks();
     }
