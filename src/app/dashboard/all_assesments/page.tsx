@@ -237,11 +237,8 @@ export default function Page() {
         name: `Copy of ${assessment.name}`,
         school_id: schoolIdNum,
         type: assessment.type,
+        subject_id: inSubjectContext ? Number(activeSubjectId) : undefined,
       } as any);
-      const newId = newAssessment?.data?.id ?? newAssessment?.id;
-      if (inSubjectContext && newId) {
-        tagAssessmentWithSubject(newId, Number(activeSubjectId));
-      }
       await refreshAssessments();
     } catch (err) {
       setError("Failed to duplicate assessment");
