@@ -53,6 +53,7 @@ import {
 } from "@/types/studentViews";
 import { extractSubjectIdFromPath } from "@/lib/subjectRouting";
 import { resolveSubjectWorkspaceClassContext } from "@/lib/subjectClassResolution";
+import ClassStoryPanel from "@/components/dashboard/ClassStoryPanel";
 import { studentMatchesSubjectScope } from "@/lib/subjectStudentScope";
 import {
   makeSubjectHintScopeKey,
@@ -318,6 +319,7 @@ export default function StudentList() {
   const [messageApi, contextHolder] = message.useMessage();
   const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<"behavior" | "seating">("behavior");
+  const [showStory, setShowStory] = useState(false);
   const [isAddStudentModalOpen, setIsAddStudentModalOpen] = useState(false);
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [editStudent, setEditStudent] = useState<Student | null>(null);
@@ -2192,19 +2194,9 @@ export default function StudentList() {
             )}
           </div>
           <Button
-            onClick={() => {
-              const params = new URLSearchParams();
-              if (queryYearId) params.set("yearId", queryYearId);
-              if (querySubjectClassLabel) params.set("subjectClassLabel", querySubjectClassLabel);
-              if (effectiveSubjectClassId) params.set("subjectClassId", effectiveSubjectClassId);
-              const suffix = params.toString() ? `?${params.toString()}` : "";
-              router.push(
-                toSubjectHref(
-                  `/dashboard/classes/${effectiveClassId || classIdStr}/story${suffix}`
-                )
-              );
-            }}
+            onClick={() => setShowStory((prev) => !prev)}
             disabled={isSubjectWorkspaceMode && !effectiveSubjectClassId}
+            className={showStory ? "!bg-emerald-100 !text-emerald-700 !border-emerald-300" : ""}
           >
             Class Story
           </Button>
@@ -2767,6 +2759,10 @@ export default function StudentList() {
         <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">
           You do not have permission to edit seating plan.
         </div>
+      )}
+
+      {showStory && (effectiveClassId || classIdStr) && (
+        <ClassStoryPanel classId={String(effectiveClassId || classIdStr)} />
       )}
 
       <AddStudentModal
