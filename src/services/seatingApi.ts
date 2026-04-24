@@ -48,6 +48,16 @@ const shouldUseLocalFallback = (error: unknown) => {
   return status === 404 || status === 401 || status === 403;
 };
 
+/**
+ * Extract the plain class ID from a subject-scoped compound key.
+ * e.g. "subject:3:class:10" → "10"
+ * Returns null if the key is not compound.
+ */
+const extractLegacyClassId = (key: string): string | null => {
+  const match = key.match(/^subject:\d+:class:(.+)$/);
+  return match ? match[1] : null;
+};
+
 const normalizeLayout = (raw: any): SeatingLayoutResponse => {
   const payload = raw?.data ?? raw ?? {};
   return {
@@ -85,7 +95,22 @@ export const fetchClassSeatingLayout = async (
     return normalized;
   } catch (error) {
     if (shouldUseLocalFallback(error)) {
-      return readLocalLayout(classId) || DEFAULT_LAYOUT;
+      const local = readLocalLayout(classId);
+      if (local && local.items.length > 0) return local;
+
+      // Migration: if this is a subject-scoped compound key and no data found,
+      // check the legacy plain class-ID key (saved before subject workspace mode).
+      const legacyId = extractLegacyClassId(String(classId));
+      if (legacyId) {
+        const legacy = readLocalLayout(legacyId);
+        if (legacy && legacy.items.length > 0) {
+          // Migrate old data to the new key so future reads are fast
+          writeLocalLayout(classId, legacy);
+          return legacy;
+        }
+      }
+
+      return DEFAULT_LAYOUT;
     }
     throw enrichError(error);
   }
