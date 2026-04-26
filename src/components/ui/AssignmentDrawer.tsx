@@ -100,7 +100,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
     formData.append("task_id", selectedTask?.id || "");
     formData.append("additional_notes", values.notes || "");
 
-    if (!isNATask && values.selfAssessment !== undefined) {
+    if (values.selfAssessment !== undefined) {
       formData.append(
         "self_assessment_mark",
         values.selfAssessment.toString()
@@ -333,8 +333,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
                 <div className="flex-1">
                   <div className="mb-8">{renderUploadArea()}</div>
 
-                  {!isNATask && (
-                    <Form.Item
+                  <Form.Item
                       label={`Self-Assessment (Rate your work out of ${selectedTask.allocated_marks})`}
                       name="selfAssessment"
                       rules={[
@@ -388,7 +387,6 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
                         )}
                       </div>
                     </Form.Item>
-                  )}
 
                   <Form.Item
                     label="Additional Notes"
