@@ -368,6 +368,15 @@ export default function AssessmentDrawer() {
                       )}
                     </div>
                   </div>
+
+                  {/* Total marks */}
+                  <div className="flex justify-end items-center gap-2 mb-3">
+                    <span className="text-xs text-gray-500 font-medium">Total Teacher Marks:</span>
+                    <span className="text-sm font-bold text-green-700">
+                      {task?.teacher_assessment_score ?? task?.teacher_assessment_marks ?? 0}
+                      /{task?.task?.allocated_marks}
+                    </span>
+                  </div>
                 )}
 
                 {task?.submission_type === "quiz" && (
