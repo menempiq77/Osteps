@@ -261,6 +261,7 @@ export default function AssessmentDrawer() {
 
                 {/* Assessment Summary */}
                 {task?.submission_type !== "quiz" && (
+                  <>
                   <div className="grid grid-cols-2 gap-3 mb-4">
                     {/* Student Assessment */}
                     <div className="p-3 bg-blue-50 rounded-md border border-blue-100">
@@ -337,6 +338,7 @@ export default function AssessmentDrawer() {
                       /{task?.task?.allocated_marks}
                     </span>
                   </div>
+                  </>
                 )}
 
                 {task?.submission_type === "quiz" && (
