@@ -38,6 +38,10 @@ export default function AssignmentsPage() {
 
   const hasVisibleAssignmentsForTerm = (items: any[], termId: number) => {
     return items.some((assignment) => {
+      if (impersonating) {
+        return true;
+      }
+
       if (assignment.type === "quiz") {
         return Number(assignment.term_id) === Number(termId);
       }
@@ -147,8 +151,15 @@ export default function AssignmentsPage() {
   };
 
   const filteredAssessments = assessments.filter((assignment) => {
+    if (impersonating) {
+      if (assignment.type === "quiz") {
+        return assignment.term_id == null || Number(assignment.term_id) === Number(selectedTermId);
+      }
+      return true;
+    }
+
     if (assignment.type === "quiz") {
-      return assignment.term_id === selectedTermId;
+      return assignment.term_id == null || Number(assignment.term_id) === Number(selectedTermId);
     }
     if (assignment.type === "assessment") {
       const assignedRows = Array.isArray(assignment.assigned)
@@ -156,6 +167,11 @@ export default function AssignmentsPage() {
         : Array.isArray(assignment.assign_assessments)
         ? assignment.assign_assessments
         : [];
+
+      if (assignedRows.length === 0) {
+        // Term-scoped assessment payloads are already filtered by the selected term.
+        return true;
+      }
 
       return assignedRows.some(
         (a: any) => a.term_id === selectedTermId && a.status === "assigned"
