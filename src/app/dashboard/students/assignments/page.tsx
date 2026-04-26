@@ -3,7 +3,8 @@ import React, { useEffect, useState } from "react";
 import { Breadcrumb, Button, Card, Select, Spin } from "antd";
 import { ChevronLeft, Calendar } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { fetchAssessmentByStudent } from "@/services/api";
+import { fetchAssessment, fetchAssessmentByStudent } from "@/services/api";
+import { IMPERSONATION_STORAGE_KEY } from "@/features/auth/authSlice";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { fetchTerm } from "@/services/termsApi";
@@ -13,6 +14,7 @@ import { useSubjectContext } from "@/contexts/SubjectContext";
 export default function AssignmentsPage() {
   const [selectedTerm, setSelectedTerm] = useState<string>("");
   const [selectedTermId, setSelectedTermId] = useState<number | null>(null);
+  const [impersonating, setImpersonating] = useState(false);
   const router = useRouter();
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const { activeSubjectId, canUseSubjectContext } = useSubjectContext();
@@ -20,6 +22,11 @@ export default function AssignmentsPage() {
   const [assessments, setAssessments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setImpersonating(!!localStorage.getItem(IMPERSONATION_STORAGE_KEY));
+  }, []);
 
   const loadTerms = async () => {
     try {
@@ -42,10 +49,10 @@ export default function AssignmentsPage() {
   const loadAssessment = async (termId: number) => {
     try {
       setLoading(true);
-      const data = await fetchAssessmentByStudent(
-        termId,
-        canUseSubjectContext ? activeSubjectId ?? undefined : undefined
-      );
+      const scopedSubjectId = canUseSubjectContext ? activeSubjectId ?? undefined : undefined;
+      const data = impersonating
+        ? await fetchAssessment(termId, scopedSubjectId)
+        : await fetchAssessmentByStudent(termId, scopedSubjectId);
       const sortedAssessments = data.sort((a, b) => a.position - b.position);
       setAssessments(sortedAssessments);
       setError(null);
@@ -65,7 +72,7 @@ export default function AssignmentsPage() {
     if (selectedTermId !== null) {
       loadAssessment(selectedTermId);
     }
-  }, [selectedTermId, activeSubjectId, canUseSubjectContext]);
+  }, [selectedTermId, activeSubjectId, canUseSubjectContext, impersonating]);
 
   
   const handleTermChange = (termName: string) => {
@@ -101,7 +108,13 @@ export default function AssignmentsPage() {
       return assignment.term_id === selectedTermId;
     }
     if (assignment.type === "assessment") {
-      return assignment.assigned.some(
+      const assignedRows = Array.isArray(assignment.assigned)
+        ? assignment.assigned
+        : Array.isArray(assignment.assign_assessments)
+        ? assignment.assign_assessments
+        : [];
+
+      return assignedRows.some(
         (a: any) => a.term_id === selectedTermId && a.status === "assigned"
       );
     }
