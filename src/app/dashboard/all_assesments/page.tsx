@@ -6,6 +6,7 @@ import {
   addAssessment,
   deleteAssessment,
   deleteAssignTermQuiz,
+  duplicateAssessment,
   fetchSchoolAssessment,
   updateAssessment,
 } from "@/services/api";
@@ -234,14 +235,9 @@ export default function Page() {
 
   const handleDuplicateAssessment = async (assessment: Assessment) => {
     try {
-      await addAssessment({
-        name: `Copy of ${assessment.name}`,
-        school_id: schoolIdNum,
-        type: assessment.type,
-        subject_id: inSubjectContext ? Number(activeSubjectId) : undefined,
-      } as any);
+      await duplicateAssessment(assessment.id);
       await refreshAssessments();
-      messageApi.success(`"${assessment.name}" duplicated`);
+      messageApi.success(`"${assessment.name}" duplicated with all tasks`);
     } catch (err) {
       messageApi.error("Failed to duplicate assessment");
       console.error(err);

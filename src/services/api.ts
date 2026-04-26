@@ -132,6 +132,11 @@ export const deleteAssessment = async (id: number) => {
   const response = await api.post(`/delete-assessment/${id}`);
   return response.data;
 };
+// duplicate Assessment (copies assessment + all its tasks)
+export const duplicateAssessment = async (id: string | number) => {
+  const response = await api.post(`/duplicate-assessment/${id}`);
+  return response.data;
+};
 // delete deleteAssignTermQuiz
 export const deleteAssignTermQuiz = async (id: number) => {
   const response = await api.delete(`/delete-assign-term-quiz/${id}`);
