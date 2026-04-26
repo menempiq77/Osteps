@@ -541,9 +541,9 @@ export default function DashboardPage() {
     enabled: currentUser?.role === "STUDENT",
   });
 
-  const { data: impersonatedStudentHomeAssessments = [] } = useQuery({
+  const { data: studentHomeAssessmentsFromTerms = [] } = useQuery({
     queryKey: [
-      "impersonated-student-home-assessments",
+      "student-home-assessments-from-terms",
       currentUser?.studentClass,
       activeSubjectId,
       canUseSubjectContext,
@@ -600,7 +600,6 @@ export default function DashboardPage() {
     },
     enabled:
       currentUser?.role === "STUDENT" &&
-      impersonating &&
       Number(currentUser?.studentClass) > 0,
   });
 
@@ -698,9 +697,10 @@ export default function DashboardPage() {
     });
   }, [studentDashboard]);
 
-  const studentHomeAssessments = impersonating
-    ? impersonatedStudentHomeAssessments
-    : studentActiveAssessments;
+  const studentHomeAssessments =
+    studentHomeAssessmentsFromTerms.length > 0
+      ? studentHomeAssessmentsFromTerms
+      : studentActiveAssessments;
 
   // Redirect to subject-cards — show a clean loading state, no dashboard flash
   if (shouldUseSubjectCardsEntry) {
