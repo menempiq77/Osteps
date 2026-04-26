@@ -28,14 +28,61 @@ export default function AssignmentsPage() {
     setImpersonating(!!localStorage.getItem(IMPERSONATION_STORAGE_KEY));
   }, []);
 
+  const getAssignmentsForTerm = async (termId: number) => {
+    const scopedSubjectId = canUseSubjectContext ? activeSubjectId ?? undefined : undefined;
+    const data = impersonating
+      ? await fetchAssessment(termId, scopedSubjectId)
+      : await fetchAssessmentByStudent(termId, scopedSubjectId);
+    return Array.isArray(data) ? data.sort((a, b) => a.position - b.position) : [];
+  };
+
+  const hasVisibleAssignmentsForTerm = (items: any[], termId: number) => {
+    return items.some((assignment) => {
+      if (assignment.type === "quiz") {
+        return Number(assignment.term_id) === Number(termId);
+      }
+
+      if (assignment.type === "assessment") {
+        const assignedRows = Array.isArray(assignment.assigned)
+          ? assignment.assigned
+          : Array.isArray(assignment.assign_assessments)
+          ? assignment.assign_assessments
+          : [];
+
+        return assignedRows.some(
+          (a: any) =>
+            Number(a.term_id) === Number(termId) &&
+            String(a.status ?? "").toLowerCase() === "assigned"
+        );
+      }
+
+      return false;
+    });
+  };
+
   const loadTerms = async () => {
     try {
       setLoading(true);
       const response = await fetchTerm(Number(currentUser?.studentClass));
       setTerms(response);
       if (response.length > 0) {
-        setSelectedTerm(response[0].name);
-        setSelectedTermId(response[0].id);
+        let preferredTerm = response[0];
+        let preferredAssessments: any[] | null = null;
+
+        for (const term of response) {
+          const termAssessments = await getAssignmentsForTerm(Number(term.id));
+          if (hasVisibleAssignmentsForTerm(termAssessments, Number(term.id))) {
+            preferredTerm = term;
+            preferredAssessments = termAssessments;
+            break;
+          }
+        }
+
+        setSelectedTerm(preferredTerm.name);
+        setSelectedTermId(preferredTerm.id);
+        if (preferredAssessments) {
+          setAssessments(preferredAssessments);
+        }
       }
       setError(null);
     } catch (err) {
@@ -49,11 +96,7 @@ export default function AssignmentsPage() {
   const loadAssessment = async (termId: number) => {
     try {
       setLoading(true);
-      const scopedSubjectId = canUseSubjectContext ? activeSubjectId ?? undefined : undefined;
-      const data = impersonating
-        ? await fetchAssessment(termId, scopedSubjectId)
-        : await fetchAssessmentByStudent(termId, scopedSubjectId);
-      const sortedAssessments = data.sort((a, b) => a.position - b.position);
+      const sortedAssessments = await getAssignmentsForTerm(termId);
       setAssessments(sortedAssessments);
       setError(null);
     } catch (err) {
@@ -66,7 +109,7 @@ export default function AssignmentsPage() {
 
   useEffect(() => {
     loadTerms();
-  }, []);
+  }, [currentUser?.studentClass, activeSubjectId, canUseSubjectContext, impersonating]);
 
   useEffect(() => {
     if (selectedTermId !== null) {
