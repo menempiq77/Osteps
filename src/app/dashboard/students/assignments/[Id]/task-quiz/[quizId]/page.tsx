@@ -75,6 +75,19 @@ export default function QuranQuizPage() {
         setLoading(true);
         const response = await fetchQuizQuestions(Number(quizId));
         setQuizData(response);
+
+        // Pre-populate answers from localStorage if student already submitted
+        const stored = localStorage.getItem(`quiz_${response?.id}_answers`);
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            const restored: Record<number, any> = {};
+            (parsed.answers || []).forEach((a: { question_id: number; answer: any }) => {
+              restored[a.question_id] = a.answer;
+            });
+            setAnswers(restored);
+          } catch {}
+        }
       } catch (error) {
         message.error("Failed to load quiz questions");
       } finally {
@@ -265,6 +278,7 @@ export default function QuranQuizPage() {
                     {question.type === "short_answer" && (
                       <Input
                         placeholder="Your answer"
+                        value={answers[question.id] || ""}
                         onChange={(e) =>
                           handleAnswerChange(
                             question.id,
@@ -279,6 +293,7 @@ export default function QuranQuizPage() {
                       <Input.TextArea
                         rows={4}
                         placeholder="Your answer"
+                        value={answers[question.id] || ""}
                         onChange={(e) =>
                           handleAnswerChange(
                             question.id,
@@ -299,6 +314,7 @@ export default function QuranQuizPage() {
                               name={`quiz-${question.id}`}
                               value={option.option_text}
                               className="mr-2"
+                              checked={answers[question.id] === option.id}
                               onChange={() =>
                                 handleAnswerChange(
                                   question.id,
@@ -317,6 +333,11 @@ export default function QuranQuizPage() {
 
                     {question.type === "check_boxes" && (
                       <Checkbox.Group
+                        value={Array.isArray(answers[question.id])
+                          ? question.options
+                              .filter((o) => (answers[question.id] as number[]).includes(o.id))
+                              .map((o) => o.option_text)
+                          : []}
                         onChange={(values) =>
                           handleAnswerChange(question.id, values, question.type)
                         }
@@ -338,6 +359,9 @@ export default function QuranQuizPage() {
                       <Select
                         style={{ width: 200 }}
                         placeholder="Select an answer"
+                        value={answers[question.id]
+                          ? question.options.find((o) => o.id === answers[question.id])?.option_text
+                          : undefined}
                         onChange={(value) =>
                           handleAnswerChange(question.id, value, question.type)
                         }
@@ -352,6 +376,7 @@ export default function QuranQuizPage() {
 
                     {question.type === "true_false" && (
                       <Radio.Group
+                        value={answers[question.id] === true ? "true" : answers[question.id] === false ? "false" : undefined}
                         onChange={(e) =>
                           handleAnswerChange(
                             question.id,
