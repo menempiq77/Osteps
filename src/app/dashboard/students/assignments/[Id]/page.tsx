@@ -140,6 +140,47 @@ export default function AssignmentDetailPage() {
     loadTasks();
   }, [assignmentId]);
 
+  const loadTasksSilently = async () => {
+    try {
+      const fetchedTasks = await fetchTasks(assignmentId);
+      const tasksWithStudentData = fetchedTasks?.map((task: any) => {
+        if (task.type === "task") {
+          const studentTask = task.student_assessment_tasks?.find(
+            (st: any) => st.student_id === studentId
+          );
+          return {
+            ...task,
+            status: studentTask?.status || "not-started",
+            self_assessment_marks: studentTask?.self_assessment_mark || 0,
+            additional_notes: studentTask?.additional_notes || "",
+            teacher_assessment_marks: studentTask?.teacher_assessment_score || 0,
+            teacher_feedback: studentTask?.teacher_feedback || null,
+          };
+        }
+        if (task.type === "quiz" && task.quiz) {
+          const submission = task.quiz.submissions?.find(
+            (sub: any) => sub.student_id === studentId
+          );
+          const totalMarks = submission?.answers?.reduce(
+            (sum: number, ans: any) => sum + (parseFloat(ans.marks) || 0), 0
+          );
+          const totalPossibleMarks = task.quiz.quiz_queston?.reduce(
+            (sum: number, q: any) => sum + (parseFloat(q.marks) || 0), 0
+          );
+          const comments = submission?.answers?.filter((a: any) => a.comment)?.map((a: any) => {
+            const question = task.quiz.quiz_queston?.find((q: any) => q.id === a.quiz_question_id);
+            return { question_id: a.quiz_question_id, question_text: question?.question_text || "Untitled question", comment: a.comment };
+          }) || [];
+          return { ...task, status: submission?.status || "not-started", obtained_marks: totalMarks || 0, total_marks: totalPossibleMarks || 0, quiz_comments: comments };
+        }
+        return task;
+      });
+      setTasks(tasksWithStudentData);
+    } catch (error) {
+      console.error("Error refreshing tasks:", error);
+    }
+  };
+
   const handleOpenDrawer = async (task: Task) => {
     if (task.type === "quiz") {
       await router.push(
@@ -404,7 +445,7 @@ export default function AssignmentDetailPage() {
         isOpen={isDrawerOpen}
         onClose={() => {
           setIsDrawerOpen(false);
-          void loadTasks();
+          void loadTasksSilently();
         }}
         selectedSubject={selectedTask?.task_name || "Task"}
         selectedTask={selectedTask}
