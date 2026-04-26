@@ -293,7 +293,7 @@ export function AssessmentTasksDrawer({
   };
   const handleEditTask = (task: Task) => {
     setEditingTaskId(task.id);
-    setSelectedType("task");
+    setSelectedType(null);
 
     setValue("name", task.task_name);
     setValue("description", task.description);
