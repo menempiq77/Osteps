@@ -40,7 +40,7 @@ import {
 } from "@/services/dashboardApis";
 import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
 import { fetchStudents } from "@/services/studentsApi";
-import { fetchSchoolLogo } from "@/services/api";
+import { fetchAssessment, fetchSchoolLogo } from "@/services/api";
 import { IMG_BASE_URL } from "@/lib/config";
 import { useRouter } from "next/navigation";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -55,6 +55,8 @@ import {
   matchesSubjectStudentHint,
   readSubjectStudentHints,
 } from "@/lib/subjectStudentHints";
+import { fetchTerm } from "@/services/termsApi";
+import { IMPERSONATION_STORAGE_KEY } from "@/features/auth/authSlice";
 
 export const dynamic = "force-dynamic";
 
@@ -131,6 +133,17 @@ const ISLAMIC_DASHBOARD_IMAGE =
   "https://commons.wikimedia.org/wiki/Special:Redirect/file/The_Green_Dome%2C_Masjid_Nabawi%2C_Madina.jpg";
 const ARABIC_DASHBOARD_IMAGE =
   "https://commons.wikimedia.org/wiki/Special:Redirect/file/The_Arabic_Alphabet._Ottoman_Calligraphy_%28CBL_T_490%2C_ff.1b-2a%29.jpg";
+
+const parseDueTimestamp = (dueDate: unknown): number | null => {
+  if (!dueDate) return null;
+  const raw = String(dueDate).trim();
+  if (!raw) return null;
+
+  // Date-only values are treated as end-of-day local time so tasks remain visible during the due date.
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(raw);
+  const parsed = dateOnly ? Date.parse(`${raw}T23:59:59`) : Date.parse(raw);
+  return Number.isFinite(parsed) ? parsed : null;
+};
 
 const getStudentsListLink = (options: {
   isSubjectWorkspaceMode: boolean;
@@ -211,6 +224,12 @@ export default function DashboardPage() {
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
+  const [impersonating, setImpersonating] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setImpersonating(!!localStorage.getItem(IMPERSONATION_STORAGE_KEY));
+  }, [pathname]);
 
   const getSubjectScopedSummary = async (
     subjectId: number,
@@ -522,6 +541,69 @@ export default function DashboardPage() {
     enabled: currentUser?.role === "STUDENT",
   });
 
+  const { data: impersonatedStudentHomeAssessments = [] } = useQuery({
+    queryKey: [
+      "impersonated-student-home-assessments",
+      currentUser?.studentClass,
+      activeSubjectId,
+      canUseSubjectContext,
+    ],
+    queryFn: async () => {
+      const classId = Number(currentUser?.studentClass);
+      if (!Number.isFinite(classId) || classId <= 0) return [];
+
+      const terms = await fetchTerm(classId);
+      const scopedSubjectId = canUseSubjectContext ? activeSubjectId ?? undefined : undefined;
+      const termResults = await Promise.all(
+        (Array.isArray(terms) ? terms : []).map(async (term: any) => {
+          const assessments = await fetchAssessment(Number(term?.id), scopedSubjectId);
+          return { term, assessments: Array.isArray(assessments) ? assessments : [] };
+        })
+      );
+
+      const rows = termResults.flatMap(({ term, assessments }) =>
+        assessments
+          .filter((assessment: any) => String(assessment?.type ?? "").toLowerCase() === "assessment")
+          .map((assessment: any) => {
+            const tasks = Array.isArray(assessment?.tasks) ? assessment.tasks : [];
+            const datedTasks = tasks
+              .map((task: any) => ({
+                dueTs: parseDueTimestamp(task?.due_date),
+                dueDate: task?.due_date || null,
+                updatedAt: task?.updated_at || null,
+              }))
+              .filter((task: any) => task.dueTs !== null);
+            const nearestTask = datedTasks.sort((a: any, b: any) => Number(a.dueTs) - Number(b.dueTs))[0];
+            const latestUpdated = tasks
+              .map((task: any) => task?.updated_at)
+              .filter(Boolean)
+              .sort((a: string, b: string) => Date.parse(b) - Date.parse(a))[0] || null;
+
+            return {
+              assessmentId: assessment?.id ?? null,
+              assessmentName: assessment?.name ?? "Assessment",
+              termName: term?.name ?? "Term",
+              dueTs: nearestTask?.dueTs ?? null,
+              dueDate: nearestTask?.dueDate ?? null,
+              updatedAt: latestUpdated,
+              taskCount: tasks.length,
+            };
+          })
+      );
+
+      return rows.sort((a: any, b: any) => {
+        if (a.dueTs === null && b.dueTs === null) return 0;
+        if (a.dueTs === null) return 1;
+        if (b.dueTs === null) return -1;
+        return a.dueTs - b.dueTs;
+      });
+    },
+    enabled:
+      currentUser?.role === "STUDENT" &&
+      impersonating &&
+      Number(currentUser?.studentClass) > 0,
+  });
+
   function timeAgo(dateString: string) {
     const now = new Date();
     const date = new Date(dateString);
@@ -541,17 +623,6 @@ export default function DashboardPage() {
     if (!Array.isArray(terms)) return [];
 
     const now = Date.now();
-
-    const parseDueTimestamp = (dueDate: unknown): number | null => {
-      if (!dueDate) return null;
-      const raw = String(dueDate).trim();
-      if (!raw) return null;
-
-      // Date-only values are treated as end-of-day local time so tasks remain visible during the due date.
-      const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(raw);
-      const parsed = dateOnly ? Date.parse(`${raw}T23:59:59`) : Date.parse(raw);
-      return Number.isFinite(parsed) ? parsed : null;
-    };
 
     const activeTasks = terms
       .flatMap((term: any) =>
@@ -626,6 +697,10 @@ export default function DashboardPage() {
       return a.dueTs - b.dueTs;
     });
   }, [studentDashboard]);
+
+  const studentHomeAssessments = impersonating
+    ? impersonatedStudentHomeAssessments
+    : studentActiveAssessments;
 
   // Redirect to subject-cards — show a clean loading state, no dashboard flash
   if (shouldUseSubjectCardsEntry) {
@@ -1108,77 +1183,45 @@ export default function DashboardPage() {
             <span className="text-gray-800">{studentClassName || "Class"}</span>
           </div>
 
-          {/* Cards Grid */}
-          <Row gutter={[16, 16]}>
-            {studentActiveAssessments.length > 0 ? (
-              studentActiveAssessments.map((assessment: any, index: number) => (
-                <Col xs={24} md={24} key={`${assessment.assessmentId ?? index}`}>
+          <Card className="border-0 shadow-sm">
+            {studentHomeAssessments.length > 0 ? (
+              <div className="divide-y divide-gray-100">
+                {studentHomeAssessments.map((assessment: any, index: number) => (
                   <Link
+                    key={`${assessment.assessmentId ?? index}`}
                     href={
                       assessment.assessmentId
                         ? `/dashboard/students/assignments/${assessment.assessmentId}`
                         : "/dashboard/students/assignments"
                     }
+                    className="block"
                   >
-                    <Card
-                      hoverable
-                      className="border-0 shadow-sm hover:shadow-md transition-all h-full"
-                    >
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <h3 className="text-lg font-semibold text-gray-800">
-                            {assessment.assessmentName || "Assessment"}
-                          </h3>
-                          {assessment.dueDate ? (
-                            <p className="text-sm text-gray-500">
-                              Due: {new Date(assessment.dueDate).toLocaleDateString()}
-                            </p>
-                          ) : (
-                            <p className="text-sm text-gray-500">No due date</p>
-                          )}
-                        </div>
+                    <div className="flex flex-col gap-2 py-4 first:pt-0 last:pb-0 md:flex-row md:items-center md:justify-between">
+                      <div className="min-w-0">
+                        <p className="truncate text-base font-medium text-gray-800">
+                          {assessment.assessmentName || "Assessment"}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          {assessment.termName || "Term"}
+                          {assessment.taskCount
+                            ? ` • ${assessment.taskCount} task${assessment.taskCount === 1 ? "" : "s"}`
+                            : ""}
+                          {assessment.dueDate
+                            ? ` • Due ${new Date(assessment.dueDate).toLocaleDateString()}`
+                            : ""}
+                        </p>
                       </div>
-                      <div className="mt-2">
-                        <span className="inline-block rounded-md bg-gray-100 px-3 py-1 text-sm text-gray-700">
-                          Assignment
-                        </span>
+                      <div className="shrink-0 text-sm font-medium" style={{ color: THEME_COLOR }}>
+                        View
                       </div>
-                      <div className="mt-4 flex justify-between items-end">
-                        <div>
-                          <p className="text-base font-medium text-gray-700">
-                            {assessment.termName}
-                          </p>
-                          <p className="text-xs text-gray-400 mt-1">
-                            {assessment.taskCount} task{assessment.taskCount === 1 ? "" : "s"}
-                          </p>
-                          {assessment.updatedAt ? (
-                            <p className="text-xs text-gray-400 mt-1">
-                              Updated {timeAgo(assessment.updatedAt)}
-                            </p>
-                          ) : null}
-                        </div>
-                        <Button
-                          type="primary"
-                          style={{
-                            backgroundColor: THEME_COLOR,
-                            borderColor: THEME_COLOR,
-                          }}
-                        >
-                          View Details
-                        </Button>
-                      </div>
-                    </Card>
+                    </div>
                   </Link>
-                </Col>
-              ))
+                ))}
+              </div>
             ) : (
-              <Col span={24}>
-                <Card className="border-0 shadow-sm">
-                  <p className="text-sm text-gray-600">No assigned assessments available right now.</p>
-                </Card>
-              </Col>
+              <p className="text-sm text-gray-600">No assigned assessments available right now.</p>
             )}
-          </Row>
+          </Card>
         </div>
       ) : (
         <>
