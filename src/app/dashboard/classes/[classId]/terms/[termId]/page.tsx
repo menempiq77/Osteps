@@ -25,6 +25,34 @@ interface Assessment {
   term_id: string;
 }
 
+const QUIZ_SUBJECT_MAP_KEY = "osteps_quiz_subject_map";
+
+function readQuizSubjectMap(): Record<string, number> {
+  if (typeof window === "undefined") return {};
+  try {
+    return JSON.parse(localStorage.getItem(QUIZ_SUBJECT_MAP_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function filterQuizzesBySubject(quizzes: any[], subjectId: number): any[] {
+  const map = readQuizSubjectMap();
+  return quizzes.filter((q) => {
+    const backendSubjectId = q.subject_id ?? q.subject?.id ?? null;
+    if (backendSubjectId != null && Number(backendSubjectId) !== 0) {
+      return Number(backendSubjectId) === subjectId;
+    }
+
+    const localSubjectId = map[String(q.id)];
+    if (localSubjectId != null) {
+      return localSubjectId === subjectId;
+    }
+
+    return false;
+  });
+}
+
 export default function Page() {
   const { termId, classId } = useParams();
   const [currentTermId, setCurrentTermId] = useState(termId);
@@ -44,9 +72,13 @@ export default function Page() {
   const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const { activeSubjectId, canUseSubjectContext } = useSubjectContext();
+  const inSubjectContext = canUseSubjectContext && !!activeSubjectId;
   const isTeacher = currentUser?.role === "TEACHER";
 
   const schoolId = currentUser?.school;
+  const visibleQuizzes = inSubjectContext
+    ? filterQuizzesBySubject(quizzes, Number(activeSubjectId))
+    : quizzes;
 
   useEffect(() => {
     setCurrentTermId(termId);
@@ -282,7 +314,7 @@ export default function Page() {
               setOpen(false);
               setEditingAssessment(null);
             }}
-            quizzes={quizzes}
+            quizzes={visibleQuizzes}
             initialData={{
               name: editingAssessment.name,
               type: editingAssessment.type,
@@ -294,7 +326,7 @@ export default function Page() {
             onSubmit={handleAddAssessment}
             isQuiz={isAddingQuiz}
             termId={termId}
-            quizzes={quizzes}
+            quizzes={visibleQuizzes}
           />
         )}
       </Modal>
@@ -303,7 +335,7 @@ export default function Page() {
         assessments={assessments}
         onDeleteAssessment={confirmDelete}
         onEditAssessment={handleEditClick}
-        quizzes={quizzes}
+        quizzes={visibleQuizzes}
         termId={termId}
       />
       {/* Delete Confirmation Dialog */}

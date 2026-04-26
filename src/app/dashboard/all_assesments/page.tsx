@@ -38,7 +38,19 @@ function readQuizSubjectMap(): Record<string, number> {
 
 function filterQuizzesBySubject(quizzes: any[], subjectId: number): any[] {
   const map = readQuizSubjectMap();
-  return quizzes.filter((q) => map[String(q.id)] === subjectId);
+  return quizzes.filter((q) => {
+    const backendSubjectId = q.subject_id ?? q.subject?.id ?? null;
+    if (backendSubjectId != null && Number(backendSubjectId) !== 0) {
+      return Number(backendSubjectId) === subjectId;
+    }
+
+    const localSubjectId = map[String(q.id)];
+    if (localSubjectId != null) {
+      return localSubjectId === subjectId;
+    }
+
+    return false;
+  });
 }
 
 function readAssessmentSubjectMap(): Record<string, number> {
@@ -91,7 +103,9 @@ export default function Page() {
   // Assessments have no subject_id in the DB; show all school assessments
   // (localStorage-based subject tagging is unreliable across browsers/devices)
   const assessments = rawAssessments;
-  const quizzes = rawQuizzes;
+  const quizzes = inSubjectContext
+    ? filterQuizzesBySubject(rawQuizzes, Number(activeSubjectId))
+    : rawQuizzes;
   const isTeacher = currentUser?.role === "TEACHER";
   const normalizedTermId = typeof termId === "string" ? termId : "";
   const schoolIdNum = Number(currentUser?.school ?? 0);

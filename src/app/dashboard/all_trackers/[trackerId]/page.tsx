@@ -85,8 +85,7 @@ function filterQuizzesBySubject(quizzes: any[], subjectId: number): any[] {
     if (localSubjectId != null) {
       return localSubjectId === subjectId;
     }
-    // No subject info at all: include as unscoped/global quiz
-    return true;
+    return false;
   });
 }
 // ────────────────────────────────────────────────────────────────────────────
