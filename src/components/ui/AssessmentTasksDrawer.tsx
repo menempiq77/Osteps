@@ -371,6 +371,323 @@ export function AssessmentTasksDrawer({
     setEditingTaskId(null);
   };
 
+  const renderTaskForm = (isInlineEdit = false) => (
+    <form
+      onSubmit={handleSubmit(onSubmitTask)}
+      className={`p-4 border rounded-lg ${isInlineEdit ? "mt-3 bg-white" : "mb-4"}`}
+    >
+      <div className="space-y-4">
+        <h3 className="font-medium text-lg">
+          {editingTaskId ? "Edit Task" : "Create New Task"}
+        </h3>
+
+        <div>
+          <p className="font-medium">Task Name</p>
+          <Controller
+            name="name"
+            control={control}
+            rules={{ required: "Task name is required" }}
+            render={({ field }) => (
+              <AntdInput
+                {...field}
+                id="name"
+                className="!mt-1"
+                disabled={loading}
+                status={errors.name ? "error" : ""}
+              />
+            )}
+          />
+          {errors.name && (
+            <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>
+          )}
+        </div>
+
+        <div>
+          <p className="font-medium">Description</p>
+          <Controller
+            name="description"
+            control={control}
+            rules={{ required: "Description is required" }}
+            render={({ field }) => (
+              <AntdTextArea
+                {...field}
+                id="description"
+                className="!mt-1"
+                disabled={loading}
+                rows={3}
+                placeholder="Enter task description..."
+                status={errors.description ? "error" : ""}
+              />
+            )}
+          />
+          {errors.description && (
+            <p className="text-red-500 text-sm mt-1">
+              {errors.description.message}
+            </p>
+          )}
+        </div>
+
+        <div>
+          <p className="font-medium">Upload File (Optional)</p>
+          <Controller
+            name="file"
+            control={control}
+            render={({ field }) => (
+              <AntdInput
+                type="file"
+                id="file"
+                className="!mt-1"
+                disabled={loading}
+                onChange={(e) => field.onChange(e.target.files)}
+              />
+            )}
+          />
+        </div>
+
+        <div>
+          <p className="font-medium">Due Date</p>
+          <Controller
+            name="dueDate"
+            control={control}
+            rules={{ required: "Due date is required" }}
+            render={({ field }) => (
+              <DatePicker
+                {...field}
+                value={field.value ? dayjs(field.value) : undefined}
+                onChange={(date: Dayjs | null, dateString: string) =>
+                  field.onChange(dateString)
+                }
+                disabled={loading}
+                status={errors.dueDate ? "error" : ""}
+                className="!w-full !mt-1"
+                format="YYYY-MM-DD"
+                disabledDate={(current) =>
+                  current && current < dayjs().startOf("day")
+                }
+              />
+            )}
+          />
+          {errors.dueDate && (
+            <p className="text-red-500 text-sm mt-1">
+              {errors.dueDate.message}
+            </p>
+          )}
+        </div>
+
+        <div>
+          <p className="font-medium">Allocated Marks</p>
+          <Controller
+            name="allocatedMarks"
+            control={control}
+            rules={{
+              required: "Allocated marks are required",
+            }}
+            render={({ field }) => (
+              <InputNumber
+                {...field}
+                id="allocatedMarks"
+                min={0}
+                className="!mt-1 !w-full"
+                disabled={loading}
+                status={errors.allocatedMarks ? "error" : ""}
+                onChange={(value) => field.onChange(value)}
+              />
+            )}
+          />
+          {errors.allocatedMarks && (
+            <p className="text-red-500 text-sm mt-1">
+              {errors.allocatedMarks.message}
+            </p>
+          )}
+        </div>
+
+        <div>
+          <p className="font-medium">Task Type</p>
+          <div className="flex items-center space-x-4 mt-1">
+            <div className="flex items-center space-x-2">
+              <Controller
+                name="isAudio"
+                control={control}
+                render={({ field }) => (
+                  <Checkbox
+                    id="audio"
+                    checked={field.value}
+                    onChange={(e) => {
+                      field.onChange(e.target.checked);
+                      if (e.target.checked) {
+                        setValue("isUrl", false);
+                        setValue("isNA", false);
+                      }
+                    }}
+                    disabled={loading}
+                  >
+                    Audio
+                  </Checkbox>
+                )}
+              />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Controller
+                name="isVideo"
+                control={control}
+                render={({ field }) => (
+                  <Checkbox
+                    id="video"
+                    checked={field.value}
+                    onChange={(e) => {
+                      field.onChange(e.target.checked);
+                      if (e.target.checked) {
+                        setValue("isUrl", false);
+                        setValue("isNA", false);
+                      }
+                    }}
+                    disabled={loading}
+                  >
+                    Video
+                  </Checkbox>
+                )}
+              />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Controller
+                name="isPdf"
+                control={control}
+                render={({ field }) => (
+                  <Checkbox
+                    id="pdf"
+                    checked={field.value}
+                    onChange={(e) => {
+                      field.onChange(e.target.checked);
+                      if (e.target.checked) {
+                        setValue("isUrl", false);
+                        setValue("isNA", false);
+                      }
+                    }}
+                    disabled={loading}
+                  >
+                    PDF
+                  </Checkbox>
+                )}
+              />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Controller
+                name="isUrl"
+                control={control}
+                render={({ field }) => (
+                  <Checkbox
+                    id="url"
+                    checked={field.value}
+                    onChange={(e) => {
+                      field.onChange(e.target.checked);
+                      if (e.target.checked) {
+                        setValue("isAudio", false);
+                        setValue("isVideo", false);
+                        setValue("isPdf", false);
+                        setValue("isNA", false);
+                      }
+                    }}
+                    disabled={loading}
+                  >
+                    URL
+                  </Checkbox>
+                )}
+              />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Controller
+                name="isNA"
+                control={control}
+                render={({ field }) => (
+                  <Checkbox
+                    checked={field.value}
+                    onChange={(e) => {
+                      field.onChange(e.target.checked);
+                      if (e.target.checked) {
+                        setValue("isAudio", false);
+                        setValue("isVideo", false);
+                        setValue("isPdf", false);
+                        setValue("isUrl", false);
+                        setValue("url", "");
+                      }
+                    }}
+                    disabled={loading}
+                  >
+                    N/A
+                  </Checkbox>
+                )}
+              />
+            </div>
+          </div>
+
+          {!watch("isAudio") &&
+            !watch("isPdf") &&
+            !watch("isVideo") &&
+            !watch("isUrl") &&
+            !watch("isNA") && (
+              <p className="text-red-500 text-sm mt-1">
+                Please select at least one task type
+              </p>
+            )}
+        </div>
+
+        {watch("isUrl") && (
+          <div>
+            <p>URL</p>
+            <Controller
+              name="url"
+              control={control}
+              rules={{
+                required: "URL is required for URL tasks",
+                pattern: {
+                  value: /^https?:\/\/.+/,
+                  message:
+                    "Please enter a valid URL starting with http:// or https://",
+                },
+              }}
+              render={({ field }) => (
+                <AntdInput
+                  {...field}
+                  id="url"
+                  type="url"
+                  className="!mt-1"
+                  placeholder="https://example.com"
+                  disabled={loading}
+                  status={errors.url ? "error" : ""}
+                />
+              )}
+            />
+            {errors.url && (
+              <p className="text-red-500 text-sm mt-1">{errors.url.message}</p>
+            )}
+          </div>
+        )}
+
+        <div className="flex justify-end space-x-2">
+          <Button
+            onClick={handleCancel}
+            className="!bg-tranperant hover:!text-primary/90 hover:!border-primary/90"
+            disabled={loading}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="primary"
+            htmlType="submit"
+            className="!bg-primary !border-primary hover:!bg-primary/90 hover:!border-primary/90"
+            loading={loading}
+          >
+            {editingTaskId ? "Update Task" : "Save Task"}
+          </Button>
+        </div>
+      </div>
+    </form>
+  );
+
   return (
     <>
       {contextHolder}
@@ -411,334 +728,7 @@ export function AssessmentTasksDrawer({
       >
         <div className="space-y-4">
           {/* Task Form */}
-          {selectedType === "task" && (
-            <form
-              onSubmit={handleSubmit(onSubmitTask)}
-              className="p-4 border rounded-lg mb-4"
-            >
-              <div className="space-y-4">
-                <h3 className="font-medium text-lg">
-                  {editingTaskId ? "Edit Task" : "Create New Task"}
-                </h3>
-
-                {/* Task Name */}
-                <div>
-                  <p className="font-medium">Task Name</p>
-                  <Controller
-                    name="name"
-                    control={control}
-                    rules={{ required: "Task name is required" }}
-                    render={({ field }) => (
-                      <AntdInput
-                        {...field}
-                        id="name"
-                        className="!mt-1"
-                        disabled={loading}
-                        status={errors.name ? "error" : ""}
-                      />
-                    )}
-                  />
-                  {errors.name && (
-                    <p className="text-red-500 text-sm mt-1">
-                      {errors.name.message}
-                    </p>
-                  )}
-                </div>
-
-                {/* Description */}
-                <div>
-                  <p className="font-medium">Description</p>
-                  <Controller
-                    name="description"
-                    control={control}
-                    rules={{ required: "Description is required" }}
-                    render={({ field }) => (
-                      <AntdTextArea
-                        {...field}
-                        id="description"
-                        className="!mt-1"
-                        disabled={loading}
-                        rows={3}
-                        placeholder="Enter task description..."
-                        status={errors.description ? "error" : ""}
-                      />
-                    )}
-                  />
-                  {errors.description && (
-                    <p className="text-red-500 text-sm mt-1">
-                      {errors.description.message}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <p className="font-medium">Upload File (Optional)</p>
-                  <Controller
-                    name="file"
-                    control={control}
-                    render={({ field }) => (
-                      <AntdInput
-                        type="file"
-                        id="file"
-                        className="!mt-1"
-                        disabled={loading}
-                        onChange={(e) => field.onChange(e.target.files)}
-                      />
-                    )}
-                  />
-                </div>
-
-                {/* Due Date */}
-                <div>
-                  <p className="font-medium">Due Date</p>
-                 <Controller
-                  name="dueDate"
-                  control={control}
-                  rules={{ required: "Due date is required" }}
-                  render={({ field }) => (
-                    <DatePicker
-                      {...field}
-                      value={field.value ? dayjs(field.value) : undefined} // RHF + dayjs
-                      onChange={(date: Dayjs | null, dateString: string) => field.onChange(dateString)}
-                      disabled={loading}
-                      status={errors.dueDate ? "error" : ""}
-                      className="!w-full !mt-1"
-                      format="YYYY-MM-DD"
-                      disabledDate={(current) => current && current < dayjs().startOf("day")} // disable past dates
-                    />
-                  )}
-                />
-                  {errors.dueDate && (
-                    <p className="text-red-500 text-sm mt-1">
-                      {errors.dueDate.message}
-                    </p>
-                  )}
-                </div>
-
-                {/* Allocated Marks */}
-                <div>
-                  <p className="font-medium">Allocated Marks</p>
-                  <Controller
-                    name="allocatedMarks"
-                    control={control}
-                    rules={{
-                      required: "Allocated marks are required",
-                    }}
-                    render={({ field }) => (
-                      <InputNumber
-                        {...field}
-                        id="allocatedMarks"
-                        min={0}
-                        className="!mt-1 !w-full"
-                        disabled={loading}
-                        status={errors.allocatedMarks ? "error" : ""}
-                        onChange={(value) => field.onChange(value)} // value is already a number
-                      />
-                    )}
-                  />
-                  {errors.allocatedMarks && (
-                    <p className="text-red-500 text-sm mt-1">
-                      {errors.allocatedMarks.message}
-                    </p>
-                  )}
-                </div>
-
-                {/* Task Type Checkboxes */}
-                <div>
-                  <p className="font-medium">Task Type</p>
-                  <div className="flex items-center space-x-4 mt-1">
-                    {/* Audio */}
-                    <div className="flex items-center space-x-2">
-                      <Controller
-                        name="isAudio"
-                        control={control}
-                        render={({ field }) => (
-                          <Checkbox
-                            id="audio"
-                            checked={field.value}
-                            onChange={(e) => {
-                              field.onChange(e.target.checked);
-                              if (e.target.checked) {
-                                setValue("isUrl", false);
-                                setValue("isNA", false);
-                              }
-                            }}
-                            disabled={loading}
-                          >
-                            Audio
-                          </Checkbox>
-                        )}
-                      />
-                    </div>
-
-                    {/* Video */}
-                    <div className="flex items-center space-x-2">
-                      <Controller
-                        name="isVideo"
-                        control={control}
-                        render={({ field }) => (
-                          <Checkbox
-                            id="video"
-                            checked={field.value}
-                            onChange={(e) => {
-                              field.onChange(e.target.checked);
-                              if (e.target.checked) {
-                                setValue("isUrl", false);
-                                setValue("isNA", false);
-                              }
-                            }}
-                            disabled={loading}
-                          >
-                            Video
-                          </Checkbox>
-                        )}
-                      />
-                    </div>
-
-                    {/* PDF */}
-                    <div className="flex items-center space-x-2">
-                      <Controller
-                        name="isPdf"
-                        control={control}
-                        render={({ field }) => (
-                          <Checkbox
-                            id="pdf"
-                            checked={field.value}
-                            onChange={(e) => {
-                              field.onChange(e.target.checked);
-                              if (e.target.checked) {
-                                setValue("isUrl", false);
-                                setValue("isNA", false);
-                              }
-                            }}
-                            disabled={loading}
-                          >
-                            PDF
-                          </Checkbox>
-                        )}
-                      />
-                    </div>
-
-                    {/* URL */}
-                    <div className="flex items-center space-x-2">
-                      <Controller
-                        name="isUrl"
-                        control={control}
-                        render={({ field }) => (
-                          <Checkbox
-                            id="url"
-                            checked={field.value}
-                            onChange={(e) => {
-                              field.onChange(e.target.checked);
-                              if (e.target.checked) {
-                                setValue("isAudio", false);
-                                setValue("isVideo", false);
-                                setValue("isPdf", false);
-                                setValue("isNA", false);
-                              }
-                            }}
-                            disabled={loading}
-                          >
-                            URL
-                          </Checkbox>
-                        )}
-                      />
-                    </div>
-
-                    {/* N/A */}
-                    <div className="flex items-center space-x-2">
-                      <Controller
-                        name="isNA"
-                        control={control}
-                        render={({ field }) => (
-                          <Checkbox
-                            checked={field.value}
-                            onChange={(e) => {
-                              field.onChange(e.target.checked);
-                              if (e.target.checked) {
-                                setValue("isAudio", false);
-                                setValue("isVideo", false);
-                                setValue("isPdf", false);
-                                setValue("isUrl", false);
-                                setValue("url", "");
-                              }
-                            }}
-                            disabled={loading}
-                          >
-                            N/A
-                          </Checkbox>
-                        )}
-                      />
-                    </div>
-                  </div>
-
-                  {!watch("isAudio") &&
-                    !watch("isPdf") &&
-                    !watch("isVideo") &&
-                    !watch("isUrl") && 
-                    !watch("isNA") && (
-                      <p className="text-red-500 text-sm mt-1">
-                        Please select at least one task type
-                      </p>
-                    )}
-                </div>
-
-                {/* URL Input (shown only when isUrl is checked) */}
-                {watch("isUrl") && (
-                  <div>
-                    <p>URL</p>
-                    <Controller
-                      name="url"
-                      control={control}
-                      rules={{
-                        required: "URL is required for URL tasks",
-                        pattern: {
-                          value: /^https?:\/\/.+/,
-                          message:
-                            "Please enter a valid URL starting with http:// or https://",
-                        },
-                      }}
-                      render={({ field }) => (
-                        <AntdInput
-                          {...field}
-                          id="url"
-                          type="url"
-                          className="!mt-1"
-                          placeholder="https://example.com"
-                          disabled={loading}
-                          status={errors.url ? "error" : ""}
-                        />
-                      )}
-                    />
-                    {errors.url && (
-                      <p className="text-red-500 text-sm mt-1">
-                        {errors.url.message}
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {/* Form Actions */}
-                <div className="flex justify-end space-x-2">
-                  <Button
-                    onClick={handleCancel}
-                    className="!bg-tranperant hover:!text-primary/90 hover:!border-primary/90"
-                    disabled={loading}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="primary"
-                    htmlType="submit"
-                    className="!bg-primary !border-primary hover:!bg-primary/90 hover:!border-primary/90"
-                    loading={loading}
-                  >
-                    {editingTaskId ? "Update Task" : "Save Task"}
-                  </Button>
-                </div>
-              </div>
-            </form>
-          )}
+          {selectedType === "task" && !editingTaskId && renderTaskForm()}
 
           {/* Quiz Form Placeholder */}
           {selectedType === "quiz" && (
@@ -857,6 +847,7 @@ export function AssessmentTasksDrawer({
                       </a>
                     </div>
                   )}
+                  {editingTaskId === task.id && renderTaskForm(true)}
                 </Card>
               ))}
             </div>
