@@ -567,12 +567,16 @@ export default function DashboardPage() {
             }))
           )
       )
-      .filter((task: any) => task?.dueTs === null || task.dueTs >= now)
       .sort((a: any, b: any) => {
+        const aIsUpcoming = a.dueTs === null || a.dueTs >= now;
+        const bIsUpcoming = b.dueTs === null || b.dueTs >= now;
+
+        if (aIsUpcoming !== bIsUpcoming) return aIsUpcoming ? -1 : 1;
         if (a.dueTs === null && b.dueTs === null) return 0;
         if (a.dueTs === null) return 1;
         if (b.dueTs === null) return -1;
-        return a.dueTs - b.dueTs;
+
+        return aIsUpcoming ? a.dueTs - b.dueTs : b.dueTs - a.dueTs;
       });
 
     const grouped = new Map<string, any>();
@@ -1170,7 +1174,7 @@ export default function DashboardPage() {
             ) : (
               <Col span={24}>
                 <Card className="border-0 shadow-sm">
-                  <p className="text-sm text-gray-600">No active tasks available right now.</p>
+                  <p className="text-sm text-gray-600">No assigned assessments available right now.</p>
                 </Card>
               </Col>
             )}
