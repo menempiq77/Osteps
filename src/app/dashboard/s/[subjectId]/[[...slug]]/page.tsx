@@ -22,6 +22,7 @@ const SUBJECT_ROUTE_ROOTS = new Set([
   "trackers",
   "viewtrackers",
   "student_assesments",
+  "shared_materials",
   "students",
   "behavior",
   "mind-upgrade",
