@@ -26,6 +26,8 @@ import dayjs from "dayjs";
 
 const { Option } = Select;
 const { TextArea: AntdTextArea } = AntdInput;
+const QUIZ_SUBJECT_MAP_KEY = "osteps_quiz_subject_map";
+const ACTIVE_SUBJECT_STORAGE_KEY = "osteps-active-subject-id";
 
 type TaskFormData = {
   name: string;
@@ -74,6 +76,44 @@ type AssessmentTasksDrawerProps = {
   selectedTermId: string | null;
 };
 
+function readQuizSubjectMap(): Record<string, number> {
+  if (typeof window === "undefined") return {};
+  try {
+    return JSON.parse(localStorage.getItem(QUIZ_SUBJECT_MAP_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function getScopedSubjectId(): number | null {
+  if (typeof window === "undefined") return null;
+  const params = new URLSearchParams(window.location.search);
+  const fromQuery = Number(params.get("subject_id") ?? 0);
+  if (Number.isFinite(fromQuery) && fromQuery > 0) return fromQuery;
+
+  const fromStorage = Number(localStorage.getItem(ACTIVE_SUBJECT_STORAGE_KEY) ?? 0);
+  if (Number.isFinite(fromStorage) && fromStorage > 0) return fromStorage;
+
+  return null;
+}
+
+function filterQuizzesBySubject(quizzes: any[], subjectId: number): any[] {
+  const map = readQuizSubjectMap();
+  return quizzes.filter((q) => {
+    const backendSubjectId = q?.subject_id ?? q?.subject?.id ?? null;
+    if (backendSubjectId != null && Number(backendSubjectId) !== 0) {
+      return Number(backendSubjectId) === subjectId;
+    }
+
+    const localSubjectId = map[String(q?.id)];
+    if (localSubjectId != null) {
+      return localSubjectId === subjectId;
+    }
+
+    return false;
+  });
+}
+
 export function AssessmentTasksDrawer({
   visible,
   onClose,
@@ -92,6 +132,11 @@ export function AssessmentTasksDrawer({
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
   const [selectedQuizId, setSelectedQuizId] = useState<number | null>(null);
   const [messageApi, contextHolder] = message.useMessage();
+  const scopedSubjectId = getScopedSubjectId();
+  const visibleQuizzes =
+    scopedSubjectId && scopedSubjectId > 0
+      ? filterQuizzesBySubject(quizzes, scopedSubjectId)
+      : quizzes;
 
   const {
     register,
@@ -223,7 +268,7 @@ export function AssessmentTasksDrawer({
       messageApi.success("Quiz assigned successfully");
       // You might want to refresh the task list or add the quiz to initialTasks
 
-      const selectedQuiz = quizzes.find((q) => q.id === selectedQuizId);
+      const selectedQuiz = visibleQuizzes.find((q) => q.id === selectedQuizId);
       if (selectedQuiz) {
         const newQuizTask = {
           id: Date.now(), // temporary unique ID for frontend
@@ -706,7 +751,7 @@ export function AssessmentTasksDrawer({
                 onChange={(value) => setSelectedQuizId(value)}
                 value={selectedQuizId || undefined}
               >
-                {quizzes?.map((quiz) => (
+                {visibleQuizzes?.map((quiz) => (
                   <Option key={quiz.id} value={quiz.id}>
                     {quiz.name}
                   </Option>

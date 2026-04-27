@@ -33,6 +33,7 @@ api.interceptors.request.use(async (config) => {
     "/get-assessment",
     "/get-school-assessments",
     "/get-student-assessment",
+    "/get-student-assessment-tasks",
     "/add-assessment",
     "/update-assessment",
     "/get-report-assessments",
