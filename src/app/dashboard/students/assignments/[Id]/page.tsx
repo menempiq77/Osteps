@@ -120,6 +120,8 @@ export default function AssignmentDetailPage() {
             obtained_marks: totalMarks || 0,
             total_marks: totalPossibleMarks || 0,
             quiz_comments: comments,
+            self_assessment_marks: submission?.self_assessment_mark ?? null,
+            teacher_assessment_marks: submission?.teacher_assessment_mark ?? null,
           };
         }
 
@@ -171,7 +173,7 @@ export default function AssignmentDetailPage() {
             const question = task.quiz.quiz_queston?.find((q: any) => q.id === a.quiz_question_id);
             return { question_id: a.quiz_question_id, question_text: question?.question_text || "Untitled question", comment: a.comment };
           }) || [];
-          return { ...task, status: submission?.status || "not-started", obtained_marks: totalMarks || 0, total_marks: totalPossibleMarks || 0, quiz_comments: comments };
+          return { ...task, status: submission?.status || "not-started", obtained_marks: totalMarks || 0, total_marks: totalPossibleMarks || 0, quiz_comments: comments, self_assessment_marks: submission?.self_assessment_mark ?? null, teacher_assessment_marks: submission?.teacher_assessment_mark ?? null };
         }
         return task;
       });
@@ -290,12 +292,36 @@ export default function AssignmentDetailPage() {
                     <div className="text-sm flex flex-col sm:flex-row sm:items-center gap-3">
                       {task.type === "quiz" ? (
                         <div className="flex flex-col gap-1">
-                          <div>
-                            <span className="text-gray-500">Quiz Marks:</span>
-                            <span className="ml-2 font-medium">
-                              {task?.obtained_marks || 0} /{" "}
-                              {task?.total_marks || 0}
-                            </span>
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                            <div>
+                              <span className="text-gray-500">Quiz Marks:</span>
+                              <span className="ml-2 font-medium">
+                                {task?.obtained_marks || 0} /{" "}
+                                {task?.total_marks || 0}
+                              </span>
+                            </div>
+                            {task?.self_assessment_marks != null && (
+                              <>
+                                <div className="text-gray-300 hidden sm:block">|</div>
+                                <div>
+                                  <span className="text-gray-500">Self Assessment:</span>
+                                  <span className="ml-2 font-medium">
+                                    {task.self_assessment_marks} / {task?.total_marks || 0}
+                                  </span>
+                                </div>
+                              </>
+                            )}
+                            {task?.teacher_assessment_marks != null && (
+                              <>
+                                <div className="text-gray-300 hidden sm:block">|</div>
+                                <div>
+                                  <span className="text-gray-500">Teacher Assessment:</span>
+                                  <span className="ml-2 font-medium">
+                                    {task.teacher_assessment_marks} / {task?.total_marks || 0}
+                                  </span>
+                                </div>
+                              </>
+                            )}
                           </div>
 
                           {/* 🗒️ Show comments if available */}

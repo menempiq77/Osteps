@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import {
   Button,
   Input,
+  InputNumber,
   Select,
   Checkbox,
   Space,
@@ -63,6 +64,7 @@ export default function QuranQuizPage() {
   const [submitting, setSubmitting] = useState(false);
   const [quizData, setQuizData] = useState<Quiz | null>(null);
   const [answers, setAnswers] = useState<Record<number, any>>({});
+  const [selfAssessmentMark, setSelfAssessmentMark] = useState<number | null>(null);
   const [messageApi, contextHolder] = message.useMessage();
 
   const canUpload =
@@ -86,6 +88,9 @@ export default function QuranQuizPage() {
               restored[a.question_id] = a.answer;
             });
             setAnswers(restored);
+            if (parsed.selfAssessmentMark != null) {
+              setSelfAssessmentMark(parsed.selfAssessmentMark);
+            }
           } catch {}
         }
       } catch (error) {
@@ -181,6 +186,7 @@ export default function QuranQuizPage() {
         `quiz_${quizData.id}_answers`,
         JSON.stringify({
           answers: formattedAnswers,
+          selfAssessmentMark: selfAssessmentMark,
           submittedAt: new Date().toISOString(),
         })
       );
@@ -190,7 +196,9 @@ export default function QuranQuizPage() {
         currentUser.student,
         Id,
         formattedAnswers,
-        "task"
+        "task",
+        undefined,
+        selfAssessmentMark ?? undefined
       );
 
       // ✅ check if already submitted
@@ -409,16 +417,35 @@ export default function QuranQuizPage() {
           </div>
 
           {isStudent && (
-            <div className="p-4 bg-gray-50 border-t border-gray-200 text-right">
-              <Button
-                type="primary"
-                onClick={handleSubmit}
-                loading={submitting}
-                disabled={!quizData?.quiz_queston?.length}
-                className="!bg-primary !border-primary hover:!bg-primary/90 disabled:!bg-gray-300 disabled:!border-gray-300 disabled:!text-gray-500"
-              >
-                Submit Answers
-              </Button>
+            <div className="p-4 bg-gray-50 border-t border-gray-200">
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Self Assessment Mark
+                  {quizData?.quiz_queston && (
+                    <span className="text-gray-400 font-normal ml-1">
+                      (out of {quizData.quiz_queston.reduce((s, q) => s + (parseFloat(String(q.marks)) || 0), 0)})
+                    </span>
+                  )}
+                </label>
+                <InputNumber
+                  min={0}
+                  value={selfAssessmentMark ?? undefined}
+                  onChange={(val) => setSelfAssessmentMark(val)}
+                  placeholder="Enter your self mark"
+                  className="w-40"
+                />
+              </div>
+              <div className="text-right">
+                <Button
+                  type="primary"
+                  onClick={handleSubmit}
+                  loading={submitting}
+                  disabled={!quizData?.quiz_queston?.length}
+                  className="!bg-primary !border-primary hover:!bg-primary/90 disabled:!bg-gray-300 disabled:!border-gray-300 disabled:!text-gray-500"
+                >
+                  Submit Answers
+                </Button>
+              </div>
             </div>
           )}
         </div>
