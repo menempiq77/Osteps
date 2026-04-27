@@ -45,6 +45,51 @@ interface StudentAssessmentTask {
   teacher_assessment_marks?: string;
 }
 
+interface StudentOption {
+  id: string;
+  student_name: string;
+}
+
+const toStudentOption = (value: unknown): StudentOption | null => {
+  if (!value || typeof value !== "object") return null;
+  const row = value as Record<string, any>;
+  const id = row?.id ?? row?.student_id;
+  if (id == null || String(id).trim() === "") return null;
+  return {
+    id: String(id),
+    student_name:
+      String(
+        row?.student_name ??
+          row?.name ??
+          row?.student?.student_name ??
+          row?.student?.name ??
+          row?.user?.name ??
+          `Student ${id}`
+      ).trim() || `Student ${id}`,
+  };
+};
+
+const buildStudentOptions = (
+  students: Student[],
+  assessmentTasks: StudentAssessmentTask[]
+): StudentOption[] => {
+  const byId = new Map<string, StudentOption>();
+
+  for (const student of students ?? []) {
+    const option = toStudentOption(student);
+    if (option) byId.set(option.id, option);
+  }
+
+  for (const task of assessmentTasks ?? []) {
+    const option = toStudentOption(task);
+    if (option && !byId.has(option.id)) {
+      byId.set(option.id, option);
+    }
+  }
+
+  return Array.from(byId.values());
+};
+
 export default function AssessmentDrawer() {
   const router = useRouter();
   const params = useParams();
@@ -64,7 +109,7 @@ export default function AssessmentDrawer() {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedStudentId, setSelectedStudentId] = useState<string>(null);
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [assementTasks, setAssesmentTasks] = useState<StudentAssessmentTask[]>(
     []
   );
@@ -80,7 +125,10 @@ export default function AssessmentDrawer() {
   const loadStudentTasks = async (assessmentId: number) => {
     try {
       setLoading(true);
-      const data = await fetchStudentTasks(assessmentId);
+      const data = await fetchStudentTasks(
+        Number(assessmentId),
+        canUseSubjectContext ? activeSubjectId ?? undefined : undefined
+      );
       setAssesmentTasks(data);
       setError(null);
     } catch (err) {
@@ -92,8 +140,10 @@ export default function AssessmentDrawer() {
   };
 
   useEffect(() => {
-    loadStudentTasks(assessmentId);
-  }, []);
+    if (!assessmentId) return;
+    if (canUseSubjectContext && !activeSubjectId) return;
+    loadStudentTasks(Number(assessmentId));
+  }, [assessmentId, activeSubjectId, canUseSubjectContext]);
 
   const loadStudents = async () => {
     try {
@@ -113,9 +163,6 @@ export default function AssessmentDrawer() {
         );
       }
       setStudents(studentsData);
-      if (studentsData.length > 0) {
-        setSelectedStudentId(studentsData[0].id);
-      }
     } catch (err) {
       setError("Failed to load students");
       console.error(err);
@@ -133,6 +180,31 @@ export default function AssessmentDrawer() {
   const handleStudentChange = (value: string) => {
     setSelectedStudentId(value);
   };
+
+  const studentOptions = buildStudentOptions(students, assementTasks);
+
+  useEffect(() => {
+    if (studentOptions.length === 0) {
+      if (!selectedStudentId) return;
+      setSelectedStudentId(null);
+      return;
+    }
+
+    const hasCurrentSelection = selectedStudentId
+      ? studentOptions.some((student) => student.id === String(selectedStudentId))
+      : false;
+    if (hasCurrentSelection) return;
+
+    const firstSubmitter = assementTasks.find((task) => task?.student_id != null);
+    const preferredStudentId =
+      firstSubmitter?.student_id != null
+        ? String(firstSubmitter.student_id)
+        : studentOptions[0]?.id ?? null;
+
+    if (preferredStudentId) {
+      setSelectedStudentId(preferredStudentId);
+    }
+  }, [assementTasks, selectedStudentId, studentOptions]);
 
   const toggleAssessment = (taskId: number) => {
     setAssessmentOpenTaskId((prev) => (prev === taskId ? null : taskId));
@@ -242,12 +314,12 @@ export default function AssessmentDrawer() {
             Students
           </label>
           <Select
-            value={selectedStudentId}
+            value={selectedStudentId ?? undefined}
             onChange={handleStudentChange}
             placeholder="Select student"
             style={{ width: "100%" }}
           >
-            {students.map((student) => (
+            {studentOptions.map((student) => (
               <Select.Option key={student.id} value={student.id}>
                 {student.student_name}
               </Select.Option>
@@ -563,7 +635,9 @@ export default function AssessmentDrawer() {
             ))
           ) : (
             <div className="text-center text-gray-500 w-full p-4 shadow border border-gray-200">
-              No tasks found.
+              {assementTasks.length > 0
+                ? "No tasks found for the selected student."
+                : "No tasks found."}
             </div>
           )}
         </div>
