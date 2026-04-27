@@ -11,6 +11,7 @@ import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { addStudentTaskMarks, fetchStudentTasks } from "@/services/api";
+import { updateQuizSubmissionTeacherMark } from "@/services/quizApi";
 import { fetchStudents } from "@/services/studentsApi";
 import Link from "next/link";
 import { useSubjectContext } from "@/contexts/SubjectContext";
@@ -68,6 +69,8 @@ export default function AssessmentDrawer() {
     []
   );
   const [inputError, setInputError] = useState(false);
+  const [quizTeacherMarkOpenId, setQuizTeacherMarkOpenId] = useState<number | null>(null);
+  const [quizTeacherMark, setQuizTeacherMark] = useState<string>("");
 
   const [formValues, setFormValues] = useState<{
     marks: string;
@@ -148,6 +151,18 @@ export default function AssessmentDrawer() {
       ...prev,
       [field]: value,
     }));
+  };
+
+  const handleQuizTeacherMarkSubmit = async (submissionId: number) => {
+    try {
+      await updateQuizSubmissionTeacherMark(submissionId, parseInt(quizTeacherMark || "0"));
+      message.success("Quiz marks updated");
+      setQuizTeacherMarkOpenId(null);
+      setQuizTeacherMark("");
+      loadStudentTasks(assessmentId);
+    } catch (err) {
+      message.error("Failed to update quiz marks");
+    }
   };
 
   const handleAssessmentSubmit = async (taskId: number) => {
@@ -300,92 +315,74 @@ export default function AssessmentDrawer() {
                 </div>
 
                 {/* Assessment Summary */}
-                {task?.submission_type !== "quiz" && (
+                {task?.submission_type !== "quiz" ? (
                   <>
                   <div className="grid grid-cols-2 gap-3 mb-4">
                     {/* Student Assessment */}
                     <div className="p-3 bg-blue-50 rounded-md border border-blue-100">
                       <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-medium text-blue-700">SELF</span>
                         <span className="text-xs font-medium text-blue-700">
-                          SELF
-                        </span>
-                        <span className="text-xs font-medium text-blue-700">
-                          {task?.self_assessment_mark}/
-                          {task?.task?.allocated_marks}
+                          {task?.self_assessment_mark}/{task?.task?.allocated_marks}
                         </span>
                       </div>
                       <div className="w-full bg-blue-100 rounded-full h-1.5">
-                        <div
-                          className="bg-blue-500 h-1.5 rounded-full"
-                          style={{
-                            width: `${
-                              (parseInt(task?.self_assessment_mark || "0") /
-                                parseInt(task?.task?.allocated_marks)) *
-                              100
-                            }%`,
-                          }}
-                        ></div>
+                        <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${(parseInt(task?.self_assessment_mark || "0") / parseInt(task?.task?.allocated_marks)) * 100}%` }}></div>
                       </div>
                     </div>
-
                     {/* Teacher Assessment */}
-                    <div
-                      className={`p-3 rounded-md border ${
-                        task?.teacher_assessment_marks
-                          ? "bg-green-50 border-green-100"
-                          : "bg-gray-50 border-gray-200"
-                      }`}
-                    >
+                    <div className={`p-3 rounded-md border ${task?.teacher_assessment_marks ? "bg-green-50 border-green-100" : "bg-gray-50 border-gray-200"}`}>
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-medium text-gray-700">
-                          TEACHER
-                        </span>
+                        <span className="text-xs font-medium text-gray-700">TEACHER</span>
                         {task?.teacher_assessment_score ? (
-                          <span className="text-sm font-semibold text-green-600">
-                            {task?.teacher_assessment_score}/
-                            {task?.task?.allocated_marks}
-                          </span>
+                          <span className="text-sm font-semibold text-green-600">{task?.teacher_assessment_score}/{task?.task?.allocated_marks}</span>
                         ) : (
                           <span className="text-xs text-gray-500">Pending</span>
                         )}
                       </div>
                       {task?.teacher_assessment_score ? (
-                        <div className="w-full bg-green-100 rounded-full h-1.5">
-                          <div
-                            className="bg-green-500 h-1.5 rounded-full"
-                            style={{
-                              width: `${
-                                (parseInt(
-                                  task?.teacher_assessment_score || "0"
-                                ) /
-                                  parseInt(task?.task?.allocated_marks)) *
-                                100
-                              }%`,
-                            }}
-                          ></div>
-                        </div>
+                        <div className="w-full bg-green-100 rounded-full h-1.5"><div className="bg-green-500 h-1.5 rounded-full" style={{ width: `${(parseInt(task?.teacher_assessment_score || "0") / parseInt(task?.task?.allocated_marks)) * 100}%` }}></div></div>
                       ) : (
                         <div className="w-full bg-gray-200 rounded-full h-1.5"></div>
                       )}
                     </div>
                   </div>
-
-                  {/* Total marks */}
                   <div className="flex justify-end items-center gap-2 mb-3">
                     <span className="text-xs text-gray-500 font-medium">Total Teacher Marks:</span>
-                    <span className="text-sm font-bold text-green-700">
-                      {task?.teacher_assessment_score ?? task?.teacher_assessment_marks ?? 0}
-                      /{task?.task?.allocated_marks}
-                    </span>
+                    <span className="text-sm font-bold text-green-700">{task?.teacher_assessment_score ?? task?.teacher_assessment_marks ?? 0}/{task?.task?.allocated_marks}</span>
                   </div>
                   </>
-                )}
-
-                {task?.submission_type === "quiz" && (
-                  <div className="bg-primary inline py-0.5 text-white text-sm rounded-full px-3 ">
-                    {task?.submission_type}
-                  </div>
-                )}
+                ) : (() => {
+                  const quizTotal = (task?.quiz as any)?.quiz_queston?.reduce((s: number, q: any) => s + (parseFloat(q.marks) || 0), 0) || 0;
+                  return (
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                      <div className="p-3 bg-blue-50 rounded-md border border-blue-100">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-medium text-blue-700">SELF</span>
+                          <span className="text-xs font-medium text-blue-700">
+                            {task?.self_assessment_mark ?? "–"}{quizTotal ? `/${quizTotal}` : ""}
+                          </span>
+                        </div>
+                        <div className="w-full bg-blue-100 rounded-full h-1.5">
+                          <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: quizTotal ? `${(parseFloat(String(task?.self_assessment_mark || 0)) / quizTotal) * 100}%` : "0%" }}></div>
+                        </div>
+                      </div>
+                      <div className={`p-3 rounded-md border ${task?.teacher_assessment_mark != null ? "bg-green-50 border-green-100" : "bg-gray-50 border-gray-200"}`}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-medium text-gray-700">TEACHER</span>
+                          {task?.teacher_assessment_mark != null ? (
+                            <span className="text-sm font-semibold text-green-600">{task.teacher_assessment_mark}{quizTotal ? `/${quizTotal}` : ""}</span>
+                          ) : (
+                            <span className="text-xs text-gray-500">Pending</span>
+                          )}
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-1.5">
+                          <div className="bg-green-500 h-1.5 rounded-full" style={{ width: quizTotal && task?.teacher_assessment_mark != null ? `${(parseFloat(String(task.teacher_assessment_mark)) / quizTotal) * 100}%` : "0%" }}></div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 <div className="text-sm text-gray-500">
                   {task?.teacher_feedback && (
@@ -412,7 +409,24 @@ export default function AssessmentDrawer() {
                 </div>
 
                 {/* Assessment Form Toggle */}
-                {task?.submission_type !== "quiz" && (
+                {task?.submission_type === "quiz" ? (
+                  <div className="flex justify-between items-center border-t border-gray-100 pt-3">
+                    {task?.status && (
+                      <span className={`text-xs font-medium px-2 py-1 rounded-full ${task.status === "completed" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
+                        {task.status.charAt(0).toUpperCase() + task.status.slice(1)}
+                      </span>
+                    )}
+                    {currentUser?.role !== "STUDENT" && (
+                      <Button type="text" size="small"
+                        onClick={() => { setQuizTeacherMarkOpenId(prev => prev === task.id ? null : task.id); setQuizTeacherMark(String(task?.teacher_assessment_mark ?? "")); }}
+                        className={`text-sm ${quizTeacherMarkOpenId === task.id ? "text-gray-500" : "text-green-600 hover:text-green-800"}`}
+                        disabled={!selectedStudentId}
+                      >
+                        {quizTeacherMarkOpenId === task.id ? <span>Hide</span> : <span>{task?.teacher_assessment_mark != null ? "Update Marks" : "Mark Quiz"}</span>}
+                      </Button>
+                    )}
+                  </div>
+                ) : (
                   <div className="flex justify-between items-center border-t border-gray-100 pt-3">
                     {/* Task Status */}
                     {task?.status && (
@@ -452,6 +466,26 @@ export default function AssessmentDrawer() {
                         )}
                       </Button>
                     )}
+                  </div>
+                )}
+
+                {/* Quiz Teacher Mark Form */}
+                {quizTeacherMarkOpenId === task.id && (
+                  <div className="mt-4 space-y-4 pt-4 border-t border-gray-100">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Teacher Marks</label>
+                      <Input
+                        type="number" min="0"
+                        value={quizTeacherMark}
+                        onChange={(e) => setQuizTeacherMark(e.target.value)}
+                        className="w-24"
+                        placeholder="0"
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button onClick={() => setQuizTeacherMarkOpenId(null)}>Cancel</Button>
+                      <Button type="primary" className="!bg-primary !text-white !border-0" onClick={() => handleQuizTeacherMarkSubmit(task.id)}>Save</Button>
+                    </div>
                   </div>
                 )}
 
