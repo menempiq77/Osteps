@@ -381,38 +381,14 @@ export default function QuranQuizPage() {
                                       </Button>
                                     </>
                                   ) : (
-                                    <>
-                                      <Button
-                                        size="small"
-                                        type={isCorrect ? "primary" : "default"}
-                                        onClick={() =>
-                                          markAnswer(
-                                            submitted.id,
-                                            true,
-                                            question.id,
-                                            question.marks
-                                          )
-                                        }
-                                        loading={loadingStates[question.id]}
-                                      >
-                                        Correct
-                                      </Button>
-                                      <Button
-                                        size="small"
-                                        danger={!isCorrect}
-                                        onClick={() =>
-                                          markAnswer(
-                                            submitted.id,
-                                            false,
-                                            question.id,
-                                            question.marks
-                                          )
-                                        }
-                                        loading={loadingStates[question.id]}
-                                      >
-                                        Incorrect
-                                      </Button>
-                                    </>
+                                    <div className="flex items-center gap-2">
+                                      <span className={`text-sm font-semibold ${isCorrect ? 'text-green-600' : 'text-red-500'}`}>
+                                        {isCorrect ? '✓ Correct' : '✗ Incorrect'}
+                                      </span>
+                                      <span className="text-xs text-gray-400 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded">
+                                        Auto-marked
+                                      </span>
+                                    </div>
                                   )}
                                   <span className="text-sm text-gray-600">
                                     Marks: {submitted.marks || 0}/
