@@ -10,6 +10,7 @@ import {
   fetchWholeAssessmentsReport,
 } from "@/services/reportApi";
 import { addStudentTaskMarks } from "@/services/api";
+import { updateQuizSubmissionTeacherMark } from "@/services/quizApi";
 import { fetchGrades } from "@/services/gradesApi";
 import { fetchYearsBySchool } from "@/services/yearsApi";
 import { useSelector } from "react-redux";
@@ -26,11 +27,14 @@ interface Task {
   assessment_id: number;
   teacher_assessment_marks: number | null;
   allocated_marks: string;
+  task_type?: string;
+  quiz_id?: number;
   submitted?: Array<{
     student_id: number;
     student_name: string;
     teacher_assessment_marks: number | null;
     mind_points?: number;
+    submission_id?: number;
   }>;
   not_submitted?: Array<{
     student_id: number;
@@ -365,7 +369,7 @@ export default function ReportsPage() {
     };
 
     // Build flat list of tasks across all assessments, filtered by selected term
-    const allTaskColumns: { taskId: number; taskName: string; allocatedMarks: number; term: string; assessmentId: number }[] = [];
+    const allTaskColumns: { taskId: number; taskName: string; allocatedMarks: number; term: string; assessmentId: number; taskType: string }[] = [];
     const seenTaskIds = new Set<number>();
     filteredAssessments.forEach((assessment) => {
       const term = extractTerm(assessment.assessment_name);
@@ -379,6 +383,7 @@ export default function ReportsPage() {
             allocatedMarks: Number(task.allocated_marks),
             term,
             assessmentId: assessment.assessment_id,
+            taskType: task.task_type ?? 'task',
           });
         }
       });
@@ -387,7 +392,7 @@ export default function ReportsPage() {
     const maxPossibleTotal = allTaskColumns.reduce((s, c) => s + c.allocatedMarks, 0);
 
     // Build student rows: one entry per student, keyed by student_id
-    const studentsMap = new Map<number, { student_name: string; taskMarks: Map<number, { marks: number; allocated: number; submitted: boolean }> }>();
+    const studentsMap = new Map<number, { student_name: string; taskMarks: Map<number, { marks: number; allocated: number; submitted: boolean; submissionId?: number }> }>();
 
     filteredAssessments.forEach((assessment) => {
       const term = extractTerm(assessment.assessment_name);
@@ -402,6 +407,7 @@ export default function ReportsPage() {
             marks: Number(submission.teacher_assessment_marks ?? 0),
             allocated: Number(task.allocated_marks),
             submitted: true,
+            submissionId: submission.submission_id ?? undefined,
           });
         });
 
@@ -422,7 +428,7 @@ export default function ReportsPage() {
 
     const students = Array.from(studentsMap.entries()).map(([studentId, studentData]) => {
       let total = 0;
-      const taskMarks: Record<number, { marks: number; allocated: number; submitted: boolean }> = {};
+      const taskMarks: Record<number, { marks: number; allocated: number; submitted: boolean; submissionId?: number }> = {};
 
       allTaskColumns.forEach((col) => {
         const mark = studentData.taskMarks.get(col.taskId);
@@ -554,7 +560,7 @@ export default function ReportsPage() {
 
   const commitEdit = async (
     studentId: number,
-    col: { taskId: number; assessmentId: number; allocatedMarks: number }
+    col: { taskId: number; assessmentId: number; allocatedMarks: number; taskType: string }
   ) => {
     const valStr = editingValue.trim();
     setEditingCell(null);
@@ -564,12 +570,20 @@ export default function ReportsPage() {
 
     setSavingCell({ studentId, taskId: col.taskId });
     try {
-      await addStudentTaskMarks(studentId, {
-        assessment_id: col.assessmentId,
-        task_id: col.taskId,
-        teacher_assessment_marks: val,
-        teacher_assessment_feedback: "",
-      });
+      if (col.taskType === 'quiz') {
+        const student = transformedData.find((s) => s.student_id === studentId);
+        const submissionId = student?.taskMarks[col.taskId]?.submissionId;
+        if (submissionId) {
+          await updateQuizSubmissionTeacherMark(submissionId, val);
+        }
+      } else {
+        await addStudentTaskMarks(studentId, {
+          assessment_id: col.assessmentId,
+          task_id: col.taskId,
+          teacher_assessment_marks: val,
+          teacher_assessment_feedback: "",
+        });
+      }
       setLocalMarkOverrides((prev) => ({ ...prev, [`${studentId}_${col.taskId}`]: val }));
     } catch {
       /* silently fail */
@@ -888,17 +902,24 @@ export default function ReportsPage() {
                               ) : isEditing ? (
                                 <input
                                   autoFocus
-                                  type="number"
+                                  type="text"
+                                  inputMode="decimal"
+                                  pattern="[0-9]*[.]?[0-9]*"
                                   value={editingValue}
                                   min={0}
                                   max={col.allocatedMarks}
-                                  onChange={(e) => setEditingValue(e.target.value)}
+                                  onChange={(e) => {
+                                    const nextValue = e.target.value;
+                                    if (nextValue === "" || /^\d*\.?\d*$/.test(nextValue)) {
+                                      setEditingValue(nextValue);
+                                    }
+                                  }}
                                   onBlur={() => commitEdit(student.student_id, col)}
                                   onKeyDown={(e) => {
                                     if (e.key === "Enter") commitEdit(student.student_id, col);
                                     if (e.key === "Escape") setEditingCell(null);
                                   }}
-                                  className="w-full h-full py-2 px-1 text-center text-sm bg-yellow-50 border-0 outline-none focus:outline-none"
+                                  className="markbook-edit-input w-full h-full py-2 px-1 text-center text-sm bg-yellow-50 border-0 outline-none focus:outline-none"
                                   style={{ minWidth: "3rem" }}
                                 />
                               ) : (

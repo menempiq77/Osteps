@@ -219,6 +219,17 @@
   border-bottom-color: rgba(148, 163, 184, 0.2) !important;
 }
 
+.markbook-edit-input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.markbook-edit-input[type="number"]::-webkit-outer-spin-button,
+.markbook-edit-input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 .premium-pill-btn.ant-btn {
   border-radius: 999px !important;
   border-color: color-mix(in srgb, var(--primary) 35%, white) !important;

@@ -427,6 +427,7 @@ export default function AssessmentDrawer() {
                 ) : (() => {
                   const quizTotal = (task?.quiz as any)?.quiz_queston?.reduce((s: number, q: any) => s + (parseFloat(q.marks) || 0), 0) || 0;
                   return (
+                    <>
                     <div className="grid grid-cols-2 gap-3 mb-4">
                       <div className="p-3 bg-blue-50 rounded-md border border-blue-100">
                         <div className="flex items-center justify-between mb-1">
@@ -453,6 +454,13 @@ export default function AssessmentDrawer() {
                         </div>
                       </div>
                     </div>
+                    <div className="flex justify-end items-center gap-2 mb-3">
+                      <span className="text-xs text-gray-500 font-medium">Total Teacher Marks:</span>
+                      <span className="text-sm font-bold text-green-700">
+                        {task?.teacher_assessment_mark != null ? task.teacher_assessment_mark : 0}{quizTotal ? `/${quizTotal}` : ""}
+                      </span>
+                    </div>
+                    </>
                   );
                 })()}
 
