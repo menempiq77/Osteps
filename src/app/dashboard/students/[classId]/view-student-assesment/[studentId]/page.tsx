@@ -8,6 +8,7 @@ import {
 } from "@/services/api";
 import { fetchTerm } from "@/services/termsApi";
 import { useSubjectContext } from "@/contexts/SubjectContext";
+import ExamIncidentHistoryCard from "@/components/students/ExamIncidentHistoryCard";
 
 export default function TermPage() {
   const { classId, studentId } = useParams();
@@ -121,6 +122,8 @@ export default function TermPage() {
       </div>
 
       {/* Current Term Display */}
+      <ExamIncidentHistoryCard studentId={String(studentId)} title="Saved Exam Exit Notes" />
+
       <Card className="p-6 bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow">
         <h3 className="text-xl font-semibold text-gray-900 mb-2">
           {selectedTerm || "Select a term"}

@@ -43,6 +43,7 @@ import { fetchClasses } from "@/services/classesApi";
 import { readStudentProfileOverride } from "@/lib/studentProfileOverrides";
 import { extractSubjectIdFromPath } from "@/lib/subjectRouting";
 import { studentMatchesSubjectScope } from "@/lib/subjectStudentScope";
+import ExamIncidentHistoryCard from "@/components/students/ExamIncidentHistoryCard";
 
 type AnyObj = Record<string, any>;
 
@@ -1021,6 +1022,8 @@ export default function StudentProfilePage() {
           {completedTasks} / {totalTasks} tasks completed
         </div>
       </Card>
+
+      <ExamIncidentHistoryCard studentId={studentId} title="Exam Exit History" />
 
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={12}>

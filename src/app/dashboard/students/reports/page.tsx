@@ -85,6 +85,34 @@ function asArray<T = any>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
 }
 
+const broadcastAssessmentMarkUpdate = (detail: {
+  assessmentId: number;
+  studentId: number;
+  taskId: number;
+  taskType: string;
+  value: number;
+}) => {
+  if (typeof window === "undefined") return;
+
+  const payload = {
+    ...detail,
+    timestamp: Date.now(),
+  };
+
+  window.dispatchEvent(
+    new CustomEvent("osteps:assessment-mark-updated", { detail: payload })
+  );
+
+  try {
+    window.localStorage.setItem(
+      "osteps:assessment-mark-updated",
+      JSON.stringify(payload)
+    );
+  } catch {
+    /* ignore storage write failures */
+  }
+};
+
 export default function ReportsPage() {
    const router = useRouter();
   const searchParams = useSearchParams();
@@ -325,6 +353,10 @@ export default function ReportsPage() {
     applyUrlFilter,
   ]);
 
+  useEffect(() => {
+    setLocalMarkOverrides({});
+  }, [wholeAssesmentData]);
+
   // assignedClasses is now already subject-filtered (narrowed in the fetch effect above)
   const effectiveAssignedClasses = assignedClasses;
 
@@ -499,14 +531,14 @@ export default function ReportsPage() {
   });
 
   const handleViewReportsDetail = (reportId: string) => {
-    router.push(`/dashboard/students/reports/${reportId}`);
+    router.push(`/dashboard/students/markbook/${reportId}`);
   };
 
   // Function to clear URL filter and remove query params
   const handleClearUrlFilter = () => {
     setApplyUrlFilter(false);
     // Remove query params from URL
-    router.push('/dashboard/students/reports', { scroll: false });
+    router.push('/dashboard/students/markbook', { scroll: false });
   };
 
   // Clear URL filter when user changes search or filters
@@ -568,6 +600,11 @@ export default function ReportsPage() {
     const val = Number(valStr);
     if (isNaN(val) || val < 0 || val > col.allocatedMarks) return;
 
+    const overrideKey = `${studentId}_${col.taskId}`;
+    const hadPreviousOverride = Object.prototype.hasOwnProperty.call(localMarkOverrides, overrideKey);
+    const previousOverride = localMarkOverrides[overrideKey];
+
+    setLocalMarkOverrides((prev) => ({ ...prev, [overrideKey]: val }));
     setSavingCell({ studentId, taskId: col.taskId });
     try {
       if (col.taskType === 'quiz') {
@@ -584,9 +621,23 @@ export default function ReportsPage() {
           teacher_assessment_feedback: "",
         });
       }
-      setLocalMarkOverrides((prev) => ({ ...prev, [`${studentId}_${col.taskId}`]: val }));
+      broadcastAssessmentMarkUpdate({
+        assessmentId: col.assessmentId,
+        studentId,
+        taskId: col.taskId,
+        taskType: col.taskType,
+        value: val,
+      });
     } catch {
-      /* silently fail */
+      setLocalMarkOverrides((prev) => {
+        const next = { ...prev };
+        if (hadPreviousOverride) {
+          next[overrideKey] = previousOverride;
+        } else {
+          delete next[overrideKey];
+        }
+        return next;
+      });
     } finally {
       setSavingCell(null);
     }
@@ -888,18 +939,14 @@ export default function ReportsPage() {
                             <td
                               key={col.taskId}
                               className={`border border-gray-300 text-sm text-center relative ${
-                                canEdit ? "cursor-pointer hover:bg-yellow-50" : ""
+                                canEdit && !isSaving ? "cursor-pointer hover:bg-yellow-50" : ""
                               } ${isEditing ? "bg-yellow-50 ring-2 ring-yellow-400 ring-inset" : ""}`}
                               style={{ minWidth: "3rem", padding: 0 }}
                               onClick={() => {
-                                if (!isEditing) startEditing(student.student_id, col.taskId, currentMark);
+                                if (!isEditing && !isSaving) startEditing(student.student_id, col.taskId, currentMark);
                               }}
                             >
-                              {isSaving ? (
-                                <span className="flex items-center justify-center py-2">
-                                  <Spin size="small" />
-                                </span>
-                              ) : isEditing ? (
+                              {isEditing ? (
                                 <input
                                   autoFocus
                                   type="text"

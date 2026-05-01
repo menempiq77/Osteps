@@ -2,6 +2,7 @@
 import axios from 'axios';
 import { API_BASE_URL } from '@/lib/config';
 import { getStoredSubjectId } from '@/lib/subjectScope';
+import { normalizeTaskRecord } from '@/lib/taskTypeMetadata';
 import { withSubjectQuery } from '@/lib/subjectScope';
 import { shouldUseLegacyUnscopedSubjectData } from '@/lib/subjectScope';
 
@@ -165,6 +166,19 @@ export const unassignAssessmentFromTerm = async (assesmentId: number, termId: nu
 
 //Tasks apis Started
 // fetch Tasks
+const normalizeFetchedTask = (row: any) => {
+  if (row?.type !== 'task') return row;
+  return normalizeTaskRecord(row);
+};
+
+const normalizeStudentTask = (row: any) => {
+  if (!row?.task) return row;
+  return {
+    ...row,
+    task: normalizeTaskRecord(row.task),
+  };
+};
+
 export const fetchTasks = async (
   assessmentId: number,
   subjectId?: number | null
@@ -172,7 +186,7 @@ export const fetchTasks = async (
   const response = await api.get(`/get-tasks/${assessmentId}`, {
     params: withSubjectQuery({}, subjectId),
   });
-  return response.data.data ?? [];
+  return (response.data.data ?? []).map(normalizeFetchedTask);
 };
 
 const toArray = <T>(value: T[] | null | undefined): T[] =>
@@ -230,23 +244,29 @@ const normalizeTaskTreeToStudentTasks = (rows: any[] = []) => {
       }));
     }
 
+    const normalizedTask = normalizeTaskRecord({
+      id: row?.id,
+      assessment_id: row?.assessment_id,
+      task_name: row?.task_name,
+      allocated_marks: row?.allocated_marks,
+      task_type: row?.task_type,
+      description: row?.description,
+      file_path: row?.file_path ?? null,
+      created_at: row?.created_at,
+      updated_at: row?.updated_at,
+      url: row?.url ?? null,
+      exam_mode: row?.exam_mode,
+      exam_start_at: row?.exam_start_at,
+      exam_duration_minutes: row?.exam_duration_minutes,
+      exam_end_at: row?.exam_end_at,
+    });
+
     return toArray(row?.student_assessment_tasks).map((submission: any) => ({
       id: submission?.id,
       student_id: submission?.student_id,
       assessment_id: submission?.assessment_id ?? row?.assessment_id,
       task_id: submission?.task_id ?? row?.id,
-      task: {
-        id: row?.id,
-        assessment_id: row?.assessment_id,
-        task_name: row?.task_name,
-        allocated_marks: row?.allocated_marks,
-        task_type: row?.task_type,
-        description: row?.description,
-        file_path: row?.file_path ?? null,
-        created_at: row?.created_at,
-        updated_at: row?.updated_at,
-        url: row?.url ?? null,
-      },
+      task: normalizedTask,
       self_assessment_mark:
         submission?.self_assessment_mark != null
           ? String(submission.self_assessment_mark)
@@ -299,7 +319,7 @@ export const fetchStudentTasks = async (
       throw syntheticError;
     }
 
-    return payload?.data ?? [];
+    return (payload?.data ?? []).map(normalizeStudentTask);
   } catch (error: any) {
     const backendMessage =
       error?.response?.data?.msg ||
@@ -326,7 +346,7 @@ export const addTask = async (formData: FormData) => {
       'Content-Type': 'multipart/form-data',
     },
   });
-  return response.data;
+  return response.data?.data ? normalizeTaskRecord(response.data.data) : response.data;
 };
 // update Task
 export const updateTask = async (id: string, formData: FormData) => {
@@ -335,7 +355,7 @@ export const updateTask = async (id: string, formData: FormData) => {
       'Content-Type': 'multipart/form-data',
     },
   });
-  return response.data;
+  return response.data?.data ? normalizeTaskRecord(response.data.data) : response.data;
 };
 // delete Task
 export const deleteTask = async (id: number) => {

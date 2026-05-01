@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSelector, useDispatch } from "react-redux";
@@ -150,6 +150,8 @@ const normalizeClassLabel = (value: unknown) =>
     .replace(/\s+/g, " ")
     .trim()
     .toLowerCase();
+
+const toClassFilterValue = (value: unknown) => normalizeClassLabel(value);
 
 const uniqueNonEmptyStrings = (values: Array<unknown>): string[] =>
   Array.from(
@@ -1092,6 +1094,12 @@ export default function AllStudentsPage() {
         getRowYearIds(row).some((value) => String(value) === yearIdFilter);
       const classMatch =
         classFilters.length === 0 ||
+        getRowClassFilterOptions(row).some((option) =>
+          classFilters.includes(toClassFilterValue(option.label))
+        ) ||
+        getRowClassNames(row).some((name) =>
+          classFilters.includes(toClassFilterValue(name))
+        ) ||
         getRowClassFilterOptions(row).some((option) => classFilters.includes(option.value)) ||
         classFilters.includes(String((row as any).subjectClassId ?? row.classId)) ||
         classFilters.includes(String(row.classId));
@@ -1145,8 +1153,11 @@ export default function AllStudentsPage() {
         students
           .flatMap((row) =>
             getRowClassFilterOptions(row).length > 0
-              ? getRowClassFilterOptions(row)
-              : [{ value: String(row.subjectClassId ?? row.classId), label: row.className }]
+              ? getRowClassFilterOptions(row).map((option) => ({
+                  value: toClassFilterValue(option.label),
+                  label: option.label,
+                }))
+              : [{ value: toClassFilterValue(row.className), label: row.className }]
           )
           .map((option) => [option.value, option.label])
       ).entries()
@@ -1155,6 +1166,36 @@ export default function AllStudentsPage() {
       .map(([value, label]) => ({ value, label }))
       .sort((a, b) => String(a.label).localeCompare(String(b.label)));
   }, [students]);
+
+  const legacyClassFilterValueMap = useMemo(() => {
+    const entries = students.flatMap((row) =>
+      getRowClassFilterOptions(row).map((option) => [
+        String(option.value),
+        toClassFilterValue(option.label),
+      ] as const)
+    );
+
+    return new Map(entries);
+  }, [students]);
+
+  useEffect(() => {
+    if (classFilters.length === 0 || legacyClassFilterValueMap.size === 0) return;
+
+    const nextFilters = Array.from(
+      new Set(
+        classFilters
+          .map((value) => legacyClassFilterValueMap.get(value) ?? value)
+          .filter(Boolean)
+      )
+    );
+
+    if (
+      nextFilters.length !== classFilters.length ||
+      nextFilters.some((value, index) => value !== classFilters[index])
+    ) {
+      setClassFilters(nextFilters);
+    }
+  }, [classFilters, legacyClassFilterValueMap]);
 
   const classTransferOptions = useMemo(() => {
     const unique = Array.from(
@@ -2451,6 +2492,7 @@ export default function AllStudentsPage() {
             style={{ width: 280 }}
             placeholder="Filter by class (multi-select)"
             options={classOptions}
+            optionFilterProp="label"
             maxTagCount="responsive"
             allowClear
           />

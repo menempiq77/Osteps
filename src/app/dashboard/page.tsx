@@ -57,6 +57,7 @@ import {
 } from "@/lib/subjectStudentHints";
 import { fetchTerm } from "@/services/termsApi";
 import { IMPERSONATION_STORAGE_KEY } from "@/features/auth/authSlice";
+import ClassStoryPanel from "@/components/dashboard/ClassStoryPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -379,7 +380,7 @@ export default function DashboardPage() {
     if (!student) return;
 
     // Navigate with both student ID and class ID
-    router.push(`/dashboard/students/reports?studentId=${student.id}&classId=${student.class_id}`);
+    router.push(`/dashboard/students/markbook?studentId=${student.id}&classId=${student.class_id}`);
   };
 
   const handleChange = (value: string | null) => {
@@ -701,6 +702,7 @@ export default function DashboardPage() {
     studentHomeAssessmentsFromTerms.length > 0
       ? studentHomeAssessmentsFromTerms
       : studentActiveAssessments;
+  const studentClassStoryClassId = String(currentUser?.studentClass ?? "").trim();
 
   // Redirect to subject-cards — show a clean loading state, no dashboard flash
   if (shouldUseSubjectCardsEntry) {
@@ -1222,6 +1224,18 @@ export default function DashboardPage() {
               <p className="text-sm text-gray-600">No assigned assessments available right now.</p>
             )}
           </Card>
+
+          {studentClassStoryClassId ? (
+            <div>
+              <div className="mb-2">
+                <h2 className="text-xl font-semibold text-gray-900">Class Story</h2>
+                <p className="text-sm text-gray-600">
+                  Announcements, assignments, and class updates for this subject.
+                </p>
+              </div>
+              <ClassStoryPanel classId={studentClassStoryClassId} />
+            </div>
+          ) : null}
         </div>
       ) : (
         <>

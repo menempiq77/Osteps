@@ -13,6 +13,7 @@ import { useParams, useRouter } from "next/navigation";
 import { addStudentTaskMarks, fetchStudentTasks } from "@/services/api";
 import { updateQuizSubmissionTeacherMark } from "@/services/quizApi";
 import { fetchStudents } from "@/services/studentsApi";
+import { IMG_BASE_URL } from "@/lib/config";
 
 interface Task {
   id: number;
@@ -131,6 +132,52 @@ export default function AssessmentDrawer() {
   useEffect(() => {
     if (!assessmentId) return;
     loadStudentTasks(Number(assessmentId));
+  }, [assessmentId]);
+
+  useEffect(() => {
+    if (!assessmentId) return;
+
+    const currentAssessmentId = Number(assessmentId);
+    if (!Number.isFinite(currentAssessmentId) || currentAssessmentId <= 0) return;
+
+    const refreshTasks = () => {
+      loadStudentTasks(currentAssessmentId);
+    };
+
+    const handleMarkUpdate = (event: Event) => {
+      const detail = (event as CustomEvent<{ assessmentId?: number }>).detail;
+      if (Number(detail?.assessmentId) !== currentAssessmentId) return;
+      refreshTasks();
+    };
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== "osteps:assessment-mark-updated" || !event.newValue) return;
+      try {
+        const payload = JSON.parse(event.newValue) as { assessmentId?: number };
+        if (Number(payload?.assessmentId) !== currentAssessmentId) return;
+        refreshTasks();
+      } catch {
+        /* ignore malformed storage events */
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshTasks();
+      }
+    };
+
+    window.addEventListener("osteps:assessment-mark-updated", handleMarkUpdate as EventListener);
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener("focus", refreshTasks);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("osteps:assessment-mark-updated", handleMarkUpdate as EventListener);
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("focus", refreshTasks);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, [assessmentId]);
 
   const loadStudents = async () => {
@@ -258,6 +305,31 @@ export default function AssessmentDrawer() {
     router.push(
       `/dashboard/students/${classId}/view-student-assesment/${selectedStudentId}/assesment-tasks/quiz/${task.quiz.id}`
     );
+  };
+
+  const fileUrlForDocument = (path: string | null | undefined) => {
+    if (!path) return "";
+    if (/^https?:\/\//i.test(path)) return path;
+    const cleanPath = String(path).replace(/^\/+/, "");
+    return cleanPath.startsWith("storage/")
+      ? `${IMG_BASE_URL}/${cleanPath}`
+      : `${IMG_BASE_URL}/storage/${cleanPath}`;
+  };
+
+  const openTeacherDocumentWorkspace = (task: StudentAssessmentTask) => {
+    const sourcePath = task.task?.file_path || task.file_path;
+    const params = new URLSearchParams({
+      assessmentId: String(task.assessment_id),
+      taskId: String(task.task_id),
+      studentId: String(task.student_id),
+      role: "teacher",
+      fileUrl: fileUrlForDocument(sourcePath),
+      title: task.task?.task_name || "PDF Assessment",
+      maxMarks: String(task.task?.allocated_marks || 0),
+      teacherMarks: String(task.teacher_assessment_score || task.teacher_assessment_marks || ""),
+      teacherFeedback: String(task.teacher_feedback || ""),
+    });
+    router.push(`/dashboard/assessment-document?${params.toString()}`);
   };
 
   return (
@@ -663,8 +735,15 @@ export default function AssessmentDrawer() {
                 <div className="p-4 border rounded-lg bg-gray-50">
                   <FilePdfOutlined className="text-red-500 text-2xl mb-2" />
                   <p className="text-gray-700 mb-3">
-                    PDF document available for download
+                    PDF document available for online marking or download
                   </p>
+                  <Button
+                    type="primary"
+                    className="mb-3 !bg-primary !border-primary"
+                    onClick={() => openTeacherDocumentWorkspace(viewingTask)}
+                  >
+                    Mark online on PDF
+                  </Button>
                   <a
                     href={`https://dashboard.osteps.com/${viewingTask.file_path}`}
                     target="_blank"

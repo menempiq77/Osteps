@@ -8,6 +8,7 @@ import {
   Empty,
   Input,
   Modal,
+  Popover,
   Popconfirm,
   Segmented,
   Spin,
@@ -35,7 +36,6 @@ import {
   deleteStoryComment,
   fetchClassStoryFeed,
   fetchStoryComments,
-  getStoryReactionSummary,
   setStoryReaction,
   STORY_REACTION_OPTIONS,
   updateClassStoryPost,
@@ -203,6 +203,8 @@ export default function ClassStoryPanel({ classId }: ClassStoryPanelProps) {
         preferStudentMaterials: userRole === "STUDENT",
       }),
     enabled: Boolean(classId),
+    refetchInterval: 5000,
+    refetchIntervalInBackground: true,
   });
 
   const resetComposer = () => {
@@ -271,6 +273,7 @@ export default function ClassStoryPanel({ classId }: ClassStoryPanelProps) {
 
       if (editingPostId) {
         return updateClassStoryPost({
+          classId,
           postId: editingPostId,
           subjectId: activeSubjectId,
           input: payload,
@@ -358,17 +361,22 @@ export default function ClassStoryPanel({ classId }: ClassStoryPanelProps) {
     queryClient.invalidateQueries({ queryKey: feedQueryKey });
   };
 
-  const handleReaction = (item: StoryFeedItem, reaction: StoryReactionType) => {
+  const handleReaction = async (item: StoryFeedItem, reaction: StoryReactionType) => {
     if (!currentUser?.id || !canInteract) return;
-    setStoryReaction({
-      itemId: item.id,
-      classId,
-      subjectId: activeSubjectId,
-      userId: currentUser.id,
-      reaction,
-    });
-    setOpenReactionPickerId(null);
-    queryClient.invalidateQueries({ queryKey: feedQueryKey });
+    try {
+      await setStoryReaction({
+        itemId: item.id,
+        classId,
+        subjectId: activeSubjectId,
+        userId: currentUser.id,
+        userName: currentUser.name || currentUser.email,
+        reaction,
+      });
+      setOpenReactionPickerId(null);
+      queryClient.invalidateQueries({ queryKey: feedQueryKey });
+    } catch {
+      messageApi.error("Could not save reaction");
+    }
   };
 
   const canEditPost = (item: StoryFeedItem) => {
@@ -381,19 +389,43 @@ export default function ClassStoryPanel({ classId }: ClassStoryPanelProps) {
     return canModerate || authorId === currentUser.id;
   };
 
+  const getReactionUsers = (item: StoryFeedItem, reaction: StoryReactionType) => {
+    return (item.reactionDetails ?? [])
+      .filter((entry) => entry.reaction === reaction)
+      .map((entry) => String(entry.userName || entry.userId || "").trim())
+      .filter((value, index, values) => Boolean(value) && values.indexOf(value) === index);
+  };
+
   const reactionBadges = (item: StoryFeedItem) => {
-    const summary = getStoryReactionSummary(item.id, activeSubjectId);
+    const summary = item.reactionSummary ?? {};
     return STORY_REACTION_OPTIONS.filter(
       (entry) => (summary[entry.key] ?? 0) > 0
-    ).map((entry) => (
-      <span
-        key={entry.key}
-        className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs text-slate-500"
-      >
-        <span>{entry.emoji}</span>
-        <span>{summary[entry.key]}</span>
-      </span>
-    ));
+    ).map((entry) => {
+      const users = getReactionUsers(item, entry.key);
+
+      return (
+        <Popover
+          key={entry.key}
+          trigger="click"
+          placement="top"
+          content={
+            <div className="min-w-[120px] space-y-1 text-sm text-slate-700">
+              {users.map((user) => (
+                <div key={user}>{user}</div>
+              ))}
+            </div>
+          }
+        >
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs text-slate-500 transition hover:bg-slate-50"
+          >
+            <span>{entry.emoji}</span>
+            <span>{summary[entry.key]}</span>
+          </button>
+        </Popover>
+      );
+    });
   };
 
   return (
@@ -551,6 +583,7 @@ export default function ClassStoryPanel({ classId }: ClassStoryPanelProps) {
                               title="Delete this post?"
                               onConfirm={async () => {
                                 await deleteClassStoryPost({
+                                  classId,
                                   postId: item.sourceId,
                                   subjectId: activeSubjectId,
                                 });
@@ -723,7 +756,7 @@ export default function ClassStoryPanel({ classId }: ClassStoryPanelProps) {
                             <button
                               key={reaction.key}
                               type="button"
-                              onClick={() => handleReaction(item, reaction.key)}
+                              onClick={() => void handleReaction(item, reaction.key)}
                               className={`flex h-10 w-10 items-center justify-center rounded-full border text-lg transition ${
                                 mine
                                   ? "border-[#cfd8f5] bg-[#eef2ff]"

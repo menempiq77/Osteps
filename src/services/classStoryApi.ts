@@ -1,6 +1,8 @@
 import { fetchAnnouncements } from "@/services/announcementApi";
+import { fetchAssessment, fetchAssessmentByStudent } from "@/services/api";
 import { fetchManageAssignments } from "@/services/mindUpgradeApi";
 import { fetchMaterials, fetchStudentMaterials } from "@/services/materialApi";
+import { fetchTerm } from "@/services/termsApi";
 import {
   StoryComment,
   StoryFeedItem,
@@ -21,6 +23,16 @@ type FeedParams = {
 };
 
 type RawRecord = Record<string, unknown>;
+
+type SharedReactionResponse = {
+  data?: StoryReaction[];
+  reaction?: StoryReactionType | null;
+};
+
+type SharedPostResponse = {
+  data?: StoryPostRecord[];
+  record?: StoryPostRecord | null;
+};
 
 const storyStorageKey = (
   scope: "posts" | "comments" | "reactions",
@@ -89,7 +101,142 @@ const getMaybeNumber = (raw: RawRecord, keys: string[]): number | undefined => {
   return undefined;
 };
 
+  const getMaybeArray = (raw: RawRecord, keys: string[]): unknown[] | undefined => {
+    for (const key of keys) {
+      const value = raw[key];
+      if (Array.isArray(value)) return value;
+    }
+    return undefined;
+  };
+
 const normalizeRoleValue = (value: string) => value.trim().toUpperCase().replace(/\s+/g, "_");
+
+  const normalizeStatusValue = (value: unknown) => String(value ?? "").trim().toLowerCase();
+
+const buildStoryReactionsUrl = (
+  classId: string,
+  subjectId?: number | null,
+  itemId?: string
+) => {
+  const params = new URLSearchParams();
+  params.set("classId", classId);
+  if (subjectId != null && Number.isFinite(Number(subjectId)) && Number(subjectId) > 0) {
+    params.set("subjectId", String(subjectId));
+  }
+  if (itemId) {
+    params.set("itemId", itemId);
+  }
+  return `/api/class-story/reactions?${params.toString()}`;
+};
+
+const buildStoryPostsUrl = (
+  classId: string,
+  subjectId?: number | null,
+  postId?: string
+) => {
+  const params = new URLSearchParams();
+  params.set("classId", classId);
+  if (subjectId != null && Number.isFinite(Number(subjectId)) && Number(subjectId) > 0) {
+    params.set("subjectId", String(subjectId));
+  }
+  if (postId) {
+    params.set("postId", postId);
+  }
+  return `/api/class-story/posts?${params.toString()}`;
+};
+
+const fetchSharedStoryPosts = async (params: {
+  classId: string;
+  subjectId?: number | null;
+}): Promise<StoryPostRecord[]> => {
+  const response = await fetch(buildStoryPostsUrl(params.classId, params.subjectId), {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch story posts");
+  }
+
+  const payload = (await response.json()) as SharedPostResponse;
+  return Array.isArray(payload.data) ? payload.data : [];
+};
+
+const importLegacyStoryPosts = async (params: {
+  classId: string;
+  subjectId?: number | null;
+  records: StoryPostRecord[];
+}) => {
+  const response = await fetch(buildStoryPostsUrl(params.classId, params.subjectId), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ records: params.records }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to import legacy story posts");
+  }
+
+  const payload = (await response.json()) as SharedPostResponse;
+  return Array.isArray(payload.data) ? payload.data : [];
+};
+
+const getLegacyStoryPostSyncKey = (classId: string, subjectId?: number | null) =>
+  `class-story-post-sync-v1-${subjectId ?? "global"}-${classId}`;
+
+const syncLegacyStoryPosts = async (params: {
+  classId: string;
+  subjectId?: number | null;
+}) => {
+  if (typeof window === "undefined") return;
+
+  const legacyPostsKey = storyStorageKey("posts", params.subjectId);
+  const legacyPosts = readStorageArray<StoryPostRecord>(legacyPostsKey).filter(
+    (post) => post.classId === params.classId
+  );
+
+  if (legacyPosts.length === 0) return;
+
+  const syncKey = getLegacyStoryPostSyncKey(params.classId, params.subjectId);
+  if (window.sessionStorage.getItem(syncKey) === "1") return;
+
+  const sharedPosts = await fetchSharedStoryPosts(params).catch(() => []);
+  const sharedIds = new Set(sharedPosts.map((post) => post.id));
+  const missingPosts = legacyPosts.filter((post) => !sharedIds.has(post.id));
+
+  if (missingPosts.length > 0) {
+    await importLegacyStoryPosts({
+      classId: params.classId,
+      subjectId: params.subjectId,
+      records: missingPosts,
+    });
+  }
+
+  const remainingLegacyPosts = readStorageArray<StoryPostRecord>(legacyPostsKey).filter(
+    (post) =>
+      post.classId !== params.classId ||
+      !legacyPosts.some((legacyPost) => legacyPost.id === post.id)
+  );
+  writeStorageArray(legacyPostsKey, remainingLegacyPosts);
+  window.sessionStorage.setItem(syncKey, "1");
+};
+
+const fetchSharedStoryReactions = async (params: {
+  classId: string;
+  subjectId?: number | null;
+}): Promise<StoryReaction[]> => {
+  const response = await fetch(buildStoryReactionsUrl(params.classId, params.subjectId), {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch story reactions");
+  }
+
+  const payload = (await response.json()) as SharedReactionResponse;
+  return Array.isArray(payload.data) ? payload.data : [];
+};
 
 const getClassIdFromRaw = (raw: RawRecord): string | undefined => {
   const direct = getMaybeNumber(raw, ["class_id", "classId"]);
@@ -105,6 +252,71 @@ const getClassIdFromRaw = (raw: RawRecord): string | undefined => {
 };
 
 const itemId = (type: StoryItemType, sourceId: string) => `${type}:${sourceId}`;
+
+const formatStoryDateLabel = (value: string) => {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return undefined;
+  return parsed.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+};
+
+const getNearestDueDate = (tasks: unknown) => {
+  if (!Array.isArray(tasks)) return undefined;
+
+  const now = Date.now();
+  const datedTasks = tasks
+    .filter((entry): entry is RawRecord => !!entry && typeof entry === "object")
+    .map((entry) => getMaybeString(entry, ["due_date", "dueDate"]))
+    .filter((value): value is string => Boolean(value))
+    .map((value) => ({ value, timestamp: new Date(value).getTime() }))
+    .filter((entry) => Number.isFinite(entry.timestamp));
+
+  if (datedTasks.length === 0) return undefined;
+
+  const futureTasks = datedTasks.filter((entry) => entry.timestamp >= now);
+  if (futureTasks.length > 0) {
+    futureTasks.sort(
+      (left, right) =>
+        Math.abs(left.timestamp - now) - Math.abs(right.timestamp - now)
+    );
+    return futureTasks[0].value;
+  }
+
+  datedTasks.sort((left, right) => right.timestamp - left.timestamp);
+  return datedTasks[0].value;
+};
+
+const isVisibleAssessmentFeedItem = (entry: RawRecord, termId: number) => {
+  const entryType = getMaybeString(entry, ["type"]);
+
+  if (entryType === "quiz") {
+    const itemTermId = getMaybeNumber(entry, ["term_id"]);
+    return itemTermId == null || Number(itemTermId) === Number(termId);
+  }
+
+  if (entryType === "assessment") {
+    const assignedRows = getMaybeArray(entry, ["assigned", "assign_assessments"])
+      ?.filter((row): row is RawRecord => !!row && typeof row === "object") ?? [];
+
+    if (assignedRows.length === 0) {
+      return true;
+    }
+
+    return assignedRows.some((row) => {
+      const assignedTermId = getMaybeNumber(row, ["term_id"]);
+      return (
+        assignedTermId != null &&
+        Number(assignedTermId) === Number(termId) &&
+        normalizeStatusValue(row.status) === "assigned"
+      );
+    });
+  }
+
+  return false;
+};
 
 const canSeeAnnouncement = (rawRole: unknown, currentRole?: string) => {
   if (!currentRole) return true;
@@ -124,24 +336,25 @@ const canSeeAnnouncement = (rawRole: unknown, currentRole?: string) => {
   return normalizedTargets.includes("ALL") || normalizedTargets.includes(normalizedCurrent);
 };
 
-const getReactionSummary = (itemIdValue: string, subjectId?: number | null): StoryReactionSummary => {
-  const reactions = readStorageArray<StoryReaction>(storyStorageKey("reactions", subjectId)).filter(
-    (entry) => entry.itemId === itemIdValue
-  );
-
+const summarizeReactionEntries = (reactions: StoryReaction[]): StoryReactionSummary => {
   return reactions.reduce<StoryReactionSummary>((acc, entry) => {
     const nextCount = (acc[entry.reaction] ?? 0) + 1;
     return { ...acc, [entry.reaction]: nextCount };
   }, {});
 };
 
+const getReactionSummary = (itemIdValue: string, reactions: StoryReaction[]): StoryReactionSummary => {
+  return summarizeReactionEntries(
+    reactions.filter((entry) => entry.itemId === itemIdValue)
+  );
+};
+
 const getTotalReactions = (summary: StoryReactionSummary) => {
   return Object.values(summary).reduce((sum, count) => sum + (count ?? 0), 0);
 };
 
-const getViewerReaction = (itemIdValue: string, userId?: string, subjectId?: number | null) => {
+const getViewerReaction = (itemIdValue: string, userId?: string, reactions: StoryReaction[] = []) => {
   if (!userId) return null;
-  const reactions = readStorageArray<StoryReaction>(storyStorageKey("reactions", subjectId));
   const entry = reactions.find((reaction) => reaction.itemId === itemIdValue && reaction.userId === userId);
   return entry?.reaction ?? null;
 };
@@ -271,9 +484,105 @@ const toAssignmentItems = (items: unknown, classId: string): StoryFeedItem[] => 
     });
 };
 
-const toPostItems = (classId: string, subjectId?: number | null): StoryFeedItem[] => {
-  const posts = readStorageArray<StoryPostRecord>(storyStorageKey("posts", subjectId));
+const toAssessmentStoryItems = (
+  items: unknown,
+  classId: string,
+  termId: number
+): StoryFeedItem[] => {
+  if (!Array.isArray(items)) return [];
 
+  return items
+    .filter((entry): entry is RawRecord => !!entry && typeof entry === "object")
+    .filter((entry) => isVisibleAssessmentFeedItem(entry, termId))
+    .map((entry) => {
+      const entryType = getMaybeString(entry, ["type"]) === "quiz" ? "quiz" : "assessment";
+      const quizRecord =
+        entry.quiz && typeof entry.quiz === "object" ? (entry.quiz as RawRecord) : undefined;
+      const sourceId = toStringId(entry.id, entryType);
+      const title =
+        getMaybeString(entry, ["name", "title"]) ??
+        getMaybeString(quizRecord ?? {}, ["name", "title"]) ??
+        (entryType === "quiz" ? "Quiz" : "Assessment");
+      const description = getMaybeString(entry, ["description", "content"]);
+      const taskCount = Array.isArray(entry.tasks) ? entry.tasks.length : 0;
+      const dueDate =
+        getNearestDueDate(entry.tasks) ??
+        getMaybeString(entry, ["due_date", "dueDate", "updated_at", "created_at"]);
+      const detailParts = [
+        entryType === "quiz" ? "Quiz assigned" : "Assessment assigned",
+        taskCount > 0 ? `${taskCount} task${taskCount === 1 ? "" : "s"}` : undefined,
+        dueDate ? `Due ${formatStoryDateLabel(dueDate) ?? dueDate}` : undefined,
+      ].filter((part): part is string => Boolean(part));
+
+      return {
+        id: itemId("assignment", sourceId),
+        sourceId,
+        classId,
+        type: "assignment",
+        title,
+        body: [description, detailParts.join(" • ")]
+          .filter((part): part is string => Boolean(part && part.trim()))
+          .join(" • "),
+        authorId: getMaybeString(entry, ["teacher_id", "author_id", "authorId"]),
+        authorName:
+          getMaybeString(entry, ["teacher_name", "author_name", "created_by_name"]) ??
+          "Teacher",
+        createdAt:
+          dueDate ??
+          getMaybeString(entry, ["updated_at", "created_at"]) ??
+          new Date().toISOString(),
+        likeCount: 0,
+        totalReactions: 0,
+        reactionSummary: {},
+        viewerReaction: null,
+        commentCount: 0,
+      } satisfies StoryFeedItem;
+    });
+};
+
+const dedupeStoryItems = (items: StoryFeedItem[]) => {
+  const seen = new Set<string>();
+
+  return items.filter((item) => {
+    if (seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
+};
+
+const fetchAssessmentStoryItems = async (
+  classId: string,
+  subjectId?: number | null,
+  role?: string
+): Promise<StoryFeedItem[]> => {
+  const numericClassId = Number(classId);
+  if (!Number.isFinite(numericClassId) || numericClassId <= 0) return [];
+
+  const terms = await fetchTerm(numericClassId);
+  if (!Array.isArray(terms) || terms.length === 0) return [];
+  const normalizedRole = normalizeRoleValue(role ?? "");
+  const useStudentAssessments = normalizedRole === "STUDENT";
+
+  const termResults = await Promise.allSettled(
+    terms
+      .filter((entry): entry is RawRecord => !!entry && typeof entry === "object")
+      .map(async (term) => {
+        const termId = getMaybeNumber(term, ["id"]);
+        if (termId == null) return [];
+
+        const assessmentRows = useStudentAssessments
+          ? await fetchAssessmentByStudent(termId, subjectId ?? undefined)
+          : await fetchAssessment(termId, subjectId ?? undefined);
+        return toAssessmentStoryItems(assessmentRows, classId, termId);
+      })
+  );
+
+  return dedupeStoryItems(
+    termResults.flatMap((result) => (result.status === "fulfilled" ? result.value : []))
+  );
+};
+
+const toPostItems = (posts: StoryPostRecord[], classId: string): StoryFeedItem[] => {
   return posts
     .filter((post) => post.classId === classId)
     .map((post) => ({
@@ -298,17 +607,24 @@ const toPostItems = (classId: string, subjectId?: number | null): StoryFeedItem[
     }));
 };
 
-const withEngagementCounts = (items: StoryFeedItem[], userId?: string, subjectId?: number | null): StoryFeedItem[] => {
+const withEngagementCounts = (
+  items: StoryFeedItem[],
+  userId?: string,
+  subjectId?: number | null,
+  reactions: StoryReaction[] = []
+): StoryFeedItem[] => {
   const comments = readStorageArray<StoryComment>(storyStorageKey("comments", subjectId));
 
   return items.map((item) => {
-    const summary = getReactionSummary(item.id, subjectId);
+    const itemReactions = reactions.filter((entry) => entry.itemId === item.id);
+    const summary = summarizeReactionEntries(itemReactions);
     return {
       ...item,
       likeCount: summary.like ?? 0,
       totalReactions: getTotalReactions(summary),
       reactionSummary: summary,
-      viewerReaction: getViewerReaction(item.id, userId, subjectId),
+      reactionDetails: itemReactions,
+      viewerReaction: getViewerReaction(item.id, userId, itemReactions),
       commentCount: comments.filter((entry) => entry.itemId === item.id).length,
     };
   });
@@ -321,10 +637,16 @@ export const fetchClassStoryFeed = async ({
   userId,
   preferStudentMaterials,
 }: FeedParams): Promise<StoryFeedItem[]> => {
-  const [announcementResult, materialResult, assignmentResult] = await Promise.allSettled([
+  await syncLegacyStoryPosts({ classId, subjectId }).catch(() => undefined);
+
+  const [announcementResult, materialResult, assignmentResult, assessmentResult, reactionResult, postsResult] =
+    await Promise.allSettled([
     fetchAnnouncements(),
     preferStudentMaterials ? fetchStudentMaterials(subjectId) : fetchMaterials(subjectId),
     fetchManageAssignments({ class_id: classId }),
+    fetchAssessmentStoryItems(classId, subjectId, role),
+    fetchSharedStoryReactions({ classId, subjectId }),
+    fetchSharedStoryPosts({ classId, subjectId }),
   ]);
 
   const announcements =
@@ -339,12 +661,25 @@ export const fetchClassStoryFeed = async ({
     assignmentResult.status === "fulfilled"
       ? toAssignmentItems(assignmentResult.value, classId)
       : [];
+  const assessmentAssignments =
+    assessmentResult.status === "fulfilled" ? assessmentResult.value : [];
+  const reactions =
+    reactionResult.status === "fulfilled" ? reactionResult.value : [];
+  const sharedPosts =
+    postsResult.status === "fulfilled"
+      ? postsResult.value
+      : readStorageArray<StoryPostRecord>(storyStorageKey("posts", subjectId)).filter(
+          (post) => post.classId === classId
+        );
 
-  const posts = toPostItems(classId, subjectId);
+  const posts = toPostItems(sharedPosts, classId);
 
-  return withEngagementCounts([...posts, ...announcements, ...assignments, ...materials], userId, subjectId).sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
+  return withEngagementCounts(
+    [...posts, ...announcements, ...assignments, ...assessmentAssignments, ...materials],
+    userId,
+    subjectId,
+    reactions
+  ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 };
 
 export const createClassStoryPost = async (params: {
@@ -354,52 +689,62 @@ export const createClassStoryPost = async (params: {
   authorId: string;
   authorName: string;
 }): Promise<StoryPostRecord> => {
-  const postsKey = storyStorageKey("posts", params.subjectId);
-  const posts = readStorageArray<StoryPostRecord>(postsKey);
-  const created: StoryPostRecord = {
-    id: `post-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    classId: params.classId,
-    title: params.input.title,
-    body: params.input.body,
-    authorId: params.authorId,
-    authorName: params.authorName,
-    createdAt: new Date().toISOString(),
-    attachmentUrl: params.input.attachmentUrl,
-    attachmentLabel: params.input.attachmentLabel,
-    attachmentType: params.input.attachmentType,
-  };
+  const response = await fetch(buildStoryPostsUrl(params.classId, params.subjectId), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(params),
+  });
 
-  writeStorageArray(postsKey, [created, ...posts]);
-  return created;
+  if (!response.ok) {
+    throw new Error("Failed to create story post");
+  }
+
+  const payload = (await response.json()) as SharedPostResponse;
+  if (!payload.record) {
+    throw new Error("Missing created story post");
+  }
+
+  return payload.record;
 };
 
 export const updateClassStoryPost = async (params: {
+  classId: string;
   postId: string;
   subjectId?: number | null;
   input: StoryPostInput;
 }): Promise<StoryPostRecord | null> => {
-  const postsKey = storyStorageKey("posts", params.subjectId);
-  const posts = readStorageArray<StoryPostRecord>(postsKey);
-  const index = posts.findIndex((post) => post.id === params.postId);
-  if (index < 0) return null;
+  const response = await fetch(buildStoryPostsUrl(params.classId, params.subjectId, params.postId), {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(params),
+  });
 
-  const updated: StoryPostRecord = {
-    ...posts[index],
-    title: params.input.title,
-    body: params.input.body,
-    updatedAt: new Date().toISOString(),
-    attachmentUrl: params.input.attachmentUrl,
-    attachmentLabel: params.input.attachmentLabel,
-    attachmentType: params.input.attachmentType,
-  };
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    throw new Error("Failed to update story post");
+  }
 
-  const next = [...posts];
-  next[index] = updated;
-  writeStorageArray(postsKey, next);
-  return updated;
+  const payload = (await response.json()) as SharedPostResponse;
+  return payload.record ?? null;
 };
 
-export const deleteClassStoryPost = async (params: { postId: string; subjectId?: number | null }) => {
+export const deleteClassStoryPost = async (params: {
+  classId: string;
+  postId: string;
+  subjectId?: number | null;
+}) => {
+  const response = await fetch(buildStoryPostsUrl(params.classId, params.subjectId, params.postId), {
+    method: "DELETE",
+  });
+
+  if (!response.ok && response.status !== 404) {
+    throw new Error("Failed to delete story post");
+  }
+
   const postsKey = storyStorageKey("posts", params.subjectId);
   const commentsKey = storyStorageKey("comments", params.subjectId);
   const reactionsKey = storyStorageKey("reactions", params.subjectId);
@@ -478,69 +823,38 @@ export const deleteStoryComment = (params: { commentId: string; subjectId?: numb
   );
 };
 
-export const setStoryReaction = (params: {
+export const setStoryReaction = async (params: {
   itemId: string;
   classId: string;
   subjectId?: number | null;
   userId: string;
+  userName: string;
   reaction: StoryReactionType;
-}): {
+}): Promise<{
   reaction: StoryReactionType | null;
   summary: StoryReactionSummary;
   totalReactions: number;
-} => {
-  const reactionsKey = storyStorageKey("reactions", params.subjectId);
-  const reactions = readStorageArray<StoryReaction>(reactionsKey);
-  const index = reactions.findIndex(
-    (entry) => entry.itemId === params.itemId && entry.userId === params.userId
-  );
+  reactions: StoryReaction[];
+}> => {
+  const response = await fetch(buildStoryReactionsUrl(params.classId, params.subjectId, params.itemId), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(params),
+  });
 
-  let next: StoryReaction[] = reactions;
-  let appliedReaction: StoryReactionType | null = params.reaction;
-
-  if (index >= 0 && reactions[index].reaction === params.reaction) {
-    next = reactions.filter((_, entryIndex) => entryIndex !== index);
-    appliedReaction = null;
-  } else if (index >= 0) {
-    const updated: StoryReaction = {
-      ...reactions[index],
-      reaction: params.reaction,
-      updatedAt: new Date().toISOString(),
-    };
-    next = [...reactions];
-    next[index] = updated;
-  } else {
-    next = [
-      ...reactions,
-      {
-        id: `reaction-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        itemId: params.itemId,
-        classId: params.classId,
-        userId: params.userId,
-        reaction: params.reaction,
-        createdAt: new Date().toISOString(),
-      },
-    ];
+  if (!response.ok) {
+    throw new Error("Failed to save story reaction");
   }
 
-  writeStorageArray(reactionsKey, next);
-
-  const summary = getReactionSummary(params.itemId, params.subjectId);
+  const payload = (await response.json()) as SharedReactionResponse;
+  const reactions = Array.isArray(payload.data) ? payload.data : [];
+  const summary = summarizeReactionEntries(reactions);
   return {
-    reaction: appliedReaction,
+    reaction: payload.reaction ?? null,
     summary,
     totalReactions: getTotalReactions(summary),
+    reactions,
   };
-};
-
-export const getStoryReactionByUser = (params: {
-  itemId: string;
-  userId: string;
-  subjectId?: number | null;
-}): StoryReactionType | null => {
-  return getViewerReaction(params.itemId, params.userId, params.subjectId);
-};
-
-export const getStoryReactionSummary = (itemIdValue: string, subjectId?: number | null): StoryReactionSummary => {
-  return getReactionSummary(itemIdValue, subjectId);
 };

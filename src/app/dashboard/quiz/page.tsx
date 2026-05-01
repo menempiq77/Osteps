@@ -18,6 +18,10 @@ import { useSubjectContext } from "@/contexts/SubjectContext";
 type Quiz = {
   id: string;
   name: string;
+  subject_id?: string | number | null;
+  subject?: {
+    id?: string | number | null;
+  } | null;
 };
 interface ShowDeleteConfirm {
   (id: string): void;
@@ -57,7 +61,14 @@ function untagQuiz(quizId: number) {
 
 function filterQuizzesBySubject(quizzes: Quiz[], subjectId: number): Quiz[] {
   const map = readQuizSubjectMap();
-  return quizzes.filter((q) => map[String(q.id)] === subjectId);
+  return quizzes.filter((q) => {
+    const backendSubjectId = q?.subject_id ?? q?.subject?.id ?? null;
+    if (backendSubjectId != null && Number(backendSubjectId) !== 0) {
+      return Number(backendSubjectId) === subjectId;
+    }
+
+    return map[String(q.id)] === subjectId;
+  });
 }
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -89,7 +100,7 @@ export default function QuizPage() {
     },
   });
 
-  // Filter quizzes by subject using localStorage map (backend doesn't filter)
+  // Prefer backend subject data. Keep the local map only as a fallback for older records.
   const quizzes = inSubjectContext
     ? filterQuizzesBySubject(rawQuizzes, Number(activeSubjectId))
     : rawQuizzes;
@@ -105,15 +116,25 @@ export default function QuizPage() {
   };
 
   const queryClient = useQueryClient();
+  const quizQueryKey = ["quizzes", schoolId, activeSubjectId] as const;
 
   const addQuizMutation = useMutation({
     mutationFn: (payload: any) => addQuize(payload, activeSubjectId ?? undefined),
     onSuccess: async (result) => {
+      const createdQuiz = (result?.data ?? result) as Quiz | undefined;
       const newId = result?.data?.id ?? result?.id ?? undefined;
       if (inSubjectContext && newId) {
         tagQuizWithSubject(Number(newId), Number(activeSubjectId));
       }
-      await queryClient.invalidateQueries({ queryKey: ["quizzes", schoolId] });
+      if (createdQuiz?.id) {
+        queryClient.setQueryData(quizQueryKey, (existing: Quiz[] = []) => {
+          const filtered = existing.filter(
+            (quiz) => Number(quiz.id) !== Number(createdQuiz.id)
+          );
+          return [createdQuiz, ...filtered];
+        });
+      }
+      await queryClient.invalidateQueries({ queryKey: quizQueryKey, exact: true });
       messageApi.success(
         isTeacher
           ? "Quiz added successfully and sent for approval"
@@ -129,8 +150,18 @@ export default function QuizPage() {
   const updateQuizMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: QuizFormValues }) =>
       updateQuize(id, data, activeSubjectId ?? undefined),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["quizzes", schoolId] });
+    onSuccess: async (result) => {
+      const updatedQuiz = (result?.data ?? result) as Quiz | undefined;
+      if (updatedQuiz?.id) {
+        queryClient.setQueryData(quizQueryKey, (existing: Quiz[] = []) =>
+          existing.map((quiz) =>
+            Number(quiz.id) === Number(updatedQuiz.id)
+              ? { ...quiz, ...updatedQuiz }
+              : quiz
+          )
+        );
+      }
+      await queryClient.invalidateQueries({ queryKey: quizQueryKey, exact: true });
       messageApi.success(
         isTeacher
           ? "Quiz updated successfully and sent for approval"
@@ -147,10 +178,15 @@ export default function QuizPage() {
 
   const deleteQuizMutation = useMutation({
     mutationFn: (id: number) => deleteQuize(id),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["quizzes", schoolId] });
+    onSuccess: async (_, deletedId) => {
+      queryClient.setQueryData(quizQueryKey, (existing: Quiz[] = []) =>
+        existing.filter((quiz) => Number(quiz.id) !== Number(deletedId))
+      );
+      untagQuiz(Number(deletedId));
+      await queryClient.invalidateQueries({ queryKey: quizQueryKey, exact: true });
       messageApi.success("Quiz deleted successfully");
       setDeleteConfirmVisible(false);
+      setQuizToDelete(null);
     },
     onError: (error: any) => {
       messageApi.error(
@@ -175,7 +211,6 @@ export default function QuizPage() {
 
   const handleDelete = async () => {
     if (!quizToDelete) return;
-    untagQuiz(Number(quizToDelete));
     await deleteQuizMutation.mutateAsync(Number(quizToDelete));
   };
 

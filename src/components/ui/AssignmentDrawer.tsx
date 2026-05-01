@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Drawer,
   Button,
@@ -15,6 +16,12 @@ import {
   FilePdfOutlined,
 } from "@ant-design/icons";
 import { uploadTaskByStudent } from "@/services/api";
+import { IMG_BASE_URL } from "@/lib/config";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store/store";
+import dayjs from "dayjs";
+import { requestDocumentFullscreenFromGesture } from "@/lib/browserFullscreen";
+import { resolveExamWindow } from "@/lib/taskTypeMetadata";
 
 interface Task {
   id: string;
@@ -29,6 +36,14 @@ interface Task {
   additional_notes?: string;
   allocated_marks: number;
   task_type?: string;
+  task_type_config?: unknown;
+  assessment_id?: number;
+  description?: string;
+  file_path?: string;
+  exam_mode?: boolean;
+  exam_start_at?: string | null;
+  exam_duration_minutes?: number | null;
+  exam_end_at?: string | null;
 }
 
 interface AssignmentDrawerProps {
@@ -40,6 +55,11 @@ interface AssignmentDrawerProps {
   canEditSubmission?: boolean;
 }
 
+const getCurrentReturnToPath = () => {
+  if (typeof window === "undefined") return "";
+  return `${window.location.pathname}${window.location.search}`;
+};
+
 const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
   isOpen,
   onClose,
@@ -48,14 +68,76 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
   assessmentId,
   canEditSubmission = false,
 }) => {
+  const router = useRouter();
   const [form] = Form.useForm();
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
   const [inputError, setInputError] = useState(false);
+  const { currentUser } = useSelector((state: RootState) => state.auth) as {
+    currentUser?: { student?: string | number };
+  };
 
   const isNATask =
     !selectedTask?.task_type || selectedTask?.task_type === "null";
+  const examWindow = resolveExamWindow(selectedTask);
+  const isOnlineExamTask = Boolean(
+    selectedTask?.exam_mode && selectedTask?.task_type === "pdf" && selectedTask?.file_path
+  );
+
+  const buildOnlinePdfHref = () => {
+    if (!selectedTask?.file_path || !assessmentId) return "#";
+    const params = new URLSearchParams({
+      assessmentId: String(assessmentId),
+      taskId: String(selectedTask.id),
+      studentId: String(currentUser?.student || ""),
+      role: "student",
+      fileUrl: `${IMG_BASE_URL}/storage/${selectedTask.file_path}`,
+      title: selectedTask.name || "PDF Assessment",
+      maxMarks: String(selectedTask.allocated_marks || 0),
+    });
+
+    const returnTo = getCurrentReturnToPath();
+    if (returnTo) {
+      params.set("returnTo", returnTo);
+    }
+
+    const existingSelfAssessment =
+      selectedTask.selfAssessment ?? selectedTask.self_assessment_marks ?? undefined;
+    if (existingSelfAssessment != null && String(existingSelfAssessment) !== "") {
+      params.set("selfAssessmentMark", String(existingSelfAssessment));
+    }
+
+    if (selectedTask.exam_mode) {
+      params.set("examMode", "1");
+      if (selectedTask.exam_start_at) {
+        params.set("examStartAt", selectedTask.exam_start_at);
+      }
+      if (selectedTask.exam_duration_minutes != null) {
+        params.set(
+          "examDurationMinutes",
+          String(selectedTask.exam_duration_minutes)
+        );
+      }
+      if (selectedTask.exam_end_at) {
+        params.set("examEndAt", selectedTask.exam_end_at);
+      }
+    }
+
+    return `/dashboard/assessment-document?${params.toString()}`;
+  };
+
+  const handleOpenOnlinePdf = async () => {
+    const href = buildOnlinePdfHref();
+    if (!href || href === "#") return;
+
+    if (selectedTask?.exam_mode && examWindow.state === "open") {
+      await requestDocumentFullscreenFromGesture();
+    }
+
+    onClose();
+    router.push(href);
+  };
 
   useEffect(() => {
     if (!isOpen || !selectedTask) return;
@@ -215,8 +297,62 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
     const hasFile = fileList.length > 0;
     const file = hasFile ? fileList[0] : null;
 
+    if (isOnlineExamTask) {
+      return (
+        <div className="space-y-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
+          <div>
+            <p className="text-sm font-semibold text-amber-900">Scheduled PDF exam</p>
+            {selectedTask.exam_start_at && (
+              <p className="mt-1 text-sm text-amber-800">
+                Opens {dayjs(selectedTask.exam_start_at).format("DD MMM YYYY, HH:mm")}
+                {selectedTask.exam_duration_minutes
+                  ? ` for ${selectedTask.exam_duration_minutes} minutes.`
+                  : "."}
+              </p>
+            )}
+          </div>
+
+          {examWindow.state === "open" ? (
+            <Button
+              type="primary"
+              className="!bg-primary !border-primary"
+              onClick={() => void handleOpenOnlinePdf()}
+            >
+              {selectedTask.status === "completed" ? "Continue exam" : "Start exam"}
+            </Button>
+          ) : examWindow.state === "scheduled" && examWindow.startAt ? (
+            <p className="text-sm text-amber-800">
+              This exam becomes available at {dayjs(examWindow.startAt).format("DD MMM YYYY, HH:mm")}.
+            </p>
+          ) : examWindow.state === "ended" ? (
+            <p className="text-sm text-red-700">
+              This exam window has ended. Contact your teacher if you still need access.
+            </p>
+          ) : (
+            <p className="text-sm text-red-700">
+              The exam schedule is incomplete. Ask your teacher to update this task.
+            </p>
+          )}
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-4">
+        {selectedTask?.task_type === "pdf" && selectedTask?.file_path && (
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+            <p className="mb-3 text-sm text-blue-900">
+              You can answer directly on your own online copy. It autosaves and locks when you press Finish.
+            </p>
+            <Button
+              type="primary"
+              className="!bg-primary !border-primary"
+              href={buildOnlinePdfHref()}
+            >
+              Answer on PDF online
+            </Button>
+          </div>
+        )}
         <Upload.Dragger
           name="file"
           multiple={false}
@@ -267,7 +403,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
         open={isOpen}
         width={600}
         footer={
-          (selectedTask?.status !== "completed" || canEditSubmission) ? (
+          !isOnlineExamTask && (selectedTask?.status !== "completed" || canEditSubmission) ? (
             <div className="flex justify-end">
               <Button
                 type="primary"
@@ -290,7 +426,17 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
               <p className="text-gray-600">{selectedTask.description}</p>
             </div>
 
-            {selectedTask.status === "completed" && !canEditSubmission ? (
+            {isOnlineExamTask ? (
+              <div className="space-y-4">
+                {renderUploadArea()}
+                {selectedTask.comment && (
+                  <div>
+                    <h4 className="font-medium text-gray-800">Feedback</h4>
+                    <p className="text-gray-600">{selectedTask.comment}</p>
+                  </div>
+                )}
+              </div>
+            ) : selectedTask.status === "completed" && !canEditSubmission ? (
               <>
                 <div>
                   <h4 className="font-medium text-gray-800">Your Submission</h4>

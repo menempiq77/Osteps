@@ -95,6 +95,14 @@ export const updateQuizQuestion = async (questionId: number, quizId: number, qui
   const response = await api.post(`/update-quiz-question/${questionId}`, withSubjectPayload({ ...quizQuestionData, quiz_id: quizId }, subjectId));
   return response.data;
 };
+// reorder QuizQuestions
+export const reorderQuizQuestions = async (quizId: number, questionIds: number[], subjectId?: number) => {
+  const response = await api.post(
+    `/reorder-quiz-questions/${quizId}`,
+    withSubjectPayload({ question_ids: questionIds }, subjectId)
+  );
+  return response.data.data;
+};
 // delete QuizQuestions
 export const deleteQuizQuestion = async (id: number) => {
   const response = await api.post(`/delete-quiz-question/${id}`);

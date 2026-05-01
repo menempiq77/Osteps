@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Button,
   Card,
@@ -12,6 +12,8 @@ import {
   DatePicker,
 } from "antd";
 import { Controller, useForm } from "react-hook-form";
+import { usePathname, useRouter } from "next/navigation";
+import { useSelector } from "react-redux";
 import {
   addTask,
   updateTask,
@@ -19,10 +21,15 @@ import {
   removeTaskQuiz,
 } from "@/services/api";
 import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
-import { assignTaskQuiz } from "@/services/quizApi";
+import { DragDropContext, Draggable, Droppable, type DropResult } from "@hello-pangea/dnd";
+import { addQuize, assignTaskQuiz } from "@/services/quizApi";
 import { IMG_BASE_URL } from "@/lib/config";
+import { extractSubjectIdFromPath, toSubjectScopedPath } from "@/lib/subjectRouting";
+import { buildTaskTypeValue, normalizeTaskRecord } from "@/lib/taskTypeMetadata";
+import { RootState } from "@/store/store";
 import { Dayjs } from "dayjs";
 import dayjs from "dayjs";
+import { GripVertical } from "lucide-react";
 
 const { Option } = Select;
 const { TextArea: AntdTextArea } = AntdInput;
@@ -33,6 +40,9 @@ type TaskFormData = {
   name: string;
   description: string;
   dueDate: string;
+  examMode: boolean;
+  examStartAt: string;
+  examDurationMinutes: number;
   isAudio: boolean;
   isVideo: boolean;
   isPdf: boolean;
@@ -48,9 +58,14 @@ type Task = {
   task_name: string;
   description: string;
   task_type: string;
+  task_type_config?: unknown;
   due_date: string;
   allocated_marks: number;
   url?: string;
+  exam_mode?: boolean;
+  exam_start_at?: string | null;
+  exam_duration_minutes?: number | null;
+  exam_end_at?: string | null;
   // Frontend-only computed properties
   name?: string;
   dueDate?: string;
@@ -61,6 +76,11 @@ type Task = {
   isUrl?: boolean;
   file_path?: string;
   type?: string;
+  quiz_id?: number;
+  quiz?: {
+    id?: number | string;
+    name?: string;
+  };
 };
 
 type AssessmentTasksDrawerProps = {
@@ -83,6 +103,13 @@ function readQuizSubjectMap(): Record<string, number> {
   } catch {
     return {};
   }
+}
+
+function tagQuizWithSubject(quizId: number, subjectId: number) {
+  if (typeof window === "undefined") return;
+  const map = readQuizSubjectMap();
+  map[String(quizId)] = subjectId;
+  localStorage.setItem(QUIZ_SUBJECT_MAP_KEY, JSON.stringify(map));
 }
 
 function getScopedSubjectId(): number | null {
@@ -114,6 +141,63 @@ function filterQuizzesBySubject(quizzes: any[], subjectId: number): any[] {
   });
 }
 
+function getTaskOrderStorageKey(assessmentId: number) {
+  return `osteps-assessment-task-order-${assessmentId}`;
+}
+
+function getTaskIdentity(task: Task) {
+  if (task?.type === "quiz") {
+    return `quiz-${task.quiz_id ?? task.quiz?.id ?? task.id}`;
+  }
+
+  return `task-${task.id}`;
+}
+
+function isPdfFileName(fileName?: string | null) {
+  return Boolean(fileName && /\.pdf$/i.test(fileName));
+}
+
+function sortTasksBySavedOrder(tasks: Task[], assessmentId: number): Task[] {
+  if (typeof window === "undefined" || assessmentId <= 0) {
+    return tasks;
+  }
+
+  try {
+    const raw = localStorage.getItem(getTaskOrderStorageKey(assessmentId));
+    if (!raw) return tasks;
+
+    const savedOrder = JSON.parse(raw);
+    if (!Array.isArray(savedOrder) || savedOrder.length === 0) {
+      return tasks;
+    }
+
+    const rank = new Map(savedOrder.map((id: string, index: number) => [id, index]));
+
+    return [...tasks].sort((left, right) => {
+      const leftRank = rank.get(getTaskIdentity(left));
+      const rightRank = rank.get(getTaskIdentity(right));
+
+      if (leftRank == null && rightRank == null) return 0;
+      if (leftRank == null) return 1;
+      if (rightRank == null) return -1;
+      return leftRank - rightRank;
+    });
+  } catch {
+    return tasks;
+  }
+}
+
+function persistTaskOrder(assessmentId: number, tasks: Task[]) {
+  if (typeof window === "undefined" || assessmentId <= 0) {
+    return;
+  }
+
+  localStorage.setItem(
+    getTaskOrderStorageKey(assessmentId),
+    JSON.stringify(tasks.map(getTaskIdentity))
+  );
+}
+
 export function AssessmentTasksDrawer({
   visible,
   onClose,
@@ -126,17 +210,34 @@ export function AssessmentTasksDrawer({
   setLoading,
   selectedTermId,
 }: AssessmentTasksDrawerProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const { currentUser } = useSelector((state: RootState) => state.auth);
   const [selectedType, setSelectedType] = useState<"task" | "quiz" | null>(
     null
   );
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
   const [selectedQuizId, setSelectedQuizId] = useState<number | null>(null);
+  const [newQuizName, setNewQuizName] = useState("");
+  const [createdQuizzes, setCreatedQuizzes] = useState<any[]>([]);
+  const [orderedTasks, setOrderedTasks] = useState<Task[]>([]);
   const [messageApi, contextHolder] = message.useMessage();
   const scopedSubjectId = getScopedSubjectId();
   const visibleQuizzes =
     scopedSubjectId && scopedSubjectId > 0
       ? filterQuizzesBySubject(quizzes, scopedSubjectId)
       : quizzes;
+  const availableQuizzes = [
+    ...visibleQuizzes,
+    ...createdQuizzes.filter(
+      (createdQuiz) =>
+        !visibleQuizzes.some(
+          (quiz) => Number(quiz?.id) === Number(createdQuiz?.id)
+        )
+    ),
+  ];
+  const resolvedSubjectId = extractSubjectIdFromPath(pathname || "") ?? scopedSubjectId;
+  const schoolId = currentUser?.school;
 
   const {
     register,
@@ -151,6 +252,9 @@ export function AssessmentTasksDrawer({
       name: "",
       description: "",
       dueDate: "",
+      examMode: false,
+      examStartAt: "",
+      examDurationMinutes: 60,
       isAudio: false,
       isVideo: false,
       isPdf: false,
@@ -160,6 +264,11 @@ export function AssessmentTasksDrawer({
       url: "",
     },
   });
+  const examModeEnabled = watch("examMode");
+
+  useEffect(() => {
+    setOrderedTasks(sortTasksBySavedOrder(initialTasks ?? [], assessmentId));
+  }, [assessmentId, initialTasks]);
 
   const onSubmitTask = async (data: TaskFormData) => {
     try {
@@ -182,15 +291,62 @@ export function AssessmentTasksDrawer({
         return;
       }
 
+      const taskTypeValue = buildTaskTypeValue({
+        taskType,
+        examMode: Boolean(data.examMode),
+        examStartAt: data.examStartAt,
+        examDurationMinutes: data.examDurationMinutes,
+      });
+
+      const editingTask = editingTaskId
+        ? orderedTasks.find((task) => task.id === editingTaskId)
+        : null;
+      const selectedFileName = data.file?.length
+        ? data.file[0]?.name
+        : editingTask?.file_path;
+
+      if (data.examMode) {
+        if (taskType !== "pdf") {
+          messageApi.error("Exam mode is only available for PDF tasks.");
+          return;
+        }
+
+        if (!selectedFileName || !isPdfFileName(selectedFileName)) {
+          messageApi.error("Exam mode requires an uploaded PDF file.");
+          return;
+        }
+
+        if (!data.examStartAt) {
+          messageApi.error("Please choose when the exam should open.");
+          return;
+        }
+
+        if (!Number.isFinite(Number(data.examDurationMinutes)) || Number(data.examDurationMinutes) <= 0) {
+          messageApi.error("Please enter a valid exam duration in minutes.");
+          return;
+        }
+      }
+
+      const resolvedDueDate = data.examMode
+        ? dayjs(data.examStartAt)
+            .add(Number(data.examDurationMinutes), "minute")
+            .format("YYYY-MM-DD")
+        : data.dueDate;
+
       const formData = new FormData();
       formData.append("assessment_id", assessmentId.toString());
       formData.append("task_name", data.name);
       formData.append("description", data.description);
-      formData.append("due_date", data.dueDate);
+      formData.append("due_date", resolvedDueDate);
       formData.append("allocated_marks", data.allocatedMarks.toString());
 
-      if (taskType !== null) {
-        formData.append("task_type", taskType);
+      if (taskTypeValue && typeof taskTypeValue === "object") {
+        Object.entries(taskTypeValue).forEach(([key, value]) => {
+          if (value == null || value === "") return;
+          formData.append(`task_type[${key}]`, String(value));
+        });
+      } else if (typeof taskTypeValue === "string") {
+        formData.append("task_type", taskTypeValue);
       } else {
         formData.append("task_type", "null");
       }
@@ -205,22 +361,16 @@ export function AssessmentTasksDrawer({
 
       let updatedTasks;
       if (editingTaskId) {
-        await updateTask(editingTaskId.toString(), formData);
-        updatedTasks = initialTasks?.map((task) =>
+        const updatedTask = await updateTask(editingTaskId.toString(), formData);
+        updatedTasks = orderedTasks?.map((task) =>
           task.id === editingTaskId
             ? {
                 ...task,
-                task_name: data.name,
-                description: data.description,
-                due_date: data.dueDate,
-                allocated_marks: data.allocatedMarks,
-                task_type: taskType,
-                url: data.isUrl ? data.url : null,
-                file_path: data.file ? "updated-file-path" : task.file_path,
-                isAudio: taskType === "audio",
-                isVideo: taskType === "video",
-                isPdf: taskType === "pdf",
-                isUrl: taskType === "url",
+                ...normalizeTaskRecord(updatedTask),
+                isAudio: updatedTask?.task_type === "audio",
+                isVideo: updatedTask?.task_type === "video",
+                isPdf: updatedTask?.task_type === "pdf",
+                isUrl: updatedTask?.task_type === "url",
               }
             : task
         );
@@ -228,7 +378,7 @@ export function AssessmentTasksDrawer({
       } else {
         const newTask = await addTask(formData);
         updatedTasks = [
-          ...initialTasks,
+          ...orderedTasks,
           {
             ...newTask,
             name: newTask.task_name,
@@ -240,9 +390,11 @@ export function AssessmentTasksDrawer({
             isUrl: newTask.task_type === "url",
           },
         ];
+        persistTaskOrder(assessmentId, updatedTasks);
         messageApi.success("Task added successfully");
       }
 
+      setOrderedTasks(updatedTasks);
       onTasksChange(updatedTasks);
       reset();
       setEditingTaskId(null);
@@ -258,17 +410,16 @@ export function AssessmentTasksDrawer({
   };
   const handleAssignQuiz = async () => {
     if (!selectedQuizId) {
-      message.error("Please select both a term and a quiz");
+      message.error("Please select a quiz");
       return;
     }
 
     try {
       setLoading(true);
-      await assignTaskQuiz(selectedQuizId, assessmentId);
+      await assignTaskQuiz(selectedQuizId, assessmentId, resolvedSubjectId ?? undefined);
       messageApi.success("Quiz assigned successfully");
-      // You might want to refresh the task list or add the quiz to initialTasks
 
-      const selectedQuiz = visibleQuizzes.find((q) => q.id === selectedQuizId);
+      const selectedQuiz = availableQuizzes.find((q) => Number(q.id) === Number(selectedQuizId));
       if (selectedQuiz) {
         const newQuizTask = {
           id: Date.now(), // temporary unique ID for frontend
@@ -278,7 +429,9 @@ export function AssessmentTasksDrawer({
           task_name: selectedQuiz.name,
         };
 
-        const updatedTasks = [...initialTasks, newQuizTask];
+        const updatedTasks = [...orderedTasks, newQuizTask];
+        persistTaskOrder(assessmentId, updatedTasks);
+        setOrderedTasks(updatedTasks);
         onTasksChange(updatedTasks);
       }
 
@@ -287,6 +440,81 @@ export function AssessmentTasksDrawer({
     } catch (error) {
       messageApi.error("Failed to assign quiz");
       console.error("Error assigning quiz:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateAndAssignQuiz = async () => {
+    const trimmedName = newQuizName.trim();
+    if (!trimmedName) {
+      messageApi.error("Please enter a quiz title");
+      return;
+    }
+
+    if (!schoolId) {
+      messageApi.error("Missing school information for quiz creation");
+      return;
+    }
+
+    let createdQuizId: number | null = null;
+
+    try {
+      setLoading(true);
+
+      const result = await addQuize(
+        { name: trimmedName, school_id: schoolId },
+        resolvedSubjectId ?? undefined
+      );
+      createdQuizId = Number(result?.data?.id ?? result?.id ?? 0);
+
+      if (!Number.isFinite(createdQuizId) || createdQuizId <= 0) {
+        throw new Error("Quiz was created without an id");
+      }
+
+      if (resolvedSubjectId && Number(resolvedSubjectId) > 0) {
+        tagQuizWithSubject(createdQuizId, Number(resolvedSubjectId));
+      }
+
+      await assignTaskQuiz(createdQuizId, assessmentId, resolvedSubjectId ?? undefined);
+
+      const createdQuizRecord = {
+        ...(result?.data ?? result ?? {}),
+        id: createdQuizId,
+        name: result?.data?.name ?? result?.name ?? trimmedName,
+        subject_id: resolvedSubjectId ?? undefined,
+      };
+
+      setCreatedQuizzes((previous) => [
+        ...previous.filter((quiz) => Number(quiz?.id) !== createdQuizId),
+        createdQuizRecord,
+      ]);
+
+      const updatedTasks = [
+        ...orderedTasks,
+        {
+          id: Date.now(),
+          quiz_id: createdQuizId,
+          type: "quiz",
+          quiz: createdQuizRecord,
+          task_name: createdQuizRecord.name,
+        },
+      ];
+
+      persistTaskOrder(assessmentId, updatedTasks);
+      setOrderedTasks(updatedTasks);
+      onTasksChange(updatedTasks);
+      setNewQuizName("");
+      setSelectedQuizId(null);
+      setSelectedType(null);
+      messageApi.success("Quiz created and assigned successfully");
+    } catch (error) {
+      if (createdQuizId) {
+        messageApi.error("Quiz was created but could not be assigned");
+      } else {
+        messageApi.error("Failed to create and assign quiz");
+      }
+      console.error("Error creating and assigning quiz:", error);
     } finally {
       setLoading(false);
     }
@@ -308,6 +536,9 @@ export function AssessmentTasksDrawer({
     setValue("allocatedMarks", task.allocated_marks);
     setValue("url", task.url || "");
     setValue("isNA", !taskType);
+    setValue("examMode", Boolean(task.exam_mode));
+    setValue("examStartAt", task.exam_start_at || "");
+    setValue("examDurationMinutes", task.exam_duration_minutes ?? 60);
   };
 
   const handleRemoveTask = async (task: Task) => {
@@ -325,7 +556,9 @@ export function AssessmentTasksDrawer({
       }
 
       // Update local state
-      const updatedTasks = initialTasks.filter((t) => t.id !== task.id);
+      const updatedTasks = orderedTasks.filter((t) => t.id !== task.id);
+      persistTaskOrder(assessmentId, updatedTasks);
+      setOrderedTasks(updatedTasks);
       onTasksChange(updatedTasks);
     } catch (error) {
       messageApi.error("Failed to delete task");
@@ -336,6 +569,10 @@ export function AssessmentTasksDrawer({
   };
 
   const getTaskTypeLabel = (task: Task) => {
+    if (task.exam_mode && task.task_type?.toLowerCase() === "pdf") {
+      return "PDF Exam";
+    }
+
     switch (task.task_type?.toLowerCase()) {
       case "pdf":
         return "PDF";
@@ -351,6 +588,10 @@ export function AssessmentTasksDrawer({
   };
 
   const getTaskTypeClass = (task: Task) => {
+    if (task.exam_mode && task.task_type?.toLowerCase() === "pdf") {
+      return "bg-rose-100 text-rose-800";
+    }
+
     switch (task.task_type?.toLowerCase()) {
       case "pdf":
         return "bg-blue-100 text-blue-800";
@@ -367,8 +608,40 @@ export function AssessmentTasksDrawer({
 
   const handleCancel = () => {
     setSelectedType(null);
+    setSelectedQuizId(null);
+    setNewQuizName("");
     reset();
     setEditingTaskId(null);
+  };
+
+  const handleEditQuiz = (task: Task) => {
+    const quizId = Number(task.quiz_id ?? task.quiz?.id ?? 0);
+    if (!Number.isFinite(quizId) || quizId <= 0) {
+      messageApi.error("This quiz cannot be edited right now");
+      return;
+    }
+
+    const subjectId = extractSubjectIdFromPath(pathname || "") ?? scopedSubjectId;
+    const quizPath = subjectId
+      ? toSubjectScopedPath(`/dashboard/quiz/${quizId}`, Number(subjectId))
+      : `/dashboard/quiz/${quizId}`;
+
+    onClose();
+    handleCancel();
+    router.push(quizPath);
+  };
+
+  const handleDragEnd = (result: DropResult) => {
+    if (!result.destination || result.destination.index === result.source.index) {
+      return;
+    }
+
+    const nextTasks = [...orderedTasks];
+    const [movedTask] = nextTasks.splice(result.source.index, 1);
+    nextTasks.splice(result.destination.index, 0, movedTask);
+
+    setOrderedTasks(nextTasks);
+    persistTaskOrder(assessmentId, nextTasks);
   };
 
   const renderTaskForm = (isInlineEdit = false) => (
@@ -428,7 +701,32 @@ export function AssessmentTasksDrawer({
         </div>
 
         <div>
-          <p className="font-medium">Upload File (Optional)</p>
+          <div className="flex items-center justify-between gap-3">
+            <p className="font-medium">Upload File (Optional)</p>
+            <Controller
+              name="examMode"
+              control={control}
+              render={({ field }) => (
+                <Checkbox
+                  checked={field.value}
+                  onChange={(event) => {
+                    const checked = event.target.checked;
+                    field.onChange(checked);
+                    if (checked) {
+                      setValue("isAudio", false);
+                      setValue("isVideo", false);
+                      setValue("isUrl", false);
+                      setValue("isNA", false);
+                      setValue("isPdf", true);
+                    }
+                  }}
+                  disabled={loading}
+                >
+                  Exam mode
+                </Checkbox>
+              )}
+            />
+          </div>
           <Controller
             name="file"
             control={control}
@@ -442,37 +740,120 @@ export function AssessmentTasksDrawer({
               />
             )}
           />
-        </div>
-
-        <div>
-          <p className="font-medium">Due Date</p>
-          <Controller
-            name="dueDate"
-            control={control}
-            rules={{ required: "Due date is required" }}
-            render={({ field }) => (
-              <DatePicker
-                {...field}
-                value={field.value ? dayjs(field.value) : undefined}
-                onChange={(date: Dayjs | null, dateString: string) =>
-                  field.onChange(dateString)
-                }
-                disabled={loading}
-                status={errors.dueDate ? "error" : ""}
-                className="!w-full !mt-1"
-                format="YYYY-MM-DD"
-                disabledDate={(current) =>
-                  current && current < dayjs().startOf("day")
-                }
-              />
-            )}
-          />
-          {errors.dueDate && (
-            <p className="text-red-500 text-sm mt-1">
-              {errors.dueDate.message}
+          {examModeEnabled && (
+            <p className="mt-2 text-sm text-amber-700">
+              Exam mode opens this uploaded PDF only during the scheduled exam window and shows a live countdown for students.
             </p>
           )}
         </div>
+
+        {examModeEnabled && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <p className="font-medium">Exam Opens At</p>
+                <Controller
+                  name="examStartAt"
+                  control={control}
+                  rules={{
+                    validate: (value) =>
+                      !examModeEnabled || value
+                        ? true
+                        : "Exam start date and time are required",
+                  }}
+                  render={({ field }) => (
+                    <DatePicker
+                      showTime={{ format: "HH:mm" }}
+                      value={field.value ? dayjs(field.value) : undefined}
+                      onChange={(date) =>
+                        field.onChange(
+                          date ? date.format("YYYY-MM-DDTHH:mm:ssZ") : ""
+                        )
+                      }
+                      disabled={loading}
+                      status={errors.examStartAt ? "error" : ""}
+                      className="!mt-1 !w-full"
+                      format="YYYY-MM-DD HH:mm"
+                      disabledDate={(current) =>
+                        current && current < dayjs().startOf("day")
+                      }
+                    />
+                  )}
+                />
+                {errors.examStartAt && (
+                  <p className="mt-1 text-sm text-red-500">
+                    {errors.examStartAt.message}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <p className="font-medium">Exam Duration (Minutes)</p>
+                <Controller
+                  name="examDurationMinutes"
+                  control={control}
+                  rules={{
+                    validate: (value) =>
+                      !examModeEnabled || Number(value) > 0
+                        ? true
+                        : "Exam duration must be greater than 0",
+                  }}
+                  render={({ field }) => (
+                    <InputNumber
+                      {...field}
+                      min={1}
+                      className="!mt-1 !w-full"
+                      disabled={loading}
+                      status={errors.examDurationMinutes ? "error" : ""}
+                      onChange={(value) => field.onChange(Number(value || 0))}
+                    />
+                  )}
+                />
+                {errors.examDurationMinutes && (
+                  <p className="mt-1 text-sm text-red-500">
+                    {errors.examDurationMinutes.message}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {examModeEnabled ? (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            Due date is handled automatically from the exam opening time and duration.
+          </div>
+        ) : (
+          <div>
+            <p className="font-medium">Due Date</p>
+            <Controller
+              name="dueDate"
+              control={control}
+              rules={{ required: "Due date is required" }}
+              render={({ field }) => (
+                <DatePicker
+                  {...field}
+                  value={field.value ? dayjs(field.value) : undefined}
+                  onChange={(date: Dayjs | null, dateString: string) =>
+                    field.onChange(dateString)
+                  }
+                  disabled={loading}
+                  status={errors.dueDate ? "error" : ""}
+                  className="!w-full !mt-1"
+                  format="YYYY-MM-DD"
+                  disabledDate={(current) =>
+                    current && current < dayjs().startOf("day")
+                  }
+                />
+              )}
+            />
+            {errors.dueDate && (
+              <p className="text-red-500 text-sm mt-1">
+                {errors.dueDate.message}
+              </p>
+            )}
+          </div>
+        )}
 
         <div>
           <p className="font-medium">Allocated Marks</p>
@@ -519,7 +900,7 @@ export function AssessmentTasksDrawer({
                         setValue("isNA", false);
                       }
                     }}
-                    disabled={loading}
+                    disabled={loading || examModeEnabled}
                   >
                     Audio
                   </Checkbox>
@@ -542,7 +923,7 @@ export function AssessmentTasksDrawer({
                         setValue("isNA", false);
                       }
                     }}
-                    disabled={loading}
+                    disabled={loading || examModeEnabled}
                   >
                     Video
                   </Checkbox>
@@ -565,7 +946,7 @@ export function AssessmentTasksDrawer({
                         setValue("isNA", false);
                       }
                     }}
-                    disabled={loading}
+                    disabled={loading || examModeEnabled}
                   >
                     PDF
                   </Checkbox>
@@ -590,7 +971,7 @@ export function AssessmentTasksDrawer({
                         setValue("isNA", false);
                       }
                     }}
-                    disabled={loading}
+                    disabled={loading || examModeEnabled}
                   >
                     URL
                   </Checkbox>
@@ -615,7 +996,7 @@ export function AssessmentTasksDrawer({
                         setValue("url", "");
                       }
                     }}
-                    disabled={loading}
+                    disabled={loading || examModeEnabled}
                   >
                     N/A
                   </Checkbox>
@@ -732,31 +1113,61 @@ export function AssessmentTasksDrawer({
 
           {/* Quiz Form Placeholder */}
           {selectedType === "quiz" && (
-            <div className="p-4 border rounded-lg mb-4">
-              <h3 className="font-medium text-lg mb-2">Assign a Quiz</h3>
-              <Select
-                placeholder="Select Quiz"
-                className="w-full"
-                disabled={loading}
-                onChange={(value) => setSelectedQuizId(value)}
-                value={selectedQuizId || undefined}
-              >
-                {visibleQuizzes?.map((quiz) => (
-                  <Option key={quiz.id} value={quiz.id}>
-                    {quiz.name}
-                  </Option>
-                ))}
-              </Select>
-              <div className="flex justify-end gap-2 mt-2">
-                <Button onClick={handleCancel}>Cancel</Button>
-                <button
-                  type="button"
-                  onClick={handleAssignQuiz}
-                  className="rounded-lg px-4 h-8 font-medium text-sm text-white cursor-pointer border-none"
-                  style={{ backgroundColor: "var(--primary)" }}
+            <div className="mb-4 space-y-4 rounded-lg border p-4">
+              <div>
+                <h3 className="mb-2 text-lg font-medium">Assign or Create a Quiz</h3>
+                <p className="text-sm text-gray-500">Choose an existing quiz or create a new one and attach it here immediately.</p>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-gray-700">Assign existing quiz</p>
+                <Select
+                  placeholder="Select Quiz"
+                  className="w-full"
+                  disabled={loading}
+                  onChange={(value) => setSelectedQuizId(value)}
+                  value={selectedQuizId || undefined}
+                  notFoundContent="No quizzes available"
                 >
-                  Assign
-                </button>
+                  {availableQuizzes?.map((quiz) => (
+                    <Option key={quiz.id} value={quiz.id}>
+                      {quiz.name}
+                    </Option>
+                  ))}
+                </Select>
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={handleAssignQuiz}
+                    className="rounded-lg px-4 h-8 font-medium text-sm text-white cursor-pointer border-none"
+                    style={{ backgroundColor: "var(--primary)" }}
+                    disabled={loading}
+                  >
+                    Assign Selected Quiz
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2 border-t border-gray-100 pt-4">
+                <p className="text-sm font-medium text-gray-700">Create new quiz and assign it</p>
+                <AntdInput
+                  value={newQuizName}
+                  onChange={(event) => setNewQuizName(event.target.value)}
+                  placeholder="Quiz title"
+                  disabled={loading}
+                />
+                <div className="flex justify-end gap-2">
+                  <Button onClick={handleCancel} disabled={loading}>Cancel</Button>
+                  <button
+                    type="button"
+                    onClick={handleCreateAndAssignQuiz}
+                    className="rounded-lg px-4 h-8 font-medium text-sm text-white cursor-pointer border-none"
+                    style={{ backgroundColor: "var(--primary)" }}
+                    disabled={loading}
+                  >
+                    Create and Assign
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -765,92 +1176,143 @@ export function AssessmentTasksDrawer({
           <h3 className="font-medium text-gray-700">
             Tasks for this {assignmentName}:
           </h3>
+          {orderedTasks.length > 1 && (
+            <p className="text-xs text-gray-500">Hold the grip and drag tasks up or down to reorder them.</p>
+          )}
           {loading && !selectedType ? (
             <div className="text-center py-4">Loading tasks...</div>
-          ) : initialTasks?.length === 0 ? (
+          ) : orderedTasks?.length === 0 ? (
             <div className="text-center py-4 text-gray-500">
               No tasks added yet
             </div>
           ) : (
-            <div className="space-y-2">
-              {initialTasks?.map((task, index) => (
-                <Card key={index} className="!bg-gray-50 !shadow !mb-2">
-                  <div className="flex justify-between items-center mb-1">
-                    <div className="flex items-center space-x-2">
-                      <p className="font-medium">
-                        {task?.task_name || task?.quiz?.name}
-                      </p>
+            <DragDropContext onDragEnd={handleDragEnd}>
+              <Droppable droppableId={`assessment-tasks-${assessmentId}`}>
+                {(provided) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                    className="space-y-2"
+                  >
+                    {orderedTasks?.map((task, index) => (
+                      <Draggable
+                        key={getTaskIdentity(task)}
+                        draggableId={getTaskIdentity(task)}
+                        index={index}
+                      >
+                        {(draggableProvided) => (
+                          <Card
+                            ref={draggableProvided.innerRef}
+                            {...draggableProvided.draggableProps}
+                            className="!mb-2 !bg-gray-50 !shadow"
+                          >
+                            <div className="flex items-start gap-3">
+                              <button
+                                type="button"
+                                {...draggableProvided.dragHandleProps}
+                                className="mt-1 cursor-grab touch-none select-none text-gray-300 transition-colors hover:text-gray-500"
+                                aria-label={`Reorder ${task?.task_name || task?.quiz?.name || "task"}`}
+                              >
+                                <GripVertical size={18} />
+                              </button>
 
-                      <span
-                        className={`px-2.5 py-0.5 text-xs rounded-full ${getTaskTypeClass(
-                          task
-                        )}`}
-                      >
-                        {task?.type !== "quiz"
-                          ? getTaskTypeLabel(task)
-                          : "Quiz"}
-                      </span>
-                    </div>
-                    <div className="flex space-x-2">
-                      {task?.type !== "quiz" && (
-                        <button
-                          onClick={() => handleEditTask(task)}
-                          className="text-green-500 hover:text-green-700 cursor-pointer"
-                          title="Edit task"
-                          disabled={loading}
-                        >
-                          <EditOutlined />
-                        </button>
-                      )}
-                      <button
-                        onClick={() => handleRemoveTask(task)}
-                        className="text-red-500 hover:text-red-700 cursor-pointer"
-                        title="Remove task"
-                        disabled={loading}
-                      >
-                        <DeleteOutlined />
-                      </button>
-                    </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="mb-1 flex items-center justify-between gap-3">
+                                  <div className="flex min-w-0 items-center space-x-2">
+                                    <p className="truncate font-medium">
+                                      {task?.task_name || task?.quiz?.name}
+                                    </p>
+
+                                    <span
+                                      className={`shrink-0 px-2.5 py-0.5 text-xs rounded-full ${getTaskTypeClass(
+                                        task
+                                      )}`}
+                                    >
+                                      {task?.type !== "quiz"
+                                        ? getTaskTypeLabel(task)
+                                        : "Quiz"}
+                                    </span>
+                                  </div>
+                                  <div className="flex shrink-0 space-x-2">
+                                    <button
+                                      onClick={() =>
+                                        task?.type === "quiz"
+                                          ? handleEditQuiz(task)
+                                          : handleEditTask(task)
+                                      }
+                                      className="cursor-pointer text-green-500 hover:text-green-700"
+                                      title={task?.type === "quiz" ? "Edit quiz" : "Edit task"}
+                                      disabled={loading}
+                                    >
+                                      <EditOutlined />
+                                    </button>
+                                    <button
+                                      onClick={() => handleRemoveTask(task)}
+                                      className="cursor-pointer text-red-500 hover:text-red-700"
+                                      title="Remove task"
+                                      disabled={loading}
+                                    >
+                                      <DeleteOutlined />
+                                    </button>
+                                  </div>
+                                </div>
+                                <p className="mb-4 text-sm text-gray-600">
+                                  {task?.description || "No description provided"}
+                                </p>
+                                {task?.exam_mode && task?.exam_start_at && (
+                                  <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                                    Opens {dayjs(task.exam_start_at).format("DD MMM YYYY, HH:mm")} for {task.exam_duration_minutes || 0} minute{task.exam_duration_minutes === 1 ? "" : "s"}.
+                                  </div>
+                                )}
+                                {task?.file_path && (
+                                  <div className="mt-3">
+                                    <a
+                                      href={`${IMG_BASE_URL}/storage/${task.file_path}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-800"
+                                    >
+                                      Attached document
+                                    </a>
+                                  </div>
+                                )}
+                                {task?.type !== "quiz" && (
+                                  <div className="mt-2 text-sm text-gray-500">
+                                    {task?.exam_mode ? null : (
+                                      <>
+                                        Due: {task?.due_date} | {" "}
+                                      </>
+                                    )}
+                                    Allocated Marks:{" "}
+                                    <span className="font-medium">
+                                      {task?.allocated_marks}
+                                    </span>
+                                  </div>
+                                )}
+                                {task?.task_type === "url" && task?.url && (
+                                  <div className="mt-1 text-sm">
+                                    <a
+                                      href={task?.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-blue-500 hover:underline"
+                                    >
+                                      {task?.url}
+                                    </a>
+                                  </div>
+                                )}
+                                {editingTaskId === task.id && renderTaskForm(true)}
+                              </div>
+                            </div>
+                          </Card>
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
                   </div>
-                  <p className="text-sm text-gray-600 mb-4">
-                    {task?.description || "No description provided"}
-                  </p>
-                  {task?.file_path && (
-                      <div className="mt-3">
-                        <a
-                          href={`${IMG_BASE_URL}/storage/${task.file_path}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-800 text-sm font-medium inline-flex items-center"
-                        >
-                          Attached document
-                        </a>
-                      </div>
-                    )}
-                  {task?.type !== "quiz" && (
-                    <div className="mt-2 text-sm text-gray-500">
-                      Due: {task?.due_date} | Allocated Marks:{" "}
-                      <span className="font-medium">
-                        {task?.allocated_marks}
-                      </span>
-                    </div>
-                  )}
-                  {task?.task_type === "url" && task?.url && (
-                    <div className="mt-1 text-sm">
-                      <a
-                        href={task?.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-500 hover:underline"
-                      >
-                        {task?.url}
-                      </a>
-                    </div>
-                  )}
-                  {editingTaskId === task.id && renderTaskForm(true)}
-                </Card>
-              ))}
-            </div>
+                )}
+              </Droppable>
+            </DragDropContext>
           )}
         </div>
       </Drawer>

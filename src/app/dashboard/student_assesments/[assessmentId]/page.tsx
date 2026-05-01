@@ -15,6 +15,7 @@ import { updateQuizSubmissionTeacherMark } from "@/services/quizApi";
 import { fetchStudents } from "@/services/studentsApi";
 import Link from "next/link";
 import { useSubjectContext } from "@/contexts/SubjectContext";
+import { IMG_BASE_URL } from "@/lib/config";
 
 interface Task {
   id: number;
@@ -143,6 +144,53 @@ export default function AssessmentDrawer() {
     if (!assessmentId) return;
     if (canUseSubjectContext && !activeSubjectId) return;
     loadStudentTasks(Number(assessmentId));
+  }, [assessmentId, activeSubjectId, canUseSubjectContext]);
+
+  useEffect(() => {
+    if (!assessmentId) return;
+
+    const currentAssessmentId = Number(assessmentId);
+    if (!Number.isFinite(currentAssessmentId) || currentAssessmentId <= 0) return;
+
+    const refreshTasks = () => {
+      if (canUseSubjectContext && !activeSubjectId) return;
+      loadStudentTasks(currentAssessmentId);
+    };
+
+    const handleMarkUpdate = (event: Event) => {
+      const detail = (event as CustomEvent<{ assessmentId?: number }>).detail;
+      if (Number(detail?.assessmentId) !== currentAssessmentId) return;
+      refreshTasks();
+    };
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== "osteps:assessment-mark-updated" || !event.newValue) return;
+      try {
+        const payload = JSON.parse(event.newValue) as { assessmentId?: number };
+        if (Number(payload?.assessmentId) !== currentAssessmentId) return;
+        refreshTasks();
+      } catch {
+        /* ignore malformed storage events */
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshTasks();
+      }
+    };
+
+    window.addEventListener("osteps:assessment-mark-updated", handleMarkUpdate as EventListener);
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener("focus", refreshTasks);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("osteps:assessment-mark-updated", handleMarkUpdate as EventListener);
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("focus", refreshTasks);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, [assessmentId, activeSubjectId, canUseSubjectContext]);
 
   const loadStudents = async () => {
@@ -287,6 +335,31 @@ export default function AssessmentDrawer() {
     router.push(canUseSubjectContext && activeSubjectId ? toSubjectHref(nextHref) : nextHref);
   };
 
+  const fileUrlForDocument = (path: string | null | undefined) => {
+    if (!path) return "";
+    if (/^https?:\/\//i.test(path)) return path;
+    const cleanPath = String(path).replace(/^\/+/, "");
+    return cleanPath.startsWith("storage/")
+      ? `${IMG_BASE_URL}/${cleanPath}`
+      : `${IMG_BASE_URL}/storage/${cleanPath}`;
+  };
+
+  const openTeacherDocumentWorkspace = (task: StudentAssessmentTask) => {
+    const sourcePath = task.task?.file_path || task.file_path;
+    const params = new URLSearchParams({
+      assessmentId: String(task.assessment_id),
+      taskId: String(task.task_id),
+      studentId: String(task.student_id),
+      role: "teacher",
+      fileUrl: fileUrlForDocument(sourcePath),
+      title: task.task?.task_name || "PDF Assessment",
+      maxMarks: String(task.task?.allocated_marks || 0),
+      teacherMarks: String(task.teacher_assessment_score || task.teacher_assessment_marks || ""),
+      teacherFeedback: String(task.teacher_feedback || ""),
+    });
+    router.push(`/dashboard/assessment-document?${params.toString()}`);
+  };
+
   return (
     <>
       <div className="max-w-5xl mx-auto p-3 md:p-6">
@@ -326,145 +399,149 @@ export default function AssessmentDrawer() {
             ))}
           </Select>
         </div>
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           {filteredTasks?.length > 0 ? (
             filteredTasks?.map((task) => (
               <div
                 key={task.id}
-                className="p-5 border border-gray-200 rounded-lg bg-white shadow-sm hover:shadow-md transition-all duration-200"
+                className="rounded-md border border-gray-200 bg-white px-3 py-2.5 shadow-sm transition-all duration-200 hover:shadow-md"
               >
                 {/* Task Header */}
-                <div className="flex justify-between items-start mb-3">
-                  <div className="flex items-start gap-3">
-                    <div className="mt-1">
+                <div className="mb-1 flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex items-start gap-2.5">
+                    <div className="mt-0.5">
                       {getTaskTypeIcon(task?.task?.task_type)}
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       {task?.submission_type !== "quiz" && (
-                        <h3 className="text-base font-semibold text-gray-800 ">
+                        <h3 className="text-base font-semibold text-gray-800 leading-snug">
                           {task?.task?.task_name}
                         </h3>
                       )}
                       {task?.submission_type === "quiz" && (
                         <h3
                           onClick={() => handleViewQuiz(task)}
-                          className="text-base font-semibold text-gray-800 cursor-pointer hover:underline"
+                          className="cursor-pointer text-base font-semibold leading-snug text-gray-800 hover:underline"
                         >
                           {task?.quiz?.name}
                         </h3>
                       )}
-                      {task?.submission_type !== "quiz" && (
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs text-gray-500">
-                            Allocated Marks:{" "}
-                            <span className="font-medium">
-                              {task?.task?.allocated_marks}
-                            </span>
-                          </span>
-                        </div>
-                      )}
                     </div>
                   </div>
-                  {task?.submission_type === "quiz" ? (
-                    <Button
-                      size="small"
-                      type="text"
-                      onClick={() => handleViewQuiz(task)}
-                      className="text-blue-600 hover:text-blue-800"
-                    >
-                      View
-                    </Button>
-                  ) : (
-                    <Button
-                      size="small"
-                      type="text"
-                      onClick={() => setViewingTask(task)}
-                      className="text-blue-600 hover:text-blue-800"
-                    >
-                      View
-                    </Button>
-                  )}
+                  <div className="flex shrink-0 items-center gap-3 pl-2">
+                    <span className="whitespace-nowrap text-[11px] text-gray-500">
+                      Allocated marks {task?.submission_type === "quiz"
+                        ? ((task?.quiz as any)?.quiz_queston?.reduce((sum: number, question: any) => sum + (parseFloat(question?.marks) || 0), 0) || 0)
+                        : task?.task?.allocated_marks}
+                    </span>
+                    {task?.submission_type === "quiz" ? (
+                      <Button
+                        size="small"
+                        type="text"
+                        onClick={() => handleViewQuiz(task)}
+                        className="!px-0 text-xs text-blue-600 hover:text-blue-800"
+                      >
+                        View
+                      </Button>
+                    ) : (
+                      <Button
+                        size="small"
+                        type="text"
+                        onClick={() => setViewingTask(task)}
+                        className="!px-0 text-xs text-blue-600 hover:text-blue-800"
+                      >
+                        View
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Assessment Summary */}
                 {task?.submission_type !== "quiz" ? (
-                  <>
-                  <div className="grid grid-cols-2 gap-3 mb-4">
-                    {/* Student Assessment */}
-                    <div className="p-3 bg-blue-50 rounded-md border border-blue-100">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-medium text-blue-700">SELF</span>
-                        <span className="text-xs font-medium text-blue-700">
-                          {task?.self_assessment_mark}/{task?.task?.allocated_marks}
-                        </span>
-                      </div>
-                      <div className="w-full bg-blue-100 rounded-full h-1.5">
-                        <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${(parseInt(task?.self_assessment_mark || "0") / parseInt(task?.task?.allocated_marks)) * 100}%` }}></div>
-                      </div>
+                  <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm">
+                    <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
+                      <span className="text-gray-600">
+                        Self <span className="font-semibold text-blue-700">{task?.self_assessment_mark}/{task?.task?.allocated_marks}</span>
+                      </span>
+                      <span className="text-gray-600">
+                        Teacher <span className="font-semibold text-green-700">{task?.teacher_assessment_score ? `${task?.teacher_assessment_score}/${task?.task?.allocated_marks}` : "Pending"}</span>
+                      </span>
                     </div>
-                    {/* Teacher Assessment */}
-                    <div className={`p-3 rounded-md border ${task?.teacher_assessment_marks ? "bg-green-50 border-green-100" : "bg-gray-50 border-gray-200"}`}>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-medium text-gray-700">TEACHER</span>
-                        {task?.teacher_assessment_score ? (
-                          <span className="text-sm font-semibold text-green-600">{task?.teacher_assessment_score}/{task?.task?.allocated_marks}</span>
-                        ) : (
-                          <span className="text-xs text-gray-500">Pending</span>
-                        )}
-                      </div>
-                      {task?.teacher_assessment_score ? (
-                        <div className="w-full bg-green-100 rounded-full h-1.5"><div className="bg-green-500 h-1.5 rounded-full" style={{ width: `${(parseInt(task?.teacher_assessment_score || "0") / parseInt(task?.task?.allocated_marks)) * 100}%` }}></div></div>
-                      ) : (
-                        <div className="w-full bg-gray-200 rounded-full h-1.5"></div>
+                    <div className="ml-auto flex flex-wrap items-center gap-2 text-xs">
+                      {task?.status && (
+                        <span
+                          className={`rounded-full px-2 py-1 font-medium ${
+                            task.status === "completed"
+                              ? "bg-green-100 text-green-700"
+                              : "bg-yellow-100 text-yellow-700"
+                          }`}
+                        >
+                          {task.status.charAt(0).toUpperCase() + task.status.slice(1)}
+                        </span>
+                      )}
+                      {currentUser?.role !== "STUDENT" && (
+                        <Button
+                          type="text"
+                          size="small"
+                          onClick={() => toggleAssessment(task.id)}
+                          className={`!h-auto !px-0 text-xs ${
+                            assessmentOpenTaskId === task.id
+                              ? "text-gray-500"
+                              : "text-green-600 hover:text-green-800"
+                          }`}
+                          disabled={!selectedStudentId}
+                        >
+                          {assessmentOpenTaskId === task.id ? (
+                            <span>Hide</span>
+                          ) : (
+                            <span>
+                              {task?.teacher_assessment_score !== null
+                                ? "Update Marks"
+                                : "Mark Assessment"}
+                            </span>
+                          )}
+                        </Button>
                       )}
                     </div>
                   </div>
-                  <div className="flex justify-end items-center gap-2 mb-3">
-                    <span className="text-xs text-gray-500 font-medium">Total Teacher Marks:</span>
-                    <span className="text-sm font-bold text-green-700">{task?.teacher_assessment_score ?? task?.teacher_assessment_marks ?? 0}/{task?.task?.allocated_marks}</span>
-                  </div>
-                  </>
                 ) : (() => {
                   const quizTotal = (task?.quiz as any)?.quiz_queston?.reduce((s: number, q: any) => s + (parseFloat(q.marks) || 0), 0) || 0;
                   return (
-                    <>
-                    <div className="grid grid-cols-2 gap-3 mb-4">
-                      <div className="p-3 bg-blue-50 rounded-md border border-blue-100">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-medium text-blue-700">SELF</span>
-                          <span className="text-xs font-medium text-blue-700">
-                            {task?.self_assessment_mark ?? "–"}{quizTotal ? `/${quizTotal}` : ""}
+                    <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm">
+                      <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
+                        <span className="text-gray-600">
+                          Self <span className="font-semibold text-blue-700">{task?.self_assessment_mark ?? "–"}{quizTotal ? `/${quizTotal}` : ""}</span>
+                        </span>
+                        <span className="text-gray-600">
+                          Teacher <span className="font-semibold text-green-700">{task?.teacher_assessment_mark != null ? `${task.teacher_assessment_mark}${quizTotal ? `/${quizTotal}` : ""}` : "Pending"}</span>
+                        </span>
+                      </div>
+                      <div className="ml-auto flex flex-wrap items-center gap-2 text-xs">
+                        {task?.status && (
+                          <span className={`rounded-full px-2 py-1 font-medium ${task.status === "completed" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
+                            {task.status.charAt(0).toUpperCase() + task.status.slice(1)}
                           </span>
-                        </div>
-                        <div className="w-full bg-blue-100 rounded-full h-1.5">
-                          <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: quizTotal ? `${(parseFloat(String(task?.self_assessment_mark || 0)) / quizTotal) * 100}%` : "0%" }}></div>
-                        </div>
-                      </div>
-                      <div className={`p-3 rounded-md border ${task?.teacher_assessment_mark != null ? "bg-green-50 border-green-100" : "bg-gray-50 border-gray-200"}`}>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-medium text-gray-700">TEACHER</span>
-                          {task?.teacher_assessment_mark != null ? (
-                            <span className="text-sm font-semibold text-green-600">{task.teacher_assessment_mark}{quizTotal ? `/${quizTotal}` : ""}</span>
-                          ) : (
-                            <span className="text-xs text-gray-500">Pending</span>
-                          )}
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-1.5">
-                          <div className="bg-green-500 h-1.5 rounded-full" style={{ width: quizTotal && task?.teacher_assessment_mark != null ? `${(parseFloat(String(task.teacher_assessment_mark)) / quizTotal) * 100}%` : "0%" }}></div>
-                        </div>
+                        )}
+                        {currentUser?.role !== "STUDENT" && (
+                          <Button
+                            type="text"
+                            size="small"
+                            onClick={() => {
+                              setQuizTeacherMarkOpenId(prev => prev === task.id ? null : task.id);
+                              setQuizTeacherMark(String(task?.teacher_assessment_mark ?? ""));
+                            }}
+                            className={`!h-auto !px-0 text-xs ${quizTeacherMarkOpenId === task.id ? "text-gray-500" : "text-green-600 hover:text-green-800"}`}
+                            disabled={!selectedStudentId}
+                          >
+                            {quizTeacherMarkOpenId === task.id ? <span>Hide</span> : <span>{task?.teacher_assessment_mark != null ? "Update Marks" : "Mark Quiz"}</span>}
+                          </Button>
+                        )}
                       </div>
                     </div>
-                    <div className="flex justify-end items-center gap-2 mb-3">
-                      <span className="text-xs text-gray-500 font-medium">Total Teacher Marks:</span>
-                      <span className="text-sm font-bold text-green-700">
-                        {task?.teacher_assessment_mark != null ? task.teacher_assessment_mark : 0}{quizTotal ? `/${quizTotal}` : ""}
-                      </span>
-                    </div>
-                    </>
                   );
                 })()}
 
-                <div className="text-sm text-gray-500">
+                <div className="text-xs text-gray-500 leading-relaxed">
                   {task?.teacher_feedback && (
                     <span
                       title={task?.teacher_feedback}
@@ -476,7 +553,7 @@ export default function AssessmentDrawer() {
                   )}
                 </div>
 
-                <div className="text-sm text-gray-500">
+                <div className="text-xs text-gray-500 leading-relaxed">
                   {task?.additional_notes && (
                     <span
                       title={task?.additional_notes}
@@ -488,72 +565,11 @@ export default function AssessmentDrawer() {
                   )}
                 </div>
 
-                {/* Assessment Form Toggle */}
-                {task?.submission_type === "quiz" ? (
-                  <div className="flex justify-between items-center border-t border-gray-100 pt-3">
-                    {task?.status && (
-                      <span className={`text-xs font-medium px-2 py-1 rounded-full ${task.status === "completed" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
-                        {task.status.charAt(0).toUpperCase() + task.status.slice(1)}
-                      </span>
-                    )}
-                    {currentUser?.role !== "STUDENT" && (
-                      <Button type="text" size="small"
-                        onClick={() => { setQuizTeacherMarkOpenId(prev => prev === task.id ? null : task.id); setQuizTeacherMark(String(task?.teacher_assessment_mark ?? "")); }}
-                        className={`text-sm ${quizTeacherMarkOpenId === task.id ? "text-gray-500" : "text-green-600 hover:text-green-800"}`}
-                        disabled={!selectedStudentId}
-                      >
-                        {quizTeacherMarkOpenId === task.id ? <span>Hide</span> : <span>{task?.teacher_assessment_mark != null ? "Update Marks" : "Mark Quiz"}</span>}
-                      </Button>
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex justify-between items-center border-t border-gray-100 pt-3">
-                    {/* Task Status */}
-                    {task?.status && (
-                      <div className="">
-                        <span
-                          className={`text-xs font-medium px-2 py-1 rounded-full  ${
-                            task.status === "completed"
-                              ? "bg-green-100 text-green-700"
-                              : "bg-yellow-100 text-yellow-700"
-                          }`}
-                        >
-                          {task.status.charAt(0).toUpperCase() +
-                            task.status.slice(1)}
-                        </span>
-                      </div>
-                    )}
-                    {currentUser?.role !== "STUDENT" && (
-                      <Button
-                        type="text"
-                        size="small"
-                        onClick={() => toggleAssessment(task.id)}
-                        className={`text-sm ${
-                          assessmentOpenTaskId === task.id
-                            ? "text-gray-500"
-                            : "text-green-600 hover:text-green-800"
-                        }`}
-                        disabled={!selectedStudentId}
-                      >
-                        {assessmentOpenTaskId === task.id ? (
-                          <span>Hide</span>
-                        ) : (
-                          <span>
-                            {task?.teacher_assessment_score !== null
-                              ? "Update Marks"
-                              : "Mark Assessment"}
-                          </span>
-                        )}
-                      </Button>
-                    )}
-                  </div>
-                )}
-
                 {/* Quiz Teacher Mark Form */}
                 {quizTeacherMarkOpenId === task.id && (
-                  <div className="mt-4 space-y-4 pt-4 border-t border-gray-100">
+                  <div className="mt-3 space-y-3 border-t border-gray-100 pt-3">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Teacher Marks</label>
+                      <label className="mb-1.5 block text-sm font-medium text-gray-700">Teacher Marks</label>
                       <Input
                         type="number" min="0"
                         value={quizTeacherMark}
@@ -571,9 +587,9 @@ export default function AssessmentDrawer() {
 
                 {/* Assessment Form */}
                 {assessmentOpenTaskId === task.id && (
-                  <div className="mt-4 space-y-4 pt-4 border-t border-gray-100">
+                  <div className="mt-3 space-y-3 border-t border-gray-100 pt-3">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="mb-1.5 block text-sm font-medium text-gray-700">
                         Marks
                       </label>
                       <Input
@@ -608,7 +624,7 @@ export default function AssessmentDrawer() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="mb-1.5 block text-sm font-medium text-gray-700">
                         Feedback Comments
                       </label>
                       <Input.TextArea
@@ -687,8 +703,15 @@ export default function AssessmentDrawer() {
                 <div className="p-4 border rounded-lg bg-gray-50">
                   <FilePdfOutlined className="text-red-500 text-2xl mb-2" />
                   <p className="text-gray-700 mb-3">
-                    PDF document available for download
+                    PDF document available for online marking or download
                   </p>
+                  <Button
+                    type="primary"
+                    className="mb-3 !bg-primary !border-primary"
+                    onClick={() => openTeacherDocumentWorkspace(viewingTask)}
+                  >
+                    Mark online on PDF
+                  </Button>
                   <a
                     href={`https://dashboard.osteps.com/${viewingTask.file_path}`}
                     target="_blank"

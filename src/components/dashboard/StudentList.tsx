@@ -337,19 +337,7 @@ export default function StudentList() {
     "positive"
   );
   const [behaviorForm] = Form.useForm();
-  const [avatarPreviewMap, setAvatarPreviewMap] = useState<Record<string, string>>(
-    {}
-  );
-  const [avatarOverrides, setAvatarOverrides] = useState<Record<string, string>>(() => {
-    if (typeof window === "undefined") return {};
-    try {
-      const raw = localStorage.getItem("students-avatar-overrides");
-      const parsed = raw ? JSON.parse(raw) : {};
-      return parsed && typeof parsed === "object" ? parsed : {};
-    } catch {
-      return {};
-    }
-  });
+  const [savingAvatarStudentIds, setSavingAvatarStudentIds] = useState<string[]>([]);
   const [seatingItems, setSeatingItems] = useState<SeatingStateItem[]>([]);
   const [localSeatingDirty, setLocalSeatingDirty] = useState(false);
   const [dragging, setDragging] = useState<{
@@ -398,6 +386,7 @@ export default function StudentList() {
   }>({ ids: [], usernames: [], emails: [], names: [] });
   const [attendanceSyncing, setAttendanceSyncing] = useState(false);
   const dragStartedRef = useRef(false);
+  const lastAutoSaveAttemptSignatureRef = useRef("");
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const fileInputsRef = useRef<Record<string, HTMLInputElement | null>>({});
@@ -717,21 +706,15 @@ export default function StudentList() {
           );
         }
       );
-      setAvatarPreviewMap((prev) => {
-        if (prev[studentId]) URL.revokeObjectURL(prev[studentId]);
-        const next = { ...prev };
-        delete next[studentId];
-        return next;
-      });
+      setSavingAvatarStudentIds((prev) => prev.filter((id) => id !== studentId));
+      queryClient.invalidateQueries({ queryKey: studentsQueryKey });
+      queryClient.invalidateQueries({ queryKey: behaviorSummaryQueryKey });
       messageApi.success("Avatar updated.");
     },
     onError: (error: any, variables) => {
-      setAvatarPreviewMap((prev) => {
-        if (prev[variables.cacheStudentId]) URL.revokeObjectURL(prev[variables.cacheStudentId]);
-        const next = { ...prev };
-        delete next[variables.cacheStudentId];
-        return next;
-      });
+      setSavingAvatarStudentIds((prev) =>
+        prev.filter((id) => id !== variables.cacheStudentId)
+      );
       const backendMessage =
         error?.response?.data?.msg ||
         error?.response?.data?.message ||
@@ -743,7 +726,14 @@ export default function StudentList() {
   });
 
   const saveSeatingMutation = useMutation({
-    mutationFn: (items: SeatingLayoutItem[]) =>
+    mutationFn: ({
+      items,
+    }: {
+      items: SeatingLayoutItem[];
+      silent?: boolean;
+      source?: "manual" | "auto";
+      signature?: string;
+    }) =>
       saveClassSeatingLayout(seatingScopeId, {
         items,
         room_meta: {
@@ -755,12 +745,14 @@ export default function StudentList() {
           room_marker_orientations: markerOrientations,
         },
       }),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["class-seating-layout", seatingScopeId] });
       setLocalSeatingDirty(false);
-      messageApi.success("Seating plan saved.");
+      if (!variables?.silent) {
+        messageApi.success("Seating plan saved.");
+      }
     },
-    onError: (error: any) => {
+    onError: (error: any, variables) => {
       const status = Number(error?.status || error?.response?.status || 0);
       const backendMessage =
         error?.backendMessage ||
@@ -775,6 +767,10 @@ export default function StudentList() {
       }
       if (status === 401 || status === 403) {
         messageApi.error("Save failed: you do not have permission (401/403).");
+        return;
+      }
+      if (variables?.silent) {
+        messageApi.warning("Auto-save failed. You can still use Save Layout.");
         return;
       }
       messageApi.error(String(backendMessage));
@@ -1028,12 +1024,6 @@ export default function StudentList() {
   }, [orderedStudents, seatingQuery.data, canArrangeSeats, canvasWidth]);
 
   useEffect(() => {
-    return () => {
-      Object.values(avatarPreviewMap).forEach((url) => URL.revokeObjectURL(url));
-    };
-  }, [avatarPreviewMap]);
-
-  useEffect(() => {
     if (!dragging && !draggingMarker) return;
 
     const handleMove = (event: MouseEvent) => {
@@ -1263,31 +1253,38 @@ export default function StudentList() {
       .filter(Boolean);
     const candidateIds = Array.from(new Set([cacheStudentId, ...fallbackIds]));
 
-    const previewUrl = URL.createObjectURL(file);
-    setAvatarPreviewMap((prev) => {
-      if (prev[cacheStudentId]) URL.revokeObjectURL(prev[cacheStudentId]);
-      return { ...prev, [cacheStudentId]: previewUrl };
-    });
+    setSavingAvatarStudentIds((prev) =>
+      prev.includes(cacheStudentId) ? prev : [...prev, cacheStudentId]
+    );
     avatarMutation.mutate({ studentIds: candidateIds, cacheStudentId, file });
   };
 
-  const saveLocalAvatar = (studentId: string, dataUrl: string) => {
-    if (!studentId || !dataUrl) return;
-    setAvatarOverrides((prev) => {
-      const next = { ...prev, [studentId]: dataUrl };
-      if (typeof window !== "undefined") {
-        localStorage.setItem("students-avatar-overrides", JSON.stringify(next));
-      }
-      return next;
-    });
+  const persistAvatarFile = (
+    studentRef: { id?: string | number; user_name?: string; student_name?: string } | null | undefined,
+    file?: File
+  ) => {
+    if (!studentRef?.id || !file) return;
+    handleAvatarPick(
+      {
+        id: studentRef.id,
+        user_name: studentRef.user_name,
+        student_name: studentRef.student_name,
+      },
+      file
+    );
+    setIsAvatarPickerOpen(false);
   };
 
-  const fileToDataUrl = async (file: File): Promise<string> => {
-    return await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result || ""));
-      reader.onerror = () => reject(new Error("Failed to read avatar file."));
-      reader.readAsDataURL(file);
+  const dataUrlToFile = async (dataUrl: string, fileName: string): Promise<File> => {
+    const response = await fetch(dataUrl);
+    const blob = await response.blob();
+    const safeBaseName =
+      fileName
+        .replace(/[^a-z0-9_-]+/gi, "-")
+        .replace(/^-+|-+$/g, "") || "student-avatar";
+    const extension = blob.type.split("/")[1] || "png";
+    return new File([blob], `${safeBaseName}.${extension}`, {
+      type: blob.type || "image/png",
     });
   };
 
@@ -1428,9 +1425,20 @@ export default function StudentList() {
       messageApi.error("Failed to generate avatar image.");
       return;
     }
-    saveLocalAvatar(String(avatarTargetStudent.id), dataUrl);
-    messageApi.success("Avatar updated.");
-    setIsAvatarPickerOpen(false);
+    try {
+      const avatarFile = await dataUrlToFile(
+        dataUrl,
+        `${String(
+          avatarTargetStudent.student_name ||
+            avatarTargetStudent.user_name ||
+            avatarTargetStudent.id ||
+            "student-avatar"
+        )}-avatar`
+      );
+      persistAvatarFile(avatarTargetStudent, avatarFile);
+    } catch {
+      messageApi.error("Failed to generate avatar image.");
+    }
   };
 
   const scoreColorClass = (score: number) => {
@@ -2066,19 +2074,79 @@ export default function StudentList() {
     setLocalSeatingDirty(true);
   };
 
-  const handleSaveLayout = () => {
-    if (!seatingApiReady) {
-      messageApi.error(seatingUnavailableMessage);
-      return;
-    }
-    const payload: SeatingLayoutItem[] = seatingItems.map((item, idx) => ({
+  const buildSeatingPayload = (): SeatingLayoutItem[] =>
+    seatingItems.map((item, idx) => ({
       student_id: item.student_id,
       x: item.x,
       y: item.y,
       z_index: item.z_index || idx + 1,
     }));
-    saveSeatingMutation.mutate(payload);
+
+  const buildSeatingSaveSignature = (items: SeatingLayoutItem[]) =>
+    JSON.stringify({
+      items,
+      width: canvasWidth,
+      room_markers: roomMarkers,
+      room_marker_orientations: markerOrientations,
+    });
+
+  const handleSaveLayout = () => {
+    if (!seatingApiReady) {
+      messageApi.error(seatingUnavailableMessage);
+      return;
+    }
+    const payload = buildSeatingPayload();
+    saveSeatingMutation.mutate({
+      items: payload,
+      silent: false,
+      source: "manual",
+      signature: buildSeatingSaveSignature(payload),
+    });
   };
+
+  useEffect(() => {
+    if (
+      !localSeatingDirty ||
+      !seatingApiReady ||
+      saveSeatingMutation.isPending ||
+      dragging ||
+      draggingMarker ||
+      isDragging
+    ) {
+      return;
+    }
+
+    const payload = buildSeatingPayload();
+    const signature = buildSeatingSaveSignature(payload);
+    if (signature === lastAutoSaveAttemptSignatureRef.current) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      lastAutoSaveAttemptSignatureRef.current = signature;
+      saveSeatingMutation.mutate({
+        items: payload,
+        silent: true,
+        source: "auto",
+        signature,
+      });
+    }, 1000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [
+    canvasWidth,
+    dragging,
+    draggingMarker,
+    isDragging,
+    localSeatingDirty,
+    markerOrientations,
+    roomMarkers,
+    saveSeatingMutation,
+    seatingApiReady,
+    seatingItems,
+  ]);
 
   const handlePickRandomStudent = () => {
     if (!presentStudents.length || isPickingRandom) return;
@@ -2331,11 +2399,8 @@ export default function StudentList() {
 
             {orderedStudents.map((student) => {
               const studentId = toStudentId(student.id);
-              const imageSrc =
-                avatarPreviewMap[studentId] ||
-                avatarOverrides[studentId] ||
-                getStudentImagePath(student) ||
-                "";
+              const imageSrc = getStudentImagePath(student) || "";
+              const isSavingAvatar = savingAvatarStudentIds.includes(studentId);
               const attendanceEntry = attendanceByStudent[studentId];
               const isPresent = attendanceEntry?.isPresent !== false;
               return (
@@ -2398,6 +2463,11 @@ export default function StudentList() {
                         student.student_name?.charAt(0) || "S"
                       )}
                     </div>
+                    {isSavingAvatar && (
+                      <div className="text-[11px] rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-amber-700">
+                        Saving...
+                      </div>
+                    )}
                     <div className="text-right">
                       <div className={`text-3xl font-bold ${scoreColorClass(safeNumber(student.total_points))}`}>
                         {safeNumber(student.total_points) > 0
@@ -2701,11 +2771,8 @@ export default function StudentList() {
                 if (!seat) return null;
                 const isPresent = attendanceByStudent[toStudentId(student.id)]?.isPresent !== false;
                 const studentId = toStudentId(student.id);
-                const seatingImageSrc =
-                  avatarPreviewMap[studentId] ||
-                  avatarOverrides[studentId] ||
-                  getStudentImagePath(student) ||
-                  "";
+                const seatingImageSrc = getStudentImagePath(student) || "";
+                const isSavingAvatar = savingAvatarStudentIds.includes(studentId);
 
                 return (
                   <div
@@ -2748,6 +2815,11 @@ export default function StudentList() {
                           student.student_name?.charAt(0) || "S"
                         )}
                       </div>
+                      {isSavingAvatar && (
+                        <div className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] text-amber-700">
+                          Saving...
+                        </div>
+                      )}
                       <div className="text-xs text-slate-500 truncate">@{student.user_name || "N/A"}</div>
                     </div>
                   </div>
@@ -2907,18 +2979,10 @@ export default function StudentList() {
             accept="image/*"
             className="hidden"
             onChange={(e) => {
-              const studentId = String(avatarTargetStudent?.id || "");
               const file = e.target.files?.[0];
-              if (!studentId || !file) return;
-              fileToDataUrl(file)
-                .then((dataUrl) => {
-                  saveLocalAvatar(studentId, dataUrl);
-                  messageApi.success("Avatar updated.");
-                })
-                .catch(() => {
-                  messageApi.error("Failed to read selected image.");
-                });
-              setIsAvatarPickerOpen(false);
+              if (!avatarTargetStudent?.id || !file) return;
+              persistAvatarFile(avatarTargetStudent, file);
+              e.currentTarget.value = "";
             }}
           />
           <Button

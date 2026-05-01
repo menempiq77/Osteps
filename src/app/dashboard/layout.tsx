@@ -6,7 +6,7 @@ import Sidebar from "@/components/ui/Sidebar";
 import SubjectSwitcher from "@/components/ui/SubjectSwitcher";
 import QuickLauncher from "@/components/ui/QuickLauncher";
 import { SubjectContextProvider } from "@/contexts/SubjectContext";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { getStoredSubjectName } from "@/lib/subjectScope";
 import { IMPERSONATION_STORAGE_KEY, isImpersonating, setCurrentUser } from "@/features/auth/authSlice";
@@ -95,6 +95,7 @@ export default function DashboardLayout({
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const dispatch = useDispatch();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const [isHydrated, setIsHydrated] = useState(false);
   const [isRouteTransitioning, setIsRouteTransitioning] = useState(false);
@@ -208,9 +209,16 @@ export default function DashboardLayout({
   const isLessonsRoute = !isImmersiveLessonGroupRoute && (unscopedPathname === "/dashboard/lessons" || unscopedPathname.startsWith("/dashboard/lessons/"));
   const isMindUpgradeRoute = unscopedPathname === "/dashboard/mind-upgrade" || unscopedPathname.startsWith("/dashboard/mind-upgrade/");
   const isAnnouncementsRoute = unscopedPathname === "/dashboard/announcements";
+  const isAssessmentDocumentRoute = unscopedPathname === "/dashboard/assessment-document";
+  const isStudentExamAssessmentRoute =
+    isAssessmentDocumentRoute &&
+    searchParams.get("role") !== "teacher" &&
+    searchParams.get("examMode") === "1";
   const isReportsRoute = pathname === "/dashboard/students/reports" ||
     pathname.startsWith("/dashboard/students/reports/") ||
-    /^\/dashboard\/s\/\d+\/students\/reports(\/|$)/.test(pathname);
+    pathname === "/dashboard/students/markbook" ||
+    pathname.startsWith("/dashboard/students/markbook/") ||
+    /^\/dashboard\/s\/\d+\/students\/(reports|markbook)(\/|$)/.test(pathname);
   const isSettingsRoute = unscopedPathname.endsWith("/settings");
   const isAllStudentsStandaloneRoute =
     pathname === "/dashboard/students/all-students" ||
@@ -247,8 +255,7 @@ export default function DashboardLayout({
     return null;
   }
 
-  const shouldApplyMaxWidth =
-    !isImmersiveLessonGroupRoute && !pathname.startsWith("/dashboard/students/reports");
+  const shouldApplyMaxWidth = !isImmersiveLessonGroupRoute && !isReportsRoute;
 
   const userRoleLabel = (() => {
     const role = (currentUser?.role || "").toUpperCase().replace(/\s+/g, "_");
@@ -329,6 +336,27 @@ export default function DashboardLayout({
             </div>
             {children}
           </div>
+        </div>
+      </SubjectContextProvider>
+    );
+  }
+
+  if (isStudentExamAssessmentRoute) {
+    return (
+      <SubjectContextProvider>
+        {impersonating && (
+          <div className="fixed top-0 left-0 right-0 z-[9999] flex items-center justify-between bg-amber-500 px-4 py-2 text-white text-sm font-medium shadow-lg">
+            <span>👁️ Viewing as <strong>{currentUser?.name || currentUser?.email}</strong> ({currentUser?.role})</span>
+            <button
+              onClick={handleStopImpersonation}
+              className="ml-4 rounded bg-white px-3 py-1 text-amber-700 font-semibold hover:bg-amber-100 transition-colors"
+            >
+              ← Return to Admin
+            </button>
+          </div>
+        )}
+        <div className="dashboard-theme-scope min-h-screen bg-slate-100" style={impersonating ? { paddingTop: 40 } : undefined}>
+          {children}
         </div>
       </SubjectContextProvider>
     );

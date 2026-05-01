@@ -25,6 +25,7 @@ export interface StoryFeedItem {
   totalReactions?: number;
   viewerReaction?: StoryReactionType | null;
   reactionSummary?: StoryReactionSummary;
+  reactionDetails?: StoryReaction[];
   commentCount: number;
 }
 
@@ -77,6 +78,7 @@ export interface StoryReaction {
   itemId: string;
   classId: string;
   userId: string;
+  userName?: string;
   reaction: StoryReactionType;
   createdAt: string;
   updatedAt?: string;

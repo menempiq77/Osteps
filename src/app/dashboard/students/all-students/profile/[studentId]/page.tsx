@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Alert, Card, Col, Row, Select, Space, Spin, Statistic, Table, Tag, Typography } from "antd";
 import { fetchStudentProfileData, fetchStudents } from "@/services/studentsApi";
 import { readStudentProfileOverride } from "@/lib/studentProfileOverrides";
+import ExamIncidentHistoryCard from "@/components/students/ExamIncidentHistoryCard";
 
 type AnyObj = Record<string, any>;
 
@@ -289,6 +290,8 @@ export default function GlobalStudentProfilePage() {
 					</Card>
 				</Col>
 			</Row>
+
+			<ExamIncidentHistoryCard studentId={studentId} title="Exam Exit History" />
 
 			<Card title="Behaviour History" className="rounded-2xl">
 				<Table

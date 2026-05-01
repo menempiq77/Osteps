@@ -19,6 +19,7 @@ const SUBJECT_SCOPED_PREFIXES = [
   "/dashboard/student_assesments",
   "/dashboard/shared_materials",
   "/dashboard/students/reports",
+  "/dashboard/students/markbook",
   "/dashboard/mind-upgrade",
   "/dashboard/subjects",
   "/dashboard/approvals",
@@ -44,6 +45,7 @@ const SHARED_PREFIXES = [
   "/dashboard/teachers/settings",
   "/dashboard/admins/settings",
   "/dashboard/trackers",
+  "/dashboard/assessment-document",
 ];
 
 const SHARED_EXACT_PATHS = [
@@ -84,6 +86,7 @@ const SUBJECT_ROUTE_ROOTS = new Set([
   "mind-upgrade",
   "timetable-builder",
   "timetable-generator",
+  "assessment-document",
 ]);
 
 const startsWithPrefix = (path: string, prefix: string): boolean => path === prefix || path.startsWith(`${prefix}/`);
@@ -130,9 +133,25 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  const legacyMarkbookMatch = pathname.match(/^\/dashboard\/students\/reports(\/.*)?$/);
+  if (legacyMarkbookMatch) {
+    const redirectUrl = req.nextUrl.clone();
+    redirectUrl.pathname = `/dashboard/students/markbook${legacyMarkbookMatch[1] ?? ""}`;
+    return NextResponse.redirect(redirectUrl);
+  }
+
   // Keep explicit all-school routes strictly outside subject-scoped routes,
   // but allow subject-scoped /students/all for subject-only lists.
   if (pathname.startsWith("/dashboard/s/")) {
+    const scopedLegacyMarkbookMatch = pathname.match(
+      /^\/dashboard\/s\/(\d+)(?:\/[^/]+)?\/students\/reports(\/.*)?$/
+    );
+    if (scopedLegacyMarkbookMatch) {
+      const redirectUrl = req.nextUrl.clone();
+      redirectUrl.pathname = `/dashboard/s/${scopedLegacyMarkbookMatch[1]}/students/markbook${scopedLegacyMarkbookMatch[2] ?? ""}`;
+      return NextResponse.redirect(redirectUrl);
+    }
+
     const canonicalScopedMatch = pathname.match(/^\/dashboard\/s\/(\d+)\/([^/]+)(\/.*)?$/);
     if (
       canonicalScopedMatch &&

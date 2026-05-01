@@ -15,6 +15,7 @@ const SUBJECT_SCOPED_PREFIXES = [
   "/dashboard/student_assesments",
   "/dashboard/shared_materials",
   "/dashboard/students/reports",
+  "/dashboard/students/markbook",
   "/dashboard/mind-upgrade",
   "/dashboard/subjects",
 ];
@@ -34,6 +35,7 @@ const SHARED_PREFIXES = [
   "/dashboard/teachers/settings",
   "/dashboard/admins/settings",
   "/dashboard/trackers",
+  "/dashboard/assessment-document",
 ];
 
 const SHARED_EXACT_PATHS = [
@@ -68,6 +70,7 @@ const SUBJECT_ROUTE_ROOTS = new Set([
   "school-admin",
   "admins",
   "approvals",
+  "assessment-document",
 ]);
 
 const splitPathAndQuery = (path: string): { pathname: string; query: string } => {
