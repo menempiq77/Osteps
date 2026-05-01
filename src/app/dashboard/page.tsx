@@ -41,6 +41,7 @@ import {
 import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
 import { fetchStudents } from "@/services/studentsApi";
 import { fetchAssessment, fetchSchoolLogo } from "@/services/api";
+import { fetchTrackers } from "@/services/trackersApi";
 import { IMG_BASE_URL } from "@/lib/config";
 import { useRouter } from "next/navigation";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -143,6 +144,12 @@ const parseDueTimestamp = (dueDate: unknown): number | null => {
   // Date-only values are treated as end-of-day local time so tasks remain visible during the due date.
   const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(raw);
   const parsed = dateOnly ? Date.parse(`${raw}T23:59:59`) : Date.parse(raw);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const parseUpdatedTimestamp = (value: unknown): number | null => {
+  if (!value) return null;
+  const parsed = Date.parse(String(value));
   return Number.isFinite(parsed) ? parsed : null;
 };
 
@@ -604,6 +611,77 @@ export default function DashboardPage() {
       Number(currentUser?.studentClass) > 0,
   });
 
+  const { data: studentHomeTrackers = [] } = useQuery({
+    queryKey: [
+      "student-home-trackers",
+      currentUser?.studentClass,
+      activeSubjectId,
+      canUseSubjectContext,
+    ],
+    queryFn: async () => {
+      const classId = Number(currentUser?.studentClass);
+      if (!Number.isFinite(classId) || classId <= 0) return [];
+
+      const rows = await fetchTrackers(
+        classId,
+        canUseSubjectContext ? activeSubjectId ?? undefined : undefined
+      );
+
+      const deduped = new Map<string, any>();
+
+      (Array.isArray(rows) ? rows : []).forEach((row: any, index: number) => {
+        const tracker = row?.tracker ?? {};
+        const trackerId = Number(row?.tracker_id ?? tracker?.id ?? row?.id ?? 0);
+        const key =
+          Number.isFinite(trackerId) && trackerId > 0
+            ? String(trackerId)
+            : `tracker-${index}`;
+        if (deduped.has(key)) return;
+
+        const deadline =
+          tracker?.deadline ??
+          tracker?.deadline_at ??
+          tracker?.deadline_date ??
+          row?.deadline ??
+          row?.deadline_at ??
+          row?.deadline_date ??
+          null;
+        const topics = Array.isArray(tracker?.topics) ? tracker.topics : [];
+        const completedTopics = topics.filter((topic: any) =>
+          (Array.isArray(topic?.status_progress) ? topic.status_progress : []).some(
+            (progress: any) => Boolean(progress?.is_completed)
+          )
+        ).length;
+
+        deduped.set(key, {
+          trackerId: Number.isFinite(trackerId) && trackerId > 0 ? trackerId : null,
+          trackerName: tracker?.name ?? row?.name ?? "Tracker",
+          status: tracker?.status ?? row?.status ?? null,
+          dueTs: parseDueTimestamp(deadline),
+          dueDate: deadline,
+          updatedAt:
+            tracker?.last_updated ?? row?.updated_at ?? row?.created_at ?? deadline ?? null,
+          topicCount: topics.length,
+          completedTopicCount: completedTopics,
+        });
+      });
+
+      return Array.from(deduped.values()).sort((a: any, b: any) => {
+        if (a.dueTs === null && b.dueTs === null) {
+          const aUpdated = parseUpdatedTimestamp(a.updatedAt) ?? 0;
+          const bUpdated = parseUpdatedTimestamp(b.updatedAt) ?? 0;
+          return bUpdated - aUpdated;
+        }
+        if (a.dueTs === null) return 1;
+        if (b.dueTs === null) return -1;
+        return a.dueTs - b.dueTs;
+      });
+    },
+    enabled:
+      currentUser?.role === "STUDENT" &&
+      Number(currentUser?.studentClass) > 0,
+  });
+
   function timeAgo(dateString: string) {
     const now = new Date();
     const date = new Date(dateString);
@@ -702,6 +780,63 @@ export default function DashboardPage() {
     studentHomeAssessmentsFromTerms.length > 0
       ? studentHomeAssessmentsFromTerms
       : studentActiveAssessments;
+  const studentHomeItems = useMemo(() => {
+    const assessmentItems = studentHomeAssessments.map((assessment: any, index: number) => ({
+      kind: "assessment" as const,
+      key: `assessment-${assessment.assessmentId ?? index}`,
+      title: assessment.assessmentName || "Assessment",
+      meta: [
+        assessment.termName || "Term",
+        assessment.taskCount
+          ? `${assessment.taskCount} task${assessment.taskCount === 1 ? "" : "s"}`
+          : null,
+        assessment.dueDate
+          ? `Due ${new Date(assessment.dueDate).toLocaleDateString()}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" • "),
+      href: assessment.assessmentId
+        ? `/dashboard/students/assignments/${assessment.assessmentId}`
+        : "/dashboard/students/assignments",
+      dueTs: assessment.dueTs ?? null,
+      updatedTs: parseUpdatedTimestamp(assessment.updatedAt),
+    }));
+
+    const trackerItems = studentHomeTrackers.map((tracker: any, index: number) => ({
+      kind: "tracker" as const,
+      key: `tracker-${tracker.trackerId ?? index}`,
+      title: tracker.trackerName || "Tracker",
+      meta: [
+        "Tracker",
+        tracker.topicCount
+          ? `${tracker.completedTopicCount}/${tracker.topicCount} topics`
+          : null,
+        tracker.status ? `Status ${tracker.status}` : null,
+        tracker.dueDate
+          ? `Due ${new Date(tracker.dueDate).toLocaleDateString()}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" • "),
+      href: tracker.trackerId
+        ? `/dashboard/trackers/${currentUser?.studentClass}/${tracker.trackerId}`
+        : `/dashboard/trackers/${currentUser?.studentClass}`,
+      dueTs: tracker.dueTs ?? null,
+      updatedTs: parseUpdatedTimestamp(tracker.updatedAt),
+    }));
+
+    return [...assessmentItems, ...trackerItems].sort((a, b) => {
+      const aDue = a.dueTs;
+      const bDue = b.dueTs;
+      if (aDue === null && bDue === null) {
+        return (b.updatedTs ?? 0) - (a.updatedTs ?? 0);
+      }
+      if (aDue === null) return 1;
+      if (bDue === null) return -1;
+      return aDue - bDue;
+    });
+  }, [currentUser?.studentClass, studentHomeAssessments, studentHomeTrackers]);
   const studentClassStoryClassId = String(currentUser?.studentClass ?? "").trim();
 
   // Redirect to subject-cards — show a clean loading state, no dashboard flash
@@ -1186,32 +1321,31 @@ export default function DashboardPage() {
           </div>
 
           <Card className="border-0 shadow-sm">
-            {studentHomeAssessments.length > 0 ? (
+            {studentHomeItems.length > 0 ? (
               <div className="divide-y divide-gray-100">
-                {studentHomeAssessments.map((assessment: any, index: number) => (
+                {studentHomeItems.map((item) => (
                   <Link
-                    key={`${assessment.assessmentId ?? index}`}
-                    href={
-                      assessment.assessmentId
-                        ? `/dashboard/students/assignments/${assessment.assessmentId}`
-                        : "/dashboard/students/assignments"
-                    }
+                    key={item.key}
+                    href={item.href}
                     className="block"
                   >
                     <div className="flex flex-col gap-2 py-4 first:pt-0 last:pb-0 md:flex-row md:items-center md:justify-between">
                       <div className="min-w-0">
+                        <div className="mb-1 flex items-center gap-2">
+                          <span
+                            className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${
+                              item.kind === "tracker"
+                                ? "bg-emerald-50 text-emerald-700"
+                                : "bg-amber-50 text-amber-700"
+                            }`}
+                          >
+                            {item.kind}
+                          </span>
+                        </div>
                         <p className="truncate text-base font-medium text-gray-800">
-                          {assessment.assessmentName || "Assessment"}
+                          {item.title}
                         </p>
-                        <p className="text-sm text-gray-500">
-                          {assessment.termName || "Term"}
-                          {assessment.taskCount
-                            ? ` • ${assessment.taskCount} task${assessment.taskCount === 1 ? "" : "s"}`
-                            : ""}
-                          {assessment.dueDate
-                            ? ` • Due ${new Date(assessment.dueDate).toLocaleDateString()}`
-                            : ""}
-                        </p>
+                        <p className="text-sm text-gray-500">{item.meta}</p>
                       </div>
                       <div className="shrink-0 text-sm font-medium" style={{ color: THEME_COLOR }}>
                         View
@@ -1221,7 +1355,7 @@ export default function DashboardPage() {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-gray-600">No assigned assessments available right now.</p>
+              <p className="text-sm text-gray-600">No assigned work available right now.</p>
             )}
           </Card>
 

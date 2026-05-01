@@ -12,6 +12,7 @@ export interface StoryFeedItem {
   sourceId: string;
   classId: string;
   type: StoryItemType;
+  navigationHref?: string;
   title: string;
   body?: string;
   authorId?: string;

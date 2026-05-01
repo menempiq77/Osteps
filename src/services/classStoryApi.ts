@@ -2,6 +2,7 @@ import { fetchAnnouncements } from "@/services/announcementApi";
 import { fetchAssessment, fetchAssessmentByStudent } from "@/services/api";
 import { fetchManageAssignments } from "@/services/mindUpgradeApi";
 import { fetchMaterials, fetchStudentMaterials } from "@/services/materialApi";
+import { fetchTrackers } from "@/services/trackersApi";
 import { fetchTerm } from "@/services/termsApi";
 import {
   StoryComment,
@@ -487,9 +488,12 @@ const toAssignmentItems = (items: unknown, classId: string): StoryFeedItem[] => 
 const toAssessmentStoryItems = (
   items: unknown,
   classId: string,
-  termId: number
+  termId: number,
+  role?: string
 ): StoryFeedItem[] => {
   if (!Array.isArray(items)) return [];
+
+  const normalizedRole = normalizeRoleValue(role ?? "");
 
   return items
     .filter((entry): entry is RawRecord => !!entry && typeof entry === "object")
@@ -513,12 +517,26 @@ const toAssessmentStoryItems = (
         taskCount > 0 ? `${taskCount} task${taskCount === 1 ? "" : "s"}` : undefined,
         dueDate ? `Due ${formatStoryDateLabel(dueDate) ?? dueDate}` : undefined,
       ].filter((part): part is string => Boolean(part));
+      const assessmentId = getMaybeNumber(entry, ["id"]);
+      const quizId =
+        getMaybeNumber(quizRecord ?? {}, ["id"]) ?? getMaybeNumber(entry, ["quiz_id"]);
+      const navigationHref =
+        normalizedRole === "STUDENT"
+          ? entryType === "quiz" &&
+            assessmentId != null &&
+            quizId != null
+            ? `/dashboard/students/assignments/${assessmentId}/quiz/${quizId}`
+            : entryType === "assessment" && assessmentId != null
+              ? `/dashboard/students/assignments/${assessmentId}`
+              : undefined
+          : undefined;
 
       return {
         id: itemId("assignment", sourceId),
         sourceId,
         classId,
         type: "assignment",
+        navigationHref,
         title,
         body: [description, detailParts.join(" • ")]
           .filter((part): part is string => Boolean(part && part.trim()))
@@ -531,6 +549,86 @@ const toAssessmentStoryItems = (
           dueDate ??
           getMaybeString(entry, ["updated_at", "created_at"]) ??
           new Date().toISOString(),
+        likeCount: 0,
+        totalReactions: 0,
+        reactionSummary: {},
+        viewerReaction: null,
+        commentCount: 0,
+      } satisfies StoryFeedItem;
+    });
+};
+
+const toTrackerStoryItems = (
+  items: unknown,
+  classId: string,
+  role?: string
+): StoryFeedItem[] => {
+  if (!Array.isArray(items)) return [];
+
+  const normalizedRole = normalizeRoleValue(role ?? "");
+
+  return items
+    .filter((entry): entry is RawRecord => !!entry && typeof entry === "object")
+    .filter((entry) => {
+      const itemClassId = getMaybeNumber(entry, ["class_id"]);
+      if (itemClassId === undefined) return true;
+      return String(itemClassId) === classId;
+    })
+    .map((entry) => {
+      const tracker =
+        entry.tracker && typeof entry.tracker === "object"
+          ? (entry.tracker as RawRecord)
+          : {};
+      const topics =
+        getMaybeArray(tracker, ["topics"])
+          ?.filter((topic): topic is RawRecord => !!topic && typeof topic === "object") ?? [];
+      const completedTopics = topics.filter((topic) => {
+        const progressRows =
+          getMaybeArray(topic, ["status_progress"])
+            ?.filter((row): row is RawRecord => !!row && typeof row === "object") ?? [];
+        return progressRows.some((row) => Boolean(row.is_completed));
+      }).length;
+      const trackerId =
+        getMaybeNumber(entry, ["tracker_id", "id"]) ?? getMaybeNumber(tracker, ["id"]);
+      const sourceId = toStringId(trackerId, "tracker");
+      const title =
+        getMaybeString(tracker, ["name", "title"]) ??
+        getMaybeString(entry, ["name", "title"]) ??
+        "Tracker";
+      const deadline =
+        getMaybeString(tracker, ["deadline", "deadline_at", "deadline_date", "last_updated"]) ??
+        getMaybeString(entry, ["deadline", "deadline_at", "deadline_date"]) ??
+        getMaybeString(entry, ["updated_at", "created_at"]);
+      const status =
+        getMaybeString(tracker, ["status"]) ?? getMaybeString(entry, ["status"]);
+      const detailParts = [
+        "Tracker assigned",
+        topics.length > 0 ? `${completedTopics}/${topics.length} topics` : undefined,
+        status ? `Status ${status}` : undefined,
+        deadline ? `Due ${formatStoryDateLabel(deadline) ?? deadline}` : undefined,
+      ].filter((part): part is string => Boolean(part));
+      const navigationHref =
+        trackerId == null
+          ? undefined
+          : normalizedRole === "STUDENT"
+            ? `/dashboard/trackers/${classId}/${trackerId}`
+            : ["SCHOOL_ADMIN", "ADMIN", "HOD", "TEACHER"].includes(normalizedRole)
+              ? `/dashboard/viewtrackers/${classId}/${trackerId}`
+              : undefined;
+
+      return {
+        id: itemId("assignment", `tracker-${sourceId}`),
+        sourceId: `tracker-${sourceId}`,
+        classId,
+        type: "assignment",
+        navigationHref,
+        title,
+        body: detailParts.join(" • "),
+        authorId: getMaybeString(entry, ["teacher_id", "author_id", "authorId"]),
+        authorName:
+          getMaybeString(entry, ["teacher_name", "author_name", "created_by_name"]) ??
+          "Teacher",
+        createdAt: deadline ?? new Date().toISOString(),
         likeCount: 0,
         totalReactions: 0,
         reactionSummary: {},
@@ -639,11 +737,12 @@ export const fetchClassStoryFeed = async ({
 }: FeedParams): Promise<StoryFeedItem[]> => {
   await syncLegacyStoryPosts({ classId, subjectId }).catch(() => undefined);
 
-  const [announcementResult, materialResult, assignmentResult, assessmentResult, reactionResult, postsResult] =
+  const [announcementResult, materialResult, assignmentResult, trackerResult, assessmentResult, reactionResult, postsResult] =
     await Promise.allSettled([
     fetchAnnouncements(),
     preferStudentMaterials ? fetchStudentMaterials(subjectId) : fetchMaterials(subjectId),
     fetchManageAssignments({ class_id: classId }),
+    fetchTrackers(Number(classId), subjectId ?? undefined),
     fetchAssessmentStoryItems(classId, subjectId, role),
     fetchSharedStoryReactions({ classId, subjectId }),
     fetchSharedStoryPosts({ classId, subjectId }),
@@ -661,6 +760,10 @@ export const fetchClassStoryFeed = async ({
     assignmentResult.status === "fulfilled"
       ? toAssignmentItems(assignmentResult.value, classId)
       : [];
+  const trackerAssignments =
+    trackerResult.status === "fulfilled"
+      ? toTrackerStoryItems(trackerResult.value, classId, role)
+      : [];
   const assessmentAssignments =
     assessmentResult.status === "fulfilled" ? assessmentResult.value : [];
   const reactions =
@@ -675,7 +778,14 @@ export const fetchClassStoryFeed = async ({
   const posts = toPostItems(sharedPosts, classId);
 
   return withEngagementCounts(
-    [...posts, ...announcements, ...assignments, ...assessmentAssignments, ...materials],
+    [
+      ...posts,
+      ...announcements,
+      ...assignments,
+      ...trackerAssignments,
+      ...assessmentAssignments,
+      ...materials,
+    ],
     userId,
     subjectId,
     reactions

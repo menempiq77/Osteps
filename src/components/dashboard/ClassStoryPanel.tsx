@@ -2,6 +2,7 @@
 
 import { ChangeEvent, useMemo, useRef, useState } from "react";
 import { useSelector } from "react-redux";
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Button,
@@ -150,8 +151,9 @@ interface ClassStoryPanelProps {
 
 export default function ClassStoryPanel({ classId }: ClassStoryPanelProps) {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const { currentUser } = useSelector((state: RootState) => state.auth);
-  const { activeSubjectId } = useSubjectContext();
+  const { activeSubjectId, toSubjectHref } = useSubjectContext();
   const [messageApi, contextHolder] = message.useMessage();
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -428,6 +430,11 @@ export default function ClassStoryPanel({ classId }: ClassStoryPanelProps) {
     });
   };
 
+  const openStoryItem = (item: StoryFeedItem) => {
+    if (!item.navigationHref) return;
+    router.push(toSubjectHref(item.navigationHref));
+  };
+
   return (
     <div className="mt-4 space-y-4">
       {contextHolder}
@@ -530,6 +537,7 @@ export default function ClassStoryPanel({ classId }: ClassStoryPanelProps) {
                 !isImageAttachment(inlineUrl);
               const hideAttachmentCard =
                 item.attachmentType === "link" && Boolean(inlineUrl);
+              const canOpenItem = Boolean(item.navigationHref);
 
               return (
                 <div
@@ -607,11 +615,31 @@ export default function ClassStoryPanel({ classId }: ClassStoryPanelProps) {
                       </div>
                     </div>
 
-                    <div className="mt-5 space-y-4 pl-[68px]">
-                      <div
-                        className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold capitalize ${typeChip[item.type]}`}
-                      >
-                        {item.type}
+                    <div
+                      className={`mt-5 space-y-4 pl-[68px] ${canOpenItem ? "cursor-pointer" : ""}`}
+                      onClick={canOpenItem ? () => openStoryItem(item) : undefined}
+                      onKeyDown={
+                        canOpenItem
+                          ? (event) => {
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                openStoryItem(item);
+                              }
+                            }
+                          : undefined
+                      }
+                      role={canOpenItem ? "button" : undefined}
+                      tabIndex={canOpenItem ? 0 : undefined}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold capitalize ${typeChip[item.type]}`}
+                        >
+                          {item.type}
+                        </div>
+                        {canOpenItem && (
+                          <span className="text-xs font-medium text-[#5a66a0]">Open</span>
+                        )}
                       </div>
                       <h3 className="text-base font-semibold leading-snug text-slate-800">
                         {item.title}
