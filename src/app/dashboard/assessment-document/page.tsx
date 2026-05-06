@@ -91,6 +91,7 @@ export default function AssessmentDocumentPage() {
   const returnTo = searchParams.get("returnTo");
   const teacherMarks = searchParams.get("teacherMarks") || "";
   const teacherFeedback = searchParams.get("teacherFeedback") || "";
+  const autoDownloadTeacherPaper = role === "teacher" && searchParams.get("autoDownload") === "1";
   const fallbackExamMode = searchParams.get("examMode") === "1";
   const fallbackExamStartAt = searchParams.get("examStartAt") || null;
   const fallbackExamDurationMinutes = searchParams.get("examDurationMinutes");
@@ -263,6 +264,7 @@ export default function AssessmentDocumentPage() {
     params.set("maxMarks", String(nextTask.task?.allocated_marks || maxMarks || 0));
     params.set("teacherMarks", String(nextTask.teacher_assessment_score || nextTask.teacher_assessment_marks || ""));
     params.set("teacherFeedback", String(nextTask.teacher_feedback || ""));
+    params.delete("autoDownload");
     router.push(`/dashboard/assessment-document?${params.toString()}`);
   };
 
@@ -333,6 +335,7 @@ export default function AssessmentDocumentPage() {
           studentSwitcherOptions={role === "teacher" ? teacherStudentOptions : undefined}
           studentSwitcherLoading={teacherStudentTasksLoading}
           onStudentChange={role === "teacher" ? handleTeacherStudentChange : undefined}
+          autoDownloadTeacherPaper={autoDownloadTeacherPaper}
         />
       )}
     </div>

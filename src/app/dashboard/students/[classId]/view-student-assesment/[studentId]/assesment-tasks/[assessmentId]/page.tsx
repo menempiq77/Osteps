@@ -49,6 +49,8 @@ interface StudentOption {
   student_name: string;
 }
 
+const isPlaceholderStudentName = (value: string) => /^student\s+\d+$/i.test(value.trim());
+
 const toStudentOption = (value: unknown): StudentOption | null => {
   if (!value || typeof value !== "object") return null;
   const row = value as Record<string, any>;
@@ -62,7 +64,7 @@ const toStudentOption = (value: unknown): StudentOption | null => {
       row?.user?.name ??
       ""
   ).trim();
-  if (!studentName) return null;
+  if (!studentName || isPlaceholderStudentName(studentName)) return null;
   return {
     id: String(id),
     student_name: studentName,
@@ -321,7 +323,10 @@ export default function AssessmentDrawer() {
       : `${IMG_BASE_URL}/storage/${cleanPath}`;
   };
 
-  const openTeacherDocumentWorkspace = (task: StudentAssessmentTask) => {
+  const openTeacherDocumentWorkspace = (
+    task: StudentAssessmentTask,
+    options: { autoDownload?: boolean } = {}
+  ) => {
     const sourcePath = task.task?.file_path || task.file_path;
     const params = new URLSearchParams({
       assessmentId: String(task.assessment_id),
@@ -334,6 +339,7 @@ export default function AssessmentDrawer() {
       teacherMarks: String(task.teacher_assessment_score || task.teacher_assessment_marks || ""),
       teacherFeedback: String(task.teacher_feedback || ""),
     });
+    if (options.autoDownload) params.set("autoDownload", "1");
     router.push(`/dashboard/assessment-document?${params.toString()}`);
   };
 
@@ -748,6 +754,12 @@ export default function AssessmentDrawer() {
                     onClick={() => openTeacherDocumentWorkspace(viewingTask)}
                   >
                     Open answered PDF
+                  </Button>
+                  <Button
+                    className="mb-3 ml-2"
+                    onClick={() => openTeacherDocumentWorkspace(viewingTask, { autoDownload: true })}
+                  >
+                    Download answered PDF
                   </Button>
                   {fileUrlForDocument(viewingTask.file_path || viewingTask.task?.file_path) ? (
                     <a

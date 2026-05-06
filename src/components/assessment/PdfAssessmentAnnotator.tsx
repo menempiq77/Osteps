@@ -95,6 +95,7 @@ type PdfAssessmentAnnotatorProps = {
   studentSwitcherOptions?: StudentSwitcherOption[];
   studentSwitcherLoading?: boolean;
   onStudentChange?: (studentId: string) => void;
+  autoDownloadTeacherPaper?: boolean;
 };
 
 const COLORS = ["#111827", "#dc2626", "#2563eb", "#16a34a", "#9333ea"];
@@ -332,6 +333,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   studentSwitcherOptions = [],
   studentSwitcherLoading = false,
   onStudentChange,
+  autoDownloadTeacherPaper = false,
 }) => {
   const [messageApi, contextHolder] = message.useMessage();
   const [state, setState] = useState<AssessmentDocumentState | null>(null);
@@ -385,6 +387,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const lastLiveSyncedSignatureRef = useRef<string>("");
   const lastRemoteSnapshotRef = useRef<string>("");
   const autoSubmittedExpiredExamRef = useRef(false);
+  const autoDownloadAttemptedRef = useRef(false);
   const hiddenDuringExamRef = useRef(false);
   const approvedExamExitRef = useRef(false);
   const suppressExamExitPromptRef = useRef(false);
@@ -1952,6 +1955,17 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       setExportingPaper(false);
     }
   };
+
+  useEffect(() => {
+    autoDownloadAttemptedRef.current = false;
+  }, [assessmentId, autoDownloadTeacherPaper, studentId, taskId]);
+
+  useEffect(() => {
+    if (!autoDownloadTeacherPaper || role !== "teacher" || autoDownloadAttemptedRef.current) return;
+    if (loading || rendering || !documentLoaded || pages.length === 0) return;
+    autoDownloadAttemptedRef.current = true;
+    void downloadSubmittedPaper();
+  }, [autoDownloadTeacherPaper, documentLoaded, loading, pages.length, rendering, role]);
 
   const toggleStudentEditingLock = async () => {
     if (role !== "teacher" || !state) return;
