@@ -5,7 +5,7 @@ import React, { useState, useMemo, useCallback, useEffect } from "react";
 import dayjs, { Dayjs } from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
 import {
-  Badge, Button, DatePicker, Dropdown, Form, Input, Modal, Popover, Select, Spin,
+  Badge, Button, DatePicker, Dropdown, Form, Input, Modal, Popover, Radio, Select, Spin,
   Tag, Tooltip, Typography, message,
 } from "antd";
 import {
@@ -60,6 +60,14 @@ const { Option } = Select;
 const { Title, Text } = Typography;
 
 type BuilderSidebarView = "spreadsheets" | "subject" | "teacher" | "year-group";
+type BuilderWeekMode = "every_week" | "A" | "B";
+type AlternatingWeekType = "A" | "B";
+
+type AlternatingCycleConfig = {
+  enabled: boolean;
+  anchorWeek: string;
+  anchorType: AlternatingWeekType;
+};
 
 interface SlotFormValues {
   subject_id: string;
@@ -89,6 +97,11 @@ export default function TimetableBuilderPage() {
     return DAYS_OF_WEEK.findIndex((d) => d.value === first);
   }, [schoolDays]);
   const weekSun = useMemo(() => weekStart(anchor, firstDayIdx), [anchor, firstDayIdx]);
+  const [alternatingCycle, setAlternatingCycle] = useState<AlternatingCycleConfig>(() => loadAlternatingCycleConfig());
+
+  useEffect(() => {
+    saveAlternatingCycleConfig(alternatingCycle);
+  }, [alternatingCycle]);
 
   // Duplicate week modal
   const [duplicateOpen, setDuplicateOpen] = useState(false);
@@ -234,6 +247,33 @@ export default function TimetableBuilderPage() {
   const destinationClasses = useMemo(() => {
     return filterClasses.filter((klass: any) => String(klass.id) !== filterClassId);
   }, [filterClasses, filterClassId]);
+
+  const currentWeekType = useMemo<AlternatingWeekType | null>(() => {
+    if (!alternatingCycle.enabled) return null;
+    const anchorWeek = weekStart(dayjs(alternatingCycle.anchorWeek), firstDayIdx);
+    const weekDistance = Math.abs(weekSun.diff(anchorWeek, "week"));
+    if (weekDistance % 2 === 0) {
+      return alternatingCycle.anchorType;
+    }
+    return alternatingCycle.anchorType === "A" ? "B" : "A";
+  }, [alternatingCycle, firstDayIdx, weekSun]);
+
+  const currentWeekMode = useMemo<BuilderWeekMode>(() => {
+    return currentWeekType ?? "every_week";
+  }, [currentWeekType]);
+
+  const handleWeekModeChange = useCallback((value: BuilderWeekMode) => {
+    if (value === "every_week") {
+      setAlternatingCycle((current) => ({ ...current, enabled: false }));
+      return;
+    }
+
+    setAlternatingCycle({
+      enabled: true,
+      anchorWeek: weekSun.format("YYYY-MM-DD"),
+      anchorType: value,
+    });
+  }, [weekSun]);
 
   useEffect(() => {
     if (sidebarView !== "subject") return;
@@ -774,9 +814,27 @@ export default function TimetableBuilderPage() {
               <Tag color="blue">{selectedYearGroup?.name ?? "Choose year group"}</Tag>
               <Tag color="cyan">{selectedClassGroup?.class_name ?? "Choose class"}</Tag>
               <Tag color="green">{weekSlots.length} lesson{weekSlots.length !== 1 ? "s" : ""} this week</Tag>
+              {currentWeekType && <Tag color={currentWeekType === "A" ? "purple" : "magenta"}>Week {currentWeekType}</Tag>}
               {stats.conflicts > 0 && (
                 <Tag color="error" icon={<WarningOutlined />}>{stats.conflicts} conflict{stats.conflicts !== 1 ? "s" : ""} this week</Tag>
               )}
+            </div>
+
+            <div className="mt-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+              <div className="text-xs text-slate-500">
+                Use alternating mode if this class changes between Week A and Week B.
+              </div>
+              <Radio.Group
+                value={currentWeekMode}
+                onChange={(event) => handleWeekModeChange(event.target.value as BuilderWeekMode)}
+                optionType="button"
+                buttonStyle="solid"
+                size="small"
+              >
+                <Radio.Button value="every_week">Same Every Week</Radio.Button>
+                <Radio.Button value="A">This Week = A</Radio.Button>
+                <Radio.Button value="B">This Week = B</Radio.Button>
+              </Radio.Group>
             </div>
 
             {!filterYearId ? (
@@ -796,6 +854,9 @@ export default function TimetableBuilderPage() {
 
           <div className="flex flex-wrap items-center gap-3">
             <Tag color="blue" style={{ fontSize: 13 }}>{weekLabel(weekSun)}</Tag>
+            {currentWeekType && (
+              <Tag color={currentWeekType === "A" ? "purple" : "magenta"}>Week {currentWeekType}</Tag>
+            )}
             <span className="text-xs text-slate-500">
               {stats.slots} lessons · {stats.teachers} teachers · {stats.classes} class{stats.classes !== 1 ? "es" : ""}
             </span>
@@ -1032,6 +1093,7 @@ export default function TimetableBuilderPage() {
         open={duplicateOpen}
         onClose={() => setDuplicateOpen(false)}
         sourceWeek={weekSun}
+        sourceWeekType={currentWeekType}
         allSlots={selectedClassSlots}
         onConfirm={handleDuplicate}
       />
@@ -1104,6 +1166,46 @@ function dayOffset(day: string, weekSun: Dayjs, firstDayIdx: number): string {
 
 function weekLabel(weekSun: Dayjs): string {
   return `${weekSun.format("D MMM")} – ${weekSun.add(6, "day").format("D MMM YYYY")}`;
+}
+
+const ALTERNATING_CYCLE_STORAGE_KEY = "osteps_timetable_alternating_cycle";
+
+function loadAlternatingCycleConfig(): AlternatingCycleConfig {
+  if (typeof window === "undefined") {
+    return {
+      enabled: false,
+      anchorWeek: dayjs().format("YYYY-MM-DD"),
+      anchorType: "A",
+    };
+  }
+
+  try {
+    const raw = localStorage.getItem(ALTERNATING_CYCLE_STORAGE_KEY);
+    if (!raw) {
+      return {
+        enabled: false,
+        anchorWeek: dayjs().format("YYYY-MM-DD"),
+        anchorType: "A",
+      };
+    }
+    const parsed = JSON.parse(raw) as Partial<AlternatingCycleConfig>;
+    return {
+      enabled: parsed.enabled === true,
+      anchorWeek: typeof parsed.anchorWeek === "string" && parsed.anchorWeek ? parsed.anchorWeek : dayjs().format("YYYY-MM-DD"),
+      anchorType: parsed.anchorType === "B" ? "B" : "A",
+    };
+  } catch {
+    return {
+      enabled: false,
+      anchorWeek: dayjs().format("YYYY-MM-DD"),
+      anchorType: "A",
+    };
+  }
+}
+
+function saveAlternatingCycleConfig(config: AlternatingCycleConfig): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(ALTERNATING_CYCLE_STORAGE_KEY, JSON.stringify(config));
 }
 
 const CHIP_PALETTE = [

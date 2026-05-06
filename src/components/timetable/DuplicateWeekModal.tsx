@@ -12,6 +12,7 @@ interface DuplicateWeekModalProps {
   open: boolean;
   onClose: () => void;
   sourceWeek: Dayjs;
+  sourceWeekType?: "A" | "B" | null;
   allSlots: TimetableSlot[];
   onConfirm: (payload: { targetWeekSuns: Dayjs[]; clearExisting: boolean }) => Promise<void>;
 }
@@ -37,12 +38,14 @@ export default function DuplicateWeekModal({
   open,
   onClose,
   sourceWeek,
+  sourceWeekType,
   allSlots,
   onConfirm,
 }: DuplicateWeekModalProps) {
   const [mode, setMode] = useState<"single" | "repeat">("single");
   const [target, setTarget] = useState<Dayjs | null>(null);
   const [repeatCount, setRepeatCount] = useState<number>(4);
+  const [repeatPattern, setRepeatPattern] = useState<"weekly" | "alternating">("weekly");
   const [clearExisting, setClearExisting] = useState(true);
   const [loading, setLoading] = useState(false);
   const slotCount = slotsForWeek(allSlots, sourceWeek).length;
@@ -50,9 +53,10 @@ export default function DuplicateWeekModal({
   const handleOk = async () => {
     if (mode === "single" && !target) return;
 
+    const stepWeeks = repeatPattern === "alternating" ? 2 : 1;
     const targetWeekSuns = mode === "single"
       ? [target as Dayjs]
-      : Array.from({ length: repeatCount }, (_, index) => sourceWeek.add(index + 1, "week"));
+      : Array.from({ length: repeatCount }, (_, index) => sourceWeek.add((index + 1) * stepWeeks, "week"));
 
     setLoading(true);
     try {
@@ -114,6 +118,20 @@ export default function DuplicateWeekModal({
           <div>
             <label className="block text-xs text-slate-500 mb-1">Repeat this class week into future weeks</label>
             <Select
+              value={repeatPattern}
+              style={{ width: "100%", marginBottom: 8 }}
+              onChange={(value) => setRepeatPattern(value)}
+              options={[
+                { value: "weekly", label: "Every following week" },
+                {
+                  value: "alternating",
+                  label: sourceWeekType
+                    ? `Matching Week ${sourceWeekType} only (every 2 weeks)`
+                    : "Alternating A / B cycle (every 2 weeks)",
+                },
+              ]}
+            />
+            <Select
               value={repeatCount}
               style={{ width: "100%" }}
               onChange={(value) => setRepeatCount(value)}
@@ -125,7 +143,9 @@ export default function DuplicateWeekModal({
               ]}
             />
             <p className="text-xs text-slate-500 mt-1">
-              The current class week will be copied into the next {repeatCount} week{repeatCount !== 1 ? "s" : ""}.
+              {repeatPattern === "alternating"
+                ? `The current ${sourceWeekType ? `Week ${sourceWeekType}` : "A/B"} template will be copied into the next ${repeatCount} matching week${repeatCount !== 1 ? "s" : ""}.`
+                : `The current class week will be copied into the next ${repeatCount} week${repeatCount !== 1 ? "s" : ""}.`}
             </p>
           </div>
         )}
@@ -141,7 +161,9 @@ export default function DuplicateWeekModal({
 
         {mode === "repeat" && (
           <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-            This is the faster repeat-pattern option for the current class.
+            {repeatPattern === "alternating"
+              ? "Use this for Week A / Week B timetables so the same template lands every other week."
+              : "This is the faster repeat-pattern option for the current class."}
           </div>
         )}
       </div>
