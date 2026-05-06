@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button, Form, Input, Select, message } from "antd";
 import type { SelectProps } from "antd";
 
@@ -32,6 +32,16 @@ export default function EditAssessmentForm({
   const [form] = Form.useForm();
   const [type, setType] = useState<"assessment" | "quiz">(initialData.type);
   const [selectedQuiz, setSelectedQuiz] = useState("");
+
+  useEffect(() => {
+    setType(initialData.type);
+    setSelectedQuiz("");
+    form.setFieldsValue({
+      name: initialData.name,
+      type: initialData.type,
+      quiz: undefined,
+    });
+  }, [form, initialData.name, initialData.type]);
 
   const handleSubmit = (values: { name?: string; quiz?: string }) => {
     const submittedName = type === "quiz" ? selectedQuiz : values.name;

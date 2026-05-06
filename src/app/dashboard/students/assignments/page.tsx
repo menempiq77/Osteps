@@ -10,6 +10,17 @@ import { RootState } from "@/store/store";
 import { fetchTerm } from "@/services/termsApi";
 import Link from "next/link";
 import { useSubjectContext } from "@/contexts/SubjectContext";
+import { fetchStudentProfileData } from "@/services/studentsApi";
+
+const extractLiveStudentClassId = (profile: any, fallback?: number | string | null) =>
+  Number(
+    profile?.class_id ??
+      profile?.class?.id ??
+      profile?.student?.class_id ??
+      profile?.student?.class?.id ??
+      fallback ??
+      0
+  );
 
 export default function AssignmentsPage() {
   const [selectedTerm, setSelectedTerm] = useState<string>("");
@@ -22,11 +33,47 @@ export default function AssignmentsPage() {
   const [assessments, setAssessments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [liveStudentClassId, setLiveStudentClassId] = useState<number | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     setImpersonating(!!localStorage.getItem(IMPERSONATION_STORAGE_KEY));
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadLiveStudentClass = async () => {
+      if (currentUser?.role !== "STUDENT" || !currentUser?.student) {
+        setLiveStudentClassId(Number(currentUser?.studentClass ?? 0) || null);
+        return;
+      }
+
+      try {
+        const profile = await fetchStudentProfileData(
+          Number(currentUser.student),
+          canUseSubjectContext ? activeSubjectId ?? undefined : undefined
+        );
+        if (!cancelled) {
+          const classId = extractLiveStudentClassId(profile, currentUser?.studentClass);
+          setLiveStudentClassId(Number.isFinite(classId) && classId > 0 ? classId : null);
+        }
+      } catch (error) {
+        console.error("Could not refresh student class for assignments:", error);
+        if (!cancelled) {
+          const fallbackClassId = Number(currentUser?.studentClass ?? 0);
+          setLiveStudentClassId(
+            Number.isFinite(fallbackClassId) && fallbackClassId > 0 ? fallbackClassId : null
+          );
+        }
+      }
+    };
+
+    loadLiveStudentClass();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSubjectId, canUseSubjectContext, currentUser?.role, currentUser?.student, currentUser?.studentClass]);
 
   const getAssignmentsForTerm = async (termId: number) => {
     const scopedSubjectId = canUseSubjectContext ? activeSubjectId ?? undefined : undefined;
@@ -67,7 +114,7 @@ export default function AssignmentsPage() {
   const loadTerms = async () => {
     try {
       setLoading(true);
-      const response = await fetchTerm(Number(currentUser?.studentClass));
+      const response = await fetchTerm(Number(liveStudentClassId));
       setTerms(response);
       if (response.length > 0) {
         let preferredTerm = response[0];
@@ -112,8 +159,10 @@ export default function AssignmentsPage() {
   };
 
   useEffect(() => {
-    loadTerms();
-  }, [currentUser?.studentClass, activeSubjectId, canUseSubjectContext, impersonating]);
+    if (Number(liveStudentClassId) > 0) {
+      loadTerms();
+    }
+  }, [liveStudentClassId, activeSubjectId, canUseSubjectContext, impersonating]);
 
   useEffect(() => {
     if (selectedTermId !== null) {

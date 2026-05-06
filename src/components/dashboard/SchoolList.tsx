@@ -1,12 +1,16 @@
 "use client";
-import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
+import { DeleteOutlined, EditOutlined, EyeOutlined } from "@ant-design/icons";
 
 export default function SchoolList({
   schools,
+  onView,
+  viewingSchoolId,
   onEdit,
   onDelete,
 }: {
   schools: any[];
+  onView?: (school: any) => void;
+  viewingSchoolId?: string | null;
   onEdit: (school: any) => void;
   onDelete: (id: string) => void;
 }) {
@@ -46,6 +50,16 @@ export default function SchoolList({
                     <td className="p-2 md:p-4">{school.adminEmail}</td>
                     <td className="p-2 md:p-4">{school.contactPerson}</td>
                     <td className="relative p-2 md:p-4 flex justify-center space-x-3">
+                      {onView ? (
+                        <button
+                          onClick={() => onView(school)}
+                          disabled={viewingSchoolId === String(school.id)}
+                          className="text-green-500 hover:text-green-700 cursor-pointer disabled:cursor-wait disabled:opacity-50"
+                          title="View school as admin"
+                        >
+                          <EyeOutlined />
+                        </button>
+                      ) : null}
                       <button
                         onClick={() => onEdit(school)}
                         className="text-green-500 hover:text-green-700 cursor-pointer"

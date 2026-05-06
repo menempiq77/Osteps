@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useMemo, useCallback, useRef } from "react";
+import dynamic from "next/dynamic";
+import React, { useState, useMemo, useCallback } from "react";
 import dayjs from "dayjs";
 import {
   Button, Card, Checkbox, Collapse, Divider, Form, Input, InputNumber, message,
-  Modal, Popconfirm, Progress, Result, Select, Slider, Space, Spin, Steps,
+  Popconfirm, Progress, Result, Select, Slider, Space, Spin, Steps,
   Table, Tag, Tooltip, Typography,
 } from "antd";
 import {
@@ -22,12 +23,16 @@ import { fetchClasses } from "@/services/classesApi";
 import { fetchSubjects } from "@/services/subjectsApi";
 import { addTimetableSlot } from "@/services/timetableApi";
 import { loadPeriods, loadSchoolDays, SchoolPeriod, DAYS_OF_WEEK } from "@/lib/schoolPeriods";
-import {
-  generateTimetable,
+import type {
   GeneratorInput, GeneratorOutput, GeneratorSlot,
   GenYear, GenClass, GenSubjectAllocation, GenTeacher, GenConstraints,
-  GenSplitClassRule, DEFAULT_CONSTRAINTS,
+  GenSplitClassRule,
 } from "@/lib/timetableGenerator";
+
+const TeacherAvailabilityModal = dynamic(
+  () => import("@/components/timetable/TeacherAvailabilityModal"),
+  { ssr: false }
+);
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -47,6 +52,13 @@ const STEP_ITEMS = [
   { title: "Constraints", description: "Rules" },
   { title: "Generate",    description: "Review & Save" },
 ];
+
+const DEFAULT_GENERATOR_CONSTRAINTS: GenConstraints = {
+  maxConsecutivePerTeacher: 4,
+  spreadSubjectsAcrossDays: true,
+  splitClassRules: [],
+  maxBacktrackDepth: 200,
+};
 
 // ═════════════════════════════════════════════════════════════════════════════
 // MAIN PAGE
@@ -70,7 +82,7 @@ export default function TimetableGeneratorPage() {
   const [availModalTeacherId, setAvailModalTeacherId] = useState<string | null>(null);
 
   // ── Step 4: Constraints ─────────────────────────────────────────────────
-  const [constraints, setConstraints] = useState<GenConstraints>({ ...DEFAULT_CONSTRAINTS });
+  const [constraints, setConstraints] = useState<GenConstraints>({ ...DEFAULT_GENERATOR_CONSTRAINTS });
   const [splitRules, setSplitRules] = useState<GenSplitClassRule[]>([]);
 
   // ── Step 5: Generate ────────────────────────────────────────────────────
@@ -192,8 +204,9 @@ export default function TimetableGeneratorPage() {
     setGenResult(null);
 
     // Run async to let UI update
-    setTimeout(() => {
+    setTimeout(async () => {
       try {
+        const { generateTimetable } = await import("@/lib/timetableGenerator");
         const input: GeneratorInput = {
           years: wizardYears,
           allocations: allocations.filter((a) => a.periodsPerWeek > 0),
@@ -809,59 +822,14 @@ function StepTeachers({
         </div>
       )}
 
-      {/* Availability Modal */}
-      <Modal
-        title={`Availability — ${availTeacher?.name ?? ""}`}
+      <TeacherAvailabilityModal
         open={!!availModalTeacherId}
-        onCancel={() => setAvailModalTeacherId(null)}
-        footer={<Button type="primary" onClick={() => setAvailModalTeacherId(null)}>Done</Button>}
-        width={600}
-      >
-        {availTeacher && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs border-collapse">
-              <thead>
-                <tr>
-                  <th className="border p-1 bg-slate-50 text-slate-500">Period</th>
-                  {SCHOOL_DAYS.map((d) => (
-                    <th key={d} className="border p-1 bg-slate-50 text-slate-500">{d.slice(0, 3)}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {teachingPeriods.map((period, pi) => (
-                  <tr key={period.id}>
-                    <td className="border p-1 text-center font-medium text-slate-600">
-                      {period.label}<br />
-                      <span className="text-slate-400 text-[10px]">{period.startTime}</span>
-                    </td>
-                    {SCHOOL_DAYS.map((day) => {
-                      const avail = availTeacher.availability[day];
-                      const isAvail = !avail || avail[pi] !== false;
-                      return (
-                        <td
-                          key={day}
-                          className={`border p-1 text-center cursor-pointer transition-colors ${
-                            isAvail
-                              ? "bg-green-50 hover:bg-green-100 text-green-700"
-                              : "bg-red-50 hover:bg-red-100 text-red-500"
-                          }`}
-                          onClick={() => toggleAvailability(availTeacher.id, day, pi)}
-                        >
-                          {isAvail ? "✓" : "✕"}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="mt-2 text-xs text-slate-400">
-              Click a cell to toggle availability. Green = available, Red = unavailable.
-            </div>
-          </div>
-        )}
-      </Modal>
+        teacher={availTeacher ?? null}
+        schoolDays={SCHOOL_DAYS}
+        teachingPeriods={teachingPeriods}
+        onClose={() => setAvailModalTeacherId(null)}
+        onToggleAvailability={toggleAvailability}
+      />
     </Card>
   );
 }

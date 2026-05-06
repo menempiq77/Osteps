@@ -12,7 +12,7 @@ import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { IMG_BASE_URL } from "@/lib/config";
 import dayjs from "dayjs";
-import { resolveExamWindow } from "@/lib/taskTypeMetadata";
+import { normalizeTaskRecord, resolveExamWindow } from "@/lib/taskTypeMetadata";
 
 interface Task {
   id: number;
@@ -124,17 +124,19 @@ export default function AssignmentDetailPage() {
   };
 
   const mapTaskWithStudentData = async (task: any) => {
-    if (task.type === "task") {
-      const studentTask = task.student_assessment_tasks?.find(
+    const normalizedTask = normalizeTaskRecord(task);
+
+    if (normalizedTask.type === "task") {
+      const studentTask = normalizedTask.student_assessment_tasks?.find(
         (st: any) => st.student_id === studentId
       );
       const selfAssessmentMark = await hydrateTaskSelfAssessmentMark(
-        task,
+        normalizedTask,
         studentTask?.self_assessment_mark
       );
 
       return {
-        ...task,
+        ...normalizedTask,
         status: studentTask?.status || "not-started",
         self_assessment_marks: selfAssessmentMark ?? 0,
         additional_notes: studentTask?.additional_notes || "",
@@ -143,8 +145,8 @@ export default function AssignmentDetailPage() {
       };
     }
 
-    if (task.type === "quiz" && task.quiz) {
-      const submission = task.quiz.submissions?.find(
+    if (normalizedTask.type === "quiz" && normalizedTask.quiz) {
+      const submission = normalizedTask.quiz.submissions?.find(
         (sub: any) => sub.student_id === studentId
       );
 
@@ -153,7 +155,7 @@ export default function AssignmentDetailPage() {
         0
       );
 
-      const totalPossibleMarks = task.quiz.quiz_queston?.reduce(
+      const totalPossibleMarks = normalizedTask.quiz.quiz_queston?.reduce(
         (sum: number, q: any) => sum + (parseFloat(q.marks) || 0),
         0
       );
@@ -162,7 +164,7 @@ export default function AssignmentDetailPage() {
         submission?.answers
           ?.filter((a: any) => a.comment)
           ?.map((a: any) => {
-            const question = task.quiz.quiz_queston?.find(
+            const question = normalizedTask.quiz.quiz_queston?.find(
               (q: any) => q.id === a.quiz_question_id
             );
             return {
@@ -173,7 +175,7 @@ export default function AssignmentDetailPage() {
           }) || [];
 
       return {
-        ...task,
+        ...normalizedTask,
         status: submission?.status || "not-started",
         obtained_marks: totalMarks || 0,
         total_marks: totalPossibleMarks || 0,
@@ -183,7 +185,7 @@ export default function AssignmentDetailPage() {
       };
     }
 
-    return task;
+    return normalizedTask;
   };
 
   const enrichTasksWithStudentData = async (fetchedTasks: any[] | null | undefined) => {

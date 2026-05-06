@@ -20,6 +20,25 @@ interface AssessmentAssignDrawerProps {
 
 const normalize = (s: string) => s.toLowerCase().replace(/[\s_-]+/g, " ").trim();
 
+const getAssessmentAssignmentStatus = (term: any, assessmentId: string | number | null) => {
+  const targetId = Number(assessmentId);
+  if (!Number.isFinite(targetId)) return "N/A";
+
+  const matches = (Array.isArray(term?.assign_assessments) ? term.assign_assessments : [])
+    .filter((row: any) => Number(row?.assessment_id) === targetId)
+    .sort((a: any, b: any) => {
+      const aTime = Date.parse(a?.updated_at || a?.created_at || "");
+      const bTime = Date.parse(b?.updated_at || b?.created_at || "");
+      if (Number.isFinite(aTime) || Number.isFinite(bTime)) {
+        return (Number.isFinite(bTime) ? bTime : 0) - (Number.isFinite(aTime) ? aTime : 0);
+      }
+      return Number(b?.id ?? 0) - Number(a?.id ?? 0);
+    });
+
+  const status = String(matches[0]?.status ?? "").trim().toLowerCase();
+  return status || (matches.length > 0 ? "assigned" : "N/A");
+};
+
 export default function AssessmentAssignDrawer({
   assessmentId,
   assessmentName,
@@ -220,8 +239,12 @@ export default function AssessmentAssignDrawer({
     try {
       await assignAssessmentToTerm(Number(assessmentId), termId);
       messageApi.success("Assessment assigned successfully!");
-      queryClient.invalidateQueries({
+      await queryClient.invalidateQueries({
         queryKey: ["assign-drawer-terms", selectedClass, assessmentId, activeSubjectId ?? "legacy"],
+      });
+      await queryClient.refetchQueries({
+        queryKey: ["assign-drawer-terms", selectedClass, assessmentId, activeSubjectId ?? "legacy"],
+        type: "active",
       });
     } catch (error) {
       console.error(error);
@@ -233,8 +256,12 @@ export default function AssessmentAssignDrawer({
     try {
       await unassignAssessmentFromTerm(Number(assessmentId), termId);
       messageApi.success("Assessment unassigned successfully!");
-      queryClient.invalidateQueries({
+      await queryClient.invalidateQueries({
         queryKey: ["assign-drawer-terms", selectedClass, assessmentId, activeSubjectId ?? "legacy"],
+      });
+      await queryClient.refetchQueries({
+        queryKey: ["assign-drawer-terms", selectedClass, assessmentId, activeSubjectId ?? "legacy"],
+        type: "active",
       });
     } catch (error) {
       console.error(error);
@@ -317,9 +344,8 @@ export default function AssessmentAssignDrawer({
               ) : visibleTerms.length > 0 ? (
                 <div className="flex flex-col gap-2">
                   {visibleTerms.map((term: any, index: number) => {
-                    const assigned = !!term.assign_assessments?.find(
-                      (a: any) => a.assessment_id === Number(assessmentId)
-                    );
+                    const assignmentStatus = getAssessmentAssignmentStatus(term, assessmentId);
+                    const assigned = assignmentStatus === "assigned";
 
                     return (
                       <div

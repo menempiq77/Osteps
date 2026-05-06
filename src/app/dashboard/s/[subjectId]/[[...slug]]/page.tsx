@@ -28,6 +28,7 @@ const SUBJECT_ROUTE_ROOTS = new Set([
   "mind-upgrade",
   "subjects",
   "subject-cards",
+  "schools",
   "library",
   "time_table",
   "timetable-builder",   "timetable-generator",  "announcements",

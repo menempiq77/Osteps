@@ -1,0 +1,7 @@
+c = open('/var/www/laravel/app/Http/Controllers/Api/QuizQuestionController.php').read()
+idx = c.find("Store the student")
+print(repr(c[idx:idx+400]))
+print("---")
+c2 = open('/var/www/laravel/app/Services/StudentAssessmentTaskService.php').read()
+idx2 = c2.find("StudentSubmittedQuiz::with")
+print(repr(c2[idx2:idx2+80]))

@@ -309,6 +309,7 @@ export default function Page() {
       >
         {editingAssessment ? (
           <EditAssessmentForm
+            key={editingAssessment.id}
             onSubmit={handleEditAssessment}
             onCancel={() => {
               setOpen(false);

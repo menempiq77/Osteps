@@ -32,6 +32,7 @@ type EditingText = {
   x: number;
   y: number;
   value: string;
+  fontSize: number;
 };
 
 type DraggingText = {
@@ -98,14 +99,54 @@ const EXAM_EXIT_REASON_MAX_LENGTH = 500;
 const MIN_ZOOM_LEVEL = 0.5;
 const MAX_ZOOM_LEVEL = 2;
 const ZOOM_STEP = 0.1;
+const MIN_TEXT_FONT_SIZE = 12;
+const MAX_TEXT_FONT_SIZE = 36;
 
 const makeId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+const getDocumentDraftKey = (
+  assessmentId: string,
+  taskId: string,
+  studentId: string,
+  role: AssessmentDocumentLayer
+) => `osteps:assessment-document-draft:${assessmentId}:${taskId}:${studentId}:${role}`;
+
+const getStoredDocumentDraft = (key: string) => {
+  if (typeof window === "undefined") return null;
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(key) || "null");
+    if (!parsed || !Array.isArray(parsed.annotations)) return null;
+    return parsed as {
+      annotations: AssessmentDocumentAnnotation[];
+      metadata?: Record<string, unknown>;
+      updatedAtMs?: number;
+      signature?: string;
+    };
+  } catch {
+    return null;
+  }
+};
 
 const clampZoomLevel = (value: number) =>
   Math.min(MAX_ZOOM_LEVEL, Math.max(MIN_ZOOM_LEVEL, Math.round(value * 100) / 100));
 
 const getCurrentFullscreenElement = (doc: FullscreenCapableDocument) =>
   doc.fullscreenElement ?? doc.webkitFullscreenElement ?? doc.msFullscreenElement ?? null;
+
+const isTouchFriendlyExamDevice = () => {
+  if (typeof window === "undefined" || typeof navigator === "undefined") return false;
+
+  const userAgent = navigator.userAgent || "";
+  const platform = navigator.platform || "";
+  const maxTouchPoints = navigator.maxTouchPoints || 0;
+  const coarsePointer = window.matchMedia?.("(pointer: coarse)").matches ?? false;
+  const iPadOS = platform === "MacIntel" && maxTouchPoints > 1;
+  const appleTouchDevice = /iPad|iPhone|iPod/i.test(userAgent) || iPadOS;
+  const androidTouchDevice = /Android/i.test(userAgent) && coarsePointer;
+  const tabletSizedTouchDevice = coarsePointer && maxTouchPoints > 0 && window.innerWidth <= 1366;
+
+  return appleTouchDevice || androidTouchDevice || tabletSizedTouchDevice;
+};
 
 const formatCountdown = (valueMs: number | null) => {
   if (valueMs == null) return "--:--:--";
@@ -240,6 +281,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const [tool, setTool] = useState<Tool>(role === "teacher" ? "pen" : "text");
   const [color, setColor] = useState(role === "teacher" ? "#dc2626" : "#111827");
   const [penWidth, setPenWidth] = useState(3);
+  const [textFontSize, setTextFontSize] = useState(role === "teacher" ? 18 : 16);
   const [saving, setSaving] = useState(false);
   const [autosaveQueued, setAutosaveQueued] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
@@ -256,6 +298,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const [examExitModalOpen, setExamExitModalOpen] = useState(false);
   const [examExitReason, setExamExitReason] = useState("");
   const [examExitContext, setExamExitContext] = useState<ExamExitContext>("fullscreen");
+  const [screenshotWarningVisible, setScreenshotWarningVisible] = useState(false);
   const [handlingExamExit, setHandlingExamExit] = useState(false);
   const [teacherExamAlertDismissed, setTeacherExamAlertDismissed] = useState(false);
   const [teacherExamStudentInfo, setTeacherExamStudentInfo] = useState<TeacherExamStudentInfo | null>(null);
@@ -280,6 +323,13 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const hiddenDuringExamRef = useRef(false);
   const approvedExamExitRef = useRef(false);
   const suppressExamExitPromptRef = useRef(false);
+  const clientSaveIdRef = useRef(makeId());
+  const clientSaveSeqRef = useRef(0);
+
+  const localDraftKey = useMemo(
+    () => getDocumentDraftKey(assessmentId, taskId, studentId, role),
+    [assessmentId, role, studentId, taskId]
+  );
 
   const pdfRenderUrl = useMemo(() => {
     if (!fileUrl) return "";
@@ -317,13 +367,20 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()
     );
   }, [state?.metadata?.examExitEvents]);
+  const touchFriendlyExamDevice = useMemo(() => isTouchFriendlyExamDevice(), []);
   const shouldEnforceExamScreen =
     role === "student" && examWindow.examMode && examWindow.state === "open";
+  const shouldRequireExamFullscreen = shouldEnforceExamScreen && !touchFriendlyExamDevice;
+  const examWatermarkText = useMemo(() => {
+    const studentName = teacherExamStudentInfo?.studentName || `Student ${studentId}`;
+    const className = teacherExamStudentInfo?.className || "Exam mode";
+    return `${studentName} • ${className} • ID ${studentId} • ${new Date(nowMs).toLocaleString()}`;
+  }, [nowMs, studentId, teacherExamStudentInfo?.className, teacherExamStudentInfo?.studentName]);
 
   const studentLocked = state?.studentLocked ?? state?.status !== "draft";
   const examEditingLocked =
     (role === "student" && examWindow.examMode && examWindow.state !== "open") ||
-    (shouldEnforceExamScreen && !isExamFullscreen && !approvedExamExitRef.current);
+    (shouldRequireExamFullscreen && !isExamFullscreen && !approvedExamExitRef.current);
   const editable = role === "teacher" || (!studentLocked && !examEditingLocked);
   const activeAnnotations = role === "teacher" ? state?.teacherAnnotations || [] : state?.studentAnnotations || [];
   const studentAnnotations = state?.studentAnnotations || [];
@@ -332,6 +389,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const documentLoaded = Boolean(state);
   const safeReturnTo = sanitizeReturnToPath(returnTo);
   const zoomPercent = Math.round(zoomLevel * 100);
+  const canOpenOriginalFile = !(role === "student" && examWindow.examMode);
   const autosaveStatusLabel = saving
     ? "Saving"
     : autosaveQueued
@@ -346,6 +404,13 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     : lastSavedAt
     ? "green"
     : "default";
+  const renderErrorMessage =
+    !renderError || canOpenOriginalFile
+      ? renderError
+      : renderError.replace(
+          /Use the original file link below,? or check that the file allows browser access\./i,
+          "Ask your teacher to check the uploaded file."
+        );
 
   useEffect(() => {
     if (role !== "student" || !examWindow.examMode) return;
@@ -362,6 +427,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     setSelfAssessmentMark(nextSelfAssessmentMark);
     lastSavedSelfAssessmentRef.current = nextSelfAssessmentMark;
   }, [initialSelfAssessmentMark]);
+
+  useEffect(() => {
+    setTextFontSize(role === "teacher" ? 18 : 16);
+  }, [role]);
 
   const isExamFullscreenActive = useCallback(() => {
     if (typeof document === "undefined") return false;
@@ -457,7 +526,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   }, [assessmentId, studentId, taskId]);
 
   useEffect(() => {
-    if (role !== "teacher") return;
+    if (role !== "teacher" && !(role === "student" && examWindow.examMode)) return;
 
     let cancelled = false;
     const loadTeacherExamStudentInfo = async () => {
@@ -487,14 +556,14 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [role, studentId]);
+  }, [examWindow.examMode, role, studentId]);
 
   useEffect(() => {
     setTeacherExamAlertDismissed(false);
   }, [assessmentId, studentId, taskId, examExitEvents.length, examExitEvents[0]?.createdAt]);
 
   useEffect(() => {
-    if (!shouldEnforceExamScreen) {
+    if (!shouldRequireExamFullscreen) {
       setExamStartModalOpen(false);
       setExamExitModalOpen(false);
       hiddenDuringExamRef.current = false;
@@ -502,10 +571,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     }
 
     void requestExamFullscreen();
-  }, [requestExamFullscreen, shouldEnforceExamScreen]);
+  }, [requestExamFullscreen, shouldRequireExamFullscreen]);
 
   useEffect(() => {
-    if (!shouldEnforceExamScreen || approvedExamExitRef.current) {
+    if (!shouldRequireExamFullscreen || approvedExamExitRef.current) {
       setExamStartModalOpen(false);
       return;
     }
@@ -518,10 +587,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     if (isExamFullscreen) {
       setExamStartModalOpen(false);
     }
-  }, [examExitModalOpen, isExamFullscreen, shouldEnforceExamScreen]);
+  }, [examExitModalOpen, isExamFullscreen, shouldRequireExamFullscreen]);
 
   useEffect(() => {
-    if (!shouldEnforceExamScreen || typeof document === "undefined") return;
+    if (!shouldRequireExamFullscreen || typeof document === "undefined") return;
 
     const handleFullscreenChange = () => {
       const isCurrentFullscreen = isExamFullscreenActive();
@@ -544,10 +613,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     return () => {
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
     };
-  }, [isExamFullscreenActive, shouldEnforceExamScreen]);
+  }, [isExamFullscreenActive, shouldRequireExamFullscreen]);
 
   useEffect(() => {
-    if (!shouldEnforceExamScreen || typeof document === "undefined") return;
+    if (!shouldRequireExamFullscreen || typeof document === "undefined") return;
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === "hidden") {
@@ -567,7 +636,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [shouldEnforceExamScreen]);
+  }, [shouldRequireExamFullscreen]);
 
   useEffect(() => {
     if (!shouldEnforceExamScreen || typeof window === "undefined") return;
@@ -685,6 +754,27 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     return [...baseAnnotations, activeStroke];
   }, []);
 
+  const persistLocalDraft = useCallback(
+    (annotations: AssessmentDocumentAnnotation[], metadata?: Record<string, unknown>) => {
+      if (typeof window === "undefined" || role !== "student") return;
+
+      try {
+        window.localStorage.setItem(
+          localDraftKey,
+          JSON.stringify({
+            annotations,
+            metadata: metadata || {},
+            updatedAtMs: Date.now(),
+            signature: getAnnotationsSignature(annotations),
+          })
+        );
+      } catch {
+        // localStorage is only a safety net; server save remains primary.
+      }
+    },
+    [getAnnotationsSignature, localDraftKey, role]
+  );
+
   const saveAnnotations = useCallback(
     async (
       nextAnnotations: AssessmentDocumentAnnotation[],
@@ -703,6 +793,23 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
           : selfAssessmentMark
       );
 
+      const nextClientSaveSeq = clientSaveSeqRef.current + 1;
+      clientSaveSeqRef.current = nextClientSaveSeq;
+      const metadata = {
+        title,
+        maxMarks,
+        teacherMarks,
+        teacherFeedback,
+        ...metadataOverrides,
+        selfAssessmentMark: nextSelfAssessmentMark,
+        clientSaveId: clientSaveIdRef.current,
+        clientSaveSeq: nextClientSaveSeq,
+        clientSavedAt: new Date().toISOString(),
+        annotationsCount: nextAnnotations.length,
+      };
+
+      persistLocalDraft(nextAnnotations, metadata);
+
       if (!options?.silent) setSaving(true);
       const nextState = await saveAssessmentDocumentAnnotations({
         assessmentId,
@@ -712,14 +819,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         annotations: nextAnnotations,
         status: nextStatus,
         studentLocked: options?.studentLocked,
-        metadata: {
-          title,
-          maxMarks,
-          teacherMarks,
-          teacherFeedback,
-          ...metadataOverrides,
-          selfAssessmentMark: nextSelfAssessmentMark,
-        },
+        metadata,
       });
       lastSavedSelfAssessmentRef.current = nextSelfAssessmentMark;
       lastLiveSyncedSignatureRef.current = getAnnotationsSignature(nextAnnotations);
@@ -728,7 +828,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       if (!options?.silent) setSaving(false);
       return nextState;
     },
-    [assessmentId, taskId, studentId, role, title, maxMarks, teacherMarks, teacherFeedback, selfAssessmentMark, getAnnotationsSignature]
+    [assessmentId, taskId, studentId, role, title, maxMarks, teacherMarks, teacherFeedback, selfAssessmentMark, getAnnotationsSignature, persistLocalDraft]
   );
 
   const persistExamExitReason = useCallback(
@@ -756,6 +856,50 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     [getCurrentLayerSnapshot, role, saveAnnotations, state?.metadata?.examExitEvents]
   );
 
+  useEffect(() => {
+    if (!shouldEnforceExamScreen || typeof window === "undefined") return;
+
+    const recordScreenshotAttempt = (reason: string) => {
+      setScreenshotWarningVisible(true);
+      messageApi.warning("Screenshots/printing are not allowed during exam mode. This attempt has been recorded.");
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard
+          .writeText("Screenshots are not allowed during this OSTEPS exam.")
+          .catch(() => undefined);
+      }
+      persistExamExitReason(reason, "screen").catch((error) => {
+        console.error("Could not record screenshot attempt:", error);
+      });
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const key = String(event.key || "").toLowerCase();
+      const printScreenAttempt = key === "printscreen" || key === "print screen";
+      const printAttempt = (event.ctrlKey || event.metaKey) && key === "p";
+
+      if (!printScreenAttempt && !printAttempt) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      recordScreenshotAttempt(
+        printAttempt
+          ? "Print attempt detected during exam mode."
+          : "Screenshot attempt detected during exam mode."
+      );
+    };
+
+    const handleBeforePrint = () => {
+      recordScreenshotAttempt("Print/screenshot attempt detected during exam mode.");
+    };
+
+    window.addEventListener("keydown", handleKeyDown, true);
+    window.addEventListener("beforeprint", handleBeforePrint);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown, true);
+      window.removeEventListener("beforeprint", handleBeforePrint);
+    };
+  }, [messageApi, persistExamExitReason, shouldEnforceExamScreen]);
+
   const queueAutosave = useCallback(
     (nextAnnotations: AssessmentDocumentAnnotation[]) => {
       pendingAutosaveRef.current = nextAnnotations;
@@ -782,6 +926,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const setLayerAnnotations = useCallback(
     (nextAnnotations: AssessmentDocumentAnnotation[]) => {
       activeAnnotationsRef.current = nextAnnotations;
+      persistLocalDraft(nextAnnotations);
       setState((prev) => {
         if (!prev) return prev;
         const nextState = {
@@ -794,12 +939,13 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       });
       queueAutosave(nextAnnotations);
     },
-    [queueAutosave, role]
+    [persistLocalDraft, queueAutosave, role]
   );
 
   const setLayerAnnotationsLocally = useCallback(
     (nextAnnotations: AssessmentDocumentAnnotation[]) => {
       activeAnnotationsRef.current = nextAnnotations;
+      persistLocalDraft(nextAnnotations);
       setState((prev) => {
         if (!prev) return prev;
         return {
@@ -810,7 +956,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         };
       });
     },
-    [role]
+    [persistLocalDraft, role]
   );
 
   useEffect(() => {
@@ -820,20 +966,50 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         setLoading(true);
         const loaded = await fetchAssessmentDocument(assessmentId, taskId, studentId);
         if (!cancelled) {
-          setState(loaded);
+          const loadedLayerAnnotations =
+            role === "teacher" ? loaded.teacherAnnotations || [] : loaded.studentAnnotations || [];
+          const storedDraft = getStoredDocumentDraft(localDraftKey);
+          const loadedSignature = getAnnotationsSignature(loadedLayerAnnotations);
+          const loadedUpdatedAtMs = new Date(loaded.updatedAt || 0).getTime() || 0;
+          const shouldRestoreLocalDraft =
+            role === "student" &&
+            !loaded.studentLocked &&
+            storedDraft &&
+            storedDraft.signature !== loadedSignature &&
+            storedDraft.annotations.length > 0 &&
+            (storedDraft.annotations.length > loadedLayerAnnotations.length ||
+              Number(storedDraft.updatedAtMs || 0) > loadedUpdatedAtMs);
+          const nextLoaded = shouldRestoreLocalDraft
+            ? { ...loaded, studentAnnotations: storedDraft.annotations }
+            : loaded;
+
+          setState(nextLoaded);
           lastLiveSyncedSignatureRef.current = getAnnotationsSignature(
-            role === "teacher" ? loaded.teacherAnnotations || [] : loaded.studentAnnotations || []
+            role === "teacher"
+              ? nextLoaded.teacherAnnotations || []
+              : nextLoaded.studentAnnotations || []
           );
           lastRemoteSnapshotRef.current = JSON.stringify({
-            status: loaded.status,
-            studentLocked: loaded.studentLocked,
-            updatedAt: loaded.updatedAt,
+            status: nextLoaded.status,
+            studentLocked: nextLoaded.studentLocked,
+            updatedAt: nextLoaded.updatedAt,
             annotations:
               oppositeLayer === "student"
-                ? loaded.studentAnnotations || []
-                : loaded.teacherAnnotations || [],
+                ? nextLoaded.studentAnnotations || []
+                : nextLoaded.teacherAnnotations || [],
           });
-          const metadata = loaded.metadata || {};
+          activeAnnotationsRef.current =
+            role === "teacher"
+              ? nextLoaded.teacherAnnotations || []
+              : nextLoaded.studentAnnotations || [];
+          if (shouldRestoreLocalDraft) {
+            saveAnnotations(storedDraft.annotations, undefined, {
+              syncState: false,
+              silent: true,
+              metadata: { restoredFromLocalDraft: true },
+            }).catch((error) => console.error("Could not restore local document draft:", error));
+          }
+          const metadata = nextLoaded.metadata || {};
           if (metadata.teacherMarks != null) setTeacherMarks(String(metadata.teacherMarks));
           if (metadata.teacherFeedback != null) setTeacherFeedback(String(metadata.teacherFeedback));
           if (Object.prototype.hasOwnProperty.call(metadata, "selfAssessmentMark")) {
@@ -853,7 +1029,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [assessmentId, taskId, studentId, messageApi, getAnnotationsSignature, oppositeLayer, role]);
+  }, [assessmentId, taskId, studentId, messageApi, getAnnotationsSignature, oppositeLayer, role, localDraftKey, saveAnnotations]);
 
   useEffect(() => {
     let cancelled = false;
@@ -961,11 +1137,53 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
   useEffect(() => {
     return () => {
+      const snapshot = getCurrentLayerSnapshot();
+      persistLocalDraft(snapshot, { closing: true });
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       if (selfAssessmentSaveTimerRef.current) clearTimeout(selfAssessmentSaveTimerRef.current);
       pendingAutosaveRef.current = null;
     };
-  }, []);
+  }, [getCurrentLayerSnapshot, persistLocalDraft]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || role !== "student") return;
+
+    const flushOnPageExit = () => {
+      const snapshot = getCurrentLayerSnapshot();
+      const nextClientSaveSeq = clientSaveSeqRef.current + 1;
+      clientSaveSeqRef.current = nextClientSaveSeq;
+      const metadata = {
+        title,
+        maxMarks,
+        selfAssessmentMark: normalizeSelfAssessmentValue(selfAssessmentMark),
+        clientSaveId: clientSaveIdRef.current,
+        clientSaveSeq: nextClientSaveSeq,
+        clientSavedAt: new Date().toISOString(),
+        annotationsCount: snapshot.length,
+        pageExitFlush: true,
+      };
+
+      persistLocalDraft(snapshot, metadata);
+
+      try {
+        const params = new URLSearchParams({ assessmentId, taskId, studentId });
+        const payload = JSON.stringify({
+          layer: role,
+          annotations: snapshot,
+          metadata,
+        });
+        const blob = new Blob([payload], { type: "application/json" });
+        navigator.sendBeacon?.(`/api/assessment-document?${params.toString()}`, blob);
+      } catch {
+        // local draft remains available when beacon is not supported or blocked.
+      }
+    };
+
+    window.addEventListener("pagehide", flushOnPageExit);
+    return () => {
+      window.removeEventListener("pagehide", flushOnPageExit);
+    };
+  }, [assessmentId, getCurrentLayerSnapshot, maxMarks, persistLocalDraft, role, selfAssessmentMark, studentId, taskId, title]);
 
   useEffect(() => {
     if (role !== "student" || !documentLoaded) return;
@@ -1193,7 +1411,13 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       event.currentTarget,
       zoomLevel
     );
-    setEditingText({ page: pageNumber, x: point.x, y: point.y, value: "" });
+    setEditingText({
+      page: pageNumber,
+      x: point.x,
+      y: point.y,
+      value: "",
+      fontSize: textFontSize,
+    });
   };
 
   const commitEditingText = () => {
@@ -1205,10 +1429,18 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       setLayerAnnotations(
         activeAnnotations.map((annotation) =>
           annotation.id === editingText.id && annotation.type === "text"
-            ? { ...annotation, text: editingText.value.trim(), x: editingText.x, y: editingText.y, color }
+            ? {
+                ...annotation,
+                text: editingText.value.trim(),
+                x: editingText.x,
+                y: editingText.y,
+                color,
+                fontSize: editingText.fontSize,
+              }
             : annotation
         )
       );
+      setTextFontSize(editingText.fontSize);
       setEditingText(null);
       return;
     }
@@ -1220,20 +1452,23 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       y: editingText.y,
       text: editingText.value.trim(),
       color,
-      fontSize: role === "teacher" ? 18 : 16,
+      fontSize: editingText.fontSize,
     };
     setLayerAnnotations([...activeAnnotations, annotation]);
+    setTextFontSize(editingText.fontSize);
     setEditingText(null);
   };
 
   const startEditTextAnnotation = (annotation: TextAnnotation) => {
     if (!editable || !activeAnnotations.some((item) => item.id === annotation.id)) return;
+    setTextFontSize(annotation.fontSize);
     setEditingText({
       id: annotation.id,
       page: annotation.page,
       x: annotation.x,
       y: annotation.y,
       value: annotation.text,
+      fontSize: annotation.fontSize,
     });
   };
 
@@ -1309,11 +1544,14 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const saveNow = async () => {
     if (!editable) return;
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    if (selfAssessmentSaveTimerRef.current) clearTimeout(selfAssessmentSaveTimerRef.current);
     saveTimerRef.current = null;
+    selfAssessmentSaveTimerRef.current = null;
+    const snapshot = getCurrentLayerSnapshot();
     pendingAutosaveRef.current = null;
     setAutosaveQueued(false);
     try {
-      await saveAnnotations(activeAnnotations);
+      await saveAnnotations(snapshot);
       messageApi.success("Saved");
     } catch (error) {
       console.error(error);
@@ -1344,17 +1582,20 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
   const finishStudentWork = async () => {
     if (role !== "student") return;
-    if (selfAssessmentMark == null) {
+    if (!examWindow.examMode && selfAssessmentMark == null) {
       messageApi.warning("Enter your self-assessment mark before finishing.");
       return;
     }
     setFinishing(true);
     try {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      if (selfAssessmentSaveTimerRef.current) clearTimeout(selfAssessmentSaveTimerRef.current);
       saveTimerRef.current = null;
+      selfAssessmentSaveTimerRef.current = null;
+      const snapshot = getCurrentLayerSnapshot();
       pendingAutosaveRef.current = null;
       setAutosaveQueued(false);
-      await saveAnnotations(activeAnnotations, "submitted", { studentLocked: false });
+      await saveAnnotations(snapshot, "submitted", { studentLocked: false });
       await submitAssessmentRecord(
         examWindow.examMode
           ? "Completed online exam workspace"
@@ -1578,6 +1819,34 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   return (
     <div ref={examContainerRef} className="min-h-screen bg-slate-100">
       {contextHolder}
+      {shouldEnforceExamScreen ? (
+        <>
+          <style>{`
+            @media print {
+              body * { visibility: hidden !important; }
+              body::before {
+                content: "Printing is disabled during OSTEPS exam mode.";
+                visibility: visible !important;
+                display: block;
+                padding: 48px;
+                font: 700 24px Arial, sans-serif;
+                color: #b91c1c;
+              }
+            }
+          `}</style>
+          <div className="pointer-events-none fixed inset-0 z-[60] grid grid-cols-2 gap-8 overflow-hidden p-8 opacity-[0.10] md:grid-cols-3">
+            {Array.from({ length: 24 }).map((_, index) => (
+              <div
+                key={index}
+                className="select-none whitespace-nowrap text-sm font-semibold uppercase tracking-wide text-slate-900"
+                style={{ transform: "rotate(-28deg)" }}
+              >
+                {examWatermarkText}
+              </div>
+            ))}
+          </div>
+        </>
+      ) : null}
       <Modal
         open={examStartModalOpen}
         title="Start exam mode"
@@ -1654,6 +1923,11 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
             <Select<Tool> value={tool} onChange={setTool} disabled={!editable} style={{ width: 110 }} options={[{ value: "pen", label: "Pen" }, { value: "text", label: "Text" }, { value: "eraser", label: "Eraser" }]} />
             <Select value={color} onChange={setColor} disabled={!editable} style={{ width: 120 }} options={COLORS.map((value) => ({ value, label: <span style={{ color: value }}>● {value}</span> }))} />
             <InputNumber min={1} max={12} value={penWidth} onChange={(value) => setPenWidth(Number(value || 3))} disabled={!editable || tool !== "pen"} className="w-20" />
+            <InputNumber min={MIN_TEXT_FONT_SIZE} max={MAX_TEXT_FONT_SIZE} value={textFontSize} onChange={(value) => {
+              const nextFontSize = Number(value || (role === "teacher" ? 18 : 16));
+              setTextFontSize(nextFontSize);
+              setEditingText((current) => (current ? { ...current, fontSize: nextFontSize } : current));
+            }} disabled={!editable || tool !== "text"} className="w-24" placeholder="Text size" />
             <div className="flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1">
               <Button
                 size="small"
@@ -1700,6 +1974,17 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       </div>
 
       <div className={shouldEnforceExamScreen ? "h-[calc(100vh-85px)] overflow-auto p-4" : "mx-auto max-w-7xl p-4"}>
+        {screenshotWarningVisible && shouldEnforceExamScreen ? (
+          <Alert
+            className="mb-4"
+            type="error"
+            showIcon
+            closable
+            onClose={() => setScreenshotWarningVisible(false)}
+            message="Screenshots and printing are not allowed in exam mode."
+            description="This attempt has been recorded for the teacher. Continue your exam in fullscreen mode."
+          />
+        ) : null}
         {role === "student" && examWindow.examMode && examWindow.state === "open" && (
           <div className={shouldEnforceExamScreen ? "sticky top-0 z-10 mb-4" : "mb-4"}>
             <Alert
@@ -1740,7 +2025,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
             }
           />
         )}
-        {shouldEnforceExamScreen && !isExamFullscreen && !examExitModalOpen && !examStartModalOpen && (
+        {shouldRequireExamFullscreen && !isExamFullscreen && !examExitModalOpen && !examStartModalOpen && (
           <Alert
             className="mb-4"
             type="error"
@@ -1754,6 +2039,15 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                 </Button>
               </div>
             }
+          />
+        )}
+        {shouldEnforceExamScreen && touchFriendlyExamDevice && (
+          <Alert
+            className="mb-4"
+            type="info"
+            showIcon
+            message="Tablet-friendly exam mode is active."
+            description="You can type, select text, and use the on-screen keyboard without the fullscreen warning interrupting your answer. Leaving or refreshing the exam page is still protected."
           />
         )}
         {shouldEnforceExamScreen && !examFullscreenSupported && (
@@ -1784,7 +2078,19 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
           <Alert className="mb-4" type="warning" showIcon message="The student has not pressed Finish yet, but editing is currently locked by the teacher." />
         )}
         {renderError && (
-          <Alert className="mb-4" type="warning" showIcon message={renderError} description={<a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Open original PDF</a>} />
+          <Alert
+            className="mb-4"
+            type="warning"
+            showIcon
+            message={renderErrorMessage}
+            description={
+              canOpenOriginalFile ? (
+                <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
+                  Open original PDF
+                </a>
+              ) : undefined
+            }
+          />
         )}
 
         {rendering && !renderError && (
@@ -1857,7 +2163,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                         placeholder="Type here"
                         autoSize={{ minRows: 1, maxRows: 6 }}
                         className="absolute z-20 w-72 rounded border-blue-500 bg-white/95 shadow-lg"
-                        style={{ left: editingText.x, top: editingText.y, color, fontSize: role === "teacher" ? 18 : 16 }}
+                        style={{ left: editingText.x, top: editingText.y, color, fontSize: editingText.fontSize }}
                       />
                     )}
                     {(textAnnotationsByPage.get(page.pageNumber) || []).map((annotation) => {

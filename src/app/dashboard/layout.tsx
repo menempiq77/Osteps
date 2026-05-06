@@ -1,16 +1,22 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/store/store";
-import Sidebar from "@/components/ui/Sidebar";
 import SubjectSwitcher from "@/components/ui/SubjectSwitcher";
-import QuickLauncher from "@/components/ui/QuickLauncher";
 import { SubjectContextProvider } from "@/contexts/SubjectContext";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { getStoredSubjectName } from "@/lib/subjectScope";
 import { IMPERSONATION_STORAGE_KEY, isImpersonating, setCurrentUser } from "@/features/auth/authSlice";
 import { User } from "@/features/auth/types";
+
+const QuickLauncher = dynamic(() => import("@/components/ui/QuickLauncher"));
+const Sidebar = dynamic(() => import("@/components/ui/Sidebar"), {
+  loading: () => (
+    <aside className="h-screen w-20 border-r border-[var(--theme-border)] bg-white/70 md:w-64" />
+  ),
+});
 
 const THEME_STORAGE_KEY = "osteps-dashboard-theme";
 const THEMES = {
@@ -156,12 +162,16 @@ export default function DashboardLayout({
   const handleStopImpersonation = () => {
     const raw = localStorage.getItem(IMPERSONATION_STORAGE_KEY);
     localStorage.removeItem(IMPERSONATION_STORAGE_KEY);
+    let returnPath = "/dashboard/students/all-students";
     if (raw) {
-      const { currentUser: adminUser } = JSON.parse(raw) as { currentUser: User; token: string };
+      const { currentUser: adminUser, returnPath: storedReturnPath } = JSON.parse(raw) as { currentUser: User; token: string; returnPath?: string };
       dispatch(setCurrentUser(adminUser));
+      if (storedReturnPath?.startsWith("/dashboard")) {
+        returnPath = storedReturnPath;
+      }
     }
     setImpersonating(false);
-    router.push("/dashboard/students/all-students");
+    router.push(returnPath);
   };
 
   useEffect(() => {
@@ -295,9 +305,13 @@ export default function DashboardLayout({
     </div>
   );
 
+  const withSubjectContext = (content: React.ReactNode) => (
+    <SubjectContextProvider>{content}</SubjectContextProvider>
+  );
+
   if (isSubjectCardsEntryRoute) {
-    return (
-      <SubjectContextProvider>
+    return withSubjectContext(
+      <>
         {/* Impersonation banner on subject-cards route */}
         {impersonating && (
           <div className="fixed top-0 left-0 right-0 z-[9999] flex items-center justify-between bg-amber-500 px-4 py-2 text-white text-sm font-medium shadow-lg">
@@ -337,13 +351,13 @@ export default function DashboardLayout({
             {children}
           </div>
         </div>
-      </SubjectContextProvider>
+      </>
     );
   }
 
   if (isStudentExamAssessmentRoute) {
-    return (
-      <SubjectContextProvider>
+    return withSubjectContext(
+      <>
         {impersonating && (
           <div className="fixed top-0 left-0 right-0 z-[9999] flex items-center justify-between bg-amber-500 px-4 py-2 text-white text-sm font-medium shadow-lg">
             <span>👁️ Viewing as <strong>{currentUser?.name || currentUser?.email}</strong> ({currentUser?.role})</span>
@@ -358,12 +372,12 @@ export default function DashboardLayout({
         <div className="dashboard-theme-scope min-h-screen bg-slate-100" style={impersonating ? { paddingTop: 40 } : undefined}>
           {children}
         </div>
-      </SubjectContextProvider>
+      </>
     );
   }
 
-  return (
-    <SubjectContextProvider>
+  return withSubjectContext(
+    <>
       {/* Impersonation banner */}
       {impersonating && (
         <div className="fixed top-0 left-0 right-0 z-[9999] flex items-center justify-between bg-amber-500 px-4 py-2 text-white text-sm font-medium shadow-lg">
@@ -646,6 +660,6 @@ export default function DashboardLayout({
         }
       `}</style>
       </div>
-    </SubjectContextProvider>
+    </>
   );
 }

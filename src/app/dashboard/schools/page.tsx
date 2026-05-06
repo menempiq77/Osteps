@@ -3,33 +3,32 @@ import { useState, useEffect } from "react";
 import AddSchoolForm from "@/components/dashboard/AddSchoolForm";
 import SchoolList from "@/components/dashboard/SchoolList";
 import { Spin, Modal, Button, message, Breadcrumb } from "antd";
+import { useDispatch, useSelector } from "react-redux";
 import {
   addSchool,
   deleteSchool,
   fetchSchools,
+  impersonateSchoolAdmin,
   updateSchool,
 } from "@/services/schoolApi";
 import Link from "next/link";
 import axios from "axios";
-import { usePathname, useRouter } from "next/navigation";
-import { extractSubjectIdFromPath } from "@/lib/subjectRouting";
+import { useRouter } from "next/navigation";
+import { IMPERSONATION_STORAGE_KEY, setCurrentUser } from "@/features/auth/authSlice";
+import { RootState } from "@/store/store";
 
 export default function SuperAdminDashboard() {
-  const pathname = usePathname();
   const router = useRouter();
+  const dispatch = useDispatch();
+  const { currentUser } = useSelector((state: RootState) => state.auth);
   const [schools, setSchools] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [editingSchool, setEditingSchool] = useState<any | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [viewingSchoolId, setViewingSchoolId] = useState<string | null>(null);
   const [messageApi, contextHolder] = message.useMessage();
-
-  useEffect(() => {
-    if (extractSubjectIdFromPath(pathname)) {
-      router.replace("/dashboard/schools");
-    }
-  }, [pathname, router]);
 
   const loadSchools = async () => {
     try {
@@ -56,6 +55,67 @@ export default function SuperAdminDashboard() {
       academicYear: school.year_structure || school.academicYear,
     });
     setOpen(true);
+  };
+
+  const handleViewSchool = async (school: any) => {
+    if (!currentUser) return;
+
+    const schoolId = Number(school.id);
+    if (!Number.isFinite(schoolId) || schoolId <= 0) {
+      messageApi?.error("Cannot open this school because its id is missing.");
+      return;
+    }
+
+    setViewingSchoolId(String(school.id));
+    try {
+      const impersonatedUser = await impersonateSchoolAdmin(schoolId);
+      const impersonatedSchool = impersonatedUser?.school || {};
+      const impersonatedToken = impersonatedUser?.token;
+
+      if (!impersonatedToken) {
+        throw new Error("No school admin token was returned.");
+      }
+
+      localStorage.setItem(
+        IMPERSONATION_STORAGE_KEY,
+        JSON.stringify({
+          currentUser,
+          token: currentUser.token,
+          returnPath: "/dashboard/schools",
+        })
+      );
+
+      dispatch(setCurrentUser({
+        id: String(impersonatedUser?.id || school.adminUserId || school.admin_user_id || school.user_id || `school-${schoolId}`),
+        email: impersonatedUser?.email || school.adminEmail || school.email || "",
+        role: "SCHOOL_ADMIN",
+        name: impersonatedSchool?.name || school.name || school.schoolName || impersonatedUser?.name || "School Admin",
+        school: Number(impersonatedSchool?.id || schoolId),
+        contact: impersonatedSchool?.contact || school.contactPerson || school.schoolAdmin || school.contact || "",
+        token: impersonatedToken,
+        assigned_subjects: Array.isArray(impersonatedUser?.assigned_subjects)
+          ? impersonatedUser.assigned_subjects
+          : [],
+        subject_roles: Array.isArray(impersonatedUser?.subject_roles)
+          ? impersonatedUser.subject_roles
+          : [],
+        default_subject_id: typeof impersonatedUser?.default_subject_id === "number"
+          ? impersonatedUser.default_subject_id
+          : null,
+      }));
+
+      router.push("/dashboard/subject-cards");
+    } catch (err: any) {
+      console.error(err);
+      messageApi?.error(
+        err?.response?.data?.message ||
+          err?.response?.data?.msg ||
+          err?.message ||
+          "Could not open this school as school admin."
+      );
+    } finally {
+      setViewingSchoolId(null);
+    }
   };
 
   const handleAddOrEditSchool = async (schoolData: any) => {
@@ -237,7 +297,12 @@ export default function SuperAdminDashboard() {
           adminEmail: school.email,
           contactPerson: school.schoolAdmin,
           academicYear: school.year_structure,
+          adminUserId: school.admin_user_id || school.user_id || school.admin?.id,
+          contact: school.contact,
+          schoolAdmin: school.schoolAdmin,
         }))}
+        onView={handleViewSchool}
+        viewingSchoolId={viewingSchoolId}
         onEdit={handleEdit}
         onDelete={handleDelete}
       />

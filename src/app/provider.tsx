@@ -6,15 +6,16 @@ import { Suspense, useState } from "react";
 import { Provider } from "react-redux";
 import { PersistGate } from "redux-persist/integration/react";
 import { LanguageProvider } from "./LanguageContext";
-import { SubjectContextProvider } from "@/contexts/SubjectContext";
 import { persistor, store } from "@/store/store";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime: 60 * 1000,
+        staleTime: 3 * 60 * 1000,
+        gcTime: 15 * 60 * 1000,
         refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
         retry: false,
       },
     },
@@ -26,12 +27,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <PersistGate loading={null} persistor={persistor}>
           <LanguageProvider>
             <Suspense fallback={null}>
-              <SubjectContextProvider>
-                {children}
-                {process.env.NODE_ENV === "development" && (
-                  <ReactQueryDevtools initialIsOpen={false} />
-                )}
-              </SubjectContextProvider>
+              {children}
+              {process.env.NODE_ENV === "development" && (
+                <ReactQueryDevtools initialIsOpen={false} />
+              )}
             </Suspense>
           </LanguageProvider>
         </PersistGate>

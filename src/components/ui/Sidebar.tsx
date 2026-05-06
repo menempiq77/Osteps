@@ -57,7 +57,7 @@ const Sidebar = () => {
       return Array.isArray(classes) ? classes : [];
     },
     enabled: isStudent && !!activeSubjectId,
-    staleTime: 1000 * 60,
+    staleTime: 5 * 60 * 1000,
   });
 
   const studentSubjectClassId =
@@ -70,14 +70,16 @@ const Sidebar = () => {
   const { data: announcementData } = useQuery({
     queryKey: ["unseen-announcement-count", roleKey],
     queryFn: fetchUnseenAnnouncementCount,
-    enabled: !!roleKey,
+    enabled: isOpen && !!roleKey,
+    staleTime: 2 * 60 * 1000,
   });
 
   // Question unread count
   const { data: questionUnreadCount = 0 } = useQuery({
     queryKey: ["unread-count", roleKey],
     queryFn: fetchUnreadCount,
-    enabled: !isSUPER_ADMIN,
+    enabled: isOpen && !isSUPER_ADMIN,
+    staleTime: 2 * 60 * 1000,
   });
 
   const announcementUnreadCount = announcementData?.unseen_count ?? 0;
@@ -367,8 +369,16 @@ const Sidebar = () => {
       return [/^\/dashboard\/admins(?:\/|$)/];
     }
 
-    if (normalizedName === "timetable" || normalizedHref === "/dashboard/time_table") {
-      return [/^\/dashboard\/time_table(?:\/|$)/];
+    if (
+      normalizedName === "timetable" ||
+      normalizedHref === "/dashboard/time_table" ||
+      normalizedHref === "/dashboard/timetable-builder"
+    ) {
+      return [
+        /^\/dashboard\/time_table(?:\/|$)/,
+        /^\/dashboard\/timetable-builder(?:\/|$)/,
+        /^\/dashboard\/timetable-generator(?:\/|$)/,
+      ];
     }
 
     return [];

@@ -4,6 +4,10 @@ import { store } from '@/store/store';
 import { withSubjectPayload, withSubjectQuery } from '@/lib/subjectScope';
 
 type TimetableSubjectScope = number | 'all' | undefined;
+type TimetableFetchOptions = {
+  dateFrom?: string;
+  dateTo?: string;
+};
 
 const getAuthHeader = (): Record<string, string> => {
   const token = store.getState().auth.token;
@@ -32,11 +36,20 @@ const withTimetableSubjectPayload = <T extends Record<string, unknown>>(
   return withSubjectPayload(payload as any);
 };
 
-export const fetchTimetableData = async (subjectScope?: TimetableSubjectScope) => {
+export const fetchTimetableData = async (
+  subjectScope?: TimetableSubjectScope,
+  options?: TimetableFetchOptions
+) => {
   const params = new URLSearchParams();
   const scoped = resolveTimetableQuery(subjectScope);
   if (typeof scoped.subject_id === 'number') {
     params.set('subject_id', String(scoped.subject_id));
+  }
+  if (options?.dateFrom) {
+    params.set('date_from', options.dateFrom);
+  }
+  if (options?.dateTo) {
+    params.set('date_to', options.dateTo);
   }
   const response = await fetch(
     `${API_BASE_URL}/get-timeTable${params.toString() ? `?${params.toString()}` : ''}`,

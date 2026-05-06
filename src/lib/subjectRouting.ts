@@ -47,6 +47,7 @@ const SUBJECT_ROUTE_ROOTS = new Set([
   "manager",
   "view",
   "leaderboard",
+  "schools",
   "years",
   "classes",
   "grades",

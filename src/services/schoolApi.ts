@@ -36,4 +36,9 @@ export const deleteSchool = async (id: string) => {
   const response = await api.post(`/delete-school/${id}`);
   return response.data;
 };
+
+export const impersonateSchoolAdmin = async (schoolId: string | number) => {
+  const response = await api.post(`/impersonate-school-admin/${schoolId}`);
+  return response.data.data;
+};
 export default api;

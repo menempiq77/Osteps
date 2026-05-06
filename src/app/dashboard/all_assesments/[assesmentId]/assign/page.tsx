@@ -13,6 +13,25 @@ import { addTerm, fetchTerm } from "@/services/termsApi";
 import { assignAssessmentToTerm, unassignAssessmentFromTerm } from "@/services/api";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 
+const getAssessmentAssignmentStatus = (term: any, assessmentId: string | number | null) => {
+  const targetId = Number(assessmentId);
+  if (!Number.isFinite(targetId)) return "N/A";
+
+  const matches = (Array.isArray(term?.assign_assessments) ? term.assign_assessments : [])
+    .filter((row: any) => Number(row?.assessment_id) === targetId)
+    .sort((a: any, b: any) => {
+      const aTime = Date.parse(a?.updated_at || a?.created_at || "");
+      const bTime = Date.parse(b?.updated_at || b?.created_at || "");
+      if (Number.isFinite(aTime) || Number.isFinite(bTime)) {
+        return (Number.isFinite(bTime) ? bTime : 0) - (Number.isFinite(aTime) ? aTime : 0);
+      }
+      return Number(b?.id ?? 0) - Number(a?.id ?? 0);
+    });
+
+  const status = String(matches[0]?.status ?? "").trim().toLowerCase();
+  return status || (matches.length > 0 ? "assigned" : "N/A");
+};
+
 export default function AssignAssessmentPage() {
   const { assesmentId } = useParams<{ assesmentId: string }>();
 
@@ -170,7 +189,8 @@ export default function AssignAssessmentPage() {
     try {
       await assignAssessmentToTerm(Number(assesmentId), termId);
       messageApi.success("Assessment assigned successfully!");
-      queryClient.invalidateQueries({ queryKey: ["terms", selectedClass, assesmentId, activeSubjectId ?? "legacy"] });
+      await queryClient.invalidateQueries({ queryKey: ["terms", selectedClass, assesmentId, activeSubjectId ?? "legacy"] });
+      await queryClient.refetchQueries({ queryKey: ["terms", selectedClass, assesmentId, activeSubjectId ?? "legacy"], type: "active" });
     } catch (error) {
       console.error(error);
       messageApi.error("Failed to assign assessment");
@@ -181,7 +201,8 @@ export default function AssignAssessmentPage() {
     try {
       await unassignAssessmentFromTerm(Number(assesmentId), termId);
       messageApi.success("Assessment unassigned successfully!");
-      queryClient.invalidateQueries({ queryKey: ["terms", selectedClass, assesmentId, activeSubjectId ?? "legacy"] });
+      await queryClient.invalidateQueries({ queryKey: ["terms", selectedClass, assesmentId, activeSubjectId ?? "legacy"] });
+      await queryClient.refetchQueries({ queryKey: ["terms", selectedClass, assesmentId, activeSubjectId ?? "legacy"], type: "active" });
     } catch (error) {
       console.error(error);
       messageApi.error("Failed to unassign assessment");
@@ -275,10 +296,7 @@ export default function AssignAssessmentPage() {
               </tr>
             ) : visibleTerms.length > 0 ? (
               visibleTerms.map((term: any, index: number) => {
-                const status =
-                  term.assign_assessments?.find(
-                    (a: any) => a.assessment_id === Number(assesmentId)
-                  )?.status || "N/A";
+                const status = getAssessmentAssignmentStatus(term, assesmentId);
 
                 return (
                   <tr

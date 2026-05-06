@@ -1,10 +1,12 @@
 "use client";
+import dynamic from "next/dynamic";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { EventContentArg } from "@fullcalendar/core";
 import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   addTimetableSlot,
   deleteTimetableSlot,
@@ -37,9 +39,13 @@ import { fetchClasses } from "@/services/classesApi";
 import { fetchTeachers } from "@/services/teacherApi";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import TimetableModal from "@/components/dashboard/TimetableModal";
-import TimetableImportModal from "@/components/dashboard/TimetableImportModal";
-import { exportTimetableToExcel } from "@/lib/timetableExport";
+import TimetableModeTabs from "@/components/timetable/TimetableModeTabs";
 import { useSubjectContext } from "@/contexts/SubjectContext";
+
+const TimetableImportModal = dynamic(
+  () => import("@/components/dashboard/TimetableImportModal"),
+  { ssr: false }
+);
 
 const { Option } = Select;
 
@@ -53,6 +59,10 @@ const VIEW_TABS: { key: ViewByMode; label: string; icon: React.ReactNode }[] = [
 ];
 
 function Timetable() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const calendarView = searchParams.get("view") === "calendar";
+  const subjectId = searchParams.get("subject_id");
   const [loading, setLoading] = useState(true);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [form] = Form.useForm();
@@ -71,6 +81,15 @@ function Timetable() {
   const [messageApi, contextHolder] = message.useMessage();
   const { activeSubjectId, subjects } = useSubjectContext();
   const [importModalOpen, setImportModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (calendarView) return;
+
+    const params = new URLSearchParams();
+    if (subjectId) params.set("subject_id", subjectId);
+    const query = params.toString();
+    router.replace(`/dashboard/timetable-builder${query ? `?${query}` : ""}`);
+  }, [calendarView, router, subjectId]);
 
   // "View By" tab state
   const [viewBy, setViewBy] = useState<ViewByMode>("subject");
@@ -312,7 +331,7 @@ function Timetable() {
     deleteMutation.mutate(eventToDelete.extendedProps.id || eventToDelete.id);
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     const exportedEvents = filteredEvents.map((ev: any) => ({
       subject: ev.title || "",
       date: (ev.start as string).split("T")[0],
@@ -331,6 +350,7 @@ function Timetable() {
             ?.replace(/islamiat/gi, "Islamic")
             .replace(/\s+/g, "_") ?? "timetable")
         : "school_timetable";
+    const { exportTimetableToExcel } = await import("@/lib/timetableExport");
     exportTimetableToExcel(exportedEvents, label);
   };
 
@@ -390,71 +410,82 @@ function Timetable() {
     );
   }
 
+  if (!calendarView) {
+    return (
+      <div className="p-6 flex justify-center items-center h-64">
+        <Spin size="large" />
+      </div>
+    );
+  }
+
   return (
-    <div className="p-3 md:p-6 space-y-5">
+    <div className="p-4 md:p-6 space-y-5">
       {contextHolder}
 
-      {/* ── Page header ───────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div
-            className="h-10 w-10 rounded-xl flex items-center justify-center text-white"
-            style={{ background: "var(--primary)" }}
-          >
-            <CalendarOutlined style={{ fontSize: 18 }} />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-slate-800 leading-tight">School Timetable</h1>
-            <p className="text-xs text-slate-500">
-              View &amp; manage schedules by subject, class, or teacher &nbsp;·&nbsp;
-              <a href="/dashboard/timetable-builder" className="text-blue-500 hover:underline">Open Builder →</a>
-            </p>
-          </div>
-        </div>
-        {!isStudent && (
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Export */}
-            <button
-              onClick={handleExport}
-              className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold
-                         transition-all hover:opacity-90 active:scale-95 border"
-              style={{
-                background: "var(--theme-soft)",
-                borderColor: "var(--theme-border)",
-                color: "var(--theme-dark)",
-              }}
-              title="Export current view to Excel"
-            >
-              <DownloadOutlined />
-              Export
-            </button>
-            {/* Import */}
-            <button
-              onClick={() => setImportModalOpen(true)}
-              className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold
-                         transition-all hover:opacity-90 active:scale-95 border"
-              style={{
-                background: "var(--theme-soft)",
-                borderColor: "var(--theme-border)",
-                color: "var(--theme-dark)",
-              }}
-              title="Import timetable from CSV or Excel"
-            >
-              <UploadOutlined />
-              Import
-            </button>
-            {/* Add Slot */}
-            <button
-              onClick={() => { setIsEditMode(false); setCurrentEventId(null); form.resetFields(); setIsModalVisible(true); }}
-              className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white
-                         transition-all hover:opacity-90 active:scale-95"
+      <div className="max-w-screen-xl mx-auto space-y-4">
+        <TimetableModeTabs activeTab="calendar" />
+
+        {/* ── Page header ───────────────────────────────────────────────── */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div
+              className="h-10 w-10 rounded-xl flex items-center justify-center text-white"
               style={{ background: "var(--primary)" }}
             >
-              <PlusOutlined />
-              Add Slot
-            </button>
+              <CalendarOutlined style={{ fontSize: 18 }} />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-slate-800 leading-tight">School Timetable</h1>
+              <p className="text-xs text-slate-500">
+                View &amp; manage schedules by subject, class, or teacher.
+              </p>
+            </div>
           </div>
-        )}
+          {!isStudent && (
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Export */}
+              <button
+                onClick={handleExport}
+                className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold
+                         transition-all hover:opacity-90 active:scale-95 border"
+                style={{
+                  background: "var(--theme-soft)",
+                  borderColor: "var(--theme-border)",
+                  color: "var(--theme-dark)",
+                }}
+                title="Export current view to Excel"
+              >
+                <DownloadOutlined />
+                Export
+              </button>
+              {/* Import */}
+              <button
+                onClick={() => setImportModalOpen(true)}
+                className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold
+                         transition-all hover:opacity-90 active:scale-95 border"
+                style={{
+                  background: "var(--theme-soft)",
+                  borderColor: "var(--theme-border)",
+                  color: "var(--theme-dark)",
+                }}
+                title="Import timetable from CSV or Excel"
+              >
+                <UploadOutlined />
+                Import
+              </button>
+              {/* Add Slot */}
+              <button
+                onClick={() => { setIsEditMode(false); setCurrentEventId(null); form.resetFields(); setIsModalVisible(true); }}
+                className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white
+                         transition-all hover:opacity-90 active:scale-95"
+                style={{ background: "var(--primary)" }}
+              >
+                <PlusOutlined />
+                Add Slot
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ── View-by filter panel ──────────────────────────────────────── */}

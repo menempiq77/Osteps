@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useMemo, useCallback } from "react";
+import dynamic from "next/dynamic";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import dayjs, { Dayjs } from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
 import {
@@ -10,7 +11,7 @@ import {
 import {
   ArrowLeftOutlined, ArrowRightOutlined, CopyOutlined,
   DeleteOutlined, EditOutlined, FilterOutlined, PlusOutlined, SettingOutlined,
-  WarningOutlined, ClearOutlined,
+  WarningOutlined, ClearOutlined, UploadOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
@@ -27,408 +28,42 @@ import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
 import { fetchClasses } from "@/services/classesApi";
 import { fetchSubjects } from "@/services/subjectsApi";
 import {
-  loadPeriods, savePeriods, resetPeriodsToDefault,
-  loadSchoolDays, saveSchoolDays, resetSchoolDaysToDefault,
-  DEFAULT_PERIODS, DAYS_OF_WEEK, ALL_CANONICAL_DAYS,
+  loadPeriods, savePeriods,
+  loadSchoolDays, saveSchoolDays,
+  DAYS_OF_WEEK,
   SchoolPeriod,
 } from "@/lib/schoolPeriods";
 import { detectConflicts, hasHardConflict, hasSoftConflict } from "@/lib/timetableConflicts";
+import TimetableManagerSidebar, { TimetableManagerSidebarKey } from "@/components/timetable/TimetableManagerSidebar";
+import TimetableModeTabs from "@/components/timetable/TimetableModeTabs";
+
+const TimetableImportModal = dynamic(
+  () => import("@/components/timetable/TimetableImportModal"),
+  { ssr: false }
+);
+const PeriodsConfigModal = dynamic(
+  () => import("@/components/timetable/PeriodsConfigModal"),
+  { ssr: false }
+);
+const DuplicateWeekModal = dynamic(
+  () => import("@/components/timetable/DuplicateWeekModal"),
+  { ssr: false }
+);
 
 dayjs.extend(isoWeek);
 
-const { Title, Text } = Typography;
 const { Option } = Select;
+const { Title, Text } = Typography;
 
-// ── colour chips for subjects ─────────────────────────────────────────────────
-const CHIP_COLORS = [
-  { bg: "#dbeafe", text: "#1d4ed8", border: "#93c5fd" },
-  { bg: "#ede9fe", text: "#6d28d9", border: "#c4b5fd" },
-  { bg: "#fce7f3", text: "#be185d", border: "#f9a8d4" },
-  { bg: "#d1fae5", text: "#065f46", border: "#6ee7b7" },
-  { bg: "#ffedd5", text: "#c2410c", border: "#fdba74" },
-  { bg: "#fef9c3", text: "#854d0e", border: "#fde047" },
-  { bg: "#e0f2fe", text: "#0369a1", border: "#7dd3fc" },
-  { bg: "#f0fdf4", text: "#166534", border: "#86efac" },
-];
-const subjectColorCache: Record<string, number> = {};
-let colorCounter = 0;
-function chipColor(subjectName: string) {
-  if (!subjectColorCache[subjectName]) {
-    subjectColorCache[subjectName] = colorCounter % CHIP_COLORS.length;
-    colorCounter++;
-  }
-  return CHIP_COLORS[subjectColorCache[subjectName]];
-}
+type BuilderSidebarView = "spreadsheets" | "subject" | "teacher" | "year-group";
 
-// ── date helpers ──────────────────────────────────────────────────────────────
-const SCHOOL_WEEK = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"];
-
-function weekStart(anchor: Dayjs, firstDayIdx = 0) {
-  // Snap to the configured first school day (0=Sun, 1=Mon, ...)
-  const diff = (anchor.day() - firstDayIdx + 7) % 7;
-  return anchor.subtract(diff, "day");
-}
-
-function weekLabel(sun: Dayjs) {
-  return `${sun.format("D MMM")} – ${sun.add(6, "day").format("D MMM YYYY")}`;
-}
-
-// Slots that fall within the displayed week
-function slotsForWeek(slots: any[], weekSun: Dayjs) {
-  const sunStr = weekSun.format("YYYY-MM-DD");
-  const satStr = weekSun.add(6, "day").format("YYYY-MM-DD");
-  return slots.filter((s) => {
-    const d = s.date;
-    return d >= sunStr && d <= satStr;
-  });
-}
-
-function dayOffset(dayName: string, weekStartDate: Dayjs, firstDayIdx = 0) {
-  const idx = DAYS_OF_WEEK.findIndex((d) => d.value === dayName);
-  const offset = (idx - firstDayIdx + 7) % 7;
-  return weekStartDate.add(offset, "day").format("YYYY-MM-DD");
-}
-
-// ── SlotForm ──────────────────────────────────────────────────────────────────
 interface SlotFormValues {
   subject_id: string;
   teacher_id: string;
-  year_id: string;
+  year_id?: string;
   class_id: string;
-  room: string;
-  zoom_link: string;
-}
-
-interface SlotFormProps {
-  initial?: Partial<SlotFormValues>;
-  subjects: any[];
-  teachers: any[];
-  years: any[];
-  classes: any[];
-  onYearChange: (yearId: string) => void;
-  onSave: (values: SlotFormValues) => void;
-  onCancel: () => void;
-  loading?: boolean;
-  conflicts?: ReturnType<typeof detectConflicts>;
-}
-
-function SlotForm({
-  initial, subjects, teachers, years, classes,
-  onYearChange, onSave, onCancel, loading, conflicts = [],
-}: SlotFormProps) {
-  const [form] = Form.useForm<SlotFormValues>();
-  const selectedSubjectId = Form.useWatch("subject_id", form);
-
-  // Filter teachers to only those assigned to the selected subject
-  const filteredTeachers = selectedSubjectId
-    ? teachers.filter((t: any) =>
-        !t.subject_id || String(t.subject_id) === String(selectedSubjectId)
-      )
-    : teachers;
-
-  return (
-    <Form
-      form={form}
-      layout="vertical"
-      initialValues={initial}
-      onFinish={onSave}
-      size="small"
-      style={{ width: 270 }}
-    >
-      <Form.Item name="subject_id" label="Subject" rules={[{ required: true }]}>
-        <Select
-          showSearch
-          optionFilterProp="children"
-          placeholder="Select subject"
-          onChange={() => form.setFieldValue("teacher_id", undefined)}
-        >
-          {subjects.map((s: any) => (
-            <Option key={s.id} value={String(s.id)}>
-              {s.name}
-            </Option>
-          ))}
-        </Select>
-      </Form.Item>
-      <Form.Item name="teacher_id" label="Teacher" rules={[{ required: true }]}>
-        <Select showSearch optionFilterProp="children" placeholder="Select teacher">
-          {filteredTeachers.map((t: any) => (
-            <Option key={t.id} value={String(t.id)}>{t.teacher_name || t.name}</Option>
-          ))}
-        </Select>
-      </Form.Item>
-      <Form.Item name="year_id" label="Year">
-        <Select placeholder="Year" onChange={onYearChange} allowClear>
-          {years.map((y: any) => (
-            <Option key={y.id} value={String(y.id)}>{y.name}</Option>
-          ))}
-        </Select>
-      </Form.Item>
-      <Form.Item name="class_id" label="Class" rules={[{ required: true }]}>
-        <Select showSearch optionFilterProp="children" placeholder="Select class">
-          {classes.map((c: any) => (
-            <Option key={c.id} value={String(c.id)}>{c.class_name}</Option>
-          ))}
-        </Select>
-      </Form.Item>
-      <Form.Item name="room" label="Room">
-        <Input placeholder="e.g. Room 101" />
-      </Form.Item>
-      <Form.Item name="zoom_link" label="Zoom link">
-        <Input placeholder="https://..." />
-      </Form.Item>
-      {conflicts.length > 0 && (
-        <div className="mb-2">
-          {conflicts.map((c, i) => (
-            <Tag
-              key={i}
-              color={hasHardConflict([c]) ? "error" : "warning"}
-              icon={<WarningOutlined />}
-              style={{ whiteSpace: "normal", marginBottom: 4 }}
-            >
-              {c.message}
-            </Tag>
-          ))}
-        </div>
-      )}
-      <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-        <Button size="small" onClick={onCancel}>Cancel</Button>
-        <Button size="small" type="primary" htmlType="submit" loading={loading}>
-          Save
-        </Button>
-      </div>
-    </Form>
-  );
-}
-
-// ── PeriodsConfigModal ────────────────────────────────────────────────────────
-interface PeriodsConfigModalProps {
-  open: boolean;
-  onClose: () => void;
-  periods: SchoolPeriod[];
-  schoolDays: string[];
-  onChange: (periods: SchoolPeriod[], days: string[]) => void;
-}
-
-function PeriodsConfigModal({ open, onClose, periods, schoolDays, onChange }: PeriodsConfigModalProps) {
-  const [local, setLocal] = useState<SchoolPeriod[]>(periods);
-  const [localDays, setLocalDays] = useState<string[]>(schoolDays);
-
-  // Sync when modal opens
-  React.useEffect(() => {
-    if (open) { setLocal(periods); setLocalDays(schoolDays); }
-  }, [open, periods, schoolDays]);
-
-  const update = (idx: number, field: keyof SchoolPeriod, value: string | boolean) => {
-    setLocal((prev) => prev.map((p, i) => (i === idx ? { ...p, [field]: value } : p)));
-  };
-
-  const add = () =>
-    setLocal((prev) => [
-      ...prev,
-      { id: `p${Date.now()}`, label: "New", startTime: "08:00", endTime: "09:00", isTeaching: true },
-    ]);
-
-  const remove = (idx: number) => setLocal((prev) => prev.filter((_, i) => i !== idx));
-
-  const toggleDay = (day: string) => {
-    setLocalDays((prev) =>
-      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
-    );
-  };
-
-  // Move a day earlier in the order list
-  const moveDay = (day: string, dir: -1 | 1) => {
-    setLocalDays((prev) => {
-      const idx = prev.indexOf(day);
-      if (idx === -1) return prev;
-      const next = idx + dir;
-      if (next < 0 || next >= prev.length) return prev;
-      const arr = [...prev];
-      [arr[idx], arr[next]] = [arr[next], arr[idx]];
-      return arr;
-    });
-  };
-
-  return (
-    <Modal
-      title="Configure Schedule"
-      open={open}
-      onCancel={onClose}
-      onOk={() => { onChange(local, localDays); onClose(); }}
-      okText="Save"
-      width={560}
-    >
-      {/* ── Days section ── */}
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 13, color: "#374151" }}>
-          School Days
-        </div>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
-          {ALL_CANONICAL_DAYS.map((day) => {
-            const active = localDays.includes(day);
-            return (
-              <span
-                key={day}
-                onClick={() => toggleDay(day)}
-                style={{
-                  cursor: "pointer",
-                  padding: "3px 12px",
-                  borderRadius: 20,
-                  border: `1px solid ${active ? "#3b82f6" : "#d1d5db"}`,
-                  background: active ? "#eff6ff" : "#f9fafb",
-                  color: active ? "#1d4ed8" : "#6b7280",
-                  fontWeight: active ? 600 : 400,
-                  fontSize: 12,
-                  userSelect: "none",
-                }}
-              >
-                {day}
-              </span>
-            );
-          })}
-        </div>
-        {/* Active days order */}
-        {localDays.length > 0 && (
-          <div>
-            <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4 }}>
-              Week order (use arrows to reorder):
-            </div>
-            <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-              {localDays.map((day, i) => (
-                <span
-                  key={day}
-                  style={{
-                    display: "inline-flex", alignItems: "center", gap: 2,
-                    padding: "2px 8px", borderRadius: 12,
-                    background: "#dbeafe", color: "#1d4ed8",
-                    border: "1px solid #93c5fd", fontSize: 12,
-                  }}
-                >
-                  {day.slice(0, 3)}
-                  {i > 0 && (
-                    <span
-                      onClick={() => moveDay(day, -1)}
-                      style={{ cursor: "pointer", fontSize: 10, color: "#3b82f6", paddingLeft: 2 }}
-                    >
-                      ◀
-                    </span>
-                  )}
-                  {i < localDays.length - 1 && (
-                    <span
-                      onClick={() => moveDay(day, 1)}
-                      style={{ cursor: "pointer", fontSize: 10, color: "#3b82f6" }}
-                    >
-                      ▶
-                    </span>
-                  )}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div style={{ borderTop: "1px solid #e5e7eb", marginBottom: 12 }} />
-
-      {/* ── Periods section ── */}
-      <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 13, color: "#374151" }}>
-        Periods
-      </div>
-      <div style={{ maxHeight: 320, overflowY: "auto" }}>
-        {local.map((p, idx) => (
-          <div key={p.id} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}>
-            <Input
-              size="small" value={p.label} style={{ width: 60 }}
-              onChange={(e) => update(idx, "label", e.target.value)}
-            />
-            <Input
-              size="small" value={p.startTime} style={{ width: 70 }} placeholder="HH:mm"
-              onChange={(e) => update(idx, "startTime", e.target.value)}
-            />
-            <span style={{ color: "#94a3b8" }}>–</span>
-            <Input
-              size="small" value={p.endTime} style={{ width: 70 }} placeholder="HH:mm"
-              onChange={(e) => update(idx, "endTime", e.target.value)}
-            />
-            <Select
-              size="small" value={p.isTeaching ? "teaching" : "break"}
-              style={{ width: 90 }}
-              onChange={(v) => update(idx, "isTeaching", v === "teaching")}
-            >
-              <Option value="teaching">Teaching</Option>
-              <Option value="break">Break</Option>
-            </Select>
-            <Button size="small" type="text" danger icon={<DeleteOutlined />} onClick={() => remove(idx)} />
-          </div>
-        ))}
-      </div>
-      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-        <Button size="small" icon={<PlusOutlined />} onClick={add}>Add Period</Button>
-        <Button
-          size="small" danger
-          onClick={() => { setLocal(resetPeriodsToDefault()); setLocalDays(resetSchoolDaysToDefault()); }}
-        >Reset to Default</Button>
-      </div>
-    </Modal>
-  );
-}
-
-// ── DuplicateWeekModal ────────────────────────────────────────────────────────
-interface DuplicateWeekProps {
-  open: boolean;
-  onClose: () => void;
-  sourceWeek: Dayjs;
-  allSlots: any[];
-  onConfirm: (targetWeekSun: Dayjs) => Promise<void>;
-}
-
-function DuplicateWeekModal({ open, onClose, sourceWeek, allSlots, onConfirm }: DuplicateWeekProps) {
-  const [target, setTarget] = useState<Dayjs | null>(null);
-  const [loading, setLoading] = useState(false);
-  const slotCount = slotsForWeek(allSlots, sourceWeek).length;
-
-  const handleOk = async () => {
-    if (!target) return;
-    setLoading(true);
-    try {
-      await onConfirm(target);
-      onClose();
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Modal
-      title="Copy Week"
-      open={open}
-      onCancel={onClose}
-      onOk={handleOk}
-      okText="Copy"
-      confirmLoading={loading}
-      okButtonProps={{ disabled: !target }}
-    >
-      <p className="mb-3 text-sm text-slate-600">
-        Copy <strong>{slotCount} slot{slotCount !== 1 ? "s" : ""}</strong> from{" "}
-        <strong>{weekLabel(sourceWeek)}</strong> to a new week.
-      </p>
-      <div>
-        <label className="block text-xs text-slate-500 mb-1">Target week (pick any day in that week)</label>
-        <DatePicker
-          onChange={(d) => {
-            if (!d) { setTarget(null); return; }
-            const sun = weekStart(d);
-            setTarget(sun);
-          }}
-          format="DD MMM YYYY"
-          style={{ width: "100%" }}
-        />
-        {target && (
-          <p className="text-xs text-slate-500 mt-1">→ {weekLabel(target)}</p>
-        )}
-      </div>
-    </Modal>
-  );
+  room?: string;
+  zoom_link?: string;
 }
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
@@ -453,6 +88,7 @@ export default function TimetableBuilderPage() {
 
   // Duplicate week modal
   const [duplicateOpen, setDuplicateOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   // Popover state: { key: "day|periodId", mode: "add"|"edit", slotId?: number }
   const [popoverKey, setPopoverKey] = useState<string | null>(null);
@@ -468,6 +104,7 @@ export default function TimetableBuilderPage() {
   const [filterYearId,    setFilterYearId]    = useState<string | null>(null);
   const [filterClassId,   setFilterClassId]   = useState<string | null>(null);
   const [filterTeacherId, setFilterTeacherId] = useState<string | null>(null);
+  const [sidebarView, setSidebarView] = useState<BuilderSidebarView>("spreadsheets");
 
   // ── Data queries ──────────────────────────────────────────────────────────
   const { data: slots = [], isLoading: slotsLoading } = useQuery({
@@ -508,28 +145,6 @@ export default function TimetableBuilderPage() {
     },
   });
 
-  // Subject name for the active filter (used as fallback when API omits subject_id on slots)
-  const filterSubjectName = useMemo(() => {
-    if (!filterSubjectId) return null;
-    return (subjects as any[]).find((s: any) => String(s.id) === filterSubjectId)?.name ?? null;
-  }, [filterSubjectId, subjects]);
-
-  // ── Week slots ────────────────────────────────────────────────────────────
-  const weekSlots = useMemo(() => {
-    let ws = slotsForWeek(slots, weekSun);
-    if (filterSubjectId) ws = ws.filter((s: any) =>
-      String(s.subject_id) === filterSubjectId ||
-      (filterSubjectName && s.subject === filterSubjectName)
-    );
-    if (filterYearId)    ws = ws.filter((s: any) => String(s.year_id)    === filterYearId);
-    if (filterClassId)   ws = ws.filter((s: any) => String(s.class_id)   === filterClassId);
-    if (filterTeacherId) ws = ws.filter((s: any) => String(s.teacher_id) === filterTeacherId);
-    return ws;
-  }, [slots, weekSun, filterSubjectId, filterSubjectName, filterYearId, filterClassId, filterTeacherId]);
-
-  // All week slots unfiltered (used for stats total)
-  const weekSlotsAll = useMemo(() => slotsForWeek(slots, weekSun), [slots, weekSun]);
-
   // Subject-classes for the active subject filter — used to derive which years are valid
   const { data: subjectClassRows = [], isFetched: subjectClassesFetched } = useQuery<any[]>({
     queryKey: ["subject-classes-filter", filterSubjectId],
@@ -560,6 +175,122 @@ export default function TimetableBuilderPage() {
     enabled: !!filterYearId,
     queryFn: () => fetchClasses(String(filterYearId)),
   });
+
+  const selectedSubject = useMemo(() => {
+    if (!filterSubjectId) return null;
+    return (subjects as any[]).find((subject: any) => String(subject.id) === filterSubjectId) ?? null;
+  }, [filterSubjectId, subjects]);
+
+  // Subject name for the active filter (used as fallback when API omits subject_id on slots)
+  const filterSubjectName = selectedSubject?.name ?? null;
+
+  const selectedTeacher = useMemo(() => {
+    if (!filterTeacherId) return null;
+    return (teachers as any[]).find((teacher: any) => String(teacher.id) === filterTeacherId) ?? null;
+  }, [filterTeacherId, teachers]);
+
+  const selectedYearGroup = useMemo(() => {
+    if (!filterYearId) return null;
+    return (years as any[]).find((year: any) => String(year.id) === filterYearId) ?? null;
+  }, [filterYearId, years]);
+
+  const selectedClassGroup = useMemo(() => {
+    if (!filterClassId) return null;
+    return (filterClasses as any[]).find((klass: any) => String(klass.id) === filterClassId) ?? null;
+  }, [filterClassId, filterClasses]);
+
+  useEffect(() => {
+    if (sidebarView !== "subject") return;
+    if (filterSubjectId) return;
+    const firstSubject = (subjects as any[])[0];
+    if (!firstSubject) return;
+    setFilterSubjectId(String(firstSubject.id));
+  }, [sidebarView, filterSubjectId, subjects]);
+
+  useEffect(() => {
+    if (sidebarView !== "teacher") return;
+    if (filterTeacherId) return;
+    const firstTeacher = (teachers as any[])[0];
+    if (!firstTeacher) return;
+    setFilterTeacherId(String(firstTeacher.id));
+  }, [sidebarView, filterTeacherId, teachers]);
+
+  useEffect(() => {
+    if (sidebarView !== "year-group") return;
+    if (filterYearId) return;
+    const firstYear = (yearsInUse as any[])[0] ?? (years as any[])[0];
+    if (!firstYear) return;
+    setFilterYearId(String(firstYear.id));
+  }, [sidebarView, filterYearId, yearsInUse, years]);
+
+  const handleSidebarSelect = useCallback((key: TimetableManagerSidebarKey) => {
+    if (key === "subject") {
+      setSidebarView("subject");
+      setFilterTeacherId(null);
+      setFilterYearId(null);
+      setFilterClassId(null);
+      setFilterSubjectId((current) => {
+        if (current) return current;
+        const firstSubject = (subjects as any[])[0];
+        return firstSubject ? String(firstSubject.id) : null;
+      });
+      return;
+    }
+
+    if (key === "teacher") {
+      setSidebarView("teacher");
+      setFilterSubjectId(null);
+      setFilterYearId(null);
+      setFilterClassId(null);
+      setFilterTeacherId((current) => {
+        if (current) return current;
+        const firstTeacher = (teachers as any[])[0];
+        return firstTeacher ? String(firstTeacher.id) : null;
+      });
+      return;
+    }
+
+    if (key === "year-group") {
+      setSidebarView("year-group");
+      setFilterSubjectId(null);
+      setFilterTeacherId(null);
+      setFilterClassId(null);
+      setFilterYearId((current) => {
+        if (current) return current;
+        const firstYear = (yearsInUse as any[])[0] ?? (years as any[])[0];
+        return firstYear ? String(firstYear.id) : null;
+      });
+      return;
+    }
+
+    if (key === "spreadsheets") {
+      setSidebarView("spreadsheets");
+      setFilterSubjectId(null);
+      setFilterTeacherId(null);
+      setFilterYearId(null);
+      setFilterClassId(null);
+    }
+  }, [subjects, teachers, yearsInUse, years]);
+
+  // ── Week slots ────────────────────────────────────────────────────────────
+  const weekSlots = useMemo(() => {
+    if (sidebarView === "subject" && !filterSubjectId) return [];
+    if (sidebarView === "teacher" && !filterTeacherId) return [];
+    if (sidebarView === "year-group" && !filterYearId) return [];
+
+    let ws = slotsForWeek(slots, weekSun);
+    if (filterSubjectId) ws = ws.filter((s: any) =>
+      String(s.subject_id) === filterSubjectId ||
+      (filterSubjectName && s.subject === filterSubjectName)
+    );
+    if (filterYearId)    ws = ws.filter((s: any) => String(s.year_id)    === filterYearId);
+    if (filterClassId)   ws = ws.filter((s: any) => String(s.class_id)   === filterClassId);
+    if (filterTeacherId) ws = ws.filter((s: any) => String(s.teacher_id) === filterTeacherId);
+    return ws;
+  }, [slots, weekSun, sidebarView, filterSubjectId, filterSubjectName, filterYearId, filterClassId, filterTeacherId]);
+
+  // All week slots unfiltered (used for stats total)
+  const weekSlotsAll = useMemo(() => slotsForWeek(slots, weekSun), [slots, weekSun]);
 
   // Build conflict map: slotId → Conflict[]
   const conflictMap = useMemo(() => {
@@ -791,11 +522,29 @@ export default function TimetableBuilderPage() {
 
       {/* Header */}
       <div className="max-w-screen-xl mx-auto mb-5">
+        <div className="mb-4">
+          <TimetableModeTabs activeTab="timetable" />
+        </div>
+
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <Title level={3} style={{ margin: 0 }}>Timetable Builder</Title>
+            <Title level={3} style={{ margin: 0 }}>
+              {sidebarView === "teacher"
+                ? "Teacher Timetable"
+                : sidebarView === "subject"
+                  ? "Subject Timetable"
+                : sidebarView === "year-group"
+                  ? "Year Group Timetable"
+                  : "Timetable Builder"}
+            </Title>
             <Text type="secondary" className="text-sm">
-              Click a cell to add a slot · Click a chip to edit
+              {sidebarView === "teacher"
+                ? "Choose a teacher and review the weekly teaching timetable in one spreadsheet."
+                : sidebarView === "subject"
+                  ? "Choose a subject and review the weekly timetable across all assigned classes."
+                : sidebarView === "year-group"
+                  ? "Build and review the timetable by year group, then narrow to a class if needed."
+                : "Click a cell to add a slot · Click a chip to edit"}
             </Text>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -810,6 +559,7 @@ export default function TimetableBuilderPage() {
             <Button icon={<ArrowRightOutlined />} onClick={() => setAnchor((a) => a.add(7, "day"))} />
             <Button onClick={() => setAnchor(dayjs())}>This Week</Button>
             <Button icon={<CopyOutlined />} onClick={() => setDuplicateOpen(true)}>Copy Week</Button>
+            <Button icon={<UploadOutlined />} onClick={() => setImportOpen(true)}>Import</Button>
             <Dropdown
               menu={{
                 items: [
@@ -839,117 +589,354 @@ export default function TimetableBuilderPage() {
           </div>
         </div>
 
-        {/* Week label + stats */}
-        <div className="mt-2 flex flex-wrap items-center gap-3">
-          <Tag color="blue" style={{ fontSize: 13 }}>{weekLabel(weekSun)}</Tag>
-          <span className="text-xs text-slate-500">
-            {stats.activeFilters > 0
-              ? <><strong>{stats.shown}</strong> shown / {stats.slots} total</>
-              : <>{stats.slots} slots</>}
-            {" · "}{stats.teachers} teachers · {stats.classes} classes
-          </span>
-          {stats.conflicts > 0 && (
-            <Tag color="error" icon={<WarningOutlined />}>{stats.conflicts} conflict{stats.conflicts !== 1 ? "s" : ""} this week</Tag>
-          )}
-        </div>
-
-        {/* Filter bar */}
-        <div className="mt-3 flex flex-wrap items-center gap-2 p-3 rounded-xl border border-slate-200 bg-white">
-          <FilterOutlined className="text-slate-400" />
-          <span className="text-xs font-medium text-slate-500 mr-1">Filter:</span>
-
-          <Select
-            allowClear
-            showSearch
-            optionFilterProp="children"
-            placeholder="All Subjects"
-            style={{ width: 150 }}
-            size="small"
-            value={filterSubjectId ?? undefined}
-            onChange={(v) => {
-              setFilterSubjectId(v ?? null);
-              setFilterYearId(null);
-              setFilterClassId(null);
-            }}
-          >
-            {(subjects as any[]).map((s: any) => (
-              <Option key={s.id} value={String(s.id)}>{s.name}</Option>
-            ))}
-          </Select>
-
-          <Select
-            allowClear
-            showSearch
-            optionFilterProp="children"
-            placeholder="All Years"
-            style={{ width: 120 }}
-            size="small"
-            value={filterYearId ?? undefined}
-            onChange={(v) => {
-              setFilterYearId(v ?? null);
-              setFilterClassId(null);
-            }}
-          >
-            {yearsInUse.map((y: any) => (
-              <Option key={y.id} value={String(y.id)}>{y.name}</Option>
-            ))}
-          </Select>
-
-          <Select
-            allowClear
-            showSearch
-            optionFilterProp="children"
-            placeholder="All Classes"
-            style={{ width: 120 }}
-            size="small"
-            disabled={!filterYearId}
-            value={filterClassId ?? undefined}
-            onChange={(v) => setFilterClassId(v ?? null)}
-          >
-            {filterClasses.map((c: any) => (
-              <Option key={c.id} value={String(c.id)}>{c.class_name}</Option>
-            ))}
-          </Select>
-
-          <Select
-            allowClear
-            showSearch
-            optionFilterProp="children"
-            placeholder="All Teachers"
-            style={{ width: 150 }}
-            size="small"
-            value={filterTeacherId ?? undefined}
-            onChange={(v) => setFilterTeacherId(v ?? null)}
-          >
-            {(teachers as any[]).map((t: any) => (
-              <Option key={t.id} value={String(t.id)}>{t.teacher_name || t.name}</Option>
-            ))}
-          </Select>
-
-          {stats.activeFilters > 0 && (
-            <Button
-              size="small"
-              type="link"
-              className="text-xs"
-              onClick={() => {
-                setFilterSubjectId(null);
-                setFilterYearId(null);
-                setFilterClassId(null);
-                setFilterTeacherId(null);
-              }}
-            >
-              Clear filters
-            </Button>
-          )}
-        </div>
       </div>
 
-      {/* Grid */}
-      <div className="max-w-screen-xl mx-auto overflow-x-auto">
-        {slotsLoading ? (
-          <div className="flex justify-center items-center h-64"><Spin size="large" /></div>
-        ) : (
-          <table className="w-full border-collapse text-xs" style={{ minWidth: 700 }}>
+      <div className="max-w-screen-xl mx-auto grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)] xl:items-start">
+        <TimetableManagerSidebar
+          className="xl:sticky xl:top-6"
+          referenceDate={weekSun.toDate()}
+          activeKey={sidebarView}
+          enabledKeys={["spreadsheets", "subject", "teacher", "year-group"]}
+          onSelect={handleSidebarSelect}
+        />
+
+        <div className="min-w-0 space-y-4">
+          {sidebarView === "subject" && (
+            <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                <div>
+                  <div className="text-base font-semibold text-slate-800">View Subject Timetable</div>
+                  <div className="text-sm text-slate-500">
+                    Focus the weekly spreadsheet on one subject, then narrow to a year group or class if needed.
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <Select
+                    showSearch
+                    optionFilterProp="children"
+                    placeholder="Select a subject"
+                    style={{ width: 240 }}
+                    value={filterSubjectId ?? undefined}
+                    onChange={(value) => {
+                      setFilterSubjectId(value ?? null);
+                      setFilterYearId(null);
+                      setFilterClassId(null);
+                    }}
+                  >
+                    {(subjects as any[]).map((subject: any) => (
+                      <Option key={subject.id} value={String(subject.id)}>
+                        {subject.name}
+                      </Option>
+                    ))}
+                  </Select>
+
+                  <Select
+                    allowClear
+                    showSearch
+                    optionFilterProp="children"
+                    placeholder="All years"
+                    style={{ width: 180 }}
+                    value={filterYearId ?? undefined}
+                    onChange={(value) => {
+                      setFilterYearId(value ?? null);
+                      setFilterClassId(null);
+                    }}
+                  >
+                    {(filterSubjectId ? yearsInUse : years).map((year: any) => (
+                      <Option key={year.id} value={String(year.id)}>
+                        {year.name}
+                      </Option>
+                    ))}
+                  </Select>
+
+                  <Select
+                    allowClear
+                    showSearch
+                    optionFilterProp="children"
+                    placeholder="All classes"
+                    style={{ width: 220 }}
+                    disabled={!filterYearId}
+                    value={filterClassId ?? undefined}
+                    onChange={(value) => setFilterClassId(value ?? null)}
+                  >
+                    {filterClasses.map((klass: any) => (
+                      <Option key={klass.id} value={String(klass.id)}>
+                        {klass.class_name}
+                      </Option>
+                    ))}
+                  </Select>
+
+                  <Button
+                    onClick={() => {
+                      setSidebarView("spreadsheets");
+                      setFilterSubjectId(null);
+                      setFilterYearId(null);
+                      setFilterClassId(null);
+                    }}
+                  >
+                    Back To Spreadsheets
+                  </Button>
+                </div>
+              </div>
+
+              {selectedSubject ? (
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <Tag color="gold">Subject: {selectedSubject.name}</Tag>
+                  {filterYearId ? <Tag color="blue">Year Group: {selectedYearGroup?.name ?? filterYearId}</Tag> : <Tag color="blue">All Years</Tag>}
+                  {selectedClassGroup ? <Tag color="cyan">Class: {selectedClassGroup.class_name}</Tag> : <Tag color="cyan">All Classes</Tag>}
+                  <Tag color="green">{weekSlots.length} slot{weekSlots.length !== 1 ? "s" : ""} this week</Tag>
+                </div>
+              ) : (
+                <div className="mt-4 text-xs text-slate-500">
+                  Select a subject to load the timetable grid.
+                </div>
+              )}
+            </div>
+          )}
+
+          {sidebarView === "teacher" && (
+            <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <div className="text-base font-semibold text-slate-800">View Teacher Timetable</div>
+                  <div className="text-sm text-slate-500">
+                    Focus the weekly spreadsheet on one teacher at a time.
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <Select
+                    showSearch
+                    optionFilterProp="children"
+                    placeholder="Select a teacher"
+                    style={{ width: 280 }}
+                    value={filterTeacherId ?? undefined}
+                    onChange={(value) => setFilterTeacherId(value ?? null)}
+                  >
+                    {(teachers as any[]).map((teacher: any) => (
+                      <Option key={teacher.id} value={String(teacher.id)}>
+                        {teacher.teacher_name || teacher.name}
+                      </Option>
+                    ))}
+                  </Select>
+
+                  <Button
+                    onClick={() => {
+                      setSidebarView("spreadsheets");
+                      setFilterTeacherId(null);
+                    }}
+                  >
+                    Back To Spreadsheets
+                  </Button>
+                </div>
+              </div>
+
+              {selectedTeacher ? (
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <Tag color="orange">{selectedTeacher.teacher_name || selectedTeacher.name}</Tag>
+                  <Tag color="blue">{weekSlots.length} slot{weekSlots.length !== 1 ? "s" : ""} this week</Tag>
+                </div>
+              ) : (
+                <div className="mt-4 text-xs text-slate-500">
+                  Select a teacher to load the timetable grid.
+                </div>
+              )}
+            </div>
+          )}
+
+          {sidebarView === "year-group" && (
+            <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                <div>
+                  <div className="text-base font-semibold text-slate-800">View Year Group Timetable</div>
+                  <div className="text-sm text-slate-500">
+                    Select a year group to manage the timetable for all its classes. Students see slots through their class, and teachers see the lessons assigned to them.
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <Select
+                    showSearch
+                    optionFilterProp="children"
+                    placeholder="Select a year group"
+                    style={{ width: 220 }}
+                    value={filterYearId ?? undefined}
+                    onChange={(value) => {
+                      setFilterYearId(value ?? null);
+                      setFilterClassId(null);
+                    }}
+                  >
+                    {(yearsInUse.length > 0 ? yearsInUse : years).map((year: any) => (
+                      <Option key={year.id} value={String(year.id)}>
+                        {year.name}
+                      </Option>
+                    ))}
+                  </Select>
+
+                  <Select
+                    allowClear
+                    showSearch
+                    optionFilterProp="children"
+                    placeholder="All classes in year"
+                    style={{ width: 220 }}
+                    disabled={!filterYearId}
+                    value={filterClassId ?? undefined}
+                    onChange={(value) => setFilterClassId(value ?? null)}
+                  >
+                    {filterClasses.map((klass: any) => (
+                      <Option key={klass.id} value={String(klass.id)}>
+                        {klass.class_name}
+                      </Option>
+                    ))}
+                  </Select>
+
+                  <Button
+                    onClick={() => {
+                      setSidebarView("spreadsheets");
+                      setFilterYearId(null);
+                      setFilterClassId(null);
+                    }}
+                  >
+                    Back To Spreadsheets
+                  </Button>
+                </div>
+              </div>
+
+              {selectedYearGroup ? (
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <Tag color="blue">Year Group: {selectedYearGroup.name}</Tag>
+                  {selectedClassGroup ? <Tag color="cyan">Class: {selectedClassGroup.class_name}</Tag> : <Tag color="cyan">All Classes</Tag>}
+                  <Tag color="green">{weekSlots.length} slot{weekSlots.length !== 1 ? "s" : ""} this week</Tag>
+                </div>
+              ) : (
+                <div className="mt-4 text-xs text-slate-500">
+                  Select a year group to load its timetable grid.
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Week label + stats */}
+          <div className="flex flex-wrap items-center gap-3">
+            <Tag color="blue" style={{ fontSize: 13 }}>{weekLabel(weekSun)}</Tag>
+            <span className="text-xs text-slate-500">
+              {stats.activeFilters > 0
+                ? <><strong>{stats.shown}</strong> shown / {stats.slots} total</>
+                : <>{stats.slots} slots</>}
+              {" · "}{stats.teachers} teachers · {stats.classes} classes
+            </span>
+            {stats.conflicts > 0 && (
+              <Tag color="error" icon={<WarningOutlined />}>{stats.conflicts} conflict{stats.conflicts !== 1 ? "s" : ""} this week</Tag>
+            )}
+            {sidebarView === "subject" && selectedSubject && (
+              <Tag color="gold">Subject: {selectedSubject.name}</Tag>
+            )}
+            {sidebarView === "teacher" && selectedTeacher && (
+              <Tag color="orange">Teacher: {selectedTeacher.teacher_name || selectedTeacher.name}</Tag>
+            )}
+            {sidebarView === "year-group" && selectedYearGroup && (
+              <Tag color="blue">Year Group: {selectedYearGroup.name}</Tag>
+            )}
+          </div>
+
+          {sidebarView === "spreadsheets" && (
+            <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+              <FilterOutlined className="text-slate-400" />
+              <span className="mr-1 text-xs font-medium text-slate-500">Filter:</span>
+
+              <Select
+                allowClear
+                showSearch
+                optionFilterProp="children"
+                placeholder="All Subjects"
+                style={{ width: 150 }}
+                size="small"
+                value={filterSubjectId ?? undefined}
+                onChange={(v) => {
+                  setFilterSubjectId(v ?? null);
+                  setFilterYearId(null);
+                  setFilterClassId(null);
+                }}
+              >
+                {(subjects as any[]).map((s: any) => (
+                  <Option key={s.id} value={String(s.id)}>{s.name}</Option>
+                ))}
+              </Select>
+
+              <Select
+                allowClear
+                showSearch
+                optionFilterProp="children"
+                placeholder="All Years"
+                style={{ width: 120 }}
+                size="small"
+                value={filterYearId ?? undefined}
+                onChange={(v) => {
+                  setFilterYearId(v ?? null);
+                  setFilterClassId(null);
+                }}
+              >
+                {yearsInUse.map((y: any) => (
+                  <Option key={y.id} value={String(y.id)}>{y.name}</Option>
+                ))}
+              </Select>
+
+              <Select
+                allowClear
+                showSearch
+                optionFilterProp="children"
+                placeholder="All Classes"
+                style={{ width: 120 }}
+                size="small"
+                disabled={!filterYearId}
+                value={filterClassId ?? undefined}
+                onChange={(v) => setFilterClassId(v ?? null)}
+              >
+                {filterClasses.map((c: any) => (
+                  <Option key={c.id} value={String(c.id)}>{c.class_name}</Option>
+                ))}
+              </Select>
+
+              <Select
+                allowClear
+                showSearch
+                optionFilterProp="children"
+                placeholder="All Teachers"
+                style={{ width: 150 }}
+                size="small"
+                value={filterTeacherId ?? undefined}
+                onChange={(v) => setFilterTeacherId(v ?? null)}
+              >
+                {(teachers as any[]).map((t: any) => (
+                  <Option key={t.id} value={String(t.id)}>{t.teacher_name || t.name}</Option>
+                ))}
+              </Select>
+
+              {stats.activeFilters > 0 && (
+                <Button
+                  size="small"
+                  type="link"
+                  className="text-xs"
+                  onClick={() => {
+                    setFilterSubjectId(null);
+                    setFilterYearId(null);
+                    setFilterClassId(null);
+                    setFilterTeacherId(null);
+                  }}
+                >
+                  Clear filters
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* Grid */}
+          <div className="overflow-x-auto rounded-3xl border border-slate-200 bg-white p-3 shadow-sm">
+            {slotsLoading ? (
+              <div className="flex justify-center items-center h-64"><Spin size="large" /></div>
+            ) : (
+              <table className="w-full border-collapse text-xs" style={{ minWidth: 700 }}>
             <thead>
               <tr>
                 <th className="bg-slate-100 border border-slate-200 p-2 text-slate-500 font-medium w-20">Period</th>
@@ -1152,17 +1139,16 @@ export default function TimetableBuilderPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
-        )}
-      </div>
+              </table>
+            )}
+          </div>
 
-      {/* Legend */}
-      <div className="max-w-screen-xl mx-auto mt-4 flex flex-wrap gap-3 text-xs text-slate-500">
-        <span className="flex items-center gap-1"><span>🔴</span> Hard conflict (teacher/class double-booked)</span>
-        <span className="flex items-center gap-1"><span>🟡</span> Soft conflict (room double-booked)</span>
-        <span className="flex items-center gap-1 ml-auto">
-          <a href="/dashboard/time_table" className="text-blue-500 hover:underline">← Calendar view</a>
-        </span>
+          {/* Legend */}
+          <div className="flex flex-wrap gap-3 px-1 text-xs text-slate-500">
+            <span className="flex items-center gap-1"><span>🔴</span> Hard conflict (teacher/class double-booked)</span>
+            <span className="flex items-center gap-1"><span>🟡</span> Soft conflict (room double-booked)</span>
+          </div>
+        </div>
       </div>
 
       {/* Modals */}
@@ -1179,6 +1165,21 @@ export default function TimetableBuilderPage() {
         sourceWeek={weekSun}
         allSlots={slots}
         onConfirm={handleDuplicate}
+      />
+      <TimetableImportModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        initialWeek={weekSun}
+        firstDayIdx={firstDayIdx}
+        schoolId={schoolId ?? undefined}
+        periods={periods}
+        schoolDays={schoolDays}
+        subjects={subjects as any[]}
+        teachers={teachers as any[]}
+        years={years as any[]}
+        classes={allClasses as any[]}
+        existingSlots={slots as any[]}
+        onApplied={invalidate}
       />
 
       {/* Reset confirmation modal */}
@@ -1199,5 +1200,180 @@ export default function TimetableBuilderPage() {
         )}
       </Modal>
     </div>
+  );
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function weekStart(anchor: Dayjs, firstDayIdx: number): Dayjs {
+  const anchorDay = anchor.day(); // 0=Sun … 6=Sat
+  const diff = (anchorDay - firstDayIdx + 7) % 7;
+  return anchor.subtract(diff, "day").startOf("day");
+}
+
+function slotsForWeek(slots: any[], weekSun: Dayjs): any[] {
+  const from = weekSun.format("YYYY-MM-DD");
+  const to = weekSun.add(6, "day").format("YYYY-MM-DD");
+  return (slots as any[]).filter((s: any) => s.date >= from && s.date <= to);
+}
+
+function dayOffset(day: string, weekSun: Dayjs, firstDayIdx: number): string {
+  const dayIdx = DAYS_OF_WEEK.findIndex((d) => d.value === day);
+  const offset = (dayIdx - firstDayIdx + 7) % 7;
+  return weekSun.add(offset, "day").format("YYYY-MM-DD");
+}
+
+function weekLabel(weekSun: Dayjs): string {
+  return `${weekSun.format("D MMM")} – ${weekSun.add(6, "day").format("D MMM YYYY")}`;
+}
+
+const CHIP_PALETTE = [
+  { bg: "#dbeafe", text: "#1d4ed8", border: "#93c5fd" },
+  { bg: "#dcfce7", text: "#15803d", border: "#86efac" },
+  { bg: "#fef9c3", text: "#a16207", border: "#fde047" },
+  { bg: "#fce7f3", text: "#be185d", border: "#f9a8d4" },
+  { bg: "#ede9fe", text: "#7c3aed", border: "#c4b5fd" },
+  { bg: "#ffedd5", text: "#c2410c", border: "#fdba74" },
+  { bg: "#cffafe", text: "#0891b2", border: "#67e8f9" },
+  { bg: "#f0fdf4", text: "#166534", border: "#bbf7d0" },
+];
+
+function chipColor(subject: string): { bg: string; text: string; border: string } {
+  let hash = 0;
+  for (let i = 0; i < subject.length; i++) {
+    hash = (hash * 31 + subject.charCodeAt(i)) & 0xffffffff;
+  }
+  return CHIP_PALETTE[Math.abs(hash) % CHIP_PALETTE.length];
+}
+
+// ── SlotForm ──────────────────────────────────────────────────────────────────
+
+interface SlotFormProps {
+  initial?: SlotFormValues;
+  subjects: any[];
+  teachers: any[];
+  years: any[];
+  classes: any[];
+  onYearChange: (yearId: string) => void;
+  onSave: (values: SlotFormValues) => void;
+  onCancel: () => void;
+  loading?: boolean;
+  conflicts?: ReturnType<typeof detectConflicts>;
+}
+
+function SlotForm({
+  initial,
+  subjects,
+  teachers,
+  years,
+  classes,
+  onYearChange,
+  onSave,
+  onCancel,
+  loading,
+  conflicts = [],
+}: SlotFormProps) {
+  const [form] = Form.useForm<SlotFormValues>();
+
+  useEffect(() => {
+    if (initial) {
+      form.setFieldsValue(initial);
+    } else {
+      form.resetFields();
+    }
+  }, [initial, form]);
+
+  const hardConflict = hasHardConflict(conflicts);
+
+  return (
+    <Form
+      form={form}
+      layout="vertical"
+      initialValues={initial}
+      onFinish={onSave}
+      style={{ width: 280 }}
+      size="small"
+    >
+      {conflicts.length > 0 && (
+        <div
+          className={`mb-2 rounded p-2 text-xs ${
+            hardConflict
+              ? "bg-red-50 text-red-700 border border-red-200"
+              : "bg-yellow-50 text-yellow-700 border border-yellow-200"
+          }`}
+        >
+          {conflicts.map((c, i) => (
+            <div key={i}>⚠ {c.message}</div>
+          ))}
+        </div>
+      )}
+
+      <Form.Item
+        name="subject_id"
+        label="Subject"
+        rules={[{ required: true, message: "Select a subject" }]}
+      >
+        <Select placeholder="Subject" showSearch optionFilterProp="children" allowClear>
+          {subjects.map((s: any) => (
+            <Option key={s.id} value={String(s.id)}>{s.name}</Option>
+          ))}
+        </Select>
+      </Form.Item>
+
+      <Form.Item name="teacher_id" label="Teacher">
+        <Select placeholder="Teacher" showSearch optionFilterProp="children" allowClear>
+          {teachers.map((t: any) => (
+            <Option key={t.id} value={String(t.id)}>{t.teacher_name || t.name}</Option>
+          ))}
+        </Select>
+      </Form.Item>
+
+      <Form.Item name="year_id" label="Year Group">
+        <Select
+          placeholder="Year Group"
+          showSearch
+          optionFilterProp="children"
+          allowClear
+          onChange={(v: string) => {
+            onYearChange(v ?? "");
+            form.setFieldValue("class_id", undefined);
+          }}
+        >
+          {years.map((y: any) => (
+            <Option key={y.id} value={String(y.id)}>{y.name}</Option>
+          ))}
+        </Select>
+      </Form.Item>
+
+      <Form.Item name="class_id" label="Class">
+        <Select placeholder="Class" showSearch optionFilterProp="children" allowClear>
+          {classes.map((c: any) => (
+            <Option key={c.id} value={String(c.id)}>{c.class_name}</Option>
+          ))}
+        </Select>
+      </Form.Item>
+
+      <Form.Item name="room" label="Room">
+        <Input placeholder="Room" />
+      </Form.Item>
+
+      <Form.Item name="zoom_link" label="Zoom Link">
+        <Input placeholder="https://..." />
+      </Form.Item>
+
+      <div className="flex justify-end gap-2 mt-1">
+        <Button size="small" onClick={onCancel}>Cancel</Button>
+        <Button
+          size="small"
+          type="primary"
+          htmlType="submit"
+          loading={loading}
+          disabled={hardConflict}
+          className="bg-blue-500"
+        >
+          Save
+        </Button>
+      </div>
+    </Form>
   );
 }

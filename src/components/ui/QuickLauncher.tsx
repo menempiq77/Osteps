@@ -183,7 +183,7 @@ export default function QuickLauncher() {
       const classes = await fetchSubjectClasses({ subject_id: Number(activeSubjectId) });
       return Array.isArray(classes) ? classes : [];
     },
-    enabled: isStudent && !!activeSubjectId,
+    enabled: open && isStudent && !!activeSubjectId,
     staleTime: 1000 * 60,
   });
 

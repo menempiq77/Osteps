@@ -1,20 +1,7 @@
 "use client";
+import dynamic from "next/dynamic";
 import { Alert, Card, Statistic, Row, Col, Button, Select, Spin } from "antd";
 import { useSelector } from "react-redux";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
-  CartesianGrid,
-  LabelList,
-} from "recharts";
 import { RootState } from "@/store/store";
 import {
   School,
@@ -39,7 +26,7 @@ import {
   searchStudentProfile,
 } from "@/services/dashboardApis";
 import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
-import { fetchStudents } from "@/services/studentsApi";
+import { fetchStudentProfileData, fetchStudents } from "@/services/studentsApi";
 import { fetchAssessment, fetchSchoolLogo } from "@/services/api";
 import { fetchTrackers } from "@/services/trackersApi";
 import { IMG_BASE_URL } from "@/lib/config";
@@ -60,7 +47,9 @@ import { fetchTerm } from "@/services/termsApi";
 import { IMPERSONATION_STORAGE_KEY } from "@/features/auth/authSlice";
 import ClassStoryPanel from "@/components/dashboard/ClassStoryPanel";
 
-export const dynamic = "force-dynamic";
+const DashboardCharts = dynamic(() => import("@/components/dashboard/DashboardCharts"), {
+  ssr: false,
+});
 
 const resolveSubjectClassYearId = (row: any): number =>
   Number(
@@ -172,6 +161,27 @@ const getStudentsListLink = (options: {
 
   return "/dashboard/students/all-students";
 };
+
+const extractLiveStudentClassId = (profile: any, fallback?: number | string | null) =>
+  Number(
+    profile?.class_id ??
+      profile?.class?.id ??
+      profile?.student?.class_id ??
+      profile?.student?.class?.id ??
+      fallback ??
+      0
+  );
+
+const extractLiveStudentClassName = (profile: any, fallback?: string | null) =>
+  String(
+    profile?.class?.class_name ??
+      profile?.class?.name ??
+      profile?.student?.class?.class_name ??
+      profile?.student?.class?.name ??
+      profile?.class_name ??
+      fallback ??
+      ""
+  ).trim();
 
 export default function DashboardPage() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
@@ -549,15 +559,36 @@ export default function DashboardPage() {
     enabled: currentUser?.role === "STUDENT",
   });
 
+  const { data: liveStudentProfile, isLoading: liveStudentProfileLoading } = useQuery({
+    queryKey: ["student-live-class-profile", currentUser?.student, activeSubjectId, canUseSubjectContext],
+    queryFn: () =>
+      fetchStudentProfileData(
+        Number(currentUser?.student),
+        canUseSubjectContext ? activeSubjectId ?? undefined : undefined
+      ),
+    enabled: currentUser?.role === "STUDENT" && Number(currentUser?.student) > 0,
+    staleTime: 30 * 1000,
+    refetchOnWindowFocus: true,
+  });
+
+  const liveStudentClassId = extractLiveStudentClassId(
+    liveStudentProfile,
+    currentUser?.studentClass
+  );
+  const effectiveStudentClassId =
+    Number.isFinite(liveStudentClassId) && liveStudentClassId > 0
+      ? liveStudentClassId
+      : Number(currentUser?.studentClass ?? 0);
+
   const { data: studentHomeAssessmentsFromTerms = [] } = useQuery({
     queryKey: [
       "student-home-assessments-from-terms",
-      currentUser?.studentClass,
+      effectiveStudentClassId,
       activeSubjectId,
       canUseSubjectContext,
     ],
     queryFn: async () => {
-      const classId = Number(currentUser?.studentClass);
+      const classId = Number(effectiveStudentClassId);
       if (!Number.isFinite(classId) || classId <= 0) return [];
 
       const terms = await fetchTerm(classId);
@@ -608,18 +639,19 @@ export default function DashboardPage() {
     },
     enabled:
       currentUser?.role === "STUDENT" &&
-      Number(currentUser?.studentClass) > 0,
+      !liveStudentProfileLoading &&
+      Number(effectiveStudentClassId) > 0,
   });
 
   const { data: studentHomeTrackers = [] } = useQuery({
     queryKey: [
       "student-home-trackers",
-      currentUser?.studentClass,
+      effectiveStudentClassId,
       activeSubjectId,
       canUseSubjectContext,
     ],
     queryFn: async () => {
-      const classId = Number(currentUser?.studentClass);
+      const classId = Number(effectiveStudentClassId);
       if (!Number.isFinite(classId) || classId <= 0) return [];
 
       const rows = await fetchTrackers(
@@ -679,7 +711,8 @@ export default function DashboardPage() {
     },
     enabled:
       currentUser?.role === "STUDENT" &&
-      Number(currentUser?.studentClass) > 0,
+      !liveStudentProfileLoading &&
+      Number(effectiveStudentClassId) > 0,
   });
 
   function timeAgo(dateString: string) {
@@ -694,7 +727,10 @@ export default function DashboardPage() {
   }
 
   const studentYearName = currentUser?.studentYearName;
-  const studentClassName = currentUser?.studentClassName;
+  const studentClassName = extractLiveStudentClassName(
+    liveStudentProfile,
+    currentUser?.studentClassName
+  );
 
   const studentActiveAssessments = useMemo(() => {
     const terms = studentDashboard?.data?.class?.term;
@@ -785,7 +821,7 @@ export default function DashboardPage() {
       kind: "assessment" as const,
       key: `assessment-${assessment.assessmentId ?? index}`,
       title: assessment.assessmentName || "Assessment",
-      meta: [
+      metaParts: [
         assessment.termName || "Term",
         assessment.taskCount
           ? `${assessment.taskCount} task${assessment.taskCount === 1 ? "" : "s"}`
@@ -793,9 +829,7 @@ export default function DashboardPage() {
         assessment.dueDate
           ? `Due ${new Date(assessment.dueDate).toLocaleDateString()}`
           : null,
-      ]
-        .filter(Boolean)
-        .join(" • "),
+      ].filter(Boolean),
       href: assessment.assessmentId
         ? `/dashboard/students/assignments/${assessment.assessmentId}`
         : "/dashboard/students/assignments",
@@ -807,8 +841,7 @@ export default function DashboardPage() {
       kind: "tracker" as const,
       key: `tracker-${tracker.trackerId ?? index}`,
       title: tracker.trackerName || "Tracker",
-      meta: [
-        "Tracker",
+      metaParts: [
         tracker.topicCount
           ? `${tracker.completedTopicCount}/${tracker.topicCount} topics`
           : null,
@@ -816,12 +849,10 @@ export default function DashboardPage() {
         tracker.dueDate
           ? `Due ${new Date(tracker.dueDate).toLocaleDateString()}`
           : null,
-      ]
-        .filter(Boolean)
-        .join(" • "),
+      ].filter(Boolean),
       href: tracker.trackerId
-        ? `/dashboard/trackers/${currentUser?.studentClass}/${tracker.trackerId}`
-        : `/dashboard/trackers/${currentUser?.studentClass}`,
+        ? `/dashboard/trackers/${effectiveStudentClassId}/${tracker.trackerId}`
+        : `/dashboard/trackers/${effectiveStudentClassId}`,
       dueTs: tracker.dueTs ?? null,
       updatedTs: parseUpdatedTimestamp(tracker.updatedAt),
     }));
@@ -836,8 +867,8 @@ export default function DashboardPage() {
       if (bDue === null) return -1;
       return aDue - bDue;
     });
-  }, [currentUser?.studentClass, studentHomeAssessments, studentHomeTrackers]);
-  const studentClassStoryClassId = String(currentUser?.studentClass ?? "").trim();
+  }, [effectiveStudentClassId, studentHomeAssessments, studentHomeTrackers]);
+  const studentClassStoryClassId = String(effectiveStudentClassId || "").trim();
 
   // Redirect to subject-cards — show a clean loading state, no dashboard flash
   if (shouldUseSubjectCardsEntry) {
@@ -1199,8 +1230,25 @@ export default function DashboardPage() {
     );
   }
 
+  const dashboardUserName = String(currentUser?.name || "User").replace(/_/g, " ");
+  const subjectDashboardName = formatSubjectDashboardName(activeSubject?.name);
+  const heroTitle = isSubjectWorkspaceMode
+    ? `${subjectDashboardName} Dashboard`
+    : `Welcome, ${dashboardUserName}!`;
+  const heroWelcome = isSubjectWorkspaceMode
+    ? `Welcome, ${dashboardUserName} - ${subjectDashboardName}!`
+    : "We're glad to have you back!";
+  const heroDescription = isSubjectWorkspaceMode
+    ? `View the latest information for ${subjectDashboardName}.`
+    : "Let's get started. Explore your dashboard to manage your activities.";
+  const isStudentDashboard = currentUser?.role === "STUDENT";
+
   return (
-    <div className="premium-page p-3 md:p-6 space-y-6 min-h-screen !font-[Raleway]">
+    <div
+      className={`premium-page min-h-screen !font-[Raleway] ${
+        isStudentDashboard ? "space-y-4 p-3 md:p-4" : "space-y-6 p-3 md:p-6"
+      }`}
+    >
       {isSubjectWorkspaceMode && subjectScopedOverviewError && currentUser?.role !== "TEACHER" && (
         <Alert
           type="warning"
@@ -1210,32 +1258,43 @@ export default function DashboardPage() {
         />
       )}
       <Card
-        className="premium-hero border-0 !mb-6"
+        className={`premium-hero border-0 overflow-hidden ${
+          isStudentDashboard ? "!mb-2" : "!mb-4"
+        }`}
         style={{
-          background: `linear-gradient(to right, ${THEME_COLOR_LIGHT}, white)`,
+          background: `linear-gradient(135deg, ${THEME_COLOR_LIGHT}, rgba(255,255,255,0.98) 72%)`,
         }}
       >
-        <div className="p-6">
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="text-2xl font-semibold text-gray-800 mb-1">
-                {isSubjectWorkspaceMode
-                  ? `${formatSubjectDashboardName(activeSubject?.name)} Dashboard`
-                  : `Welcome, ${String(currentUser?.name || "User").replace(/_/g, " ")}!`}
-              </h1>
-              <p className="text-lg text-gray-600 mb-3">
-                {isSubjectWorkspaceMode
-                  ? `Welcome, ${String(currentUser?.name || "User").replace(/_/g, " ")} - ${formatSubjectDashboardName(activeSubject?.name)}!`
-                  : "We're glad to have you back!"}
-              </p>
-              <p className="text-gray-500 mb-4">
-                {isSubjectWorkspaceMode
-                  ? `View the latest information for ${formatSubjectDashboardName(activeSubject?.name)}.`
-                  : "Let's get started. Explore your dashboard to manage your activities."}
+        <div className={`${isStudentDashboard ? "px-4 py-3 md:px-5 md:py-4" : "px-4 py-4 md:px-6 md:py-5"}`}>
+          <div className={`flex flex-col ${isStudentDashboard ? "gap-3" : "gap-4"} md:flex-row md:items-center md:justify-between`}>
+            <div className="min-w-0 flex-1">
+              {isSubjectWorkspaceMode ? (
+                <div className={`inline-flex items-center rounded-full border border-[var(--theme-border)] bg-white/75 shadow-sm ${isStudentDashboard ? "px-2.5 py-1 text-[10px] tracking-[0.22em]" : "px-3 py-1 text-[11px] tracking-[0.24em]"} font-semibold uppercase text-slate-500`}>
+                  Subject Workspace
+                </div>
+              ) : null}
+
+              <div className={`${isStudentDashboard ? "mt-2.5" : "mt-3"} flex flex-wrap items-center gap-x-3 gap-y-2`}>
+                <h1 className={`${isStudentDashboard ? "text-[1.65rem] md:text-[1.9rem]" : "text-[2rem] md:text-[2.25rem]"} font-semibold leading-none tracking-tight text-slate-800`}>
+                  {heroTitle}
+                </h1>
+                {isSubjectWorkspaceMode ? (
+                  <span className={`inline-flex max-w-full items-center rounded-2xl border border-[var(--theme-border)] bg-white/85 shadow-sm ${isStudentDashboard ? "px-2.5 py-1 text-xs" : "px-3 py-1.5 text-sm"} font-medium text-slate-600`}>
+                    {heroWelcome}
+                  </span>
+                ) : null}
+              </div>
+
+              {!isSubjectWorkspaceMode ? (
+                <p className={`${isStudentDashboard ? "mt-1.5 text-sm" : "mt-2 text-base"} text-slate-600`}>{heroWelcome}</p>
+              ) : null}
+
+              <p className={`${isStudentDashboard ? "mt-2 text-xs leading-5 md:text-sm" : "mt-3 text-sm leading-6 md:text-base"} max-w-2xl text-slate-500`}>
+                {heroDescription}
               </p>
             </div>
             {currentUser?.role !== "SUPER_ADMIN" && schoolLogo ? (
-              <div className="w-16 h-16 rounded-lg overflow-hidden">
+              <div className={`${isStudentDashboard ? "h-12 w-12 md:h-14 md:w-14" : "h-14 w-14 md:h-16 md:w-16"} overflow-hidden rounded-2xl border border-[var(--theme-border)] bg-white shadow-sm`}>
                 <img
                   src={`${IMG_BASE_URL}/storage/${schoolLogo}`}
                   alt="School Logo"
@@ -1245,7 +1304,7 @@ export default function DashboardPage() {
             ) : (
               isSubjectWorkspaceMode &&
               /islam|islamiat|islamic/i.test(String(activeSubject?.name || "")) ? (
-                <div className="hidden md:block h-32 w-32 overflow-hidden rounded-2xl border border-[var(--theme-border)] bg-white shadow-sm">
+                <div className={`hidden overflow-hidden rounded-2xl border border-[var(--theme-border)] bg-white shadow-sm md:block ${isStudentDashboard ? "h-16 w-16 md:h-20 md:w-20" : "h-20 w-20 md:h-24 md:w-24"}`}>
                   <img
                     src={ISLAMIC_DASHBOARD_IMAGE}
                     alt="Al-Masjid an-Nabawi"
@@ -1254,7 +1313,7 @@ export default function DashboardPage() {
                 </div>
               ) : isSubjectWorkspaceMode &&
                 /arabic|arab/i.test(String(activeSubject?.name || "")) ? (
-                <div className="hidden md:block h-32 w-32 overflow-hidden rounded-2xl border border-[var(--theme-border)] bg-white shadow-sm">
+                <div className={`hidden overflow-hidden rounded-2xl border border-[var(--theme-border)] bg-white shadow-sm md:block ${isStudentDashboard ? "h-16 w-16 md:h-20 md:w-20" : "h-20 w-20 md:h-24 md:w-24"}`}>
                   <img
                     src={ARABIC_DASHBOARD_IMAGE}
                     alt="Arabic alphabet calligraphy"
@@ -1263,11 +1322,11 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div
-                  className="hidden md:block p-3 rounded-lg"
+                  className={`hidden rounded-2xl border border-[var(--theme-border)] shadow-sm md:block ${isStudentDashboard ? "p-2" : "p-2.5"}`}
                   style={{ backgroundColor: THEME_COLOR_LIGHT }}
                 >
                   <svg
-                    className="w-16 h-16"
+                    className={`${isStudentDashboard ? "h-10 w-10" : "h-12 w-12"}`}
                     style={{ color: THEME_COLOR }}
                     fill="none"
                     stroke="currentColor"
@@ -1310,9 +1369,9 @@ export default function DashboardPage() {
       )}
 
       {currentUser?.role === "STUDENT" ? (
-        <div className="space-y-6">
+        <div className="space-y-3 lg:space-y-2">
           {/* Enhanced Breadcrumb */}
-          <div className="flex items-center text-sm font-medium capitalize text-gray-600">
+          <div className="flex items-center text-xs font-medium capitalize text-gray-600 md:text-sm">
             <span className="font-semibold" style={{ color: THEME_COLOR }}>
               {studentYearName || "Year"}
             </span>
@@ -1320,18 +1379,18 @@ export default function DashboardPage() {
             <span className="text-gray-800">{studentClassName || "Class"}</span>
           </div>
 
-          <Card className="border-0 shadow-sm">
+          <Card className="border-0 bg-transparent !shadow-none">
             {studentHomeItems.length > 0 ? (
-              <div className="divide-y divide-gray-100">
+              <div className="space-y-2.5">
                 {studentHomeItems.map((item) => (
                   <Link
                     key={item.key}
                     href={item.href}
-                    className="block"
+                    className="group block"
                   >
-                    <div className="flex flex-col gap-2 py-4 first:pt-0 last:pb-0 md:flex-row md:items-center md:justify-between">
+                    <div className="rounded-2xl border border-[var(--theme-border)] bg-white px-3 py-2.5 shadow-sm transition group-hover:border-[color:var(--primary)] group-hover:shadow-md md:px-4 md:py-3">
                       <div className="min-w-0">
-                        <div className="mb-1 flex items-center gap-2">
+                        <div className="mb-1.5 flex flex-wrap items-center gap-2.5">
                           <span
                             className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${
                               item.kind === "tracker"
@@ -1341,14 +1400,28 @@ export default function DashboardPage() {
                           >
                             {item.kind}
                           </span>
+                          <span
+                            className="text-xs font-medium md:text-sm"
+                            style={{ color: THEME_COLOR }}
+                          >
+                            View
+                          </span>
                         </div>
-                        <p className="truncate text-base font-medium text-gray-800">
-                          {item.title}
-                        </p>
-                        <p className="text-sm text-gray-500">{item.meta}</p>
-                      </div>
-                      <div className="shrink-0 text-sm font-medium" style={{ color: THEME_COLOR }}>
-                        View
+                        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                          <p className="text-base font-semibold text-slate-800 md:text-[1.02rem]">
+                            {item.title}
+                          </p>
+                          {item.metaParts?.length ? (
+                            <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-slate-500 md:text-sm">
+                              {item.metaParts.map((part: string, index: number) => (
+                                <span key={`${item.key}-meta-${part}-${index}`} className="flex items-center gap-2">
+                                  {index > 0 ? <span className="text-slate-300">•</span> : null}
+                                  <span>{part}</span>
+                                </span>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
                   </Link>
@@ -1360,14 +1433,18 @@ export default function DashboardPage() {
           </Card>
 
           {studentClassStoryClassId ? (
-            <div>
-              <div className="mb-2">
-                <h2 className="text-xl font-semibold text-gray-900">Class Story</h2>
-                <p className="text-sm text-gray-600">
+            <div className="space-y-2">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900 md:text-[1.05rem]">Class Story</h2>
+                <p className="text-xs text-gray-600 md:text-sm">
                   Announcements, assignments, and class updates for this subject.
                 </p>
               </div>
-              <ClassStoryPanel classId={studentClassStoryClassId} />
+              <ClassStoryPanel
+                classId={studentClassStoryClassId}
+                compact
+                scrollableFeedClassName="min-h-[16rem] max-h-[50vh] md:max-h-[54vh] lg:max-h-[calc(100vh-23rem)]"
+              />
             </div>
           ) : null}
         </div>
@@ -1420,114 +1497,15 @@ export default function DashboardPage() {
             </>
           )}
 
-          {/* Charts Section */}
-          {barChartData.length > 0 && pieChartData.length > 0 && (
-            <Row gutter={[16, 16]}>
-              {/* Bar Chart */}
-              <Col xs={24} lg={12}>
-                <Card className="premium-card border-0">
-                  <h2 className="text-lg font-semibold text-gray-800 mb-4">
-                    {barChartTitle}
-                  </h2>
-                  <div className="h-[350px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={barChartData}
-                        margin={{ top: 20, right: 20, left: 0, bottom: 20 }}
-                      >
-                        <CartesianGrid
-                          strokeDasharray="3 3"
-                          className="opacity-30"
-                        />
-                        <XAxis
-                          dataKey="name"
-                          tick={{ fill: "#6b7280" }}
-                          axisLine={{ stroke: "#d1d5db" }}
-                        />
-                        <YAxis
-                          tick={{ fill: "#6b7280" }}
-                          axisLine={{ stroke: "#d1d5db" }}
-                        />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: "#ffffff",
-                            borderRadius: "0.5rem",
-                            borderColor: "#e5e7eb",
-                            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-                          }}
-                        />
-                        <Legend />
-                        <Bar
-                          dataKey={barChartKey}
-                          name={barChartTitle.split(" per ")[0]}
-                          fill={THEME_COLOR}
-                          radius={[4, 4, 0, 0]}
-                        >
-                          <LabelList
-                            dataKey={barChartKey}
-                            position="top"
-                            className="text-xs fill-gray-600"
-                          />
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </Card>
-              </Col>
-
-              {/* Pie Chart */}
-              <Col xs={24} lg={12}>
-                <Card className="premium-card border-0">
-                  <h2 className="text-lg font-semibold text-gray-800 mb-4">
-                    {pieChartTitle}
-                  </h2>
-                  <div className="h-[350px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={pieChartData}
-                          dataKey="value"
-                          nameKey="name"
-                          cx="50%"
-                          cy="50%"
-                          outerRadius={100}
-                          innerRadius={60}
-                          paddingAngle={5}
-                          label={({ percent }) =>
-                            `${(percent * 100).toFixed(0)}%`
-                          }
-                          labelLine={false}
-                        >
-                          {pieChartData.map((entry, index) => (
-                            <Cell
-                              key={`cell-${index}`}
-                              fill={COLORS[index % COLORS.length]}
-                              stroke="#fff"
-                            />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          formatter={(value, name, props) => [value, name]}
-                          contentStyle={{
-                            backgroundColor: "#ffffff",
-                            borderRadius: "0.5rem",
-                            borderColor: "#e5e7eb",
-                            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-                          }}
-                        />
-                        <Legend
-                          layout="horizontal"
-                          verticalAlign="bottom"
-                          align="center"
-                          wrapperStyle={{ paddingTop: "20px" }}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                </Card>
-              </Col>
-            </Row>
-          )}
+          <DashboardCharts
+            barChartData={barChartData}
+            pieChartData={pieChartData}
+            barChartTitle={barChartTitle}
+            pieChartTitle={pieChartTitle}
+            barChartKey={barChartKey}
+            themeColor={THEME_COLOR}
+            colors={COLORS}
+          />
         </>
       )}
 

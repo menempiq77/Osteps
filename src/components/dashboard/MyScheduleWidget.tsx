@@ -90,10 +90,17 @@ export default function MyScheduleWidget({ currentUser, isStudent }: MyScheduleW
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [form] = Form.useForm();
 
+  const queryRange = useMemo(() => ({
+    dateFrom: selectedDate.startOf("week").format("YYYY-MM-DD"),
+    dateTo: selectedDate.endOf("week").format("YYYY-MM-DD"),
+  }), [selectedDate]);
+
   // ── Fetch all timetable data ──────────────────────────────────────────────
   const { data: allEvents = [], isLoading } = useQuery({
-    queryKey: ["timetable", "all"],
-    queryFn: () => fetchTimetableData("all"),
+    queryKey: ["timetable", "widget", "all", queryRange.dateFrom, queryRange.dateTo],
+    queryFn: () => fetchTimetableData("all", queryRange),
+    placeholderData: (previousData) => previousData,
+    staleTime: 5 * 60 * 1000,
     select: (res: any) =>
       (res || []).map((item: any) => ({
         id: item.id,
@@ -116,6 +123,7 @@ export default function MyScheduleWidget({ currentUser, isStudent }: MyScheduleW
     queryKey: ["teachers", "schedule-widget"],
     queryFn: () => fetchTeachers("all"),
     enabled: isTeacherOrHOD,
+    staleTime: 5 * 60 * 1000,
   });
 
   // Resolve "my teacher record ID" so we can filter my personal slots
@@ -130,7 +138,7 @@ export default function MyScheduleWidget({ currentUser, isStudent }: MyScheduleW
   // ── Years & classes (for TimetableModal dropdowns) ────────────────────────
   const { data: yearsData = [] } = useQuery({
     queryKey: ["years-schedule-widget", currentUser?.id],
-    enabled: !isStudent,
+    enabled: slotModalOpen && !isStudent,
     queryFn: async (): Promise<any[]> => {
       if (isTeacherOrHOD) {
         const res = await fetchAssignYears();
@@ -139,11 +147,12 @@ export default function MyScheduleWidget({ currentUser, isStudent }: MyScheduleW
       }
       return fetchYearsBySchool(schoolId as number) as Promise<any[]>;
     },
+    staleTime: 5 * 60 * 1000,
   });
 
   const { data: classesData = [] } = useQuery({
     queryKey: ["classes-schedule-widget", selectedYear, currentUser?.id],
-    enabled: !!selectedYear && !isStudent,
+    enabled: slotModalOpen && !!selectedYear && !isStudent,
     queryFn: async (): Promise<any[]> => {
       if (isTeacherOrHOD) {
         const res = await fetchAssignYears();
@@ -153,20 +162,23 @@ export default function MyScheduleWidget({ currentUser, isStudent }: MyScheduleW
       }
       return fetchClasses(selectedYear!) as Promise<any[]>;
     },
+    staleTime: 5 * 60 * 1000,
   });
 
   // Auto-pick first year/class for modal
   useEffect(() => {
+    if (!slotModalOpen) return;
     if ((yearsData as any[]).length > 0 && !selectedYear) {
       setSelectedYear(String((yearsData as any[])[0].id));
     }
-  }, [yearsData]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [slotModalOpen, yearsData, selectedYear]);
 
   useEffect(() => {
+    if (!slotModalOpen) return;
     if ((classesData as any[]).length > 0 && !selectedClass) {
       setSelectedClass(String((classesData as any[])[0].id));
     }
-  }, [classesData]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [slotModalOpen, classesData, selectedClass]);
 
   // ── Filter events for selected date + user role ───────────────────────────
   const todayEvents = useMemo(() => {
@@ -229,12 +241,15 @@ export default function MyScheduleWidget({ currentUser, isStudent }: MyScheduleW
   const openAddModal = () => {
     setIsEditMode(false);
     setCurrentEventId(null);
+    setSelectedClass(null);
     form.resetFields();
     form.setFieldsValue({ date: selectedDate });
     setSlotModalOpen(true);
   };
 
   const handleEditEvent = (event: any) => {
+    setSelectedYear(event.year_id ? String(event.year_id) : null);
+    setSelectedClass(event.class_id ? String(event.class_id) : null);
     form.setFieldsValue({
       subject: event.title,
       year: event.year_id,
@@ -484,7 +499,7 @@ export default function MyScheduleWidget({ currentUser, isStudent }: MyScheduleW
           {isToday ? " today" : ` on ${selectedDate.format("D MMM")}`}
         </p>
         <Link
-          href="/dashboard/time_table"
+          href="/dashboard/time_table?view=calendar"
           className="text-xs font-semibold transition-colors hover:opacity-80"
           style={{ color: "var(--primary)" }}
         >

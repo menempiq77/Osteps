@@ -3,22 +3,28 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Alert, Breadcrumb, Spin } from "antd";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useSelector } from "react-redux";
 import PdfAssessmentAnnotator from "@/components/assessment/PdfAssessmentAnnotator";
 import type { AssessmentDocumentLayer } from "@/services/documentAssessmentApi";
 import { fetchTasks } from "@/services/api";
 import { resolveExamWindow } from "@/lib/taskTypeMetadata";
 import dayjs from "dayjs";
+import type { RootState } from "@/store/store";
 
 const asRole = (value: string | null): AssessmentDocumentLayer =>
   value === "teacher" ? "teacher" : "student";
 
 export default function AssessmentDocumentPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const { currentUser } = useSelector((state: RootState) => state.auth);
   const assessmentId = searchParams.get("assessmentId") || "";
   const taskId = searchParams.get("taskId") || "";
-  const studentId = searchParams.get("studentId") || "";
   const role = asRole(searchParams.get("role"));
+  const requestedStudentId = searchParams.get("studentId") || "";
+  const authenticatedStudentId = String(currentUser?.student || "").trim();
+  const studentId = role === "student" ? authenticatedStudentId : requestedStudentId;
   const fileUrl = searchParams.get("fileUrl") || "";
   const title = searchParams.get("title") || "PDF Assessment";
   const maxMarksParam = searchParams.get("maxMarks");
@@ -54,9 +60,19 @@ export default function AssessmentDocumentPage() {
   const [resolvedExamConfig, setResolvedExamConfig] = useState(fallbackExamConfig);
   const [checkingExamAccess, setCheckingExamAccess] = useState(role === "student");
 
+  const waitingForStudentSession = role === "student" && !authenticatedStudentId;
   const missing = !assessmentId || !taskId || !studentId || !fileUrl;
   const examWindow = resolveExamWindow(resolvedExamConfig);
   const isStudentExamRoute = role === "student" && (fallbackExamMode || resolvedExamConfig.exam_mode);
+
+  useEffect(() => {
+    if (role !== "student" || !authenticatedStudentId || !requestedStudentId) return;
+    if (String(requestedStudentId) === String(authenticatedStudentId)) return;
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("studentId", authenticatedStudentId);
+    router.replace(`/dashboard/assessment-document?${params.toString()}`);
+  }, [authenticatedStudentId, requestedStudentId, role, router, searchParams]);
 
   useEffect(() => {
     setResolvedExamConfig(fallbackExamConfig);
@@ -128,7 +144,12 @@ export default function AssessmentDocumentPage() {
         </div>
       )}
 
-      {missing ? (
+      {waitingForStudentSession ? (
+        <div className={isStudentExamRoute ? "flex items-center justify-center gap-3 p-8" : "mx-auto flex max-w-3xl items-center justify-center gap-3 p-8"}>
+          <Spin />
+          <span className="text-sm text-gray-600">Checking student session...</span>
+        </div>
+      ) : missing ? (
         <div className={isStudentExamRoute ? "p-4" : "mx-auto max-w-3xl p-4"}>
           <Alert
             type="error"

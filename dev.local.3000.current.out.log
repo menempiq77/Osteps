@@ -1,0 +1,20 @@
+
+> sms@0.1.0 dev
+> npm run dev:clean && next dev
+
+
+> sms@0.1.0 dev:clean
+> node -e "require('fs').rmSync('.next',{recursive:true,force:true})"
+
+   ▲ Next.js 15.5.12
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.0.104:3000
+   - Environments: .env.local
+   - Experiments (use with caution):
+     ⨯ devtoolSegmentExplorer
+
+ ✓ Starting...
+ ✓ Ready in 3.6s
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 1373ms (114 modules)
+ ○ Compiling /dashboard/student_assesments/[assessmentId] ...

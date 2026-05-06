@@ -201,7 +201,7 @@ const buildBaseNavigation = ({
       },
       {
         name: "Timetable",
-        href: "/dashboard/time_table",
+        href: "/dashboard/timetable-builder",
         icon: BookOpen,
         description: "Open the school timetable and schedules.",
         section: "Workspace",
@@ -300,7 +300,7 @@ const buildBaseNavigation = ({
       },
       {
         name: "Timetable",
-        href: "/dashboard/time_table",
+        href: "/dashboard/timetable-builder",
         icon: BookOpen,
         description: "Open the school timetable and schedules.",
         section: "Workspace",
@@ -415,7 +415,7 @@ const buildBaseNavigation = ({
       },
       {
         name: "Timetable",
-        href: "/dashboard/time_table",
+        href: "/dashboard/timetable-builder",
         icon: BookOpen,
         description: "Check your teaching timetable.",
         section: "Workspace",
@@ -616,7 +616,7 @@ export const buildStudentUtilityLinks = (studentId?: number | null): DashboardNa
   return [
     {
       name: "Timetable",
-      href: "/dashboard/time_table",
+      href: "/dashboard/time_table?view=calendar",
       icon: BookOpen,
       description: "Check your schedule for classes and activities.",
       section: "Workspace",

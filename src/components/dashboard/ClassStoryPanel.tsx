@@ -147,9 +147,15 @@ const getWebsitePreviewImage = (url: string) =>
 
 interface ClassStoryPanelProps {
   classId: string;
+  compact?: boolean;
+  scrollableFeedClassName?: string;
 }
 
-export default function ClassStoryPanel({ classId }: ClassStoryPanelProps) {
+export default function ClassStoryPanel({
+  classId,
+  compact = false,
+  scrollableFeedClassName,
+}: ClassStoryPanelProps) {
   const queryClient = useQueryClient();
   const router = useRouter();
   const { currentUser } = useSelector((state: RootState) => state.auth);
@@ -208,6 +214,12 @@ export default function ClassStoryPanel({ classId }: ClassStoryPanelProps) {
     refetchInterval: 5000,
     refetchIntervalInBackground: true,
   });
+
+  const panelClassName = compact ? "space-y-3" : "mt-4 space-y-4";
+  const contentClassName = compact ? "space-y-3" : "mx-auto max-w-5xl space-y-5";
+  const feedViewportClassName = compact
+    ? `${scrollableFeedClassName || "max-h-[52vh]"} overflow-y-auto overscroll-contain pr-1`
+    : "";
 
   const resetComposer = () => {
     setComposerTitle("");
@@ -436,7 +448,7 @@ export default function ClassStoryPanel({ classId }: ClassStoryPanelProps) {
   };
 
   return (
-    <div className="mt-4 space-y-4">
+    <div className={panelClassName}>
       {contextHolder}
 
       <input
@@ -447,11 +459,19 @@ export default function ClassStoryPanel({ classId }: ClassStoryPanelProps) {
         accept="*/*"
       />
 
-      <div className="mx-auto max-w-5xl space-y-5">
+      <div className={contentClassName}>
         {canCreatePost && (
-          <div className="rounded-[30px] border border-[#dde3f3] bg-white p-4 shadow-[0_10px_25px_rgba(92,104,154,0.12)] md:p-6">
+          <div
+            className={`border border-[#dde3f3] bg-white shadow-[0_10px_25px_rgba(92,104,154,0.12)] ${
+              compact ? "rounded-2xl p-3 md:p-4" : "rounded-[30px] p-4 md:p-6"
+            }`}
+          >
             <div className="flex items-center gap-4">
-              <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-slate-200 text-lg font-semibold text-slate-700 shadow-sm">
+              <div
+                className={`flex items-center justify-center overflow-hidden rounded-full bg-slate-200 font-semibold text-slate-700 shadow-sm ${
+                  compact ? "h-12 w-12 text-sm" : "h-16 w-16 text-lg"
+                }`}
+              >
                 {currentUser?.profile_path ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -466,19 +486,27 @@ export default function ClassStoryPanel({ classId }: ClassStoryPanelProps) {
               <button
                 type="button"
                 onClick={() => openComposer()}
-                className="flex-1 rounded-[28px] bg-[#eef2f8] px-6 py-4 text-left text-sm font-medium text-slate-800 transition hover:bg-[#e7edf7]"
+                className={`flex-1 bg-[#eef2f8] text-left font-medium text-slate-800 transition hover:bg-[#e7edf7] ${
+                  compact
+                    ? "rounded-2xl px-4 py-3 text-xs md:text-sm"
+                    : "rounded-[28px] px-6 py-4 text-sm"
+                }`}
               >
                 What&apos;s happening in this class?
               </button>
             </div>
 
-            <div className="my-5 h-px bg-[#e7ebf5]" />
+            <div className={`${compact ? "my-3" : "my-5"} h-px bg-[#e7ebf5]`} />
 
             <div className="grid gap-3 md:grid-cols-3">
               <button
                 type="button"
                 onClick={() => openComposer("photo")}
-                className="flex items-center justify-center gap-2 rounded-full bg-[#edf3ff] px-5 py-3 text-sm font-semibold text-[#2f5fb7] transition hover:bg-[#e4ecfb]"
+                className={`flex items-center justify-center gap-2 rounded-full font-semibold transition hover:bg-[#e4ecfb] ${
+                  compact
+                    ? "bg-[#edf3ff] px-4 py-2 text-xs md:text-sm text-[#2f5fb7]"
+                    : "bg-[#edf3ff] px-5 py-3 text-sm text-[#2f5fb7]"
+                }`}
               >
                 <PictureOutlined />
                 <span>Photo/Video</span>
@@ -486,7 +514,11 @@ export default function ClassStoryPanel({ classId }: ClassStoryPanelProps) {
               <button
                 type="button"
                 onClick={() => openComposer("event")}
-                className="flex items-center justify-center gap-2 rounded-full bg-[#e8faf2] px-5 py-3 text-sm font-semibold text-[#2f7a51] transition hover:bg-[#def5ea]"
+                className={`flex items-center justify-center gap-2 rounded-full font-semibold transition hover:bg-[#def5ea] ${
+                  compact
+                    ? "bg-[#e8faf2] px-4 py-2 text-xs md:text-sm text-[#2f7a51]"
+                    : "bg-[#e8faf2] px-5 py-3 text-sm text-[#2f7a51]"
+                }`}
               >
                 <CalendarOutlined />
                 <span>Event</span>
@@ -494,7 +526,11 @@ export default function ClassStoryPanel({ classId }: ClassStoryPanelProps) {
               <button
                 type="button"
                 onClick={() => openComposer("file")}
-                className="flex items-center justify-center gap-2 rounded-full bg-[#edf7fd] px-5 py-3 text-sm font-semibold text-[#2d6f94] transition hover:bg-[#e0f1fb]"
+                className={`flex items-center justify-center gap-2 rounded-full font-semibold transition hover:bg-[#e0f1fb] ${
+                  compact
+                    ? "bg-[#edf7fd] px-4 py-2 text-xs md:text-sm text-[#2d6f94]"
+                    : "bg-[#edf7fd] px-5 py-3 text-sm text-[#2d6f94]"
+                }`}
               >
                 <PaperClipOutlined />
                 <span>File</span>
@@ -503,25 +539,43 @@ export default function ClassStoryPanel({ classId }: ClassStoryPanelProps) {
           </div>
         )}
 
-        <div className="flex items-center justify-between gap-3">
+        <div
+          className={`flex flex-wrap items-center justify-between gap-2 ${
+            compact
+              ? "rounded-2xl border border-[#dde3f3] bg-white px-3 py-2 shadow-sm"
+              : ""
+          }`}
+        >
           <Segmented
             value={filter}
             onChange={(value) => setFilter(value as StoryFilter)}
             options={filterOptions}
+            size={compact ? "small" : "middle"}
           />
-          <Text className="text-xs !text-slate-400">Class #{classId}</Text>
+          <Text className={`${compact ? "text-[11px]" : "text-xs"} !text-slate-400`}>
+            Class #{classId}
+          </Text>
         </div>
 
-        {isLoading ? (
-          <div className="flex h-48 items-center justify-center rounded-[28px] border border-[#dde3f3] bg-white shadow-sm">
-            <Spin size="large" />
-          </div>
-        ) : filteredFeed.length === 0 ? (
-          <div className="rounded-[28px] border border-[#dde3f3] bg-white p-8 shadow-sm">
-            <Empty description="No story items yet" />
-          </div>
-        ) : (
-          <div className="space-y-5">
+        <div className={feedViewportClassName || undefined}>
+          {isLoading ? (
+            <div
+              className={`flex items-center justify-center border border-[#dde3f3] bg-white shadow-sm ${
+                compact ? "h-40 rounded-2xl" : "h-48 rounded-[28px]"
+              }`}
+            >
+              <Spin size="large" />
+            </div>
+          ) : filteredFeed.length === 0 ? (
+            <div
+              className={`border border-[#dde3f3] bg-white shadow-sm ${
+                compact ? "rounded-2xl p-6" : "rounded-[28px] p-8"
+              }`}
+            >
+              <Empty description="No story items yet" />
+            </div>
+          ) : (
+            <div className={compact ? "space-y-3" : "space-y-5"}>
             {filteredFeed.map((item) => {
               const comments = fetchStoryComments(item.id, activeSubjectId);
               const inlineUrl =
@@ -542,31 +596,39 @@ export default function ClassStoryPanel({ classId }: ClassStoryPanelProps) {
               return (
                 <div
                   key={item.id}
-                  className="overflow-hidden rounded-[30px] border border-[#dde3f3] bg-white shadow-[0_10px_24px_rgba(92,104,154,0.1)]"
+                  className={`overflow-hidden border border-[#dde3f3] bg-white shadow-[0_10px_24px_rgba(92,104,154,0.1)] ${
+                    compact ? "rounded-2xl" : "rounded-[30px]"
+                  }`}
                 >
-                  <div className="px-5 py-5 md:px-6 md:py-6">
+                  <div className={`${compact ? "px-3 py-3 md:px-4 md:py-3.5" : "px-5 py-5 md:px-6 md:py-6"}`}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex min-w-0 items-start gap-3">
                         <div className="relative mt-1">
                           <div
-                            className={`absolute -left-2 top-2 h-12 w-1 rounded-full ${typeAccent[item.type]}`}
+                            className={`absolute -left-2 top-2 rounded-full ${typeAccent[item.type]} ${
+                              compact ? "h-10 w-1" : "h-12 w-1"
+                            }`}
                           />
-                          <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-[#e8edf8] text-sm font-semibold text-slate-700">
+                          <div
+                            className={`flex items-center justify-center overflow-hidden rounded-full bg-[#e8edf8] font-semibold text-slate-700 ${
+                              compact ? "h-10 w-10 text-xs" : "h-14 w-14 text-sm"
+                            }`}
+                          >
                             {item.authorName ? getInitials(item.authorName) : "CS"}
                           </div>
                         </div>
                         <div className="min-w-0">
-                          <div className="text-sm font-semibold text-slate-700">
+                          <div className={`${compact ? "text-xs md:text-sm" : "text-sm"} font-semibold text-slate-700`}>
                             {item.authorName}
                           </div>
-                          <div className="mt-0.5 text-sm font-semibold text-[#5a66a0]">
+                          <div className={`${compact ? "mt-0 text-[11px] md:text-xs" : "mt-0.5 text-sm"} font-semibold text-[#5a66a0]`}>
                             Class Story
                           </div>
                         </div>
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <div className="whitespace-nowrap text-sm font-semibold text-[#5a66a0]">
+                        <div className={`${compact ? "text-[11px] md:text-xs" : "text-sm"} whitespace-nowrap font-semibold text-[#5a66a0]`}>
                           {formatStoryDate(item.createdAt)}
                         </div>
                         {canEditPost(item) && (
@@ -616,7 +678,7 @@ export default function ClassStoryPanel({ classId }: ClassStoryPanelProps) {
                     </div>
 
                     <div
-                      className={`mt-5 space-y-4 pl-[68px] ${canOpenItem ? "cursor-pointer" : ""}`}
+                      className={`${compact ? "mt-3 space-y-3 pl-[48px]" : "mt-5 space-y-4 pl-[68px]"} ${canOpenItem ? "cursor-pointer" : ""}`}
                       onClick={canOpenItem ? () => openStoryItem(item) : undefined}
                       onKeyDown={
                         canOpenItem
@@ -633,24 +695,34 @@ export default function ClassStoryPanel({ classId }: ClassStoryPanelProps) {
                     >
                       <div className="flex items-center gap-2">
                         <div
-                          className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold capitalize ${typeChip[item.type]}`}
+                          className={`inline-flex rounded-full font-semibold capitalize ${typeChip[item.type]} ${
+                            compact ? "px-2.5 py-0.5 text-[10px]" : "px-3 py-1 text-xs"
+                          }`}
                         >
                           {item.type}
                         </div>
                         {canOpenItem && (
-                          <span className="text-xs font-medium text-[#5a66a0]">Open</span>
+                          <span className={`${compact ? "text-[11px]" : "text-xs"} font-medium text-[#5a66a0]`}>
+                            Open
+                          </span>
                         )}
                       </div>
-                      <h3 className="text-base font-semibold leading-snug text-slate-800">
+                      <h3 className={`${compact ? "text-sm md:text-[0.95rem]" : "text-base"} font-semibold leading-snug text-slate-800`}>
                         {item.title}
                       </h3>
 
                       {item.body && (
-                        <div className="text-sm leading-7 text-slate-700">{item.body}</div>
+                        <div className={`${compact ? "text-xs leading-6 md:text-sm" : "text-sm leading-7"} text-slate-700`}>
+                          {item.body}
+                        </div>
                       )}
 
                       {youtubeVideoId && (
-                        <div className="max-w-xl overflow-hidden rounded-2xl border border-[#dde3f3] bg-[#f6f8fd] p-2">
+                        <div
+                          className={`max-w-xl overflow-hidden border border-[#dde3f3] bg-[#f6f8fd] ${
+                            compact ? "rounded-xl p-1.5" : "rounded-2xl p-2"
+                          }`}
+                        >
                           <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-black">
                             <iframe
                               src={`https://www.youtube.com/embed/${youtubeVideoId}`}
@@ -664,7 +736,11 @@ export default function ClassStoryPanel({ classId }: ClassStoryPanelProps) {
                       )}
 
                       {canRenderDirectVideo && (
-                        <div className="block max-w-xl overflow-hidden rounded-2xl border border-[#dde3f3] bg-[#f6f8fd] p-3">
+                        <div
+                          className={`block max-w-xl overflow-hidden border border-[#dde3f3] bg-[#f6f8fd] ${
+                            compact ? "rounded-xl p-2" : "rounded-2xl p-3"
+                          }`}
+                        >
                           <video
                             controls
                             className="max-h-[420px] w-full rounded-xl bg-black"
@@ -678,7 +754,9 @@ export default function ClassStoryPanel({ classId }: ClassStoryPanelProps) {
                           href={inlineUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="block max-w-xl overflow-hidden rounded-2xl border border-[#dde3f3] bg-[#f6f8fd] transition hover:bg-[#eef3fb]"
+                          className={`block max-w-xl overflow-hidden border border-[#dde3f3] bg-[#f6f8fd] transition hover:bg-[#eef3fb] ${
+                            compact ? "rounded-xl" : "rounded-2xl"
+                          }`}
                         >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
@@ -686,7 +764,7 @@ export default function ClassStoryPanel({ classId }: ClassStoryPanelProps) {
                             alt="Website preview"
                             className="max-h-[260px] w-full object-cover"
                           />
-                          <div className="truncate px-4 py-3 text-sm font-medium text-slate-700">
+                          <div className={`${compact ? "px-3 py-2 text-xs md:text-sm" : "px-4 py-3 text-sm"} truncate font-medium text-slate-700`}>
                             {inlineUrl}
                           </div>
                         </a>
@@ -694,7 +772,11 @@ export default function ClassStoryPanel({ classId }: ClassStoryPanelProps) {
 
                       {item.attachmentUrl && !hideAttachmentCard &&
                         (isImageAttachment(item.attachmentUrl, item.attachmentLabel) ? (
-                          <div className="block max-w-xl overflow-hidden rounded-2xl border border-[#dde3f3] bg-[#f6f8fd]">
+                          <div
+                            className={`block max-w-xl overflow-hidden border border-[#dde3f3] bg-[#f6f8fd] ${
+                              compact ? "rounded-xl" : "rounded-2xl"
+                            }`}
+                          >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                               src={item.attachmentUrl}
@@ -703,7 +785,11 @@ export default function ClassStoryPanel({ classId }: ClassStoryPanelProps) {
                             />
                           </div>
                         ) : isVideoAttachment(item.attachmentUrl, item.attachmentLabel) ? (
-                          <div className="block max-w-xl overflow-hidden rounded-2xl border border-[#dde3f3] bg-[#f6f8fd] p-3">
+                          <div
+                            className={`block max-w-xl overflow-hidden border border-[#dde3f3] bg-[#f6f8fd] ${
+                              compact ? "rounded-xl p-2" : "rounded-2xl p-3"
+                            }`}
+                          >
                             <video
                               controls
                               className="max-h-[420px] w-full rounded-xl bg-black"
@@ -715,10 +801,16 @@ export default function ClassStoryPanel({ classId }: ClassStoryPanelProps) {
                             href={item.attachmentUrl}
                             target="_blank"
                             rel="noreferrer"
-                            className="block max-w-xl rounded-2xl border border-[#dde3f3] bg-[#f6f8fd] p-4 transition hover:bg-[#eef3fb]"
+                            className={`block max-w-xl border border-[#dde3f3] bg-[#f6f8fd] transition hover:bg-[#eef3fb] ${
+                              compact ? "rounded-xl p-3" : "rounded-2xl p-4"
+                            }`}
                           >
                             <div className="flex items-center gap-3">
-                              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-[#5a66a0] shadow-sm">
+                              <div
+                                className={`flex items-center justify-center rounded-xl bg-white text-[#5a66a0] shadow-sm ${
+                                  compact ? "h-10 w-10" : "h-12 w-12"
+                                }`}
+                              >
                                 {item.attachmentType === "file" ? (
                                   <UploadOutlined />
                                 ) : (
@@ -726,10 +818,10 @@ export default function ClassStoryPanel({ classId }: ClassStoryPanelProps) {
                                 )}
                               </div>
                               <div className="min-w-0">
-                                <div className="truncate text-base font-semibold text-slate-800">
+                                <div className={`${compact ? "text-sm" : "text-base"} truncate font-semibold text-slate-800`}>
                                   {item.attachmentLabel || "Open attachment"}
                                 </div>
-                                <div className="truncate text-sm text-slate-500">
+                                <div className={`${compact ? "text-xs" : "text-sm"} truncate text-slate-500`}>
                                   {item.attachmentType === "file"
                                     ? "Attached file"
                                     : item.attachmentUrl}
@@ -739,7 +831,7 @@ export default function ClassStoryPanel({ classId }: ClassStoryPanelProps) {
                           </a>
                         ))}
 
-                      <div className="flex flex-wrap items-center gap-2 text-sm text-[#5a66a0]">
+                      <div className={`flex flex-wrap items-center gap-2 text-[#5a66a0] ${compact ? "text-xs" : "text-sm"}`}>
                         {reactionBadges(item)}
                         {comments.length > 0 && (
                           <span>
@@ -750,7 +842,7 @@ export default function ClassStoryPanel({ classId }: ClassStoryPanelProps) {
                     </div>
                   </div>
 
-                  <div className="border-t border-[#e7ebf5] bg-white px-5 py-4 md:px-6">
+                  <div className={`border-t border-[#e7ebf5] bg-white ${compact ? "px-3 py-3 md:px-4" : "px-5 py-4 md:px-6"}`}>
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div className="flex flex-wrap items-center gap-3">
                         <button
@@ -760,15 +852,19 @@ export default function ClassStoryPanel({ classId }: ClassStoryPanelProps) {
                               prev === item.id ? null : item.id
                             )
                           }
-                          className="inline-flex items-center gap-2 rounded-full border border-[#d7ddee] bg-white px-5 py-2 text-sm font-semibold text-slate-800 transition hover:bg-[#f7f9fd]"
+                          className={`inline-flex items-center gap-2 rounded-full border border-[#d7ddee] bg-white font-semibold text-slate-800 transition hover:bg-[#f7f9fd] ${
+                            compact ? "px-4 py-1.5 text-xs md:text-sm" : "px-5 py-2 text-sm"
+                          }`}
                         >
-                          <span className="text-base">♡</span>
+                          <span className={compact ? "text-sm" : "text-base"}>♡</span>
                           <span>Reaction</span>
                         </button>
                         <button
                           type="button"
                           onClick={() => toggleCommentPanel(item.id)}
-                          className="inline-flex items-center gap-2 rounded-full border border-[#d7ddee] bg-white px-5 py-2 text-sm font-semibold text-slate-800 transition hover:bg-[#f7f9fd]"
+                          className={`inline-flex items-center gap-2 rounded-full border border-[#d7ddee] bg-white font-semibold text-slate-800 transition hover:bg-[#f7f9fd] ${
+                            compact ? "px-4 py-1.5 text-xs md:text-sm" : "px-5 py-2 text-sm"
+                          }`}
                         >
                           <MessageOutlined />
                           <span>Comment</span>
@@ -777,7 +873,7 @@ export default function ClassStoryPanel({ classId }: ClassStoryPanelProps) {
                     </div>
 
                     {openReactionPickerId === item.id && (
-                      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[#eef2f8] pt-3">
+                      <div className={`flex flex-wrap items-center gap-2 border-t border-[#eef2f8] ${compact ? "mt-2 pt-2" : "mt-3 pt-3"}`}>
                         {STORY_REACTION_OPTIONS.map((reaction) => {
                           const mine = item.viewerReaction === reaction.key;
                           return (
@@ -785,11 +881,11 @@ export default function ClassStoryPanel({ classId }: ClassStoryPanelProps) {
                               key={reaction.key}
                               type="button"
                               onClick={() => void handleReaction(item, reaction.key)}
-                              className={`flex h-10 w-10 items-center justify-center rounded-full border text-lg transition ${
+                              className={`flex items-center justify-center rounded-full border transition ${
                                 mine
                                   ? "border-[#cfd8f5] bg-[#eef2ff]"
                                   : "border-[#e0e5f1] bg-white hover:bg-[#f7f9fd]"
-                              }`}
+                              } ${compact ? "h-9 w-9 text-base" : "h-10 w-10 text-lg"}`}
                               title={reaction.label}
                             >
                               {reaction.emoji}
@@ -800,17 +896,19 @@ export default function ClassStoryPanel({ classId }: ClassStoryPanelProps) {
                     )}
 
                     {openComments[item.id] && (
-                      <div className="mt-4 space-y-3 border-t border-[#eef2f8] pt-4">
+                      <div className={`space-y-3 border-t border-[#eef2f8] ${compact ? "mt-3 pt-3" : "mt-4 pt-4"}`}>
                         {comments.map((comment) => (
                           <div
                             key={comment.id}
-                            className="flex items-start justify-between gap-3 rounded-2xl bg-[#f7f9fd] px-4 py-3"
+                            className={`flex items-start justify-between gap-3 rounded-2xl bg-[#f7f9fd] ${
+                              compact ? "px-3 py-2.5" : "px-4 py-3"
+                            }`}
                           >
                             <div>
-                              <div className="text-sm font-semibold text-slate-800">
+                              <div className={`${compact ? "text-xs md:text-sm" : "text-sm"} font-semibold text-slate-800`}>
                                 {comment.authorName}
                               </div>
-                              <div className="mt-1 text-sm text-slate-600">
+                              <div className={`${compact ? "mt-0.5 text-xs md:text-sm" : "mt-1 text-sm"} text-slate-600`}>
                                 {comment.body}
                               </div>
                             </div>
@@ -856,7 +954,11 @@ export default function ClassStoryPanel({ classId }: ClassStoryPanelProps) {
                         ))}
 
                         <div className="flex items-start gap-3">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#e8edf8] text-sm font-semibold text-slate-700">
+                          <div
+                            className={`flex items-center justify-center rounded-full bg-[#e8edf8] font-semibold text-slate-700 ${
+                              compact ? "h-9 w-9 text-xs" : "h-10 w-10 text-sm"
+                            }`}
+                          >
                             {getInitials(
                               currentUser?.name || currentUser?.email || "You"
                             )}
@@ -877,7 +979,7 @@ export default function ClassStoryPanel({ classId }: ClassStoryPanelProps) {
                           </div>
                           <Button
                             type="primary"
-                            className="!rounded-full !border-0 !bg-[#5a66a0]"
+                            className={`!rounded-full !border-0 !bg-[#5a66a0] ${compact ? "!px-4 !text-xs md:!text-sm" : ""}`}
                             icon={<SendOutlined />}
                             onClick={() => submitComment(item)}
                           >
@@ -890,8 +992,9 @@ export default function ClassStoryPanel({ classId }: ClassStoryPanelProps) {
                 </div>
               );
             })}
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </div>
 
       <Modal

@@ -42,6 +42,61 @@ const statePath = (assessmentId: string, taskId: string, studentId: string) =>
     `${safeSegment(studentId)}.json`
   );
 
+const extractFirstJsonObject = (raw: string) => {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  let started = false;
+
+  for (let index = 0; index < raw.length; index += 1) {
+    const char = raw[index];
+
+    if (!started) {
+      if (/\s/.test(char)) continue;
+      if (char !== "{") return null;
+      started = true;
+      depth = 1;
+      continue;
+    }
+
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+
+    if (char === "\\") {
+      escaped = inString;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+
+    if (inString) continue;
+
+    if (char === "{") depth += 1;
+    if (char === "}") depth -= 1;
+
+    if (depth === 0) {
+      return raw.slice(0, index + 1);
+    }
+  }
+
+  return null;
+};
+
+const parseStoredState = (raw: string): Partial<DocumentState> => {
+  try {
+    return JSON.parse(raw) as Partial<DocumentState>;
+  } catch (error) {
+    const firstObject = extractFirstJsonObject(raw);
+    if (!firstObject) throw error;
+    return JSON.parse(firstObject) as Partial<DocumentState>;
+  }
+};
+
 const createEmptyState = (
   assessmentId: string,
   taskId: string,
@@ -66,7 +121,7 @@ const readState = async (
   const filePath = statePath(assessmentId, taskId, studentId);
   try {
     const raw = await fs.readFile(filePath, "utf8");
-    const parsed = JSON.parse(raw) as Partial<DocumentState>;
+    const parsed = parseStoredState(raw);
     const nextState = {
       ...createEmptyState(assessmentId, taskId, studentId),
       ...parsed,
@@ -96,8 +151,17 @@ const readState = async (
 
 const writeState = async (state: DocumentState) => {
   const filePath = statePath(state.assessmentId, state.taskId, state.studentId);
+  const tempPath = `${filePath}.${process.pid}.${Date.now()}.${Math.random()
+    .toString(16)
+    .slice(2)}.tmp`;
   await fs.mkdir(path.dirname(filePath), { recursive: true });
-  await fs.writeFile(filePath, JSON.stringify(state, null, 2), "utf8");
+  await fs.writeFile(tempPath, JSON.stringify(state, null, 2), "utf8");
+  await fs.rename(tempPath, filePath);
+};
+
+const toFiniteNumber = (value: unknown) => {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : null;
 };
 
 const requiredIds = (request: NextRequest) => {
@@ -113,11 +177,27 @@ const requiredIds = (request: NextRequest) => {
   return { assessmentId, taskId, studentId } as const;
 };
 
+const validateStudentIdentityHeader = (request: NextRequest, studentId: string) => {
+  const role = String(request.headers.get("x-osteps-role") || "").trim().toUpperCase();
+  const authenticatedStudentId = String(request.headers.get("x-osteps-student-id") || "").trim();
+
+  if (role !== "STUDENT" || !authenticatedStudentId) return null;
+  if (String(studentId) === authenticatedStudentId) return null;
+
+  return NextResponse.json(
+    { message: "Student document does not match the signed-in student." },
+    { status: 403 }
+  );
+};
+
 export async function GET(request: NextRequest) {
   const ids = requiredIds(request);
   if ("error" in ids) {
     return NextResponse.json({ message: ids.error }, { status: 400 });
   }
+
+  const identityError = validateStudentIdentityHeader(request, ids.studentId);
+  if (identityError) return identityError;
 
   const state = await readState(ids.assessmentId, ids.taskId, ids.studentId);
   return NextResponse.json(state);
@@ -129,6 +209,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: ids.error }, { status: 400 });
   }
 
+  const identityError = validateStudentIdentityHeader(request, ids.studentId);
+  if (identityError) return identityError;
+
   let payload: AnnotationPayload;
   try {
     payload = (await request.json()) as AnnotationPayload;
@@ -137,6 +220,25 @@ export async function POST(request: NextRequest) {
   }
   const layer = payload.layer === "teacher" ? "teacher" : "student";
   const state = await readState(ids.assessmentId, ids.taskId, ids.studentId);
+  const payloadMetadata = payload.metadata && typeof payload.metadata === "object" ? payload.metadata : {};
+
+  if (layer === "student") {
+    const incomingClientSaveId = String(payloadMetadata.clientSaveId || "").trim();
+    const existingClientSaveId = String(state.metadata?.clientSaveId || "").trim();
+    const incomingClientSaveSeq = toFiniteNumber(payloadMetadata.clientSaveSeq);
+    const existingClientSaveSeq = toFiniteNumber(state.metadata?.clientSaveSeq);
+
+    if (
+      incomingClientSaveId &&
+      existingClientSaveId &&
+      incomingClientSaveId === existingClientSaveId &&
+      incomingClientSaveSeq != null &&
+      existingClientSaveSeq != null &&
+      incomingClientSaveSeq < existingClientSaveSeq
+    ) {
+      return NextResponse.json(state);
+    }
+  }
 
   if (layer === "student" && state.studentLocked) {
     return NextResponse.json(
@@ -171,7 +273,7 @@ export async function POST(request: NextRequest) {
     state.metadata.studentLockOverride = payload.studentLocked;
   }
 
-  state.metadata = { ...state.metadata, ...(payload.metadata || {}) };
+  state.metadata = { ...state.metadata, ...payloadMetadata };
   state.updatedAt = new Date().toISOString();
 
   await writeState(state);

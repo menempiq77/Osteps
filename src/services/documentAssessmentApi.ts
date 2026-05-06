@@ -61,6 +61,24 @@ const buildUrl = (assessmentId: string | number, taskId: string | number, studen
   return `/api/assessment-document?${params.toString()}`;
 };
 
+const getDocumentIdentityHeaders = (): HeadersInit => {
+  if (typeof window === "undefined") return {};
+
+  try {
+    const currentUser = JSON.parse(window.localStorage.getItem("currentUser") || "null");
+    const headers: Record<string, string> = {};
+    const role = String(currentUser?.role || "").trim();
+    const studentId = String(currentUser?.student || "").trim();
+
+    if (role) headers["x-osteps-role"] = role;
+    if (studentId) headers["x-osteps-student-id"] = studentId;
+
+    return headers;
+  } catch {
+    return {};
+  }
+};
+
 export const fetchAssessmentDocument = async (
   assessmentId: string | number,
   taskId: string | number,
@@ -68,6 +86,7 @@ export const fetchAssessmentDocument = async (
 ): Promise<AssessmentDocumentState> => {
   const response = await fetch(buildUrl(assessmentId, taskId, studentId), {
     cache: "no-store",
+    headers: getDocumentIdentityHeaders(),
   });
   if (!response.ok) {
     throw new Error("Failed to load document annotations");
@@ -96,7 +115,7 @@ export const saveAssessmentDocumentAnnotations = async ({
 }): Promise<AssessmentDocumentState> => {
   const response = await fetch(buildUrl(assessmentId, taskId, studentId), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...getDocumentIdentityHeaders() },
     body: JSON.stringify({ layer, annotations, status, studentLocked, metadata }),
   });
 

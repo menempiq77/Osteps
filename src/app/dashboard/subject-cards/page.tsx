@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useSelector, useDispatch } from "react-redux";
-import { Empty, Spin, Modal, Input, Form, message } from "antd";
+import { Empty, Modal, Input, Form, message } from "antd";
 import {
   BarChartOutlined,
   BookOutlined,
@@ -17,6 +18,7 @@ import {
   QuestionCircleOutlined,
   ReadOutlined,
   RocketOutlined,
+  SearchOutlined,
   SettingOutlined,
   SolutionOutlined,
   TableOutlined,
@@ -29,7 +31,13 @@ import { useSubjectContext } from "@/contexts/SubjectContext";
 import { useRouter } from "next/navigation";
 import { logout } from "@/features/auth/authSlice";
 import { addSubject, updateSubject, deleteSubject } from "@/services/subjectsApi";
-import MyScheduleWidget from "@/components/dashboard/MyScheduleWidget";
+
+const MyScheduleWidget = dynamic(() => import("@/components/dashboard/MyScheduleWidget"), {
+  loading: () => <ScheduleWidgetSkeleton />,
+});
+const SubjectCardsHeroGpu = dynamic(() => import("@/components/dashboard/SubjectCardsHeroGpu"), {
+  ssr: false,
+});
 
 // ── Subject colour palette ────────────────────────────────────────────────────
 const PALETTE = [
@@ -70,16 +78,14 @@ function readSubjectColorMap(): Record<string, number> {
   catch { return {}; }
 }
 
-function storeSubjectColor(subjectId: number, palIdx: number) {
-  const map = readSubjectColorMap();
-  map[String(subjectId)] = palIdx;
+function persistSubjectColorMap(map: Record<string, number>) {
   if (typeof window !== "undefined") {
     localStorage.setItem(SUBJECT_COLOR_MAP_KEY, JSON.stringify(map));
   }
 }
 
-function getSubjectPalette(subjectId: number, name: string, idx: number) {
-  const map = readSubjectColorMap();
+function getSubjectPalette(colorMap: Record<string, number>, subjectId: number, name: string, idx: number) {
+  const map = colorMap;
   const stored = map[String(subjectId)];
   if (stored != null && stored >= 0 && stored < PALETTE.length) return PALETTE[stored];
   return getPalette(name, idx);
@@ -145,6 +151,50 @@ function QuickLinkCard({ name, href, desc, Icon }: QLProps) {
   );
 }
 
+function ScheduleWidgetSkeleton() {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 px-5 py-4">
+        <div className="h-8 w-8 animate-pulse rounded-lg bg-slate-200" />
+        <div className="space-y-2">
+          <div className="h-3.5 w-24 animate-pulse rounded bg-slate-200" />
+          <div className="h-2.5 w-16 animate-pulse rounded bg-slate-100" />
+        </div>
+        <div className="ml-auto h-8 w-44 animate-pulse rounded-lg bg-slate-100" />
+      </div>
+      <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div key={index} className="rounded-xl border border-slate-100 bg-slate-50 p-3.5">
+            <div className="mb-3 h-5 w-24 animate-pulse rounded-full bg-slate-200" />
+            <div className="mb-2 h-4 w-3/4 animate-pulse rounded bg-slate-200" />
+            <div className="mb-2 h-3 w-1/2 animate-pulse rounded bg-slate-100" />
+            <div className="h-3 w-2/5 animate-pulse rounded bg-slate-100" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SubjectCardsSkeleton({ includeCreateCard }: { includeCreateCard: boolean }) {
+  return (
+    <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+      {Array.from({ length: includeCreateCard ? 6 : 5 }).map((_, index) => (
+        <div
+          key={index}
+          className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+        >
+          <div className="mb-6 h-6 w-16 animate-pulse rounded-full bg-slate-100" />
+          <div className="mb-3 h-10 w-10 animate-pulse rounded-xl bg-slate-100" />
+          <div className="mb-2 h-4 w-3/4 animate-pulse rounded bg-slate-200" />
+          <div className="mb-4 h-3 w-1/2 animate-pulse rounded bg-slate-100" />
+          <div className="h-8 w-20 animate-pulse rounded-lg bg-slate-100" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function SubjectCardsPage() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const dispatch = useDispatch<AppDispatch>();
@@ -161,6 +211,8 @@ export default function SubjectCardsPage() {
   const [modalLoading, setModalLoading] = useState(false);
   const [editingSubject, setEditingSubject] = useState<{ id: number; name: string } | null>(null);
   const [selectedColorIdx, setSelectedColorIdx] = useState<number | null>(null);
+  const [subjectSearch, setSubjectSearch] = useState("");
+  const [subjectColorMap, setSubjectColorMap] = useState<Record<string, number>>({});
   const [form] = Form.useForm();
   // ── Delete confirmation modal state ──────────────────────────────────
   const [deleteConfirmSubject, setDeleteConfirmSubject] = useState<{ id: number; name: string } | null>(null);
@@ -183,6 +235,21 @@ export default function SubjectCardsPage() {
     router.push("/");
   };
 
+  useEffect(() => {
+    setSubjectColorMap(readSubjectColorMap());
+  }, []);
+
+  const applySubjectColor = (subjectId: number, palIdx: number) => {
+    setSubjectColorMap((current) => {
+      const next = {
+        ...current,
+        [String(subjectId)]: palIdx,
+      };
+      persistSubjectColorMap(next);
+      return next;
+    });
+  };
+
   // ── Subject CRUD handlers ───────────────────────────────────────────
   const openCreateModal = () => {
     setEditingSubject(null);
@@ -194,8 +261,7 @@ export default function SubjectCardsPage() {
     setEditingSubject(subject);
     form.setFieldsValue({ name: subject.name });
     // Pre-select stored color if any
-    const map = readSubjectColorMap();
-    const stored = map[String(subject.id)];
+    const stored = subjectColorMap[String(subject.id)];
     setSelectedColorIdx(stored != null ? stored : null);
     setModalOpen(true);
   };
@@ -213,7 +279,7 @@ export default function SubjectCardsPage() {
         await updateSubject(String(editingSubject.id), { name: values.name.trim(), school_id: currentUser?.school });
         // Persist chosen color to localStorage
         if (selectedColorIdx != null) {
-          storeSubjectColor(editingSubject.id, selectedColorIdx);
+          applySubjectColor(editingSubject.id, selectedColorIdx);
         }
         message.success("Subject updated");
       } else {
@@ -247,15 +313,23 @@ export default function SubjectCardsPage() {
     [role]
   );
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Spin size="large" />
-      </div>
+  const normalizedSubjectSearch = subjectSearch.trim().toLowerCase();
+  const filteredSubjects = useMemo(() => {
+    if (!normalizedSubjectSearch) return subjects;
+    return subjects.filter((subject) => {
+      const name = String(subject.name ?? "").toLowerCase();
+      const code = String(subject.code ?? "").toLowerCase();
+      return name.includes(normalizedSubjectSearch) || code.includes(normalizedSubjectSearch);
+    });
+  }, [normalizedSubjectSearch, subjects]);
+  const heroPalette = useMemo(() => {
+    const resolved = subjects.slice(0, 4).map((subject, index) =>
+      getSubjectPalette(subjectColorMap, subject.id, String(subject.name), index).gradFrom
     );
-  }
+    return [...resolved, "#38C16C", "#0ea5e9", "#8b5cf6", "#f97316"].slice(0, 4);
+  }, [subjectColorMap, subjects]);
 
-  if (!canUseSubjectContext || !canEnterSubjectWorkspace) {
+  if (!loading && (!canUseSubjectContext || !canEnterSubjectWorkspace)) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-8">
         <Empty description="Subject workspace is not enabled for this account." />
@@ -265,7 +339,7 @@ export default function SubjectCardsPage() {
 
   const studentQuickLinks: QLProps[] = [
     { name: "Library",        href: "/dashboard/library",                       desc: "Open your shared reading and learning resources.",                 Icon: BookOutlined },
-    { name: "Timetable",      href: "/dashboard/time_table",                    desc: "Check your schedule for classes and activities.",                  Icon: CalendarOutlined },
+    { name: "Timetable",      href: "/dashboard/time_table?view=calendar",      desc: "Check your schedule for classes and activities.",                  Icon: CalendarOutlined },
     { name: "Announcements",  href: "/dashboard/announcements",                 desc: "Read the latest updates sent to students.",                        Icon: NotificationOutlined },
     { name: "Ask a Question", href: "/dashboard/questions",                     desc: "Send questions and view replies from teachers.",                   Icon: QuestionCircleOutlined },
     { name: "Behavior",       href: `/dashboard/behavior/${currentUser?.student}`, desc: "Review your behaviour notes and updates.",                     Icon: SolutionOutlined },
@@ -289,6 +363,8 @@ export default function SubjectCardsPage() {
           background: "linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0a2318 100%)",
         }}
       >
+        <SubjectCardsHeroGpu colors={heroPalette} />
+
         {/* decorative blobs */}
         <div className="pointer-events-none absolute -top-10 -right-10 h-48 w-48 rounded-full opacity-10"
              style={{ background: "radial-gradient(circle, #38C16C, transparent 70%)" }} />
@@ -377,7 +453,7 @@ export default function SubjectCardsPage() {
           <h2 className="text-lg font-bold text-slate-800">My Schedule</h2>
           <div className="flex-1 h-px bg-slate-100" />
         </div>
-        <MyScheduleWidget currentUser={currentUser} isStudent={isStudent} />
+        {loading ? <ScheduleWidgetSkeleton /> : <MyScheduleWidget currentUser={currentUser} isStudent={isStudent} />}
       </div>
 
       {/* ── Subject cards ─────────────────────────────────────────────────── */}
@@ -390,13 +466,35 @@ export default function SubjectCardsPage() {
           <div className="flex-1 h-px bg-slate-100" />
         </div>
 
-        {subjects.length === 0 ? (
+        {!loading && subjects.length > 0 && (
+          <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+            <Input
+              value={subjectSearch}
+              onChange={(event) => setSubjectSearch(event.target.value)}
+              allowClear
+              prefix={<SearchOutlined className="text-slate-400" />}
+              placeholder="Search subjects by name or code"
+              className="sm:max-w-sm"
+            />
+            <div className="text-xs font-medium text-slate-500">
+              {filteredSubjects.length} of {subjects.length} subject{subjects.length !== 1 ? "s" : ""}
+            </div>
+          </div>
+        )}
+
+        {loading ? (
+          <SubjectCardsSkeleton includeCreateCard={isSchoolAdmin} />
+        ) : subjects.length === 0 ? (
           <div className="rounded-2xl border border-slate-200 bg-white p-10">
             <Empty description="No assigned subjects found." />
           </div>
+        ) : filteredSubjects.length === 0 ? (
+          <div className="rounded-2xl border border-slate-200 bg-white p-10">
+            <Empty description="No subjects match that search." />
+          </div>
         ) : (
           <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-            {subjects.map((subject, idx) => {
+            {filteredSubjects.map((subject, idx) => {
               const isActive = Number(activeSubjectId) === Number(subject.id);
               const displayName = typeof subject.name === "string"
                 ? subject.name.replace(/islamiat/gi, "Islamic")
@@ -404,7 +502,7 @@ export default function SubjectCardsPage() {
               const displayCode = typeof subject.code === "string"
                 ? subject.code.replace(/islamiat/gi, "Islamic")
                 : subject.code;
-              const pal = getSubjectPalette(subject.id, String(displayName), idx);
+              const pal = getSubjectPalette(subjectColorMap, subject.id, String(displayName), idx);
 
               return (
                 <div
@@ -583,8 +681,8 @@ export default function SubjectCardsPage() {
             <QuickLinkCard name="Courses"           href="/dashboard/courses"            desc="Access subject courses including Lessons and Mind-upgrade."         Icon={ReadOutlined} />
             <QuickLinkCard name="Markbook"          href="/dashboard/students/markbook"   desc="Open student reports and performance summaries."                    Icon={BarChartOutlined} />
             <QuickLinkCard name="Library"       href="/dashboard/library"               desc="Shared resources available to subjects you assign."                 Icon={BookOutlined} />
-            <QuickLinkCard name="Timetable"       href="/dashboard/time_table"           desc="Build the school timetable across years and classes."               Icon={CalendarOutlined} />
-            <QuickLinkCard name="Timetable Builder" href="/dashboard/timetable-builder"  desc="Visual grid builder — click cells to add/edit slots, detect conflicts." Icon={TableOutlined} />
+            <QuickLinkCard name="Timetable"          href="/dashboard/timetable-builder"  desc="Open the builder first, then switch to the calendar when needed."    Icon={TableOutlined} />
+            <QuickLinkCard name="Calendar"           href="/dashboard/time_table?view=calendar" desc="Open the calendar view by subject, class, or teacher."            Icon={CalendarOutlined} />
             <QuickLinkCard name="Announcements"     href="/dashboard/announcements"      desc="Send announcements to HODs, teachers, and students."                Icon={NotificationOutlined} />
             <QuickLinkCard name="Tools"         href="/dashboard/tools"                 desc="Extra tools that support all subjects."                             Icon={ToolOutlined} />
             <QuickLinkCard name="Leaderboard"   href={leaderboardHref}                  desc="See school-wide student rankings across all subjects."              Icon={TrophyOutlined} />
