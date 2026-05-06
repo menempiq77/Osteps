@@ -7,7 +7,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useSelector } from "react-redux";
 import PdfAssessmentAnnotator from "@/components/assessment/PdfAssessmentAnnotator";
 import type { AssessmentDocumentLayer } from "@/services/documentAssessmentApi";
-import { fetchTasks } from "@/services/api";
+import { fetchStudentTasks, fetchTasks } from "@/services/api";
+import { useSubjectContext } from "@/contexts/SubjectContext";
+import { IMG_BASE_URL } from "@/lib/config";
 import { resolveExamWindow } from "@/lib/taskTypeMetadata";
 import dayjs from "dayjs";
 import type { RootState } from "@/store/store";
@@ -15,10 +17,62 @@ import type { RootState } from "@/store/store";
 const asRole = (value: string | null): AssessmentDocumentLayer =>
   value === "teacher" ? "teacher" : "student";
 
+type AssessmentDocumentStudentTask = {
+  id?: number | string;
+  student_id?: number | string;
+  student_name?: string;
+  name?: string;
+  status?: string;
+  assessment_id?: number | string;
+  task_id?: number | string;
+  task?: {
+    id?: number | string;
+    task_name?: string;
+    allocated_marks?: number | string;
+    file_path?: string | null;
+  } | null;
+  file_path?: string | null;
+  teacher_assessment_score?: number | string | null;
+  teacher_assessment_marks?: number | string | null;
+  teacher_feedback?: string | null;
+  student?: { student_name?: string; name?: string } | null;
+  user?: { name?: string } | null;
+};
+
+type TeacherStudentOption = {
+  value: string;
+  label: string;
+  status?: string;
+};
+
+const getStudentNameFromTask = (task: AssessmentDocumentStudentTask) => {
+  const studentId = task.student_id ?? task.id;
+  return (
+    String(
+      task.student_name ??
+        task.name ??
+        task.student?.student_name ??
+        task.student?.name ??
+        task.user?.name ??
+        `Student ${studentId ?? ""}`
+    ).trim() || `Student ${studentId ?? ""}`
+  );
+};
+
+const fileUrlForDocument = (path: string | null | undefined) => {
+  if (!path) return "";
+  if (/^https?:\/\//i.test(path)) return path;
+  const cleanPath = String(path).replace(/^\/+/, "");
+  return cleanPath.startsWith("storage/")
+    ? `${IMG_BASE_URL}/${cleanPath}`
+    : `${IMG_BASE_URL}/storage/${cleanPath}`;
+};
+
 export default function AssessmentDocumentPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { currentUser } = useSelector((state: RootState) => state.auth);
+  const { activeSubjectId, canUseSubjectContext } = useSubjectContext();
   const assessmentId = searchParams.get("assessmentId") || "";
   const taskId = searchParams.get("taskId") || "";
   const role = asRole(searchParams.get("role"));
@@ -59,6 +113,8 @@ export default function AssessmentDocumentPage() {
   );
   const [resolvedExamConfig, setResolvedExamConfig] = useState(fallbackExamConfig);
   const [checkingExamAccess, setCheckingExamAccess] = useState(role === "student");
+  const [teacherStudentTasks, setTeacherStudentTasks] = useState<AssessmentDocumentStudentTask[]>([]);
+  const [teacherStudentTasksLoading, setTeacherStudentTasksLoading] = useState(false);
 
   const waitingForStudentSession = role === "student" && !authenticatedStudentId;
   const missing = !assessmentId || !taskId || !studentId || !fileUrl;
@@ -77,6 +133,43 @@ export default function AssessmentDocumentPage() {
   useEffect(() => {
     setResolvedExamConfig(fallbackExamConfig);
   }, [fallbackExamConfig]);
+
+  useEffect(() => {
+    if (role !== "teacher" || !assessmentId || !taskId) {
+      setTeacherStudentTasks([]);
+      setTeacherStudentTasksLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadTeacherStudentTasks = async () => {
+      setTeacherStudentTasksLoading(true);
+      try {
+        const rows = await fetchStudentTasks(
+          Number(assessmentId),
+          canUseSubjectContext ? activeSubjectId : undefined
+        );
+        if (cancelled) return;
+        const matchingRows = (rows || []).filter((row: AssessmentDocumentStudentTask) => {
+          const rowTaskId = row.task_id ?? row.task?.id;
+          return String(rowTaskId) === String(taskId);
+        });
+        setTeacherStudentTasks(matchingRows);
+      } catch (error) {
+        console.error("Failed to load student papers for assessment document:", error);
+        if (!cancelled) setTeacherStudentTasks([]);
+      } finally {
+        if (!cancelled) setTeacherStudentTasksLoading(false);
+      }
+    };
+
+    void loadTeacherStudentTasks();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSubjectId, assessmentId, canUseSubjectContext, role, taskId]);
 
   useEffect(() => {
     if (missing || role !== "student") {
@@ -128,6 +221,49 @@ export default function AssessmentDocumentPage() {
       return "This exam has incomplete timing settings. Ask your teacher to update the task.";
     }
     return null;
+  };
+
+  const teacherStudentOptions = useMemo<TeacherStudentOption[]>(() => {
+    const byId = new Map<string, TeacherStudentOption>();
+    for (const task of teacherStudentTasks) {
+      const optionStudentId = task.student_id;
+      if (optionStudentId == null || String(optionStudentId).trim() === "") continue;
+      const value = String(optionStudentId);
+      if (byId.has(value)) continue;
+      byId.set(value, {
+        value,
+        label: getStudentNameFromTask(task),
+        status: task.status,
+      });
+    }
+    return Array.from(byId.values()).sort((left, right) => left.label.localeCompare(right.label));
+  }, [teacherStudentTasks]);
+
+  const currentTeacherStudentTask = useMemo(() => {
+    return teacherStudentTasks.find((task) => String(task.student_id) === String(studentId)) || null;
+  }, [studentId, teacherStudentTasks]);
+
+  const currentTeacherStudentName = useMemo(() => {
+    if (currentTeacherStudentTask) return getStudentNameFromTask(currentTeacherStudentTask);
+    return teacherStudentOptions.find((option) => option.value === studentId)?.label || undefined;
+  }, [currentTeacherStudentTask, studentId, teacherStudentOptions]);
+
+  const handleTeacherStudentChange = (nextStudentId: string) => {
+    const nextTask = teacherStudentTasks.find((task) => String(task.student_id) === String(nextStudentId));
+    if (!nextTask) return;
+
+    const sourcePath = nextTask.task?.file_path || nextTask.file_path || "";
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("assessmentId", String(nextTask.assessment_id || assessmentId));
+    params.set("taskId", String(nextTask.task_id || taskId));
+    params.set("studentId", String(nextTask.student_id));
+    params.set("role", "teacher");
+    params.set("fileUrl", fileUrlForDocument(sourcePath) || fileUrl);
+    params.set("title", nextTask.task?.task_name || title || "PDF Assessment");
+    params.set("maxMarks", String(nextTask.task?.allocated_marks || maxMarks || 0));
+    params.set("teacherMarks", String(nextTask.teacher_assessment_score || nextTask.teacher_assessment_marks || ""));
+    params.set("teacherFeedback", String(nextTask.teacher_feedback || ""));
+    router.push(`/dashboard/assessment-document?${params.toString()}`);
   };
 
   return (
@@ -193,6 +329,10 @@ export default function AssessmentDocumentPage() {
           examDurationMinutes={resolvedExamConfig.exam_duration_minutes ?? undefined}
           examEndAt={resolvedExamConfig.exam_end_at || undefined}
           returnTo={returnTo}
+          currentStudentName={role === "teacher" ? currentTeacherStudentName : undefined}
+          studentSwitcherOptions={role === "teacher" ? teacherStudentOptions : undefined}
+          studentSwitcherLoading={teacherStudentTasksLoading}
+          onStudentChange={role === "teacher" ? handleTeacherStudentChange : undefined}
         />
       )}
     </div>

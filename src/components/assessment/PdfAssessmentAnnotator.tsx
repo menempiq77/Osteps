@@ -59,6 +59,12 @@ type TeacherExamStudentInfo = {
   className: string;
 };
 
+type StudentSwitcherOption = {
+  value: string;
+  label: string;
+  status?: string;
+};
+
 type FullscreenCapableDocument = Document & {
   webkitFullscreenElement?: Element | null;
   msFullscreenElement?: Element | null;
@@ -85,6 +91,10 @@ type PdfAssessmentAnnotatorProps = {
   examEndAt?: string;
   initialSelfAssessmentMark?: number | null;
   returnTo?: string | null;
+  currentStudentName?: string;
+  studentSwitcherOptions?: StudentSwitcherOption[];
+  studentSwitcherLoading?: boolean;
+  onStudentChange?: (studentId: string) => void;
 };
 
 const COLORS = ["#111827", "#dc2626", "#2563eb", "#16a34a", "#9333ea"];
@@ -103,6 +113,13 @@ const MIN_TEXT_FONT_SIZE = 12;
 const MAX_TEXT_FONT_SIZE = 36;
 
 const makeId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+const sanitizeFileName = (value: string) =>
+  value
+    .replace(/[\\/:*?"<>|]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 120) || "student-paper";
 
 const getDocumentDraftKey = (
   assessmentId: string,
@@ -220,6 +237,49 @@ const drawPen = (context: CanvasRenderingContext2D, annotation: PenAnnotation) =
   context.restore();
 };
 
+const drawWrappedText = (
+  context: CanvasRenderingContext2D,
+  annotation: TextAnnotation,
+  maxWidth = TEXT_ANNOTATION_MAX_WIDTH
+) => {
+  const text = annotation.text || "";
+  if (!text.trim()) return;
+
+  const fontSize = annotation.fontSize || 16;
+  const lineHeight = fontSize * 1.22;
+  context.save();
+  context.fillStyle = annotation.color || "#111827";
+  context.font = `${fontSize}px Arial, sans-serif`;
+  context.textBaseline = "top";
+
+  const paragraphs = text.split(/\r?\n/);
+  let y = annotation.y;
+  for (const paragraph of paragraphs) {
+    const words = paragraph.split(/\s+/).filter(Boolean);
+    if (words.length === 0) {
+      y += lineHeight;
+      continue;
+    }
+
+    let line = "";
+    for (const word of words) {
+      const testLine = line ? `${line} ${word}` : word;
+      if (context.measureText(testLine).width > maxWidth && line) {
+        context.fillText(line, annotation.x, y);
+        line = word;
+        y += lineHeight;
+      } else {
+        line = testLine;
+      }
+    }
+    if (line) {
+      context.fillText(line, annotation.x, y);
+      y += lineHeight;
+    }
+  }
+  context.restore();
+};
+
 const distanceToSegment = (
   point: { x: number; y: number },
   start: { x: number; y: number },
@@ -268,6 +328,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   examEndAt,
   initialSelfAssessmentMark = null,
   returnTo = null,
+  currentStudentName,
+  studentSwitcherOptions = [],
+  studentSwitcherLoading = false,
+  onStudentChange,
 }) => {
   const [messageApi, contextHolder] = message.useMessage();
   const [state, setState] = useState<AssessmentDocumentState | null>(null);
@@ -287,6 +351,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [finishing, setFinishing] = useState(false);
   const [changingStudentLock, setChangingStudentLock] = useState(false);
+  const [exportingPaper, setExportingPaper] = useState(false);
   const [selfAssessmentMark, setSelfAssessmentMark] = useState<number | null>(initialSelfAssessmentMark);
   const [teacherMarks, setTeacherMarks] = useState(initialTeacherMarks);
   const [teacherFeedback, setTeacherFeedback] = useState(initialTeacherFeedback);
@@ -390,6 +455,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const safeReturnTo = sanitizeReturnToPath(returnTo);
   const zoomPercent = Math.round(zoomLevel * 100);
   const canOpenOriginalFile = !(role === "student" && examWindow.examMode);
+  const displayStudentName = currentStudentName || teacherExamStudentInfo?.studentName || `Student ${studentId}`;
+  const canDownloadSubmittedPaper = role === "teacher" && documentLoaded && (studentLocked || state?.status === "submitted" || state?.status === "marked");
   const autosaveStatusLabel = saving
     ? "Saving"
     : autosaveQueued
@@ -1785,6 +1852,107 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     }
   };
 
+  const flushTeacherAnnotationsBeforeNavigation = async () => {
+    if (role !== "teacher" || !documentLoaded) return;
+    const snapshot = getCurrentLayerSnapshot();
+    const signature = getAnnotationsSignature(snapshot);
+    if (!autosaveQueued && signature === lastLiveSyncedSignatureRef.current) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = null;
+    pendingAutosaveRef.current = null;
+    setAutosaveQueued(false);
+    await saveAnnotations(snapshot, undefined, { syncState: false, silent: true });
+    lastLiveSyncedSignatureRef.current = signature;
+  };
+
+  const handleStudentSwitcherChange = async (nextStudentId: string) => {
+    if (!onStudentChange || nextStudentId === studentId) return;
+    try {
+      await flushTeacherAnnotationsBeforeNavigation();
+    } catch (error) {
+      console.error(error);
+      messageApi.warning("Could not auto-save teacher notes before switching. Please press Save now, then switch student.");
+      return;
+    }
+    onStudentChange(nextStudentId);
+  };
+
+  const drawPageIntoCanvas = async (page: RenderedPage, outputCanvas: HTMLCanvasElement) => {
+    outputCanvas.width = Math.max(1, Math.round(page.width));
+    outputCanvas.height = Math.max(1, Math.round(page.height));
+    const context = outputCanvas.getContext("2d");
+    if (!context) throw new Error("Could not prepare export canvas");
+
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, outputCanvas.width, outputCanvas.height);
+
+    const sourceCanvas = pageCanvasRefs.current[page.pageNumber];
+    if (sourceCanvas) {
+      context.drawImage(sourceCanvas, 0, 0, page.width, page.height);
+    } else if (documentKind === "image" && imageUrl) {
+      await new Promise<void>((resolve, reject) => {
+        const image = new Image();
+        image.crossOrigin = "anonymous";
+        image.onload = () => {
+          context.drawImage(image, 0, 0, page.width, page.height);
+          resolve();
+        };
+        image.onerror = () => reject(new Error("Could not export image document"));
+        image.src = imageUrl;
+      });
+    } else if (documentKind === "docx") {
+      context.fillStyle = "#111827";
+      context.font = "18px Arial, sans-serif";
+      context.fillText("Word document preview cannot be flattened in-browser. Open the original file instead.", 48, 60);
+    } else {
+      throw new Error("The paper is still rendering. Try again after the pages finish loading.");
+    }
+
+    for (const annotation of [...studentAnnotations, ...teacherAnnotations]) {
+      if (annotation.page !== page.pageNumber) continue;
+      if (annotation.type === "pen") drawPen(context, annotation);
+      if (annotation.type === "text") drawWrappedText(context, annotation);
+    }
+  };
+
+  const downloadSubmittedPaper = async () => {
+    if (!canDownloadSubmittedPaper) {
+      messageApi.warning("This student paper is still open. Download is enabled after the student submits or the paper is locked.");
+      return;
+    }
+    if (rendering || pages.length === 0) {
+      messageApi.info("Wait for the paper to finish rendering before downloading.");
+      return;
+    }
+
+    setExportingPaper(true);
+    try {
+      const { jsPDF } = await import("jspdf");
+      const fileName = `${sanitizeFileName(displayStudentName)} - ${sanitizeFileName(title || "assessment")}.pdf`;
+      let pdf: InstanceType<typeof jsPDF> | null = null;
+
+      for (const page of pages) {
+        const canvas = document.createElement("canvas");
+        await drawPageIntoCanvas(page, canvas);
+        const orientation = page.width >= page.height ? "landscape" : "portrait";
+        if (!pdf) {
+          pdf = new jsPDF({ orientation, unit: "pt", format: [page.width, page.height] });
+        } else {
+          pdf.addPage([page.width, page.height], orientation);
+        }
+        pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, page.width, page.height);
+      }
+
+      pdf?.save(fileName);
+      messageApi.success("Student paper downloaded. No student answers were changed.");
+    } catch (error) {
+      console.error(error);
+      messageApi.error("Could not create the paper PDF. Open the original file or try again after the preview renders.");
+    } finally {
+      setExportingPaper(false);
+    }
+  };
+
   const toggleStudentEditingLock = async () => {
     if (role !== "teacher" || !state) return;
     setChangingStudentLock(true);
@@ -1904,6 +2072,29 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         <div className={shouldEnforceExamScreen ? "flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between" : "mx-auto flex max-w-7xl flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"}>
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-lg font-semibold text-gray-900">{title}</h1>
+            {role === "teacher" && (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">Student</span>
+                {studentSwitcherOptions.length > 0 && onStudentChange ? (
+                  <Select
+                    showSearch
+                    value={studentId}
+                    loading={studentSwitcherLoading}
+                    onChange={(value) => void handleStudentSwitcherChange(value)}
+                    className="min-w-64"
+                    optionFilterProp="label"
+                    options={studentSwitcherOptions.map((option) => ({
+                      value: option.value,
+                      label: option.status ? `${option.label} · ${option.status}` : option.label,
+                    }))}
+                  />
+                ) : (
+                  <span className="rounded-md bg-slate-100 px-2 py-1 text-sm font-medium text-slate-800">
+                    {displayStudentName}
+                  </span>
+                )}
+              </div>
+            )}
             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500 sm:flex-nowrap sm:overflow-hidden">
               <Tag className="mb-0 shrink-0 whitespace-nowrap" color={role === "teacher" ? "red" : "blue"}>{role === "teacher" ? "Teacher marking" : "Student copy"}</Tag>
               <Tag className="mb-0 shrink-0 whitespace-nowrap" color={state?.status === "draft" ? "gold" : state?.status === "submitted" ? "green" : "purple"}>{state?.status || "draft"}</Tag>
@@ -1966,6 +2157,14 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                 </Button>
                 <Input className="w-24" placeholder="Marks" value={teacherMarks} onChange={(event) => setTeacherMarks(event.target.value)} />
                 <Input className="w-64" placeholder="Feedback" value={teacherFeedback} onChange={(event) => setTeacherFeedback(event.target.value)} />
+                <Button
+                  onClick={() => void downloadSubmittedPaper()}
+                  loading={exportingPaper}
+                  disabled={!canDownloadSubmittedPaper || rendering}
+                  title={canDownloadSubmittedPaper ? "Download this student paper as a PDF" : "Download is available after the student submits or the paper is locked"}
+                >
+                  Download paper
+                </Button>
                 <Button type="primary" onClick={finalizeTeacherMark} loading={finishing}>Save markbook mark</Button>
               </>
             )}
