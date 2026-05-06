@@ -49,6 +49,10 @@ const DuplicateWeekModal = dynamic(
   () => import("@/components/timetable/DuplicateWeekModal"),
   { ssr: false }
 );
+const CopyClassWeekModal = dynamic(
+  () => import("@/components/timetable/CopyClassWeekModal"),
+  { ssr: false }
+);
 
 dayjs.extend(isoWeek);
 
@@ -88,7 +92,9 @@ export default function TimetableBuilderPage() {
 
   // Duplicate week modal
   const [duplicateOpen, setDuplicateOpen] = useState(false);
+  const [copyClassWeekOpen, setCopyClassWeekOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [copyClassWeekLoading, setCopyClassWeekLoading] = useState(false);
 
   // Popover state: { key: "day|periodId", mode: "add"|"edit", slotId?: number }
   const [popoverKey, setPopoverKey] = useState<string | null>(null);
@@ -224,6 +230,10 @@ export default function TimetableBuilderPage() {
     if (!filterClassId) return [] as any[];
     return (slots as any[]).filter((slot: any) => String(slot.class_id) === filterClassId);
   }, [slots, filterClassId]);
+
+  const destinationClasses = useMemo(() => {
+    return filterClasses.filter((klass: any) => String(klass.id) !== filterClassId);
+  }, [filterClasses, filterClassId]);
 
   useEffect(() => {
     if (sidebarView !== "subject") return;
@@ -511,36 +521,127 @@ export default function TimetableBuilderPage() {
   };
 
   // ── Duplicate week ────────────────────────────────────────────────────────
-  const handleDuplicate = async (targetSun: Dayjs) => {
+  const handleDuplicate = async ({
+    targetWeekSuns,
+    clearExisting,
+  }: {
+    targetWeekSuns: Dayjs[];
+    clearExisting: boolean;
+  }) => {
     if (!filterYearId || !filterClassId) {
       messageApi.warning("Select a year group and class first.");
       return;
     }
     const source = weekSlots;
-    for (const slot of source) {
-      const srcDate = dayjs(slot.date);
-      const dayDiff = srcDate.diff(weekSun, "day");
-      const newDate = targetSun.add(dayDiff, "day").format("YYYY-MM-DD");
-      await addTimetableSlot(
-        {
-          subject: slot.subject,
-          teacher_id: String(slot.teacher_id ?? ""),
-          year_id: String(slot.year_id ?? ""),
-          class_id: String(slot.class_id ?? ""),
-          room: slot.room ?? "",
-          zoom_link: slot.zoom_link,
-          date: newDate,
-          day: slot.day,
-          start_time: slot.start_time,
-          end_time: slot.end_time,
-          school_id: schoolId ?? undefined,
-        },
-        "all"
-      );
+    for (const targetSun of targetWeekSuns) {
+      if (clearExisting) {
+        const existingTargetSlots = slotsForWeek(selectedClassSlots, targetSun);
+        await Promise.all(
+          existingTargetSlots.map((slot: any) => deleteTimetableSlot(String(slot.id)))
+        );
+      }
+
+      for (const slot of source) {
+        const srcDate = dayjs(slot.date);
+        const dayDiff = srcDate.diff(weekSun, "day");
+        const newDate = targetSun.add(dayDiff, "day").format("YYYY-MM-DD");
+        await addTimetableSlot(
+          {
+            subject: slot.subject,
+            subject_id: String(slot.subject_id ?? ""),
+            teacher_id: String(slot.teacher_id ?? ""),
+            year_id: filterYearId,
+            class_id: filterClassId,
+            room: slot.room ?? "",
+            zoom_link: slot.zoom_link,
+            date: newDate,
+            day: slot.day,
+            start_time: slot.start_time,
+            end_time: slot.end_time,
+            school_id: schoolId ?? undefined,
+          },
+          "all"
+        );
+      }
     }
-    invalidate();
-    messageApi.success(`Copied ${source.length} slot${source.length !== 1 ? "s" : ""}`);
+    await invalidate();
+    messageApi.success(
+      `Copied ${source.length} slot${source.length !== 1 ? "s" : ""} to ${targetWeekSuns.length} week${targetWeekSuns.length !== 1 ? "s" : ""}`
+    );
   };
+
+  const handleCopyToClasses = useCallback(
+    async ({
+      targetClassIds,
+      clearExisting,
+      copyTeachers,
+    }: {
+      targetClassIds: string[];
+      clearExisting: boolean;
+      copyTeachers: boolean;
+    }) => {
+      if (!filterYearId || !filterClassId || targetClassIds.length === 0) {
+        messageApi.warning("Select a source class and destination classes first.");
+        return;
+      }
+
+      const source = weekSlots;
+      if (source.length === 0) {
+        messageApi.warning("There are no lessons in this class for the selected week.");
+        return;
+      }
+
+      setCopyClassWeekLoading(true);
+      try {
+        const weekSourceSlots = slotsForWeek(slots, weekSun);
+
+        for (const targetClassId of targetClassIds) {
+          const targetClass = destinationClasses.find((klass: any) => String(klass.id) === targetClassId);
+          if (!targetClass) continue;
+
+          if (clearExisting) {
+            const existingTargetSlots = weekSourceSlots.filter(
+              (slot: any) => String(slot.class_id) === targetClassId
+            );
+            await Promise.all(
+              existingTargetSlots.map((slot: any) => deleteTimetableSlot(String(slot.id)))
+            );
+          }
+
+          for (const slot of source) {
+            await addTimetableSlot(
+              {
+                subject: slot.subject,
+                subject_id: String(slot.subject_id ?? ""),
+                teacher_id: copyTeachers ? String(slot.teacher_id ?? "") : "",
+                year_id: String(targetClass.year_id ?? filterYearId),
+                class_id: String(targetClass.id),
+                room: slot.room ?? "",
+                zoom_link: slot.zoom_link,
+                date: slot.date,
+                day: slot.day,
+                start_time: slot.start_time,
+                end_time: slot.end_time,
+                school_id: schoolId ?? undefined,
+              },
+              "all"
+            );
+          }
+        }
+
+        await invalidate();
+        setCopyClassWeekOpen(false);
+        messageApi.success(
+          `Copied ${source.length} slot${source.length !== 1 ? "s" : ""} to ${targetClassIds.length} class${targetClassIds.length !== 1 ? "es" : ""}`
+        );
+      } catch {
+        messageApi.error("Failed to copy this class week to the selected classes");
+      } finally {
+        setCopyClassWeekLoading(false);
+      }
+    },
+    [destinationClasses, filterClassId, filterYearId, invalidate, messageApi, schoolId, slots, weekSlots, weekSun]
+  );
 
   // ── Grid helpers ──────────────────────────────────────────────────────────
   const teachingPeriods = periods.filter((p) => p.isTeaching);
@@ -586,6 +687,9 @@ export default function TimetableBuilderPage() {
             <Button icon={<ArrowRightOutlined />} onClick={() => setAnchor((a) => a.add(7, "day"))} />
             <Button onClick={() => setAnchor(dayjs())}>This Week</Button>
             <Button icon={<CopyOutlined />} disabled={!filterClassId} onClick={() => setDuplicateOpen(true)}>Copy Week</Button>
+            <Button icon={<CopyOutlined />} disabled={!filterClassId || weekSlots.length === 0 || destinationClasses.length === 0} onClick={() => setCopyClassWeekOpen(true)}>
+              Copy To Classes
+            </Button>
             <Button icon={<UploadOutlined />} onClick={() => setImportOpen(true)}>Import</Button>
             <Dropdown
               menu={{
@@ -930,6 +1034,16 @@ export default function TimetableBuilderPage() {
         sourceWeek={weekSun}
         allSlots={selectedClassSlots}
         onConfirm={handleDuplicate}
+      />
+      <CopyClassWeekModal
+        open={copyClassWeekOpen}
+        onClose={() => setCopyClassWeekOpen(false)}
+        sourceWeek={weekSun}
+        sourceClassName={selectedClassGroup?.class_name}
+        sourceSlotCount={weekSlots.length}
+        destinationClasses={destinationClasses}
+        onConfirm={handleCopyToClasses}
+        loading={copyClassWeekLoading}
       />
       <TimetableImportModal
         open={importOpen}
