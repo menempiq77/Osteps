@@ -395,7 +395,7 @@ export default function AssessmentDrawer({
                     download
                     className="text-blue-600 hover:underline flex items-center gap-1"
                   >
-                    Download PDF
+                    Download original PDF
                   </a>
                 </div>
               </div>

@@ -56,17 +56,18 @@ const toStudentOption = (value: unknown): StudentOption | null => {
   const row = value as Record<string, any>;
   const id = row?.id ?? row?.student_id;
   if (id == null || String(id).trim() === "") return null;
+  const studentName = String(
+    row?.student_name ??
+      row?.name ??
+      row?.student?.student_name ??
+      row?.student?.name ??
+      row?.user?.name ??
+      ""
+  ).trim();
+  if (!studentName) return null;
   return {
     id: String(id),
-    student_name:
-      String(
-        row?.student_name ??
-          row?.name ??
-          row?.student?.student_name ??
-          row?.student?.name ??
-          row?.user?.name ??
-          `Student ${id}`
-      ).trim() || `Student ${id}`,
+    student_name: studentName,
   };
 };
 
@@ -243,7 +244,11 @@ export default function AssessmentDrawer() {
       : false;
     if (hasCurrentSelection) return;
 
-    const firstSubmitter = assementTasks.find((task) => task?.student_id != null);
+    const firstSubmitter = assementTasks.find(
+      (task) =>
+        task?.student_id != null &&
+        studentOptions.some((student) => student.id === String(task.student_id))
+    );
     const preferredStudentId =
       firstSubmitter?.student_id != null
         ? String(firstSubmitter.student_id)
