@@ -703,24 +703,28 @@ export default function AssessmentDrawer() {
                 <div className="p-4 border rounded-lg bg-gray-50">
                   <FilePdfOutlined className="text-red-500 text-2xl mb-2" />
                   <p className="text-gray-700 mb-3">
-                    PDF document available for online marking or download
+                    Open online marking to view or download the student's answered copy.
                   </p>
                   <Button
                     type="primary"
                     className="mb-3 !bg-primary !border-primary"
                     onClick={() => openTeacherDocumentWorkspace(viewingTask)}
                   >
-                    Mark online on PDF
+                    Open answered PDF
                   </Button>
-                  <a
-                    href={`https://dashboard.osteps.com/${viewingTask.file_path}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    download
-                    className="text-blue-600 hover:underline flex items-center gap-1"
-                  >
-                    Download PDF
-                  </a>
+                  {fileUrlForDocument(viewingTask.file_path || viewingTask.task?.file_path) ? (
+                    <a
+                      href={fileUrlForDocument(viewingTask.file_path || viewingTask.task?.file_path)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      download
+                      className="text-blue-600 hover:underline flex items-center gap-1"
+                    >
+                      Download original PDF
+                    </a>
+                  ) : (
+                    <p className="text-gray-500 italic">Open online marking to view or download the answered paper.</p>
+                  )}
                 </div>
               ) : viewingTask.task?.task_type.toLowerCase() === "video" ? (
                 <video
@@ -729,7 +733,7 @@ export default function AssessmentDrawer() {
                   style={{ maxHeight: "400px" }}
                 >
                   <source
-                    src={`https://dashboard.osteps.com/${viewingTask.file_path}`}
+                    src={fileUrlForDocument(viewingTask.file_path)}
                     type="video/mp4"
                   />
                   Your browser does not support the video tag.
@@ -737,7 +741,7 @@ export default function AssessmentDrawer() {
               ) : viewingTask.task?.task_type.toLowerCase() === "audio" ? (
                 <audio controls className="w-full">
                   <source
-                    src={`https://dashboard.osteps.com/${viewingTask.file_path}`}
+                    src={fileUrlForDocument(viewingTask.file_path)}
                     type="audio/mpeg"
                   />
                   Your browser does not support the audio element.
@@ -757,7 +761,7 @@ export default function AssessmentDrawer() {
                 </div>
               ) : viewingTask.file_path ? (
                 <a
-                  href={`https://dashboard.osteps.com/${viewingTask.file_path}`}
+                  href={fileUrlForDocument(viewingTask.file_path)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-blue-600 hover:underline"
