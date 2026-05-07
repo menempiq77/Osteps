@@ -25,7 +25,7 @@ export type AiDraftMarkRequest = {
 export const draftAssessmentMark = async (
   payload: AiDraftMarkRequest
 ): Promise<AiDraftMarkResponse> => {
-  const response = await fetch("/osteps-api/ai/marking/draft", {
+  const response = await fetch("/dashboard/ai/marking/draft", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
