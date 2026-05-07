@@ -46,6 +46,7 @@ const SHARED_PREFIXES = [
   "/dashboard/admins/settings",
   "/dashboard/trackers",
   "/dashboard/assessment-document",
+  "/dashboard/ai",
 ];
 
 const SHARED_EXACT_PATHS = [
@@ -88,6 +89,7 @@ const SUBJECT_ROUTE_ROOTS = new Set([
   "timetable-builder",
   "timetable-generator",
   "assessment-document",
+  "ai",
 ]);
 
 const startsWithPrefix = (path: string, prefix: string): boolean => path === prefix || path.startsWith(`${prefix}/`);
