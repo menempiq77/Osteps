@@ -27,7 +27,7 @@ import {
 } from "@/services/dashboardApis";
 import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
 import { fetchStudentProfileData, fetchStudents } from "@/services/studentsApi";
-import { fetchAssessment, fetchSchoolLogo } from "@/services/api";
+import { fetchAssessmentByStudent, fetchSchoolLogo } from "@/services/api";
 import { fetchTrackers } from "@/services/trackersApi";
 import { IMG_BASE_URL } from "@/lib/config";
 import { useRouter } from "next/navigation";
@@ -601,7 +601,7 @@ export default function DashboardPage() {
       const scopedSubjectId = canUseSubjectContext ? activeSubjectId ?? undefined : undefined;
       const termResults = await Promise.all(
         (Array.isArray(terms) ? terms : []).map(async (term: any) => {
-          const assessments = await fetchAssessment(Number(term?.id), scopedSubjectId);
+          const assessments = await fetchAssessmentByStudent(Number(term?.id), scopedSubjectId);
           return { term, assessments: Array.isArray(assessments) ? assessments : [] };
         })
       );
@@ -609,6 +609,21 @@ export default function DashboardPage() {
       const rows = termResults.flatMap(({ term, assessments }) =>
         assessments
           .filter((assessment: any) => String(assessment?.type ?? "").toLowerCase() === "assessment")
+          .filter((assessment: any) => {
+            const assignedRows = Array.isArray(assessment?.assigned)
+              ? assessment.assigned
+              : Array.isArray(assessment?.assign_assessments)
+                ? assessment.assign_assessments
+                : [];
+
+            if (assignedRows.length === 0) return true;
+
+            return assignedRows.some(
+              (row: any) =>
+                Number(row?.term_id) === Number(term?.id) &&
+                String(row?.status ?? "").toLowerCase() === "assigned"
+            );
+          })
           .map((assessment: any) => {
             const tasks = Array.isArray(assessment?.tasks) ? assessment.tasks : [];
             const datedTasks = tasks
