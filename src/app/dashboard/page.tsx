@@ -210,10 +210,13 @@ export default function DashboardPage() {
     canUseSubjectContext && !!activeSubjectId && !isLegacySubjectView;
   const pathSubjectId = extractSubjectIdFromPath(pathname);
   const querySubjectId = Number(searchParams.get("subject_id") ?? 0);
+  const requestedSubjectId = Number.isFinite(Number(pathSubjectId)) && Number(pathSubjectId) > 0
+    ? Number(pathSubjectId)
+    : Number.isFinite(querySubjectId) && querySubjectId > 0
+      ? querySubjectId
+      : null;
   const hasRequestedSubjectContext =
-    Number.isFinite(Number(pathSubjectId)) && Number(pathSubjectId) > 0
-      ? true
-      : Number.isFinite(querySubjectId) && querySubjectId > 0;
+    requestedSubjectId !== null;
   const router = useRouter();
   const studentsListLink = getStudentsListLink({
     isSubjectWorkspaceMode,
@@ -580,7 +583,10 @@ export default function DashboardPage() {
       ? liveStudentClassId
       : Number(currentUser?.studentClass ?? 0);
 
-  const { data: studentHomeAssessmentsFromTerms = [] } = useQuery({
+  const {
+    data: studentHomeAssessmentsFromTerms = [],
+    isLoading: studentHomeAssessmentsLoading,
+  } = useQuery({
     queryKey: [
       "student-home-assessments-from-terms",
       effectiveStudentClassId,
@@ -640,10 +646,16 @@ export default function DashboardPage() {
     enabled:
       currentUser?.role === "STUDENT" &&
       !liveStudentProfileLoading &&
-      Number(effectiveStudentClassId) > 0,
+      Number(effectiveStudentClassId) > 0 &&
+      (!canUseSubjectContext ||
+        !hasRequestedSubjectContext ||
+        (!!activeSubjectId && !subjectContextLoading)),
   });
 
-  const { data: studentHomeTrackers = [] } = useQuery({
+  const {
+    data: studentHomeTrackers = [],
+    isLoading: studentHomeTrackersLoading,
+  } = useQuery({
     queryKey: [
       "student-home-trackers",
       effectiveStudentClassId,
@@ -712,7 +724,10 @@ export default function DashboardPage() {
     enabled:
       currentUser?.role === "STUDENT" &&
       !liveStudentProfileLoading &&
-      Number(effectiveStudentClassId) > 0,
+      Number(effectiveStudentClassId) > 0 &&
+      (!canUseSubjectContext ||
+        !hasRequestedSubjectContext ||
+        (!!activeSubjectId && !subjectContextLoading)),
   });
 
   function timeAgo(dateString: string) {
@@ -813,9 +828,11 @@ export default function DashboardPage() {
   }, [studentDashboard]);
 
   const studentHomeAssessments =
-    studentHomeAssessmentsFromTerms.length > 0
+    isSubjectWorkspaceMode
       ? studentHomeAssessmentsFromTerms
-      : studentActiveAssessments;
+      : studentHomeAssessmentsFromTerms.length > 0
+        ? studentHomeAssessmentsFromTerms
+        : studentActiveAssessments;
   const studentHomeItems = useMemo(() => {
     const assessmentItems = studentHomeAssessments.map((assessment: any, index: number) => ({
       kind: "assessment" as const,
@@ -869,6 +886,15 @@ export default function DashboardPage() {
     });
   }, [effectiveStudentClassId, studentHomeAssessments, studentHomeTrackers]);
   const studentClassStoryClassId = String(effectiveStudentClassId || "").trim();
+  const isStudentSubjectHomeLoading =
+    currentUser?.role === "STUDENT" &&
+    canUseSubjectContext &&
+    hasRequestedSubjectContext &&
+    (subjectContextLoading ||
+      liveStudentProfileLoading ||
+      studentHomeAssessmentsLoading ||
+      studentHomeTrackersLoading ||
+      (requestedSubjectId !== null && Number(activeSubjectId) !== Number(requestedSubjectId)));
 
   // Redirect to subject-cards — show a clean loading state, no dashboard flash
   if (shouldUseSubjectCardsEntry) {
@@ -1380,7 +1406,11 @@ export default function DashboardPage() {
           </div>
 
           <Card className="border-0 bg-transparent !shadow-none">
-            {studentHomeItems.length > 0 ? (
+            {isStudentSubjectHomeLoading ? (
+              <div className="flex h-24 items-center justify-center">
+                <Spin size="large" />
+              </div>
+            ) : studentHomeItems.length > 0 ? (
               <div className="space-y-2.5">
                 {studentHomeItems.map((item) => (
                   <Link
