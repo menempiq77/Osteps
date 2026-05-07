@@ -26,6 +26,7 @@ type RenderedPage = {
   pageNumber: number;
   width: number;
   height: number;
+  previewUrl?: string;
 };
 
 type EditingText = {
@@ -359,7 +360,6 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const [pages, setPages] = useState<RenderedPage[]>([]);
   const [documentKind, setDocumentKind] = useState<DocumentKind>("pdf");
   const [docxHtml, setDocxHtml] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
   const [tool, setTool] = useState<Tool>(role === "teacher" ? "pen" : "text");
   const [color, setColor] = useState(role === "teacher" ? "#dc2626" : "#111827");
   const [penWidth, setPenWidth] = useState(3);
@@ -394,7 +394,6 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const activeAnnotationsRef = useRef<AssessmentDocumentAnnotation[]>([]);
   const erasingRef = useRef(false);
   const draggingTextRef = useRef<DraggingText | null>(null);
-  const pageCanvasRefs = useRef<Record<number, HTMLCanvasElement | null>>({});
   const annotationCanvasRefs = useRef<Record<number, HTMLCanvasElement | null>>({});
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const selfAssessmentSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1179,7 +1178,6 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         setRendering(true);
         setRenderError(null);
         setDocxHtml("");
-        setImageUrl("");
 
         if (fileExtension === "docx") {
           setDocumentKind("docx");
@@ -1203,8 +1201,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
             const width = Math.min(900, image.naturalWidth || 900);
             const scale = width / (image.naturalWidth || width);
             const height = Math.max(700, (image.naturalHeight || 1000) * scale);
-            setImageUrl(pdfRenderUrl);
-            setPages([{ pageNumber: 1, width, height }]);
+            setPages([{ pageNumber: 1, width, height, previewUrl: pdfRenderUrl }]);
             setRendering(false);
           };
           image.onerror = () => {
@@ -1226,19 +1223,18 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
           if (cancelled) return;
           const page = await pdf.getPage(pageNumber);
           const viewport = page.getViewport({ scale: 1.35 });
-          const canvas = pageCanvasRefs.current[pageNumber];
-          if (!canvas) {
-            renderedPages.push({ pageNumber, width: viewport.width, height: viewport.height });
-            continue;
-          }
+          const canvas = document.createElement("canvas");
           const context = canvas.getContext("2d");
           if (!context) continue;
           canvas.width = viewport.width;
           canvas.height = viewport.height;
-          canvas.style.width = `${viewport.width}px`;
-          canvas.style.height = `${viewport.height}px`;
           await page.render({ canvasContext: context, viewport }).promise;
-          renderedPages.push({ pageNumber, width: viewport.width, height: viewport.height });
+          renderedPages.push({
+            pageNumber,
+            width: viewport.width,
+            height: viewport.height,
+            previewUrl: canvas.toDataURL("image/png"),
+          });
         }
 
         if (!cancelled) setPages(renderedPages);
@@ -1254,7 +1250,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [pdfRenderUrl, fileExtension, pages.length]);
+  }, [pdfRenderUrl, fileExtension]);
 
   useEffect(() => {
     for (const page of pages) {
@@ -1963,8 +1959,14 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
   const applyAiDraftMark = async () => {
     if (role !== "teacher") return;
+    if (rendering || pages.length === 0) {
+      messageApi.info("Wait for the paper to finish rendering before using AI Draft Mark.");
+      return;
+    }
+
     setAiDrafting(true);
     try {
+      const pageImages = await buildAiPageSnapshots();
       const draft = await draftAssessmentMark({
         assessmentId,
         taskId,
@@ -1975,6 +1977,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         fileUrl,
         maxMarks,
         studentAnnotations,
+        pageImages,
         currentTeacherMarks: teacherMarks,
         currentTeacherFeedback: teacherFeedback,
       });
@@ -2012,7 +2015,11 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     void applyAiDraftMark();
   };
 
-  const drawPageIntoCanvas = async (page: RenderedPage, outputCanvas: HTMLCanvasElement) => {
+  const drawPageIntoCanvas = async (
+    page: RenderedPage,
+    outputCanvas: HTMLCanvasElement,
+    options?: { includeTeacherAnnotations?: boolean }
+  ) => {
     outputCanvas.width = Math.max(1, Math.round(page.width));
     outputCanvas.height = Math.max(1, Math.round(page.height));
     const context = outputCanvas.getContext("2d");
@@ -2021,10 +2028,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     context.fillStyle = "#ffffff";
     context.fillRect(0, 0, outputCanvas.width, outputCanvas.height);
 
-    const sourceCanvas = pageCanvasRefs.current[page.pageNumber];
-    if (sourceCanvas) {
-      context.drawImage(sourceCanvas, 0, 0, page.width, page.height);
-    } else if (documentKind === "image" && imageUrl) {
+    if (page.previewUrl) {
       await new Promise<void>((resolve, reject) => {
         const image = new Image();
         image.crossOrigin = "anonymous";
@@ -2032,8 +2036,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
           context.drawImage(image, 0, 0, page.width, page.height);
           resolve();
         };
-        image.onerror = () => reject(new Error("Could not export image document"));
-        image.src = imageUrl;
+        image.onerror = () => reject(new Error("Could not export rendered page"));
+        image.src = page.previewUrl;
       });
     } else if (documentKind === "docx") {
       context.fillStyle = "#111827";
@@ -2043,12 +2047,43 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       throw new Error("The paper is still rendering. Try again after the pages finish loading.");
     }
 
-    for (const annotation of [...studentAnnotations, ...teacherAnnotations]) {
+    const annotationsToDraw =
+      options?.includeTeacherAnnotations === false
+        ? studentAnnotations
+        : [...studentAnnotations, ...teacherAnnotations];
+
+    for (const annotation of annotationsToDraw) {
       if (annotation.page !== page.pageNumber) continue;
       if (annotation.type === "pen") drawPen(context, annotation);
       if (annotation.type === "text") drawWrappedText(context, annotation);
     }
   };
+
+  const buildAiPageSnapshots = useCallback(async () => {
+    if (rendering || pages.length === 0) return [] as string[];
+
+    const answeredPageNumbers = Array.from(
+      new Set(
+        studentAnnotations
+          .map((annotation) => Number(annotation.page || 0))
+          .filter((pageNumber) => Number.isFinite(pageNumber) && pageNumber > 0)
+      )
+    ).sort((left, right) => left - right);
+
+    const candidatePages =
+      answeredPageNumbers.length > 0
+        ? pages.filter((page) => answeredPageNumbers.includes(page.pageNumber))
+        : pages.slice(0, 2);
+
+    const snapshots: string[] = [];
+    for (const page of candidatePages.slice(0, 4)) {
+      const canvas = document.createElement("canvas");
+      await drawPageIntoCanvas(page, canvas, { includeTeacherAnnotations: false });
+      snapshots.push(canvas.toDataURL("image/png"));
+    }
+
+    return snapshots;
+  }, [drawPageIntoCanvas, pages, rendering, studentAnnotations]);
 
   const downloadSubmittedPaper = async () => {
     if (!canDownloadSubmittedPaper) {
@@ -2536,8 +2571,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                     transform: `scale(${zoomLevel})`,
                   }}
                 >
-                  {documentKind === "pdf" && (
-                    <canvas ref={(element) => { pageCanvasRefs.current[page.pageNumber] = element; }} className="absolute inset-0 bg-white" />
+                  {(documentKind === "pdf" || documentKind === "image") && page.previewUrl && (
+                    <img src={page.previewUrl} alt={`${title} page ${page.pageNumber}`} className="absolute inset-0 h-full w-full bg-white object-contain" />
                   )}
                   {documentKind === "docx" && (
                     <div
@@ -2545,9 +2580,6 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                       style={{ fontSize: 16, lineHeight: 1.6 }}
                       dangerouslySetInnerHTML={{ __html: docxHtml }}
                     />
-                  )}
-                  {documentKind === "image" && imageUrl && (
-                    <img src={imageUrl} alt={title} className="absolute inset-0 h-full w-full bg-white object-contain" />
                   )}
                   <canvas ref={(element) => { annotationCanvasRefs.current[page.pageNumber] = element; }} className="pointer-events-none absolute inset-0" />
                   <div

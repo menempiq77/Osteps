@@ -15,6 +15,7 @@ type DraftMarkRequest = {
   fileUrl?: string;
   maxMarks?: number | null;
   studentAnnotations?: Array<Record<string, unknown>>;
+  pageImages?: string[];
   currentTeacherMarks?: string;
   currentTeacherFeedback?: string;
 };
@@ -30,6 +31,7 @@ type DraftMarkResponse = {
 
 const OLLAMA_BASE_URL = (process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434").replace(/\/+$/, "");
 const OLLAMA_MODEL = process.env.OSTEPS_AI_MARKING_MODEL || process.env.OLLAMA_MODEL || "qwen2.5:0.5b";
+const OLLAMA_VISION_MODEL = process.env.OSTEPS_AI_MARKING_VISION_MODEL || "gemma3:1b";
 const REQUEST_TIMEOUT_MS = Number(process.env.OSTEPS_AI_MARKING_TIMEOUT_MS || 50000);
 const LARAVEL_PUBLIC_DIR = process.env.OSTEPS_LARAVEL_PUBLIC_DIR || "/var/www/laravel/public";
 const PAPER_TEXT_CACHE_MS = 10 * 60 * 1000;
@@ -81,6 +83,14 @@ const summarizeLongText = (value: string, maxLength: number) => {
   const headLength = Math.max(0, Math.floor(maxLength * 0.72));
   const tailLength = Math.max(0, maxLength - headLength - 56);
   return `${value.slice(0, headLength)}\n[...middle omitted for speed...]\n${value.slice(-tailLength)}`;
+};
+
+const normalizeImagePayload = (value: unknown) => {
+  const text = asText(value);
+  if (!text) return "";
+
+  const dataUrlMatch = text.match(/^data:image\/[a-zA-Z0-9.+-]+;base64,(.+)$/i);
+  return dataUrlMatch ? dataUrlMatch[1] : text;
 };
 
 const compactStudentText = (
@@ -307,6 +317,44 @@ const estimateFallbackSuggestedMark = (
   return Math.max(0, Math.min(maxMarks, Math.round(maxMarks * ratio)));
 };
 
+const requestOllamaDraft = async ({
+  model,
+  prompt,
+  signal,
+  images,
+}: {
+  model: string;
+  prompt: string;
+  signal: AbortSignal;
+  images?: string[];
+}) => {
+  const ollamaResponse = await fetch(`${OLLAMA_BASE_URL}/api/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model,
+      prompt,
+      images: images && images.length > 0 ? images : undefined,
+      stream: false,
+      format: "json",
+      options: {
+        temperature: 0.1,
+        top_p: 0.9,
+        num_predict: 140,
+        num_ctx: images && images.length > 0 ? 6144 : 4096,
+      },
+    }),
+    signal,
+  });
+
+  if (!ollamaResponse.ok) {
+    const errorText = await ollamaResponse.text().catch(() => "");
+    throw new Error(`Local Ollama AI marker ${model} failed (${ollamaResponse.status}). ${errorText}`.trim());
+  }
+
+  return (await ollamaResponse.json()) as { response?: string };
+};
+
 const normalizeDraft = (
   raw: Partial<DraftMarkResponse>,
   maxMarks: number | null,
@@ -353,6 +401,9 @@ export async function POST(request: Request) {
   const maxMarks = Number.isFinite(Number(body.maxMarks)) ? Number(body.maxMarks) : null;
   const studentText = compactStudentText(body.studentAnnotations, body.studentName);
   const answeredPages = extractAnsweredPages(body.studentAnnotations);
+  const pageImages = Array.isArray(body.pageImages)
+    ? body.pageImages.map(normalizeImagePayload).filter(Boolean).slice(0, 4)
+    : [];
   const islamic = isIslamicSubject(subjectName, title);
   const sourcePolicy = islamic
     ? "Islamic subject: use only the supplied assessment context and approved OSTEPS/Sunni school resources. Do not use external web knowledge. If evidence is missing, say so."
@@ -365,7 +416,7 @@ export async function POST(request: Request) {
     console.error("Could not extract exam paper text for AI marking:", error);
   }
 
-  if (!studentText && !paperContext) {
+  if (!studentText && !paperContext && pageImages.length === 0) {
     return jsonResponse({
       suggestedMark: null,
       feedback: "No readable student answer text was found in the online document annotations, and the exam paper text could not be extracted clearly enough to draft a mark.",
@@ -384,6 +435,7 @@ Student: ${asText(body.studentName) || asText(body.studentId) || "Unknown"}
 Max marks: ${maxMarks ?? "Unknown"}
 
 Use the exam paper text and the student's written answer together. Ignore metadata such as student name, date, or predicted/self-assessed grades.
+If answered-page images are supplied, they already combine the exam paper with the student's writing. Use those images as primary evidence for what the student actually wrote on the paper, especially for pen or handwritten answers.
 Grade the whole submitted answer across the answered pages, not a single isolated sentence.
 If max marks are known and the student's answer is readable, you MUST set suggestedMark to an integer from 0 to ${maxMarks ?? "the maximum marks"}. Do not use null in that case.
 If the student's answer is fully correct for the relevant question(s), award full marks. Only use suggestedMark null when the answer cannot be assessed from the supplied paper and answer text.
@@ -392,8 +444,10 @@ If marks are lost, feedback must mention at least one specific mistake, missing 
 Exam paper text for the answered pages:
 ${paperContext || "Exam paper text could not be extracted."}
 
-Student typed answer:
-${studentText}
+Student typed answer text extracted from annotations:
+${studentText || "No separate typed annotation text was found. Use the supplied answered-page images if available."}
+
+Answered-page images supplied: ${pageImages.length > 0 ? `${pageImages.length} image(s)` : "none"}
 
 Keep feedback under 45 words and rationale under 35 words. Write feedback like a teacher comment, not a generic summary. suggestedMark must be an integer when marks are known. Return exactly:
 {
@@ -408,33 +462,38 @@ Keep feedback under 45 words and rationale under 35 words. Write feedback like a
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   try {
-    const ollamaResponse = await fetch(`${OLLAMA_BASE_URL}/api/generate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: OLLAMA_MODEL,
-        prompt,
-        stream: false,
-        format: "json",
-        options: {
-          temperature: 0.1,
-          top_p: 0.9,
-          num_predict: 120,
-          num_ctx: 4096,
-        },
-      }),
-      signal: controller.signal,
-    });
+    let ollamaPayload: { response?: string } | null = null;
+    let usedVisionFallback = false;
 
-    if (!ollamaResponse.ok) {
-      const errorText = await ollamaResponse.text().catch(() => "");
-      return jsonResponse(
-        { message: `Local Ollama AI marker is not ready (${ollamaResponse.status}). ${errorText}`.trim() },
-        503
-      );
+    if (pageImages.length > 0) {
+      try {
+        ollamaPayload = await requestOllamaDraft({
+          model: OLLAMA_VISION_MODEL,
+          prompt,
+          signal: controller.signal,
+          images: pageImages,
+        });
+      } catch (error) {
+        usedVisionFallback = true;
+        console.error("Vision AI draft attempt failed, falling back to text-only draft:", error);
+      }
     }
 
-    const ollamaPayload = (await ollamaResponse.json()) as { response?: string };
+    if (!ollamaPayload) {
+      try {
+        ollamaPayload = await requestOllamaDraft({
+          model: OLLAMA_MODEL,
+          prompt,
+          signal: controller.signal,
+        });
+      } catch (error) {
+        return jsonResponse(
+          { message: error instanceof Error ? error.message : "Local Ollama AI marker is not ready." },
+          503
+        );
+      }
+    }
+
     const rawJson = extractFirstJsonObject(String(ollamaPayload.response || ""));
     if (!rawJson) {
       return jsonResponse(
@@ -444,7 +503,7 @@ Keep feedback under 45 words and rationale under 35 words. Write feedback like a
             feedback: String(ollamaPayload.response || "AI returned an unreadable response."),
             rationale: "The local model did not return valid JSON.",
             confidence: "low",
-            warnings: ["Local model response was not valid JSON."],
+            warnings: [usedVisionFallback ? "Vision draft failed; fell back to text-only analysis." : "Local model response was not valid JSON."],
           },
           maxMarks,
           sourcePolicy

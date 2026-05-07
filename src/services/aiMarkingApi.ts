@@ -19,6 +19,7 @@ export type AiDraftMarkRequest = {
   fileUrl?: string;
   maxMarks?: number;
   studentAnnotations: AssessmentDocumentAnnotation[];
+  pageImages?: string[];
   currentTeacherMarks?: string;
   currentTeacherFeedback?: string;
 };
