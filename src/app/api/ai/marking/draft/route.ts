@@ -297,6 +297,8 @@ Student: ${asText(body.studentName) || asText(body.studentId) || "Unknown"}
 Max marks: ${maxMarks ?? "Unknown"}
 
 Use the exam paper text and the student's written answer together. Ignore metadata such as student name, date, or predicted/self-assessed grades.
+Grade the whole submitted answer across the answered pages, not a single isolated sentence.
+If max marks are known and the student's answer is readable, you MUST set suggestedMark to an integer from 0 to ${maxMarks ?? "the maximum marks"}. Do not use null in that case.
 If the student's answer is fully correct for the relevant question(s), award full marks. Only use suggestedMark null when the answer cannot be assessed from the supplied paper and answer text.
 
 Exam paper text for the answered pages:
@@ -305,9 +307,9 @@ ${paperContext || "Exam paper text could not be extracted."}
 Student typed answer:
 ${studentText}
 
-Keep feedback under 45 words and rationale under 35 words. Return exactly:
+Keep feedback under 45 words and rationale under 35 words. suggestedMark must be an integer when marks are known. Return exactly:
 {
-  "suggestedMark": number or null,
+  "suggestedMark": integer 0..maxMarks or null only if unreadable,
   "feedback": "short teacher-style feedback for the student",
   "rationale": "brief reason for the suggested mark for teacher review",
   "confidence": "low" | "medium" | "high",
