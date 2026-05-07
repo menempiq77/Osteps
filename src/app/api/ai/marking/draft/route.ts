@@ -38,6 +38,7 @@ type VisualAnswerContext = {
 
 const OLLAMA_BASE_URL = (process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434").replace(/\/+$/, "");
 const OLLAMA_MODEL = process.env.OSTEPS_AI_MARKING_MODEL || process.env.OLLAMA_MODEL || "deepseek-r1:1.5b";
+const OLLAMA_FAST_FALLBACK_MODEL = process.env.OSTEPS_AI_MARKING_FAST_MODEL || "qwen2.5:0.5b";
 const OLLAMA_VISION_MODEL = process.env.OSTEPS_AI_MARKING_VISION_MODEL || "gemma3:1b";
 const REQUEST_TIMEOUT_MS = Number(process.env.OSTEPS_AI_MARKING_TIMEOUT_MS || 50000);
 const LARAVEL_PUBLIC_DIR = process.env.OSTEPS_LARAVEL_PUBLIC_DIR || "/var/www/laravel/public";
@@ -354,39 +355,61 @@ const requestOllamaDraft = async ({
   signal,
   images,
   options,
+  timeoutMs,
 }: {
   model: string;
   prompt: string;
-  signal: AbortSignal;
+  signal?: AbortSignal;
   images?: string[];
   options?: Record<string, unknown>;
+  timeoutMs?: number;
 }) => {
-  const ollamaResponse = await fetch(`${OLLAMA_BASE_URL}/api/generate`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model,
-      prompt,
-      images: images && images.length > 0 ? images : undefined,
-      stream: false,
-      format: "json",
-      options: {
-        temperature: 0.1,
-        top_p: 0.9,
-        num_predict: 140,
-        num_ctx: images && images.length > 0 ? 6144 : 4096,
-        ...(options || {}),
-      },
-    }),
-    signal,
-  });
+  const timeoutController = new AbortController();
+  const timeoutHandle = setTimeout(
+    () => timeoutController.abort(),
+    timeoutMs ?? REQUEST_TIMEOUT_MS
+  );
+  const requestSignal = signal
+    ? AbortSignal.any([signal, timeoutController.signal])
+    : timeoutController.signal;
+
+  let ollamaResponse: Response;
+  try {
+    ollamaResponse = await fetch(`${OLLAMA_BASE_URL}/api/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        prompt,
+        images: images && images.length > 0 ? images : undefined,
+        stream: false,
+        format: "json",
+        options: {
+          temperature: 0.1,
+          top_p: 0.9,
+          num_predict: 140,
+          num_ctx: images && images.length > 0 ? 6144 : 4096,
+          ...(options || {}),
+        },
+      }),
+      signal: requestSignal,
+    });
+  } catch (error) {
+    clearTimeout(timeoutHandle);
+    throw error;
+  }
 
   if (!ollamaResponse.ok) {
     const errorText = await ollamaResponse.text().catch(() => "");
+    clearTimeout(timeoutHandle);
     throw new Error(`Local Ollama AI marker ${model} failed (${ollamaResponse.status}). ${errorText}`.trim());
   }
 
-  return (await ollamaResponse.json()) as { response?: string };
+  try {
+    return (await ollamaResponse.json()) as { response?: string };
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
 };
 
 const normalizeVisualAnswerContext = (
@@ -404,12 +427,10 @@ const extractVisualAnswerContext = async ({
   title,
   subjectName,
   pageImages,
-  signal,
 }: {
   title: string;
   subjectName: string;
   pageImages: string[];
-  signal: AbortSignal;
 }) => {
   if (pageImages.length === 0) return null;
 
@@ -431,12 +452,12 @@ Return exactly:
   const visualPayload = await requestOllamaDraft({
     model: OLLAMA_VISION_MODEL,
     prompt,
-    signal,
     images: pageImages,
     options: {
       num_predict: 110,
       num_ctx: 4096,
     },
+    timeoutMs: 14000,
   });
 
   const rawJson = extractFirstJsonObject(String(visualPayload.response || ""));
@@ -549,9 +570,6 @@ export async function POST(request: Request) {
     } satisfies DraftMarkResponse);
   }
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
   let visualContext: VisualAnswerContext | null = null;
   let visualWarning = "";
 
@@ -561,7 +579,6 @@ export async function POST(request: Request) {
         title,
         subjectName,
         pageImages,
-        signal: controller.signal,
       });
       if (!visualContext) {
         visualWarning = "Could not reliably read the answered-page images; used text-only marking context.";
@@ -609,69 +626,92 @@ Keep feedback under 45 words and rationale under 35 words. Write feedback like a
 }`;
 
   try {
-    let ollamaPayload: { response?: string };
+    const modelWarnings = visualWarning ? [visualWarning] : [];
+    let rawJson: string | null = null;
+
     try {
-      ollamaPayload = await requestOllamaDraft({
+      const deepseekPayload = await requestOllamaDraft({
         model: OLLAMA_MODEL,
         prompt,
-        signal: controller.signal,
         options: {
-          num_predict: 120,
-          num_ctx: 4096,
+          num_predict: 80,
+          num_ctx: 3072,
         },
+        timeoutMs: 22000,
       });
+      rawJson = extractFirstJsonObject(String(deepseekPayload.response || ""));
+      if (!rawJson) {
+        modelWarnings.push("DeepSeek returned unreadable JSON; used fast fallback model.");
+      }
     } catch (error) {
-      return jsonResponse(
-        { message: error instanceof Error ? error.message : "Local Ollama AI marker is not ready." },
-        503
+      modelWarnings.push(
+        error instanceof Error && error.name === "AbortError"
+          ? "DeepSeek timed out; used fast fallback model."
+          : "DeepSeek failed; used fast fallback model."
       );
     }
 
-    const rawJson = extractFirstJsonObject(String(ollamaPayload.response || ""));
     if (!rawJson) {
-      return jsonResponse(
-        normalizeDraft(
-          {
-            suggestedMark: null,
-            feedback: String(ollamaPayload.response || "AI returned an unreadable response."),
-            rationale: "The local model did not return valid JSON.",
-            confidence: "low",
-            warnings: [visualWarning || "Local model response was not valid JSON."],
+      try {
+        const fallbackPayload = await requestOllamaDraft({
+          model: OLLAMA_FAST_FALLBACK_MODEL,
+          prompt,
+          options: {
+            num_predict: 100,
+            num_ctx: 4096,
           },
-          maxMarks,
-          sourcePolicy
-        )
-      );
+          timeoutMs: 16000,
+        });
+        rawJson = extractFirstJsonObject(String(fallbackPayload.response || ""));
+        if (!rawJson) {
+          return jsonResponse(
+            normalizeDraft(
+              {
+                suggestedMark: null,
+                feedback: String(fallbackPayload.response || "AI returned an unreadable response."),
+                rationale: "The local model did not return valid JSON.",
+                confidence: "low",
+                warnings: [...modelWarnings, "Local model response was not valid JSON."],
+              },
+              maxMarks,
+              sourcePolicy
+            )
+          );
+        }
+      } catch (error) {
+        const aborted = error instanceof Error && error.name === "AbortError";
+        if (aborted) {
+          return jsonResponse(
+            normalizeDraft(
+              {
+                suggestedMark: null,
+                feedback: "AI Draft Mark could not finish quickly enough for this answer set. Please try again after the paper fully loads, or mark manually.",
+                rationale: "The local model reached the time limit before returning a safe draft.",
+                confidence: "low",
+                warnings: [...modelWarnings, "Local AI timed out before completing the draft."],
+              },
+              maxMarks,
+              sourcePolicy
+            )
+          );
+        }
+
+        return jsonResponse(
+          { message: error instanceof Error ? error.message : "Local Ollama AI marker is unavailable. Start Ollama on this server and pull the configured model." },
+          503
+        );
+      }
     }
 
     const parsed = JSON.parse(rawJson) as Partial<DraftMarkResponse>;
-    if (visualWarning) {
-      parsed.warnings = [...(Array.isArray(parsed.warnings) ? parsed.warnings : []), visualWarning];
+    if (modelWarnings.length > 0) {
+      parsed.warnings = [...(Array.isArray(parsed.warnings) ? parsed.warnings : []), ...modelWarnings];
     }
     return jsonResponse(normalizeDraft(parsed, maxMarks, sourcePolicy));
-  } catch (error) {
-    const aborted = error instanceof Error && error.name === "AbortError";
-    if (aborted) {
-      return jsonResponse(
-        normalizeDraft(
-          {
-            suggestedMark: null,
-            feedback: "AI Draft Mark could not finish quickly enough for this answer set. Please try again after the paper fully loads, or mark manually.",
-            rationale: "The local model reached the time limit before returning a safe draft.",
-            confidence: "low",
-            warnings: ["Local AI timed out before completing the draft."],
-          },
-          maxMarks,
-          sourcePolicy
-        )
-      );
-    }
-
+  } catch {
     return jsonResponse(
       { message: "Local Ollama AI marker is unavailable. Start Ollama on this server and pull the configured model." },
       503
     );
-  } finally {
-    clearTimeout(timeout);
   }
 }
