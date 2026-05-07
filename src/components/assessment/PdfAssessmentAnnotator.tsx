@@ -14,6 +14,7 @@ import {
   saveAssessmentDocumentAnnotations,
 } from "@/services/documentAssessmentApi";
 import { draftAssessmentMark } from "@/services/aiMarkingApi";
+import type { AiDraftMarkResponse } from "@/services/aiMarkingApi";
 import { addStudentTaskMarks, uploadTaskByStudent } from "@/services/api";
 import { fetchStudentProfileData } from "@/services/studentsApi";
 import { resolveExamWindow } from "@/lib/taskTypeMetadata";
@@ -370,6 +371,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const [changingStudentLock, setChangingStudentLock] = useState(false);
   const [exportingPaper, setExportingPaper] = useState(false);
   const [aiDrafting, setAiDrafting] = useState(false);
+  const [aiDraftPreview, setAiDraftPreview] = useState<AiDraftMarkResponse | null>(null);
   const [selfAssessmentMark, setSelfAssessmentMark] = useState<number | null>(initialSelfAssessmentMark);
   const [teacherMarks, setTeacherMarks] = useState(initialTeacherMarks);
   const [teacherFeedback, setTeacherFeedback] = useState(initialTeacherFeedback);
@@ -869,7 +871,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
   const persistLocalDraft = useCallback(
     (annotations: AssessmentDocumentAnnotation[], metadata?: Record<string, unknown>) => {
-      if (typeof window === "undefined" || role !== "student") return;
+      if (typeof window === "undefined") return;
 
       try {
         window.localStorage.setItem(
@@ -885,7 +887,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         // localStorage is only a safety net; server save remains primary.
       }
     },
-    [getAnnotationsSignature, localDraftKey, role]
+    [getAnnotationsSignature, localDraftKey]
   );
 
   const saveAnnotations = useCallback(
@@ -1124,8 +1126,32 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
             }).catch((error) => console.error("Could not restore local document draft:", error));
           }
           const metadata = nextLoaded.metadata || {};
+          const storedDraftMetadata =
+            storedDraft?.metadata && typeof storedDraft.metadata === "object"
+              ? (storedDraft.metadata as Record<string, unknown>)
+              : null;
           if (metadata.teacherMarks != null) setTeacherMarks(String(metadata.teacherMarks));
           if (metadata.teacherFeedback != null) setTeacherFeedback(String(metadata.teacherFeedback));
+          if (role === "teacher" && storedDraftMetadata) {
+            const localTeacherMarks = String(storedDraftMetadata.teacherMarks ?? "");
+            const localTeacherFeedback = String(storedDraftMetadata.teacherFeedback ?? "");
+            const remoteTeacherMarks = String(metadata.teacherMarks ?? "");
+            const remoteTeacherFeedback = String(metadata.teacherFeedback ?? "");
+            const hasRemoteTeacherDraft =
+              remoteTeacherMarks.trim().length > 0 || remoteTeacherFeedback.trim().length > 0;
+            const hasLocalTeacherDraft =
+              localTeacherMarks.trim().length > 0 || localTeacherFeedback.trim().length > 0;
+
+            if (!hasRemoteTeacherDraft && hasLocalTeacherDraft) {
+              setTeacherMarks(localTeacherMarks);
+              setTeacherFeedback(localTeacherFeedback);
+            }
+
+            const localAiDraftPreview = storedDraftMetadata.aiDraftPreview;
+            if (localAiDraftPreview && typeof localAiDraftPreview === "object") {
+              setAiDraftPreview(localAiDraftPreview as AiDraftMarkResponse);
+            }
+          }
           if (Object.prototype.hasOwnProperty.call(metadata, "selfAssessmentMark")) {
             const savedSelfAssessmentMark = normalizeSelfAssessmentValue(metadata.selfAssessmentMark);
             setSelfAssessmentMark(savedSelfAssessmentMark);
@@ -1942,16 +1968,37 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         currentTeacherFeedback: teacherFeedback,
       });
 
-      if (draft.suggestedMark != null) setTeacherMarks(String(draft.suggestedMark));
-      setTeacherFeedback(
+      const nextTeacherMarks = draft.suggestedMark != null ? String(draft.suggestedMark) : "";
+      const nextTeacherFeedback =
         [
           draft.feedback,
           draft.rationale ? `AI rationale for teacher review: ${draft.rationale}` : "",
           draft.warnings.length > 0 ? `Warnings: ${draft.warnings.join("; ")}` : "",
         ]
           .filter(Boolean)
-          .join("\n\n")
-      );
+          .join("\n\n");
+
+      setTeacherMarks(nextTeacherMarks);
+      setTeacherFeedback(nextTeacherFeedback);
+      setAiDraftPreview(draft);
+      setState((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          metadata: {
+            ...(prev.metadata || {}),
+            teacherMarks: nextTeacherMarks,
+            teacherFeedback: nextTeacherFeedback,
+            aiDraftPreview: draft,
+          },
+        };
+      });
+      persistLocalDraft(getCurrentLayerSnapshot(), {
+        ...(state?.metadata && typeof state.metadata === "object" ? state.metadata : {}),
+        teacherMarks: nextTeacherMarks,
+        teacherFeedback: nextTeacherFeedback,
+        aiDraftPreview: draft,
+      });
       messageApi.success("AI draft added. Review it before saving the markbook mark.");
     } catch (error) {
       console.error(error);
@@ -2266,7 +2313,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                   {studentLocked ? "Open for student edits" : "Lock student editing"}
                 </Button>
                 <Input className="w-24" placeholder="Marks" value={teacherMarks} onChange={(event) => setTeacherMarks(event.target.value)} />
-                <Input className="w-64" placeholder="Feedback" value={teacherFeedback} onChange={(event) => setTeacherFeedback(event.target.value)} />
+                <Input.TextArea className="w-64" autoSize={{ minRows: 1, maxRows: 3 }} placeholder="Feedback" value={teacherFeedback} onChange={(event) => setTeacherFeedback(event.target.value)} />
                 <Button
                   onClick={requestAiDraftMark}
                   loading={aiDrafting}
@@ -2330,6 +2377,30 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
               >
                 AI Draft Mark
               </Button>
+            }
+          />
+        ) : null}
+        {role === "teacher" && aiDraftPreview ? (
+          <Alert
+            className="mb-4"
+            type="success"
+            showIcon
+            closable
+            onClose={() => setAiDraftPreview(null)}
+            message={
+              aiDraftPreview.suggestedMark != null
+                ? `AI draft ready: suggested mark ${aiDraftPreview.suggestedMark}${maxMarks ? ` / ${maxMarks}` : ""}`
+                : "AI draft ready"
+            }
+            description={
+              <div className="space-y-2 text-sm text-gray-700">
+                <p className="whitespace-pre-wrap">{teacherFeedback || aiDraftPreview.feedback}</p>
+                {aiDraftPreview.warnings.length > 0 ? (
+                  <p className="whitespace-pre-wrap text-amber-700">
+                    Warnings: {aiDraftPreview.warnings.join("; ")}
+                  </p>
+                ) : null}
+              </div>
             }
           />
         ) : null}
