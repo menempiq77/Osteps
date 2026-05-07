@@ -637,18 +637,11 @@ Keep feedback under 45 words and rationale under 35 words. Write feedback like a
           num_predict: 80,
           num_ctx: 3072,
         },
-        timeoutMs: 22000,
+        timeoutMs: 8000,
       });
       rawJson = extractFirstJsonObject(String(deepseekPayload.response || ""));
-      if (!rawJson) {
-        modelWarnings.push("DeepSeek returned unreadable JSON; used fast fallback model.");
-      }
     } catch (error) {
-      modelWarnings.push(
-        error instanceof Error && error.name === "AbortError"
-          ? "DeepSeek timed out; used fast fallback model."
-          : "DeepSeek failed; used fast fallback model."
-      );
+      console.error("DeepSeek refinement attempt did not finish in time:", error);
     }
 
     if (!rawJson) {
@@ -660,7 +653,7 @@ Keep feedback under 45 words and rationale under 35 words. Write feedback like a
             num_predict: 100,
             num_ctx: 4096,
           },
-          timeoutMs: 16000,
+          timeoutMs: 28000,
         });
         rawJson = extractFirstJsonObject(String(fallbackPayload.response || ""));
         if (!rawJson) {
