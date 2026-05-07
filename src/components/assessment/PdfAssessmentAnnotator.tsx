@@ -464,6 +464,9 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const canOpenOriginalFile = !(role === "student" && examWindow.examMode);
   const displayStudentName = currentStudentName || teacherExamStudentInfo?.studentName || `Student ${studentId}`;
   const canDownloadSubmittedPaper = role === "teacher" && documentLoaded && (studentLocked || state?.status === "submitted" || state?.status === "marked");
+  const hasTypedStudentAnswer = studentAnnotations.some(
+    (annotation) => annotation.type === "text" && annotation.text.trim().length > 0
+  );
   const autosaveStatusLabel = saving
     ? "Saving"
     : autosaveQueued
@@ -2229,7 +2232,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                 <Button
                   onClick={requestAiDraftMark}
                   loading={aiDrafting}
-                  disabled={studentAnnotations.length === 0}
+                  disabled={!hasTypedStudentAnswer}
                   title="Draft marks and feedback with the local Ollama AI marker. Teacher review is still required."
                 >
                   AI Draft Mark
@@ -2250,6 +2253,30 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       </div>
 
       <div className={shouldEnforceExamScreen ? "h-[calc(100vh-85px)] overflow-auto p-4" : "mx-auto max-w-7xl p-4"}>
+        {role === "teacher" ? (
+          <Alert
+            className="mb-4"
+            type="info"
+            showIcon
+            message="AI Draft Mark is available on this marking screen"
+            description={
+              hasTypedStudentAnswer
+                ? "Use it to draft a suggested mark and feedback from the student's typed answers. It only fills the fields above; it does not save the markbook mark."
+                : "The first AI marking version can read typed student answers in this online document. If this paper is a scanned image, handwriting, or only pen marks, OCR will be added in the next phase."
+            }
+            action={
+              <Button
+                size="small"
+                type="primary"
+                onClick={requestAiDraftMark}
+                loading={aiDrafting}
+                disabled={!hasTypedStudentAnswer}
+              >
+                AI Draft Mark
+              </Button>
+            }
+          />
+        ) : null}
         {screenshotWarningVisible && shouldEnforceExamScreen ? (
           <Alert
             className="mb-4"
