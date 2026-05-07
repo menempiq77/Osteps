@@ -27,7 +27,7 @@ type DraftMarkResponse = {
 
 const OLLAMA_BASE_URL = (process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434").replace(/\/+$/, "");
 const OLLAMA_MODEL = process.env.OSTEPS_AI_MARKING_MODEL || process.env.OLLAMA_MODEL || "llama3.2:1b";
-const REQUEST_TIMEOUT_MS = Number(process.env.OSTEPS_AI_MARKING_TIMEOUT_MS || 90000);
+const REQUEST_TIMEOUT_MS = Number(process.env.OSTEPS_AI_MARKING_TIMEOUT_MS || 50000);
 
 const jsonResponse = (payload: unknown, status = 200) => NextResponse.json(payload, { status });
 
@@ -49,7 +49,7 @@ const compactStudentText = (annotations: Array<Record<string, unknown>> | undefi
   return textItems
     .map((annotation) => `[Page ${annotation.page}] ${annotation.text}`)
     .join("\n")
-    .slice(0, 12000);
+    .slice(0, 5000);
 };
 
 const extractFirstJsonObject = (raw: string) => {
@@ -146,27 +146,17 @@ export async function POST(request: Request) {
     } satisfies DraftMarkResponse);
   }
 
-  const prompt = `You are OSTEPS AI Draft Mark, helping a teacher mark one student's submitted work.
+  const prompt = `OSTEPS AI Draft Mark. Return strict JSON only. Draft only; teacher reviews manually. Never call it final. ${sourcePolicy}
 
-Important rules:
-- Draft only. The teacher will review and save manually.
-- Return strict JSON only, no markdown.
-- Never say the mark is final.
-- If the answer cannot be assessed from the provided student text, use suggestedMark null and confidence low.
-- ${sourcePolicy}
+Title: ${title}
+Subject: ${subjectName}
+Student: ${asText(body.studentName) || asText(body.studentId) || "Unknown"}
+Max marks: ${maxMarks ?? "Unknown"}
 
-Assessment:
-- Title: ${title}
-- Subject: ${subjectName}
-- Student: ${asText(body.studentName) || asText(body.studentId) || "Unknown"}
-- Maximum marks: ${maxMarks ?? "Unknown"}
-- Existing teacher mark: ${asText(body.currentTeacherMarks) || "none"}
-- Existing teacher feedback: ${asText(body.currentTeacherFeedback) || "none"}
-
-Student answer text extracted from typed document annotations:
+Student typed answer:
 ${studentText}
 
-Return exactly this JSON shape:
+Keep feedback under 45 words and rationale under 35 words. Return exactly:
 {
   "suggestedMark": number or null,
   "feedback": "short teacher-style feedback for the student",
@@ -190,6 +180,8 @@ Return exactly this JSON shape:
         options: {
           temperature: 0.1,
           top_p: 0.9,
+          num_predict: 180,
+          num_ctx: 4096,
         },
       }),
       signal: controller.signal,
@@ -225,12 +217,24 @@ Return exactly this JSON shape:
     return jsonResponse(normalizeDraft(parsed, maxMarks, sourcePolicy));
   } catch (error) {
     const aborted = error instanceof Error && error.name === "AbortError";
+    if (aborted) {
+      return jsonResponse(
+        normalizeDraft(
+          {
+            suggestedMark: null,
+            feedback: "AI Draft Mark could not finish quickly enough for this long answer. Please mark manually or try again after reducing the selected typed text.",
+            rationale: "The local model reached the time limit before returning a safe draft.",
+            confidence: "low",
+            warnings: ["Local AI timed out before completing the draft."],
+          },
+          maxMarks,
+          sourcePolicy
+        )
+      );
+    }
+
     return jsonResponse(
-      {
-        message: aborted
-          ? "Local Ollama AI marker timed out. Try again or use a smaller local model."
-          : "Local Ollama AI marker is unavailable. Start Ollama on this server and pull the configured model.",
-      },
+      { message: "Local Ollama AI marker is unavailable. Start Ollama on this server and pull the configured model." },
       503
     );
   } finally {
