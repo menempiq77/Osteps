@@ -355,6 +355,29 @@ const requestOllamaDraft = async ({
   return (await ollamaResponse.json()) as { response?: string };
 };
 
+const alignMarkWithFeedback = (
+  numericMark: number | null,
+  fallbackMark: number | null,
+  raw: Partial<DraftMarkResponse>,
+  maxMarks: number | null
+) => {
+  if (numericMark == null || maxMarks == null || maxMarks <= 0) return numericMark;
+
+  const text = `${asText(raw.feedback)} ${asText(raw.rationale)}`.toLowerCase();
+  const soundsFullyCorrect = /(fully correct|completely correct|accurate and complete|meets all criteria|full marks|no material mistakes|no mistakes)/i.test(text);
+  const soundsIncomplete = /(partially correct|missing|needs improvement|unclear|vague|incorrect|wrong|lacks detail|minor errors|some points? missing|incomplete)/i.test(text);
+
+  if (numericMark >= maxMarks && soundsIncomplete && fallbackMark != null && fallbackMark < maxMarks) {
+    return fallbackMark;
+  }
+
+  if (numericMark < maxMarks && soundsFullyCorrect) {
+    return maxMarks;
+  }
+
+  return numericMark;
+};
+
 const normalizeDraft = (
   raw: Partial<DraftMarkResponse>,
   maxMarks: number | null,
@@ -362,8 +385,16 @@ const normalizeDraft = (
 ): DraftMarkResponse => {
   const numericMark = raw.suggestedMark == null ? null : Number(raw.suggestedMark);
   const fallbackMark = estimateFallbackSuggestedMark(raw, maxMarks);
-  const clampedMark = Number.isFinite(numericMark)
-    ? Math.max(0, maxMarks == null ? numericMark : Math.min(maxMarks, numericMark))
+  const consistentNumericMark = Number.isFinite(numericMark)
+    ? alignMarkWithFeedback(
+        Math.max(0, maxMarks == null ? numericMark : Math.min(maxMarks, numericMark)),
+        fallbackMark,
+        raw,
+        maxMarks
+      )
+    : null;
+  const clampedMark = Number.isFinite(consistentNumericMark)
+    ? consistentNumericMark
     : fallbackMark;
   const confidence = raw.confidence === "high" || raw.confidence === "medium" ? raw.confidence : "low";
   const warnings = Array.isArray(raw.warnings)
