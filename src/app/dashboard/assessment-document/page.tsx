@@ -72,7 +72,7 @@ export default function AssessmentDocumentPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { currentUser } = useSelector((state: RootState) => state.auth);
-  const { activeSubjectId, canUseSubjectContext } = useSubjectContext();
+  const { activeSubjectId, activeSubject, canUseSubjectContext } = useSubjectContext();
   const assessmentId = searchParams.get("assessmentId") || "";
   const taskId = searchParams.get("taskId") || "";
   const role = asRole(searchParams.get("role"));
@@ -332,6 +332,7 @@ export default function AssessmentDocumentPage() {
           examEndAt={resolvedExamConfig.exam_end_at || undefined}
           returnTo={returnTo}
           currentStudentName={role === "teacher" ? currentTeacherStudentName : undefined}
+          subjectName={activeSubject?.name}
           studentSwitcherOptions={role === "teacher" ? teacherStudentOptions : undefined}
           studentSwitcherLoading={teacherStudentTasksLoading}
           onStudentChange={role === "teacher" ? handleTeacherStudentChange : undefined}

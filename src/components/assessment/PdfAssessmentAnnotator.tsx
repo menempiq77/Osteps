@@ -13,6 +13,7 @@ import {
   fetchAssessmentDocument,
   saveAssessmentDocumentAnnotations,
 } from "@/services/documentAssessmentApi";
+import { draftAssessmentMark } from "@/services/aiMarkingApi";
 import { addStudentTaskMarks, uploadTaskByStudent } from "@/services/api";
 import { fetchStudentProfileData } from "@/services/studentsApi";
 import { resolveExamWindow } from "@/lib/taskTypeMetadata";
@@ -92,6 +93,7 @@ type PdfAssessmentAnnotatorProps = {
   initialSelfAssessmentMark?: number | null;
   returnTo?: string | null;
   currentStudentName?: string;
+  subjectName?: string;
   studentSwitcherOptions?: StudentSwitcherOption[];
   studentSwitcherLoading?: boolean;
   onStudentChange?: (studentId: string) => void;
@@ -330,6 +332,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   initialSelfAssessmentMark = null,
   returnTo = null,
   currentStudentName,
+  subjectName,
   studentSwitcherOptions = [],
   studentSwitcherLoading = false,
   onStudentChange,
@@ -354,6 +357,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const [finishing, setFinishing] = useState(false);
   const [changingStudentLock, setChangingStudentLock] = useState(false);
   const [exportingPaper, setExportingPaper] = useState(false);
+  const [aiDrafting, setAiDrafting] = useState(false);
   const [selfAssessmentMark, setSelfAssessmentMark] = useState<number | null>(initialSelfAssessmentMark);
   const [teacherMarks, setTeacherMarks] = useState(initialTeacherMarks);
   const [teacherFeedback, setTeacherFeedback] = useState(initialTeacherFeedback);
@@ -1880,6 +1884,57 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     onStudentChange(nextStudentId);
   };
 
+  const applyAiDraftMark = async () => {
+    if (role !== "teacher") return;
+    setAiDrafting(true);
+    try {
+      const draft = await draftAssessmentMark({
+        assessmentId,
+        taskId,
+        studentId,
+        studentName: displayStudentName,
+        title,
+        subjectName,
+        maxMarks,
+        studentAnnotations,
+        currentTeacherMarks: teacherMarks,
+        currentTeacherFeedback: teacherFeedback,
+      });
+
+      if (draft.suggestedMark != null) setTeacherMarks(String(draft.suggestedMark));
+      setTeacherFeedback(
+        [
+          draft.feedback,
+          draft.rationale ? `AI rationale for teacher review: ${draft.rationale}` : "",
+          draft.warnings.length > 0 ? `Warnings: ${draft.warnings.join("; ")}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n\n")
+      );
+      messageApi.success("AI draft added. Review it before saving the markbook mark.");
+    } catch (error) {
+      console.error(error);
+      messageApi.error(error instanceof Error ? error.message : "Could not create an AI draft mark.");
+    } finally {
+      setAiDrafting(false);
+    }
+  };
+
+  const requestAiDraftMark = () => {
+    if (teacherMarks.trim() || teacherFeedback.trim()) {
+      Modal.confirm({
+        title: "Replace current draft mark?",
+        content: "AI Draft Mark will replace the unsaved mark and feedback fields on this screen only. It will not save the markbook mark.",
+        okText: "Create AI draft",
+        cancelText: "Cancel",
+        onOk: () => applyAiDraftMark(),
+      });
+      return;
+    }
+
+    void applyAiDraftMark();
+  };
+
   const drawPageIntoCanvas = async (page: RenderedPage, outputCanvas: HTMLCanvasElement) => {
     outputCanvas.width = Math.max(1, Math.round(page.width));
     outputCanvas.height = Math.max(1, Math.round(page.height));
@@ -2171,6 +2226,14 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                 </Button>
                 <Input className="w-24" placeholder="Marks" value={teacherMarks} onChange={(event) => setTeacherMarks(event.target.value)} />
                 <Input className="w-64" placeholder="Feedback" value={teacherFeedback} onChange={(event) => setTeacherFeedback(event.target.value)} />
+                <Button
+                  onClick={requestAiDraftMark}
+                  loading={aiDrafting}
+                  disabled={studentAnnotations.length === 0}
+                  title="Draft marks and feedback with the local Ollama AI marker. Teacher review is still required."
+                >
+                  AI Draft Mark
+                </Button>
                 <Button
                   onClick={() => void downloadSubmittedPaper()}
                   loading={exportingPaper}
