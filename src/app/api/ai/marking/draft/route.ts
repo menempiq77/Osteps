@@ -29,8 +29,15 @@ type DraftMarkResponse = {
   warnings: string[];
 };
 
+type VisualAnswerContext = {
+  questionFocus: string;
+  studentAnswerSummary: string;
+  visibleMistakes: string[];
+  legibility: "low" | "medium" | "high";
+};
+
 const OLLAMA_BASE_URL = (process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434").replace(/\/+$/, "");
-const OLLAMA_MODEL = process.env.OSTEPS_AI_MARKING_MODEL || process.env.OLLAMA_MODEL || "qwen2.5:0.5b";
+const OLLAMA_MODEL = process.env.OSTEPS_AI_MARKING_MODEL || process.env.OLLAMA_MODEL || "deepseek-r1:1.5b";
 const OLLAMA_VISION_MODEL = process.env.OSTEPS_AI_MARKING_VISION_MODEL || "gemma3:1b";
 const REQUEST_TIMEOUT_MS = Number(process.env.OSTEPS_AI_MARKING_TIMEOUT_MS || 50000);
 const LARAVEL_PUBLIC_DIR = process.env.OSTEPS_LARAVEL_PUBLIC_DIR || "/var/www/laravel/public";
@@ -92,6 +99,13 @@ const normalizeImagePayload = (value: unknown) => {
   const dataUrlMatch = text.match(/^data:image\/[a-zA-Z0-9.+-]+;base64,(.+)$/i);
   return dataUrlMatch ? dataUrlMatch[1] : text;
 };
+
+const annotationsContainPenStrokes = (
+  annotations: Array<Record<string, unknown>> | undefined
+) =>
+  (annotations || []).some(
+    (annotation) => asText((annotation as Record<string, unknown>)?.type).toLowerCase() === "pen"
+  );
 
 const compactStudentText = (
   annotations: Array<Record<string, unknown>> | undefined,
@@ -250,6 +264,23 @@ const estimateFallbackSuggestedMark = (
   const text = `${asText(raw.feedback)} ${asText(raw.rationale)}`.toLowerCase();
   const includesAny = (values: string[]) => values.some((value) => text.includes(value));
 
+  if (
+    includesAny([
+      "timed out",
+      "time limit",
+      "mark manually",
+      "local model",
+      "unreadable response",
+      "no readable student answer",
+      "could not finish quickly enough",
+      "could not produce useful feedback",
+      "did not return valid json",
+      "unavailable",
+    ])
+  ) {
+    return null;
+  }
+
   let ratio: number | null = null;
 
   if (
@@ -322,11 +353,13 @@ const requestOllamaDraft = async ({
   prompt,
   signal,
   images,
+  options,
 }: {
   model: string;
   prompt: string;
   signal: AbortSignal;
   images?: string[];
+  options?: Record<string, unknown>;
 }) => {
   const ollamaResponse = await fetch(`${OLLAMA_BASE_URL}/api/generate`, {
     method: "POST",
@@ -342,6 +375,7 @@ const requestOllamaDraft = async ({
         top_p: 0.9,
         num_predict: 140,
         num_ctx: images && images.length > 0 ? 6144 : 4096,
+        ...(options || {}),
       },
     }),
     signal,
@@ -353,6 +387,62 @@ const requestOllamaDraft = async ({
   }
 
   return (await ollamaResponse.json()) as { response?: string };
+};
+
+const normalizeVisualAnswerContext = (
+  raw: Partial<VisualAnswerContext>
+): VisualAnswerContext => ({
+  questionFocus: asText(raw.questionFocus).slice(0, 300),
+  studentAnswerSummary: asText(raw.studentAnswerSummary).slice(0, 1200),
+  visibleMistakes: Array.isArray(raw.visibleMistakes)
+    ? raw.visibleMistakes.map(asText).filter(Boolean).slice(0, 6)
+    : [],
+  legibility: raw.legibility === "high" || raw.legibility === "medium" ? raw.legibility : "low",
+});
+
+const extractVisualAnswerContext = async ({
+  title,
+  subjectName,
+  pageImages,
+  signal,
+}: {
+  title: string;
+  subjectName: string;
+  pageImages: string[];
+  signal: AbortSignal;
+}) => {
+  if (pageImages.length === 0) return null;
+
+  const prompt = `OSTEPS answered-page reader. Return strict JSON only.
+
+Read the supplied answered-page images. They show the exam paper and the student's written answers on the paper. Do not grade yet. Ignore names, dates, toolbars, UI labels, marks, and warnings.
+
+Title: ${title}
+Subject: ${subjectName}
+
+Return exactly:
+{
+  "questionFocus": "question/part being answered in 25 words max",
+  "studentAnswerSummary": "faithful transcription or concise paraphrase of what the student wrote in 140 words max; if unreadable say Unreadable.",
+  "visibleMistakes": ["specific wrong or missing points visible in the student's answer"],
+  "legibility": "low" | "medium" | "high"
+}`;
+
+  const visualPayload = await requestOllamaDraft({
+    model: OLLAMA_VISION_MODEL,
+    prompt,
+    signal,
+    images: pageImages,
+    options: {
+      num_predict: 110,
+      num_ctx: 4096,
+    },
+  });
+
+  const rawJson = extractFirstJsonObject(String(visualPayload.response || ""));
+  if (!rawJson) return null;
+
+  return normalizeVisualAnswerContext(JSON.parse(rawJson) as Partial<VisualAnswerContext>);
 };
 
 const alignMarkWithFeedback = (
@@ -435,6 +525,7 @@ export async function POST(request: Request) {
   const pageImages = Array.isArray(body.pageImages)
     ? body.pageImages.map(normalizeImagePayload).filter(Boolean).slice(0, 4)
     : [];
+  const hasPenStrokes = annotationsContainPenStrokes(body.studentAnnotations);
   const islamic = isIslamicSubject(subjectName, title);
   const sourcePolicy = islamic
     ? "Islamic subject: use only the supplied assessment context and approved OSTEPS/Sunni school resources. Do not use external web knowledge. If evidence is missing, say so."
@@ -458,6 +549,29 @@ export async function POST(request: Request) {
     } satisfies DraftMarkResponse);
   }
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  let visualContext: VisualAnswerContext | null = null;
+  let visualWarning = "";
+
+  if (pageImages.length > 0 && (hasPenStrokes || !studentText)) {
+    try {
+      visualContext = await extractVisualAnswerContext({
+        title,
+        subjectName,
+        pageImages,
+        signal: controller.signal,
+      });
+      if (!visualContext) {
+        visualWarning = "Could not reliably read the answered-page images; used text-only marking context.";
+      }
+    } catch (error) {
+      console.error("Could not read answered-page images for AI marking:", error);
+      visualWarning = "Could not reliably read the answered-page images; used text-only marking context.";
+    }
+  }
+
   const prompt = `OSTEPS AI Draft Mark. Return strict JSON only. Draft only; teacher reviews manually. Never call it final. ${sourcePolicy}
 
 Title: ${title}
@@ -466,11 +580,10 @@ Student: ${asText(body.studentName) || asText(body.studentId) || "Unknown"}
 Max marks: ${maxMarks ?? "Unknown"}
 
 Use the exam paper text and the student's written answer together. Ignore metadata such as student name, date, or predicted/self-assessed grades.
-If answered-page images are supplied, they already combine the exam paper with the student's writing. Use those images as primary evidence for what the student actually wrote on the paper, especially for pen or handwritten answers.
 Grade the whole submitted answer across the answered pages, not a single isolated sentence.
 If max marks are known and the student's answer is readable, you MUST set suggestedMark to an integer from 0 to ${maxMarks ?? "the maximum marks"}. Do not use null in that case.
 If the student's answer is fully correct for the relevant question(s), award full marks. Only use suggestedMark null when the answer cannot be assessed from the supplied paper and answer text.
-If marks are lost, feedback must mention at least one specific mistake, missing point, or correction from the paper. If full marks are earned, briefly say there are no material mistakes.
+If marks are lost, feedback must mention the specific wrong answer, missing point, or correction from the paper. Do not use generic comments like "needs improvement" or "lacks clarity" by themselves. If full marks are earned, briefly say there are no material mistakes.
 
 Exam paper text for the answered pages:
 ${paperContext || "Exam paper text could not be extracted."}
@@ -478,7 +591,13 @@ ${paperContext || "Exam paper text could not be extracted."}
 Student typed answer text extracted from annotations:
 ${studentText || "No separate typed annotation text was found. Use the supplied answered-page images if available."}
 
-Answered-page images supplied: ${pageImages.length > 0 ? `${pageImages.length} image(s)` : "none"}
+Visual reading from answered-page images:
+Question focus: ${visualContext?.questionFocus || "No reliable image reading available."}
+Student answer seen on the paper: ${visualContext?.studentAnswerSummary || "No reliable image reading available."}
+Specific wrong or missing points seen on the paper: ${visualContext?.visibleMistakes.join("; ") || "None extracted from the images."}
+Image legibility: ${visualContext?.legibility || "unknown"}
+
+Image reading warning: ${visualWarning || "none"}
 
 Keep feedback under 45 words and rationale under 35 words. Write feedback like a teacher comment, not a generic summary. suggestedMark must be an integer when marks are known. Return exactly:
 {
@@ -489,40 +608,23 @@ Keep feedback under 45 words and rationale under 35 words. Write feedback like a
   "warnings": []
 }`;
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
   try {
-    let ollamaPayload: { response?: string } | null = null;
-    let usedVisionFallback = false;
-
-    if (pageImages.length > 0) {
-      try {
-        ollamaPayload = await requestOllamaDraft({
-          model: OLLAMA_VISION_MODEL,
-          prompt,
-          signal: controller.signal,
-          images: pageImages,
-        });
-      } catch (error) {
-        usedVisionFallback = true;
-        console.error("Vision AI draft attempt failed, falling back to text-only draft:", error);
-      }
-    }
-
-    if (!ollamaPayload) {
-      try {
-        ollamaPayload = await requestOllamaDraft({
-          model: OLLAMA_MODEL,
-          prompt,
-          signal: controller.signal,
-        });
-      } catch (error) {
-        return jsonResponse(
-          { message: error instanceof Error ? error.message : "Local Ollama AI marker is not ready." },
-          503
-        );
-      }
+    let ollamaPayload: { response?: string };
+    try {
+      ollamaPayload = await requestOllamaDraft({
+        model: OLLAMA_MODEL,
+        prompt,
+        signal: controller.signal,
+        options: {
+          num_predict: 120,
+          num_ctx: 4096,
+        },
+      });
+    } catch (error) {
+      return jsonResponse(
+        { message: error instanceof Error ? error.message : "Local Ollama AI marker is not ready." },
+        503
+      );
     }
 
     const rawJson = extractFirstJsonObject(String(ollamaPayload.response || ""));
@@ -534,7 +636,7 @@ Keep feedback under 45 words and rationale under 35 words. Write feedback like a
             feedback: String(ollamaPayload.response || "AI returned an unreadable response."),
             rationale: "The local model did not return valid JSON.",
             confidence: "low",
-            warnings: [usedVisionFallback ? "Vision draft failed; fell back to text-only analysis." : "Local model response was not valid JSON."],
+            warnings: [visualWarning || "Local model response was not valid JSON."],
           },
           maxMarks,
           sourcePolicy
@@ -543,6 +645,9 @@ Keep feedback under 45 words and rationale under 35 words. Write feedback like a
     }
 
     const parsed = JSON.parse(rawJson) as Partial<DraftMarkResponse>;
+    if (visualWarning) {
+      parsed.warnings = [...(Array.isArray(parsed.warnings) ? parsed.warnings : []), visualWarning];
+    }
     return jsonResponse(normalizeDraft(parsed, maxMarks, sourcePolicy));
   } catch (error) {
     const aborted = error instanceof Error && error.name === "AbortError";
@@ -551,7 +656,7 @@ Keep feedback under 45 words and rationale under 35 words. Write feedback like a
         normalizeDraft(
           {
             suggestedMark: null,
-            feedback: "AI Draft Mark could not finish quickly enough for this long answer. Please mark manually or try again after reducing the selected typed text.",
+            feedback: "AI Draft Mark could not finish quickly enough for this answer set. Please try again after the paper fully loads, or mark manually.",
             rationale: "The local model reached the time limit before returning a safe draft.",
             confidence: "low",
             warnings: ["Local AI timed out before completing the draft."],

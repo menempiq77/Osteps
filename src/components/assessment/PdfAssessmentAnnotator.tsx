@@ -107,6 +107,10 @@ const AUTOSAVE_DELAY_MS = 5000;
 const LIVE_SYNC_INTERVAL_MS = 1200;
 const REMOTE_SYNC_INTERVAL_MS = 1500;
 const SELF_ASSESSMENT_AUTOSAVE_DELAY_MS = 1200;
+const TEACHER_DRAFT_AUTOSAVE_DELAY_MS = 1200;
+const AI_PAGE_IMAGE_MAX_COUNT = 3;
+const AI_PAGE_IMAGE_MAX_WIDTH = 1100;
+const AI_PAGE_IMAGE_JPEG_QUALITY = 0.72;
 const ERASER_RADIUS = 28;
 const TEXT_ERASER_PADDING = 18;
 const TEXT_ANNOTATION_MAX_WIDTH = 360;
@@ -397,9 +401,16 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const annotationCanvasRefs = useRef<Record<number, HTMLCanvasElement | null>>({});
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const selfAssessmentSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const teacherDraftSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingAutosaveRef = useRef<AssessmentDocumentAnnotation[] | null>(null);
   const lastSavedSelfAssessmentRef = useRef<number | null>(
     normalizeSelfAssessmentValue(initialSelfAssessmentMark)
+  );
+  const lastSavedTeacherDraftRef = useRef(
+    JSON.stringify({
+      teacherMarks: String(initialTeacherMarks || ""),
+      teacherFeedback: String(initialTeacherFeedback || ""),
+    })
   );
   const lastLiveSyncedSignatureRef = useRef<string>("");
   const lastRemoteSnapshotRef = useRef<string>("");
@@ -1129,8 +1140,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
             storedDraft?.metadata && typeof storedDraft.metadata === "object"
               ? (storedDraft.metadata as Record<string, unknown>)
               : null;
-          if (metadata.teacherMarks != null) setTeacherMarks(String(metadata.teacherMarks));
-          if (metadata.teacherFeedback != null) setTeacherFeedback(String(metadata.teacherFeedback));
+          let hydratedTeacherMarks = String(metadata.teacherMarks ?? "");
+          let hydratedTeacherFeedback = String(metadata.teacherFeedback ?? "");
+          if (metadata.teacherMarks != null) setTeacherMarks(hydratedTeacherMarks);
+          if (metadata.teacherFeedback != null) setTeacherFeedback(hydratedTeacherFeedback);
           if (role === "teacher" && storedDraftMetadata) {
             const localTeacherMarks = String(storedDraftMetadata.teacherMarks ?? "");
             const localTeacherFeedback = String(storedDraftMetadata.teacherFeedback ?? "");
@@ -1142,6 +1155,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
               localTeacherMarks.trim().length > 0 || localTeacherFeedback.trim().length > 0;
 
             if (!hasRemoteTeacherDraft && hasLocalTeacherDraft) {
+              hydratedTeacherMarks = localTeacherMarks;
+              hydratedTeacherFeedback = localTeacherFeedback;
               setTeacherMarks(localTeacherMarks);
               setTeacherFeedback(localTeacherFeedback);
             }
@@ -1150,6 +1165,12 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
             if (localAiDraftPreview && typeof localAiDraftPreview === "object") {
               setAiDraftPreview(localAiDraftPreview as AiDraftMarkResponse);
             }
+          }
+          if (role === "teacher") {
+            lastSavedTeacherDraftRef.current = JSON.stringify({
+              teacherMarks: hydratedTeacherMarks,
+              teacherFeedback: hydratedTeacherFeedback,
+            });
           }
           if (Object.prototype.hasOwnProperty.call(metadata, "selfAssessmentMark")) {
             const savedSelfAssessmentMark = normalizeSelfAssessmentValue(metadata.selfAssessmentMark);
@@ -1277,6 +1298,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       persistLocalDraft(snapshot, { closing: true });
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       if (selfAssessmentSaveTimerRef.current) clearTimeout(selfAssessmentSaveTimerRef.current);
+      if (teacherDraftSaveTimerRef.current) clearTimeout(teacherDraftSaveTimerRef.current);
       pendingAutosaveRef.current = null;
     };
   }, [getCurrentLayerSnapshot, persistLocalDraft]);
@@ -1350,6 +1372,61 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       }
     };
   }, [documentLoaded, getCurrentLayerSnapshot, messageApi, role, saveAnnotations, selfAssessmentMark]);
+
+  useEffect(() => {
+    if (role !== "teacher" || !documentLoaded) return;
+
+    const teacherDraftSignature = JSON.stringify({
+      teacherMarks: teacherMarks.trim(),
+      teacherFeedback: teacherFeedback.trim(),
+    });
+
+    if (teacherDraftSignature === lastSavedTeacherDraftRef.current) return;
+
+    persistLocalDraft(getCurrentLayerSnapshot(), {
+      ...(state?.metadata && typeof state.metadata === "object" ? state.metadata : {}),
+      teacherMarks,
+      teacherFeedback,
+      aiDraftPreview,
+    });
+
+    if (teacherDraftSaveTimerRef.current) {
+      clearTimeout(teacherDraftSaveTimerRef.current);
+    }
+
+    teacherDraftSaveTimerRef.current = setTimeout(() => {
+      teacherDraftSaveTimerRef.current = null;
+      saveAnnotations(getCurrentLayerSnapshot(), undefined, {
+        silent: true,
+        syncState: false,
+      })
+        .then(() => {
+          lastSavedTeacherDraftRef.current = teacherDraftSignature;
+        })
+        .catch((error) => {
+          console.error(error);
+          messageApi.error("Teacher draft autosave failed. Press Save now.");
+        });
+    }, TEACHER_DRAFT_AUTOSAVE_DELAY_MS);
+
+    return () => {
+      if (teacherDraftSaveTimerRef.current) {
+        clearTimeout(teacherDraftSaveTimerRef.current);
+        teacherDraftSaveTimerRef.current = null;
+      }
+    };
+  }, [
+    aiDraftPreview,
+    documentLoaded,
+    getCurrentLayerSnapshot,
+    messageApi,
+    persistLocalDraft,
+    role,
+    saveAnnotations,
+    state?.metadata,
+    teacherFeedback,
+    teacherMarks,
+  ]);
 
   useEffect(() => {
     if (!assessmentId || !taskId || !studentId || !state) return;
@@ -2076,10 +2153,22 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         : pages.slice(0, 2);
 
     const snapshots: string[] = [];
-    for (const page of candidatePages.slice(0, 4)) {
-      const canvas = document.createElement("canvas");
-      await drawPageIntoCanvas(page, canvas, { includeTeacherAnnotations: false });
-      snapshots.push(canvas.toDataURL("image/png"));
+    for (const page of candidatePages.slice(0, AI_PAGE_IMAGE_MAX_COUNT)) {
+      const sourceCanvas = document.createElement("canvas");
+      await drawPageIntoCanvas(page, sourceCanvas, { includeTeacherAnnotations: false });
+
+      const scale = Math.min(1, AI_PAGE_IMAGE_MAX_WIDTH / Math.max(1, page.width));
+      const outputCanvas = document.createElement("canvas");
+      outputCanvas.width = Math.max(1, Math.round(sourceCanvas.width * scale));
+      outputCanvas.height = Math.max(1, Math.round(sourceCanvas.height * scale));
+
+      const outputContext = outputCanvas.getContext("2d");
+      if (!outputContext) continue;
+
+      outputContext.fillStyle = "#ffffff";
+      outputContext.fillRect(0, 0, outputCanvas.width, outputCanvas.height);
+      outputContext.drawImage(sourceCanvas, 0, 0, outputCanvas.width, outputCanvas.height);
+      snapshots.push(outputCanvas.toDataURL("image/jpeg", AI_PAGE_IMAGE_JPEG_QUALITY));
     }
 
     return snapshots;
