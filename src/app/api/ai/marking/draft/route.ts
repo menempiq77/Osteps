@@ -231,17 +231,99 @@ const extractFirstJsonObject = (raw: string) => {
   return null;
 };
 
+const estimateFallbackSuggestedMark = (
+  raw: Partial<DraftMarkResponse>,
+  maxMarks: number | null
+) => {
+  if (maxMarks == null || maxMarks <= 0) return null;
+
+  const text = `${asText(raw.feedback)} ${asText(raw.rationale)}`.toLowerCase();
+  const includesAny = (values: string[]) => values.some((value) => text.includes(value));
+
+  let ratio: number | null = null;
+
+  if (
+    includesAny([
+      "fully correct",
+      "completely correct",
+      "accurate and complete",
+      "meets all criteria",
+      "all criteria",
+      "full marks",
+    ])
+  ) {
+    ratio = 1;
+  } else if (
+    includesAny([
+      "mostly correct",
+      "largely correct",
+      "good understanding",
+      "minor improvements",
+      "minor errors",
+      "detailed and accurate",
+    ])
+  ) {
+    ratio = 0.85;
+  } else if (
+    includesAny([
+      "partially correct",
+      "lacks detail",
+      "missing some details",
+      "needs improvement",
+      "needs more detail",
+      "some parts need improvement",
+      "more detailed",
+    ])
+  ) {
+    ratio = 0.6;
+  } else if (
+    includesAny([
+      "incomplete",
+      "limited understanding",
+      "unclear",
+      "vague",
+      "several errors",
+      "lacks context",
+    ])
+  ) {
+    ratio = 0.4;
+  } else if (
+    includesAny([
+      "incorrect",
+      "wrong",
+      "insufficient",
+      "irrelevant",
+      "cannot be assessed",
+      "does not answer",
+    ])
+  ) {
+    ratio = 0.2;
+  }
+
+  if (ratio == null) {
+    ratio = raw.confidence === "high" ? 0.8 : raw.confidence === "medium" ? 0.6 : 0.45;
+  }
+
+  return Math.max(0, Math.min(maxMarks, Math.round(maxMarks * ratio)));
+};
+
 const normalizeDraft = (
   raw: Partial<DraftMarkResponse>,
   maxMarks: number | null,
   sourcePolicy: string
 ): DraftMarkResponse => {
   const numericMark = raw.suggestedMark == null ? null : Number(raw.suggestedMark);
+  const fallbackMark = estimateFallbackSuggestedMark(raw, maxMarks);
   const clampedMark = Number.isFinite(numericMark)
     ? Math.max(0, maxMarks == null ? numericMark : Math.min(maxMarks, numericMark))
-    : null;
+    : fallbackMark;
   const confidence = raw.confidence === "high" || raw.confidence === "medium" ? raw.confidence : "low";
-  const warnings = Array.isArray(raw.warnings) ? raw.warnings.map(asText).filter(Boolean).slice(0, 6) : [];
+  const warnings = Array.isArray(raw.warnings)
+    ? raw.warnings
+        .map(asText)
+        .filter((value) => value && !/short warning strings if needed/i.test(value))
+        .slice(0, 6)
+    : [];
 
   return {
     suggestedMark: clampedMark,
