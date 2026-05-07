@@ -124,6 +124,18 @@ const sanitizeFileName = (value: string) =>
     .trim()
     .slice(0, 120) || "student-paper";
 
+const normalizeDocumentUrl = (value: string | null | undefined) => {
+  const rawValue = String(value || "").trim();
+  if (!rawValue) return "";
+  try {
+    const url = new URL(rawValue);
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return rawValue.replace(/#.*$/, "");
+  }
+};
+
 const getDocumentDraftKey = (
   assessmentId: string,
   taskId: string,
@@ -404,9 +416,30 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   );
 
   const pdfRenderUrl = useMemo(() => {
-    if (!fileUrl) return "";
-    return `/api/assessment-document/pdf?url=${encodeURIComponent(fileUrl)}`;
-  }, [fileUrl]);
+    const metadataFileUrl = normalizeDocumentUrl(
+      typeof state?.metadata?.documentFileUrl === "string"
+        ? state.metadata.documentFileUrl
+        : null
+    );
+    const currentFileUrl = normalizeDocumentUrl(fileUrl);
+    const effectiveFileUrl = metadataFileUrl || currentFileUrl;
+    if (!effectiveFileUrl) return "";
+    return `/api/assessment-document/pdf?url=${encodeURIComponent(effectiveFileUrl)}`;
+  }, [fileUrl, state?.metadata?.documentFileUrl]);
+
+  const currentDocumentUrl = useMemo(() => normalizeDocumentUrl(fileUrl), [fileUrl]);
+  const savedDocumentUrl = useMemo(
+    () =>
+      normalizeDocumentUrl(
+        typeof state?.metadata?.documentFileUrl === "string"
+          ? state.metadata.documentFileUrl
+          : null
+      ),
+    [state?.metadata?.documentFileUrl]
+  );
+  const documentFileMismatch = Boolean(
+    savedDocumentUrl && currentDocumentUrl && savedDocumentUrl !== currentDocumentUrl
+  );
 
   const fileExtension = useMemo(() => {
     try {
@@ -453,10 +486,13 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const examEditingLocked =
     (role === "student" && examWindow.examMode && examWindow.state !== "open") ||
     (shouldRequireExamFullscreen && !isExamFullscreen && !approvedExamExitRef.current);
-  const editable = role === "teacher" || (!studentLocked && !examEditingLocked);
   const activeAnnotations = role === "teacher" ? state?.teacherAnnotations || [] : state?.studentAnnotations || [];
   const studentAnnotations = state?.studentAnnotations || [];
   const teacherAnnotations = state?.teacherAnnotations || [];
+  const documentIdentityUnverified = Boolean(
+    !savedDocumentUrl && currentDocumentUrl && studentAnnotations.length > 0
+  );
+  const editable = role === "teacher" || (!studentLocked && !examEditingLocked && !documentIdentityUnverified);
   const oppositeLayer = role === "teacher" ? "student" : "teacher";
   const documentLoaded = Boolean(state);
   const safeReturnTo = sanitizeReturnToPath(returnTo);
@@ -875,6 +911,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       const metadata = {
         title,
         maxMarks,
+        documentFileUrl: normalizeDocumentUrl(fileUrl),
         teacherMarks,
         teacherFeedback,
         ...metadataOverrides,
@@ -905,7 +942,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       if (!options?.silent) setSaving(false);
       return nextState;
     },
-    [assessmentId, taskId, studentId, role, title, maxMarks, teacherMarks, teacherFeedback, selfAssessmentMark, getAnnotationsSignature, persistLocalDraft]
+    [assessmentId, taskId, studentId, role, title, maxMarks, fileUrl, teacherMarks, teacherFeedback, selfAssessmentMark, getAnnotationsSignature, persistLocalDraft]
   );
 
   const persistExamExitReason = useCallback(
@@ -1232,6 +1269,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       const metadata = {
         title,
         maxMarks,
+        documentFileUrl: normalizeDocumentUrl(fileUrl),
         selfAssessmentMark: normalizeSelfAssessmentValue(selfAssessmentMark),
         clientSaveId: clientSaveIdRef.current,
         clientSaveSeq: nextClientSaveSeq,
@@ -1260,7 +1298,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     return () => {
       window.removeEventListener("pagehide", flushOnPageExit);
     };
-  }, [assessmentId, getCurrentLayerSnapshot, maxMarks, persistLocalDraft, role, selfAssessmentMark, studentId, taskId, title]);
+  }, [assessmentId, fileUrl, getCurrentLayerSnapshot, maxMarks, persistLocalDraft, role, selfAssessmentMark, studentId, taskId, title]);
 
   useEffect(() => {
     if (role !== "student" || !documentLoaded) return;
@@ -2253,6 +2291,24 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       </div>
 
       <div className={shouldEnforceExamScreen ? "h-[calc(100vh-85px)] overflow-auto p-4" : "mx-auto max-w-7xl p-4"}>
+        {documentFileMismatch ? (
+          <Alert
+            className="mb-4"
+            type="error"
+            showIcon
+            message="This saved answer belongs to a different PDF than the task currently points to."
+            description="OSTEPS is showing the original PDF linked to this saved answer to protect student work. Do not continue marking against the changed task PDF until an admin checks the assignment document."
+          />
+        ) : null}
+        {!documentFileMismatch && documentIdentityUnverified ? (
+          <Alert
+            className="mb-4"
+            type="error"
+            showIcon
+            message="This older saved answer has no recorded original PDF identity."
+            description="Student writing is protected and temporarily read-only. An admin must verify which PDF belongs to this answer before students continue, so answers are not mixed with another year or class paper."
+          />
+        ) : null}
         {role === "teacher" ? (
           <Alert
             className="mb-4"

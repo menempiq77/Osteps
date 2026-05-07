@@ -13,6 +13,18 @@ type AnnotationPayload = {
   metadata?: Record<string, unknown>;
 };
 
+const normalizeDocumentUrl = (value: unknown) => {
+  const rawValue = String(value || "").trim();
+  if (!rawValue) return "";
+  try {
+    const url = new URL(rawValue);
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return rawValue.replace(/#.*$/, "");
+  }
+};
+
 type DocumentState = {
   assessmentId: string;
   taskId: string;
@@ -221,6 +233,41 @@ export async function POST(request: NextRequest) {
   const layer = payload.layer === "teacher" ? "teacher" : "student";
   const state = await readState(ids.assessmentId, ids.taskId, ids.studentId);
   const payloadMetadata = payload.metadata && typeof payload.metadata === "object" ? payload.metadata : {};
+  const existingDocumentUrl = normalizeDocumentUrl(state.metadata?.documentFileUrl);
+  const incomingDocumentUrl = normalizeDocumentUrl(payloadMetadata.documentFileUrl);
+
+  if (existingDocumentUrl && incomingDocumentUrl && existingDocumentUrl !== incomingDocumentUrl) {
+    return NextResponse.json(
+      {
+        message:
+          "This saved answer belongs to a different PDF than the task currently points to. Student answers were not changed.",
+        documentFileMismatch: true,
+        savedDocumentFileUrl: existingDocumentUrl,
+        incomingDocumentFileUrl: incomingDocumentUrl,
+        state,
+      },
+      { status: 409 }
+    );
+  }
+
+  if (
+    !existingDocumentUrl &&
+    incomingDocumentUrl &&
+    layer === "student" &&
+    Array.isArray(state.studentAnnotations) &&
+    state.studentAnnotations.length > 0
+  ) {
+    return NextResponse.json(
+      {
+        message:
+          "This older saved answer has no recorded original PDF identity. Student answers were not changed. Ask an admin to verify the correct PDF before students continue.",
+        documentIdentityUnverified: true,
+        incomingDocumentFileUrl: incomingDocumentUrl,
+        state,
+      },
+      { status: 409 }
+    );
+  }
 
   if (layer === "student") {
     const incomingClientSaveId = String(payloadMetadata.clientSaveId || "").trim();
@@ -273,7 +320,11 @@ export async function POST(request: NextRequest) {
     state.metadata.studentLockOverride = payload.studentLocked;
   }
 
-  state.metadata = { ...state.metadata, ...payloadMetadata };
+  state.metadata = {
+    ...state.metadata,
+    ...payloadMetadata,
+    documentFileUrl: existingDocumentUrl || incomingDocumentUrl || state.metadata?.documentFileUrl,
+  };
   state.updatedAt = new Date().toISOString();
 
   await writeState(state);
