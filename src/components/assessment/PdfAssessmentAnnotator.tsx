@@ -1962,6 +1962,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         studentName: displayStudentName,
         title,
         subjectName,
+        fileUrl,
         maxMarks,
         studentAnnotations,
         currentTeacherMarks: teacherMarks,
@@ -2313,7 +2314,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                   {studentLocked ? "Open for student edits" : "Lock student editing"}
                 </Button>
                 <Input className="w-24" placeholder="Marks" value={teacherMarks} onChange={(event) => setTeacherMarks(event.target.value)} />
-                <Input.TextArea className="w-64" autoSize={{ minRows: 1, maxRows: 3 }} placeholder="Feedback" value={teacherFeedback} onChange={(event) => setTeacherFeedback(event.target.value)} />
+                <Input className="w-64" placeholder="Feedback" value={teacherFeedback} onChange={(event) => setTeacherFeedback(event.target.value)} />
                 <Button
                   onClick={requestAiDraftMark}
                   loading={aiDrafting}
