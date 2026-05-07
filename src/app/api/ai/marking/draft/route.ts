@@ -321,7 +321,12 @@ const normalizeDraft = (
   const warnings = Array.isArray(raw.warnings)
     ? raw.warnings
         .map(asText)
-        .filter((value) => value && !/short warning strings if needed/i.test(value))
+        .filter(
+          (value) =>
+            value &&
+            !/short warning strings if needed/i.test(value) &&
+            !/^(?:none|n\/a|no warnings needed\.?|no warning needed\.?)$/i.test(value)
+        )
         .slice(0, 6)
     : [];
 
@@ -382,6 +387,7 @@ Use the exam paper text and the student's written answer together. Ignore metada
 Grade the whole submitted answer across the answered pages, not a single isolated sentence.
 If max marks are known and the student's answer is readable, you MUST set suggestedMark to an integer from 0 to ${maxMarks ?? "the maximum marks"}. Do not use null in that case.
 If the student's answer is fully correct for the relevant question(s), award full marks. Only use suggestedMark null when the answer cannot be assessed from the supplied paper and answer text.
+If marks are lost, feedback must mention at least one specific mistake, missing point, or correction from the paper. If full marks are earned, briefly say there are no material mistakes.
 
 Exam paper text for the answered pages:
 ${paperContext || "Exam paper text could not be extracted."}
@@ -389,13 +395,13 @@ ${paperContext || "Exam paper text could not be extracted."}
 Student typed answer:
 ${studentText}
 
-Keep feedback under 45 words and rationale under 35 words. suggestedMark must be an integer when marks are known. Return exactly:
+Keep feedback under 45 words and rationale under 35 words. Write feedback like a teacher comment, not a generic summary. suggestedMark must be an integer when marks are known. Return exactly:
 {
   "suggestedMark": integer 0..maxMarks or null only if unreadable,
   "feedback": "short teacher-style feedback for the student",
   "rationale": "brief reason for the suggested mark for teacher review",
   "confidence": "low" | "medium" | "high",
-  "warnings": ["short warning strings if needed"]
+  "warnings": []
 }`;
 
   const controller = new AbortController();

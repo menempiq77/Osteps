@@ -479,7 +479,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     role === "student" && examWindow.examMode && examWindow.state === "open";
   const shouldRequireExamFullscreen = shouldEnforceExamScreen && !touchFriendlyExamDevice;
   const examWatermarkText = useMemo(() => {
-    const studentName = teacherExamStudentInfo?.studentName || `Student ${studentId}`;
+    const studentName = teacherExamStudentInfo?.studentName || "Selected student";
     const className = teacherExamStudentInfo?.className || "Exam mode";
     return `${studentName} • ${className} • ID ${studentId} • ${new Date(nowMs).toLocaleString()}`;
   }, [nowMs, studentId, teacherExamStudentInfo?.className, teacherExamStudentInfo?.studentName]);
@@ -500,7 +500,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const safeReturnTo = sanitizeReturnToPath(returnTo);
   const zoomPercent = Math.round(zoomLevel * 100);
   const canOpenOriginalFile = !(role === "student" && examWindow.examMode);
-  const displayStudentName = currentStudentName || teacherExamStudentInfo?.studentName || `Student ${studentId}`;
+  const displayStudentName = currentStudentName || teacherExamStudentInfo?.studentName || "Selected student";
   const canDownloadSubmittedPaper = role === "teacher" && documentLoaded && (studentLocked || state?.status === "submitted" || state?.status === "marked");
   const hasTypedStudentAnswer = studentAnnotations.some(
     (annotation) => annotation.type === "text" && annotation.text.trim().length > 0
@@ -650,8 +650,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         if (!cancelled) {
           setTeacherExamStudentInfo({
             studentName:
-              String(profile?.student_name ?? profile?.name ?? `Student ${studentId}`).trim() ||
-              `Student ${studentId}`,
+              String(profile?.student_name ?? profile?.name ?? "Selected student").trim() ||
+              "Selected student",
             className: extractStudentClassName(profile),
           });
         }
@@ -659,7 +659,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         console.error("Failed to load student profile for exam alerts:", error);
         if (!cancelled) {
           setTeacherExamStudentInfo({
-            studentName: `Student ${studentId}`,
+            studentName: "Selected student",
             className: "Unknown class",
           });
         }
@@ -1899,6 +1899,15 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       messageApi.warning("Enter the teacher mark before finalising.");
       return;
     }
+    const aiPreviewFeedback = aiDraftPreview
+      ? [
+          aiDraftPreview.feedback,
+          aiDraftPreview.rationale ? `AI rationale for teacher review: ${aiDraftPreview.rationale}` : "",
+          aiDraftPreview.warnings.length > 0 ? `Warnings: ${aiDraftPreview.warnings.join("; ")}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n\n")
+      : "";
     setFinishing(true);
     try {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -1910,7 +1919,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         assessment_id: Number(assessmentId),
         task_id: Number(taskId),
         teacher_assessment_marks: Number(teacherMarks || 0),
-        teacher_assessment_feedback: teacherFeedback || "Marked online on the PDF.",
+        teacher_assessment_feedback:
+          teacherFeedback.trim() || aiPreviewFeedback || "Marked online on the PDF.",
       });
       if (typeof window !== "undefined") {
         const payload = JSON.stringify({ assessmentId: Number(assessmentId), taskId: Number(taskId), at: Date.now() });
@@ -1970,34 +1980,12 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       });
 
       const nextTeacherMarks = draft.suggestedMark != null ? String(draft.suggestedMark) : "";
-      const nextTeacherFeedback =
-        [
-          draft.feedback,
-          draft.rationale ? `AI rationale for teacher review: ${draft.rationale}` : "",
-          draft.warnings.length > 0 ? `Warnings: ${draft.warnings.join("; ")}` : "",
-        ]
-          .filter(Boolean)
-          .join("\n\n");
 
       setTeacherMarks(nextTeacherMarks);
-      setTeacherFeedback(nextTeacherFeedback);
       setAiDraftPreview(draft);
-      setState((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          metadata: {
-            ...(prev.metadata || {}),
-            teacherMarks: nextTeacherMarks,
-            teacherFeedback: nextTeacherFeedback,
-            aiDraftPreview: draft,
-          },
-        };
-      });
       persistLocalDraft(getCurrentLayerSnapshot(), {
         ...(state?.metadata && typeof state.metadata === "object" ? state.metadata : {}),
         teacherMarks: nextTeacherMarks,
-        teacherFeedback: nextTeacherFeedback,
         aiDraftPreview: draft,
       });
       messageApi.success("AI draft added. Review it before saving the markbook mark.");
@@ -2314,7 +2302,6 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                   {studentLocked ? "Open for student edits" : "Lock student editing"}
                 </Button>
                 <Input className="w-24" placeholder="Marks" value={teacherMarks} onChange={(event) => setTeacherMarks(event.target.value)} />
-                <Input className="w-64" placeholder="Feedback" value={teacherFeedback} onChange={(event) => setTeacherFeedback(event.target.value)} />
                 <Button
                   onClick={requestAiDraftMark}
                   loading={aiDrafting}
@@ -2395,7 +2382,12 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
             }
             description={
               <div className="space-y-2 text-sm text-gray-700">
-                <p className="whitespace-pre-wrap">{teacherFeedback || aiDraftPreview.feedback}</p>
+                <p className="whitespace-pre-wrap">{aiDraftPreview.feedback}</p>
+                {aiDraftPreview.rationale ? (
+                  <p className="whitespace-pre-wrap text-gray-600">
+                    AI rationale for teacher review: {aiDraftPreview.rationale}
+                  </p>
+                ) : null}
                 {aiDraftPreview.warnings.length > 0 ? (
                   <p className="whitespace-pre-wrap text-amber-700">
                     Warnings: {aiDraftPreview.warnings.join("; ")}
@@ -2441,7 +2433,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
             showIcon
             closable
             onClose={() => setTeacherExamAlertDismissed(true)}
-            message={`Exam exit notes: ${teacherExamStudentInfo?.studentName ?? `Student ${studentId}`} (${teacherExamStudentInfo?.className ?? "Unknown class"})`}
+            message={`Exam exit notes: ${teacherExamStudentInfo?.studentName ?? "Selected student"} (${teacherExamStudentInfo?.className ?? "Unknown class"})`}
             description={
               <div className="space-y-2">
                 {examExitEvents.map((event) => (

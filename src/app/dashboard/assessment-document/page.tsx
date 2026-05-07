@@ -46,7 +46,6 @@ type TeacherStudentOption = {
 };
 
 const getStudentNameFromTask = (task: AssessmentDocumentStudentTask) => {
-  const studentId = task.student_id ?? task.id;
   return (
     String(
       task.student_name ??
@@ -54,8 +53,8 @@ const getStudentNameFromTask = (task: AssessmentDocumentStudentTask) => {
         task.student?.student_name ??
         task.student?.name ??
         task.user?.name ??
-        `Student ${studentId ?? ""}`
-    ).trim() || `Student ${studentId ?? ""}`
+        "Selected student"
+    ).trim() || "Selected student"
   );
 };
 
@@ -234,7 +233,6 @@ export default function AssessmentDocumentPage() {
       byId.set(value, {
         value,
         label: getStudentNameFromTask(task),
-        status: task.status,
       });
     }
     return Array.from(byId.values()).sort((left, right) => left.label.localeCompare(right.label));
