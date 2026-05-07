@@ -46,10 +46,12 @@ const compactStudentText = (annotations: Array<Record<string, unknown>> | undefi
     .filter((annotation) => annotation.text.length > 0)
     .sort((left, right) => left.page - right.page);
 
-  return textItems
+  const combined = textItems
     .map((annotation) => `[Page ${annotation.page}] ${annotation.text}`)
-    .join("\n")
-    .slice(0, 5000);
+    .join("\n");
+
+  if (combined.length <= 2600) return combined;
+  return `${combined.slice(0, 1800)}\n[...middle of long typed answer omitted for speed...]\n${combined.slice(-700)}`;
 };
 
 const extractFirstJsonObject = (raw: string) => {
