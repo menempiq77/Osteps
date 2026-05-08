@@ -725,7 +725,7 @@ Keep the two feedback lines concise and concrete. Keep rationale under 35 words.
             num_predict: 80,
             num_ctx: 3072,
           },
-          timeoutMs: 18000,
+          timeoutMs: 28000,
         });
         rawJson = extractFirstJsonObject(String(fallbackPayload.response || ""));
         if (!rawJson) {
