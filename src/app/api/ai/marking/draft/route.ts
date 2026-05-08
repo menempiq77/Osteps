@@ -90,11 +90,26 @@ const isLikelyNonAnswerText = (value: string, studentName?: string) => {
   const normalizedStudentName = normalizeWhitespace(asText(studentName));
 
   if (!normalized) return true;
+  // Exact or near-exact match to the known student name
   if (normalizedStudentName && normalized === normalizedStudentName) return true;
+  // Contains the full student name as a substring (e.g. "Name: Ahmed Ali")
+  if (normalizedStudentName && normalizedStudentName.length > 3 && lower.includes(normalizedStudentName.toLowerCase())) return true;
   if (isLikelyDateText(normalized)) return true;
   if (lower.startsWith("predicted grade:")) return true;
   if (lower.startsWith("predicted mark:")) return true;
   if (lower.startsWith("self assessment:")) return true;
+  // Header/identity labels — "Name:", "Student Name:", "Class:", "Grade:", "ID:", "Roll No:", "Section:", "School:"
+  if (/^(?:name|student name|student|class|grade|id|roll\.?\s*no|section|school|teacher|date|subject)\s*[:\-]/i.test(normalized)) return true;
+  // Very short text (≤3 words) with no question-answer indicators — likely a name or label, not an answer
+  const wordCount = normalized.trim().split(/\s+/).length;
+  if (
+    wordCount <= 3 &&
+    !/[.?!]/.test(normalized) &&
+    !/\d/.test(normalized) &&
+    !/(?:is|are|was|were|have|has|can|will|should|because|the|a|an|this|that|and|or|but|in|on|at|to|of|for|with|from)\b/i.test(normalized)
+  ) {
+    return true;
+  }
 
   return false;
 };
@@ -755,7 +770,9 @@ const extractVisualAnswerContext = async ({
 
   const prompt = `OSTEPS answered-page reader. Return strict JSON only.
 
-Read the supplied answered-page images. They show the exam paper and the student's written answers on the paper. Do not grade yet. Ignore names, dates, toolbars, UI labels, marks, and warnings.
+Read the supplied answered-page images. They show the exam paper and the student's written answers on the paper. Do not grade yet. 
+IGNORE completely: student name, student ID, class, teacher name, date, school name, predicted grade — any text on header/title areas of the paper. These are identity fields, not answers.
+Only extract text that is written in response to a question printed on the paper. For each answer found, note which question it belongs to.
 
 Title: ${title}
 Subject: ${subjectName}
@@ -911,6 +928,9 @@ const requestGroqMarkingDraft = async ({
               "Never output null for suggestedMark when max marks are known and the answer is readable. " +
               "Be detailed and specific in your feedback: identify exactly which question part or sub-question contains a mistake, " +
               "quote or paraphrase the student's actual wrong/missing answer, and state the correct answer or missing concept from the mark scheme. " +
+              "IMPORTANT: completely ignore student name, ID, class, date, school name, and any other identity/header fields on the paper — " +
+              "these are NEVER part of the answer and must NEVER be treated as a correct or incorrect answer. " +
+              "Only mark text that is a written answer to a specific exam question. " +
               "For WWW: quote what the student wrote that was correct and name the relevant concept or question part. " +
               "For EBI: state the question number or part (e.g. 'In question 2' or 'In part (b)'), what the student wrote that was wrong or incomplete, and what the correct or expected answer is. " +
               "CRITICAL: For True/False, MCQ, or checkbox questions, an X, tick, circle, cross, or pen mark next to an option is the student's CHOSEN ANSWER — never treat the mark itself as a mistake. " +
@@ -1098,7 +1118,9 @@ Subject: ${subjectName}
 Student: ${asText(body.studentName) || asText(body.studentId) || "Unknown"}
 Max marks: ${maxMarks ?? "Unknown"}
 
-Use the exam paper text and the student's written answer together. Ignore metadata such as student name, date, or predicted/self-assessed grades.
+Use the exam paper text and the student's written answer together.
+IGNORE completely: student name, student ID, class, grade, section, school name, teacher name, date, predicted grade, self-assessment mark, or any header/label field. These are NEVER part of the answer and must NEVER be marked as correct or incorrect.
+Only mark text that is a direct response to a specific question printed in the exam paper. Match each piece of student writing to the question it appears to answer on the PDF. If a piece of student text does not correspond to any exam question, ignore it.
 Grade the whole submitted answer across the answered pages, not a single isolated sentence.
 If max marks are known and the student's answer is readable, you MUST set suggestedMark to an integer from 0 to ${maxMarks ?? "the maximum marks"}. Do not use null in that case.
 BEFORE deciding the mark, think through each question visible in the exam paper:
