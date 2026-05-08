@@ -234,32 +234,18 @@ export default function AssessmentDrawer() {
 
   const studentOptions = buildStudentOptions(students, assementTasks);
 
+  // Clear the selection only if the previously selected student is no longer in the list
+  // (e.g. subject/class context changed). Do NOT auto-select the first student — the
+  // default view should show all students until the teacher manually picks one.
   useEffect(() => {
+    if (!selectedStudentId) return;
     if (studentOptions.length === 0) {
-      if (!selectedStudentId) return;
       setSelectedStudentId(null);
       return;
     }
-
-    const hasCurrentSelection = selectedStudentId
-      ? studentOptions.some((student) => student.id === String(selectedStudentId))
-      : false;
-    if (hasCurrentSelection) return;
-
-    const firstSubmitter = assementTasks.find(
-      (task) =>
-        task?.student_id != null &&
-        studentOptions.some((student) => student.id === String(task.student_id))
-    );
-    const preferredStudentId =
-      firstSubmitter?.student_id != null
-        ? String(firstSubmitter.student_id)
-        : studentOptions[0]?.id ?? null;
-
-    if (preferredStudentId) {
-      setSelectedStudentId(preferredStudentId);
-    }
-  }, [assementTasks, selectedStudentId, studentOptions]);
+    const stillPresent = studentOptions.some((s) => s.id === String(selectedStudentId));
+    if (!stillPresent) setSelectedStudentId(null);
+  }, [studentOptions]);
 
   const toggleAssessment = (taskId: number) => {
     setAssessmentOpenTaskId((prev) => (prev === taskId ? null : taskId));
@@ -399,8 +385,9 @@ export default function AssessmentDrawer() {
           </label>
           <Select
             value={selectedStudentId ?? undefined}
-            onChange={handleStudentChange}
+            onChange={(value) => setSelectedStudentId(value ?? null)}
             placeholder="Select student"
+            allowClear
             style={{ width: "100%" }}
           >
             {studentOptions.map((student) => (
