@@ -2472,7 +2472,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                 <Button
                   onClick={requestAiDraftMark}
                   loading={aiDrafting}
-                  disabled={!hasTypedStudentAnswer}
+                  disabled={!hasReadableStudentAnswer}
                   title="Draft marks and feedback with the local Ollama AI marker. Teacher review is still required."
                 >
                   AI Draft Mark
