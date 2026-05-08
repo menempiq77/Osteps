@@ -41,6 +41,7 @@ const OLLAMA_MODEL = process.env.OSTEPS_AI_MARKING_MODEL || process.env.OLLAMA_M
 const OLLAMA_FAST_FALLBACK_MODEL = process.env.OSTEPS_AI_MARKING_FAST_MODEL || "qwen2.5:0.5b";
 const OLLAMA_VISION_MODEL = process.env.OSTEPS_AI_MARKING_VISION_MODEL || "gemma3:1b";
 const OLLAMA_KEEP_ALIVE = process.env.OSTEPS_AI_MARKING_KEEP_ALIVE || "0s";
+const OLLAMA_ENABLE_REASONER = process.env.OSTEPS_AI_MARKING_USE_REASONER === "1";
 const REQUEST_TIMEOUT_MS = Number(process.env.OSTEPS_AI_MARKING_TIMEOUT_MS || 50000);
 const LARAVEL_PUBLIC_DIR = process.env.OSTEPS_LARAVEL_PUBLIC_DIR || "/var/www/laravel/public";
 const PAPER_TEXT_CACHE_MS = 10 * 60 * 1000;
@@ -257,11 +258,73 @@ const extractFirstJsonObject = (raw: string) => {
   return null;
 };
 
+const responseImpliesUnreadable = (raw: Partial<DraftMarkResponse>) => {
+  const text = `${asText(raw.feedback)} ${asText(raw.rationale)}`.toLowerCase();
+  return [
+    "unreadable",
+    "not readable",
+    "cannot be read",
+    "could not be read",
+    "no readable student answer",
+    "answer is missing from the provided text",
+    "answer is missing from the provided text and image",
+    "answer is missing from the provided text and images",
+    "cannot be assessed based on the given information",
+    "cannot be assessed from the supplied paper and answer text",
+  ].some((value) => text.includes(value));
+};
+
+const splitFeedbackSentences = (value: string) =>
+  normalizeWhitespace(value)
+    .split(/(?<=[.!?])\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+const stripFeedbackLabel = (value: string) =>
+  value.replace(/^(?:www|ebi|even better if|what went well)\s*[:\-]\s*/i, "").trim();
+
+const ensureSentenceEnding = (value: string) => {
+  const normalized = stripFeedbackLabel(value).replace(/\s+/g, " ").trim();
+  if (!normalized) return "";
+  return /[.!?]$/.test(normalized) ? normalized : `${normalized}.`;
+};
+
+const normalizeTeacherFeedback = (value: string) => {
+  const normalized = asText(value);
+  if (!normalized) return "";
+
+  const lines = normalized
+    .split(/\r?\n+/)
+    .map((line) => normalizeWhitespace(line))
+    .filter(Boolean);
+
+  let whatWentWell = "";
+  let evenBetterIf = "";
+
+  for (const line of lines) {
+    if (!whatWentWell && /^www\s*[:\-]/i.test(line)) {
+      whatWentWell = stripFeedbackLabel(line);
+      continue;
+    }
+    if (!evenBetterIf && /^(?:ebi|even better if)\s*[:\-]/i.test(line)) {
+      evenBetterIf = stripFeedbackLabel(line);
+    }
+  }
+
+  const sentences = splitFeedbackSentences(normalized);
+  if (!whatWentWell) whatWentWell = sentences[0] || normalized;
+  if (!evenBetterIf) evenBetterIf = sentences[1] || "Add the specific missing point or correction from the paper to improve the answer";
+
+  return `WWW: ${ensureSentenceEnding(whatWentWell)}\nEBI: ${ensureSentenceEnding(evenBetterIf)}`;
+};
+
 const estimateFallbackSuggestedMark = (
   raw: Partial<DraftMarkResponse>,
   maxMarks: number | null
 ) => {
   if (maxMarks == null || maxMarks <= 0) return null;
+
+  if (responseImpliesUnreadable(raw)) return null;
 
   const text = `${asText(raw.feedback)} ${asText(raw.rationale)}`.toLowerCase();
   const includesAny = (values: string[]) => values.some((value) => text.includes(value));
@@ -475,6 +538,7 @@ const alignMarkWithFeedback = (
   maxMarks: number | null
 ) => {
   if (numericMark == null || maxMarks == null || maxMarks <= 0) return numericMark;
+  if (responseImpliesUnreadable(raw)) return null;
 
   const text = `${asText(raw.feedback)} ${asText(raw.rationale)}`.toLowerCase();
   const soundsFullyCorrect = /(fully correct|completely correct|accurate and complete|meets all criteria|full marks|no material mistakes|no mistakes)/i.test(text);
@@ -524,8 +588,12 @@ const normalizeDraft = (
 
   return {
     suggestedMark: clampedMark,
-    feedback: asText(raw.feedback).slice(0, 1500) || "AI could not produce useful feedback. Please mark manually.",
-    rationale: asText(raw.rationale).slice(0, 1500) || "No rationale was returned by the local model.",
+    feedback:
+      normalizeTeacherFeedback(asText(raw.feedback)).slice(0, 1500) ||
+      "WWW: AI could not identify a reliable strength from the supplied evidence.\nEBI: Please review the paper manually.",
+    rationale:
+      asText(raw.rationale).slice(0, 1500) ||
+      "Fair judgment could not be confirmed from the returned model response.",
     confidence,
     sourcePolicy,
     warnings,
@@ -561,13 +629,23 @@ export async function POST(request: Request) {
     console.error("Could not extract exam paper text for AI marking:", error);
   }
 
+  const promptPaperContext = summarizeLongText(
+    paperContext,
+    pageImages.length > 0 || hasPenStrokes ? 1800 : 2600
+  );
+
   const shouldPreferFastModel =
-    pageImages.length > 0 || hasPenStrokes || paperContext.length > 2600;
+    pageImages.length > 0 || hasPenStrokes || promptPaperContext.length > 2200;
+  const shouldAttemptReasoner =
+    OLLAMA_ENABLE_REASONER &&
+    !shouldPreferFastModel &&
+    studentText.length > 0 &&
+    promptPaperContext.length > 0;
 
   if (!studentText && !paperContext && pageImages.length === 0) {
     return jsonResponse({
       suggestedMark: null,
-      feedback: "No readable student answer text was found in the online document annotations, and the exam paper text could not be extracted clearly enough to draft a mark.",
+      feedback: "WWW: The paper was received by the system.\nEBI: No readable student answer was found, so please mark manually or add clearer writing.",
       rationale: "The request contained no usable answer text for assessment.",
       confidence: "low",
       sourcePolicy,
@@ -605,10 +683,14 @@ Use the exam paper text and the student's written answer together. Ignore metada
 Grade the whole submitted answer across the answered pages, not a single isolated sentence.
 If max marks are known and the student's answer is readable, you MUST set suggestedMark to an integer from 0 to ${maxMarks ?? "the maximum marks"}. Do not use null in that case.
 If the student's answer is fully correct for the relevant question(s), award full marks. Only use suggestedMark null when the answer cannot be assessed from the supplied paper and answer text.
+Judge fairly from the available evidence only. Do not guess hidden writing. If some handwriting is unclear, say exactly what is unclear and mark conservatively.
 If marks are lost, feedback must mention the specific wrong answer, missing point, or correction from the paper. Do not use generic comments like "needs improvement" or "lacks clarity" by themselves. If full marks are earned, briefly say there are no material mistakes.
+Feedback must be exactly two short lines in this format:
+WWW: one specific strength from the answer
+EBI: one specific correction, missing point, or improvement from the paper
 
 Exam paper text for the answered pages:
-${paperContext || "Exam paper text could not be extracted."}
+${promptPaperContext || "Exam paper text could not be extracted."}
 
 Student typed answer text extracted from annotations:
 ${studentText || "No separate typed annotation text was found. Use the supplied answered-page images if available."}
@@ -621,11 +703,11 @@ Image legibility: ${visualContext?.legibility || "unknown"}
 
 Image reading warning: ${visualWarning || "none"}
 
-Keep feedback under 45 words and rationale under 35 words. Write feedback like a teacher comment, not a generic summary. suggestedMark must be an integer when marks are known. Return exactly:
+Keep the two feedback lines concise and concrete. Keep rationale under 35 words. suggestedMark must be an integer when marks are known. Return exactly:
 {
   "suggestedMark": integer 0..maxMarks or null only if unreadable,
-  "feedback": "short teacher-style feedback for the student",
-  "rationale": "brief reason for the suggested mark for teacher review",
+  "feedback": "WWW: ...\nEBI: ...",
+  "rationale": "brief fair-judgment reason for teacher review",
   "confidence": "low" | "medium" | "high",
   "warnings": []
 }`;
@@ -633,23 +715,6 @@ Keep feedback under 45 words and rationale under 35 words. Write feedback like a
   try {
     const modelWarnings = visualWarning ? [visualWarning] : [];
     let rawJson: string | null = null;
-
-    if (!shouldPreferFastModel) {
-      try {
-        const deepseekPayload = await requestOllamaDraft({
-          model: OLLAMA_MODEL,
-          prompt,
-          options: {
-            num_predict: 80,
-            num_ctx: 3072,
-          },
-          timeoutMs: 8000,
-        });
-        rawJson = extractFirstJsonObject(String(deepseekPayload.response || ""));
-      } catch (error) {
-        console.error("DeepSeek refinement attempt did not finish in time:", error);
-      }
-    }
 
     if (!rawJson) {
       try {
@@ -660,47 +725,84 @@ Keep feedback under 45 words and rationale under 35 words. Write feedback like a
             num_predict: 80,
             num_ctx: 3072,
           },
-          timeoutMs: 28000,
+          timeoutMs: 18000,
         });
         rawJson = extractFirstJsonObject(String(fallbackPayload.response || ""));
         if (!rawJson) {
-          return jsonResponse(
-            normalizeDraft(
-              {
-                suggestedMark: null,
-                feedback: String(fallbackPayload.response || "AI returned an unreadable response."),
-                rationale: "The local model did not return valid JSON.",
-                confidence: "low",
-                warnings: [...modelWarnings, "Local model response was not valid JSON."],
-              },
-              maxMarks,
-              sourcePolicy
-            )
-          );
+          if (!shouldAttemptReasoner) {
+            return jsonResponse(
+              normalizeDraft(
+                {
+                  suggestedMark: null,
+                  feedback: String(fallbackPayload.response || "AI returned an unreadable response."),
+                  rationale: "The local model did not return valid JSON.",
+                  confidence: "low",
+                  warnings: [...modelWarnings, "Local model response was not valid JSON."],
+                },
+                maxMarks,
+                sourcePolicy
+              )
+            );
+          }
         }
       } catch (error) {
         const aborted = error instanceof Error && error.name === "AbortError";
         if (aborted) {
+          if (!shouldAttemptReasoner) {
+            return jsonResponse(
+              normalizeDraft(
+                {
+                  suggestedMark: null,
+                  feedback: "WWW: The paper loaded for review.\nEBI: AI Draft Mark could not finish quickly enough, so please try again after the paper loads or mark manually.",
+                  rationale: "The local model reached the time limit before returning a safe draft.",
+                  confidence: "low",
+                  warnings: [...modelWarnings, "Local AI timed out before completing the draft."],
+                },
+                maxMarks,
+                sourcePolicy
+              )
+            );
+          }
+        } else if (!shouldAttemptReasoner) {
           return jsonResponse(
-            normalizeDraft(
-              {
-                suggestedMark: null,
-                feedback: "AI Draft Mark could not finish quickly enough for this answer set. Please try again after the paper fully loads, or mark manually.",
-                rationale: "The local model reached the time limit before returning a safe draft.",
-                confidence: "low",
-                warnings: [...modelWarnings, "Local AI timed out before completing the draft."],
-              },
-              maxMarks,
-              sourcePolicy
-            )
+            { message: error instanceof Error ? error.message : "Local Ollama AI marker is unavailable. Start Ollama on this server and pull the configured model." },
+            503
           );
         }
-
-        return jsonResponse(
-          { message: error instanceof Error ? error.message : "Local Ollama AI marker is unavailable. Start Ollama on this server and pull the configured model." },
-          503
-        );
       }
+    }
+
+    if (!rawJson && shouldAttemptReasoner) {
+      try {
+        const deepseekPayload = await requestOllamaDraft({
+          model: OLLAMA_MODEL,
+          prompt,
+          options: {
+            num_predict: 80,
+            num_ctx: 3072,
+          },
+          timeoutMs: 9000,
+        });
+        rawJson = extractFirstJsonObject(String(deepseekPayload.response || ""));
+      } catch (error) {
+        console.error("Reasoner refinement attempt did not finish in time:", error);
+      }
+    }
+
+    if (!rawJson) {
+      return jsonResponse(
+        normalizeDraft(
+          {
+            suggestedMark: null,
+            feedback: "WWW: The paper loaded for review.\nEBI: AI Draft Mark could not produce a reliable structured draft from this answer, so please review it manually.",
+            rationale: "The available model responses were incomplete or unreadable.",
+            confidence: "low",
+            warnings: [...modelWarnings, shouldAttemptReasoner ? "Fast and reasoner models could not return a reliable draft." : "Local model response was not reliable enough to use."],
+          },
+          maxMarks,
+          sourcePolicy
+        )
+      );
     }
 
     const parsed = JSON.parse(rawJson) as Partial<DraftMarkResponse>;

@@ -512,8 +512,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const canOpenOriginalFile = !(role === "student" && examWindow.examMode);
   const displayStudentName = currentStudentName || teacherExamStudentInfo?.studentName || "Selected student";
   const canDownloadSubmittedPaper = role === "teacher" && documentLoaded && (studentLocked || state?.status === "submitted" || state?.status === "marked");
-  const hasTypedStudentAnswer = studentAnnotations.some(
-    (annotation) => annotation.type === "text" && annotation.text.trim().length > 0
+  const hasReadableStudentAnswer = studentAnnotations.some(
+    (annotation) =>
+      (annotation.type === "text" && annotation.text.trim().length > 0) ||
+      (annotation.type === "pen" && annotation.points.length > 0)
   );
   const autosaveStatusLabel = saving
     ? "Saving"
@@ -2060,12 +2062,15 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       });
 
       const nextTeacherMarks = draft.suggestedMark != null ? String(draft.suggestedMark) : "";
+      const nextTeacherFeedback = draft.feedback.trim();
 
       setTeacherMarks(nextTeacherMarks);
+      setTeacherFeedback(nextTeacherFeedback);
       setAiDraftPreview(draft);
       persistLocalDraft(getCurrentLayerSnapshot(), {
         ...(state?.metadata && typeof state.metadata === "object" ? state.metadata : {}),
         teacherMarks: nextTeacherMarks,
+        teacherFeedback: nextTeacherFeedback,
         aiDraftPreview: draft,
       });
       messageApi.success("AI draft added. Review it before saving the markbook mark.");
@@ -2478,9 +2483,9 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
             showIcon
             message="AI Draft Mark is available on this marking screen"
             description={
-              hasTypedStudentAnswer
-                ? "Use it to draft a suggested mark and feedback from the student's typed answers. It only fills the fields above; it does not save the markbook mark."
-                : "The first AI marking version can read typed student answers in this online document. If this paper is a scanned image, handwriting, or only pen marks, OCR will be added in the next phase."
+              hasReadableStudentAnswer
+                ? "Use it to draft a suggested mark plus WWW and EBI feedback from the exam paper, the student's typed text, and the student's writing on the page. It only prepares the draft; it does not save the markbook mark."
+                : "AI Draft Mark needs student writing or typed answers on the paper before it can create a draft."
             }
             action={
               <Button
@@ -2488,7 +2493,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                 type="primary"
                 onClick={requestAiDraftMark}
                 loading={aiDrafting}
-                disabled={!hasTypedStudentAnswer}
+                disabled={!hasReadableStudentAnswer}
               >
                 AI Draft Mark
               </Button>
