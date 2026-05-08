@@ -7,6 +7,7 @@ import { Provider } from "react-redux";
 import { PersistGate } from "redux-persist/integration/react";
 import { LanguageProvider } from "./LanguageContext";
 import { persistor, store } from "@/store/store";
+import { GlobalAiAssistant } from "@/components/GlobalAiAssistant";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
@@ -28,6 +29,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           <LanguageProvider>
             <Suspense fallback={null}>
               {children}
+              <GlobalAiAssistant />
               {process.env.NODE_ENV === "development" && (
                 <ReactQueryDevtools initialIsOpen={false} />
               )}

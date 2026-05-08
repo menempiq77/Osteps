@@ -2,7 +2,6 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Button, Input, InputNumber, Modal, message, Select, Spin, Tag } from "antd";
-const { TextArea } = Input;
 import type {
   AssessmentDocumentAnnotation,
   AssessmentDocumentLayer,
@@ -427,11 +426,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const [exportingPaper, setExportingPaper] = useState(false);
   const [aiDrafting, setAiDrafting] = useState(false);
   const [aiDraftPreview, setAiDraftPreview] = useState<AiDraftMarkResponse | null>(null);
-  type ChatMsg = { role: "user" | "assistant"; content: string };
-  const [aiChatMessages, setAiChatMessages] = useState<ChatMsg[]>([]);
-  const [aiChatInput, setAiChatInput] = useState("");
-  const [aiChatLoading, setAiChatLoading] = useState(false);
-  const aiChatBottomRef = useRef<HTMLDivElement>(null);
+
   const [selfAssessmentMark, setSelfAssessmentMark] = useState<number | null>(initialSelfAssessmentMark);
   const [teacherMarks, setTeacherMarks] = useState(initialTeacherMarks);
   const [teacherFeedback, setTeacherFeedback] = useState(initialTeacherFeedback);
@@ -2581,155 +2576,64 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
           />
         ) : null}
         {role === "teacher" && aiDraftPreview ? (
-          <div className="mb-4 space-y-0">
-            <Alert
-              type={isFailedAiDraft(aiDraftPreview) ? "warning" : "success"}
-              showIcon
-              closable
-              onClose={() => { setAiDraftPreview(null); setAiChatMessages([]); }}
-              message={
-                isFailedAiDraft(aiDraftPreview)
-                  ? "AI could not draft a safe mark"
-                  : aiDraftPreview.suggestedMark != null
-                  ? `AI draft ready: suggested mark ${aiDraftPreview.suggestedMark}${maxMarks ? ` / ${maxMarks}` : ""}`
-                  : "AI draft ready"
-              }
-              description={
-                <div className="space-y-2 text-sm text-gray-700">
-                  <p className="whitespace-pre-wrap">{aiDraftPreview.feedback}</p>
-                  {aiDraftPreview.rationale ? (
-                    <p className="whitespace-pre-wrap text-gray-600">
-                      AI rationale for teacher review: {aiDraftPreview.rationale}
-                    </p>
-                  ) : null}
-                  {aiDraftPreview.warnings.length > 0 ? (
-                    <p className="whitespace-pre-wrap text-amber-700">
-                      Warnings: {aiDraftPreview.warnings.join("; ")}
-                    </p>
-                  ) : null}
-                </div>
-              }
-            />
-            {/* ===== AI MARKING CHAT ===== */}
-            {!isFailedAiDraft(aiDraftPreview) && (
-              <div className="border border-t-0 border-green-300 rounded-b-lg bg-white">
-                {aiChatMessages.length > 0 && (
-                  <div className="max-h-64 overflow-y-auto p-3 space-y-3">
-                    {aiChatMessages.map((msg, i) => (
-                      <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                        <div
-                          className={`max-w-[85%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap ${
-                            msg.role === "user"
-                              ? "bg-blue-500 text-white"
-                              : "bg-gray-100 text-gray-800"
-                          }`}
-                        >
-                          {msg.content}
-                        </div>
-                      </div>
-                    ))}
-                    {aiChatLoading && (
-                      <div className="flex justify-start">
-                        <div className="bg-gray-100 rounded-lg px-3 py-2 text-sm text-gray-500">
-                          <Spin size="small" /> Thinking...
-                        </div>
-                      </div>
-                    )}
-                    <div ref={aiChatBottomRef} />
-                  </div>
+          <Alert
+            className="mb-4"
+            type={isFailedAiDraft(aiDraftPreview) ? "warning" : "success"}
+            showIcon
+            closable
+            onClose={() => setAiDraftPreview(null)}
+            message={
+              isFailedAiDraft(aiDraftPreview)
+                ? "AI could not draft a safe mark"
+                : aiDraftPreview.suggestedMark != null
+                ? `AI draft ready: suggested mark ${aiDraftPreview.suggestedMark}${maxMarks ? ` / ${maxMarks}` : ""}`
+                : "AI draft ready"
+            }
+            description={
+              <div className="space-y-2 text-sm text-gray-700">
+                <p className="whitespace-pre-wrap">{aiDraftPreview.feedback}</p>
+                {aiDraftPreview.rationale ? (
+                  <p className="whitespace-pre-wrap text-gray-600">
+                    AI rationale for teacher review: {aiDraftPreview.rationale}
+                  </p>
+                ) : null}
+                {aiDraftPreview.warnings.length > 0 ? (
+                  <p className="whitespace-pre-wrap text-amber-700">
+                    Warnings: {aiDraftPreview.warnings.join("; ")}
+                  </p>
+                ) : null}
+                {!isFailedAiDraft(aiDraftPreview) && (
+                  <button
+                    onClick={() =>
+                      window.dispatchEvent(
+                        new CustomEvent("osteps:open-ai-assistant", {
+                          detail: {
+                            context: {
+                              page: "marking",
+                              title,
+                              subject: subjectName ?? undefined,
+                              maxMarks: maxMarks ?? undefined,
+                              suggestedMark: aiDraftPreview.suggestedMark ?? undefined,
+                              feedback: aiDraftPreview.feedback,
+                              rationale: aiDraftPreview.rationale ?? undefined,
+                              studentAnswer: studentAnnotations
+                                .filter((a) => a.type === "text")
+                                .map((a) => (a as { text?: string }).text ?? "")
+                                .join(" ")
+                                .slice(0, 2000),
+                            },
+                          },
+                        })
+                      )
+                    }
+                    className="mt-1 text-xs text-teal-700 underline cursor-pointer hover:text-teal-900"
+                  >
+                    💬 Ask AI about this marking →
+                  </button>
                 )}
-                <div className="flex gap-2 p-2 border-t border-gray-100">
-                  <TextArea
-                    value={aiChatInput}
-                    onChange={(e) => setAiChatInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        void (async () => {
-                          const userText = aiChatInput.trim();
-                          if (!userText || aiChatLoading) return;
-                          const newMessages: ChatMsg[] = [...aiChatMessages, { role: "user", content: userText }];
-                          setAiChatMessages(newMessages);
-                          setAiChatInput("");
-                          setAiChatLoading(true);
-                          setTimeout(() => aiChatBottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
-                          try {
-                            const res = await fetch("/api/ai/marking/chat", {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({
-                                messages: newMessages,
-                                markingContext: {
-                                  title,
-                                  subjectName,
-                                  maxMarks,
-                                  suggestedMark: aiDraftPreview.suggestedMark,
-                                  feedback: aiDraftPreview.feedback,
-                                  rationale: aiDraftPreview.rationale,
-                                  studentAnswer: studentAnnotations
-                                    .filter((a) => a.type === "text")
-                                    .map((a) => (a as { text?: string }).text ?? "")
-                                    .join(" ")
-                                    .slice(0, 2000),
-                                },
-                              }),
-                            });
-                            if (!res.ok || !res.body) throw new Error("Chat request failed");
-                            const reader = res.body.getReader();
-                            const decoder = new TextDecoder();
-                            let assistantText = "";
-                            setAiChatMessages((prev) => [...prev, { role: "assistant", content: "" }]);
-                            while (true) {
-                              const { done, value } = await reader.read();
-                              if (done) break;
-                              const chunk = decoder.decode(value, { stream: true });
-                              for (const line of chunk.split("\n")) {
-                                const trimmed = line.replace(/^data: /, "").trim();
-                                if (!trimmed || trimmed === "[DONE]") continue;
-                                try {
-                                  const parsed = JSON.parse(trimmed) as { choices?: Array<{ delta?: { content?: string } }> };
-                                  const delta = parsed.choices?.[0]?.delta?.content ?? "";
-                                  assistantText += delta;
-                                  setAiChatMessages((prev) => [
-                                    ...prev.slice(0, -1),
-                                    { role: "assistant", content: assistantText },
-                                  ]);
-                                  aiChatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
-                                } catch { /* partial JSON, skip */ }
-                              }
-                            }
-                          } catch (err) {
-                            setAiChatMessages((prev) => [
-                              ...prev,
-                              { role: "assistant", content: "Sorry, I could not get a response. Please try again." },
-                            ]);
-                          } finally {
-                            setAiChatLoading(false);
-                            setTimeout(() => aiChatBottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
-                          }
-                        })();
-                      }
-                    }}
-                    placeholder="Ask about the marking… (e.g. which question is wrong?)  Press Enter to send"
-                    autoSize={{ minRows: 1, maxRows: 4 }}
-                    className="flex-1 text-sm"
-                    disabled={aiChatLoading}
-                  />
-                  <Button
-                    type="primary"
-                    size="small"
-                    disabled={!aiChatInput.trim() || aiChatLoading}
-                    loading={aiChatLoading}
-                    onClick={() => {
-                      const inputEl = document.activeElement as HTMLTextAreaElement | null;
-                      inputEl?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-                    }}
-                    className="self-end"
-                  >Send</Button>
-                </div>
               </div>
-            )}
-          </div>
+            }
+          />
         ) : null}
         {screenshotWarningVisible && shouldEnforceExamScreen ? (
           <Alert
