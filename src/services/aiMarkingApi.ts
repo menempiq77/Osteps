@@ -2,6 +2,7 @@ import type { AssessmentDocumentAnnotation } from "@/services/documentAssessment
 
 export type QuestionMarkEntry = {
   question: string;
+  questionType?: "MCQ" | "TrueFalse" | "FillBlank" | "ShortAnswer" | "Essay" | string;
   studentAnswer: string;
   marksAwarded: number;
   maxMarksForQuestion: number | null;

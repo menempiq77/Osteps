@@ -2613,6 +2613,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                         <thead>
                           <tr className="bg-green-50 text-green-800 text-left">
                             <th className="px-2 py-1 font-medium">Question</th>
+                            <th className="px-2 py-1 font-medium">Type</th>
                             <th className="px-2 py-1 font-medium">Student answer</th>
                             <th className="px-2 py-1 font-medium">Marks</th>
                             <th className="px-2 py-1 font-medium">Reason</th>
@@ -2622,6 +2623,21 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                           {aiDraftPreview.questionBreakdown.map((q, qi) => (
                             <tr key={qi} className={qi % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                               <td className="px-2 py-1 align-top text-gray-800 font-medium">{q.question}</td>
+                              <td className="px-2 py-1 align-top">
+                                {q.questionType ? (
+                                  <span
+                                    className={`inline-block rounded px-1 text-[10px] font-semibold whitespace-nowrap ${
+                                      q.questionType === "MCQ" || q.questionType === "TrueFalse"
+                                        ? "bg-blue-100 text-blue-700"
+                                        : q.questionType === "Essay"
+                                        ? "bg-purple-100 text-purple-700"
+                                        : "bg-gray-100 text-gray-600"
+                                    }`}
+                                  >
+                                    {q.questionType}
+                                  </span>
+                                ) : null}
+                              </td>
                               <td className="px-2 py-1 align-top text-gray-600 italic">{q.studentAnswer}</td>
                               <td className="px-2 py-1 align-top text-center font-semibold whitespace-nowrap">
                                 {q.marksAwarded}{q.maxMarksForQuestion != null ? `/${q.maxMarksForQuestion}` : ""}

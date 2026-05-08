@@ -56,6 +56,8 @@ const OLLAMA_ENABLE_REASONER = process.env.OSTEPS_AI_MARKING_USE_REASONER === "1
 const GROQ_API_KEY = process.env.GROQ_API_KEY || "";
 const GROQ_VISION_MODEL = process.env.GROQ_VISION_MODEL || "meta-llama/llama-4-scout-17b-16e-instruct";
 const GROQ_TEXT_MODEL = process.env.GROQ_TEXT_MODEL || "llama-3.3-70b-versatile";
+// DeepSeek-R1 reasoning model for re-check on low-confidence marks (runs AFTER primary model)
+const GROQ_REASONING_MODEL = process.env.GROQ_REASONING_MODEL || "deepseek-r1-distill-llama-70b";
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "";
 const OPENROUTER_VISION_MODEL = process.env.OPENROUTER_VISION_MODEL || "qwen/qwen2.5-vl-72b-instruct:free";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
@@ -64,6 +66,10 @@ const REQUEST_TIMEOUT_MS = Number(process.env.OSTEPS_AI_MARKING_TIMEOUT_MS || 50
 const LARAVEL_PUBLIC_DIR = process.env.OSTEPS_LARAVEL_PUBLIC_DIR || "/var/www/laravel/public";
 const PAPER_TEXT_CACHE_MS = 10 * 60 * 1000;
 const LOCAL_OCR_FOCUS = "Local OCR text from answered-page image";
+
+// Strip DeepSeek-R1 <think>...</think> reasoning tags before JSON extraction
+const stripReasoningTags = (raw: string): string =>
+  raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
 
 const paperTextCache = new Map<string, { pages: Array<{ num: number; text: string }>; cachedAt: number }>();
 const execFileAsync = promisify(execFile);
@@ -797,7 +803,7 @@ const requestCloudVisualAnswerContext = async ({
       body: JSON.stringify({
         model,
         temperature: 0.1,
-        max_tokens: 220,
+        max_tokens: 600,
         response_format: { type: "json_object" },
         messages: [
           {
@@ -921,24 +927,31 @@ const extractVisualAnswerContext = async ({
 
   const prompt = `OSTEPS answered-page reader. Return strict JSON only.
 
-Read the supplied answered-page images. They show the exam paper and the student's written answers on the paper. Do not grade yet. 
-IGNORE completely: student name, student ID, class, teacher name, date, school name, predicted grade — any text on header/title areas of the paper. These are identity fields, not answers.
-Only extract text that is written in response to a question printed on the paper. For each answer found, note which question it belongs to.
+Read the supplied answered-page images. They show the exam paper and the student's written answers.
+IGNORE: student name, student ID, class, teacher name, date, school name, predicted grade, any header fields.
 
 Title: ${title}
 Subject: ${subjectName}
 
-CRITICAL — HANDWRITTEN SELECTION MARKS:
-- For True/False, MCQ, checkbox, or fill-in-the-blank questions, a hand-drawn X, tick (✓), circle, cross, underline, or any mark placed NEXT TO or INSIDE an option box means that is the student's CHOSEN ANSWER for that item.
-- Do NOT flag the student's selection mark itself as a mistake. Only flag a mistake if you can verify the selected answer is wrong by comparing it to an answer key or clearly correct option shown on the same paper.
-- In studentAnswerSummary, clearly describe each selected answer (e.g. "Q1: student placed X next to True", "Q3: student circled option B").
-- In visibleMistakes, only list items where the chosen answer is clearly incorrect or missing compared to what the paper shows is expected.
+MCQ / TRUE-FALSE / CHECKBOX READING RULES (critical for accuracy):
+1. For EVERY MCQ/T-F/checkbox/fill-blank question visible on the paper:
+   - State exactly which option the student circled, underlined, ticked, crossed, or marked next to.
+   - Format: "Q[num]: Student circled option ([letter]) [full option text]"
+   - Example: "Q1: Student circled option (a) You pray full salah"
+   - If the student marked no option for a question, say "Q[num]: No selection visible"
+2. Count every MCQ question on the paper, even if it takes more words. Do not abbreviate.
+3. A pen circle, oval, underline, tick, X, cross placed NEXT TO or AROUND an answer option is the student's CHOSEN ANSWER. It is not a mistake mark.
+4. Only flag a mistake if you can confirm the selected option is wrong (e.g. the paper shows the answer key, or it is clearly incorrect).
+
+SHORT ANSWER / ESSAY:
+- Transcribe or paraphrase the student's written text faithfully.
+- Note which question it appears to answer.
 
 Return exactly:
 {
-  "questionFocus": "question/part being answered in 25 words max",
-  "studentAnswerSummary": "faithful transcription or concise paraphrase of what the student wrote/selected in 140 words max; if unreadable say Unreadable.",
-  "visibleMistakes": ["specific wrong or missing points visible in the student's answer — only include if clearly incorrect, not just because a mark/X/tick is present"],
+  "questionFocus": "brief description of the paper being read in 20 words",
+  "studentAnswerSummary": "For EVERY question: state the question number, selection or written answer. Use the MCQ format above. Up to 400 words.",
+  "visibleMistakes": ["Q[num]: student selected ([letter]) [text] — this is wrong because [reason]"],
   "legibility": "low" | "medium" | "high"
 }`;
 
@@ -1007,7 +1020,7 @@ const normalizeDraft = (
   const fallbackMark = estimateFallbackSuggestedMark(raw, maxMarks);
   const consistentNumericMark = Number.isFinite(numericMark)
     ? alignMarkWithFeedback(
-        Math.max(0, maxMarks == null ? numericMark : Math.min(maxMarks, numericMark)),
+        Math.max(0, maxMarks == null ? numericMark! : Math.min(maxMarks, numericMark!)),
         fallbackMark,
         raw,
         maxMarks
@@ -1098,10 +1111,39 @@ const requestGroqMarkingDraft = async ({
   if (!GROQ_API_KEY) return null;
 
   const controller = new AbortController();
-  const timeoutHandle = setTimeout(() => controller.abort(), 20000);
+  const timeoutHandle = setTimeout(() => controller.abort(), 25000);
   const requestSignal = signal
     ? AbortSignal.any([signal, controller.signal])
     : controller.signal;
+
+  const ISLAMIC_STUDIES_KNOWLEDGE = `
+ISLAMIC STUDIES AUTHORITATIVE ANSWERS (use these when subject is Islamic/Quranic/Arabic religious):
+- Prayer shortening (Qasr) while travelling: Allowed when distance ≥ 83 km AND intended stay is 3 days or fewer. If the stay EXTENDS BEYOND 3 DAYS the traveller must revert to full (Tamam) prayers. CORRECT answer to "what happens if stay extends beyond 3 days at >83 km": "You pray full salah" — award full marks.
+- Treaty of Hudaybiyyah: Signed in 6 AH at Hudaybiyyah between Prophet Muhammad ﷺ and the Quraysh. Effects: right to return for Umrah the following year; tribes free to align; led to mass entry into Islam; prepared the ground for Fatḥ Makkah.
+- Dealing with rumours: Islamic guidance (Al-Hujurat 49:6): verify the information (Tabayyun/Tahaqquq). If beneficial and confirmed, share; otherwise keep silent. CORRECT answer: "Listen to it and verify it. Then, if it should be known, pass it on; otherwise, keep silent."
+- Salah times: Fajr (dawn), Dhuhr (midday), Asr (afternoon), Maghrib (sunset), Isha (night).
+- Pillars of Islam: Shahada, Salah, Zakah, Sawm (Ramadan fasting), Hajj.
+- Pillars of Iman: Allah, Angels, Scriptures, Prophets, Day of Judgement, Qadar (Divine Decree).
+- Wudu (ablution) is required before prayer; invalidated by sleep, toilet, breaking wind, unconsciousness.
+- Tayammum (dry ablution) is permitted when water is unavailable or harmful to use.
+`;
+
+  const systemContent =
+    "You are a highly accurate professional school exam marker. Always output strict valid JSON.\n" +
+    "\nSTEP-BY-STEP MARKING PROCESS — follow in order for EVERY paper:\n" +
+    "STEP 1 — LIST QUESTION TYPES: Before scoring, identify each question in the paper and classify it as MCQ | True/False | Fill-blank | Short-answer | Essay. Note the mark allocation per question EXACTLY as shown on the paper.\n" +
+    "STEP 2 — READ STUDENT SELECTIONS & ANSWERS: For each MCQ/T-F/Fill-blank question, identify the EXACT option the student circled, underlined, crossed, or ticked. For short-answer/essay questions, read the student's written text.\n" +
+    "STEP 3 — EVALUATE CORRECTNESS:\n" +
+    "  • MCQ / True-False / Fill-blank: is the selected option factually CORRECT? → award the full mark for that question (right = full marks, wrong = 0). NO partial marks for MCQs.\n" +
+    "  • Short-answer: does the student's text contain the required facts/points? Award proportionally.\n" +
+    "  • Essay/Analysis: evaluate understanding, depth, and accuracy proportionally.\n" +
+    "STEP 4 — BUILD questionBreakdown: one entry PER QUESTION. Use the exact question number and a short excerpt of the question text (e.g. \"Q1: Shortening prayers if stay >3 days\"). Do NOT group MCQs into one entry.\n" +
+    "\nCRITICAL MCQ RULE: MCQ and True/False questions are BINARY — full marks or 0. Never give \"3 out of 5\" to a single MCQ. The mark per MCQ is whatever the paper allocates (default: 1 mark each if not stated).\n" +
+    "QUESTION LABEL RULE: Use the ACTUAL question number and topic from the paper (e.g. \"Q1: Shortening prayers when stay > 3 days\"). NEVER invent topic names not in the paper.\n" +
+    "\nACCURACY RULE: suggestedMark MUST equal the exact integer SUM of all marksAwarded in questionBreakdown.\n" +
+    "IDENTITY FIELDS RULE: Completely ignore student name, ID, class, date, school name — these are never part of the answer.\n" +
+    ISLAMIC_STUDIES_KNOWLEDGE +
+    "\nFor WWW: name the specific question and what was correct. For EBI: name the question number, what the student wrote that was wrong, and what the correct answer is.";
 
   try {
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -1113,27 +1155,10 @@ const requestGroqMarkingDraft = async ({
       body: JSON.stringify({
         model: GROQ_TEXT_MODEL,
         temperature: 0,
-        max_tokens: 1500,
+        max_tokens: 2000,
         response_format: { type: "json_object" },
         messages: [
-          {
-            role: "system",
-            content:
-              "You are a professional teacher's AI marking assistant. Always output strict valid JSON. " +
-              "ACCURACY AND FAIRNESS RULE: You MUST include a questionBreakdown array covering every visible question. " +
-              "Mark each question individually, then set suggestedMark to the EXACT SUM of all marksAwarded values in questionBreakdown. " +
-              "This prevents you from giving the same mark to every student — marks must reflect what each specific student actually wrote. " +
-              "Never output null for suggestedMark when max marks are known and the answer is readable. " +
-              "Be detailed and specific in your feedback: identify exactly which question part or sub-question contains a mistake, " +
-              "quote or paraphrase the student's actual wrong/missing answer, and state the correct answer or missing concept from the mark scheme. " +
-              "IMPORTANT: completely ignore student name, ID, class, date, school name, and any other identity/header fields on the paper — " +
-              "these are NEVER part of the answer and must NEVER be treated as a correct or incorrect answer. " +
-              "Only mark text that is a written answer to a specific exam question. " +
-              "For WWW: quote what the student wrote that was correct and name the relevant concept or question part. " +
-              "For EBI: state the question number or part (e.g. 'In question 2' or 'In part (b)'), what the student wrote that was wrong or incomplete, and what the correct or expected answer is. " +
-              "CRITICAL: For True/False, MCQ, or checkbox questions, an X, tick, circle, cross, or pen mark next to an option is the student's CHOSEN ANSWER — never treat the mark itself as a mistake. " +
-              "Only mark a T/F or MCQ answer wrong if the chosen option is factually incorrect. If the student correctly selected True or False with an X, award the mark.",
-          },
+          { role: "system", content: systemContent },
           { role: "user", content: prompt },
         ],
       }),
@@ -1147,6 +1172,60 @@ const requestGroqMarkingDraft = async ({
 
     const content = extractCloudJsonContent(await response.json());
     return { response: content };
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
+};
+
+// DeepSeek-R1 reasoning re-check: used when the primary mark has low confidence
+// or when a complex paper needs step-by-step verification.
+const requestGroqReasoningRecheck = async ({
+  prompt,
+  signal,
+}: {
+  prompt: string;
+  signal?: AbortSignal;
+}) => {
+  if (!GROQ_API_KEY) return null;
+
+  const controller = new AbortController();
+  const timeoutHandle = setTimeout(() => controller.abort(), 30000);
+  const requestSignal = signal
+    ? AbortSignal.any([signal, controller.signal])
+    : controller.signal;
+
+  try {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${GROQ_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: GROQ_REASONING_MODEL,
+        temperature: 0,
+        max_tokens: 3000,
+        // Note: DeepSeek-R1 does not support response_format json_object — we strip think tags and parse manually
+        messages: [
+          {
+            role: "user",
+            content:
+              "You are a school exam marker. Think through each question carefully, then output ONLY a valid JSON object (no extra text after the JSON).\n\n" +
+              prompt,
+          },
+        ],
+      }),
+      signal: requestSignal,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
+      throw new Error(`Groq reasoning model failed (${response.status}). ${errorText.slice(0, 240)}`);
+    }
+
+    const raw = extractCloudJsonContent(await response.json());
+    // Strip <think>...</think> reasoning tokens before JSON extraction
+    return { response: stripReasoningTags(raw) };
   } finally {
     clearTimeout(timeoutHandle);
   }
@@ -1344,31 +1423,42 @@ Subject: ${subjectName}
 Student: ${asText(body.studentName) || asText(body.studentId) || "Unknown"}
 Max marks: ${maxMarks ?? "Unknown"}
 
-Use the exam paper text and the student's written answer together.
-IGNORE completely: student name, student ID, class, grade, section, school name, teacher name, date, predicted grade, self-assessment mark, or any header/label field. These are NEVER part of the answer and must NEVER be marked as correct or incorrect.
-Only mark text that is a direct response to a specific question printed in the exam paper. Match each piece of student writing to the question it appears to answer on the PDF. If a piece of student text does not correspond to any exam question, ignore it.
-Grade the whole submitted answer across the answered pages, not a single isolated sentence.
-If max marks are known and the student's answer is readable, you MUST set suggestedMark to an integer from 0 to ${maxMarks ?? "the maximum marks"}. Do not use null in that case.
-BEFORE deciding the mark, think through each question visible in the exam paper:
-  - What is this question worth in marks?
-  - What did the student actually write for this question (quote it directly if possible)?
-  - Is that answer correct, partially correct, or wrong/missing? Why?
-  - How many marks does this question earn?
-Then sum up the marks earned across all questions to get suggestedMark.
-Do NOT default to a high or near-full mark when the student answer is unclear or hard to read. Award marks only for specific correct answers you can actually see in the supplied text. If a section of the paper has no readable student answer, award 0 for that section.
-Do NOT give the same mark every time. Different students write different things; marks must reflect what each specific student actually wrote.
-Judge fairly from the available evidence only. Do not guess hidden writing. If some handwriting is unclear, say exactly what is unclear and mark conservatively.
-HANDWRITTEN SELECTION MARKS: For True/False, MCQ, checkbox, or fill-in-blank questions, a pen X, tick ✓, circle, cross, or any mark placed next to or inside an answer option is the student's CHOSEN ANSWER — it is not itself an error. Only judge whether the chosen answer is correct or incorrect. Never penalise a student for the physical act of marking their selection.
-If marks are lost, feedback must identify exactly which question or part has the mistake. Name the question number or part if visible (e.g. "In question 2" or "In part (b)"), quote or paraphrase what the student wrote that was wrong or missing, and state the correct or expected answer from the paper. Do NOT use vague phrases like "needs improvement", "lacks clarity", or "answer is incomplete" by themselves — always follow them with the specific content.
-If full marks are earned, WWW should quote what was correct and EBI should confirm there are no material errors.
-Feedback must be in this format — each line may be 1-2 sentences if needed for specificity:
-WWW: [quote or paraphrase the specific correct point the student made, naming the concept or question part]
-EBI: [name the question/part, quote the student's error or gap, then state the correct answer or missing concept]
+MARKING PROCESS — follow these exact steps in order:
 
-Exam paper text for the answered pages:
+STEP 1 — IDENTIFY QUESTION TYPES:
+Read the exam paper carefully. For each question, note:
+  - The question number exactly as printed (Q1, Q2, 1a, 2b, etc.)
+  - The question type: MCQ | True/False | Fill-blank | Short-answer | Essay/Analysis
+  - The marks allocated to it (look for numbers in brackets like [2] or "(5 marks)" or allocations in mark grids)
+  - The question text (first 10 words is enough)
+
+STEP 2 — MCQ / True-False / Fill-blank RULE (strictly enforced):
+  - For each MCQ or T/F: find the option the student circled, crossed, ticked, or underlined.
+  - Determine if that option is factually CORRECT.
+  - Award the full mark for that question if correct; award 0 if wrong.
+  - NEVER give partial marks to a single MCQ. (You cannot get "3 out of 5" for one MCQ.)
+  - Default mark per MCQ is 1 mark each UNLESS the paper clearly states a different allocation.
+
+STEP 3 — SHORT-ANSWER / ESSAY RULE:
+  - Find the student's written answer to each question.
+  - Check it against the expected answer from the paper.
+  - Award marks proportionally based on how many required points are included.
+
+STEP 4 — BUILD THE BREAKDOWN:
+  - One entry per question. Do NOT group multiple MCQs into one entry.
+  - Use the actual question number and a short excerpt of the question text as the label.
+    EXAMPLE: "Q1: What happens when stay exceeds 3 days" — NOT invented topic names.
+  - Do NOT invent labels like "Effects of Hudaybiyyah" for an MCQ about prayer shortening.
+
+OTHER RULES:
+IGNORE: student name, ID, class, date, school name — never part of the answer.
+For marks feedback, name the exact question number and what the student got wrong.
+suggestedMark = exact integer SUM of all marksAwarded in the breakdown.
+
+Exam paper text:
 ${promptPaperContext || "Exam paper text could not be extracted."}
 
-Student typed answer text extracted from annotations:
+Student typed answer text:
 ${studentText || "No separate typed annotation text was found. Use the supplied answered-page images if available."}
 
 ${visualContext ? `Visual reading from answered-page images:
@@ -1379,21 +1469,21 @@ Image legibility: ${visualContext.legibility}` : pageImages.length > 0 ? "Answer
 
 Image reading warning: ${visualWarning || "none"}
 
-ACCURACY AND CONSISTENCY: Fill in questionBreakdown for EVERY question you can see in the exam paper BEFORE you decide suggestedMark. Then set suggestedMark = the exact integer sum of all marksAwarded values. This is mandatory for fairness — the mark must be traceable and auditable.
-Keep the two feedback lines concise and concrete. Keep rationale under 35 words. Return exactly:
+Return exactly (one entry per question — do NOT merge separate questions):
 {
   "questionBreakdown": [
     {
-      "question": "Q1: brief label, e.g. 'Q1: Effects of Hudaybiyyah' or 'T/F question 3'",
-      "studentAnswer": "exact short quote or paraphrase of what the student wrote/selected for this question",
+      "question": "Q1: [first 8 words of the actual question text from the paper]",
+      "questionType": "MCQ" | "TrueFalse" | "FillBlank" | "ShortAnswer" | "Essay",
+      "studentAnswer": "[exact option letter + text for MCQ, e.g. \"(a) You pray full salah\"; or student's written text]",
       "marksAwarded": integer,
-      "maxMarksForQuestion": integer or null if not visible,
-      "reason": "one sentence: why these marks were awarded or deducted"
+      "maxMarksForQuestion": integer or null,
+      "reason": "[for MCQ: state the selected option and whether it is correct or wrong + the correct answer if wrong; for short-answer: what was correct or missing]"
     }
   ],
-  "suggestedMark": integer = exact sum of all marksAwarded above; null ONLY if paper is completely unreadable,
-  "feedback": "WWW: ...\nEBI: ...",
-  "rationale": "brief fair-judgment reason for teacher review",
+  "suggestedMark": integer = exact sum of marksAwarded; null ONLY if completely unreadable,
+  "feedback": "WWW: [specific correct point with question ref]\nEBI: [question number, what was wrong, correct answer]",
+  "rationale": "brief reason under 30 words",
   "confidence": "low" | "medium" | "high",
   "warnings": []
 }`;
@@ -1431,7 +1521,21 @@ MARKING RULES:
     }
     let rawJson: string | null = null;
 
-    // 1. Try Gemini first — best free model, fast, excellent at Arabic and JSON
+    // 1. Try Groq first (llama-3.3-70b) — fastest, most reliable for structured JSON + MCQ accuracy
+    if (GROQ_API_KEY && !rawJson) {
+      try {
+        const groqPayload = await requestGroqMarkingDraft({ prompt });
+        rawJson = extractFirstJsonObject(String(groqPayload?.response || ""));
+        if (rawJson && visualWarning) {
+          const ocrWarningIdx = modelWarnings.indexOf(visualWarning);
+          if (ocrWarningIdx !== -1) modelWarnings.splice(ocrWarningIdx, 1);
+        }
+      } catch (error) {
+        console.error("Groq text marking failed, falling back to Gemini/Ollama:", error);
+      }
+    }
+
+    // 2. Try Gemini — excellent at Arabic and multimodal context
     if (GEMINI_API_KEY && !rawJson) {
       try {
         const geminiPrompt = pageImages.length > 0
@@ -1545,6 +1649,23 @@ MARKING RULES:
         rawJson = extractFirstJsonObject(String(deepseekPayload.response || ""));
       } catch (error) {
         console.error("Reasoner refinement attempt did not finish in time:", error);
+      }
+    }
+
+    // 4. DeepSeek-R1 reasoning re-check: if primary mark has low confidence, use reasoning
+    // model to verify (adds ~3-5s but significantly improves MCQ accuracy on ambiguous papers)
+    if (rawJson && GROQ_API_KEY) {
+      try {
+        const parsed = JSON.parse(rawJson) as Partial<DraftMarkResponse>;
+        if (parsed.confidence === "low" || parsed.suggestedMark == null) {
+          const recheckPayload = await requestGroqReasoningRecheck({ prompt });
+          const recheckJson = extractFirstJsonObject(String(recheckPayload?.response || ""));
+          if (recheckJson) {
+            rawJson = recheckJson;
+          }
+        }
+      } catch {
+        // Re-check failed — keep the original rawJson
       }
     }
 
