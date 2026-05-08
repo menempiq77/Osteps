@@ -46,6 +46,7 @@ const OLLAMA_KEEP_ALIVE = process.env.OSTEPS_AI_MARKING_KEEP_ALIVE || "5m";
 const OLLAMA_ENABLE_REASONER = process.env.OSTEPS_AI_MARKING_USE_REASONER === "1";
 const GROQ_API_KEY = process.env.GROQ_API_KEY || "";
 const GROQ_VISION_MODEL = process.env.GROQ_VISION_MODEL || "meta-llama/llama-4-scout-17b-16e-instruct";
+const GROQ_TEXT_MODEL = process.env.GROQ_TEXT_MODEL || "llama-3.3-70b-versatile";
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "";
 const OPENROUTER_VISION_MODEL = process.env.OPENROUTER_VISION_MODEL || "qwen/qwen2.5-vl-72b-instruct:free";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
@@ -350,7 +351,7 @@ const stripFeedbackLabel = (value: string) =>
   value.replace(/^(?:www|ebi|even better if|what went well)\s*[:\-]\s*/i, "").trim();
 
 const containsPromptPlaceholder = (value: string) =>
-  /(no reliable image reading available|no separate typed annotation text was found|use the supplied answered-page images if available|no answered-page image reading was used for this request)/i.test(
+  /no reliable image reading available|no separate typed annotation text was found|use the supplied answered-page images if available|no answered-page image reading was used for this request|\[specific (?:strength|mistake|missing point|correction|point)[^\]]*\]|specific (?:strength|mistake|missing point) from (?:the (?:answer|question|paper))|brief reason under \d+ words|add the exact missing point or correction|state the exact answer point/i.test(
     value
   );
 
@@ -866,6 +867,59 @@ const normalizeDraft = (
   };
 };
 
+const requestGroqMarkingDraft = async ({
+  prompt,
+  signal,
+}: {
+  prompt: string;
+  signal?: AbortSignal;
+}) => {
+  if (!GROQ_API_KEY) return null;
+
+  const controller = new AbortController();
+  const timeoutHandle = setTimeout(() => controller.abort(), 20000);
+  const requestSignal = signal
+    ? AbortSignal.any([signal, controller.signal])
+    : controller.signal;
+
+  try {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${GROQ_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: GROQ_TEXT_MODEL,
+        temperature: 0.1,
+        max_tokens: 500,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a professional teacher's AI marking assistant. Always output strict valid JSON. " +
+              "Never output null for suggestedMark when max marks are known and the answer is readable. " +
+              "Always give specific WWW and EBI feedback tied to the student's actual answer and the exam question.",
+          },
+          { role: "user", content: prompt },
+        ],
+      }),
+      signal: requestSignal,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
+      throw new Error(`Groq text marking failed (${response.status}). ${errorText.slice(0, 240)}`);
+    }
+
+    const content = extractCloudJsonContent(await response.json());
+    return { response: content };
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
+};
+
 const requestGeminiDraftMark = async ({
   prompt,
   pageImages = [],
@@ -1099,11 +1153,25 @@ Rules:
           if (ocrWarningIdx !== -1) modelWarnings.splice(ocrWarningIdx, 1);
         }
       } catch (error) {
-        console.error("Gemini AI marker failed, falling back to Ollama:", error);
+        console.error("Gemini AI marker failed, falling back to Groq/Ollama:", error);
       }
     }
 
-    // 2. Fall back to Ollama — always 512 ctx for speed (~12-15s on this CPU server)
+    // 2. Try Groq (llama-3.3-70b) — excellent quality, free, ~1s response
+    if (GROQ_API_KEY && !rawJson) {
+      try {
+        const groqPayload = await requestGroqMarkingDraft({ prompt });
+        rawJson = extractFirstJsonObject(String(groqPayload?.response || ""));
+        if (rawJson && visualWarning) {
+          const ocrWarningIdx = modelWarnings.indexOf(visualWarning);
+          if (ocrWarningIdx !== -1) modelWarnings.splice(ocrWarningIdx, 1);
+        }
+      } catch (error) {
+        console.error("Groq text marking failed, falling back to Ollama:", error);
+      }
+    }
+
+    // 3. Fall back to Ollama — always 512 ctx for speed (~12-15s on this CPU server)
     if (!rawJson) {
       try {
         const fallbackPayload = await requestOllamaDraft({
@@ -1113,9 +1181,17 @@ Rules:
             num_predict: 160,
             num_ctx: 512,
           },
-          timeoutMs: 28000,
+          timeoutMs: 40000,
         });
         rawJson = extractFirstJsonObject(String(fallbackPayload.response || ""));
+        // Schedule a background keep-alive so the model stays warm for the next teacher
+        setTimeout(() => {
+          fetch(`${OLLAMA_BASE_URL}/api/generate`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ model: OLLAMA_FAST_FALLBACK_MODEL, prompt: "", keep_alive: OLLAMA_KEEP_ALIVE }),
+          }).catch(() => undefined);
+        }, 100);
         if (!rawJson) {
           if (!shouldAttemptReasoner) {
             return jsonResponse(
