@@ -830,9 +830,6 @@ const alignMarkWithFeedback = (
   return numericMark;
 };
 
-  return numericMark;
-};
-
 const normalizeDraft = (
   raw: Partial<DraftMarkResponse>,
   maxMarks: number | null,
