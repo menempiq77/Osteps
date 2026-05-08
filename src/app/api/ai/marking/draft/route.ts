@@ -41,9 +41,13 @@ type VisualAnswerContext = {
 const OLLAMA_BASE_URL = (process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434").replace(/\/+$/, "");
 const OLLAMA_MODEL = process.env.OSTEPS_AI_MARKING_MODEL || process.env.OLLAMA_MODEL || "deepseek-r1:1.5b";
 const OLLAMA_FAST_FALLBACK_MODEL = process.env.OSTEPS_AI_MARKING_FAST_MODEL || "qwen2.5:0.5b";
-const OLLAMA_VISION_MODEL = process.env.OSTEPS_AI_MARKING_VISION_MODEL || "moondream:latest";
+const OLLAMA_VISION_MODEL = process.env.OSTEPS_AI_MARKING_VISION_MODEL || "";
 const OLLAMA_KEEP_ALIVE = process.env.OSTEPS_AI_MARKING_KEEP_ALIVE || "0s";
 const OLLAMA_ENABLE_REASONER = process.env.OSTEPS_AI_MARKING_USE_REASONER === "1";
+const GROQ_API_KEY = process.env.GROQ_API_KEY || "";
+const GROQ_VISION_MODEL = process.env.GROQ_VISION_MODEL || "meta-llama/llama-4-scout-17b-16e-instruct";
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "";
+const OPENROUTER_VISION_MODEL = process.env.OPENROUTER_VISION_MODEL || "qwen/qwen2.5-vl-72b-instruct:free";
 const REQUEST_TIMEOUT_MS = Number(process.env.OSTEPS_AI_MARKING_TIMEOUT_MS || 50000);
 const LARAVEL_PUBLIC_DIR = process.env.OSTEPS_LARAVEL_PUBLIC_DIR || "/var/www/laravel/public";
 const PAPER_TEXT_CACHE_MS = 10 * 60 * 1000;
@@ -557,6 +561,92 @@ const normalizeVisualAnswerContext = (
   legibility: raw.legibility === "high" || raw.legibility === "medium" ? raw.legibility : "low",
 });
 
+const extractCloudJsonContent = (payload: unknown) => {
+  const data = payload as { choices?: Array<{ message?: { content?: unknown } }> };
+  const content = data?.choices?.[0]?.message?.content;
+  if (Array.isArray(content)) {
+    return content
+      .map((part) =>
+        typeof part === "object" && part && "text" in part
+          ? asText((part as { text?: unknown }).text)
+          : asText(part)
+      )
+      .filter(Boolean)
+      .join("\n");
+  }
+  return asText(content);
+};
+
+const requestCloudVisualAnswerContext = async ({
+  provider,
+  apiKey,
+  model,
+  prompt,
+  pageImages,
+}: {
+  provider: "groq" | "openrouter";
+  apiKey: string;
+  model: string;
+  prompt: string;
+  pageImages: string[];
+}) => {
+  if (!apiKey || pageImages.length === 0) return null;
+
+  const timeoutController = new AbortController();
+  const timeoutHandle = setTimeout(() => timeoutController.abort(), 18000);
+  const endpoint =
+    provider === "groq"
+      ? "https://api.groq.com/openai/v1/chat/completions"
+      : "https://openrouter.ai/api/v1/chat/completions";
+
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+        ...(provider === "openrouter"
+          ? {
+              "HTTP-Referer": "https://www.osteps.com",
+              "X-Title": "OSTEPS AI Draft Mark",
+            }
+          : {}),
+      },
+      body: JSON.stringify({
+        model,
+        temperature: 0.1,
+        max_tokens: 220,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: prompt },
+              ...pageImages.slice(0, 2).map((image) => ({
+                type: "image_url",
+                image_url: { url: `data:image/jpeg;base64,${image}` },
+              })),
+            ],
+          },
+        ],
+      }),
+      signal: timeoutController.signal,
+    });
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => "");
+      throw new Error(`${provider} vision failed (${response.status}). ${text.slice(0, 240)}`);
+    }
+
+    const content = extractCloudJsonContent(await response.json());
+    const rawJson = extractFirstJsonObject(content);
+    if (!rawJson) return null;
+    return normalizeVisualAnswerContext(JSON.parse(rawJson) as Partial<VisualAnswerContext>);
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
+};
+
 const extractVisualAnswerContext = async ({
   title,
   subjectName,
@@ -582,6 +672,25 @@ Return exactly:
   "visibleMistakes": ["specific wrong or missing points visible in the student's answer"],
   "legibility": "low" | "medium" | "high"
 }`;
+
+  for (const cloudAttempt of [
+    { provider: "groq" as const, apiKey: GROQ_API_KEY, model: GROQ_VISION_MODEL },
+    { provider: "openrouter" as const, apiKey: OPENROUTER_API_KEY, model: OPENROUTER_VISION_MODEL },
+  ]) {
+    if (!cloudAttempt.apiKey) continue;
+    try {
+      const context = await requestCloudVisualAnswerContext({
+        ...cloudAttempt,
+        prompt,
+        pageImages,
+      });
+      if (context) return context;
+    } catch (error) {
+      console.error(`${cloudAttempt.provider} answered-page image reading failed:`, error);
+    }
+  }
+
+  if (!OLLAMA_VISION_MODEL) return null;
 
   const visualPayload = await requestOllamaDraft({
     model: OLLAMA_VISION_MODEL,
