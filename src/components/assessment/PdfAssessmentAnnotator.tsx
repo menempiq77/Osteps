@@ -266,16 +266,25 @@ const getPointerPoint = (
   };
 };
 
+const getSafePenPoints = (annotation: { points?: Array<{ x?: number; y?: number }> | null }) =>
+  Array.isArray(annotation.points)
+    ? annotation.points.filter(
+        (point): point is { x: number; y: number } =>
+          point != null && Number.isFinite(point.x) && Number.isFinite(point.y)
+      )
+    : [];
+
 const drawPen = (context: CanvasRenderingContext2D, annotation: PenAnnotation) => {
-  if (annotation.points.length < 2) return;
+  const points = getSafePenPoints(annotation);
+  if (points.length < 2) return;
   context.save();
   context.strokeStyle = annotation.color;
   context.lineWidth = annotation.width;
   context.lineCap = "round";
   context.lineJoin = "round";
   context.beginPath();
-  context.moveTo(annotation.points[0].x, annotation.points[0].y);
-  for (const point of annotation.points.slice(1)) {
+  context.moveTo(points[0].x, points[0].y);
+  for (const point of points.slice(1)) {
     context.lineTo(point.x, point.y);
   }
   context.stroke();
@@ -338,16 +347,18 @@ const distanceToSegment = (
 };
 
 const penTouchesEraser = (annotation: PenAnnotation, point: { x: number; y: number }) => {
+  const points = getSafePenPoints(annotation);
   const radius = ERASER_RADIUS + annotation.width / 2;
-  if (annotation.points.some((p) => Math.hypot(p.x - point.x, p.y - point.y) <= radius)) return true;
-  for (let index = 1; index < annotation.points.length; index += 1) {
-    if (distanceToSegment(point, annotation.points[index - 1], annotation.points[index]) <= radius) return true;
+  if (points.some((p) => Math.hypot(p.x - point.x, p.y - point.y) <= radius)) return true;
+  for (let index = 1; index < points.length; index += 1) {
+    if (distanceToSegment(point, points[index - 1], points[index]) <= radius) return true;
   }
   return false;
 };
 
 const textTouchesEraser = (annotation: TextAnnotation, point: { x: number; y: number }) => {
-  const lineCount = Math.max(1, annotation.text.split("\n").length);
+  const text = String(annotation.text ?? "");
+  const lineCount = Math.max(1, text.split("\n").length);
   const height = annotation.fontSize * 1.45 * lineCount;
   return (
     point.x >= annotation.x - TEXT_ERASER_PADDING &&
@@ -538,8 +549,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const canDownloadSubmittedPaper = role === "teacher" && documentLoaded && (studentLocked || state?.status === "submitted" || state?.status === "marked");
   const hasReadableStudentAnswer = studentAnnotations.some(
     (annotation) =>
-      (annotation.type === "text" && annotation.text.trim().length > 0) ||
-      (annotation.type === "pen" && annotation.points.length > 0)
+      (annotation.type === "text" && String(annotation.text ?? "").trim().length > 0) ||
+      (annotation.type === "pen" && getSafePenPoints(annotation).length > 0)
   );
   const autosaveStatusLabel = saving
     ? "Saving"
@@ -1639,7 +1650,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     event.stopPropagation();
     activeStrokeRef.current = null;
     setActiveStroke(null);
-    if (completedStroke.points.length > 1) {
+    if (getSafePenPoints(completedStroke).length > 1) {
       setLayerAnnotations([...activeAnnotations, completedStroke]);
     }
   };
