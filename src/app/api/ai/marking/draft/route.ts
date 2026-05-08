@@ -423,7 +423,7 @@ const buildPaperContext = async (fileUrl: string | undefined, preferredPages: nu
     .map((page) => `[Exam paper page ${page.num}] ${page.text}`)
     .join("\n\n");
 
-  return summarizeLongText(combined, 2800);
+  return summarizeLongText(combined, 4000);
 };
 
 const extractFirstJsonObject = (raw: string) => {
@@ -1314,7 +1314,10 @@ export async function POST(request: Request) {
   let paperContext = "";
   let paperReadMethod = "text";
   try {
-    paperContext = await buildPaperContext(body.fileUrl, answeredPages);
+    // Always load ALL pages of the paper so the AI can see every question.
+    // answeredPages only tells us which pages the student wrote on — the paper
+    // itself may have more question pages (short-answer, essay) beyond page 1 (MCQs).
+    paperContext = await buildPaperContext(body.fileUrl, []);
   } catch (error) {
     console.error("Could not extract exam paper text for AI marking:", error);
   }
@@ -1346,10 +1349,10 @@ export async function POST(request: Request) {
     }
   }
 
-  const promptPaperContext = summarizeLongText(
-    paperContext,
-    pageImages.length > 0 || hasPenStrokes ? 1200 : 1400
-  );
+  // Allow up to 3500 chars of paper text so multi-section exams (MCQs + short-answer + essays)
+  // are fully visible. Do NOT reduce this when images are present — images carry student
+  // answers, not exam questions, so they don't require us to shrink the paper context.
+  const promptPaperContext = summarizeLongText(paperContext, 3500);
 
   const shouldPreferFastModel =
     pageImages.length > 0 || hasPenStrokes || promptPaperContext.length > 2200;
