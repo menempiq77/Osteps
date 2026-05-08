@@ -304,6 +304,33 @@ const responseImpliesUnreadable = (raw: Partial<DraftMarkResponse>) => {
   ].some((value) => text.includes(value));
 };
 
+const responseClaimsNoAnswer = (raw: Partial<DraftMarkResponse>) => {
+  const text = `${asText(raw.feedback)} ${asText(raw.rationale)}`.toLowerCase();
+  return /(?:no answer provided|answer is missing|without an actual typed response|no typed response|no student answer)/i.test(
+    text
+  );
+};
+
+const repairContradictoryAnswerEvidence = (
+  raw: Partial<DraftMarkResponse>,
+  hasReadableAnswerEvidence: boolean
+) => {
+  if (!hasReadableAnswerEvidence || !responseClaimsNoAnswer(raw)) return raw;
+
+  return {
+    ...raw,
+    feedback:
+      "WWW: The submitted answer includes readable evidence for the teacher to assess.\nEBI: Add the exact missing point or correction required by the exam question.",
+    rationale:
+      "Readable answer evidence was supplied, so the draft was corrected away from a no-answer response.",
+    confidence: "low" as const,
+    warnings: [
+      ...(Array.isArray(raw.warnings) ? raw.warnings : []),
+      "AI response was corrected because readable answer evidence was supplied.",
+    ],
+  };
+};
+
 const splitFeedbackSentences = (value: string) =>
   normalizeWhitespace(value)
     .split(/(?<=[.!?])\s+/)
@@ -848,7 +875,10 @@ Keep the two feedback lines concise and concrete. Keep rationale under 35 words.
       );
     }
 
-    const parsed = JSON.parse(rawJson) as Partial<DraftMarkResponse>;
+    const parsed = repairContradictoryAnswerEvidence(
+      JSON.parse(rawJson) as Partial<DraftMarkResponse>,
+      Boolean(studentText || visualContext?.studentAnswerSummary)
+    );
     if (modelWarnings.length > 0) {
       parsed.warnings = [...(Array.isArray(parsed.warnings) ? parsed.warnings : []), ...modelWarnings];
     }
