@@ -230,6 +230,30 @@ const normalizeSelfAssessmentValue = (value: unknown): number | null => {
   return Number.isFinite(numericValue) ? numericValue : null;
 };
 
+const normalizeAiDraftPreview = (value: unknown): AiDraftMarkResponse | null => {
+  if (!value || typeof value !== "object") return null;
+
+  const raw = value as Partial<AiDraftMarkResponse>;
+  const suggestedMark =
+    raw.suggestedMark == null || raw.suggestedMark === ""
+      ? null
+      : Number(raw.suggestedMark);
+  const confidence =
+    raw.confidence === "high" || raw.confidence === "medium" ? raw.confidence : "low";
+  const warnings = Array.isArray(raw.warnings)
+    ? raw.warnings.map((warning) => String(warning ?? "").trim()).filter(Boolean)
+    : [];
+
+  return {
+    suggestedMark: Number.isFinite(suggestedMark) ? suggestedMark : null,
+    feedback: String(raw.feedback ?? "").trim(),
+    rationale: String(raw.rationale ?? "").trim(),
+    confidence,
+    sourcePolicy: String(raw.sourcePolicy ?? "").trim(),
+    warnings,
+  };
+};
+
 const getPointerPoint = (
   event: React.PointerEvent<HTMLDivElement>,
   target: HTMLDivElement,
@@ -1165,7 +1189,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
             const localAiDraftPreview = storedDraftMetadata.aiDraftPreview;
             if (localAiDraftPreview && typeof localAiDraftPreview === "object") {
-              setAiDraftPreview(localAiDraftPreview as AiDraftMarkResponse);
+              setAiDraftPreview(normalizeAiDraftPreview(localAiDraftPreview));
             }
           }
           if (role === "teacher") {
@@ -2066,7 +2090,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
       setTeacherMarks(nextTeacherMarks);
       setTeacherFeedback(nextTeacherFeedback);
-      setAiDraftPreview(draft);
+      setAiDraftPreview(normalizeAiDraftPreview(draft));
       persistLocalDraft(getCurrentLayerSnapshot(), {
         ...(state?.metadata && typeof state.metadata === "object" ? state.metadata : {}),
         teacherMarks: nextTeacherMarks,
