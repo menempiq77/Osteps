@@ -181,9 +181,13 @@ const extractAnsweredPages = (annotations: Array<Record<string, unknown>> | unde
 
 const loadPdfParse = async () => import("pdf-parse");
 
-const extractPaperPagesWithPdftotext = async (localPath: string) => {
+// Run pdftotext with the given flags and return per-page text entries.
+const runPdftotext = async (localPath: string, useLayout: boolean) => {
   try {
-    const { stdout } = await execFileAsync("pdftotext", ["-layout", "-enc", "UTF-8", localPath, "-"], {
+    const args = useLayout
+      ? ["-layout", "-enc", "UTF-8", localPath, "-"]
+      : ["-enc", "UTF-8", localPath, "-"];
+    const { stdout } = await execFileAsync("pdftotext", args, {
       maxBuffer: 4 * 1024 * 1024,
       timeout: 9000,
     });
@@ -195,8 +199,146 @@ const extractPaperPagesWithPdftotext = async (localPath: string) => {
       }))
       .filter((page) => page.text.length > 0);
   } catch (error) {
-    console.error("pdftotext could not extract exam paper text:", error);
+    console.error(`pdftotext (${useLayout ? "layout" : "plain"}) could not extract exam paper text:`, error);
     return [];
+  }
+};
+
+const avgTextLength = (pages: Array<{ text: string }>) =>
+  pages.length === 0 ? 0 : pages.reduce((s, p) => s + p.text.length, 0) / pages.length;
+
+const extractPaperPagesWithPdftotext = async (localPath: string) => {
+  // Always try layout mode first (preserves columns/structure for most PDFs)
+  const layoutPages = await runPdftotext(localPath, true);
+  if (layoutPages.length > 0 && avgTextLength(layoutPages) >= 60) return layoutPages;
+
+  // For Arabic/RTL papers, -layout scrambles character order. Try plain mode.
+  const plainPages = await runPdftotext(localPath, false);
+  if (plainPages.length === 0) return layoutPages; // return whatever we got
+  if (layoutPages.length === 0) return plainPages;
+
+  // Return whichever extraction gave more text content
+  return avgTextLength(plainPages) > avgTextLength(layoutPages) ? plainPages : layoutPages;
+};
+
+// Convert up to maxPages of an exam paper PDF to JPEG images using pdftoppm.
+// Used when text extraction fails (scanned/image-based PDF).
+const extractPaperPagesAsImages = async (
+  localPath: string,
+  maxPages = 4
+): Promise<string[]> => {
+  const tmpPrefix = path.join("/tmp", `osteps-exampage-${process.pid}-${Date.now()}`);
+  const tmpDir = path.dirname(tmpPrefix);
+  const prefixName = path.basename(tmpPrefix);
+  const images: string[] = [];
+
+  try {
+    await execFileAsync(
+      "pdftoppm",
+      ["-r", "120", "-jpeg", "-jpegopt", "quality=80", "-l", String(maxPages), localPath, tmpPrefix],
+      { timeout: 25000 }
+    );
+
+    const allFiles = await fs.readdir(tmpDir);
+    const generated = allFiles
+      .filter((f) => f.startsWith(prefixName) && (f.endsWith(".jpg") || f.endsWith(".jpeg")))
+      .sort()
+      .slice(0, maxPages);
+
+    for (const filename of generated) {
+      const fullPath = path.join(tmpDir, filename);
+      try {
+        const data = await fs.readFile(fullPath);
+        images.push(data.toString("base64"));
+      } catch {
+        // skip unreadable file
+      } finally {
+        await fs.unlink(fullPath).catch(() => undefined);
+      }
+    }
+  } catch (err) {
+    console.error("pdftoppm failed for exam paper:", err);
+    // Clean up any partial files
+    const allFiles = await fs.readdir(tmpDir).catch(() => [] as string[]);
+    for (const filename of allFiles.filter((f) => f.startsWith(prefixName))) {
+      await fs.unlink(path.join(tmpDir, filename)).catch(() => undefined);
+    }
+  }
+
+  return images;
+};
+
+// Read exam paper questions visually using Groq vision.
+// Called when pdftotext returns nothing (scanned PDF, image-only paper, etc.).
+const extractPaperQuestionsViaVision = async ({
+  localPath,
+  title,
+  subjectName,
+}: {
+  localPath: string;
+  title: string;
+  subjectName: string;
+}): Promise<string> => {
+  if (!GROQ_API_KEY) return "";
+
+  const images = await extractPaperPagesAsImages(localPath, 4);
+  if (images.length === 0) return "";
+
+  const prompt = `You are reading a scanned exam paper. Extract ALL exam questions visible on these pages so an AI assistant can mark the student's answers against them.
+Title: ${title}
+Subject: ${subjectName}
+
+Instructions:
+- List every question, sub-question, and its mark allocation (if shown).
+- For True/False, MCQ, matching, or checkbox questions include ALL the answer options so the marker knows what was available.
+- Preserve question numbering exactly (Q1, Q1a, Q1b, Q2, etc.)
+- If the paper is in Arabic, transcribe in Arabic. Mixed: keep both languages.
+- IGNORE: school name, student name/ID fields, date fields, logos, headers, footers, blank answer boxes.
+
+Return only the questions in order, nothing else.`;
+
+  const timeoutController = new AbortController();
+  const timeoutHandle = setTimeout(() => timeoutController.abort(), 30000);
+
+  try {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${GROQ_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: GROQ_VISION_MODEL,
+        temperature: 0,
+        max_tokens: 2000,
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: prompt },
+              ...images.slice(0, 4).map((img) => ({
+                type: "image_url",
+                image_url: { url: `data:image/jpeg;base64,${img}` },
+              })),
+            ],
+          },
+        ],
+      }),
+      signal: timeoutController.signal,
+    });
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => "");
+      throw new Error(`Groq vision paper read failed (${response.status}): ${errText.slice(0, 200)}`);
+    }
+
+    const rawContent = extractCloudJsonContent(await response.json());
+    return normalizeWhitespace(rawContent).slice(0, 3000);
+  } catch (err) {
+    console.error("Could not read exam paper via vision:", err);
+    return "";
+  } finally {
+    clearTimeout(timeoutHandle);
   }
 };
 
@@ -1091,10 +1233,38 @@ export async function POST(request: Request) {
     : "Non-Islamic subject: draft a teacher-reviewed mark from the submitted answer and normal curriculum knowledge. Do not invent unseen evidence.";
 
   let paperContext = "";
+  let paperReadMethod = "text";
   try {
     paperContext = await buildPaperContext(body.fileUrl, answeredPages);
   } catch (error) {
     console.error("Could not extract exam paper text for AI marking:", error);
+  }
+
+  // If text extraction returned nothing (scanned PDF / image-only paper),
+  // try reading the exam paper questions visually with the Groq vision model.
+  if (!paperContext && body.fileUrl && GROQ_API_KEY) {
+    const normalizedFileUrl = normalizeDocumentUrl(body.fileUrl);
+    const localFilePath = resolveLocalPaperPath(normalizedFileUrl);
+    if (localFilePath) {
+      try {
+        const visionText = await extractPaperQuestionsViaVision({
+          localPath: localFilePath,
+          title,
+          subjectName,
+        });
+        if (visionText) {
+          paperContext = `[Exam paper read visually — scanned image PDF]\n${visionText}`;
+          paperReadMethod = "vision";
+          // Cache for 5 minutes so repeat marks for the same paper don't re-run vision
+          paperTextCache.set(normalizedFileUrl, {
+            pages: [{ num: 1, text: paperContext }],
+            cachedAt: Date.now() - (PAPER_TEXT_CACHE_MS / 2),
+          });
+        }
+      } catch (err) {
+        console.error("Vision fallback for exam paper failed:", err);
+      }
+    }
   }
 
   const promptPaperContext = summarizeLongText(
@@ -1254,7 +1424,11 @@ MARKING RULES:
 5. warnings = []`;
 
   try {
-    const modelWarnings = visualWarning ? [visualWarning] : [];
+    const modelWarnings: string[] = [];
+    if (visualWarning) modelWarnings.push(visualWarning);
+    if (paperReadMethod === "vision") {
+      modelWarnings.push("Exam paper is a scanned image \u2014 questions were read visually. Verify question text matches the original paper before relying on this draft mark.");
+    }
     let rawJson: string | null = null;
 
     // 1. Try Gemini first — best free model, fast, excellent at Arabic and JSON
