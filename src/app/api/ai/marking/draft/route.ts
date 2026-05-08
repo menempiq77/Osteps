@@ -22,8 +22,17 @@ type DraftMarkRequest = {
   currentTeacherFeedback?: string;
 };
 
+type QuestionMarkEntry = {
+  question: string;
+  studentAnswer: string;
+  marksAwarded: number;
+  maxMarksForQuestion: number | null;
+  reason: string;
+};
+
 type DraftMarkResponse = {
   suggestedMark: number | null;
+  questionBreakdown?: QuestionMarkEntry[];
   feedback: string;
   rationale: string;
   confidence: "low" | "medium" | "high";
@@ -862,7 +871,7 @@ const normalizeDraft = (
         maxMarks
       )
     : null;
-  const clampedMark = Number.isFinite(consistentNumericMark)
+  let clampedMark = Number.isFinite(consistentNumericMark)
     ? consistentNumericMark
     : fallbackMark;
   const confidence = raw.confidence === "high" || raw.confidence === "medium" ? raw.confidence : "low";
@@ -879,8 +888,52 @@ const normalizeDraft = (
         .slice(0, 6)
     : [];
 
+  // Validate questionBreakdown and derive the authoritative mark from it.
+  // This prevents random temperature-driven mark variation — the mark is the
+  // deterministic sum of per-question marks, not a single top-level guess.
+  const normalizedBreakdown: QuestionMarkEntry[] = [];
+  let breakdownSumMark: number | null = null;
+
+  if (Array.isArray(raw.questionBreakdown) && raw.questionBreakdown.length > 0) {
+    let breakdownSum = 0;
+    let breakdownValid = true;
+    for (const entry of raw.questionBreakdown) {
+      const e = entry as Partial<QuestionMarkEntry>;
+      const marksAwarded = Number(e.marksAwarded ?? 0);
+      if (!Number.isFinite(marksAwarded) || marksAwarded < 0) {
+        breakdownValid = false;
+        break;
+      }
+      const mqForQ = e.maxMarksForQuestion != null && Number.isFinite(Number(e.maxMarksForQuestion))
+        ? Number(e.maxMarksForQuestion)
+        : null;
+      normalizedBreakdown.push({
+        question: asText(e.question).slice(0, 200),
+        studentAnswer: asText(e.studentAnswer).slice(0, 300),
+        marksAwarded: Math.max(0, mqForQ != null ? Math.min(mqForQ, marksAwarded) : marksAwarded),
+        maxMarksForQuestion: mqForQ,
+        reason: asText(e.reason).slice(0, 200),
+      });
+      breakdownSum += normalizedBreakdown[normalizedBreakdown.length - 1].marksAwarded;
+    }
+    if (breakdownValid && normalizedBreakdown.length > 0) {
+      breakdownSumMark = maxMarks != null
+        ? Math.max(0, Math.min(maxMarks, Math.round(breakdownSum)))
+        : Math.max(0, Math.round(breakdownSum));
+      // If the breakdown sum disagrees with the AI's stated mark, override with the sum —
+      // the per-question work is more trustworthy than a single holistic guess.
+      if (breakdownSumMark !== clampedMark && clampedMark != null) {
+        warnings.push(
+          `AI mark corrected from ${clampedMark} to ${breakdownSumMark} based on the per-question breakdown sum.`
+        );
+      }
+      clampedMark = breakdownSumMark;
+    }
+  }
+
   return {
     suggestedMark: clampedMark,
+    questionBreakdown: normalizedBreakdown.length > 0 ? normalizedBreakdown : undefined,
     feedback:
       normalizeTeacherFeedback(asText(raw.feedback)).slice(0, 1500) ||
       "WWW: AI could not identify a reliable strength from the supplied evidence.\nEBI: Please review the paper manually.",
@@ -917,14 +970,17 @@ const requestGroqMarkingDraft = async ({
       },
       body: JSON.stringify({
         model: GROQ_TEXT_MODEL,
-        temperature: 0.3,
-        max_tokens: 800,
+        temperature: 0,
+        max_tokens: 1500,
         response_format: { type: "json_object" },
         messages: [
           {
             role: "system",
             content:
               "You are a professional teacher's AI marking assistant. Always output strict valid JSON. " +
+              "ACCURACY AND FAIRNESS RULE: You MUST include a questionBreakdown array covering every visible question. " +
+              "Mark each question individually, then set suggestedMark to the EXACT SUM of all marksAwarded values in questionBreakdown. " +
+              "This prevents you from giving the same mark to every student — marks must reflect what each specific student actually wrote. " +
               "Never output null for suggestedMark when max marks are known and the answer is readable. " +
               "Be detailed and specific in your feedback: identify exactly which question part or sub-question contains a mistake, " +
               "quote or paraphrase the student's actual wrong/missing answer, and state the correct answer or missing concept from the mark scheme. " +
@@ -990,8 +1046,8 @@ const requestGeminiDraftMark = async ({
           ],
           generationConfig: {
             responseMimeType: "application/json",
-            maxOutputTokens: 450,
-            temperature: 0.1,
+            maxOutputTokens: 1000,
+            temperature: 0,
             topP: 0.9,
           },
         }),
@@ -1153,9 +1209,19 @@ Image legibility: ${visualContext.legibility}` : pageImages.length > 0 ? "Answer
 
 Image reading warning: ${visualWarning || "none"}
 
-Keep the two feedback lines concise and concrete. Keep rationale under 35 words. suggestedMark must be an integer when marks are known. Return exactly:
+ACCURACY AND CONSISTENCY: Fill in questionBreakdown for EVERY question you can see in the exam paper BEFORE you decide suggestedMark. Then set suggestedMark = the exact integer sum of all marksAwarded values. This is mandatory for fairness — the mark must be traceable and auditable.
+Keep the two feedback lines concise and concrete. Keep rationale under 35 words. Return exactly:
 {
-  "suggestedMark": integer 0..maxMarks or null only if unreadable,
+  "questionBreakdown": [
+    {
+      "question": "Q1: brief label, e.g. 'Q1: Effects of Hudaybiyyah' or 'T/F question 3'",
+      "studentAnswer": "exact short quote or paraphrase of what the student wrote/selected for this question",
+      "marksAwarded": integer,
+      "maxMarksForQuestion": integer or null if not visible,
+      "reason": "one sentence: why these marks were awarded or deducted"
+    }
+  ],
+  "suggestedMark": integer = exact sum of all marksAwarded above; null ONLY if paper is completely unreadable,
   "feedback": "WWW: ...\nEBI: ...",
   "rationale": "brief fair-judgment reason for teacher review",
   "confidence": "low" | "medium" | "high",

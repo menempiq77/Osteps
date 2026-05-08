@@ -1,7 +1,16 @@
 import type { AssessmentDocumentAnnotation } from "@/services/documentAssessmentApi";
 
+export type QuestionMarkEntry = {
+  question: string;
+  studentAnswer: string;
+  marksAwarded: number;
+  maxMarksForQuestion: number | null;
+  reason: string;
+};
+
 export type AiDraftMarkResponse = {
   suggestedMark: number | null;
+  questionBreakdown?: QuestionMarkEntry[];
   feedback: string;
   rationale: string;
   confidence: "low" | "medium" | "high";

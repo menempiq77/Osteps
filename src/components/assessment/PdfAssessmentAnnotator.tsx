@@ -14,7 +14,7 @@ import {
   saveAssessmentDocumentAnnotations,
 } from "@/services/documentAssessmentApi";
 import { draftAssessmentMark } from "@/services/aiMarkingApi";
-import type { AiDraftMarkResponse } from "@/services/aiMarkingApi";
+import type { AiDraftMarkResponse, QuestionMarkEntry } from "@/services/aiMarkingApi";
 import { addStudentTaskMarks, uploadTaskByStudent } from "@/services/api";
 import { fetchStudentProfileData } from "@/services/studentsApi";
 import { resolveExamWindow } from "@/lib/taskTypeMetadata";
@@ -246,6 +246,11 @@ const normalizeAiDraftPreview = (value: unknown): AiDraftMarkResponse | null => 
 
   return {
     suggestedMark: Number.isFinite(suggestedMark) ? suggestedMark : null,
+    questionBreakdown: Array.isArray(raw.questionBreakdown)
+      ? (raw.questionBreakdown as QuestionMarkEntry[]).filter(
+          (e) => e && typeof e.question === "string"
+        )
+      : undefined,
     feedback: String(raw.feedback ?? "").trim(),
     rationale: String(raw.rationale ?? "").trim(),
     confidence,
@@ -2596,6 +2601,49 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                   <p className="whitespace-pre-wrap text-gray-600">
                     AI rationale for teacher review: {aiDraftPreview.rationale}
                   </p>
+                ) : null}
+                {/* Per-question breakdown — core of the accuracy fix */}
+                {aiDraftPreview.questionBreakdown && aiDraftPreview.questionBreakdown.length > 0 ? (
+                  <div className="mt-2">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+                      Per-question mark breakdown
+                    </p>
+                    <div className="overflow-x-auto rounded border border-green-200">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="bg-green-50 text-green-800 text-left">
+                            <th className="px-2 py-1 font-medium">Question</th>
+                            <th className="px-2 py-1 font-medium">Student answer</th>
+                            <th className="px-2 py-1 font-medium">Marks</th>
+                            <th className="px-2 py-1 font-medium">Reason</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {aiDraftPreview.questionBreakdown.map((q, qi) => (
+                            <tr key={qi} className={qi % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                              <td className="px-2 py-1 align-top text-gray-800 font-medium">{q.question}</td>
+                              <td className="px-2 py-1 align-top text-gray-600 italic">{q.studentAnswer}</td>
+                              <td className="px-2 py-1 align-top text-center font-semibold whitespace-nowrap">
+                                {q.marksAwarded}{q.maxMarksForQuestion != null ? `/${q.maxMarksForQuestion}` : ""}
+                              </td>
+                              <td className="px-2 py-1 align-top text-gray-600">{q.reason}</td>
+                            </tr>
+                          ))}
+                          <tr className="bg-green-100 font-semibold">
+                            <td className="px-2 py-1" colSpan={2}>Total</td>
+                            <td className="px-2 py-1 text-center">
+                              {aiDraftPreview.questionBreakdown.reduce((s, q) => s + q.marksAwarded, 0)}
+                              {maxMarks ? `/${maxMarks}` : ""}
+                            </td>
+                            <td className="px-2 py-1 text-gray-500 text-xs font-normal">Sum of per-question marks</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">
+                      ℹ️ AI mark is calculated as the sum of per-question marks above. Please verify each line before saving.
+                    </p>
+                  </div>
                 ) : null}
                 {aiDraftPreview.warnings.length > 0 ? (
                   <p className="whitespace-pre-wrap text-amber-700">
