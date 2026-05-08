@@ -902,7 +902,7 @@ const requestGroqMarkingDraft = async ({
       body: JSON.stringify({
         model: GROQ_TEXT_MODEL,
         temperature: 0.1,
-        max_tokens: 500,
+        max_tokens: 800,
         response_format: { type: "json_object" },
         messages: [
           {
@@ -910,7 +910,10 @@ const requestGroqMarkingDraft = async ({
             content:
               "You are a professional teacher's AI marking assistant. Always output strict valid JSON. " +
               "Never output null for suggestedMark when max marks are known and the answer is readable. " +
-              "Always give specific WWW and EBI feedback tied to the student's actual answer and the exam question.",
+              "Be detailed and specific in your feedback: identify exactly which question part or sub-question contains a mistake, " +
+              "quote or paraphrase the student's actual wrong/missing answer, and state the correct answer or missing concept from the mark scheme. " +
+              "For WWW: quote what the student wrote that was correct and name the relevant concept or question part. " +
+              "For EBI: state the question number or part (e.g. 'In question 2' or 'In part (b)'), what the student wrote that was wrong or incomplete, and what the correct or expected answer is.",
           },
           { role: "user", content: prompt },
         ],
@@ -1099,10 +1102,11 @@ Grade the whole submitted answer across the answered pages, not a single isolate
 If max marks are known and the student's answer is readable, you MUST set suggestedMark to an integer from 0 to ${maxMarks ?? "the maximum marks"}. Do not use null in that case.
 If the student's answer is fully correct for the relevant question(s), award full marks. Only use suggestedMark null when the answer cannot be assessed from the supplied paper and answer text.
 Judge fairly from the available evidence only. Do not guess hidden writing. If some handwriting is unclear, say exactly what is unclear and mark conservatively.
-If marks are lost, feedback must mention the specific wrong answer, missing point, or correction from the paper. Do not use generic comments like "needs improvement" or "lacks clarity" by themselves. If full marks are earned, briefly say there are no material mistakes.
-Feedback must be exactly two short lines in this format:
-WWW: one specific strength from the answer
-EBI: one specific correction, missing point, or improvement from the paper
+If marks are lost, feedback must identify exactly which question or part has the mistake. Name the question number or part if visible (e.g. "In question 2" or "In part (b)"), quote or paraphrase what the student wrote that was wrong or missing, and state the correct or expected answer from the paper. Do NOT use vague phrases like "needs improvement", "lacks clarity", or "answer is incomplete" by themselves — always follow them with the specific content.
+If full marks are earned, WWW should quote what was correct and EBI should confirm there are no material errors.
+Feedback must be in this format — each line may be 1-2 sentences if needed for specificity:
+WWW: [quote or paraphrase the specific correct point the student made, naming the concept or question part]
+EBI: [name the question/part, quote the student's error or gap, then state the correct answer or missing concept]
 
 Exam paper text for the answered pages:
 ${promptPaperContext || "Exam paper text could not be extracted."}
