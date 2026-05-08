@@ -48,6 +48,8 @@ const GROQ_API_KEY = process.env.GROQ_API_KEY || "";
 const GROQ_VISION_MODEL = process.env.GROQ_VISION_MODEL || "meta-llama/llama-4-scout-17b-16e-instruct";
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "";
 const OPENROUTER_VISION_MODEL = process.env.OPENROUTER_VISION_MODEL || "qwen/qwen2.5-vl-72b-instruct:free";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash-lite";
 const REQUEST_TIMEOUT_MS = Number(process.env.OSTEPS_AI_MARKING_TIMEOUT_MS || 50000);
 const LARAVEL_PUBLIC_DIR = process.env.OSTEPS_LARAVEL_PUBLIC_DIR || "/var/www/laravel/public";
 const PAPER_TEXT_CACHE_MS = 10 * 60 * 1000;
@@ -864,6 +866,64 @@ const normalizeDraft = (
   };
 };
 
+const requestGeminiDraftMark = async ({
+  prompt,
+  pageImages = [],
+  signal,
+}: {
+  prompt: string;
+  pageImages?: string[];
+  signal?: AbortSignal;
+}) => {
+  if (!GEMINI_API_KEY) return null;
+
+  const controller = new AbortController();
+  const timeoutHandle = setTimeout(() => controller.abort(), 22000);
+  const requestSignal = signal
+    ? AbortSignal.any([signal, controller.signal])
+    : controller.signal;
+
+  try {
+    const imageParts = pageImages.slice(0, 2).map((img) => ({
+      inlineData: { mimeType: "image/jpeg" as const, data: img },
+    }));
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: "user",
+              parts: [{ text: prompt }, ...imageParts],
+            },
+          ],
+          generationConfig: {
+            responseMimeType: "application/json",
+            maxOutputTokens: 450,
+            temperature: 0.1,
+            topP: 0.9,
+          },
+        }),
+        signal: requestSignal,
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
+      throw new Error(`Gemini AI marker failed (${response.status}). ${errorText.slice(0, 240)}`);
+    }
+
+    const data = await response.json();
+    const text = (data?.candidates?.[0]?.content?.parts?.[0]?.text as string) || "";
+    return { response: text };
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
+};
+
 export async function POST(request: Request) {
   let body: DraftMarkRequest;
   try {
@@ -1004,12 +1064,13 @@ Keep the two feedback lines concise and concrete. Keep rationale under 35 words.
 }`;
 
   // Compact prompt — must fit inside num_ctx=512 tokens total (prompt + generation).
-  // Budget: ~200 tokens prompt, ~100 tokens output = well within 512.
-  const fastPrompt = `JSON only. Mark this student answer.
-Question:${summarizeLongText(promptPaperContext || paperContext || "", 230)}
-Answer:${summarizeLongText(readableAnswerText || "No answer text.", 290)}
-Marks available:${maxMarks ?? "unknown"}
-Return (suggestedMark must be integer 0..${maxMarks ?? "max"}, EBI must name a specific mistake):{"suggestedMark":0,"feedback":"WWW:specific strength.\nEBI:specific mistake or missing point.","rationale":"brief","confidence":"low","warnings":[]}`;
+  // Budget: ~210 tokens prompt, ~110 tokens output = well within 512.
+  const fastPrompt = `JSON only. You are a marking assistant. Output a single JSON object, no other text.
+Subject:${subjectName} Max marks:${maxMarks ?? "unknown"}
+Question text:${summarizeLongText(promptPaperContext || paperContext || "Not provided.", 200)}
+Student answer:${summarizeLongText(readableAnswerText || "No readable answer.", 240)}
+CRITICAL RULE: suggestedMark MUST be an integer (e.g. 0, 1, 2). NEVER output null or a string. If answer is wrong: 0. If partially right: between 1 and ${Math.max(1, (maxMarks ?? 2) - 1)}. If fully right: ${maxMarks ?? "max marks"}.
+{"suggestedMark":0,"feedback":"WWW:\nEBI:","rationale":"","confidence":"low","warnings":[]}`;
 
   const markingPrompt = shouldPreferFastModel ? fastPrompt : prompt;
 
@@ -1017,6 +1078,28 @@ Return (suggestedMark must be integer 0..${maxMarks ?? "max"}, EBI must name a s
     const modelWarnings = visualWarning ? [visualWarning] : [];
     let rawJson: string | null = null;
 
+    // 1. Try Gemini first — best free model, fast, excellent at Arabic and JSON
+    if (GEMINI_API_KEY && !rawJson) {
+      try {
+        const geminiPrompt = pageImages.length > 0
+          ? `${prompt}\n\nNote: ${pageImages.length} answered-page image(s) are directly attached to this request. Read the student's handwriting from the images as the primary source of the answer.`
+          : prompt;
+        const geminiPayload = await requestGeminiDraftMark({
+          prompt: geminiPrompt,
+          pageImages: pageImages.slice(0, 2),
+        });
+        rawJson = extractFirstJsonObject(String(geminiPayload?.response || ""));
+        if (rawJson && visualWarning) {
+          // Gemini read the images directly — remove the local OCR quality warning
+          const ocrWarningIdx = modelWarnings.indexOf(visualWarning);
+          if (ocrWarningIdx !== -1) modelWarnings.splice(ocrWarningIdx, 1);
+        }
+      } catch (error) {
+        console.error("Gemini AI marker failed, falling back to Ollama:", error);
+      }
+    }
+
+    // 2. Fall back to Ollama
     if (!rawJson) {
       try {
         const fallbackPayload = await requestOllamaDraft({
