@@ -254,6 +254,16 @@ const normalizeAiDraftPreview = (value: unknown): AiDraftMarkResponse | null => 
   };
 };
 
+const isFailedAiDraft = (draft: AiDraftMarkResponse | null) => {
+  if (!draft) return true;
+  if (draft.suggestedMark == null) return true;
+
+  const text = [draft.feedback, draft.rationale, ...(draft.warnings || [])]
+    .join(" ")
+    .toLowerCase();
+  return /(?:timed out|time limit|could not finish|could not reliably read|cannot read|could not read|unreadable|mark manually|no cloud vision key|no reliable visual|not valid json)/i.test(text);
+};
+
 const getPointerPoint = (
   event: React.PointerEvent<HTMLDivElement>,
   target: HTMLDivElement,
@@ -2095,18 +2105,31 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         currentTeacherMarks: teacherMarks,
         currentTeacherFeedback: teacherFeedback,
       });
+      const normalizedDraft = normalizeAiDraftPreview(draft);
 
-      const nextTeacherMarks = draft.suggestedMark != null ? String(draft.suggestedMark) : "";
-      const nextTeacherFeedback = draft.feedback.trim();
+      if (isFailedAiDraft(normalizedDraft)) {
+        setAiDraftPreview(normalizedDraft);
+        persistLocalDraft(getCurrentLayerSnapshot(), {
+          ...(state?.metadata && typeof state.metadata === "object" ? state.metadata : {}),
+          teacherMarks,
+          teacherFeedback,
+          aiDraftPreview: normalizedDraft,
+        });
+        messageApi.warning("AI could not draft a safe mark. Your current mark and feedback were not changed.");
+        return;
+      }
+
+      const nextTeacherMarks = String(normalizedDraft.suggestedMark);
+      const nextTeacherFeedback = normalizedDraft.feedback.trim();
 
       setTeacherMarks(nextTeacherMarks);
       setTeacherFeedback(nextTeacherFeedback);
-      setAiDraftPreview(normalizeAiDraftPreview(draft));
+      setAiDraftPreview(normalizedDraft);
       persistLocalDraft(getCurrentLayerSnapshot(), {
         ...(state?.metadata && typeof state.metadata === "object" ? state.metadata : {}),
         teacherMarks: nextTeacherMarks,
         teacherFeedback: nextTeacherFeedback,
-        aiDraftPreview: draft,
+        aiDraftPreview: normalizedDraft,
       });
       messageApi.success("AI draft added. Review it before saving the markbook mark.");
     } catch (error) {
@@ -2538,12 +2561,14 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         {role === "teacher" && aiDraftPreview ? (
           <Alert
             className="mb-4"
-            type="success"
+            type={isFailedAiDraft(aiDraftPreview) ? "warning" : "success"}
             showIcon
             closable
             onClose={() => setAiDraftPreview(null)}
             message={
-              aiDraftPreview.suggestedMark != null
+              isFailedAiDraft(aiDraftPreview)
+                ? "AI could not draft a safe mark"
+                : aiDraftPreview.suggestedMark != null
                 ? `AI draft ready: suggested mark ${aiDraftPreview.suggestedMark}${maxMarks ? ` / ${maxMarks}` : ""}`
                 : "AI draft ready"
             }

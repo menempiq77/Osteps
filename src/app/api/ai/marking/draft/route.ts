@@ -51,6 +51,7 @@ const OPENROUTER_VISION_MODEL = process.env.OPENROUTER_VISION_MODEL || "qwen/qwe
 const REQUEST_TIMEOUT_MS = Number(process.env.OSTEPS_AI_MARKING_TIMEOUT_MS || 50000);
 const LARAVEL_PUBLIC_DIR = process.env.OSTEPS_LARAVEL_PUBLIC_DIR || "/var/www/laravel/public";
 const PAPER_TEXT_CACHE_MS = 10 * 60 * 1000;
+const LOCAL_OCR_FOCUS = "Local OCR text from answered-page image";
 
 const paperTextCache = new Map<string, { pages: Array<{ num: number; text: string }>; cachedAt: number }>();
 const execFileAsync = promisify(execFile);
@@ -109,6 +110,8 @@ const normalizeImagePayload = (value: unknown) => {
   const dataUrlMatch = text.match(/^data:image\/[a-zA-Z0-9.+-]+;base64,(.+)$/i);
   return dataUrlMatch ? dataUrlMatch[1] : text;
 };
+
+const hasConfiguredVisionProvider = () => Boolean(GROQ_API_KEY || OPENROUTER_API_KEY || OLLAMA_VISION_MODEL);
 
 const annotationsContainPenStrokes = (
   annotations: Array<Record<string, unknown>> | undefined
@@ -647,6 +650,42 @@ const requestCloudVisualAnswerContext = async ({
   }
 };
 
+const extractLocalOcrAnswerContext = async (pageImages: string[]) => {
+  const ocrPages: string[] = [];
+
+  for (const [index, image] of pageImages.slice(0, 2).entries()) {
+    const tempPath = path.join(
+      "/tmp",
+      `osteps-ai-ocr-${process.pid}-${Date.now()}-${index}.jpg`
+    );
+    try {
+      await fs.writeFile(tempPath, Buffer.from(image, "base64"));
+      const { stdout } = await execFileAsync(
+        "tesseract",
+        [tempPath, "stdout", "-l", "eng+ara", "--psm", "6"],
+        { maxBuffer: 1024 * 1024, timeout: 12000 }
+      );
+      const text = normalizeWhitespace(String(stdout || ""));
+      if (text.length >= 12) {
+        ocrPages.push(`[Answered page image ${index + 1} OCR] ${text}`);
+      }
+    } catch (error) {
+      console.error("Local OCR could not read answered-page image:", error);
+    } finally {
+      await fs.unlink(tempPath).catch(() => undefined);
+    }
+  }
+
+  if (ocrPages.length === 0) return null;
+
+  return normalizeVisualAnswerContext({
+    questionFocus: LOCAL_OCR_FOCUS,
+    studentAnswerSummary: summarizeLongText(ocrPages.join("\n"), 1200),
+    visibleMistakes: [],
+    legibility: "low",
+  });
+};
+
 const extractVisualAnswerContext = async ({
   title,
   subjectName,
@@ -689,6 +728,9 @@ Return exactly:
       console.error(`${cloudAttempt.provider} answered-page image reading failed:`, error);
     }
   }
+
+  const ocrContext = await extractLocalOcrAnswerContext(pageImages);
+  if (ocrContext) return ocrContext;
 
   if (!OLLAMA_VISION_MODEL) return null;
 
@@ -843,12 +885,31 @@ export async function POST(request: Request) {
         pageImages,
       });
       if (!visualContext) {
-        visualWarning = "Could not reliably read the answered-page images; used text-only marking context.";
+        visualWarning = hasConfiguredVisionProvider()
+          ? "Could not reliably read the answered-page images; used text-only marking context."
+          : "No cloud vision key is configured and local OCR could not read the answered-page images; please mark handwriting manually or add Groq/OpenRouter vision.";
+      } else if (visualContext.questionFocus === LOCAL_OCR_FOCUS) {
+        visualWarning = hasConfiguredVisionProvider()
+          ? "Used local OCR to read the answered-page images; handwriting may be incomplete."
+          : "No cloud vision key is configured; used local OCR only, so handwriting accuracy may be limited.";
       }
     } catch (error) {
       console.error("Could not read answered-page images for AI marking:", error);
       visualWarning = "Could not reliably read the answered-page images; used text-only marking context.";
     }
+  }
+
+  if (pageImages.length > 0 && (hasPenStrokes || !studentText) && !studentText && !visualContext) {
+    return jsonResponse({
+      suggestedMark: null,
+      feedback:
+        "WWW: The exam paper and answered-page image were received.\nEBI: AI could not read the student's handwriting safely on this server; mark manually or add a Groq/OpenRouter vision key for accurate handwriting marking.",
+      rationale:
+        "No reliable text could be extracted from the handwritten answer, so a fair mark would be a guess.",
+      confidence: "low",
+      sourcePolicy,
+      warnings: [visualWarning || "No reliable handwriting text was extracted from the answered-page images."],
+    } satisfies DraftMarkResponse);
   }
 
   const prompt = `OSTEPS AI Draft Mark. Return strict JSON only. Draft only; teacher reviews manually. Never call it final. ${sourcePolicy}
