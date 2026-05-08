@@ -108,8 +108,8 @@ const LIVE_SYNC_INTERVAL_MS = 1200;
 const REMOTE_SYNC_INTERVAL_MS = 1500;
 const SELF_ASSESSMENT_AUTOSAVE_DELAY_MS = 1200;
 const TEACHER_DRAFT_AUTOSAVE_DELAY_MS = 1200;
-const AI_PAGE_IMAGE_MAX_COUNT = 3;
-const AI_PAGE_IMAGE_MAX_WIDTH = 1400;
+const AI_PAGE_IMAGE_MAX_COUNT = 8;
+const AI_PAGE_IMAGE_MAX_WIDTH = 1600;
 const AI_PAGE_IMAGE_JPEG_QUALITY = 0.9;
 const ERASER_RADIUS = 28;
 const TEXT_ERASER_PADDING = 18;
@@ -2224,18 +2224,11 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const buildAiPageSnapshots = useCallback(async () => {
     if (rendering || pages.length === 0) return [] as string[];
 
-    const answeredPageNumbers = Array.from(
-      new Set(
-        studentAnnotations
-          .map((annotation) => Number(annotation.page || 0))
-          .filter((pageNumber) => Number.isFinite(pageNumber) && pageNumber > 0)
-      )
-    ).sort((left, right) => left - right);
-
-    const candidatePages =
-      answeredPageNumbers.length > 0
-        ? pages.filter((page) => answeredPageNumbers.includes(page.pageNumber))
-        : pages.slice(0, 2);
+    // Send every rendered page to the AI, not only pages that have stored annotations.
+    // A student may type in the browser, write on later pages, or submit a flattened
+    // answer page where the saved annotation metadata is incomplete. If we only send
+    // page 1, the AI can incorrectly mark a 40-mark paper as just the visible MCQs.
+    const candidatePages = pages;
 
     const snapshots: string[] = [];
     for (const page of candidatePages.slice(0, AI_PAGE_IMAGE_MAX_COUNT)) {

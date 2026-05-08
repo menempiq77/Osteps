@@ -24,6 +24,7 @@ type DraftMarkRequest = {
 
 type QuestionMarkEntry = {
   question: string;
+  questionType?: "MCQ" | "TrueFalse" | "FillBlank" | "ShortAnswer" | "Essay" | string;
   studentAnswer: string;
   marksAwarded: number;
   maxMarksForQuestion: number | null;
@@ -173,7 +174,7 @@ const compactStudentText = (
     .map((annotation) => `[Page ${annotation.page}] ${annotation.text}`)
     .join("\n");
 
-  return summarizeLongText(combined, 1600);
+  return summarizeLongText(combined, 5000);
 };
 
 const extractAnsweredPages = (annotations: Array<Record<string, unknown>> | undefined) => {
@@ -287,7 +288,7 @@ const extractPaperQuestionsViaVision = async ({
 }): Promise<string> => {
   if (!GROQ_API_KEY) return "";
 
-  const images = await extractPaperPagesAsImages(localPath, 4);
+  const images = await extractPaperPagesAsImages(localPath, 8);
   if (images.length === 0) return "";
 
   const prompt = `You are reading a scanned exam paper. Extract ALL exam questions visible on these pages so an AI assistant can mark the student's answers against them.
@@ -316,13 +317,13 @@ Return only the questions in order, nothing else.`;
       body: JSON.stringify({
         model: GROQ_VISION_MODEL,
         temperature: 0,
-        max_tokens: 2000,
+        max_tokens: 4000,
         messages: [
           {
             role: "user",
             content: [
               { type: "text", text: prompt },
-              ...images.slice(0, 4).map((img) => ({
+              ...images.slice(0, 8).map((img) => ({
                 type: "image_url",
                 image_url: { url: `data:image/jpeg;base64,${img}` },
               })),
@@ -423,7 +424,7 @@ const buildPaperContext = async (fileUrl: string | undefined, preferredPages: nu
     .map((page) => `[Exam paper page ${page.num}] ${page.text}`)
     .join("\n\n");
 
-  return summarizeLongText(combined, 4000);
+  return summarizeLongText(combined, 9000);
 };
 
 const extractFirstJsonObject = (raw: string) => {
@@ -742,9 +743,9 @@ const normalizeVisualAnswerContext = (
   raw: Partial<VisualAnswerContext>
 ): VisualAnswerContext => ({
   questionFocus: asText(raw.questionFocus).slice(0, 300),
-  studentAnswerSummary: asText(raw.studentAnswerSummary).slice(0, 1200),
+  studentAnswerSummary: asText(raw.studentAnswerSummary).slice(0, 5000),
   visibleMistakes: Array.isArray(raw.visibleMistakes)
-    ? raw.visibleMistakes.map(asText).filter(Boolean).slice(0, 6)
+    ? raw.visibleMistakes.map(asText).filter(Boolean).slice(0, 20)
     : [],
   legibility: raw.legibility === "high" || raw.legibility === "medium" ? raw.legibility : "low",
 });
@@ -803,17 +804,20 @@ const requestCloudVisualAnswerContext = async ({
       body: JSON.stringify({
         model,
         temperature: 0.1,
-        max_tokens: 600,
+        max_tokens: 1800,
         response_format: { type: "json_object" },
         messages: [
           {
             role: "user",
             content: [
               { type: "text", text: prompt },
-              ...pageImages.slice(0, 2).map((image) => ({
-                type: "image_url",
-                image_url: { url: `data:image/jpeg;base64,${image}` },
-              })),
+              ...pageImages.slice(0, 8).flatMap((image, index) => [
+                { type: "text", text: `Answered page image ${index + 1}:` },
+                {
+                  type: "image_url",
+                  image_url: { url: `data:image/jpeg;base64,${image}` },
+                },
+              ]),
             ],
           },
         ],
@@ -861,7 +865,7 @@ const enhanceImageForOcr = async (inputPath: string): Promise<string> => {
 const extractLocalOcrAnswerContext = async (pageImages: string[]) => {
   const ocrPages: string[] = [];
 
-  for (const [index, image] of pageImages.slice(0, 2).entries()) {
+  for (const [index, image] of pageImages.slice(0, 8).entries()) {
     const tempPath = path.join(
       "/tmp",
       `osteps-ai-ocr-${process.pid}-${Date.now()}-${index}.png`
@@ -908,7 +912,7 @@ const extractLocalOcrAnswerContext = async (pageImages: string[]) => {
 
   return normalizeVisualAnswerContext({
     questionFocus: LOCAL_OCR_FOCUS,
-    studentAnswerSummary: summarizeLongText(ocrPages.join("\n"), 1200),
+    studentAnswerSummary: summarizeLongText(ocrPages.join("\n"), 5000),
     visibleMistakes: [],
     legibility: "low",
   });
@@ -950,7 +954,7 @@ SHORT ANSWER / ESSAY:
 Return exactly:
 {
   "questionFocus": "brief description of the paper being read in 20 words",
-  "studentAnswerSummary": "For EVERY question: state the question number, selection or written answer. Use the MCQ format above. Up to 400 words.",
+  "studentAnswerSummary": "For EVERY question on EVERY supplied page: state the question number, selected option or written answer. Use the MCQ format above. Up to 1200 words.",
   "visibleMistakes": ["Q[num]: student selected ([letter]) [text] — this is wrong because [reason]"],
   "legibility": "low" | "medium" | "high"
 }`;
@@ -1064,6 +1068,7 @@ const normalizeDraft = (
         : null;
       normalizedBreakdown.push({
         question: asText(e.question).slice(0, 200),
+        questionType: asText(e.questionType).slice(0, 40) || undefined,
         studentAnswer: asText(e.studentAnswer).slice(0, 300),
         marksAwarded: Math.max(0, mqForQ != null ? Math.min(mqForQ, marksAwarded) : marksAwarded),
         maxMarksForQuestion: mqForQ,
@@ -1084,6 +1089,23 @@ const normalizeDraft = (
       }
       clampedMark = breakdownSumMark;
     }
+  }
+
+  const accountedMaxMarks = normalizedBreakdown.reduce(
+    (sum, entry) => sum + (entry.maxMarksForQuestion ?? 0),
+    0
+  );
+  if (
+    maxMarks != null &&
+    maxMarks >= 20 &&
+    normalizedBreakdown.length > 0 &&
+    accountedMaxMarks > 0 &&
+    accountedMaxMarks < maxMarks * 0.75
+  ) {
+    clampedMark = null;
+    warnings.push(
+      `AI only accounted for ${accountedMaxMarks}/${maxMarks} allocated marks. It did not read enough of the paper/answers to produce a fair final mark.`
+    );
   }
 
   return {
@@ -1155,7 +1177,7 @@ ISLAMIC STUDIES AUTHORITATIVE ANSWERS (use these when subject is Islamic/Quranic
       body: JSON.stringify({
         model: GROQ_TEXT_MODEL,
         temperature: 0,
-        max_tokens: 2000,
+        max_tokens: 4500,
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: systemContent },
@@ -1249,9 +1271,10 @@ const requestGeminiDraftMark = async ({
     : controller.signal;
 
   try {
-    const imageParts = pageImages.slice(0, 2).map((img) => ({
-      inlineData: { mimeType: "image/jpeg" as const, data: img },
-    }));
+    const imageParts = pageImages.slice(0, 8).flatMap((img, index) => [
+      { text: `Answered page image ${index + 1}:` },
+      { inlineData: { mimeType: "image/jpeg" as const, data: img } },
+    ]);
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
@@ -1267,7 +1290,7 @@ const requestGeminiDraftMark = async ({
           ],
           generationConfig: {
             responseMimeType: "application/json",
-            maxOutputTokens: 1000,
+            maxOutputTokens: 4000,
             temperature: 0,
             topP: 0.9,
           },
@@ -1303,7 +1326,7 @@ export async function POST(request: Request) {
   const studentText = compactStudentText(body.studentAnnotations, body.studentName);
   const answeredPages = extractAnsweredPages(body.studentAnnotations);
   const pageImages = Array.isArray(body.pageImages)
-    ? body.pageImages.map(normalizeImagePayload).filter(Boolean).slice(0, 4)
+    ? body.pageImages.map(normalizeImagePayload).filter(Boolean).slice(0, 8)
     : [];
   const hasPenStrokes = annotationsContainPenStrokes(body.studentAnnotations);
   const islamic = isIslamicSubject(subjectName, title);
@@ -1349,10 +1372,10 @@ export async function POST(request: Request) {
     }
   }
 
-  // Allow up to 3500 chars of paper text so multi-section exams (MCQs + short-answer + essays)
+  // Allow up to 8000 chars of paper text so multi-section exams (MCQs + short-answer + essays)
   // are fully visible. Do NOT reduce this when images are present — images carry student
   // answers, not exam questions, so they don't require us to shrink the paper context.
-  const promptPaperContext = summarizeLongText(paperContext, 3500);
+  const promptPaperContext = summarizeLongText(paperContext, 8000);
 
   const shouldPreferFastModel =
     pageImages.length > 0 || hasPenStrokes || promptPaperContext.length > 2200;
@@ -1376,7 +1399,7 @@ export async function POST(request: Request) {
   let visualContext: VisualAnswerContext | null = null;
   let visualWarning = "";
 
-  if (pageImages.length > 0 && (hasPenStrokes || !studentText)) {
+  if (pageImages.length > 0) {
     try {
       visualContext = await extractVisualAnswerContext({
         title,
@@ -1398,7 +1421,7 @@ export async function POST(request: Request) {
     }
   }
 
-  if (pageImages.length > 0 && (hasPenStrokes || !studentText) && !studentText && !visualContext) {
+  if (pageImages.length > 0 && !studentText && !visualContext) {
     return jsonResponse({
       suggestedMark: null,
       feedback:
@@ -1416,7 +1439,7 @@ export async function POST(request: Request) {
       .map(asText)
       .filter(Boolean)
       .join("\n"),
-    pageImages.length > 0 || hasPenStrokes ? 900 : 1200
+    pageImages.length > 0 || hasPenStrokes ? 6000 : 5000
   );
 
   const prompt = `OSTEPS AI Draft Mark. Return strict JSON only. Draft only; teacher reviews manually. Never call it final. ${sourcePolicy}
@@ -1457,6 +1480,7 @@ OTHER RULES:
 IGNORE: student name, ID, class, date, school name — never part of the answer.
 For marks feedback, name the exact question number and what the student got wrong.
 suggestedMark = exact integer SUM of all marksAwarded in the breakdown.
+If you cannot account for most of the allocated ${maxMarks ?? "total"} marks from visible questions and visible student answers, set suggestedMark to null, confidence to "low", and warn exactly what could not be read. Do NOT output a small mark like 4/40 just because only page 1 was readable.
 
 Exam paper text:
 ${promptPaperContext || "Exam paper text could not be extracted."}
@@ -1484,7 +1508,7 @@ Return exactly (one entry per question — do NOT merge separate questions):
       "reason": "[for MCQ: state the selected option and whether it is correct or wrong + the correct answer if wrong; for short-answer: what was correct or missing]"
     }
   ],
-  "suggestedMark": integer = exact sum of marksAwarded; null ONLY if completely unreadable,
+  "suggestedMark": integer = exact sum of marksAwarded; null if the paper/answers are too incomplete to account for most allocated marks,
   "feedback": "WWW: [specific correct point with question ref]\nEBI: [question number, what was wrong, correct answer]",
   "rationale": "brief reason under 30 words",
   "confidence": "low" | "medium" | "high",
@@ -1546,7 +1570,7 @@ MARKING RULES:
           : prompt;
         const geminiPayload = await requestGeminiDraftMark({
           prompt: geminiPrompt,
-          pageImages: pageImages.slice(0, 2),
+          pageImages: pageImages.slice(0, 8),
         });
         rawJson = extractFirstJsonObject(String(geminiPayload?.response || ""));
         if (rawJson && visualWarning) {
