@@ -109,8 +109,8 @@ const REMOTE_SYNC_INTERVAL_MS = 1500;
 const SELF_ASSESSMENT_AUTOSAVE_DELAY_MS = 1200;
 const TEACHER_DRAFT_AUTOSAVE_DELAY_MS = 1200;
 const AI_PAGE_IMAGE_MAX_COUNT = 3;
-const AI_PAGE_IMAGE_MAX_WIDTH = 1100;
-const AI_PAGE_IMAGE_JPEG_QUALITY = 0.72;
+const AI_PAGE_IMAGE_MAX_WIDTH = 1400;
+const AI_PAGE_IMAGE_JPEG_QUALITY = 0.9;
 const ERASER_RADIUS = 28;
 const TEXT_ERASER_PADDING = 18;
 const TEXT_ANNOTATION_MAX_WIDTH = 360;
@@ -254,6 +254,11 @@ const normalizeAiDraftPreview = (value: unknown): AiDraftMarkResponse | null => 
   };
 };
 
+const isAiDraftFailureText = (value: string) =>
+  /(?:ai draft mark could not finish|local model reached the time limit|timed out|time limit|could not draft a safe mark|could not reliably read|cannot read|could not read|unreadable|mark manually|no cloud vision key|no reliable visual|not valid json)/i.test(
+    value
+  );
+
 const isFailedAiDraft = (draft: AiDraftMarkResponse | null) => {
   if (!draft) return true;
   if (draft.suggestedMark == null) return true;
@@ -261,7 +266,7 @@ const isFailedAiDraft = (draft: AiDraftMarkResponse | null) => {
   const text = [draft.feedback, draft.rationale, ...(draft.warnings || [])]
     .join(" ")
     .toLowerCase();
-  return /(?:timed out|time limit|could not finish|could not reliably read|cannot read|could not read|unreadable|mark manually|no cloud vision key|no reliable visual|not valid json)/i.test(text);
+  return isAiDraftFailureText(text);
 };
 
 const getPointerPoint = (
@@ -1189,13 +1194,19 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
               : null;
           let hydratedTeacherMarks = String(metadata.teacherMarks ?? "");
           let hydratedTeacherFeedback = String(metadata.teacherFeedback ?? "");
+          if (role === "teacher" && !hydratedTeacherMarks.trim() && isAiDraftFailureText(hydratedTeacherFeedback)) {
+            hydratedTeacherFeedback = "";
+          }
           if (metadata.teacherMarks != null) setTeacherMarks(hydratedTeacherMarks);
           if (metadata.teacherFeedback != null) setTeacherFeedback(hydratedTeacherFeedback);
           if (role === "teacher" && storedDraftMetadata) {
             const localTeacherMarks = String(storedDraftMetadata.teacherMarks ?? "");
-            const localTeacherFeedback = String(storedDraftMetadata.teacherFeedback ?? "");
+            let localTeacherFeedback = String(storedDraftMetadata.teacherFeedback ?? "");
             const remoteTeacherMarks = String(metadata.teacherMarks ?? "");
             const remoteTeacherFeedback = String(metadata.teacherFeedback ?? "");
+            if (!localTeacherMarks.trim() && isAiDraftFailureText(localTeacherFeedback)) {
+              localTeacherFeedback = "";
+            }
             const hasRemoteTeacherDraft =
               remoteTeacherMarks.trim().length > 0 || remoteTeacherFeedback.trim().length > 0;
             const hasLocalTeacherDraft =
@@ -1210,7 +1221,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
             const localAiDraftPreview = storedDraftMetadata.aiDraftPreview;
             if (localAiDraftPreview && typeof localAiDraftPreview === "object") {
-              setAiDraftPreview(normalizeAiDraftPreview(localAiDraftPreview));
+              const normalizedLocalAiDraftPreview = normalizeAiDraftPreview(localAiDraftPreview);
+              if (normalizedLocalAiDraftPreview && !isFailedAiDraft(normalizedLocalAiDraftPreview)) {
+                setAiDraftPreview(normalizedLocalAiDraftPreview);
+              }
             }
           }
           if (role === "teacher") {
@@ -2089,6 +2103,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     }
 
     setAiDrafting(true);
+    setAiDraftPreview(null);
     try {
       const pageImages = await buildAiPageSnapshots();
       const draft = await draftAssessmentMark({
@@ -2141,7 +2156,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   };
 
   const requestAiDraftMark = () => {
-    if (teacherMarks.trim() || teacherFeedback.trim()) {
+    const hasOnlyPreviousFailedAiFeedback = !teacherMarks.trim() && isAiDraftFailureText(teacherFeedback);
+    if (!hasOnlyPreviousFailedAiFeedback && (teacherMarks.trim() || teacherFeedback.trim())) {
       Modal.confirm({
         title: "Replace current draft mark?",
         content: "AI Draft Mark will replace the unsaved mark and feedback fields on this screen only. It will not save the markbook mark.",

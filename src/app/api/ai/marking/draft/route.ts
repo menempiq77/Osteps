@@ -656,16 +656,24 @@ const extractLocalOcrAnswerContext = async (pageImages: string[]) => {
   for (const [index, image] of pageImages.slice(0, 2).entries()) {
     const tempPath = path.join(
       "/tmp",
-      `osteps-ai-ocr-${process.pid}-${Date.now()}-${index}.jpg`
+      `osteps-ai-ocr-${process.pid}-${Date.now()}-${index}.png`
     );
     try {
       await fs.writeFile(tempPath, Buffer.from(image, "base64"));
-      const { stdout } = await execFileAsync(
-        "tesseract",
-        [tempPath, "stdout", "-l", "eng+ara", "--psm", "6"],
-        { maxBuffer: 1024 * 1024, timeout: 12000 }
-      );
-      const text = normalizeWhitespace(String(stdout || ""));
+      const ocrAttempts: string[] = [];
+      for (const pageSegmentationMode of ["6", "11"]) {
+        try {
+          const { stdout } = await execFileAsync(
+            "tesseract",
+            [tempPath, "stdout", "-l", "eng+ara", "--psm", pageSegmentationMode],
+            { maxBuffer: 1024 * 1024, timeout: 9000 }
+          );
+          ocrAttempts.push(normalizeWhitespace(String(stdout || "")));
+        } catch (error) {
+          console.error(`Local OCR psm ${pageSegmentationMode} could not read answered-page image:`, error);
+        }
+      }
+      const text = ocrAttempts.sort((left, right) => right.length - left.length)[0] || "";
       if (text.length >= 12) {
         ocrPages.push(`[Answered page image ${index + 1} OCR] ${text}`);
       }
