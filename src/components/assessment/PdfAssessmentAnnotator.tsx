@@ -2339,7 +2339,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         </div>
       </Modal>
       <div className="sticky top-0 z-20 border-b bg-white/95 px-4 py-3 shadow-sm backdrop-blur">
-        <div className={shouldEnforceExamScreen ? "flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between" : "mx-auto flex max-w-7xl flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"}>
+        <div className={shouldEnforceExamScreen ? "flex flex-col gap-4" : "mx-auto flex max-w-7xl flex-col gap-4"}>
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-lg font-semibold text-gray-900">{title}</h1>
             {role === "teacher" && (
@@ -2380,43 +2380,46 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <Select<Tool> value={tool} onChange={setTool} disabled={!editable} style={{ width: 110 }} options={[{ value: "pen", label: "Pen" }, { value: "text", label: "Text" }, { value: "eraser", label: "Eraser" }]} />
-            <Select value={color} onChange={setColor} disabled={!editable} style={{ width: 120 }} options={COLORS.map((value) => ({ value, label: <span style={{ color: value }}>● {value}</span> }))} />
-            <InputNumber min={1} max={12} value={penWidth} onChange={(value) => setPenWidth(Number(value || 3))} disabled={!editable || tool !== "pen"} className="w-20" />
-            <InputNumber min={MIN_TEXT_FONT_SIZE} max={MAX_TEXT_FONT_SIZE} value={textFontSize} onChange={(value) => {
-              const nextFontSize = Number(value || (role === "teacher" ? 18 : 16));
-              setTextFontSize(nextFontSize);
-              setEditingText((current) => (current ? { ...current, fontSize: nextFontSize } : current));
-            }} disabled={!editable || tool !== "text"} className="w-24" placeholder="Text size" />
-            <div className="flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1">
-              <Button
-                size="small"
-                onClick={() => setZoomLevel((current) => clampZoomLevel(current - ZOOM_STEP))}
-                disabled={zoomLevel <= MIN_ZOOM_LEVEL}
-              >
-                -
-              </Button>
-              <span className="w-14 text-center text-xs font-medium tabular-nums text-gray-600">
-                {zoomPercent}%
-              </span>
-              <Button
-                size="small"
-                onClick={() => setZoomLevel((current) => clampZoomLevel(current + ZOOM_STEP))}
-                disabled={zoomLevel >= MAX_ZOOM_LEVEL}
-              >
-                +
-              </Button>
+          <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Select<Tool> value={tool} onChange={setTool} disabled={!editable} style={{ width: 110 }} options={[{ value: "pen", label: "Pen" }, { value: "text", label: "Text" }, { value: "eraser", label: "Eraser" }]} />
+              <Select value={color} onChange={setColor} disabled={!editable} style={{ width: 120 }} options={COLORS.map((value) => ({ value, label: <span style={{ color: value }}>● {value}</span> }))} />
+              <InputNumber min={1} max={12} value={penWidth} onChange={(value) => setPenWidth(Number(value || 3))} disabled={!editable || tool !== "pen"} className="w-20" />
+              <InputNumber min={MIN_TEXT_FONT_SIZE} max={MAX_TEXT_FONT_SIZE} value={textFontSize} onChange={(value) => {
+                const nextFontSize = Number(value || (role === "teacher" ? 18 : 16));
+                setTextFontSize(nextFontSize);
+                setEditingText((current) => (current ? { ...current, fontSize: nextFontSize } : current));
+              }} disabled={!editable || tool !== "text"} className="w-24" placeholder="Text size" />
+              <div className="flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1">
+                <Button
+                  size="small"
+                  onClick={() => setZoomLevel((current) => clampZoomLevel(current - ZOOM_STEP))}
+                  disabled={zoomLevel <= MIN_ZOOM_LEVEL}
+                >
+                  -
+                </Button>
+                <span className="w-14 text-center text-xs font-medium tabular-nums text-gray-600">
+                  {zoomPercent}%
+                </span>
+                <Button
+                  size="small"
+                  onClick={() => setZoomLevel((current) => clampZoomLevel(current + ZOOM_STEP))}
+                  disabled={zoomLevel >= MAX_ZOOM_LEVEL}
+                >
+                  +
+                </Button>
+              </div>
+              <Button onClick={undo} disabled={!editable || activeAnnotations.length === 0}>Undo</Button>
+              <Button onClick={saveNow} disabled={!editable} loading={saving}>Save now</Button>
             </div>
-            <Button onClick={undo} disabled={!editable || activeAnnotations.length === 0}>Undo</Button>
-            <Button onClick={saveNow} disabled={!editable} loading={saving}>Save now</Button>
+
             {role === "student" ? (
-              <>
+              <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 pt-2">
                 <InputNumber min={0} max={maxMarks} value={selfAssessmentMark ?? undefined} onChange={(value) => setSelfAssessmentMark(value == null ? null : Number(value))} placeholder={examWindow.examMode ? "Predicted mark" : "Self mark"} disabled={!editable} className="w-32" />
                 <Button type="primary" onClick={finishStudentWork} loading={finishing} disabled={!editable}>{examWindow.examMode ? "Submit exam" : "Submit work"}</Button>
-              </>
+              </div>
             ) : (
-              <>
+              <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 pt-2">
                 <Button
                   onClick={toggleStudentEditingLock}
                   loading={changingStudentLock}
@@ -2443,7 +2446,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                   Download paper
                 </Button>
                 <Button type="primary" onClick={finalizeTeacherMark} loading={finishing}>Save markbook mark</Button>
-              </>
+              </div>
             )}
           </div>
         </div>
