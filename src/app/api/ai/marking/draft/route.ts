@@ -1,5 +1,7 @@
 import { promises as fs } from "fs";
+import { execFile } from "child_process";
 import path from "path";
+import { promisify } from "util";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -39,7 +41,7 @@ type VisualAnswerContext = {
 const OLLAMA_BASE_URL = (process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434").replace(/\/+$/, "");
 const OLLAMA_MODEL = process.env.OSTEPS_AI_MARKING_MODEL || process.env.OLLAMA_MODEL || "deepseek-r1:1.5b";
 const OLLAMA_FAST_FALLBACK_MODEL = process.env.OSTEPS_AI_MARKING_FAST_MODEL || "qwen2.5:0.5b";
-const OLLAMA_VISION_MODEL = process.env.OSTEPS_AI_MARKING_VISION_MODEL || "gemma3:1b";
+const OLLAMA_VISION_MODEL = process.env.OSTEPS_AI_MARKING_VISION_MODEL || "moondream:latest";
 const OLLAMA_KEEP_ALIVE = process.env.OSTEPS_AI_MARKING_KEEP_ALIVE || "0s";
 const OLLAMA_ENABLE_REASONER = process.env.OSTEPS_AI_MARKING_USE_REASONER === "1";
 const REQUEST_TIMEOUT_MS = Number(process.env.OSTEPS_AI_MARKING_TIMEOUT_MS || 50000);
@@ -47,6 +49,7 @@ const LARAVEL_PUBLIC_DIR = process.env.OSTEPS_LARAVEL_PUBLIC_DIR || "/var/www/la
 const PAPER_TEXT_CACHE_MS = 10 * 60 * 1000;
 
 const paperTextCache = new Map<string, { pages: Array<{ num: number; text: string }>; cachedAt: number }>();
+const execFileAsync = promisify(execFile);
 
 const jsonResponse = (payload: unknown, status = 200) => NextResponse.json(payload, { status });
 
@@ -144,6 +147,25 @@ const extractAnsweredPages = (annotations: Array<Record<string, unknown>> | unde
 
 const loadPdfParse = async () => import("pdf-parse");
 
+const extractPaperPagesWithPdftotext = async (localPath: string) => {
+  try {
+    const { stdout } = await execFileAsync("pdftotext", ["-layout", "-enc", "UTF-8", localPath, "-"], {
+      maxBuffer: 4 * 1024 * 1024,
+      timeout: 9000,
+    });
+    return String(stdout || "")
+      .split("\f")
+      .map((text, index) => ({
+        num: index + 1,
+        text: normalizeWhitespace(text),
+      }))
+      .filter((page) => page.text.length > 0);
+  } catch (error) {
+    console.error("pdftotext could not extract exam paper text:", error);
+    return [];
+  }
+};
+
 const resolveLocalPaperPath = (normalizedUrl: string) => {
   if (!normalizedUrl) return null;
   try {
@@ -164,8 +186,16 @@ const getPaperPages = async (normalizedUrl: string) => {
     return cached.pages;
   }
 
-  let pdfBuffer: Buffer;
   const localPath = resolveLocalPaperPath(normalizedUrl);
+  if (localPath) {
+    const pages = await extractPaperPagesWithPdftotext(localPath);
+    if (pages.length > 0) {
+      paperTextCache.set(normalizedUrl, { pages, cachedAt: Date.now() });
+      return pages;
+    }
+  }
+
+  let pdfBuffer: Buffer;
   if (localPath) {
     pdfBuffer = await fs.readFile(localPath);
   } else {
