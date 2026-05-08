@@ -920,6 +920,14 @@ export async function POST(request: Request) {
     } satisfies DraftMarkResponse);
   }
 
+  const readableAnswerText = summarizeLongText(
+    [studentText, visualContext?.studentAnswerSummary]
+      .map(asText)
+      .filter(Boolean)
+      .join("\n"),
+    pageImages.length > 0 || hasPenStrokes ? 900 : 1200
+  );
+
   const prompt = `OSTEPS AI Draft Mark. Return strict JSON only. Draft only; teacher reviews manually. Never call it final. ${sourcePolicy}
 
 Title: ${title}
@@ -960,6 +968,16 @@ Keep the two feedback lines concise and concrete. Keep rationale under 35 words.
   "warnings": []
 }`;
 
+  const fastPrompt = `Return ONLY valid JSON. Draft a teacher-reviewed mark, not a final mark.
+Subject: ${subjectName}
+Max marks: ${maxMarks ?? "unknown"}
+Paper/question text: ${summarizeLongText(promptPaperContext || paperContext || "Paper text not available.", 650)}
+Student answer text from typed writing/OCR: ${readableAnswerText || "No readable answer text."}
+Rules: if the answer text is readable and max marks is known, suggestedMark must be an integer 0..${maxMarks ?? "maxMarks"}. Mention a specific mistake or missing point in EBI. Use this JSON shape exactly:
+{"suggestedMark":0,"feedback":"WWW: specific strength.\nEBI: specific mistake/missing point.","rationale":"short reason","confidence":"low","warnings":[]}`;
+
+  const markingPrompt = shouldPreferFastModel ? fastPrompt : prompt;
+
   try {
     const modelWarnings = visualWarning ? [visualWarning] : [];
     let rawJson: string | null = null;
@@ -968,12 +986,12 @@ Keep the two feedback lines concise and concrete. Keep rationale under 35 words.
       try {
         const fallbackPayload = await requestOllamaDraft({
           model: OLLAMA_FAST_FALLBACK_MODEL,
-          prompt,
+          prompt: markingPrompt,
           options: {
-            num_predict: 70,
-            num_ctx: 2048,
+            num_predict: shouldPreferFastModel ? 110 : 70,
+            num_ctx: shouldPreferFastModel ? 1024 : 2048,
           },
-          timeoutMs: 42000,
+          timeoutMs: shouldPreferFastModel ? 26000 : 42000,
         });
         rawJson = extractFirstJsonObject(String(fallbackPayload.response || ""));
         if (!rawJson) {
