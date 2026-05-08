@@ -650,6 +650,29 @@ const requestCloudVisualAnswerContext = async ({
   }
 };
 
+// Preprocess an image with ImageMagick for better Tesseract OCR accuracy.
+// Converts to grayscale, normalises contrast, and sharpens edges.
+// Returns the enhanced image path; falls back to the original on any error.
+const enhanceImageForOcr = async (inputPath: string): Promise<string> => {
+  const outputPath = `${inputPath}.enhanced.png`;
+  try {
+    await execFileAsync(
+      "convert",
+      [
+        inputPath,
+        "-colorspace", "Gray",
+        "-normalize",
+        "-sharpen", "0x1.5",
+        outputPath,
+      ],
+      { timeout: 7000 }
+    );
+    return outputPath;
+  } catch {
+    return inputPath;
+  }
+};
+
 const extractLocalOcrAnswerContext = async (pageImages: string[]) => {
   const ocrPages: string[] = [];
 
@@ -658,15 +681,24 @@ const extractLocalOcrAnswerContext = async (pageImages: string[]) => {
       "/tmp",
       `osteps-ai-ocr-${process.pid}-${Date.now()}-${index}.png`
     );
+    let enhancedPath = "";
     try {
       await fs.writeFile(tempPath, Buffer.from(image, "base64"));
+      enhancedPath = await enhanceImageForOcr(tempPath);
       const ocrAttempts: string[] = [];
       for (const pageSegmentationMode of ["6", "11"]) {
         try {
           const { stdout } = await execFileAsync(
             "tesseract",
-            [tempPath, "stdout", "-l", "eng+ara", "--psm", pageSegmentationMode],
-            { maxBuffer: 1024 * 1024, timeout: 9000 }
+            [
+              enhancedPath,
+              "stdout",
+              "-l", "eng+ara",
+              "--oem", "3",
+              "--dpi", "150",
+              "--psm", pageSegmentationMode,
+            ],
+            { maxBuffer: 1024 * 1024, timeout: 10000 }
           );
           ocrAttempts.push(normalizeWhitespace(String(stdout || "")));
         } catch (error) {
@@ -681,6 +713,9 @@ const extractLocalOcrAnswerContext = async (pageImages: string[]) => {
       console.error("Local OCR could not read answered-page image:", error);
     } finally {
       await fs.unlink(tempPath).catch(() => undefined);
+      if (enhancedPath && enhancedPath !== tempPath) {
+        await fs.unlink(enhancedPath).catch(() => undefined);
+      }
     }
   }
 
@@ -968,13 +1003,13 @@ Keep the two feedback lines concise and concrete. Keep rationale under 35 words.
   "warnings": []
 }`;
 
-  const fastPrompt = `Return ONLY valid JSON. Draft a teacher-reviewed mark, not a final mark.
-Subject: ${subjectName}
-Max marks: ${maxMarks ?? "unknown"}
-Paper/question text: ${summarizeLongText(promptPaperContext || paperContext || "Paper text not available.", 650)}
-Student answer text from typed writing/OCR: ${readableAnswerText || "No readable answer text."}
-Rules: if the answer text is readable and max marks is known, suggestedMark must be an integer 0..${maxMarks ?? "maxMarks"}. Mention a specific mistake or missing point in EBI. Use this JSON shape exactly:
-{"suggestedMark":0,"feedback":"WWW: specific strength.\nEBI: specific mistake/missing point.","rationale":"short reason","confidence":"low","warnings":[]}`;
+  // Compact prompt — must fit inside num_ctx=512 tokens total (prompt + generation).
+  // Budget: ~200 tokens prompt, ~100 tokens output = well within 512.
+  const fastPrompt = `JSON only. Mark this student answer.
+Question:${summarizeLongText(promptPaperContext || paperContext || "", 230)}
+Answer:${summarizeLongText(readableAnswerText || "No answer text.", 290)}
+Marks available:${maxMarks ?? "unknown"}
+Return (suggestedMark must be integer 0..${maxMarks ?? "max"}, EBI must name a specific mistake):{"suggestedMark":0,"feedback":"WWW:specific strength.\nEBI:specific mistake or missing point.","rationale":"brief","confidence":"low","warnings":[]}`;
 
   const markingPrompt = shouldPreferFastModel ? fastPrompt : prompt;
 
@@ -989,9 +1024,9 @@ Rules: if the answer text is readable and max marks is known, suggestedMark must
           prompt: markingPrompt,
           options: {
             num_predict: shouldPreferFastModel ? 110 : 70,
-            num_ctx: shouldPreferFastModel ? 1024 : 2048,
+            num_ctx: shouldPreferFastModel ? 512 : 2048,
           },
-          timeoutMs: shouldPreferFastModel ? 26000 : 42000,
+          timeoutMs: shouldPreferFastModel ? 22000 : 42000,
         });
         rawJson = extractFirstJsonObject(String(fallbackPayload.response || ""));
         if (!rawJson) {
