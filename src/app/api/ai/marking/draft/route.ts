@@ -822,17 +822,13 @@ const alignMarkWithFeedback = (
   if (numericMark == null || maxMarks == null || maxMarks <= 0) return numericMark;
   if (responseImpliesUnreadable(raw)) return null;
 
-  const text = `${asText(raw.feedback)} ${asText(raw.rationale)}`.toLowerCase();
-  const soundsFullyCorrect = /(fully correct|completely correct|accurate and complete|meets all criteria|full marks|no material mistakes|no mistakes)/i.test(text);
-  const soundsIncomplete = /(partially correct|missing|needs improvement|unclear|vague|incorrect|wrong|lacks detail|minor errors|some points? missing|incomplete)/i.test(text);
+  // Only use the fallback when the model explicitly returned null/NaN — never
+  // silently override a mark the model carefully calculated. Keyword-based
+  // overrides caused systematic bias (all students getting the same mark).
+  if (!Number.isFinite(numericMark)) return fallbackMark;
 
-  if (numericMark >= maxMarks && soundsIncomplete && fallbackMark != null && fallbackMark < maxMarks) {
-    return fallbackMark;
-  }
-
-  if (numericMark < maxMarks && soundsFullyCorrect) {
-    return maxMarks;
-  }
+  return numericMark;
+};
 
   return numericMark;
 };
@@ -907,7 +903,7 @@ const requestGroqMarkingDraft = async ({
       },
       body: JSON.stringify({
         model: GROQ_TEXT_MODEL,
-        temperature: 0.1,
+        temperature: 0.3,
         max_tokens: 800,
         response_format: { type: "json_object" },
         messages: [
@@ -1108,7 +1104,14 @@ Max marks: ${maxMarks ?? "Unknown"}
 Use the exam paper text and the student's written answer together. Ignore metadata such as student name, date, or predicted/self-assessed grades.
 Grade the whole submitted answer across the answered pages, not a single isolated sentence.
 If max marks are known and the student's answer is readable, you MUST set suggestedMark to an integer from 0 to ${maxMarks ?? "the maximum marks"}. Do not use null in that case.
-If the student's answer is fully correct for the relevant question(s), award full marks. Only use suggestedMark null when the answer cannot be assessed from the supplied paper and answer text.
+BEFORE deciding the mark, think through each question visible in the exam paper:
+  - What is this question worth in marks?
+  - What did the student actually write for this question (quote it directly if possible)?
+  - Is that answer correct, partially correct, or wrong/missing? Why?
+  - How many marks does this question earn?
+Then sum up the marks earned across all questions to get suggestedMark.
+Do NOT default to a high or near-full mark when the student answer is unclear or hard to read. Award marks only for specific correct answers you can actually see in the supplied text. If a section of the paper has no readable student answer, award 0 for that section.
+Do NOT give the same mark every time. Different students write different things; marks must reflect what each specific student actually wrote.
 Judge fairly from the available evidence only. Do not guess hidden writing. If some handwriting is unclear, say exactly what is unclear and mark conservatively.
 HANDWRITTEN SELECTION MARKS: For True/False, MCQ, checkbox, or fill-in-blank questions, a pen X, tick ✓, circle, cross, or any mark placed next to or inside an answer option is the student's CHOSEN ANSWER — it is not itself an error. Only judge whether the chosen answer is correct or incorrect. Never penalise a student for the physical act of marking their selection.
 If marks are lost, feedback must identify exactly which question or part has the mistake. Name the question number or part if visible (e.g. "In question 2" or "In part (b)"), quote or paraphrase what the student wrote that was wrong or missing, and state the correct or expected answer from the paper. Do NOT use vague phrases like "needs improvement", "lacks clarity", or "answer is incomplete" by themselves — always follow them with the specific content.
