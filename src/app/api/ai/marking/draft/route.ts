@@ -283,6 +283,11 @@ const splitFeedbackSentences = (value: string) =>
 const stripFeedbackLabel = (value: string) =>
   value.replace(/^(?:www|ebi|even better if|what went well)\s*[:\-]\s*/i, "").trim();
 
+const containsPromptPlaceholder = (value: string) =>
+  /(no reliable image reading available|no separate typed annotation text was found|use the supplied answered-page images if available|no answered-page image reading was used for this request)/i.test(
+    value
+  );
+
 const ensureSentenceEnding = (value: string) => {
   const normalized = stripFeedbackLabel(value).replace(/\s+/g, " ").trim();
   if (!normalized) return "";
@@ -314,6 +319,13 @@ const normalizeTeacherFeedback = (value: string) => {
   const sentences = splitFeedbackSentences(normalized);
   if (!whatWentWell) whatWentWell = sentences[0] || normalized;
   if (!evenBetterIf) evenBetterIf = sentences[1] || "Add the specific missing point or correction from the paper to improve the answer";
+
+  if (containsPromptPlaceholder(whatWentWell)) {
+    whatWentWell = "A clear strength could not be confirmed from the readable answer evidence";
+  }
+  if (containsPromptPlaceholder(evenBetterIf)) {
+    evenBetterIf = "State the exact answer point from the paper more clearly and match the wording of the question";
+  }
 
   return `WWW: ${ensureSentenceEnding(whatWentWell)}\nEBI: ${ensureSentenceEnding(evenBetterIf)}`;
 };
@@ -581,7 +593,8 @@ const normalizeDraft = (
           (value) =>
             value &&
             !/short warning strings if needed/i.test(value) &&
-            !/^(?:none|n\/a|no warnings needed\.?|no warning needed\.?)$/i.test(value)
+            !/^(?:none|n\/a|no warnings needed\.?|no warning needed\.?)$/i.test(value) &&
+            !/(fully correct|partially correct|award full marks|suggested mark should|student answer is)/i.test(value)
         )
         .slice(0, 6)
     : [];
@@ -695,11 +708,11 @@ ${promptPaperContext || "Exam paper text could not be extracted."}
 Student typed answer text extracted from annotations:
 ${studentText || "No separate typed annotation text was found. Use the supplied answered-page images if available."}
 
-Visual reading from answered-page images:
-Question focus: ${visualContext?.questionFocus || "No reliable image reading available."}
-Student answer seen on the paper: ${visualContext?.studentAnswerSummary || "No reliable image reading available."}
-Specific wrong or missing points seen on the paper: ${visualContext?.visibleMistakes.join("; ") || "None extracted from the images."}
-Image legibility: ${visualContext?.legibility || "unknown"}
+${visualContext ? `Visual reading from answered-page images:
+Question focus: ${visualContext.questionFocus}
+Student answer seen on the paper: ${visualContext.studentAnswerSummary}
+Specific wrong or missing points seen on the paper: ${visualContext.visibleMistakes.join("; ") || "None extracted from the images."}
+Image legibility: ${visualContext.legibility}` : pageImages.length > 0 ? "Answered-page images were supplied, but no reliable visual extraction could be confirmed. Use the paper text and any readable typed answer only." : "No answered-page image reading was used for this request."}
 
 Image reading warning: ${visualWarning || "none"}
 
