@@ -1063,21 +1063,20 @@ Keep the two feedback lines concise and concrete. Keep rationale under 35 words.
   "warnings": []
 }`;
 
-  // Compact prompt — must fit inside num_ctx=512 tokens total (prompt + generation).
-  // NO template JSON at the end — Ollama format:"json" forces JSON; tiny models with a
-  // template just output one field and stop instead of generating the full object.
-  const fastPrompt = `You are a strict marking assistant. Output ONE JSON object with ALL fields. No other text.
+  // Compact Ollama prompt — always uses num_ctx=512 so qwen2.5:1.5b responds in ~12-15s.
+  // Gemini (when key present) uses the full `prompt` above with all context.
+  // For the fast path (images/pen) content is tighter to leave room for OCR summary.
+  // For the slow path (typed text only) use slightly more characters since we have more room.
+  const ollamaPrompt = `You are a strict marking assistant. Output ONE JSON object with ALL fields. No other text.
 Subject:${subjectName} | Max marks:${maxMarks ?? "?"}
-Question:${summarizeLongText(promptPaperContext || paperContext || "Question not provided.", 195)}
-Student answer:${summarizeLongText(readableAnswerText || "No readable answer found.", 240)}
+Question:${summarizeLongText(promptPaperContext || paperContext || "Question not provided.", shouldPreferFastModel ? 195 : 400)}
+Student answer:${summarizeLongText(readableAnswerText || "No readable answer found.", shouldPreferFastModel ? 240 : 480)}
 Rules:
 - suggestedMark: integer 0..${maxMarks ?? "max"}. NEVER null.
-- feedback: WWW: [specific strength]\nEBI: [specific mistake or missing point]
+- feedback: WWW: [specific strength]\nEBI: [specific mistake or missing point from the question]
 - rationale: brief reason under 20 words
 - confidence: low medium or high
 - warnings: []`;
-
-  const markingPrompt = shouldPreferFastModel ? fastPrompt : prompt;
 
   try {
     const modelWarnings = visualWarning ? [visualWarning] : [];
@@ -1104,17 +1103,17 @@ Rules:
       }
     }
 
-    // 2. Fall back to Ollama
+    // 2. Fall back to Ollama — always 512 ctx for speed (~12-15s on this CPU server)
     if (!rawJson) {
       try {
         const fallbackPayload = await requestOllamaDraft({
           model: OLLAMA_FAST_FALLBACK_MODEL,
-          prompt: markingPrompt,
+          prompt: ollamaPrompt,
           options: {
-            num_predict: shouldPreferFastModel ? 160 : 90,
-            num_ctx: shouldPreferFastModel ? 512 : 2048,
+            num_predict: 160,
+            num_ctx: 512,
           },
-          timeoutMs: shouldPreferFastModel ? 26000 : 42000,
+          timeoutMs: 28000,
         });
         rawJson = extractFirstJsonObject(String(fallbackPayload.response || ""));
         if (!rawJson) {
