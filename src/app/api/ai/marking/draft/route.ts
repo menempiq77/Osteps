@@ -128,7 +128,7 @@ const compactStudentText = (
     .map((annotation) => `[Page ${annotation.page}] ${annotation.text}`)
     .join("\n");
 
-  return summarizeLongText(combined, 2600);
+  return summarizeLongText(combined, 1600);
 };
 
 const extractAnsweredPages = (annotations: Array<Record<string, unknown>> | undefined) => {
@@ -209,7 +209,7 @@ const buildPaperContext = async (fileUrl: string | undefined, preferredPages: nu
     .map((page) => `[Exam paper page ${page.num}] ${page.text}`)
     .join("\n\n");
 
-  return summarizeLongText(combined, 5200);
+  return summarizeLongText(combined, 2800);
 };
 
 const extractFirstJsonObject = (raw: string) => {
@@ -655,8 +655,8 @@ Keep feedback under 45 words and rationale under 35 words. Write feedback like a
           model: OLLAMA_FAST_FALLBACK_MODEL,
           prompt,
           options: {
-            num_predict: 100,
-            num_ctx: 4096,
+            num_predict: 80,
+            num_ctx: 3072,
           },
           timeoutMs: 28000,
         });
