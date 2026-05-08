@@ -394,6 +394,16 @@ const normalizeTeacherFeedback = (value: string) => {
     evenBetterIf = "State the exact answer point from the paper more clearly and match the wording of the question";
   }
 
+  // If the model put negative/critical language into the WWW field, replace it with
+  // a neutral positive acknowledgement rather than showing incorrect feedback.
+  const wwwLower = whatWentWell.toLowerCase();
+  if (
+    /^(?:the answer|student|it|this) (?:is|was|has|did) (?:not|no |un|in|wrong|poor|bad|fail|miss)|^(?:no |not |un|in)/i.test(whatWentWell) ||
+    /(incorrect|wrong|unclear|not clear|poor|vague|failed|does not|did not|doesn't|cannot|lacking|missing|incomplete|inaccurate|not specific|not relevant)/i.test(wwwLower)
+  ) {
+    whatWentWell = "The student attempted the question and provided a written response";
+  }
+
   return `WWW: ${ensureSentenceEnding(whatWentWell)}\nEBI: ${ensureSentenceEnding(evenBetterIf)}`;
 };
 
@@ -1119,18 +1129,28 @@ Keep the two feedback lines concise and concrete. Keep rationale under 35 words.
 
   // Compact Ollama prompt — always uses num_ctx=512 so qwen2.5:1.5b responds in ~12-15s.
   // Gemini (when key present) uses the full `prompt` above with all context.
-  // For the fast path (images/pen) content is tighter to leave room for OCR summary.
-  // For the slow path (typed text only) use slightly more characters since we have more room.
-  const ollamaPrompt = `You are a strict marking assistant. Output ONE JSON object with ALL fields. No other text.
-Subject:${subjectName} | Max marks:${maxMarks ?? "?"}
-Question:${summarizeLongText(promptPaperContext || paperContext || "Question not provided.", shouldPreferFastModel ? 195 : 400)}
-Student answer:${summarizeLongText(readableAnswerText || "No readable answer found.", shouldPreferFastModel ? 240 : 480)}
-Rules:
-- suggestedMark: integer 0..${maxMarks ?? "max"}. NEVER null.
-- feedback: WWW: [specific strength]\nEBI: [specific mistake or missing point from the question]
-- rationale: brief reason under 20 words
-- confidence: low medium or high
-- warnings: []`;
+  // Key rules explicitly stated in the prompt to overcome model limitations.
+  const ollamaPrompt = `You are a teacher's marking assistant. Output ONE JSON object. No other text.
+
+Subject: ${subjectName}
+Max marks available: ${maxMarks ?? "unknown"}
+
+EXAM PAPER / QUESTION:
+${summarizeLongText(promptPaperContext || paperContext || "No exam paper text available.", shouldPreferFastModel ? 195 : 400)}
+
+STUDENT ANSWER:
+${summarizeLongText(readableAnswerText || "No readable student answer.", shouldPreferFastModel ? 240 : 480)}
+
+MARKING RULES:
+1. suggestedMark = integer from 0 to ${maxMarks ?? "max"}. NEVER null or a string.
+2. WWW = a POSITIVE statement identifying one thing the student did correctly or showed understanding of.
+   - Must NOT say the answer is wrong, unclear, or incomplete.
+   - Example good WWW: "The student correctly identified the key vocabulary in the question."
+   - Example bad WWW (FORBIDDEN): "The answer is not clear." or "The answer is incorrect."
+3. EBI = one specific improvement needed, referencing the exam question/wording.
+   - Must be specific, NOT generic like "improve your answer".
+4. confidence = low, medium, or high.
+5. warnings = []`;
 
   try {
     const modelWarnings = visualWarning ? [visualWarning] : [];
