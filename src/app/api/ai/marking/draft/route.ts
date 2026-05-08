@@ -559,6 +559,9 @@ export async function POST(request: Request) {
     console.error("Could not extract exam paper text for AI marking:", error);
   }
 
+  const shouldPreferFastModel =
+    pageImages.length > 0 || hasPenStrokes || paperContext.length > 2600;
+
   if (!studentText && !paperContext && pageImages.length === 0) {
     return jsonResponse({
       suggestedMark: null,
@@ -629,19 +632,21 @@ Keep feedback under 45 words and rationale under 35 words. Write feedback like a
     const modelWarnings = visualWarning ? [visualWarning] : [];
     let rawJson: string | null = null;
 
-    try {
-      const deepseekPayload = await requestOllamaDraft({
-        model: OLLAMA_MODEL,
-        prompt,
-        options: {
-          num_predict: 80,
-          num_ctx: 3072,
-        },
-        timeoutMs: 8000,
-      });
-      rawJson = extractFirstJsonObject(String(deepseekPayload.response || ""));
-    } catch (error) {
-      console.error("DeepSeek refinement attempt did not finish in time:", error);
+    if (!shouldPreferFastModel) {
+      try {
+        const deepseekPayload = await requestOllamaDraft({
+          model: OLLAMA_MODEL,
+          prompt,
+          options: {
+            num_predict: 80,
+            num_ctx: 3072,
+          },
+          timeoutMs: 8000,
+        });
+        rawJson = extractFirstJsonObject(String(deepseekPayload.response || ""));
+      } catch (error) {
+        console.error("DeepSeek refinement attempt did not finish in time:", error);
+      }
     }
 
     if (!rawJson) {
