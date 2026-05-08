@@ -109,8 +109,8 @@ const REMOTE_SYNC_INTERVAL_MS = 1500;
 const SELF_ASSESSMENT_AUTOSAVE_DELAY_MS = 1200;
 const TEACHER_DRAFT_AUTOSAVE_DELAY_MS = 1200;
 const AI_PAGE_IMAGE_MAX_COUNT = 8;
-const AI_PAGE_IMAGE_MAX_WIDTH = 1600;
-const AI_PAGE_IMAGE_JPEG_QUALITY = 0.9;
+const AI_PAGE_IMAGE_MAX_WIDTH = 1400;
+const AI_PAGE_IMAGE_JPEG_QUALITY = 0.76;
 const ERASER_RADIUS = 28;
 const TEXT_ERASER_PADDING = 18;
 const TEXT_ANNOTATION_MAX_WIDTH = 360;
@@ -568,11 +568,14 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const canOpenOriginalFile = !(role === "student" && examWindow.examMode);
   const displayStudentName = currentStudentName || teacherExamStudentInfo?.studentName || "Selected student";
   const canDownloadSubmittedPaper = role === "teacher" && documentLoaded && (studentLocked || state?.status === "submitted" || state?.status === "marked");
-  const hasReadableStudentAnswer = studentAnnotations.some(
+  const hasReadableStudentAnnotation = studentAnnotations.some(
     (annotation) =>
       (annotation.type === "text" && String(annotation.text ?? "").trim().length > 0) ||
       (annotation.type === "pen" && getSafePenPoints(annotation).length > 0)
   );
+  const hasReadableStudentAnswer =
+    hasReadableStudentAnnotation ||
+    (role === "teacher" && documentLoaded && pages.length > 0 && (studentLocked || state?.status === "submitted" || state?.status === "marked"));
   const autosaveStatusLabel = saving
     ? "Saving"
     : autosaveQueued
@@ -2162,18 +2165,6 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   };
 
   const requestAiDraftMark = () => {
-    const hasOnlyPreviousFailedAiFeedback = !teacherMarks.trim() && isAiDraftFailureText(teacherFeedback);
-    if (!hasOnlyPreviousFailedAiFeedback && (teacherMarks.trim() || teacherFeedback.trim())) {
-      Modal.confirm({
-        title: "Replace current draft mark?",
-        content: "AI Draft Mark will replace the unsaved mark and feedback fields on this screen only. It will not save the markbook mark.",
-        okText: "Create AI draft",
-        cancelText: "Cancel",
-        onOk: () => applyAiDraftMark(),
-      });
-      return;
-    }
-
     void applyAiDraftMark();
   };
 
