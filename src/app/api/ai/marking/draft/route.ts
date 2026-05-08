@@ -40,7 +40,7 @@ type VisualAnswerContext = {
 
 const OLLAMA_BASE_URL = (process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434").replace(/\/+$/, "");
 const OLLAMA_MODEL = process.env.OSTEPS_AI_MARKING_MODEL || process.env.OLLAMA_MODEL || "deepseek-r1:1.5b";
-const OLLAMA_FAST_FALLBACK_MODEL = process.env.OSTEPS_AI_MARKING_FAST_MODEL || "qwen2.5:0.5b";
+const OLLAMA_FAST_FALLBACK_MODEL = process.env.OSTEPS_AI_MARKING_FAST_MODEL || "qwen2.5:1.5b";
 const OLLAMA_VISION_MODEL = process.env.OSTEPS_AI_MARKING_VISION_MODEL || "";
 const OLLAMA_KEEP_ALIVE = process.env.OSTEPS_AI_MARKING_KEEP_ALIVE || "0s";
 const OLLAMA_ENABLE_REASONER = process.env.OSTEPS_AI_MARKING_USE_REASONER === "1";
@@ -1064,13 +1064,18 @@ Keep the two feedback lines concise and concrete. Keep rationale under 35 words.
 }`;
 
   // Compact prompt — must fit inside num_ctx=512 tokens total (prompt + generation).
-  // Budget: ~210 tokens prompt, ~110 tokens output = well within 512.
-  const fastPrompt = `JSON only. You are a marking assistant. Output a single JSON object, no other text.
-Subject:${subjectName} Max marks:${maxMarks ?? "unknown"}
-Question text:${summarizeLongText(promptPaperContext || paperContext || "Not provided.", 200)}
-Student answer:${summarizeLongText(readableAnswerText || "No readable answer.", 240)}
-CRITICAL RULE: suggestedMark MUST be an integer (e.g. 0, 1, 2). NEVER output null or a string. If answer is wrong: 0. If partially right: between 1 and ${Math.max(1, (maxMarks ?? 2) - 1)}. If fully right: ${maxMarks ?? "max marks"}.
-{"suggestedMark":0,"feedback":"WWW:\nEBI:","rationale":"","confidence":"low","warnings":[]}`;
+  // NO template JSON at the end — Ollama format:"json" forces JSON; tiny models with a
+  // template just output one field and stop instead of generating the full object.
+  const fastPrompt = `You are a strict marking assistant. Output ONE JSON object with ALL fields. No other text.
+Subject:${subjectName} | Max marks:${maxMarks ?? "?"}
+Question:${summarizeLongText(promptPaperContext || paperContext || "Question not provided.", 195)}
+Student answer:${summarizeLongText(readableAnswerText || "No readable answer found.", 240)}
+Rules:
+- suggestedMark: integer 0..${maxMarks ?? "max"}. NEVER null.
+- feedback: WWW: [specific strength]\nEBI: [specific mistake or missing point]
+- rationale: brief reason under 20 words
+- confidence: low medium or high
+- warnings: []`;
 
   const markingPrompt = shouldPreferFastModel ? fastPrompt : prompt;
 
@@ -1106,10 +1111,10 @@ CRITICAL RULE: suggestedMark MUST be an integer (e.g. 0, 1, 2). NEVER output nul
           model: OLLAMA_FAST_FALLBACK_MODEL,
           prompt: markingPrompt,
           options: {
-            num_predict: shouldPreferFastModel ? 110 : 70,
+            num_predict: shouldPreferFastModel ? 160 : 90,
             num_ctx: shouldPreferFastModel ? 512 : 2048,
           },
-          timeoutMs: shouldPreferFastModel ? 22000 : 42000,
+          timeoutMs: shouldPreferFastModel ? 26000 : 42000,
         });
         rawJson = extractFirstJsonObject(String(fallbackPayload.response || ""));
         if (!rawJson) {
