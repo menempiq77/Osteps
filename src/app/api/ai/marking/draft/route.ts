@@ -760,11 +760,17 @@ Read the supplied answered-page images. They show the exam paper and the student
 Title: ${title}
 Subject: ${subjectName}
 
+CRITICAL — HANDWRITTEN SELECTION MARKS:
+- For True/False, MCQ, checkbox, or fill-in-the-blank questions, a hand-drawn X, tick (✓), circle, cross, underline, or any mark placed NEXT TO or INSIDE an option box means that is the student's CHOSEN ANSWER for that item.
+- Do NOT flag the student's selection mark itself as a mistake. Only flag a mistake if you can verify the selected answer is wrong by comparing it to an answer key or clearly correct option shown on the same paper.
+- In studentAnswerSummary, clearly describe each selected answer (e.g. "Q1: student placed X next to True", "Q3: student circled option B").
+- In visibleMistakes, only list items where the chosen answer is clearly incorrect or missing compared to what the paper shows is expected.
+
 Return exactly:
 {
   "questionFocus": "question/part being answered in 25 words max",
-  "studentAnswerSummary": "faithful transcription or concise paraphrase of what the student wrote in 140 words max; if unreadable say Unreadable.",
-  "visibleMistakes": ["specific wrong or missing points visible in the student's answer"],
+  "studentAnswerSummary": "faithful transcription or concise paraphrase of what the student wrote/selected in 140 words max; if unreadable say Unreadable.",
+  "visibleMistakes": ["specific wrong or missing points visible in the student's answer — only include if clearly incorrect, not just because a mark/X/tick is present"],
   "legibility": "low" | "medium" | "high"
 }`;
 
@@ -913,7 +919,9 @@ const requestGroqMarkingDraft = async ({
               "Be detailed and specific in your feedback: identify exactly which question part or sub-question contains a mistake, " +
               "quote or paraphrase the student's actual wrong/missing answer, and state the correct answer or missing concept from the mark scheme. " +
               "For WWW: quote what the student wrote that was correct and name the relevant concept or question part. " +
-              "For EBI: state the question number or part (e.g. 'In question 2' or 'In part (b)'), what the student wrote that was wrong or incomplete, and what the correct or expected answer is.",
+              "For EBI: state the question number or part (e.g. 'In question 2' or 'In part (b)'), what the student wrote that was wrong or incomplete, and what the correct or expected answer is. " +
+              "CRITICAL: For True/False, MCQ, or checkbox questions, an X, tick, circle, cross, or pen mark next to an option is the student's CHOSEN ANSWER — never treat the mark itself as a mistake. " +
+              "Only mark a T/F or MCQ answer wrong if the chosen option is factually incorrect. If the student correctly selected True or False with an X, award the mark.",
           },
           { role: "user", content: prompt },
         ],
@@ -1102,6 +1110,7 @@ Grade the whole submitted answer across the answered pages, not a single isolate
 If max marks are known and the student's answer is readable, you MUST set suggestedMark to an integer from 0 to ${maxMarks ?? "the maximum marks"}. Do not use null in that case.
 If the student's answer is fully correct for the relevant question(s), award full marks. Only use suggestedMark null when the answer cannot be assessed from the supplied paper and answer text.
 Judge fairly from the available evidence only. Do not guess hidden writing. If some handwriting is unclear, say exactly what is unclear and mark conservatively.
+HANDWRITTEN SELECTION MARKS: For True/False, MCQ, checkbox, or fill-in-blank questions, a pen X, tick ✓, circle, cross, or any mark placed next to or inside an answer option is the student's CHOSEN ANSWER — it is not itself an error. Only judge whether the chosen answer is correct or incorrect. Never penalise a student for the physical act of marking their selection.
 If marks are lost, feedback must identify exactly which question or part has the mistake. Name the question number or part if visible (e.g. "In question 2" or "In part (b)"), quote or paraphrase what the student wrote that was wrong or missing, and state the correct or expected answer from the paper. Do NOT use vague phrases like "needs improvement", "lacks clarity", or "answer is incomplete" by themselves — always follow them with the specific content.
 If full marks are earned, WWW should quote what was correct and EBI should confirm there are no material errors.
 Feedback must be in this format — each line may be 1-2 sentences if needed for specificity:
