@@ -810,7 +810,7 @@ export async function POST(request: Request) {
 
   const promptPaperContext = summarizeLongText(
     paperContext,
-    pageImages.length > 0 || hasPenStrokes ? 1800 : 2600
+    pageImages.length > 0 || hasPenStrokes ? 1200 : 1400
   );
 
   const shouldPreferFastModel =
@@ -901,10 +901,10 @@ Keep the two feedback lines concise and concrete. Keep rationale under 35 words.
           model: OLLAMA_FAST_FALLBACK_MODEL,
           prompt,
           options: {
-            num_predict: 80,
-            num_ctx: 3072,
+            num_predict: 70,
+            num_ctx: 2048,
           },
-          timeoutMs: 28000,
+          timeoutMs: 42000,
         });
         rawJson = extractFirstJsonObject(String(fallbackPayload.response || ""));
         if (!rawJson) {
