@@ -27,6 +27,7 @@ type QuestionMarkEntry = {
   question: string;
   questionType?: "MCQ" | "TrueFalse" | "FillBlank" | "ShortAnswer" | "Essay" | string;
   studentAnswer: string;
+  correctAnswer?: string;
   marksAwarded: number;
   maxMarksForQuestion: number | null;
   reason: string;
@@ -584,10 +585,11 @@ const buildDeductionsFeedback = (
     const lost = Math.max(0, (entry.maxMarksForQuestion ?? 0) - entry.marksAwarded);
     totalDeductions += lost;
     const answer = entry.studentAnswer || "blank / not readable";
+    const correct = entry.correctAnswer ? ` Correct answer: ${entry.correctAnswer}.` : "";
     const reason = entry.reason || "answer was wrong or incomplete";
     const markWord = lost === 1 ? "mark" : "marks";
     lines.push(
-      `- ${entry.question || "Question"}: student answered "${answer}"; ${reason}; -${formatMarkValue(lost)} ${markWord}.`
+      `- ${entry.question || "Question"}: student wrote "${answer}".${correct} (${reason}) -${formatMarkValue(lost)} ${markWord}.`
     );
   }
 
@@ -1114,6 +1116,7 @@ const normalizeDraft = (
         question: asText(e.question).slice(0, 200),
         questionType: asText(e.questionType).slice(0, 40) || undefined,
         studentAnswer: asText(e.studentAnswer).slice(0, 300),
+        correctAnswer: asText(e.correctAnswer).slice(0, 200) || undefined,
         marksAwarded: Math.max(0, mqForQ != null ? Math.min(mqForQ, marksAwarded) : marksAwarded),
         maxMarksForQuestion: mqForQ,
         reason: asText(e.reason).slice(0, 200),
@@ -1251,7 +1254,7 @@ ISLAMIC STUDIES AUTHORITATIVE ANSWERS (use these when subject is Islamic/Quranic
     "\nACCURACY RULE: suggestedMark MUST equal the exact integer SUM of all marksAwarded in questionBreakdown. Never output a mark that is lower because you failed to map an answer; first try to match answers by page/y-position and wording.\n" +
     "IDENTITY FIELDS RULE: Completely ignore student name, ID, class, date, school name — these are never part of the answer.\n" +
     ISLAMIC_STUDIES_KNOWLEDGE +
-    "\nFEEDBACK FORMAT: Do NOT write WWW or EBI. Feedback must show ONLY wrong or partially wrong answers as deductions. For each mistake include: question number, student's wrong answer, correct/missing answer, and marks deducted. If there are no mistakes, write 'No deductions found.'";
+    "\nFEEDBACK FORMAT: The 'feedback' field must list ONLY wrong or partially wrong questions. For each wrong question write exactly:\n'Q[num]: [question text]: student wrote \"[wrong answer]\" — correct: [correct answer]. -[N] mark(s).'\nBegin with 'Deductions:'. List ALL wrong/partial questions, not just one. If all answers are correct write 'No deductions found.' Do NOT write WWW, EBI, praise, general advice, or explanations about the subject.";
 
   try {
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -1757,14 +1760,15 @@ Return exactly (one entry per question — do NOT merge separate questions):
     {
       "question": "Q1: [first 8 words of the actual question text from the paper]",
       "questionType": "MCQ" | "TrueFalse" | "FillBlank" | "ShortAnswer" | "Essay",
-      "studentAnswer": "[exact option letter + text for MCQ, e.g. \"(a) You pray full salah\"; or student's written text]",
+      "studentAnswer": "[exact option letter + text for MCQ, e.g. \"(b) You can shorten your prayer\"; or student's written text for short-answer]",
+      "correctAnswer": "[the correct answer for this question — e.g. \"(a) You pray full salah\" for MCQ, or the key points for short-answer; leave empty string if student was fully correct]",
       "marksAwarded": integer,
       "maxMarksForQuestion": integer or null,
-      "reason": "[for MCQ: state the selected option and whether it is correct or wrong + the correct answer if wrong; for short-answer: what was correct or missing]"
+      "reason": "[for MCQ: state whether option was correct or wrong and why; for short-answer: what key points were present or missing]"
     }
   ],
   "suggestedMark": integer = exact sum of marksAwarded; null if the paper/answers are too incomplete to account for most allocated marks,
-  "feedback": "Deductions only: list only wrong or partially wrong questions with the student's wrong answer, correct/missing answer, and marks deducted. Do not write WWW or EBI. If nothing is wrong, write 'No deductions found.'",
+  "feedback": "WRONG QUESTIONS ONLY. For each wrong question write: 'Q[num]: [question text]: student wrote \"[wrong answer]\" — correct: [correct answer]. -[N] mark(s).' Start with 'Deductions:'. If all correct write 'No deductions found.' Do NOT write WWW, EBI, praise, or general advice.",
   "rationale": "brief reason under 30 words",
   "confidence": "low" | "medium" | "high",
   "warnings": []
@@ -1786,9 +1790,10 @@ ${summarizeLongText(readableAnswerText || "No readable student answer.", shouldP
 
 MARKING RULES:
 1. suggestedMark = integer from 0 to ${maxMarks ?? "max"}. NEVER null or a string.
-2. feedback must show deductions only. Do NOT write WWW or EBI.
-3. List only wrong or partially wrong questions. Include the student's wrong answer, the correct/missing answer, and marks deducted.
-  - If nothing is wrong, write "No deductions found."
+2. feedback must list ONLY wrong questions. Do NOT write WWW or EBI.
+3. For each wrong question use EXACTLY this format:
+   'Q[num]: [question text]: student wrote "[wrong answer]" — correct: [correct answer]. -[N] mark(s).'
+   Start feedback with 'Deductions:'. If nothing is wrong, write "No deductions found."
 4. confidence = low, medium, or high.
 5. warnings = []`;
 
@@ -1797,8 +1802,8 @@ Max marks: ${maxMarks ?? "unknown"}
 Subject: ${subjectName}
 Paper excerpt: ${summarizeLongText(promptPaperContext || paperContext || "No paper text.", 220)}
 Student answer excerpt: ${summarizeLongText(readableAnswerText || visualContext?.studentAnswerSummary || studentText || "No readable answer.", 260)}
-Rules: suggestedMark must be a number from 0 to ${maxMarks ?? "max"}. feedback must be deductions only. Do not write WWW or EBI. If uncertain, still return your best draft mark and add a warning for teacher review.
-JSON schema: {"suggestedMark":number,"feedback":"Deductions only: ...","rationale":"brief","confidence":"low|medium|high","warnings":[]}`;
+Rules: suggestedMark=integer 0-${maxMarks ?? "max"}. feedback=WRONG questions only, format 'Q[num]: [question]: student wrote "[wrong]" — correct: [answer]. -[N] mark(s).' Start with 'Deductions:' or write 'No deductions found.' No WWW/EBI.
+JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"brief","confidence":"low|medium|high","warnings":[]}`;
 
   try {
     const modelWarnings: string[] = [];
