@@ -268,7 +268,7 @@ const isFailedAiDraft = (draft: AiDraftMarkResponse | null) => {
   if (!draft) return true;
   if (draft.suggestedMark == null) return true;
 
-  const text = [draft.feedback, draft.rationale, ...(draft.warnings || [])]
+  const text = [draft.feedback, draft.rationale]
     .join(" ")
     .toLowerCase();
   return isAiDraftFailureText(text);
