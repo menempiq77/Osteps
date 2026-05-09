@@ -528,7 +528,7 @@ const repairContradictoryAnswerEvidence = (
   return {
     ...raw,
     feedback:
-      "WWW: The submitted answer includes readable evidence for the teacher to assess.\nEBI: Add the exact missing point or correction required by the exam question.",
+      "Could not produce a reliable deductions-only feedback list because the model incorrectly claimed there was no answer. Teacher review required.",
     rationale:
       "Readable answer evidence was supplied, so the draft was corrected away from a no-answer response.",
     confidence: "low" as const,
@@ -539,12 +539,6 @@ const repairContradictoryAnswerEvidence = (
   };
 };
 
-const splitFeedbackSentences = (value: string) =>
-  normalizeWhitespace(value)
-    .split(/(?<=[.!?])\s+/)
-    .map((part) => part.trim())
-    .filter(Boolean);
-
 const stripFeedbackLabel = (value: string) =>
   value.replace(/^(?:www|ebi|even better if|what went well)\s*[:\-]\s*/i, "").trim();
 
@@ -553,56 +547,55 @@ const containsPromptPlaceholder = (value: string) =>
     value
   );
 
-const ensureSentenceEnding = (value: string) => {
-  const normalized = stripFeedbackLabel(value).replace(/\s+/g, " ").trim();
-  if (!normalized) return "";
-  return /[.!?]$/.test(normalized) ? normalized : `${normalized}.`;
+const normalizeDeductionsFeedback = (value: string) => {
+  const normalized = asText(value)
+    .replace(/^www\s*[:\-].*$/gim, "")
+    .replace(/^ebi\s*[:\-]\s*/gim, "")
+    .replace(/\bWWW\b\s*[:\-]?/gi, "")
+    .replace(/\bEBI\b\s*[:\-]?/gi, "")
+    .trim();
+
+  if (!normalized || containsPromptPlaceholder(normalized)) {
+    return "No deductions list was produced. Please review the per-question deductions below.";
+  }
+
+  return normalized;
 };
 
-const normalizeTeacherFeedback = (value: string) => {
-  const normalized = asText(value);
-  if (!normalized) return "";
+const formatMarkValue = (value: number) => Number.isInteger(value) ? String(value) : value.toFixed(1);
 
-  const lines = normalized
-    .split(/\r?\n+/)
-    .map((line) => normalizeWhitespace(line))
-    .filter(Boolean);
+const buildDeductionsFeedback = (
+  breakdown: QuestionMarkEntry[],
+  suggestedMark: number | null,
+  maxMarks: number | null
+) => {
+  const deductionRows = breakdown.filter((entry) => {
+    const maxForQuestion = entry.maxMarksForQuestion;
+    return maxForQuestion != null && maxForQuestion > 0 && entry.marksAwarded < maxForQuestion;
+  });
 
-  let whatWentWell = "";
-  let evenBetterIf = "";
+  if (deductionRows.length === 0) return "No deductions found.";
 
-  for (const line of lines) {
-    if (!whatWentWell && /^www\s*[:\-]/i.test(line)) {
-      whatWentWell = stripFeedbackLabel(line);
-      continue;
-    }
-    if (!evenBetterIf && /^(?:ebi|even better if)\s*[:\-]/i.test(line)) {
-      evenBetterIf = stripFeedbackLabel(line);
-    }
+  const lines = ["Deductions:"];
+  let totalDeductions = 0;
+  for (const entry of deductionRows.slice(0, 30)) {
+    const lost = Math.max(0, (entry.maxMarksForQuestion ?? 0) - entry.marksAwarded);
+    totalDeductions += lost;
+    const answer = entry.studentAnswer || "blank / not readable";
+    const reason = entry.reason || "answer was wrong or incomplete";
+    const markWord = lost === 1 ? "mark" : "marks";
+    lines.push(
+      `- ${entry.question || "Question"}: student answered "${answer}"; ${reason}; -${formatMarkValue(lost)} ${markWord}.`
+    );
   }
 
-  const sentences = splitFeedbackSentences(normalized);
-  if (!whatWentWell) whatWentWell = sentences[0] || normalized;
-  if (!evenBetterIf) evenBetterIf = sentences[1] || "Add the specific missing point or correction from the paper to improve the answer";
-
-  if (containsPromptPlaceholder(whatWentWell)) {
-    whatWentWell = "A clear strength could not be confirmed from the readable answer evidence";
-  }
-  if (containsPromptPlaceholder(evenBetterIf)) {
-    evenBetterIf = "State the exact answer point from the paper more clearly and match the wording of the question";
+  lines.push(`Total deductions: ${formatMarkValue(totalDeductions)}`);
+  if (maxMarks != null && maxMarks > 0) {
+    const finalMark = suggestedMark != null ? suggestedMark : Math.max(0, maxMarks - totalDeductions);
+    lines.push(`Final mark: ${formatMarkValue(finalMark)}/${formatMarkValue(maxMarks)}`);
   }
 
-  // If the model put negative/critical language into the WWW field, replace it with
-  // a neutral positive acknowledgement rather than showing incorrect feedback.
-  const wwwLower = whatWentWell.toLowerCase();
-  if (
-    /^(?:the answer|student|it|this) (?:is|was|has|did) (?:not|no |un|in|wrong|poor|bad|fail|miss)|^(?:no |not |un|in)/i.test(whatWentWell) ||
-    /(incorrect|wrong|unclear|not clear|poor|vague|failed|does not|did not|doesn't|cannot|lacking|missing|incomplete|inaccurate|not specific|not relevant)/i.test(wwwLower)
-  ) {
-    whatWentWell = "The student attempted the question and provided a written response";
-  }
-
-  return `WWW: ${ensureSentenceEnding(whatWentWell)}\nEBI: ${ensureSentenceEnding(evenBetterIf)}`;
+  return lines.join("\n");
 };
 
 const estimateFallbackSuggestedMark = (
@@ -1157,12 +1150,14 @@ const normalizeDraft = (
     );
   }
 
+  const generatedDeductionsFeedback = buildDeductionsFeedback(normalizedBreakdown, clampedMark, maxMarks);
+
   return {
     suggestedMark: clampedMark,
     questionBreakdown: normalizedBreakdown.length > 0 ? normalizedBreakdown : undefined,
     feedback:
-      normalizeTeacherFeedback(asText(raw.feedback)).slice(0, 1500) ||
-      "WWW: AI could not identify a reliable strength from the supplied evidence.\nEBI: Please review the paper manually.",
+      (normalizedBreakdown.length > 0 ? generatedDeductionsFeedback : normalizeDeductionsFeedback(asText(raw.feedback))).slice(0, 1500) ||
+      "No deductions list was produced. Please review the per-question deductions below.",
     rationale:
       asText(raw.rationale).slice(0, 1500) ||
       "Fair judgment could not be confirmed from the returned model response.",
@@ -1254,7 +1249,7 @@ ISLAMIC STUDIES AUTHORITATIVE ANSWERS (use these when subject is Islamic/Quranic
     "\nACCURACY RULE: suggestedMark MUST equal the exact integer SUM of all marksAwarded in questionBreakdown. Never output a mark that is lower because you failed to map an answer; first try to match answers by page/y-position and wording.\n" +
     "IDENTITY FIELDS RULE: Completely ignore student name, ID, class, date, school name — these are never part of the answer.\n" +
     ISLAMIC_STUDIES_KNOWLEDGE +
-    "\nFor WWW: name the specific question and what was correct. For EBI: name the question number, what the student wrote that was wrong or missing, and what a better answer should include.";
+    "\nFEEDBACK FORMAT: Do NOT write WWW or EBI. Feedback must show ONLY wrong or partially wrong answers as deductions. For each mistake include: question number, student's wrong answer, correct/missing answer, and marks deducted. If there are no mistakes, write 'No deductions found.'";
 
   try {
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -1632,7 +1627,7 @@ export async function POST(request: Request) {
   if (!studentText && !paperContext && pageImages.length === 0) {
     return jsonResponse({
       suggestedMark: null,
-      feedback: "WWW: The paper was received by the system.\nEBI: No readable student answer was found, so please mark manually or add clearer writing.",
+      feedback: "No deductions list was produced because no readable student answer was found. Please mark manually or add clearer writing.",
       rationale: "The request contained no usable answer text for assessment.",
       confidence: "low",
       sourcePolicy,
@@ -1671,7 +1666,7 @@ export async function POST(request: Request) {
     return jsonResponse({
       suggestedMark: null,
       feedback:
-        "WWW: The exam paper and answered-page image were received.\nEBI: AI could not read the student's handwriting safely on this server; mark manually or add a Groq/OpenRouter vision key for accurate handwriting marking.",
+        "No deductions list was produced because AI could not read the student's handwriting safely on this server. Mark manually or add a Groq/OpenRouter vision key for accurate handwriting marking.",
       rationale:
         "No reliable text could be extracted from the handwritten answer, so a fair mark would be a guess.",
       confidence: "low",
@@ -1766,7 +1761,7 @@ Return exactly (one entry per question — do NOT merge separate questions):
     }
   ],
   "suggestedMark": integer = exact sum of marksAwarded; null if the paper/answers are too incomplete to account for most allocated marks,
-  "feedback": "WWW: [specific correct point with question ref]\nEBI: [question number, what was wrong, correct answer]",
+  "feedback": "Deductions only: list only wrong or partially wrong questions with the student's wrong answer, correct/missing answer, and marks deducted. Do not write WWW or EBI. If nothing is wrong, write 'No deductions found.'",
   "rationale": "brief reason under 30 words",
   "confidence": "low" | "medium" | "high",
   "warnings": []
@@ -1788,12 +1783,9 @@ ${summarizeLongText(readableAnswerText || "No readable student answer.", shouldP
 
 MARKING RULES:
 1. suggestedMark = integer from 0 to ${maxMarks ?? "max"}. NEVER null or a string.
-2. WWW = a POSITIVE statement identifying one thing the student did correctly or showed understanding of.
-   - Must NOT say the answer is wrong, unclear, or incomplete.
-   - Example good WWW: "The student correctly identified the key vocabulary in the question."
-   - Example bad WWW (FORBIDDEN): "The answer is not clear." or "The answer is incorrect."
-3. EBI = one specific improvement needed, referencing the exam question/wording.
-   - Must be specific, NOT generic like "improve your answer".
+2. feedback must show deductions only. Do NOT write WWW or EBI.
+3. List only wrong or partially wrong questions. Include the student's wrong answer, the correct/missing answer, and marks deducted.
+  - If nothing is wrong, write "No deductions found."
 4. confidence = low, medium, or high.
 5. warnings = []`;
 
@@ -1950,7 +1942,7 @@ MARKING RULES:
               normalizeDraft(
                 {
                   suggestedMark: null,
-                  feedback: "WWW: The paper loaded for review.\nEBI: AI Draft Mark could not finish quickly enough, so please try again after the paper loads or mark manually.",
+                  feedback: "No deductions list was produced because AI Draft Mark could not finish quickly enough. Please try again after the paper loads or mark manually.",
                   rationale: "The local model reached the time limit before returning a safe draft.",
                   confidence: "low",
                   warnings: [...modelWarnings, "Local AI timed out before completing the draft."],
@@ -2010,7 +2002,7 @@ MARKING RULES:
         normalizeDraft(
           {
             suggestedMark: null,
-            feedback: "WWW: The paper loaded for review.\nEBI: AI Draft Mark could not produce a reliable structured draft from this answer, so please review it manually.",
+            feedback: "No deductions list was produced because AI Draft Mark could not produce a reliable structured draft from this answer. Please review it manually.",
             rationale: "The available model responses were incomplete or unreadable.",
             confidence: "low",
             warnings: [...modelWarnings, shouldAttemptReasoner ? "Fast and reasoner models could not return a reliable draft." : "Local model response was not reliable enough to use."],

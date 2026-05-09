@@ -274,6 +274,28 @@ const isFailedAiDraft = (draft: AiDraftMarkResponse | null) => {
   return isAiDraftFailureText(text);
 };
 
+const getAiDeductionRows = (draft: AiDraftMarkResponse | null) => {
+  const rows = draft?.questionBreakdown || [];
+  return rows.filter((entry) => {
+    const maxForQuestion = Number(entry.maxMarksForQuestion ?? 0);
+    if (Number.isFinite(maxForQuestion) && maxForQuestion > 0) {
+      return Number(entry.marksAwarded ?? 0) < maxForQuestion;
+    }
+    return /(wrong|incorrect|missing|not provided|blank|unreadable|incomplete|deduct|lost|0 marks?)/i.test(
+      `${entry.studentAnswer || ""} ${entry.reason || ""}`
+    );
+  });
+};
+
+const getAiMarksLost = (entry: QuestionMarkEntry) => {
+  const maxForQuestion = Number(entry.maxMarksForQuestion ?? 0);
+  const marksAwarded = Number(entry.marksAwarded ?? 0);
+  if (!Number.isFinite(maxForQuestion) || maxForQuestion <= 0) return null;
+  return Math.max(0, maxForQuestion - (Number.isFinite(marksAwarded) ? marksAwarded : 0));
+};
+
+const formatAiMarkValue = (value: number) => Number.isInteger(value) ? String(value) : value.toFixed(1);
+
 const getPointerPoint = (
   event: React.PointerEvent<HTMLDivElement>,
   target: HTMLDivElement,
@@ -2408,6 +2430,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     );
   }
 
+  const aiDeductionRows = getAiDeductionRows(aiDraftPreview);
+  const aiDeductionTotal = aiDeductionRows.reduce((sum, entry) => sum + (getAiMarksLost(entry) ?? 0), 0);
+  const aiFinalMarkFromDeductions = maxMarks ? Math.max(0, maxMarks - aiDeductionTotal) : aiDraftPreview?.suggestedMark ?? null;
+
   return (
     <div ref={examContainerRef} className="min-h-screen bg-slate-100">
       {contextHolder}
@@ -2633,7 +2659,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
             message="AI Draft Mark is available on this marking screen"
             description={
               hasReadableStudentAnswer
-                ? "Use it to draft a suggested mark plus WWW and EBI feedback from the exam paper, the student's typed text, and the student's writing on the page. It only prepares the draft; it does not save the markbook mark."
+                ? "Use it to draft a suggested mark and deductions-only feedback from the exam paper, the student's typed text, and the student's writing on the page. It only prepares the draft; it does not save the markbook mark."
                 : "AI Draft Mark needs student writing or typed answers on the paper before it can create a draft."
             }
             action={
@@ -2671,62 +2697,70 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                     AI rationale for teacher review: {aiDraftPreview.rationale}
                   </p>
                 ) : null}
-                {/* Per-question breakdown — core of the accuracy fix */}
+                {/* Wrong answers / deductions only — teacher-facing view */}
                 {aiDraftPreview.questionBreakdown && aiDraftPreview.questionBreakdown.length > 0 ? (
                   <div className="mt-2">
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
-                      Per-question mark breakdown
+                      Wrong answers / deductions
                     </p>
-                    <div className="overflow-x-auto rounded border border-green-200">
-                      <table className="w-full text-xs">
-                        <thead>
-                          <tr className="bg-green-50 text-green-800 text-left">
-                            <th className="px-2 py-1 font-medium">Question</th>
-                            <th className="px-2 py-1 font-medium">Type</th>
-                            <th className="px-2 py-1 font-medium">Student answer</th>
-                            <th className="px-2 py-1 font-medium">Marks</th>
-                            <th className="px-2 py-1 font-medium">Reason</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {aiDraftPreview.questionBreakdown.map((q, qi) => (
-                            <tr key={qi} className={qi % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                              <td className="px-2 py-1 align-top text-gray-800 font-medium">{q.question}</td>
-                              <td className="px-2 py-1 align-top">
-                                {q.questionType ? (
-                                  <span
-                                    className={`inline-block rounded px-1 text-[10px] font-semibold whitespace-nowrap ${
-                                      q.questionType === "MCQ" || q.questionType === "TrueFalse"
-                                        ? "bg-blue-100 text-blue-700"
-                                        : q.questionType === "Essay"
-                                        ? "bg-purple-100 text-purple-700"
-                                        : "bg-gray-100 text-gray-600"
-                                    }`}
-                                  >
-                                    {q.questionType}
-                                  </span>
-                                ) : null}
-                              </td>
-                              <td className="px-2 py-1 align-top text-gray-600 italic">{q.studentAnswer}</td>
-                              <td className="px-2 py-1 align-top text-center font-semibold whitespace-nowrap">
-                                {q.marksAwarded}{q.maxMarksForQuestion != null ? `/${q.maxMarksForQuestion}` : ""}
-                              </td>
-                              <td className="px-2 py-1 align-top text-gray-600">{q.reason}</td>
+                    {aiDeductionRows.length > 0 ? (
+                      <div className="overflow-x-auto rounded border border-amber-200">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="bg-amber-50 text-amber-800 text-left">
+                              <th className="px-2 py-1 font-medium">Question</th>
+                              <th className="px-2 py-1 font-medium">Type</th>
+                              <th className="px-2 py-1 font-medium">Wrong answer</th>
+                              <th className="px-2 py-1 font-medium">Marks lost</th>
+                              <th className="px-2 py-1 font-medium">Reason / correction</th>
                             </tr>
-                          ))}
-                          <tr className="bg-green-100 font-semibold">
-                            <td className="px-2 py-1" colSpan={2}>Total</td>
-                            <td className="px-2 py-1 text-center">
-                              {aiDraftPreview.questionBreakdown.reduce((s, q) => s + q.marksAwarded, 0)}
-                              {maxMarks ? `/${maxMarks}` : ""}
-                            </td>
-                            <td className="px-2 py-1 text-gray-500 text-xs font-normal">Sum of per-question marks</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
+                          </thead>
+                          <tbody>
+                            {aiDeductionRows.map((q, qi) => {
+                              const marksLost = getAiMarksLost(q);
+                              return (
+                                <tr key={qi} className={qi % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                                  <td className="px-2 py-1 align-top text-gray-800 font-medium">{q.question}</td>
+                                  <td className="px-2 py-1 align-top">
+                                    {q.questionType ? (
+                                      <span
+                                        className={`inline-block rounded px-1 text-[10px] font-semibold whitespace-nowrap ${
+                                          q.questionType === "MCQ" || q.questionType === "TrueFalse"
+                                            ? "bg-blue-100 text-blue-700"
+                                            : q.questionType === "Essay"
+                                            ? "bg-purple-100 text-purple-700"
+                                            : "bg-gray-100 text-gray-600"
+                                        }`}
+                                      >
+                                        {q.questionType}
+                                      </span>
+                                    ) : null}
+                                  </td>
+                                  <td className="px-2 py-1 align-top text-gray-600 italic">{q.studentAnswer || "Blank / not readable"}</td>
+                                  <td className="px-2 py-1 align-top text-center font-semibold text-red-700 whitespace-nowrap">
+                                    {marksLost != null ? `-${formatAiMarkValue(marksLost)}` : "Deduct"}
+                                  </td>
+                                  <td className="px-2 py-1 align-top text-gray-600">{q.reason}</td>
+                                </tr>
+                              );
+                            })}
+                            <tr className="bg-amber-100 font-semibold">
+                              <td className="px-2 py-1" colSpan={3}>Total deductions</td>
+                              <td className="px-2 py-1 text-center text-red-700">-{formatAiMarkValue(aiDeductionTotal)}</td>
+                              <td className="px-2 py-1 text-gray-600 text-xs font-normal">
+                                Final mark: {aiFinalMarkFromDeductions != null ? formatAiMarkValue(aiFinalMarkFromDeductions) : aiDraftPreview.suggestedMark}{maxMarks ? `/${maxMarks}` : ""}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <div className="rounded border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-700">
+                        No wrong answers detected — no deductions.
+                      </div>
+                    )}
                     <p className="text-xs text-gray-400 mt-1">
-                      ℹ️ AI mark is calculated as the sum of per-question marks above. Please verify each line before saving.
+                      ℹ️ AI draft mark is shown as total marks minus deductions. Please verify each deduction before saving.
                     </p>
                   </div>
                 ) : null}
