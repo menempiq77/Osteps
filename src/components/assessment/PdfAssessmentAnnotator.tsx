@@ -576,6 +576,79 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const hasReadableStudentAnswer =
     hasReadableStudentAnnotation ||
     (role === "teacher" && documentLoaded && pages.length > 0 && (studentLocked || state?.status === "submitted" || state?.status === "marked"));
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleCollectAiContext = (event: Event) => {
+      const detail = (event as CustomEvent<{ contexts?: Array<Record<string, unknown>> }>).detail;
+      if (!detail?.contexts) return;
+
+      const typedAnswers = studentAnnotations
+        .filter((annotation) => annotation.type === "text")
+        .map((annotation) => {
+          const text = String((annotation as { text?: unknown }).text ?? "").trim();
+          if (!text) return "";
+          return `[Page ${annotation.page}, y=${Math.round(Number((annotation as { y?: unknown }).y || 0))}] ${text}`;
+        })
+        .filter(Boolean)
+        .join("\n")
+        .slice(0, 8000);
+
+      const answerPages = Array.from(
+        new Set(
+          studentAnnotations
+            .map((annotation) => Number(annotation.page || 0))
+            .filter((pageNumber) => Number.isFinite(pageNumber) && pageNumber > 0)
+        )
+      ).sort((left, right) => left - right);
+
+      const penCount = studentAnnotations.filter(
+        (annotation) => annotation.type === "pen" && getSafePenPoints(annotation).length > 0
+      ).length;
+
+      detail.contexts.push({
+        page: "assessment document / online PDF marking workspace",
+        title,
+        subject: subjectName ?? undefined,
+        maxMarks: maxMarks ?? undefined,
+        suggestedMark: aiDraftPreview?.suggestedMark ?? undefined,
+        feedback: aiDraftPreview?.feedback,
+        rationale: aiDraftPreview?.rationale,
+        studentAnswer: typedAnswers,
+        questionBreakdown: aiDraftPreview?.questionBreakdown
+          ? JSON.stringify(aiDraftPreview.questionBreakdown).slice(0, 8000)
+          : undefined,
+        assessmentContext: [
+          `Role: ${role}`,
+          `Document status: ${state?.status || "unknown"}`,
+          `PDF pages rendered: ${pages.length}`,
+          `Student answer pages: ${answerPages.join(", ") || "none detected"}`,
+          `Typed answer boxes: ${studentAnnotations.filter((annotation) => annotation.type === "text").length}`,
+          `Pen/handwriting marks: ${penCount}`,
+          `Current teacher mark field: ${teacherMarks || "blank"}`,
+          `Current teacher feedback field: ${teacherFeedback || "blank"}`,
+          canDownloadSubmittedPaper ? "Submitted/locked paper can be downloaded." : "Submitted paper download may not be available yet.",
+        ].join("\n"),
+      });
+    };
+
+    window.addEventListener("osteps:collect-ai-context", handleCollectAiContext);
+    return () => window.removeEventListener("osteps:collect-ai-context", handleCollectAiContext);
+  }, [
+    aiDraftPreview,
+    canDownloadSubmittedPaper,
+    maxMarks,
+    pages.length,
+    role,
+    state?.status,
+    studentAnnotations,
+    subjectName,
+    teacherFeedback,
+    teacherMarks,
+    title,
+  ]);
+
   const autosaveStatusLabel = saving
     ? "Saving"
     : autosaveQueued

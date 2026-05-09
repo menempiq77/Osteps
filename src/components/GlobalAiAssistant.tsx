@@ -6,6 +6,10 @@ type ChatMsg = { role: "user" | "assistant"; content: string };
 
 type AiContext = {
   page?: string;
+  pageUrl?: string;
+  pageTitle?: string;
+  selectedText?: string;
+  visibleText?: string;
   subject?: string;
   title?: string;
   maxMarks?: number | null;
@@ -14,6 +18,9 @@ type AiContext = {
   rationale?: string;
   studentAnswer?: string;
   paperContext?: string;
+  assessmentContext?: string;
+  questionBreakdown?: string;
+  extraContext?: string;
 };
 
 type OpenAiAssistantEvent = CustomEvent<{
@@ -22,11 +29,40 @@ type OpenAiAssistantEvent = CustomEvent<{
 }>;
 
 const STARTERS = [
+  "Read this page and tell me what I should do next",
+  "Mark this exam/worksheet fairly like a teacher",
   "Explain the marking for this assessment",
   "Create 5 MCQ questions for this topic",
   "Write feedback comments I can give students",
   "What common mistakes should I look for?",
 ];
+
+type ContextCollectEvent = CustomEvent<{ contexts: AiContext[] }>;
+
+const compactText = (value: string, maxLength: number) => {
+  const cleaned = value.replace(/\s+/g, " ").trim();
+  if (cleaned.length <= maxLength) return cleaned;
+  const head = Math.floor(maxLength * 0.7);
+  const tail = maxLength - head - 32;
+  return `${cleaned.slice(0, head)} ... ${cleaned.slice(-tail)}`;
+};
+
+const mergeContexts = (...contexts: Array<AiContext | undefined>): AiContext | undefined => {
+  const merged: AiContext = {};
+  for (const ctx of contexts) {
+    if (!ctx) continue;
+    for (const [key, value] of Object.entries(ctx) as Array<[keyof AiContext, unknown]>) {
+      if (value == null || value === "") continue;
+      if (typeof value === "string" && typeof merged[key] === "string" && merged[key]) {
+        const combined = `${merged[key] as string}\n\n${value}`;
+        (merged as Record<string, unknown>)[key] = compactText(combined, key === "visibleText" ? 6000 : 5000);
+      } else {
+        (merged as Record<string, unknown>)[key] = value;
+      }
+    }
+  }
+  return Object.keys(merged).length > 0 ? merged : undefined;
+};
 
 export function GlobalAiAssistant() {
   const [isOpen, setIsOpen] = useState(false);
@@ -37,12 +73,40 @@ export function GlobalAiAssistant() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  const collectCurrentPageContext = useCallback((base?: AiContext): AiContext | undefined => {
+    if (typeof window === "undefined") return base;
+
+    const componentContexts: AiContext[] = [];
+    window.dispatchEvent(
+      new CustomEvent("osteps:collect-ai-context", {
+        detail: { contexts: componentContexts },
+      })
+    );
+
+    const selectedText = compactText(String(window.getSelection?.() || ""), 2000);
+    const mainText = compactText(
+      String(document.querySelector("main")?.textContent || document.body?.innerText || ""),
+      6000
+    );
+
+    const automaticContext: AiContext = {
+      page: "current OSTEPS page",
+      pageUrl: window.location.href,
+      pageTitle: document.title,
+      selectedText: selectedText || undefined,
+      visibleText: mainText || undefined,
+    };
+
+    return mergeContexts(automaticContext, ...componentContexts, base);
+  }, []);
+
   const scrollToBottom = useCallback(() => {
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
   }, []);
 
   const sendMessage = useCallback(
     async (text: string, history: ChatMsg[], ctx?: AiContext) => {
+      const enrichedContext = collectCurrentPageContext(ctx);
       const userMsg: ChatMsg = { role: "user", content: text };
       const newHistory: ChatMsg[] = [...history, userMsg];
       setMessages([...newHistory, { role: "assistant", content: "" }]);
@@ -55,7 +119,7 @@ export function GlobalAiAssistant() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             messages: newHistory,
-            context: ctx,
+            context: enrichedContext,
           }),
         });
 
@@ -101,7 +165,7 @@ export function GlobalAiAssistant() {
         scrollToBottom();
       }
     },
-    [scrollToBottom]
+    [collectCurrentPageContext, scrollToBottom]
   );
 
   const handleSend = useCallback(() => {
@@ -116,14 +180,17 @@ export function GlobalAiAssistant() {
     const handler = (e: Event) => {
       const ev = e as OpenAiAssistantEvent;
       setIsOpen(true);
+      const nextContext = collectCurrentPageContext(ev.detail?.context);
       if (ev.detail?.context) {
-        setContext(ev.detail.context);
+        setContext(nextContext);
+      } else {
+        setContext(nextContext);
       }
       if (ev.detail?.initialMessage) {
         const initial = ev.detail.initialMessage;
         setMessages([]);
         setTimeout(() => {
-          void sendMessage(initial, [], ev.detail?.context);
+          void sendMessage(initial, [], nextContext);
         }, 100);
       }
       setTimeout(() => inputRef.current?.focus(), 300);
@@ -131,7 +198,7 @@ export function GlobalAiAssistant() {
 
     window.addEventListener("osteps:open-ai-assistant", handler);
     return () => window.removeEventListener("osteps:open-ai-assistant", handler);
-  }, [sendMessage]);
+  }, [collectCurrentPageContext, sendMessage]);
 
   // Focus input when sidebar opens
   useEffect(() => {
@@ -305,7 +372,11 @@ export function GlobalAiAssistant() {
 
       {/* Floating trigger button */}
       <button
-        onClick={() => setIsOpen((o) => !o)}
+        onClick={() => {
+          const nextOpen = !isOpen;
+          if (nextOpen) setContext((prev) => collectCurrentPageContext(prev));
+          setIsOpen(nextOpen);
+        }}
         className={`fixed bottom-6 right-6 z-[9999] w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-white text-2xl transition-all duration-300 hover:scale-110 active:scale-95 ${
           isOpen ? "opacity-0 pointer-events-none scale-75" : "opacity-100 scale-100"
         }`}

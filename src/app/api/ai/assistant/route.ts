@@ -15,6 +15,10 @@ type AssistantRequestBody = {
   messages: ChatMessage[];
   context?: {
     page?: string;           // e.g. "marking", "quiz", "assessment", "worksheet"
+    pageUrl?: string;
+    pageTitle?: string;
+    selectedText?: string;
+    visibleText?: string;
     subject?: string;
     title?: string;
     maxMarks?: number | null;
@@ -23,13 +27,17 @@ type AssistantRequestBody = {
     rationale?: string;
     studentAnswer?: string;
     paperContext?: string;
+    assessmentContext?: string;
+    questionBreakdown?: string;
+    extraContext?: string;
   };
 };
 
 const SYSTEM_PROMPT = `You are OSTEPS AI Assistant — a helpful, knowledgeable school assistant for teachers and educators.
 
 You can help with:
-- **Marking & feedback**: Review student answers, explain why marks were given or deducted, suggest improvements, analyse handwriting or typed answers against exam questions.
+- **Current page reading**: Use the provided current page text, selected text, URL, and component context to understand what the teacher is looking at.
+- **Marking & feedback**: Review student answers, explain why marks were given or deducted, suggest improvements, analyse typed answers and provided handwriting/OCR summaries against exam questions.
 - **Creating assessments**: Draft quiz questions, exam papers, worksheets, true/false questions, MCQs, fill-in-the-blanks, short-answer and essay prompts for any subject and grade.
 - **Lesson planning**: Suggest activities, learning objectives, differentiated tasks.
 - **Subject knowledge**: Answer subject-specific questions across Islamic Studies, Arabic, Maths, Science, English, and more.
@@ -38,6 +46,8 @@ You can help with:
 Rules:
 - Be concise and practical. Teachers are busy.
 - When helping with marking, always reference the specific question and the student's actual answer.
+- If the teacher asks you to mark an exam/worksheet, use the available context and produce a teacher-style breakdown. If the actual PDF image/handwriting is not included in context, say exactly what evidence is missing and ask the teacher to run AI Draft Mark or provide the missing page/answer.
+- If questionBreakdown or AI Draft Mark context is provided, you may explain, audit, improve, or challenge it. Do not pretend you can see unseen PDF pixels unless the context includes extracted text/OCR/answers.
 - When creating content, match the requested format exactly and make it ready to use.
 - Respond in the same language the teacher uses (Arabic or English).
 - Never invent exam content outside what is provided — always say if you're missing context.`;
@@ -67,14 +77,21 @@ export async function POST(req: NextRequest) {
   // Build context block so the AI knows what the teacher is currently working on
   const contextLines: string[] = [];
   if (ctx.page) contextLines.push(`Current page/task: ${ctx.page}`);
+  if (ctx.pageUrl) contextLines.push(`Current URL: ${ctx.pageUrl}`);
+  if (ctx.pageTitle) contextLines.push(`Browser page title: ${ctx.pageTitle}`);
   if (ctx.title) contextLines.push(`Assessment title: ${ctx.title}`);
   if (ctx.subject) contextLines.push(`Subject: ${ctx.subject}`);
   if (ctx.maxMarks != null) contextLines.push(`Total marks: ${ctx.maxMarks}`);
   if (ctx.suggestedMark != null) contextLines.push(`AI suggested mark: ${ctx.suggestedMark}`);
+  if (ctx.assessmentContext) contextLines.push(`Assessment workspace context:\n${ctx.assessmentContext.slice(0, 4000)}`);
+  if (ctx.selectedText) contextLines.push(`Teacher selected text:\n${ctx.selectedText.slice(0, 2500)}`);
+  if (ctx.visibleText) contextLines.push(`Visible page text:\n${ctx.visibleText.slice(0, 5000)}`);
   if (ctx.feedback) contextLines.push(`AI feedback given:\n${ctx.feedback}`);
   if (ctx.rationale) contextLines.push(`Marking rationale: ${ctx.rationale}`);
-  if (ctx.paperContext) contextLines.push(`Exam paper / questions:\n${ctx.paperContext.slice(0, 2000)}`);
-  if (ctx.studentAnswer) contextLines.push(`Student's answer:\n${ctx.studentAnswer.slice(0, 2000)}`);
+  if (ctx.questionBreakdown) contextLines.push(`Per-question mark breakdown JSON:\n${ctx.questionBreakdown.slice(0, 8000)}`);
+  if (ctx.paperContext) contextLines.push(`Exam paper / questions:\n${ctx.paperContext.slice(0, 6000)}`);
+  if (ctx.studentAnswer) contextLines.push(`Student's typed / extracted answer evidence:\n${ctx.studentAnswer.slice(0, 8000)}`);
+  if (ctx.extraContext) contextLines.push(`Extra context:\n${ctx.extraContext.slice(0, 4000)}`);
 
   const systemContent = contextLines.length > 0
     ? `${SYSTEM_PROMPT}\n\n---\nCURRENT CONTEXT:\n${contextLines.join("\n\n")}`
@@ -95,7 +112,7 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify({
           model: GROQ_TEXT_MODEL,
           temperature: 0.5,
-          max_tokens: 1000,
+          max_tokens: 1600,
           stream: true,
           messages: [
             { role: "system", content: systemContent },
