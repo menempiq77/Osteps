@@ -52,6 +52,7 @@ type VisualAnswerContext = {
 const OLLAMA_BASE_URL = (process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434").replace(/\/+$/, "");
 const OLLAMA_MODEL = process.env.OSTEPS_AI_MARKING_MODEL || process.env.OLLAMA_MODEL || "deepseek-r1:1.5b";
 const OLLAMA_FAST_FALLBACK_MODEL = process.env.OSTEPS_AI_MARKING_FAST_MODEL || "qwen2.5:1.5b";
+const OLLAMA_TINY_FALLBACK_MODEL = process.env.OSTEPS_AI_MARKING_TINY_MODEL || "qwen2.5:0.5b";
 const OLLAMA_VISION_MODEL = process.env.OSTEPS_AI_MARKING_VISION_MODEL || "granite3.2-vision:2b";
 const OLLAMA_KEEP_ALIVE = process.env.OSTEPS_AI_MARKING_KEEP_ALIVE || "5m";
 const OLLAMA_ENABLE_REASONER = process.env.OSTEPS_AI_MARKING_USE_REASONER === "1";
@@ -1789,6 +1790,14 @@ MARKING RULES:
 4. confidence = low, medium, or high.
 5. warnings = []`;
 
+  const tinyOllamaPrompt = `Return ONLY valid JSON. You are an exam marker. Give a teacher-review draft mark.
+Max marks: ${maxMarks ?? "unknown"}
+Subject: ${subjectName}
+Paper excerpt: ${summarizeLongText(promptPaperContext || paperContext || "No paper text.", 520)}
+Student answer excerpt: ${summarizeLongText(readableAnswerText || visualContext?.studentAnswerSummary || studentText || "No readable answer.", 620)}
+Rules: suggestedMark must be a number from 0 to ${maxMarks ?? "max"}. feedback must be deductions only. Do not write WWW or EBI. Do not list correct answers.
+JSON schema: {"suggestedMark":number,"feedback":"Deductions only: ...","rationale":"brief","confidence":"low|medium|high","warnings":[]}`;
+
   try {
     const modelWarnings: string[] = [];
     if (visualWarning) modelWarnings.push(visualWarning);
@@ -1796,6 +1805,27 @@ MARKING RULES:
       modelWarnings.push("Exam paper is a scanned image \u2014 questions were read visually. Verify question text matches the original paper before relying on this draft mark.");
     }
     let rawJson: string | null = null;
+    const tryTinyLocalDraft = async (reason: string) => {
+      try {
+        const tinyPayload = await requestOllamaDraft({
+          model: OLLAMA_TINY_FALLBACK_MODEL,
+          prompt: tinyOllamaPrompt,
+          options: {
+            num_predict: 120,
+            num_ctx: 768,
+          },
+          timeoutMs: 25000,
+        });
+        const tinyJson = extractFirstJsonObject(String(tinyPayload.response || ""));
+        if (tinyJson) {
+          modelWarnings.push(`Used emergency fast local AI fallback because ${reason}. Verify the draft carefully.`);
+        }
+        return tinyJson;
+      } catch (error) {
+        console.error("Emergency tiny local marker failed:", error);
+        return null;
+      }
+    };
 
     // 1. If the student has substantial typed answers, use the reliable text pipeline first.
     // This avoids Groq Vision TPM rate-limit failures and still marks against the full PDF.
@@ -1918,6 +1948,9 @@ MARKING RULES:
           }).catch(() => undefined);
         }, 100);
         if (!rawJson) {
+          rawJson = await tryTinyLocalDraft("the normal local model did not return valid JSON");
+        }
+        if (!rawJson) {
           if (!shouldAttemptReasoner) {
             return jsonResponse(
               normalizeDraft(
@@ -1937,6 +1970,9 @@ MARKING RULES:
       } catch (error) {
         const aborted = error instanceof Error && error.name === "AbortError";
         if (aborted) {
+          rawJson = await tryTinyLocalDraft("the normal local model timed out");
+        }
+        if (!rawJson && aborted) {
           if (!shouldAttemptReasoner) {
             return jsonResponse(
               normalizeDraft(
@@ -1952,7 +1988,7 @@ MARKING RULES:
               )
             );
           }
-        } else if (!shouldAttemptReasoner) {
+        } else if (!rawJson && !shouldAttemptReasoner) {
           return jsonResponse(
             { message: error instanceof Error ? error.message : "Local Ollama AI marker is unavailable. Start Ollama on this server and pull the configured model." },
             503
