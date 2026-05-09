@@ -1637,10 +1637,11 @@ export async function POST(request: Request) {
   }
 
   const hasSubstantialTypedAnswers = studentText.length >= 350;
+  const shouldReadAnsweredPageImages = pageImages.length > 0 && (!hasSubstantialTypedAnswers || hasPenStrokes);
   let visualContext: VisualAnswerContext | null = null;
   let visualWarning = "";
 
-  if (pageImages.length > 0 && !hasSubstantialTypedAnswers) {
+  if (shouldReadAnsweredPageImages) {
     try {
       visualContext = await extractVisualAnswerContext({
         title,
@@ -1936,7 +1937,7 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions only: ...","rational
             num_predict: 160,
             num_ctx: 512,
           },
-          timeoutMs: 15000,
+          timeoutMs: 40000,
         });
         rawJson = extractFirstJsonObject(String(fallbackPayload.response || ""));
         // Schedule a background keep-alive so the model stays warm for the next teacher
@@ -1948,7 +1949,7 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions only: ...","rational
           }).catch(() => undefined);
         }, 100);
         if (!rawJson) {
-          rawJson = await tryTinyLocalDraft("the normal local model returned unusable output");
+          rawJson = await tryTinyLocalDraft("the normal local model did not return valid JSON");
         }
         if (!rawJson) {
           if (!shouldAttemptReasoner) {
@@ -1970,7 +1971,7 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions only: ...","rational
       } catch (error) {
         const aborted = error instanceof Error && error.name === "AbortError";
         if (aborted) {
-          rawJson = await tryTinyLocalDraft("the normal local model was too slow");
+          rawJson = await tryTinyLocalDraft("the normal local model timed out");
         }
         if (!rawJson && aborted) {
           if (!shouldAttemptReasoner) {
