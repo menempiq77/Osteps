@@ -498,6 +498,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const approvedExamExitRef = useRef(false);
   const suppressExamExitPromptRef = useRef(false);
   const clientSaveIdRef = useRef(makeId());
+  const paperTextCacheRef = useRef<string | null>(null);
   const clientSaveSeqRef = useRef(0);
 
   const localDraftKey = useMemo(
@@ -2273,6 +2274,49 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     void applyAiDraftMark();
   };
 
+  const openAiMarkingAssistant = async () => {
+    const typedAnswers = studentAnnotations
+      .filter((a) => a.type === "text")
+      .map((a, i) => `Q${i + 1} [Page ${a.page}]: ${(a as { text?: string }).text ?? ""}`)
+      .filter((t) => t.trim())
+      .join("\n")
+      .slice(0, 6000);
+
+    // Pre-fetch paper text once and cache it so follow-up messages don't re-extract
+    if (paperTextCacheRef.current === null && fileUrl) {
+      try {
+        const res = await fetch("/api/ai/extract-paper", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fileUrl }),
+        });
+        if (res.ok) {
+          const data = (await res.json()) as { text?: string };
+          paperTextCacheRef.current = data.text ?? "";
+        } else {
+          paperTextCacheRef.current = "";
+        }
+      } catch {
+        paperTextCacheRef.current = "";
+      }
+    }
+
+    window.dispatchEvent(new CustomEvent("osteps:open-ai-assistant", {
+      detail: {
+        context: {
+          page: "marking",
+          title,
+          subject: subjectName ?? undefined,
+          maxMarks: maxMarks ?? undefined,
+          fileUrl,
+          paperContext: paperTextCacheRef.current || undefined,
+          studentAnswer: typedAnswers || undefined,
+        },
+        initialMessage: `Please mark this student's exam paper. Use the exam paper text and the student's answers below.\n\nFor each question:\n1. State the question number and the question text\n2. State the student's answer exactly as written\n3. State whether the answer is CORRECT or WRONG\n4. If wrong, state the correct answer (use your own subject knowledge — do NOT say "not clear from the text")\n5. State how many marks to award\n\nFinish with a total suggested mark out of ${maxMarks ?? "the total"} and a brief overall comment.`,
+      },
+    }));
+  };
+
   const drawPageIntoCanvas = async (
     page: RenderedPage,
     outputCanvas: HTMLCanvasElement,
@@ -2616,29 +2660,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                   {studentLocked ? "Open for student edits" : "Lock student editing"}
                 </Button>
                 <Input className="w-24" placeholder="Marks" value={teacherMarks} onChange={(event) => setTeacherMarks(event.target.value)} />
-                <Button
-                  onClick={() => {
-                    const typedAnswers = studentAnnotations
-                      .filter((a) => a.type === "text")
-                      .map((a) => `[Page ${a.page}] ${(a as { text?: string }).text ?? ""}`)
-                      .filter((t) => t.trim())
-                      .join("\n")
-                      .slice(0, 5000);
-                    window.dispatchEvent(new CustomEvent("osteps:open-ai-assistant", {
-                      detail: {
-                        context: {
-                          page: "marking",
-                          title,
-                          subject: subjectName ?? undefined,
-                          maxMarks: maxMarks ?? undefined,
-                          fileUrl,
-                          studentAnswer: typedAnswers || undefined,
-                        },
-                        initialMessage: `Please read the exam paper and mark it. For each question tell me: the question number and text, the student's answer, whether it is correct or wrong, the correct answer if wrong, and how many marks to award. Then give a total suggested mark out of ${maxMarks ?? "the total"}.`,
-                      },
-                    }));
-                  }}
-                >
+                <Button onClick={() => void openAiMarkingAssistant()}>
                   💬 Ask AI to Mark
                 </Button>
                 <Button
@@ -2686,27 +2708,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
               <Button
                 size="small"
                 type="primary"
-                onClick={() => {
-                  const typedAnswers = studentAnnotations
-                    .filter((a) => a.type === "text")
-                    .map((a) => `[Page ${a.page}] ${(a as { text?: string }).text ?? ""}`)
-                    .filter((t) => t.trim())
-                    .join("\n")
-                    .slice(0, 5000);
-                  window.dispatchEvent(new CustomEvent("osteps:open-ai-assistant", {
-                    detail: {
-                      context: {
-                        page: "marking",
-                        title,
-                        subject: subjectName ?? undefined,
-                        maxMarks: maxMarks ?? undefined,
-                        fileUrl,
-                        studentAnswer: typedAnswers || undefined,
-                      },
-                      initialMessage: `Please read the exam paper and mark it. For each question tell me: the question number and text, the student's answer, whether it is correct or wrong, the correct answer if wrong, and how many marks to award. Then give a total suggested mark out of ${maxMarks ?? "the total"}.`,
-                    },
-                  }));
-                }}
+                onClick={() => void openAiMarkingAssistant()}
               >
                 Ask AI to Mark
               </Button>
