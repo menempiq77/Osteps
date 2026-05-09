@@ -260,7 +260,7 @@ const normalizeAiDraftPreview = (value: unknown): AiDraftMarkResponse | null => 
 };
 
 const isAiDraftFailureText = (value: string) =>
-  /(?:ai draft mark could not finish|local model reached the time limit|timed out|time limit|could not draft a safe mark|could not reliably read|cannot read|could not read|unreadable|mark manually|no reliable visual|not valid json)/i.test(
+  /(?:could not draft a safe mark|could not reliably read|cannot read|could not read|unreadable|mark manually|no reliable visual|no readable student answer)/i.test(
     value
   );
 
