@@ -69,6 +69,7 @@ const REQUEST_TIMEOUT_MS = Number(process.env.OSTEPS_AI_MARKING_TIMEOUT_MS || 50
 const LARAVEL_PUBLIC_DIR = process.env.OSTEPS_LARAVEL_PUBLIC_DIR || "/var/www/laravel/public";
 const PAPER_TEXT_CACHE_MS = 10 * 60 * 1000;
 const LOCAL_OCR_FOCUS = "Local OCR text from answered-page image";
+const VISUAL_CONTEXT_MAX_IMAGES = 4;
 
 // Strip DeepSeek-R1 <think>...</think> reasoning tags before JSON extraction
 const stripReasoningTags = (raw: string): string =>
@@ -886,7 +887,7 @@ const enhanceImageForOcr = async (inputPath: string): Promise<string> => {
 const extractLocalOcrAnswerContext = async (pageImages: string[], pageNumbers: number[] = []) => {
   const ocrPages: string[] = [];
 
-  for (const [index, image] of pageImages.slice(0, 12).entries()) {
+  for (const [index, image] of pageImages.slice(0, VISUAL_CONTEXT_MAX_IMAGES).entries()) {
     const tempPath = path.join(
       "/tmp",
       `osteps-ai-ocr-${process.pid}-${Date.now()}-${index}.png`
@@ -908,7 +909,7 @@ const extractLocalOcrAnswerContext = async (pageImages: string[], pageNumbers: n
               "--dpi", "150",
               "--psm", pageSegmentationMode,
             ],
-            { maxBuffer: 1024 * 1024, timeout: 10000 }
+            { maxBuffer: 1024 * 1024, timeout: 5000 }
           );
           ocrAttempts.push(normalizeWhitespace(String(stdout || "")));
         } catch (error) {
@@ -1646,8 +1647,8 @@ export async function POST(request: Request) {
       visualContext = await extractVisualAnswerContext({
         title,
         subjectName,
-        pageImages,
-        pageNumbers: pageImagePageNumbers,
+        pageImages: pageImages.slice(0, VISUAL_CONTEXT_MAX_IMAGES),
+        pageNumbers: pageImagePageNumbers.slice(0, VISUAL_CONTEXT_MAX_IMAGES),
       });
       if (!visualContext) {
         visualWarning = hasConfiguredVisionProvider()
