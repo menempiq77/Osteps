@@ -499,6 +499,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const suppressExamExitPromptRef = useRef(false);
   const clientSaveIdRef = useRef(makeId());
   const paperTextCacheRef = useRef<string | null>(null);
+  const visualAnswerCacheRef = useRef<string | null>(null);
   const clientSaveSeqRef = useRef(0);
 
   const localDraftKey = useMemo(
@@ -2282,6 +2283,13 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       .join("\n")
       .slice(0, 6000);
 
+    messageApi.open({
+      key: "ai-marking-assistant",
+      type: "loading",
+      content: "Reading PDF questions and student handwriting...",
+      duration: 0,
+    });
+
     // Pre-fetch paper text once and cache it so follow-up messages don't re-extract
     if (paperTextCacheRef.current === null && fileUrl) {
       try {
@@ -2301,6 +2309,42 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       }
     }
 
+    // Read visible student evidence once: handwriting, circles, ticks, crosses, pen marks, and text boxes.
+    if (visualAnswerCacheRef.current === null && pages.length > 0 && !rendering) {
+      try {
+        const { images, pageNumbers } = await buildAiPageSnapshots();
+        if (images.length > 0) {
+          const res = await fetch("/api/ai/read-student-paper", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title,
+              subject: subjectName ?? undefined,
+              pageImages: images,
+              pageImagePageNumbers: pageNumbers,
+            }),
+          });
+          if (res.ok) {
+            const data = (await res.json()) as { text?: string };
+            visualAnswerCacheRef.current = data.text ?? "";
+          } else {
+            visualAnswerCacheRef.current = "";
+          }
+        } else {
+          visualAnswerCacheRef.current = "";
+        }
+      } catch {
+        visualAnswerCacheRef.current = "";
+      }
+    }
+
+    const studentEvidence = [
+      typedAnswers ? `Typed answer boxes:\n${typedAnswers}` : "",
+      visualAnswerCacheRef.current ? `Visual/handwriting/circles/ticks evidence from the rendered student paper:\n${visualAnswerCacheRef.current}` : "",
+    ].filter(Boolean).join("\n\n").slice(0, 12000);
+
+    messageApi.destroy("ai-marking-assistant");
+
     window.dispatchEvent(new CustomEvent("osteps:open-ai-assistant", {
       detail: {
         context: {
@@ -2310,9 +2354,9 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
           maxMarks: maxMarks ?? undefined,
           fileUrl,
           paperContext: paperTextCacheRef.current || undefined,
-          studentAnswer: typedAnswers || undefined,
+          studentAnswer: studentEvidence || undefined,
         },
-        initialMessage: `Please mark this student's exam paper. Use the exam paper text and the student's answers below.\n\nFor each question:\n1. State the question number and the question text\n2. State the student's answer exactly as written\n3. State whether the answer is CORRECT or WRONG\n4. If wrong, state the correct answer (use your own subject knowledge — do NOT say "not clear from the text")\n5. State how many marks to award\n\nFinish with a total suggested mark out of ${maxMarks ?? "the total"} and a brief overall comment.`,
+        initialMessage: `Please mark this student's exam paper. Use ALL available evidence: extracted PDF questions, typed answer boxes, handwriting, circled options, ticks, crosses, and pen marks.\n\nFor each question:\n1. State the question number and the question text\n2. State the student's answer exactly as written/selected\n3. State whether the answer is CORRECT, PARTLY CORRECT, or WRONG\n4. If wrong or partly correct, state the correct answer using your own subject knowledge — do NOT say "not clear from the text"\n5. State how many marks to award\n\nFinish with a total suggested mark out of ${maxMarks ?? "the total"} and a brief overall comment.`,
       },
     }));
   };

@@ -124,7 +124,17 @@ export function GlobalAiAssistant() {
           }),
         });
 
-        if (!res.ok || !res.body) throw new Error("AI request failed");
+        if (!res.ok || !res.body) {
+          const errorText = await res.text().catch(() => "");
+          let message = "AI request failed";
+          try {
+            const parsed = JSON.parse(errorText) as { error?: string };
+            message = parsed.error || message;
+          } catch {
+            if (errorText.trim()) message = errorText.trim().slice(0, 220);
+          }
+          throw new Error(message);
+        }
 
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
@@ -153,12 +163,12 @@ export function GlobalAiAssistant() {
             }
           }
         }
-      } catch {
+      } catch (error) {
         setMessages((prev) => [
           ...prev.slice(0, -1),
           {
             role: "assistant",
-            content: "Sorry, I could not get a response. Please try again.",
+            content: `Sorry, I could not get a response. ${error instanceof Error ? error.message : "Please try again."}`,
           },
         ]);
       } finally {

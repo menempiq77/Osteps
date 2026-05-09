@@ -4,13 +4,14 @@ import path from "path";
 import { promisify } from "util";
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY ?? "";
-const GROQ_TEXT_MODEL = "llama-3.3-70b-versatile";
-const GROQ_FALLBACK_TEXT_MODEL = "llama-3.1-8b-instant";
+const GROQ_FAST_TEXT_MODEL = process.env.GROQ_ASSISTANT_FAST_MODEL || "llama-3.1-8b-instant";
+const GROQ_TEXT_MODEL = process.env.GROQ_ASSISTANT_TEXT_MODEL || GROQ_FAST_TEXT_MODEL;
+const GROQ_FALLBACK_TEXT_MODEL = process.env.GROQ_ASSISTANT_FALLBACK_MODEL || "llama-3.1-8b-instant";
 const LARAVEL_PUBLIC_DIR = process.env.OSTEPS_LARAVEL_PUBLIC_DIR || "/var/www/laravel/public";
 const execFileAsync = promisify(execFile);
 
 export const runtime = "nodejs";
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -157,7 +158,7 @@ export async function POST(req: NextRequest) {
   if (ctx.rationale) contextLines.push(`Marking rationale: ${ctx.rationale}`);
   if (ctx.questionBreakdown) contextLines.push(`Per-question mark breakdown JSON:\n${ctx.questionBreakdown.slice(0, 8000)}`);
   if (resolvedPaperContext) contextLines.push(`Exam paper / questions:\n${resolvedPaperContext.slice(0, 12000)}`);
-  if (ctx.studentAnswer) contextLines.push(`Student's typed / extracted answer evidence:\n${ctx.studentAnswer.slice(0, 8000)}`);
+  if (ctx.studentAnswer) contextLines.push(`Student's typed / handwriting / visual answer evidence:\n${ctx.studentAnswer.slice(0, 12000)}`);
   if (ctx.extraContext) contextLines.push(`Extra context:\n${ctx.extraContext.slice(0, 4000)}`);
 
   const systemContent = contextLines.length > 0
@@ -165,7 +166,7 @@ export async function POST(req: NextRequest) {
     : SYSTEM_PROMPT;
 
   const controller = new AbortController();
-  const timeoutHandle = setTimeout(() => controller.abort(), 25000);
+  const timeoutHandle = setTimeout(() => controller.abort(), 45000);
 
   try {
     const response = await fetch(
@@ -179,7 +180,7 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify({
           model: GROQ_TEXT_MODEL,
           temperature: 0.4,
-          max_tokens: 3000,
+          max_tokens: 2200,
           stream: true,
           messages: [
             { role: "system", content: systemContent },
@@ -196,7 +197,7 @@ export async function POST(req: NextRequest) {
       if (response.status === 429) {
         clearTimeout(timeoutHandle);
         const fallbackController = new AbortController();
-        const fallbackTimeout = setTimeout(() => fallbackController.abort(), 25000);
+        const fallbackTimeout = setTimeout(() => fallbackController.abort(), 45000);
         try {
           const fallbackResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
             method: "POST",
@@ -204,7 +205,7 @@ export async function POST(req: NextRequest) {
             body: JSON.stringify({
               model: GROQ_FALLBACK_TEXT_MODEL,
               temperature: 0.4,
-              max_tokens: 2500,
+              max_tokens: 2200,
               stream: true,
               messages: [{ role: "system", content: systemContent }, ...messages.slice(-18)],
             }),
