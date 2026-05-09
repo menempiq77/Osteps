@@ -634,6 +634,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         title,
         subject: subjectName ?? undefined,
         maxMarks: maxMarks ?? undefined,
+        fileUrl,
         suggestedMark: aiDraftPreview?.suggestedMark ?? undefined,
         feedback: aiDraftPreview?.feedback,
         rationale: aiDraftPreview?.rationale,
@@ -2439,8 +2440,6 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   }
 
   const aiDeductionRows = getAiDeductionRows(aiDraftPreview);
-  const aiDeductionTotal = aiDeductionRows.reduce((sum, entry) => sum + (getAiMarksLost(entry) ?? 0), 0);
-  const aiFinalMarkFromDeductions = maxMarks ? Math.max(0, maxMarks - aiDeductionTotal) : aiDraftPreview?.suggestedMark ?? null;
 
   return (
     <div ref={examContainerRef} className="min-h-screen bg-slate-100">
@@ -2618,12 +2617,29 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                 </Button>
                 <Input className="w-24" placeholder="Marks" value={teacherMarks} onChange={(event) => setTeacherMarks(event.target.value)} />
                 <Button
-                  onClick={requestAiDraftMark}
-                  loading={aiDrafting}
-                  disabled={!hasReadableStudentAnswer}
-                  title="Draft marks and feedback with the local Ollama AI marker. Teacher review is still required."
+                  onClick={() => {
+                    const typedAnswers = studentAnnotations
+                      .filter((a) => a.type === "text")
+                      .map((a) => `[Page ${a.page}] ${(a as { text?: string }).text ?? ""}`)
+                      .filter((t) => t.trim())
+                      .join("\n")
+                      .slice(0, 5000);
+                    window.dispatchEvent(new CustomEvent("osteps:open-ai-assistant", {
+                      detail: {
+                        context: {
+                          page: "marking",
+                          title,
+                          subject: subjectName ?? undefined,
+                          maxMarks: maxMarks ?? undefined,
+                          fileUrl,
+                          studentAnswer: typedAnswers || undefined,
+                        },
+                        initialMessage: `Please read the exam paper and mark it. For each question tell me: the question number and text, the student's answer, whether it is correct or wrong, the correct answer if wrong, and how many marks to award. Then give a total suggested mark out of ${maxMarks ?? "the total"}.`,
+                      },
+                    }));
+                  }}
                 >
-                  AI Draft Mark
+                  💬 Ask AI to Mark
                 </Button>
                 <Button
                   onClick={() => void downloadSubmittedPaper()}
@@ -2664,148 +2680,76 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
             className="mb-4"
             type="info"
             showIcon
-            message="AI Draft Mark is available on this marking screen"
-            description={
-              hasReadableStudentAnswer
-                ? "Use it to draft a suggested mark and deductions-only feedback from the exam paper, the student's typed text, and the student's writing on the page. It only prepares the draft; it does not save the markbook mark."
-                : "AI Draft Mark needs student writing or typed answers on the paper before it can create a draft."
-            }
+            message="Use the AI Assistant to help mark this paper"
+            description="Click ✨ (bottom-right) or 'Ask AI to Mark' to open the AI chat. Ask it to mark the paper, check answers, explain deductions, or suggest feedback."
             action={
               <Button
                 size="small"
                 type="primary"
-                onClick={requestAiDraftMark}
-                loading={aiDrafting}
-                disabled={!hasReadableStudentAnswer}
+                onClick={() => {
+                  const typedAnswers = studentAnnotations
+                    .filter((a) => a.type === "text")
+                    .map((a) => `[Page ${a.page}] ${(a as { text?: string }).text ?? ""}`)
+                    .filter((t) => t.trim())
+                    .join("\n")
+                    .slice(0, 5000);
+                  window.dispatchEvent(new CustomEvent("osteps:open-ai-assistant", {
+                    detail: {
+                      context: {
+                        page: "marking",
+                        title,
+                        subject: subjectName ?? undefined,
+                        maxMarks: maxMarks ?? undefined,
+                        fileUrl,
+                        studentAnswer: typedAnswers || undefined,
+                      },
+                      initialMessage: `Please read the exam paper and mark it. For each question tell me: the question number and text, the student's answer, whether it is correct or wrong, the correct answer if wrong, and how many marks to award. Then give a total suggested mark out of ${maxMarks ?? "the total"}.`,
+                    },
+                  }));
+                }}
               >
-                AI Draft Mark
+                Ask AI to Mark
               </Button>
             }
           />
         ) : null}
-        {role === "teacher" && aiDraftPreview ? (
+        {role === "teacher" && aiDraftPreview && !isFailedAiDraft(aiDraftPreview) ? (
           <Alert
             className="mb-4"
-            type={isFailedAiDraft(aiDraftPreview) ? "warning" : "success"}
+            type="success"
             showIcon
             closable
             onClose={() => setAiDraftPreview(null)}
-            message={
-              isFailedAiDraft(aiDraftPreview)
-                ? "AI could not draft a safe mark"
-                : aiDraftPreview.suggestedMark != null
-                ? `AI draft ready: suggested mark ${aiDraftPreview.suggestedMark}${maxMarks ? ` / ${maxMarks}` : ""}`
-                : "AI draft ready"
-            }
+            message={aiDraftPreview.suggestedMark != null ? `AI suggested mark: ${aiDraftPreview.suggestedMark}${maxMarks ? ` / ${maxMarks}` : ""}` : "AI marking complete"}
             description={
-              <div className="space-y-2 text-sm text-gray-700">
+              <div className="space-y-1 text-sm text-gray-700">
                 <p className="whitespace-pre-wrap">{aiDraftPreview.feedback}</p>
-                {aiDraftPreview.rationale ? (
-                  <p className="whitespace-pre-wrap text-gray-600">
-                    AI rationale for teacher review: {aiDraftPreview.rationale}
-                  </p>
-                ) : null}
-                {/* Wrong answers / deductions only — teacher-facing view */}
-                {aiDraftPreview.questionBreakdown && aiDraftPreview.questionBreakdown.length > 0 ? (
-                  <div className="mt-2">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
-                      Wrong answers / deductions
-                    </p>
-                    {aiDeductionRows.length > 0 ? (
-                      <div className="overflow-x-auto rounded border border-amber-200">
-                        <table className="w-full text-xs">
-                          <thead>
-                            <tr className="bg-amber-50 text-amber-800 text-left">
-                              <th className="px-2 py-1 font-medium">Question</th>
-                              <th className="px-2 py-1 font-medium">Type</th>
-                              <th className="px-2 py-1 font-medium">Wrong answer</th>
-                              <th className="px-2 py-1 font-medium">Marks lost</th>
-                              <th className="px-2 py-1 font-medium">Reason / correction</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {aiDeductionRows.map((q, qi) => {
-                              const marksLost = getAiMarksLost(q);
-                              return (
-                                <tr key={qi} className={qi % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                                  <td className="px-2 py-1 align-top text-gray-800 font-medium">{q.question}</td>
-                                  <td className="px-2 py-1 align-top">
-                                    {q.questionType ? (
-                                      <span
-                                        className={`inline-block rounded px-1 text-[10px] font-semibold whitespace-nowrap ${
-                                          q.questionType === "MCQ" || q.questionType === "TrueFalse"
-                                            ? "bg-blue-100 text-blue-700"
-                                            : q.questionType === "Essay"
-                                            ? "bg-purple-100 text-purple-700"
-                                            : "bg-gray-100 text-gray-600"
-                                        }`}
-                                      >
-                                        {q.questionType}
-                                      </span>
-                                    ) : null}
-                                  </td>
-                                  <td className="px-2 py-1 align-top text-gray-600 italic">{q.studentAnswer || "Blank / not readable"}</td>
-                                  <td className="px-2 py-1 align-top text-center font-semibold text-red-700 whitespace-nowrap">
-                                    {marksLost != null ? `-${formatAiMarkValue(marksLost)}` : "Deduct"}
-                                  </td>
-                                  <td className="px-2 py-1 align-top text-gray-600">{q.reason}</td>
-                                </tr>
-                              );
-                            })}
-                            <tr className="bg-amber-100 font-semibold">
-                              <td className="px-2 py-1" colSpan={3}>Total deductions</td>
-                              <td className="px-2 py-1 text-center text-red-700">-{formatAiMarkValue(aiDeductionTotal)}</td>
-                              <td className="px-2 py-1 text-gray-600 text-xs font-normal">
-                                Final mark: {aiFinalMarkFromDeductions != null ? formatAiMarkValue(aiFinalMarkFromDeductions) : aiDraftPreview.suggestedMark}{maxMarks ? `/${maxMarks}` : ""}
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : (
-                      <div className="rounded border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-700">
-                        No wrong answers detected — no deductions.
-                      </div>
-                    )}
-                    <p className="text-xs text-gray-400 mt-1">
-                      ℹ️ AI draft mark is shown as total marks minus deductions. Please verify each deduction before saving.
-                    </p>
-                  </div>
-                ) : null}
-                {aiDraftPreview.warnings.length > 0 ? (
-                  <p className="whitespace-pre-wrap text-amber-700">
-                    Warnings: {aiDraftPreview.warnings.join("; ")}
-                  </p>
-                ) : null}
-                {!isFailedAiDraft(aiDraftPreview) && (
+                {aiDeductionRows.length > 0 ? (
                   <button
                     onClick={() =>
-                      window.dispatchEvent(
-                        new CustomEvent("osteps:open-ai-assistant", {
-                          detail: {
-                            context: {
-                              page: "marking",
-                              title,
-                              subject: subjectName ?? undefined,
-                              maxMarks: maxMarks ?? undefined,
-                              suggestedMark: aiDraftPreview.suggestedMark ?? undefined,
-                              feedback: aiDraftPreview.feedback,
-                              rationale: aiDraftPreview.rationale ?? undefined,
-                              studentAnswer: studentAnnotations
-                                .filter((a) => a.type === "text")
-                                .map((a) => (a as { text?: string }).text ?? "")
-                                .join(" ")
-                                .slice(0, 2000),
-                            },
+                      window.dispatchEvent(new CustomEvent("osteps:open-ai-assistant", {
+                        detail: {
+                          context: {
+                            page: "marking",
+                            title,
+                            subject: subjectName ?? undefined,
+                            maxMarks: maxMarks ?? undefined,
+                            fileUrl,
+                            suggestedMark: aiDraftPreview.suggestedMark ?? undefined,
+                            feedback: aiDraftPreview.feedback,
+                            rationale: aiDraftPreview.rationale ?? undefined,
+                            questionBreakdown: aiDraftPreview.questionBreakdown
+                              ? JSON.stringify(aiDraftPreview.questionBreakdown).slice(0, 8000)
+                              : undefined,
                           },
-                        })
-                      )
+                        },
+                      }))
                     }
                     className="mt-1 text-xs text-teal-700 underline cursor-pointer hover:text-teal-900"
                   >
                     💬 Ask AI about this marking →
                   </button>
-                )}
+                ) : null}
               </div>
             }
           />

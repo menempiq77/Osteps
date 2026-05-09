@@ -18,6 +18,7 @@ type AiContext = {
   rationale?: string;
   studentAnswer?: string;
   paperContext?: string;
+  fileUrl?: string;
   assessmentContext?: string;
   questionBreakdown?: string;
   extraContext?: string;
