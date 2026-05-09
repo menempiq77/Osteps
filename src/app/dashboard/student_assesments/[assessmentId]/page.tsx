@@ -283,7 +283,8 @@ export default function AssessmentDrawer() {
       const task = assementTasks.find((t) => t.id === taskId);
       if (!task) return;
 
-      await addStudentTaskMarks(selectedStudentId, {
+      const markStudentId = selectedStudentId ?? String(task.student_id);
+      await addStudentTaskMarks(markStudentId, {
         assessment_id: task.assessment_id,
         task_id: task.task_id,
         teacher_assessment_marks: parseInt(formValues.marks || "0"),
@@ -481,13 +482,17 @@ export default function AssessmentDrawer() {
                         <Button
                           type="text"
                           size="small"
-                          onClick={() => toggleAssessment(task.id)}
+                          onClick={() =>
+                            task?.task?.task_type?.toLowerCase() === "pdf"
+                              ? openTeacherDocumentWorkspace(task)
+                              : toggleAssessment(task.id)
+                          }
                           className={`!h-auto !px-0 text-xs ${
                             assessmentOpenTaskId === task.id
                               ? "text-gray-500"
                               : "text-green-600 hover:text-green-800"
                           }`}
-                          disabled={!selectedStudentId}
+                          disabled={!task?.student_id}
                         >
                           {assessmentOpenTaskId === task.id ? (
                             <span>Hide</span>
@@ -529,7 +534,7 @@ export default function AssessmentDrawer() {
                               setQuizTeacherMark(String(task?.teacher_assessment_mark ?? ""));
                             }}
                             className={`!h-auto !px-0 text-xs ${quizTeacherMarkOpenId === task.id ? "text-gray-500" : "text-green-600 hover:text-green-800"}`}
-                            disabled={!selectedStudentId}
+                            disabled={!task?.student_id}
                           >
                             {quizTeacherMarkOpenId === task.id ? <span>Hide</span> : <span>{task?.teacher_assessment_mark != null ? "Update Marks" : "Mark Quiz"}</span>}
                           </Button>
