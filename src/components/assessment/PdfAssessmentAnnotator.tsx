@@ -1285,10 +1285,18 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
               ? nextLoaded.teacherAnnotations || []
               : nextLoaded.studentAnnotations || [];
           if (shouldRestoreLocalDraft) {
-            saveAnnotations(storedDraft.annotations, undefined, {
-              syncState: false,
-              silent: true,
-              metadata: { restoredFromLocalDraft: true },
+            saveAssessmentDocumentAnnotations({
+              assessmentId,
+              taskId,
+              studentId,
+              layer: role,
+              annotations: storedDraft.annotations,
+              metadata: {
+                ...(nextLoaded.metadata && typeof nextLoaded.metadata === "object"
+                  ? nextLoaded.metadata
+                  : {}),
+                restoredFromLocalDraft: true,
+              },
             }).catch((error) => console.error("Could not restore local document draft:", error));
           }
           const metadata = nextLoaded.metadata || {};
@@ -1354,7 +1362,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [assessmentId, taskId, studentId, messageApi, getAnnotationsSignature, oppositeLayer, role, localDraftKey, saveAnnotations]);
+  }, [assessmentId, taskId, studentId, messageApi, getAnnotationsSignature, oppositeLayer, role, localDraftKey]);
 
   useEffect(() => {
     let cancelled = false;
