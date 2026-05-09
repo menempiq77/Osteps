@@ -18,6 +18,7 @@ type DraftMarkRequest = {
   maxMarks?: number | null;
   studentAnnotations?: Array<Record<string, unknown>>;
   pageImages?: string[];
+  pageImagePageNumbers?: number[];
   currentTeacherMarks?: string;
   currentTeacherFeedback?: string;
 };
@@ -159,6 +160,13 @@ const normalizeImagePayload = (value: unknown) => {
 
   const dataUrlMatch = text.match(/^data:image\/[a-zA-Z0-9.+-]+;base64,(.+)$/i);
   return dataUrlMatch ? dataUrlMatch[1] : text;
+};
+
+const pageImageLabel = (pageNumbers: number[] | undefined, index: number) => {
+  const pageNumber = pageNumbers?.[index];
+  return Number.isFinite(pageNumber) && Number(pageNumber) > 0
+    ? `PDF page ${pageNumber}`
+    : `answered image ${index + 1}`;
 };
 
 const hasConfiguredVisionProvider = () => Boolean(GROQ_API_KEY || OPENROUTER_API_KEY || OLLAMA_VISION_MODEL);
@@ -789,14 +797,14 @@ const requestCloudVisualAnswerContext = async ({
   model,
   prompt,
   pageImages,
-  pageOffset = 0,
+  pageNumbers,
 }: {
   provider: "groq" | "openrouter";
   apiKey: string;
   model: string;
   prompt: string;
   pageImages: string[];
-  pageOffset?: number;
+  pageNumbers?: number[];
 }) => {
   if (!apiKey || pageImages.length === 0) return null;
 
@@ -831,7 +839,7 @@ const requestCloudVisualAnswerContext = async ({
             content: [
               { type: "text", text: prompt },
               ...pageImages.slice(0, provider === "groq" ? 5 : 8).flatMap((image, index) => [
-                { type: "text", text: `Answered page image ${pageOffset + index + 1}:` },
+                { type: "text", text: `Answered ${pageImageLabel(pageNumbers, index)}:` },
                 {
                   type: "image_url",
                   image_url: { url: `data:image/jpeg;base64,${image}` },
@@ -881,7 +889,7 @@ const enhanceImageForOcr = async (inputPath: string): Promise<string> => {
   }
 };
 
-const extractLocalOcrAnswerContext = async (pageImages: string[]) => {
+const extractLocalOcrAnswerContext = async (pageImages: string[], pageNumbers: number[] = []) => {
   const ocrPages: string[] = [];
 
   for (const [index, image] of pageImages.slice(0, 12).entries()) {
@@ -915,7 +923,7 @@ const extractLocalOcrAnswerContext = async (pageImages: string[]) => {
       }
       const text = ocrAttempts.sort((left, right) => right.length - left.length)[0] || "";
       if (text.length >= 12) {
-        ocrPages.push(`[Answered page image ${index + 1} OCR] ${text}`);
+        ocrPages.push(`[Answered ${pageImageLabel(pageNumbers, index)} OCR] ${text}`);
       }
     } catch (error) {
       console.error("Local OCR could not read answered-page image:", error);
@@ -941,10 +949,12 @@ const extractVisualAnswerContext = async ({
   title,
   subjectName,
   pageImages,
+  pageNumbers,
 }: {
   title: string;
   subjectName: string;
   pageImages: string[];
+  pageNumbers?: number[];
 }) => {
   if (pageImages.length === 0) return null;
 
@@ -994,7 +1004,7 @@ Return exactly:
           ...cloudAttempt,
           prompt,
           pageImages: pageImages.slice(offset, offset + chunkSize),
-          pageOffset: offset,
+          pageNumbers: (pageNumbers || []).slice(offset, offset + chunkSize),
         });
         if (context) contexts.push(context);
       }
@@ -1015,7 +1025,7 @@ Return exactly:
     }
   }
 
-  const ocrContext = await extractLocalOcrAnswerContext(pageImages);
+  const ocrContext = await extractLocalOcrAnswerContext(pageImages, pageNumbers || []);
   if (ocrContext) return ocrContext;
 
   if (!OLLAMA_VISION_MODEL) return null;
@@ -1335,10 +1345,12 @@ const requestGroqReasoningRecheck = async ({
 const requestGeminiDraftMark = async ({
   prompt,
   pageImages = [],
+  pageNumbers = [],
   signal,
 }: {
   prompt: string;
   pageImages?: string[];
+  pageNumbers?: number[];
   signal?: AbortSignal;
 }) => {
   if (!GEMINI_API_KEY) return null;
@@ -1351,7 +1363,7 @@ const requestGeminiDraftMark = async ({
 
   try {
     const imageParts = pageImages.slice(0, 8).flatMap((img, index) => [
-      { text: `Answered page image ${index + 1}:` },
+      { text: `Answered ${pageImageLabel(pageNumbers, index)}:` },
       { inlineData: { mimeType: "image/jpeg" as const, data: img } },
     ]);
 
@@ -1394,10 +1406,12 @@ const requestGeminiDraftMark = async ({
 const requestGroqVisionDraftMark = async ({
   prompt,
   pageImages = [],
+  pageNumbers = [],
   signal,
 }: {
   prompt: string;
   pageImages?: string[];
+  pageNumbers?: number[];
   signal?: AbortSignal;
 }) => {
   if (!GROQ_API_KEY || pageImages.length === 0) return null;
@@ -1430,7 +1444,7 @@ const requestGroqVisionDraftMark = async ({
                   `${prompt}\n\nThe attached images are the student's answered PDF pages. Read the PDF questions and the student's handwriting/typed overlays directly from these images. Connect each answer to its matching question and mark fairly like a teacher.`,
               },
               ...pageImages.slice(0, 5).flatMap((image, index) => [
-                { type: "text", text: `Answered page image ${index + 1}:` },
+                { type: "text", text: `Answered ${pageImageLabel(pageNumbers, index)}:` },
                 {
                   type: "image_url",
                   image_url: { url: `data:image/jpeg;base64,${image}` },
@@ -1458,10 +1472,12 @@ const requestGroqVisionDraftMark = async ({
 const requestOpenRouterDraftMark = async ({
   prompt,
   pageImages = [],
+  pageNumbers = [],
   signal,
 }: {
   prompt: string;
   pageImages?: string[];
+  pageNumbers?: number[];
   signal?: AbortSignal;
 }) => {
   if (!OPENROUTER_API_KEY) return null;
@@ -1496,7 +1512,7 @@ const requestOpenRouterDraftMark = async ({
                   `${prompt}\n\nThe attached images are the student's answered PDF pages. Read handwriting/typed overlays directly from them and mark fairly like a teacher.`,
               },
               ...pageImages.slice(0, 8).flatMap((image, index) => [
-                { type: "text", text: `Answered page image ${index + 1}:` },
+                { type: "text", text: `Answered ${pageImageLabel(pageNumbers, index)}:` },
                 {
                   type: "image_url",
                   image_url: { url: `data:image/jpeg;base64,${image}` },
@@ -1537,6 +1553,12 @@ export async function POST(request: Request) {
   const pageImages = Array.isArray(body.pageImages)
     ? body.pageImages.map(normalizeImagePayload).filter(Boolean).slice(0, 12)
     : [];
+  const pageImagePageNumbers = Array.isArray(body.pageImagePageNumbers)
+    ? body.pageImagePageNumbers
+        .map((value) => Number(value))
+        .filter((value) => Number.isFinite(value) && value > 0)
+        .slice(0, pageImages.length)
+    : [];
   const hasPenStrokes = annotationsContainPenStrokes(body.studentAnnotations);
   const annotationSummary = (() => {
     const annotations = Array.isArray(body.studentAnnotations) ? body.studentAnnotations : [];
@@ -1549,7 +1571,7 @@ export async function POST(request: Request) {
           .filter((page) => Number.isFinite(page) && page > 0)
       )
     ).sort((left, right) => left - right);
-    return `${textCount} typed answer boxes, ${penCount} pen/handwriting marks, pages with student work: ${pages.join(", ") || "none"}, page images supplied: ${pageImages.length}`;
+    return `${textCount} typed answer boxes, ${penCount} pen/handwriting marks, pages with student work: ${pages.join(", ") || "none"}, page images supplied: ${pageImages.length}, page image PDF numbers: ${pageImagePageNumbers.join(", ") || "not supplied"}`;
   })();
   const islamic = isIslamicSubject(subjectName, title);
   const sourcePolicy = islamic
@@ -1628,6 +1650,7 @@ export async function POST(request: Request) {
         title,
         subjectName,
         pageImages,
+        pageNumbers: pageImagePageNumbers,
       });
       if (!visualContext) {
         visualWarning = hasConfiguredVisionProvider()
@@ -1804,6 +1827,7 @@ MARKING RULES:
         const groqVisionPayload = await requestGroqVisionDraftMark({
           prompt,
           pageImages: pageImages.slice(0, 5),
+          pageNumbers: pageImagePageNumbers.slice(0, 5),
         });
         rawJson = chooseBetterDraftJson(
           rawJson,
@@ -1825,6 +1849,7 @@ MARKING RULES:
         const geminiPayload = await requestGeminiDraftMark({
           prompt: geminiPrompt,
           pageImages: pageImages.slice(0, 8),
+          pageNumbers: pageImagePageNumbers.slice(0, 8),
         });
         rawJson = chooseBetterDraftJson(
           rawJson,
@@ -1845,6 +1870,7 @@ MARKING RULES:
         const openRouterPayload = await requestOpenRouterDraftMark({
           prompt,
           pageImages: pageImages.slice(0, 8),
+          pageNumbers: pageImagePageNumbers.slice(0, 8),
         });
         rawJson = chooseBetterDraftJson(
           rawJson,

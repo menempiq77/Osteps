@@ -2187,7 +2187,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     setAiDrafting(true);
     setAiDraftPreview(null);
     try {
-      const pageImages = await buildAiPageSnapshots();
+      const { images: pageImages, pageNumbers: pageImagePageNumbers } = await buildAiPageSnapshots();
       const draft = await draftAssessmentMark({
         assessmentId,
         taskId,
@@ -2199,6 +2199,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         maxMarks,
         studentAnnotations,
         pageImages,
+        pageImagePageNumbers,
         currentTeacherMarks: teacherMarks,
         currentTeacherFeedback: teacherFeedback,
       });
@@ -2286,7 +2287,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   };
 
   const buildAiPageSnapshots = useCallback(async () => {
-    if (rendering || pages.length === 0) return [] as string[];
+    if (rendering || pages.length === 0) return { images: [] as string[], pageNumbers: [] as number[] };
 
     const answeredPageNumbers = Array.from(
       new Set(
@@ -2304,6 +2305,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     const candidatePages = answeredPages.length > 0 ? [...answeredPages, ...contextPages] : pages;
 
     const snapshots: string[] = [];
+    const pageNumbers: number[] = [];
     for (const page of candidatePages.slice(0, AI_PAGE_IMAGE_MAX_COUNT)) {
       const sourceCanvas = document.createElement("canvas");
       await drawPageIntoCanvas(page, sourceCanvas, { includeTeacherAnnotations: false });
@@ -2320,9 +2322,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       outputContext.fillRect(0, 0, outputCanvas.width, outputCanvas.height);
       outputContext.drawImage(sourceCanvas, 0, 0, outputCanvas.width, outputCanvas.height);
       snapshots.push(outputCanvas.toDataURL("image/jpeg", AI_PAGE_IMAGE_JPEG_QUALITY));
+      pageNumbers.push(page.pageNumber);
     }
 
-    return snapshots;
+    return { images: snapshots, pageNumbers };
   }, [drawPageIntoCanvas, pages, rendering, studentAnnotations]);
 
   const downloadSubmittedPaper = async () => {
