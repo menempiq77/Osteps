@@ -51,7 +51,7 @@ type VisualAnswerContext = {
 const OLLAMA_BASE_URL = (process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434").replace(/\/+$/, "");
 const OLLAMA_MODEL = process.env.OSTEPS_AI_MARKING_MODEL || process.env.OLLAMA_MODEL || "deepseek-r1:1.5b";
 const OLLAMA_FAST_FALLBACK_MODEL = process.env.OSTEPS_AI_MARKING_FAST_MODEL || "qwen2.5:1.5b";
-const OLLAMA_VISION_MODEL = process.env.OSTEPS_AI_MARKING_VISION_MODEL || "";
+const OLLAMA_VISION_MODEL = process.env.OSTEPS_AI_MARKING_VISION_MODEL || "granite3.2-vision:2b";
 const OLLAMA_KEEP_ALIVE = process.env.OSTEPS_AI_MARKING_KEEP_ALIVE || "5m";
 const OLLAMA_ENABLE_REASONER = process.env.OSTEPS_AI_MARKING_USE_REASONER === "1";
 const GROQ_API_KEY = process.env.GROQ_API_KEY || "";
@@ -340,7 +340,7 @@ Return only the questions in order, nothing else.`;
     }
 
     const rawContent = extractCloudJsonContent(await response.json());
-    return normalizeWhitespace(rawContent).slice(0, 3000);
+    return normalizeWhitespace(rawContent).slice(0, 8000);
   } catch (err) {
     console.error("Could not read exam paper via vision:", err);
     return "";
@@ -948,8 +948,11 @@ MCQ / TRUE-FALSE / CHECKBOX READING RULES (critical for accuracy):
 4. Only flag a mistake if you can confirm the selected option is wrong (e.g. the paper shows the answer key, or it is clearly incorrect).
 
 SHORT ANSWER / ESSAY:
-- Transcribe or paraphrase the student's written text faithfully.
-- Note which question it appears to answer.
+- Work page by page. For each visible question, transcribe or paraphrase the student's typed or handwritten answer faithfully.
+- Connect each answer to the closest question number/text on the page.
+- If the answer is partly unreadable, write the readable words and mark the unreadable part as [unclear].
+- Do not write "Not provided" unless the answer area is visibly blank.
+- Include typed text boxes, handwriting, pen-written words, circles, ticks, crosses, and underlines.
 
 Return exactly:
 {
@@ -1123,6 +1126,38 @@ const normalizeDraft = (
   };
 };
 
+const draftCompletenessScore = (raw: Partial<DraftMarkResponse>, maxMarks: number | null) => {
+  const breakdown = Array.isArray(raw.questionBreakdown) ? raw.questionBreakdown : [];
+  const accountedMarks = breakdown.reduce((sum, entry) => {
+    const maxForQuestion = Number((entry as Partial<QuestionMarkEntry>)?.maxMarksForQuestion ?? 0);
+    return sum + (Number.isFinite(maxForQuestion) && maxForQuestion > 0 ? maxForQuestion : 0);
+  }, 0);
+  const markPresent = raw.suggestedMark != null && Number.isFinite(Number(raw.suggestedMark));
+  const confidenceScore = raw.confidence === "high" ? 20 : raw.confidence === "medium" ? 10 : 0;
+  const coverageScore = maxMarks && maxMarks > 0 && accountedMarks > 0
+    ? Math.min(50, (accountedMarks / maxMarks) * 50)
+    : Math.min(30, breakdown.length * 3);
+  return coverageScore + confidenceScore + (markPresent ? 15 : 0) + Math.min(15, breakdown.length);
+};
+
+const chooseBetterDraftJson = (
+  currentJson: string | null,
+  candidateJson: string | null,
+  maxMarks: number | null
+) => {
+  if (!candidateJson) return currentJson;
+  if (!currentJson) return candidateJson;
+  try {
+    const current = JSON.parse(currentJson) as Partial<DraftMarkResponse>;
+    const candidate = JSON.parse(candidateJson) as Partial<DraftMarkResponse>;
+    return draftCompletenessScore(candidate, maxMarks) > draftCompletenessScore(current, maxMarks) + 5
+      ? candidateJson
+      : currentJson;
+  } catch {
+    return currentJson;
+  }
+};
+
 const requestGroqMarkingDraft = async ({
   prompt,
   signal,
@@ -1133,7 +1168,7 @@ const requestGroqMarkingDraft = async ({
   if (!GROQ_API_KEY) return null;
 
   const controller = new AbortController();
-  const timeoutHandle = setTimeout(() => controller.abort(), 25000);
+  const timeoutHandle = setTimeout(() => controller.abort(), 40000);
   const requestSignal = signal
     ? AbortSignal.any([signal, controller.signal])
     : controller.signal;
@@ -1151,10 +1186,17 @@ ISLAMIC STUDIES AUTHORITATIVE ANSWERS (use these when subject is Islamic/Quranic
 `;
 
   const systemContent =
-    "You are a highly accurate professional school exam marker. Always output strict valid JSON.\n" +
+    "You are a highly accurate professional school exam marker. Mark like a fair human teacher. Always output strict valid JSON.\n" +
+    "\nTEACHER STANDARD:\n" +
+    "- First reconstruct the mark scheme from the PDF questions, option choices, mark allocations, and any answer clues.\n" +
+    "- Then match the student's typed text/handwriting to the correct question by page, question number, and nearby wording.\n" +
+    "- Award credit for correct meaning even if spelling/grammar is imperfect. Do not require exact wording unless the question requires a term/name/date.\n" +
+    "- Give benefit of doubt only when the student's intention is visible. Do not invent answers for blank or unreadable sections.\n" +
+    "- If handwriting is unclear, mark only the words you can read and add a warning.\n" +
+    "- Never treat teacher marks, headers, names, dates, or UI labels as student answers.\n" +
     "\nSTEP-BY-STEP MARKING PROCESS — follow in order for EVERY paper:\n" +
     "STEP 1 — LIST QUESTION TYPES: Before scoring, identify each question in the paper and classify it as MCQ | True/False | Fill-blank | Short-answer | Essay. Note the mark allocation per question EXACTLY as shown on the paper.\n" +
-    "STEP 2 — READ STUDENT SELECTIONS & ANSWERS: For each MCQ/T-F/Fill-blank question, identify the EXACT option the student circled, underlined, crossed, or ticked. For short-answer/essay questions, read the student's written text.\n" +
+    "STEP 2 — READ STUDENT SELECTIONS & ANSWERS: For each MCQ/T-F/Fill-blank question, identify the EXACT option the student circled, underlined, crossed, or ticked. For short-answer/essay questions, read the student's written text and connect it to the nearest matching question.\n" +
     "STEP 3 — EVALUATE CORRECTNESS:\n" +
     "  • MCQ / True-False / Fill-blank: is the selected option factually CORRECT? → award the full mark for that question (right = full marks, wrong = 0). NO partial marks for MCQs.\n" +
     "  • Short-answer: does the student's text contain the required facts/points? Award proportionally.\n" +
@@ -1165,7 +1207,7 @@ ISLAMIC STUDIES AUTHORITATIVE ANSWERS (use these when subject is Islamic/Quranic
     "\nACCURACY RULE: suggestedMark MUST equal the exact integer SUM of all marksAwarded in questionBreakdown.\n" +
     "IDENTITY FIELDS RULE: Completely ignore student name, ID, class, date, school name — these are never part of the answer.\n" +
     ISLAMIC_STUDIES_KNOWLEDGE +
-    "\nFor WWW: name the specific question and what was correct. For EBI: name the question number, what the student wrote that was wrong, and what the correct answer is.";
+    "\nFor WWW: name the specific question and what was correct. For EBI: name the question number, what the student wrote that was wrong or missing, and what a better answer should include.";
 
   try {
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -1265,7 +1307,7 @@ const requestGeminiDraftMark = async ({
   if (!GEMINI_API_KEY) return null;
 
   const controller = new AbortController();
-  const timeoutHandle = setTimeout(() => controller.abort(), 22000);
+  const timeoutHandle = setTimeout(() => controller.abort(), 45000);
   const requestSignal = signal
     ? AbortSignal.any([signal, controller.signal])
     : controller.signal;
@@ -1307,6 +1349,136 @@ const requestGeminiDraftMark = async ({
     const data = await response.json();
     const text = (data?.candidates?.[0]?.content?.parts?.[0]?.text as string) || "";
     return { response: text };
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
+};
+
+const requestGroqVisionDraftMark = async ({
+  prompt,
+  pageImages = [],
+  signal,
+}: {
+  prompt: string;
+  pageImages?: string[];
+  signal?: AbortSignal;
+}) => {
+  if (!GROQ_API_KEY || pageImages.length === 0) return null;
+
+  const controller = new AbortController();
+  const timeoutHandle = setTimeout(() => controller.abort(), 45000);
+  const requestSignal = signal
+    ? AbortSignal.any([signal, controller.signal])
+    : controller.signal;
+
+  try {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${GROQ_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: GROQ_VISION_MODEL,
+        temperature: 0,
+        max_tokens: 4000,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text:
+                  `${prompt}\n\nThe attached images are the student's answered PDF pages. Read the PDF questions and the student's handwriting/typed overlays directly from these images. Connect each answer to its matching question and mark fairly like a teacher.`,
+              },
+              ...pageImages.slice(0, 8).flatMap((image, index) => [
+                { type: "text", text: `Answered page image ${index + 1}:` },
+                {
+                  type: "image_url",
+                  image_url: { url: `data:image/jpeg;base64,${image}` },
+                },
+              ]),
+            ],
+          },
+        ],
+      }),
+      signal: requestSignal,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
+      throw new Error(`Groq vision marker failed (${response.status}). ${errorText.slice(0, 240)}`);
+    }
+
+    const content = extractCloudJsonContent(await response.json());
+    return { response: content };
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
+};
+
+const requestOpenRouterDraftMark = async ({
+  prompt,
+  pageImages = [],
+  signal,
+}: {
+  prompt: string;
+  pageImages?: string[];
+  signal?: AbortSignal;
+}) => {
+  if (!OPENROUTER_API_KEY) return null;
+
+  const controller = new AbortController();
+  const timeoutHandle = setTimeout(() => controller.abort(), 45000);
+  const requestSignal = signal
+    ? AbortSignal.any([signal, controller.signal])
+    : controller.signal;
+
+  try {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+        "HTTP-Referer": "https://www.osteps.com",
+        "X-Title": "OSTEPS AI Draft Mark",
+      },
+      body: JSON.stringify({
+        model: OPENROUTER_VISION_MODEL,
+        temperature: 0,
+        max_tokens: 4000,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text:
+                  `${prompt}\n\nThe attached images are the student's answered PDF pages. Read handwriting/typed overlays directly from them and mark fairly like a teacher.`,
+              },
+              ...pageImages.slice(0, 8).flatMap((image, index) => [
+                { type: "text", text: `Answered page image ${index + 1}:` },
+                {
+                  type: "image_url",
+                  image_url: { url: `data:image/jpeg;base64,${image}` },
+                },
+              ]),
+            ],
+          },
+        ],
+      }),
+      signal: requestSignal,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
+      throw new Error(`OpenRouter multimodal marker failed (${response.status}). ${errorText.slice(0, 240)}`);
+    }
+
+    const content = extractCloudJsonContent(await response.json());
+    return { response: content };
   } finally {
     clearTimeout(timeoutHandle);
   }
@@ -1548,46 +1720,78 @@ MARKING RULES:
     }
     let rawJson: string | null = null;
 
-    // 1. Try Groq first (llama-3.3-70b) — fastest, most reliable for structured JSON + MCQ accuracy
-    if (GROQ_API_KEY && !rawJson) {
+    // 1. For handwritten/annotated PDFs, try multimodal models first because they can
+    // directly see the student's writing over the PDF, not just an OCR summary.
+    if (GROQ_API_KEY && pageImages.length > 0) {
       try {
-        const groqPayload = await requestGroqMarkingDraft({ prompt });
-        rawJson = extractFirstJsonObject(String(groqPayload?.response || ""));
+        const groqVisionPayload = await requestGroqVisionDraftMark({
+          prompt,
+          pageImages: pageImages.slice(0, 8),
+        });
+        rawJson = chooseBetterDraftJson(
+          rawJson,
+          extractFirstJsonObject(String(groqVisionPayload?.response || "")),
+          maxMarks
+        );
         if (rawJson && visualWarning) {
           const ocrWarningIdx = modelWarnings.indexOf(visualWarning);
           if (ocrWarningIdx !== -1) modelWarnings.splice(ocrWarningIdx, 1);
         }
       } catch (error) {
-        console.error("Groq text marking failed, falling back to Gemini/Ollama:", error);
+        console.error("Groq vision marker failed, trying Gemini/OpenRouter/Groq text/Ollama:", error);
       }
     }
 
-    // 2. Try Gemini — excellent at Arabic and multimodal context
-    if (GEMINI_API_KEY && !rawJson) {
+    if (GEMINI_API_KEY && pageImages.length > 0) {
       try {
-        const geminiPrompt = pageImages.length > 0
-          ? `${prompt}\n\nNote: ${pageImages.length} answered-page image(s) are directly attached to this request. Read the student's handwriting from the images as the primary source of the answer.`
-          : prompt;
+        const geminiPrompt = `${prompt}\n\nIMPORTANT: ${pageImages.length} answered-page image(s) are attached. Read the student's handwriting/text overlays directly from these images as the primary evidence. Match each visible answer to the PDF question on the same page.`;
         const geminiPayload = await requestGeminiDraftMark({
           prompt: geminiPrompt,
           pageImages: pageImages.slice(0, 8),
         });
-        rawJson = extractFirstJsonObject(String(geminiPayload?.response || ""));
+        rawJson = chooseBetterDraftJson(
+          rawJson,
+          extractFirstJsonObject(String(geminiPayload?.response || "")),
+          maxMarks
+        );
         if (rawJson && visualWarning) {
-          // Gemini read the images directly — remove the local OCR quality warning
           const ocrWarningIdx = modelWarnings.indexOf(visualWarning);
           if (ocrWarningIdx !== -1) modelWarnings.splice(ocrWarningIdx, 1);
         }
       } catch (error) {
-        console.error("Gemini AI marker failed, falling back to Groq/Ollama:", error);
+        console.error("Gemini multimodal marker failed, trying OpenRouter/Groq/Ollama:", error);
       }
     }
 
-    // 2. Try Groq (llama-3.3-70b) — excellent quality, free, ~1s response
-    if (GROQ_API_KEY && !rawJson) {
+    if (OPENROUTER_API_KEY && pageImages.length > 0) {
+      try {
+        const openRouterPayload = await requestOpenRouterDraftMark({
+          prompt,
+          pageImages: pageImages.slice(0, 8),
+        });
+        rawJson = chooseBetterDraftJson(
+          rawJson,
+          extractFirstJsonObject(String(openRouterPayload?.response || "")),
+          maxMarks
+        );
+        if (rawJson && visualWarning) {
+          const ocrWarningIdx = modelWarnings.indexOf(visualWarning);
+          if (ocrWarningIdx !== -1) modelWarnings.splice(ocrWarningIdx, 1);
+        }
+      } catch (error) {
+        console.error("OpenRouter multimodal marker failed, falling back to Groq/Ollama:", error);
+      }
+    }
+
+    // 2. Try Groq text (llama-3.3-70b) using extracted PDF text + visual summary.
+    if (GROQ_API_KEY) {
       try {
         const groqPayload = await requestGroqMarkingDraft({ prompt });
-        rawJson = extractFirstJsonObject(String(groqPayload?.response || ""));
+        rawJson = chooseBetterDraftJson(
+          rawJson,
+          extractFirstJsonObject(String(groqPayload?.response || "")),
+          maxMarks
+        );
         if (rawJson && visualWarning) {
           const ocrWarningIdx = modelWarnings.indexOf(visualWarning);
           if (ocrWarningIdx !== -1) modelWarnings.splice(ocrWarningIdx, 1);
@@ -1597,7 +1801,7 @@ MARKING RULES:
       }
     }
 
-    // 3. Fall back to Ollama — always 512 ctx for speed (~12-15s on this CPU server)
+    // 3. If no cloud model produced valid JSON, fall back to local Ollama.
     if (!rawJson) {
       try {
         const fallbackPayload = await requestOllamaDraft({
@@ -1679,17 +1883,19 @@ MARKING RULES:
       }
     }
 
-    // 4. DeepSeek-R1 reasoning re-check: if primary mark has low confidence, use reasoning
-    // model to verify (adds ~3-5s but significantly improves MCQ accuracy on ambiguous papers)
+    // 4. DeepSeek-R1 reasoning re-check for low-confidence or high-mark papers.
+    // It can only see text/OCR summaries, so keep the original if the recheck is less complete.
     if (rawJson && GROQ_API_KEY) {
       try {
         const parsed = JSON.parse(rawJson) as Partial<DraftMarkResponse>;
-        if (parsed.confidence === "low" || parsed.suggestedMark == null) {
+        const shouldRecheck =
+          parsed.confidence === "low" ||
+          parsed.suggestedMark == null ||
+          (maxMarks != null && maxMarks >= 20);
+        if (shouldRecheck) {
           const recheckPayload = await requestGroqReasoningRecheck({ prompt });
           const recheckJson = extractFirstJsonObject(String(recheckPayload?.response || ""));
-          if (recheckJson) {
-            rawJson = recheckJson;
-          }
+          rawJson = chooseBetterDraftJson(rawJson, recheckJson, maxMarks);
         }
       } catch {
         // Re-check failed — keep the original rawJson
