@@ -108,7 +108,7 @@ const LIVE_SYNC_INTERVAL_MS = 1200;
 const REMOTE_SYNC_INTERVAL_MS = 1500;
 const SELF_ASSESSMENT_AUTOSAVE_DELAY_MS = 1200;
 const TEACHER_DRAFT_AUTOSAVE_DELAY_MS = 1200;
-const AI_PAGE_IMAGE_MAX_COUNT = 8;
+const AI_PAGE_IMAGE_MAX_COUNT = 12;
 const AI_PAGE_IMAGE_MAX_WIDTH = 1400;
 const AI_PAGE_IMAGE_JPEG_QUALITY = 0.76;
 const ERASER_RADIUS = 28;
@@ -2215,11 +2215,20 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const buildAiPageSnapshots = useCallback(async () => {
     if (rendering || pages.length === 0) return [] as string[];
 
-    // Send every rendered page to the AI, not only pages that have stored annotations.
-    // A student may type in the browser, write on later pages, or submit a flattened
-    // answer page where the saved annotation metadata is incomplete. If we only send
-    // page 1, the AI can incorrectly mark a 40-mark paper as just the visible MCQs.
-    const candidatePages = pages;
+    const answeredPageNumbers = Array.from(
+      new Set(
+        studentAnnotations
+          .map((annotation) => Number(annotation.page || 0))
+          .filter((pageNumber) => Number.isFinite(pageNumber) && pageNumber > 0)
+      )
+    ).sort((left, right) => left - right);
+
+    // Prioritise pages where the student actually typed/wrote answers, then include
+    // remaining pages for context. This prevents later answer pages (e.g. pages 9-10)
+    // being dropped just because the PDF starts with instruction/MCQ pages.
+    const answeredPages = pages.filter((page) => answeredPageNumbers.includes(page.pageNumber));
+    const contextPages = pages.filter((page) => !answeredPageNumbers.includes(page.pageNumber));
+    const candidatePages = answeredPages.length > 0 ? [...answeredPages, ...contextPages] : pages;
 
     const snapshots: string[] = [];
     for (const page of candidatePages.slice(0, AI_PAGE_IMAGE_MAX_COUNT)) {

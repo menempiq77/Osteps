@@ -114,6 +114,9 @@ const isLikelyNonAnswerText = (value: string, studentName?: string) => {
   if (lower.startsWith("predicted grade:")) return true;
   if (lower.startsWith("predicted mark:")) return true;
   if (lower.startsWith("self assessment:")) return true;
+  // Short objective answers are valid answers, not identity/header text.
+  if (/^(?:true|false|yes|no|[a-d])$/i.test(normalized)) return false;
+  if (/^(?:true|false|yes|no|[a-d])\b[\s,.:;-]/i.test(normalized)) return false;
   // Header/identity labels — "Name:", "Student Name:", "Class:", "Grade:", "ID:", "Roll No:", "Section:", "School:"
   if (/^(?:name|student name|student|class|grade|id|roll\.?\s*no|section|school|teacher|date|subject)\s*[:\-]/i.test(normalized)) return true;
   // Very short text (≤3 words) with no question-answer indicators — likely a name or label, not an answer
@@ -162,16 +165,17 @@ const compactStudentText = (
     .filter((annotation) => annotation?.type === "text")
     .map((annotation) => ({
       page: Number(annotation.page || 1),
+      y: Number(annotation.y || 0),
       text: asText(annotation.text),
     }))
     .filter(
       (annotation) =>
         annotation.text.length > 0 && !isLikelyNonAnswerText(annotation.text, studentName)
     )
-    .sort((left, right) => left.page - right.page);
+    .sort((left, right) => left.page - right.page || left.y - right.y);
 
   const combined = textItems
-    .map((annotation) => `[Page ${annotation.page}] ${annotation.text}`)
+    .map((annotation) => `[Page ${annotation.page}, y=${Math.round(annotation.y)}] ${annotation.text}`)
     .join("\n");
 
   return summarizeLongText(combined, 5000);
@@ -772,12 +776,14 @@ const requestCloudVisualAnswerContext = async ({
   model,
   prompt,
   pageImages,
+  pageOffset = 0,
 }: {
   provider: "groq" | "openrouter";
   apiKey: string;
   model: string;
   prompt: string;
   pageImages: string[];
+  pageOffset?: number;
 }) => {
   if (!apiKey || pageImages.length === 0) return null;
 
@@ -812,7 +818,7 @@ const requestCloudVisualAnswerContext = async ({
             content: [
               { type: "text", text: prompt },
               ...pageImages.slice(0, provider === "groq" ? 5 : 8).flatMap((image, index) => [
-                { type: "text", text: `Answered page image ${index + 1}:` },
+                { type: "text", text: `Answered page image ${pageOffset + index + 1}:` },
                 {
                   type: "image_url",
                   image_url: { url: `data:image/jpeg;base64,${image}` },
@@ -865,7 +871,7 @@ const enhanceImageForOcr = async (inputPath: string): Promise<string> => {
 const extractLocalOcrAnswerContext = async (pageImages: string[]) => {
   const ocrPages: string[] = [];
 
-  for (const [index, image] of pageImages.slice(0, 8).entries()) {
+  for (const [index, image] of pageImages.slice(0, 12).entries()) {
     const tempPath = path.join(
       "/tmp",
       `osteps-ai-ocr-${process.pid}-${Date.now()}-${index}.png`
@@ -968,12 +974,29 @@ Return exactly:
   ]) {
     if (!cloudAttempt.apiKey) continue;
     try {
-      const context = await requestCloudVisualAnswerContext({
-        ...cloudAttempt,
-        prompt,
-        pageImages,
-      });
-      if (context) return context;
+      const chunkSize = cloudAttempt.provider === "groq" ? 5 : 8;
+      const contexts: VisualAnswerContext[] = [];
+      for (let offset = 0; offset < pageImages.length; offset += chunkSize) {
+        const context = await requestCloudVisualAnswerContext({
+          ...cloudAttempt,
+          prompt,
+          pageImages: pageImages.slice(offset, offset + chunkSize),
+          pageOffset: offset,
+        });
+        if (context) contexts.push(context);
+      }
+      if (contexts.length > 0) {
+        return normalizeVisualAnswerContext({
+          questionFocus: contexts.map((context) => context.questionFocus).filter(Boolean).join(" | "),
+          studentAnswerSummary: contexts.map((context) => context.studentAnswerSummary).filter(Boolean).join("\n"),
+          visibleMistakes: contexts.flatMap((context) => context.visibleMistakes || []),
+          legibility: contexts.some((context) => context.legibility === "high")
+            ? "high"
+            : contexts.some((context) => context.legibility === "medium")
+            ? "medium"
+            : "low",
+        });
+      }
     } catch (error) {
       console.error(`${cloudAttempt.provider} answered-page image reading failed:`, error);
     }
@@ -1498,9 +1521,22 @@ export async function POST(request: Request) {
   const studentText = compactStudentText(body.studentAnnotations, body.studentName);
   const answeredPages = extractAnsweredPages(body.studentAnnotations);
   const pageImages = Array.isArray(body.pageImages)
-    ? body.pageImages.map(normalizeImagePayload).filter(Boolean).slice(0, 8)
+    ? body.pageImages.map(normalizeImagePayload).filter(Boolean).slice(0, 12)
     : [];
   const hasPenStrokes = annotationsContainPenStrokes(body.studentAnnotations);
+  const annotationSummary = (() => {
+    const annotations = Array.isArray(body.studentAnnotations) ? body.studentAnnotations : [];
+    const textCount = annotations.filter((annotation) => annotation?.type === "text").length;
+    const penCount = annotations.filter((annotation) => annotation?.type === "pen").length;
+    const pages = Array.from(
+      new Set(
+        annotations
+          .map((annotation) => Number(annotation?.page || 0))
+          .filter((page) => Number.isFinite(page) && page > 0)
+      )
+    ).sort((left, right) => left - right);
+    return `${textCount} typed answer boxes, ${penCount} pen/handwriting marks, pages with student work: ${pages.join(", ") || "none"}, page images supplied: ${pageImages.length}`;
+  })();
   const islamic = isIslamicSubject(subjectName, title);
   const sourcePolicy = islamic
     ? "Islamic subject: use only the supplied assessment context and approved OSTEPS/Sunni school resources. Do not use external web knowledge. If evidence is missing, say so."
@@ -1653,12 +1689,16 @@ IGNORE: student name, ID, class, date, school name — never part of the answer.
 For marks feedback, name the exact question number and what the student got wrong.
 suggestedMark = exact integer SUM of all marksAwarded in the breakdown.
 If you cannot account for most of the allocated ${maxMarks ?? "total"} marks from visible questions and visible student answers, set suggestedMark to null, confidence to "low", and warn exactly what could not be read. Do NOT output a small mark like 4/40 just because only page 1 was readable.
+If the evidence summary shows many typed boxes or pen marks across many pages, assume the student attempted the paper and actively search the typed answer text and all supplied page images before marking any question as "not provided".
 
 Exam paper text:
 ${promptPaperContext || "Exam paper text could not be extracted."}
 
 Student typed answer text:
 ${studentText || "No separate typed annotation text was found. Use the supplied answered-page images if available."}
+
+Student answer evidence summary:
+${annotationSummary}
 
 ${visualContext ? `Visual reading from answered-page images:
 Question focus: ${visualContext.questionFocus}
