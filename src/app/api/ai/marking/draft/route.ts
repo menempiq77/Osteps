@@ -288,7 +288,7 @@ const extractPaperQuestionsViaVision = async ({
 }): Promise<string> => {
   if (!GROQ_API_KEY) return "";
 
-  const images = await extractPaperPagesAsImages(localPath, 8);
+  const images = await extractPaperPagesAsImages(localPath, 5);
   if (images.length === 0) return "";
 
   const prompt = `You are reading a scanned exam paper. Extract ALL exam questions visible on these pages so an AI assistant can mark the student's answers against them.
@@ -323,7 +323,7 @@ Return only the questions in order, nothing else.`;
             role: "user",
             content: [
               { type: "text", text: prompt },
-              ...images.slice(0, 8).map((img) => ({
+              ...images.slice(0, 5).map((img) => ({
                 type: "image_url",
                 image_url: { url: `data:image/jpeg;base64,${img}` },
               })),
@@ -811,7 +811,7 @@ const requestCloudVisualAnswerContext = async ({
             role: "user",
             content: [
               { type: "text", text: prompt },
-              ...pageImages.slice(0, 8).flatMap((image, index) => [
+              ...pageImages.slice(0, provider === "groq" ? 5 : 8).flatMap((image, index) => [
                 { type: "text", text: `Answered page image ${index + 1}:` },
                 {
                   type: "image_url",
@@ -1392,7 +1392,7 @@ const requestGroqVisionDraftMark = async ({
                 text:
                   `${prompt}\n\nThe attached images are the student's answered PDF pages. Read the PDF questions and the student's handwriting/typed overlays directly from these images. Connect each answer to its matching question and mark fairly like a teacher.`,
               },
-              ...pageImages.slice(0, 8).flatMap((image, index) => [
+              ...pageImages.slice(0, 5).flatMap((image, index) => [
                 { type: "text", text: `Answered page image ${index + 1}:` },
                 {
                   type: "image_url",
