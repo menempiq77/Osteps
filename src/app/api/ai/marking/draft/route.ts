@@ -1604,10 +1604,11 @@ export async function POST(request: Request) {
     } satisfies DraftMarkResponse);
   }
 
+  const hasSubstantialTypedAnswers = studentText.length >= 350;
   let visualContext: VisualAnswerContext | null = null;
   let visualWarning = "";
 
-  if (pageImages.length > 0) {
+  if (pageImages.length > 0 && !hasSubstantialTypedAnswers) {
     try {
       visualContext = await extractVisualAnswerContext({
         title,
@@ -1760,13 +1761,28 @@ MARKING RULES:
     }
     let rawJson: string | null = null;
 
-    // 1. For handwritten/annotated PDFs, try multimodal models first because they can
-    // directly see the student's writing over the PDF, not just an OCR summary.
-    if (GROQ_API_KEY && pageImages.length > 0) {
+    // 1. If the student has substantial typed answers, use the reliable text pipeline first.
+    // This avoids Groq Vision TPM rate-limit failures and still marks against the full PDF.
+    if (GROQ_API_KEY && hasSubstantialTypedAnswers) {
+      try {
+        const groqPayload = await requestGroqMarkingDraft({ prompt });
+        rawJson = chooseBetterDraftJson(
+          rawJson,
+          extractFirstJsonObject(String(groqPayload?.response || "")),
+          maxMarks
+        );
+      } catch (error) {
+        console.error("Groq text marking failed, falling back to vision/Ollama:", error);
+      }
+    }
+
+    // 2. For handwriting-heavy papers, try multimodal models because they can directly
+    // see the student's writing over the PDF. Skip this for text-rich submissions to avoid rate limits.
+    if (GROQ_API_KEY && pageImages.length > 0 && !hasSubstantialTypedAnswers) {
       try {
         const groqVisionPayload = await requestGroqVisionDraftMark({
           prompt,
-          pageImages: pageImages.slice(0, 8),
+          pageImages: pageImages.slice(0, 5),
         });
         rawJson = chooseBetterDraftJson(
           rawJson,
@@ -1782,7 +1798,7 @@ MARKING RULES:
       }
     }
 
-    if (GEMINI_API_KEY && pageImages.length > 0) {
+    if (GEMINI_API_KEY && pageImages.length > 0 && !hasSubstantialTypedAnswers) {
       try {
         const geminiPrompt = `${prompt}\n\nIMPORTANT: ${pageImages.length} answered-page image(s) are attached. Read the student's handwriting/text overlays directly from these images as the primary evidence. Match each visible answer to the PDF question on the same page.`;
         const geminiPayload = await requestGeminiDraftMark({
@@ -1803,7 +1819,7 @@ MARKING RULES:
       }
     }
 
-    if (OPENROUTER_API_KEY && pageImages.length > 0) {
+    if (OPENROUTER_API_KEY && pageImages.length > 0 && !hasSubstantialTypedAnswers) {
       try {
         const openRouterPayload = await requestOpenRouterDraftMark({
           prompt,
@@ -1823,8 +1839,8 @@ MARKING RULES:
       }
     }
 
-    // 2. Try Groq text (llama-3.3-70b) using extracted PDF text + visual summary.
-    if (GROQ_API_KEY) {
+    // 3. Try Groq text (llama-3.3-70b) using extracted PDF text + typed answers/visual summary.
+    if (GROQ_API_KEY && !hasSubstantialTypedAnswers) {
       try {
         const groqPayload = await requestGroqMarkingDraft({ prompt });
         rawJson = chooseBetterDraftJson(
