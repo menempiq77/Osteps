@@ -2294,9 +2294,14 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
     const typedAnswers = studentAnnotations
       .filter((a) => a.type === "text")
-      .map((a, i) => ({ idx: i + 1, page: a.page, text: ((a as { text?: string }).text ?? "").trim() }))
+      .map((a) => ({
+        page: a.page,
+        y: Math.round(Number((a as { y?: number }).y ?? 0)),
+        text: ((a as { text?: string }).text ?? "").trim(),
+      }))
       .filter((a) => a.text && !looksLikeNameField(a.text))
-      .map((a) => `Q${a.idx} [Page ${a.page}]: ${a.text}`)
+      .sort((l, r) => (l.page - r.page) || (l.y - r.y))
+      .map((a) => `[Page ${a.page}] ${a.text}`)
       .join("\n")
       .slice(0, 3500);
 

@@ -107,11 +107,13 @@ CRITICAL MARKING RULES:
 5. For MCQ/True-False questions, the selected answer is the option that the visual evidence says was circled/ticked/underlined/marked. Trust lines like "Q1: selected option (a) You pray full salah" as the student's answer.
 6. IGNORE student names, class names, dates, headers, school names, and standalone words from form fields (for example "Merub") — these are NEVER answers.
 7. If visual evidence gives a selected option and typed evidence gives only a name/header, use the selected option, not the name/header.
-8. Always attempt a full marking when exam questions and student answers are provided. Never refuse or say you need more info unless something is completely absent.
-9. End with: Total marks awarded / Total marks available, and 1-2 sentences of overall feedback.
-10. Be concise and practical. Teachers are busy.
-11. Respond in the same language the teacher uses (Arabic or English).
-12. If questionBreakdown context is provided, you may explain, audit, improve, or challenge it.`;
+8. The "Student's typed / handwriting / visual answer evidence" lines are NOT pre-matched to question numbers. Each "[Page N] ..." line is a typed text box from the student. You MUST match each piece of evidence to the most relevant question by reading its content (e.g. a line about "Ten year truce ... with the Muslims" answers a treaty question even if it is the first text box on the page).
+9. NEVER say "Student's answer: not provided" if there is any typed text box, handwriting, or visual evidence on the page that plausibly answers the question. Search ALL the evidence before declaring an answer missing.
+10. Always attempt a full marking when exam questions and student answers are provided. Never refuse or say you need more info unless something is completely absent.
+11. End with: Total marks awarded / Total marks available, and 1-2 sentences of overall feedback.
+12. Be concise and practical. Teachers are busy.
+13. Respond in the same language the teacher uses (Arabic or English).
+14. If questionBreakdown context is provided, you may explain, audit, improve, or challenge it.`;
 
 export async function POST(req: NextRequest) {
   if (!GROQ_API_KEY) {
@@ -162,12 +164,16 @@ export async function POST(req: NextRequest) {
   if (ctx.questionBreakdown) contextLines.push(`Per-question mark breakdown JSON:\n${ctx.questionBreakdown.slice(0, 2500)}`);
   if (resolvedPaperContext) contextLines.push(`Exam paper / questions:\n${resolvedPaperContext.slice(0, 6500)}`);
   if (ctx.studentAnswer) {
-    // Strip lines that are obviously just a student name / header field (e.g. "Q1 [Page 1]: Merub")
-    // so the marker never treats a name as the answer.
+    // Strip lines that are obviously just a student name / header field (1-2 short
+    // capitalized words, no punctuation/digits) so the marker never treats a name as the answer.
     const sanitizedStudentAnswer = ctx.studentAnswer
       .split(/\r?\n/)
       .filter((line) => {
-        const stripped = line.replace(/^\s*Q\d+\s*(\[[^\]]*\])?\s*:\s*/i, "").trim();
+        // Strip optional leading "Q1:", "Q1 [Page 1]:", "[Page 1]" prefixes before testing
+        const stripped = line
+          .replace(/^\s*Q\d+\s*(\[[^\]]*\])?\s*:\s*/i, "")
+          .replace(/^\s*\[Page\s*\d+\]\s*/i, "")
+          .trim();
         if (!stripped) return true;
         if (stripped.length > 25) return true;
         if (/[?.!,;:0-9]/.test(stripped)) return true;
@@ -178,7 +184,7 @@ export async function POST(req: NextRequest) {
       })
       .join("\n")
       .slice(0, 4500);
-    contextLines.push(`Student's typed / handwriting / visual answer evidence (name/header fields removed):\n${sanitizedStudentAnswer}`);
+    contextLines.push(`Student's typed / handwriting / visual answer evidence (name/header fields removed). Typed text boxes are labeled by [Page N] and are NOT pre-matched to question numbers — match each piece of evidence to the most relevant question by reading the content:\n${sanitizedStudentAnswer}`);
   }
   if (ctx.extraContext) contextLines.push(`Extra context:\n${ctx.extraContext.slice(0, 1200)}`);
 
