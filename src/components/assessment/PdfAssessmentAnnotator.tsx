@@ -2276,6 +2276,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   };
 
   const openAiMarkingAssistant = async () => {
+    visualAnswerCacheRef.current = null;
+
     const typedAnswers = studentAnnotations
       .filter((a) => a.type === "text")
       .map((a, i) => `Q${i + 1} [Page ${a.page}]: ${(a as { text?: string }).text ?? ""}`)

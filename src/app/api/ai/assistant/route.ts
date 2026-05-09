@@ -104,11 +104,14 @@ CRITICAL MARKING RULES:
 2. For EVERY question, state: question number, the student's exact answer, CORRECT or WRONG, the correct answer, and marks awarded.
 3. NEVER say "the correct answer is not clear from the provided text" — use your own deep subject knowledge to determine the correct answer. For Islamic Studies, Arabic, Quran, Fiqh etc. you ALWAYS know the correct answer.
 4. The exam paper PDF contains QUESTIONS only (no answer key) — that is normal. You must supply the correct answers from your knowledge.
-5. Always attempt a full marking when exam questions and student answers are provided. Never refuse or say you need more info unless something is completely absent.
-6. End with: Total marks awarded / Total marks available, and 1-2 sentences of overall feedback.
-7. Be concise and practical. Teachers are busy.
-8. Respond in the same language the teacher uses (Arabic or English).
-9. If questionBreakdown context is provided, you may explain, audit, improve, or challenge it.`;
+5. For MCQ/True-False questions, the selected answer is the option that the visual evidence says was circled/ticked/underlined/marked. Trust lines like "Q1: selected option (a) You pray full salah" as the student's answer.
+6. IGNORE student names, class names, dates, headers, school names, and standalone words from form fields (for example "Merub") — these are NEVER answers.
+7. If visual evidence gives a selected option and typed evidence gives only a name/header, use the selected option, not the name/header.
+8. Always attempt a full marking when exam questions and student answers are provided. Never refuse or say you need more info unless something is completely absent.
+9. End with: Total marks awarded / Total marks available, and 1-2 sentences of overall feedback.
+10. Be concise and practical. Teachers are busy.
+11. Respond in the same language the teacher uses (Arabic or English).
+12. If questionBreakdown context is provided, you may explain, audit, improve, or challenge it.`;
 
 export async function POST(req: NextRequest) {
   if (!GROQ_API_KEY) {
