@@ -50,11 +50,19 @@ const compactText = (value: string, maxLength: number) => {
 
 const mergeContexts = (...contexts: Array<AiContext | undefined>): AiContext | undefined => {
   const merged: AiContext = {};
+  const preferLatestKeys = new Set<keyof AiContext>([
+    "paperContext",
+    "studentAnswer",
+    "questionBreakdown",
+    "assessmentContext",
+  ]);
   for (const ctx of contexts) {
     if (!ctx) continue;
     for (const [key, value] of Object.entries(ctx) as Array<[keyof AiContext, unknown]>) {
       if (value == null || value === "") continue;
-      if (typeof value === "string" && typeof merged[key] === "string" && merged[key]) {
+      if (preferLatestKeys.has(key)) {
+        (merged as Record<string, unknown>)[key] = value;
+      } else if (typeof value === "string" && typeof merged[key] === "string" && merged[key]) {
         const combined = `${merged[key] as string}\n\n${value}`;
         (merged as Record<string, unknown>)[key] = compactText(combined, key === "visibleText" ? 6000 : 5000);
       } else {
@@ -77,6 +85,8 @@ export function GlobalAiAssistant() {
   const collectCurrentPageContext = useCallback((base?: AiContext): AiContext | undefined => {
     if (typeof window === "undefined") return base;
 
+    const isRichMarkingContext = Boolean(base?.paperContext || base?.studentAnswer || base?.page === "marking");
+
     const componentContexts: AiContext[] = [];
     window.dispatchEvent(
       new CustomEvent("osteps:collect-ai-context", {
@@ -87,7 +97,7 @@ export function GlobalAiAssistant() {
     const selectedText = compactText(String(window.getSelection?.() || ""), 2000);
     const mainText = compactText(
       String(document.querySelector("main")?.textContent || document.body?.innerText || ""),
-      6000
+      isRichMarkingContext ? 1200 : 6000
     );
 
     const automaticContext: AiContext = {
@@ -95,7 +105,7 @@ export function GlobalAiAssistant() {
       pageUrl: window.location.href,
       pageTitle: document.title,
       selectedText: selectedText || undefined,
-      visibleText: mainText || undefined,
+      visibleText: isRichMarkingContext ? undefined : mainText || undefined,
     };
 
     return mergeContexts(automaticContext, ...componentContexts, base);

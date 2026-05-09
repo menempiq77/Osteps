@@ -151,15 +151,15 @@ export async function POST(req: NextRequest) {
   if (ctx.subject) contextLines.push(`Subject: ${ctx.subject}`);
   if (ctx.maxMarks != null) contextLines.push(`Total marks: ${ctx.maxMarks}`);
   if (ctx.suggestedMark != null) contextLines.push(`AI suggested mark: ${ctx.suggestedMark}`);
-  if (ctx.assessmentContext) contextLines.push(`Assessment workspace context:\n${ctx.assessmentContext.slice(0, 4000)}`);
-  if (ctx.selectedText) contextLines.push(`Teacher selected text:\n${ctx.selectedText.slice(0, 2500)}`);
-  if (ctx.visibleText) contextLines.push(`Visible page text:\n${ctx.visibleText.slice(0, 5000)}`);
+  if (ctx.assessmentContext) contextLines.push(`Assessment workspace context:\n${ctx.assessmentContext.slice(0, 1200)}`);
+  if (ctx.selectedText) contextLines.push(`Teacher selected text:\n${ctx.selectedText.slice(0, 1200)}`);
+  if (ctx.visibleText) contextLines.push(`Visible page text:\n${ctx.visibleText.slice(0, 1800)}`);
   if (ctx.feedback) contextLines.push(`AI feedback given:\n${ctx.feedback}`);
   if (ctx.rationale) contextLines.push(`Marking rationale: ${ctx.rationale}`);
-  if (ctx.questionBreakdown) contextLines.push(`Per-question mark breakdown JSON:\n${ctx.questionBreakdown.slice(0, 8000)}`);
-  if (resolvedPaperContext) contextLines.push(`Exam paper / questions:\n${resolvedPaperContext.slice(0, 12000)}`);
-  if (ctx.studentAnswer) contextLines.push(`Student's typed / handwriting / visual answer evidence:\n${ctx.studentAnswer.slice(0, 12000)}`);
-  if (ctx.extraContext) contextLines.push(`Extra context:\n${ctx.extraContext.slice(0, 4000)}`);
+  if (ctx.questionBreakdown) contextLines.push(`Per-question mark breakdown JSON:\n${ctx.questionBreakdown.slice(0, 2500)}`);
+  if (resolvedPaperContext) contextLines.push(`Exam paper / questions:\n${resolvedPaperContext.slice(0, 6500)}`);
+  if (ctx.studentAnswer) contextLines.push(`Student's typed / handwriting / visual answer evidence:\n${ctx.studentAnswer.slice(0, 4500)}`);
+  if (ctx.extraContext) contextLines.push(`Extra context:\n${ctx.extraContext.slice(0, 1200)}`);
 
   const systemContent = contextLines.length > 0
     ? `${SYSTEM_PROMPT}\n\n---\nCURRENT CONTEXT:\n${contextLines.join("\n\n")}`
@@ -180,11 +180,11 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify({
           model: GROQ_TEXT_MODEL,
           temperature: 0.4,
-          max_tokens: 2200,
+          max_tokens: 1000,
           stream: true,
           messages: [
             { role: "system", content: systemContent },
-            ...messages.slice(-18), // keep last 18 turns
+            ...messages.slice(-8), // keep last 8 turns to stay under Groq TPM limits
           ],
         }),
         signal: controller.signal,
@@ -205,9 +205,9 @@ export async function POST(req: NextRequest) {
             body: JSON.stringify({
               model: GROQ_FALLBACK_TEXT_MODEL,
               temperature: 0.4,
-              max_tokens: 2200,
+              max_tokens: 1000,
               stream: true,
-              messages: [{ role: "system", content: systemContent }, ...messages.slice(-18)],
+              messages: [{ role: "system", content: systemContent }, ...messages.slice(-8)],
             }),
             signal: fallbackController.signal,
           });

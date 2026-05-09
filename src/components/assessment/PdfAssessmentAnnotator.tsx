@@ -2281,7 +2281,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       .map((a, i) => `Q${i + 1} [Page ${a.page}]: ${(a as { text?: string }).text ?? ""}`)
       .filter((t) => t.trim())
       .join("\n")
-      .slice(0, 6000);
+      .slice(0, 3500);
 
     messageApi.open({
       key: "ai-marking-assistant",
@@ -2341,7 +2341,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     const studentEvidence = [
       typedAnswers ? `Typed answer boxes:\n${typedAnswers}` : "",
       visualAnswerCacheRef.current ? `Visual/handwriting/circles/ticks evidence from the rendered student paper:\n${visualAnswerCacheRef.current}` : "",
-    ].filter(Boolean).join("\n\n").slice(0, 12000);
+    ].filter(Boolean).join("\n\n").slice(0, 5500);
 
     messageApi.destroy("ai-marking-assistant");
 
@@ -2353,10 +2353,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
           subject: subjectName ?? undefined,
           maxMarks: maxMarks ?? undefined,
           fileUrl,
-          paperContext: paperTextCacheRef.current || undefined,
+          paperContext: paperTextCacheRef.current ? paperTextCacheRef.current.slice(0, 7500) : undefined,
           studentAnswer: studentEvidence || undefined,
         },
-        initialMessage: `Please mark this student's exam paper. Use ALL available evidence: extracted PDF questions, typed answer boxes, handwriting, circled options, ticks, crosses, and pen marks.\n\nFor each question:\n1. State the question number and the question text\n2. State the student's answer exactly as written/selected\n3. State whether the answer is CORRECT, PARTLY CORRECT, or WRONG\n4. If wrong or partly correct, state the correct answer using your own subject knowledge — do NOT say "not clear from the text"\n5. State how many marks to award\n\nFinish with a total suggested mark out of ${maxMarks ?? "the total"} and a brief overall comment.`,
+        initialMessage: `Mark this student's paper using the PDF questions and all student evidence. For each question: answer given, correct/partly/wrong, correct answer, marks. Then total out of ${maxMarks ?? "the total"}.`,
       },
     }));
   };
