@@ -161,7 +161,25 @@ export async function POST(req: NextRequest) {
   if (ctx.rationale) contextLines.push(`Marking rationale: ${ctx.rationale}`);
   if (ctx.questionBreakdown) contextLines.push(`Per-question mark breakdown JSON:\n${ctx.questionBreakdown.slice(0, 2500)}`);
   if (resolvedPaperContext) contextLines.push(`Exam paper / questions:\n${resolvedPaperContext.slice(0, 6500)}`);
-  if (ctx.studentAnswer) contextLines.push(`Student's typed / handwriting / visual answer evidence:\n${ctx.studentAnswer.slice(0, 4500)}`);
+  if (ctx.studentAnswer) {
+    // Strip lines that are obviously just a student name / header field (e.g. "Q1 [Page 1]: Merub")
+    // so the marker never treats a name as the answer.
+    const sanitizedStudentAnswer = ctx.studentAnswer
+      .split(/\r?\n/)
+      .filter((line) => {
+        const stripped = line.replace(/^\s*Q\d+\s*(\[[^\]]*\])?\s*:\s*/i, "").trim();
+        if (!stripped) return true;
+        if (stripped.length > 25) return true;
+        if (/[?.!,;:0-9]/.test(stripped)) return true;
+        const words = stripped.split(/\s+/);
+        if (words.length > 2) return true;
+        // Drop standalone capitalized name (Latin or Arabic) of 1-2 words
+        return !/^[A-Z\u0600-\u06FF][A-Za-z\u0600-\u06FF\-']{1,20}(\s+[A-Z\u0600-\u06FF][A-Za-z\u0600-\u06FF\-']{1,20})?$/.test(stripped);
+      })
+      .join("\n")
+      .slice(0, 4500);
+    contextLines.push(`Student's typed / handwriting / visual answer evidence (name/header fields removed):\n${sanitizedStudentAnswer}`);
+  }
   if (ctx.extraContext) contextLines.push(`Extra context:\n${ctx.extraContext.slice(0, 1200)}`);
 
   const systemContent = contextLines.length > 0

@@ -109,8 +109,8 @@ const REMOTE_SYNC_INTERVAL_MS = 1500;
 const SELF_ASSESSMENT_AUTOSAVE_DELAY_MS = 1200;
 const TEACHER_DRAFT_AUTOSAVE_DELAY_MS = 1200;
 const AI_PAGE_IMAGE_MAX_COUNT = 12;
-const AI_PAGE_IMAGE_MAX_WIDTH = 1400;
-const AI_PAGE_IMAGE_JPEG_QUALITY = 0.76;
+const AI_PAGE_IMAGE_MAX_WIDTH = 1800;
+const AI_PAGE_IMAGE_JPEG_QUALITY = 0.9;
 const ERASER_RADIUS = 28;
 const TEXT_ERASER_PADDING = 18;
 const TEXT_ANNOTATION_MAX_WIDTH = 360;
@@ -2278,10 +2278,25 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const openAiMarkingAssistant = async () => {
     visualAnswerCacheRef.current = null;
 
+    // Filter out text annotations that look like a student name / single-word header field
+    // (1-2 short words, no spaces or only one space, no question/answer wording, < 25 chars)
+    const looksLikeNameField = (raw: string) => {
+      const t = raw.trim();
+      if (!t) return true;
+      if (t.length > 25) return false;
+      // Reject if it contains digits, punctuation typical of answers, or multiple words > 2
+      if (/[?.!,;:0-9]/.test(t)) return false;
+      const words = t.split(/\s+/);
+      if (words.length > 2) return false;
+      // Single capitalized word with only letters = likely a name (e.g. "Merub")
+      return /^[A-Z\u0600-\u06FF][A-Za-z\u0600-\u06FF\-']{1,20}(\s+[A-Z\u0600-\u06FF][A-Za-z\u0600-\u06FF\-']{1,20})?$/.test(t);
+    };
+
     const typedAnswers = studentAnnotations
       .filter((a) => a.type === "text")
-      .map((a, i) => `Q${i + 1} [Page ${a.page}]: ${(a as { text?: string }).text ?? ""}`)
-      .filter((t) => t.trim())
+      .map((a, i) => ({ idx: i + 1, page: a.page, text: ((a as { text?: string }).text ?? "").trim() }))
+      .filter((a) => a.text && !looksLikeNameField(a.text))
+      .map((a) => `Q${a.idx} [Page ${a.page}]: ${a.text}`)
       .join("\n")
       .slice(0, 3500);
 
