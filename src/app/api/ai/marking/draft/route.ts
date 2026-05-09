@@ -140,6 +140,19 @@ const summarizeLongText = (value: string, maxLength: number) => {
   return `${value.slice(0, headLength)}\n[...middle omitted for speed...]\n${value.slice(-tailLength)}`;
 };
 
+const summarizeEvenly = (items: string[], maxTotalLength: number, separator = "\n\n") => {
+  const cleanItems = items.map((item) => item.trim()).filter(Boolean);
+  if (cleanItems.length === 0) return "";
+  const joined = cleanItems.join(separator);
+  if (joined.length <= maxTotalLength) return joined;
+
+  const separatorBudget = separator.length * Math.max(0, cleanItems.length - 1);
+  const itemBudget = Math.max(120, Math.floor((maxTotalLength - separatorBudget) / cleanItems.length));
+  return cleanItems
+    .map((item) => summarizeLongText(item, itemBudget))
+    .join(separator);
+};
+
 const normalizeImagePayload = (value: unknown) => {
   const text = asText(value);
   if (!text) return "";
@@ -176,9 +189,9 @@ const compactStudentText = (
 
   const combined = textItems
     .map((annotation) => `[Page ${annotation.page}, y=${Math.round(annotation.y)}] ${annotation.text}`)
-    .join("\n");
+    .filter(Boolean);
 
-  return summarizeLongText(combined, 5000);
+  return summarizeEvenly(combined, 9000, "\n");
 };
 
 const extractAnsweredPages = (annotations: Array<Record<string, unknown>> | undefined) => {
@@ -424,11 +437,11 @@ const buildPaperContext = async (fileUrl: string | undefined, preferredPages: nu
       ? pages.filter((page) => preferredPages.includes(page.num))
       : pages;
   const selectedPages = relevantPages.length > 0 ? relevantPages : pages;
-  const combined = selectedPages
-    .map((page) => `[Exam paper page ${page.num}] ${page.text}`)
-    .join("\n\n");
-
-  return summarizeLongText(combined, 9000);
+  return summarizeEvenly(
+    selectedPages.map((page) => `[Exam paper page ${page.num}] ${page.text}`),
+    12000,
+    "\n\n"
+  );
 };
 
 const extractFirstJsonObject = (raw: string) => {
@@ -1225,9 +1238,10 @@ ISLAMIC STUDIES AUTHORITATIVE ANSWERS (use these when subject is Islamic/Quranic
     "  • Short-answer: does the student's text contain the required facts/points? Award proportionally.\n" +
     "  • Essay/Analysis: evaluate understanding, depth, and accuracy proportionally.\n" +
     "STEP 4 — BUILD questionBreakdown: one entry PER QUESTION. Use the exact question number and a short excerpt of the question text (e.g. \"Q1: Shortening prayers if stay >3 days\"). Do NOT group MCQs into one entry.\n" +
+    "STEP 5 — SELF-AUDIT BEFORE FINAL JSON: Re-read the PDF question list and the student answer evidence. Check that every visible question/sub-question with marks has one breakdown row, no typed answer box was ignored, marks do not exceed allocation, and the total equals the sum. If a high-performing answer is present, award it fairly; if evidence is missing, warn rather than under-marking.\n" +
     "\nCRITICAL MCQ RULE: MCQ and True/False questions are BINARY — full marks or 0. Never give \"3 out of 5\" to a single MCQ. The mark per MCQ is whatever the paper allocates (default: 1 mark each if not stated).\n" +
     "QUESTION LABEL RULE: Use the ACTUAL question number and topic from the paper (e.g. \"Q1: Shortening prayers when stay > 3 days\"). NEVER invent topic names not in the paper.\n" +
-    "\nACCURACY RULE: suggestedMark MUST equal the exact integer SUM of all marksAwarded in questionBreakdown.\n" +
+    "\nACCURACY RULE: suggestedMark MUST equal the exact integer SUM of all marksAwarded in questionBreakdown. Never output a mark that is lower because you failed to map an answer; first try to match answers by page/y-position and wording.\n" +
     "IDENTITY FIELDS RULE: Completely ignore student name, ID, class, date, school name — these are never part of the answer.\n" +
     ISLAMIC_STUDIES_KNOWLEDGE +
     "\nFor WWW: name the specific question and what was correct. For EBI: name the question number, what the student wrote that was wrong or missing, and what a better answer should include.";
@@ -1580,10 +1594,10 @@ export async function POST(request: Request) {
     }
   }
 
-  // Allow up to 8000 chars of paper text so multi-section exams (MCQs + short-answer + essays)
+  // Allow up to 12000 chars of page-balanced paper text so multi-section exams (MCQs + short-answer + essays)
   // are fully visible. Do NOT reduce this when images are present — images carry student
   // answers, not exam questions, so they don't require us to shrink the paper context.
-  const promptPaperContext = summarizeLongText(paperContext, 8000);
+  const promptPaperContext = summarizeLongText(paperContext, 12000);
 
   const shouldPreferFastModel =
     pageImages.length > 0 || hasPenStrokes || promptPaperContext.length > 2200;
@@ -1684,6 +1698,13 @@ STEP 4 — BUILD THE BREAKDOWN:
   - Use the actual question number and a short excerpt of the question text as the label.
     EXAMPLE: "Q1: What happens when stay exceeds 3 days" — NOT invented topic names.
   - Do NOT invent labels like "Effects of Hudaybiyyah" for an MCQ about prayer shortening.
+
+STEP 5 — SELF-AUDIT BEFORE RETURNING:
+  - Check every PDF question/sub-question with marks has a breakdown row.
+  - Check every typed answer box was considered and matched by page/y-position or wording.
+  - Check no mark exceeds its question allocation.
+  - Check suggestedMark is the exact sum of the breakdown.
+  - If a student clearly attempted the paper across many pages, do not mark many questions "not provided" unless the relevant answer area is genuinely blank/unreadable.
 
 OTHER RULES:
 IGNORE: student name, ID, class, date, school name — never part of the answer.
