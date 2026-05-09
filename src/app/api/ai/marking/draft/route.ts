@@ -51,7 +51,7 @@ type VisualAnswerContext = {
 
 const OLLAMA_BASE_URL = (process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434").replace(/\/+$/, "");
 const OLLAMA_MODEL = process.env.OSTEPS_AI_MARKING_MODEL || process.env.OLLAMA_MODEL || "deepseek-r1:1.5b";
-const OLLAMA_FAST_FALLBACK_MODEL = process.env.OSTEPS_AI_MARKING_FAST_MODEL || "qwen2.5:1.5b";
+const OLLAMA_FAST_FALLBACK_MODEL = process.env.OSTEPS_AI_MARKING_FAST_MODEL || "qwen2.5:0.5b";
 const OLLAMA_TINY_FALLBACK_MODEL = process.env.OSTEPS_AI_MARKING_TINY_MODEL || "qwen2.5:0.5b";
 const OLLAMA_VISION_MODEL = process.env.OSTEPS_AI_MARKING_VISION_MODEL || "granite3.2-vision:2b";
 const OLLAMA_KEEP_ALIVE = process.env.OSTEPS_AI_MARKING_KEEP_ALIVE || "5m";
@@ -1791,12 +1791,12 @@ MARKING RULES:
 4. confidence = low, medium, or high.
 5. warnings = []`;
 
-  const tinyOllamaPrompt = `Return ONLY valid JSON. You are an exam marker. Give a teacher-review draft mark.
+  const tinyOllamaPrompt = `Return ONLY valid JSON. Give a teacher-review draft mark.
 Max marks: ${maxMarks ?? "unknown"}
 Subject: ${subjectName}
-Paper excerpt: ${summarizeLongText(promptPaperContext || paperContext || "No paper text.", 520)}
-Student answer excerpt: ${summarizeLongText(readableAnswerText || visualContext?.studentAnswerSummary || studentText || "No readable answer.", 620)}
-Rules: suggestedMark must be a number from 0 to ${maxMarks ?? "max"}. feedback must be deductions only. Do not write WWW or EBI. Do not list correct answers.
+Paper excerpt: ${summarizeLongText(promptPaperContext || paperContext || "No paper text.", 220)}
+Student answer excerpt: ${summarizeLongText(readableAnswerText || visualContext?.studentAnswerSummary || studentText || "No readable answer.", 260)}
+Rules: suggestedMark must be a number from 0 to ${maxMarks ?? "max"}. feedback must be deductions only. Do not write WWW or EBI. If uncertain, still return your best draft mark and add a warning for teacher review.
 JSON schema: {"suggestedMark":number,"feedback":"Deductions only: ...","rationale":"brief","confidence":"low|medium|high","warnings":[]}`;
 
   try {
@@ -1812,10 +1812,10 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions only: ...","rational
           model: OLLAMA_TINY_FALLBACK_MODEL,
           prompt: tinyOllamaPrompt,
           options: {
-            num_predict: 120,
-            num_ctx: 768,
+            num_predict: 80,
+            num_ctx: 384,
           },
-          timeoutMs: 25000,
+          timeoutMs: 12000,
         });
         const tinyJson = extractFirstJsonObject(String(tinyPayload.response || ""));
         if (tinyJson) {
@@ -1934,10 +1934,10 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions only: ...","rational
           model: OLLAMA_FAST_FALLBACK_MODEL,
           prompt: ollamaPrompt,
           options: {
-            num_predict: 160,
-            num_ctx: 512,
+            num_predict: 110,
+            num_ctx: 384,
           },
-          timeoutMs: 40000,
+          timeoutMs: 18000,
         });
         rawJson = extractFirstJsonObject(String(fallbackPayload.response || ""));
         // Schedule a background keep-alive so the model stays warm for the next teacher
