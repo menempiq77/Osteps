@@ -60,6 +60,8 @@ const OLLAMA_ENABLE_REASONER = process.env.OSTEPS_AI_MARKING_USE_REASONER === "1
 const GROQ_API_KEY = process.env.GROQ_API_KEY || "";
 const GROQ_VISION_MODEL = process.env.GROQ_VISION_MODEL || "meta-llama/llama-4-scout-17b-16e-instruct";
 const GROQ_TEXT_MODEL = process.env.GROQ_TEXT_MODEL || "llama-3.3-70b-versatile";
+// Faster fallback text model with a separate 500k TPD quota — used when the primary model is rate-limited
+const GROQ_FALLBACK_TEXT_MODEL = process.env.GROQ_FALLBACK_TEXT_MODEL || "llama-3.1-8b-instant";
 // DeepSeek-R1 reasoning model for re-check on low-confidence marks (runs AFTER primary model)
 const GROQ_REASONING_MODEL = process.env.GROQ_REASONING_MODEL || "deepseek-r1-distill-llama-70b";
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "";
@@ -1207,9 +1209,11 @@ const chooseBetterDraftJson = (
 const requestGroqMarkingDraft = async ({
   prompt,
   signal,
+  model,
 }: {
   prompt: string;
   signal?: AbortSignal;
+  model?: string;
 }) => {
   if (!GROQ_API_KEY) return null;
 
@@ -1218,6 +1222,8 @@ const requestGroqMarkingDraft = async ({
   const requestSignal = signal
     ? AbortSignal.any([signal, controller.signal])
     : controller.signal;
+
+  const targetModel = model || GROQ_TEXT_MODEL;
 
   const ISLAMIC_STUDIES_KNOWLEDGE = `
 ISLAMIC STUDIES AUTHORITATIVE ANSWERS (use these when subject is Islamic/Quranic/Arabic religious):
@@ -1264,7 +1270,7 @@ ISLAMIC STUDIES AUTHORITATIVE ANSWERS (use these when subject is Islamic/Quranic
         Authorization: `Bearer ${GROQ_API_KEY}`,
       },
       body: JSON.stringify({
-        model: GROQ_TEXT_MODEL,
+        model: targetModel,
         temperature: 0,
         max_tokens: 4500,
         response_format: { type: "json_object" },
@@ -1278,6 +1284,12 @@ ISLAMIC STUDIES AUTHORITATIVE ANSWERS (use these when subject is Islamic/Quranic
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => "");
+      // On 429 rate-limit for the primary model, automatically retry with the fallback model
+      if (response.status === 429 && targetModel === GROQ_TEXT_MODEL && GROQ_FALLBACK_TEXT_MODEL !== GROQ_TEXT_MODEL) {
+        clearTimeout(timeoutHandle);
+        console.error(`Groq primary model rate-limited (429), retrying with ${GROQ_FALLBACK_TEXT_MODEL}`);
+        return requestGroqMarkingDraft({ prompt, signal, model: GROQ_FALLBACK_TEXT_MODEL });
+      }
       throw new Error(`Groq text marking failed (${response.status}). ${errorText.slice(0, 240)}`);
     }
 
@@ -1821,7 +1833,7 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
             num_predict: 80,
             num_ctx: 384,
           },
-          timeoutMs: 12000,
+          timeoutMs: 25000,
         });
         const tinyJson = extractFirstJsonObject(String(tinyPayload.response || ""));
         if (tinyJson) {
