@@ -23,12 +23,38 @@ const pageLabel = (pageNumbers: number[] | undefined, index: number) => {
   return page ? `page ${page}` : `image ${index + 1}`;
 };
 
+const normalizeEvidenceText = (value: string) =>
+  String(value || "")
+    .replace(/\r/g, "")
+    .split("\n")
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .join("\n")
+    .slice(0, 9000);
+
+const mergeEvidenceText = (primary: string, secondary: string) => {
+  const lines = [...normalizeEvidenceText(primary).split("\n"), ...normalizeEvidenceText(secondary).split("\n")]
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  return Array.from(new Set(lines)).join("\n").slice(0, 9000);
+};
+
 const enhanceForOcr = async (inputPath: string) => {
   const outputPath = `${inputPath}.enhanced.png`;
   try {
     await execFileAsync(
       "convert",
-      [inputPath, "-colorspace", "Gray", "-normalize", "-sharpen", "0x1.4", outputPath],
+      [
+        inputPath,
+        "-resize", "200%",
+        "-colorspace", "Gray",
+        "-contrast-stretch", "1%x1%",
+        "-normalize",
+        "-despeckle",
+        "-sharpen", "0x1.4",
+        outputPath,
+      ],
       { timeout: 6000 }
     );
     return outputPath;
@@ -46,7 +72,7 @@ const readWithLocalOcr = async (pageImages: string[], pageNumbers: number[]) => 
       await fs.writeFile(tempPath, Buffer.from(image, "base64"));
       enhancedPath = await enhanceForOcr(tempPath);
       const attempts: string[] = [];
-      for (const psm of ["6", "4", "11"]) {
+      for (const psm of ["6", "4", "11", "12"]) {
         try {
           const { stdout } = await execFileAsync(
             "tesseract",
@@ -144,8 +170,12 @@ Return evidence only. Do not mark. Do not give scores.`;
 
       if (response.ok) {
         const json = await response.json();
-        const content = String(json?.choices?.[0]?.message?.content || "").replace(/\s+/g, " ").trim();
-        if (content.length > 20) return NextResponse.json({ text: content.slice(0, 9000), source: "vision" });
+        const content = normalizeEvidenceText(String(json?.choices?.[0]?.message?.content || ""));
+        if (content.length > 20) {
+          const ocrText = await readWithLocalOcr(pageImages, pageNumbers).catch(() => "");
+          const mergedText = ocrText ? mergeEvidenceText(content, ocrText) : content;
+          return NextResponse.json({ text: mergedText, source: ocrText ? "vision+ocr" : "vision" });
+        }
       }
     } catch {
       clearTimeout(timeoutHandle);

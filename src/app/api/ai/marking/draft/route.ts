@@ -832,6 +832,25 @@ const normalizeVisualAnswerContext = (
   legibility: raw.legibility === "high" || raw.legibility === "medium" ? raw.legibility : "low",
 });
 
+const mergeVisualAnswerContexts = (
+  primary: VisualAnswerContext,
+  secondary: VisualAnswerContext | null
+) => {
+  if (!secondary) return primary;
+
+  return normalizeVisualAnswerContext({
+    questionFocus: [primary.questionFocus, secondary.questionFocus].filter(Boolean).join(" | "),
+    studentAnswerSummary: [primary.studentAnswerSummary, secondary.studentAnswerSummary].filter(Boolean).join("\n"),
+    visibleMistakes: Array.from(new Set([...(primary.visibleMistakes || []), ...(secondary.visibleMistakes || [])])),
+    legibility:
+      primary.legibility === "high" || secondary.legibility === "high"
+        ? "high"
+        : primary.legibility === "medium" || secondary.legibility === "medium"
+        ? "medium"
+        : "low",
+  });
+};
+
 const extractCloudJsonContent = (payload: unknown) => {
   const data = payload as { choices?: Array<{ message?: { content?: unknown } }> };
   const content = data?.choices?.[0]?.message?.content;
@@ -916,6 +935,64 @@ const requestCloudVisualAnswerContext = async ({
 
     const content = extractCloudJsonContent(await response.json());
     const rawJson = extractFirstJsonObject(content);
+    if (!rawJson) return null;
+    return normalizeVisualAnswerContext(JSON.parse(rawJson) as Partial<VisualAnswerContext>);
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
+};
+
+const requestGeminiVisualAnswerContext = async ({
+  prompt,
+  pageImages = [],
+  pageNumbers = [],
+}: {
+  prompt: string;
+  pageImages?: string[];
+  pageNumbers?: number[];
+}) => {
+  if (!GEMINI_API_KEY || pageImages.length === 0) return null;
+
+  const controller = new AbortController();
+  const timeoutHandle = setTimeout(() => controller.abort(), 18000);
+
+  try {
+    const imageParts = pageImages.slice(0, 8).flatMap((img, index) => [
+      { text: `Answered ${pageImageLabel(pageNumbers, index)}:` },
+      { inlineData: { mimeType: "image/jpeg" as const, data: img } },
+    ]);
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: "user",
+              parts: [{ text: prompt }, ...imageParts],
+            },
+          ],
+          generationConfig: {
+            responseMimeType: "application/json",
+            maxOutputTokens: 1800,
+            temperature: 0.1,
+            topP: 0.9,
+          },
+        }),
+        signal: controller.signal,
+      }
+    );
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => "");
+      throw new Error(`gemini vision failed (${response.status}). ${text.slice(0, 240)}`);
+    }
+
+    const data = await response.json();
+    const text = (data?.candidates?.[0]?.content?.parts?.[0]?.text as string) || "";
+    const rawJson = extractFirstJsonObject(text);
     if (!rawJson) return null;
     return normalizeVisualAnswerContext(JSON.parse(rawJson) as Partial<VisualAnswerContext>);
   } finally {
@@ -1048,6 +1125,37 @@ Return exactly:
   "legibility": "low" | "medium" | "high"
 }`;
 
+  const ocrContextPromise = extractLocalOcrAnswerContext(pageImages, pageNumbers || []).catch(() => null);
+
+  if (GEMINI_API_KEY) {
+    try {
+      const contexts: VisualAnswerContext[] = [];
+      for (let offset = 0; offset < pageImages.length; offset += 8) {
+        const context = await requestGeminiVisualAnswerContext({
+          prompt,
+          pageImages: pageImages.slice(offset, offset + 8),
+          pageNumbers: (pageNumbers || []).slice(offset, offset + 8),
+        });
+        if (context) contexts.push(context);
+      }
+      if (contexts.length > 0) {
+        const mergedGeminiContext = normalizeVisualAnswerContext({
+          questionFocus: contexts.map((context) => context.questionFocus).filter(Boolean).join(" | "),
+          studentAnswerSummary: contexts.map((context) => context.studentAnswerSummary).filter(Boolean).join("\n"),
+          visibleMistakes: contexts.flatMap((context) => context.visibleMistakes || []),
+          legibility: contexts.some((context) => context.legibility === "high")
+            ? "high"
+            : contexts.some((context) => context.legibility === "medium")
+            ? "medium"
+            : "low",
+        });
+        return mergeVisualAnswerContexts(mergedGeminiContext, await ocrContextPromise);
+      }
+    } catch (error) {
+      console.error("gemini answered-page image reading failed:", error);
+    }
+  }
+
   for (const cloudAttempt of [
     { provider: "groq" as const, apiKey: GROQ_API_KEY, model: GROQ_VISION_MODEL },
     { provider: "openrouter" as const, apiKey: OPENROUTER_API_KEY, model: OPENROUTER_VISION_MODEL },
@@ -1066,7 +1174,7 @@ Return exactly:
         if (context) contexts.push(context);
       }
       if (contexts.length > 0) {
-        return normalizeVisualAnswerContext({
+        return mergeVisualAnswerContexts(normalizeVisualAnswerContext({
           questionFocus: contexts.map((context) => context.questionFocus).filter(Boolean).join(" | "),
           studentAnswerSummary: contexts.map((context) => context.studentAnswerSummary).filter(Boolean).join("\n"),
           visibleMistakes: contexts.flatMap((context) => context.visibleMistakes || []),
@@ -1075,14 +1183,14 @@ Return exactly:
             : contexts.some((context) => context.legibility === "medium")
             ? "medium"
             : "low",
-        });
+        }), await ocrContextPromise);
       }
     } catch (error) {
       console.error(`${cloudAttempt.provider} answered-page image reading failed:`, error);
     }
   }
 
-  const ocrContext = await extractLocalOcrAnswerContext(pageImages, pageNumbers || []);
+  const ocrContext = await ocrContextPromise;
   if (ocrContext) return ocrContext;
 
   if (!OLLAMA_VISION_MODEL) return null;
@@ -1928,30 +2036,8 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
       }
     }
 
-    // 2. For handwriting-heavy papers, try multimodal models because they can directly
-    // see the student's writing over the PDF. Skip this for text-rich submissions to avoid rate limits.
-    if (GROQ_API_KEY && pageImages.length > 0 && !hasSubstantialTypedAnswers) {
-      try {
-        const groqVisionPayload = await requestGroqVisionDraftMark({
-          prompt,
-          pageImages: pageImages.slice(0, 5),
-          pageNumbers: pageImagePageNumbers.slice(0, 5),
-        });
-        rawJson = chooseBetterDraftJson(
-          rawJson,
-          extractFirstJsonObject(String(groqVisionPayload?.response || "")),
-          maxMarks,
-          expectedQuestionCount
-        );
-        if (rawJson && visualWarning) {
-          const ocrWarningIdx = modelWarnings.indexOf(visualWarning);
-          if (ocrWarningIdx !== -1) modelWarnings.splice(ocrWarningIdx, 1);
-        }
-      } catch (error) {
-        console.error("Groq vision marker failed, trying Gemini/OpenRouter/Groq text/Ollama:", error);
-      }
-    }
-
+    // 2. For handwriting-heavy papers, prefer Gemini multimodal when configured, then fall back
+    // to Groq/OpenRouter because Gemini tends to be stronger on mixed handwriting + overlays.
     if (GEMINI_API_KEY && pageImages.length > 0 && !hasSubstantialTypedAnswers) {
       try {
         const geminiPrompt = `${prompt}\n\nIMPORTANT: ${pageImages.length} answered-page image(s) are attached. Read the student's handwriting/text overlays directly from these images as the primary evidence. Match each visible answer to the PDF question on the same page.`;
@@ -1971,7 +2057,29 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
           if (ocrWarningIdx !== -1) modelWarnings.splice(ocrWarningIdx, 1);
         }
       } catch (error) {
-        console.error("Gemini multimodal marker failed, trying OpenRouter/Groq/Ollama:", error);
+        console.error("Gemini multimodal marker failed, trying Groq/OpenRouter/Ollama:", error);
+      }
+    }
+
+    if (GROQ_API_KEY && pageImages.length > 0 && !hasSubstantialTypedAnswers) {
+      try {
+        const groqVisionPayload = await requestGroqVisionDraftMark({
+          prompt,
+          pageImages: pageImages.slice(0, 5),
+          pageNumbers: pageImagePageNumbers.slice(0, 5),
+        });
+        rawJson = chooseBetterDraftJson(
+          rawJson,
+          extractFirstJsonObject(String(groqVisionPayload?.response || "")),
+          maxMarks,
+          expectedQuestionCount
+        );
+        if (rawJson && visualWarning) {
+          const ocrWarningIdx = modelWarnings.indexOf(visualWarning);
+          if (ocrWarningIdx !== -1) modelWarnings.splice(ocrWarningIdx, 1);
+        }
+      } catch (error) {
+        console.error("Groq vision marker failed, trying OpenRouter/Groq text/Ollama:", error);
       }
     }
 
