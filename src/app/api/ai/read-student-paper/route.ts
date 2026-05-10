@@ -90,18 +90,20 @@ export async function POST(req: NextRequest) {
 Title: ${body.title || "Assessment"}
 Subject: ${body.subject || "Unknown"}
 
-THE PAGE CONTAINS TWO TYPES OF STUDENT ANSWER:
-(A) TYPED TEXT BOXES — appear as clean, modern-font text (like Arial/Times) sitting ON TOP of the printed PDF. These are answers the student typed digitally. They may appear anywhere on the page, including between/under questions.
+*** HEADER ZONE RULE (apply first, before anything else) ***
+The TOP ~15% of the first page is a HEADER ZONE containing the student's Name, Class, Date, and similar administrative fields. THIS ZONE MUST BE COMPLETELY IGNORED. Do not output anything about content you see in this zone, even if it appears as a neatly-typed or handwritten text box.
+
+THE PAGE CONTAINS TWO TYPES OF STUDENT ANSWER (below the header zone only):
+(A) TYPED TEXT BOXES — appear as clean, modern-font text (like Arial/Times) sitting ON TOP of the printed PDF. These are answers the student typed digitally. They may appear anywhere on the page below the header zone.
 (B) HANDWRITING / PEN MARKS — appear as freehand pen strokes, circles, loops, ticks, or crosses drawn by hand. These show MCQ selections or handwritten answers.
 
 CRITICAL READING RULES:
 1. IGNORE the printed PDF background text (question text, option labels a/b/c/d, headers, instructions). Only extract STUDENT-ADDED content.
-2. IGNORE: student name, class, date, school name, teacher name at the top — NEVER treat these as answers.
-3. TYPED TEXT BOX answers: for each, output — "[Typed near Q{N}]: {full text}" where N is your best guess at which question it answers based on its vertical position on the page.
+2. ABSOLUTE RULE: NEVER output a student name, class name, date, school name, or teacher name — not even as a "[Typed near Q1]" entry. If a typed box contains only a person's name or a date, skip it entirely.
+3. TYPED TEXT BOX answers (below the header zone): for each, output — "[Typed near Q{N}]: {full text}" where N is your best guess at which question it answers based on its vertical position on the page.
 4. MCQ circles/ticks: a pen circle/oval/loop around option (a), (b), (c), or (d) text means that option is SELECTED. Output — "Q{N}: selected option ({letter}) {full option text}"
 5. HANDWRITTEN text answers: transcribe them near the question they appear under. Use [unclear] only for truly illegible words.
 6. If no student answer is visible for a question, output — "Q{N}: no answer visible"
-7. NEVER output a person's name as an answer.
 
 OUTPUT EXAMPLE (follow this format exactly):
 [Typed near Q3]: Ten year truce between the two, with the Muslims

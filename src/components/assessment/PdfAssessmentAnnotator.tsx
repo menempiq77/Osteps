@@ -2295,7 +2295,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     // Skip boxes in the header region of page 1 (top 10% of page height) where
     // the student name / class / date fields are placed — these are never answers.
     const page1Height = pages.find((p) => p.pageNumber === 1)?.height ?? 0;
-    const headerThreshold = page1Height * 0.10;
+    // Use 15% of page height as header threshold; fall back to 150px if page dimensions aren't known yet.
+    const headerThreshold = page1Height > 0 ? page1Height * 0.15 : 150;
 
     const typedAnswers = studentAnnotations
       .filter((a) => a.type === "text")
@@ -2306,8 +2307,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       }))
       .filter((a) => {
         if (!a.text) return false;
-        // Skip header-region boxes on page 1
-        if (a.page === 1 && headerThreshold > 0 && a.y < headerThreshold) return false;
+        // Skip header-region boxes on page 1 (name / class / date fields)
+        if (a.page === 1 && a.y < headerThreshold) return false;
         return true;
       })
       .sort((l, r) => (l.page - r.page) || (l.y - r.y))
