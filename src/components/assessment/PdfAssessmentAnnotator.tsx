@@ -481,6 +481,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const selfAssessmentSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const teacherDraftSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingAutosaveRef = useRef<AssessmentDocumentAnnotation[] | null>(null);
+  const lastAiMarkAnnouncementRef = useRef("");
   const lastSavedSelfAssessmentRef = useRef<number | null>(
     normalizeSelfAssessmentValue(initialSelfAssessmentMark)
   );
@@ -2279,11 +2280,14 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   // and show a prominent notification to the teacher.
   useEffect(() => {
     const handler = (e: Event) => {
-      const ev = e as CustomEvent<{ mark: number; maxMarks: number }>;
+      const ev = e as CustomEvent<{ mark: number; maxMarks?: number | null }>;
       const mark = ev.detail?.mark;
       const maxMarks = ev.detail?.maxMarks;
       if (mark != null && Number.isFinite(mark)) {
         setTeacherMarks(String(mark));
+        const announcementKey = `${mark}/${maxMarks ?? ""}`;
+        if (lastAiMarkAnnouncementRef.current === announcementKey) return;
+        lastAiMarkAnnouncementRef.current = announcementKey;
         void messageApi.success(
           maxMarks != null && Number.isFinite(maxMarks)
             ? `AI suggested mark: ${mark} / ${maxMarks} — mark box updated`
@@ -2297,6 +2301,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   }, [messageApi]);
 
   const openAiMarkingAssistant = async () => {
+    lastAiMarkAnnouncementRef.current = "";
     visualAnswerCacheRef.current = null;
 
     // Collect ALL typed text boxes, sorted top-to-bottom.
@@ -2331,6 +2336,22 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       duration: 0,
     });
 
+    let pageImages: string[] = [];
+    let pageImagePageNumbers: number[] = [];
+    let draftPreviewForChat = aiDraftPreview;
+    let extractedAiMark: { mark: number; maxMarks?: number | null } | null = null;
+
+    if (pages.length > 0 && !rendering) {
+      try {
+        const snapshotBatch = await buildAiPageSnapshots();
+        pageImages = snapshotBatch.images;
+        pageImagePageNumbers = snapshotBatch.pageNumbers;
+      } catch {
+        pageImages = [];
+        pageImagePageNumbers = [];
+      }
+    }
+
     // Pre-fetch paper text once and cache it so follow-up messages don't re-extract
     if (paperTextCacheRef.current === null && fileUrl) {
       try {
@@ -2353,16 +2374,15 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     // Read visible student evidence once: handwriting, circles, ticks, crosses, pen marks, and text boxes.
     if (visualAnswerCacheRef.current === null && pages.length > 0 && !rendering) {
       try {
-        const { images, pageNumbers } = await buildAiPageSnapshots();
-        if (images.length > 0) {
+        if (pageImages.length > 0) {
           const res = await fetch("/api/ai/read-student-paper", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               title,
               subject: subjectName ?? undefined,
-              pageImages: images,
-              pageImagePageNumbers: pageNumbers,
+              pageImages,
+              pageImagePageNumbers,
             }),
           });
           if (res.ok) {
@@ -2379,12 +2399,56 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       }
     }
 
+    if (pageImages.length > 0) {
+      try {
+        const normalizedDraft = normalizeAiDraftPreview(
+          await draftAssessmentMark({
+            assessmentId,
+            taskId,
+            studentId,
+            studentName: displayStudentName,
+            title,
+            subjectName,
+            fileUrl,
+            maxMarks,
+            studentAnnotations,
+            pageImages,
+            pageImagePageNumbers,
+            currentTeacherMarks: teacherMarks,
+            currentTeacherFeedback: teacherFeedback,
+          })
+        );
+
+        if (normalizedDraft) {
+          draftPreviewForChat = normalizedDraft;
+          setAiDraftPreview(normalizedDraft);
+
+          if (!isFailedAiDraft(normalizedDraft) && normalizedDraft.suggestedMark != null) {
+            const nextTeacherMarks = String(normalizedDraft.suggestedMark);
+            extractedAiMark = { mark: normalizedDraft.suggestedMark, maxMarks: maxMarks ?? undefined };
+            persistLocalDraft(getCurrentLayerSnapshot(), {
+              ...(state?.metadata && typeof state.metadata === "object" ? state.metadata : {}),
+              teacherMarks: nextTeacherMarks,
+              teacherFeedback,
+              aiDraftPreview: normalizedDraft,
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Could not precompute AI draft total before opening the assistant:", error);
+      }
+    }
+
     const studentEvidence = [
       typedAnswers ? `Student typed answer boxes (in page + top-to-bottom order; rule 6 of AI: ignore any box that is clearly a name/header field):\n${typedAnswers}` : "",
       visualAnswerCacheRef.current ? `Visual evidence (handwriting, pen circles/ticks on printed MCQ options):\n${visualAnswerCacheRef.current}` : "",
     ].filter(Boolean).join("\n\n").slice(0, 5500);
 
     messageApi.destroy("ai-marking-assistant");
+
+    if (extractedAiMark) {
+      window.dispatchEvent(new CustomEvent("osteps:ai-mark-extracted", { detail: extractedAiMark }));
+    }
 
     // Warn the teacher when neither the paper text nor student answers could be read.
     const hasPaperText = Boolean(paperTextCacheRef.current && paperTextCacheRef.current.length > 30);
@@ -2409,12 +2473,20 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
           title,
           subject: subjectName ?? undefined,
           maxMarks: maxMarks ?? undefined,
+          suggestedMark: draftPreviewForChat?.suggestedMark ?? undefined,
+          feedback: draftPreviewForChat?.feedback || undefined,
+          rationale: draftPreviewForChat?.rationale || undefined,
           fileUrl,
           paperContext: paperTextCacheRef.current ? paperTextCacheRef.current.slice(0, 7500) : undefined,
           studentAnswer: studentEvidence || undefined,
+          questionBreakdown: draftPreviewForChat?.questionBreakdown
+            ? JSON.stringify(draftPreviewForChat.questionBreakdown).slice(0, 8000)
+            : undefined,
         },
         initialMessage:
-          `Mark this student's paper. For every question list: the student's answer, Correct/Partly/Wrong, the correct answer, and marks awarded. Then total out of ${maxMarks ?? "the total"}.${evidenceBlock}`,
+          draftPreviewForChat?.suggestedMark != null
+            ? `Mark this student's paper. For every question list: the student's answer, Correct/Partly/Wrong, the correct answer, and marks awarded. End with the exact final line "Total: ${draftPreviewForChat.suggestedMark}/${maxMarks ?? "the total"}" and then 2 sentences of feedback.${evidenceBlock}`
+            : `Mark this student's paper. For every question list: the student's answer, Correct/Partly/Wrong, the correct answer, and marks awarded. End with the exact final line "Total: [X]/[Y]" and then 2 sentences of feedback.${evidenceBlock}`,
       },
     }));
   };
