@@ -124,6 +124,9 @@ export function GlobalAiAssistant() {
       setLoading(true);
       scrollToBottom();
 
+      // Declared outside try so finally can read the accumulated response for mark extraction.
+      let assistantText = "";
+
       try {
         const res = await fetch("/api/ai/assistant", {
           method: "POST",
@@ -148,7 +151,6 @@ export function GlobalAiAssistant() {
 
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
-        let assistantText = "";
 
         while (true) {
           const { done, value } = await reader.read();
@@ -162,7 +164,7 @@ export function GlobalAiAssistant() {
                 choices?: Array<{ delta?: { content?: string } }>;
               };
               const delta = parsed.choices?.[0]?.delta?.content ?? "";
-              assistantText += delta;
+        assistantText += delta;
               setMessages((prev) => [
                 ...prev.slice(0, -1),
                 { role: "assistant", content: assistantText },
@@ -182,6 +184,22 @@ export function GlobalAiAssistant() {
           },
         ]);
       } finally {
+        // After the assistant finishes, try to parse a total mark from the response
+        // and fire an event so PdfAssessmentAnnotator can auto-fill the mark box.
+        const totalMatch = assistantText.match(
+          /(?:total|grand\s+total|marks?\s+(?:awarded|total)|total\s+marks?)[:\s]+([\d]+(?:\.\d+)?)\s*\/\s*([\d]+)/i
+        );
+        if (totalMatch) {
+          const awarded = parseFloat(totalMatch[1]);
+          const available = parseFloat(totalMatch[2]);
+          if (Number.isFinite(awarded) && Number.isFinite(available) && available > 0) {
+            window.dispatchEvent(
+              new CustomEvent("osteps:ai-mark-extracted", {
+                detail: { mark: awarded, maxMarks: available },
+              })
+            );
+          }
+        }
         setLoading(false);
         scrollToBottom();
       }

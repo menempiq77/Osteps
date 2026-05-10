@@ -2275,11 +2275,28 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     void applyAiDraftMark();
   };
 
+  // Listen for the AI assistant to emit a parsed total mark so we can auto-fill the mark box.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const ev = e as CustomEvent<{ mark: number; maxMarks: number }>;
+      const mark = ev.detail?.mark;
+      if (mark != null && Number.isFinite(mark)) {
+        setTeacherMarks(String(mark));
+      }
+    };
+    window.addEventListener("osteps:ai-mark-extracted", handler);
+    return () => window.removeEventListener("osteps:ai-mark-extracted", handler);
+  }, []);
+
   const openAiMarkingAssistant = async () => {
     visualAnswerCacheRef.current = null;
 
-    // Collect ALL typed text boxes – do NOT filter by content (short answers like "True",
-    // "Islam", "Makkah" are valid answers; the AI prompt already ignores name/header fields).
+    // Collect ALL typed text boxes, sorted top-to-bottom.
+    // Skip boxes in the header region of page 1 (top 10% of page height) where
+    // the student name / class / date fields are placed — these are never answers.
+    const page1Height = pages.find((p) => p.pageNumber === 1)?.height ?? 0;
+    const headerThreshold = page1Height * 0.10;
+
     const typedAnswers = studentAnnotations
       .filter((a) => a.type === "text")
       .map((a) => ({
@@ -2287,7 +2304,12 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         y: Math.round(Number((a as { y?: number }).y ?? 0)),
         text: ((a as { text?: string }).text ?? "").trim(),
       }))
-      .filter((a) => a.text.length > 0)
+      .filter((a) => {
+        if (!a.text) return false;
+        // Skip header-region boxes on page 1
+        if (a.page === 1 && headerThreshold > 0 && a.y < headerThreshold) return false;
+        return true;
+      })
       .sort((l, r) => (l.page - r.page) || (l.y - r.y))
       .map((a, i) => `Text box ${i + 1} [Page ${a.page}]: "${a.text}"`)
       .join("\n")
