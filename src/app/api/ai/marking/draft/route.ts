@@ -2450,9 +2450,15 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
       parsed.warnings = [...(Array.isArray(parsed.warnings) ? parsed.warnings : []), ...modelWarnings];
     }
     return jsonResponse(normalizeWithProviderTrace(parsed));
-  } catch {
+  } catch (error) {
+    console.error("[ai/marking/draft] unhandled failure", error);
     return jsonResponse(
-      { message: "Local Ollama AI marker is unavailable. Start Ollama on this server and pull the configured model." },
+      {
+        message:
+          error instanceof Error && error.message
+            ? error.message.slice(0, 500)
+            : "AI draft mark failed before a safe draft could be created.",
+      },
       503
     );
   }

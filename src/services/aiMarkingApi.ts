@@ -63,9 +63,22 @@ export const draftAssessmentMark = async (
     body: JSON.stringify(payload),
   });
 
-  const data = await response.json().catch(() => null);
+  const responseText = await response.text().catch(() => "");
+  let data: any = null;
+  if (responseText) {
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      data = null;
+    }
+  }
   if (!response.ok) {
-    throw new Error(data?.message || "Could not create an AI draft mark.");
+    const message =
+      data?.message ||
+      data?.error ||
+      responseText.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 240) ||
+      `AI draft mark failed with HTTP ${response.status}.`;
+    throw new Error(message);
   }
 
   return data as AiDraftMarkResponse;
