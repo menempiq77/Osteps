@@ -33,6 +33,12 @@ type QuestionMarkEntry = {
   reason: string;
 };
 
+type DraftProviderTrace = {
+  selected: string;
+  attempts: string[];
+  recheck?: string;
+};
+
 type DraftMarkResponse = {
   suggestedMark: number | null;
   questionBreakdown?: QuestionMarkEntry[];
@@ -41,6 +47,7 @@ type DraftMarkResponse = {
   confidence: "low" | "medium" | "high";
   sourcePolicy: string;
   warnings: string[];
+  providerTrace?: DraftProviderTrace;
 };
 
 type VisualAnswerContext = {
@@ -211,6 +218,56 @@ const pageImageLabel = (pageNumbers: number[] | undefined, index: number) => {
   return Number.isFinite(pageNumber) && Number(pageNumber) > 0
     ? `PDF page ${pageNumber}`
     : `answered image ${index + 1}`;
+};
+
+const buildProviderTrace = ({
+  selected,
+  attempts,
+  recheck,
+}: {
+  selected?: string | null;
+  attempts?: string[];
+  recheck?: string | null;
+}): DraftProviderTrace | undefined => {
+  const cleanSelected = asText(selected);
+  const cleanAttempts = Array.from(new Set((attempts || []).map(asText).filter(Boolean)));
+  const cleanRecheck = asText(recheck);
+
+  if (!cleanSelected && cleanAttempts.length === 0 && !cleanRecheck) return undefined;
+
+  return {
+    selected: cleanSelected || cleanAttempts[cleanAttempts.length - 1] || "No provider produced a reliable draft",
+    attempts: cleanAttempts,
+    recheck: cleanRecheck || undefined,
+  };
+};
+
+const logDraftProviderTrace = ({
+  providerTrace,
+  suggestedMark,
+  confidence,
+  title,
+  subjectName,
+}: {
+  providerTrace?: DraftProviderTrace;
+  suggestedMark: number | null;
+  confidence: DraftMarkResponse["confidence"];
+  title: string;
+  subjectName: string;
+}) => {
+  if (!providerTrace) return;
+  console.info(
+    "[ai/marking/draft] provider-trace",
+    JSON.stringify({
+      title,
+      subjectName,
+      suggestedMark,
+      confidence,
+      selected: providerTrace.selected,
+      attempts: providerTrace.attempts,
+      recheck: providerTrace.recheck || null,
+    })
+  );
 };
 
 const hasConfiguredVisionProvider = () => Boolean(GROQ_API_KEY || OPENROUTER_API_KEY || OLLAMA_VISION_MODEL);
@@ -1233,7 +1290,7 @@ const normalizeDraft = (
   raw: Partial<DraftMarkResponse>,
   maxMarks: number | null,
   sourcePolicy: string,
-  options?: { expectedQuestionCount?: number | null }
+  options?: { expectedQuestionCount?: number | null; providerTrace?: DraftProviderTrace | null }
 ): DraftMarkResponse => {
   const expectedQuestionCount = options?.expectedQuestionCount ?? null;
   const numericMark = raw.suggestedMark == null ? null : Number(raw.suggestedMark);
@@ -1360,6 +1417,7 @@ const normalizeDraft = (
     confidence,
     sourcePolicy,
     warnings,
+    providerTrace: options?.providerTrace ?? undefined,
   };
 };
 
@@ -1993,12 +2051,52 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
 
   try {
     const modelWarnings: string[] = [];
+    const providerAttempts: string[] = [];
+    let selectedProviderLabel = "";
+    let recheckProviderLabel = "";
     if (visualWarning) modelWarnings.push(visualWarning);
     if (paperReadMethod === "vision") {
       modelWarnings.push("Exam paper is a scanned image \u2014 questions were read visually. Verify question text matches the original paper before relying on this draft mark.");
     }
     let rawJson: string | null = null;
+    const recordProviderAttempt = (label: string) => {
+      const cleanLabel = asText(label);
+      if (cleanLabel && !providerAttempts.includes(cleanLabel)) {
+        providerAttempts.push(cleanLabel);
+      }
+      return cleanLabel;
+    };
+    const considerDraftCandidate = (candidateJson: string | null, label: string) => {
+      if (!candidateJson) return;
+      const cleanLabel = recordProviderAttempt(label);
+      const previousRawJson = rawJson;
+      const nextRawJson = chooseBetterDraftJson(previousRawJson, candidateJson, maxMarks, expectedQuestionCount);
+      rawJson = nextRawJson;
+      if (nextRawJson === candidateJson && (previousRawJson == null || nextRawJson !== previousRawJson || !selectedProviderLabel)) {
+        selectedProviderLabel = cleanLabel;
+      }
+    };
+    const normalizeWithProviderTrace = (raw: Partial<DraftMarkResponse>) => {
+      const normalized = normalizeDraft(raw, maxMarks, sourcePolicy, {
+        expectedQuestionCount,
+        providerTrace: buildProviderTrace({
+          selected: selectedProviderLabel,
+          attempts: providerAttempts,
+          recheck: recheckProviderLabel,
+        }),
+      });
+      logDraftProviderTrace({
+        providerTrace: normalized.providerTrace,
+        suggestedMark: normalized.suggestedMark,
+        confidence: normalized.confidence,
+        title,
+        subjectName,
+      });
+      return normalized;
+    };
     const tryTinyLocalDraft = async (reason: string) => {
+      const tinyProviderLabel = `Local Ollama emergency fallback (${OLLAMA_TINY_FALLBACK_MODEL})`;
+      recordProviderAttempt(tinyProviderLabel);
       try {
         const tinyPayload = await requestOllamaDraft({
           model: OLLAMA_TINY_FALLBACK_MODEL,
@@ -2023,13 +2121,13 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
     // 1. If the student has substantial typed answers, use the reliable text pipeline first.
     // This avoids Groq Vision TPM rate-limit failures and still marks against the full PDF.
     if (GROQ_API_KEY && hasSubstantialTypedAnswers) {
+      const groqTextProviderLabel = `Groq text (${GROQ_TEXT_MODEL})`;
+      recordProviderAttempt(groqTextProviderLabel);
       try {
         const groqPayload = await requestGroqMarkingDraft({ prompt });
-        rawJson = chooseBetterDraftJson(
-          rawJson,
+        considerDraftCandidate(
           extractFirstJsonObject(String(groqPayload?.response || "")),
-          maxMarks,
-          expectedQuestionCount
+          groqTextProviderLabel
         );
       } catch (error) {
         console.error("Groq text marking failed, falling back to vision/Ollama:", error);
@@ -2039,6 +2137,8 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
     // 2. For handwriting-heavy papers, prefer Gemini multimodal when configured, then fall back
     // to Groq/OpenRouter because Gemini tends to be stronger on mixed handwriting + overlays.
     if (GEMINI_API_KEY && pageImages.length > 0 && !hasSubstantialTypedAnswers) {
+      const geminiProviderLabel = `Gemini multimodal (${GEMINI_MODEL})`;
+      recordProviderAttempt(geminiProviderLabel);
       try {
         const geminiPrompt = `${prompt}\n\nIMPORTANT: ${pageImages.length} answered-page image(s) are attached. Read the student's handwriting/text overlays directly from these images as the primary evidence. Match each visible answer to the PDF question on the same page.`;
         const geminiPayload = await requestGeminiDraftMark({
@@ -2046,11 +2146,9 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
           pageImages: pageImages.slice(0, 8),
           pageNumbers: pageImagePageNumbers.slice(0, 8),
         });
-        rawJson = chooseBetterDraftJson(
-          rawJson,
+        considerDraftCandidate(
           extractFirstJsonObject(String(geminiPayload?.response || "")),
-          maxMarks,
-          expectedQuestionCount
+          geminiProviderLabel
         );
         if (rawJson && visualWarning) {
           const ocrWarningIdx = modelWarnings.indexOf(visualWarning);
@@ -2062,17 +2160,17 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
     }
 
     if (GROQ_API_KEY && pageImages.length > 0 && !hasSubstantialTypedAnswers) {
+      const groqVisionProviderLabel = `Groq vision (${GROQ_VISION_MODEL})`;
+      recordProviderAttempt(groqVisionProviderLabel);
       try {
         const groqVisionPayload = await requestGroqVisionDraftMark({
           prompt,
           pageImages: pageImages.slice(0, 5),
           pageNumbers: pageImagePageNumbers.slice(0, 5),
         });
-        rawJson = chooseBetterDraftJson(
-          rawJson,
+        considerDraftCandidate(
           extractFirstJsonObject(String(groqVisionPayload?.response || "")),
-          maxMarks,
-          expectedQuestionCount
+          groqVisionProviderLabel
         );
         if (rawJson && visualWarning) {
           const ocrWarningIdx = modelWarnings.indexOf(visualWarning);
@@ -2084,17 +2182,17 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
     }
 
     if (OPENROUTER_API_KEY && pageImages.length > 0 && !hasSubstantialTypedAnswers) {
+      const openRouterProviderLabel = `OpenRouter multimodal (${OPENROUTER_VISION_MODEL})`;
+      recordProviderAttempt(openRouterProviderLabel);
       try {
         const openRouterPayload = await requestOpenRouterDraftMark({
           prompt,
           pageImages: pageImages.slice(0, 8),
           pageNumbers: pageImagePageNumbers.slice(0, 8),
         });
-        rawJson = chooseBetterDraftJson(
-          rawJson,
+        considerDraftCandidate(
           extractFirstJsonObject(String(openRouterPayload?.response || "")),
-          maxMarks,
-          expectedQuestionCount
+          openRouterProviderLabel
         );
         if (rawJson && visualWarning) {
           const ocrWarningIdx = modelWarnings.indexOf(visualWarning);
@@ -2107,13 +2205,13 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
 
     // 3. Try Groq text (llama-3.3-70b) using extracted PDF text + typed answers/visual summary.
     if (GROQ_API_KEY && !hasSubstantialTypedAnswers) {
+      const groqTextProviderLabel = `Groq text (${GROQ_TEXT_MODEL})`;
+      recordProviderAttempt(groqTextProviderLabel);
       try {
         const groqPayload = await requestGroqMarkingDraft({ prompt });
-        rawJson = chooseBetterDraftJson(
-          rawJson,
+        considerDraftCandidate(
           extractFirstJsonObject(String(groqPayload?.response || "")),
-          maxMarks,
-          expectedQuestionCount
+          groqTextProviderLabel
         );
         if (rawJson && visualWarning) {
           const ocrWarningIdx = modelWarnings.indexOf(visualWarning);
@@ -2124,8 +2222,26 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
       }
     }
 
+    // 3b. For typed/text-only papers, prefer Gemini as a cloud fallback before dropping to local Ollama.
+    // This keeps typed answers on a stronger hosted model when Groq is rate-limited or its fallback rejects the prompt size.
+    if (GEMINI_API_KEY && !rawJson && (hasSubstantialTypedAnswers || pageImages.length === 0)) {
+      const geminiTextProviderLabel = `Gemini text fallback (${GEMINI_MODEL})`;
+      recordProviderAttempt(geminiTextProviderLabel);
+      try {
+        const geminiTextPayload = await requestGeminiDraftMark({ prompt });
+        considerDraftCandidate(
+          extractFirstJsonObject(String(geminiTextPayload?.response || "")),
+          geminiTextProviderLabel
+        );
+      } catch (error) {
+        console.error("Gemini text fallback failed, falling back to Ollama:", error);
+      }
+    }
+
     // 3. If no cloud model produced valid JSON, fall back to local Ollama.
     if (!rawJson) {
+      const localFastProviderLabel = `Local Ollama fast fallback (${OLLAMA_FAST_FALLBACK_MODEL})`;
+      recordProviderAttempt(localFastProviderLabel);
       try {
         const fallbackPayload = await requestOllamaDraft({
           model: OLLAMA_FAST_FALLBACK_MODEL,
@@ -2136,7 +2252,10 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
           },
           timeoutMs: 18000,
         });
-        rawJson = extractFirstJsonObject(String(fallbackPayload.response || ""));
+        considerDraftCandidate(
+          extractFirstJsonObject(String(fallbackPayload.response || "")),
+          localFastProviderLabel
+        );
         // Schedule a background keep-alive so the model stays warm for the next teacher
         setTimeout(() => {
           fetch(`${OLLAMA_BASE_URL}/api/generate`, {
@@ -2146,46 +2265,42 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
           }).catch(() => undefined);
         }, 100);
         if (!rawJson) {
-          rawJson = await tryTinyLocalDraft("the normal local model did not return valid JSON");
+          considerDraftCandidate(
+            await tryTinyLocalDraft("the normal local model did not return valid JSON"),
+            `Local Ollama emergency fallback (${OLLAMA_TINY_FALLBACK_MODEL})`
+          );
         }
         if (!rawJson) {
           if (!shouldAttemptReasoner) {
             return jsonResponse(
-              normalizeDraft(
-                {
-                  suggestedMark: null,
-                  feedback: String(fallbackPayload.response || "AI returned an unreadable response."),
-                  rationale: "The local model did not return valid JSON.",
-                  confidence: "low",
-                  warnings: [...modelWarnings, "Local model response was not valid JSON."],
-                },
-                maxMarks,
-                sourcePolicy,
-                { expectedQuestionCount }
-              )
+              normalizeWithProviderTrace({
+                suggestedMark: null,
+                feedback: String(fallbackPayload.response || "AI returned an unreadable response."),
+                rationale: "The local model did not return valid JSON.",
+                confidence: "low",
+                warnings: [...modelWarnings, "Local model response was not valid JSON."],
+              })
             );
           }
         }
       } catch (error) {
         const aborted = error instanceof Error && error.name === "AbortError";
         if (aborted) {
-          rawJson = await tryTinyLocalDraft("the normal local model timed out");
+          considerDraftCandidate(
+            await tryTinyLocalDraft("the normal local model timed out"),
+            `Local Ollama emergency fallback (${OLLAMA_TINY_FALLBACK_MODEL})`
+          );
         }
         if (!rawJson && aborted) {
           if (!shouldAttemptReasoner) {
             return jsonResponse(
-              normalizeDraft(
-                {
-                  suggestedMark: null,
-                  feedback: "No deductions list was produced because AI Draft Mark could not finish quickly enough. Please try again after the paper loads or mark manually.",
-                  rationale: "The local model reached the time limit before returning a safe draft.",
-                  confidence: "low",
-                  warnings: [...modelWarnings, "Local AI timed out before completing the draft."],
-                },
-                maxMarks,
-                sourcePolicy,
-                { expectedQuestionCount }
-              )
+              normalizeWithProviderTrace({
+                suggestedMark: null,
+                feedback: "No deductions list was produced because AI Draft Mark could not finish quickly enough. Please try again after the paper loads or mark manually.",
+                rationale: "The local model reached the time limit before returning a safe draft.",
+                confidence: "low",
+                warnings: [...modelWarnings, "Local AI timed out before completing the draft."],
+              })
             );
           }
         } else if (!rawJson && !shouldAttemptReasoner) {
@@ -2198,6 +2313,8 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
     }
 
     if (!rawJson && shouldAttemptReasoner) {
+      const localReasonerProviderLabel = `Local Ollama reasoner (${OLLAMA_MODEL})`;
+      recordProviderAttempt(localReasonerProviderLabel);
       try {
         const deepseekPayload = await requestOllamaDraft({
           model: OLLAMA_MODEL,
@@ -2208,7 +2325,10 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
           },
           timeoutMs: 9000,
         });
-        rawJson = extractFirstJsonObject(String(deepseekPayload.response || ""));
+        considerDraftCandidate(
+          extractFirstJsonObject(String(deepseekPayload.response || "")),
+          localReasonerProviderLabel
+        );
       } catch (error) {
         console.error("Reasoner refinement attempt did not finish in time:", error);
       }
@@ -2224,9 +2344,12 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
           parsed.suggestedMark == null ||
           (maxMarks != null && maxMarks >= 20);
         if (shouldRecheck) {
+          const groqRecheckProviderLabel = `Groq reasoning recheck (${GROQ_REASONING_MODEL})`;
+          recordProviderAttempt(groqRecheckProviderLabel);
+          recheckProviderLabel = groqRecheckProviderLabel;
           const recheckPayload = await requestGroqReasoningRecheck({ prompt });
           const recheckJson = extractFirstJsonObject(String(recheckPayload?.response || ""));
-          rawJson = chooseBetterDraftJson(rawJson, recheckJson, maxMarks, expectedQuestionCount);
+          considerDraftCandidate(recheckJson, groqRecheckProviderLabel);
         }
       } catch {
         // Re-check failed — keep the original rawJson
@@ -2235,18 +2358,13 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
 
     if (!rawJson) {
       return jsonResponse(
-        normalizeDraft(
-          {
-            suggestedMark: null,
-            feedback: "No deductions list was produced because AI Draft Mark could not produce a reliable structured draft from this answer. Please review it manually.",
-            rationale: "The available model responses were incomplete or unreadable.",
-            confidence: "low",
-            warnings: [...modelWarnings, shouldAttemptReasoner ? "Fast and reasoner models could not return a reliable draft." : "Local model response was not reliable enough to use."],
-          },
-          maxMarks,
-          sourcePolicy,
-          { expectedQuestionCount }
-        )
+        normalizeWithProviderTrace({
+          suggestedMark: null,
+          feedback: "No deductions list was produced because AI Draft Mark could not produce a reliable structured draft from this answer. Please review it manually.",
+          rationale: "The available model responses were incomplete or unreadable.",
+          confidence: "low",
+          warnings: [...modelWarnings, shouldAttemptReasoner ? "Fast and reasoner models could not return a reliable draft." : "Local model response was not reliable enough to use."],
+        })
       );
     }
 
@@ -2257,7 +2375,7 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
     if (modelWarnings.length > 0) {
       parsed.warnings = [...(Array.isArray(parsed.warnings) ? parsed.warnings : []), ...modelWarnings];
     }
-    return jsonResponse(normalizeDraft(parsed, maxMarks, sourcePolicy, { expectedQuestionCount }));
+    return jsonResponse(normalizeWithProviderTrace(parsed));
   } catch {
     return jsonResponse(
       { message: "Local Ollama AI marker is unavailable. Start Ollama on this server and pull the configured model." },

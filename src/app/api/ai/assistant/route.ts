@@ -4,6 +4,7 @@ import path from "path";
 import { promisify } from "util";
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY ?? "";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY ?? "";
 // 70b is significantly smarter at following instructions and matching evidence to questions.
 // Each model has its own independent TPM quota on Groq, so switching primary/fallback
 // reduces the chance of a 429 cascade.
@@ -11,8 +12,10 @@ const GROQ_FAST_TEXT_MODEL = process.env.GROQ_ASSISTANT_FAST_MODEL || "llama-3.1
 const GROQ_TEXT_MODEL = process.env.GROQ_ASSISTANT_TEXT_MODEL || "llama-3.3-70b-versatile";
 const GROQ_FALLBACK_TEXT_MODEL = process.env.GROQ_ASSISTANT_FALLBACK_MODEL || "gemma2-9b-it";
 const GROQ_SECONDARY_FALLBACK_MODEL = process.env.GROQ_ASSISTANT_FALLBACK_MODEL_2 || GROQ_FAST_TEXT_MODEL;
+const GEMINI_TEXT_MODEL = process.env.GEMINI_ASSISTANT_TEXT_MODEL || process.env.GEMINI_MODEL || "gemini-2.5-flash";
 const LARAVEL_PUBLIC_DIR = process.env.OSTEPS_LARAVEL_PUBLIC_DIR || "/var/www/laravel/public";
 const execFileAsync = promisify(execFile);
+const textEncoder = new TextEncoder();
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -107,6 +110,7 @@ CRITICAL RULES:
 2. PARTIAL MARKS: If a question is worth 2+ marks and the student gives only some correct points, award proportional partial marks (e.g. mentions 1 of 2 required terms → 1/2).
 3. Use your OWN deep subject knowledge for correct answers. NEVER write "not mentioned in the text" or "not clear from the document". You always know Islamic Studies answers.
 4. The PDF contains questions only (no answer key) — that is normal. Supply correct answers from knowledge.
+4b. If a per-question mark breakdown JSON is provided in the context, treat that breakdown as the authoritative draft mark for this conversation. In that case, format and explain that draft; do NOT re-mark the whole paper from scratch unless the teacher explicitly asks you to review a specific question again.
 5. EVIDENCE MATCHING — student answers arrive in two forms:
    a) Typed text boxes: labeled "Text box N [Page P]: \"...\"" — student typed this ON the PDF at that position. Read the content and match it to the most relevant question above that position on the page, NOT by box number.
    b) Visual evidence: labeled "Q[N]: selected option (a) [text]" — student circled/ticked that MCQ option. Trust this absolutely.
@@ -116,10 +120,136 @@ CRITICAL RULES:
 9. After all questions: write "Total: [X]/[Y]" then 2 sentences of constructive feedback for the student.
 10. Respond in the same language the teacher is using (English or Arabic).`;
 
+const buildAssistantSseResponse = (text: string, provider: string) => {
+  const stream = new ReadableStream({
+    start(controller: ReadableStreamDefaultController) {
+      controller.enqueue(
+        textEncoder.encode(
+          `data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\n`
+        )
+      );
+      controller.enqueue(textEncoder.encode("data: [DONE]\n\n"));
+      controller.close();
+    },
+  });
+
+  return new NextResponse(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+      "X-Osteps-Ai-Provider": provider,
+    },
+  });
+};
+
+const buildProxyStreamResponse = (response: Response, provider: string) => {
+  const stream = new ReadableStream({
+    async start(ctrl: ReadableStreamDefaultController) {
+      const reader = response.body!.getReader();
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) {
+            ctrl.enqueue(textEncoder.encode("data: [DONE]\n\n"));
+            ctrl.close();
+            break;
+          }
+          ctrl.enqueue(value);
+        }
+      } catch {
+        ctrl.close();
+      } finally {
+        reader.releaseLock();
+      }
+    },
+  });
+
+  return new NextResponse(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+      "X-Osteps-Ai-Provider": provider,
+    },
+  });
+};
+
+const extractGeminiText = (payload: unknown) => {
+  const data = payload as {
+    candidates?: Array<{
+      content?: {
+        parts?: Array<{ text?: string }>;
+      };
+    }>;
+  };
+
+  return (data?.candidates || [])
+    .flatMap((candidate) => candidate.content?.parts || [])
+    .map((part) => String(part?.text || "").trim())
+    .filter(Boolean)
+    .join("\n")
+    .trim();
+};
+
+const requestGeminiAssistantText = async ({
+  systemContent,
+  messages,
+}: {
+  systemContent: string;
+  messages: ChatMessage[];
+}) => {
+  if (!GEMINI_API_KEY) {
+    throw new Error("Gemini assistant fallback is not configured.");
+  }
+
+  const controller = new AbortController();
+  const timeoutHandle = setTimeout(() => controller.abort(), 45000);
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_TEXT_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          systemInstruction: {
+            parts: [{ text: systemContent }],
+          },
+          contents: messages.map((message) => ({
+            role: message.role === "assistant" ? "model" : "user",
+            parts: [{ text: message.content }],
+          })),
+          generationConfig: {
+            temperature: 0.3,
+            maxOutputTokens: 1400,
+            topP: 0.9,
+          },
+        }),
+        signal: controller.signal,
+      }
+    );
+
+    if (!response.ok) {
+      const err = await response.text().catch(() => "");
+      throw new Error(`Gemini assistant failed (${response.status}): ${err.slice(0, 240)}`);
+    }
+
+    const text = extractGeminiText(await response.json());
+    if (!text) {
+      throw new Error("Gemini assistant returned an empty response.");
+    }
+
+    return text;
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
+};
+
 export async function POST(req: NextRequest) {
-  if (!GROQ_API_KEY) {
+  if (!GROQ_API_KEY && !GEMINI_API_KEY) {
     return NextResponse.json(
-      { error: "AI assistant is not available: no API key configured." },
+      { error: "AI assistant is not available: no provider API key configured." },
       { status: 503 }
     );
   }
@@ -179,6 +309,11 @@ export async function POST(req: NextRequest) {
   }
   if (ctx.extraContext) contextLines.push(`Extra context:\n${ctx.extraContext.slice(0, 1200)}`);
 
+  const isMarkingHeavyRequest =
+    ctx.page === "marking" ||
+    ctx.suggestedMark != null ||
+    Boolean(ctx.questionBreakdown || ctx.studentAnswer || resolvedPaperContext);
+
   // If the teacher opened marking mode but we have no paper and no student evidence,
   // give the model an explicit instruction so it responds with one sentence, not a checklist.
   const hasPaper = Boolean(resolvedPaperContext && resolvedPaperContext.trim().length > 20);
@@ -208,7 +343,21 @@ export async function POST(req: NextRequest) {
   const controller = new AbortController();
   const timeoutHandle = setTimeout(() => controller.abort(), 45000);
 
+  const tryGeminiFallback = async (reason: string) => {
+    const text = await requestGeminiAssistantText({
+      systemContent,
+      messages: trimmedMessages,
+    });
+    console.info("[ai/assistant] provider", JSON.stringify({ provider: `Gemini fallback (${GEMINI_TEXT_MODEL})`, reason }));
+    return buildAssistantSseResponse(text, `gemini:${GEMINI_TEXT_MODEL}`);
+  };
+
   try {
+    if (!GROQ_API_KEY) {
+      clearTimeout(timeoutHandle);
+      return await tryGeminiFallback("Groq is not configured on this server.");
+    }
+
     const response = await fetch(
       "https://api.groq.com/openai/v1/chat/completions",
       {
@@ -236,6 +385,9 @@ export async function POST(req: NextRequest) {
       // On 429 rate-limit, retry with fallback models (each is a different family with its own quota).
       if (response.status === 429) {
         clearTimeout(timeoutHandle);
+        if (GEMINI_API_KEY && isMarkingHeavyRequest) {
+          return await tryGeminiFallback(`Groq primary ${GROQ_TEXT_MODEL} hit 429 during a marking-heavy request.`);
+        }
         for (const fallbackModel of [GROQ_FALLBACK_TEXT_MODEL, GROQ_SECONDARY_FALLBACK_MODEL]) {
           if (!fallbackModel || fallbackModel === GROQ_TEXT_MODEL) continue;
           const fallbackController = new AbortController();
@@ -254,21 +406,8 @@ export async function POST(req: NextRequest) {
               signal: fallbackController.signal,
             });
             if (fallbackResponse.ok) {
-              const fallbackStream = new ReadableStream({
-                async start(ctrl: ReadableStreamDefaultController) {
-                  const reader = fallbackResponse.body!.getReader();
-                  try {
-                    while (true) {
-                      const { done, value } = await reader.read();
-                      if (done) { ctrl.enqueue(new TextEncoder().encode("data: [DONE]\n\n")); ctrl.close(); break; }
-                      ctrl.enqueue(value);
-                    }
-                  } catch { ctrl.close(); } finally { reader.releaseLock(); }
-                },
-              });
-              return new NextResponse(fallbackStream, {
-                headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" },
-              });
+              console.info("[ai/assistant] provider", JSON.stringify({ provider: `Groq fallback (${fallbackModel})`, reason: `Primary model ${GROQ_TEXT_MODEL} returned 429.` }));
+              return buildProxyStreamResponse(fallbackResponse, `groq:${fallbackModel}`);
             }
           } catch {
             // try next fallback
@@ -276,6 +415,14 @@ export async function POST(req: NextRequest) {
             clearTimeout(fallbackTimeout);
           }
         }
+        if (GEMINI_API_KEY) {
+          return await tryGeminiFallback(`Groq models exhausted after 429 on ${GROQ_TEXT_MODEL}.`);
+        }
+      }
+
+      if ((response.status === 413 || response.status >= 500) && GEMINI_API_KEY) {
+        clearTimeout(timeoutHandle);
+        return await tryGeminiFallback(`Groq returned ${response.status} for the assistant request.`);
       }
       return NextResponse.json(
         { error: `AI error (${response.status}): ${err.slice(0, 200)}` },
@@ -283,35 +430,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const stream = new ReadableStream({
-      async start(ctrl: ReadableStreamDefaultController) {
-        const reader = response.body!.getReader();
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) {
-              ctrl.enqueue(new TextEncoder().encode("data: [DONE]\n\n"));
-              ctrl.close();
-              break;
-            }
-            ctrl.enqueue(value);
-          }
-        } catch {
-          ctrl.close();
-        } finally {
-          reader.releaseLock();
-        }
-      },
-    });
-
-    return new NextResponse(stream, {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-      },
-    });
+    console.info("[ai/assistant] provider", JSON.stringify({ provider: `Groq primary (${GROQ_TEXT_MODEL})` }));
+    return buildProxyStreamResponse(response, `groq:${GROQ_TEXT_MODEL}`);
   } catch (error) {
+    if (GEMINI_API_KEY) {
+      try {
+        clearTimeout(timeoutHandle);
+        return await tryGeminiFallback(error instanceof Error ? error.message : "Groq assistant request failed.");
+      } catch (geminiError) {
+        return NextResponse.json(
+          { error: geminiError instanceof Error ? geminiError.message : "Assistant request failed." },
+          { status: 502 }
+        );
+      }
+    }
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Assistant request failed." },
       { status: 500 }

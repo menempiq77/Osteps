@@ -9,6 +9,12 @@ export type QuestionMarkEntry = {
   reason: string;
 };
 
+export type AiDraftProviderTrace = {
+  selected: string;
+  attempts: string[];
+  recheck?: string;
+};
+
 export type AiDraftMarkResponse = {
   suggestedMark: number | null;
   questionBreakdown?: QuestionMarkEntry[];
@@ -17,6 +23,7 @@ export type AiDraftMarkResponse = {
   confidence: "low" | "medium" | "high";
   sourcePolicy: string;
   warnings: string[];
+  providerTrace?: AiDraftProviderTrace;
 };
 
 export type AiDraftMarkRequest = {

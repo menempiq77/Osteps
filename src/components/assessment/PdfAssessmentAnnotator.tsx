@@ -14,7 +14,11 @@ import {
   saveAssessmentDocumentAnnotations,
 } from "@/services/documentAssessmentApi";
 import { draftAssessmentMark } from "@/services/aiMarkingApi";
-import type { AiDraftMarkResponse, QuestionMarkEntry } from "@/services/aiMarkingApi";
+import type {
+  AiDraftMarkResponse,
+  AiDraftProviderTrace,
+  QuestionMarkEntry,
+} from "@/services/aiMarkingApi";
 import { addStudentTaskMarks, uploadTaskByStudent } from "@/services/api";
 import { fetchStudentProfileData } from "@/services/studentsApi";
 import { resolveExamWindow } from "@/lib/taskTypeMetadata";
@@ -230,6 +234,25 @@ const normalizeSelfAssessmentValue = (value: unknown): number | null => {
   return Number.isFinite(numericValue) ? numericValue : null;
 };
 
+const normalizeAiProviderTrace = (value: unknown): AiDraftProviderTrace | undefined => {
+  if (!value || typeof value !== "object") return undefined;
+
+  const raw = value as Partial<AiDraftProviderTrace>;
+  const selected = String(raw.selected ?? "").trim();
+  const attempts = Array.isArray(raw.attempts)
+    ? raw.attempts.map((attempt) => String(attempt ?? "").trim()).filter(Boolean)
+    : [];
+  const recheck = String(raw.recheck ?? "").trim();
+
+  if (!selected && attempts.length === 0 && !recheck) return undefined;
+
+  return {
+    selected: selected || attempts[attempts.length - 1] || "Unknown AI provider",
+    attempts,
+    recheck: recheck || undefined,
+  };
+};
+
 const normalizeAiDraftPreview = (value: unknown): AiDraftMarkResponse | null => {
   if (!value || typeof value !== "object") return null;
 
@@ -243,6 +266,7 @@ const normalizeAiDraftPreview = (value: unknown): AiDraftMarkResponse | null => 
   const warnings = Array.isArray(raw.warnings)
     ? raw.warnings.map((warning) => String(warning ?? "").trim()).filter(Boolean)
     : [];
+  const providerTrace = normalizeAiProviderTrace(raw.providerTrace);
 
   return {
     suggestedMark: Number.isFinite(suggestedMark) ? suggestedMark : null,
@@ -256,6 +280,7 @@ const normalizeAiDraftPreview = (value: unknown): AiDraftMarkResponse | null => 
     confidence,
     sourcePolicy: String(raw.sourcePolicy ?? "").trim(),
     warnings,
+    providerTrace,
   };
 };
 
@@ -2262,7 +2287,11 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
           teacherFeedback,
           aiDraftPreview: normalizedDraft,
         });
-        messageApi.warning("AI could not draft a safe mark. Your current mark and feedback were not changed.");
+        messageApi.warning(
+          normalizedDraft.providerTrace?.selected
+            ? `AI could not draft a safe mark with ${normalizedDraft.providerTrace.selected}. Your current mark and feedback were not changed.`
+            : "AI could not draft a safe mark. Your current mark and feedback were not changed."
+        );
         return;
       }
 
@@ -2278,7 +2307,11 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         teacherFeedback: nextTeacherFeedback,
         aiDraftPreview: normalizedDraft,
       });
-      messageApi.success("AI draft added. Review it before saving the markbook mark.");
+      messageApi.success(
+        normalizedDraft.providerTrace?.selected
+          ? `AI draft added using ${normalizedDraft.providerTrace.selected}. Review it before saving the markbook mark.`
+          : "AI draft added. Review it before saving the markbook mark."
+      );
     } catch (error) {
       console.error(error);
       messageApi.error(error instanceof Error ? error.message : "Could not create an AI draft mark.");
@@ -2501,7 +2534,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         },
         initialMessage:
           draftPreviewForChat?.suggestedMark != null
-            ? `Mark this student's paper. For every question list: the student's answer, Correct/Partly/Wrong, the correct answer, and marks awarded. End with the exact final line "Total: ${draftPreviewForChat.suggestedMark}/${maxMarks ?? "the total"}" and then 2 sentences of feedback.${evidenceBlock}`
+            ? `Use the provided per-question draft marking breakdown as the authoritative draft for this paper. Do not re-mark from scratch unless the teacher explicitly asks you to review a specific question. For every question in the provided breakdown, list: the student's answer, Correct/Partly/Wrong, the correct answer, and marks awarded. If the draft breakdown appears to miss a question, briefly say teacher review is needed for that missing question instead of inventing a new mark. End with the exact final line "Total: ${draftPreviewForChat.suggestedMark}/${maxMarks ?? "the total"}" and then 2 sentences of feedback for the student.`
             : `Mark this student's paper. For every question list: the student's answer, Correct/Partly/Wrong, the correct answer, and marks awarded. End with the exact final line "Total: [X]/[Y]" and then 2 sentences of feedback.${evidenceBlock}`,
       },
     }));
@@ -2915,6 +2948,21 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
             message={aiDraftPreview.suggestedMark != null ? `AI suggested mark: ${aiDraftPreview.suggestedMark}${maxMarks ? ` / ${maxMarks}` : ""}` : "AI marking complete"}
             description={
               <div className="space-y-1 text-sm text-gray-700">
+                {aiDraftPreview.providerTrace?.selected ? (
+                  <p className="text-xs font-medium text-teal-700">
+                    AI provider: {aiDraftPreview.providerTrace.selected}
+                  </p>
+                ) : null}
+                {aiDraftPreview.providerTrace?.recheck ? (
+                  <p className="text-xs text-gray-500">
+                    Recheck: {aiDraftPreview.providerTrace.recheck}
+                  </p>
+                ) : null}
+                {aiDraftPreview.providerTrace?.attempts?.length > 1 ? (
+                  <p className="text-xs text-gray-500">
+                    Tried: {aiDraftPreview.providerTrace.attempts.join(" -> ")}
+                  </p>
+                ) : null}
                 <p className="whitespace-pre-wrap">{aiDraftPreview.feedback}</p>
                 {aiDeductionRows.length > 0 ? (
                   <button
