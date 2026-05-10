@@ -78,6 +78,45 @@ const VISUAL_CONTEXT_MAX_IMAGES = 4;
 const stripReasoningTags = (raw: string): string =>
   raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
 
+const ISLAMIC_STUDIES_KNOWLEDGE = `
+ISLAMIC STUDIES AUTHORITATIVE ANSWERS (use these when subject is Islamic/Quranic/Arabic religious):
+- Prayer shortening (Qasr) while travelling: Allowed when distance ≥ 83 km AND intended stay is 3 days or fewer. If the stay EXTENDS BEYOND 3 DAYS the traveller must revert to full (Tamam) prayers. CORRECT answer to "what happens if stay extends beyond 3 days at >83 km": "You pray full salah" — award full marks.
+- Treaty of Hudaybiyyah: Signed in 6 AH at Hudaybiyyah between Prophet Muhammad ﷺ and the Quraysh. Effects: right to return for Umrah the following year; tribes free to align; led to mass entry into Islam; prepared the ground for Fatḥ Makkah.
+- Dealing with rumours: Islamic guidance (Al-Hujurat 49:6): verify the information (Tabayyun/Tahaqquq). If beneficial and confirmed, share; otherwise keep silent. CORRECT answer: "Listen to it and verify it. Then, if it should be known, pass it on; otherwise, keep silent."
+- Salah times: Fajr (dawn), Dhuhr (midday), Asr (afternoon), Maghrib (sunset), Isha (night).
+- Pillars of Islam: Shahada, Salah, Zakah, Sawm (Ramadan fasting), Hajj.
+- Pillars of Iman: Allah, Angels, Scriptures, Prophets, Day of Judgement, Qadar (Divine Decree).
+- Wudu (ablution) is required before prayer; invalidated by sleep, toilet, breaking wind, unconsciousness.
+- Tayammum (dry ablution) is permitted when water is unavailable or harmful to use.
+`;
+
+const DRAFT_MARKING_SYSTEM_PROMPT =
+  "You are a highly accurate professional school exam marker. Mark like a fair human teacher. Always output strict valid JSON.\n" +
+  "\nTEACHER STANDARD:\n" +
+  "- Reconstruct the mark scheme from the PDF questions, option choices, mark allocations, visible student evidence, and your own subject knowledge.\n" +
+  "- The exam paper usually contains questions only, not an answer key. Do NOT look for the correct answer inside the paper text; infer it from the question and subject knowledge.\n" +
+  "- Match the student's typed text/handwriting to the correct question by page, question number, nearby wording, and vertical position. Do not rely on text box numbering.\n" +
+  "- When answered-page images are attached, treat visible handwriting, circles, ticks, underlines, and typed overlays on those images as primary evidence of the student's answer.\n" +
+  "- Award credit for correct meaning even if spelling/grammar is imperfect. Do not require exact wording unless the question requires a term/name/date.\n" +
+  "- Give benefit of doubt only when the student's intention is visible. Do not invent answers for blank or unreadable sections.\n" +
+  "- If handwriting is unclear, mark only the words you can read and add a warning.\n" +
+  "- Never treat teacher marks, headers, names, dates, or UI labels as student answers.\n" +
+  "\nSTEP-BY-STEP MARKING PROCESS — follow in order for EVERY paper:\n" +
+  "STEP 1 — LIST QUESTION TYPES: Before scoring, identify each question in the paper and classify it as MCQ | True/False | Fill-blank | Short-answer | Essay. Note the mark allocation per question EXACTLY as shown on the paper.\n" +
+  "STEP 2 — READ STUDENT SELECTIONS & ANSWERS: For each MCQ/T-F/Fill-blank question, identify the EXACT option the student circled, underlined, crossed, or ticked. For short-answer/essay questions, read the student's written text and connect it to the nearest matching question.\n" +
+  "STEP 3 — EVALUATE CORRECTNESS:\n" +
+  "  • MCQ / True-False / Fill-blank: is the selected option factually CORRECT? → award the full mark for that question (right = full marks, wrong = 0). NO partial marks for MCQs.\n" +
+  "  • Short-answer: does the student's text contain the required facts/points? Award proportionally.\n" +
+  "  • Essay/Analysis: evaluate understanding, depth, and accuracy proportionally.\n" +
+  "STEP 4 — BUILD questionBreakdown: one entry PER QUESTION. Use the exact question number and a short excerpt of the question text (e.g. \"Q1: Shortening prayers if stay >3 days\"). Do NOT group MCQs into one entry.\n" +
+  "STEP 5 — SELF-AUDIT BEFORE FINAL JSON: Re-read the PDF question list and the student answer evidence. Check that every visible question/sub-question with marks has one breakdown row, no typed answer box was ignored, marks do not exceed allocation, and the total equals the sum. If a high-performing answer is present, award it fairly; if evidence is missing, warn rather than under-marking.\n" +
+  "\nCRITICAL MCQ RULE: MCQ and True/False questions are BINARY — full marks or 0. Never give \"3 out of 5\" to a single MCQ. The mark per MCQ is whatever the paper allocates (default: 1 mark each if not stated).\n" +
+  "QUESTION LABEL RULE: Use the ACTUAL question number and topic from the paper (e.g. \"Q1: Shortening prayers when stay > 3 days\"). NEVER invent topic names not in the paper.\n" +
+  "\nACCURACY RULE: suggestedMark MUST equal the exact integer SUM of all marksAwarded in questionBreakdown. Never output a mark that is lower because you failed to map an answer; first try to match answers by page/y-position and wording.\n" +
+  "IDENTITY FIELDS RULE: Completely ignore student name, ID, class, date, school name — these are never part of the answer.\n" +
+  ISLAMIC_STUDIES_KNOWLEDGE +
+  "\nFEEDBACK FORMAT: The 'feedback' field must list ONLY wrong or partially wrong questions. For each wrong question write exactly:\n'Q[num]: [question text]: student wrote \"[wrong answer]\" — correct: [correct answer]. -[N] mark(s).'\nBegin with 'Deductions:'. List ALL wrong/partial questions, not just one. If all answers are correct write 'No deductions found.' Do NOT write WWW, EBI, praise, general advice, or explanations about the subject.";
+
 const paperTextCache = new Map<string, { pages: Array<{ num: number; text: string }>; cachedAt: number }>();
 const execFileAsync = promisify(execFile);
 
@@ -1225,42 +1264,7 @@ const requestGroqMarkingDraft = async ({
 
   const targetModel = model || GROQ_TEXT_MODEL;
 
-  const ISLAMIC_STUDIES_KNOWLEDGE = `
-ISLAMIC STUDIES AUTHORITATIVE ANSWERS (use these when subject is Islamic/Quranic/Arabic religious):
-- Prayer shortening (Qasr) while travelling: Allowed when distance ≥ 83 km AND intended stay is 3 days or fewer. If the stay EXTENDS BEYOND 3 DAYS the traveller must revert to full (Tamam) prayers. CORRECT answer to "what happens if stay extends beyond 3 days at >83 km": "You pray full salah" — award full marks.
-- Treaty of Hudaybiyyah: Signed in 6 AH at Hudaybiyyah between Prophet Muhammad ﷺ and the Quraysh. Effects: right to return for Umrah the following year; tribes free to align; led to mass entry into Islam; prepared the ground for Fatḥ Makkah.
-- Dealing with rumours: Islamic guidance (Al-Hujurat 49:6): verify the information (Tabayyun/Tahaqquq). If beneficial and confirmed, share; otherwise keep silent. CORRECT answer: "Listen to it and verify it. Then, if it should be known, pass it on; otherwise, keep silent."
-- Salah times: Fajr (dawn), Dhuhr (midday), Asr (afternoon), Maghrib (sunset), Isha (night).
-- Pillars of Islam: Shahada, Salah, Zakah, Sawm (Ramadan fasting), Hajj.
-- Pillars of Iman: Allah, Angels, Scriptures, Prophets, Day of Judgement, Qadar (Divine Decree).
-- Wudu (ablution) is required before prayer; invalidated by sleep, toilet, breaking wind, unconsciousness.
-- Tayammum (dry ablution) is permitted when water is unavailable or harmful to use.
-`;
-
-  const systemContent =
-    "You are a highly accurate professional school exam marker. Mark like a fair human teacher. Always output strict valid JSON.\n" +
-    "\nTEACHER STANDARD:\n" +
-    "- First reconstruct the mark scheme from the PDF questions, option choices, mark allocations, and any answer clues.\n" +
-    "- Then match the student's typed text/handwriting to the correct question by page, question number, and nearby wording.\n" +
-    "- Award credit for correct meaning even if spelling/grammar is imperfect. Do not require exact wording unless the question requires a term/name/date.\n" +
-    "- Give benefit of doubt only when the student's intention is visible. Do not invent answers for blank or unreadable sections.\n" +
-    "- If handwriting is unclear, mark only the words you can read and add a warning.\n" +
-    "- Never treat teacher marks, headers, names, dates, or UI labels as student answers.\n" +
-    "\nSTEP-BY-STEP MARKING PROCESS — follow in order for EVERY paper:\n" +
-    "STEP 1 — LIST QUESTION TYPES: Before scoring, identify each question in the paper and classify it as MCQ | True/False | Fill-blank | Short-answer | Essay. Note the mark allocation per question EXACTLY as shown on the paper.\n" +
-    "STEP 2 — READ STUDENT SELECTIONS & ANSWERS: For each MCQ/T-F/Fill-blank question, identify the EXACT option the student circled, underlined, crossed, or ticked. For short-answer/essay questions, read the student's written text and connect it to the nearest matching question.\n" +
-    "STEP 3 — EVALUATE CORRECTNESS:\n" +
-    "  • MCQ / True-False / Fill-blank: is the selected option factually CORRECT? → award the full mark for that question (right = full marks, wrong = 0). NO partial marks for MCQs.\n" +
-    "  • Short-answer: does the student's text contain the required facts/points? Award proportionally.\n" +
-    "  • Essay/Analysis: evaluate understanding, depth, and accuracy proportionally.\n" +
-    "STEP 4 — BUILD questionBreakdown: one entry PER QUESTION. Use the exact question number and a short excerpt of the question text (e.g. \"Q1: Shortening prayers if stay >3 days\"). Do NOT group MCQs into one entry.\n" +
-    "STEP 5 — SELF-AUDIT BEFORE FINAL JSON: Re-read the PDF question list and the student answer evidence. Check that every visible question/sub-question with marks has one breakdown row, no typed answer box was ignored, marks do not exceed allocation, and the total equals the sum. If a high-performing answer is present, award it fairly; if evidence is missing, warn rather than under-marking.\n" +
-    "\nCRITICAL MCQ RULE: MCQ and True/False questions are BINARY — full marks or 0. Never give \"3 out of 5\" to a single MCQ. The mark per MCQ is whatever the paper allocates (default: 1 mark each if not stated).\n" +
-    "QUESTION LABEL RULE: Use the ACTUAL question number and topic from the paper (e.g. \"Q1: Shortening prayers when stay > 3 days\"). NEVER invent topic names not in the paper.\n" +
-    "\nACCURACY RULE: suggestedMark MUST equal the exact integer SUM of all marksAwarded in questionBreakdown. Never output a mark that is lower because you failed to map an answer; first try to match answers by page/y-position and wording.\n" +
-    "IDENTITY FIELDS RULE: Completely ignore student name, ID, class, date, school name — these are never part of the answer.\n" +
-    ISLAMIC_STUDIES_KNOWLEDGE +
-    "\nFEEDBACK FORMAT: The 'feedback' field must list ONLY wrong or partially wrong questions. For each wrong question write exactly:\n'Q[num]: [question text]: student wrote \"[wrong answer]\" — correct: [correct answer]. -[N] mark(s).'\nBegin with 'Deductions:'. List ALL wrong/partial questions, not just one. If all answers are correct write 'No deductions found.' Do NOT write WWW, EBI, praise, general advice, or explanations about the subject.";
+  const systemContent = DRAFT_MARKING_SYSTEM_PROMPT;
 
   try {
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -1448,12 +1452,16 @@ const requestGroqVisionDraftMark = async ({
         response_format: { type: "json_object" },
         messages: [
           {
+            role: "system",
+            content: DRAFT_MARKING_SYSTEM_PROMPT,
+          },
+          {
             role: "user",
             content: [
               {
                 type: "text",
                 text:
-                  `${prompt}\n\nThe attached images are the student's answered PDF pages. Read the PDF questions and the student's handwriting/typed overlays directly from these images. Connect each answer to its matching question and mark fairly like a teacher.`,
+                  `${prompt}\n\nThe attached images are the student's answered PDF pages. Read the PDF questions and the student's handwriting/typed overlays directly from these images. Treat those visible marks as primary evidence, connect each answer to its matching question, and mark fairly like a teacher.`,
               },
               ...pageImages.slice(0, 5).flatMap((image, index) => [
                 { type: "text", text: `Answered ${pageImageLabel(pageNumbers, index)}:` },
@@ -1516,12 +1524,16 @@ const requestOpenRouterDraftMark = async ({
         response_format: { type: "json_object" },
         messages: [
           {
+            role: "system",
+            content: DRAFT_MARKING_SYSTEM_PROMPT,
+          },
+          {
             role: "user",
             content: [
               {
                 type: "text",
                 text:
-                  `${prompt}\n\nThe attached images are the student's answered PDF pages. Read handwriting/typed overlays directly from them and mark fairly like a teacher.`,
+                  `${prompt}\n\nThe attached images are the student's answered PDF pages. Read handwriting/typed overlays directly from them, treat them as primary evidence of the student's answer, and mark fairly like a teacher.`,
               },
               ...pageImages.slice(0, 8).flatMap((image, index) => [
                 { type: "text", text: `Answered ${pageImageLabel(pageNumbers, index)}:` },
@@ -1726,7 +1738,7 @@ STEP 2 — MCQ / True-False / Fill-blank RULE (strictly enforced):
 
 STEP 3 — SHORT-ANSWER / ESSAY RULE:
   - Find the student's written answer to each question.
-  - Check it against the expected answer from the paper.
+  - Check it against the correct answer using your own subject knowledge, the wording of the question, and the mark allocation.
   - Award marks proportionally based on how many required points are included.
 
 STEP 4 — BUILD THE BREAKDOWN:
@@ -1743,6 +1755,8 @@ STEP 5 — SELF-AUDIT BEFORE RETURNING:
   - If a student clearly attempted the paper across many pages, do not mark many questions "not provided" unless the relevant answer area is genuinely blank/unreadable.
 
 OTHER RULES:
+Use your own subject knowledge to determine the correct answer. The exam paper usually contains questions only, not an answer key.
+If answered-page images are attached, treat visible handwriting/circles/ticks/typed overlays on those images as primary evidence of the student's answer.
 IGNORE: student name, ID, class, date, school name — never part of the answer.
 For marks feedback, name the exact question number and what the student got wrong.
 suggestedMark = exact integer SUM of all marksAwarded in the breakdown.
