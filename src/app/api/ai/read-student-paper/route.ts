@@ -46,11 +46,11 @@ const readWithLocalOcr = async (pageImages: string[], pageNumbers: number[]) => 
       await fs.writeFile(tempPath, Buffer.from(image, "base64"));
       enhancedPath = await enhanceForOcr(tempPath);
       const attempts: string[] = [];
-      for (const psm of ["6", "11"]) {
+      for (const psm of ["6", "4", "11"]) {
         try {
           const { stdout } = await execFileAsync(
             "tesseract",
-            [enhancedPath, "stdout", "-l", "eng+ara", "--oem", "3", "--dpi", "150", "--psm", psm],
+            [enhancedPath, "stdout", "-l", "eng+ara", "--oem", "3", "--dpi", "200", "--psm", psm],
             { maxBuffer: 1024 * 1024, timeout: 7000 }
           );
           attempts.push(String(stdout || "").replace(/\s+/g, " ").trim());
@@ -85,7 +85,32 @@ export async function POST(req: NextRequest) {
 
   if (pageImages.length === 0) return NextResponse.json({ text: "" });
 
-  const prompt = `You are an answered-exam visual reader. Your job is ONLY to read the student's answer evidence from the supplied exam page images.\n\nTitle: ${body.title || "Assessment"}\nSubject: ${body.subject || "Unknown"}\n\nCRITICAL READING RULES:\n1. IGNORE all header/name fields: student name, class, date, school name, teacher name, ID, task title, and any standalone name like "Merub", "Ahmed", "Sara". These are NEVER answers. Do not output them.\n2. For MCQ / True-False / choose-the-best-answer questions, the student's answer is the option (a/b/c/d) that is circled, ticked, crossed, underlined, or has any pen mark on/around it.\n3. A hand-drawn oval/circle/loop around an option's letter or text means SELECTED ANSWER. It is not decoration. Look carefully for thin pen strokes around option letters (a), (b), (c), (d).\n4. Output format MUST be exactly: "Q[number]: selected option (a) [full option text]". Example: "Q1: selected option (a) You pray full salah".\n5. NEVER output a person's name as the answer to a question. If you only see a name and no circled option, write "Q[number]: no selection visible".\n6. For short-answer handwriting/text boxes, transcribe the answer near that question. If partly unclear, use [unclear] only for unclear words.\n7. If a question has no visible mark/circle/handwriting, write: "Q[number]: no answer visible".\n\nGood example output:\nQ1: selected option (a) You pray full salah\nQ2: selected option (c) You shorten and combine\nQ3: written answer: Yes, because the journey is long\nQ4: no selection visible\n\nBad example (NEVER do this):\nQ1: Merub        ← WRONG, this is the student's name from header, not an answer\n\nReturn concise evidence only, page by page. Do not mark. Do not give scores. Do not include headers or names.`;
+  const prompt = `You are reading a student's answered exam paper. Extract ONLY the student's answers — ignore everything else.
+
+Title: ${body.title || "Assessment"}
+Subject: ${body.subject || "Unknown"}
+
+THE PAGE CONTAINS TWO TYPES OF STUDENT ANSWER:
+(A) TYPED TEXT BOXES — appear as clean, modern-font text (like Arial/Times) sitting ON TOP of the printed PDF. These are answers the student typed digitally. They may appear anywhere on the page, including between/under questions.
+(B) HANDWRITING / PEN MARKS — appear as freehand pen strokes, circles, loops, ticks, or crosses drawn by hand. These show MCQ selections or handwritten answers.
+
+CRITICAL READING RULES:
+1. IGNORE the printed PDF background text (question text, option labels a/b/c/d, headers, instructions). Only extract STUDENT-ADDED content.
+2. IGNORE: student name, class, date, school name, teacher name at the top — NEVER treat these as answers.
+3. TYPED TEXT BOX answers: for each, output — "[Typed near Q{N}]: {full text}" where N is your best guess at which question it answers based on its vertical position on the page.
+4. MCQ circles/ticks: a pen circle/oval/loop around option (a), (b), (c), or (d) text means that option is SELECTED. Output — "Q{N}: selected option ({letter}) {full option text}"
+5. HANDWRITTEN text answers: transcribe them near the question they appear under. Use [unclear] only for truly illegible words.
+6. If no student answer is visible for a question, output — "Q{N}: no answer visible"
+7. NEVER output a person's name as an answer.
+
+OUTPUT EXAMPLE (follow this format exactly):
+[Typed near Q3]: Ten year truce between the two, with the Muslims
+[Typed near Q3]: if a member of Quraysh went to Medina without permission, they have to return back
+Q1: selected option (a) You pray full salah
+Q2: selected option (c) You shorten and combine
+Q4: no answer visible
+
+Return evidence only. Do not mark. Do not give scores.`;
 
   if (GROQ_API_KEY) {
     const controller = new AbortController();
