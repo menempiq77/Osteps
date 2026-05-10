@@ -2367,6 +2367,16 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
     messageApi.destroy("ai-marking-assistant");
 
+    // Warn the teacher when neither the paper text nor student answers could be read.
+    const hasPaperText = Boolean(paperTextCacheRef.current && paperTextCacheRef.current.length > 30);
+    const hasEvidence = Boolean(studentEvidence && studentEvidence.length > 5);
+    if (!hasPaperText && !hasEvidence) {
+      void messageApi.warning(
+        "Could not read the PDF text or student answers. Make sure the pages have finished loading, then try again.",
+        6
+      );
+    }
+
     window.dispatchEvent(new CustomEvent("osteps:open-ai-assistant", {
       detail: {
         context: {

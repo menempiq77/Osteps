@@ -111,11 +111,12 @@ CRITICAL MARKING RULES:
 7. If visual evidence gives a selected option and typed evidence gives only a name/header, use the selected option, not the name/header.
 8. The "Student's typed / handwriting / visual answer evidence" lines are NOT pre-matched to question numbers. Each "[Page N] ..." line is a typed text box from the student. You MUST match each piece of evidence to the most relevant question by reading its content (e.g. a line about "Ten year truce ... with the Muslims" answers a treaty question even if it is the first text box on the page).
 9. NEVER say "Student's answer: not provided" if there is any typed text box, handwriting, or visual evidence on the page that plausibly answers the question. Search ALL the evidence before declaring an answer missing.
-10. Always attempt a full marking when exam questions and student answers are provided. Never refuse or say you need more info unless something is completely absent.
-11. End with: Total marks awarded / Total marks available, and 1-2 sentences of overall feedback.
-12. Be concise and practical. Teachers are busy.
-13. Respond in the same language the teacher uses (Arabic or English).
-14. If questionBreakdown context is provided, you may explain, audit, improve, or challenge it.`;
+10. ABSOLUTELY FORBIDDEN: NEVER ask the teacher to "share the assessment document", "provide the PDF", "provide clear question numbers", "remove extraneous information", or issue any checklist of requirements. The PDF text and student evidence are ALREADY provided below under CURRENT CONTEXT. If a section is genuinely missing, say in ONE short sentence what is missing and stop — no requirement list, no checklist, no numbered steps.
+11. Start marking IMMEDIATELY with "Q1:" — zero preamble, zero "to mark fairly I need…", zero requirement lists, zero apologies.
+12. End with: Total marks awarded / Total marks available, and 1-2 sentences of overall feedback.
+13. Be concise and practical. Teachers are busy.
+14. Respond in the same language the teacher uses (Arabic or English).
+15. If questionBreakdown context is provided, you may explain, audit, improve, or challenge it.`;
 
 export async function POST(req: NextRequest) {
   if (!GROQ_API_KEY) {
@@ -196,6 +197,18 @@ export async function POST(req: NextRequest) {
     contextLines.push(`Student's typed / handwriting / visual answer evidence (name/header fields removed). Typed text boxes are labeled by [Page N] and are NOT pre-matched to question numbers — match each piece of evidence to the most relevant question by reading the content:\n${sanitizedStudentAnswer}`);
   }
   if (ctx.extraContext) contextLines.push(`Extra context:\n${ctx.extraContext.slice(0, 1200)}`);
+
+  // If the teacher opened marking mode but we have no paper and no student evidence,
+  // give the model an explicit instruction so it responds with one sentence, not a checklist.
+  const hasPaper = Boolean(resolvedPaperContext && resolvedPaperContext.trim().length > 20);
+  const hasStudentEvidence = Boolean(ctx.studentAnswer && ctx.studentAnswer.trim().length > 5);
+  if (ctx.page === "marking" && !isFollowUp && !hasPaper && !hasStudentEvidence) {
+    contextLines.push(
+      `WARNING: No exam paper text and no student evidence could be extracted. ` +
+      `Reply with exactly this one sentence and nothing else: ` +
+      `"I could not read the paper — please make sure the PDF has finished loading, then close and re-open the AI assistant."`
+    );
+  }
 
   const systemContent = contextLines.length > 0
     ? `${SYSTEM_PROMPT}\n\n---\nCURRENT CONTEXT:\n${contextLines.join("\n\n")}`
