@@ -2275,18 +2275,26 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     void applyAiDraftMark();
   };
 
-  // Listen for the AI assistant to emit a parsed total mark so we can auto-fill the mark box.
+  // Listen for the AI assistant to emit a parsed total mark so we can auto-fill the mark box
+  // and show a prominent notification to the teacher.
   useEffect(() => {
     const handler = (e: Event) => {
       const ev = e as CustomEvent<{ mark: number; maxMarks: number }>;
       const mark = ev.detail?.mark;
+      const maxMarks = ev.detail?.maxMarks;
       if (mark != null && Number.isFinite(mark)) {
         setTeacherMarks(String(mark));
+        void messageApi.success(
+          maxMarks != null && Number.isFinite(maxMarks)
+            ? `AI suggested mark: ${mark} / ${maxMarks} — mark box updated`
+            : `AI suggested mark: ${mark} — mark box updated`,
+          6
+        );
       }
     };
     window.addEventListener("osteps:ai-mark-extracted", handler);
     return () => window.removeEventListener("osteps:ai-mark-extracted", handler);
-  }, []);
+  }, [messageApi]);
 
   const openAiMarkingAssistant = async () => {
     visualAnswerCacheRef.current = null;
