@@ -274,6 +274,20 @@ const isFailedAiDraft = (draft: AiDraftMarkResponse | null) => {
   return isAiDraftFailureText(text);
 };
 
+const isReliableAiDraft = (draft: AiDraftMarkResponse | null) => {
+  if (isFailedAiDraft(draft)) return false;
+  if (!draft || draft.suggestedMark == null) return false;
+  if (draft.confidence === "low") return false;
+
+  const text = [draft.feedback, draft.rationale, ...(draft.warnings || [])]
+    .join(" ")
+    .toLowerCase();
+
+  return !/(?:did not read enough|only accounted for|only produced|teacher review required|could not reliably read|unreadable|mark manually|no reliable visual|no readable student answer|timed out before completing)/i.test(
+    text
+  );
+};
+
 const getAiDeductionRows = (draft: AiDraftMarkResponse | null) => {
   const rows = draft?.questionBreakdown || [];
   return rows.filter((entry) => {
@@ -631,6 +645,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       const penCount = studentAnnotations.filter(
         (annotation) => annotation.type === "pen" && getSafePenPoints(annotation).length > 0
       ).length;
+      const reliableAiDraftPreview = isReliableAiDraft(aiDraftPreview) ? aiDraftPreview : null;
 
       detail.contexts.push({
         page: "assessment document / online PDF marking workspace",
@@ -638,12 +653,12 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         subject: subjectName ?? undefined,
         maxMarks: maxMarks ?? undefined,
         fileUrl,
-        suggestedMark: aiDraftPreview?.suggestedMark ?? undefined,
-        feedback: aiDraftPreview?.feedback,
-        rationale: aiDraftPreview?.rationale,
+        suggestedMark: reliableAiDraftPreview?.suggestedMark ?? undefined,
+        feedback: reliableAiDraftPreview?.feedback,
+        rationale: reliableAiDraftPreview?.rationale,
         studentAnswer: typedAnswers,
-        questionBreakdown: aiDraftPreview?.questionBreakdown
-          ? JSON.stringify(aiDraftPreview.questionBreakdown).slice(0, 8000)
+        questionBreakdown: reliableAiDraftPreview?.questionBreakdown
+          ? JSON.stringify(reliableAiDraftPreview.questionBreakdown).slice(0, 8000)
           : undefined,
         assessmentContext: [
           `Role: ${role}`,
@@ -2338,7 +2353,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
     let pageImages: string[] = [];
     let pageImagePageNumbers: number[] = [];
-    let draftPreviewForChat = aiDraftPreview;
+    let draftPreviewForChat: AiDraftMarkResponse | null = null;
     let extractedAiMark: { mark: number; maxMarks?: number | null } | null = null;
 
     if (pages.length > 0 && !rendering) {
@@ -2420,17 +2435,18 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         );
 
         if (normalizedDraft) {
-          draftPreviewForChat = normalizedDraft;
-          setAiDraftPreview(normalizedDraft);
+          const reliableDraft = isReliableAiDraft(normalizedDraft) ? normalizedDraft : null;
+          draftPreviewForChat = reliableDraft;
+          setAiDraftPreview(reliableDraft);
 
-          if (!isFailedAiDraft(normalizedDraft) && normalizedDraft.suggestedMark != null) {
-            const nextTeacherMarks = String(normalizedDraft.suggestedMark);
-            extractedAiMark = { mark: normalizedDraft.suggestedMark, maxMarks: maxMarks ?? undefined };
+          if (reliableDraft?.suggestedMark != null) {
+            const nextTeacherMarks = String(reliableDraft.suggestedMark);
+            extractedAiMark = { mark: reliableDraft.suggestedMark, maxMarks: maxMarks ?? undefined };
             persistLocalDraft(getCurrentLayerSnapshot(), {
               ...(state?.metadata && typeof state.metadata === "object" ? state.metadata : {}),
               teacherMarks: nextTeacherMarks,
               teacherFeedback,
-              aiDraftPreview: normalizedDraft,
+              aiDraftPreview: reliableDraft,
             });
           }
         }
