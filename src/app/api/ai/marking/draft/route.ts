@@ -1844,6 +1844,9 @@ const requestOpenRouterDraftMark = async ({
 };
 
 export async function POST(request: Request) {
+  const routeStartedAt = Date.now();
+  const hasRouteBudget = (minimumMs = 6000) => Date.now() - routeStartedAt < 52000 - minimumMs;
+
   let body: DraftMarkRequest;
   try {
     body = (await request.json()) as DraftMarkRequest;
@@ -1950,7 +1953,7 @@ export async function POST(request: Request) {
   let visualContext: VisualAnswerContext | null = null;
   let visualWarning = "";
 
-  if (shouldReadAnsweredPageImages) {
+  if (shouldReadAnsweredPageImages && hasRouteBudget(15000)) {
     try {
       visualContext = await extractVisualAnswerContext({
         title,
@@ -2196,7 +2199,7 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
 
     // 1. If the student has substantial typed answers, use the reliable text pipeline first.
     // This avoids Groq Vision TPM rate-limit failures and still marks against the full PDF.
-    if (GROQ_API_KEY && hasSubstantialTypedAnswers) {
+    if (GROQ_API_KEY && hasSubstantialTypedAnswers && hasRouteBudget(22000)) {
       const groqTextProviderLabel = `Groq text (${GROQ_TEXT_MODEL})`;
       recordProviderAttempt(groqTextProviderLabel);
       try {
@@ -2212,7 +2215,7 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
 
     // 2. For handwriting-heavy papers, prefer Gemini multimodal when configured, then fall back
     // to Groq/OpenRouter because Gemini tends to be stronger on mixed handwriting + overlays.
-    if (GEMINI_API_KEY && pageImages.length > 0 && !hasSubstantialTypedAnswers) {
+    if (GEMINI_API_KEY && pageImages.length > 0 && !hasSubstantialTypedAnswers && hasRouteBudget(24000)) {
       const geminiProviderLabel = `Gemini multimodal (${GEMINI_MODEL})`;
       recordProviderAttempt(geminiProviderLabel);
       try {
@@ -2235,7 +2238,7 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
       }
     }
 
-    if (GROQ_API_KEY && pageImages.length > 0 && !hasSubstantialTypedAnswers) {
+    if (!rawJson && GROQ_API_KEY && pageImages.length > 0 && !hasSubstantialTypedAnswers && hasRouteBudget(24000)) {
       const groqVisionProviderLabel = `Groq vision (${GROQ_VISION_MODEL})`;
       recordProviderAttempt(groqVisionProviderLabel);
       try {
@@ -2257,7 +2260,7 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
       }
     }
 
-    if (OPENROUTER_API_KEY && pageImages.length > 0 && !hasSubstantialTypedAnswers) {
+    if (!rawJson && OPENROUTER_API_KEY && pageImages.length > 0 && !hasSubstantialTypedAnswers && hasRouteBudget(24000)) {
       const openRouterProviderLabel = `OpenRouter multimodal (${OPENROUTER_VISION_MODEL})`;
       recordProviderAttempt(openRouterProviderLabel);
       try {
@@ -2280,7 +2283,7 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
     }
 
     // 3. Try Groq text (llama-3.3-70b) using extracted PDF text + typed answers/visual summary.
-    if (GROQ_API_KEY && !hasSubstantialTypedAnswers) {
+    if (!rawJson && GROQ_API_KEY && !hasSubstantialTypedAnswers && hasRouteBudget(22000)) {
       const groqTextProviderLabel = `Groq text (${GROQ_TEXT_MODEL})`;
       recordProviderAttempt(groqTextProviderLabel);
       try {
@@ -2300,7 +2303,7 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
 
     // 3b. For typed/text-only papers, prefer Gemini as a cloud fallback before dropping to local Ollama.
     // This keeps typed answers on a stronger hosted model when Groq is rate-limited or its fallback rejects the prompt size.
-    if (GEMINI_API_KEY && !rawJson && (hasSubstantialTypedAnswers || pageImages.length === 0)) {
+    if (GEMINI_API_KEY && !rawJson && (hasSubstantialTypedAnswers || pageImages.length === 0) && hasRouteBudget(24000)) {
       const geminiTextProviderLabel = `Gemini text fallback (${GEMINI_MODEL})`;
       recordProviderAttempt(geminiTextProviderLabel);
       try {
@@ -2315,7 +2318,7 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
     }
 
     // 3. If no cloud model produced valid JSON, fall back to local Ollama.
-    if (!rawJson) {
+    if (!rawJson && hasRouteBudget(10000)) {
       const localFastProviderLabel = `Local Ollama fast fallback (${OLLAMA_FAST_FALLBACK_MODEL})`;
       recordProviderAttempt(localFastProviderLabel);
       try {
@@ -2386,6 +2389,18 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
           );
         }
       }
+    }
+
+    if (!rawJson && !hasRouteBudget(10000)) {
+      return jsonResponse(
+        normalizeWithProviderTrace({
+          suggestedMark: null,
+          feedback: "AI Draft Mark could not finish before the safe time limit. Please try again; if it repeats, mark this paper manually while provider quota recovers.",
+          rationale: "Cloud vision/text providers were slow or rate-limited.",
+          confidence: "low",
+          warnings: [...modelWarnings, "AI marking stopped early to avoid the page hanging or nginx timeout."],
+        })
+      );
     }
 
     if (!rawJson && shouldAttemptReasoner) {
