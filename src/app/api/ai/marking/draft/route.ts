@@ -608,6 +608,25 @@ const normalizeDeductionsFeedback = (value: string) => {
 
 const formatMarkValue = (value: number) => Number.isInteger(value) ? String(value) : value.toFixed(1);
 
+const estimateLikelyQuestionCount = (paperContext: string) => {
+  const text = String(paperContext || "");
+  if (!text.trim()) return null;
+
+  const labels = new Set<string>();
+
+  for (const match of text.matchAll(/\bQ(?:uestion)?\s*(\d{1,2}[a-z]?)/gi)) {
+    const label = String(match[1] || "").toLowerCase();
+    if (label) labels.add(label);
+  }
+
+  for (const match of text.matchAll(/(?:^|\n)\s*(\d{1,2}[a-z]?)\s*[\).:-]/gmi)) {
+    const label = String(match[1] || "").toLowerCase();
+    if (label) labels.add(label);
+  }
+
+  return labels.size > 0 ? labels.size : null;
+};
+
 const buildDeductionsFeedback = (
   breakdown: QuestionMarkEntry[],
   suggestedMark: number | null,
@@ -1105,8 +1124,10 @@ const alignMarkWithFeedback = (
 const normalizeDraft = (
   raw: Partial<DraftMarkResponse>,
   maxMarks: number | null,
-  sourcePolicy: string
+  sourcePolicy: string,
+  options?: { expectedQuestionCount?: number | null }
 ): DraftMarkResponse => {
+  const expectedQuestionCount = options?.expectedQuestionCount ?? null;
   const numericMark = raw.suggestedMark == null ? null : Number(raw.suggestedMark);
   const fallbackMark = estimateFallbackSuggestedMark(raw, maxMarks);
   const consistentNumericMark = Number.isFinite(numericMark)
@@ -1196,6 +1217,27 @@ const normalizeDraft = (
     );
   }
 
+  const questionCoverageRatio =
+    expectedQuestionCount != null && expectedQuestionCount > 0
+      ? normalizedBreakdown.length / expectedQuestionCount
+      : null;
+  const weakAllocationCoverage = accountedMaxMarks === 0 || (maxMarks != null && accountedMaxMarks < maxMarks * 0.6);
+  if (
+    maxMarks != null &&
+    maxMarks >= 20 &&
+    expectedQuestionCount != null &&
+    expectedQuestionCount >= 4 &&
+    normalizedBreakdown.length > 0 &&
+    questionCoverageRatio != null &&
+    questionCoverageRatio < 0.4 &&
+    weakAllocationCoverage
+  ) {
+    clampedMark = null;
+    warnings.push(
+      `AI only produced ${normalizedBreakdown.length}/${expectedQuestionCount} expected question rows. It likely did not read enough of the paper/answers to produce a fair final mark.`
+    );
+  }
+
   const generatedDeductionsFeedback = buildDeductionsFeedback(normalizedBreakdown, clampedMark, maxMarks);
 
   return {
@@ -1213,31 +1255,40 @@ const normalizeDraft = (
   };
 };
 
-const draftCompletenessScore = (raw: Partial<DraftMarkResponse>, maxMarks: number | null) => {
+const draftCompletenessScore = (
+  raw: Partial<DraftMarkResponse>,
+  maxMarks: number | null,
+  expectedQuestionCount?: number | null
+) => {
   const breakdown = Array.isArray(raw.questionBreakdown) ? raw.questionBreakdown : [];
   const accountedMarks = breakdown.reduce((sum, entry) => {
     const maxForQuestion = Number((entry as Partial<QuestionMarkEntry>)?.maxMarksForQuestion ?? 0);
     return sum + (Number.isFinite(maxForQuestion) && maxForQuestion > 0 ? maxForQuestion : 0);
   }, 0);
+  const breakdownCount = breakdown.filter((entry) => asText((entry as Partial<QuestionMarkEntry>)?.question)).length;
   const markPresent = raw.suggestedMark != null && Number.isFinite(Number(raw.suggestedMark));
   const confidenceScore = raw.confidence === "high" ? 20 : raw.confidence === "medium" ? 10 : 0;
-  const coverageScore = maxMarks && maxMarks > 0 && accountedMarks > 0
-    ? Math.min(50, (accountedMarks / maxMarks) * 50)
-    : Math.min(30, breakdown.length * 3);
-  return coverageScore + confidenceScore + (markPresent ? 15 : 0) + Math.min(15, breakdown.length);
+  const allocationCoverageScore = maxMarks && maxMarks > 0 && accountedMarks > 0
+    ? Math.min(35, (accountedMarks / maxMarks) * 35)
+    : 0;
+  const questionCoverageScore = expectedQuestionCount && expectedQuestionCount > 0
+    ? Math.min(40, (Math.min(breakdownCount, expectedQuestionCount) / expectedQuestionCount) * 40)
+    : Math.min(25, breakdownCount * 3);
+  return questionCoverageScore + allocationCoverageScore + confidenceScore + (markPresent ? 10 : 0) + Math.min(15, breakdownCount);
 };
 
 const chooseBetterDraftJson = (
   currentJson: string | null,
   candidateJson: string | null,
-  maxMarks: number | null
+  maxMarks: number | null,
+  expectedQuestionCount?: number | null
 ) => {
   if (!candidateJson) return currentJson;
   if (!currentJson) return candidateJson;
   try {
     const current = JSON.parse(currentJson) as Partial<DraftMarkResponse>;
     const candidate = JSON.parse(candidateJson) as Partial<DraftMarkResponse>;
-    return draftCompletenessScore(candidate, maxMarks) > draftCompletenessScore(current, maxMarks) + 5
+    return draftCompletenessScore(candidate, maxMarks, expectedQuestionCount) > draftCompletenessScore(current, maxMarks, expectedQuestionCount) + 5
       ? candidateJson
       : currentJson;
   } catch {
@@ -1639,6 +1690,7 @@ export async function POST(request: Request) {
       }
     }
   }
+  const expectedQuestionCount = estimateLikelyQuestionCount(paperContext);
 
   // Allow up to 12000 chars of page-balanced paper text so multi-section exams (MCQs + short-answer + essays)
   // are fully visible. Do NOT reduce this when images are present — images carry student
@@ -1674,8 +1726,8 @@ export async function POST(request: Request) {
       visualContext = await extractVisualAnswerContext({
         title,
         subjectName,
-        pageImages: pageImages.slice(0, VISUAL_CONTEXT_MAX_IMAGES),
-        pageNumbers: pageImagePageNumbers.slice(0, VISUAL_CONTEXT_MAX_IMAGES),
+        pageImages,
+        pageNumbers: pageImagePageNumbers,
       });
       if (!visualContext) {
         visualWarning = hasConfiguredVisionProvider()
@@ -1868,7 +1920,8 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
         rawJson = chooseBetterDraftJson(
           rawJson,
           extractFirstJsonObject(String(groqPayload?.response || "")),
-          maxMarks
+          maxMarks,
+          expectedQuestionCount
         );
       } catch (error) {
         console.error("Groq text marking failed, falling back to vision/Ollama:", error);
@@ -1887,7 +1940,8 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
         rawJson = chooseBetterDraftJson(
           rawJson,
           extractFirstJsonObject(String(groqVisionPayload?.response || "")),
-          maxMarks
+          maxMarks,
+          expectedQuestionCount
         );
         if (rawJson && visualWarning) {
           const ocrWarningIdx = modelWarnings.indexOf(visualWarning);
@@ -1909,7 +1963,8 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
         rawJson = chooseBetterDraftJson(
           rawJson,
           extractFirstJsonObject(String(geminiPayload?.response || "")),
-          maxMarks
+          maxMarks,
+          expectedQuestionCount
         );
         if (rawJson && visualWarning) {
           const ocrWarningIdx = modelWarnings.indexOf(visualWarning);
@@ -1930,7 +1985,8 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
         rawJson = chooseBetterDraftJson(
           rawJson,
           extractFirstJsonObject(String(openRouterPayload?.response || "")),
-          maxMarks
+          maxMarks,
+          expectedQuestionCount
         );
         if (rawJson && visualWarning) {
           const ocrWarningIdx = modelWarnings.indexOf(visualWarning);
@@ -1948,7 +2004,8 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
         rawJson = chooseBetterDraftJson(
           rawJson,
           extractFirstJsonObject(String(groqPayload?.response || "")),
-          maxMarks
+          maxMarks,
+          expectedQuestionCount
         );
         if (rawJson && visualWarning) {
           const ocrWarningIdx = modelWarnings.indexOf(visualWarning);
@@ -1995,7 +2052,8 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
                   warnings: [...modelWarnings, "Local model response was not valid JSON."],
                 },
                 maxMarks,
-                sourcePolicy
+                sourcePolicy,
+                { expectedQuestionCount }
               )
             );
           }
@@ -2017,7 +2075,8 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
                   warnings: [...modelWarnings, "Local AI timed out before completing the draft."],
                 },
                 maxMarks,
-                sourcePolicy
+                sourcePolicy,
+                { expectedQuestionCount }
               )
             );
           }
@@ -2059,7 +2118,7 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
         if (shouldRecheck) {
           const recheckPayload = await requestGroqReasoningRecheck({ prompt });
           const recheckJson = extractFirstJsonObject(String(recheckPayload?.response || ""));
-          rawJson = chooseBetterDraftJson(rawJson, recheckJson, maxMarks);
+          rawJson = chooseBetterDraftJson(rawJson, recheckJson, maxMarks, expectedQuestionCount);
         }
       } catch {
         // Re-check failed — keep the original rawJson
@@ -2077,7 +2136,8 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
             warnings: [...modelWarnings, shouldAttemptReasoner ? "Fast and reasoner models could not return a reliable draft." : "Local model response was not reliable enough to use."],
           },
           maxMarks,
-          sourcePolicy
+          sourcePolicy,
+          { expectedQuestionCount }
         )
       );
     }
@@ -2089,7 +2149,7 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
     if (modelWarnings.length > 0) {
       parsed.warnings = [...(Array.isArray(parsed.warnings) ? parsed.warnings : []), ...modelWarnings];
     }
-    return jsonResponse(normalizeDraft(parsed, maxMarks, sourcePolicy));
+    return jsonResponse(normalizeDraft(parsed, maxMarks, sourcePolicy, { expectedQuestionCount }));
   } catch {
     return jsonResponse(
       { message: "Local Ollama AI marker is unavailable. Start Ollama on this server and pull the configured model." },
