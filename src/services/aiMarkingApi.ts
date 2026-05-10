@@ -57,13 +57,26 @@ export type AiDraftMarkRequest = {
 export const draftAssessmentMark = async (
   payload: AiDraftMarkRequest
 ): Promise<AiDraftMarkResponse> => {
-  const response = await fetch("/dashboard/ai/marking/draft", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+  const controller = new AbortController();
+  const timeoutHandle = setTimeout(() => controller.abort(), 70000);
+  let response: Response;
+  try {
+    response = await fetch("/dashboard/ai/marking/draft", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+  } catch (error) {
+    clearTimeout(timeoutHandle);
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("AI draft mark took too long. Please try again with fewer pages visible or mark this paper manually.");
+    }
+    throw error;
+  }
 
   const responseText = await response.text().catch(() => "");
+  clearTimeout(timeoutHandle);
   let data: any = null;
   if (responseText) {
     try {

@@ -86,11 +86,11 @@ const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "";
 const OPENROUTER_VISION_MODEL = process.env.OPENROUTER_VISION_MODEL || "qwen/qwen2.5-vl-72b-instruct:free";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash-lite";
-const REQUEST_TIMEOUT_MS = Number(process.env.OSTEPS_AI_MARKING_TIMEOUT_MS || 50000);
+const REQUEST_TIMEOUT_MS = Number(process.env.OSTEPS_AI_MARKING_TIMEOUT_MS || 30000);
 const LARAVEL_PUBLIC_DIR = process.env.OSTEPS_LARAVEL_PUBLIC_DIR || "/var/www/laravel/public";
 const PAPER_TEXT_CACHE_MS = 10 * 60 * 1000;
 const LOCAL_OCR_FOCUS = "Local OCR text from answered-page image";
-const VISUAL_CONTEXT_MAX_IMAGES = 4;
+const VISUAL_CONTEXT_MAX_IMAGES = 1;
 
 // Strip DeepSeek-R1 <think>...</think> reasoning tags before JSON extraction
 const stripReasoningTags = (raw: string): string =>
@@ -355,7 +355,7 @@ const compactStudentText = (
     .map((annotation) => `[Page ${annotation.page}, y=${Math.round(annotation.y)}] ${annotation.text}`)
     .filter(Boolean);
 
-  return summarizeEvenly(combined, 9000, "\n");
+  return summarizeEvenly(combined, 5000, "\n");
 };
 
 const extractAnsweredPages = (annotations: Array<Record<string, unknown>> | undefined) => {
@@ -603,7 +603,7 @@ const buildPaperContext = async (fileUrl: string | undefined, preferredPages: nu
   const selectedPages = relevantPages.length > 0 ? relevantPages : pages;
   return summarizeEvenly(
     selectedPages.map((page) => `[Exam paper page ${page.num}] ${page.text}`),
-    12000,
+    7000,
     "\n\n"
   );
 };
@@ -937,7 +937,7 @@ const normalizeVisualAnswerContext = (
   raw: Partial<VisualAnswerContext>
 ): VisualAnswerContext => ({
   questionFocus: asText(raw.questionFocus).slice(0, 300),
-  studentAnswerSummary: asText(raw.studentAnswerSummary).slice(0, 5000),
+  studentAnswerSummary: asText(raw.studentAnswerSummary).slice(0, 2500),
   visibleMistakes: Array.isArray(raw.visibleMistakes)
     ? raw.visibleMistakes.map(asText).filter(Boolean).slice(0, 20)
     : [],
@@ -997,7 +997,7 @@ const requestCloudVisualAnswerContext = async ({
   if (!apiKey || pageImages.length === 0) return null;
 
   const timeoutController = new AbortController();
-  const timeoutHandle = setTimeout(() => timeoutController.abort(), 18000);
+  const timeoutHandle = setTimeout(() => timeoutController.abort(), 12000);
   const endpoint =
     provider === "groq"
       ? "https://api.groq.com/openai/v1/chat/completions"
@@ -1066,7 +1066,7 @@ const requestGeminiVisualAnswerContext = async ({
   if (!GEMINI_API_KEY || pageImages.length === 0) return null;
 
   const controller = new AbortController();
-  const timeoutHandle = setTimeout(() => controller.abort(), 18000);
+  const timeoutHandle = setTimeout(() => controller.abort(), 12000);
 
   try {
     const imageParts = pageImages.slice(0, 8).flatMap((img, index) => [
@@ -1088,7 +1088,7 @@ const requestGeminiVisualAnswerContext = async ({
           ],
           generationConfig: {
             responseMimeType: "application/json",
-            maxOutputTokens: 1800,
+            maxOutputTokens: 1200,
             temperature: 0.1,
             topP: 0.9,
           },
@@ -1148,7 +1148,7 @@ const extractLocalOcrAnswerContext = async (pageImages: string[], pageNumbers: n
       await fs.writeFile(tempPath, Buffer.from(image, "base64"));
       enhancedPath = await enhanceImageForOcr(tempPath);
       const ocrAttempts: string[] = [];
-      for (const pageSegmentationMode of ["6", "11"]) {
+      for (const pageSegmentationMode of ["6"]) {
         try {
           const { stdout } = await execFileAsync(
             "tesseract",
@@ -1160,7 +1160,7 @@ const extractLocalOcrAnswerContext = async (pageImages: string[], pageNumbers: n
               "--dpi", "150",
               "--psm", pageSegmentationMode,
             ],
-            { maxBuffer: 1024 * 1024, timeout: 5000 }
+            { maxBuffer: 1024 * 1024, timeout: 2500 }
           );
           ocrAttempts.push(normalizeWhitespace(String(stdout || "")));
         } catch (error) {
@@ -1185,7 +1185,7 @@ const extractLocalOcrAnswerContext = async (pageImages: string[], pageNumbers: n
 
   return normalizeVisualAnswerContext({
     questionFocus: LOCAL_OCR_FOCUS,
-    studentAnswerSummary: summarizeLongText(ocrPages.join("\n"), 5000),
+    studentAnswerSummary: summarizeLongText(ocrPages.join("\n"), 2500),
     visibleMistakes: [],
     legibility: "low",
   });
@@ -1535,7 +1535,7 @@ const requestGroqMarkingDraft = async ({
   if (!GROQ_API_KEY) return null;
 
   const controller = new AbortController();
-  const timeoutHandle = setTimeout(() => controller.abort(), 40000);
+  const timeoutHandle = setTimeout(() => controller.abort(), 20000);
   const requestSignal = signal
     ? AbortSignal.any([signal, controller.signal])
     : controller.signal;
@@ -1554,7 +1554,7 @@ const requestGroqMarkingDraft = async ({
       body: JSON.stringify({
         model: targetModel,
         temperature: 0,
-        max_tokens: 4500,
+        max_tokens: 2500,
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: systemContent },
@@ -1570,7 +1570,11 @@ const requestGroqMarkingDraft = async ({
       if (response.status === 429 && targetModel === GROQ_TEXT_MODEL && GROQ_FALLBACK_TEXT_MODEL !== GROQ_TEXT_MODEL) {
         clearTimeout(timeoutHandle);
         console.error(`Groq primary model rate-limited (429), retrying with ${GROQ_FALLBACK_TEXT_MODEL}`);
-        return requestGroqMarkingDraft({ prompt, signal, model: GROQ_FALLBACK_TEXT_MODEL });
+        return requestGroqMarkingDraft({
+          prompt: summarizeLongText(prompt, 6500),
+          signal,
+          model: GROQ_FALLBACK_TEXT_MODEL,
+        });
       }
       throw new Error(`Groq text marking failed (${response.status}). ${errorText.slice(0, 240)}`);
     }
@@ -1650,7 +1654,7 @@ const requestGeminiDraftMark = async ({
   if (!GEMINI_API_KEY) return null;
 
   const controller = new AbortController();
-  const timeoutHandle = setTimeout(() => controller.abort(), 45000);
+  const timeoutHandle = setTimeout(() => controller.abort(), 22000);
   const requestSignal = signal
     ? AbortSignal.any([signal, controller.signal])
     : controller.signal;
@@ -1675,7 +1679,7 @@ const requestGeminiDraftMark = async ({
           ],
           generationConfig: {
             responseMimeType: "application/json",
-            maxOutputTokens: 4000,
+            maxOutputTokens: 2500,
             temperature: 0,
             topP: 0.9,
           },
@@ -1711,7 +1715,7 @@ const requestGroqVisionDraftMark = async ({
   if (!GROQ_API_KEY || pageImages.length === 0) return null;
 
   const controller = new AbortController();
-  const timeoutHandle = setTimeout(() => controller.abort(), 45000);
+  const timeoutHandle = setTimeout(() => controller.abort(), 22000);
   const requestSignal = signal
     ? AbortSignal.any([signal, controller.signal])
     : controller.signal;
@@ -1726,7 +1730,7 @@ const requestGroqVisionDraftMark = async ({
       body: JSON.stringify({
         model: GROQ_VISION_MODEL,
         temperature: 0,
-        max_tokens: 4000,
+        max_tokens: 2500,
         response_format: { type: "json_object" },
         messages: [
           {
@@ -1781,7 +1785,7 @@ const requestOpenRouterDraftMark = async ({
   if (!OPENROUTER_API_KEY) return null;
 
   const controller = new AbortController();
-  const timeoutHandle = setTimeout(() => controller.abort(), 45000);
+  const timeoutHandle = setTimeout(() => controller.abort(), 22000);
   const requestSignal = signal
     ? AbortSignal.any([signal, controller.signal])
     : controller.signal;
@@ -1798,7 +1802,7 @@ const requestOpenRouterDraftMark = async ({
       body: JSON.stringify({
         model: OPENROUTER_VISION_MODEL,
         temperature: 0,
-        max_tokens: 4000,
+        max_tokens: 2500,
         response_format: { type: "json_object" },
         messages: [
           {
@@ -1919,10 +1923,8 @@ export async function POST(request: Request) {
   }
   const expectedQuestionCount = estimateLikelyQuestionCount(paperContext);
 
-  // Allow up to 12000 chars of page-balanced paper text so multi-section exams (MCQs + short-answer + essays)
-  // are fully visible. Do NOT reduce this when images are present — images carry student
-  // answers, not exam questions, so they don't require us to shrink the paper context.
-  const promptPaperContext = summarizeLongText(paperContext, 12000);
+  // Keep the marking prompt compact enough to finish before the web proxy timeout.
+  const promptPaperContext = summarizeLongText(paperContext, 6500);
 
   const shouldPreferFastModel =
     pageImages.length > 0 || hasPenStrokes || promptPaperContext.length > 2200;
@@ -1989,7 +1991,7 @@ export async function POST(request: Request) {
       .map(asText)
       .filter(Boolean)
       .join("\n"),
-    pageImages.length > 0 || hasPenStrokes ? 6000 : 5000
+    pageImages.length > 0 || hasPenStrokes ? 3500 : 4000
   );
 
   const prompt = `OSTEPS AI Draft Mark. Return strict JSON only. Draft only; teacher reviews manually. Never call it final. ${sourcePolicy}
@@ -2179,7 +2181,7 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
             num_predict: 80,
             num_ctx: 384,
           },
-          timeoutMs: 25000,
+          timeoutMs: 6000,
         });
         const tinyJson = extractFirstJsonObject(String(tinyPayload.response || ""));
         if (tinyJson) {
@@ -2324,7 +2326,7 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
             num_predict: 110,
             num_ctx: 384,
           },
-          timeoutMs: 18000,
+          timeoutMs: 8000,
         });
         considerDraftCandidate(
           extractFirstJsonObject(String(fallbackPayload.response || "")),
@@ -2397,7 +2399,7 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
             num_predict: 80,
             num_ctx: 3072,
           },
-          timeoutMs: 9000,
+          timeoutMs: 7000,
         });
         considerDraftCandidate(
           extractFirstJsonObject(String(deepseekPayload.response || "")),
@@ -2417,7 +2419,7 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
           parsed.confidence === "low" ||
           parsed.suggestedMark == null ||
           (maxMarks != null && maxMarks >= 20);
-        if (shouldRecheck) {
+        if (shouldRecheck && pageImages.length === 0 && prompt.length < 8000) {
           const groqRecheckProviderLabel = `Groq reasoning recheck (${GROQ_REASONING_MODEL})`;
           recordProviderAttempt(groqRecheckProviderLabel);
           recheckProviderLabel = groqRecheckProviderLabel;
