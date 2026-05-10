@@ -174,27 +174,10 @@ export async function POST(req: NextRequest) {
   if (ctx.questionBreakdown) contextLines.push(`Per-question mark breakdown JSON:\n${ctx.questionBreakdown.slice(0, 2500)}`);
   if (!isFollowUp && resolvedPaperContext) contextLines.push(`Exam paper / questions:\n${resolvedPaperContext.slice(0, 6500)}`);
   if (!isFollowUp && ctx.studentAnswer) {
-    // Strip lines that are obviously just a student name / header field (1-2 short
-    // capitalized words, no punctuation/digits) so the marker never treats a name as the answer.
-    const sanitizedStudentAnswer = ctx.studentAnswer
-      .split(/\r?\n/)
-      .filter((line) => {
-        // Strip optional leading "Q1:", "Q1 [Page 1]:", "[Page 1]" prefixes before testing
-        const stripped = line
-          .replace(/^\s*Q\d+\s*(\[[^\]]*\])?\s*:\s*/i, "")
-          .replace(/^\s*\[Page\s*\d+\]\s*/i, "")
-          .trim();
-        if (!stripped) return true;
-        if (stripped.length > 25) return true;
-        if (/[?.!,;:0-9]/.test(stripped)) return true;
-        const words = stripped.split(/\s+/);
-        if (words.length > 2) return true;
-        // Drop standalone capitalized name (Latin or Arabic) of 1-2 words
-        return !/^[A-Z\u0600-\u06FF][A-Za-z\u0600-\u06FF\-']{1,20}(\s+[A-Z\u0600-\u06FF][A-Za-z\u0600-\u06FF\-']{1,20})?$/.test(stripped);
-      })
-      .join("\n")
-      .slice(0, 4500);
-    contextLines.push(`Student's typed / handwriting / visual answer evidence (name/header fields removed). Typed text boxes are labeled by [Page N] and are NOT pre-matched to question numbers — match each piece of evidence to the most relevant question by reading the content:\n${sanitizedStudentAnswer}`);
+    // Pass the student evidence as-is. A previous sanitizer here was incorrectly dropping
+    // valid short answers like "True", "Islam", "Makkah". System-prompt rules already
+    // instruct the AI to ignore name/header fields.
+    contextLines.push(`Student's typed / handwriting / visual answer evidence:\n${ctx.studentAnswer.slice(0, 4500)}`);
   }
   if (ctx.extraContext) contextLines.push(`Extra context:\n${ctx.extraContext.slice(0, 1200)}`);
 

@@ -2278,20 +2278,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const openAiMarkingAssistant = async () => {
     visualAnswerCacheRef.current = null;
 
-    // Filter out text annotations that look like a student name / single-word header field
-    // (1-2 short words, no spaces or only one space, no question/answer wording, < 25 chars)
-    const looksLikeNameField = (raw: string) => {
-      const t = raw.trim();
-      if (!t) return true;
-      if (t.length > 25) return false;
-      // Reject if it contains digits, punctuation typical of answers, or multiple words > 2
-      if (/[?.!,;:0-9]/.test(t)) return false;
-      const words = t.split(/\s+/);
-      if (words.length > 2) return false;
-      // Single capitalized word with only letters = likely a name (e.g. "Merub")
-      return /^[A-Z\u0600-\u06FF][A-Za-z\u0600-\u06FF\-']{1,20}(\s+[A-Z\u0600-\u06FF][A-Za-z\u0600-\u06FF\-']{1,20})?$/.test(t);
-    };
-
+    // Collect ALL typed text boxes – do NOT filter by content (short answers like "True",
+    // "Islam", "Makkah" are valid answers; the AI prompt already ignores name/header fields).
     const typedAnswers = studentAnnotations
       .filter((a) => a.type === "text")
       .map((a) => ({
@@ -2299,9 +2287,9 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         y: Math.round(Number((a as { y?: number }).y ?? 0)),
         text: ((a as { text?: string }).text ?? "").trim(),
       }))
-      .filter((a) => a.text && !looksLikeNameField(a.text))
+      .filter((a) => a.text.length > 0)
       .sort((l, r) => (l.page - r.page) || (l.y - r.y))
-      .map((a) => `[Page ${a.page}] ${a.text}`)
+      .map((a, i) => `Text box ${i + 1} [Page ${a.page}]: "${a.text}"`)
       .join("\n")
       .slice(0, 3500);
 
@@ -2361,8 +2349,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     }
 
     const studentEvidence = [
-      typedAnswers ? `Typed answer boxes:\n${typedAnswers}` : "",
-      visualAnswerCacheRef.current ? `Visual/handwriting/circles/ticks evidence from the rendered student paper:\n${visualAnswerCacheRef.current}` : "",
+      typedAnswers ? `Student typed answer boxes (in page + top-to-bottom order; rule 6 of AI: ignore any box that is clearly a name/header field):\n${typedAnswers}` : "",
+      visualAnswerCacheRef.current ? `Visual evidence (handwriting, pen circles/ticks on printed MCQ options):\n${visualAnswerCacheRef.current}` : "",
     ].filter(Boolean).join("\n\n").slice(0, 5500);
 
     messageApi.destroy("ai-marking-assistant");
@@ -2377,6 +2365,12 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       );
     }
 
+    // Build a human-readable initial message that puts the student's typed answers RIGHT IN
+    // the message body so the AI cannot miss them regardless of context handling.
+    const evidenceBlock = studentEvidence
+      ? `\n\nSTUDENT EVIDENCE:\n${studentEvidence}`
+      : "\n\n(No typed text or visual evidence detected — mark based on the PDF questions only.)";
+
     window.dispatchEvent(new CustomEvent("osteps:open-ai-assistant", {
       detail: {
         context: {
@@ -2388,7 +2382,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
           paperContext: paperTextCacheRef.current ? paperTextCacheRef.current.slice(0, 7500) : undefined,
           studentAnswer: studentEvidence || undefined,
         },
-        initialMessage: `Mark this student's paper using the PDF questions and all student evidence. For each question: answer given, correct/partly/wrong, correct answer, marks. Then total out of ${maxMarks ?? "the total"}.`,
+        initialMessage:
+          `Mark this student's paper. For every question list: the student's answer, Correct/Partly/Wrong, the correct answer, and marks awarded. Then total out of ${maxMarks ?? "the total"}.${evidenceBlock}`,
       },
     }));
   };
