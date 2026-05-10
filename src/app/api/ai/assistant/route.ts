@@ -5,6 +5,7 @@ import { promisify } from "util";
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY ?? "";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY ?? "";
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY ?? "";
 // 70b is significantly smarter at following instructions and matching evidence to questions.
 // Each model has its own independent TPM quota on Groq, so switching primary/fallback
 // reduces the chance of a 429 cascade.
@@ -13,6 +14,7 @@ const GROQ_TEXT_MODEL = process.env.GROQ_ASSISTANT_TEXT_MODEL || "llama-3.3-70b-
 const GROQ_FALLBACK_TEXT_MODEL = process.env.GROQ_ASSISTANT_FALLBACK_MODEL || "gemma2-9b-it";
 const GROQ_SECONDARY_FALLBACK_MODEL = process.env.GROQ_ASSISTANT_FALLBACK_MODEL_2 || GROQ_FAST_TEXT_MODEL;
 const GEMINI_TEXT_MODEL = process.env.GEMINI_ASSISTANT_TEXT_MODEL || process.env.GEMINI_MODEL || "gemini-2.5-flash";
+const OPENAI_TEXT_MODEL = process.env.OPENAI_ASSISTANT_TEXT_MODEL || process.env.OPENAI_MODEL || "gpt-4o-mini";
 const LARAVEL_PUBLIC_DIR = process.env.OSTEPS_LARAVEL_PUBLIC_DIR || "/var/www/laravel/public";
 const execFileAsync = promisify(execFile);
 const textEncoder = new TextEncoder();
@@ -97,7 +99,18 @@ const extractPaperTextForAssistant = async (fileUrl: string): Promise<string> =>
   return "";
 };
 
-const SYSTEM_PROMPT = `You are OSTEPS AI — an expert school marking assistant with comprehensive knowledge across all subjects, especially Islamic Studies (Quran, Tafsir, Hadith, Seerah, Fiqh, Aqeedah, Pillars of Islam/Iman, Islamic history, Arabic language), as well as Mathematics, Science, and English.
+const GENERAL_SYSTEM_PROMPT = `You are OSTEPS AI — a general-purpose assistant for teachers, school admins, students, and staff.
+
+GENERAL RULES:
+1. Answer general questions directly and helpfully across school work, writing, planning, explanations, summaries, translations, brainstorming, and broad general knowledge topics.
+2. Use the current OSTEPS page context only when the user's question is clearly about the current page, current document, current assessment, selected student, or selected text.
+3. If the supplied page context is unrelated to the user's question, ignore it and answer the actual question normally.
+4. If the user asks for information that would require live web browsing and you do not have it in the provided context, say you do not have live browsing instead of pretending.
+5. Keep answers clear, direct, and useful.`;
+
+const MARKING_SYSTEM_PROMPT = `${GENERAL_SYSTEM_PROMPT}
+
+When the user asks you to mark, grade, review answers, explain deductions, or help with an assessment, switch into strict marking mode.
 
 MARKING FORMAT — follow this exactly for every question:
   Q[N]: [Student's exact answer]
@@ -192,6 +205,31 @@ const extractGeminiText = (payload: unknown) => {
     .trim();
 };
 
+const extractOpenAiText = (payload: unknown) => {
+  const data = payload as {
+    choices?: Array<{
+      message?: {
+        content?: unknown;
+      };
+    }>;
+  };
+
+  const content = data?.choices?.[0]?.message?.content;
+  if (typeof content === "string") return content.trim();
+  if (Array.isArray(content)) {
+    return content
+      .map((part) =>
+        typeof part === "object" && part && "text" in part
+          ? String((part as { text?: unknown }).text ?? "").trim()
+          : String(part ?? "").trim()
+      )
+      .filter(Boolean)
+      .join("\n")
+      .trim();
+  }
+  return "";
+};
+
 const requestGeminiAssistantText = async ({
   systemContent,
   messages,
@@ -246,8 +284,57 @@ const requestGeminiAssistantText = async ({
   }
 };
 
+const requestOpenAiAssistantText = async ({
+  systemContent,
+  messages,
+}: {
+  systemContent: string;
+  messages: ChatMessage[];
+}) => {
+  if (!OPENAI_API_KEY) {
+    throw new Error("OpenAI assistant is not configured.");
+  }
+
+  const controller = new AbortController();
+  const timeoutHandle = setTimeout(() => controller.abort(), 45000);
+
+  try {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: OPENAI_TEXT_MODEL,
+        temperature: 0.3,
+        max_tokens: 1400,
+        messages: [
+          { role: "system", content: systemContent },
+          ...messages,
+        ],
+      }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const err = await response.text().catch(() => "");
+      throw new Error(`OpenAI assistant failed (${response.status}): ${err.slice(0, 240)}`);
+    }
+
+    const text = extractOpenAiText(await response.json());
+    if (!text) {
+      throw new Error("OpenAI assistant returned an empty response.");
+    }
+
+    return text;
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
+};
+
 export async function POST(req: NextRequest) {
-  if (!GROQ_API_KEY && !GEMINI_API_KEY) {
+  if (!GROQ_API_KEY && !GEMINI_API_KEY && !OPENAI_API_KEY) {
     return NextResponse.json(
       { error: "AI assistant is not available: no provider API key configured." },
       { status: 503 }
@@ -267,6 +354,10 @@ export async function POST(req: NextRequest) {
   }
 
   const ctx = body.context ?? {};
+  const latestUserMessage = [...messages].reverse().find((message) => message.role === "user")?.content || "";
+  const isExplicitMarkingRequest = /(?:\bmark\b|\bgrade\b|\bremark\b|re-mark|deduction|deductions|marks? awarded|correct answer|student paper|exam(?:\s+paper)?|assessment|worksheet|mcq|question breakdown|total mark|score this|review this paper|check answers)/i.test(latestUserMessage);
+  const asksAboutCurrentContext = /(?:this|current)\s+(?:page|paper|assessment|exam|worksheet|document|student|answer|question|marking)|selected text|check this|look at this|see this|on this page|for this student/i.test(latestUserMessage);
+  const shouldUseAssessmentContext = isExplicitMarkingRequest || asksAboutCurrentContext;
 
   // If fileUrl is provided but paperContext is missing, extract paper text server-side
   let resolvedPaperContext = ctx.paperContext || "";
@@ -290,35 +381,35 @@ export async function POST(req: NextRequest) {
   const userMessageCount = messages.filter((m) => m.role === "user").length;
   const isFollowUp = userMessageCount > 1;
 
-  if (ctx.title) contextLines.push(`Assessment title: ${ctx.title}`);
-  if (ctx.subject) contextLines.push(`Subject: ${ctx.subject}`);
-  if (ctx.maxMarks != null) contextLines.push(`Total marks: ${ctx.maxMarks}`);
-  if (ctx.suggestedMark != null) contextLines.push(`AI suggested mark: ${ctx.suggestedMark}`);
-  if (ctx.assessmentContext) contextLines.push(`Assessment workspace context:\n${ctx.assessmentContext.slice(0, 1200)}`);
-  if (ctx.selectedText) contextLines.push(`Teacher selected text:\n${ctx.selectedText.slice(0, 1200)}`);
-  if (!isFollowUp && ctx.visibleText) contextLines.push(`Visible page text:\n${ctx.visibleText.slice(0, 1800)}`);
-  if (ctx.feedback) contextLines.push(`AI feedback given:\n${ctx.feedback}`);
-  if (ctx.rationale) contextLines.push(`Marking rationale: ${ctx.rationale}`);
-  if (ctx.questionBreakdown) contextLines.push(`Per-question mark breakdown JSON:\n${ctx.questionBreakdown.slice(0, 2500)}`);
-  if (!isFollowUp && resolvedPaperContext) contextLines.push(`Exam paper / questions:\n${resolvedPaperContext.slice(0, 6500)}`);
-  if (!isFollowUp && ctx.studentAnswer) {
-    // Pass the student evidence as-is. A previous sanitizer here was incorrectly dropping
-    // valid short answers like "True", "Islam", "Makkah". System-prompt rules already
-    // instruct the AI to ignore name/header fields.
-    contextLines.push(`Student's typed / handwriting / visual answer evidence:\n${ctx.studentAnswer.slice(0, 4500)}`);
+  if (ctx.selectedText) contextLines.push(`Selected text:\n${ctx.selectedText.slice(0, 1200)}`);
+  if (!isFollowUp && ctx.visibleText) contextLines.push(`Visible page text:\n${ctx.visibleText.slice(0, shouldUseAssessmentContext ? 1800 : 1200)}`);
+  if (shouldUseAssessmentContext) {
+    if (ctx.title) contextLines.push(`Assessment title: ${ctx.title}`);
+    if (ctx.subject) contextLines.push(`Subject: ${ctx.subject}`);
+    if (ctx.maxMarks != null) contextLines.push(`Total marks: ${ctx.maxMarks}`);
+    if (ctx.suggestedMark != null) contextLines.push(`AI suggested mark: ${ctx.suggestedMark}`);
+    if (ctx.assessmentContext) contextLines.push(`Assessment workspace context:\n${ctx.assessmentContext.slice(0, 1200)}`);
+    if (ctx.feedback) contextLines.push(`AI feedback given:\n${ctx.feedback}`);
+    if (ctx.rationale) contextLines.push(`Marking rationale: ${ctx.rationale}`);
+    if (ctx.questionBreakdown) contextLines.push(`Per-question mark breakdown JSON:\n${ctx.questionBreakdown.slice(0, 2500)}`);
+    if (!isFollowUp && resolvedPaperContext) contextLines.push(`Exam paper / questions:\n${resolvedPaperContext.slice(0, 6500)}`);
+    if (!isFollowUp && ctx.studentAnswer) {
+      contextLines.push(`Student's typed / handwriting / visual answer evidence:\n${ctx.studentAnswer.slice(0, 4500)}`);
+    }
   }
   if (ctx.extraContext) contextLines.push(`Extra context:\n${ctx.extraContext.slice(0, 1200)}`);
 
   const isMarkingHeavyRequest =
-    ctx.page === "marking" ||
-    ctx.suggestedMark != null ||
-    Boolean(ctx.questionBreakdown || ctx.studentAnswer || resolvedPaperContext);
+    shouldUseAssessmentContext &&
+    (ctx.page === "marking" ||
+      ctx.suggestedMark != null ||
+      Boolean(ctx.questionBreakdown || ctx.studentAnswer || resolvedPaperContext));
 
   // If the teacher opened marking mode but we have no paper and no student evidence,
   // give the model an explicit instruction so it responds with one sentence, not a checklist.
   const hasPaper = Boolean(resolvedPaperContext && resolvedPaperContext.trim().length > 20);
   const hasStudentEvidence = Boolean(ctx.studentAnswer && ctx.studentAnswer.trim().length > 5);
-  if (ctx.page === "marking" && !isFollowUp && !hasPaper && !hasStudentEvidence) {
+  if (shouldUseAssessmentContext && ctx.page === "marking" && !isFollowUp && !hasPaper && !hasStudentEvidence) {
     contextLines.push(
       `WARNING: No exam paper text and no student evidence could be extracted. ` +
       `Reply with exactly this one sentence and nothing else: ` +
@@ -326,9 +417,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const activeSystemPrompt = shouldUseAssessmentContext ? MARKING_SYSTEM_PROMPT : GENERAL_SYSTEM_PROMPT;
   const systemContent = contextLines.length > 0
-    ? `${SYSTEM_PROMPT}\n\n---\nCURRENT CONTEXT:\n${contextLines.join("\n\n")}`
-    : SYSTEM_PROMPT;
+    ? `${activeSystemPrompt}\n\n---\nCURRENT CONTEXT:\n${contextLines.join("\n\n")}`
+    : activeSystemPrompt;
 
   // For follow-up turns, trim assistant marking responses (often >2k tokens) so we
   // stay under the 6000 TPM budget. Keep at most 1500 chars per assistant turn.
@@ -343,6 +435,15 @@ export async function POST(req: NextRequest) {
   const controller = new AbortController();
   const timeoutHandle = setTimeout(() => controller.abort(), 45000);
 
+  const tryOpenAiAssistant = async (reason: string) => {
+    const text = await requestOpenAiAssistantText({
+      systemContent,
+      messages: trimmedMessages,
+    });
+    console.info("[ai/assistant] provider", JSON.stringify({ provider: `OpenAI (${OPENAI_TEXT_MODEL})`, reason }));
+    return buildAssistantSseResponse(text, `openai:${OPENAI_TEXT_MODEL}`);
+  };
+
   const tryGeminiFallback = async (reason: string) => {
     const text = await requestGeminiAssistantText({
       systemContent,
@@ -353,8 +454,16 @@ export async function POST(req: NextRequest) {
   };
 
   try {
+    if (OPENAI_API_KEY && !isMarkingHeavyRequest) {
+      clearTimeout(timeoutHandle);
+      return await tryOpenAiAssistant("General assistant mode prefers OpenAI when configured.");
+    }
+
     if (!GROQ_API_KEY) {
       clearTimeout(timeoutHandle);
+      if (OPENAI_API_KEY) {
+        return await tryOpenAiAssistant("Groq is not configured on this server.");
+      }
       return await tryGeminiFallback("Groq is not configured on this server.");
     }
 
@@ -385,6 +494,9 @@ export async function POST(req: NextRequest) {
       // On 429 rate-limit, retry with fallback models (each is a different family with its own quota).
       if (response.status === 429) {
         clearTimeout(timeoutHandle);
+        if (OPENAI_API_KEY && !isMarkingHeavyRequest) {
+          return await tryOpenAiAssistant(`Groq primary ${GROQ_TEXT_MODEL} hit 429 during a general assistant request.`);
+        }
         if (GEMINI_API_KEY && isMarkingHeavyRequest) {
           return await tryGeminiFallback(`Groq primary ${GROQ_TEXT_MODEL} hit 429 during a marking-heavy request.`);
         }
@@ -415,9 +527,17 @@ export async function POST(req: NextRequest) {
             clearTimeout(fallbackTimeout);
           }
         }
+        if (OPENAI_API_KEY) {
+          return await tryOpenAiAssistant(`Groq models exhausted after 429 on ${GROQ_TEXT_MODEL}.`);
+        }
         if (GEMINI_API_KEY) {
           return await tryGeminiFallback(`Groq models exhausted after 429 on ${GROQ_TEXT_MODEL}.`);
         }
+      }
+
+      if ((response.status === 413 || response.status >= 500) && OPENAI_API_KEY) {
+        clearTimeout(timeoutHandle);
+        return await tryOpenAiAssistant(`Groq returned ${response.status} for the assistant request.`);
       }
 
       if ((response.status === 413 || response.status >= 500) && GEMINI_API_KEY) {
@@ -433,6 +553,20 @@ export async function POST(req: NextRequest) {
     console.info("[ai/assistant] provider", JSON.stringify({ provider: `Groq primary (${GROQ_TEXT_MODEL})` }));
     return buildProxyStreamResponse(response, `groq:${GROQ_TEXT_MODEL}`);
   } catch (error) {
+    if (OPENAI_API_KEY) {
+      try {
+        clearTimeout(timeoutHandle);
+        return await tryOpenAiAssistant(error instanceof Error ? error.message : "Primary assistant request failed.");
+      } catch (openAiError) {
+        if (!GEMINI_API_KEY) {
+          return NextResponse.json(
+            { error: openAiError instanceof Error ? openAiError.message : "Assistant request failed." },
+            { status: 502 }
+          );
+        }
+      }
+    }
+
     if (GEMINI_API_KEY) {
       try {
         clearTimeout(timeoutHandle);

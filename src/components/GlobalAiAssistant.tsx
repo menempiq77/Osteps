@@ -30,12 +30,13 @@ type OpenAiAssistantEvent = CustomEvent<{
 }>;
 
 const STARTERS = [
-  "Read this page and tell me what I should do next",
+  "Explain this page and tell me what I should do next",
+  "Answer a general question for me",
+  "Help me write an email or message",
+  "Summarize this topic clearly",
   "Mark this exam/worksheet fairly like a teacher",
   "Explain the marking for this assessment",
   "Create 5 MCQ questions for this topic",
-  "Write feedback comments I can give students",
-  "What common mistakes should I look for?",
 ];
 
 type ContextCollectEvent = CustomEvent<{ contexts: AiContext[] }>;
@@ -278,7 +279,7 @@ export function GlobalAiAssistant() {
                 OSTEPS AI Assistant
               </p>
               <p className="text-teal-200 text-xs">
-                Marking · Quizzes · Lesson Planning
+                General Help · Marking · Planning
               </p>
             </div>
           </div>
