@@ -8,6 +8,7 @@ import { useSelector } from "react-redux";
 import PdfAssessmentAnnotator from "@/components/assessment/PdfAssessmentAnnotator";
 import type { AssessmentDocumentLayer } from "@/services/documentAssessmentApi";
 import { fetchStudentTasks, fetchTasks } from "@/services/api";
+import { fetchStudentProfileData } from "@/services/studentsApi";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import { IMG_BASE_URL } from "@/lib/config";
 import { resolveExamWindow } from "@/lib/taskTypeMetadata";
@@ -36,6 +37,7 @@ type AssessmentDocumentStudentTask = {
   teacher_assessment_marks?: number | string | null;
   teacher_feedback?: string | null;
   student?: { student_name?: string; name?: string } | null;
+  students?: { student_name?: string; name?: string; first_name?: string; last_name?: string } | null;
   user?: { name?: string } | null;
 };
 
@@ -45,17 +47,53 @@ type TeacherStudentOption = {
   status?: string;
 };
 
-const getStudentNameFromTask = (task: AssessmentDocumentStudentTask) => {
-  return (
-    String(
-      task.student_name ??
-        task.name ??
-        task.student?.student_name ??
-        task.student?.name ??
-        task.user?.name ??
-        "Selected student"
-    ).trim() || "Selected student"
-  );
+const isPlaceholderStudentName = (value: string) =>
+  !value.trim() || /^selected student$/i.test(value.trim());
+
+const getStudentNameFromProfile = (profile: any) => {
+  const directName = String(
+    profile?.student_name ??
+      profile?.name ??
+      profile?.user_name ??
+      profile?.user?.name ??
+      ""
+  ).trim();
+  if (!isPlaceholderStudentName(directName)) return directName;
+
+  const combinedName = [profile?.first_name, profile?.middle_name, profile?.last_name]
+    .map((part) => String(part ?? "").trim())
+    .filter(Boolean)
+    .join(" ");
+  return isPlaceholderStudentName(combinedName) ? "" : combinedName;
+};
+
+const getStudentNameFromTask = (
+  task: AssessmentDocumentStudentTask,
+  resolvedNamesById?: Record<string, string>
+) => {
+  const studentId = task.student_id == null ? "" : String(task.student_id);
+  const resolvedName = studentId ? resolvedNamesById?.[studentId] : "";
+  if (resolvedName && !isPlaceholderStudentName(resolvedName)) return resolvedName;
+
+  const directName = String(
+    task.student_name ??
+      task.name ??
+      task.student?.student_name ??
+      task.student?.name ??
+      task.students?.student_name ??
+      task.students?.name ??
+      task.user?.name ??
+      ""
+  ).trim();
+  if (!isPlaceholderStudentName(directName)) return directName;
+
+  const combinedName = [task.students?.first_name, task.students?.last_name]
+    .map((part) => String(part ?? "").trim())
+    .filter(Boolean)
+    .join(" ");
+  if (!isPlaceholderStudentName(combinedName)) return combinedName;
+
+  return studentId ? `Student ${studentId}` : "Student";
 };
 
 const fileUrlForDocument = (path: string | null | undefined) => {
@@ -115,6 +153,7 @@ export default function AssessmentDocumentPage() {
   const [checkingExamAccess, setCheckingExamAccess] = useState(role === "student");
   const [teacherStudentTasks, setTeacherStudentTasks] = useState<AssessmentDocumentStudentTask[]>([]);
   const [teacherStudentTasksLoading, setTeacherStudentTasksLoading] = useState(false);
+  const [teacherStudentNamesById, setTeacherStudentNamesById] = useState<Record<string, string>>({});
 
   const waitingForStudentSession = role === "student" && !authenticatedStudentId;
   const missing = !assessmentId || !taskId || !studentId || !fileUrl;
@@ -170,6 +209,52 @@ export default function AssessmentDocumentPage() {
       cancelled = true;
     };
   }, [activeSubjectId, assessmentId, canUseSubjectContext, role, taskId]);
+
+  useEffect(() => {
+    if (role !== "teacher" || teacherStudentTasks.length === 0) return;
+
+    const missingNameIds = Array.from(
+      new Set(
+        teacherStudentTasks
+          .map((task) => String(task.student_id ?? "").trim())
+          .filter(Boolean)
+          .filter((id) => {
+            if (teacherStudentNamesById[id]) return false;
+            const task = teacherStudentTasks.find((row) => String(row.student_id) === id);
+            if (!task) return false;
+            return /^student \d+$/i.test(getStudentNameFromTask(task));
+          })
+      )
+    );
+
+    if (missingNameIds.length === 0) return;
+
+    let cancelled = false;
+    const loadNames = async () => {
+      const entries = await Promise.all(
+        missingNameIds.slice(0, 80).map(async (id) => {
+          try {
+            const profile = await fetchStudentProfileData(id, canUseSubjectContext ? activeSubjectId : undefined);
+            const name = getStudentNameFromProfile(profile);
+            return name ? ([id, name] as const) : null;
+          } catch {
+            return null;
+          }
+        })
+      );
+      if (cancelled) return;
+      const nextNames = Object.fromEntries(entries.filter(Boolean) as Array<readonly [string, string]>);
+      if (Object.keys(nextNames).length > 0) {
+        setTeacherStudentNamesById((current) => ({ ...current, ...nextNames }));
+      }
+    };
+
+    void loadNames();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSubjectId, canUseSubjectContext, role, teacherStudentNamesById, teacherStudentTasks]);
 
   useEffect(() => {
     if (missing || role !== "student") {
@@ -232,20 +317,20 @@ export default function AssessmentDocumentPage() {
       if (byId.has(value)) continue;
       byId.set(value, {
         value,
-        label: getStudentNameFromTask(task),
+        label: getStudentNameFromTask(task, teacherStudentNamesById),
       });
     }
     return Array.from(byId.values()).sort((left, right) => left.label.localeCompare(right.label));
-  }, [teacherStudentTasks]);
+  }, [teacherStudentNamesById, teacherStudentTasks]);
 
   const currentTeacherStudentTask = useMemo(() => {
     return teacherStudentTasks.find((task) => String(task.student_id) === String(studentId)) || null;
   }, [studentId, teacherStudentTasks]);
 
   const currentTeacherStudentName = useMemo(() => {
-    if (currentTeacherStudentTask) return getStudentNameFromTask(currentTeacherStudentTask);
+    if (currentTeacherStudentTask) return getStudentNameFromTask(currentTeacherStudentTask, teacherStudentNamesById);
     return teacherStudentOptions.find((option) => option.value === studentId)?.label || undefined;
-  }, [currentTeacherStudentTask, studentId, teacherStudentOptions]);
+  }, [currentTeacherStudentTask, studentId, teacherStudentNamesById, teacherStudentOptions]);
 
   const handleTeacherStudentChange = (nextStudentId: string) => {
     const nextTask = teacherStudentTasks.find((task) => String(task.student_id) === String(nextStudentId));
