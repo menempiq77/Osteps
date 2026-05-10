@@ -31,6 +31,15 @@ type QuestionMarkEntry = {
   marksAwarded: number;
   maxMarksForQuestion: number | null;
   reason: string;
+  answerAnchor?: {
+    pageNumber: number;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    confidence?: "low" | "medium" | "high";
+    evidence?: string;
+  };
 };
 
 type DraftProviderTrace = {
@@ -56,6 +65,8 @@ type VisualAnswerContext = {
   visibleMistakes: string[];
   legibility: "low" | "medium" | "high";
 };
+
+type QuestionAnswerAnchor = NonNullable<QuestionMarkEntry["answerAnchor"]>;
 
 const OLLAMA_BASE_URL = (process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434").replace(/\/+$/, "");
 const OLLAMA_MODEL = process.env.OSTEPS_AI_MARKING_MODEL || process.env.OLLAMA_MODEL || "deepseek-r1:1.5b";
@@ -110,7 +121,7 @@ const DRAFT_MARKING_SYSTEM_PROMPT =
   "- Never treat teacher marks, headers, names, dates, or UI labels as student answers.\n" +
   "\nSTEP-BY-STEP MARKING PROCESS — follow in order for EVERY paper:\n" +
   "STEP 1 — LIST QUESTION TYPES: Before scoring, identify each question in the paper and classify it as MCQ | True/False | Fill-blank | Short-answer | Essay. Note the mark allocation per question EXACTLY as shown on the paper.\n" +
-  "STEP 2 — READ STUDENT SELECTIONS & ANSWERS: For each MCQ/T-F/Fill-blank question, identify the EXACT option the student circled, underlined, crossed, or ticked. For short-answer/essay questions, read the student's written text and connect it to the nearest matching question.\n" +
+  "STEP 2 — READ STUDENT SELECTIONS & ANSWERS: For each MCQ/T-F/Fill-blank question, identify the EXACT option the student circled, underlined, crossed, ticked, or marked by handwriting. For True/False specifically, handwritten words like 'true', 'false', 'T', 'F', and signs placed beside True or False count as the student's chosen answer. For short-answer/essay questions, read the student's written text and connect it to the nearest matching question.\n" +
   "STEP 3 — EVALUATE CORRECTNESS:\n" +
   "  • MCQ / True-False / Fill-blank: is the selected option factually CORRECT? → award the full mark for that question (right = full marks, wrong = 0). NO partial marks for MCQs.\n" +
   "  • Short-answer: does the student's text contain the required facts/points? Award proportionally.\n" +
@@ -132,6 +143,50 @@ const jsonResponse = (payload: unknown, status = 200) => NextResponse.json(paylo
 const asText = (value: unknown) => String(value ?? "").trim();
 
 const normalizeWhitespace = (value: string) => value.replace(/\s+/g, " ").trim();
+
+const clampNormalizedAnchorMetric = (value: unknown) => {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return null;
+  return Math.max(0, Math.min(1000, numericValue));
+};
+
+const normalizeQuestionAnswerAnchor = (
+  raw: unknown,
+  validPageNumbers?: Set<number> | null
+): QuestionAnswerAnchor | undefined => {
+  if (!raw || typeof raw !== "object") return undefined;
+
+  const entry = raw as Partial<QuestionAnswerAnchor>;
+  const pageNumber = Number(entry.pageNumber ?? 0);
+  if (!Number.isFinite(pageNumber) || pageNumber <= 0) return undefined;
+  if (validPageNumbers && validPageNumbers.size > 0 && !validPageNumbers.has(pageNumber)) {
+    return undefined;
+  }
+
+  const x = clampNormalizedAnchorMetric(entry.x);
+  const y = clampNormalizedAnchorMetric(entry.y);
+  const width = clampNormalizedAnchorMetric(entry.width);
+  const height = clampNormalizedAnchorMetric(entry.height);
+  if (x == null || y == null || width == null || height == null) return undefined;
+  if (width < 8 || height < 8) return undefined;
+
+  const clampedWidth = Math.min(width, 1000 - x);
+  const clampedHeight = Math.min(height, 1000 - y);
+  if (clampedWidth < 8 || clampedHeight < 8) return undefined;
+
+  return {
+    pageNumber,
+    x,
+    y,
+    width: clampedWidth,
+    height: clampedHeight,
+    confidence:
+      entry.confidence === "high" || entry.confidence === "medium" || entry.confidence === "low"
+        ? entry.confidence
+        : undefined,
+    evidence: asText(entry.evidence).slice(0, 40) || undefined,
+  };
+};
 
 const isIslamicSubject = (subjectName: string, title: string) =>
   /islam|qur.?an|hadee|hadith|fiqh|aqeed|aqid|seerah|sunnah|tafsir/i.test(`${subjectName} ${title}`);
@@ -1165,7 +1220,8 @@ MCQ / TRUE-FALSE / CHECKBOX READING RULES (critical for accuracy):
    - If the student marked no option for a question, say "Q[num]: No selection visible"
 2. Count every MCQ question on the paper, even if it takes more words. Do not abbreviate.
 3. A pen circle, oval, underline, tick, X, cross placed NEXT TO or AROUND an answer option is the student's CHOSEN ANSWER. It is not a mistake mark.
-4. Only flag a mistake if you can confirm the selected option is wrong (e.g. the paper shows the answer key, or it is clearly incorrect).
+4. For True/False, also treat handwritten "True", "False", "T", "F", ticks, crosses, or marks placed beside the True/False choices as the student's selected answer.
+5. Only flag a mistake if you can confirm the selected option is wrong (e.g. the paper shows the answer key, or it is clearly incorrect).
 
 SHORT ANSWER / ESSAY:
 - Work page by page. For each visible question, transcribe or paraphrase the student's typed or handwritten answer faithfully.
@@ -1290,7 +1346,11 @@ const normalizeDraft = (
   raw: Partial<DraftMarkResponse>,
   maxMarks: number | null,
   sourcePolicy: string,
-  options?: { expectedQuestionCount?: number | null; providerTrace?: DraftProviderTrace | null }
+  options?: {
+    expectedQuestionCount?: number | null;
+    providerTrace?: DraftProviderTrace | null;
+    validPageNumbers?: Set<number> | null;
+  }
 ): DraftMarkResponse => {
   const expectedQuestionCount = options?.expectedQuestionCount ?? null;
   const numericMark = raw.suggestedMark == null ? null : Number(raw.suggestedMark);
@@ -1347,6 +1407,7 @@ const normalizeDraft = (
         marksAwarded: Math.max(0, mqForQ != null ? Math.min(mqForQ, marksAwarded) : marksAwarded),
         maxMarksForQuestion: mqForQ,
         reason: asText(e.reason).slice(0, 200),
+        answerAnchor: normalizeQuestionAnswerAnchor(e.answerAnchor, options?.validPageNumbers ?? null),
       });
       breakdownSum += normalizedBreakdown[normalizedBreakdown.length - 1].marksAwarded;
     }
@@ -1948,7 +2009,8 @@ Read the exam paper carefully. For each question, note:
   - The question text (first 10 words is enough)
 
 STEP 2 — MCQ / True-False / Fill-blank RULE (strictly enforced):
-  - For each MCQ or T/F: find the option the student circled, crossed, ticked, or underlined.
+  - For each MCQ or T/F: find the option the student circled, crossed, ticked, underlined, or marked by handwriting.
+  - For True/False specifically, treat handwritten words like "true", "false", "T", "F", and signs like ticks/crosses beside True or False as the student's selected answer.
   - Determine if that option is factually CORRECT.
   - Award the full mark for that question if correct; award 0 if wrong.
   - NEVER give partial marks to a single MCQ. (You cannot get "3 out of 5" for one MCQ.)
@@ -1975,6 +2037,8 @@ STEP 5 — SELF-AUDIT BEFORE RETURNING:
 OTHER RULES:
 Use your own subject knowledge to determine the correct answer. The exam paper usually contains questions only, not an answer key.
 If answered-page images are attached, treat visible handwriting/circles/ticks/typed overlays on those images as primary evidence of the student's answer.
+Only include answerAnchor when you can DIRECTLY see the selected option or handwritten True/False mark in attached answered-page images for this request. If you are relying only on extracted text/OCR summaries or the location is uncertain, set answerAnchor to null.
+For answerAnchor coordinates, use the PDF page number shown with the attached answered-page image and use normalized page coordinates from 0 to 1000 where x/y is the top-left of the selected option box and width/height covers the selected option or handwritten True/False mark.
 IGNORE: student name, ID, class, date, school name — never part of the answer.
 For marks feedback, name the exact question number and what the student got wrong.
 suggestedMark = exact integer SUM of all marksAwarded in the breakdown.
@@ -2008,7 +2072,16 @@ Return exactly (one entry per question — do NOT merge separate questions):
       "correctAnswer": "[the correct answer for this question — e.g. \"(a) You pray full salah\" for MCQ, or the key points for short-answer; leave empty string if student was fully correct]",
       "marksAwarded": integer,
       "maxMarksForQuestion": integer or null,
-      "reason": "[for MCQ: state whether option was correct or wrong and why; for short-answer: what key points were present or missing]"
+      "reason": "[for MCQ: state whether option was correct or wrong and why; for short-answer: what key points were present or missing]",
+      "answerAnchor": null | {
+        "pageNumber": integer,
+        "x": integer 0-1000,
+        "y": integer 0-1000,
+        "width": integer 0-1000,
+        "height": integer 0-1000,
+        "confidence": "low" | "medium" | "high",
+        "evidence": "circle" | "tick" | "cross" | "underline" | "handwritten-true" | "handwritten-false" | "written-word"
+      }
     }
   ],
   "suggestedMark": integer = exact sum of marksAwarded; null if the paper/answers are too incomplete to account for most allocated marks,
@@ -2079,6 +2152,7 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
     const normalizeWithProviderTrace = (raw: Partial<DraftMarkResponse>) => {
       const normalized = normalizeDraft(raw, maxMarks, sourcePolicy, {
         expectedQuestionCount,
+        validPageNumbers: new Set(pageImagePageNumbers.filter((pageNumber) => Number.isFinite(pageNumber) && pageNumber > 0)),
         providerTrace: buildProviderTrace({
           selected: selectedProviderLabel,
           attempts: providerAttempts,

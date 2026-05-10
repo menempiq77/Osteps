@@ -1,12 +1,24 @@
 import type { AssessmentDocumentAnnotation } from "@/services/documentAssessmentApi";
 
+export type QuestionAnswerAnchor = {
+  pageNumber: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  confidence?: "low" | "medium" | "high";
+  evidence?: string;
+};
+
 export type QuestionMarkEntry = {
   question: string;
   questionType?: "MCQ" | "TrueFalse" | "FillBlank" | "ShortAnswer" | "Essay" | string;
   studentAnswer: string;
+  correctAnswer?: string;
   marksAwarded: number;
   maxMarksForQuestion: number | null;
   reason: string;
+  answerAnchor?: QuestionAnswerAnchor;
 };
 
 export type AiDraftProviderTrace = {

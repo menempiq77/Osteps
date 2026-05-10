@@ -17,6 +17,7 @@ import { draftAssessmentMark } from "@/services/aiMarkingApi";
 import type {
   AiDraftMarkResponse,
   AiDraftProviderTrace,
+  QuestionAnswerAnchor,
   QuestionMarkEntry,
 } from "@/services/aiMarkingApi";
 import { addStudentTaskMarks, uploadTaskByStudent } from "@/services/api";
@@ -253,6 +254,39 @@ const normalizeAiProviderTrace = (value: unknown): AiDraftProviderTrace | undefi
   };
 };
 
+const normalizeAiAnswerAnchor = (value: unknown): QuestionAnswerAnchor | undefined => {
+  if (!value || typeof value !== "object") return undefined;
+
+  const raw = value as Partial<QuestionAnswerAnchor>;
+  const pageNumber = Number(raw.pageNumber ?? 0);
+  const x = Number(raw.x ?? NaN);
+  const y = Number(raw.y ?? NaN);
+  const width = Number(raw.width ?? NaN);
+  const height = Number(raw.height ?? NaN);
+
+  if (!Number.isFinite(pageNumber) || pageNumber <= 0) return undefined;
+  if (![x, y, width, height].every((entry) => Number.isFinite(entry))) return undefined;
+  if (width < 8 || height < 8) return undefined;
+
+  const clampedX = Math.max(0, Math.min(1000, x));
+  const clampedY = Math.max(0, Math.min(1000, y));
+  const clampedWidth = Math.max(8, Math.min(1000 - clampedX, width));
+  const clampedHeight = Math.max(8, Math.min(1000 - clampedY, height));
+
+  return {
+    pageNumber,
+    x: clampedX,
+    y: clampedY,
+    width: clampedWidth,
+    height: clampedHeight,
+    confidence:
+      raw.confidence === "high" || raw.confidence === "medium" || raw.confidence === "low"
+        ? raw.confidence
+        : undefined,
+    evidence: String(raw.evidence ?? "").trim() || undefined,
+  };
+};
+
 const normalizeAiDraftPreview = (value: unknown): AiDraftMarkResponse | null => {
   if (!value || typeof value !== "object") return null;
 
@@ -271,9 +305,21 @@ const normalizeAiDraftPreview = (value: unknown): AiDraftMarkResponse | null => 
   return {
     suggestedMark: Number.isFinite(suggestedMark) ? suggestedMark : null,
     questionBreakdown: Array.isArray(raw.questionBreakdown)
-      ? (raw.questionBreakdown as QuestionMarkEntry[]).filter(
-          (e) => e && typeof e.question === "string"
-        )
+      ? (raw.questionBreakdown as QuestionMarkEntry[])
+          .filter((e) => e && typeof e.question === "string")
+          .map((entry) => ({
+            question: String(entry.question ?? "").trim(),
+            questionType: String(entry.questionType ?? "").trim() || undefined,
+            studentAnswer: String(entry.studentAnswer ?? "").trim(),
+            correctAnswer: String(entry.correctAnswer ?? "").trim() || undefined,
+            marksAwarded: Number(entry.marksAwarded ?? 0),
+            maxMarksForQuestion:
+              entry.maxMarksForQuestion == null || entry.maxMarksForQuestion === ""
+                ? null
+                : Number(entry.maxMarksForQuestion),
+            reason: String(entry.reason ?? "").trim(),
+            answerAnchor: normalizeAiAnswerAnchor(entry.answerAnchor),
+          }))
       : undefined,
     feedback: String(raw.feedback ?? "").trim(),
     rationale: String(raw.rationale ?? "").trim(),
@@ -331,6 +377,72 @@ const getAiMarksLost = (entry: QuestionMarkEntry) => {
   const marksAwarded = Number(entry.marksAwarded ?? 0);
   if (!Number.isFinite(maxForQuestion) || maxForQuestion <= 0) return null;
   return Math.max(0, maxForQuestion - (Number.isFinite(marksAwarded) ? marksAwarded : 0));
+};
+
+const AI_DRAFT_OVERLAY_ID_PREFIX = "ai-draft-overlay:";
+const AI_DRAFT_OVERLAY_COLOR = "#dc2626";
+const AI_DRAFT_OVERLAY_WIDTH = 3;
+
+const isChoiceQuestionType = (value: string | undefined) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  return normalized === "mcq" || normalized === "truefalse";
+};
+
+const buildEllipsePoints = (x: number, y: number, width: number, height: number, segments = 28) => {
+  const cx = x + width / 2;
+  const cy = y + height / 2;
+  const rx = Math.max(6, width / 2);
+  const ry = Math.max(6, height / 2);
+
+  return Array.from({ length: segments + 1 }, (_, index) => {
+    const angle = (index / segments) * Math.PI * 2;
+    return {
+      x: cx + rx * Math.cos(angle),
+      y: cy + ry * Math.sin(angle),
+    };
+  });
+};
+
+const buildAiDraftOverlayAnnotations = ({
+  draft,
+  pages,
+}: {
+  draft: AiDraftMarkResponse;
+  pages: RenderedPage[];
+}): AssessmentDocumentAnnotation[] => {
+  const pageByNumber = new Map(pages.map((page) => [page.pageNumber, page] as const));
+  const overlays: AssessmentDocumentAnnotation[] = [];
+
+  (draft.questionBreakdown || []).forEach((entry, index) => {
+    if (!isChoiceQuestionType(entry.questionType)) return;
+    if (!entry.answerAnchor || entry.answerAnchor.confidence === "low") return;
+
+    const page = pageByNumber.get(entry.answerAnchor.pageNumber);
+    if (!page) return;
+
+    const normalizedX = (entry.answerAnchor.x / 1000) * page.width;
+    const normalizedY = (entry.answerAnchor.y / 1000) * page.height;
+    const normalizedWidth = (entry.answerAnchor.width / 1000) * page.width;
+    const normalizedHeight = (entry.answerAnchor.height / 1000) * page.height;
+    const padding = Math.max(10, Math.min(page.width, page.height) * 0.008);
+
+    const x = Math.max(0, normalizedX - padding / 2);
+    const y = Math.max(0, normalizedY - padding / 2);
+    const width = Math.min(page.width - x, normalizedWidth + padding);
+    const height = Math.min(page.height - y, normalizedHeight + padding);
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width < 10 || height < 10) return;
+
+    overlays.push({
+      id: `${AI_DRAFT_OVERLAY_ID_PREFIX}${entry.answerAnchor.pageNumber}:${index}:circle`,
+      type: "pen",
+      page: entry.answerAnchor.pageNumber,
+      color: AI_DRAFT_OVERLAY_COLOR,
+      width: AI_DRAFT_OVERLAY_WIDTH,
+      points: buildEllipsePoints(x, y, width, height),
+    });
+  });
+
+  return overlays;
 };
 
 const formatAiMarkValue = (value: number) => Number.isInteger(value) ? String(value) : value.toFixed(1);
@@ -2297,11 +2409,17 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
       const nextTeacherMarks = String(normalizedDraft.suggestedMark);
       const nextTeacherFeedback = normalizedDraft.feedback.trim();
+      const preservedTeacherAnnotations = teacherAnnotations.filter(
+        (annotation) => !String(annotation.id || "").startsWith(AI_DRAFT_OVERLAY_ID_PREFIX)
+      );
+      const aiOverlayAnnotations = buildAiDraftOverlayAnnotations({ draft: normalizedDraft, pages });
+      const nextTeacherAnnotations = [...preservedTeacherAnnotations, ...aiOverlayAnnotations];
 
       setTeacherMarks(nextTeacherMarks);
       setTeacherFeedback(nextTeacherFeedback);
       setAiDraftPreview(normalizedDraft);
-      persistLocalDraft(getCurrentLayerSnapshot(), {
+      setLayerAnnotations(nextTeacherAnnotations);
+      persistLocalDraft(nextTeacherAnnotations, {
         ...(state?.metadata && typeof state.metadata === "object" ? state.metadata : {}),
         teacherMarks: nextTeacherMarks,
         teacherFeedback: nextTeacherFeedback,
@@ -2309,8 +2427,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       });
       messageApi.success(
         normalizedDraft.providerTrace?.selected
-          ? `AI draft added using ${normalizedDraft.providerTrace.selected}. Review it before saving the markbook mark.`
-          : "AI draft added. Review it before saving the markbook mark."
+          ? `AI draft added using ${normalizedDraft.providerTrace.selected}.${aiOverlayAnnotations.length > 0 ? ` ${aiOverlayAnnotations.length} MCQ/True-False selections were circled.` : " No safe MCQ/True-False circles were added."} Review it before saving the markbook mark.`
+          : `AI draft added.${aiOverlayAnnotations.length > 0 ? ` ${aiOverlayAnnotations.length} MCQ/True-False selections were circled.` : " No safe MCQ/True-False circles were added."} Review it before saving the markbook mark.`
       );
     } catch (error) {
       console.error(error);
@@ -2883,8 +3001,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                   {studentLocked ? "Open for student edits" : "Lock student editing"}
                 </Button>
                 <Input className="w-24" placeholder="Marks" value={teacherMarks} onChange={(event) => setTeacherMarks(event.target.value)} />
-                <Button onClick={() => void openAiMarkingAssistant()}>
-                  💬 Ask AI to Mark
+                <Button onClick={requestAiDraftMark} loading={aiDrafting}>
+                  Ask AI to Mark
                 </Button>
                 <Button
                   onClick={() => void downloadSubmittedPaper()}
@@ -2925,13 +3043,14 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
             className="mb-4"
             type="info"
             showIcon
-            message="Use the AI Assistant to help mark this paper"
-            description="Click ✨ (bottom-right) or 'Ask AI to Mark' to open the AI chat. Ask it to mark the paper, check answers, explain deductions, or suggest feedback."
+            message="Use AI marking to fill the mark and feedback"
+            description="'Ask AI to Mark' now fills the marks box and simple deduction feedback directly from the student's handwriting, typed answers, and visible MCQ circles or ticks. Use ✨ (bottom-right) only if you want to open the assistant chat separately."
             action={
               <Button
                 size="small"
                 type="primary"
-                onClick={() => void openAiMarkingAssistant()}
+                onClick={requestAiDraftMark}
+                loading={aiDrafting}
               >
                 Ask AI to Mark
               </Button>
