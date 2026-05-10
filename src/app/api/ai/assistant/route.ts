@@ -105,8 +105,9 @@ GENERAL RULES:
 1. Answer general questions directly and helpfully across school work, writing, planning, explanations, summaries, translations, brainstorming, and broad general knowledge topics.
 2. Use the current OSTEPS page context only when the user's question is clearly about the current page, current document, current assessment, selected student, or selected text.
 3. If the supplied page context is unrelated to the user's question, ignore it and answer the actual question normally.
-4. If the user asks for information that would require live web browsing and you do not have it in the provided context, say you do not have live browsing instead of pretending.
-5. Keep answers clear, direct, and useful.`;
+4. When live search grounding is available and the question benefits from fresh web information, use it and cite the sources you relied on.
+5. If live search grounding is unavailable for a request, do not pretend to have browsed the web.
+6. Keep answers clear, direct, and useful.`;
 
 const MARKING_SYSTEM_PROMPT = `${GENERAL_SYSTEM_PROMPT}
 
@@ -205,6 +206,39 @@ const extractGeminiText = (payload: unknown) => {
     .trim();
 };
 
+const appendGeminiGroundingSources = (text: string, payload: unknown) => {
+  const data = payload as {
+    candidates?: Array<{
+      groundingMetadata?: {
+        groundingChunks?: Array<{
+          web?: {
+            uri?: string;
+            title?: string;
+          };
+        }>;
+      };
+    }>;
+  };
+
+  const sources = Array.from(
+    new Map(
+      ((data?.candidates?.[0]?.groundingMetadata?.groundingChunks || []) as Array<{ web?: { uri?: string; title?: string } }>)
+        .map((chunk) => ({
+          title: String(chunk?.web?.title || "").trim(),
+          uri: String(chunk?.web?.uri || "").trim(),
+        }))
+        .filter((source) => source.title && source.uri)
+        .map((source) => [source.uri, source] as const)
+    ).values()
+  ).slice(0, 5);
+
+  if (sources.length === 0) return text;
+
+  return `${text}\n\nSources:\n${sources
+    .map((source, index) => `${index + 1}. ${source.title} — ${source.uri}`)
+    .join("\n")}`;
+};
+
 const extractOpenAiText = (payload: unknown) => {
   const data = payload as {
     choices?: Array<{
@@ -233,9 +267,11 @@ const extractOpenAiText = (payload: unknown) => {
 const requestGeminiAssistantText = async ({
   systemContent,
   messages,
+  useGoogleSearch,
 }: {
   systemContent: string;
   messages: ChatMessage[];
+  useGoogleSearch?: boolean;
 }) => {
   if (!GEMINI_API_KEY) {
     throw new Error("Gemini assistant fallback is not configured.");
@@ -258,6 +294,7 @@ const requestGeminiAssistantText = async ({
             role: message.role === "assistant" ? "model" : "user",
             parts: [{ text: message.content }],
           })),
+          tools: useGoogleSearch ? [{ google_search: {} }] : undefined,
           generationConfig: {
             temperature: 0.3,
             maxOutputTokens: 1400,
@@ -273,7 +310,10 @@ const requestGeminiAssistantText = async ({
       throw new Error(`Gemini assistant failed (${response.status}): ${err.slice(0, 240)}`);
     }
 
-    const text = extractGeminiText(await response.json());
+    const payload = await response.json();
+    const text = useGoogleSearch
+      ? appendGeminiGroundingSources(extractGeminiText(payload), payload)
+      : extractGeminiText(payload);
     if (!text) {
       throw new Error("Gemini assistant returned an empty response.");
     }
@@ -444,6 +484,16 @@ export async function POST(req: NextRequest) {
     return buildAssistantSseResponse(text, `openai:${OPENAI_TEXT_MODEL}`);
   };
 
+  const tryGeminiSearchAssistant = async (reason: string) => {
+    const text = await requestGeminiAssistantText({
+      systemContent,
+      messages: trimmedMessages,
+      useGoogleSearch: true,
+    });
+    console.info("[ai/assistant] provider", JSON.stringify({ provider: `Gemini Google Search (${GEMINI_TEXT_MODEL})`, reason }));
+    return buildAssistantSseResponse(text, `gemini-search:${GEMINI_TEXT_MODEL}`);
+  };
+
   const tryGeminiFallback = async (reason: string) => {
     const text = await requestGeminiAssistantText({
       systemContent,
@@ -454,13 +504,25 @@ export async function POST(req: NextRequest) {
   };
 
   try {
+    if (GEMINI_API_KEY && !isMarkingHeavyRequest) {
+      clearTimeout(timeoutHandle);
+      try {
+        return await tryGeminiSearchAssistant("General assistant mode prefers Gemini with Google Search grounding.");
+      } catch (error) {
+        console.error("Gemini Google Search assistant failed, falling back to other providers:", error);
+      }
+    }
+
     if (OPENAI_API_KEY && !isMarkingHeavyRequest) {
       clearTimeout(timeoutHandle);
-      return await tryOpenAiAssistant("General assistant mode prefers OpenAI when configured.");
+      return await tryOpenAiAssistant("General assistant mode fell back after Gemini search was unavailable.");
     }
 
     if (!GROQ_API_KEY) {
       clearTimeout(timeoutHandle);
+      if (GEMINI_API_KEY && !isMarkingHeavyRequest) {
+        return await tryGeminiSearchAssistant("Groq is not configured on this server.");
+      }
       if (OPENAI_API_KEY) {
         return await tryOpenAiAssistant("Groq is not configured on this server.");
       }
@@ -494,6 +556,9 @@ export async function POST(req: NextRequest) {
       // On 429 rate-limit, retry with fallback models (each is a different family with its own quota).
       if (response.status === 429) {
         clearTimeout(timeoutHandle);
+        if (GEMINI_API_KEY && !isMarkingHeavyRequest) {
+          return await tryGeminiSearchAssistant(`Groq primary ${GROQ_TEXT_MODEL} hit 429 during a general assistant request.`);
+        }
         if (OPENAI_API_KEY && !isMarkingHeavyRequest) {
           return await tryOpenAiAssistant(`Groq primary ${GROQ_TEXT_MODEL} hit 429 during a general assistant request.`);
         }
@@ -527,12 +592,20 @@ export async function POST(req: NextRequest) {
             clearTimeout(fallbackTimeout);
           }
         }
+        if (GEMINI_API_KEY && !isMarkingHeavyRequest) {
+          return await tryGeminiSearchAssistant(`Groq models exhausted after 429 on ${GROQ_TEXT_MODEL}.`);
+        }
         if (OPENAI_API_KEY) {
           return await tryOpenAiAssistant(`Groq models exhausted after 429 on ${GROQ_TEXT_MODEL}.`);
         }
         if (GEMINI_API_KEY) {
           return await tryGeminiFallback(`Groq models exhausted after 429 on ${GROQ_TEXT_MODEL}.`);
         }
+      }
+
+      if ((response.status === 413 || response.status >= 500) && GEMINI_API_KEY && !isMarkingHeavyRequest) {
+        clearTimeout(timeoutHandle);
+        return await tryGeminiSearchAssistant(`Groq returned ${response.status} for the assistant request.`);
       }
 
       if ((response.status === 413 || response.status >= 500) && OPENAI_API_KEY) {
@@ -553,6 +626,15 @@ export async function POST(req: NextRequest) {
     console.info("[ai/assistant] provider", JSON.stringify({ provider: `Groq primary (${GROQ_TEXT_MODEL})` }));
     return buildProxyStreamResponse(response, `groq:${GROQ_TEXT_MODEL}`);
   } catch (error) {
+    if (GEMINI_API_KEY && !isMarkingHeavyRequest) {
+      try {
+        clearTimeout(timeoutHandle);
+        return await tryGeminiSearchAssistant(error instanceof Error ? error.message : "Primary assistant request failed.");
+      } catch {
+        // fall through to other providers
+      }
+    }
+
     if (OPENAI_API_KEY) {
       try {
         clearTimeout(timeoutHandle);

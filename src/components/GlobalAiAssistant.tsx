@@ -34,6 +34,7 @@ const STARTERS = [
   "Answer a general question for me",
   "Help me write an email or message",
   "Summarize this topic clearly",
+  "Search the web and summarize the answer",
   "Mark this exam/worksheet fairly like a teacher",
   "Explain the marking for this assessment",
   "Create 5 MCQ questions for this topic",
@@ -279,7 +280,7 @@ export function GlobalAiAssistant() {
                 OSTEPS AI Assistant
               </p>
               <p className="text-teal-200 text-xs">
-                General Help · Marking · Planning
+                Web Answers · General Help · Marking
               </p>
             </div>
           </div>
