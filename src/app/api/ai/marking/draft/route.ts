@@ -1430,9 +1430,35 @@ const normalizeDraft = (
     (sum, entry) => sum + (entry.maxMarksForQuestion ?? 0),
     0
   );
+  const totalDeductionsFromBreakdown = normalizedBreakdown.reduce((sum, entry) => {
+    const maxForQuestion = entry.maxMarksForQuestion;
+    if (maxForQuestion == null || maxForQuestion <= 0) return sum;
+    return sum + Math.max(0, maxForQuestion - entry.marksAwarded);
+  }, 0);
+  let usedDeductionBasedMark = false;
+  if (
+    maxMarks != null &&
+    maxMarks > 0 &&
+    normalizedBreakdown.length > 0 &&
+    accountedMaxMarks > 0 &&
+    totalDeductionsFromBreakdown >= 0
+  ) {
+    const deductionBasedMark = Math.max(0, Math.min(maxMarks, Math.round(maxMarks - totalDeductionsFromBreakdown)));
+    const breakdownDoesNotCoverFullPaper = accountedMaxMarks < maxMarks;
+    const markDisagreesWithVisibleDeductions = clampedMark != null && deductionBasedMark !== clampedMark;
+
+    if (breakdownDoesNotCoverFullPaper && markDisagreesWithVisibleDeductions) {
+      warnings.push(
+        `AI mark corrected from ${clampedMark} to ${deductionBasedMark} so it matches the listed deductions from ${maxMarks}.`
+      );
+      clampedMark = deductionBasedMark;
+      usedDeductionBasedMark = true;
+    }
+  }
   if (
     maxMarks != null &&
     maxMarks >= 20 &&
+    !usedDeductionBasedMark &&
     normalizedBreakdown.length > 0 &&
     accountedMaxMarks > 0 &&
     accountedMaxMarks < maxMarks * 0.75
@@ -1451,6 +1477,7 @@ const normalizeDraft = (
   if (
     maxMarks != null &&
     maxMarks >= 20 &&
+    !usedDeductionBasedMark &&
     expectedQuestionCount != null &&
     expectedQuestionCount >= 4 &&
     normalizedBreakdown.length > 0 &&
