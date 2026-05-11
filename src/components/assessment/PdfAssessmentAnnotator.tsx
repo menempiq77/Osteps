@@ -154,6 +154,14 @@ const getDocumentDraftKey = (
   role: AssessmentDocumentLayer
 ) => `osteps:assessment-document-draft:${assessmentId}:${taskId}:${studentId}:${role}`;
 
+const getDocumentLoadKey = (
+  assessmentId: string,
+  taskId: string,
+  studentId: string,
+  fileUrl: string,
+  role: AssessmentDocumentLayer
+) => `${assessmentId}:${taskId}:${studentId}:${normalizeDocumentUrl(fileUrl)}:${role}`;
+
 const getStoredDocumentDraft = (key: string) => {
   if (typeof window === "undefined") return null;
   try {
@@ -467,6 +475,22 @@ const getSafePenPoints = (annotation: { points?: Array<{ x?: number; y?: number 
       )
     : [];
 
+const compactAnnotationsForAiDraft = (annotations: AssessmentDocumentAnnotation[]) =>
+  annotations.map((annotation) => {
+    if (annotation.type === "text") return annotation;
+    if (annotation.type === "pen") {
+      return {
+        id: annotation.id,
+        type: annotation.type,
+        page: annotation.page,
+        color: annotation.color,
+        width: annotation.width,
+        pointCount: getSafePenPoints(annotation).length,
+      };
+    }
+    return annotation;
+  }) as AssessmentDocumentAnnotation[];
+
 const drawPen = (context: CanvasRenderingContext2D, annotation: PenAnnotation) => {
   const points = getSafePenPoints(annotation);
   if (points.length < 2) return;
@@ -604,6 +628,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const [exportingPaper, setExportingPaper] = useState(false);
   const [aiDrafting, setAiDrafting] = useState(false);
   const [aiDraftPreview, setAiDraftPreview] = useState<AiDraftMarkResponse | null>(null);
+  const [loadedDocumentKey, setLoadedDocumentKey] = useState("");
 
   const [selfAssessmentMark, setSelfAssessmentMark] = useState<number | null>(initialSelfAssessmentMark);
   const [teacherMarks, setTeacherMarks] = useState(initialTeacherMarks);
@@ -657,6 +682,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const localDraftKey = useMemo(
     () => getDocumentDraftKey(assessmentId, taskId, studentId, role),
     [assessmentId, role, studentId, taskId]
+  );
+  const documentLoadKey = useMemo(
+    () => getDocumentLoadKey(assessmentId, taskId, studentId, fileUrl, role),
+    [assessmentId, fileUrl, role, studentId, taskId]
   );
 
   const pdfRenderUrl = useMemo(() => {
@@ -739,6 +768,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const editable = role === "teacher" || (!studentLocked && !examEditingLocked && !documentIdentityUnverified);
   const oppositeLayer = role === "teacher" ? "student" : "teacher";
   const documentLoaded = Boolean(state);
+  const documentReadyForCurrentStudent = documentLoaded && loadedDocumentKey === documentLoadKey;
   const safeReturnTo = sanitizeReturnToPath(returnTo);
   const zoomPercent = Math.round(zoomLevel * 100);
   const canOpenOriginalFile = !(role === "student" && examWindow.examMode);
@@ -1402,6 +1432,14 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     const load = async () => {
       try {
         setLoading(true);
+        setLoadedDocumentKey("");
+        setState(null);
+        setAiDraftPreview(null);
+        setTeacherMarks(initialTeacherMarks);
+        setTeacherFeedback(initialTeacherFeedback);
+        activeAnnotationsRef.current = [];
+        lastLiveSyncedSignatureRef.current = "";
+        lastRemoteSnapshotRef.current = "";
         const loaded = await fetchAssessmentDocument(assessmentId, taskId, studentId);
         if (!cancelled) {
           const loadedLayerAnnotations =
@@ -1422,6 +1460,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
             : loaded;
 
           setState(nextLoaded);
+          setLoadedDocumentKey(documentLoadKey);
           lastLiveSyncedSignatureRef.current = getAnnotationsSignature(
             role === "teacher"
               ? nextLoaded.teacherAnnotations || []
@@ -1518,7 +1557,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [assessmentId, taskId, studentId, messageApi, getAnnotationsSignature, oppositeLayer, role, localDraftKey]);
+  }, [assessmentId, taskId, studentId, messageApi, getAnnotationsSignature, oppositeLayer, role, localDraftKey, documentLoadKey, initialTeacherMarks, initialTeacherFeedback]);
 
   useEffect(() => {
     let cancelled = false;
@@ -2365,6 +2404,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
   const applyAiDraftMark = async () => {
     if (role !== "teacher") return;
+    if (!documentReadyForCurrentStudent || loading) {
+      messageApi.info("Wait for this student's paper to finish loading before using AI Draft Mark.");
+      return;
+    }
     if (rendering || pages.length === 0) {
       messageApi.info("Wait for the paper to finish rendering before using AI Draft Mark.");
       return;
@@ -2383,7 +2426,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         subjectName,
         fileUrl,
         maxMarks,
-        studentAnnotations,
+        studentAnnotations: compactAnnotationsForAiDraft(studentAnnotations),
         pageImages,
         pageImagePageNumbers,
         currentTeacherMarks: teacherMarks,
@@ -3001,7 +3044,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                   {studentLocked ? "Open for student edits" : "Lock student editing"}
                 </Button>
                 <Input className="w-24" placeholder="Marks" value={teacherMarks} onChange={(event) => setTeacherMarks(event.target.value)} />
-                <Button onClick={requestAiDraftMark} loading={aiDrafting}>
+                <Button onClick={requestAiDraftMark} loading={aiDrafting} disabled={!documentReadyForCurrentStudent || rendering}>
                   Ask AI to Mark
                 </Button>
                 <Button
@@ -3051,6 +3094,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                 type="primary"
                 onClick={requestAiDraftMark}
                 loading={aiDrafting}
+                disabled={!documentReadyForCurrentStudent || rendering}
               >
                 Ask AI to Mark
               </Button>
