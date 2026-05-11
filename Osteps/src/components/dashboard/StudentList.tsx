@@ -167,6 +167,8 @@ const isAttendanceRecord = (record: any, behaviorTypeName: string) => {
 const isAbsentAttendanceRecord = (record: any, behaviorTypeName: string) => {
   const typeName = normalizeText(behaviorTypeName || "");
   const description = normalizeText(record?.description || "");
+  if (description.includes("attendance present")) return false;
+  if (description.includes("attendance absent")) return true;
   return typeName.includes("absent") || description.includes("attendance absent");
 };
 
@@ -941,16 +943,6 @@ export default function StudentList() {
       return String(findAbsentBehaviorType.id);
     }
 
-    const neutralType = behaviorTypes.find((type) => Number(type.points) === 0);
-    if (neutralType?.id) {
-      return String(neutralType.id);
-    }
-
-    const fallbackAnyType = behaviorTypes[0];
-    if (fallbackAnyType?.id) {
-      return String(fallbackAnyType.id);
-    }
-
     let createdId: string | number | undefined;
     try {
       const created = await addBehaviourType({
@@ -986,16 +978,6 @@ export default function StudentList() {
   const ensurePresentBehaviorTypeId = async (): Promise<string> => {
     if (findPresentBehaviorType?.id) {
       return String(findPresentBehaviorType.id);
-    }
-
-    const neutralType = behaviorTypes.find((type) => Number(type.points) === 0);
-    if (neutralType?.id) {
-      return String(neutralType.id);
-    }
-
-    const fallbackAnyType = behaviorTypes[0];
-    if (fallbackAnyType?.id) {
-      return String(fallbackAnyType.id);
     }
 
     let createdId: string | number | undefined;
