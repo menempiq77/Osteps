@@ -1,5 +1,6 @@
 import { promises as fs } from "fs";
 import { execFile } from "child_process";
+import { createHash } from "crypto";
 import path from "path";
 import { promisify } from "util";
 import { NextResponse } from "next/server";
@@ -89,8 +90,12 @@ const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash-lite";
 const REQUEST_TIMEOUT_MS = Number(process.env.OSTEPS_AI_MARKING_TIMEOUT_MS || 30000);
 const LARAVEL_PUBLIC_DIR = process.env.OSTEPS_LARAVEL_PUBLIC_DIR || "/var/www/laravel/public";
 const PAPER_TEXT_CACHE_MS = 10 * 60 * 1000;
+const DRAFT_RESPONSE_CACHE_MS = Number(process.env.OSTEPS_AI_MARKING_CACHE_MS || 10 * 60 * 1000);
+const PROVIDER_RATE_LIMIT_COOLDOWN_MS = Number(process.env.OSTEPS_AI_PROVIDER_COOLDOWN_MS || 90 * 1000);
 const LOCAL_OCR_FOCUS = "Local OCR text from answered-page image";
 const VISUAL_CONTEXT_MAX_IMAGES = 1;
+const draftResponseCache = new Map<string, { response: DraftMarkResponse; cachedAt: number }>();
+const providerCooldownUntil = new Map<string, number>();
 
 // Strip DeepSeek-R1 <think>...</think> reasoning tags before JSON extraction
 const stripReasoningTags = (raw: string): string =>
@@ -143,6 +148,60 @@ const jsonResponse = (payload: unknown, status = 200) => NextResponse.json(paylo
 const asText = (value: unknown) => String(value ?? "").trim();
 
 const normalizeWhitespace = (value: string) => value.replace(/\s+/g, " ").trim();
+
+const sha256 = (value: string) => createHash("sha256").update(value).digest("hex");
+
+const isProviderCoolingDown = (key: string) => {
+  const until = providerCooldownUntil.get(key) || 0;
+  if (until <= Date.now()) {
+    providerCooldownUntil.delete(key);
+    return false;
+  }
+  return true;
+};
+
+const noteProviderRateLimit = (key: string) => {
+  providerCooldownUntil.set(key, Date.now() + PROVIDER_RATE_LIMIT_COOLDOWN_MS);
+};
+
+const buildDraftRequestCacheKey = (
+  body: DraftMarkRequest,
+  pageImages: string[],
+  pageImagePageNumbers: number[]
+) =>
+  sha256(
+    JSON.stringify({
+      assessmentId: body.assessmentId,
+      taskId: body.taskId,
+      studentId: body.studentId,
+      title: body.title,
+      subjectName: body.subjectName,
+      fileUrl: normalizeDocumentUrl(body.fileUrl),
+      maxMarks: body.maxMarks,
+      studentAnnotations: body.studentAnnotations || [],
+      pageImagePageNumbers,
+      pageImages: pageImages.map((image) => sha256(image)),
+    })
+  );
+
+const getCachedDraftResponse = (key: string) => {
+  const cached = draftResponseCache.get(key);
+  if (!cached) return null;
+  if (Date.now() - cached.cachedAt > DRAFT_RESPONSE_CACHE_MS) {
+    draftResponseCache.delete(key);
+    return null;
+  }
+  return cached.response;
+};
+
+const cacheDraftResponse = (key: string, response: DraftMarkResponse) => {
+  if (response.suggestedMark == null) return;
+  draftResponseCache.set(key, { response, cachedAt: Date.now() });
+  if (draftResponseCache.size > 60) {
+    const oldestKey = draftResponseCache.keys().next().value;
+    if (oldestKey) draftResponseCache.delete(oldestKey);
+  }
+};
 
 const clampNormalizedAnchorMetric = (value: unknown) => {
   const numericValue = Number(value);
@@ -996,6 +1055,11 @@ const requestCloudVisualAnswerContext = async ({
 }) => {
   if (!apiKey || pageImages.length === 0) return null;
 
+  const cooldownKey = `${provider}:answered-page-vision:${model}`;
+  if (isProviderCoolingDown(cooldownKey)) {
+    throw new Error(`${provider} answered-page vision is cooling down after a rate limit.`);
+  }
+
   const timeoutController = new AbortController();
   const timeoutHandle = setTimeout(() => timeoutController.abort(), 12000);
   const endpoint =
@@ -1042,6 +1106,7 @@ const requestCloudVisualAnswerContext = async ({
 
     if (!response.ok) {
       const text = await response.text().catch(() => "");
+      if (response.status === 429) noteProviderRateLimit(cooldownKey);
       throw new Error(`${provider} vision failed (${response.status}). ${text.slice(0, 240)}`);
     }
 
@@ -1064,6 +1129,11 @@ const requestGeminiVisualAnswerContext = async ({
   pageNumbers?: number[];
 }) => {
   if (!GEMINI_API_KEY || pageImages.length === 0) return null;
+
+  const cooldownKey = `gemini:answered-page-vision:${GEMINI_MODEL}`;
+  if (isProviderCoolingDown(cooldownKey)) {
+    throw new Error("Gemini answered-page vision is cooling down after a rate limit.");
+  }
 
   const controller = new AbortController();
   const timeoutHandle = setTimeout(() => controller.abort(), 12000);
@@ -1099,6 +1169,7 @@ const requestGeminiVisualAnswerContext = async ({
 
     if (!response.ok) {
       const text = await response.text().catch(() => "");
+      if (response.status === 429) noteProviderRateLimit(cooldownKey);
       throw new Error(`gemini vision failed (${response.status}). ${text.slice(0, 240)}`);
     }
 
@@ -1540,7 +1611,8 @@ const requestGroqMarkingDraft = async ({
     ? AbortSignal.any([signal, controller.signal])
     : controller.signal;
 
-  const targetModel = model || GROQ_TEXT_MODEL;
+  const primaryCooldownKey = `groq:text:${GROQ_TEXT_MODEL}`;
+  const targetModel = model || (isProviderCoolingDown(primaryCooldownKey) ? GROQ_FALLBACK_TEXT_MODEL : GROQ_TEXT_MODEL);
 
   const systemContent = DRAFT_MARKING_SYSTEM_PROMPT;
 
@@ -1568,6 +1640,7 @@ const requestGroqMarkingDraft = async ({
       const errorText = await response.text().catch(() => "");
       // On 429 rate-limit for the primary model, automatically retry with the fallback model
       if (response.status === 429 && targetModel === GROQ_TEXT_MODEL && GROQ_FALLBACK_TEXT_MODEL !== GROQ_TEXT_MODEL) {
+        noteProviderRateLimit(primaryCooldownKey);
         clearTimeout(timeoutHandle);
         console.error(`Groq primary model rate-limited (429), retrying with ${GROQ_FALLBACK_TEXT_MODEL}`);
         return requestGroqMarkingDraft({
@@ -1576,6 +1649,7 @@ const requestGroqMarkingDraft = async ({
           model: GROQ_FALLBACK_TEXT_MODEL,
         });
       }
+      if (response.status === 429) noteProviderRateLimit(`groq:text:${targetModel}`);
       throw new Error(`Groq text marking failed (${response.status}). ${errorText.slice(0, 240)}`);
     }
 
@@ -1653,6 +1727,11 @@ const requestGeminiDraftMark = async ({
 }) => {
   if (!GEMINI_API_KEY) return null;
 
+  const cooldownKey = `gemini:marking:${pageImages.length > 0 ? "vision" : "text"}:${GEMINI_MODEL}`;
+  if (isProviderCoolingDown(cooldownKey)) {
+    throw new Error("Gemini marking is cooling down after a rate limit.");
+  }
+
   const controller = new AbortController();
   const timeoutHandle = setTimeout(() => controller.abort(), 22000);
   const requestSignal = signal
@@ -1690,6 +1769,7 @@ const requestGeminiDraftMark = async ({
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => "");
+      if (response.status === 429) noteProviderRateLimit(cooldownKey);
       throw new Error(`Gemini AI marker failed (${response.status}). ${errorText.slice(0, 240)}`);
     }
 
@@ -1713,6 +1793,11 @@ const requestGroqVisionDraftMark = async ({
   signal?: AbortSignal;
 }) => {
   if (!GROQ_API_KEY || pageImages.length === 0) return null;
+
+  const cooldownKey = `groq:marking-vision:${GROQ_VISION_MODEL}`;
+  if (isProviderCoolingDown(cooldownKey)) {
+    throw new Error("Groq vision marking is cooling down after a rate limit.");
+  }
 
   const controller = new AbortController();
   const timeoutHandle = setTimeout(() => controller.abort(), 22000);
@@ -1761,6 +1846,7 @@ const requestGroqVisionDraftMark = async ({
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => "");
+      if (response.status === 429) noteProviderRateLimit(cooldownKey);
       throw new Error(`Groq vision marker failed (${response.status}). ${errorText.slice(0, 240)}`);
     }
 
@@ -1868,6 +1954,20 @@ export async function POST(request: Request) {
         .filter((value) => Number.isFinite(value) && value > 0)
         .slice(0, pageImages.length)
     : [];
+  const draftCacheKey = buildDraftRequestCacheKey(body, pageImages, pageImagePageNumbers);
+  const cachedDraft = getCachedDraftResponse(draftCacheKey);
+  if (cachedDraft) {
+    console.info(
+      "[ai/marking/draft] cache-hit",
+      JSON.stringify({
+        title,
+        subjectName,
+        suggestedMark: cachedDraft.suggestedMark,
+        confidence: cachedDraft.confidence,
+      })
+    );
+    return jsonResponse(cachedDraft);
+  }
   const hasPenStrokes = annotationsContainPenStrokes(body.studentAnnotations);
   const annotationSummary = (() => {
     const annotations = Array.isArray(body.studentAnnotations) ? body.studentAnnotations : [];
@@ -2466,7 +2566,9 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
     if (modelWarnings.length > 0) {
       parsed.warnings = [...(Array.isArray(parsed.warnings) ? parsed.warnings : []), ...modelWarnings];
     }
-    return jsonResponse(normalizeWithProviderTrace(parsed));
+    const normalizedDraft = normalizeWithProviderTrace(parsed);
+    cacheDraftResponse(draftCacheKey, normalizedDraft);
+    return jsonResponse(normalizedDraft);
   } catch (error) {
     console.error("[ai/marking/draft] unhandled failure", error);
     return jsonResponse(
