@@ -94,6 +94,9 @@ type SeatingApiErrorShape = {
 const GRID = 16;
 const SEAT_CARD_WIDTH = 180;
 const SEAT_CARD_HEIGHT = 100;
+const BASE_CANVAS_WIDTH = 1240;
+const BASE_CANVAS_HEIGHT = 820;
+const CANVAS_VIEWPORT_GUTTER = 24;
 const MARKER_WIDTH_HORIZONTAL = 170;
 const MARKER_HEIGHT_HORIZONTAL = 40;
 const MARKER_WIDTH_VERTICAL = 56;
@@ -309,6 +312,7 @@ export default function StudentList() {
   const [fallbackPointsByStudent, setFallbackPointsByStudent] = useState<
     Record<string, { total: number; positive: number; negative: number }>
   >({});
+  const [seatingScale, setSeatingScale] = useState(1);
   const [isRandomModalOpen, setIsRandomModalOpen] = useState(false);
   const [isPickingRandom, setIsPickingRandom] = useState(false);
   const [randomStudent, setRandomStudent] = useState<any | null>(null);
@@ -318,6 +322,7 @@ export default function StudentList() {
   >({});
   const [attendanceSyncing, setAttendanceSyncing] = useState(false);
   const dragStartedRef = useRef(false);
+  const canvasViewportRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const fileInputsRef = useRef<Record<string, HTMLInputElement | null>>({});
   const actionAvatarInputRef = useRef<HTMLInputElement | null>(null);
@@ -483,8 +488,8 @@ export default function StudentList() {
       saveClassSeatingLayout(classIdStr as string, {
         items,
         room_meta: {
-          width: 1240,
-          height: 820,
+          width: BASE_CANVAS_WIDTH,
+          height: BASE_CANVAS_HEIGHT,
           screen_edge: "top",
           door_edge: "right",
           room_markers: roomMarkers,
@@ -656,6 +661,42 @@ export default function StudentList() {
   }, []);
 
   useEffect(() => {
+    if (viewMode !== "seating") return;
+    const viewport = canvasViewportRef.current;
+    if (!viewport || typeof window === "undefined") return;
+
+    const updateScale = () => {
+      const rect = viewport.getBoundingClientRect();
+      const widthScale = viewport.clientWidth > 0
+        ? viewport.clientWidth / BASE_CANVAS_WIDTH
+        : 1;
+      const availableHeight = window.innerHeight - rect.top - CANVAS_VIEWPORT_GUTTER;
+      const heightScale = availableHeight > 0
+        ? availableHeight / BASE_CANVAS_HEIGHT
+        : 1;
+      const nextScale = Math.min(1, widthScale, heightScale);
+      setSeatingScale((prev) =>
+        Math.abs(prev - nextScale) < 0.01 ? prev : nextScale
+      );
+    };
+
+    updateScale();
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateScale);
+      return () => window.removeEventListener("resize", updateScale);
+    }
+
+    const observer = new ResizeObserver(() => updateScale());
+    observer.observe(viewport);
+    window.addEventListener("resize", updateScale);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateScale);
+    };
+  }, [viewMode]);
+
+  useEffect(() => {
     if (!orderedStudents.length) return;
     if (canArrangeSeats && seatingQuery.data?.items?.length) {
       const fromApi = seatingQuery.data.items.map((item, index) => ({
@@ -707,12 +748,13 @@ export default function StudentList() {
     const handleMove = (event: MouseEvent) => {
       const container = canvasRef.current;
       if (!container) return;
+      const scale = seatingScale || 1;
       const rect = container.getBoundingClientRect();
       if (dragging) {
-        const maxX = Math.max(0, rect.width - SEAT_CARD_WIDTH);
-        const maxY = Math.max(0, rect.height - SEAT_CARD_HEIGHT);
-        const rawX = event.clientX - rect.left - dragging.offsetX;
-        const rawY = event.clientY - rect.top - dragging.offsetY;
+        const maxX = Math.max(0, BASE_CANVAS_WIDTH - SEAT_CARD_WIDTH);
+        const maxY = Math.max(0, BASE_CANVAS_HEIGHT - SEAT_CARD_HEIGHT);
+        const rawX = (event.clientX - rect.left) / scale - dragging.offsetX;
+        const rawY = (event.clientY - rect.top) / scale - dragging.offsetY;
         const snappedX =
           Math.round(Math.max(0, Math.min(maxX, rawX)) / GRID) * GRID;
         const snappedY =
@@ -733,10 +775,10 @@ export default function StudentList() {
         const markerOrientation = markerOrientations[draggingMarker.key];
         const markerWidth = getMarkerWidth(markerOrientation);
         const markerHeight = getMarkerHeight(markerOrientation);
-        const maxX = Math.max(0, rect.width - markerWidth);
-        const maxY = Math.max(0, rect.height - markerHeight);
-        const rawX = event.clientX - rect.left - draggingMarker.offsetX;
-        const rawY = event.clientY - rect.top - draggingMarker.offsetY;
+        const maxX = Math.max(0, BASE_CANVAS_WIDTH - markerWidth);
+        const maxY = Math.max(0, BASE_CANVAS_HEIGHT - markerHeight);
+        const rawX = (event.clientX - rect.left) / scale - draggingMarker.offsetX;
+        const rawY = (event.clientY - rect.top) / scale - draggingMarker.offsetY;
         const snappedX =
           Math.round(Math.max(0, Math.min(maxX, rawX)) / GRID) * GRID;
         const snappedY =
@@ -767,7 +809,7 @@ export default function StudentList() {
       window.removeEventListener("mousemove", handleMove);
       window.removeEventListener("mouseup", handleUp);
     };
-  }, [dragging, draggingMarker, markerOrientations]);
+  }, [dragging, draggingMarker, markerOrientations, seatingScale]);
 
   const handleStudentClick = (studentId: string) => {
     if (isDragging || dragStartedRef.current) return;
@@ -1517,18 +1559,32 @@ export default function StudentList() {
             </div>
           )}
 
-          <div className="overflow-auto rounded-xl border border-gray-200">
+          <div
+            ref={canvasViewportRef}
+            className="overflow-hidden rounded-xl border border-gray-200 bg-slate-50/60"
+          >
             <div
-              ref={canvasRef}
-              className="relative mx-auto min-w-[1240px] h-[820px]"
+              className="relative mx-auto"
               style={{
-                backgroundColor: "#f8fafc",
-                backgroundImage:
-                  "linear-gradient(to right, rgba(16,185,129,0.08) 1px, transparent 1px), linear-gradient(to bottom, rgba(16,185,129,0.08) 1px, transparent 1px)",
-                backgroundSize: `${GRID}px ${GRID}px`,
+                width: `${BASE_CANVAS_WIDTH * seatingScale}px`,
+                height: `${BASE_CANVAS_HEIGHT * seatingScale}px`,
               }}
             >
               <div
+                ref={canvasRef}
+                className="absolute left-0 top-0"
+                style={{
+                  width: `${BASE_CANVAS_WIDTH}px`,
+                  height: `${BASE_CANVAS_HEIGHT}px`,
+                  transform: `scale(${seatingScale})`,
+                  transformOrigin: "top left",
+                  backgroundColor: "#f8fafc",
+                  backgroundImage:
+                    "linear-gradient(to right, rgba(16,185,129,0.08) 1px, transparent 1px), linear-gradient(to bottom, rgba(16,185,129,0.08) 1px, transparent 1px)",
+                  backgroundSize: `${GRID}px ${GRID}px`,
+                }}
+              >
+                <div
                 className="absolute rounded-lg bg-white/95 border border-emerald-200 px-3 py-1.5 text-sm md:text-base font-semibold text-slate-700 cursor-move shadow-sm select-none"
                 style={{
                   transform: `translate(${roomMarkers.screen.x}px, ${roomMarkers.screen.y}px)`,
@@ -1543,11 +1599,12 @@ export default function StudentList() {
                   setLocalSeatingDirty(true);
                 }}
                 onMouseDown={(e) => {
+                  const scale = seatingScale || 1;
                   const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
                   setDraggingMarker({
                     key: "screen",
-                    offsetX: e.clientX - rect.left,
-                    offsetY: e.clientY - rect.top,
+                    offsetX: (e.clientX - rect.left) / scale,
+                    offsetY: (e.clientY - rect.top) / scale,
                   });
                   dragStartedRef.current = false;
                 }}
@@ -1595,11 +1652,12 @@ export default function StudentList() {
                   setLocalSeatingDirty(true);
                 }}
                 onMouseDown={(e) => {
+                  const scale = seatingScale || 1;
                   const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
                   setDraggingMarker({
                     key: "door",
-                    offsetX: e.clientX - rect.left,
-                    offsetY: e.clientY - rect.top,
+                    offsetX: (e.clientX - rect.left) / scale,
+                    offsetY: (e.clientY - rect.top) / scale,
                   });
                   dragStartedRef.current = false;
                 }}
@@ -1647,11 +1705,12 @@ export default function StudentList() {
                   setLocalSeatingDirty(true);
                 }}
                 onMouseDown={(e) => {
+                  const scale = seatingScale || 1;
                   const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
                   setDraggingMarker({
                     key: "teacher",
-                    offsetX: e.clientX - rect.left,
-                    offsetY: e.clientY - rect.top,
+                    offsetX: (e.clientX - rect.left) / scale,
+                    offsetY: (e.clientY - rect.top) / scale,
                   });
                   dragStartedRef.current = false;
                 }}
@@ -1699,11 +1758,12 @@ export default function StudentList() {
                       zIndex: seat.z_index,
                     }}
                     onMouseDown={(e) => {
+                      const scale = seatingScale || 1;
                       const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
                       setDragging({
                         id: student.id,
-                        offsetX: e.clientX - rect.left,
-                        offsetY: e.clientY - rect.top,
+                        offsetX: (e.clientX - rect.left) / scale,
+                        offsetY: (e.clientY - rect.top) / scale,
                       });
                       dragStartedRef.current = false;
                     }}
@@ -1730,6 +1790,7 @@ export default function StudentList() {
                   </div>
                 );
               })}
+              </div>
             </div>
           </div>
         </div>
