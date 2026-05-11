@@ -604,7 +604,6 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const [exportingPaper, setExportingPaper] = useState(false);
   const [aiDrafting, setAiDrafting] = useState(false);
   const [aiDraftPreview, setAiDraftPreview] = useState<AiDraftMarkResponse | null>(null);
-  const aiDraftingRef = useRef(false);
 
   const [selfAssessmentMark, setSelfAssessmentMark] = useState<number | null>(initialSelfAssessmentMark);
   const [teacherMarks, setTeacherMarks] = useState(initialTeacherMarks);
@@ -2366,16 +2365,11 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
   const applyAiDraftMark = async () => {
     if (role !== "teacher") return;
-    if (aiDraftingRef.current) {
-      messageApi.info("AI Draft Mark is already running for this paper.");
-      return;
-    }
     if (rendering || pages.length === 0) {
       messageApi.info("Wait for the paper to finish rendering before using AI Draft Mark.");
       return;
     }
 
-    aiDraftingRef.current = true;
     setAiDrafting(true);
     setAiDraftPreview(null);
     try {
@@ -2440,7 +2434,6 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       console.error(error);
       messageApi.error(error instanceof Error ? error.message : "Could not create an AI draft mark.");
     } finally {
-      aiDraftingRef.current = false;
       setAiDrafting(false);
     }
   };
@@ -3008,7 +3001,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                   {studentLocked ? "Open for student edits" : "Lock student editing"}
                 </Button>
                 <Input className="w-24" placeholder="Marks" value={teacherMarks} onChange={(event) => setTeacherMarks(event.target.value)} />
-                <Button onClick={requestAiDraftMark} loading={aiDrafting} disabled={aiDrafting}>
+                <Button onClick={requestAiDraftMark} loading={aiDrafting}>
                   Ask AI to Mark
                 </Button>
                 <Button
@@ -3058,7 +3051,6 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                 type="primary"
                 onClick={requestAiDraftMark}
                 loading={aiDrafting}
-                disabled={aiDrafting}
               >
                 Ask AI to Mark
               </Button>
