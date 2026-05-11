@@ -144,6 +144,15 @@ const asText = (value: unknown) => String(value ?? "").trim();
 
 const normalizeWhitespace = (value: string) => value.replace(/\s+/g, " ").trim();
 
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const getShortRetryDelayMs = (value: string) => {
+  const retryMatch = value.match(/try again in\s*([0-9.]+)\s*s/i);
+  const numericSeconds = retryMatch ? Number(retryMatch[1]) : NaN;
+  if (!Number.isFinite(numericSeconds) || numericSeconds <= 0 || numericSeconds > 15) return null;
+  return Math.ceil(numericSeconds * 1000) + 500;
+};
+
 const clampNormalizedAnchorMetric = (value: unknown) => {
   const numericValue = Number(value);
   if (!Number.isFinite(numericValue)) return null;
@@ -1554,10 +1563,12 @@ const requestGroqMarkingDraft = async ({
   prompt,
   signal,
   model,
+  retryAfterRateLimit = true,
 }: {
   prompt: string;
   signal?: AbortSignal;
   model?: string;
+  retryAfterRateLimit?: boolean;
 }) => {
   if (!GROQ_API_KEY) return null;
 
@@ -1601,6 +1612,18 @@ const requestGroqMarkingDraft = async ({
           prompt: summarizeLongText(prompt, 6500),
           signal,
           model: GROQ_FALLBACK_TEXT_MODEL,
+        });
+      }
+      const retryDelayMs = response.status === 429 ? getShortRetryDelayMs(errorText) : null;
+      if (retryAfterRateLimit && retryDelayMs != null) {
+        clearTimeout(timeoutHandle);
+        console.error(`Groq text model ${targetModel} rate-limited, retrying once after ${Math.round(retryDelayMs / 1000)}s`);
+        await wait(retryDelayMs);
+        return requestGroqMarkingDraft({
+          prompt,
+          signal,
+          model: targetModel,
+          retryAfterRateLimit: false,
         });
       }
       throw new Error(`Groq text marking failed (${response.status}). ${errorText.slice(0, 240)}`);
@@ -1733,11 +1756,13 @@ const requestGroqVisionDraftMark = async ({
   pageImages = [],
   pageNumbers = [],
   signal,
+  retryAfterRateLimit = true,
 }: {
   prompt: string;
   pageImages?: string[];
   pageNumbers?: number[];
   signal?: AbortSignal;
+  retryAfterRateLimit?: boolean;
 }) => {
   if (!GROQ_API_KEY || pageImages.length === 0) return null;
 
@@ -1788,6 +1813,19 @@ const requestGroqVisionDraftMark = async ({
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => "");
+      const retryDelayMs = response.status === 429 ? getShortRetryDelayMs(errorText) : null;
+      if (retryAfterRateLimit && retryDelayMs != null) {
+        clearTimeout(timeoutHandle);
+        console.error(`Groq vision marker rate-limited, retrying once after ${Math.round(retryDelayMs / 1000)}s`);
+        await wait(retryDelayMs);
+        return requestGroqVisionDraftMark({
+          prompt,
+          pageImages,
+          pageNumbers,
+          signal,
+          retryAfterRateLimit: false,
+        });
+      }
       throw new Error(`Groq vision marker failed (${response.status}). ${errorText.slice(0, 240)}`);
     }
 
