@@ -188,60 +188,44 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
         : selectedTask?.task_type === "video"
         ? "video/*"
         : "application/pdf";
-
-    const hasFile = fileList.length > 0;
-    const file = hasFile ? fileList[0] : null;
-
-    return (
-      <div className="space-y-4">
-        <Upload.Dragger
-          name="file"
-          multiple={false}
-          fileList={fileList}
-          beforeUpload={beforeUpload}
-          onChange={handleFileChange}
-          accept={acceptType}
-          className="p-8"
-        >
-          <div className="flex flex-col items-center justify-center space-y-2">
-            {renderFileIcon()}
-            <div className="text-center">
-              <p className="font-medium text-gray-700">
-                {hasFile
-                  ? file?.name
-                  : `Drag & drop your ${selectedTask?.task_type} file here`}
-              </p>
-              <p className="text-sm text-gray-500 mt-1">
-                {hasFile && file?.size
-                  ? `${(file.size / (1024 * 1024)).toFixed(2)} MB`
-                  : `or click to browse files (${selectedTask?.task_type?.toUpperCase()} only)`}
-              </p>
-            </div>
-          </div>
-        </Upload.Dragger>
-      </div>
-    );
-  };
-
-  return (
-    <>
-      {contextHolder}
-      <Drawer
-        title={
-          <div className="flex justify-between items-center">
-            <span className="font-medium">{selectedSubject}</span>
-            <span className="text-sm font-normal text-gray-500">
-              {selectedTask?.name}
-            </span>
-          </div>
-        }
-        placement="right"
-        onClose={() => {
-          form.resetFields();
-          setFileList([]);
-          onClose();
-        }}
-        open={isOpen}
+                    <>
+                      <Form.Item
+                        label={`Self-Assessment (Rate your work out of ${selectedTask.allocated_marks})`}
+                        name="selfAssessment"
+                        rules={[
+                          { required: true, message: "Please rate your work" },
+                        ]}
+                        className="mt-4"
+                      >
+                        <InputNumber
+                          min={0}
+                          max={selectedTask.allocated_marks}
+                          step={0.5}
+                          className={`w-full ${
+                            inputError ? "border-red-500" : ""
+                          }`}
+                          placeholder={`Enter your rating (0-${selectedTask.allocated_marks})`}
+                          style={{ width: "100%" }}
+                          onChange={(value) => {
+                            if (
+                              value === null ||
+                              (value >= 0 &&
+                                value <= selectedTask.allocated_marks)
+                            ) {
+                              setInputError(false);
+                            } else {
+                              setInputError(true);
+                              setTimeout(() => setInputError(false), 2000);
+                            }
+                          }}
+                        />
+                      </Form.Item>
+                      {inputError && (
+                        <p className="-mt-3 text-red-500 text-xs">
+                          Rating must be between 0 and {selectedTask.allocated_marks}
+                        </p>
+                      )}
+                    </>
         width={600}
         footer={
           selectedTask?.status !== "completed" ? (
