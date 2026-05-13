@@ -16,6 +16,7 @@ import { fetchStudents } from "@/services/studentsApi";
 import Link from "next/link";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import { IMG_BASE_URL } from "@/lib/config";
+import { fetchAssessmentDocument } from "@/services/documentAssessmentApi";
 
 interface Student {
   id?: number | string;
@@ -82,6 +83,12 @@ const getWholeMark = (value: unknown) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? Math.trunc(parsed) : 0;
 };
+
+const getSelfAssessmentLookupKey = (task: StudentAssessmentTask) =>
+  `${task.assessment_id}:${task.task_id}:${task.student_id}`;
+
+const hasSelfAssessmentValue = (value: unknown) =>
+  value != null && String(value).trim() !== "";
 
 const isPlaceholderStudentName = (value: string) =>
   /^student\s+\d+$/i.test(value.trim());
@@ -159,11 +166,55 @@ export default function AssessmentDrawer() {
   const [quizTeacherMark, setQuizTeacherMark] = useState<string>("");
   const [selectedDownloadTaskIds, setSelectedDownloadTaskIds] = useState<number[]>([]);
   const [bulkDownloading, setBulkDownloading] = useState(false);
+  const [documentSelfAssessmentMarks, setDocumentSelfAssessmentMarks] = useState<Record<string, number>>({});
 
   const [formValues, setFormValues] = useState<{
     marks: string;
     feedback: string;
   }>({ marks: "", feedback: "" });
+
+  const loadDocumentSelfAssessmentMarks = async (
+    tasks: StudentAssessmentTask[]
+  ) => {
+    const pdfTasks = tasks.filter(
+      (task) =>
+        task.student_id && String(task.task?.task_type || "").toLowerCase() === "pdf"
+    );
+
+    if (pdfTasks.length === 0) {
+      setDocumentSelfAssessmentMarks({});
+      return;
+    }
+
+    const entries = await Promise.all(
+      pdfTasks.map(async (task) => {
+        try {
+          const documentState = await fetchAssessmentDocument(
+            task.assessment_id,
+            task.task_id,
+            task.student_id
+          );
+          const mark = documentState.metadata?.selfAssessmentMark;
+          if (!hasSelfAssessmentValue(mark)) return null;
+          const parsedMark = Number(mark);
+          if (!Number.isFinite(parsedMark)) return null;
+          return [getSelfAssessmentLookupKey(task), Math.trunc(parsedMark)] as const;
+        } catch (error) {
+          console.warn("Failed to load document self mark", {
+            assessmentId: task.assessment_id,
+            taskId: task.task_id,
+            studentId: task.student_id,
+            error,
+          });
+          return null;
+        }
+      })
+    );
+
+    setDocumentSelfAssessmentMarks(
+      Object.fromEntries(entries.filter((entry): entry is readonly [string, number] => Boolean(entry)))
+    );
+  };
 
   const loadStudentTasks = async (assessmentId: number) => {
     try {
@@ -173,6 +224,7 @@ export default function AssessmentDrawer() {
         canUseSubjectContext ? activeSubjectId ?? undefined : undefined
       );
       setAssesmentTasks(data);
+      void loadDocumentSelfAssessmentMarks(data);
       setError(null);
     } catch (err) {
       setError("Failed to load Assessment Tasks");
@@ -432,11 +484,8 @@ export default function AssessmentDrawer() {
       ),
       teacherFeedback: String(task.teacher_feedback || ""),
     });
-    if (
-      task.self_assessment_mark != null &&
-      String(task.self_assessment_mark).trim() !== ""
-    ) {
-      params.set("selfAssessmentMark", String(task.self_assessment_mark));
+    if (hasSelfAssessmentValue(getSelfAssessmentMarkForTask(task))) {
+      params.set("selfAssessmentMark", String(getSelfAssessmentMarkForTask(task)));
     }
     if (options.autoDownload) params.set("autoDownload", "1");
     return `/dashboard/assessment-document?${params.toString()}`;
@@ -460,6 +509,16 @@ export default function AssessmentDrawer() {
     studentOptions.find(
       (student) => Number(student.id) === Number(task.student_id)
     )?.student_name || `Student ${task.student_id}`;
+
+  const getSelfAssessmentMarkForTask = (task: StudentAssessmentTask) => {
+    const documentMark = documentSelfAssessmentMarks[getSelfAssessmentLookupKey(task)];
+    if (Number.isFinite(documentMark) && documentMark > 0) return documentMark;
+    if (hasSelfAssessmentValue(task.self_assessment_mark)) {
+      return task.self_assessment_mark;
+    }
+    if (Number.isFinite(documentMark)) return documentMark;
+    return "";
+  };
 
   const getSubmittedFileUrl = (task: StudentAssessmentTask) => {
     const taskType = String(task.task?.task_type || "").toLowerCase();
@@ -749,7 +808,7 @@ export default function AssessmentDrawer() {
                   <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm">
                     <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
                       <span className="text-gray-600">
-                        Self <span className="font-semibold text-blue-700">{getWholeMark(task?.self_assessment_mark)}/{getWholeMark(task?.task?.allocated_marks)}</span>
+                        Self <span className="font-semibold text-blue-700">{getWholeMark(getSelfAssessmentMarkForTask(task))}/{getWholeMark(task?.task?.allocated_marks)}</span>
                       </span>
                       <span className="text-gray-600">
                         Teacher <span className="font-semibold text-green-700">{hasTeacherAssessmentScore(task) ? `${getWholeMark(task?.teacher_assessment_score)}/${getWholeMark(task?.task?.allocated_marks)}` : "Pending"}</span>
@@ -800,7 +859,7 @@ export default function AssessmentDrawer() {
                   <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm">
                     <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
                       <span className="text-gray-600">
-                        Self <span className="font-semibold text-blue-700">{getWholeMark(task?.self_assessment_mark)}{getQuizTotalMarks(task) ? `/${getWholeMark(getQuizTotalMarks(task))}` : ""}</span>
+                        Self <span className="font-semibold text-blue-700">{getWholeMark(getSelfAssessmentMarkForTask(task))}{getQuizTotalMarks(task) ? `/${getWholeMark(getQuizTotalMarks(task))}` : ""}</span>
                       </span>
                       <span className="text-gray-600">
                         Teacher <span className="font-semibold text-green-700">{hasTeacherQuizMark(task) ? `${getWholeMark(task.teacher_assessment_mark)}${getQuizTotalMarks(task) ? `/${getWholeMark(getQuizTotalMarks(task))}` : ""}` : "Pending"}</span>
