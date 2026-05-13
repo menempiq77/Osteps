@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
@@ -18,20 +18,37 @@ import {
   Button,
   Card,
   Drawer,
+  Empty,
   Form,
   Grid,
+  Input,
   message,
   Modal,
+  Select,
   Space,
   Spin,
   Tabs,
   Tag,
+  Tooltip,
   Typography,
 } from "antd";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import UploadResourceModal from "@/components/modals/UploadResourceModal";
 import ViewResourceModal from "@/components/modals/ViewResourceModal";
-import { Plus } from "lucide-react";
+import {
+  BookOpen,
+  FileAudio,
+  FileText,
+  FolderOpen,
+  Grid2X2,
+  Link2,
+  ListFilter,
+  PlayCircle,
+  Plus,
+  Search,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
 import Link from "next/link";
 import { IMG_BASE_URL } from "@/lib/config";
 import {
@@ -71,6 +88,8 @@ export default function LibraryPage() {
   const [activeTypeTab, setActiveTypeTab] = React.useState<string>("all");
   const [activeCategoryTab, setActiveCategoryTab] =
     React.useState<string>("all");
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [sortMode, setSortMode] = React.useState<"newest" | "title" | "type">("newest");
   const [isUploadModalOpen, setIsUploadModalOpen] = React.useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = React.useState(false);
   const [currentItem, setCurrentItem] = React.useState<LibraryItem | null>(
@@ -90,7 +109,7 @@ export default function LibraryPage() {
   const [debugError, setDebugError] = useState<any>(null);
   const queryClient = useQueryClient();
 
-  // ── Approvals bell (SCHOOL_ADMIN only) ──────────────────────────────────
+  // ΓöÇΓöÇ Approvals bell (SCHOOL_ADMIN only) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   const isSchoolAdmin = currentUser?.role === "SCHOOL_ADMIN";
   const [approvalsOpen, setApprovalsOpen] = useState(false);
   const [pendingItems, setPendingItems] = useState<any[]>([]);
@@ -513,20 +532,48 @@ export default function LibraryPage() {
   };
 
   const filteredItems = libraryItems?.filter((item) => {
-    const typeMatch =
-      activeTypeTab === "all" ||
-      getResourceName(item.library_resources_id).toLowerCase() ===
-        activeTypeTab;
+    const typeName = getResourceName(item.library_resources_id);
+    const categoryName = getCategoryName(item.library_categories_id);
+    const tags = parseTags(item.tags).join(" ");
+    const searchText = [item.title, item.description, typeName, categoryName, tags]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+    const typeMatch = activeTypeTab === "all" || typeName.toLowerCase() === activeTypeTab;
+    const categoryMatch = activeCategoryTab === "all" || String(item.library_categories_id ?? "") === String(activeCategoryTab);
+    const queryMatch = !searchQuery.trim() || searchText.includes(searchQuery.trim().toLowerCase());
 
-    const categoryMatch =
-      activeCategoryTab === "all" ||
-      String(item.library_categories_id ?? "") === String(activeCategoryTab);
+    return typeMatch && categoryMatch && queryMatch;
+  });
 
-    return typeMatch && categoryMatch;
+  const sortedFilteredItems = [...(filteredItems || [])].sort((left, right) => {
+    if (sortMode === "title") return String(left.title || "").localeCompare(String(right.title || ""));
+    if (sortMode === "type") return getResourceName(left.library_resources_id).localeCompare(getResourceName(right.library_resources_id));
+    return new Date(right.updated_at || 0).getTime() - new Date(left.updated_at || 0).getTime();
   });
 
   const totalResourcesCount = libraryItems?.length || 0;
-  const visibleResourcesCount = filteredItems?.length || 0;
+  const visibleResourcesCount = sortedFilteredItems?.length || 0;
+  const totalCategoriesCount = categories?.length || 0;
+  const totalTypesCount = resources?.length || 0;
+  const recentItems = [...(libraryItems || [])]
+    .sort((left, right) => new Date(right.updated_at || 0).getTime() - new Date(left.updated_at || 0).getTime())
+    .slice(0, 3);
+
+  const getCountForType = (typeName: string) =>
+    libraryItems.filter((item) => getResourceName(item.library_resources_id).toLowerCase() === typeName.toLowerCase()).length;
+
+  const getCountForCategory = (categoryId: number | string) =>
+    libraryItems.filter((item) => String(item.library_categories_id ?? "") === String(categoryId)).length;
+
+  const getResourceIcon = (type: string) => {
+    const key = (type || "").toLowerCase();
+    if (key.includes("video")) return PlayCircle;
+    if (key.includes("audio")) return FileAudio;
+    if (key.includes("link") || key.includes("website")) return Link2;
+    if (key.includes("book")) return BookOpen;
+    return FileText;
+  };
 
   if (isLoading)
     return (
@@ -550,286 +597,158 @@ export default function LibraryPage() {
         className="!mb-3"
       />
 
-      <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-        <div className="rounded-2xl border border-emerald-100 bg-white p-4 md:p-5 shadow-sm">
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div>
-                <div className="flex items-center gap-3">
-                  <Typography.Title level={3} style={{ margin: 0 }}>
-                    {"School Library"}
-                  </Typography.Title>
-                  {isSchoolAdmin && (
-                    <Badge
-                      count={pendingItems.length}
-                      size="small"
-                      offset={[-2, 2]}
-                    >
-                      <button
-                        onClick={() => setApprovalsOpen(true)}
-                        className="flex items-center justify-center h-9 w-9 rounded-xl border
-                                   text-slate-500 transition-all duration-200
-                                   hover:text-amber-600 hover:border-amber-300 hover:bg-amber-50
-                                   active:scale-95"
-                        style={{ borderColor: pendingItems.length > 0 ? "#fcd34d" : "#e2e8f0",
-                                 background: pendingItems.length > 0 ? "#fffbeb" : "#f8fafc",
-                                 color: pendingItems.length > 0 ? "#d97706" : undefined }}
-                        title="Pending upload approvals"
-                      >
-                        <BellOutlined style={{ fontSize: 16 }} />
-                      </button>
-                    </Badge>
-                  )}
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Tag className="m-0 rounded-full border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700">
-                    {totalResourcesCount} Total
-                  </Tag>
-                </div>
-              </div>
-              {canUpload && (
-                <Button
-                  type="primary"
-                  icon={<UploadOutlined />}
-                  onClick={openUploadModal}
-                  className="flex items-center !h-11 !rounded-xl !bg-primary !border-primary !px-5 !font-medium"
-                >
-                  {isMobile ? "Upload" : "Upload Resource"}
-                </Button>
+      <Space direction="vertical" size="large" style={{ width: "100%" }}>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold tracking-tight text-gray-900">School Library</h1>
+            <p className="mt-0.5 text-sm text-gray-500">Curated learning resources ? PDFs, videos, audio, links and more.</p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-semibold text-gray-700 shadow-sm">
+                <Grid2X2 className="h-3 w-3 text-emerald-600" />{totalResourcesCount} Resources
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-semibold text-gray-700 shadow-sm">
+                <FileText className="h-3 w-3 text-sky-600" />{totalTypesCount} Types
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-semibold text-gray-700 shadow-sm">
+                <FolderOpen className="h-3 w-3 text-violet-500" />{totalCategoriesCount} Categories
+              </span>
+              {isSchoolAdmin && pendingItems.length > 0 && (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 shadow-sm">
+                  <BellOutlined className="text-[11px] text-amber-500" />{pendingItems.length} Pending
+                </span>
               )}
             </div>
-
-            <div className="rounded-xl border border-gray-100 bg-gray-50/40 px-3 pt-2">
-              <Tabs
-                activeKey={activeTypeTab}
-                onChange={(key) => {
-                  if (key === "add") {
-                    window.location.href = "/dashboard/library/resourcestype";
-                    return;
-                  }
-                  setActiveTypeTab(key);
-                  setActiveCategoryTab("all");
-                }}
-                tabBarStyle={{
-                  marginBottom: 0,
-                  border: "none",
-                }}
-                tabBarGutter={24}
-                items={typeTabItems}
-              />
-            </div>
-
-            {categories?.length > 0 && (
-              <div className="rounded-xl border border-gray-100 bg-gray-50/40 p-3 md:p-4">
-                <div className="mb-3 text-sm font-medium text-gray-600">
-                  Browse by category
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    size="middle"
-                    type={activeCategoryTab === "all" ? "primary" : "default"}
-                    shape="round"
-                    onClick={() => setActiveCategoryTab("all")}
-                    className={`transition-all ${
-                      activeCategoryTab === "all"
-                        ? "!bg-primary !hover:bg-green-700"
-                        : "bg-white hover:bg-gray-50 hover:!border-green-600 hover:!text-green-600"
-                    }`}
-                  >
-                    All
-                  </Button>
-
-                  {categories?.map((category) => (
-                    <Button
-                      key={category?.id}
-                      size="middle"
-                      type={
-                        activeCategoryTab === String(category.id)
-                          ? "primary"
-                          : "default"
-                      }
-                      shape="round"
-                      onClick={() => setActiveCategoryTab(String(category.id))}
-                      className={`transition-all ${
-                        activeCategoryTab === String(category.id)
-                          ? "!bg-primary !hover:bg-green-700"
-                          : "bg-white hover:bg-gray-50 border-gray-200 hover:!border-green-600 hover:!text-green-600"
-                      }`}
-                    >
-                      {formatCategoryLabel(category?.name)}
-                    </Button>
-                  ))}
-
-                  {canUpload && (
-                    <Link
-                      href="/dashboard/library/librarycategory"
-                      className="transition-all flex items-center gap-1 bg-white hover:bg-gray-50 border border-dashed rounded-full px-4 !text-green-600 border-green-600"
-                    >
-                      <Plus size={18} /> Add More
-                    </Link>
-                  )}
-                </div>
-              </div>
+          </div>
+          <div className="flex flex-shrink-0 flex-wrap items-center gap-2 pt-1">
+            {isSchoolAdmin && (
+              <Badge count={pendingItems.length} size="small">
+                <Button onClick={() => setApprovalsOpen(true)} icon={<BellOutlined />} className="!h-9 !rounded-xl">
+                  Approvals
+                </Button>
+              </Badge>
+            )}
+            {canUpload && (
+              <Button type="primary" icon={<UploadOutlined />} onClick={openUploadModal} className="!h-9 !rounded-xl !bg-emerald-600 !border-emerald-600 hover:!bg-emerald-700 hover:!border-emerald-700">
+                {isMobile ? "Upload" : "Upload Resource"}
+              </Button>
             )}
           </div>
         </div>
 
-        {filteredItems?.length === 0 ? (
-          <Card className="shadow-sm rounded-2xl border border-gray-100">
-            <div className="text-center py-12">
-              <FileOutlined className="text-4xl text-gray-300 mb-4" />
-              <Typography.Text type="secondary" className="text-lg">
-                No resources found in this category
-              </Typography.Text>
-            </div>
-          </Card>
-        ) : (
-          <div
-            className={`grid grid-cols-1 ${
-              screens.md ? "md:grid-cols-2" : ""
-            } ${screens.lg ? "lg:grid-cols-3" : ""} ${
-              screens.xl ? "xl:grid-cols-4" : ""
-            } gap-4`}
-          >
-            {filteredItems?.map((item) => {
-              const resourceType = getResourceName(
-                item.library_resources_id
-              ).toLowerCase();
-              const cleanPath = cleanFilePath(item.file_path);
-              const isExternal = isExternalLink(cleanPath);
-              const domainLabel = isExternal
-                ? getLinkDomain(cleanPath)
-                : "";
-              const coverUrl =
-                isExternal && resourceType === "video"
-                  ? getVideoThumbnailUrl(cleanPath)
-                  : isImageUrl(cleanPath)
-                  ? cleanPath
-                  : "";
+        <section className="grid gap-4 xl:grid-cols-[280px_1fr]">
+          <aside className="space-y-4">
+            <Card className="rounded-3xl border border-gray-100 shadow-sm" styles={{ body: { padding: 18 } }}>
+              <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-800"><ListFilter className="h-4 w-4 text-emerald-600" /> Resource types</div>
+              <div className="space-y-2">
+                <button onClick={() => setActiveTypeTab("all")} className={`flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left text-sm transition ${activeTypeTab === "all" ? "bg-emerald-600 text-white shadow-sm" : "bg-gray-50 text-gray-700 hover:bg-emerald-50 hover:text-emerald-700"}`}>
+                  <span className="flex items-center gap-2"><Grid2X2 className="h-4 w-4" /> All resources</span><span className="text-xs opacity-80">{totalResourcesCount}</span>
+                </button>
+                {resources?.map((type) => {
+                  const typeKey = type.name.toLowerCase();
+                  const TypeIcon = getResourceIcon(type.name);
+                  return (
+                    <button key={type.id} onClick={() => { setActiveTypeTab(typeKey); setActiveCategoryTab("all"); }} className={`flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left text-sm transition ${activeTypeTab === typeKey ? "bg-emerald-600 text-white shadow-sm" : "bg-gray-50 text-gray-700 hover:bg-emerald-50 hover:text-emerald-700"}`}>
+                      <span className="flex items-center gap-2"><TypeIcon className="h-4 w-4" /> {type.name}</span><span className="text-xs opacity-80">{getCountForType(type.name)}</span>
+                    </button>
+                  );
+                })}
+                {canUpload && <Link href="/dashboard/library/resourcestype" className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100"><Plus size={16} /> Manage types</Link>}
+              </div>
+            </Card>
 
-              return (
-                <Card
-                  key={item.id}
-                  className="hover:shadow-xl hover:-translate-y-1 shadow-sm transition-all duration-300 border border-gray-100 rounded-2xl overflow-hidden flex flex-col h-full cursor-pointer"
-                  hoverable
-                  styles={{ body: { padding: 0 } }}
-                  onClick={() => openResourceDirectly(item)}
-                >
-                  <div className="relative">
-                    {coverUrl ? (
-                      <img
-                        src={coverUrl}
-                        alt={item.title}
-                        className="w-full h-32 object-cover"
-                      />
-                    ) : (
-                      <div className="h-32 bg-gradient-to-br from-emerald-50 via-white to-sky-50 flex flex-col items-center justify-center gap-2">
-                        <div
-                          className="flex h-11 w-11 items-center justify-center rounded-full border text-2xl"
-                          style={{
-                            backgroundColor: getEmojiStyleForType(resourceType).bg,
-                            borderColor: getEmojiStyleForType(resourceType).border,
-                            boxShadow: `0 6px 14px ${getEmojiStyleForType(resourceType).shadow}`,
-                          }}
-                        >
-                          {getEmojiForType(resourceType)}
-                        </div>
-                        <div className="text-xs uppercase tracking-wide text-gray-500">
-                          {resourceType || "resource"}
-                        </div>
-                      </div>
-                    )}
+            <Card className="rounded-3xl border border-gray-100 shadow-sm" styles={{ body: { padding: 18 } }}>
+              <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-800"><FolderOpen className="h-4 w-4 text-emerald-600" /> Categories</div>
+              <div className="flex flex-wrap gap-2 xl:block xl:space-y-2">
+                <button onClick={() => setActiveCategoryTab("all")} className={`rounded-full px-3 py-1.5 text-sm transition xl:flex xl:w-full xl:items-center xl:justify-between xl:rounded-2xl xl:py-2 ${activeCategoryTab === "all" ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-700 hover:bg-emerald-50 hover:text-emerald-700"}`}><span>All categories</span><span className="ml-2 text-xs opacity-75">{totalResourcesCount}</span></button>
+                {categories?.map((category) => (
+                  <button key={category?.id} onClick={() => setActiveCategoryTab(String(category.id))} className={`rounded-full px-3 py-1.5 text-sm transition xl:flex xl:w-full xl:items-center xl:justify-between xl:rounded-2xl xl:py-2 ${activeCategoryTab === String(category.id) ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-700 hover:bg-emerald-50 hover:text-emerald-700"}`}>
+                    <span>{formatCategoryLabel(category?.name)}</span><span className="ml-2 text-xs opacity-75">{getCountForCategory(category.id)}</span>
+                  </button>
+                ))}
+              </div>
+              {canUpload && <Link href="/dashboard/library/librarycategory" className="mt-3 flex items-center justify-center gap-2 rounded-2xl border border-dashed border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100"><Plus size={16} /> Manage categories</Link>}
+            </Card>
 
-                    {isExternal && (
-                      <span className="absolute bottom-2 left-2 text-xs bg-white/90 text-gray-700 px-2 py-1 rounded-full">
-                        {domainLabel}
-                      </span>
-                    )}
-
-                    {canUpload && !isTeacher && (
-                      <div className="absolute top-3 right-3 flex gap-2">
-                        <Button
-                          shape="circle"
-                          size="small"
-                          icon={<DeleteOutlined className="text-xs" />}
-                          danger
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setItemToDelete(item.id);
-                            setDeleteModalVisible(true);
-                          }}
-                          className="shadow-sm bg-white hover:bg-red-50 border-none"
-                        />
-                        <Button
-                          shape="circle"
-                          size="small"
-                          icon={<EditOutlined className="text-xs" />}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEdit(item);
-                          }}
-                          className="shadow-sm bg-white hover:bg-blue-50 border-none"
-                        />
-                      </div>
-                    )}
-                  </div>
-
-                <div className="p-4 flex-grow flex flex-col">
-                  <h3 className="text-base font-semibold mb-1 line-clamp-2 text-gray-900">
-                    {item.title}
-                  </h3>
-                  <p className="mb-2 text-sm text-gray-600 line-clamp-1 min-h-[20px]">
-                    {item.description || " "}
-                  </p>
-
-                  {parseTags(item.tags)?.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {parseTags(item.tags).map((tag) => (
-                        <Tag
-                          key={`${item.id}-${tag}`}
-                          className="m-0 rounded-full border-emerald-100 bg-emerald-50 text-emerald-700"
-                        >
-                          {tag}
-                        </Tag>
-                      ))}
-                    </div>
-                  )}
-
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    <Tag className="m-0 rounded-full border-sky-100 bg-sky-50 px-2 py-[1px] text-sky-700">
-                      {getResourceName(item.library_resources_id)}
-                    </Tag>
-                    <Tag
-                      color={getCategoryColor(item.library_categories_id)}
-                      className="m-0 rounded-full px-2 py-[1px]"
-                    >
-                      {getCategoryName(item.library_categories_id)}
-                    </Tag>
-                  </div>
-
-                  <div className="mt-auto">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-xs text-gray-500">
-                        {item.size || "N/A"}
-                      </span>
-                      <span className="text-xs text-gray-400">
-                        {item.updated_at
-                          ? new Date(item.updated_at).toLocaleDateString("en-US", {
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                            })
-                          : "N/A"}
-                      </span>
-                    </div>
-                  </div>
+            {recentItems.length > 0 && (
+              <Card className="rounded-3xl border border-gray-100 shadow-sm" styles={{ body: { padding: 18 } }}>
+                <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-800"><ShieldCheck className="h-4 w-4 text-emerald-600" /> Recently added</div>
+                <div className="space-y-3">
+                  {recentItems.map((item) => (
+                    <button key={`recent-${item.id}`} onClick={() => openResourceDirectly(item)} className="w-full rounded-2xl border border-gray-100 bg-gray-50 p-3 text-left transition hover:border-emerald-200 hover:bg-emerald-50">
+                      <div className="line-clamp-1 text-sm font-semibold text-gray-900">{item.title}</div>
+                      <div className="mt-1 text-xs text-gray-500">{item.updated_at ? new Date(item.updated_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "No date"}</div>
+                    </button>
+                  ))}
                 </div>
-                </Card>
-              );
-            })}
-          </div>
-        )}
+              </Card>
+            )}
+          </aside>
+
+          <main className="space-y-4">
+            <Card className="rounded-3xl border border-gray-100 shadow-sm" styles={{ body: { padding: 16 } }}>
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div><div className="text-lg font-semibold text-gray-900">Browse resources</div><div className="text-sm text-gray-500">Showing {visibleResourcesCount} of {totalResourcesCount} resources</div></div>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <Input allowClear size="large" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search title, category, tags..." prefix={<Search className="h-4 w-4 text-gray-400" />} className="min-w-[260px] !rounded-2xl" />
+                  <Select size="large" value={sortMode} onChange={setSortMode} className="min-w-[170px]" options={[{ value: "newest", label: "Newest first" }, { value: "title", label: "Title A-Z" }, { value: "type", label: "Resource type" }]} />
+                </div>
+              </div>
+            </Card>
+
+            {sortedFilteredItems?.length === 0 ? (
+              <Card className="rounded-3xl border border-dashed border-gray-200 shadow-sm">
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={<span className="text-gray-500">No resources match the current filters. Try a different search or category.</span>} />
+              </Card>
+            ) : (
+              <div className={`grid grid-cols-1 ${screens.md ? "md:grid-cols-2" : ""} ${screens.xl ? "xl:grid-cols-3" : ""} gap-5`}>
+                {sortedFilteredItems?.map((item) => {
+                  const resourceType = getResourceName(item.library_resources_id);
+                  const resourceTypeKey = resourceType.toLowerCase();
+                  const ResourceIcon = getResourceIcon(resourceType);
+                  const cleanPath = cleanFilePath(item.file_path);
+                  const isExternal = isExternalLink(cleanPath);
+                  const domainLabel = isExternal ? getLinkDomain(cleanPath) : "";
+                  const coverUrl = isExternal && resourceTypeKey === "video" ? getVideoThumbnailUrl(cleanPath) : isImageUrl(cleanPath) ? cleanPath : "";
+                  const emojiStyle = getEmojiStyleForType(resourceTypeKey);
+
+                  return (
+                    <Card key={item.id} className="group overflow-hidden rounded-3xl border border-gray-100 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-emerald-200 hover:shadow-2xl" hoverable styles={{ body: { padding: 0 } }} onClick={() => openResourceDirectly(item)}>
+                      <div className="relative h-40 overflow-hidden">
+                        {coverUrl ? <img src={coverUrl} alt={item.title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" /> : (
+                          <div className="flex h-full flex-col items-center justify-center gap-3 bg-gradient-to-br from-emerald-50 via-white to-sky-50">
+                            <div className="flex h-16 w-16 items-center justify-center rounded-3xl border text-3xl" style={{ backgroundColor: emojiStyle.bg, borderColor: emojiStyle.border, boxShadow: `0 16px 30px ${emojiStyle.shadow}` }}><ResourceIcon className="h-8 w-8 text-emerald-700" /></div>
+                            <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-500 shadow-sm">{resourceType || "Resource"}</span>
+                          </div>
+                        )}
+                        <div className="absolute left-3 top-3 flex flex-wrap gap-2">
+                          <Tag className="m-0 rounded-full border-white/70 bg-white/90 px-2 py-1 text-xs font-medium text-gray-700 shadow-sm">{resourceType}</Tag>
+                          {isExternal && <Tag className="m-0 rounded-full border-white/70 bg-white/90 px-2 py-1 text-xs text-gray-600 shadow-sm">{domainLabel}</Tag>}
+                        </div>
+                        {canUpload && !isTeacher && (
+                          <div className="absolute right-3 top-3 flex gap-2 opacity-100 transition md:opacity-0 md:group-hover:opacity-100">
+                            <Tooltip title="Edit resource"><Button shape="circle" size="small" icon={<EditOutlined className="text-xs" />} onClick={(event) => { event.stopPropagation(); handleEdit(item); }} className="!border-white/70 !bg-white/95 shadow-sm hover:!border-blue-200 hover:!bg-blue-50" /></Tooltip>
+                            <Tooltip title="Delete resource"><Button shape="circle" size="small" icon={<DeleteOutlined className="text-xs" />} danger onClick={(event) => { event.stopPropagation(); setItemToDelete(item.id); setDeleteModalVisible(true); }} className="!border-white/70 !bg-white/95 shadow-sm hover:!bg-red-50" /></Tooltip>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex min-h-[230px] flex-col p-5">
+                        <h3 className="line-clamp-2 text-lg font-bold leading-snug text-gray-950">{item.title}</h3>
+                        <p className="mt-2 line-clamp-2 min-h-[40px] text-sm leading-5 text-gray-600">{item.description || "No description provided yet."}</p>
+                        {parseTags(item.tags)?.length > 0 && <div className="mb-4 mt-4 flex flex-wrap gap-2">{parseTags(item.tags).slice(0, 4).map((tag) => <Tag key={`${item.id}-${tag}`} className="m-0 rounded-full border-emerald-100 bg-emerald-50 text-emerald-700">#{tag}</Tag>)}</div>}
+                        <div className="mt-auto space-y-4">
+                          <div className="flex flex-wrap gap-2"><Tag color={getCategoryColor(item.library_categories_id)} className="m-0 rounded-full px-3 py-1">{getCategoryName(item.library_categories_id)}</Tag><Tag className="m-0 rounded-full border-sky-100 bg-sky-50 px-3 py-1 text-sky-700">{item.size || "N/A"}</Tag></div>
+                          <div className="flex items-center justify-between border-t border-gray-100 pt-3"><span className="text-xs text-gray-400">{item.updated_at ? new Date(item.updated_at).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "N/A"}</span><span className="inline-flex items-center gap-1 rounded-full bg-gray-900 px-3 py-1 text-xs font-semibold text-white transition group-hover:bg-emerald-600">Open <Link2 className="h-3 w-3" /></span></div>
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </main>
+        </section>
       </Space>
+
 
       <UploadResourceModal
         open={isUploadModalOpen}
@@ -882,7 +801,7 @@ export default function LibraryPage() {
           {debugError ? JSON.stringify(debugError, null, 2) : ""}
         </pre>
       </Modal>
-      {/* ── Approvals drawer ─────────────────────────────────────────────── */}
+      {/* ΓöÇΓöÇ Approvals drawer ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
       {isSchoolAdmin && (
         <Drawer
           title={
