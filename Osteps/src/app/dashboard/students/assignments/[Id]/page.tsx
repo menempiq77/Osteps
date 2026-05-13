@@ -256,14 +256,20 @@ export default function AssignmentDetailPage() {
 
                     {task.file_path && (
                       <div className="mt-3">
-                        <a
-                          href={`${IMG_BASE_URL}/storage/${task.file_path}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-800 text-sm font-medium inline-flex items-center"
-                        >
-                          Attached document
-                        </a>
+                        {String(task.task_type || "").toLowerCase() === "pdf" ? (
+                          <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700">
+                            PDF opens inside OSTEPS only
+                          </span>
+                        ) : (
+                          <a
+                            href={`${IMG_BASE_URL}/storage/${task.file_path}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 text-sm font-medium inline-flex items-center"
+                          >
+                            Attached document
+                          </a>
+                        )}
                       </div>
                     )}
 
@@ -392,7 +398,7 @@ export default function AssignmentDetailPage() {
                   {task?.task_type === "url" ? (
                     <Button
                       type="default"
-                      className={`flex items-center gap-1 !bg-primary !border-primary !text-white`}
+                      className="flex items-center gap-1 !bg-[#16a34a] !border-[#16a34a] !text-white hover:!bg-[#15803d] hover:!border-[#15803d] disabled:!bg-gray-200 disabled:!border-gray-200 disabled:!text-gray-500"
                       onClick={() => handleMarkAsComplete(task)}
                       disabled={task.status === "completed"}
                     >
@@ -414,7 +420,7 @@ export default function AssignmentDetailPage() {
                   ) : (
                     <Button
                       type="default"
-                      className={`flex items-center gap-1 !bg-primary !border-primary !text-white`}
+                      className="flex items-center gap-1 !bg-[#16a34a] !border-[#16a34a] !text-white hover:!bg-[#15803d] hover:!border-[#15803d] disabled:!bg-gray-200 disabled:!border-gray-200 disabled:!text-gray-500"
                       onClick={() => handleOpenDrawer(task)}
                       disabled={task.status === "completed"}
                     >

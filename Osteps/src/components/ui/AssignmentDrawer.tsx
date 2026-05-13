@@ -85,6 +85,8 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
     selectedTask?.exam_mode && selectedTask?.task_type === "pdf" && selectedTask?.file_path
   );
 
+  const studentPrimaryButtonClass = "!bg-[#16a34a] !border-[#16a34a] !text-white hover:!bg-[#15803d] hover:!border-[#15803d] disabled:!bg-gray-200 disabled:!border-gray-200 disabled:!text-gray-500";
+
   const normalizeWholeMark = (value: unknown, maxMark?: number) => {
     const parsed = Number(value);
     if (!Number.isFinite(parsed)) return null;
@@ -335,7 +337,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
           {examWindow.state === "open" ? (
             <Button
               type="primary"
-              className="!bg-primary !border-primary"
+              className={studentPrimaryButtonClass}
               onClick={() => void handleOpenOnlinePdf()}
             >
               {selectedTask.status === "completed" ? "Continue exam" : "Start exam"}
@@ -366,7 +368,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
             </p>
             <Button
               type="primary"
-              className="!bg-primary !border-primary"
+              className={studentPrimaryButtonClass}
               href={buildOnlinePdfHref()}
             >
               Answer on PDF online
@@ -429,7 +431,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
                 type="primary"
                 onClick={() => form.submit()}
                 loading={isSubmitting}
-                className="w-full !bg-primary !border-primary"
+                className={`w-full ${studentPrimaryButtonClass}`}
               >
                 {selectedTask?.status === "completed"
                   ? "Update Submission"
