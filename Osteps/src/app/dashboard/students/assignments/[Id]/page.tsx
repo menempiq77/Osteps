@@ -34,6 +34,11 @@ interface CurrentUser {
   student?: string;
 }
 
+const getWholeMark = (value: unknown) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.trunc(parsed) : 0;
+};
+
 export default function AssignmentDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -74,7 +79,9 @@ export default function AssignmentDetailPage() {
           return {
             ...task,
             status: studentTask?.status || "not-started",
-            self_assessment_marks: studentTask?.self_assessment_mark || 0,
+            self_assessment_marks: getWholeMark(
+              studentTask?.self_assessment_mark
+            ),
             additional_notes: studentTask?.additional_notes || "",
             teacher_assessment_marks:
               studentTask?.teacher_assessment_score || 0,
@@ -303,8 +310,8 @@ export default function AssignmentDetailPage() {
                                   Self Assessment:
                                 </span>
                                 <span className="ml-2 font-medium">
-                                  {task?.self_assessment_marks || 0} /{" "}
-                                  {task?.allocated_marks || 0}
+                                  {getWholeMark(task?.self_assessment_marks)} /{" "}
+                                  {getWholeMark(task?.allocated_marks)}
                                 </span>
                               </div>
                               <div className="text-gray-300">|</div>

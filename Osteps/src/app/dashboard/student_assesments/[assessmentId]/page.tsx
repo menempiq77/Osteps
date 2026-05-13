@@ -43,6 +43,18 @@ interface StudentAssessmentTask {
   teacher_assessment_marks?: string;
 }
 
+const getWholeMark = (value: unknown) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.trunc(parsed) : 0;
+};
+
+const getMarkWidth = (value: unknown, maxValue: unknown) => {
+  const safeMaxValue = getWholeMark(maxValue);
+  if (safeMaxValue <= 0) return 0;
+
+  return Math.min(100, Math.max(0, (getWholeMark(value) / safeMaxValue) * 100));
+};
+
 export default function AssessmentDrawer() {
   const router = useRouter();
   const params = useParams();
@@ -288,19 +300,18 @@ export default function AssessmentDrawer() {
                           SELF
                         </span>
                         <span className="text-xs font-medium text-blue-700">
-                          {task?.self_assessment_mark}/
-                          {task?.task?.allocated_marks}
+                          {getWholeMark(task?.self_assessment_mark)}/
+                          {getWholeMark(task?.task?.allocated_marks)}
                         </span>
                       </div>
                       <div className="w-full bg-blue-100 rounded-full h-1.5">
                         <div
                           className="bg-blue-500 h-1.5 rounded-full"
                           style={{
-                            width: `${
-                              (parseInt(task?.self_assessment_mark || "0") /
-                                parseInt(task?.task?.allocated_marks)) *
-                              100
-                            }%`,
+                            width: `${getMarkWidth(
+                              task?.self_assessment_mark,
+                              task?.task?.allocated_marks
+                            )}%`,
                           }}
                         ></div>
                       </div>
