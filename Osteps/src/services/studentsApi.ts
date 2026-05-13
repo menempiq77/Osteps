@@ -18,9 +18,18 @@ api.interceptors.request.use((config) => {
 });
 
 // fetch Students
-export const fetchStudents = async (classId: string | number) => {
+export const fetchStudents = async (
+  classId: string | number,
+  subjectId?: number | null,
+  subjectClassId?: string | number | null
+) => {
   const response = await api.get(`/get-student/${classId}`, {
-    params: withSubjectQuery({}),
+    params: {
+      ...withSubjectQuery({}, subjectId),
+      ...(subjectClassId != null && String(subjectClassId).trim() !== ""
+        ? { subject_class_id: subjectClassId }
+        : {}),
+    },
   });
   return response.data.data;
 };
@@ -99,9 +108,12 @@ export const deleteStudent = async (id: string | number) => {
 export default api;
 
 // fetch Students profile data
-export const fetchStudentProfileData = async (studentId: string | number) => {
+export const fetchStudentProfileData = async (
+  studentId: string | number,
+  subjectId?: number | null
+) => {
   const response = await api.get(`/get-studentProfile/${studentId}`, {
-    params: withSubjectQuery({}),
+    params: withSubjectQuery({}, subjectId),
   });
   return response.data.data;
 };

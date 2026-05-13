@@ -59,6 +59,19 @@ export const submitTaskQuizByStudent = async (quizId: number, studentId: number,
   return response.data;
 };
 
+export const updateQuizSubmissionTeacherMark = async (
+  submissionId: number,
+  teacherAssessmentMark: number
+) => {
+  const response = await api.post(
+    `/quiz-submission/${submissionId}/teacher-mark`,
+    {
+      teacher_assessment_mark: teacherAssessmentMark,
+    }
+  );
+  return response.data;
+};
+
 export const fetchSubmittedQuizDetails = async (quizId: number, studentId: number, type: string) => {
   const response = await api.get(`/get-SubmittedQuizDetails/${quizId}/${studentId}/${type}`);
   return response.data.data;
