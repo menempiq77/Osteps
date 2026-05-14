@@ -161,12 +161,13 @@ export default function ReportsPage() {
   const isTeacher = currentUser?.role === "TEACHER";
   const isStudent = currentUser?.role === "STUDENT";
   const schoolId = currentUser?.school;
+  const subjectsList = asArray<any>(subjects);
   const scopedSubjectId = selectedSubjectFilter === "all" ? undefined : Number(selectedSubjectFilter);
   const selectedSubjectName =
     selectedSubjectFilter === "all"
       ? "All Subjects"
       : String(
-          subjects.find((subject) => String(subject.id) === String(selectedSubjectFilter))?.name ||
+          subjectsList.find((subject) => String(subject.id) === String(selectedSubjectFilter))?.name ||
             "Subject"
         ).trim();
 
@@ -188,7 +189,7 @@ export default function ReportsPage() {
     const loadGrades = async (schoolId: string) => {
       try {
         const data = await fetchGrades(schoolId);
-        const sortedGrades = [...data].sort(
+        const sortedGrades = asArray<Grade>(data).sort(
           (a, b) => parseInt(b.min_percentage) - parseInt(a.min_percentage)
         );
         setGrades(sortedGrades);
@@ -197,6 +198,7 @@ export default function ReportsPage() {
         console.error(err);
       }
     };
+    if (!schoolId) return;
     loadGrades(schoolId);
   }, [schoolId]);
 
@@ -275,8 +277,8 @@ export default function ReportsPage() {
           );
         } else if (isSchoolAdmin) {
           const adminData = await fetchAllYearClasses();
-          response = adminData.school_classs.map((cls: any) => {
-            const year = adminData.years.find((y: any) => y.id === cls.year_id);
+          response = asArray<any>(adminData?.school_classs).map((cls: any) => {
+            const year = asArray<any>(adminData?.years).find((y: any) => y.id === cls.year_id);
             return {
               id: cls.id,
               subject: "",
@@ -305,27 +307,35 @@ export default function ReportsPage() {
           fetchReportAssessments(schoolId, scopedSubjectId),
         ]);
 
-        setAssignedClasses(response);
-        setWholeAssesmentData(assessmentResponse);
-        setAssesmentData(reportData);
+        const safeAssignedClasses = asArray<AssignedClass>(response).filter(
+          (item) => item?.classes?.id != null && item?.classes?.year?.id != null
+        );
+        const safeAssessmentResponse = asArray<Assessment>(assessmentResponse).map((assessment) => ({
+          ...assessment,
+          tasks: asArray<Task>(assessment?.tasks),
+        }));
 
-        if (response?.length > 0) {
+        setAssignedClasses(safeAssignedClasses);
+        setWholeAssesmentData(safeAssessmentResponse);
+        setAssesmentData(asArray(reportData));
+
+        if (safeAssignedClasses.length > 0) {
           if (urlClassId && applyUrlFilter) {
-            const matchedClass = response.find(
+            const matchedClass = safeAssignedClasses.find(
               (item) => item.classes.id.toString() === urlClassId
             );
             if (matchedClass) {
               setSelectedClass(matchedClass.classes.id.toString());
               setSelectedYear(matchedClass.classes.year.id.toString());
             } else {
-              const firstYear = response[0]?.classes?.year;
-              const firstClass = response[0]?.classes;
+              const firstYear = safeAssignedClasses[0]?.classes?.year;
+              const firstClass = safeAssignedClasses[0]?.classes;
               setSelectedYear(firstYear?.id?.toString());
               setSelectedClass(firstClass?.id?.toString());
             }
           } else {
-            const firstYear = response[0]?.classes?.year;
-            const firstClass = response[0]?.classes;
+            const firstYear = safeAssignedClasses[0]?.classes?.year;
+            const firstClass = safeAssignedClasses[0]?.classes;
             setSelectedYear(firstYear?.id?.toString());
             setSelectedClass(firstClass?.id?.toString());
           }
@@ -359,16 +369,19 @@ export default function ReportsPage() {
 
   // assignedClasses is now already subject-filtered (narrowed in the fetch effect above)
   const effectiveAssignedClasses = assignedClasses;
+  const safeAssignedClassesForView = asArray<AssignedClass>(effectiveAssignedClasses).filter(
+    (item) => item?.classes?.id != null && item?.classes?.year?.id != null
+  );
 
   const uniqueYearIds = classesReady
-    ? [...new Set(effectiveAssignedClasses.map(item => item.classes.year.id))]
+    ? [...new Set(safeAssignedClassesForView.map(item => item.classes.year.id))]
     : [];
   const years = uniqueYearIds.map(id => {
-    const item = effectiveAssignedClasses.find(item => item.classes.year.id === id);
+    const item = safeAssignedClassesForView.find(item => item.classes.year.id === id);
     return { id: item!.classes.year.id, name: item!.classes.year.name };
   });
 
-  const classes = effectiveAssignedClasses
+  const classes = safeAssignedClassesForView
     .filter(item => !selectedYear || item.classes.year.id.toString() === selectedYear)
     .map(item => ({ id: item.classes.id, name: item.classes.class_name }));
 
@@ -406,7 +419,7 @@ export default function ReportsPage() {
     filteredAssessments.forEach((assessment) => {
       const term = extractTerm(assessment.assessment_name);
       if (selectedTerm !== "all" && term !== selectedTerm) return;
-      assessment.tasks.forEach((task) => {
+      asArray<Task>(assessment.tasks).forEach((task) => {
         if (!seenTaskIds.has(task.task_id)) {
           seenTaskIds.add(task.task_id);
           allTaskColumns.push({
@@ -430,7 +443,7 @@ export default function ReportsPage() {
       const term = extractTerm(assessment.assessment_name);
       if (selectedTerm !== "all" && term !== selectedTerm) return;
 
-      assessment.tasks.forEach((task) => {
+      asArray<Task>(assessment.tasks).forEach((task) => {
         asArray<any>(task.submitted).forEach((submission: any) => {
           if (!studentsMap.has(submission.student_id)) {
             studentsMap.set(submission.student_id, { student_name: submission.student_name, taskMarks: new Map() });
@@ -513,7 +526,8 @@ export default function ReportsPage() {
 
   // Filter by search term AND URL student ID (only if applyUrlFilter is true)
   const filteredData = transformedData?.filter((student) => {
-    const matchesSearch = student?.student?.toLowerCase()?.includes(searchTerm?.toLowerCase());
+    const studentName = String(student?.student ?? "").toLowerCase();
+    const matchesSearch = studentName.includes(searchTerm.toLowerCase());
     const studentScopeMatch = !isStudent || String(student?.student_id) === String(currentUser?.student);
     
     // Only filter by URL student ID if we're still applying the URL filter
@@ -724,7 +738,7 @@ export default function ReportsPage() {
                   placeholder="Select Subject"
                 >
                   <Select.Option value="all">All Subjects</Select.Option>
-                  {subjects.map((subject) => (
+                  {subjectsList.map((subject) => (
                     <Select.Option key={subject.id} value={String(subject.id)}>
                       {subject.name}
                     </Select.Option>
