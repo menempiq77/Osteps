@@ -27,11 +27,15 @@ interface Task {
   assessment_id: number;
   teacher_assessment_marks: number | null;
   allocated_marks: string;
+  class_id?: number;
+  class_name?: string;
   task_type?: string;
   quiz_id?: number;
   submitted?: Array<{
     student_id: number;
     student_name: string;
+    class_id?: number;
+    class_name?: string;
     teacher_assessment_marks: number | null;
     mind_points?: number;
     submission_id?: number;
@@ -39,6 +43,8 @@ interface Task {
   not_submitted?: Array<{
     student_id: number;
     student_name: string;
+    class_id?: number;
+    class_name?: string;
     mind_points?: number;
   }>;
 }
@@ -46,6 +52,7 @@ interface Assessment {
   assessment_id: number;
   assessment_name: string;
   class_id: number;
+  class_name?: string;
   term_id: number;
   year_id: number;
   tasks: Task[];
@@ -144,9 +151,9 @@ export default function ReportsPage() {
   const [selectedTerm, setSelectedTerm] = useState<string>("all");
 
   // Inline mark editing
-  const [editingCell, setEditingCell] = useState<{ studentId: number; taskId: number } | null>(null);
+  const [editingCell, setEditingCell] = useState<{ studentId: number; taskKey: string } | null>(null);
   const [editingValue, setEditingValue] = useState<string>("");
-  const [savingCell, setSavingCell] = useState<{ studentId: number; taskId: number } | null>(null);
+  const [savingCell, setSavingCell] = useState<{ studentId: number; taskKey: string } | null>(null);
   const [localMarkOverrides, setLocalMarkOverrides] = useState<Record<string, number>>({});
 
   // Rename column (task)
@@ -401,14 +408,16 @@ export default function ReportsPage() {
     };
 
     // Build flat list of tasks across all assessments, filtered by selected term
-    const allTaskColumns: { taskId: number; taskName: string; allocatedMarks: number; term: string; assessmentId: number; taskType: string }[] = [];
-    const seenTaskIds = new Set<number>();
+    const allTaskColumns: { taskId: number; taskName: string; allocatedMarks: number; term: string; assessmentId: number; taskType: string; classId?: number; className?: string }[] = [];
+    const seenTaskKeys = new Set<string>();
     filteredAssessments.forEach((assessment) => {
       const term = extractTerm(assessment.assessment_name);
       if (selectedTerm !== "all" && term !== selectedTerm) return;
       assessment.tasks.forEach((task) => {
-        if (!seenTaskIds.has(task.task_id)) {
-          seenTaskIds.add(task.task_id);
+        const taskClassId = Number(task.class_id ?? assessment.class_id ?? 0) || undefined;
+        const taskKey = `${task.task_id}:${taskClassId ?? "all"}`;
+        if (!seenTaskKeys.has(taskKey)) {
+          seenTaskKeys.add(taskKey);
           allTaskColumns.push({
             taskId: task.task_id,
             taskName: task.task_name,
@@ -416,42 +425,57 @@ export default function ReportsPage() {
             term,
             assessmentId: assessment.assessment_id,
             taskType: task.task_type ?? 'task',
+            classId: taskClassId,
+            className: task.class_name ?? assessment.class_name,
           });
         }
       });
     });
 
-    const maxPossibleTotal = allTaskColumns.reduce((s, c) => s + c.allocatedMarks, 0);
-
     // Build student rows: one entry per student, keyed by student_id
-    const studentsMap = new Map<number, { student_name: string; taskMarks: Map<number, { marks: number; allocated: number; submitted: boolean; submissionId?: number }> }>();
+    const studentsMap = new Map<number, { student_name: string; class_id?: number; class_name?: string; taskMarks: Map<string, { marks: number; allocated: number; submitted: boolean; submissionId?: number; classId?: number }> }>();
 
     filteredAssessments.forEach((assessment) => {
       const term = extractTerm(assessment.assessment_name);
       if (selectedTerm !== "all" && term !== selectedTerm) return;
+      const assessmentClassId = Number(assessment.class_id ?? 0) || undefined;
 
       assessment.tasks.forEach((task) => {
+        const taskClassId = Number(task.class_id ?? assessmentClassId ?? 0) || undefined;
+        const taskKey = `${task.task_id}:${taskClassId ?? "all"}`;
         asArray<any>(task.submitted).forEach((submission: any) => {
           if (!studentsMap.has(submission.student_id)) {
-            studentsMap.set(submission.student_id, { student_name: submission.student_name, taskMarks: new Map() });
+            studentsMap.set(submission.student_id, {
+              student_name: submission.student_name,
+              class_id: Number(submission.class_id ?? taskClassId ?? assessmentClassId ?? 0) || undefined,
+              class_name: submission.class_name ?? task.class_name ?? assessment.class_name,
+              taskMarks: new Map(),
+            });
           }
-          studentsMap.get(submission.student_id)!.taskMarks.set(task.task_id, {
+          studentsMap.get(submission.student_id)!.taskMarks.set(taskKey, {
             marks: Number(submission.teacher_assessment_marks ?? 0),
             allocated: Number(task.allocated_marks),
             submitted: true,
             submissionId: submission.submission_id ?? undefined,
+            classId: taskClassId,
           });
         });
 
         asArray<any>(task.not_submitted).forEach((student: any) => {
           if (!studentsMap.has(student.student_id)) {
-            studentsMap.set(student.student_id, { student_name: student.student_name, taskMarks: new Map() });
+            studentsMap.set(student.student_id, {
+              student_name: student.student_name,
+              class_id: Number(student.class_id ?? taskClassId ?? assessmentClassId ?? 0) || undefined,
+              class_name: student.class_name ?? task.class_name ?? assessment.class_name,
+              taskMarks: new Map(),
+            });
           }
-          if (!studentsMap.get(student.student_id)!.taskMarks.has(task.task_id)) {
-            studentsMap.get(student.student_id)!.taskMarks.set(task.task_id, {
+          if (!studentsMap.get(student.student_id)!.taskMarks.has(taskKey)) {
+            studentsMap.get(student.student_id)!.taskMarks.set(taskKey, {
               marks: 0,
               allocated: Number(task.allocated_marks),
               submitted: false,
+              classId: taskClassId,
             });
           }
         });
@@ -460,15 +484,21 @@ export default function ReportsPage() {
 
     const students = Array.from(studentsMap.entries()).map(([studentId, studentData]) => {
       let total = 0;
-      const taskMarks: Record<number, { marks: number; allocated: number; submitted: boolean; submissionId?: number }> = {};
+      const taskMarks: Record<string, { marks: number; allocated: number; submitted: boolean; submissionId?: number; classId?: number }> = {};
 
       allTaskColumns.forEach((col) => {
-        const mark = studentData.taskMarks.get(col.taskId);
+        const columnKey = `${col.taskId}:${col.classId ?? "all"}`;
+        const mark = studentData.taskMarks.get(columnKey);
         if (mark) {
-          taskMarks[col.taskId] = mark;
+          taskMarks[columnKey] = mark;
           if (mark.submitted) total += mark.marks;
         }
       });
+
+      const maxPossibleTotal = Array.from(studentData.taskMarks.values()).reduce(
+        (sum, mark) => sum + Number(mark.allocated || 0),
+        0
+      );
 
       const percentage = maxPossibleTotal > 0 ? (total / maxPossibleTotal) * 100 : 0;
       const courseGrade = grades?.find(
@@ -478,6 +508,8 @@ export default function ReportsPage() {
       return {
         student_id: studentId,
         student: studentData.student_name,
+        class_id: studentData.class_id,
+        class_name: studentData.class_name,
         taskMarks,
         total,
         maxPossibleTotal,
@@ -558,7 +590,7 @@ export default function ReportsPage() {
   };
 
   const handleClassChange = (value: string) => {
-    setSelectedClass(value);
+    setSelectedClass(value === "all" ? null : value);
     if (applyUrlFilter && (urlClassId || urlStudentId)) {
       handleClearUrlFilter();
     }
@@ -574,25 +606,25 @@ export default function ReportsPage() {
 
   const getEffectiveMark = (
     studentId: number,
-    taskId: number,
-    mark: { marks: number; allocated: number; submitted: boolean } | undefined
+    taskKey: string,
+    mark: { marks: number; allocated: number; submitted: boolean; classId?: number } | undefined
   ) => {
-    const key = `${studentId}_${taskId}`;
+    const key = `${studentId}_${taskKey}`;
     if (localMarkOverrides[key] !== undefined) {
       return { marks: localMarkOverrides[key], submitted: true };
     }
     return mark;
   };
 
-  const startEditing = (studentId: number, taskId: number, currentMark: number | null) => {
+  const startEditing = (studentId: number, taskKey: string, currentMark: number | null) => {
     if (!canEdit) return;
-    setEditingCell({ studentId, taskId });
+    setEditingCell({ studentId, taskKey });
     setEditingValue(currentMark !== null ? String(currentMark) : "");
   };
 
   const commitEdit = async (
     studentId: number,
-    col: { taskId: number; assessmentId: number; allocatedMarks: number; taskType: string }
+    col: { taskId: number; assessmentId: number; allocatedMarks: number; taskType: string; classId?: number }
   ) => {
     const valStr = editingValue.trim();
     setEditingCell(null);
@@ -600,16 +632,17 @@ export default function ReportsPage() {
     const val = Number(valStr);
     if (isNaN(val) || val < 0 || val > col.allocatedMarks) return;
 
-    const overrideKey = `${studentId}_${col.taskId}`;
+    const columnKey = `${col.taskId}:${col.classId ?? "all"}`;
+    const overrideKey = `${studentId}_${columnKey}`;
     const hadPreviousOverride = Object.prototype.hasOwnProperty.call(localMarkOverrides, overrideKey);
     const previousOverride = localMarkOverrides[overrideKey];
 
     setLocalMarkOverrides((prev) => ({ ...prev, [overrideKey]: val }));
-    setSavingCell({ studentId, taskId: col.taskId });
+    setSavingCell({ studentId, taskKey: columnKey });
     try {
       if (col.taskType === 'quiz') {
         const student = transformedData.find((s) => s.student_id === studentId);
-        const submissionId = student?.taskMarks[col.taskId]?.submissionId;
+        const submissionId = student?.taskMarks[columnKey]?.submissionId;
         if (submissionId) {
           await updateQuizSubmissionTeacherMark(submissionId, val);
         }
@@ -751,15 +784,18 @@ export default function ReportsPage() {
               />
 
               <Select
-                value={selectedClass}
+                value={selectedClass ?? "all"}
                 onChange={handleClassChange}
                 style={{ width: 200 }}
                 placeholder="Select Class"
                 disabled={!selectedYear}
-                options={classes?.map((cls) => ({
-                  value: cls.id?.toString(),
-                  label: cls.name,
-                }))}
+                options={[
+                  { value: "all", label: "All classes" },
+                  ...(classes?.map((cls) => ({
+                    value: cls.id?.toString(),
+                    label: cls.name,
+                  })) ?? []),
+                ]}
               />
             </div>
 
@@ -833,7 +869,7 @@ export default function ReportsPage() {
                   </th>
                   {taskColumns.map((col) => (
                     <th
-                      key={col.taskId}
+                      key={`${col.taskId}:${col.classId ?? "all"}`}
                       className="w-14 px-1 py-2 border border-gray-300 text-center text-xs font-medium text-gray-600 uppercase tracking-wider group"
                       style={{
                         writingMode: "vertical-rl",
@@ -876,6 +912,9 @@ export default function ReportsPage() {
                           )}
                         </span>
                       )}
+                      {!selectedClass && col.className && (
+                        <span className="block text-blue-500 normal-case font-normal">{col.className}</span>
+                      )}
                       <span className="block text-gray-400 normal-case font-normal">/{col.allocatedMarks}</span>
                     </th>
                   ))}
@@ -906,7 +945,8 @@ export default function ReportsPage() {
                     // Compute effective total using local overrides
                     let effectiveTotal = 0;
                     taskColumns.forEach((col) => {
-                      const eff = getEffectiveMark(student.student_id, col.taskId, student.taskMarks[col.taskId]);
+                      const columnKey = `${col.taskId}:${col.classId ?? "all"}`;
+                      const eff = getEffectiveMark(student.student_id, columnKey, student.taskMarks[columnKey]);
                       if (eff?.submitted) effectiveTotal += eff.marks;
                     });
                     const maxPoss = student.maxPossibleTotal;
@@ -922,28 +962,32 @@ export default function ReportsPage() {
                       <tr key={index} className="hover:bg-gray-50">
                         <td className="px-2 py-2 border border-gray-300 whitespace-nowrap text-sm font-medium text-gray-900 sticky left-0 bg-white z-10">
                           {student.student}
+                          {!selectedClass && student.class_name && (
+                            <span className="block text-xs font-normal text-blue-500">{student.class_name}</span>
+                          )}
                         </td>
 
                         {/* Editable task mark cells */}
                         {taskColumns.map((col) => {
-                          const eff = getEffectiveMark(student.student_id, col.taskId, student.taskMarks[col.taskId]);
+                          const columnKey = `${col.taskId}:${col.classId ?? "all"}`;
+                          const eff = getEffectiveMark(student.student_id, columnKey, student.taskMarks[columnKey]);
                           const isEditing =
                             editingCell?.studentId === student.student_id &&
-                            editingCell?.taskId === col.taskId;
+                            editingCell?.taskKey === columnKey;
                           const isSaving =
                             savingCell?.studentId === student.student_id &&
-                            savingCell?.taskId === col.taskId;
+                            savingCell?.taskKey === columnKey;
                           const currentMark = eff?.submitted ? eff.marks : null;
 
                           return (
                             <td
-                              key={col.taskId}
+                              key={columnKey}
                               className={`border border-gray-300 text-sm text-center relative ${
                                 canEdit && !isSaving ? "cursor-pointer hover:bg-yellow-50" : ""
                               } ${isEditing ? "bg-yellow-50 ring-2 ring-yellow-400 ring-inset" : ""}`}
                               style={{ minWidth: "3rem", padding: 0 }}
                               onClick={() => {
-                                if (!isEditing && !isSaving) startEditing(student.student_id, col.taskId, currentMark);
+                                if (!isEditing && !isSaving) startEditing(student.student_id, columnKey, currentMark);
                               }}
                             >
                               {isEditing ? (
