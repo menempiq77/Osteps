@@ -328,16 +328,12 @@ export default function ReportsPage() {
               setSelectedClass(matchedClass.classes.id.toString());
               setSelectedYear(matchedClass.classes.year.id.toString());
             } else {
-              const firstYear = safeAssignedClasses[0]?.classes?.year;
-              const firstClass = safeAssignedClasses[0]?.classes;
-              setSelectedYear(firstYear?.id?.toString());
-              setSelectedClass(firstClass?.id?.toString());
+              setSelectedYear(null);
+              setSelectedClass(null);
             }
           } else {
-            const firstYear = safeAssignedClasses[0]?.classes?.year;
-            const firstClass = safeAssignedClasses[0]?.classes;
-            setSelectedYear(firstYear?.id?.toString());
-            setSelectedClass(firstClass?.id?.toString());
+            setSelectedYear(null);
+            setSelectedClass(null);
           }
         } else {
           setSelectedYear(null);
@@ -572,7 +568,7 @@ export default function ReportsPage() {
   };
 
   const handleClassChange = (value: string) => {
-    setSelectedClass(value);
+    setSelectedClass(value === "all" ? null : value);
     if (applyUrlFilter && (urlClassId || urlStudentId)) {
       handleClearUrlFilter();
     }
@@ -765,15 +761,18 @@ export default function ReportsPage() {
               />
 
               <Select
-                value={selectedClass}
+                value={selectedClass ?? "all"}
                 onChange={handleClassChange}
                 style={{ width: 200 }}
                 placeholder="Select Class"
-                disabled={!selectedYear}
-                options={classes?.map((cls) => ({
-                  value: cls.id?.toString(),
-                  label: cls.name,
-                }))}
+                disabled={!selectedYear && classes.length === 0}
+                options={[
+                  { value: "all", label: "All Classes" },
+                  ...classes?.map((cls) => ({
+                    value: cls.id?.toString(),
+                    label: cls.name,
+                  })),
+                ]}
               />
             </div>
 
