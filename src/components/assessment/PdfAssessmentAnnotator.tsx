@@ -41,6 +41,7 @@ type EditingText = {
   y: number;
   value: string;
   fontSize: number;
+  width: number;
 };
 
 type DraggingText = {
@@ -51,6 +52,13 @@ type DraggingText = {
   originY: number;
   x: number;
   y: number;
+};
+
+type ResizingText = {
+  id?: string;
+  startClientX: number;
+  originWidth: number;
+  width: number;
 };
 
 type ExamExitContext = "fullscreen" | "screen" | "leave";
@@ -118,7 +126,9 @@ const AI_PAGE_IMAGE_MAX_WIDTH = 1200;
 const AI_PAGE_IMAGE_JPEG_QUALITY = 0.68;
 const ERASER_RADIUS = 28;
 const TEXT_ERASER_PADDING = 18;
-const TEXT_ANNOTATION_MAX_WIDTH = 360;
+const TEXT_ANNOTATION_MIN_WIDTH = 120;
+const TEXT_ANNOTATION_DEFAULT_WIDTH = 360;
+const TEXT_ANNOTATION_MAX_WIDTH = 900;
 const EXAM_EXIT_REASON_MAX_LENGTH = 500;
 const MIN_ZOOM_LEVEL = 0.5;
 const MAX_ZOOM_LEVEL = 2;
@@ -515,6 +525,7 @@ const drawWrappedText = (
 ) => {
   const text = annotation.text || "";
   if (!text.trim()) return;
+  const effectiveMaxWidth = annotation.width ?? maxWidth;
 
   const fontSize = annotation.fontSize || 16;
   const lineHeight = fontSize * 1.22;
@@ -535,7 +546,7 @@ const drawWrappedText = (
     let line = "";
     for (const word of words) {
       const testLine = line ? `${line} ${word}` : word;
-      if (context.measureText(testLine).width > maxWidth && line) {
+      if (context.measureText(testLine).width > effectiveMaxWidth && line) {
         context.fillText(line, annotation.x, y);
         line = word;
         y += lineHeight;
@@ -579,7 +590,7 @@ const textTouchesEraser = (annotation: TextAnnotation, point: { x: number; y: nu
   const height = annotation.fontSize * 1.45 * lineCount;
   return (
     point.x >= annotation.x - TEXT_ERASER_PADDING &&
-    point.x <= annotation.x + TEXT_ANNOTATION_MAX_WIDTH + TEXT_ERASER_PADDING &&
+    point.x <= annotation.x + (annotation.width ?? TEXT_ANNOTATION_DEFAULT_WIDTH) + TEXT_ERASER_PADDING &&
     point.y >= annotation.y - TEXT_ERASER_PADDING &&
     point.y <= annotation.y + height + TEXT_ERASER_PADDING
   );
@@ -647,9 +658,11 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const [teacherExamStudentInfo, setTeacherExamStudentInfo] = useState<TeacherExamStudentInfo | null>(null);
   const [activeStroke, setActiveStroke] = useState<PenAnnotation | null>(null);
   const [editingText, setEditingText] = useState<EditingText | null>(null);
+  const [resizingText, setResizingText] = useState(false);
   const examContainerRef = useRef<HTMLDivElement | null>(null);
   const activeStrokeRef = useRef<PenAnnotation | null>(null);
   const activeAnnotationsRef = useRef<AssessmentDocumentAnnotation[]>([]);
+  const resizingTextRef = useRef<ResizingText | null>(null);
   const erasingRef = useRef(false);
   const draggingTextRef = useRef<DraggingText | null>(null);
   const annotationCanvasRefs = useRef<Record<number, HTMLCanvasElement | null>>({});
@@ -763,7 +776,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const studentAnnotations = state?.studentAnnotations || [];
   const teacherAnnotations = state?.teacherAnnotations || [];
   const documentIdentityUnverified = Boolean(
-    !savedDocumentUrl && currentDocumentUrl && studentAnnotations.length > 0
+    role !== "student" && !savedDocumentUrl && currentDocumentUrl && studentAnnotations.length > 0
   );
   const editable = role === "teacher" || (!studentLocked && !examEditingLocked && !documentIdentityUnverified);
   const oppositeLayer = role === "teacher" ? "student" : "teacher";
@@ -771,7 +784,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const documentReadyForCurrentStudent = documentLoaded && loadedDocumentKey === documentLoadKey;
   const safeReturnTo = sanitizeReturnToPath(returnTo);
   const zoomPercent = Math.round(zoomLevel * 100);
-  const canOpenOriginalFile = !(role === "student" && examWindow.examMode);
+  const canOpenOriginalFile = role !== "student";
   const displayStudentName = currentStudentName || teacherExamStudentInfo?.studentName || "Selected student";
   const canDownloadSubmittedPaper = role === "teacher" && documentLoaded && (studentLocked || state?.status === "submitted" || state?.status === "marked");
   const hasReadableStudentAnnotation = studentAnnotations.some(
@@ -1329,7 +1342,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
     const recordScreenshotAttempt = (reason: string) => {
       setScreenshotWarningVisible(true);
-      messageApi.warning("Screenshots/printing are not allowed during exam mode. This attempt has been recorded.");
+      messageApi.warning("Screenshots, printing, saving, and downloading are not allowed during exam mode. This attempt has been recorded.");
       if (navigator.clipboard?.writeText) {
         navigator.clipboard
           .writeText("Screenshots are not allowed during this OSTEPS exam.")
@@ -1344,14 +1357,20 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       const key = String(event.key || "").toLowerCase();
       const printScreenAttempt = key === "printscreen" || key === "print screen";
       const printAttempt = (event.ctrlKey || event.metaKey) && key === "p";
+      const saveAttempt = (event.ctrlKey || event.metaKey) && key === "s";
+      const downloadAttempt = (event.ctrlKey || event.metaKey) && (key === "d" || key === "j");
 
-      if (!printScreenAttempt && !printAttempt) return;
+      if (!printScreenAttempt && !printAttempt && !saveAttempt && !downloadAttempt) return;
 
       event.preventDefault();
       event.stopPropagation();
       recordScreenshotAttempt(
         printAttempt
           ? "Print attempt detected during exam mode."
+          : saveAttempt
+          ? "Save/download attempt detected during exam mode."
+          : downloadAttempt
+          ? "Download shortcut attempt detected during exam mode."
           : "Screenshot attempt detected during exam mode."
       );
     };
@@ -1360,11 +1379,19 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       recordScreenshotAttempt("Print/screenshot attempt detected during exam mode.");
     };
 
+    const handleContextMenu = (event: MouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      recordScreenshotAttempt("Right-click/download menu attempt detected during exam mode.");
+    };
+
     window.addEventListener("keydown", handleKeyDown, true);
     window.addEventListener("beforeprint", handleBeforePrint);
+    window.addEventListener("contextmenu", handleContextMenu, true);
     return () => {
       window.removeEventListener("keydown", handleKeyDown, true);
       window.removeEventListener("beforeprint", handleBeforePrint);
+      window.removeEventListener("contextmenu", handleContextMenu, true);
     };
   }, [messageApi, persistExamExitReason, shouldEnforceExamScreen]);
 
@@ -1542,8 +1569,11 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
           }
           if (Object.prototype.hasOwnProperty.call(metadata, "selfAssessmentMark")) {
             const savedSelfAssessmentMark = normalizeSelfAssessmentValue(metadata.selfAssessmentMark);
-            setSelfAssessmentMark(savedSelfAssessmentMark);
-            lastSavedSelfAssessmentRef.current = savedSelfAssessmentMark;
+            const fallbackSelfAssessmentMark = normalizeSelfAssessmentValue(initialSelfAssessmentMark);
+            const nextSelfAssessmentMark =
+              savedSelfAssessmentMark != null ? savedSelfAssessmentMark : fallbackSelfAssessmentMark;
+            setSelfAssessmentMark(nextSelfAssessmentMark);
+            lastSavedSelfAssessmentRef.current = nextSelfAssessmentMark;
           }
         }
       } catch (error) {
@@ -1557,7 +1587,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [assessmentId, taskId, studentId, messageApi, getAnnotationsSignature, oppositeLayer, role, localDraftKey, documentLoadKey, initialTeacherMarks, initialTeacherFeedback]);
+  }, [assessmentId, taskId, studentId, messageApi, getAnnotationsSignature, oppositeLayer, role, localDraftKey, documentLoadKey, initialSelfAssessmentMark, initialTeacherMarks, initialTeacherFeedback]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1999,6 +2029,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       y: point.y,
       value: "",
       fontSize: textFontSize,
+      width: TEXT_ANNOTATION_DEFAULT_WIDTH,
     });
   };
 
@@ -2018,6 +2049,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                 y: editingText.y,
                 color,
                 fontSize: editingText.fontSize,
+                width: editingText.width,
               }
             : annotation
         )
@@ -2035,6 +2067,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       text: editingText.value.trim(),
       color,
       fontSize: editingText.fontSize,
+      width: editingText.width,
     };
     setLayerAnnotations([...activeAnnotations, annotation]);
     setTextFontSize(editingText.fontSize);
@@ -2051,6 +2084,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       y: annotation.y,
       value: annotation.text,
       fontSize: annotation.fontSize,
+      width: annotation.width ?? TEXT_ANNOTATION_DEFAULT_WIDTH,
     });
   };
 
@@ -2058,6 +2092,25 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     if (!editable || !activeAnnotations.some((item) => item.id === annotation.id)) return;
     if (editingText?.id === annotation.id) setEditingText(null);
     setLayerAnnotations(activeAnnotations.filter((item) => item.id !== annotation.id));
+  };
+
+  const clampTextAnnotationWidth = (value: number) =>
+    Math.min(TEXT_ANNOTATION_MAX_WIDTH, Math.max(TEXT_ANNOTATION_MIN_WIDTH, value));
+
+  const startResizeTextAnnotation = (
+    event: React.PointerEvent<HTMLElement>,
+    annotation: TextAnnotation | EditingText
+  ) => {
+    if (!editable) return;
+    event.preventDefault();
+    event.stopPropagation();
+    resizingTextRef.current = {
+      id: annotation.id,
+      startClientX: event.clientX,
+      originWidth: annotation.width ?? TEXT_ANNOTATION_DEFAULT_WIDTH,
+      width: annotation.width ?? TEXT_ANNOTATION_DEFAULT_WIDTH,
+    };
+    setResizingText(true);
   };
 
   const handleTextPointerDown = (event: React.PointerEvent<HTMLDivElement>, annotation: TextAnnotation) => {
@@ -2117,6 +2170,58 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       )
     );
   };
+
+  useEffect(() => {
+    if (!resizingText) return;
+
+    const handleResizeMove = (event: PointerEvent) => {
+      const currentResize = resizingTextRef.current;
+      if (!currentResize) return;
+      event.preventDefault();
+      const width = clampTextAnnotationWidth(
+        currentResize.originWidth + (event.clientX - currentResize.startClientX) / zoomLevel
+      );
+      resizingTextRef.current = { ...currentResize, width };
+
+      if (!currentResize.id) {
+        setEditingText((current) => (current ? { ...current, width } : current));
+        return;
+      }
+
+      setLayerAnnotationsLocally(
+        activeAnnotationsRef.current.map((annotation) =>
+          annotation.id === currentResize.id && annotation.type === "text"
+            ? { ...annotation, width }
+            : annotation
+        )
+      );
+    };
+
+    const handleResizeEnd = () => {
+      const currentResize = resizingTextRef.current;
+      resizingTextRef.current = null;
+      setResizingText(false);
+      if (!currentResize?.id) return;
+
+      setLayerAnnotations(
+        activeAnnotationsRef.current.map((annotation) =>
+          annotation.id === currentResize.id && annotation.type === "text"
+            ? { ...annotation, width: currentResize.width }
+            : annotation
+        )
+      );
+    };
+
+    window.addEventListener("pointermove", handleResizeMove);
+    window.addEventListener("pointerup", handleResizeEnd);
+    window.addEventListener("pointercancel", handleResizeEnd);
+
+    return () => {
+      window.removeEventListener("pointermove", handleResizeMove);
+      window.removeEventListener("pointerup", handleResizeEnd);
+      window.removeEventListener("pointercancel", handleResizeEnd);
+    };
+  }, [resizingText, setLayerAnnotations, setLayerAnnotationsLocally, zoomLevel]);
 
   const undo = () => {
     if (!editable || activeAnnotations.length === 0) return;
@@ -3031,7 +3136,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
             {role === "student" ? (
               <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 pt-2">
                 <InputNumber min={0} max={maxMarks} value={selfAssessmentMark ?? undefined} onChange={(value) => setSelfAssessmentMark(value == null ? null : Number(value))} placeholder={examWindow.examMode ? "Predicted mark" : "Self mark"} disabled={!editable} className="w-32" />
-                <Button type="primary" onClick={finishStudentWork} loading={finishing} disabled={!editable}>{examWindow.examMode ? "Submit exam" : "Submit work"}</Button>
+                <Button type="primary" className="!bg-[#16a34a] !border-[#16a34a] !text-white hover:!bg-[#15803d] hover:!border-[#15803d] disabled:!bg-gray-200 disabled:!border-gray-200 disabled:!text-gray-500" onClick={finishStudentWork} loading={finishing} disabled={!editable}>{examWindow.examMode ? "Submit exam" : "Submit work"}</Button>
               </div>
             ) : (
               <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 pt-2">
@@ -3043,6 +3148,13 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                 >
                   {studentLocked ? "Open for student edits" : "Lock student editing"}
                 </Button>
+                <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-1 text-sm text-blue-700">
+                  <span className="font-medium">{examWindow.examMode ? "Predicted" : "Self"}</span>
+                  <span className="font-semibold">
+                    {selfAssessmentMark ?? "-"}
+                    {maxMarks != null ? `/${maxMarks}` : ""}
+                  </span>
+                </div>
                 <Input className="w-24" placeholder="Marks" value={teacherMarks} onChange={(event) => setTeacherMarks(event.target.value)} />
                 <Button onClick={requestAiDraftMark} loading={aiDrafting} disabled={!documentReadyForCurrentStudent || rendering}>
                   Ask AI to Mark
@@ -3164,7 +3276,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
             showIcon
             closable
             onClose={() => setScreenshotWarningVisible(false)}
-            message="Screenshots and printing are not allowed in exam mode."
+            message="Screenshots, printing, saving, and downloading are not allowed in exam mode."
             description="This attempt has been recorded for the teacher. Continue your exam in fullscreen mode."
           />
         ) : null}
@@ -3323,28 +3435,40 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                     onPointerCancel={handlePointerUp}
                   >
                     {editingText?.page === page.pageNumber && (
-                      <Input.TextArea
-                        autoFocus
-                        value={editingText.value}
-                        onChange={(event) => setEditingText({ ...editingText, value: event.target.value })}
-                        onBlur={commitEditingText}
+                      <div
+                        className="absolute z-20 rounded border border-blue-500 bg-white/95 shadow-lg"
+                        style={{ left: editingText.x, top: editingText.y, width: editingText.width }}
                         onClick={(event) => event.stopPropagation()}
                         onPointerDown={(event) => event.stopPropagation()}
-                        onKeyDown={(event) => {
-                          if (event.key === "Escape") {
-                            event.preventDefault();
-                            setEditingText(null);
-                          }
-                          if (event.key === "Enter" && !event.shiftKey) {
-                            event.preventDefault();
-                            commitEditingText();
-                          }
-                        }}
-                        placeholder="Type here"
-                        autoSize={{ minRows: 1, maxRows: 6 }}
-                        className="absolute z-20 w-72 rounded border-blue-500 bg-white/95 shadow-lg"
-                        style={{ left: editingText.x, top: editingText.y, color, fontSize: editingText.fontSize }}
-                      />
+                      >
+                        <Input.TextArea
+                          autoFocus
+                          value={editingText.value}
+                          onChange={(event) => setEditingText({ ...editingText, value: event.target.value })}
+                          onBlur={commitEditingText}
+                          onKeyDown={(event) => {
+                            if (event.key === "Escape") {
+                              event.preventDefault();
+                              setEditingText(null);
+                            }
+                            if (event.key === "Enter" && !event.shiftKey) {
+                              event.preventDefault();
+                              commitEditingText();
+                            }
+                          }}
+                          placeholder="Type here"
+                          autoSize={{ minRows: 1, maxRows: 10 }}
+                          className="!w-full rounded !border-0 bg-white/95 pr-5"
+                          style={{ color, fontSize: editingText.fontSize, resize: "none" }}
+                        />
+                        <span
+                          className="absolute bottom-0 right-0 h-5 w-5 cursor-ew-resize rounded-tl bg-blue-500/90 text-center text-[10px] leading-5 text-white shadow"
+                          title="Drag to make the text box wider"
+                          onPointerDown={(event) => startResizeTextAnnotation(event, editingText)}
+                        >
+                          ?
+                        </span>
+                      </div>
                     )}
                     {(textAnnotationsByPage.get(page.pageNumber) || []).map((annotation) => {
                         const isEditableText = editable && activeAnnotations.some((item) => item.id === annotation.id);
@@ -3353,10 +3477,11 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                         return (
                           <div
                             key={annotation.id}
-                            className="group absolute max-w-[360px] whitespace-pre-wrap rounded bg-white/70 px-1 leading-snug shadow-sm"
+                            className="group absolute whitespace-pre-wrap break-words rounded bg-white/70 px-1 pr-5 leading-snug shadow-sm"
                             style={{
                               left: annotation.x,
                               top: annotation.y,
+                              width: annotation.width ?? TEXT_ANNOTATION_DEFAULT_WIDTH,
                               color: annotation.color,
                               fontSize: annotation.fontSize,
                               cursor: isEditableText ? (tool === "eraser" ? "not-allowed" : "move") : "default",
@@ -3401,6 +3526,15 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                               </span>
                             )}
                             {annotation.text}
+                            {isEditableText && tool !== "eraser" && (
+                              <span
+                                className="absolute bottom-0 right-0 h-5 w-5 cursor-ew-resize rounded-tl bg-blue-500/90 text-center text-[10px] leading-5 text-white opacity-0 shadow transition group-hover:opacity-100"
+                                title="Drag to make the text box wider"
+                                onPointerDown={(event) => startResizeTextAnnotation(event, annotation)}
+                              >
+                                ?
+                              </span>
+                            )}
                           </div>
                         );
                       })}

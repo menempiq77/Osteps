@@ -250,25 +250,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (
-    !existingDocumentUrl &&
-    incomingDocumentUrl &&
-    layer === "student" &&
-    Array.isArray(state.studentAnnotations) &&
-    state.studentAnnotations.length > 0
-  ) {
-    return NextResponse.json(
-      {
-        message:
-          "This older saved answer has no recorded original PDF identity. Student answers were not changed. Ask an admin to verify the correct PDF before students continue.",
-        documentIdentityUnverified: true,
-        incomingDocumentFileUrl: incomingDocumentUrl,
-        state,
-      },
-      { status: 409 }
-    );
-  }
-
   if (layer === "student") {
     const incomingClientSaveId = String(payloadMetadata.clientSaveId || "").trim();
     const existingClientSaveId = String(state.metadata?.clientSaveId || "").trim();
