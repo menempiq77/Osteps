@@ -367,6 +367,41 @@ export default function AssessmentDrawer() {
     if (!stillPresent) setSelectedStudentId(null);
   }, [selectedStudentId, studentOptions]);
 
+  const getStudentNameForTask = (task: StudentAssessmentTask) =>
+    studentOptions.find(
+      (student) => Number(student.id) === Number(task.student_id)
+    )?.student_name || `Student ${task.student_id}`;
+
+  const getTaskSubmissionStats = (submissions: StudentAssessmentTask[]) => {
+    const submittedIds = new Set(
+      submissions
+        .map((task) => String(task.student_id ?? "").trim())
+        .filter(Boolean)
+    );
+    const submittedNames = studentOptions
+      .filter((student) => submittedIds.has(String(student.id)))
+      .map((student) => student.student_name);
+    const missingSubmittedNames = submissions
+      .filter(
+        (task) =>
+          !studentOptions.some(
+            (student) => Number(student.id) === Number(task.student_id)
+          )
+      )
+      .map(getStudentNameForTask);
+    const notFinishedNames = studentOptions
+      .filter((student) => !submittedIds.has(String(student.id)))
+      .map((student) => student.student_name);
+
+    return {
+      submittedCount: submittedIds.size,
+      notFinishedCount: notFinishedNames.length,
+      totalCount: studentOptions.length || submittedIds.size,
+      submittedNames: Array.from(new Set([...submittedNames, ...missingSubmittedNames])),
+      notFinishedNames,
+    };
+  };
+
   const toggleAssessment = (taskId: number) => {
     setAssessmentOpenTaskId((prev) => (prev === taskId ? null : taskId));
     // Reset form values when opening a new assessment
@@ -495,6 +530,7 @@ export default function AssessmentDrawer() {
     taskGroups.find((group) => group.key === activeTaskGroupKey) || taskGroups[0];
 
   const tasksForSelectedTask = activeTaskGroup?.submissions || [];
+  const activeTaskStats = getTaskSubmissionStats(tasksForSelectedTask);
 
   const filteredTasks = selectedStudentId
     ? tasksForSelectedTask.filter(
@@ -563,11 +599,6 @@ export default function AssessmentDrawer() {
       .replace(/\s+/g, " ")
       .trim()
       .slice(0, 120) || "student-task";
-
-  const getStudentNameForTask = (task: StudentAssessmentTask) =>
-    studentOptions.find(
-      (student) => Number(student.id) === Number(task.student_id)
-    )?.student_name || `Student ${task.student_id}`;
 
   const getSelfAssessmentMarkForTask = (task: StudentAssessmentTask) => {
     const documentMark = documentSelfAssessmentMarks[getSelfAssessmentLookupKey(task)];
@@ -772,11 +803,14 @@ export default function AssessmentDrawer() {
             items={taskGroups.map((group) => ({
               key: group.key,
               label: (
-                <span className="flex items-center gap-2">
+                <span className="flex items-center gap-2" title={`Submitted: ${getTaskSubmissionStats(group.submissions).submittedNames.join(", ") || "None"} | Not finished: ${getTaskSubmissionStats(group.submissions).notFinishedNames.join(", ") || "None"}`}>
                   {group.taskType === "quiz" ? null : getTaskTypeIcon(group.taskType)}
                   <span className="max-w-[210px] truncate">{group.title}</span>
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                    {group.submissions.length}
+                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                    Done {getTaskSubmissionStats(group.submissions).submittedCount}
+                  </span>
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                    Not {getTaskSubmissionStats(group.submissions).notFinishedCount}
                   </span>
                 </span>
               ),
@@ -790,7 +824,7 @@ export default function AssessmentDrawer() {
               {activeTaskGroup?.title || "Select a task"}
             </div>
             <div className="mt-1 text-xs text-slate-500">
-              {filteredTasks.length} shown / {tasksForSelectedTask.length} total student submission{tasksForSelectedTask.length === 1 ? "" : "s"} for this task
+              {filteredTasks.length} shown / {activeTaskStats.submittedCount} submitted from {activeTaskStats.totalCount} student{activeTaskStats.totalCount === 1 ? "" : "s"}
             </div>
           </div>
           <div className="max-w-xs flex-1">
@@ -835,6 +869,56 @@ export default function AssessmentDrawer() {
             >
               Clear
             </Button>
+          </div>
+        </div>
+        <div className="mb-4 grid gap-3 md:grid-cols-2">
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold text-emerald-900">
+                Submitted / finished
+              </h2>
+              <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-emerald-700 shadow-sm">
+                {activeTaskStats.submittedCount}
+              </span>
+            </div>
+            {activeTaskStats.submittedNames.length > 0 ? (
+              <div className="flex max-h-36 flex-wrap gap-1.5 overflow-y-auto pr-1">
+                {activeTaskStats.submittedNames.map((name) => (
+                  <span
+                    key={`submitted-${name}`}
+                    className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-emerald-800 shadow-sm"
+                  >
+                    {name}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-emerald-700">No students submitted this task yet.</p>
+            )}
+          </div>
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold text-amber-900">
+                Not finished yet
+              </h2>
+              <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-amber-700 shadow-sm">
+                {activeTaskStats.notFinishedCount}
+              </span>
+            </div>
+            {activeTaskStats.notFinishedNames.length > 0 ? (
+              <div className="flex max-h-36 flex-wrap gap-1.5 overflow-y-auto pr-1">
+                {activeTaskStats.notFinishedNames.map((name) => (
+                  <span
+                    key={`missing-${name}`}
+                    className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-amber-800 shadow-sm"
+                  >
+                    {name}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-amber-700">Everyone has submitted this task.</p>
+            )}
           </div>
         </div>
         <div className="space-y-2.5">
