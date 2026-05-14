@@ -141,10 +141,6 @@ export default function AssignmentDetailPage() {
       const savedSelfAssessmentMark = normalizeMarkValue(
         documentState?.metadata?.selfAssessmentMark
       );
-      const savedTeacherAssessmentMark = normalizeMarkValue(
-        documentState?.metadata?.teacherMarks
-      );
-      const hasDocumentTeacherMark = hasAssessmentValue(documentState?.metadata?.teacherMarks);
       const hasSubmittedDocument = ["submitted", "marked"].includes(
         String(documentState?.status || "").toLowerCase()
       );
@@ -152,10 +148,10 @@ export default function AssignmentDetailPage() {
 
       return {
         selfAssessmentMark: savedSelfAssessmentMark ?? normalizedFallback,
-        teacherAssessmentMark: savedTeacherAssessmentMark ?? normalizedTeacherFallback,
-        status: normalizeTaskCardStatus(nextStatus, hasDocumentTeacherMark || fallbackHasTeacherMark),
+        teacherAssessmentMark: normalizedTeacherFallback,
+        status: normalizeTaskCardStatus(nextStatus, fallbackHasTeacherMark),
         documentStatus: documentState?.status,
-        hasTeacherMark: hasDocumentTeacherMark || fallbackHasTeacherMark,
+        hasTeacherMark: fallbackHasTeacherMark,
       };
     } catch (error) {
       console.error("Could not load saved self mark for task card:", error);
