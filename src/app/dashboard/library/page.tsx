@@ -79,6 +79,7 @@ type LibraryItem = {
   library_resources_id?: number;
   library_categories_id?: number;
   file_path?: string;
+  thumbnail_url?: string | null;
   updated_at?: string;
   uploaded_by?: string;
 };
@@ -108,6 +109,38 @@ export default function LibraryPage() {
   const [messageApi, contextHolder] = message.useMessage();
   const [debugError, setDebugError] = useState<any>(null);
   const queryClient = useQueryClient();
+
+  // --- Wiki auto-cover ---
+  const [wikiCovers, setWikiCovers] = React.useState<Record<string, string | null>>({});
+  const fetchWikiCover = React.useCallback(async (item: any) => {
+    const id = String(item.id);
+    if (id in wikiCovers) return;
+    setWikiCovers((prev) => ({ ...prev, [id]: null })); // mark as loading
+
+    // Build a search keyword from the title (first 3 words tends to work best)
+    const keyword = encodeURIComponent(
+      (item.title as string)
+        .replace(/[^\w\s]/g, " ")
+        .trim()
+        .split(/\s+/)
+        .slice(0, 4)
+        .join(" ")
+    );
+    try {
+      const res = await fetch(
+        `https://en.wikipedia.org/api/rest_v1/page/summary/${keyword}`,
+        { signal: AbortSignal.timeout(4000) }
+      );
+      if (!res.ok) throw new Error("no wiki page");
+      const data = await res.json();
+      const thumb = data?.thumbnail?.source as string | undefined;
+      if (thumb) {
+        setWikiCovers((prev) => ({ ...prev, [id]: thumb }));
+      }
+    } catch {
+      // silently ignore ? card falls back to icon
+    }
+  }, [wikiCovers]);
 
   // ΓöÇΓöÇ Approvals bell (SCHOOL_ADMIN only) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   const isSchoolAdmin = currentUser?.role === "SCHOOL_ADMIN";
@@ -254,6 +287,12 @@ export default function LibraryPage() {
       formData.append("library_categories_id", values.category);
       formData.append("description", values.description || "");
       formData.append("school_id", schoolId?.toString() || "");
+      const thumbnailUrlVal = String(values.thumbnail_url || "").trim();
+      if (thumbnailUrlVal) {
+        formData.append("thumbnail_url", thumbnailUrlVal);
+      } else {
+        formData.append("thumbnail_url", "");
+      }
       if (tags.length > 0) {
         formData.append("tags", tags.join(","));
       }
@@ -342,6 +381,7 @@ export default function LibraryPage() {
       tags: parseTags(item.tags),
       source: isLink ? "link" : "upload",
       link: isLink ? cleanPath : undefined,
+      thumbnail_url: item.thumbnail_url || "",
     });
 
     setFileList(
@@ -708,7 +748,19 @@ export default function LibraryPage() {
                   const cleanPath = cleanFilePath(item.file_path);
                   const isExternal = isExternalLink(cleanPath);
                   const domainLabel = isExternal ? getLinkDomain(cleanPath) : "";
-                  const coverUrl = isExternal && resourceTypeKey === "video" ? getVideoThumbnailUrl(cleanPath) : isImageUrl(cleanPath) ? cleanPath : "";
+                  const storedThumb = String(item.thumbnail_url || "").trim();
+                  const autoWikiCover = wikiCovers[String(item.id)];
+                  const coverUrl = storedThumb
+                    ? storedThumb
+                    : isExternal && resourceTypeKey === "video"
+                    ? getVideoThumbnailUrl(cleanPath)
+                    : isImageUrl(cleanPath)
+                    ? cleanPath
+                    : autoWikiCover || "";
+                  // Kick off async wiki fetch if no cover yet
+                  if (!storedThumb && !coverUrl) {
+                    void fetchWikiCover(item);
+                  }
                   const emojiStyle = getEmojiStyleForType(resourceTypeKey);
 
                   return (

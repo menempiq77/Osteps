@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+﻿import React, { useMemo, useState } from "react";
 import {
   Modal,
   Form,
@@ -9,7 +9,9 @@ import {
   Button,
   Space,
   Radio,
+  Tooltip,
 } from "antd";
+import { SearchOutlined, PictureOutlined, CloseCircleOutlined } from "@ant-design/icons";
 import { UploadOutlined } from "@ant-design/icons";
 
 interface UploadResourceModalProps {
@@ -55,6 +57,8 @@ const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
 
   const selectedResourceType = Form.useWatch("type", form);
   const selectedSource = Form.useWatch("source", form);
+  const thumbnailUrlValue = Form.useWatch("thumbnail_url", form);
+  const [thumbPreviewError, setThumbPreviewError] = useState(false);
 
   const selectedResource = useMemo(() => {
     if (!selectedResourceType) return null;
@@ -233,6 +237,58 @@ const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
         )}
 
         <Divider />
+
+        {/* Cover Image */}
+        <div className="mb-4 rounded-2xl border border-gray-100 bg-gray-50 p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <span className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+              <PictureOutlined className="text-emerald-600" /> Cover Image
+              <span className="text-xs font-normal text-gray-400">(optional ? appears on the card)</span>
+            </span>
+            <Tooltip title={`Search Google Images for "${form.getFieldValue('title') || 'resource'}" cover image`}>
+              <Button
+                size="small"
+                icon={<SearchOutlined />}
+                onClick={() => {
+                  const title = form.getFieldValue("title") || "";
+                  const q = encodeURIComponent(title + " book cover");
+                  window.open(`https://www.google.com/search?q=${q}&tbm=isch`, "_blank", "noopener,noreferrer");
+                }}
+                className="!rounded-xl"
+              >
+                Search images
+              </Button>
+            </Tooltip>
+          </div>
+
+          <Form.Item name="thumbnail_url" noStyle>
+            <Input
+              placeholder="Paste an image URL here (https://...)"
+              allowClear={{ clearIcon: <CloseCircleOutlined /> }}
+              onChange={() => setThumbPreviewError(false)}
+              className="!rounded-xl"
+            />
+          </Form.Item>
+
+          {thumbnailUrlValue && !thumbPreviewError && (
+            <div className="mt-3 overflow-hidden rounded-xl border border-gray-200">
+              <img
+                src={thumbnailUrlValue}
+                alt="Cover preview"
+                className="h-36 w-full object-cover"
+                onError={() => setThumbPreviewError(true)}
+              />
+            </div>
+          )}
+          {thumbnailUrlValue && thumbPreviewError && (
+            <p className="mt-2 text-xs text-red-500">? Could not load this image URL ? check that it is a direct image link.</p>
+          )}
+          {!thumbnailUrlValue && (
+            <p className="mt-2 text-xs text-gray-400">
+              Tip: right-click an image in Google Images ? "Copy image address" ? paste above.
+            </p>
+          )}
+        </div>
 
         <Form.Item>
           <Space>
