@@ -33,6 +33,8 @@ interface Task {
   comment?: string;
   selfAssessment?: number;
   self_assessment_marks?: number;
+  teacher_assessment_marks?: number | string | null;
+  has_teacher_mark?: boolean;
   additional_notes?: string;
   allocated_marks: number;
   task_type?: string;
@@ -51,8 +53,9 @@ interface AssignmentDrawerProps {
   onClose: () => void;
   selectedSubject: string;
   selectedTask?: Task | null;
-  assessmentId?: number;
+  assessmentId?: number | string;
   canEditSubmission?: boolean;
+  onSubmitted?: () => void;
 }
 
 const getCurrentReturnToPath = () => {
@@ -67,7 +70,18 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
   selectedTask,
   assessmentId,
   canEditSubmission = false,
+  onSubmitted,
 }) => {
+
+    const isSubmittedStatus = (status: unknown) =>
+      ["pending", "completed", "submitted", "marked"].includes(
+        String(status || "").toLowerCase()
+      );
+
+    const selectedTaskSubmitted = isSubmittedStatus(selectedTask?.status);
+    const selectedTaskMarked = Boolean(selectedTask?.has_teacher_mark) ||
+      (selectedTask?.teacher_assessment_marks != null &&
+        String(selectedTask.teacher_assessment_marks).trim() !== "");
   const router = useRouter();
   const [form] = Form.useForm();
   const [fileList, setFileList] = useState<UploadFile[]>([]);
@@ -203,6 +217,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
     }
 
     messageApi.success("Task submitted successfully!");
+    onSubmitted?.();
     onClose();
     form.resetFields();
     setFileList([]);
@@ -403,7 +418,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
         open={isOpen}
         width={600}
         footer={
-          !isOnlineExamTask && (selectedTask?.status !== "completed" || canEditSubmission) ? (
+          !isOnlineExamTask && (!selectedTaskSubmitted || canEditSubmission) ? (
             <div className="flex justify-end">
               <Button
                 type="primary"
@@ -436,7 +451,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
                   </div>
                 )}
               </div>
-            ) : selectedTask.status === "completed" && !canEditSubmission ? (
+            ) : selectedTaskSubmitted && !canEditSubmission ? (
               <>
                 <div>
                   <h4 className="font-medium text-gray-800">Your Submission</h4>

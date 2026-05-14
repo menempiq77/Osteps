@@ -38,9 +38,11 @@ interface Task {
   teacher_assessment_marks?: number;
   teacher_feedback?: string;
   file_path?: string;
+  document_status?: string;
+  has_teacher_mark?: boolean;
 }
 interface CurrentUser {
-  student?: string;
+  student?: string | number;
 }
 
 const ONLINE_DOCUMENT_TYPES = new Set([
@@ -57,6 +59,18 @@ const normalizeMarkValue = (value: unknown) => {
   if (value == null || value === "") return null;
   const numericValue = Number(value);
   return Number.isFinite(numericValue) ? numericValue : null;
+};
+
+const hasAssessmentValue = (value: unknown) =>
+  value != null && String(value).trim() !== "";
+
+const normalizeTaskCardStatus = (status: unknown, hasTeacherMark = false) => {
+  if (hasTeacherMark) return "marked";
+  const normalized = String(status || "").toLowerCase();
+  if (["pending", "completed", "submitted", "marked"].includes(normalized)) {
+    return "submitted";
+  }
+  return "not-started";
 };
 
 const getCurrentReturnToPath = () => {
@@ -95,12 +109,17 @@ export default function AssignmentDetailPage() {
     return due < today;
   };
 
-  const hydrateTaskSelfAssessmentMark = async (
+  const hydrateTaskDocumentCardData = async (
     task: any,
-    fallbackSelfAssessmentMark: unknown
+    fallbackSelfAssessmentMark: unknown,
+    fallbackTeacherAssessmentMark: unknown,
+    fallbackStatus: unknown
   ) => {
     const normalizedFallback = normalizeMarkValue(fallbackSelfAssessmentMark);
+    const normalizedTeacherFallback = normalizeMarkValue(fallbackTeacherAssessmentMark);
     const taskType = String(task?.task_type || "").toLowerCase();
+    const fallbackHasTeacherMark = hasAssessmentValue(fallbackTeacherAssessmentMark);
+    const fallbackCardStatus = normalizeTaskCardStatus(fallbackStatus, fallbackHasTeacherMark);
 
     if (
       task?.type !== "task" ||
@@ -108,7 +127,13 @@ export default function AssignmentDetailPage() {
       !task?.file_path ||
       !ONLINE_DOCUMENT_TYPES.has(taskType)
     ) {
-      return normalizedFallback;
+      return {
+        selfAssessmentMark: normalizedFallback,
+        teacherAssessmentMark: normalizedTeacherFallback,
+        status: fallbackCardStatus,
+        documentStatus: undefined,
+        hasTeacherMark: fallbackHasTeacherMark,
+      };
     }
 
     try {
@@ -116,10 +141,31 @@ export default function AssignmentDetailPage() {
       const savedSelfAssessmentMark = normalizeMarkValue(
         documentState?.metadata?.selfAssessmentMark
       );
-      return savedSelfAssessmentMark ?? normalizedFallback;
+      const savedTeacherAssessmentMark = normalizeMarkValue(
+        documentState?.metadata?.teacherMarks
+      );
+      const hasDocumentTeacherMark = hasAssessmentValue(documentState?.metadata?.teacherMarks);
+      const hasSubmittedDocument = ["submitted", "marked"].includes(
+        String(documentState?.status || "").toLowerCase()
+      );
+      const nextStatus = hasSubmittedDocument ? documentState.status : fallbackCardStatus;
+
+      return {
+        selfAssessmentMark: savedSelfAssessmentMark ?? normalizedFallback,
+        teacherAssessmentMark: savedTeacherAssessmentMark ?? normalizedTeacherFallback,
+        status: normalizeTaskCardStatus(nextStatus, hasDocumentTeacherMark || fallbackHasTeacherMark),
+        documentStatus: documentState?.status,
+        hasTeacherMark: hasDocumentTeacherMark || fallbackHasTeacherMark,
+      };
     } catch (error) {
       console.error("Could not load saved self mark for task card:", error);
-      return normalizedFallback;
+      return {
+        selfAssessmentMark: normalizedFallback,
+        teacherAssessmentMark: normalizedTeacherFallback,
+        status: fallbackCardStatus,
+        documentStatus: undefined,
+        hasTeacherMark: fallbackHasTeacherMark,
+      };
     }
   };
 
@@ -128,26 +174,30 @@ export default function AssignmentDetailPage() {
 
     if (normalizedTask.type === "task") {
       const studentTask = normalizedTask.student_assessment_tasks?.find(
-        (st: any) => st.student_id === studentId
+        (st: any) => String(st.student_id) === String(studentId)
       );
-      const selfAssessmentMark = await hydrateTaskSelfAssessmentMark(
+      const cardData = await hydrateTaskDocumentCardData(
         normalizedTask,
-        studentTask?.self_assessment_mark
+        studentTask?.self_assessment_mark,
+        studentTask?.teacher_assessment_score,
+        studentTask?.status
       );
 
       return {
         ...normalizedTask,
-        status: studentTask?.status || "not-started",
-        self_assessment_marks: selfAssessmentMark ?? 0,
+        status: cardData.status,
+        document_status: cardData.documentStatus,
+        self_assessment_marks: cardData.selfAssessmentMark ?? undefined,
         additional_notes: studentTask?.additional_notes || "",
-        teacher_assessment_marks: studentTask?.teacher_assessment_score || 0,
+        teacher_assessment_marks: cardData.teacherAssessmentMark ?? undefined,
         teacher_feedback: studentTask?.teacher_feedback || null,
+        has_teacher_mark: cardData.hasTeacherMark,
       };
     }
 
     if (normalizedTask.type === "quiz" && normalizedTask.quiz) {
       const submission = normalizedTask.quiz.submissions?.find(
-        (sub: any) => sub.student_id === studentId
+        (sub: any) => String(sub.student_id) === String(studentId)
       );
 
       const totalMarks = submission?.answers?.reduce(
@@ -174,14 +224,19 @@ export default function AssignmentDetailPage() {
             };
           }) || [];
 
+      const hasQuizTeacherMark = hasAssessmentValue(submission?.teacher_assessment_mark);
+
       return {
         ...normalizedTask,
-        status: submission?.status || "not-started",
+        status: submission
+          ? normalizeTaskCardStatus(submission?.status, hasQuizTeacherMark)
+          : "not-started",
         obtained_marks: totalMarks || 0,
         total_marks: totalPossibleMarks || 0,
         quiz_comments: comments,
         self_assessment_marks: submission?.self_assessment_mark ?? null,
         teacher_assessment_marks: submission?.teacher_assessment_mark ?? null,
+        has_teacher_mark: hasQuizTeacherMark,
       };
     }
 
@@ -299,18 +354,33 @@ export default function AssignmentDetailPage() {
       setIsDrawerOpen(true);
     }
   };
-  const getStatusBadge = (status: string = "not-completed") => {
-    const isCompleted = status.toLowerCase() === "completed";
+
+  const isTaskSubmitted = (task: Task) =>
+    ["pending", "completed", "submitted", "marked"].includes(
+      String(task.status || "").toLowerCase()
+    ) || ["submitted", "marked"].includes(String(task.document_status || "").toLowerCase());
+
+  const hasTaskTeacherMark = (task: Task) =>
+    Boolean(task.has_teacher_mark) || hasAssessmentValue(task.teacher_assessment_marks);
+
+  const canEditTask = (task: Task) =>
+    isTaskSubmitted(task) && !hasTaskTeacherMark(task) && task.type !== "quiz";
+
+  const getStatusBadge = (task: Task) => {
+    const marked = hasTaskTeacherMark(task);
+    const submitted = isTaskSubmitted(task);
 
     return (
       <span
         className={`rounded-full px-2 py-1 text-xs font-medium ${
-          isCompleted
+          marked
+            ? "bg-blue-100 text-blue-700"
+            : submitted
             ? "bg-green-100 text-green-700"
             : "bg-yellow-100 text-yellow-700"
         }`}
       >
-        {isCompleted ? "Completed" : "Not Completed"}
+        {marked ? "Marked" : submitted ? "Submitted" : "Not Submitted"}
       </span>
     );
   };
@@ -360,30 +430,34 @@ export default function AssignmentDetailPage() {
               const examWindow = resolveExamWindow(task);
               const examAccessMessage = getExamAccessMessage(task);
               const onlineAnswerAvailable = supportsOnlineAnswer(task);
+              const submitted = isTaskSubmitted(task);
+              const editableSubmission = canEditTask(task);
               const dueDateApplies = !task.exam_mode;
               const examAccessBlocked =
                 onlineAnswerAvailable && examWindow.examMode && examWindow.state !== "open";
               const actionDisabledReason =
                 dueDateApplies &&
                 isDueDateExpired(task.due_date) &&
-                task.status !== "completed"
+                !submitted
                   ? "The due date for this task has expired"
-                  : examAccessMessage;
+                  : !submitted
+                  ? examAccessMessage
+                  : null;
               const actionLabel =
                 task?.type === "quiz"
-                  ? "View Quiz"
+                  ? submitted
+                    ? "Submitted"
+                    : "View Quiz"
+                  : editableSubmission
+                  ? "Edit"
+                  : submitted
+                  ? "Submitted"
                   : task.exam_mode && onlineAnswerAvailable
-                  ? task.status === "completed"
-                    ? "Continue Exam"
-                    : examAccessBlocked
+                  ? examAccessBlocked
                     ? examWindow.state === "scheduled"
                       ? "Exam Locked"
                       : "Exam Closed"
                     : "Open Exam"
-                  : task.status === "completed" && !isDueDateExpired(task.due_date)
-                  ? "Edit Submission"
-                  : task.status === "completed"
-                  ? "Submitted"
                   : "Submit Work";
 
               return (
@@ -426,7 +500,7 @@ export default function AssignmentDetailPage() {
                     <div className="text-[11px] text-gray-500">
                       Allocated marks {task?.type === "quiz" ? task?.total_marks || 0 : task?.allocated_marks || 0}
                     </div>
-                    <div className="mt-2 flex justify-end">{getStatusBadge(task.status)}</div>
+                    <div className="mt-2 flex justify-end">{getStatusBadge(task)}</div>
                   </div>
                 </div>
 
@@ -512,10 +586,10 @@ export default function AssignmentDetailPage() {
                       ) : (
                         <>
                           <span>
-                            Self <span className="font-semibold text-blue-700">{task?.self_assessment_marks || 0} / {task?.allocated_marks || 0}</span>
+                            Self <span className="font-semibold text-blue-700">{task?.self_assessment_marks ?? "-"} / {task?.allocated_marks || 0}</span>
                           </span>
                           <span>
-                            Teacher <span className="font-semibold text-green-700">{task?.teacher_assessment_marks || 0} / {task?.allocated_marks || 0}</span>
+                            Teacher <span className="font-semibold text-green-700">{task?.teacher_assessment_marks ?? "-"} / {task?.allocated_marks || 0}</span>
                           </span>
                         </>
                       )}
@@ -549,9 +623,7 @@ export default function AssignmentDetailPage() {
                         className="!h-8 rounded-md"
                         onClick={() => handleOpenDrawer(task)}
                         disabled={
-                          !task.exam_mode &&
-                          task.status === "completed" &&
-                          isDueDateExpired(task.due_date)
+                          submitted && !editableSubmission
                         }
                       >
                         {actionLabel}
@@ -604,11 +676,9 @@ export default function AssignmentDetailPage() {
         selectedTask={selectedTask}
         assessmentId={assignmentId}
         canEditSubmission={
-          !!selectedTask &&
-          selectedTask?.type !== "quiz" &&
-          !selectedTask?.exam_mode &&
-          !isDueDateExpired(selectedTask?.due_date)
+          !!selectedTask && canEditTask(selectedTask)
         }
+        onSubmitted={() => void loadTasksSilently()}
       />
     </div>
   );
