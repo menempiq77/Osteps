@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Button, Input, InputNumber, Modal, message, Select, Spin, Tag } from "antd";
-import { Eraser, PenTool, Type } from "lucide-react";
+import { Eraser, Highlighter, PenTool, Type } from "lucide-react";
 import type {
   AssessmentDocumentAnnotation,
   AssessmentDocumentLayer,
@@ -25,8 +25,24 @@ import { addStudentTaskMarks, uploadTaskByStudent } from "@/services/api";
 import { fetchStudentProfileData } from "@/services/studentsApi";
 import { resolveExamWindow } from "@/lib/taskTypeMetadata";
 
-type Tool = "pen" | "text" | "eraser";
+type Tool = "pen" | "highlighter" | "text" | "eraser";
 type DocumentKind = "pdf" | "docx" | "image";
+
+const COLOR_SWATCHS = [
+  { value: "#bdbdbd", label: "Gray" },
+  { value: "#f472b6", label: "Pink" },
+  { value: "#fb923c", label: "Orange" },
+  { value: "#fde047", label: "Yellow" },
+  { value: "#a3e635", label: "Green" },
+  { value: "#67e8f9", label: "Cyan" },
+  { value: "#a78bfa", label: "Purple" },
+  { value: "#ef4444", label: "Red" },
+  { value: "#ffffff", label: "White" },
+  { value: "#111827", label: "Black" },
+] as const;
+const PEN_WIDTH_OPTIONS = [2, 4, 6, 8] as const;
+const HIGHLIGHTER_WIDTH_OPTIONS = [10, 16, 24] as const;
+const TEXT_SIZE_OPTIONS = [14, 16, 18, 24] as const;
 
 const TOOL_BUTTONS: Array<{
   value: Tool;
@@ -34,8 +50,9 @@ const TOOL_BUTTONS: Array<{
   Icon: typeof PenTool;
 }> = [
   { value: "pen", label: "Pen", Icon: PenTool },
-  { value: "text", label: "Text", Icon: Type },
+  { value: "highlighter", label: "Highlighter", Icon: Highlighter },
   { value: "eraser", label: "Eraser", Icon: Eraser },
+  { value: "text", label: "Text", Icon: Type },
 ];
 
 type RenderedPage = {
@@ -126,7 +143,6 @@ type PdfAssessmentAnnotatorProps = {
   autoDownloadTeacherPaper?: boolean;
 };
 
-const COLORS = ["#111827", "#dc2626", "#2563eb", "#16a34a", "#9333ea"];
 const AUTOSAVE_DELAY_MS = 5000;
 const LIVE_SYNC_INTERVAL_MS = 1200;
 const REMOTE_SYNC_INTERVAL_MS = 1500;
@@ -503,6 +519,7 @@ const compactAnnotationsForAiDraft = (annotations: AssessmentDocumentAnnotation[
       return {
         id: annotation.id,
         type: annotation.type,
+        tool: annotation.tool,
         page: annotation.page,
         color: annotation.color,
         width: annotation.width,
@@ -515,7 +532,12 @@ const compactAnnotationsForAiDraft = (annotations: AssessmentDocumentAnnotation[
 const drawPen = (context: CanvasRenderingContext2D, annotation: PenAnnotation) => {
   const points = getSafePenPoints(annotation);
   if (points.length < 2) return;
+  const strokeTool = annotation.tool === "highlighter" ? "highlighter" : "pen";
   context.save();
+  if (strokeTool === "highlighter") {
+    context.globalAlpha = 0.3;
+    context.globalCompositeOperation = "multiply";
+  }
   context.strokeStyle = annotation.color;
   context.lineWidth = annotation.width;
   context.lineCap = "round";
@@ -641,6 +663,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const [tool, setTool] = useState<Tool>(role === "teacher" ? "pen" : "text");
   const [color, setColor] = useState(role === "teacher" ? "#dc2626" : "#111827");
   const [penWidth, setPenWidth] = useState(3);
+  const [highlighterWidth, setHighlighterWidth] = useState(16);
   const [textFontSize, setTextFontSize] = useState(role === "teacher" ? 18 : 16);
   const [saving, setSaving] = useState(false);
   const [autosaveQueued, setAutosaveQueued] = useState(false);
@@ -671,6 +694,9 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const [editingText, setEditingText] = useState<EditingText | null>(null);
   const [resizingText, setResizingText] = useState(false);
   const [redoStack, setRedoStack] = useState<AssessmentDocumentAnnotation[][]>([]);
+  const activeStrokeWidth = tool === "highlighter" ? highlighterWidth : penWidth;
+  const activeStrokeWidthOptions =
+    tool === "highlighter" ? HIGHLIGHTER_WIDTH_OPTIONS : PEN_WIDTH_OPTIONS;
   const examContainerRef = useRef<HTMLDivElement | null>(null);
   const activeStrokeRef = useRef<PenAnnotation | null>(null);
   const activeAnnotationsRef = useRef<AssessmentDocumentAnnotation[]>([]);
@@ -1988,9 +2014,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     const nextStroke: PenAnnotation = {
       id: makeId(),
       type: "pen",
+      tool: tool === "highlighter" ? "highlighter" : "pen",
       page: pageNumber,
       color,
-      width: penWidth,
+      width: activeStrokeWidth,
       points: [point],
     };
     activeStrokeRef.current = nextStroke;
@@ -3150,13 +3177,6 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                   />
                 ))}
               </div>
-              <Select value={color} onChange={setColor} disabled={!editable} style={{ width: 120 }} options={COLORS.map((value) => ({ value, label: <span style={{ color: value }}>● {value}</span> }))} />
-              <InputNumber min={1} max={12} value={penWidth} onChange={(value) => setPenWidth(Number(value || 3))} disabled={!editable || tool !== "pen"} className="w-20" />
-              <InputNumber min={MIN_TEXT_FONT_SIZE} max={MAX_TEXT_FONT_SIZE} value={textFontSize} onChange={(value) => {
-                const nextFontSize = Number(value || (role === "teacher" ? 18 : 16));
-                setTextFontSize(nextFontSize);
-                setEditingText((current) => (current ? { ...current, fontSize: nextFontSize } : current));
-              }} disabled={!editable || tool !== "text"} className="w-24" placeholder="Text size" />
               <div className="flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1">
                 <Button
                   size="small"
@@ -3180,6 +3200,98 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
               <Button onClick={redo} disabled={!editable || redoStack.length === 0}>Redo</Button>
               <Button onClick={saveNow} disabled={!editable} loading={saving}>Save now</Button>
             </div>
+
+            {tool !== "eraser" && (
+              <div className="flex flex-wrap items-center gap-3 border-t border-slate-200 pt-2">
+                <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white px-2 py-2 shadow-sm">
+                  {COLOR_SWATCHS.map(({ value, label }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      title={label}
+                      aria-label={`Set color to ${label.toLowerCase()}`}
+                      disabled={!editable}
+                      onClick={() => setColor(value)}
+                      className={[
+                        "h-10 w-10 rounded-full border-2 transition",
+                        value === "#ffffff" ? "border-slate-300" : "border-white/80",
+                        color === value
+                          ? "ring-4 ring-[#9b8cff] ring-offset-2 ring-offset-white"
+                          : "hover:scale-105",
+                        !editable ? "cursor-not-allowed opacity-50" : "",
+                      ].join(" ")}
+                      style={{ backgroundColor: value }}
+                    />
+                  ))}
+                </div>
+
+                {tool === "text" ? (
+                  <div className="flex flex-wrap items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
+                    {TEXT_SIZE_OPTIONS.map((fontSize) => (
+                      <button
+                        key={fontSize}
+                        type="button"
+                        disabled={!editable}
+                        onClick={() => {
+                          setTextFontSize(fontSize);
+                          setEditingText((current) =>
+                            current ? { ...current, fontSize } : current
+                          );
+                        }}
+                        className={[
+                          "min-w-12 rounded-xl border px-3 py-2 text-sm font-semibold transition",
+                          textFontSize === fontSize
+                            ? "border-black bg-black text-white"
+                            : "border-transparent bg-white text-slate-700 hover:border-slate-200 hover:bg-slate-100",
+                          !editable ? "cursor-not-allowed opacity-50" : "",
+                        ].join(" ")}
+                      >
+                        {fontSize}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
+                    {activeStrokeWidthOptions.map((widthValue) => {
+                      const selected = activeStrokeWidth === widthValue;
+                      const previewHeight =
+                        tool === "highlighter"
+                          ? Math.max(8, Math.round(widthValue / 2.5))
+                          : Math.max(3, Math.round(widthValue));
+
+                      return (
+                        <button
+                          key={widthValue}
+                          type="button"
+                          disabled={!editable}
+                          onClick={() =>
+                            tool === "highlighter"
+                              ? setHighlighterWidth(widthValue)
+                              : setPenWidth(widthValue)
+                          }
+                          className={[
+                            "flex h-10 min-w-12 items-center justify-center rounded-xl border px-3 transition",
+                            selected
+                              ? "border-black bg-black text-white"
+                              : "border-transparent bg-white text-slate-800 hover:border-slate-200 hover:bg-slate-100",
+                            !editable ? "cursor-not-allowed opacity-50" : "",
+                          ].join(" ")}
+                        >
+                          <span
+                            className={selected ? "rounded-full bg-white" : "rounded-full bg-slate-800"}
+                            style={{
+                              width: tool === "highlighter" ? 24 : 20,
+                              height: previewHeight,
+                              opacity: tool === "highlighter" ? 0.7 : 1,
+                            }}
+                          />
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
             {role === "student" ? (
               <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 pt-2">
