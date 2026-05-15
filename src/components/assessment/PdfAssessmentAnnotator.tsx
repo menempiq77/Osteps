@@ -10,6 +10,7 @@ import {
   ChevronDown,
   Eraser,
   Highlighter,
+  MousePointer2,
   PenTool,
   Trash2,
   Type,
@@ -37,7 +38,7 @@ import { addStudentTaskMarks, uploadTaskByStudent } from "@/services/api";
 import { fetchStudentProfileData } from "@/services/studentsApi";
 import { resolveExamWindow } from "@/lib/taskTypeMetadata";
 
-type Tool = "pen" | "highlighter" | "text" | "eraser";
+type Tool = "cursor" | "pen" | "highlighter" | "text" | "eraser";
 type DocumentKind = "pdf" | "docx" | "image";
 type TextFontWeight = "normal" | "bold";
 type TextAlignment = "left" | "center" | "right";
@@ -98,6 +99,7 @@ const TOOL_BUTTONS: Array<{
   label: string;
   Icon: typeof PenTool;
 }> = [
+  { value: "cursor", label: "Cursor", Icon: MousePointer2 },
   { value: "pen", label: "Pen", Icon: PenTool },
   { value: "highlighter", label: "Highlighter", Icon: Highlighter },
   { value: "eraser", label: "Eraser", Icon: Eraser },
@@ -203,6 +205,7 @@ const LIVE_SYNC_INTERVAL_MS = 1200;
 const REMOTE_SYNC_INTERVAL_MS = 1500;
 const SELF_ASSESSMENT_AUTOSAVE_DELAY_MS = 1200;
 const TEACHER_DRAFT_AUTOSAVE_DELAY_MS = 1200;
+const HISTORY_STACK_LIMIT = 50;
 const AI_PAGE_IMAGE_MAX_COUNT = 12;
 const AI_PAGE_IMAGE_MAX_WIDTH = 1200;
 const AI_PAGE_IMAGE_JPEG_QUALITY = 0.68;
@@ -567,6 +570,16 @@ const getSafePenPoints = (annotation: { points?: Array<{ x?: number; y?: number 
       )
     : [];
 
+const cloneAnnotationsSnapshot = (annotations: AssessmentDocumentAnnotation[]) =>
+  annotations.map((annotation) =>
+    annotation.type === "pen"
+      ? {
+          ...annotation,
+          points: getSafePenPoints(annotation).map((point) => ({ ...point })),
+        }
+      : { ...annotation }
+  );
+
 const getTextFont = (fontSize: number, fontWeight: TextFontWeight = "normal") =>
   `${fontWeight === "bold" ? "700" : "400"} ${fontSize}px Arial, sans-serif`;
 
@@ -788,6 +801,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const [activeStroke, setActiveStroke] = useState<PenAnnotation | null>(null);
   const [editingText, setEditingText] = useState<EditingText | null>(null);
   const [resizingText, setResizingText] = useState(false);
+  const [undoStack, setUndoStack] = useState<AssessmentDocumentAnnotation[][]>([]);
   const [redoStack, setRedoStack] = useState<AssessmentDocumentAnnotation[][]>([]);
   const activeStrokeWidth = tool === "highlighter" ? highlighterWidth : penWidth;
   const activeStrokeWidthOptions =
@@ -804,6 +818,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const examContainerRef = useRef<HTMLDivElement | null>(null);
   const activeStrokeRef = useRef<PenAnnotation | null>(null);
   const activeAnnotationsRef = useRef<AssessmentDocumentAnnotation[]>([]);
+  const historyGestureStartRef = useRef<AssessmentDocumentAnnotation[] | null>(null);
   const resizingTextRef = useRef<ResizingText | null>(null);
   const erasingRef = useRef(false);
   const draggingTextRef = useRef<DraggingText | null>(null);
@@ -1376,6 +1391,25 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     return [...baseAnnotations, activeStroke];
   }, []);
 
+  const beginHistoryGesture = useCallback(() => {
+    historyGestureStartRef.current = cloneAnnotationsSnapshot(activeAnnotationsRef.current);
+  }, []);
+
+  const consumeHistoryGesture = useCallback(() => {
+    const snapshot = historyGestureStartRef.current;
+    historyGestureStartRef.current = null;
+    return snapshot;
+  }, []);
+
+  const pushUndoSnapshot = useCallback(
+    (previousAnnotations: AssessmentDocumentAnnotation[]) => {
+      setUndoStack((current) =>
+        [...current, cloneAnnotationsSnapshot(previousAnnotations)].slice(-HISTORY_STACK_LIMIT)
+      );
+    },
+    []
+  );
+
   const persistLocalDraft = useCallback(
     (annotations: AssessmentDocumentAnnotation[], metadata?: Record<string, unknown>) => {
       if (typeof window === "undefined") return;
@@ -1563,11 +1597,23 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const setLayerAnnotations = useCallback(
     (
       nextAnnotations: AssessmentDocumentAnnotation[],
-      options?: { preserveRedo?: boolean }
+      options?: {
+        preserveRedo?: boolean;
+        previousAnnotations?: AssessmentDocumentAnnotation[];
+        skipHistory?: boolean;
+      }
     ) => {
+      const previousAnnotations = options?.previousAnnotations ?? activeAnnotationsRef.current;
+      const annotationsChanged =
+        getAnnotationsSignature(previousAnnotations) !==
+        getAnnotationsSignature(nextAnnotations);
+
       activeAnnotationsRef.current = nextAnnotations;
       persistLocalDraft(nextAnnotations);
-      if (!options?.preserveRedo) setRedoStack([]);
+      if (annotationsChanged && !options?.skipHistory) {
+        pushUndoSnapshot(previousAnnotations);
+      }
+      if (annotationsChanged && !options?.preserveRedo) setRedoStack([]);
       setState((prev) => {
         if (!prev) return prev;
         const nextState = {
@@ -1578,9 +1624,11 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         };
         return nextState;
       });
-      queueAutosave(nextAnnotations);
+      if (annotationsChanged) {
+        queueAutosave(nextAnnotations);
+      }
     },
-    [persistLocalDraft, queueAutosave, role]
+    [getAnnotationsSignature, persistLocalDraft, pushUndoSnapshot, queueAutosave, role]
   );
 
   const setLayerAnnotationsLocally = useCallback(
@@ -1588,9 +1636,13 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       nextAnnotations: AssessmentDocumentAnnotation[],
       options?: { preserveRedo?: boolean }
     ) => {
+      const annotationsChanged =
+        getAnnotationsSignature(activeAnnotationsRef.current) !==
+        getAnnotationsSignature(nextAnnotations);
+
       activeAnnotationsRef.current = nextAnnotations;
       persistLocalDraft(nextAnnotations);
-      if (!options?.preserveRedo) setRedoStack([]);
+      if (annotationsChanged && !options?.preserveRedo) setRedoStack([]);
       setState((prev) => {
         if (!prev) return prev;
         return {
@@ -1601,7 +1653,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         };
       });
     },
-    [persistLocalDraft, role]
+    [getAnnotationsSignature, persistLocalDraft, role]
   );
 
   useEffect(() => {
@@ -1614,8 +1666,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         setAiDraftPreview(null);
         setTeacherMarks(initialTeacherMarks);
         setTeacherFeedback(initialTeacherFeedback);
+        setUndoStack([]);
         setRedoStack([]);
         activeAnnotationsRef.current = [];
+        historyGestureStartRef.current = null;
         lastLiveSyncedSignatureRef.current = "";
         lastRemoteSnapshotRef.current = "";
         const loaded = await fetchAssessmentDocument(assessmentId, taskId, studentId);
@@ -2101,13 +2155,14 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   );
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>, pageNumber: number) => {
-    if (!editable || tool === "text") return;
+    if (!editable || tool === "text" || tool === "cursor") return;
     event.preventDefault();
     event.stopPropagation();
     const target = event.currentTarget;
     const point = getPointerPoint(event, target, zoomLevel);
 
     if (tool === "eraser") {
+      beginHistoryGesture();
       target.setPointerCapture(event.pointerId);
       erasingRef.current = true;
       eraseAtPoint(pageNumber, point);
@@ -2154,6 +2209,15 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       event.preventDefault();
       event.stopPropagation();
       erasingRef.current = false;
+      const previousAnnotations = consumeHistoryGesture();
+      if (
+        previousAnnotations &&
+        getAnnotationsSignature(previousAnnotations) !==
+          getAnnotationsSignature(activeAnnotationsRef.current)
+      ) {
+        pushUndoSnapshot(previousAnnotations);
+        setRedoStack([]);
+      }
       return;
     }
 
@@ -2288,6 +2352,9 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     if (!editable) return;
     event.preventDefault();
     event.stopPropagation();
+    if (annotation.id) {
+      beginHistoryGesture();
+    }
     resizingTextRef.current = {
       id: annotation.id,
       startClientX: event.clientX,
@@ -2302,13 +2369,17 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
   const handleTextPointerDown = (event: React.PointerEvent<HTMLDivElement>, annotation: TextAnnotation) => {
     if (!editable || !activeAnnotations.some((item) => item.id === annotation.id)) return;
-    event.preventDefault();
-    event.stopPropagation();
     if (tool === "eraser") {
+      event.preventDefault();
+      event.stopPropagation();
       deleteTextAnnotation(annotation);
       return;
     }
+    if (tool !== "cursor") return;
+    event.preventDefault();
+    event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
+    beginHistoryGesture();
     draggingTextRef.current = {
       id: annotation.id,
       startClientX: event.clientX,
@@ -2349,12 +2420,14 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     event.preventDefault();
     event.stopPropagation();
     draggingTextRef.current = null;
+    const previousAnnotations = consumeHistoryGesture();
     setLayerAnnotations(
       activeAnnotations.map((annotation) =>
         annotation.id === draggingText.id && annotation.type === "text"
           ? { ...annotation, x: draggingText.x, y: draggingText.y }
           : annotation
-      )
+      ),
+      { previousAnnotations: previousAnnotations ?? undefined }
     );
   };
 
@@ -2388,6 +2461,9 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         return;
       }
 
+      setEditingText((current) =>
+        current?.id === currentResize.id ? { ...current, width, x } : current
+      );
       setLayerAnnotationsLocally(
         activeAnnotationsRef.current.map((annotation) =>
           annotation.id === currentResize.id && annotation.type === "text"
@@ -2399,6 +2475,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
     const handleResizeEnd = () => {
       const currentResize = resizingTextRef.current;
+      const previousAnnotations = consumeHistoryGesture();
       resizingTextRef.current = null;
       setResizingText(false);
       if (!currentResize?.id) return;
@@ -2408,7 +2485,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
           annotation.id === currentResize.id && annotation.type === "text"
             ? { ...annotation, x: currentResize.x, width: currentResize.width }
             : annotation
-        )
+        ),
+        { previousAnnotations: previousAnnotations ?? undefined }
       );
     };
 
@@ -2424,16 +2502,31 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   }, [resizingText, setLayerAnnotations, setLayerAnnotationsLocally, zoomLevel]);
 
   const undo = () => {
-    if (!editable || activeAnnotations.length === 0) return;
-    setRedoStack((current) => [activeAnnotations, ...current].slice(0, 50));
-    setLayerAnnotations(activeAnnotations.slice(0, -1), { preserveRedo: true });
+    if (!editable || undoStack.length === 0) return;
+    const previousAnnotations = undoStack[undoStack.length - 1];
+    setEditingText(null);
+    setTextToolbarMenu(null);
+    historyGestureStartRef.current = null;
+    setUndoStack((current) => current.slice(0, -1));
+    setRedoStack((current) => [cloneAnnotationsSnapshot(activeAnnotationsRef.current), ...current].slice(0, HISTORY_STACK_LIMIT));
+    setLayerAnnotations(cloneAnnotationsSnapshot(previousAnnotations), {
+      preserveRedo: true,
+      skipHistory: true,
+    });
   };
 
   const redo = () => {
     if (!editable || redoStack.length === 0) return;
     const [nextAnnotations, ...remainingRedoStack] = redoStack;
+    setEditingText(null);
+    setTextToolbarMenu(null);
+    historyGestureStartRef.current = null;
+    setUndoStack((current) => [...current, cloneAnnotationsSnapshot(activeAnnotationsRef.current)].slice(-HISTORY_STACK_LIMIT));
     setRedoStack(remainingRedoStack);
-    setLayerAnnotations(nextAnnotations, { preserveRedo: true });
+    setLayerAnnotations(cloneAnnotationsSnapshot(nextAnnotations), {
+      preserveRedo: true,
+      skipHistory: true,
+    });
   };
 
   const saveNow = async () => {
@@ -3348,12 +3441,12 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                   +
                 </Button>
               </div>
-              <Button onClick={undo} disabled={!editable || activeAnnotations.length === 0}>Undo</Button>
+              <Button onClick={undo} disabled={!editable || undoStack.length === 0}>Undo</Button>
               <Button onClick={redo} disabled={!editable || redoStack.length === 0}>Redo</Button>
               <Button onClick={saveNow} disabled={!editable} loading={saving}>Save now</Button>
             </div>
 
-            {tool !== "eraser" && (
+            {tool !== "cursor" && tool !== "eraser" && (
               <div className="flex flex-wrap items-center gap-3 border-t border-slate-200 pt-2">
                 <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white px-2 py-2 shadow-sm">
                   {COLOR_SWATCHS.map(({ value, label }) => (
@@ -3738,7 +3831,15 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                       touchAction: "none",
                       userSelect: "none",
                       WebkitUserSelect: "none",
-                      cursor: !editable ? "not-allowed" : tool === "eraser" ? "cell" : tool === "text" ? "text" : "crosshair",
+                      cursor: !editable
+                        ? "not-allowed"
+                        : tool === "eraser"
+                        ? "cell"
+                        : tool === "text"
+                        ? "text"
+                        : tool === "cursor"
+                        ? "default"
+                        : "crosshair",
                     }}
                     onClick={(event) => handlePageClick(event, page.pageNumber)}
                     onPointerDown={(event) => handlePointerDown(event, page.pageNumber)}
@@ -4063,11 +4164,24 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                               fontWeight: annotation.fontWeight === "bold" ? 700 : 400,
                               textAlign: annotation.textAlign ?? "left",
                               textDecorationLine: annotation.underline ? "underline" : "none",
-                              cursor: isEditableText ? (tool === "eraser" ? "not-allowed" : "move") : "default",
+                              cursor: !isEditableText
+                                ? "default"
+                                : tool === "eraser"
+                                ? "cell"
+                                : tool === "cursor"
+                                ? "move"
+                                : tool === "text"
+                                ? "text"
+                                : "default",
                               touchAction: "none",
+                              pointerEvents:
+                                isEditableText && (tool === "cursor" || tool === "eraser" || tool === "text")
+                                  ? "auto"
+                                  : "none",
                             }}
                             onClick={(event) => event.stopPropagation()}
                             onDoubleClick={(event) => {
+                              if (tool !== "cursor" && tool !== "text") return;
                               event.stopPropagation();
                               startEditTextAnnotation(annotation);
                             }}
@@ -4077,7 +4191,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                             onPointerCancel={handleTextPointerUp}
                           >
                             {annotation.text}
-                            {isEditableText && tool !== "eraser" && (
+                            {isEditableText && tool === "cursor" && (
                               <>
                                 <span
                                   className="absolute left-[-9px] top-1/2 h-10 w-4 -translate-y-1/2 cursor-ew-resize rounded-full border-[3px] border-[#6d5efc] bg-white opacity-0 shadow transition group-hover:opacity-100"
@@ -4091,7 +4205,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                                 />
                               </>
                             )}
-                            {isEditableText && tool !== "eraser" && (
+                            {isEditableText && tool === "cursor" && (
                               <button
                                 type="button"
                                 className="absolute -top-12 right-0 flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 opacity-0 shadow transition group-hover:opacity-100"
