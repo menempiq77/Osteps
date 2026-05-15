@@ -1375,21 +1375,35 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const handlePaperTouchStartCapture = useCallback(
     (event: React.TouchEvent<HTMLDivElement>) => {
       if (event.touches.length === 0) return;
+      if (
+        editable &&
+        event.touches.length === 1 &&
+        (tool === "pen" || tool === "highlighter" || tool === "eraser")
+      ) {
+        return;
+      }
       pendingTouchPageActionRef.current = null;
       touchGestureRef.current = null;
       touchPointersRef.current.clear();
     },
-    []
+    [editable, tool]
   );
 
   const handlePaperTouchMoveCapture = useCallback(
     (event: React.TouchEvent<HTMLDivElement>) => {
       if (event.touches.length === 0) return;
+      if (
+        editable &&
+        event.touches.length === 1 &&
+        (tool === "pen" || tool === "highlighter" || tool === "eraser")
+      ) {
+        return;
+      }
       pendingTouchPageActionRef.current = null;
       touchGestureRef.current = null;
       touchPointersRef.current.clear();
     },
-    []
+    [editable, tool]
   );
 
   const handlePaperTouchEndCapture = useCallback(
@@ -2956,7 +2970,12 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   };
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>, pageNumber: number) => {
-    if (event.pointerType === "touch") {
+    const isTouchDrawingTool =
+      event.pointerType === "touch" &&
+      editable &&
+      (tool === "pen" || tool === "highlighter" || tool === "eraser");
+
+    if (event.pointerType === "touch" && !isTouchDrawingTool) {
       pendingTouchPageActionRef.current = null;
       return;
     }
@@ -3005,7 +3024,12 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   };
 
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (event.pointerType === "touch") return;
+    const isTouchDrawingTool =
+      event.pointerType === "touch" &&
+      editable &&
+      (tool === "pen" || tool === "highlighter" || tool === "eraser");
+
+    if (event.pointerType === "touch" && !isTouchDrawingTool) return;
 
     if (
       event.pointerType === "touch" &&
@@ -3058,7 +3082,12 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   };
 
   const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (event.pointerType === "touch") {
+    const isTouchDrawingTool =
+      event.pointerType === "touch" &&
+      editable &&
+      (tool === "pen" || tool === "highlighter" || tool === "eraser");
+
+    if (event.pointerType === "touch" && !isTouchDrawingTool) {
       pendingTouchPageActionRef.current = null;
       return;
     }
@@ -4844,7 +4873,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                     data-page-number={page.pageNumber}
                     className="absolute inset-0"
                     style={{
-                      touchAction: "pan-x pan-y pinch-zoom",
+                      touchAction:
+                        editable && (tool === "pen" || tool === "highlighter" || tool === "eraser")
+                          ? "none"
+                          : "pan-x pan-y pinch-zoom",
                       userSelect: "none",
                       WebkitUserSelect: "none",
                       cursor: !editable
