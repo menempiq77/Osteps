@@ -1360,6 +1360,77 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     syncTouchGesture();
   }, [clearTransientPointerState, syncTouchGesture, zoomLevel]);
 
+  const syncNativeTouchList = useCallback((touches: TouchList) => {
+    touchPointersRef.current.clear();
+    for (let index = 0; index < Math.min(touches.length, 2); index += 1) {
+      const touch = touches.item(index);
+      if (!touch) continue;
+      touchPointersRef.current.set(getNativeTouchPointerId(touch), {
+        clientX: touch.clientX,
+        clientY: touch.clientY,
+      });
+    }
+  }, []);
+
+  const handlePaperTouchStartCapture = useCallback(
+    (event: React.TouchEvent<HTMLDivElement>) => {
+      if (event.touches.length < 2) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      syncNativeTouchList(event.touches);
+
+      if (!touchGestureRef.current) {
+        startTouchGesture();
+        return;
+      }
+
+      syncTouchGesture();
+    },
+    [startTouchGesture, syncNativeTouchList, syncTouchGesture]
+  );
+
+  const handlePaperTouchMoveCapture = useCallback(
+    (event: React.TouchEvent<HTMLDivElement>) => {
+      if (!touchGestureRef.current && event.touches.length < 2) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      syncNativeTouchList(event.touches);
+
+      if (!touchGestureRef.current && touchPointersRef.current.size >= 2) {
+        startTouchGesture();
+        return;
+      }
+
+      syncTouchGesture();
+    },
+    [startTouchGesture, syncNativeTouchList, syncTouchGesture]
+  );
+
+  const handlePaperTouchEndCapture = useCallback(
+    (event: React.TouchEvent<HTMLDivElement>) => {
+      if (!touchGestureRef.current && !suppressTouchClickRef.current) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      syncNativeTouchList(event.touches);
+
+      if (event.touches.length < 2) {
+        touchGestureRef.current = null;
+      }
+
+      if (event.touches.length === 0) {
+        touchPointersRef.current.clear();
+        cancelTouchGestureFrame();
+        window.setTimeout(() => {
+          suppressTouchClickRef.current = false;
+        }, 0);
+      }
+    },
+    [cancelTouchGestureFrame, syncNativeTouchList]
+  );
+
   useEffect(() => {
     const container = examContainerRef.current;
     if (!container || typeof window === "undefined") return;
@@ -4806,6 +4877,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                         : "crosshair",
                     }}
                     onClick={(event) => handlePageClick(event, page.pageNumber)}
+                    onTouchStartCapture={handlePaperTouchStartCapture}
+                    onTouchMoveCapture={handlePaperTouchMoveCapture}
+                    onTouchEndCapture={handlePaperTouchEndCapture}
+                    onTouchCancelCapture={handlePaperTouchEndCapture}
                     onPointerDown={(event) => handlePointerDown(event, page.pageNumber)}
                     onPointerMove={handlePointerMove}
                     onPointerUp={handlePointerUp}
