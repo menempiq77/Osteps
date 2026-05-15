@@ -146,6 +146,25 @@ type ResizingText = {
   edge: "left" | "right";
 };
 
+type PenBounds = {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+  width: number;
+  height: number;
+  centerX: number;
+  centerY: number;
+};
+
+type ResizingPen = {
+  id: string;
+  edge: "left" | "right";
+  startClientX: number;
+  originPoints: PenAnnotation["points"];
+  originBounds: PenBounds;
+};
+
 type ExamExitContext = "fullscreen" | "screen" | "leave";
 
 type ExamExitLogEntry = {
@@ -211,6 +230,9 @@ const AI_PAGE_IMAGE_MAX_WIDTH = 1200;
 const AI_PAGE_IMAGE_JPEG_QUALITY = 0.68;
 const ERASER_RADIUS = 28;
 const PEN_SELECTION_RADIUS = 12;
+const PEN_SELECTION_BOX_PADDING = 12;
+const PEN_SELECTION_BOX_MIN_SIZE = 32;
+const PEN_RESIZE_MIN_SCALE = 0.25;
 const TEXT_ERASER_PADDING = 18;
 const TEXT_ANNOTATION_MIN_WIDTH = 120;
 const TEXT_ANNOTATION_DEFAULT_WIDTH = 360;
@@ -767,6 +789,62 @@ const drawSelectedPenHighlight = (context: CanvasRenderingContext2D, annotation:
   context.restore();
 };
 
+const getPenBounds = (annotation: PenAnnotation): PenBounds | null => {
+  const points = getSafePenPoints(annotation);
+  if (points.length === 0) return null;
+
+  let minX = points[0].x;
+  let maxX = points[0].x;
+  let minY = points[0].y;
+  let maxY = points[0].y;
+
+  for (const point of points.slice(1)) {
+    minX = Math.min(minX, point.x);
+    maxX = Math.max(maxX, point.x);
+    minY = Math.min(minY, point.y);
+    maxY = Math.max(maxY, point.y);
+  }
+
+  const width = Math.max(1, maxX - minX);
+  const height = Math.max(1, maxY - minY);
+
+  return {
+    minX,
+    maxX,
+    minY,
+    maxY,
+    width,
+    height,
+    centerX: (minX + maxX) / 2,
+    centerY: (minY + maxY) / 2,
+  };
+};
+
+const getPenSelectionOverlayBounds = (bounds: PenBounds) => {
+  const width = Math.max(bounds.width + PEN_SELECTION_BOX_PADDING * 2, PEN_SELECTION_BOX_MIN_SIZE);
+  const height = Math.max(bounds.height + PEN_SELECTION_BOX_PADDING * 2, PEN_SELECTION_BOX_MIN_SIZE);
+
+  return {
+    left: bounds.centerX - width / 2,
+    top: bounds.centerY - height / 2,
+    width,
+    height,
+  };
+};
+
+const scalePenPointsFromEdge = (
+  points: PenAnnotation["points"],
+  bounds: PenBounds,
+  scale: number,
+  edge: "left" | "right"
+) => {
+  const anchorX = edge === "right" ? bounds.minX : bounds.maxX;
+  return points.map((point) => ({
+    x: anchorX + (point.x - anchorX) * scale,
+    y: bounds.centerY + (point.y - bounds.centerY) * scale,
+  }));
+};
+
 const textTouchesEraser = (annotation: TextAnnotation, point: { x: number; y: number }) => {
   const text = String(annotation.text ?? "");
   const lineCount = Math.max(1, text.split("\n").length);
@@ -847,6 +925,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const [activeStroke, setActiveStroke] = useState<PenAnnotation | null>(null);
   const [editingText, setEditingText] = useState<EditingText | null>(null);
   const [resizingText, setResizingText] = useState(false);
+  const [resizingPen, setResizingPen] = useState(false);
   const [selectedPenAnnotationId, setSelectedPenAnnotationId] = useState<string | null>(null);
   const [undoStack, setUndoStack] = useState<AssessmentDocumentAnnotation[][]>([]);
   const [redoStack, setRedoStack] = useState<AssessmentDocumentAnnotation[][]>([]);
@@ -877,6 +956,14 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     strokeControlsTool === "highlighter" ? HIGHLIGHTER_WIDTH_OPTIONS : PEN_WIDTH_OPTIONS;
   const activeStrokeColor =
     tool === "cursor" && selectedPenAnnotation ? selectedPenAnnotation.color : color;
+  const selectedPenBounds = useMemo(
+    () => (selectedPenAnnotation ? getPenBounds(selectedPenAnnotation) : null),
+    [selectedPenAnnotation]
+  );
+  const selectedPenOverlayBounds = useMemo(
+    () => (selectedPenBounds ? getPenSelectionOverlayBounds(selectedPenBounds) : null),
+    [selectedPenBounds]
+  );
   const activeTextFontSize = editingText?.fontSize ?? textFontSize;
   const activeTextFontWeight = editingText?.fontWeight ?? textFontWeight;
   const activeTextUnderline = editingText?.underline ?? textUnderline;
@@ -891,6 +978,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const activeAnnotationsRef = useRef<AssessmentDocumentAnnotation[]>([]);
   const historyGestureStartRef = useRef<AssessmentDocumentAnnotation[] | null>(null);
   const resizingTextRef = useRef<ResizingText | null>(null);
+  const resizingPenRef = useRef<ResizingPen | null>(null);
   const erasingRef = useRef(false);
   const draggingTextRef = useRef<DraggingText | null>(null);
   const annotationCanvasRefs = useRef<Record<number, HTMLCanvasElement | null>>({});
@@ -1449,10 +1537,14 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
   useEffect(() => {
     if (tool !== "cursor") {
+      resizingPenRef.current = null;
+      setResizingPen(false);
       setSelectedPenAnnotationId(null);
       return;
     }
     if (selectedPenAnnotationId && !selectedPenAnnotation) {
+      resizingPenRef.current = null;
+      setResizingPen(false);
       setSelectedPenAnnotationId(null);
     }
   }, [selectedPenAnnotation, selectedPenAnnotationId, tool]);
@@ -1738,8 +1830,51 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     [getAnnotationsSignature, persistLocalDraft, role]
   );
 
+  const deleteSelectedPenAnnotation = useCallback(() => {
+    if (!editable || !selectedPenAnnotation) return;
+    resizingPenRef.current = null;
+    setResizingPen(false);
+    setSelectedPenAnnotationId(null);
+    setLayerAnnotations(
+      activeAnnotationsRef.current.filter((annotation) => annotation.id !== selectedPenAnnotation.id)
+    );
+  }, [editable, selectedPenAnnotation, setLayerAnnotations]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !editable || tool !== "cursor" || !selectedPenAnnotation) {
+      return;
+    }
+
+    const handleDeleteKey = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
+
+      const target = event.target as HTMLElement | null;
+      const tagName = String(target?.tagName || "").toLowerCase();
+      if (
+        target?.isContentEditable ||
+        ["input", "textarea", "select", "button"].includes(tagName) ||
+        target?.closest(".ant-input") ||
+        target?.closest(".ant-input-number") ||
+        target?.closest("[contenteditable='true']")
+      ) {
+        return;
+      }
+
+      if (event.key !== "Delete" && event.key !== "Backspace") return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      deleteSelectedPenAnnotation();
+    };
+
+    window.addEventListener("keydown", handleDeleteKey, true);
+    return () => {
+      window.removeEventListener("keydown", handleDeleteKey, true);
+    };
+  }, [deleteSelectedPenAnnotation, editable, selectedPenAnnotation, tool]);
+
   const updateSelectedPenAnnotation = useCallback(
-    (updates: Partial<Pick<PenAnnotation, "color" | "width">>) => {
+    (updates: Partial<Pick<PenAnnotation, "color" | "width" | "points">>) => {
       if (!selectedPenAnnotation) return;
       const previousAnnotations = cloneAnnotationsSnapshot(activeAnnotationsRef.current);
       const nextAnnotations = activeAnnotationsRef.current.map((annotation) =>
@@ -1775,6 +1910,28 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       }
     },
     [selectedPenAnnotation, strokeControlsTool, tool, updateSelectedPenAnnotation]
+  );
+
+  const startResizeSelectedPen = useCallback(
+    (event: React.PointerEvent<HTMLElement>, edge: "left" | "right") => {
+      if (!editable || tool !== "cursor" || !selectedPenAnnotation) return;
+
+      const originBounds = getPenBounds(selectedPenAnnotation);
+      if (!originBounds) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      beginHistoryGesture();
+      resizingPenRef.current = {
+        id: selectedPenAnnotation.id,
+        edge,
+        startClientX: event.clientX,
+        originPoints: getSafePenPoints(selectedPenAnnotation).map((point) => ({ ...point })),
+        originBounds,
+      };
+      setResizingPen(true);
+    },
+    [beginHistoryGesture, editable, selectedPenAnnotation, tool]
   );
 
   useEffect(() => {
@@ -2634,6 +2791,58 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       window.removeEventListener("pointercancel", handleResizeEnd);
     };
   }, [resizingText, setLayerAnnotations, setLayerAnnotationsLocally, zoomLevel]);
+
+  useEffect(() => {
+    if (!resizingPen) return;
+
+    const handlePenResizeMove = (event: PointerEvent) => {
+      const currentResize = resizingPenRef.current;
+      if (!currentResize) return;
+
+      event.preventDefault();
+      const horizontalDelta = (event.clientX - currentResize.startClientX) / zoomLevel;
+      const safeOriginWidth = Math.max(currentResize.originBounds.width, 1);
+      const nextWidth = Math.max(
+        safeOriginWidth * PEN_RESIZE_MIN_SCALE,
+        safeOriginWidth + horizontalDelta * (currentResize.edge === "right" ? 1 : -1)
+      );
+      const scale = nextWidth / safeOriginWidth;
+      const nextPoints = scalePenPointsFromEdge(
+        currentResize.originPoints,
+        currentResize.originBounds,
+        scale,
+        currentResize.edge
+      );
+
+      setLayerAnnotationsLocally(
+        activeAnnotationsRef.current.map((annotation) =>
+          annotation.id === currentResize.id && annotation.type === "pen"
+            ? { ...annotation, points: nextPoints }
+            : annotation
+        )
+      );
+    };
+
+    const handlePenResizeEnd = () => {
+      const previousAnnotations = consumeHistoryGesture();
+      resizingPenRef.current = null;
+      setResizingPen(false);
+
+      setLayerAnnotations(cloneAnnotationsSnapshot(activeAnnotationsRef.current), {
+        previousAnnotations: previousAnnotations ?? undefined,
+      });
+    };
+
+    window.addEventListener("pointermove", handlePenResizeMove);
+    window.addEventListener("pointerup", handlePenResizeEnd);
+    window.addEventListener("pointercancel", handlePenResizeEnd);
+
+    return () => {
+      window.removeEventListener("pointermove", handlePenResizeMove);
+      window.removeEventListener("pointerup", handlePenResizeEnd);
+      window.removeEventListener("pointercancel", handlePenResizeEnd);
+    };
+  }, [consumeHistoryGesture, resizingPen, setLayerAnnotations, setLayerAnnotationsLocally, zoomLevel]);
 
   const undo = () => {
     if (!editable || undoStack.length === 0) return;
@@ -4277,6 +4486,44 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                         </>
                       );
                     })()}
+                    {canEditSelectedStroke &&
+                      selectedPenAnnotation?.page === page.pageNumber &&
+                      selectedPenOverlayBounds && (
+                        <div
+                          className="pointer-events-none absolute z-20"
+                          style={{
+                            left: selectedPenOverlayBounds.left,
+                            top: selectedPenOverlayBounds.top,
+                            width: selectedPenOverlayBounds.width,
+                            height: selectedPenOverlayBounds.height,
+                          }}
+                        >
+                          <div className="absolute inset-0 rounded-[24px] border-[3px] border-[#6d5efc] bg-[#6d5efc]/5 shadow-[0_18px_40px_rgba(109,94,252,0.16)]" />
+                          <span
+                            className="pointer-events-auto absolute left-[-9px] top-1/2 h-10 w-4 -translate-y-1/2 cursor-ew-resize rounded-full border-[3px] border-[#6d5efc] bg-white shadow"
+                            title="Stretch handwriting"
+                            onPointerDown={(event) => startResizeSelectedPen(event, "left")}
+                          />
+                          <span
+                            className="pointer-events-auto absolute right-[-9px] top-1/2 h-10 w-4 -translate-y-1/2 cursor-ew-resize rounded-full border-[3px] border-[#6d5efc] bg-white shadow"
+                            title="Stretch handwriting"
+                            onPointerDown={(event) => startResizeSelectedPen(event, "right")}
+                          />
+                          <button
+                            type="button"
+                            className="pointer-events-auto absolute -top-12 right-0 flex items-center gap-2 rounded-2xl border border-red-200 bg-white px-3 py-2 text-sm font-medium text-red-600 shadow transition hover:bg-red-50"
+                            onClick={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              deleteSelectedPenAnnotation();
+                            }}
+                            onPointerDown={(event) => event.stopPropagation()}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Delete
+                          </button>
+                        </div>
+                      )}
                     {(textAnnotationsByPage.get(page.pageNumber) || []).map((annotation) => {
                         const isEditableText = editable && activeAnnotations.some((item) => item.id === annotation.id);
                         const isBeingEdited = editingText?.id === annotation.id;
