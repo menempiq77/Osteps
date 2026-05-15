@@ -3120,7 +3120,19 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
           <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-3">
             <div className="flex flex-wrap items-center gap-2">
-              <Select<Tool> value={tool} onChange={setTool} disabled={!editable} style={{ width: 110 }} options={[{ value: "pen", label: "Pen" }, { value: "text", label: "Text" }, { value: "eraser", label: "Eraser" }]} />
+              <div className="flex flex-wrap items-center gap-1 rounded-lg border border-slate-200 bg-white p-1">
+                {(["pen", "text", "eraser"] as Tool[]).map((toolOption) => (
+                  <Button
+                    key={toolOption}
+                    type={tool === toolOption ? "primary" : "default"}
+                    disabled={!editable}
+                    onClick={() => setTool(toolOption)}
+                    className={tool === toolOption ? "!bg-[#0f7f8c] !border-[#0f7f8c]" : ""}
+                  >
+                    {toolOption === "pen" ? "Pen" : toolOption === "text" ? "Text" : "Eraser"}
+                  </Button>
+                ))}
+              </div>
               <Select value={color} onChange={setColor} disabled={!editable} style={{ width: 120 }} options={COLORS.map((value) => ({ value, label: <span style={{ color: value }}>● {value}</span> }))} />
               <InputNumber min={1} max={12} value={penWidth} onChange={(value) => setPenWidth(Number(value || 3))} disabled={!editable || tool !== "pen"} className="w-20" />
               <InputNumber min={MIN_TEXT_FONT_SIZE} max={MAX_TEXT_FONT_SIZE} value={textFontSize} onChange={(value) => {
