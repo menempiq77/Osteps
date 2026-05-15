@@ -185,6 +185,19 @@ type TouchGestureState = {
   initialContentY: number;
 };
 
+type PendingTouchPageAction = {
+  pointerId: number;
+  pageNumber: number;
+  startClientX: number;
+  startClientY: number;
+  startPoint: { x: number; y: number };
+  target: HTMLDivElement;
+  mode: "cursor" | "eraser" | "stroke";
+  strokeTool?: "pen" | "highlighter";
+  strokeColor?: string;
+  strokeWidth?: number;
+};
+
 type ExamExitContext = "fullscreen" | "screen" | "leave";
 
 type ExamExitLogEntry = {
@@ -1026,6 +1039,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const touchPointersRef = useRef<Map<number, TrackedTouchPointer>>(new Map());
   const touchGestureRef = useRef<TouchGestureState | null>(null);
   const touchGestureFrameRef = useRef<number | null>(null);
+  const pendingTouchPageActionRef = useRef<PendingTouchPageAction | null>(null);
   const suppressTouchClickRef = useRef(false);
   const annotationCanvasRefs = useRef<Record<number, HTMLCanvasElement | null>>({});
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1259,6 +1273,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     activeStrokeRef.current = null;
     setActiveStroke(null);
     erasingRef.current = false;
+    pendingTouchPageActionRef.current = null;
     draggingTextRef.current = null;
     resizingTextRef.current = null;
     setResizingText(false);
@@ -2698,14 +2713,21 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     return grouped;
   }, [studentAnnotations, teacherAnnotations]);
 
+  const getAnnotationsAfterErase = (
+    annotations: AssessmentDocumentAnnotation[],
+    pageNumber: number,
+    point: { x: number; y: number }
+  ) =>
+    annotations.filter((annotation) => {
+      if (annotation.page !== pageNumber) return true;
+      if (annotation.type === "text") return !textTouchesEraser(annotation, point);
+      return !penTouchesEraser(annotation, point);
+    });
+
   const eraseAtPoint = useCallback(
     (pageNumber: number, point: { x: number; y: number }) => {
       const currentAnnotations = activeAnnotationsRef.current;
-      const nextAnnotations = currentAnnotations.filter((annotation) => {
-        if (annotation.page !== pageNumber) return true;
-        if (annotation.type === "text") return !textTouchesEraser(annotation, point);
-        return !penTouchesEraser(annotation, point);
-      });
+      const nextAnnotations = getAnnotationsAfterErase(currentAnnotations, pageNumber, point);
 
       if (nextAnnotations.length === currentAnnotations.length) return;
       setLayerAnnotationsLocally(nextAnnotations);
@@ -2713,6 +2735,81 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     },
     [queueAutosave, setLayerAnnotationsLocally]
   );
+
+  const beginPendingTouchPageAction = (
+    pendingAction: PendingTouchPageAction,
+    currentPoint?: { x: number; y: number }
+  ) => {
+    pendingTouchPageActionRef.current = null;
+
+    if (pendingAction.mode === "cursor") return;
+
+    if (pendingAction.mode === "eraser") {
+      beginHistoryGesture();
+      pendingAction.target.setPointerCapture(pendingAction.pointerId);
+      erasingRef.current = true;
+      eraseAtPoint(pendingAction.pageNumber, pendingAction.startPoint);
+      if (
+        currentPoint &&
+        (currentPoint.x !== pendingAction.startPoint.x ||
+          currentPoint.y !== pendingAction.startPoint.y)
+      ) {
+        eraseAtPoint(pendingAction.pageNumber, currentPoint);
+      }
+      return;
+    }
+
+    const nextStroke: PenAnnotation = {
+      id: makeId(),
+      type: "pen",
+      tool: pendingAction.strokeTool || "pen",
+      page: pendingAction.pageNumber,
+      color: pendingAction.strokeColor || color,
+      width: pendingAction.strokeWidth || drawingStrokeWidth,
+      points: [pendingAction.startPoint],
+    };
+
+    if (
+      currentPoint &&
+      (currentPoint.x !== pendingAction.startPoint.x ||
+        currentPoint.y !== pendingAction.startPoint.y)
+    ) {
+      nextStroke.points.push(currentPoint);
+    }
+
+    pendingAction.target.setPointerCapture(pendingAction.pointerId);
+    activeStrokeRef.current = nextStroke;
+    setActiveStroke(nextStroke);
+  };
+
+  const finalizePendingTouchPageAction = (pendingAction: PendingTouchPageAction) => {
+    pendingTouchPageActionRef.current = null;
+
+    if (pendingAction.mode === "cursor") {
+      const selectedAnnotation = findPenAnnotationAtPoint(
+        activeAnnotationsRef.current,
+        pendingAction.pageNumber,
+        pendingAction.startPoint
+      );
+      setSelectedPenAnnotationId(selectedAnnotation?.id ?? null);
+      return;
+    }
+
+    if (pendingAction.mode === "eraser") {
+      const currentAnnotations = activeAnnotationsRef.current;
+      const nextAnnotations = getAnnotationsAfterErase(
+        currentAnnotations,
+        pendingAction.pageNumber,
+        pendingAction.startPoint
+      );
+
+      if (nextAnnotations.length === currentAnnotations.length) return;
+
+      setLayerAnnotations(nextAnnotations, {
+        previousAnnotations: cloneAnnotationsSnapshot(currentAnnotations),
+      });
+    }
+  };
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>, pageNumber: number) => {
     if (
@@ -2728,6 +2825,22 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     event.stopPropagation();
     const target = event.currentTarget;
     const point = getPointerPoint(event, target, zoomLevel);
+
+    if (event.pointerType === "touch") {
+      pendingTouchPageActionRef.current = {
+        pointerId: event.pointerId,
+        pageNumber,
+        startClientX: event.clientX,
+        startClientY: event.clientY,
+        startPoint: point,
+        target,
+        mode: tool === "cursor" ? "cursor" : tool === "eraser" ? "eraser" : "stroke",
+        strokeTool: tool === "highlighter" ? "highlighter" : "pen",
+        strokeColor: color,
+        strokeWidth: drawingStrokeWidth,
+      };
+      return;
+    }
 
     if (tool === "cursor") {
       const selectedAnnotation = findPenAnnotationAtPoint(activeAnnotationsRef.current, pageNumber, point);
@@ -2766,6 +2879,25 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       event.stopPropagation();
       return;
     }
+    const pendingTouchPageAction = pendingTouchPageActionRef.current;
+    if (
+      event.pointerType === "touch" &&
+      pendingTouchPageAction?.pointerId === event.pointerId
+    ) {
+      if (pendingTouchPageAction.mode === "cursor") return;
+
+      const moveDistance = Math.hypot(
+        event.clientX - pendingTouchPageAction.startClientX,
+        event.clientY - pendingTouchPageAction.startClientY
+      );
+      if (moveDistance < 8) return;
+
+      beginPendingTouchPageAction(
+        pendingTouchPageAction,
+        getPointerPoint(event, event.currentTarget, zoomLevel)
+      );
+      return;
+    }
     if (erasingRef.current && tool === "eraser") {
       event.preventDefault();
       event.stopPropagation();
@@ -2793,6 +2925,16 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     ) {
       event.preventDefault();
       event.stopPropagation();
+      return;
+    }
+    const pendingTouchPageAction = pendingTouchPageActionRef.current;
+    if (
+      event.pointerType === "touch" &&
+      pendingTouchPageAction?.pointerId === event.pointerId
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+      finalizePendingTouchPageAction(pendingTouchPageAction);
       return;
     }
     if (erasingRef.current) {
