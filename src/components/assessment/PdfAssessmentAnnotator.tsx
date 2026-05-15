@@ -106,6 +106,8 @@ const TOOL_BUTTONS: Array<{
   { value: "text", label: "Text", Icon: Type },
 ];
 
+const TOUCH_PAGE_ACTION_GRACE_MS = 120;
+
 type RenderedPage = {
   pageNumber: number;
   width: number;
@@ -190,6 +192,7 @@ type PendingTouchPageAction = {
   pageNumber: number;
   startClientX: number;
   startClientY: number;
+  startedAtMs: number;
   startPoint: { x: number; y: number };
   target: HTMLDivElement;
   mode: "cursor" | "eraser" | "stroke";
@@ -2830,6 +2833,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         pageNumber,
         startClientX: event.clientX,
         startClientY: event.clientY,
+        startedAtMs: Date.now(),
         startPoint: point,
         target,
         mode: tool === "cursor" ? "cursor" : tool === "eraser" ? "eraser" : "stroke",
@@ -2892,6 +2896,9 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         event.clientY - pendingTouchPageAction.startClientY
       );
       if (moveDistance < 8) return;
+      if (Date.now() - pendingTouchPageAction.startedAtMs < TOUCH_PAGE_ACTION_GRACE_MS) {
+        return;
+      }
 
       beginPendingTouchPageAction(
         pendingTouchPageAction,
