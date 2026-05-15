@@ -2,7 +2,18 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Button, Input, InputNumber, Modal, message, Select, Spin, Tag } from "antd";
-import { Eraser, Highlighter, PenTool, Type } from "lucide-react";
+import {
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
+  Bold,
+  Eraser,
+  Highlighter,
+  PenTool,
+  Trash2,
+  Type,
+  Underline,
+} from "lucide-react";
 import type {
   AssessmentDocumentAnnotation,
   AssessmentDocumentLayer,
@@ -27,6 +38,8 @@ import { resolveExamWindow } from "@/lib/taskTypeMetadata";
 
 type Tool = "pen" | "highlighter" | "text" | "eraser";
 type DocumentKind = "pdf" | "docx" | "image";
+type TextFontWeight = "normal" | "bold";
+type TextAlignment = "left" | "center" | "right";
 
 const COLOR_SWATCHS = [
   { value: "#bdbdbd", label: "Gray" },
@@ -43,6 +56,21 @@ const COLOR_SWATCHS = [
 const PEN_WIDTH_OPTIONS = [2, 4, 6, 8] as const;
 const HIGHLIGHTER_WIDTH_OPTIONS = [10, 16, 24] as const;
 const TEXT_SIZE_OPTIONS = [14, 16, 18, 24] as const;
+const TEXT_STYLE_SIZE_OPTIONS = [
+  { label: "Small", value: 14 },
+  { label: "Medium", value: 18 },
+  { label: "Large", value: 24 },
+] as const;
+const TEXT_TOOLBAR_SWATCH_VALUES = ["#111827", "#ef4444", "#fde047", "#a3e635", "#67e8f9"] as const;
+const TEXT_ALIGNMENT_OPTIONS: Array<{
+  value: TextAlignment;
+  label: string;
+  Icon: typeof AlignLeft;
+}> = [
+  { value: "left", label: "Align left", Icon: AlignLeft },
+  { value: "center", label: "Align center", Icon: AlignCenter },
+  { value: "right", label: "Align right", Icon: AlignRight },
+];
 
 const TOOL_BUTTONS: Array<{
   value: Tool;
@@ -70,6 +98,9 @@ type EditingText = {
   value: string;
   fontSize: number;
   width: number;
+  fontWeight: TextFontWeight;
+  underline: boolean;
+  textAlign: TextAlignment;
 };
 
 type DraggingText = {
@@ -86,7 +117,10 @@ type ResizingText = {
   id?: string;
   startClientX: number;
   originWidth: number;
+  originX: number;
+  x: number;
   width: number;
+  edge: "left" | "right";
 };
 
 type ExamExitContext = "fullscreen" | "screen" | "leave";
@@ -512,6 +546,9 @@ const getSafePenPoints = (annotation: { points?: Array<{ x?: number; y?: number 
       )
     : [];
 
+const getTextFont = (fontSize: number, fontWeight: TextFontWeight = "normal") =>
+  `${fontWeight === "bold" ? "700" : "400"} ${fontSize}px Arial, sans-serif`;
+
 const compactAnnotationsForAiDraft = (annotations: AssessmentDocumentAnnotation[]) =>
   annotations.map((annotation) => {
     if (annotation.type === "text") return annotation;
@@ -561,10 +598,13 @@ const drawWrappedText = (
   const effectiveMaxWidth = annotation.width ?? maxWidth;
 
   const fontSize = annotation.fontSize || 16;
+  const fontWeight = annotation.fontWeight === "bold" ? "bold" : "normal";
+  const textAlign = annotation.textAlign ?? "left";
   const lineHeight = fontSize * 1.22;
   context.save();
   context.fillStyle = annotation.color || "#111827";
-  context.font = `${fontSize}px Arial, sans-serif`;
+  context.strokeStyle = annotation.color || "#111827";
+  context.font = getTextFont(fontSize, fontWeight);
   context.textBaseline = "top";
 
   const paragraphs = text.split(/\r?\n/);
@@ -580,7 +620,22 @@ const drawWrappedText = (
     for (const word of words) {
       const testLine = line ? `${line} ${word}` : word;
       if (context.measureText(testLine).width > effectiveMaxWidth && line) {
-        context.fillText(line, annotation.x, y);
+        const lineWidth = context.measureText(line).width;
+        const lineX =
+          textAlign === "center"
+            ? annotation.x + (effectiveMaxWidth - lineWidth) / 2
+            : textAlign === "right"
+              ? annotation.x + effectiveMaxWidth - lineWidth
+              : annotation.x;
+        context.fillText(line, lineX, y);
+        if (annotation.underline) {
+          const underlineY = y + fontSize + Math.max(1, fontSize * 0.08);
+          context.lineWidth = Math.max(1, fontSize * 0.06);
+          context.beginPath();
+          context.moveTo(lineX, underlineY);
+          context.lineTo(lineX + lineWidth, underlineY);
+          context.stroke();
+        }
         line = word;
         y += lineHeight;
       } else {
@@ -588,7 +643,22 @@ const drawWrappedText = (
       }
     }
     if (line) {
-      context.fillText(line, annotation.x, y);
+      const lineWidth = context.measureText(line).width;
+      const lineX =
+        textAlign === "center"
+          ? annotation.x + (effectiveMaxWidth - lineWidth) / 2
+          : textAlign === "right"
+            ? annotation.x + effectiveMaxWidth - lineWidth
+            : annotation.x;
+      context.fillText(line, lineX, y);
+      if (annotation.underline) {
+        const underlineY = y + fontSize + Math.max(1, fontSize * 0.08);
+        context.lineWidth = Math.max(1, fontSize * 0.06);
+        context.beginPath();
+        context.moveTo(lineX, underlineY);
+        context.lineTo(lineX + lineWidth, underlineY);
+        context.stroke();
+      }
       y += lineHeight;
     }
   }
@@ -665,6 +735,9 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const [penWidth, setPenWidth] = useState(3);
   const [highlighterWidth, setHighlighterWidth] = useState(16);
   const [textFontSize, setTextFontSize] = useState(role === "teacher" ? 18 : 16);
+  const [textFontWeight, setTextFontWeight] = useState<TextFontWeight>("normal");
+  const [textUnderline, setTextUnderline] = useState(false);
+  const [textAlignment, setTextAlignment] = useState<TextAlignment>("left");
   const [saving, setSaving] = useState(false);
   const [autosaveQueued, setAutosaveQueued] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
@@ -697,6 +770,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const activeStrokeWidth = tool === "highlighter" ? highlighterWidth : penWidth;
   const activeStrokeWidthOptions =
     tool === "highlighter" ? HIGHLIGHTER_WIDTH_OPTIONS : PEN_WIDTH_OPTIONS;
+  const activeTextFontSize = editingText?.fontSize ?? textFontSize;
+  const activeTextFontWeight = editingText?.fontWeight ?? textFontWeight;
+  const activeTextUnderline = editingText?.underline ?? textUnderline;
+  const activeTextAlignment = editingText?.textAlign ?? textAlignment;
   const examContainerRef = useRef<HTMLDivElement | null>(null);
   const activeStrokeRef = useRef<PenAnnotation | null>(null);
   const activeAnnotationsRef = useRef<AssessmentDocumentAnnotation[]>([]);
@@ -2078,6 +2155,9 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       value: "",
       fontSize: textFontSize,
       width: TEXT_ANNOTATION_DEFAULT_WIDTH,
+      fontWeight: textFontWeight,
+      underline: textUnderline,
+      textAlign: textAlignment,
     });
   };
 
@@ -2098,11 +2178,17 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                 color,
                 fontSize: editingText.fontSize,
                 width: editingText.width,
+                fontWeight: editingText.fontWeight,
+                underline: editingText.underline,
+                textAlign: editingText.textAlign,
               }
             : annotation
         )
       );
       setTextFontSize(editingText.fontSize);
+      setTextFontWeight(editingText.fontWeight);
+      setTextUnderline(editingText.underline);
+      setTextAlignment(editingText.textAlign);
       setEditingText(null);
       return;
     }
@@ -2116,15 +2202,25 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       color,
       fontSize: editingText.fontSize,
       width: editingText.width,
+      fontWeight: editingText.fontWeight,
+      underline: editingText.underline,
+      textAlign: editingText.textAlign,
     };
     setLayerAnnotations([...activeAnnotations, annotation]);
     setTextFontSize(editingText.fontSize);
+    setTextFontWeight(editingText.fontWeight);
+    setTextUnderline(editingText.underline);
+    setTextAlignment(editingText.textAlign);
     setEditingText(null);
   };
 
   const startEditTextAnnotation = (annotation: TextAnnotation) => {
     if (!editable || !activeAnnotations.some((item) => item.id === annotation.id)) return;
+    setColor(annotation.color);
     setTextFontSize(annotation.fontSize);
+    setTextFontWeight(annotation.fontWeight === "bold" ? "bold" : "normal");
+    setTextUnderline(Boolean(annotation.underline));
+    setTextAlignment(annotation.textAlign ?? "left");
     setEditingText({
       id: annotation.id,
       page: annotation.page,
@@ -2133,6 +2229,9 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       value: annotation.text,
       fontSize: annotation.fontSize,
       width: annotation.width ?? TEXT_ANNOTATION_DEFAULT_WIDTH,
+      fontWeight: annotation.fontWeight === "bold" ? "bold" : "normal",
+      underline: Boolean(annotation.underline),
+      textAlign: annotation.textAlign ?? "left",
     });
   };
 
@@ -2142,12 +2241,22 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     setLayerAnnotations(activeAnnotations.filter((item) => item.id !== annotation.id));
   };
 
+  const deleteEditingText = () => {
+    if (!editingText?.id) {
+      setEditingText(null);
+      return;
+    }
+    setLayerAnnotations(activeAnnotations.filter((annotation) => annotation.id !== editingText.id));
+    setEditingText(null);
+  };
+
   const clampTextAnnotationWidth = (value: number) =>
     Math.min(TEXT_ANNOTATION_MAX_WIDTH, Math.max(TEXT_ANNOTATION_MIN_WIDTH, value));
 
   const startResizeTextAnnotation = (
     event: React.PointerEvent<HTMLElement>,
-    annotation: TextAnnotation | EditingText
+    annotation: TextAnnotation | EditingText,
+    edge: "left" | "right" = "right"
   ) => {
     if (!editable) return;
     event.preventDefault();
@@ -2156,7 +2265,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       id: annotation.id,
       startClientX: event.clientX,
       originWidth: annotation.width ?? TEXT_ANNOTATION_DEFAULT_WIDTH,
+      originX: annotation.x,
+      x: annotation.x,
       width: annotation.width ?? TEXT_ANNOTATION_DEFAULT_WIDTH,
+      edge,
     };
     setResizingText(true);
   };
@@ -2226,20 +2338,28 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       const currentResize = resizingTextRef.current;
       if (!currentResize) return;
       event.preventDefault();
-      const width = clampTextAnnotationWidth(
-        currentResize.originWidth + (event.clientX - currentResize.startClientX) / zoomLevel
-      );
-      resizingTextRef.current = { ...currentResize, width };
+      const horizontalDelta = (event.clientX - currentResize.startClientX) / zoomLevel;
+      let width = currentResize.originWidth;
+      let x = currentResize.originX;
+
+      if (currentResize.edge === "left") {
+        width = clampTextAnnotationWidth(currentResize.originWidth - horizontalDelta);
+        x = Math.max(0, currentResize.originX + (currentResize.originWidth - width));
+      } else {
+        width = clampTextAnnotationWidth(currentResize.originWidth + horizontalDelta);
+      }
+
+      resizingTextRef.current = { ...currentResize, width, x };
 
       if (!currentResize.id) {
-        setEditingText((current) => (current ? { ...current, width } : current));
+        setEditingText((current) => (current ? { ...current, width, x } : current));
         return;
       }
 
       setLayerAnnotationsLocally(
         activeAnnotationsRef.current.map((annotation) =>
           annotation.id === currentResize.id && annotation.type === "text"
-            ? { ...annotation, width }
+            ? { ...annotation, width, x }
             : annotation
         )
       );
@@ -2254,7 +2374,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       setLayerAnnotations(
         activeAnnotationsRef.current.map((annotation) =>
           annotation.id === currentResize.id && annotation.type === "text"
-            ? { ...annotation, width: currentResize.width }
+            ? { ...annotation, x: currentResize.x, width: currentResize.width }
             : annotation
         )
       );
@@ -3595,40 +3715,186 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                     onPointerCancel={handlePointerUp}
                   >
                     {editingText?.page === page.pageNumber && (
-                      <div
-                        className="absolute z-20 rounded border border-blue-500 bg-white/95 shadow-lg"
-                        style={{ left: editingText.x, top: editingText.y, width: editingText.width }}
-                        onClick={(event) => event.stopPropagation()}
-                        onPointerDown={(event) => event.stopPropagation()}
-                      >
-                        <Input.TextArea
-                          autoFocus
-                          value={editingText.value}
-                          onChange={(event) => setEditingText({ ...editingText, value: event.target.value })}
-                          onBlur={commitEditingText}
-                          onKeyDown={(event) => {
-                            if (event.key === "Escape") {
-                              event.preventDefault();
-                              setEditingText(null);
-                            }
-                            if (event.key === "Enter" && !event.shiftKey) {
-                              event.preventDefault();
-                              commitEditingText();
-                            }
-                          }}
-                          placeholder="Type here"
-                          autoSize={{ minRows: 1, maxRows: 10 }}
-                          className="!w-full rounded !border-0 bg-white/95 pr-5"
-                          style={{ color, fontSize: editingText.fontSize, resize: "none" }}
-                        />
-                        <span
-                          className="absolute bottom-0 right-0 h-5 w-5 cursor-ew-resize rounded-tl bg-blue-500/90 text-center text-[10px] leading-5 text-white shadow"
-                          title="Drag to make the text box wider"
-                          onPointerDown={(event) => startResizeTextAnnotation(event, editingText)}
+                      <>
+                        <div
+                          className="absolute z-30 flex flex-wrap items-center overflow-hidden rounded-[20px] border border-slate-300 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.16)]"
+                          style={{ left: Math.max(0, editingText.x - 6), top: Math.max(12, editingText.y - 72) }}
+                          onClick={(event) => event.stopPropagation()}
+                          onPointerDown={(event) => event.stopPropagation()}
                         >
-                          ?
-                        </span>
-                      </div>
+                          <div className="flex items-center gap-2 border-r border-slate-200 px-3 py-2">
+                            {COLOR_SWATCHS.filter(({ value }) =>
+                              TEXT_TOOLBAR_SWATCH_VALUES.includes(
+                                value as (typeof TEXT_TOOLBAR_SWATCH_VALUES)[number]
+                              )
+                            ).map(({ value, label }) => (
+                              <button
+                                key={`${editingText.page}-${value}`}
+                                type="button"
+                                title={label}
+                                aria-label={`Set text color to ${label.toLowerCase()}`}
+                                onMouseDown={(event) => event.preventDefault()}
+                                onClick={() => setColor(value)}
+                                className={[
+                                  "h-9 w-9 rounded-full border-2 transition",
+                                  value === "#ffffff" ? "border-slate-300" : "border-white/80",
+                                  color === value ? "ring-2 ring-[#6d5efc] ring-offset-2" : "hover:scale-105",
+                                ].join(" ")}
+                                style={{ backgroundColor: value }}
+                              />
+                            ))}
+                          </div>
+                          <button
+                            type="button"
+                            title="Bold"
+                            aria-label="Toggle bold"
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => {
+                              const nextFontWeight = activeTextFontWeight === "bold" ? "normal" : "bold";
+                              setTextFontWeight(nextFontWeight);
+                              setEditingText((current) =>
+                                current ? { ...current, fontWeight: nextFontWeight } : current
+                              );
+                            }}
+                            className={[
+                              "flex h-14 min-w-14 items-center justify-center border-r border-slate-200 px-4 transition",
+                              activeTextFontWeight === "bold"
+                                ? "bg-black text-white"
+                                : "bg-white text-slate-800 hover:bg-slate-100",
+                            ].join(" ")}
+                          >
+                            <Bold className="h-5 w-5" />
+                          </button>
+                          <button
+                            type="button"
+                            title="Underline"
+                            aria-label="Toggle underline"
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => {
+                              const nextUnderline = !activeTextUnderline;
+                              setTextUnderline(nextUnderline);
+                              setEditingText((current) =>
+                                current ? { ...current, underline: nextUnderline } : current
+                              );
+                            }}
+                            className={[
+                              "flex h-14 min-w-14 items-center justify-center border-r border-slate-200 px-4 transition",
+                              activeTextUnderline
+                                ? "bg-black text-white"
+                                : "bg-white text-slate-800 hover:bg-slate-100",
+                            ].join(" ")}
+                          >
+                            <Underline className="h-5 w-5" />
+                          </button>
+                          <div className="flex items-center border-r border-slate-200">
+                            {TEXT_ALIGNMENT_OPTIONS.map(({ value, label, Icon }) => (
+                              <button
+                                key={value}
+                                type="button"
+                                title={label}
+                                aria-label={label}
+                                onMouseDown={(event) => event.preventDefault()}
+                                onClick={() => {
+                                  setTextAlignment(value);
+                                  setEditingText((current) =>
+                                    current ? { ...current, textAlign: value } : current
+                                  );
+                                }}
+                                className={[
+                                  "flex h-14 min-w-14 items-center justify-center px-4 transition",
+                                  value === activeTextAlignment
+                                    ? "bg-black text-white"
+                                    : "bg-white text-slate-800 hover:bg-slate-100",
+                                ].join(" ")}
+                              >
+                                <Icon className="h-5 w-5" />
+                              </button>
+                            ))}
+                          </div>
+                          <div className="flex items-center gap-2 border-r border-slate-200 px-3 py-2">
+                            {TEXT_STYLE_SIZE_OPTIONS.map(({ label, value }) => (
+                              <button
+                                key={label}
+                                type="button"
+                                title={`${label} text`}
+                                aria-label={`Use ${label.toLowerCase()} text size`}
+                                onMouseDown={(event) => event.preventDefault()}
+                                onClick={() => {
+                                  setTextFontSize(value);
+                                  setEditingText((current) =>
+                                    current ? { ...current, fontSize: value } : current
+                                  );
+                                }}
+                                className={[
+                                  "rounded-xl px-3 py-2 text-sm font-semibold transition",
+                                  activeTextFontSize === value
+                                    ? "bg-black text-white"
+                                    : "bg-slate-100 text-slate-700 hover:bg-slate-200",
+                                ].join(" ")}
+                              >
+                                {label}
+                              </button>
+                            ))}
+                          </div>
+                          {editingText.id ? (
+                            <button
+                              type="button"
+                              title="Delete text"
+                              aria-label="Delete text"
+                              onMouseDown={(event) => event.preventDefault()}
+                              onClick={deleteEditingText}
+                              className="flex h-14 min-w-14 items-center justify-center px-4 text-slate-800 transition hover:bg-red-50 hover:text-red-600"
+                            >
+                              <Trash2 className="h-5 w-5" />
+                            </button>
+                          ) : null}
+                        </div>
+
+                        <div
+                          className="absolute z-20 rounded-[20px] border-[3px] border-[#6d5efc] bg-white/95 shadow-[0_18px_40px_rgba(109,94,252,0.18)]"
+                          style={{ left: editingText.x, top: editingText.y, width: editingText.width }}
+                          onClick={(event) => event.stopPropagation()}
+                          onPointerDown={(event) => event.stopPropagation()}
+                        >
+                          <Input.TextArea
+                            autoFocus
+                            value={editingText.value}
+                            onChange={(event) => setEditingText({ ...editingText, value: event.target.value })}
+                            onBlur={commitEditingText}
+                            onKeyDown={(event) => {
+                              if (event.key === "Escape") {
+                                event.preventDefault();
+                                setEditingText(null);
+                              }
+                              if (event.key === "Enter" && !event.shiftKey) {
+                                event.preventDefault();
+                                commitEditingText();
+                              }
+                            }}
+                            placeholder="Type here..."
+                            autoSize={{ minRows: 1, maxRows: 10 }}
+                            className="!w-full rounded-[16px] !border-0 !bg-transparent px-5 py-4"
+                            style={{
+                              color,
+                              fontSize: editingText.fontSize,
+                              fontWeight: editingText.fontWeight === "bold" ? 700 : 400,
+                              textAlign: editingText.textAlign,
+                              textDecorationLine: editingText.underline ? "underline" : "none",
+                              resize: "none",
+                            }}
+                          />
+                          <span
+                            className="absolute left-[-9px] top-1/2 h-10 w-4 -translate-y-1/2 cursor-ew-resize rounded-full border-[3px] border-[#6d5efc] bg-white shadow"
+                            title="Drag to make the text box wider"
+                            onPointerDown={(event) => startResizeTextAnnotation(event, editingText, "left")}
+                          />
+                          <span
+                            className="absolute right-[-9px] top-1/2 h-10 w-4 -translate-y-1/2 cursor-ew-resize rounded-full border-[3px] border-[#6d5efc] bg-white shadow"
+                            title="Drag to make the text box wider"
+                            onPointerDown={(event) => startResizeTextAnnotation(event, editingText, "right")}
+                          />
+                        </div>
+                      </>
                     )}
                     {(textAnnotationsByPage.get(page.pageNumber) || []).map((annotation) => {
                         const isEditableText = editable && activeAnnotations.some((item) => item.id === annotation.id);
@@ -3637,13 +3903,16 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                         return (
                           <div
                             key={annotation.id}
-                            className="group absolute whitespace-pre-wrap break-words rounded bg-white/70 px-1 pr-5 leading-snug shadow-sm"
+                            className="group absolute whitespace-pre-wrap break-words rounded-2xl border border-transparent bg-white/70 px-4 py-3 leading-snug shadow-sm transition"
                             style={{
                               left: annotation.x,
                               top: annotation.y,
                               width: annotation.width ?? TEXT_ANNOTATION_DEFAULT_WIDTH,
                               color: annotation.color,
                               fontSize: annotation.fontSize,
+                              fontWeight: annotation.fontWeight === "bold" ? 700 : 400,
+                              textAlign: annotation.textAlign ?? "left",
+                              textDecorationLine: annotation.underline ? "underline" : "none",
                               cursor: isEditableText ? (tool === "eraser" ? "not-allowed" : "move") : "default",
                               touchAction: "none",
                             }}
@@ -3657,43 +3926,51 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                             onPointerUp={handleTextPointerUp}
                             onPointerCancel={handleTextPointerUp}
                           >
-                            {isEditableText && (
-                              <span className="absolute -top-7 left-0 z-30 flex gap-1 rounded bg-white/95 p-1 text-[11px] shadow">
-                                <button
-                                  type="button"
-                                  className="rounded bg-blue-600 px-2 py-0.5 text-white"
-                                  onClick={(event) => {
-                                    event.preventDefault();
-                                    event.stopPropagation();
-                                    startEditTextAnnotation(annotation);
-                                  }}
-                                  onPointerDown={(event) => event.stopPropagation()}
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  type="button"
-                                  className="rounded bg-red-600 px-2 py-0.5 text-white"
-                                  onClick={(event) => {
-                                    event.preventDefault();
-                                    event.stopPropagation();
-                                    deleteTextAnnotation(annotation);
-                                  }}
-                                  onPointerDown={(event) => event.stopPropagation()}
-                                >
-                                  Delete
-                                </button>
-                              </span>
-                            )}
                             {annotation.text}
                             {isEditableText && tool !== "eraser" && (
-                              <span
-                                className="absolute bottom-0 right-0 h-5 w-5 cursor-ew-resize rounded-tl bg-blue-500/90 text-center text-[10px] leading-5 text-white opacity-0 shadow transition group-hover:opacity-100"
-                                title="Drag to make the text box wider"
-                                onPointerDown={(event) => startResizeTextAnnotation(event, annotation)}
+                              <>
+                                <span
+                                  className="absolute left-[-9px] top-1/2 h-10 w-4 -translate-y-1/2 cursor-ew-resize rounded-full border-[3px] border-[#6d5efc] bg-white opacity-0 shadow transition group-hover:opacity-100"
+                                  title="Drag to make the text box wider"
+                                  onPointerDown={(event) => startResizeTextAnnotation(event, annotation, "left")}
+                                />
+                                <span
+                                  className="absolute right-[-9px] top-1/2 h-10 w-4 -translate-y-1/2 cursor-ew-resize rounded-full border-[3px] border-[#6d5efc] bg-white opacity-0 shadow transition group-hover:opacity-100"
+                                  title="Drag to make the text box wider"
+                                  onPointerDown={(event) => startResizeTextAnnotation(event, annotation, "right")}
+                                />
+                              </>
+                            )}
+                            {isEditableText && tool !== "eraser" && (
+                              <button
+                                type="button"
+                                className="absolute -top-12 right-0 flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 opacity-0 shadow transition group-hover:opacity-100"
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  startEditTextAnnotation(annotation);
+                                }}
+                                onPointerDown={(event) => event.stopPropagation()}
                               >
-                                ?
-                              </span>
+                                <Type className="h-4 w-4" />
+                                Edit text
+                              </button>
+                            )}
+                            {isEditableText && tool === "eraser" && (
+                              <button
+                                type="button"
+                                className="absolute -top-12 right-0 flex items-center gap-2 rounded-2xl border border-red-200 bg-white px-3 py-2 text-sm font-medium text-red-600 opacity-0 shadow transition group-hover:opacity-100"
+                                title="Drag to make the text box wider"
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  deleteTextAnnotation(annotation);
+                                }}
+                                onPointerDown={(event) => event.stopPropagation()}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                Delete
+                              </button>
                             )}
                           </div>
                         );

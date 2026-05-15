@@ -22,6 +22,10 @@ export type TextAnnotation = {
   text: string;
   color: string;
   fontSize: number;
+  width?: number;
+  fontWeight?: "normal" | "bold";
+  underline?: boolean;
+  textAlign?: "left" | "center" | "right";
 };
 
 export type AssessmentDocumentAnnotation = PenAnnotation | TextAnnotation;
