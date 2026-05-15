@@ -165,6 +165,14 @@ type ResizingPen = {
   originBounds: PenBounds;
 };
 
+type DraggingPen = {
+  id: string;
+  startClientX: number;
+  startClientY: number;
+  originPoints: PenAnnotation["points"];
+  originBounds: PenBounds;
+};
+
 type ExamExitContext = "fullscreen" | "screen" | "leave";
 
 type ExamExitLogEntry = {
@@ -926,6 +934,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const [editingText, setEditingText] = useState<EditingText | null>(null);
   const [resizingText, setResizingText] = useState(false);
   const [resizingPen, setResizingPen] = useState(false);
+  const [draggingPen, setDraggingPen] = useState(false);
   const [selectedPenAnnotationId, setSelectedPenAnnotationId] = useState<string | null>(null);
   const [undoStack, setUndoStack] = useState<AssessmentDocumentAnnotation[][]>([]);
   const [redoStack, setRedoStack] = useState<AssessmentDocumentAnnotation[][]>([]);
@@ -964,6 +973,13 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     () => (selectedPenBounds ? getPenSelectionOverlayBounds(selectedPenBounds) : null),
     [selectedPenBounds]
   );
+  const selectedPenPage = useMemo(
+    () =>
+      selectedPenAnnotation
+        ? pages.find((page) => page.pageNumber === selectedPenAnnotation.page) || null
+        : null,
+    [pages, selectedPenAnnotation]
+  );
   const activeTextFontSize = editingText?.fontSize ?? textFontSize;
   const activeTextFontWeight = editingText?.fontWeight ?? textFontWeight;
   const activeTextUnderline = editingText?.underline ?? textUnderline;
@@ -979,6 +995,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const historyGestureStartRef = useRef<AssessmentDocumentAnnotation[] | null>(null);
   const resizingTextRef = useRef<ResizingText | null>(null);
   const resizingPenRef = useRef<ResizingPen | null>(null);
+  const draggingPenRef = useRef<DraggingPen | null>(null);
   const erasingRef = useRef(false);
   const draggingTextRef = useRef<DraggingText | null>(null);
   const annotationCanvasRefs = useRef<Record<number, HTMLCanvasElement | null>>({});
@@ -1537,12 +1554,16 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
   useEffect(() => {
     if (tool !== "cursor") {
+      draggingPenRef.current = null;
+      setDraggingPen(false);
       resizingPenRef.current = null;
       setResizingPen(false);
       setSelectedPenAnnotationId(null);
       return;
     }
     if (selectedPenAnnotationId && !selectedPenAnnotation) {
+      draggingPenRef.current = null;
+      setDraggingPen(false);
       resizingPenRef.current = null;
       setResizingPen(false);
       setSelectedPenAnnotationId(null);
@@ -1832,6 +1853,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
   const deleteSelectedPenAnnotation = useCallback(() => {
     if (!editable || !selectedPenAnnotation) return;
+    draggingPenRef.current = null;
+    setDraggingPen(false);
     resizingPenRef.current = null;
     setResizingPen(false);
     setSelectedPenAnnotationId(null);
@@ -1930,6 +1953,28 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         originBounds,
       };
       setResizingPen(true);
+    },
+    [beginHistoryGesture, editable, selectedPenAnnotation, tool]
+  );
+
+  const startDragSelectedPen = useCallback(
+    (event: React.PointerEvent<HTMLElement>) => {
+      if (!editable || tool !== "cursor" || !selectedPenAnnotation) return;
+
+      const originBounds = getPenBounds(selectedPenAnnotation);
+      if (!originBounds) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      beginHistoryGesture();
+      draggingPenRef.current = {
+        id: selectedPenAnnotation.id,
+        startClientX: event.clientX,
+        startClientY: event.clientY,
+        originPoints: getSafePenPoints(selectedPenAnnotation).map((point) => ({ ...point })),
+        originBounds,
+      };
+      setDraggingPen(true);
     },
     [beginHistoryGesture, editable, selectedPenAnnotation, tool]
   );
@@ -2843,6 +2888,61 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       window.removeEventListener("pointercancel", handlePenResizeEnd);
     };
   }, [consumeHistoryGesture, resizingPen, setLayerAnnotations, setLayerAnnotationsLocally, zoomLevel]);
+
+  useEffect(() => {
+    if (!draggingPen) return;
+
+    const handlePenDragMove = (event: PointerEvent) => {
+      const currentDrag = draggingPenRef.current;
+      if (!currentDrag) return;
+
+      event.preventDefault();
+      const deltaX = (event.clientX - currentDrag.startClientX) / zoomLevel;
+      const deltaY = (event.clientY - currentDrag.startClientY) / zoomLevel;
+      const minDeltaX = -currentDrag.originBounds.minX;
+      const minDeltaY = -currentDrag.originBounds.minY;
+      const maxDeltaX = selectedPenPage
+        ? selectedPenPage.width - currentDrag.originBounds.maxX
+        : Number.POSITIVE_INFINITY;
+      const maxDeltaY = selectedPenPage
+        ? selectedPenPage.height - currentDrag.originBounds.maxY
+        : Number.POSITIVE_INFINITY;
+      const clampedDeltaX = Math.min(Math.max(deltaX, minDeltaX), maxDeltaX);
+      const clampedDeltaY = Math.min(Math.max(deltaY, minDeltaY), maxDeltaY);
+      const nextPoints = currentDrag.originPoints.map((point) => ({
+        x: point.x + clampedDeltaX,
+        y: point.y + clampedDeltaY,
+      }));
+
+      setLayerAnnotationsLocally(
+        activeAnnotationsRef.current.map((annotation) =>
+          annotation.id === currentDrag.id && annotation.type === "pen"
+            ? { ...annotation, points: nextPoints }
+            : annotation
+        )
+      );
+    };
+
+    const handlePenDragEnd = () => {
+      const previousAnnotations = consumeHistoryGesture();
+      draggingPenRef.current = null;
+      setDraggingPen(false);
+
+      setLayerAnnotations(cloneAnnotationsSnapshot(activeAnnotationsRef.current), {
+        previousAnnotations: previousAnnotations ?? undefined,
+      });
+    };
+
+    window.addEventListener("pointermove", handlePenDragMove);
+    window.addEventListener("pointerup", handlePenDragEnd);
+    window.addEventListener("pointercancel", handlePenDragEnd);
+
+    return () => {
+      window.removeEventListener("pointermove", handlePenDragMove);
+      window.removeEventListener("pointerup", handlePenDragEnd);
+      window.removeEventListener("pointercancel", handlePenDragEnd);
+    };
+  }, [consumeHistoryGesture, draggingPen, selectedPenPage, setLayerAnnotations, setLayerAnnotationsLocally, zoomLevel]);
 
   const undo = () => {
     if (!editable || undoStack.length === 0) return;
@@ -4498,7 +4598,11 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                             height: selectedPenOverlayBounds.height,
                           }}
                         >
-                          <div className="absolute inset-0 rounded-[24px] border-[3px] border-[#6d5efc] bg-[#6d5efc]/5 shadow-[0_18px_40px_rgba(109,94,252,0.16)]" />
+                          <div
+                            className="pointer-events-auto absolute inset-0 cursor-move rounded-[24px] border-[3px] border-[#6d5efc] bg-[#6d5efc]/5 shadow-[0_18px_40px_rgba(109,94,252,0.16)]"
+                            title="Hold and move handwriting"
+                            onPointerDown={startDragSelectedPen}
+                          />
                           <span
                             className="pointer-events-auto absolute left-[-9px] top-1/2 h-10 w-4 -translate-y-1/2 cursor-ew-resize rounded-full border-[3px] border-[#6d5efc] bg-white shadow"
                             title="Stretch handwriting"
