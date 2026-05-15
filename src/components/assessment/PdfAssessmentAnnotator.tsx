@@ -2821,8 +2821,6 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       return;
     }
     if (!editable || tool === "text") return;
-    event.preventDefault();
-    event.stopPropagation();
     const target = event.currentTarget;
     const point = getPointerPoint(event, target, zoomLevel);
 
@@ -2841,6 +2839,9 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       };
       return;
     }
+
+    event.preventDefault();
+    event.stopPropagation();
 
     if (tool === "cursor") {
       const selectedAnnotation = findPenAnnotationAtPoint(activeAnnotationsRef.current, pageNumber, point);
