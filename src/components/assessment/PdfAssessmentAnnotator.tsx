@@ -173,6 +173,18 @@ type DraggingPen = {
   originBounds: PenBounds;
 };
 
+type TrackedTouchPointer = {
+  clientX: number;
+  clientY: number;
+};
+
+type TouchGestureState = {
+  initialDistance: number;
+  initialZoomLevel: number;
+  initialContentX: number;
+  initialContentY: number;
+};
+
 type ExamExitContext = "fullscreen" | "screen" | "leave";
 
 type ExamExitLogEntry = {
@@ -593,6 +605,17 @@ const getPointerPoint = (
   };
 };
 
+const getTrackedTouchPoints = (pointers: Map<number, TrackedTouchPointer>) =>
+  Array.from(pointers.values()).slice(0, 2);
+
+const getTouchGestureCenter = (points: TrackedTouchPointer[]) => ({
+  x: (points[0].clientX + points[1].clientX) / 2,
+  y: (points[0].clientY + points[1].clientY) / 2,
+});
+
+const getTouchGestureDistance = (points: TrackedTouchPointer[]) =>
+  Math.hypot(points[0].clientX - points[1].clientX, points[0].clientY - points[1].clientY);
+
 const getSafePenPoints = (annotation: { points?: Array<{ x?: number; y?: number }> | null }) =>
   Array.isArray(annotation.points)
     ? annotation.points.filter(
@@ -990,6 +1013,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const activeTextSizeOption =
     TEXT_SIZE_DROPDOWN_OPTIONS.find((option) => option.value === activeTextFontSize) || null;
   const examContainerRef = useRef<HTMLDivElement | null>(null);
+  const viewerScrollRef = useRef<HTMLDivElement | null>(null);
+  const pagesViewportRef = useRef<HTMLDivElement | null>(null);
   const activeStrokeRef = useRef<PenAnnotation | null>(null);
   const activeAnnotationsRef = useRef<AssessmentDocumentAnnotation[]>([]);
   const historyGestureStartRef = useRef<AssessmentDocumentAnnotation[] | null>(null);
@@ -998,6 +1023,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const draggingPenRef = useRef<DraggingPen | null>(null);
   const erasingRef = useRef(false);
   const draggingTextRef = useRef<DraggingText | null>(null);
+  const touchPointersRef = useRef<Map<number, TrackedTouchPointer>>(new Map());
+  const touchGestureRef = useRef<TouchGestureState | null>(null);
+  const touchGestureFrameRef = useRef<number | null>(null);
+  const suppressTouchClickRef = useRef(false);
   const annotationCanvasRefs = useRef<Record<number, HTMLCanvasElement | null>>({});
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const selfAssessmentSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1218,6 +1247,197 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     : lastSavedAt
     ? "green"
     : "default";
+
+  const cancelTouchGestureFrame = useCallback(() => {
+    if (typeof window === "undefined") return;
+    if (touchGestureFrameRef.current == null) return;
+    window.cancelAnimationFrame(touchGestureFrameRef.current);
+    touchGestureFrameRef.current = null;
+  }, []);
+
+  const clearTransientPointerState = useCallback(() => {
+    activeStrokeRef.current = null;
+    setActiveStroke(null);
+    erasingRef.current = false;
+    draggingTextRef.current = null;
+    resizingTextRef.current = null;
+    setResizingText(false);
+    resizingPenRef.current = null;
+    setResizingPen(false);
+    draggingPenRef.current = null;
+    setDraggingPen(false);
+    historyGestureStartRef.current = null;
+  }, []);
+
+  const applyTouchGestureVerticalScroll = useCallback((delta: number) => {
+    if (typeof window === "undefined" || Math.abs(delta) < 0.5) return;
+
+    const scrollHost = viewerScrollRef.current;
+    if (scrollHost && scrollHost.scrollHeight > scrollHost.clientHeight + 1) {
+      const maxScrollTop = Math.max(0, scrollHost.scrollHeight - scrollHost.clientHeight);
+      scrollHost.scrollTop = Math.min(Math.max(scrollHost.scrollTop + delta, 0), maxScrollTop);
+      return;
+    }
+
+    const scrollElement = document.scrollingElement ?? document.documentElement;
+    const maxScrollTop = Math.max(0, scrollElement.scrollHeight - window.innerHeight);
+    scrollElement.scrollTop = Math.min(Math.max(scrollElement.scrollTop + delta, 0), maxScrollTop);
+  }, []);
+
+  const syncTouchGesture = useCallback(() => {
+    if (typeof window === "undefined") return;
+
+    const viewport = pagesViewportRef.current;
+    const touchGesture = touchGestureRef.current;
+    if (!viewport || !touchGesture) return;
+
+    const points = getTrackedTouchPoints(touchPointersRef.current);
+    if (points.length < 2) return;
+
+    const center = getTouchGestureCenter(points);
+    const distance = Math.max(getTouchGestureDistance(points), 1);
+    const nextZoomLevel = clampZoomLevel(
+      touchGesture.initialZoomLevel * (distance / touchGesture.initialDistance)
+    );
+
+    setZoomLevel((current) => (current === nextZoomLevel ? current : nextZoomLevel));
+
+    cancelTouchGestureFrame();
+    touchGestureFrameRef.current = window.requestAnimationFrame(() => {
+      touchGestureFrameRef.current = null;
+
+      const nextViewport = pagesViewportRef.current;
+      if (!nextViewport) return;
+
+      const rect = nextViewport.getBoundingClientRect();
+      const nextScrollLeft =
+        touchGesture.initialContentX * nextZoomLevel - (center.x - rect.left);
+      const maxScrollLeft = Math.max(0, nextViewport.scrollWidth - nextViewport.clientWidth);
+      nextViewport.scrollLeft = Math.min(Math.max(nextScrollLeft, 0), maxScrollLeft);
+
+      const desiredViewportTop = center.y - touchGesture.initialContentY * nextZoomLevel;
+      applyTouchGestureVerticalScroll(rect.top - desiredViewportTop);
+    });
+  }, [applyTouchGestureVerticalScroll, cancelTouchGestureFrame]);
+
+  const startTouchGesture = useCallback(() => {
+    const viewport = pagesViewportRef.current;
+    if (!viewport || zoomLevel <= 0) return;
+
+    const points = getTrackedTouchPoints(touchPointersRef.current);
+    if (points.length < 2) return;
+
+    const center = getTouchGestureCenter(points);
+    const rect = viewport.getBoundingClientRect();
+    touchGestureRef.current = {
+      initialDistance: Math.max(getTouchGestureDistance(points), 1),
+      initialZoomLevel: zoomLevel,
+      initialContentX: (viewport.scrollLeft + center.x - rect.left) / zoomLevel,
+      initialContentY: (center.y - rect.top) / zoomLevel,
+    };
+    suppressTouchClickRef.current = true;
+    clearTransientPointerState();
+    syncTouchGesture();
+  }, [clearTransientPointerState, syncTouchGesture, zoomLevel]);
+
+  useEffect(() => {
+    const container = examContainerRef.current;
+    if (!container || typeof window === "undefined") return;
+
+    const handleTouchPointerDown = (event: PointerEvent) => {
+      if (event.pointerType !== "touch") return;
+
+      touchPointersRef.current.set(event.pointerId, {
+        clientX: event.clientX,
+        clientY: event.clientY,
+      });
+
+      if (touchPointersRef.current.size < 2) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (!touchGestureRef.current) {
+        startTouchGesture();
+        return;
+      }
+
+      syncTouchGesture();
+    };
+
+    const handleTouchPointerMove = (event: PointerEvent) => {
+      if (event.pointerType !== "touch") return;
+      if (!touchPointersRef.current.has(event.pointerId)) return;
+
+      touchPointersRef.current.set(event.pointerId, {
+        clientX: event.clientX,
+        clientY: event.clientY,
+      });
+
+      if (touchGestureRef.current || touchPointersRef.current.size >= 2) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        if (!touchGestureRef.current && touchPointersRef.current.size >= 2) {
+          startTouchGesture();
+          return;
+        }
+
+        syncTouchGesture();
+      }
+    };
+
+    const handleTouchPointerEnd = (event: PointerEvent) => {
+      if (event.pointerType !== "touch") return;
+
+      const hadPointer = touchPointersRef.current.delete(event.pointerId);
+      if (!hadPointer && !touchGestureRef.current && !suppressTouchClickRef.current) return;
+
+      if (touchGestureRef.current || suppressTouchClickRef.current) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+
+      if (touchPointersRef.current.size < 2) {
+        touchGestureRef.current = null;
+      }
+
+      if (touchPointersRef.current.size === 0) {
+        cancelTouchGestureFrame();
+        window.setTimeout(() => {
+          suppressTouchClickRef.current = false;
+        }, 0);
+      }
+    };
+
+    container.addEventListener("pointerdown", handleTouchPointerDown, {
+      capture: true,
+      passive: false,
+    });
+    container.addEventListener("pointermove", handleTouchPointerMove, {
+      capture: true,
+      passive: false,
+    });
+    container.addEventListener("pointerup", handleTouchPointerEnd, {
+      capture: true,
+      passive: false,
+    });
+    container.addEventListener("pointercancel", handleTouchPointerEnd, {
+      capture: true,
+      passive: false,
+    });
+
+    return () => {
+      container.removeEventListener("pointerdown", handleTouchPointerDown, true);
+      container.removeEventListener("pointermove", handleTouchPointerMove, true);
+      container.removeEventListener("pointerup", handleTouchPointerEnd, true);
+      container.removeEventListener("pointercancel", handleTouchPointerEnd, true);
+      touchPointersRef.current.clear();
+      touchGestureRef.current = null;
+      cancelTouchGestureFrame();
+    };
+  }, [cancelTouchGestureFrame, startTouchGesture, syncTouchGesture]);
+
   const renderErrorMessage =
     !renderError || canOpenOriginalFile
       ? renderError
@@ -1938,6 +2158,12 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const startResizeSelectedPen = useCallback(
     (event: React.PointerEvent<HTMLElement>, edge: "left" | "right") => {
       if (!editable || tool !== "cursor" || !selectedPenAnnotation) return;
+      if (
+        event.pointerType === "touch" &&
+        (touchGestureRef.current || touchPointersRef.current.size >= 2)
+      ) {
+        return;
+      }
 
       const originBounds = getPenBounds(selectedPenAnnotation);
       if (!originBounds) return;
@@ -1960,6 +2186,12 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const startDragSelectedPen = useCallback(
     (event: React.PointerEvent<HTMLElement>) => {
       if (!editable || tool !== "cursor" || !selectedPenAnnotation) return;
+      if (
+        event.pointerType === "touch" &&
+        (touchGestureRef.current || touchPointersRef.current.size >= 2)
+      ) {
+        return;
+      }
 
       const originBounds = getPenBounds(selectedPenAnnotation);
       if (!originBounds) return;
@@ -2483,6 +2715,14 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   );
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>, pageNumber: number) => {
+    if (
+      event.pointerType === "touch" &&
+      (touchGestureRef.current || touchPointersRef.current.size >= 2)
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     if (!editable || tool === "text") return;
     event.preventDefault();
     event.stopPropagation();
@@ -2518,6 +2758,14 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   };
 
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (
+      event.pointerType === "touch" &&
+      (touchGestureRef.current || touchPointersRef.current.size >= 2)
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     if (erasingRef.current && tool === "eraser") {
       event.preventDefault();
       event.stopPropagation();
@@ -2539,6 +2787,14 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   };
 
   const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (
+      event.pointerType === "touch" &&
+      (touchGestureRef.current || touchPointersRef.current.size >= 2)
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     if (erasingRef.current) {
       event.preventDefault();
       event.stopPropagation();
@@ -2567,6 +2823,11 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   };
 
   const handlePageClick = (event: React.MouseEvent<HTMLDivElement>, pageNumber: number) => {
+    if (suppressTouchClickRef.current) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     if (!editable || tool !== "text") return;
     setSelectedPenAnnotationId(null);
     const point = getPointerPoint(
@@ -2686,6 +2947,12 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     edge: "left" | "right" = "right"
   ) => {
     if (!editable) return;
+    if (
+      event.pointerType === "touch" &&
+      (touchGestureRef.current || touchPointersRef.current.size >= 2)
+    ) {
+      return;
+    }
     event.preventDefault();
     event.stopPropagation();
     if (annotation.id) {
@@ -2704,6 +2971,14 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   };
 
   const handleTextPointerDown = (event: React.PointerEvent<HTMLDivElement>, annotation: TextAnnotation) => {
+    if (
+      event.pointerType === "touch" &&
+      (touchGestureRef.current || touchPointersRef.current.size >= 2)
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     if (!editable || !activeAnnotations.some((item) => item.id === annotation.id)) return;
     if (tool === "eraser") {
       event.preventDefault();
@@ -2728,6 +3003,14 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   };
 
   const handleTextPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (
+      event.pointerType === "touch" &&
+      (touchGestureRef.current || touchPointersRef.current.size >= 2)
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     const draggingText = draggingTextRef.current;
     if (!draggingText) return;
     event.preventDefault();
@@ -2751,6 +3034,14 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   };
 
   const handleTextPointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (
+      event.pointerType === "touch" &&
+      (touchGestureRef.current || touchPointersRef.current.size >= 2)
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     const draggingText = draggingTextRef.current;
     if (!draggingText) return;
     event.preventDefault();
@@ -4018,7 +4309,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         </div>
       </div>
 
-      <div className={shouldEnforceExamScreen ? "h-[calc(100vh-85px)] overflow-auto p-4" : "mx-auto max-w-7xl p-4"}>
+      <div ref={viewerScrollRef} className={shouldEnforceExamScreen ? "h-[calc(100vh-85px)] overflow-auto p-4" : "mx-auto max-w-7xl p-4"}>
         {documentFileMismatch ? (
           <Alert
             className="mb-4"
@@ -4239,7 +4530,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
           </div>
         )}
 
-        <div className="space-y-6 overflow-x-auto pb-10">
+        <div ref={pagesViewportRef} className="space-y-6 overflow-x-auto pb-10">
           {(pages.length > 0 ? pages : [{ pageNumber: 1, width: 900, height: 1200 }]).map((page) => (
             <div key={page.pageNumber} className="mx-auto w-fit rounded-lg bg-white p-3 shadow">
               <div className="mb-2 text-xs font-medium text-gray-500">Page {page.pageNumber}</div>
