@@ -7,6 +7,7 @@ import {
   AlignLeft,
   AlignRight,
   Bold,
+  ChevronDown,
   Eraser,
   Highlighter,
   PenTool,
@@ -40,6 +41,7 @@ type Tool = "pen" | "highlighter" | "text" | "eraser";
 type DocumentKind = "pdf" | "docx" | "image";
 type TextFontWeight = "normal" | "bold";
 type TextAlignment = "left" | "center" | "right";
+type TextToolbarMenu = "color" | "align" | "size";
 
 const COLOR_SWATCHS = [
   { value: "#bdbdbd", label: "Gray" },
@@ -56,12 +58,31 @@ const COLOR_SWATCHS = [
 const PEN_WIDTH_OPTIONS = [2, 4, 6, 8] as const;
 const HIGHLIGHTER_WIDTH_OPTIONS = [10, 16, 24] as const;
 const TEXT_SIZE_OPTIONS = [14, 16, 18, 24] as const;
-const TEXT_STYLE_SIZE_OPTIONS = [
+const TEXT_SIZE_DROPDOWN_OPTIONS = [
   { label: "Small", value: 14 },
   { label: "Medium", value: 18 },
   { label: "Large", value: 24 },
+  { label: "Extra Large", value: 30 },
+  { label: "Huge", value: 36 },
 ] as const;
-const TEXT_TOOLBAR_SWATCH_VALUES = ["#111827", "#ef4444", "#fde047", "#a3e635", "#67e8f9"] as const;
+const TEXT_COLOR_DROPDOWN_SWATCHS = [
+  { value: "#111827", label: "Black" },
+  { value: "#737373", label: "Gray" },
+  { value: "#ea580c", label: "Orange red" },
+  { value: "#fb923c", label: "Orange" },
+  { value: "#facc15", label: "Yellow" },
+  { value: "#16a34a", label: "Green" },
+  { value: "#0284c7", label: "Blue" },
+  { value: "#7c3aed", label: "Purple" },
+  { value: "#ffffff", label: "White" },
+  { value: "#d4d4d8", label: "Light gray" },
+  { value: "#fca5a5", label: "Light red" },
+  { value: "#fdba74", label: "Light orange" },
+  { value: "#fde68a", label: "Light yellow" },
+  { value: "#86efac", label: "Light green" },
+  { value: "#7dd3fc", label: "Light blue" },
+  { value: "#c4b5fd", label: "Lavender" },
+] as const;
 const TEXT_ALIGNMENT_OPTIONS: Array<{
   value: TextAlignment;
   label: string;
@@ -738,6 +759,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const [textFontWeight, setTextFontWeight] = useState<TextFontWeight>("normal");
   const [textUnderline, setTextUnderline] = useState(false);
   const [textAlignment, setTextAlignment] = useState<TextAlignment>("left");
+  const [textToolbarMenu, setTextToolbarMenu] = useState<TextToolbarMenu | null>(null);
   const [saving, setSaving] = useState(false);
   const [autosaveQueued, setAutosaveQueued] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
@@ -774,6 +796,11 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const activeTextFontWeight = editingText?.fontWeight ?? textFontWeight;
   const activeTextUnderline = editingText?.underline ?? textUnderline;
   const activeTextAlignment = editingText?.textAlign ?? textAlignment;
+  const activeTextAlignmentOption =
+    TEXT_ALIGNMENT_OPTIONS.find((option) => option.value === activeTextAlignment) ||
+    TEXT_ALIGNMENT_OPTIONS[0];
+  const activeTextSizeOption =
+    TEXT_SIZE_DROPDOWN_OPTIONS.find((option) => option.value === activeTextFontSize) || null;
   const examContainerRef = useRef<HTMLDivElement | null>(null);
   const activeStrokeRef = useRef<PenAnnotation | null>(null);
   const activeAnnotationsRef = useRef<AssessmentDocumentAnnotation[]>([]);
@@ -2332,6 +2359,11 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   };
 
   useEffect(() => {
+    if (editingText) return;
+    setTextToolbarMenu(null);
+  }, [editingText]);
+
+  useEffect(() => {
     if (!resizingText) return;
 
     const handleResizeMove = (event: PointerEvent) => {
@@ -3714,188 +3746,306 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                     onPointerUp={handlePointerUp}
                     onPointerCancel={handlePointerUp}
                   >
-                    {editingText?.page === page.pageNumber && (
-                      <>
-                        <div
-                          className="absolute z-30 flex flex-wrap items-center overflow-hidden rounded-[20px] border border-slate-300 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.16)]"
-                          style={{ left: Math.max(0, editingText.x - 6), top: Math.max(12, editingText.y - 72) }}
-                          onClick={(event) => event.stopPropagation()}
-                          onPointerDown={(event) => event.stopPropagation()}
-                        >
-                          <div className="flex items-center gap-2 border-r border-slate-200 px-3 py-2">
-                            {COLOR_SWATCHS.filter(({ value }) =>
-                              TEXT_TOOLBAR_SWATCH_VALUES.includes(
-                                value as (typeof TEXT_TOOLBAR_SWATCH_VALUES)[number]
-                              )
-                            ).map(({ value, label }) => (
-                              <button
-                                key={`${editingText.page}-${value}`}
-                                type="button"
-                                title={label}
-                                aria-label={`Set text color to ${label.toLowerCase()}`}
-                                onMouseDown={(event) => event.preventDefault()}
-                                onClick={() => setColor(value)}
-                                className={[
-                                  "h-9 w-9 rounded-full border-2 transition",
-                                  value === "#ffffff" ? "border-slate-300" : "border-white/80",
-                                  color === value ? "ring-2 ring-[#6d5efc] ring-offset-2" : "hover:scale-105",
-                                ].join(" ")}
-                                style={{ backgroundColor: value }}
-                              />
-                            ))}
-                          </div>
-                          <button
-                            type="button"
-                            title="Bold"
-                            aria-label="Toggle bold"
-                            onMouseDown={(event) => event.preventDefault()}
-                            onClick={() => {
-                              const nextFontWeight = activeTextFontWeight === "bold" ? "normal" : "bold";
-                              setTextFontWeight(nextFontWeight);
-                              setEditingText((current) =>
-                                current ? { ...current, fontWeight: nextFontWeight } : current
-                              );
-                            }}
-                            className={[
-                              "flex h-14 min-w-14 items-center justify-center border-r border-slate-200 px-4 transition",
-                              activeTextFontWeight === "bold"
-                                ? "bg-black text-white"
-                                : "bg-white text-slate-800 hover:bg-slate-100",
-                            ].join(" ")}
+                    {editingText?.page === page.pageNumber && (() => {
+                      const estimatedLineCount = Math.max(1, editingText.value.split(/\r?\n/).length);
+                      const estimatedTextHeight = Math.max(
+                        76,
+                        estimatedLineCount * editingText.fontSize * 1.35 + 28
+                      );
+                      const toolbarWidth = Math.min(Math.max(540, page.width - 24), 960);
+                      const toolbarLeft = Math.min(
+                        Math.max(12, editingText.x),
+                        Math.max(12, page.width - toolbarWidth - 12)
+                      );
+                      const toolbarTop =
+                        editingText.y >= 104
+                          ? Math.max(12, editingText.y - 92)
+                          : editingText.y + estimatedTextHeight + 18;
+                      const AlignmentIcon = activeTextAlignmentOption.Icon;
+
+                      return (
+                        <>
+                          <div
+                            className="absolute z-30 flex items-stretch overflow-visible rounded-[18px] border border-slate-300 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.16)]"
+                            style={{ left: toolbarLeft, top: toolbarTop, width: toolbarWidth }}
+                            onClick={(event) => event.stopPropagation()}
+                            onPointerDown={(event) => event.stopPropagation()}
                           >
-                            <Bold className="h-5 w-5" />
-                          </button>
-                          <button
-                            type="button"
-                            title="Underline"
-                            aria-label="Toggle underline"
-                            onMouseDown={(event) => event.preventDefault()}
-                            onClick={() => {
-                              const nextUnderline = !activeTextUnderline;
-                              setTextUnderline(nextUnderline);
-                              setEditingText((current) =>
-                                current ? { ...current, underline: nextUnderline } : current
-                              );
-                            }}
-                            className={[
-                              "flex h-14 min-w-14 items-center justify-center border-r border-slate-200 px-4 transition",
-                              activeTextUnderline
-                                ? "bg-black text-white"
-                                : "bg-white text-slate-800 hover:bg-slate-100",
-                            ].join(" ")}
-                          >
-                            <Underline className="h-5 w-5" />
-                          </button>
-                          <div className="flex items-center border-r border-slate-200">
-                            {TEXT_ALIGNMENT_OPTIONS.map(({ value, label, Icon }) => (
+                            <div className="relative flex border-r border-slate-200">
                               <button
-                                key={value}
                                 type="button"
-                                title={label}
-                                aria-label={label}
+                                title="Text color"
+                                aria-label="Open text color picker"
                                 onMouseDown={(event) => event.preventDefault()}
-                                onClick={() => {
-                                  setTextAlignment(value);
-                                  setEditingText((current) =>
-                                    current ? { ...current, textAlign: value } : current
-                                  );
-                                }}
+                                onClick={() =>
+                                  setTextToolbarMenu((current) =>
+                                    current === "color" ? null : "color"
+                                  )
+                                }
                                 className={[
-                                  "flex h-14 min-w-14 items-center justify-center px-4 transition",
-                                  value === activeTextAlignment
-                                    ? "bg-black text-white"
-                                    : "bg-white text-slate-800 hover:bg-slate-100",
+                                  "flex h-[74px] min-w-[168px] items-center justify-between px-5 transition",
+                                  textToolbarMenu === "color"
+                                    ? "bg-slate-100"
+                                    : "bg-white hover:bg-slate-50",
                                 ].join(" ")}
                               >
-                                <Icon className="h-5 w-5" />
+                                <span
+                                  className={[
+                                    "h-10 w-10 rounded-full border-2",
+                                    color === "#ffffff" ? "border-slate-300" : "border-white/80",
+                                  ].join(" ")}
+                                  style={{ backgroundColor: color }}
+                                />
+                                <ChevronDown className="h-4 w-4 text-slate-700" />
                               </button>
-                            ))}
-                          </div>
-                          <div className="flex items-center gap-2 border-r border-slate-200 px-3 py-2">
-                            {TEXT_STYLE_SIZE_OPTIONS.map(({ label, value }) => (
+                              {textToolbarMenu === "color" && (
+                                <div className="absolute left-0 top-full mt-2 rounded-[18px] border border-slate-200 bg-white p-4 shadow-[0_18px_40px_rgba(15,23,42,0.16)]">
+                                  <div className="grid grid-cols-8 gap-3">
+                                    {TEXT_COLOR_DROPDOWN_SWATCHS.map(({ value, label }) => (
+                                      <button
+                                        key={`${editingText.page}-${label}`}
+                                        type="button"
+                                        title={label}
+                                        aria-label={`Set text color to ${label.toLowerCase()}`}
+                                        onMouseDown={(event) => event.preventDefault()}
+                                        onClick={() => {
+                                          setColor(value);
+                                          setTextToolbarMenu(null);
+                                        }}
+                                        className={[
+                                          "h-11 w-11 rounded-full border-2 transition",
+                                          value === "#ffffff" ? "border-slate-300" : "border-white/70",
+                                          color === value
+                                            ? "ring-4 ring-[#8d72ff] ring-offset-2"
+                                            : "hover:scale-105",
+                                        ].join(" ")}
+                                        style={{ backgroundColor: value }}
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
+                            <button
+                              type="button"
+                              title="Bold"
+                              aria-label="Toggle bold"
+                              onMouseDown={(event) => event.preventDefault()}
+                              onClick={() => {
+                                const nextFontWeight =
+                                  activeTextFontWeight === "bold" ? "normal" : "bold";
+                                setTextFontWeight(nextFontWeight);
+                                setTextToolbarMenu(null);
+                                setEditingText((current) =>
+                                  current ? { ...current, fontWeight: nextFontWeight } : current
+                                );
+                              }}
+                              className={[
+                                "flex h-[74px] min-w-[112px] items-center justify-center border-r border-slate-200 transition",
+                                activeTextFontWeight === "bold"
+                                  ? "bg-slate-100 text-black"
+                                  : "bg-white text-slate-800 hover:bg-slate-50",
+                              ].join(" ")}
+                            >
+                              <Bold className="h-6 w-6" />
+                            </button>
+
+                            <button
+                              type="button"
+                              title="Underline"
+                              aria-label="Toggle underline"
+                              onMouseDown={(event) => event.preventDefault()}
+                              onClick={() => {
+                                const nextUnderline = !activeTextUnderline;
+                                setTextUnderline(nextUnderline);
+                                setTextToolbarMenu(null);
+                                setEditingText((current) =>
+                                  current ? { ...current, underline: nextUnderline } : current
+                                );
+                              }}
+                              className={[
+                                "flex h-[74px] min-w-[112px] items-center justify-center border-r border-slate-200 transition",
+                                activeTextUnderline
+                                  ? "bg-slate-100 text-black"
+                                  : "bg-white text-slate-800 hover:bg-slate-50",
+                              ].join(" ")}
+                            >
+                              <Underline className="h-6 w-6" />
+                            </button>
+
+                            <div className="relative flex border-r border-slate-200">
                               <button
-                                key={label}
                                 type="button"
-                                title={`${label} text`}
-                                aria-label={`Use ${label.toLowerCase()} text size`}
+                                title="Text alignment"
+                                aria-label="Open text alignment options"
                                 onMouseDown={(event) => event.preventDefault()}
-                                onClick={() => {
-                                  setTextFontSize(value);
-                                  setEditingText((current) =>
-                                    current ? { ...current, fontSize: value } : current
-                                  );
-                                }}
+                                onClick={() =>
+                                  setTextToolbarMenu((current) =>
+                                    current === "align" ? null : "align"
+                                  )
+                                }
                                 className={[
-                                  "rounded-xl px-3 py-2 text-sm font-semibold transition",
-                                  activeTextFontSize === value
-                                    ? "bg-black text-white"
-                                    : "bg-slate-100 text-slate-700 hover:bg-slate-200",
+                                  "flex h-[74px] min-w-[168px] items-center justify-center gap-3 px-5 transition",
+                                  textToolbarMenu === "align"
+                                    ? "bg-slate-100"
+                                    : "bg-white hover:bg-slate-50",
                                 ].join(" ")}
                               >
-                                {label}
+                                <AlignmentIcon className="h-6 w-6 text-slate-800" />
+                                <ChevronDown className="h-4 w-4 text-slate-700" />
                               </button>
-                            ))}
-                          </div>
-                          {editingText.id ? (
+                              {textToolbarMenu === "align" && (
+                                <div className="absolute left-0 top-full mt-2 flex rounded-[18px] border border-slate-200 bg-white p-2 shadow-[0_18px_40px_rgba(15,23,42,0.16)]">
+                                  {TEXT_ALIGNMENT_OPTIONS.map(({ value, label, Icon }) => (
+                                    <button
+                                      key={value}
+                                      type="button"
+                                      title={label}
+                                      aria-label={label}
+                                      onMouseDown={(event) => event.preventDefault()}
+                                      onClick={() => {
+                                        setTextAlignment(value);
+                                        setTextToolbarMenu(null);
+                                        setEditingText((current) =>
+                                          current ? { ...current, textAlign: value } : current
+                                        );
+                                      }}
+                                      className={[
+                                        "flex h-24 w-24 items-center justify-center rounded-[14px] transition",
+                                        value === activeTextAlignment
+                                          ? "bg-black text-white"
+                                          : "bg-white text-slate-800 hover:bg-slate-100",
+                                      ].join(" ")}
+                                    >
+                                      <Icon className="h-8 w-8" />
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="relative flex border-r border-slate-200">
+                              <button
+                                type="button"
+                                title="Text size"
+                                aria-label="Open text size options"
+                                onMouseDown={(event) => event.preventDefault()}
+                                onClick={() =>
+                                  setTextToolbarMenu((current) =>
+                                    current === "size" ? null : "size"
+                                  )
+                                }
+                                className={[
+                                  "flex h-[74px] min-w-[258px] items-center justify-between px-6 text-left transition",
+                                  textToolbarMenu === "size"
+                                    ? "bg-slate-100"
+                                    : "bg-white hover:bg-slate-50",
+                                ].join(" ")}
+                              >
+                                <span className="text-[18px] font-medium text-slate-900">
+                                  {activeTextSizeOption?.label ?? `${activeTextFontSize}px`}
+                                </span>
+                                <ChevronDown className="h-4 w-4 text-slate-700" />
+                              </button>
+                              {textToolbarMenu === "size" && (
+                                <div className="absolute left-0 top-full mt-2 w-[320px] overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.16)]">
+                                  {TEXT_SIZE_DROPDOWN_OPTIONS.map(({ label, value }) => (
+                                    <button
+                                      key={label}
+                                      type="button"
+                                      title={`${label} text`}
+                                      aria-label={`Use ${label.toLowerCase()} text size`}
+                                      onMouseDown={(event) => event.preventDefault()}
+                                      onClick={() => {
+                                        setTextFontSize(value);
+                                        setTextToolbarMenu(null);
+                                        setEditingText((current) =>
+                                          current ? { ...current, fontSize: value } : current
+                                        );
+                                      }}
+                                      className={[
+                                        "flex w-full items-center px-6 py-4 text-left text-[18px] transition",
+                                        activeTextFontSize === value
+                                          ? "bg-black text-white"
+                                          : "bg-white text-slate-900 hover:bg-slate-100",
+                                      ].join(" ")}
+                                    >
+                                      {label}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
                             <button
                               type="button"
                               title="Delete text"
                               aria-label="Delete text"
                               onMouseDown={(event) => event.preventDefault()}
-                              onClick={deleteEditingText}
-                              className="flex h-14 min-w-14 items-center justify-center px-4 text-slate-800 transition hover:bg-red-50 hover:text-red-600"
+                              onClick={() => {
+                                setTextToolbarMenu(null);
+                                deleteEditingText();
+                              }}
+                              className="flex h-[74px] min-w-[118px] items-center justify-center text-slate-900 transition hover:bg-red-50 hover:text-red-600"
                             >
-                              <Trash2 className="h-5 w-5" />
+                              <Trash2 className="h-7 w-7" />
                             </button>
-                          ) : null}
-                        </div>
+                          </div>
 
-                        <div
-                          className="absolute z-20 rounded-[20px] border-[3px] border-[#6d5efc] bg-white/95 shadow-[0_18px_40px_rgba(109,94,252,0.18)]"
-                          style={{ left: editingText.x, top: editingText.y, width: editingText.width }}
-                          onClick={(event) => event.stopPropagation()}
-                          onPointerDown={(event) => event.stopPropagation()}
-                        >
-                          <Input.TextArea
-                            autoFocus
-                            value={editingText.value}
-                            onChange={(event) => setEditingText({ ...editingText, value: event.target.value })}
-                            onBlur={commitEditingText}
-                            onKeyDown={(event) => {
-                              if (event.key === "Escape") {
-                                event.preventDefault();
-                                setEditingText(null);
-                              }
-                              if (event.key === "Enter" && !event.shiftKey) {
-                                event.preventDefault();
-                                commitEditingText();
-                              }
+                          <div
+                            className="absolute z-20 rounded-[20px] border-[3px] border-[#6d5efc] bg-white/95 shadow-[0_18px_40px_rgba(109,94,252,0.18)]"
+                            style={{ left: editingText.x, top: editingText.y, width: editingText.width }}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setTextToolbarMenu(null);
                             }}
-                            placeholder="Type here..."
-                            autoSize={{ minRows: 1, maxRows: 10 }}
-                            className="!w-full rounded-[16px] !border-0 !bg-transparent px-5 py-4"
-                            style={{
-                              color,
-                              fontSize: editingText.fontSize,
-                              fontWeight: editingText.fontWeight === "bold" ? 700 : 400,
-                              textAlign: editingText.textAlign,
-                              textDecorationLine: editingText.underline ? "underline" : "none",
-                              resize: "none",
-                            }}
-                          />
-                          <span
-                            className="absolute left-[-9px] top-1/2 h-10 w-4 -translate-y-1/2 cursor-ew-resize rounded-full border-[3px] border-[#6d5efc] bg-white shadow"
-                            title="Drag to make the text box wider"
-                            onPointerDown={(event) => startResizeTextAnnotation(event, editingText, "left")}
-                          />
-                          <span
-                            className="absolute right-[-9px] top-1/2 h-10 w-4 -translate-y-1/2 cursor-ew-resize rounded-full border-[3px] border-[#6d5efc] bg-white shadow"
-                            title="Drag to make the text box wider"
-                            onPointerDown={(event) => startResizeTextAnnotation(event, editingText, "right")}
-                          />
-                        </div>
-                      </>
-                    )}
+                            onPointerDown={(event) => event.stopPropagation()}
+                          >
+                            <Input.TextArea
+                              autoFocus
+                              value={editingText.value}
+                              onChange={(event) => {
+                                setTextToolbarMenu(null);
+                                setEditingText({ ...editingText, value: event.target.value });
+                              }}
+                              onBlur={commitEditingText}
+                              onKeyDown={(event) => {
+                                if (event.key === "Escape") {
+                                  event.preventDefault();
+                                  setEditingText(null);
+                                }
+                                if (event.key === "Enter" && !event.shiftKey) {
+                                  event.preventDefault();
+                                  commitEditingText();
+                                }
+                              }}
+                              placeholder="Type here..."
+                              autoSize={{ minRows: 1, maxRows: 10 }}
+                              className="!w-full rounded-[16px] !border-0 !bg-transparent px-5 py-4"
+                              style={{
+                                color,
+                                fontSize: editingText.fontSize,
+                                fontWeight: editingText.fontWeight === "bold" ? 700 : 400,
+                                textAlign: editingText.textAlign,
+                                textDecorationLine: editingText.underline ? "underline" : "none",
+                                resize: "none",
+                              }}
+                            />
+                            <span
+                              className="absolute left-[-9px] top-1/2 h-10 w-4 -translate-y-1/2 cursor-ew-resize rounded-full border-[3px] border-[#6d5efc] bg-white shadow"
+                              title="Drag to make the text box wider"
+                              onPointerDown={(event) => startResizeTextAnnotation(event, editingText, "left")}
+                            />
+                            <span
+                              className="absolute right-[-9px] top-1/2 h-10 w-4 -translate-y-1/2 cursor-ew-resize rounded-full border-[3px] border-[#6d5efc] bg-white shadow"
+                              title="Drag to make the text box wider"
+                              onPointerDown={(event) => startResizeTextAnnotation(event, editingText, "right")}
+                            />
+                          </div>
+                        </>
+                      );
+                    })()}
                     {(textAnnotationsByPage.get(page.pageNumber) || []).map((annotation) => {
                         const isEditableText = editable && activeAnnotations.some((item) => item.id === annotation.id);
                         const isBeingEdited = editingText?.id === annotation.id;
