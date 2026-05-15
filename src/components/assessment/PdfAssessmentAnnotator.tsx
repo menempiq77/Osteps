@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Button, Input, InputNumber, Modal, message, Select, Spin, Tag } from "antd";
+import { Eraser, PenTool, Type } from "lucide-react";
 import type {
   AssessmentDocumentAnnotation,
   AssessmentDocumentLayer,
@@ -26,6 +27,16 @@ import { resolveExamWindow } from "@/lib/taskTypeMetadata";
 
 type Tool = "pen" | "text" | "eraser";
 type DocumentKind = "pdf" | "docx" | "image";
+
+const TOOL_BUTTONS: Array<{
+  value: Tool;
+  label: string;
+  Icon: typeof PenTool;
+}> = [
+  { value: "pen", label: "Pen", Icon: PenTool },
+  { value: "text", label: "Text", Icon: Type },
+  { value: "eraser", label: "Eraser", Icon: Eraser },
+];
 
 type RenderedPage = {
   pageNumber: number;
@@ -3120,17 +3131,23 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
           <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-3">
             <div className="flex flex-wrap items-center gap-2">
-              <div className="flex flex-wrap items-center gap-1 rounded-lg border border-slate-200 bg-white p-1">
-                {(["pen", "text", "eraser"] as Tool[]).map((toolOption) => (
+              <div className="flex flex-wrap items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
+                {TOOL_BUTTONS.map(({ value, label, Icon }) => (
                   <Button
-                    key={toolOption}
-                    type={tool === toolOption ? "primary" : "default"}
+                    key={value}
+                    type="text"
+                    icon={<Icon className="h-5 w-5" strokeWidth={2.2} />}
                     disabled={!editable}
-                    onClick={() => setTool(toolOption)}
-                    className={tool === toolOption ? "!bg-[#0f7f8c] !border-[#0f7f8c]" : ""}
-                  >
-                    {toolOption === "pen" ? "Pen" : toolOption === "text" ? "Text" : "Eraser"}
-                  </Button>
+                    onClick={() => setTool(value)}
+                    title={label}
+                    aria-label={`Use ${label.toLowerCase()} tool`}
+                    className={[
+                      "!flex !h-11 !w-11 !items-center !justify-center !rounded-xl !border !p-0 !shadow-none",
+                      tool === value
+                        ? "!border-black !bg-black !text-white hover:!border-black hover:!bg-black hover:!text-white"
+                        : "!border-transparent !bg-white !text-slate-800 hover:!border-slate-200 hover:!bg-slate-100 hover:!text-black",
+                    ].join(" ")}
+                  />
                 ))}
               </div>
               <Select value={color} onChange={setColor} disabled={!editable} style={{ width: 120 }} options={COLORS.map((value) => ({ value, label: <span style={{ color: value }}>● {value}</span> }))} />
