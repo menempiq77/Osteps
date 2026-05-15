@@ -632,6 +632,8 @@ const getTouchGestureCenter = (points: TrackedTouchPointer[]) => ({
 const getTouchGestureDistance = (points: TrackedTouchPointer[]) =>
   Math.hypot(points[0].clientX - points[1].clientX, points[0].clientY - points[1].clientY);
 
+const getNativeTouchPointerId = (touch: Touch) => -1 - touch.identifier;
+
 const getSafePenPoints = (annotation: { points?: Array<{ x?: number; y?: number }> | null }) =>
   Array.isArray(annotation.points)
     ? annotation.points.filter(
@@ -1428,6 +1430,68 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       }
     };
 
+    const syncNativeTouches = (touches: TouchList) => {
+      touchPointersRef.current.clear();
+      for (let index = 0; index < Math.min(touches.length, 2); index += 1) {
+        const touch = touches.item(index);
+        if (!touch) continue;
+        touchPointersRef.current.set(getNativeTouchPointerId(touch), {
+          clientX: touch.clientX,
+          clientY: touch.clientY,
+        });
+      }
+    };
+
+    const handleNativeTouchStart = (event: TouchEvent) => {
+      if (event.touches.length < 2) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      syncNativeTouches(event.touches);
+
+      if (!touchGestureRef.current) {
+        startTouchGesture();
+        return;
+      }
+
+      syncTouchGesture();
+    };
+
+    const handleNativeTouchMove = (event: TouchEvent) => {
+      if (!touchGestureRef.current && event.touches.length < 2) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      syncNativeTouches(event.touches);
+
+      if (!touchGestureRef.current && touchPointersRef.current.size >= 2) {
+        startTouchGesture();
+        return;
+      }
+
+      syncTouchGesture();
+    };
+
+    const handleNativeTouchEnd = (event: TouchEvent) => {
+      if (!touchGestureRef.current && !suppressTouchClickRef.current) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      syncNativeTouches(event.touches);
+
+      if (event.touches.length < 2) {
+        touchGestureRef.current = null;
+      }
+
+      if (event.touches.length === 0) {
+        touchPointersRef.current.clear();
+        cancelTouchGestureFrame();
+        window.setTimeout(() => {
+          suppressTouchClickRef.current = false;
+        }, 0);
+      }
+    };
+
     container.addEventListener("pointerdown", handleTouchPointerDown, {
       capture: true,
       passive: false,
@@ -1444,12 +1508,32 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       capture: true,
       passive: false,
     });
+    container.addEventListener("touchstart", handleNativeTouchStart, {
+      capture: true,
+      passive: false,
+    });
+    container.addEventListener("touchmove", handleNativeTouchMove, {
+      capture: true,
+      passive: false,
+    });
+    container.addEventListener("touchend", handleNativeTouchEnd, {
+      capture: true,
+      passive: false,
+    });
+    container.addEventListener("touchcancel", handleNativeTouchEnd, {
+      capture: true,
+      passive: false,
+    });
 
     return () => {
       container.removeEventListener("pointerdown", handleTouchPointerDown, true);
       container.removeEventListener("pointermove", handleTouchPointerMove, true);
       container.removeEventListener("pointerup", handleTouchPointerEnd, true);
       container.removeEventListener("pointercancel", handleTouchPointerEnd, true);
+      container.removeEventListener("touchstart", handleNativeTouchStart, true);
+      container.removeEventListener("touchmove", handleNativeTouchMove, true);
+      container.removeEventListener("touchend", handleNativeTouchEnd, true);
+      container.removeEventListener("touchcancel", handleNativeTouchEnd, true);
       touchPointersRef.current.clear();
       touchGestureRef.current = null;
       cancelTouchGestureFrame();
