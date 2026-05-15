@@ -659,6 +659,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const [activeStroke, setActiveStroke] = useState<PenAnnotation | null>(null);
   const [editingText, setEditingText] = useState<EditingText | null>(null);
   const [resizingText, setResizingText] = useState(false);
+  const [redoStack, setRedoStack] = useState<AssessmentDocumentAnnotation[][]>([]);
   const examContainerRef = useRef<HTMLDivElement | null>(null);
   const activeStrokeRef = useRef<PenAnnotation | null>(null);
   const activeAnnotationsRef = useRef<AssessmentDocumentAnnotation[]>([]);
@@ -1419,9 +1420,13 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   );
 
   const setLayerAnnotations = useCallback(
-    (nextAnnotations: AssessmentDocumentAnnotation[]) => {
+    (
+      nextAnnotations: AssessmentDocumentAnnotation[],
+      options?: { preserveRedo?: boolean }
+    ) => {
       activeAnnotationsRef.current = nextAnnotations;
       persistLocalDraft(nextAnnotations);
+      if (!options?.preserveRedo) setRedoStack([]);
       setState((prev) => {
         if (!prev) return prev;
         const nextState = {
@@ -1438,9 +1443,13 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   );
 
   const setLayerAnnotationsLocally = useCallback(
-    (nextAnnotations: AssessmentDocumentAnnotation[]) => {
+    (
+      nextAnnotations: AssessmentDocumentAnnotation[],
+      options?: { preserveRedo?: boolean }
+    ) => {
       activeAnnotationsRef.current = nextAnnotations;
       persistLocalDraft(nextAnnotations);
+      if (!options?.preserveRedo) setRedoStack([]);
       setState((prev) => {
         if (!prev) return prev;
         return {
@@ -1464,6 +1473,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         setAiDraftPreview(null);
         setTeacherMarks(initialTeacherMarks);
         setTeacherFeedback(initialTeacherFeedback);
+        setRedoStack([]);
         activeAnnotationsRef.current = [];
         lastLiveSyncedSignatureRef.current = "";
         lastRemoteSnapshotRef.current = "";
@@ -2225,7 +2235,15 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
   const undo = () => {
     if (!editable || activeAnnotations.length === 0) return;
-    setLayerAnnotations(activeAnnotations.slice(0, -1));
+    setRedoStack((current) => [activeAnnotations, ...current].slice(0, 50));
+    setLayerAnnotations(activeAnnotations.slice(0, -1), { preserveRedo: true });
+  };
+
+  const redo = () => {
+    if (!editable || redoStack.length === 0) return;
+    const [nextAnnotations, ...remainingRedoStack] = redoStack;
+    setRedoStack(remainingRedoStack);
+    setLayerAnnotations(nextAnnotations, { preserveRedo: true });
   };
 
   const saveNow = async () => {
@@ -3130,6 +3148,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                 </Button>
               </div>
               <Button onClick={undo} disabled={!editable || activeAnnotations.length === 0}>Undo</Button>
+              <Button onClick={redo} disabled={!editable || redoStack.length === 0}>Redo</Button>
               <Button onClick={saveNow} disabled={!editable} loading={saving}>Save now</Button>
             </div>
 
