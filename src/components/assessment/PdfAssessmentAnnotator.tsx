@@ -210,6 +210,7 @@ const AI_PAGE_IMAGE_MAX_COUNT = 12;
 const AI_PAGE_IMAGE_MAX_WIDTH = 1200;
 const AI_PAGE_IMAGE_JPEG_QUALITY = 0.68;
 const ERASER_RADIUS = 28;
+const PEN_SELECTION_RADIUS = 12;
 const TEXT_ERASER_PADDING = 18;
 const TEXT_ANNOTATION_MIN_WIDTH = 120;
 const TEXT_ANNOTATION_DEFAULT_WIDTH = 360;
@@ -721,6 +722,51 @@ const penTouchesEraser = (annotation: PenAnnotation, point: { x: number; y: numb
   return false;
 };
 
+const penTouchesPoint = (annotation: PenAnnotation, point: { x: number; y: number }) => {
+  const points = getSafePenPoints(annotation);
+  const radius = PEN_SELECTION_RADIUS + annotation.width / 2;
+  if (points.some((entry) => Math.hypot(entry.x - point.x, entry.y - point.y) <= radius)) {
+    return true;
+  }
+  for (let index = 1; index < points.length; index += 1) {
+    if (distanceToSegment(point, points[index - 1], points[index]) <= radius) return true;
+  }
+  return false;
+};
+
+const findPenAnnotationAtPoint = (
+  annotations: AssessmentDocumentAnnotation[],
+  pageNumber: number,
+  point: { x: number; y: number }
+) => {
+  for (let index = annotations.length - 1; index >= 0; index -= 1) {
+    const annotation = annotations[index];
+    if (annotation.type !== "pen" || annotation.page !== pageNumber) continue;
+    if (String(annotation.id || "").startsWith(AI_DRAFT_OVERLAY_ID_PREFIX)) continue;
+    if (penTouchesPoint(annotation, point)) return annotation;
+  }
+  return null;
+};
+
+const drawSelectedPenHighlight = (context: CanvasRenderingContext2D, annotation: PenAnnotation) => {
+  const points = getSafePenPoints(annotation);
+  if (points.length < 2) return;
+
+  context.save();
+  context.strokeStyle = "#7c3aed";
+  context.lineWidth = annotation.width + 10;
+  context.lineCap = "round";
+  context.lineJoin = "round";
+  context.globalAlpha = 0.28;
+  context.beginPath();
+  context.moveTo(points[0].x, points[0].y);
+  for (const point of points.slice(1)) {
+    context.lineTo(point.x, point.y);
+  }
+  context.stroke();
+  context.restore();
+};
+
 const textTouchesEraser = (annotation: TextAnnotation, point: { x: number; y: number }) => {
   const text = String(annotation.text ?? "");
   const lineCount = Math.max(1, text.split("\n").length);
@@ -801,11 +847,36 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const [activeStroke, setActiveStroke] = useState<PenAnnotation | null>(null);
   const [editingText, setEditingText] = useState<EditingText | null>(null);
   const [resizingText, setResizingText] = useState(false);
+  const [selectedPenAnnotationId, setSelectedPenAnnotationId] = useState<string | null>(null);
   const [undoStack, setUndoStack] = useState<AssessmentDocumentAnnotation[][]>([]);
   const [redoStack, setRedoStack] = useState<AssessmentDocumentAnnotation[][]>([]);
-  const activeStrokeWidth = tool === "highlighter" ? highlighterWidth : penWidth;
+  const selectedPenAnnotation = useMemo(() => {
+    if (!selectedPenAnnotationId) return null;
+    const currentAnnotations = role === "teacher" ? state?.teacherAnnotations || [] : state?.studentAnnotations || [];
+    const annotation = currentAnnotations.find(
+      (entry): entry is PenAnnotation =>
+        entry.id === selectedPenAnnotationId && entry.type === "pen"
+    );
+    if (!annotation || String(annotation.id || "").startsWith(AI_DRAFT_OVERLAY_ID_PREFIX)) {
+      return null;
+    }
+    return annotation;
+  }, [role, selectedPenAnnotationId, state?.studentAnnotations, state?.teacherAnnotations]);
+  const strokeControlsTool =
+    tool === "cursor" && selectedPenAnnotation
+      ? selectedPenAnnotation.tool === "highlighter"
+        ? "highlighter"
+        : "pen"
+      : tool === "highlighter"
+        ? "highlighter"
+        : "pen";
+  const drawingStrokeWidth = tool === "highlighter" ? highlighterWidth : penWidth;
+  const activeStrokeWidth =
+    tool === "cursor" && selectedPenAnnotation ? selectedPenAnnotation.width : drawingStrokeWidth;
   const activeStrokeWidthOptions =
-    tool === "highlighter" ? HIGHLIGHTER_WIDTH_OPTIONS : PEN_WIDTH_OPTIONS;
+    strokeControlsTool === "highlighter" ? HIGHLIGHTER_WIDTH_OPTIONS : PEN_WIDTH_OPTIONS;
+  const activeStrokeColor =
+    tool === "cursor" && selectedPenAnnotation ? selectedPenAnnotation.color : color;
   const activeTextFontSize = editingText?.fontSize ?? textFontSize;
   const activeTextFontWeight = editingText?.fontWeight ?? textFontWeight;
   const activeTextUnderline = editingText?.underline ?? textUnderline;
@@ -944,6 +1015,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const canOpenOriginalFile = role !== "student";
   const displayStudentName = currentStudentName || teacherExamStudentInfo?.studentName || "Selected student";
   const canDownloadSubmittedPaper = role === "teacher" && documentLoaded && (studentLocked || state?.status === "submitted" || state?.status === "marked");
+  const canEditSelectedStroke = tool === "cursor" && Boolean(selectedPenAnnotation);
   const hasReadableStudentAnnotation = studentAnnotations.some(
     (annotation) =>
       (annotation.type === "text" && String(annotation.text ?? "").trim().length > 0) ||
@@ -1375,6 +1447,16 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     activeAnnotationsRef.current = activeAnnotations;
   }, [activeAnnotations]);
 
+  useEffect(() => {
+    if (tool !== "cursor") {
+      setSelectedPenAnnotationId(null);
+      return;
+    }
+    if (selectedPenAnnotationId && !selectedPenAnnotation) {
+      setSelectedPenAnnotationId(null);
+    }
+  }, [selectedPenAnnotation, selectedPenAnnotationId, tool]);
+
   const getAnnotationsSignature = useCallback(
     (annotations: AssessmentDocumentAnnotation[]) => JSON.stringify(annotations),
     []
@@ -1656,6 +1738,45 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     [getAnnotationsSignature, persistLocalDraft, role]
   );
 
+  const updateSelectedPenAnnotation = useCallback(
+    (updates: Partial<Pick<PenAnnotation, "color" | "width">>) => {
+      if (!selectedPenAnnotation) return;
+      const previousAnnotations = cloneAnnotationsSnapshot(activeAnnotationsRef.current);
+      const nextAnnotations = activeAnnotationsRef.current.map((annotation) =>
+        annotation.id === selectedPenAnnotation.id && annotation.type === "pen"
+          ? { ...annotation, ...updates }
+          : annotation
+      );
+      setLayerAnnotations(nextAnnotations, { previousAnnotations });
+    },
+    [selectedPenAnnotation, setLayerAnnotations]
+  );
+
+  const handleStrokeColorChange = useCallback(
+    (nextColor: string) => {
+      setColor(nextColor);
+      if (tool === "cursor" && selectedPenAnnotation) {
+        updateSelectedPenAnnotation({ color: nextColor });
+      }
+    },
+    [selectedPenAnnotation, tool, updateSelectedPenAnnotation]
+  );
+
+  const handleStrokeWidthChange = useCallback(
+    (widthValue: number) => {
+      if (strokeControlsTool === "highlighter") {
+        setHighlighterWidth(widthValue);
+      } else {
+        setPenWidth(widthValue);
+      }
+
+      if (tool === "cursor" && selectedPenAnnotation) {
+        updateSelectedPenAnnotation({ width: widthValue });
+      }
+    },
+    [selectedPenAnnotation, strokeControlsTool, tool, updateSelectedPenAnnotation]
+  );
+
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
@@ -1666,6 +1787,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         setAiDraftPreview(null);
         setTeacherMarks(initialTeacherMarks);
         setTeacherFeedback(initialTeacherFeedback);
+        setSelectedPenAnnotationId(null);
         setUndoStack([]);
         setRedoStack([]);
         activeAnnotationsRef.current = [];
@@ -1891,9 +2013,13 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         (annotation): annotation is PenAnnotation => annotation.type === "pen" && annotation.page === page.pageNumber
       );
       for (const annotation of allPenAnnotations) drawPen(context, annotation);
+      if (selectedPenAnnotation?.page === page.pageNumber) {
+        drawSelectedPenHighlight(context, selectedPenAnnotation);
+        drawPen(context, selectedPenAnnotation);
+      }
       if (activeStroke?.page === page.pageNumber) drawPen(context, activeStroke);
     }
-  }, [pages, studentAnnotations, teacherAnnotations, activeStroke]);
+  }, [pages, studentAnnotations, teacherAnnotations, activeStroke, selectedPenAnnotation]);
 
   useEffect(() => {
     return () => {
@@ -2155,11 +2281,17 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   );
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>, pageNumber: number) => {
-    if (!editable || tool === "text" || tool === "cursor") return;
+    if (!editable || tool === "text") return;
     event.preventDefault();
     event.stopPropagation();
     const target = event.currentTarget;
     const point = getPointerPoint(event, target, zoomLevel);
+
+    if (tool === "cursor") {
+      const selectedAnnotation = findPenAnnotationAtPoint(activeAnnotationsRef.current, pageNumber, point);
+      setSelectedPenAnnotationId(selectedAnnotation?.id ?? null);
+      return;
+    }
 
     if (tool === "eraser") {
       beginHistoryGesture();
@@ -2176,7 +2308,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       tool: tool === "highlighter" ? "highlighter" : "pen",
       page: pageNumber,
       color,
-      width: activeStrokeWidth,
+      width: drawingStrokeWidth,
       points: [point],
     };
     activeStrokeRef.current = nextStroke;
@@ -2234,6 +2366,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
   const handlePageClick = (event: React.MouseEvent<HTMLDivElement>, pageNumber: number) => {
     if (!editable || tool !== "text") return;
+    setSelectedPenAnnotationId(null);
     const point = getPointerPoint(
       event as unknown as React.PointerEvent<HTMLDivElement>,
       event.currentTarget,
@@ -2307,6 +2440,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
   const startEditTextAnnotation = (annotation: TextAnnotation) => {
     if (!editable || !activeAnnotations.some((item) => item.id === annotation.id)) return;
+    setSelectedPenAnnotationId(null);
     setColor(annotation.color);
     setTextFontSize(annotation.fontSize);
     setTextFontWeight(annotation.fontWeight === "bold" ? "bold" : "normal");
@@ -3446,7 +3580,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
               <Button onClick={saveNow} disabled={!editable} loading={saving}>Save now</Button>
             </div>
 
-            {tool !== "cursor" && tool !== "eraser" && (
+            {(tool !== "eraser" && (tool !== "cursor" || canEditSelectedStroke)) && (
               <div className="flex flex-wrap items-center gap-3 border-t border-slate-200 pt-2">
                 <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white px-2 py-2 shadow-sm">
                   {COLOR_SWATCHS.map(({ value, label }) => (
@@ -3456,11 +3590,11 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                       title={label}
                       aria-label={`Set color to ${label.toLowerCase()}`}
                       disabled={!editable}
-                      onClick={() => setColor(value)}
+                      onClick={() => handleStrokeColorChange(value)}
                       className={[
                         "h-10 w-10 rounded-full border-2 transition",
                         value === "#ffffff" ? "border-slate-300" : "border-white/80",
-                        color === value
+                        activeStrokeColor === value
                           ? "ring-4 ring-[#9b8cff] ring-offset-2 ring-offset-white"
                           : "hover:scale-105",
                         !editable ? "cursor-not-allowed opacity-50" : "",
@@ -3500,7 +3634,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                     {activeStrokeWidthOptions.map((widthValue) => {
                       const selected = activeStrokeWidth === widthValue;
                       const previewHeight =
-                        tool === "highlighter"
+                        strokeControlsTool === "highlighter"
                           ? Math.max(8, Math.round(widthValue / 2.5))
                           : Math.max(3, Math.round(widthValue));
 
@@ -3509,11 +3643,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                           key={widthValue}
                           type="button"
                           disabled={!editable}
-                          onClick={() =>
-                            tool === "highlighter"
-                              ? setHighlighterWidth(widthValue)
-                              : setPenWidth(widthValue)
-                          }
+                          onClick={() => handleStrokeWidthChange(widthValue)}
                           className={[
                             "flex h-10 min-w-12 items-center justify-center rounded-xl border px-3 transition",
                             selected
@@ -3525,9 +3655,9 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                           <span
                             className={selected ? "rounded-full bg-white" : "rounded-full bg-slate-800"}
                             style={{
-                              width: tool === "highlighter" ? 24 : 20,
+                              width: strokeControlsTool === "highlighter" ? 24 : 20,
                               height: previewHeight,
-                              opacity: tool === "highlighter" ? 0.7 : 1,
+                              opacity: strokeControlsTool === "highlighter" ? 0.7 : 1,
                             }}
                           />
                         </button>
