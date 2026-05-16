@@ -110,6 +110,21 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
     return clean.endsWith(".pdf");
   };
 
+  const getPreviewFrameUrl = (url: string, type: string) => {
+    const normalized = normalizeResourceUrl(url);
+    const normalizedType = (type || "").toLowerCase();
+    if (
+      normalized &&
+      isExternalLink(normalized) &&
+      !isLikelyEmbeddableDocument(normalized) &&
+      ["website", "link"].includes(normalizedType)
+    ) {
+      return `/api/resource-proxy?url=${encodeURIComponent(normalized)}`;
+    }
+
+    return normalized;
+  };
+
   const getVideoEmbedUrl = (url: string) => {
     const youTubeMatch = url.match(
       /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{6,})/i
@@ -193,7 +208,7 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
 
     const normalizedType = (currentItem.type || "").toLowerCase();
     const playerHeight = isFullscreen ? "100vh" : "560px";
-    const external = isExternalLink(currentItem.url);
+    const previewFrameUrl = getPreviewFrameUrl(mediaUrl || currentItem.url, normalizedType);
 
     if (normalizedType === "video") {
       const normalizedVideoUrl = mediaUrl || normalizeResourceUrl(currentItem.url);
@@ -251,48 +266,6 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
       );
     }
 
-    // External websites often block iframe embedding (X-Frame-Options/CSP).
-    // For non-document external links, show a reliable fallback panel instead of blank iframe.
-    if (external && !isLikelyEmbeddableDocument(currentItem.url) && normalizedType !== "video") {
-      return (
-        <div style={{ padding: isFullscreen ? "0" : "12px" }}>
-          <div
-            style={{
-              width: "100%",
-              height: playerHeight,
-              borderRadius: isFullscreen ? "0" : "8px",
-              background: "#f8fafc",
-              border: "1px solid #e5e7eb",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexDirection: "column",
-              gap: "12px",
-              padding: "24px",
-            }}
-          >
-            <Text strong style={{ fontSize: 16 }}>
-              This website cannot be displayed inside the app.
-            </Text>
-            <Text type="secondary">Use Open Link to view it in a new tab.</Text>
-            <Button
-              type="primary"
-              icon={<LinkOutlined />}
-              onClick={() => {
-                const finalUrl = normalizeResourceUrl(currentItem?.url);
-                console.log('[OpenLink-ExternalBlock] Original URL:', currentItem?.url);
-                console.log('[OpenLink-ExternalBlock] Final URL:', finalUrl);
-                window.open(finalUrl, '_blank');
-              }}
-              className="!bg-primary !border-primary"
-            >
-              Open Link
-            </Button>
-          </div>
-        </div>
-      );
-    }
-
     return (
       <div style={{ padding: isFullscreen ? "0" : "12px" }}>
         {embedBlocked ? (
@@ -331,8 +304,8 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
           </div>
         ) : (
           <iframe
-            key={mediaUrl || "resource-frame"}
-            src={mediaUrl}
+            key={previewFrameUrl || "resource-frame"}
+            src={previewFrameUrl}
             title={currentItem.title}
             onLoad={() => {
               setIframeLoaded(true);
@@ -345,6 +318,7 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
               border: "none",
               borderRadius: isFullscreen ? "0" : "8px",
             }}
+            sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-presentation allow-same-origin allow-scripts"
           />
         )}
         <div style={{ marginTop: "10px", display: isFullscreen ? "none" : "block" }}>
