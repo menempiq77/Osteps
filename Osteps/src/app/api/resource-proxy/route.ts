@@ -127,6 +127,20 @@ const rewriteInlineStyleBlocks = (
     return `<style${attributes}>${rewriteCssUrls(css, targetUrl, proxyOrigin)}</style>`;
   });
 
+const rewriteInlineScriptBaseUrls = (html: string, targetUrl: string) =>
+  html.replace(/<script\b(?![^>]*\bsrc=)([^>]*)>([\s\S]*?)<\/script>/gi, (_match, attributes, scriptBody) => {
+    const rewrittenScript = scriptBody.replace(
+      /((?:var|let|const)?\s*(?:rootDir|publicRoot|hostingDomain)\s*=\s*)(["'])([^"']+)\2/g,
+      (_assignment, prefix: string, quote: string, value: string) => {
+        const resolved = resolvePreviewUrl(value, targetUrl);
+        const rewrittenValue = resolved ? resolved.toString() : value;
+        return `${prefix}${quote}${rewrittenValue}${quote}`;
+      }
+    );
+
+    return `<script${attributes}>${rewrittenScript}</script>`;
+  });
+
 const rewriteHtmlResourceUrls = (
   html: string,
   targetUrl: string,
@@ -390,10 +404,14 @@ const injectPreviewHead = (html: string, targetUrl: string, proxyOrigin: string)
 
 const preparePreviewHtml = (html: string, targetUrl: string, proxyOrigin: string) =>
   injectPreviewHead(
-    rewriteInlineStyleBlocks(
-      rewriteHtmlResourceUrls(html, targetUrl, proxyOrigin),
+    rewriteInlineScriptBaseUrls(
+      rewriteInlineStyleBlocks(
+        rewriteHtmlResourceUrls(html, targetUrl, proxyOrigin),
+        targetUrl,
+        proxyOrigin
+      ),
       targetUrl,
-      proxyOrigin
+      
     ),
     targetUrl,
     proxyOrigin
