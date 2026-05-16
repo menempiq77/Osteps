@@ -1475,11 +1475,27 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       ) {
         return;
       }
+
+      if (event.touches.length >= 2) {
+        event.preventDefault();
+        event.stopPropagation();
+        pendingTouchPageActionRef.current = null;
+        syncNativeTouchList(event.touches);
+
+        if (!touchGestureRef.current) {
+          startTouchGesture();
+          return;
+        }
+
+        syncTouchGesture();
+        return;
+      }
+
       pendingTouchPageActionRef.current = null;
       touchGestureRef.current = null;
       touchPointersRef.current.clear();
     },
-    [editable, tool]
+    [editable, startTouchGesture, syncNativeTouchList, syncTouchGesture, tool]
   );
 
   const handlePaperTouchMoveCapture = useCallback(
@@ -1492,27 +1508,52 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       ) {
         return;
       }
+
+      if (event.touches.length >= 2 || touchGestureRef.current) {
+        event.preventDefault();
+        event.stopPropagation();
+        pendingTouchPageActionRef.current = null;
+        syncNativeTouchList(event.touches);
+
+        if (!touchGestureRef.current && touchPointersRef.current.size >= 2) {
+          startTouchGesture();
+          return;
+        }
+
+        syncTouchGesture();
+        return;
+      }
+
       pendingTouchPageActionRef.current = null;
       touchGestureRef.current = null;
       touchPointersRef.current.clear();
     },
-    [editable, tool]
+    [editable, startTouchGesture, syncNativeTouchList, syncTouchGesture, tool]
   );
 
   const handlePaperTouchEndCapture = useCallback(
     (event: React.TouchEvent<HTMLDivElement>) => {
+      if (touchGestureRef.current || touchPointersRef.current.size >= 2 || suppressTouchClickRef.current) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+
       pendingTouchPageActionRef.current = null;
-      touchGestureRef.current = null;
-      touchPointersRef.current.clear();
+      syncNativeTouchList(event.touches);
+
+      if (event.touches.length < 2) {
+        touchGestureRef.current = null;
+      }
 
       if (event.touches.length === 0) {
+        touchPointersRef.current.clear();
         cancelTouchGestureFrame();
         window.setTimeout(() => {
           suppressTouchClickRef.current = false;
         }, 0);
       }
     },
-    [cancelTouchGestureFrame]
+    [cancelTouchGestureFrame, syncNativeTouchList]
   );
 
   useEffect(() => {
@@ -4430,6 +4471,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         : "100%",
     transform: toolbarViewportScale === 1 ? undefined : `scale(${1 / toolbarViewportScale})`,
     transformOrigin: "top left",
+    touchAction: "pan-x pan-y",
     willChange: "transform, left, top",
   };
   const toolbarChrome = (
@@ -4655,7 +4697,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   );
 
   return (
-    <div ref={examContainerRef} className="min-h-screen bg-slate-100">
+    <div ref={examContainerRef} className="min-h-screen bg-slate-100" style={{ touchAction: "pan-x pan-y" }}>
       {contextHolder}
       {shouldEnforceExamScreen ? (
         <>
@@ -4743,7 +4785,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       <div
         ref={viewerScrollRef}
         className={shouldEnforceExamScreen ? "h-[calc(100vh-85px)] overflow-auto p-4" : "mx-auto max-w-7xl p-4"}
-        style={{ paddingTop: toolbarHeight ? toolbarHeight + 16 : undefined }}
+        style={{ paddingTop: toolbarHeight ? toolbarHeight + 16 : undefined, touchAction: "pan-x pan-y" }}
       >
         {documentFileMismatch ? (
           <Alert
@@ -4965,7 +5007,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
           </div>
         )}
 
-        <div ref={pagesViewportRef} className="space-y-6 overflow-x-auto pb-10">
+        <div ref={pagesViewportRef} className="space-y-6 overflow-x-auto pb-10" style={{ touchAction: "pan-x pan-y" }}>
           {(pages.length > 0 ? pages : [{ pageNumber: 1, width: 900, height: 1200 }]).map((page) => (
             <div key={page.pageNumber} className="mx-auto w-fit rounded-lg bg-white p-3 shadow">
               <div className="mb-2 text-xs font-medium text-gray-500">Page {page.pageNumber}</div>
@@ -4996,7 +5038,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                       touchAction:
                         editable && (tool === "pen" || tool === "highlighter" || tool === "eraser")
                           ? "none"
-                          : "pan-x pan-y pinch-zoom",
+                          : "pan-x pan-y",
                       userSelect: "none",
                       WebkitUserSelect: "none",
                       cursor: !editable
