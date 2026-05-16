@@ -130,11 +130,15 @@ const rewriteInlineStyleBlocks = (
 const rewriteInlineScriptBaseUrls = (html: string, targetUrl: string) =>
   html.replace(/<script\b(?![^>]*\bsrc=)([^>]*)>([\s\S]*?)<\/script>/gi, (_match, attributes, scriptBody) => {
     const rewrittenScript = scriptBody.replace(
-      /((?:var|let|const)?\s*(?:rootDir|publicRoot|hostingDomain)\s*=\s*)(["'])([^"']+)\2/g,
-      (_assignment, prefix: string, quote: string, value: string) => {
+      /((?:var|let|const)?\s*)(rootDir|publicRoot|hostingDomain)(\s*=\s*)(["'])([^"']+)\4/g,
+      (_assignment, declaration: string, variableName: string, operator: string, quote: string, value: string) => {
+        if (variableName !== "rootDir") {
+          return `${declaration}${variableName}${operator}${quote}${value}${quote}`;
+        }
+
         const resolved = resolvePreviewUrl(value, targetUrl);
         const rewrittenValue = resolved ? resolved.toString() : value;
-        return `${prefix}${quote}${rewrittenValue}${quote}`;
+        return `${declaration}${variableName}${operator}${quote}${rewrittenValue}${quote}`;
       }
     );
 
