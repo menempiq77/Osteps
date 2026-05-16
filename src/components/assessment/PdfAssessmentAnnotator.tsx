@@ -4367,12 +4367,15 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
   const aiDeductionRows = getAiDeductionRows(aiDraftPreview);
   const toolbarViewportScale = visualViewportScale > 0 ? visualViewportScale : 1;
+  const toolbarIsBrowserZoomed = toolbarViewportScale > 1.01;
   const toolbarChromeStyle: React.CSSProperties = {
-    left: visualViewportOffset.left,
-    top: visualViewportOffset.top,
-    width: visualViewportOffset.width ? visualViewportOffset.width * toolbarViewportScale : undefined,
+    position: "fixed",
+    left: toolbarIsBrowserZoomed ? visualViewportOffset.left : 0,
+    top: toolbarIsBrowserZoomed ? visualViewportOffset.top : 0,
+    width: toolbarIsBrowserZoomed && visualViewportOffset.width ? visualViewportOffset.width * toolbarViewportScale : "100%",
     transform: toolbarViewportScale === 1 ? undefined : `scale(${1 / toolbarViewportScale})`,
     transformOrigin: "top left",
+    willChange: "transform, left, top",
   };
 
   return (
