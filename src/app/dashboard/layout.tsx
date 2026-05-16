@@ -201,7 +201,9 @@ export default function DashboardLayout({
     /^\/dashboard\/s\/\d+\/subject-cards$/.test(pathname);
   const isStandaloneTeacherRoute =
     pathname === "/dashboard/teachers" || pathname.startsWith("/dashboard/teachers/");
-  const isLibraryRoute = unscopedPathname === "/dashboard/library";
+  const isLibraryRoute =
+    unscopedPathname === "/dashboard/library" ||
+    unscopedPathname.startsWith("/dashboard/library/");
   const isLeaderboardRoute =
     unscopedPathname === "/dashboard/leaderboard" ||
     unscopedPathname === "/dashboard/leaderboard/" ||
