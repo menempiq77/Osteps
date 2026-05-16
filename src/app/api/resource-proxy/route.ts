@@ -60,8 +60,17 @@ const injectPreviewBase = (html: string, targetUrl: string) => {
   return `${injection}${withoutFrameBlockingMeta}`;
 };
 
+const stripInteractiveScripts = (html: string) =>
+  html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gis, "")
+    .replace(/<link\b[^>]*rel=["'](?:preload|modulepreload)["'][^>]*as=["']script["'][^>]*>/gi, "")
+    .replace(/<link\b[^>]*as=["']script["'][^>]*rel=["'](?:preload|modulepreload)["'][^>]*>/gi, "");
+
 const preparePreviewHtml = (html: string, targetUrl: string) =>
-  injectPreviewBase(rewriteRootRelativeUrls(html, targetUrl), targetUrl);
+  injectPreviewBase(
+    stripInteractiveScripts(rewriteRootRelativeUrls(html, targetUrl)),
+    targetUrl
+  );
 
 export async function GET(request: NextRequest) {
   const rawUrl = request.nextUrl.searchParams.get("url") || "";
