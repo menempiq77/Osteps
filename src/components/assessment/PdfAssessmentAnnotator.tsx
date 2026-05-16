@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Alert, Button, Input, InputNumber, Modal, message, Select, Spin, Tag } from "antd";
 import {
   AlignCenter,
@@ -964,6 +965,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const [visualViewportScale, setVisualViewportScale] = useState(1);
   const [visualViewportOffset, setVisualViewportOffset] = useState({ left: 0, top: 0, width: 0 });
   const [toolbarHeight, setToolbarHeight] = useState(0);
+  const [toolbarPortalReady, setToolbarPortalReady] = useState(false);
   const [isExamFullscreen, setIsExamFullscreen] = useState(false);
   const [examFullscreenSupported, setExamFullscreenSupported] = useState(true);
   const [examStartModalOpen, setExamStartModalOpen] = useState(false);
@@ -1183,6 +1185,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     (role === "teacher" && documentLoaded && pages.length > 0 && (studentLocked || state?.status === "submitted" || state?.status === "marked"));
 
   useEffect(() => {
+    setToolbarPortalReady(true);
+  }, []);
+
+  useEffect(() => {
     if (typeof window === "undefined") return;
 
     const updateVisualViewportState = () => {
@@ -1219,7 +1225,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     resizeObserver.observe(toolbarChrome);
 
     return () => resizeObserver.disconnect();
-  }, [role, studentSwitcherOptions.length, tool, zoomPercent]);
+  }, [role, studentSwitcherOptions.length, tool, toolbarPortalReady, zoomPercent]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -4377,6 +4383,227 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     transformOrigin: "top left",
     willChange: "transform, left, top",
   };
+  const toolbarChrome = (
+    <div
+      ref={toolbarChromeRef}
+      className="fixed left-0 right-0 top-0 z-[90] border-b bg-white/95 px-4 py-3 shadow-sm backdrop-blur"
+      style={toolbarChromeStyle}
+    >
+      <div className={shouldEnforceExamScreen ? "flex flex-col gap-4" : "mx-auto flex max-w-7xl flex-col gap-4"}>
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-lg font-semibold text-gray-900">{title}</h1>
+          {role === "teacher" && (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">Student</span>
+              {studentSwitcherOptions.length > 0 && onStudentChange ? (
+                <Select
+                  showSearch
+                  value={studentId}
+                  loading={studentSwitcherLoading}
+                  onChange={(value) => void handleStudentSwitcherChange(value)}
+                  className="min-w-64"
+                  optionFilterProp="label"
+                  options={studentSwitcherOptions.map((option) => ({
+                    value: option.value,
+                    label: option.status ? `${option.label} · ${option.status}` : option.label,
+                  }))}
+                />
+              ) : (
+                <span className="rounded-md bg-slate-100 px-2 py-1 text-sm font-medium text-slate-800">
+                  {displayStudentName}
+                </span>
+              )}
+            </div>
+          )}
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500 sm:flex-nowrap sm:overflow-hidden">
+            <Tag className="mb-0 shrink-0 whitespace-nowrap" color={role === "teacher" ? "red" : "blue"}>{role === "teacher" ? "Teacher marking" : "Student copy"}</Tag>
+            <Tag className="mb-0 shrink-0 whitespace-nowrap" color={state?.status === "draft" ? "gold" : state?.status === "submitted" ? "green" : "purple"}>{state?.status || "draft"}</Tag>
+            <Tag className="mb-0 shrink-0 whitespace-nowrap" color={studentLocked ? "default" : "cyan"}>{studentLocked ? "Student locked" : "Student open"}</Tag>
+            <Tag
+              className="mb-0 inline-flex min-w-[4.75rem] shrink-0 justify-center whitespace-nowrap"
+              color={autosaveStatusColor}
+              title={lastSavedAt ? `Saved ${lastSavedAt}` : autosaveStatusLabel}
+            >
+              {autosaveStatusLabel}
+            </Tag>
+            {maxMarks != null && <Tag className="mb-0 shrink-0 whitespace-nowrap tabular-nums">{maxMarks} marks</Tag>}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-3">
+          <div className="order-2 flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
+              {TOOL_BUTTONS.map(({ value, label, Icon }) => (
+                <Button
+                  key={value}
+                  type="text"
+                  icon={<Icon className="h-5 w-5" strokeWidth={2.2} />}
+                  disabled={!editable}
+                  onClick={() => setTool(value)}
+                  title={label}
+                  aria-label={`Use ${label.toLowerCase()} tool`}
+                  className={[
+                    "!flex !h-11 !w-11 !items-center !justify-center !rounded-xl !border !p-0 !shadow-none",
+                    tool === value
+                      ? "!border-black !bg-black !text-white hover:!border-black hover:!bg-black hover:!text-white"
+                      : "!border-transparent !bg-white !text-slate-800 hover:!border-slate-200 hover:!bg-slate-100 hover:!text-black",
+                  ].join(" ")}
+                />
+              ))}
+            </div>
+            <div className="flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1">
+              <Button
+                size="small"
+                onClick={() => setZoomLevel((current) => clampZoomLevel(current - ZOOM_STEP))}
+                disabled={zoomLevel <= MIN_ZOOM_LEVEL}
+              >
+                -
+              </Button>
+              <span className="w-14 text-center text-xs font-medium tabular-nums text-gray-600">
+                {zoomPercent}%
+              </span>
+              <Button
+                size="small"
+                onClick={() => setZoomLevel((current) => clampZoomLevel(current + ZOOM_STEP))}
+                disabled={zoomLevel >= MAX_ZOOM_LEVEL}
+              >
+                +
+              </Button>
+            </div>
+            <Button onClick={undo} disabled={!editable || undoStack.length === 0}>Undo</Button>
+            <Button onClick={redo} disabled={!editable || redoStack.length === 0}>Redo</Button>
+            <Button onClick={saveNow} disabled={!editable} loading={saving}>Save now</Button>
+          </div>
+
+          {(tool !== "eraser" && (tool !== "cursor" || canEditSelectedStroke)) && (
+            <div className="order-3 flex flex-wrap items-center gap-3 border-t border-slate-200 pt-2">
+              <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white px-2 py-2 shadow-sm">
+                {COLOR_SWATCHS.map(({ value, label }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    title={label}
+                    aria-label={`Set color to ${label.toLowerCase()}`}
+                    disabled={!editable}
+                    onClick={() => handleStrokeColorChange(value)}
+                    className={[
+                      "h-10 w-10 rounded-full border-2 transition",
+                      value === "#ffffff" ? "border-slate-300" : "border-white/80",
+                      activeStrokeColor === value
+                        ? "ring-4 ring-[#9b8cff] ring-offset-2 ring-offset-white"
+                        : "hover:scale-105",
+                      !editable ? "cursor-not-allowed opacity-50" : "",
+                    ].join(" ")}
+                    style={{ backgroundColor: value }}
+                  />
+                ))}
+              </div>
+
+              {tool === "text" ? (
+                <div className="flex flex-wrap items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
+                  {TEXT_SIZE_OPTIONS.map((fontSize) => (
+                    <button
+                      key={fontSize}
+                      type="button"
+                      disabled={!editable}
+                      onClick={() => {
+                        setTextFontSize(fontSize);
+                        setEditingText((current) =>
+                          current ? { ...current, fontSize } : current
+                        );
+                      }}
+                      className={[
+                        "min-w-12 rounded-xl border px-3 py-2 text-sm font-semibold transition",
+                        textFontSize === fontSize
+                          ? "border-black bg-black text-white"
+                          : "border-transparent bg-white text-slate-700 hover:border-slate-200 hover:bg-slate-100",
+                        !editable ? "cursor-not-allowed opacity-50" : "",
+                      ].join(" ")}
+                    >
+                      {fontSize}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
+                  {activeStrokeWidthOptions.map((widthValue) => {
+                    const selected = activeStrokeWidth === widthValue;
+                    const previewHeight =
+                      strokeControlsTool === "highlighter"
+                        ? Math.max(8, Math.round(widthValue / 2.5))
+                        : Math.max(3, Math.round(widthValue));
+
+                    return (
+                      <button
+                        key={widthValue}
+                        type="button"
+                        disabled={!editable}
+                        onClick={() => handleStrokeWidthChange(widthValue)}
+                        className={[
+                          "flex h-10 min-w-12 items-center justify-center rounded-xl border px-3 transition",
+                          selected
+                            ? "border-black bg-black text-white"
+                            : "border-transparent bg-white text-slate-800 hover:border-slate-200 hover:bg-slate-100",
+                          !editable ? "cursor-not-allowed opacity-50" : "",
+                        ].join(" ")}
+                      >
+                        <span
+                          className={selected ? "rounded-full bg-white" : "rounded-full bg-slate-800"}
+                          style={{
+                            width: strokeControlsTool === "highlighter" ? 24 : 20,
+                            height: previewHeight,
+                            opacity: strokeControlsTool === "highlighter" ? 0.7 : 1,
+                          }}
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {role === "student" ? (
+            <div className="order-1 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-2">
+              <InputNumber min={0} max={maxMarks} value={selfAssessmentMark ?? undefined} onChange={(value) => setSelfAssessmentMark(value == null ? null : Number(value))} placeholder={examWindow.examMode ? "Predicted mark" : "Self mark"} disabled={!editable} className="w-32" />
+              <Button type="primary" className="!bg-[#16a34a] !border-[#16a34a] !text-white hover:!bg-[#15803d] hover:!border-[#15803d] disabled:!bg-gray-200 disabled:!border-gray-200 disabled:!text-gray-500" onClick={finishStudentWork} loading={finishing} disabled={!editable}>{examWindow.examMode ? "Submit exam" : "Submit work"}</Button>
+            </div>
+          ) : (
+            <div className="order-1 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-2">
+              <Button
+                onClick={toggleStudentEditingLock}
+                loading={changingStudentLock}
+                type={studentLocked ? "default" : "primary"}
+                danger={!studentLocked}
+              >
+                {studentLocked ? "Open for student edits" : "Lock student editing"}
+              </Button>
+              <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-1 text-sm text-blue-700">
+                <span className="font-medium">{examWindow.examMode ? "Predicted" : "Self"}</span>
+                <span className="font-semibold">
+                  {selfAssessmentMark ?? "-"}
+                  {maxMarks != null ? `/${maxMarks}` : ""}
+                </span>
+              </div>
+              <Input className="w-24" placeholder="Marks" value={teacherMarks} onChange={(event) => setTeacherMarks(event.target.value)} />
+              <Button onClick={requestAiDraftMark} loading={aiDrafting} disabled={!documentReadyForCurrentStudent || rendering}>
+                Ask AI to Mark
+              </Button>
+              <Button
+                onClick={() => void downloadSubmittedPaper()}
+                loading={exportingPaper}
+                disabled={!canDownloadSubmittedPaper || rendering}
+                title={canDownloadSubmittedPaper ? "Download this student paper as a PDF" : "Download is available after the student submits or the paper is locked"}
+              >
+                Download paper
+              </Button>
+              <Button type="primary" onClick={finalizeTeacherMark} loading={finishing}>Save markbook mark</Button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div ref={examContainerRef} className="min-h-screen bg-slate-100">
@@ -4462,225 +4689,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
           />
         </div>
       </Modal>
-      <div
-        ref={toolbarChromeRef}
-        className="fixed left-0 right-0 top-0 z-[90] border-b bg-white/95 px-4 py-3 shadow-sm backdrop-blur"
-        style={toolbarChromeStyle}
-      >
-        <div className={shouldEnforceExamScreen ? "flex flex-col gap-4" : "mx-auto flex max-w-7xl flex-col gap-4"}>
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-lg font-semibold text-gray-900">{title}</h1>
-            {role === "teacher" && (
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">Student</span>
-                {studentSwitcherOptions.length > 0 && onStudentChange ? (
-                  <Select
-                    showSearch
-                    value={studentId}
-                    loading={studentSwitcherLoading}
-                    onChange={(value) => void handleStudentSwitcherChange(value)}
-                    className="min-w-64"
-                    optionFilterProp="label"
-                    options={studentSwitcherOptions.map((option) => ({
-                      value: option.value,
-                      label: option.status ? `${option.label} · ${option.status}` : option.label,
-                    }))}
-                  />
-                ) : (
-                  <span className="rounded-md bg-slate-100 px-2 py-1 text-sm font-medium text-slate-800">
-                    {displayStudentName}
-                  </span>
-                )}
-              </div>
-            )}
-            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500 sm:flex-nowrap sm:overflow-hidden">
-              <Tag className="mb-0 shrink-0 whitespace-nowrap" color={role === "teacher" ? "red" : "blue"}>{role === "teacher" ? "Teacher marking" : "Student copy"}</Tag>
-              <Tag className="mb-0 shrink-0 whitespace-nowrap" color={state?.status === "draft" ? "gold" : state?.status === "submitted" ? "green" : "purple"}>{state?.status || "draft"}</Tag>
-              <Tag className="mb-0 shrink-0 whitespace-nowrap" color={studentLocked ? "default" : "cyan"}>{studentLocked ? "Student locked" : "Student open"}</Tag>
-              <Tag
-                className="mb-0 inline-flex min-w-[4.75rem] shrink-0 justify-center whitespace-nowrap"
-                color={autosaveStatusColor}
-                title={lastSavedAt ? `Saved ${lastSavedAt}` : autosaveStatusLabel}
-              >
-                {autosaveStatusLabel}
-              </Tag>
-              {maxMarks != null && <Tag className="mb-0 shrink-0 whitespace-nowrap tabular-nums">{maxMarks} marks</Tag>}
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-3">
-            <div className="order-2 flex flex-wrap items-center gap-2">
-              <div className="flex flex-wrap items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
-                {TOOL_BUTTONS.map(({ value, label, Icon }) => (
-                  <Button
-                    key={value}
-                    type="text"
-                    icon={<Icon className="h-5 w-5" strokeWidth={2.2} />}
-                    disabled={!editable}
-                    onClick={() => setTool(value)}
-                    title={label}
-                    aria-label={`Use ${label.toLowerCase()} tool`}
-                    className={[
-                      "!flex !h-11 !w-11 !items-center !justify-center !rounded-xl !border !p-0 !shadow-none",
-                      tool === value
-                        ? "!border-black !bg-black !text-white hover:!border-black hover:!bg-black hover:!text-white"
-                        : "!border-transparent !bg-white !text-slate-800 hover:!border-slate-200 hover:!bg-slate-100 hover:!text-black",
-                    ].join(" ")}
-                  />
-                ))}
-              </div>
-              <div className="flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1">
-                <Button
-                  size="small"
-                  onClick={() => setZoomLevel((current) => clampZoomLevel(current - ZOOM_STEP))}
-                  disabled={zoomLevel <= MIN_ZOOM_LEVEL}
-                >
-                  -
-                </Button>
-                <span className="w-14 text-center text-xs font-medium tabular-nums text-gray-600">
-                  {zoomPercent}%
-                </span>
-                <Button
-                  size="small"
-                  onClick={() => setZoomLevel((current) => clampZoomLevel(current + ZOOM_STEP))}
-                  disabled={zoomLevel >= MAX_ZOOM_LEVEL}
-                >
-                  +
-                </Button>
-              </div>
-              <Button onClick={undo} disabled={!editable || undoStack.length === 0}>Undo</Button>
-              <Button onClick={redo} disabled={!editable || redoStack.length === 0}>Redo</Button>
-              <Button onClick={saveNow} disabled={!editable} loading={saving}>Save now</Button>
-            </div>
-
-            {(tool !== "eraser" && (tool !== "cursor" || canEditSelectedStroke)) && (
-              <div className="order-3 flex flex-wrap items-center gap-3 border-t border-slate-200 pt-2">
-                <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white px-2 py-2 shadow-sm">
-                  {COLOR_SWATCHS.map(({ value, label }) => (
-                    <button
-                      key={value}
-                      type="button"
-                      title={label}
-                      aria-label={`Set color to ${label.toLowerCase()}`}
-                      disabled={!editable}
-                      onClick={() => handleStrokeColorChange(value)}
-                      className={[
-                        "h-10 w-10 rounded-full border-2 transition",
-                        value === "#ffffff" ? "border-slate-300" : "border-white/80",
-                        activeStrokeColor === value
-                          ? "ring-4 ring-[#9b8cff] ring-offset-2 ring-offset-white"
-                          : "hover:scale-105",
-                        !editable ? "cursor-not-allowed opacity-50" : "",
-                      ].join(" ")}
-                      style={{ backgroundColor: value }}
-                    />
-                  ))}
-                </div>
-
-                {tool === "text" ? (
-                  <div className="flex flex-wrap items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
-                    {TEXT_SIZE_OPTIONS.map((fontSize) => (
-                      <button
-                        key={fontSize}
-                        type="button"
-                        disabled={!editable}
-                        onClick={() => {
-                          setTextFontSize(fontSize);
-                          setEditingText((current) =>
-                            current ? { ...current, fontSize } : current
-                          );
-                        }}
-                        className={[
-                          "min-w-12 rounded-xl border px-3 py-2 text-sm font-semibold transition",
-                          textFontSize === fontSize
-                            ? "border-black bg-black text-white"
-                            : "border-transparent bg-white text-slate-700 hover:border-slate-200 hover:bg-slate-100",
-                          !editable ? "cursor-not-allowed opacity-50" : "",
-                        ].join(" ")}
-                      >
-                        {fontSize}
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
-                    {activeStrokeWidthOptions.map((widthValue) => {
-                      const selected = activeStrokeWidth === widthValue;
-                      const previewHeight =
-                        strokeControlsTool === "highlighter"
-                          ? Math.max(8, Math.round(widthValue / 2.5))
-                          : Math.max(3, Math.round(widthValue));
-
-                      return (
-                        <button
-                          key={widthValue}
-                          type="button"
-                          disabled={!editable}
-                          onClick={() => handleStrokeWidthChange(widthValue)}
-                          className={[
-                            "flex h-10 min-w-12 items-center justify-center rounded-xl border px-3 transition",
-                            selected
-                              ? "border-black bg-black text-white"
-                              : "border-transparent bg-white text-slate-800 hover:border-slate-200 hover:bg-slate-100",
-                            !editable ? "cursor-not-allowed opacity-50" : "",
-                          ].join(" ")}
-                        >
-                          <span
-                            className={selected ? "rounded-full bg-white" : "rounded-full bg-slate-800"}
-                            style={{
-                              width: strokeControlsTool === "highlighter" ? 24 : 20,
-                              height: previewHeight,
-                              opacity: strokeControlsTool === "highlighter" ? 0.7 : 1,
-                            }}
-                          />
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {role === "student" ? (
-              <div className="order-1 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-2">
-                <InputNumber min={0} max={maxMarks} value={selfAssessmentMark ?? undefined} onChange={(value) => setSelfAssessmentMark(value == null ? null : Number(value))} placeholder={examWindow.examMode ? "Predicted mark" : "Self mark"} disabled={!editable} className="w-32" />
-                <Button type="primary" className="!bg-[#16a34a] !border-[#16a34a] !text-white hover:!bg-[#15803d] hover:!border-[#15803d] disabled:!bg-gray-200 disabled:!border-gray-200 disabled:!text-gray-500" onClick={finishStudentWork} loading={finishing} disabled={!editable}>{examWindow.examMode ? "Submit exam" : "Submit work"}</Button>
-              </div>
-            ) : (
-              <div className="order-1 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-2">
-                <Button
-                  onClick={toggleStudentEditingLock}
-                  loading={changingStudentLock}
-                  type={studentLocked ? "default" : "primary"}
-                  danger={!studentLocked}
-                >
-                  {studentLocked ? "Open for student edits" : "Lock student editing"}
-                </Button>
-                <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-1 text-sm text-blue-700">
-                  <span className="font-medium">{examWindow.examMode ? "Predicted" : "Self"}</span>
-                  <span className="font-semibold">
-                    {selfAssessmentMark ?? "-"}
-                    {maxMarks != null ? `/${maxMarks}` : ""}
-                  </span>
-                </div>
-                <Input className="w-24" placeholder="Marks" value={teacherMarks} onChange={(event) => setTeacherMarks(event.target.value)} />
-                <Button onClick={requestAiDraftMark} loading={aiDrafting} disabled={!documentReadyForCurrentStudent || rendering}>
-                  Ask AI to Mark
-                </Button>
-                <Button
-                  onClick={() => void downloadSubmittedPaper()}
-                  loading={exportingPaper}
-                  disabled={!canDownloadSubmittedPaper || rendering}
-                  title={canDownloadSubmittedPaper ? "Download this student paper as a PDF" : "Download is available after the student submits or the paper is locked"}
-                >
-                  Download paper
-                </Button>
-                <Button type="primary" onClick={finalizeTeacherMark} loading={finishing}>Save markbook mark</Button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      {toolbarPortalReady ? createPortal(toolbarChrome, document.body) : toolbarChrome}
 
       <div
         ref={viewerScrollRef}
