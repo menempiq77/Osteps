@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from "react";
 import { Modal, Form, Input, message, Spin, Button } from "antd";
 import {
+  ArrowDownOutlined,
+  ArrowUpOutlined,
   EditOutlined,
   DeleteOutlined,
   PlusOutlined,
@@ -9,16 +11,29 @@ import {
 } from "@ant-design/icons";
 import { useRouter } from "next/navigation";
 import { ChevronLeftIcon } from "lucide-react";
-import { addCategory, fetchCategories, updateCategory, deleteCategory as deleteCategoryApi, } from "@/services/libraryApi";
+import {
+  addCategory,
+  fetchCategories,
+  updateCategory,
+  deleteCategory as deleteCategoryApi,
+  reorderCategories,
+} from "@/services/libraryApi";
+
+type CategoryItem = {
+  id: number;
+  name: string;
+  position?: number | null;
+};
 
 export default function LibraryCategories() {
   const [form] = Form.useForm();
-  const [data, setData] = useState([]);
+  const [data, setData] = useState<CategoryItem[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingId, setEditingId] = useState(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
-  const [categoryToDelete, setCategoryToDelete] = useState(null);
+  const [categoryToDelete, setCategoryToDelete] = useState<number | null>(null);
+  const [reorderingId, setReorderingId] = useState<number | null>(null);
   const router = useRouter();
   const [messageApi, contextHolder] = message.useMessage();
 
@@ -48,7 +63,7 @@ export default function LibraryCategories() {
     setEditingId(null);
   };
 
-  const onFinish = async (values) => {
+  const onFinish = async (values: { name: string }) => {
     try {
       if (editingId) {
         await updateCategory(editingId, values);
@@ -64,18 +79,55 @@ export default function LibraryCategories() {
     }
   };
 
-  const editCategory = (record) => {
+  const editCategory = (record: CategoryItem) => {
     form.setFieldsValue(record);
     setEditingId(record.id);
     setIsModalOpen(true);
   };
 
-  const showDeleteConfirm = (id) => {
+  const showDeleteConfirm = (id: number) => {
     setCategoryToDelete(id);
     setDeleteConfirmVisible(true);
   };
 
+  const moveCategory = async (index: number, direction: -1 | 1) => {
+    const nextIndex = index + direction;
+    if (nextIndex < 0 || nextIndex >= data.length) return;
+
+    const previousData = [...data];
+    const reorderedData = [...data];
+    const [movedItem] = reorderedData.splice(index, 1);
+    reorderedData.splice(nextIndex, 0, movedItem);
+
+    const withPositions = reorderedData.map((item, itemIndex) => ({
+      ...item,
+      position: itemIndex + 1,
+    }));
+
+    setData(withPositions);
+    setReorderingId(movedItem.id);
+
+    try {
+      await reorderCategories(
+        withPositions.map((item) => ({
+          id: item.id,
+          position: item.position ?? 0,
+        }))
+      );
+      messageApi.success("Category order updated");
+    } catch (error: any) {
+      setData(previousData);
+      messageApi.error(
+        error?.response?.data?.message || "Failed to reorder categories"
+      );
+    } finally {
+      setReorderingId(null);
+    }
+  };
+
   const handleDelete = async () => {
+    if (!categoryToDelete) return;
+
     try {
       await deleteCategoryApi(categoryToDelete);
       messageApi.success("Category deleted successfully");
@@ -147,6 +199,22 @@ export default function LibraryCategories() {
                     <td className="p-2 md:p-4">{item.id}</td>
                     <td className="p-2 md:p-4 font-medium">{item.name}</td>
                     <td className="relative p-2 md:p-4 flex justify-center space-x-3">
+                      <button
+                        onClick={() => void moveCategory(data.findIndex((entry) => entry.id === item.id), -1)}
+                        className="text-gray-500 hover:text-gray-700 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+                        title="Move up"
+                        disabled={reorderingId !== null || data[0]?.id === item.id}
+                      >
+                        <ArrowUpOutlined />
+                      </button>
+                      <button
+                        onClick={() => void moveCategory(data.findIndex((entry) => entry.id === item.id), 1)}
+                        className="text-gray-500 hover:text-gray-700 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+                        title="Move down"
+                        disabled={reorderingId !== null || data[data.length - 1]?.id === item.id}
+                      >
+                        <ArrowDownOutlined />
+                      </button>
                       <button
                         onClick={() => editCategory(item)}
                         className="text-green-500 hover:text-green-700 cursor-pointer"
