@@ -117,7 +117,7 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
       normalized &&
       isExternalLink(normalized) &&
       !isLikelyEmbeddableDocument(normalized) &&
-      ["website", "link"].includes(normalizedType)
+      !["audio", "video"].includes(normalizedType)
     ) {
       return `/api/resource-proxy?url=${encodeURIComponent(normalized)}`;
     }
