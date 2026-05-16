@@ -38,6 +38,13 @@ export const deleteCategory = async (id: number) => {
   return response.data;
 };
 
+export const reorderCategories = async (
+  orders: { id: number; position: number }[]
+) => {
+  const response = await api.post('/reorder-category', { orders });
+  return response.data;
+};
+
 //Library Resource apis Started
 // fetch Resources
 export const fetchResources = async () => {
@@ -57,6 +64,13 @@ export const updateResource = async (id: string, resourcesData: any) => {
 // delete Resource
 export const deleteResource = async (id: number) => {
   const response = await api.post(`/delete-resource/${id}`);
+  return response.data;
+};
+
+export const reorderResources = async (
+  orders: { id: number; position: number }[]
+) => {
+  const response = await api.post('/reorder-resource', { orders });
   return response.data;
 };
 

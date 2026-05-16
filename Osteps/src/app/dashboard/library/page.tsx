@@ -1,5 +1,11 @@
 ﻿"use client";
 import React, { useEffect, useState } from "react";
+import {
+  DragDropContext,
+  Draggable,
+  Droppable,
+  type DropResult,
+} from "@hello-pangea/dnd";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import {
@@ -41,6 +47,7 @@ import {
   FileText,
   FolderOpen,
   Grid2X2,
+  GripVertical,
   Link2,
   ListFilter,
   PlayCircle,
@@ -59,6 +66,8 @@ import {
   fetchLibrary,
   fetchLibraryRequests,
   fetchResources,
+  reorderCategories,
+  reorderResources,
   rejectLibraryRequest,
   updateLibrary,
 } from "@/services/libraryApi";
@@ -81,6 +90,52 @@ type LibraryItem = {
   file_path?: string;
   updated_at?: string;
   uploaded_by?: string;
+};
+
+type LibrarySidebarOption = {
+  id: number | string;
+  name: string;
+  position?: number | null;
+  color?: string;
+};
+
+const sortSidebarOptions = <T extends LibrarySidebarOption>(items: T[] = []) => {
+  return [...items].sort((left, right) => {
+    const leftPosition = Number(left.position ?? 0);
+    const rightPosition = Number(right.position ?? 0);
+    const leftHasPosition = Number.isFinite(leftPosition) && leftPosition > 0;
+    const rightHasPosition = Number.isFinite(rightPosition) && rightPosition > 0;
+
+    if (leftHasPosition !== rightHasPosition) {
+      return leftHasPosition ? -1 : 1;
+    }
+
+    if (leftHasPosition && rightHasPosition && leftPosition !== rightPosition) {
+      return leftPosition - rightPosition;
+    }
+
+    const leftId = Number(left.id);
+    const rightId = Number(right.id);
+    if (Number.isFinite(leftId) && Number.isFinite(rightId) && leftId !== rightId) {
+      return leftId - rightId;
+    }
+
+    return String(left.id).localeCompare(String(right.id));
+  });
+};
+
+const moveSidebarOption = <T,>(items: T[], startIndex: number, endIndex: number) => {
+  const nextItems = [...items];
+  const [movedItem] = nextItems.splice(startIndex, 1);
+  nextItems.splice(endIndex, 0, movedItem);
+  return nextItems;
+};
+
+const withSequentialPositions = <T extends { position?: number | null }>(items: T[]) => {
+  return items.map((item, index) => ({
+    ...item,
+    position: index + 1,
+  }));
 };
 
 export default function LibraryPage() {
@@ -157,7 +212,7 @@ export default function LibraryPage() {
     const loadCategories = async () => {
       try {
         const data = await fetchCategories();
-        setCategories(data);
+        setCategories(sortSidebarOptions(data));
       } catch (err) {
         console.error(err);
       } finally {
@@ -172,7 +227,7 @@ export default function LibraryPage() {
     const loadResources = async () => {
       try {
         const data = await fetchResources();
-        setResources(data);
+        setResources(sortSidebarOptions(data));
       } catch (err) {
         console.error(err);
       } finally {
@@ -204,6 +259,58 @@ export default function LibraryPage() {
     currentUser?.role === "TEACHER";
   const isTeacher = currentUser?.role === "TEACHER";
   const schoolId = currentUser?.school;
+
+  const handleResourceTypeReorder = async (result: DropResult) => {
+    if (!canUpload || !result.destination || result.destination.index === result.source.index) {
+      return;
+    }
+
+    const previousResources = resources;
+    const reorderedResources = withSequentialPositions(
+      moveSidebarOption(resources, result.source.index, result.destination.index)
+    );
+
+    setResources(reorderedResources);
+
+    try {
+      await reorderResources(
+        reorderedResources.map((item) => ({
+          id: Number(item.id),
+          position: Number(item.position),
+        }))
+      );
+    } catch (error) {
+      console.error(error);
+      setResources(previousResources);
+      messageApi.error("Failed to save resource type order");
+    }
+  };
+
+  const handleCategoryReorder = async (result: DropResult) => {
+    if (!canUpload || !result.destination || result.destination.index === result.source.index) {
+      return;
+    }
+
+    const previousCategories = categories;
+    const reorderedCategories = withSequentialPositions(
+      moveSidebarOption(categories, result.source.index, result.destination.index)
+    );
+
+    setCategories(reorderedCategories);
+
+    try {
+      await reorderCategories(
+        reorderedCategories.map((item) => ({
+          id: Number(item.id),
+          position: Number(item.position),
+        }))
+      );
+    } catch (error) {
+      console.error(error);
+      setCategories(previousCategories);
+      messageApi.error("Failed to save category order");
+    }
+  };
 
   // Helper to clean file paths by removing /storage/ prefix from external URLs
   const cleanFilePath = (filePath?: string) => {
@@ -643,28 +750,90 @@ export default function LibraryPage() {
                 <button onClick={() => setActiveTypeTab("all")} className={`flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left text-sm transition ${activeTypeTab === "all" ? "bg-emerald-600 text-white shadow-sm" : "bg-gray-50 text-gray-700 hover:bg-emerald-50 hover:text-emerald-700"}`}>
                   <span className="flex items-center gap-2"><Grid2X2 className="h-4 w-4" /> All resources</span><span className="text-xs opacity-80">{totalResourcesCount}</span>
                 </button>
-                {resources?.map((type) => {
-                  const typeKey = type.name.toLowerCase();
-                  const TypeIcon = getResourceIcon(type.name);
-                  return (
-                    <button key={type.id} onClick={() => { setActiveTypeTab(typeKey); setActiveCategoryTab("all"); }} className={`flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left text-sm transition ${activeTypeTab === typeKey ? "bg-emerald-600 text-white shadow-sm" : "bg-gray-50 text-gray-700 hover:bg-emerald-50 hover:text-emerald-700"}`}>
-                      <span className="flex items-center gap-2"><TypeIcon className="h-4 w-4" /> {type.name}</span><span className="text-xs opacity-80">{getCountForType(type.name)}</span>
-                    </button>
-                  );
-                })}
+                {canUpload && <div className="px-1 text-xs text-gray-500">Drag a type card to move it up or down.</div>}
+                {canUpload ? (
+                  <DragDropContext onDragEnd={(result) => { void handleResourceTypeReorder(result); }}>
+                    <Droppable droppableId="library-resource-types">
+                      {(provided) => (
+                        <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-2">
+                          {resources?.map((type, index) => {
+                            const typeKey = type.name.toLowerCase();
+                            const TypeIcon = getResourceIcon(type.name);
+                            return (
+                              <Draggable key={`resource-type-${type.id}`} draggableId={`resource-type-${type.id}`} index={index}>
+                                {(provided, snapshot) => (
+                                  <button
+                                    ref={provided.innerRef}
+                                    {...provided.draggableProps}
+                                    {...provided.dragHandleProps}
+                                    onClick={() => { setActiveTypeTab(typeKey); setActiveCategoryTab("all"); }}
+                                    className={`flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left text-sm transition ${activeTypeTab === typeKey ? "bg-emerald-600 text-white shadow-sm" : "bg-gray-50 text-gray-700 hover:bg-emerald-50 hover:text-emerald-700"} ${snapshot.isDragging ? "ring-2 ring-emerald-200 shadow-lg" : ""}`}
+                                  >
+                                    <span className="flex items-center gap-2"><TypeIcon className="h-4 w-4" /> {type.name}</span>
+                                    <span className="flex items-center gap-2"><span className="text-xs opacity-80">{getCountForType(type.name)}</span><GripVertical className="h-4 w-4 opacity-60" /></span>
+                                  </button>
+                                )}
+                              </Draggable>
+                            );
+                          })}
+                          {provided.placeholder}
+                        </div>
+                      )}
+                    </Droppable>
+                  </DragDropContext>
+                ) : (
+                  resources?.map((type) => {
+                    const typeKey = type.name.toLowerCase();
+                    const TypeIcon = getResourceIcon(type.name);
+                    return (
+                      <button key={type.id} onClick={() => { setActiveTypeTab(typeKey); setActiveCategoryTab("all"); }} className={`flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left text-sm transition ${activeTypeTab === typeKey ? "bg-emerald-600 text-white shadow-sm" : "bg-gray-50 text-gray-700 hover:bg-emerald-50 hover:text-emerald-700"}`}>
+                        <span className="flex items-center gap-2"><TypeIcon className="h-4 w-4" /> {type.name}</span><span className="text-xs opacity-80">{getCountForType(type.name)}</span>
+                      </button>
+                    );
+                  })
+                )}
                 {canUpload && <Link href="/dashboard/library/resourcestype" className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100"><Plus size={16} /> Manage types</Link>}
               </div>
             </Card>
 
             <Card className="rounded-3xl border border-gray-100 shadow-sm" styles={{ body: { padding: 18 } }}>
               <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-800"><FolderOpen className="h-4 w-4 text-emerald-600" /> Categories</div>
-              <div className="flex flex-wrap gap-2 xl:block xl:space-y-2">
-                <button onClick={() => setActiveCategoryTab("all")} className={`rounded-full px-3 py-1.5 text-sm transition xl:flex xl:w-full xl:items-center xl:justify-between xl:rounded-2xl xl:py-2 ${activeCategoryTab === "all" ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-700 hover:bg-emerald-50 hover:text-emerald-700"}`}><span>All categories</span><span className="ml-2 text-xs opacity-75">{totalResourcesCount}</span></button>
-                {categories?.map((category) => (
-                  <button key={category?.id} onClick={() => setActiveCategoryTab(String(category.id))} className={`rounded-full px-3 py-1.5 text-sm transition xl:flex xl:w-full xl:items-center xl:justify-between xl:rounded-2xl xl:py-2 ${activeCategoryTab === String(category.id) ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-700 hover:bg-emerald-50 hover:text-emerald-700"}`}>
-                    <span>{formatCategoryLabel(category?.name)}</span><span className="ml-2 text-xs opacity-75">{getCountForCategory(category.id)}</span>
-                  </button>
-                ))}
+              <div className="space-y-2">
+                <button onClick={() => setActiveCategoryTab("all")} className={`flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left text-sm transition ${activeCategoryTab === "all" ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-700 hover:bg-emerald-50 hover:text-emerald-700"}`}><span>All categories</span><span className="ml-2 text-xs opacity-75">{totalResourcesCount}</span></button>
+                {canUpload && <div className="px-1 text-xs text-gray-500">Drag a category card to change its order.</div>}
+                {canUpload ? (
+                  <DragDropContext onDragEnd={(result) => { void handleCategoryReorder(result); }}>
+                    <Droppable droppableId="library-categories">
+                      {(provided) => (
+                        <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-2">
+                          {categories?.map((category, index) => (
+                            <Draggable key={`library-category-${category.id}`} draggableId={`library-category-${category.id}`} index={index}>
+                              {(provided, snapshot) => (
+                                <button
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  {...provided.dragHandleProps}
+                                  onClick={() => setActiveCategoryTab(String(category.id))}
+                                  className={`flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left text-sm transition ${activeCategoryTab === String(category.id) ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-700 hover:bg-emerald-50 hover:text-emerald-700"} ${snapshot.isDragging ? "ring-2 ring-emerald-200 shadow-lg" : ""}`}
+                                >
+                                  <span>{formatCategoryLabel(category?.name)}</span>
+                                  <span className="flex items-center gap-2"><span className="ml-2 text-xs opacity-75">{getCountForCategory(category.id)}</span><GripVertical className="h-4 w-4 opacity-60" /></span>
+                                </button>
+                              )}
+                            </Draggable>
+                          ))}
+                          {provided.placeholder}
+                        </div>
+                      )}
+                    </Droppable>
+                  </DragDropContext>
+                ) : (
+                  categories?.map((category) => (
+                    <button key={category?.id} onClick={() => setActiveCategoryTab(String(category.id))} className={`flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left text-sm transition ${activeCategoryTab === String(category.id) ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-700 hover:bg-emerald-50 hover:text-emerald-700"}`}>
+                      <span>{formatCategoryLabel(category?.name)}</span><span className="ml-2 text-xs opacity-75">{getCountForCategory(category.id)}</span>
+                    </button>
+                  ))
+                )}
               </div>
               {canUpload && <Link href="/dashboard/library/librarycategory" className="mt-3 flex items-center justify-center gap-2 rounded-2xl border border-dashed border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100"><Plus size={16} /> Manage categories</Link>}
             </Card>
