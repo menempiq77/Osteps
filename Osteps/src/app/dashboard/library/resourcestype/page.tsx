@@ -1,15 +1,19 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import {
+  DragDropContext,
+  Draggable,
+  Droppable,
+  type DropResult,
+} from "@hello-pangea/dnd";
 import { Modal, Form, Input, message, Spin, Button } from "antd";
 import {
-  ArrowDownOutlined,
-  ArrowUpOutlined,
   EditOutlined,
   DeleteOutlined,
   PlusOutlined,
 } from "@ant-design/icons";
 import { useRouter } from "next/navigation";
-import { ChevronLeftIcon } from "lucide-react";
+import { ChevronLeftIcon, GripVertical } from "lucide-react";
 import {
   addResource,
   fetchResources,
@@ -22,6 +26,25 @@ type ResourceItem = {
   id: number;
   name: string;
   position?: number | null;
+};
+
+const sortResourceItems = (items: ResourceItem[]) => {
+  return [...items].sort((left, right) => {
+    const leftPosition = Number(left.position ?? 0);
+    const rightPosition = Number(right.position ?? 0);
+    const leftHasPosition = Number.isFinite(leftPosition) && leftPosition > 0;
+    const rightHasPosition = Number.isFinite(rightPosition) && rightPosition > 0;
+
+    if (leftHasPosition !== rightHasPosition) {
+      return leftHasPosition ? -1 : 1;
+    }
+
+    if (leftHasPosition && rightHasPosition && leftPosition !== rightPosition) {
+      return leftPosition - rightPosition;
+    }
+
+    return left.id - right.id;
+  });
 };
 
 export default function ResourcesType() {
@@ -44,7 +67,7 @@ export default function ResourcesType() {
     try {
       setLoading(true);
       const response = await fetchResources();
-      setData(response);
+      setData(sortResourceItems(response));
     } catch (error) {
       messageApi.error("Failed to load resources");
     } finally {
@@ -89,14 +112,19 @@ export default function ResourcesType() {
     setDeleteConfirmVisible(true);
   };
 
-  const moveResource = async (index: number, direction: -1 | 1) => {
-    const nextIndex = index + direction;
-    if (nextIndex < 0 || nextIndex >= data.length) return;
+  const handleDragEnd = async (result: DropResult) => {
+    if (
+      reorderingId !== null ||
+      !result.destination ||
+      result.destination.index === result.source.index
+    ) {
+      return;
+    }
 
     const previousData = [...data];
     const reorderedData = [...data];
-    const [movedItem] = reorderedData.splice(index, 1);
-    reorderedData.splice(nextIndex, 0, movedItem);
+    const [movedItem] = reorderedData.splice(result.source.index, 1);
+    reorderedData.splice(result.destination.index, 0, movedItem);
 
     const withPositions = reorderedData.map((item, itemIndex) => ({
       ...item,
@@ -170,69 +198,97 @@ export default function ResourcesType() {
             Add Resource Type
           </Button>
         </div>
+        <p className="mb-4 text-sm text-gray-500">
+          Hold the drag handle and move a row up or down to change the order.
+        </p>
 
         <div className="relative overflow-auto">
           <div className="overflow-x-auto rounded-lg">
-            <table className="min-w-full bg-white border border-gray-300 mb-20">
-              <thead>
-                <tr className="bg-gray-50 text-center text-xs md:text-sm font-semibold text-gray-700">
-                  <th className="p-0">
-                    <span className="block py-2 px-3 border-r border-gray-300">
-                      ID
-                    </span>
-                  </th>
-                  <th className="p-0">
-                    <span className="block py-2 px-3 border-r border-gray-300">
-                      Resource Type Name
-                    </span>
-                  </th>
-                  <th className="p-4 text-xs md:text-sm">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.map((item) => (
-                  <tr
-                    key={item.id}
-                    className="border-b border-gray-300 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] even:bg-[#E9FAF1] odd:bg-white"
+            <DragDropContext onDragEnd={(result) => void handleDragEnd(result)}>
+              <Droppable droppableId="library-resource-types-table">
+                {(provided) => (
+                  <table
+                    className="min-w-full bg-white border border-gray-300 mb-20"
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
                   >
-                    <td className="p-2 md:p-4">{item.id}</td>
-                    <td className="p-2 md:p-4 font-medium">{item.name}</td>
-                    <td className="relative p-2 md:p-4 flex justify-center space-x-3">
-                      <button
-                        onClick={() => void moveResource(data.findIndex((entry) => entry.id === item.id), -1)}
-                        className="text-gray-500 hover:text-gray-700 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
-                        title="Move up"
-                        disabled={reorderingId !== null || data[0]?.id === item.id}
-                      >
-                        <ArrowUpOutlined />
-                      </button>
-                      <button
-                        onClick={() => void moveResource(data.findIndex((entry) => entry.id === item.id), 1)}
-                        className="text-gray-500 hover:text-gray-700 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
-                        title="Move down"
-                        disabled={reorderingId !== null || data[data.length - 1]?.id === item.id}
-                      >
-                        <ArrowDownOutlined />
-                      </button>
-                      <button
-                        onClick={() => editResource(item)}
-                        className="text-green-500 hover:text-green-700 cursor-pointer"
-                        title="Edit"
-                      >
-                        <EditOutlined />
-                      </button>
-                      <button
-                        onClick={() => showDeleteConfirm(item.id)}
-                        className="text-red-500 hover:text-red-700 cursor-pointer"
-                        title="Delete"
-                      >
-                        <DeleteOutlined />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    <thead>
+                      <tr className="bg-gray-50 text-center text-xs md:text-sm font-semibold text-gray-700">
+                        <th className="w-14 p-0">
+                          <span className="block py-2 px-3 border-r border-gray-300">
+                            Move
+                          </span>
+                        </th>
+                        <th className="p-0">
+                          <span className="block py-2 px-3 border-r border-gray-300">
+                            ID
+                          </span>
+                        </th>
+                        <th className="p-0">
+                          <span className="block py-2 px-3 border-r border-gray-300">
+                            Resource Type Name
+                          </span>
+                        </th>
+                        <th className="p-4 text-xs md:text-sm">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.map((item, index) => (
+                        <Draggable
+                          key={item.id}
+                          draggableId={`library-resource-type-${item.id}`}
+                          index={index}
+                          isDragDisabled={reorderingId !== null}
+                        >
+                          {(provided, snapshot) => (
+                            <tr
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              className={`border-b border-gray-300 text-xs md:text-sm text-center text-gray-800 hover:bg-[#E9FAF1] ${snapshot.isDragging ? "bg-[#E9FAF1]" : index % 2 === 0 ? "bg-white" : "bg-[#E9FAF1]"}`}
+                            >
+                              <td className="p-2 md:p-4">
+                                <button
+                                  type="button"
+                                  {...provided.dragHandleProps}
+                                  className="cursor-grab text-gray-400 hover:text-gray-600 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-40"
+                                  title="Drag to reorder"
+                                  disabled={reorderingId !== null}
+                                >
+                                  <GripVertical size={18} className="mx-auto" />
+                                </button>
+                              </td>
+                              <td className="p-2 md:p-4">{item.id}</td>
+                              <td className="p-2 md:p-4 font-medium">{item.name}</td>
+                              <td className="p-2 md:p-4">
+                                <div className="flex justify-center space-x-3">
+                                  <button
+                                    onClick={() => editResource(item)}
+                                    className="text-green-500 hover:text-green-700 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+                                    title="Edit"
+                                    disabled={reorderingId !== null}
+                                  >
+                                    <EditOutlined />
+                                  </button>
+                                  <button
+                                    onClick={() => showDeleteConfirm(item.id)}
+                                    className="text-red-500 hover:text-red-700 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+                                    title="Delete"
+                                    disabled={reorderingId !== null}
+                                  >
+                                    <DeleteOutlined />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
+                    </tbody>
+                  </table>
+                )}
+              </Droppable>
+            </DragDropContext>
           </div>
         </div>
 
