@@ -2028,6 +2028,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       const target = event.target;
       if (!(target instanceof HTMLElement)) return;
       if (target.closest(".ant-modal-root")) return;
+      if (target.closest("[data-assessment-toolbar='true']")) return;
 
       const actionableElement = target.closest("a,button");
       if (!actionableElement) return;
@@ -4477,6 +4478,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const toolbarChrome = (
     <div
       ref={toolbarChromeRef}
+      data-assessment-toolbar="true"
       className="fixed left-0 right-0 top-0 z-[90] border-b bg-white/95 px-4 py-3 shadow-sm backdrop-blur"
       style={toolbarChromeStyle}
     >
