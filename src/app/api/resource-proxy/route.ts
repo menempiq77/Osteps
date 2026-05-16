@@ -10,6 +10,42 @@ const isSafeProxyUrl = (url: URL) => {
   return !PRIVATE_HOST_RE.test(url.hostname);
 };
 
+const absolutizeRootRelativeValue = (value: string, targetUrl: string) => {
+  if (!value.startsWith("/") || value.startsWith("//")) return value;
+  return new URL(value, targetUrl).toString();
+};
+
+const absolutizeSrcSet = (value: string, targetUrl: string) =>
+  value
+    .split(",")
+    .map((part) => {
+      const trimmed = part.trim();
+      if (!trimmed) return part;
+
+      const [urlPart, ...descriptors] = trimmed.split(/\s+/);
+      const absoluteUrl = absolutizeRootRelativeValue(urlPart, targetUrl);
+      return [absoluteUrl, ...descriptors].join(" ");
+    })
+    .join(", ");
+
+const rewriteRootRelativeUrls = (html: string, targetUrl: string) =>
+  html
+    .replace(
+      /\b(href|src|action|poster)=(["'])\/(?!\/)([^"']*)\2/gi,
+      (_match, attribute: string, quote: string, path: string) =>
+        `${attribute}=${quote}${new URL(`/${path}`, targetUrl).toString()}${quote}`
+    )
+    .replace(
+      /\b(srcset|imagesrcset)=(["'])([^"']*)\2/gi,
+      (_match, attribute: string, quote: string, value: string) =>
+        `${attribute}=${quote}${absolutizeSrcSet(value, targetUrl)}${quote}`
+    )
+    .replace(
+      /url\((["']?)\/(?!\/)([^)"']+)\1\)/gi,
+      (_match, quote: string, path: string) =>
+        `url(${quote}${new URL(`/${path}`, targetUrl).toString()}${quote})`
+    );
+
 const injectPreviewBase = (html: string, targetUrl: string) => {
   const withoutFrameBlockingMeta = html.replace(
     /<meta\s+[^>]*http-equiv=["']Content-Security-Policy["'][^>]*>/gi,
@@ -23,6 +59,9 @@ const injectPreviewBase = (html: string, targetUrl: string) => {
 
   return `${injection}${withoutFrameBlockingMeta}`;
 };
+
+const preparePreviewHtml = (html: string, targetUrl: string) =>
+  injectPreviewBase(rewriteRootRelativeUrls(html, targetUrl), targetUrl);
 
 export async function GET(request: NextRequest) {
   const rawUrl = request.nextUrl.searchParams.get("url") || "";
@@ -55,7 +94,8 @@ export async function GET(request: NextRequest) {
 
     if (HTML_RE.test(contentType)) {
       const html = await upstream.text();
-      return new NextResponse(injectPreviewBase(html, upstream.url || targetUrl.toString()), {
+      const previewTargetUrl = upstream.url || targetUrl.toString();
+      return new NextResponse(preparePreviewHtml(html, previewTargetUrl), {
         status: upstream.status,
         headers: {
           "content-type": contentType,
