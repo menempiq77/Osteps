@@ -1,11 +1,5 @@
 ﻿"use client";
 import React, { useEffect, useState } from "react";
-import {
-  DragDropContext,
-  Draggable,
-  Droppable,
-  type DropResult,
-} from "@hello-pangea/dnd";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import {
@@ -47,7 +41,6 @@ import {
   FileText,
   FolderOpen,
   Grid2X2,
-  GripVertical,
   Link2,
   ListFilter,
   PlayCircle,
@@ -66,8 +59,6 @@ import {
   fetchLibrary,
   fetchLibraryRequests,
   fetchResources,
-  reorderCategories,
-  reorderResources,
   rejectLibraryRequest,
   updateLibrary,
 } from "@/services/libraryApi";
@@ -88,6 +79,27 @@ type LibraryItem = {
   library_resources_id?: number;
   library_categories_id?: number;
   file_path?: string;
+  filePath?: string;
+  external_link?: string;
+  externalLink?: string;
+  image?: string;
+  image_link?: string;
+  imageLink?: string;
+  image_url?: string;
+  imageUrl?: string;
+  thumbnail?: string;
+  thumbnail_url?: string;
+  thumbnailUrl?: string;
+  cover?: string;
+  cover_url?: string;
+  coverUrl?: string;
+  cover_image?: string;
+  coverImage?: string;
+  preview_image?: string;
+  previewImage?: string;
+  poster?: string;
+  poster_url?: string;
+  posterUrl?: string;
   updated_at?: string;
   uploaded_by?: string;
 };
@@ -122,20 +134,6 @@ const sortSidebarOptions = <T extends LibrarySidebarOption>(items: T[] = []) => 
 
     return String(left.id).localeCompare(String(right.id));
   });
-};
-
-const moveSidebarOption = <T,>(items: T[], startIndex: number, endIndex: number) => {
-  const nextItems = [...items];
-  const [movedItem] = nextItems.splice(startIndex, 1);
-  nextItems.splice(endIndex, 0, movedItem);
-  return nextItems;
-};
-
-const withSequentialPositions = <T extends { position?: number | null }>(items: T[]) => {
-  return items.map((item, index) => ({
-    ...item,
-    position: index + 1,
-  }));
 };
 
 export default function LibraryPage() {
@@ -260,58 +258,6 @@ export default function LibraryPage() {
   const isTeacher = currentUser?.role === "TEACHER";
   const schoolId = currentUser?.school;
 
-  const handleResourceTypeReorder = async (result: DropResult) => {
-    if (!canUpload || !result.destination || result.destination.index === result.source.index) {
-      return;
-    }
-
-    const previousResources = resources;
-    const reorderedResources = withSequentialPositions(
-      moveSidebarOption(resources, result.source.index, result.destination.index)
-    );
-
-    setResources(reorderedResources);
-
-    try {
-      await reorderResources(
-        reorderedResources.map((item) => ({
-          id: Number(item.id),
-          position: Number(item.position),
-        }))
-      );
-    } catch (error) {
-      console.error(error);
-      setResources(previousResources);
-      messageApi.error("Failed to save resource type order");
-    }
-  };
-
-  const handleCategoryReorder = async (result: DropResult) => {
-    if (!canUpload || !result.destination || result.destination.index === result.source.index) {
-      return;
-    }
-
-    const previousCategories = categories;
-    const reorderedCategories = withSequentialPositions(
-      moveSidebarOption(categories, result.source.index, result.destination.index)
-    );
-
-    setCategories(reorderedCategories);
-
-    try {
-      await reorderCategories(
-        reorderedCategories.map((item) => ({
-          id: Number(item.id),
-          position: Number(item.position),
-        }))
-      );
-    } catch (error) {
-      console.error(error);
-      setCategories(previousCategories);
-      messageApi.error("Failed to save category order");
-    }
-  };
-
   // Helper to clean file paths by removing /storage/ prefix from external URLs
   const cleanFilePath = (filePath?: string) => {
     if (!filePath) return "";
@@ -325,6 +271,80 @@ export default function LibraryPage() {
       console.log('cleanFilePath - After removing /storage/:', clean);
     }
     return clean;
+  };
+
+  const getItemStringField = (item: LibraryItem, fieldNames: string[]) => {
+    const itemRecord = item as Record<string, unknown>;
+
+    for (const fieldName of fieldNames) {
+      const value = itemRecord[fieldName];
+      if (typeof value === "string" && value.trim()) {
+        return value.trim();
+      }
+    }
+
+    return "";
+  };
+
+  const resolveMediaUrl = (value?: string) => {
+    const clean = cleanFilePath(value);
+    if (!clean) return "";
+    if (/^https?:\/\//i.test(clean)) return clean;
+    if (clean.startsWith("//")) return `https:${clean}`;
+
+    const normalizedPath = clean.replace(/^\.\/?/, "").replace(/^\/+/, "");
+    return `${IMG_BASE_URL}/${normalizedPath}`;
+  };
+
+  const getResourceSourceUrl = (item: LibraryItem) => {
+    const directSource = getItemStringField(item, [
+      "file_path",
+      "filePath",
+      "external_link",
+      "externalLink",
+      "link",
+      "url",
+    ]);
+
+    return resolveMediaUrl(directSource);
+  };
+
+  const getResourceCoverUrl = (item: LibraryItem, resourceTypeKey: string) => {
+    const explicitCover = getItemStringField(item, [
+      "image_link",
+      "imageLink",
+      "image_url",
+      "imageUrl",
+      "thumbnail",
+      "thumbnail_url",
+      "thumbnailUrl",
+      "cover",
+      "cover_url",
+      "coverUrl",
+      "cover_image",
+      "coverImage",
+      "preview_image",
+      "previewImage",
+      "poster",
+      "poster_url",
+      "posterUrl",
+      "image",
+    ]);
+
+    if (explicitCover) {
+      return resolveMediaUrl(explicitCover);
+    }
+
+    const sourceUrl = getResourceSourceUrl(item);
+    if (!sourceUrl) return "";
+    if (isExternalLink(sourceUrl) && resourceTypeKey === "video") {
+      return getVideoThumbnailUrl(sourceUrl);
+    }
+    if (isImageUrl(sourceUrl)) {
+      return sourceUrl;
+    }
+
+    return "";
   };
 
   const typeTabItems = [
@@ -433,8 +453,7 @@ export default function LibraryPage() {
   };
 
   const handleEdit = (item: LibraryItem) => {
-    // Use the cleanFilePath helper to handle both absolute and relative /storage/ patterns
-    const cleanPath = cleanFilePath(item.file_path);
+    const cleanPath = getResourceSourceUrl(item);
     console.log('handleEdit - Cleaned path:', cleanPath);
 
     const isLink = isExternalLink(cleanPath);
@@ -465,12 +484,11 @@ export default function LibraryPage() {
     );
   };
 
-  const openResourceDirectly = (item: any) => {
-    if (!item?.file_path) return;
+  const openResourceDirectly = (item: LibraryItem) => {
+    const cleanPath = getResourceSourceUrl(item);
+    if (!cleanPath) return;
     const resourceType = getResourceName(item.library_resources_id).toLowerCase();
 
-    // Use the cleanFilePath helper to handle both absolute and relative /storage/ patterns
-    const cleanPath = cleanFilePath(item.file_path);
     console.log('openResourceDirectly - Cleaned path:', cleanPath);
 
     setCurrentItem({
@@ -750,48 +768,15 @@ export default function LibraryPage() {
                 <button onClick={() => setActiveTypeTab("all")} className={`flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left text-sm transition ${activeTypeTab === "all" ? "bg-emerald-600 text-white shadow-sm" : "bg-gray-50 text-gray-700 hover:bg-emerald-50 hover:text-emerald-700"}`}>
                   <span className="flex items-center gap-2"><Grid2X2 className="h-4 w-4" /> All resources</span><span className="text-xs opacity-80">{totalResourcesCount}</span>
                 </button>
-                {canUpload && <div className="px-1 text-xs text-gray-500">Drag a type card to move it up or down.</div>}
-                {canUpload ? (
-                  <DragDropContext onDragEnd={(result) => { void handleResourceTypeReorder(result); }}>
-                    <Droppable droppableId="library-resource-types">
-                      {(provided) => (
-                        <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-2">
-                          {resources?.map((type, index) => {
-                            const typeKey = type.name.toLowerCase();
-                            const TypeIcon = getResourceIcon(type.name);
-                            return (
-                              <Draggable key={`resource-type-${type.id}`} draggableId={`resource-type-${type.id}`} index={index}>
-                                {(provided, snapshot) => (
-                                  <button
-                                    ref={provided.innerRef}
-                                    {...provided.draggableProps}
-                                    {...provided.dragHandleProps}
-                                    onClick={() => { setActiveTypeTab(typeKey); setActiveCategoryTab("all"); }}
-                                    className={`flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left text-sm transition ${activeTypeTab === typeKey ? "bg-emerald-600 text-white shadow-sm" : "bg-gray-50 text-gray-700 hover:bg-emerald-50 hover:text-emerald-700"} ${snapshot.isDragging ? "ring-2 ring-emerald-200 shadow-lg" : ""}`}
-                                  >
-                                    <span className="flex items-center gap-2"><TypeIcon className="h-4 w-4" /> {type.name}</span>
-                                    <span className="flex items-center gap-2"><span className="text-xs opacity-80">{getCountForType(type.name)}</span><GripVertical className="h-4 w-4 opacity-60" /></span>
-                                  </button>
-                                )}
-                              </Draggable>
-                            );
-                          })}
-                          {provided.placeholder}
-                        </div>
-                      )}
-                    </Droppable>
-                  </DragDropContext>
-                ) : (
-                  resources?.map((type) => {
-                    const typeKey = type.name.toLowerCase();
-                    const TypeIcon = getResourceIcon(type.name);
-                    return (
-                      <button key={type.id} onClick={() => { setActiveTypeTab(typeKey); setActiveCategoryTab("all"); }} className={`flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left text-sm transition ${activeTypeTab === typeKey ? "bg-emerald-600 text-white shadow-sm" : "bg-gray-50 text-gray-700 hover:bg-emerald-50 hover:text-emerald-700"}`}>
-                        <span className="flex items-center gap-2"><TypeIcon className="h-4 w-4" /> {type.name}</span><span className="text-xs opacity-80">{getCountForType(type.name)}</span>
-                      </button>
-                    );
-                  })
-                )}
+                {resources?.map((type) => {
+                  const typeKey = type.name.toLowerCase();
+                  const TypeIcon = getResourceIcon(type.name);
+                  return (
+                    <button key={type.id} onClick={() => { setActiveTypeTab(typeKey); setActiveCategoryTab("all"); }} className={`flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left text-sm transition ${activeTypeTab === typeKey ? "bg-emerald-600 text-white shadow-sm" : "bg-gray-50 text-gray-700 hover:bg-emerald-50 hover:text-emerald-700"}`}>
+                      <span className="flex items-center gap-2"><TypeIcon className="h-4 w-4" /> {type.name}</span><span className="text-xs opacity-80">{getCountForType(type.name)}</span>
+                    </button>
+                  );
+                })}
                 {canUpload && <Link href="/dashboard/library/resourcestype" className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100"><Plus size={16} /> Manage types</Link>}
               </div>
             </Card>
@@ -800,40 +785,11 @@ export default function LibraryPage() {
               <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-800"><FolderOpen className="h-4 w-4 text-emerald-600" /> Categories</div>
               <div className="space-y-2">
                 <button onClick={() => setActiveCategoryTab("all")} className={`flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left text-sm transition ${activeCategoryTab === "all" ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-700 hover:bg-emerald-50 hover:text-emerald-700"}`}><span>All categories</span><span className="ml-2 text-xs opacity-75">{totalResourcesCount}</span></button>
-                {canUpload && <div className="px-1 text-xs text-gray-500">Drag a category card to change its order.</div>}
-                {canUpload ? (
-                  <DragDropContext onDragEnd={(result) => { void handleCategoryReorder(result); }}>
-                    <Droppable droppableId="library-categories">
-                      {(provided) => (
-                        <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-2">
-                          {categories?.map((category, index) => (
-                            <Draggable key={`library-category-${category.id}`} draggableId={`library-category-${category.id}`} index={index}>
-                              {(provided, snapshot) => (
-                                <button
-                                  ref={provided.innerRef}
-                                  {...provided.draggableProps}
-                                  {...provided.dragHandleProps}
-                                  onClick={() => setActiveCategoryTab(String(category.id))}
-                                  className={`flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left text-sm transition ${activeCategoryTab === String(category.id) ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-700 hover:bg-emerald-50 hover:text-emerald-700"} ${snapshot.isDragging ? "ring-2 ring-emerald-200 shadow-lg" : ""}`}
-                                >
-                                  <span>{formatCategoryLabel(category?.name)}</span>
-                                  <span className="flex items-center gap-2"><span className="ml-2 text-xs opacity-75">{getCountForCategory(category.id)}</span><GripVertical className="h-4 w-4 opacity-60" /></span>
-                                </button>
-                              )}
-                            </Draggable>
-                          ))}
-                          {provided.placeholder}
-                        </div>
-                      )}
-                    </Droppable>
-                  </DragDropContext>
-                ) : (
-                  categories?.map((category) => (
-                    <button key={category?.id} onClick={() => setActiveCategoryTab(String(category.id))} className={`flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left text-sm transition ${activeCategoryTab === String(category.id) ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-700 hover:bg-emerald-50 hover:text-emerald-700"}`}>
-                      <span>{formatCategoryLabel(category?.name)}</span><span className="ml-2 text-xs opacity-75">{getCountForCategory(category.id)}</span>
-                    </button>
-                  ))
-                )}
+                {categories?.map((category) => (
+                  <button key={category?.id} onClick={() => setActiveCategoryTab(String(category.id))} className={`flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left text-sm transition ${activeCategoryTab === String(category.id) ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-700 hover:bg-emerald-50 hover:text-emerald-700"}`}>
+                    <span>{formatCategoryLabel(category?.name)}</span><span className="ml-2 text-xs opacity-75">{getCountForCategory(category.id)}</span>
+                  </button>
+                ))}
               </div>
               {canUpload && <Link href="/dashboard/library/librarycategory" className="mt-3 flex items-center justify-center gap-2 rounded-2xl border border-dashed border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100"><Plus size={16} /> Manage categories</Link>}
             </Card>
@@ -874,10 +830,10 @@ export default function LibraryPage() {
                   const resourceType = getResourceName(item.library_resources_id);
                   const resourceTypeKey = resourceType.toLowerCase();
                   const ResourceIcon = getResourceIcon(resourceType);
-                  const cleanPath = cleanFilePath(item.file_path);
+                  const cleanPath = getResourceSourceUrl(item);
                   const isExternal = isExternalLink(cleanPath);
                   const domainLabel = isExternal ? getLinkDomain(cleanPath) : "";
-                  const coverUrl = isExternal && resourceTypeKey === "video" ? getVideoThumbnailUrl(cleanPath) : isImageUrl(cleanPath) ? cleanPath : "";
+                  const coverUrl = getResourceCoverUrl(item, resourceTypeKey);
                   const emojiStyle = getEmojiStyleForType(resourceTypeKey);
 
                   return (
