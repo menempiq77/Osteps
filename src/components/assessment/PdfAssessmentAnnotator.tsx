@@ -961,6 +961,9 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const [teacherFeedback, setTeacherFeedback] = useState(initialTeacherFeedback);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [zoomLevel, setZoomLevel] = useState(1);
+  const [visualViewportScale, setVisualViewportScale] = useState(1);
+  const [visualViewportOffset, setVisualViewportOffset] = useState({ left: 0, top: 0, width: 0 });
+  const [toolbarHeight, setToolbarHeight] = useState(0);
   const [isExamFullscreen, setIsExamFullscreen] = useState(false);
   const [examFullscreenSupported, setExamFullscreenSupported] = useState(true);
   const [examStartModalOpen, setExamStartModalOpen] = useState(false);
@@ -1031,6 +1034,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const activeTextSizeOption =
     TEXT_SIZE_DROPDOWN_OPTIONS.find((option) => option.value === activeTextFontSize) || null;
   const examContainerRef = useRef<HTMLDivElement | null>(null);
+  const toolbarChromeRef = useRef<HTMLDivElement | null>(null);
   const viewerScrollRef = useRef<HTMLDivElement | null>(null);
   const pagesViewportRef = useRef<HTMLDivElement | null>(null);
   const activeStrokeRef = useRef<PenAnnotation | null>(null);
@@ -1177,6 +1181,45 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const hasReadableStudentAnswer =
     hasReadableStudentAnnotation ||
     (role === "teacher" && documentLoaded && pages.length > 0 && (studentLocked || state?.status === "submitted" || state?.status === "marked"));
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const updateVisualViewportState = () => {
+      const visualViewport = window.visualViewport;
+      setVisualViewportScale(visualViewport?.scale || 1);
+      setVisualViewportOffset({
+        left: visualViewport?.offsetLeft || 0,
+        top: visualViewport?.offsetTop || 0,
+        width: visualViewport?.width || window.innerWidth,
+      });
+    };
+
+    updateVisualViewportState();
+    window.visualViewport?.addEventListener("resize", updateVisualViewportState);
+    window.visualViewport?.addEventListener("scroll", updateVisualViewportState);
+    window.addEventListener("resize", updateVisualViewportState);
+
+    return () => {
+      window.visualViewport?.removeEventListener("resize", updateVisualViewportState);
+      window.visualViewport?.removeEventListener("scroll", updateVisualViewportState);
+      window.removeEventListener("resize", updateVisualViewportState);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const toolbarChrome = toolbarChromeRef.current;
+    if (!toolbarChrome) return;
+
+    const updateToolbarHeight = () => setToolbarHeight(toolbarChrome.offsetHeight);
+    updateToolbarHeight();
+
+    const resizeObserver = new ResizeObserver(updateToolbarHeight);
+    resizeObserver.observe(toolbarChrome);
+
+    return () => resizeObserver.disconnect();
+  }, [role, studentSwitcherOptions.length, tool, zoomPercent]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -4323,6 +4366,14 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   }
 
   const aiDeductionRows = getAiDeductionRows(aiDraftPreview);
+  const toolbarViewportScale = visualViewportScale > 0 ? visualViewportScale : 1;
+  const toolbarChromeStyle: React.CSSProperties = {
+    left: visualViewportOffset.left,
+    top: visualViewportOffset.top,
+    width: visualViewportOffset.width ? visualViewportOffset.width * toolbarViewportScale : undefined,
+    transform: toolbarViewportScale === 1 ? undefined : `scale(${1 / toolbarViewportScale})`,
+    transformOrigin: "top left",
+  };
 
   return (
     <div ref={examContainerRef} className="min-h-screen bg-slate-100">
@@ -4408,7 +4459,11 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
           />
         </div>
       </Modal>
-      <div className="sticky top-0 z-20 border-b bg-white/95 px-4 py-3 shadow-sm backdrop-blur">
+      <div
+        ref={toolbarChromeRef}
+        className="fixed left-0 right-0 top-0 z-[90] border-b bg-white/95 px-4 py-3 shadow-sm backdrop-blur"
+        style={toolbarChromeStyle}
+      >
         <div className={shouldEnforceExamScreen ? "flex flex-col gap-4" : "mx-auto flex max-w-7xl flex-col gap-4"}>
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-lg font-semibold text-gray-900">{title}</h1>
@@ -4451,7 +4506,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
           </div>
 
           <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-3">
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="order-2 flex flex-wrap items-center gap-2">
               <div className="flex flex-wrap items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
                 {TOOL_BUTTONS.map(({ value, label, Icon }) => (
                   <Button
@@ -4496,7 +4551,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
             </div>
 
             {(tool !== "eraser" && (tool !== "cursor" || canEditSelectedStroke)) && (
-              <div className="flex flex-wrap items-center gap-3 border-t border-slate-200 pt-2">
+              <div className="order-3 flex flex-wrap items-center gap-3 border-t border-slate-200 pt-2">
                 <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white px-2 py-2 shadow-sm">
                   {COLOR_SWATCHS.map(({ value, label }) => (
                     <button
@@ -4584,12 +4639,12 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
             )}
 
             {role === "student" ? (
-              <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 pt-2">
+              <div className="order-1 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-2">
                 <InputNumber min={0} max={maxMarks} value={selfAssessmentMark ?? undefined} onChange={(value) => setSelfAssessmentMark(value == null ? null : Number(value))} placeholder={examWindow.examMode ? "Predicted mark" : "Self mark"} disabled={!editable} className="w-32" />
                 <Button type="primary" className="!bg-[#16a34a] !border-[#16a34a] !text-white hover:!bg-[#15803d] hover:!border-[#15803d] disabled:!bg-gray-200 disabled:!border-gray-200 disabled:!text-gray-500" onClick={finishStudentWork} loading={finishing} disabled={!editable}>{examWindow.examMode ? "Submit exam" : "Submit work"}</Button>
               </div>
             ) : (
-              <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 pt-2">
+              <div className="order-1 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-2">
                 <Button
                   onClick={toggleStudentEditingLock}
                   loading={changingStudentLock}
@@ -4624,7 +4679,11 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         </div>
       </div>
 
-      <div ref={viewerScrollRef} className={shouldEnforceExamScreen ? "h-[calc(100vh-85px)] overflow-auto p-4" : "mx-auto max-w-7xl p-4"}>
+      <div
+        ref={viewerScrollRef}
+        className={shouldEnforceExamScreen ? "h-[calc(100vh-85px)] overflow-auto p-4" : "mx-auto max-w-7xl p-4"}
+        style={{ paddingTop: toolbarHeight ? toolbarHeight + 16 : undefined }}
+      >
         {documentFileMismatch ? (
           <Alert
             className="mb-4"
