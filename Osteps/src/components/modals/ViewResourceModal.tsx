@@ -31,6 +31,7 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
 }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
 
   const [mediaUrl, setMediaUrl] = useState<string>("");
@@ -75,6 +76,36 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
     
     console.log('[normalizeResourceUrl] Final result:', trimmed);
     return trimmed;
+  };
+
+  const openInBrowser = () => {
+    const finalUrl = normalizeResourceUrl(currentItem?.url);
+    if (!finalUrl) return;
+
+    console.log('ViewResourceModal - Original URL:', currentItem?.url);
+    console.log('ViewResourceModal - Final URL:', finalUrl);
+    window.open(finalUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const hasBrowserBlockedPreview = () => {
+    const iframe = iframeRef.current;
+    if (!iframe) return false;
+
+    try {
+      const frameLocation = iframe.contentWindow?.location?.href || '';
+      const frameTitle = iframe.contentDocument?.title || '';
+      const frameText = iframe.contentDocument?.body?.innerText || '';
+      const combined = `${frameLocation}\n${frameTitle}\n${frameText}`.toLowerCase();
+
+      return [
+        'this page has been blocked by microsoft edge',
+        "can't be displayed in a frame",
+        'cannot be displayed in a frame',
+        'refused to connect',
+      ].some((signal) => combined.includes(signal));
+    } catch {
+      return false;
+    }
   };
 
   const getTypeTag = (type: string) => {
@@ -164,6 +195,18 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
 
     return () => window.clearTimeout(timer);
   }, [open, currentItem?.url, currentItem?.type, iframeLoaded]);
+
+  useEffect(() => {
+    if (!open || !iframeLoaded || !currentItem?.url || embedBlocked) return;
+
+    const timer = window.setTimeout(() => {
+      if (hasBrowserBlockedPreview()) {
+        setEmbedBlocked(true);
+      }
+    }, 180);
+
+    return () => window.clearTimeout(timer);
+  }, [open, currentItem?.url, iframeLoaded, embedBlocked]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -272,21 +315,16 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
             }}
           >
             <Text strong style={{ fontSize: 16 }}>
-              This website cannot be displayed inside the app.
+              This content cannot be displayed inside the app.
             </Text>
-            <Text type="secondary">Use Open Link to view it in a new tab.</Text>
+            <Text type="secondary">Use Open in Browser to view it in a new tab.</Text>
             <Button
               type="primary"
               icon={<LinkOutlined />}
-              onClick={() => {
-                const finalUrl = normalizeResourceUrl(currentItem?.url);
-                console.log('[OpenLink-ExternalBlock] Original URL:', currentItem?.url);
-                console.log('[OpenLink-ExternalBlock] Final URL:', finalUrl);
-                window.open(finalUrl, '_blank');
-              }}
+              onClick={openInBrowser}
               className="!bg-primary !border-primary"
             >
-              Open Link
+              Open in Browser
             </Button>
           </div>
         </div>
@@ -312,31 +350,33 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
             }}
           >
             <Text strong style={{ fontSize: 16 }}>
-              This website blocks in-app preview.
+              This content cannot be previewed inside the app.
             </Text>
-            <Text type="secondary">Open it in a new tab to view the content.</Text>
+            <Text type="secondary">Use Open in Browser to view the content in your normal browser.</Text>
             <Button
               type="primary"
               icon={<LinkOutlined />}
-              onClick={() => {
-                const finalUrl = normalizeResourceUrl(currentItem?.url);
-                console.log('[OpenLink-EmbedBlocked] Original URL:', currentItem?.url);
-                console.log('[OpenLink-EmbedBlocked] Final URL:', finalUrl);
-                window.open(finalUrl, '_blank');
-              }}
+              onClick={openInBrowser}
               className="!bg-primary !border-primary"
             >
-              Open Link
+              Open in Browser
             </Button>
           </div>
         ) : (
           <iframe
+            ref={iframeRef}
             key={mediaUrl || "resource-frame"}
             src={mediaUrl}
             title={currentItem.title}
             onLoad={() => {
               setIframeLoaded(true);
               setEmbedBlocked(false);
+
+              window.setTimeout(() => {
+                if (hasBrowserBlockedPreview()) {
+                  setEmbedBlocked(true);
+                }
+              }, 120);
             }}
             onError={() => setEmbedBlocked(true)}
             style={{
@@ -348,7 +388,7 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
           />
         )}
         <div style={{ marginTop: "10px", display: isFullscreen ? "none" : "block" }}>
-          <Text type="secondary">If preview is blocked by the provider, use Open Link.</Text>
+          <Text type="secondary">If preview is blocked by the provider, use Open in Browser.</Text>
         </div>
       </div>
     );
@@ -383,15 +423,10 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
           key="open-link"
           type="primary"
           icon={<LinkOutlined />}
-          onClick={() => {
-            const finalUrl = normalizeResourceUrl(currentItem?.url);
-            console.log('ViewResourceModal - Original URL:', currentItem?.url);
-            console.log('ViewResourceModal - Final URL:', finalUrl);
-            window.open(finalUrl, '_blank');
-          }}
+          onClick={openInBrowser}
           className="!bg-primary !border-primary"
         >
-          Open Link
+          Open in Browser
         </Button>,
         <Button key="close" onClick={onCancel}>
           Close
