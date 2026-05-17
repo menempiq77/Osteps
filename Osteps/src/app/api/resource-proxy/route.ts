@@ -60,6 +60,79 @@ const getRequestOrigin = (request: NextRequest) => {
   );
 };
 
+const getUpstreamReferer = (request: NextRequest, targetUrl: URL) => {
+  const rawReferer = request.headers.get("referer");
+  if (!rawReferer) return `${targetUrl.origin}/`;
+
+  try {
+    const refererUrl = new URL(rawReferer);
+
+    if (refererUrl.origin === request.nextUrl.origin) {
+      if (refererUrl.pathname === PROXY_PATH) {
+        const proxiedTarget = refererUrl.searchParams.get("url");
+        if (proxiedTarget) {
+          const resolvedTarget = new URL(proxiedTarget);
+          if (isSafeProxyUrl(resolvedTarget)) {
+            return resolvedTarget.toString();
+          }
+        }
+      }
+
+      return new URL(
+        `${refererUrl.pathname}${refererUrl.search}${refererUrl.hash}` || "/",
+        targetUrl.origin
+      ).toString();
+    }
+
+    if (refererUrl.origin === targetUrl.origin) {
+      return refererUrl.toString();
+    }
+  } catch {
+    // Fall back to the target origin when the incoming referer is malformed.
+  }
+
+  return `${targetUrl.origin}/`;
+};
+
+const getUpstreamRequestHeaders = (request: NextRequest, targetUrl: URL) => {
+  const headers = new Headers();
+  const accept = request.headers.get("accept");
+  const acceptLanguage = request.headers.get("accept-language");
+  const incomingOrigin = request.headers.get("origin");
+  const range = request.headers.get("range");
+  const ifNoneMatch = request.headers.get("if-none-match");
+  const ifModifiedSince = request.headers.get("if-modified-since");
+
+  headers.set(
+    "User-Agent",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+  );
+  headers.set(
+    "Accept",
+    accept || "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+  );
+  headers.set("Accept-Language", acceptLanguage || "en-US,en;q=0.9");
+  headers.set("Referer", getUpstreamReferer(request, targetUrl));
+
+  if (incomingOrigin) {
+    headers.set("Origin", targetUrl.origin);
+  }
+
+  if (range) {
+    headers.set("Range", range);
+  }
+
+  if (ifNoneMatch) {
+    headers.set("If-None-Match", ifNoneMatch);
+  }
+
+  if (ifModifiedSince) {
+    headers.set("If-Modified-Since", ifModifiedSince);
+  }
+
+  return headers;
+};
+
 const getProxyUrl = (proxyOrigin: string, url: string) =>
   `${proxyOrigin}${PROXY_PATH}?url=${encodeURIComponent(url)}`;
 
@@ -522,12 +595,7 @@ export async function GET(request: NextRequest) {
       cache: "no-store",
       redirect: "follow",
       signal: AbortSignal.timeout(15000),
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9",
-      },
+      headers: getUpstreamRequestHeaders(request, targetUrl),
     });
 
     const contentType =
