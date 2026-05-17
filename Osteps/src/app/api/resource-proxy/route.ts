@@ -130,20 +130,38 @@ const rewriteInlineStyleBlocks = (
 const rewriteInlineScriptBaseUrls = (html: string, targetUrl: string) =>
   html.replace(/<script\b(?![^>]*\bsrc=)([^>]*)>([\s\S]*?)<\/script>/gi, (_match, attributes, scriptBody) => {
     const rewrittenScript = scriptBody.replace(
-      /((?:var|let|const)?\s*)(rootDir|publicRoot|hostingDomain)(\s*=\s*)(["'])([^"']+)\4/g,
-      (_assignment, declaration: string, variableName: string, operator: string, quote: string, value: string) => {
-        if (variableName !== "rootDir") {
-          return `${declaration}${variableName}${operator}${quote}${value}${quote}`;
-        }
-
+      /((?:var|let|const)?\s*(?:rootDir|publicRoot|hostingDomain)\s*=\s*)(["'])([^"']+)\2/g,
+      (_assignment, prefix: string, quote: string, value: string) => {
         const resolved = resolvePreviewUrl(value, targetUrl);
         const rewrittenValue = resolved ? resolved.toString() : value;
-        return `${declaration}${variableName}${operator}${quote}${rewrittenValue}${quote}`;
+        return `${prefix}${quote}${rewrittenValue}${quote}`;
       }
     );
 
     return `<script${attributes}>${rewrittenScript}</script>`;
   });
+
+const stripKnownBrokenReaderAssets = (html: string, targetUrl: string) => {
+  const hostname = new URL(targetUrl).hostname.toLowerCase();
+  const isQuranFlashHost = hostname === "quranflash.com" || hostname.endsWith(".quranflash.com");
+  const hasQuranFlashAssetPack = /\/bundles\/vijuaquranflash\/templates\/reader\/public\/qf\//i.test(
+    html
+  );
+
+  if (!isQuranFlashHost || !hasQuranFlashAssetPack) {
+    return html;
+  }
+
+  return html
+    .replace(
+      /<script\b[^>]*\bsrc=("|')[^"']*\/bundles\/vijualib\/templates\/readers\/v2\.0\/public\/qf\/js\/(?:kservice|ktemplates)\.js[^"']*\1[^>]*>\s*<\/script>\s*/gi,
+      ""
+    )
+    .replace(
+      /<link\b[^>]*\bhref=("|')[^"']*\/bundles\/vijualib\/templates\/readers\/v2\.0\/public\/qf\/css\/kservice\.css[^"']*\1[^>]*\/?\s*>\s*/gi,
+      ""
+    );
+};
 
 const rewriteHtmlResourceUrls = (
   html: string,
@@ -410,12 +428,15 @@ const preparePreviewHtml = (html: string, targetUrl: string, proxyOrigin: string
   injectPreviewHead(
     rewriteInlineScriptBaseUrls(
       rewriteInlineStyleBlocks(
-        rewriteHtmlResourceUrls(html, targetUrl, proxyOrigin),
+        rewriteHtmlResourceUrls(
+          stripKnownBrokenReaderAssets(html, targetUrl),
+          targetUrl,
+          proxyOrigin
+        ),
         targetUrl,
         proxyOrigin
       ),
-      targetUrl,
-      
+      targetUrl
     ),
     targetUrl,
     proxyOrigin
