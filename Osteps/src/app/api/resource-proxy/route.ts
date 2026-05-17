@@ -102,6 +102,7 @@ const getUpstreamRequestHeaders = (request: NextRequest, targetUrl: URL) => {
   const range = request.headers.get("range");
   const ifNoneMatch = request.headers.get("if-none-match");
   const ifModifiedSince = request.headers.get("if-modified-since");
+  const contentType = request.headers.get("content-type");
 
   headers.set(
     "User-Agent",
@@ -128,6 +129,10 @@ const getUpstreamRequestHeaders = (request: NextRequest, targetUrl: URL) => {
 
   if (ifModifiedSince) {
     headers.set("If-Modified-Since", ifModifiedSince);
+  }
+
+  if (contentType) {
+    headers.set("Content-Type", contentType);
   }
 
   return headers;
@@ -715,9 +720,10 @@ const preparePreviewHtml = (
     previewRequestKey
   );
 
-export async function GET(request: NextRequest) {
+const handleProxyRequest = async (request: NextRequest) => {
   const rawUrl = request.nextUrl.searchParams.get("url") || "";
   const proxyOrigin = getRequestOrigin(request);
+  const method = request.method.toUpperCase();
 
   let targetUrl: URL;
   try {
@@ -731,11 +737,18 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const requestBody =
+      method === "GET" || method === "HEAD"
+        ? undefined
+        : await request.arrayBuffer();
+
     const upstream = await fetch(targetUrl.toString(), {
+      method,
       cache: "no-store",
       redirect: "follow",
       signal: AbortSignal.timeout(15000),
       headers: getUpstreamRequestHeaders(request, targetUrl),
+      body: requestBody,
     });
 
     const contentType =
@@ -783,4 +796,32 @@ export async function GET(request: NextRequest) {
     console.error("Resource proxy failed:", error);
     return NextResponse.json({ error: "Website preview failed" }, { status: 502 });
   }
+};
+
+export async function GET(request: NextRequest) {
+  return handleProxyRequest(request);
+}
+
+export async function POST(request: NextRequest) {
+  return handleProxyRequest(request);
+}
+
+export async function PUT(request: NextRequest) {
+  return handleProxyRequest(request);
+}
+
+export async function PATCH(request: NextRequest) {
+  return handleProxyRequest(request);
+}
+
+export async function DELETE(request: NextRequest) {
+  return handleProxyRequest(request);
+}
+
+export async function HEAD(request: NextRequest) {
+  return handleProxyRequest(request);
+}
+
+export async function OPTIONS(request: NextRequest) {
+  return handleProxyRequest(request);
 }

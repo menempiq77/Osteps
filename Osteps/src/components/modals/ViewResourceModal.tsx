@@ -141,6 +141,26 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
     return clean.endsWith(".pdf");
   };
 
+  const getPreviewFrameUrl = (url: string, type: string) => {
+    const normalizedUrl = normalizeResourceUrl(url);
+    if (!normalizedUrl) return "";
+
+    const normalizedType = (type || "").toLowerCase();
+    if (!isExternalLink(normalizedUrl)) {
+      return normalizedUrl;
+    }
+
+    if (normalizedType === "video" || isLikelyEmbeddableDocument(normalizedUrl)) {
+      return normalizedUrl;
+    }
+
+    if (typeof window === "undefined") {
+      return normalizedUrl;
+    }
+
+    return `${window.location.origin}/api/resource-proxy?url=${encodeURIComponent(normalizedUrl)}`;
+  };
+
   const getVideoEmbedUrl = (url: string) => {
     const youTubeMatch = url.match(
       /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{6,})/i
@@ -160,9 +180,9 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
   useEffect(() => {
     if (open && currentItem?.url) {
       console.log('[ViewResourceModal useEffect] Raw currentItem.url:', currentItem.url);
-      const normalized = normalizeResourceUrl(currentItem.url);
-      console.log('[ViewResourceModal useEffect] After normalization:', normalized);
-      setMediaUrl(normalized);
+      const previewUrl = getPreviewFrameUrl(currentItem.url, currentItem.type);
+      console.log('[ViewResourceModal useEffect] Preview URL:', previewUrl);
+      setMediaUrl(previewUrl);
       setIframeLoaded(false);
       setEmbedBlocked(false);
       return;
@@ -294,43 +314,6 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
       );
     }
 
-    // External websites often block iframe embedding (X-Frame-Options/CSP).
-    // For non-document external links, show a reliable fallback panel instead of blank iframe.
-    if (external && !isLikelyEmbeddableDocument(currentItem.url) && normalizedType !== "video") {
-      return (
-        <div style={{ padding: isFullscreen ? "0" : "12px" }}>
-          <div
-            style={{
-              width: "100%",
-              height: playerHeight,
-              borderRadius: isFullscreen ? "0" : "8px",
-              background: "#f8fafc",
-              border: "1px solid #e5e7eb",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexDirection: "column",
-              gap: "12px",
-              padding: "24px",
-            }}
-          >
-            <Text strong style={{ fontSize: 16 }}>
-              This content cannot be displayed inside the app.
-            </Text>
-            <Text type="secondary">Use Open in Browser to view it in a new tab.</Text>
-            <Button
-              type="primary"
-              icon={<LinkOutlined />}
-              onClick={openInBrowser}
-              className="!bg-primary !border-primary"
-            >
-              Open in Browser
-            </Button>
-          </div>
-        </div>
-      );
-    }
-
     return (
       <div style={{ padding: isFullscreen ? "0" : "12px" }}>
         {embedBlocked ? (
@@ -365,8 +348,8 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
         ) : (
           <iframe
             ref={iframeRef}
-            key={mediaUrl || "resource-frame"}
-            src={mediaUrl}
+            key={mediaUrl || currentItem.url || "resource-frame"}
+            src={mediaUrl || currentItem.url}
             title={currentItem.title}
             onLoad={() => {
               setIframeLoaded(true);
