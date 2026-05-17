@@ -705,6 +705,28 @@ export default function LibraryPage() {
   const visibleResourcesCount = sortedFilteredItems?.length || 0;
   const totalCategoriesCount = categories?.length || 0;
   const totalTypesCount = resources?.length || 0;
+  const summaryCards = [
+    {
+      label: "Resources",
+      value: totalResourcesCount,
+      helper: "Available in library",
+    },
+    {
+      label: "Types",
+      value: totalTypesCount,
+      helper: "Organized formats",
+    },
+    {
+      label: "Categories",
+      value: totalCategoriesCount,
+      helper: "Topics and sections",
+    },
+    {
+      label: "Pending",
+      value: pendingItems.length,
+      helper: isSchoolAdmin ? "Awaiting approval" : "Items in review",
+    },
+  ];
   const recentItems = [...(libraryItems || [])]
     .sort((left, right) => new Date(right.updated_at || 0).getTime() - new Date(left.updated_at || 0).getTime())
     .slice(0, 3);
@@ -732,7 +754,7 @@ export default function LibraryPage() {
     );
 
   return (
-    <div className="p-3 md:p-6">
+    <div className="min-h-screen bg-slate-50/70 p-3 md:p-6">
       {contextHolder}
       <Breadcrumb
         items={[
@@ -747,85 +769,102 @@ export default function LibraryPage() {
       />
 
       <Space direction="vertical" size="large" style={{ width: "100%" }}>
-        <section className="relative overflow-hidden rounded-[28px] border border-emerald-100 bg-gradient-to-br from-emerald-900 via-emerald-700 to-teal-600 p-5 text-white shadow-xl md:p-8">
-          <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
-          <div className="absolute bottom-0 left-1/3 h-40 w-40 rounded-full bg-lime-300/20 blur-2xl" />
-          <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-3xl">
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-sm font-medium backdrop-blur">
-                <Sparkles className="h-4 w-4 text-lime-200" /> Curated learning resources
+        <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm md:p-8">
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+              <div className="max-w-3xl">
+                <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700">
+                  <Sparkles className="h-4 w-4" /> Curated learning resources
+                </div>
+                <Typography.Title level={2} className="!mb-3 !text-[clamp(2rem,3vw,2.75rem)] !font-semibold !tracking-tight !text-slate-900">
+                  School Library
+                </Typography.Title>
+                <Typography.Paragraph className="!mb-0 !max-w-2xl !text-base !leading-7 !text-slate-600">
+                  Find PDFs, videos, audio, links, and teaching resources with clearer filters, faster search, and a professional layout that is easier to scan.
+                </Typography.Paragraph>
               </div>
-              <Typography.Title level={2} className="!mb-3 !text-white">School Library</Typography.Title>
-              <Typography.Paragraph className="!mb-0 !max-w-2xl !text-base !text-emerald-50">
-                Find PDFs, videos, audio, links, and teaching resources faster with polished filters, live search, and a professional card layout.
-              </Typography.Paragraph>
-              <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <div className="rounded-2xl border border-white/15 bg-white/12 p-3 backdrop-blur"><div className="text-2xl font-bold">{totalResourcesCount}</div><div className="text-xs text-emerald-50">Resources</div></div>
-                <div className="rounded-2xl border border-white/15 bg-white/12 p-3 backdrop-blur"><div className="text-2xl font-bold">{totalTypesCount}</div><div className="text-xs text-emerald-50">Types</div></div>
-                <div className="rounded-2xl border border-white/15 bg-white/12 p-3 backdrop-blur"><div className="text-2xl font-bold">{totalCategoriesCount}</div><div className="text-xs text-emerald-50">Categories</div></div>
-                <div className="rounded-2xl border border-white/15 bg-white/12 p-3 backdrop-blur"><div className="text-2xl font-bold">{pendingItems.length}</div><div className="text-xs text-emerald-50">Pending</div></div>
+
+              <div className="flex flex-wrap items-center gap-3 lg:justify-end">
+                {isSchoolAdmin && (
+                  <Badge count={pendingItems.length} size="small" offset={[-4, 6]}>
+                    <Button
+                      onClick={() => setApprovalsOpen(true)}
+                      icon={<BellOutlined />}
+                      className="!h-11 !rounded-xl !border-slate-200 !bg-white !px-4 !font-medium !text-slate-700 !shadow-sm hover:!border-slate-300 hover:!text-slate-900"
+                    >
+                      Approvals
+                    </Button>
+                  </Badge>
+                )}
+                {canUpload && (
+                  <Button
+                    type="primary"
+                    icon={<UploadOutlined />}
+                    onClick={openUploadModal}
+                    className="!h-11 !rounded-xl !border-slate-900 !bg-slate-900 !px-5 !font-semibold !text-white !shadow-sm hover:!border-slate-800 hover:!bg-slate-800"
+                  >
+                    {isMobile ? "Upload" : "Upload Resource"}
+                  </Button>
+                )}
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              {isSchoolAdmin && (
-                <Badge count={pendingItems.length} size="small">
-                  <Button onClick={() => setApprovalsOpen(true)} icon={<BellOutlined />} className="!h-11 !rounded-xl !border-white/20 !bg-white/15 !px-4 !font-medium !text-white hover:!border-white/50 hover:!bg-white/25">
-                    Approvals
-                  </Button>
-                </Badge>
-              )}
-              {canUpload && (
-                <Button type="primary" icon={<UploadOutlined />} onClick={openUploadModal} className="!h-11 !rounded-xl !border-white !bg-white !px-5 !font-semibold !text-emerald-700 hover:!bg-emerald-50">
-                  {isMobile ? "Upload" : "Upload Resource"}
-                </Button>
-              )}
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {summaryCards.map((card) => (
+                <div key={card.label} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    {card.label}
+                  </div>
+                  <div className="mt-2 text-3xl font-semibold text-slate-900">{card.value}</div>
+                  <div className="mt-1 text-sm text-slate-600">{card.helper}</div>
+                </div>
+              ))}
             </div>
           </div>
         </section>
 
         <section className="grid gap-4 xl:grid-cols-[280px_1fr]">
           <aside className="space-y-4">
-            <Card className="rounded-3xl border border-gray-100 shadow-sm" styles={{ body: { padding: 18 } }}>
-              <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-800"><ListFilter className="h-4 w-4 text-emerald-600" /> Resource types</div>
+            <Card className="rounded-[24px] border border-slate-200 bg-white shadow-sm" styles={{ body: { padding: 18 } }}>
+              <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500"><ListFilter className="h-4 w-4 text-emerald-600" /> Resource types</div>
               <div className="space-y-2">
-                <button onClick={() => setActiveTypeTab("all")} className={`flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left text-sm transition ${activeTypeTab === "all" ? "bg-emerald-600 text-white shadow-sm" : "bg-gray-50 text-gray-700 hover:bg-emerald-50 hover:text-emerald-700"}`}>
+                <button onClick={() => setActiveTypeTab("all")} className={`flex w-full items-center justify-between rounded-2xl border px-3 py-2.5 text-left text-sm transition ${activeTypeTab === "all" ? "border-slate-900 bg-slate-900 text-white shadow-sm" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"}`}>
                   <span className="flex items-center gap-2"><Grid2X2 className="h-4 w-4" /> All resources</span><span className="text-xs opacity-80">{totalResourcesCount}</span>
                 </button>
                 {resources?.map((type) => {
                   const typeKey = type.name.toLowerCase();
                   const TypeIcon = getResourceIcon(type.name);
                   return (
-                    <button key={type.id} onClick={() => { setActiveTypeTab(typeKey); setActiveCategoryTab("all"); }} className={`flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left text-sm transition ${activeTypeTab === typeKey ? "bg-emerald-600 text-white shadow-sm" : "bg-gray-50 text-gray-700 hover:bg-emerald-50 hover:text-emerald-700"}`}>
+                    <button key={type.id} onClick={() => { setActiveTypeTab(typeKey); setActiveCategoryTab("all"); }} className={`flex w-full items-center justify-between rounded-2xl border px-3 py-2.5 text-left text-sm transition ${activeTypeTab === typeKey ? "border-slate-900 bg-slate-900 text-white shadow-sm" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"}`}>
                       <span className="flex items-center gap-2"><TypeIcon className="h-4 w-4" /> {type.name}</span><span className="text-xs opacity-80">{getCountForType(type.name)}</span>
                     </button>
                   );
                 })}
-                {canUpload && <Link href="/dashboard/library/resourcestype" className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100"><Plus size={16} /> Manage types</Link>}
+                {canUpload && <Link href="/dashboard/library/resourcestype" className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100"><Plus size={16} /> Manage types</Link>}
               </div>
             </Card>
 
-            <Card className="rounded-3xl border border-gray-100 shadow-sm" styles={{ body: { padding: 18 } }}>
-              <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-800"><FolderOpen className="h-4 w-4 text-emerald-600" /> Categories</div>
+            <Card className="rounded-[24px] border border-slate-200 bg-white shadow-sm" styles={{ body: { padding: 18 } }}>
+              <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500"><FolderOpen className="h-4 w-4 text-emerald-600" /> Categories</div>
               <div className="space-y-2">
-                <button onClick={() => setActiveCategoryTab("all")} className={`flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left text-sm transition ${activeCategoryTab === "all" ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-700 hover:bg-emerald-50 hover:text-emerald-700"}`}><span>All categories</span><span className="ml-2 text-xs opacity-75">{totalResourcesCount}</span></button>
+                <button onClick={() => setActiveCategoryTab("all")} className={`flex w-full items-center justify-between rounded-2xl border px-3 py-2.5 text-left text-sm transition ${activeCategoryTab === "all" ? "border-slate-900 bg-slate-900 text-white shadow-sm" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"}`}><span>All categories</span><span className="ml-2 text-xs opacity-75">{totalResourcesCount}</span></button>
                 {categories?.map((category) => (
-                  <button key={category?.id} onClick={() => setActiveCategoryTab(String(category.id))} className={`flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left text-sm transition ${activeCategoryTab === String(category.id) ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-700 hover:bg-emerald-50 hover:text-emerald-700"}`}>
+                  <button key={category?.id} onClick={() => setActiveCategoryTab(String(category.id))} className={`flex w-full items-center justify-between rounded-2xl border px-3 py-2.5 text-left text-sm transition ${activeCategoryTab === String(category.id) ? "border-slate-900 bg-slate-900 text-white shadow-sm" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"}`}>
                     <span>{formatCategoryLabel(category?.name)}</span><span className="ml-2 text-xs opacity-75">{getCountForCategory(category.id)}</span>
                   </button>
                 ))}
               </div>
-              {canUpload && <Link href="/dashboard/library/librarycategory" className="mt-3 flex items-center justify-center gap-2 rounded-2xl border border-dashed border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100"><Plus size={16} /> Manage categories</Link>}
+              {canUpload && <Link href="/dashboard/library/librarycategory" className="mt-3 flex items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100"><Plus size={16} /> Manage categories</Link>}
             </Card>
 
             {recentItems.length > 0 && (
-              <Card className="rounded-3xl border border-gray-100 shadow-sm" styles={{ body: { padding: 18 } }}>
-                <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-800"><ShieldCheck className="h-4 w-4 text-emerald-600" /> Recently added</div>
+              <Card className="rounded-[24px] border border-slate-200 bg-white shadow-sm" styles={{ body: { padding: 18 } }}>
+                <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500"><ShieldCheck className="h-4 w-4 text-emerald-600" /> Recently added</div>
                 <div className="space-y-3">
                   {recentItems.map((item) => (
-                    <button key={`recent-${item.id}`} onClick={() => openResourceDirectly(item)} className="w-full rounded-2xl border border-gray-100 bg-gray-50 p-3 text-left transition hover:border-emerald-200 hover:bg-emerald-50">
-                      <div className="line-clamp-1 text-sm font-semibold text-gray-900">{item.title}</div>
-                      <div className="mt-1 text-xs text-gray-500">{item.updated_at ? new Date(item.updated_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "No date"}</div>
+                    <button key={`recent-${item.id}`} onClick={() => openResourceDirectly(item)} className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-left transition hover:border-slate-300 hover:bg-white">
+                      <div className="line-clamp-1 text-sm font-semibold text-slate-900">{item.title}</div>
+                      <div className="mt-1 text-xs text-slate-500">{item.updated_at ? new Date(item.updated_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "No date"}</div>
                     </button>
                   ))}
                 </div>
@@ -834,19 +873,22 @@ export default function LibraryPage() {
           </aside>
 
           <main className="space-y-4">
-            <Card className="rounded-3xl border border-gray-100 shadow-sm" styles={{ body: { padding: 16 } }}>
+            <Card className="rounded-[24px] border border-slate-200 bg-white shadow-sm" styles={{ body: { padding: 18 } }}>
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div><div className="text-lg font-semibold text-gray-900">Browse resources</div><div className="text-sm text-gray-500">Showing {visibleResourcesCount} of {totalResourcesCount} resources</div></div>
+                <div>
+                  <div className="text-lg font-semibold text-slate-900">Browse resources</div>
+                  <div className="text-sm text-slate-500">Showing {visibleResourcesCount} of {totalResourcesCount} resources</div>
+                </div>
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <Input allowClear size="large" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search title, category, tags..." prefix={<Search className="h-4 w-4 text-gray-400" />} className="min-w-[260px] !rounded-2xl" />
+                  <Input allowClear size="large" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search title, category, tags..." prefix={<Search className="h-4 w-4 text-slate-400" />} className="min-w-[260px] !rounded-xl" />
                   <Select size="large" value={sortMode} onChange={setSortMode} className="min-w-[170px]" options={[{ value: "newest", label: "Newest first" }, { value: "title", label: "Title A-Z" }, { value: "type", label: "Resource type" }]} />
                 </div>
               </div>
             </Card>
 
             {sortedFilteredItems?.length === 0 ? (
-              <Card className="rounded-3xl border border-dashed border-gray-200 shadow-sm">
-                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={<span className="text-gray-500">No resources match the current filters. Try a different search or category.</span>} />
+              <Card className="rounded-[24px] border border-dashed border-slate-300 bg-white shadow-sm">
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={<span className="text-slate-500">No resources match the current filters. Try a different search or category.</span>} />
               </Card>
             ) : (
               <div className={`grid grid-cols-1 ${screens.md ? "md:grid-cols-2" : ""} ${screens.xl ? "xl:grid-cols-3" : ""} gap-5`}>
@@ -861,17 +903,17 @@ export default function LibraryPage() {
                   const emojiStyle = getEmojiStyleForType(resourceTypeKey);
 
                   return (
-                    <Card key={item.id} className="group overflow-hidden rounded-3xl border border-gray-100 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-emerald-200 hover:shadow-2xl" hoverable styles={{ body: { padding: 0 } }} onClick={() => openResourceDirectly(item)}>
-                      <div className="relative h-40 overflow-hidden">
+                    <Card key={item.id} className="group overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg" hoverable styles={{ body: { padding: 0 } }} onClick={() => openResourceDirectly(item)}>
+                      <div className="relative h-44 overflow-hidden bg-slate-100">
                         {coverUrl ? <img src={coverUrl} alt={item.title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" /> : (
-                          <div className="flex h-full flex-col items-center justify-center gap-3 bg-gradient-to-br from-emerald-50 via-white to-sky-50">
-                            <div className="flex h-16 w-16 items-center justify-center rounded-3xl border text-3xl" style={{ backgroundColor: emojiStyle.bg, borderColor: emojiStyle.border, boxShadow: `0 16px 30px ${emojiStyle.shadow}` }}><ResourceIcon className="h-8 w-8 text-emerald-700" /></div>
-                            <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-500 shadow-sm">{resourceType || "Resource"}</span>
+                          <div className="flex h-full flex-col items-center justify-center gap-3 bg-gradient-to-br from-slate-50 via-white to-slate-100">
+                            <div className="flex h-16 w-16 items-center justify-center rounded-[20px] border text-3xl" style={{ backgroundColor: emojiStyle.bg, borderColor: emojiStyle.border, boxShadow: `0 16px 30px ${emojiStyle.shadow}` }}><ResourceIcon className="h-8 w-8 text-slate-700" /></div>
+                            <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-500 shadow-sm">{resourceType || "Resource"}</span>
                           </div>
                         )}
                         <div className="absolute left-3 top-3 flex flex-wrap gap-2">
-                          <Tag className="m-0 rounded-full border-white/70 bg-white/90 px-2 py-1 text-xs font-medium text-gray-700 shadow-sm">{resourceType}</Tag>
-                          {isExternal && <Tag className="m-0 rounded-full border-white/70 bg-white/90 px-2 py-1 text-xs text-gray-600 shadow-sm">{domainLabel}</Tag>}
+                          <Tag className="m-0 rounded-full border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700 shadow-sm">{resourceType}</Tag>
+                          {isExternal && <Tag className="m-0 rounded-full border-slate-200 bg-white px-2 py-1 text-xs text-slate-500 shadow-sm">{domainLabel}</Tag>}
                         </div>
                         {canUpload && !isTeacher && (
                           <div className="absolute right-3 top-3 flex gap-2 opacity-100 transition md:opacity-0 md:group-hover:opacity-100">
@@ -881,12 +923,12 @@ export default function LibraryPage() {
                         )}
                       </div>
                       <div className="flex min-h-[230px] flex-col p-5">
-                        <h3 className="line-clamp-2 text-lg font-bold leading-snug text-gray-950">{item.title}</h3>
-                        <p className="mt-2 line-clamp-2 min-h-[40px] text-sm leading-5 text-gray-600">{item.description || "No description provided yet."}</p>
-                        {parseTags(item.tags)?.length > 0 && <div className="mb-4 mt-4 flex flex-wrap gap-2">{parseTags(item.tags).slice(0, 4).map((tag) => <Tag key={`${item.id}-${tag}`} className="m-0 rounded-full border-emerald-100 bg-emerald-50 text-emerald-700">#{tag}</Tag>)}</div>}
+                        <h3 className="line-clamp-2 text-lg font-semibold leading-snug text-slate-900">{item.title}</h3>
+                        <p className="mt-2 line-clamp-3 min-h-[60px] text-sm leading-6 text-slate-600">{item.description || "No description provided yet."}</p>
+                        {parseTags(item.tags)?.length > 0 && <div className="mb-4 mt-4 flex flex-wrap gap-2">{parseTags(item.tags).slice(0, 4).map((tag) => <Tag key={`${item.id}-${tag}`} className="m-0 rounded-full border-slate-200 bg-slate-50 text-slate-600">#{tag}</Tag>)}</div>}
                         <div className="mt-auto space-y-4">
-                          <div className="flex flex-wrap gap-2"><Tag color={getCategoryColor(item.library_categories_id)} className="m-0 rounded-full px-3 py-1">{getCategoryName(item.library_categories_id)}</Tag><Tag className="m-0 rounded-full border-sky-100 bg-sky-50 px-3 py-1 text-sky-700">{item.size || "N/A"}</Tag></div>
-                          <div className="flex items-center justify-between border-t border-gray-100 pt-3"><span className="text-xs text-gray-400">{item.updated_at ? new Date(item.updated_at).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "N/A"}</span><span className="inline-flex items-center gap-1 rounded-full bg-gray-900 px-3 py-1 text-xs font-semibold text-white transition group-hover:bg-emerald-600">Open <Link2 className="h-3 w-3" /></span></div>
+                          <div className="flex flex-wrap gap-2"><Tag color={getCategoryColor(item.library_categories_id)} className="m-0 rounded-full px-3 py-1">{getCategoryName(item.library_categories_id)}</Tag><Tag className="m-0 rounded-full border-slate-200 bg-slate-50 px-3 py-1 text-slate-600">{item.size || "N/A"}</Tag></div>
+                          <div className="flex items-center justify-between border-t border-slate-100 pt-4"><span className="text-xs text-slate-500">{item.updated_at ? new Date(item.updated_at).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "N/A"}</span><span className="inline-flex items-center gap-1 text-sm font-medium text-slate-900">Open <Link2 className="h-4 w-4" /></span></div>
                         </div>
                       </div>
                     </Card>
