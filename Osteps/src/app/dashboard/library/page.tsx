@@ -488,8 +488,15 @@ export default function LibraryPage() {
     const cleanPath = getResourceSourceUrl(item);
     if (!cleanPath) return;
     const resourceType = getResourceName(item.library_resources_id).toLowerCase();
+    const bypassLabel = getDirectOpenBypassLabel(cleanPath, resourceType);
 
     console.log('openResourceDirectly - Cleaned path:', cleanPath);
+
+    if (bypassLabel) {
+      messageApi.info(`${bypassLabel} opens directly because it does not support reliable in-app preview.`);
+      window.open(cleanPath, "_blank", "noopener,noreferrer");
+      return;
+    }
 
     setCurrentItem({
       ...item,
@@ -574,6 +581,23 @@ export default function LibraryPage() {
     const hasVideoExtension = /\.(mp4|mov|avi|mkv|webm)(\?|#|$)/i.test(url);
     const isInternal = url.startsWith(IMG_BASE_URL);
     return isHttp && !isInternal && !hasVideoExtension;
+  };
+
+  const getDirectOpenBypassLabel = (url: string, resourceType: string) => {
+    if (!isExternalLink(url) || ["audio", "pdf", "video"].includes(resourceType)) {
+      return "";
+    }
+
+    try {
+      const hostname = new URL(url).hostname.toLowerCase();
+      if (hostname === "quran.com" || hostname.endsWith(".quran.com")) {
+        return "Quran.com";
+      }
+    } catch {
+      return "";
+    }
+
+    return "";
   };
 
   const getVideoEmbedUrl = (url: string) => {
