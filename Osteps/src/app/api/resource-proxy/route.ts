@@ -133,8 +133,19 @@ const getUpstreamRequestHeaders = (request: NextRequest, targetUrl: URL) => {
   return headers;
 };
 
-const getProxyUrl = (proxyOrigin: string, url: string) =>
-  `${proxyOrigin}${PROXY_PATH}?url=${encodeURIComponent(url)}`;
+const getProxyUrl = (
+  proxyOrigin: string,
+  url: string,
+  previewRequestKey?: string
+) => {
+  const searchParams = new URLSearchParams({ url });
+
+  if (previewRequestKey) {
+    searchParams.set("pv", previewRequestKey);
+  }
+
+  return `${proxyOrigin}${PROXY_PATH}?${searchParams.toString()}`;
+};
 
 const resolvePreviewUrl = (value: string, targetUrl: string) => {
   const trimmed = value.trim();
@@ -152,7 +163,8 @@ const resolvePreviewUrl = (value: string, targetUrl: string) => {
 const rewritePreviewUrl = (
   value: string,
   targetUrl: string,
-  proxyOrigin: string
+  proxyOrigin: string,
+  previewRequestKey?: string
 ) => {
   const resolved = resolvePreviewUrl(value, targetUrl);
   if (!resolved) return value;
@@ -162,10 +174,15 @@ const rewritePreviewUrl = (
     return resolved.toString();
   }
 
-  return getProxyUrl(proxyOrigin, resolved.toString());
+  return getProxyUrl(proxyOrigin, resolved.toString(), previewRequestKey);
 };
 
-const rewriteSrcSet = (value: string, targetUrl: string, proxyOrigin: string) =>
+const rewriteSrcSet = (
+  value: string,
+  targetUrl: string,
+  proxyOrigin: string,
+  previewRequestKey?: string
+) =>
   value
     .split(",")
     .map((part) => {
@@ -173,31 +190,57 @@ const rewriteSrcSet = (value: string, targetUrl: string, proxyOrigin: string) =>
       if (!trimmed) return part;
 
       const [urlPart, ...descriptors] = trimmed.split(/\s+/);
-      const rewrittenUrl = rewritePreviewUrl(urlPart, targetUrl, proxyOrigin);
+      const rewrittenUrl = rewritePreviewUrl(
+        urlPart,
+        targetUrl,
+        proxyOrigin,
+        previewRequestKey
+      );
       return [rewrittenUrl, ...descriptors].join(" ");
     })
     .join(", ");
 
-const rewriteCssUrls = (css: string, targetUrl: string, proxyOrigin: string) =>
+const rewriteCssUrls = (
+  css: string,
+  targetUrl: string,
+  proxyOrigin: string,
+  previewRequestKey?: string
+) =>
   css
     .replace(
       /url\((["']?)([^)"']+)\1\)/gi,
       (_match, quote: string, value: string) =>
-        `url(${quote}${rewritePreviewUrl(value, targetUrl, proxyOrigin)}${quote})`
+        `url(${quote}${rewritePreviewUrl(
+          value,
+          targetUrl,
+          proxyOrigin,
+          previewRequestKey
+        )}${quote})`
     )
     .replace(
       /@import\s+(?:url\()?(["'])([^"']+)\1\)?/gi,
       (_match, quote: string, value: string) =>
-        `@import ${quote}${rewritePreviewUrl(value, targetUrl, proxyOrigin)}${quote}`
+        `@import ${quote}${rewritePreviewUrl(
+          value,
+          targetUrl,
+          proxyOrigin,
+          previewRequestKey
+        )}${quote}`
     );
 
 const rewriteInlineStyleBlocks = (
   html: string,
   targetUrl: string,
-  proxyOrigin: string
+  proxyOrigin: string,
+  previewRequestKey?: string
 ) =>
   html.replace(/<style\b([^>]*)>([\s\S]*?)<\/style>/gi, (_match, attributes, css) => {
-    return `<style${attributes}>${rewriteCssUrls(css, targetUrl, proxyOrigin)}</style>`;
+    return `<style${attributes}>${rewriteCssUrls(
+      css,
+      targetUrl,
+      proxyOrigin,
+      previewRequestKey
+    )}</style>`;
   });
 
 const rewriteInlineScriptBaseUrls = (html: string, targetUrl: string) =>
@@ -239,7 +282,8 @@ const stripKnownBrokenReaderAssets = (html: string, targetUrl: string) => {
 const rewriteHtmlResourceUrls = (
   html: string,
   targetUrl: string,
-  proxyOrigin: string
+  proxyOrigin: string,
+  previewRequestKey?: string
 ) =>
   html
     .replace(
@@ -248,7 +292,8 @@ const rewriteHtmlResourceUrls = (
         `${attribute}=${quote}${rewritePreviewUrl(
           value,
           targetUrl,
-          proxyOrigin
+          proxyOrigin,
+          previewRequestKey
         )}${quote}`
     )
     .replace(
@@ -257,16 +302,26 @@ const rewriteHtmlResourceUrls = (
         `${attribute}=${quote}${rewriteSrcSet(
           value,
           targetUrl,
-          proxyOrigin
+          proxyOrigin,
+          previewRequestKey
         )}${quote}`
     )
     .replace(
       /\bstyle=("|')([^"']*)\1/gi,
       (_match, quote: string, value: string) =>
-        `style=${quote}${rewriteCssUrls(value, targetUrl, proxyOrigin)}${quote}`
+        `style=${quote}${rewriteCssUrls(
+          value,
+          targetUrl,
+          proxyOrigin,
+          previewRequestKey
+        )}${quote}`
     );
 
-const buildClientRuntimeShim = (targetUrl: string, proxyOrigin: string) => {
+const buildClientRuntimeShim = (
+  targetUrl: string,
+  proxyOrigin: string,
+  previewRequestKey: string
+) => {
   const targetOrigin = new URL(targetUrl).origin;
 
   return [
@@ -276,6 +331,7 @@ const buildClientRuntimeShim = (targetUrl: string, proxyOrigin: string) => {
     `  const TARGET_ORIGIN = ${JSON.stringify(targetOrigin)};`,
     `  const PROXY_ORIGIN = ${JSON.stringify(proxyOrigin)};`,
     `  const PROXY_PATH = ${JSON.stringify(PROXY_PATH)};`,
+    `  const PROXY_REQUEST_KEY = ${JSON.stringify(previewRequestKey)};`,
     "  const CURRENT_ORIGIN = window.location.origin;",
     "  const NON_PROXYABLE_RE = /^(?:#|data:|blob:|javascript:|mailto:|tel:)/i;",
     "",
@@ -304,7 +360,12 @@ const buildClientRuntimeShim = (targetUrl: string, proxyOrigin: string) => {
     "",
     "  const toProxyUrl = (input) => {",
     "    const rewritten = rewriteAbsoluteTarget(input);",
-    "    return rewritten ? `${PROXY_ORIGIN}${PROXY_PATH}?url=${encodeURIComponent(rewritten.toString())}` : input;",
+    "    if (!rewritten) return input;",
+    "    const params = new URLSearchParams({ url: rewritten.toString() });",
+    "    if (PROXY_REQUEST_KEY) {",
+    "      params.set('pv', PROXY_REQUEST_KEY);",
+    "    }",
+    "    return `${PROXY_ORIGIN}${PROXY_PATH}?${params.toString()}`;",
     "  };",
     "",
     "  const resolveProxiedDisplayTarget = (input) => {",
@@ -540,14 +601,20 @@ const buildClientRuntimeShim = (targetUrl: string, proxyOrigin: string) => {
   ].join("\n");
 };
 
-const injectPreviewHead = (html: string, targetUrl: string, proxyOrigin: string) => {
+const injectPreviewHead = (
+  html: string,
+  targetUrl: string,
+  proxyOrigin: string,
+  previewRequestKey: string
+) => {
   const withoutFrameBlockingMeta = html.replace(
     /<meta\s+[^>]*http-equiv=["']Content-Security-Policy["'][^>]*>/gi,
     ""
   );
   const injection = `${buildClientRuntimeShim(
     targetUrl,
-    proxyOrigin
+    proxyOrigin,
+    previewRequestKey
   )}<base href="${targetUrl}"><meta name="referrer" content="no-referrer-when-downgrade">`;
 
   if (/<head[^>]*>/i.test(withoutFrameBlockingMeta)) {
@@ -557,22 +624,30 @@ const injectPreviewHead = (html: string, targetUrl: string, proxyOrigin: string)
   return `${injection}${withoutFrameBlockingMeta}`;
 };
 
-const preparePreviewHtml = (html: string, targetUrl: string, proxyOrigin: string) =>
+const preparePreviewHtml = (
+  html: string,
+  targetUrl: string,
+  proxyOrigin: string,
+  previewRequestKey: string
+) =>
   injectPreviewHead(
     rewriteInlineScriptBaseUrls(
       rewriteInlineStyleBlocks(
         rewriteHtmlResourceUrls(
           stripKnownBrokenReaderAssets(html, targetUrl),
           targetUrl,
-          proxyOrigin
+          proxyOrigin,
+          previewRequestKey
         ),
         targetUrl,
-        proxyOrigin
+        proxyOrigin,
+        previewRequestKey
       ),
       targetUrl
     ),
     targetUrl,
-    proxyOrigin
+    proxyOrigin,
+    previewRequestKey
   );
 
 export async function GET(request: NextRequest) {
@@ -604,8 +679,9 @@ export async function GET(request: NextRequest) {
 
     if (HTML_RE.test(contentType)) {
       const html = await upstream.text();
+      const previewRequestKey = crypto.randomUUID();
       return new NextResponse(
-        preparePreviewHtml(html, previewTargetUrl, proxyOrigin),
+        preparePreviewHtml(html, previewTargetUrl, proxyOrigin, previewRequestKey),
         {
           status: upstream.status,
           headers: {
@@ -618,13 +694,16 @@ export async function GET(request: NextRequest) {
 
     if (CSS_RE.test(contentType)) {
       const css = await upstream.text();
-      return new NextResponse(rewriteCssUrls(css, previewTargetUrl, proxyOrigin), {
+      return new NextResponse(
+        rewriteCssUrls(css, previewTargetUrl, proxyOrigin),
+        {
         status: upstream.status,
         headers: {
           "content-type": contentType,
           "cache-control": "no-store",
         },
-      });
+        }
+      );
     }
 
     const body = await upstream.arrayBuffer();
