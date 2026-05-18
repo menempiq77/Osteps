@@ -13,6 +13,12 @@ import { fetchGrades } from "@/services/gradesApi";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import Link from "next/link";
+interface TaskStudent {
+  student_id: number;
+  student_name: string;
+  teacher_assessment_marks?: number | string | null;
+}
+
 interface Task {
   student_id: number;
   student_name: string;
@@ -21,6 +27,8 @@ interface Task {
   assessment_id: number;
   teacher_assessment_marks: number | null;
   allocated_marks: string;
+  submitted?: TaskStudent[];
+  not_submitted?: TaskStudent[];
 }
 interface Assessment {
   assessment_id: number;
@@ -60,6 +68,24 @@ interface Grade {
   max_percentage: string;
   description: string;
 }
+
+type StudentMarkbookRow = {
+  student: string;
+  student_id: number;
+  total: number;
+  maxPossibleTotal: number;
+  percentage: string;
+  courseGrade: string;
+  [key: string]: string | number;
+};
+
+const getAssessmentColumnKey = (assessment: Assessment) =>
+  `assessment_${assessment.class_id}_${assessment.assessment_id}`;
+
+const getAssessmentPossibleMarks = (assessment: Assessment) =>
+  assessment.tasks.reduce((taskSum, task) => {
+    return taskSum + Number(task.allocated_marks || 0);
+  }, 0);
 
 export default function ReportsPage() {
    const router = useRouter();
@@ -234,32 +260,36 @@ export default function ReportsPage() {
 
     if (!filteredAssessments.length) return [];
 
-    const maxPossibleTotal = filteredAssessments.reduce((sum, assessment) => {
-      const assessmentTotal = assessment.tasks.reduce((taskSum, task) => {
-        return taskSum + Number(task.allocated_marks);
-      }, 0);
-      return sum + assessmentTotal;
-    }, 0);
+    const assessmentPossibleMarks = new Map(
+      filteredAssessments.map((assessment) => [
+        getAssessmentColumnKey(assessment),
+        getAssessmentPossibleMarks(assessment),
+      ])
+    );
 
     const studentsMap = new Map();
 
     filteredAssessments?.forEach((assessment) => {
+      const assessmentKey = getAssessmentColumnKey(assessment);
+
       assessment.tasks.forEach((task) => {
-        task.submitted.forEach((submission) => {
+        (task.submitted || []).forEach((submission) => {
           if (!studentsMap.has(submission.student_id)) {
             studentsMap.set(submission.student_id, {
               student_id: submission.student_id,
               student_name: submission.student_name,
+              assessmentKeys: new Set<string>(),
               tasks: {},
             });
           }
 
           const student = studentsMap.get(submission.student_id);
-          if (!student.tasks[assessment.assessment_id]) {
-            student.tasks[assessment.assessment_id] = [];
+          student.assessmentKeys.add(assessmentKey);
+          if (!student.tasks[assessmentKey]) {
+            student.tasks[assessmentKey] = [];
           }
 
-          student.tasks[assessment.assessment_id].push({
+          student.tasks[assessmentKey].push({
             task_id: task.task_id,
             task_name: task.task_name,
             marks: Number(submission.teacher_assessment_marks),
@@ -268,21 +298,23 @@ export default function ReportsPage() {
           });
         });
 
-        task.not_submitted.forEach((student) => {
+        (task.not_submitted || []).forEach((student) => {
           if (!studentsMap.has(student.student_id)) {
             studentsMap.set(student.student_id, {
               student_id: student.student_id,
               student_name: student.student_name,
+              assessmentKeys: new Set<string>(),
               tasks: {},
             });
           }
 
           const studentData = studentsMap.get(student.student_id);
-          if (!studentData.tasks[assessment.assessment_id]) {
-            studentData.tasks[assessment.assessment_id] = [];
+          studentData.assessmentKeys.add(assessmentKey);
+          if (!studentData.tasks[assessmentKey]) {
+            studentData.tasks[assessmentKey] = [];
           }
 
-          studentData.tasks[assessment.assessment_id].push({
+          studentData.tasks[assessmentKey].push({
             task_id: task.task_id,
             task_name: task.task_name,
             marks: 0,
@@ -294,25 +326,31 @@ export default function ReportsPage() {
     });
 
     const students = Array.from(studentsMap.values()).map((student) => {
-      const studentData = {
+      const maxPossibleTotal = Array.from(student.assessmentKeys as Set<string>).reduce(
+        (sum, assessmentKey) => sum + (assessmentPossibleMarks.get(assessmentKey) || 0),
+        0
+      );
+
+      const studentData: StudentMarkbookRow = {
         student: student.student_name,
         student_id: student.student_id,
         total: 0,
         maxPossibleTotal,
+        percentage: "0.00",
         courseGrade: "N/A",
       };
 
       filteredAssessments.forEach((assessment) => {
-        const assessmentKey = `assessment_${assessment.assessment_id}`;
+        const assessmentKey = getAssessmentColumnKey(assessment);
         studentData[assessmentKey] = 0;
       });
 
-      Object.entries(student.tasks).forEach(([assessmentId, tasks]) => {
-        const assessmentTotal = tasks.reduce((sum, task) => {
+      Object.entries(student.tasks).forEach(([assessmentKey, tasks]) => {
+        const assessmentTotal = (tasks as Array<{ marks: number }>).reduce((sum, task) => {
           return sum + (task.marks || 0);
         }, 0);
 
-        studentData[`assessment_${assessmentId}`] = assessmentTotal;
+        studentData[assessmentKey] = assessmentTotal;
         studentData.total += assessmentTotal;
       });
 
@@ -380,7 +418,7 @@ export default function ReportsPage() {
   };
 
   const handleClassChange = (value: string) => {
-    setSelectedClass(value);
+    setSelectedClass(value === "all" ? null : value);
     if (applyUrlFilter && (urlClassId || urlStudentId)) {
       handleClearUrlFilter();
     }
@@ -478,15 +516,18 @@ export default function ReportsPage() {
               />
 
               <Select
-                value={selectedClass}
+                value={selectedClass ?? "all"}
                 onChange={handleClassChange}
                 style={{ width: 200 }}
                 placeholder="Select Class"
                 disabled={!selectedYear}
-                options={classes?.map((cls) => ({
-                  value: cls.id?.toString(),
-                  label: cls.name,
-                }))}
+                options={[
+                  { value: "all", label: "All Classes" },
+                  ...(classes?.map((cls) => ({
+                    value: cls.id?.toString(),
+                    label: cls.name,
+                  })) || []),
+                ]}
               />
             </div>
             <table className="max-w-full table-fixed">
@@ -528,10 +569,10 @@ export default function ReportsPage() {
                       {/* Assessment marks */}
                       {filteredAssessments?.map((assessment) => (
                         <td
-                          key={assessment.assessment_id}
+                          key={getAssessmentColumnKey(assessment)}
                           className="px-2 py-2 border border-gray-300 whitespace-nowrap text-sm text-gray-500 font-medium"
                         >
-                          {student[`assessment_${assessment.assessment_id}`]}
+                          {student[getAssessmentColumnKey(assessment)]}
                         </td>
                       ))}
 
