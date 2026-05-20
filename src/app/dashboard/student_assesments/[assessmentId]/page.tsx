@@ -652,10 +652,12 @@ export default function AssessmentDrawer() {
     options: { autoDownload?: boolean } = {}
   ) => {
     const sourcePath = task.task?.file_path || task.file_path;
+    const studentName = getStudentNameForTask(task);
     const params = new URLSearchParams({
       assessmentId: String(task.assessment_id),
       taskId: String(task.task_id),
       studentId: String(task.student_id),
+      studentName,
       role: "teacher",
       fileUrl: fileUrlForDocument(sourcePath),
       title: task.task?.task_name || "PDF Assessment",

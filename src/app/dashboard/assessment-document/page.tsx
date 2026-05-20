@@ -114,6 +114,7 @@ export default function AssessmentDocumentPage() {
   const taskId = searchParams.get("taskId") || "";
   const role = asRole(searchParams.get("role"));
   const requestedStudentId = searchParams.get("studentId") || "";
+  const requestedStudentName = String(searchParams.get("studentName") || "").trim();
   const authenticatedStudentId = String(currentUser?.student || "").trim();
   const studentId = role === "student" ? authenticatedStudentId : requestedStudentId;
   const fileUrl = searchParams.get("fileUrl") || "";
@@ -320,8 +321,21 @@ export default function AssessmentDocumentPage() {
         label: getStudentNameFromTask(task, teacherStudentNamesById),
       });
     }
+    if (
+      role === "teacher" &&
+      studentId &&
+      requestedStudentName &&
+      !isPlaceholderStudentName(requestedStudentName) &&
+      !byId.has(String(studentId))
+    ) {
+      byId.set(String(studentId), {
+        value: String(studentId),
+        label: requestedStudentName,
+        status: "draft",
+      });
+    }
     return Array.from(byId.values()).sort((left, right) => left.label.localeCompare(right.label));
-  }, [teacherStudentNamesById, teacherStudentTasks]);
+  }, [requestedStudentName, role, studentId, teacherStudentNamesById, teacherStudentTasks]);
 
   const currentTeacherStudentTask = useMemo(() => {
     return teacherStudentTasks.find((task) => String(task.student_id) === String(studentId)) || null;
@@ -329,8 +343,8 @@ export default function AssessmentDocumentPage() {
 
   const currentTeacherStudentName = useMemo(() => {
     if (currentTeacherStudentTask) return getStudentNameFromTask(currentTeacherStudentTask, teacherStudentNamesById);
-    return teacherStudentOptions.find((option) => option.value === studentId)?.label || undefined;
-  }, [currentTeacherStudentTask, studentId, teacherStudentNamesById, teacherStudentOptions]);
+    return teacherStudentOptions.find((option) => option.value === studentId)?.label || requestedStudentName || undefined;
+  }, [currentTeacherStudentTask, requestedStudentName, studentId, teacherStudentNamesById, teacherStudentOptions]);
 
   const handleTeacherStudentChange = (nextStudentId: string) => {
     const nextTask = teacherStudentTasks.find((task) => String(task.student_id) === String(nextStudentId));
@@ -341,6 +355,7 @@ export default function AssessmentDocumentPage() {
     params.set("assessmentId", String(nextTask.assessment_id || assessmentId));
     params.set("taskId", String(nextTask.task_id || taskId));
     params.set("studentId", String(nextTask.student_id));
+    params.set("studentName", getStudentNameFromTask(nextTask, teacherStudentNamesById));
     params.set("role", "teacher");
     params.set("fileUrl", fileUrlForDocument(sourcePath) || fileUrl);
     params.set("title", nextTask.task?.task_name || title || "PDF Assessment");
