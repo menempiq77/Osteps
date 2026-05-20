@@ -10,7 +10,7 @@ import {
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { addStudentTaskMarks, fetchStudentTasks } from "@/services/api";
+import { addStudentTaskMarks, fetchStudentTasks, fetchTasks } from "@/services/api";
 import { updateQuizSubmissionTeacherMark } from "@/services/quizApi";
 import { fetchStudents } from "@/services/studentsApi";
 import Link from "next/link";
@@ -73,6 +73,11 @@ interface StudentAssessmentTask {
   };
   status?: string;
 }
+
+type AssessmentTaskDefinition = Task & {
+  type?: string;
+  url?: string | null;
+};
 
 interface StudentOption {
   id: string;
@@ -181,6 +186,7 @@ export default function AssessmentDrawer() {
   const [assementTasks, setAssesmentTasks] = useState<StudentAssessmentTask[]>(
     []
   );
+  const [assessmentTaskDefinitions, setAssessmentTaskDefinitions] = useState<AssessmentTaskDefinition[]>([]);
   const [inputError, setInputError] = useState(false);
   const [quizTeacherMarkOpenId, setQuizTeacherMarkOpenId] = useState<number | null>(null);
   const [quizTeacherMark, setQuizTeacherMark] = useState<string>("");
@@ -247,10 +253,41 @@ export default function AssessmentDrawer() {
     }
   };
 
+  const loadAssessmentTaskDefinitions = async (assessmentId: number) => {
+    try {
+      const data = await fetchTasks(
+        Number(assessmentId),
+        canUseSubjectContext ? activeSubjectId ?? undefined : undefined
+      );
+      setAssessmentTaskDefinitions(
+        (data || [])
+          .filter((task: any) => String(task?.type || "task") === "task")
+          .map((task: any) => ({
+            id: Number(task?.id),
+            assessment_id: Number(task?.assessment_id ?? assessmentId),
+            task_name: String(task?.task_name || task?.name || "Assessment task"),
+            allocated_marks: String(task?.allocated_marks ?? 0),
+            task_type: String(task?.task_type || ""),
+            description: String(task?.description || ""),
+            file_path: task?.file_path ?? null,
+            created_at: String(task?.created_at || ""),
+            updated_at: String(task?.updated_at || ""),
+            url: task?.url ?? null,
+            type: task?.type,
+          }))
+          .filter((task: AssessmentTaskDefinition) => Number.isFinite(task.id))
+      );
+    } catch (err) {
+      console.error("Failed to load assessment task definitions", err);
+      setAssessmentTaskDefinitions([]);
+    }
+  };
+
   useEffect(() => {
     if (!assessmentId) return;
     if (canUseSubjectContext && !activeSubjectId) return;
     loadStudentTasks(Number(assessmentId));
+    loadAssessmentTaskDefinitions(Number(assessmentId));
   }, [assessmentId, activeSubjectId, canUseSubjectContext]);
 
   useEffect(() => {
@@ -264,6 +301,7 @@ export default function AssessmentDrawer() {
     const refreshTasks = () => {
       if (canUseSubjectContext && !activeSubjectId) return;
       loadStudentTasks(currentAssessmentId);
+      loadAssessmentTaskDefinitions(currentAssessmentId);
     };
 
     const handleMarkUpdate = (event: Event) => {
@@ -352,7 +390,55 @@ export default function AssessmentDrawer() {
     setSelectedStudentId(value);
   };
 
-  const studentOptions = buildStudentOptions(students, assementTasks);
+  const studentOptions = React.useMemo(
+    () => buildStudentOptions(students, assementTasks),
+    [students, assementTasks]
+  );
+
+  const displayTasks = React.useMemo(() => {
+    const submittedTaskKeys = new Set(
+      assementTasks.map((task) => `${task.task_id}:${task.student_id}`)
+    );
+
+    const unfinishedPdfTasks: StudentAssessmentTask[] = assessmentTaskDefinitions
+      .filter((task) => String(task.task_type || "").toLowerCase() === "pdf")
+      .flatMap((task) =>
+        studentOptions
+          .filter((student) => {
+            const studentId = Number(student.id);
+            return Number.isFinite(studentId) && !submittedTaskKeys.has(`${task.id}:${student.id}`);
+          })
+          .map((student) => ({
+            id: -(Number(task.id) * 1000000 + Number(student.id)),
+            student_id: Number(student.id),
+            assessment_id: Number(task.assessment_id || assessmentId || 0),
+            task_id: Number(task.id),
+            task,
+            student: {
+              id: student.id,
+              student_name: student.student_name,
+            },
+            self_assessment_mark: "",
+            additional_notes:
+              "Not submitted yet. Open the paper to view any autosaved draft work.",
+            file_path: task.file_path || "",
+            created_at: task.created_at || "",
+            updated_at: task.updated_at || "",
+            teacher_assessment_score: undefined,
+            teacher_feedback: "",
+            submission_type: "task",
+            teacher_assessment_marks: undefined,
+            teacher_assessment_mark: null,
+            status: "not_submitted",
+          }))
+      );
+
+    return [...assementTasks, ...unfinishedPdfTasks];
+  }, [assementTasks, assessmentId, assessmentTaskDefinitions, studentOptions]);
+
+  useEffect(() => {
+    void loadDocumentSelfAssessmentMarks(displayTasks);
+  }, [displayTasks]);
 
   useEffect(() => {
     if (!selectedStudentId) return;
@@ -375,6 +461,7 @@ export default function AssessmentDrawer() {
   const getTaskSubmissionStats = (submissions: StudentAssessmentTask[]) => {
     const submittedIds = new Set(
       submissions
+        .filter((task) => task.status !== "not_submitted")
         .map((task) => String(task.student_id ?? "").trim())
         .filter(Boolean)
     );
@@ -382,6 +469,7 @@ export default function AssessmentDrawer() {
       .filter((student) => submittedIds.has(String(student.id)))
       .map((student) => student.student_name);
     const missingSubmittedNames = submissions
+      .filter((task) => task.status !== "not_submitted")
       .filter(
         (task) =>
           !studentOptions.some(
@@ -406,7 +494,7 @@ export default function AssessmentDrawer() {
     setAssessmentOpenTaskId((prev) => (prev === taskId ? null : taskId));
     // Reset form values when opening a new assessment
     if (assessmentOpenTaskId !== taskId) {
-      const task = assementTasks.find((t) => t.id === taskId);
+      const task = displayTasks.find((t) => t.id === taskId);
       setFormValues({
         marks: task?.teacher_assessment_marks || "",
         feedback: task?.teacher_assessment_feedback || "",
@@ -438,7 +526,7 @@ export default function AssessmentDrawer() {
 
   const handleAssessmentSubmit = async (taskId: number) => {
     try {
-      const task = assementTasks.find((t) => t.id === taskId);
+      const task = displayTasks.find((t) => t.id === taskId);
       if (!task) return;
 
       const markStudentId = selectedStudentId ?? String(task.student_id);
@@ -499,7 +587,7 @@ export default function AssessmentDrawer() {
       }
     >();
 
-    for (const task of assementTasks) {
+    for (const task of displayTasks) {
       const key = getTaskGroupKey(task);
       if (!byKey.has(key)) {
         byKey.set(key, {
@@ -514,7 +602,7 @@ export default function AssessmentDrawer() {
     }
 
     return Array.from(byKey.values());
-  }, [assementTasks]);
+  }, [displayTasks]);
 
   useEffect(() => {
     if (taskGroups.length === 0) {
@@ -680,7 +768,7 @@ export default function AssessmentDrawer() {
 
   const handleBulkDownload = () => {
     if (selectedDownloadTasks.length === 0) {
-      message.warning("Tick at least one submitted task first.");
+      message.warning("Tick at least one visible task first.");
       return;
     }
 
@@ -720,7 +808,9 @@ export default function AssessmentDrawer() {
 
       if (taskType === "pdf") {
         triggerBrowserDownload(
-          buildTeacherDocumentWorkspaceUrl(task, { autoDownload: true }),
+          buildTeacherDocumentWorkspaceUrl(task, {
+            autoDownload: task.status !== "not_submitted",
+          }),
           `${studentName} - ${taskName}.pdf`,
           true
         );
@@ -1005,10 +1095,14 @@ export default function AssessmentDrawer() {
                           className={`rounded-full px-2 py-1 font-medium ${
                             task.status === "completed"
                               ? "bg-green-100 text-green-700"
-                              : "bg-yellow-100 text-yellow-700"
+                              : task.status === "not_submitted"
+                                ? "bg-orange-100 text-orange-700"
+                                : "bg-yellow-100 text-yellow-700"
                           }`}
                         >
-                          {task.status.charAt(0).toUpperCase() + task.status.slice(1)}
+                          {task.status === "not_submitted"
+                            ? "Not submitted"
+                            : task.status.charAt(0).toUpperCase() + task.status.slice(1)}
                         </span>
                       )}
                       {currentUser?.role !== "STUDENT" && (
@@ -1031,9 +1125,11 @@ export default function AssessmentDrawer() {
                             <span>Hide</span>
                           ) : (
                             <span>
-                              {hasTeacherAssessmentScore(task)
-                                ? "Update Marks"
-                                : "Mark Assessment"}
+                              {task.status === "not_submitted"
+                                ? "View paper"
+                                : hasTeacherAssessmentScore(task)
+                                  ? "Update Marks"
+                                  : "Mark Assessment"}
                             </span>
                           )}
                         </Button>
