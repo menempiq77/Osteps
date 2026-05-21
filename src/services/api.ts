@@ -120,7 +120,7 @@ const isAssignedAssessmentForTerm = (assessment: any, termId: number) => {
   return assignedRows.some((row: any) => {
     const rowTermId = Number(row?.term_id ?? row?.id ?? row?.pivot?.term_id);
     const status = String(row?.status ?? row?.pivot?.status ?? "assigned").trim().toLowerCase();
-    return rowTermId === selectedTermId && status !== "unassigned";
+    return rowTermId === selectedTermId && status === "assigned";
   });
 };
 
