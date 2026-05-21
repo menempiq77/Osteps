@@ -160,6 +160,49 @@ const getTaskGroupType = (task: StudentAssessmentTask) =>
     ? "PDF Exam"
     : task?.task?.task_type || "Task";
 
+const urlPattern = /(https?:\/\/[^\s<>'"]+|www\.[^\s<>'"]+)/gi;
+
+const normalizeExternalUrl = (value: string) => {
+  const trimmed = value.trim().replace(/[),.;]+$/g, "");
+  return trimmed.toLowerCase().startsWith("http") ? trimmed : `https://${trimmed}`;
+};
+
+const renderClickableStudentNote = (value: string) => {
+  const text = String(value || "");
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let linkIndex = 0;
+
+  text.replace(urlPattern, (match, _unused, offset) => {
+    if (offset > lastIndex) {
+      parts.push(text.slice(lastIndex, offset));
+    }
+
+    linkIndex += 1;
+    const href = normalizeExternalUrl(match);
+    parts.push(
+      <a
+        key={`student-note-link-${offset}`}
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mx-1 inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 underline-offset-2 hover:bg-blue-100 hover:underline"
+      >
+        Open link{linkIndex > 1 ? ` ${linkIndex}` : ""} ↗
+      </a>
+    );
+
+    lastIndex = offset + match.length;
+    return match;
+  });
+
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : text;
+};
+
 
 export default function AssessmentDrawer() {
   const router = useRouter();
@@ -1236,12 +1279,9 @@ export default function AssessmentDrawer() {
 
                 <div className="text-xs text-gray-500 leading-relaxed">
                   {task?.additional_notes && (
-                    <span
-                      title={task?.additional_notes}
-                      className="truncate max-w-[300px] inline-block"
-                    >
+                    <span title={task?.additional_notes} className="break-words">
                       <strong>Student Note: </strong>
-                      {task?.additional_notes}
+                      {renderClickableStudentNote(task?.additional_notes)}
                     </span>
                   )}
                 </div>
