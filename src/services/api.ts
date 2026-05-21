@@ -90,11 +90,50 @@ export const loginUser = async (login: string, password: string) => {
 
 //assessment apis Started
 // fetch Assessment
+const normalizeAssessmentAssignments = (assessment: any): any[] => {
+  const candidates = [
+    assessment?.assigned,
+    assessment?.assign_assessments,
+    assessment?.assignments,
+    assessment?.terms,
+  ];
+  return candidates.find(Array.isArray) ?? [];
+};
+
+const isAssignedAssessmentForTerm = (assessment: any, termId: number) => {
+  const selectedTermId = Number(termId);
+  if (!Number.isFinite(selectedTermId)) return true;
+
+  const directTermId = Number(
+    assessment?.term_id ??
+      assessment?.term?.id ??
+      assessment?.pivot?.term_id ??
+      assessment?.assign_assessment?.term_id
+  );
+  if (Number.isFinite(directTermId) && directTermId > 0) {
+    return directTermId === selectedTermId;
+  }
+
+  const assignedRows = normalizeAssessmentAssignments(assessment);
+  if (assignedRows.length === 0) return true;
+
+  return assignedRows.some((row: any) => {
+    const rowTermId = Number(row?.term_id ?? row?.id ?? row?.pivot?.term_id);
+    const status = String(row?.status ?? row?.pivot?.status ?? "assigned").trim().toLowerCase();
+    return rowTermId === selectedTermId && status !== "unassigned";
+  });
+};
+
+const filterAssessmentsForTerm = (rows: any[], termId: number) =>
+  (Array.isArray(rows) ? rows : []).filter((assessment) =>
+    isAssignedAssessmentForTerm(assessment, termId)
+  );
+
 export const fetchAssessment = async (termId: number, subjectId?: number) => {
   const response = await api.get(`/get-assessment/${termId}`, {
     params: withSubjectQuery({}, subjectId),
   });
-  return response.data.data ?? [];
+  return filterAssessmentsForTerm(response.data.data ?? [], termId);
 };
 
 export const fetchSchoolAssessment = async (schoolId: number, subjectId?: number) => {
@@ -117,7 +156,7 @@ export const fetchAssessmentByStudent = async (termId: number, subjectId?: numbe
   const response = await api.get(`/get-student-assessment/${termId}`, {
     params: withSubjectQuery({}, subjectId),
   });
-  return response.data.data ?? [];
+  return filterAssessmentsForTerm(response.data.data ?? [], termId);
 };
 // add Assessment
 export const addAssessment = async (assessmentData: { name: string; school_id?: number; type?: string; subject_id?: number }) => {
