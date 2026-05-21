@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { Input, Button, Modal, Select, message, Breadcrumb, Checkbox, Tabs } from "antd";
+import { Input, Button, Modal, Select, message, Breadcrumb, Checkbox, Tabs, Spin } from "antd";
 import {
   AudioOutlined,
   VideoCameraOutlined,
@@ -181,6 +181,9 @@ export default function AssessmentDrawer() {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [studentTasksLoaded, setStudentTasksLoaded] = useState(false);
+  const [taskDefinitionsLoaded, setTaskDefinitionsLoaded] = useState(false);
+  const [studentsLoaded, setStudentsLoaded] = useState(false);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [activeTaskGroupKey, setActiveTaskGroupKey] = useState<string | null>(null);
   const [assementTasks, setAssesmentTasks] = useState<StudentAssessmentTask[]>(
@@ -249,6 +252,7 @@ export default function AssessmentDrawer() {
       setError("Failed to load Assessment Tasks");
       console.error(err);
     } finally {
+      setStudentTasksLoaded(true);
       setLoading(false);
     }
   };
@@ -280,12 +284,16 @@ export default function AssessmentDrawer() {
     } catch (err) {
       console.error("Failed to load assessment task definitions", err);
       setAssessmentTaskDefinitions([]);
+    } finally {
+      setTaskDefinitionsLoaded(true);
     }
   };
 
   useEffect(() => {
     if (!assessmentId) return;
     if (canUseSubjectContext && !activeSubjectId) return;
+    setStudentTasksLoaded(false);
+    setTaskDefinitionsLoaded(false);
     loadStudentTasks(Number(assessmentId));
     loadAssessmentTaskDefinitions(Number(assessmentId));
   }, [assessmentId, activeSubjectId, canUseSubjectContext]);
@@ -376,13 +384,18 @@ export default function AssessmentDrawer() {
       setError("Failed to load students");
       console.error(err);
     } finally {
+      setStudentsLoaded(true);
       setLoading(false);
     }
   };
 
   useEffect(() => {
     if (classId) {
+      setStudentsLoaded(false);
       loadStudents();
+    } else {
+      setStudents([]);
+      setStudentsLoaded(true);
     }
   }, [classId, activeSubjectId, canUseSubjectContext, subjectClassId]);
 
@@ -625,6 +638,8 @@ export default function AssessmentDrawer() {
         (task) => task.student_id === Number(selectedStudentId)
       )
     : tasksForSelectedTask;
+  const initialDataReady =
+    studentTasksLoaded && taskDefinitionsLoaded && (!classId || studentsLoaded);
 
   const handleViewQuiz = (task: any) => {
     const params = new URLSearchParams();
@@ -852,6 +867,19 @@ export default function AssessmentDrawer() {
     }
     setBulkDownloading(false);
   };
+
+  if (!initialDataReady) {
+    return (
+      <div className="flex min-h-[55vh] items-center justify-center">
+        <div className="rounded-2xl border border-slate-200 bg-white px-8 py-6 text-center shadow-sm">
+          <Spin size="large" />
+          <p className="mt-3 text-sm font-medium text-slate-500">
+            Loading assessment tasks...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
