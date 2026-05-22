@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Alert, Button, Input, InputNumber, Modal, message, Select, Spin, Tag } from "antd";
 import {
@@ -1053,6 +1053,17 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const touchGestureFrameRef = useRef<number | null>(null);
   const pendingTouchPageActionRef = useRef<PendingTouchPageAction | null>(null);
   const suppressTouchClickRef = useRef(false);
+  const pendingZoomScrollRef = useRef<{
+    scrollElement: HTMLElement;
+    pageStack: HTMLDivElement;
+    previousZoomLevel: number;
+    nextZoomLevel: number;
+    clientHeight: number;
+    stackTop: number;
+    focusY: number;
+    clientWidth: number;
+    focusX: number;
+  } | null>(null);
   const annotationCanvasRefs = useRef<Record<number, HTMLCanvasElement | null>>({});
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const selfAssessmentSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1203,6 +1214,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       const previousZoomLevel = zoomLevel;
       const clientHeight = scrollElement?.clientHeight || window.innerHeight || 0;
       const scrollTop = scrollElement?.scrollTop || 0;
+      const clientWidth = pageStack?.clientWidth || 0;
+      const focusX = pageStack ? pageStack.scrollLeft + clientWidth / 2 : 0;
       const stackTop = pageStack && scrollElement
         ? pageStack.getBoundingClientRect().top + scrollTop
         : 0;
@@ -1210,20 +1223,44 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         ? scrollTop + clientHeight / 2 - stackTop
         : 0;
 
-      setZoomLevel(nextZoomLevel);
-
       if (scrollElement && pageStack) {
-        window.requestAnimationFrame(() => {
-          const zoomRatio = nextZoomLevel / Math.max(previousZoomLevel, 0.01);
-          scrollElement.scrollTop = Math.max(
-            0,
-            stackTop + focusY * zoomRatio - clientHeight / 2
-          );
-        });
+        pendingZoomScrollRef.current = {
+          scrollElement,
+          pageStack,
+          previousZoomLevel,
+          nextZoomLevel,
+          clientHeight,
+          stackTop,
+          focusY,
+          clientWidth,
+          focusX,
+        };
+      } else {
+        pendingZoomScrollRef.current = null;
       }
+
+      setZoomLevel(nextZoomLevel);
     },
     [getZoomScrollElement, zoomLevel]
   );
+
+  useLayoutEffect(() => {
+    const pending = pendingZoomScrollRef.current;
+    if (!pending || pending.nextZoomLevel !== zoomLevel) return;
+    pendingZoomScrollRef.current = null;
+
+    const zoomRatio = pending.nextZoomLevel / Math.max(pending.previousZoomLevel, 0.01);
+    pending.scrollElement.scrollTop = Math.max(
+      0,
+      pending.stackTop + pending.focusY * zoomRatio - pending.clientHeight / 2
+    );
+    if (pending.clientWidth > 0) {
+      pending.pageStack.scrollLeft = Math.max(
+        0,
+        pending.focusX * zoomRatio - pending.clientWidth / 2
+      );
+    }
+  }, [zoomLevel]);
 
   useEffect(() => {
     setToolbarPortalReady(true);
