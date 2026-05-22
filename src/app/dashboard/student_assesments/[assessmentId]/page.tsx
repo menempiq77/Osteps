@@ -446,14 +446,31 @@ export default function AssessmentDrawer() {
     setSelectedStudentId(value);
   };
 
+  const classScopedStudentIds = React.useMemo(() => {
+    if (!classId) return null;
+    return new Set(
+      (students ?? [])
+        .map((student) => Number(toStudentOption(student)?.id))
+        .filter((studentId) => Number.isFinite(studentId) && studentId > 0)
+    );
+  }, [classId, students]);
+
+  const classScopedAssessmentTasks = React.useMemo(() => {
+    if (!classId) return assementTasks;
+    if (!classScopedStudentIds || classScopedStudentIds.size === 0) return [];
+    return assementTasks.filter((task) =>
+      classScopedStudentIds.has(Number(task.student_id))
+    );
+  }, [assementTasks, classId, classScopedStudentIds]);
+
   const studentOptions = React.useMemo(
-    () => buildStudentOptions(students, assementTasks),
-    [students, assementTasks]
+    () => buildStudentOptions(students, classScopedAssessmentTasks),
+    [students, classScopedAssessmentTasks]
   );
 
   const displayTasks = React.useMemo(() => {
     const submittedTaskKeys = new Set(
-      assementTasks.map((task) => `${task.task_id}:${task.student_id}`)
+      classScopedAssessmentTasks.map((task) => `${task.task_id}:${task.student_id}`)
     );
 
     const unfinishedPdfTasks: StudentAssessmentTask[] = assessmentTaskDefinitions
@@ -489,8 +506,8 @@ export default function AssessmentDrawer() {
           }))
       );
 
-    return [...assementTasks, ...unfinishedPdfTasks];
-  }, [assementTasks, assessmentId, assessmentTaskDefinitions, studentOptions]);
+    return [...classScopedAssessmentTasks, ...unfinishedPdfTasks];
+  }, [classScopedAssessmentTasks, assessmentId, assessmentTaskDefinitions, studentOptions]);
 
   useEffect(() => {
     void loadDocumentSelfAssessmentMarks(displayTasks);
