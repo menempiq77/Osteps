@@ -1185,6 +1185,46 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     hasReadableStudentAnnotation ||
     (role === "teacher" && documentLoaded && pages.length > 0 && (studentLocked || state?.status === "submitted" || state?.status === "marked"));
 
+  const getZoomScrollElement = useCallback(() => {
+    if (shouldEnforceExamScreen && viewerScrollRef.current) {
+      return viewerScrollRef.current;
+    }
+    if (typeof document === "undefined") return null;
+    return (document.scrollingElement || document.documentElement) as HTMLElement;
+  }, [shouldEnforceExamScreen]);
+
+  const changeZoomLevel = useCallback(
+    (delta: number) => {
+      const nextZoomLevel = clampZoomLevel(zoomLevel + delta);
+      if (nextZoomLevel === zoomLevel) return;
+
+      const scrollElement = getZoomScrollElement();
+      const pageStack = pagesViewportRef.current;
+      const previousZoomLevel = zoomLevel;
+      const clientHeight = scrollElement?.clientHeight || window.innerHeight || 0;
+      const scrollTop = scrollElement?.scrollTop || 0;
+      const stackTop = pageStack && scrollElement
+        ? pageStack.getBoundingClientRect().top + scrollTop
+        : 0;
+      const focusY = scrollElement && pageStack
+        ? scrollTop + clientHeight / 2 - stackTop
+        : 0;
+
+      setZoomLevel(nextZoomLevel);
+
+      if (scrollElement && pageStack) {
+        window.requestAnimationFrame(() => {
+          const zoomRatio = nextZoomLevel / Math.max(previousZoomLevel, 0.01);
+          scrollElement.scrollTop = Math.max(
+            0,
+            stackTop + focusY * zoomRatio - clientHeight / 2
+          );
+        });
+      }
+    },
+    [getZoomScrollElement, zoomLevel]
+  );
+
   useEffect(() => {
     setToolbarPortalReady(true);
   }, []);
@@ -4547,7 +4587,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
             <div className="flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1">
               <Button
                 size="small"
-                onClick={() => setZoomLevel((current) => clampZoomLevel(current - ZOOM_STEP))}
+                onClick={() => changeZoomLevel(-ZOOM_STEP)}
                 disabled={zoomLevel <= MIN_ZOOM_LEVEL}
               >
                 -
@@ -4557,7 +4597,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
               </span>
               <Button
                 size="small"
-                onClick={() => setZoomLevel((current) => clampZoomLevel(current + ZOOM_STEP))}
+                onClick={() => changeZoomLevel(ZOOM_STEP)}
                 disabled={zoomLevel >= MAX_ZOOM_LEVEL}
               >
                 +
@@ -4787,7 +4827,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       <div
         ref={viewerScrollRef}
         className={shouldEnforceExamScreen ? "h-[calc(100vh-85px)] overflow-auto p-4" : "mx-auto max-w-7xl p-4"}
-        style={{ paddingTop: toolbarHeight ? toolbarHeight + 16 : undefined, touchAction: "pan-x pan-y" }}
+        style={{ paddingTop: toolbarHeight ? toolbarHeight + 16 : undefined, touchAction: "pan-x pan-y", overflowAnchor: "none" }}
       >
         {documentFileMismatch ? (
           <Alert
@@ -5009,17 +5049,28 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
           </div>
         )}
 
-        <div ref={pagesViewportRef} className="space-y-6 overflow-x-auto pb-10" style={{ touchAction: "pan-x pan-y" }}>
+        <div ref={pagesViewportRef} className="space-y-6 overflow-x-auto pb-10" style={{ touchAction: "pan-x pan-y", overflowAnchor: "none" }}>
           {(pages.length > 0 ? pages : [{ pageNumber: 1, width: 900, height: 1200 }]).map((page) => (
-            <div key={page.pageNumber} className="mx-auto w-fit rounded-lg bg-white p-3 shadow">
+            <div key={page.pageNumber} className="mx-auto w-fit rounded-lg bg-white p-3 shadow" style={{ overflowAnchor: "none" }}>
               <div className="mb-2 text-xs font-medium text-gray-500">Page {page.pageNumber}</div>
-              <div style={{ width: page.width * zoomLevel, height: page.height * zoomLevel }}>
+              <div
+                style={{
+                  width: Math.round(page.width * zoomLevel),
+                  height: Math.round(page.height * zoomLevel),
+                  contain: "layout paint size",
+                  overflow: "hidden",
+                  overflowAnchor: "none",
+                }}
+              >
                 <div
                   className="relative origin-top-left"
                   style={{
                     width: page.width,
                     height: page.height,
-                    transform: `scale(${zoomLevel})`,
+                    transform: `translateZ(0) scale(${zoomLevel})`,
+                    transformOrigin: "top left",
+                    willChange: "transform",
+                    backfaceVisibility: "hidden",
                   }}
                 >
                   {(documentKind === "pdf" || documentKind === "image") && page.previewUrl && (
