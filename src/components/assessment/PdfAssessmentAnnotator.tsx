@@ -1056,13 +1056,9 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const pendingZoomScrollRef = useRef<{
     scrollElement: HTMLElement;
     pageStack: HTMLDivElement;
-    previousZoomLevel: number;
     nextZoomLevel: number;
-    clientHeight: number;
-    stackTop: number;
-    focusY: number;
-    clientWidth: number;
-    focusX: number;
+    targetScrollTop: number;
+    targetScrollLeft: number;
   } | null>(null);
   const annotationCanvasRefs = useRef<Record<number, HTMLCanvasElement | null>>({});
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1212,28 +1208,28 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       const scrollElement = getZoomScrollElement();
       const pageStack = pagesViewportRef.current;
       const previousZoomLevel = zoomLevel;
-      const clientHeight = scrollElement?.clientHeight || window.innerHeight || 0;
-      const scrollTop = scrollElement?.scrollTop || 0;
-      const clientWidth = pageStack?.clientWidth || 0;
-      const focusX = pageStack ? pageStack.scrollLeft + clientWidth / 2 : 0;
-      const stackTop = pageStack && scrollElement
-        ? pageStack.getBoundingClientRect().top + scrollTop
-        : 0;
-      const focusY = scrollElement && pageStack
-        ? scrollTop + clientHeight / 2 - stackTop
-        : 0;
 
       if (scrollElement && pageStack) {
+        const scrollViewportTop =
+          typeof document !== "undefined" &&
+          (scrollElement === document.scrollingElement || scrollElement === document.documentElement)
+            ? 0
+            : scrollElement.getBoundingClientRect().top;
+        const stackRect = pageStack.getBoundingClientRect();
+        const pageStackTopInScrollContent =
+          stackRect.top - scrollViewportTop + scrollElement.scrollTop;
+        const zoomRatio = nextZoomLevel / Math.max(previousZoomLevel, 0.01);
+        const focusY =
+          scrollElement.scrollTop + scrollElement.clientHeight / 2 - pageStackTopInScrollContent;
+        const focusX = pageStack.scrollLeft + pageStack.clientWidth / 2;
+
         pendingZoomScrollRef.current = {
           scrollElement,
           pageStack,
-          previousZoomLevel,
           nextZoomLevel,
-          clientHeight,
-          stackTop,
-          focusY,
-          clientWidth,
-          focusX,
+          targetScrollTop:
+            pageStackTopInScrollContent + focusY * zoomRatio - scrollElement.clientHeight / 2,
+          targetScrollLeft: focusX * zoomRatio - pageStack.clientWidth / 2,
         };
       } else {
         pendingZoomScrollRef.current = null;
@@ -1249,17 +1245,23 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     if (!pending || pending.nextZoomLevel !== zoomLevel) return;
     pendingZoomScrollRef.current = null;
 
-    const zoomRatio = pending.nextZoomLevel / Math.max(pending.previousZoomLevel, 0.01);
-    pending.scrollElement.scrollTop = Math.max(
+    const maxScrollTop = Math.max(
       0,
-      pending.stackTop + pending.focusY * zoomRatio - pending.clientHeight / 2
+      pending.scrollElement.scrollHeight - pending.scrollElement.clientHeight
     );
-    if (pending.clientWidth > 0) {
-      pending.pageStack.scrollLeft = Math.max(
-        0,
-        pending.focusX * zoomRatio - pending.clientWidth / 2
-      );
-    }
+    pending.scrollElement.scrollTop = Math.min(
+      Math.max(pending.targetScrollTop, 0),
+      maxScrollTop
+    );
+
+    const maxScrollLeft = Math.max(
+      0,
+      pending.pageStack.scrollWidth - pending.pageStack.clientWidth
+    );
+    pending.pageStack.scrollLeft = Math.min(
+      Math.max(pending.targetScrollLeft, 0),
+      maxScrollLeft
+    );
   }, [zoomLevel]);
 
   useEffect(() => {
@@ -1478,8 +1480,9 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     if (typeof window === "undefined") return;
 
     const viewport = pagesViewportRef.current;
+    const scrollElement = getZoomScrollElement();
     const touchGesture = touchGestureRef.current;
-    if (!viewport || !touchGesture) return;
+    if (!viewport || !scrollElement || !touchGesture) return;
 
     const points = getTrackedTouchPoints(touchPointersRef.current);
     if (points.length < 2) return;
@@ -1490,25 +1493,29 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       touchGesture.initialZoomLevel * (distance / touchGesture.initialDistance)
     );
 
+    const scrollViewportTop =
+      typeof document !== "undefined" &&
+      (scrollElement === document.scrollingElement || scrollElement === document.documentElement)
+        ? 0
+        : scrollElement.getBoundingClientRect().top;
+    const rect = viewport.getBoundingClientRect();
+    const pageStackTopInScrollContent =
+      rect.top - scrollViewportTop + scrollElement.scrollTop;
+
+    pendingZoomScrollRef.current = {
+      scrollElement,
+      pageStack: viewport,
+      nextZoomLevel,
+      targetScrollLeft:
+        touchGesture.initialContentX * nextZoomLevel - (center.x - rect.left),
+      targetScrollTop:
+        pageStackTopInScrollContent +
+        touchGesture.initialContentY * nextZoomLevel -
+        (center.y - scrollViewportTop),
+    };
+
     setZoomLevel((current) => (current === nextZoomLevel ? current : nextZoomLevel));
-
-    cancelTouchGestureFrame();
-    touchGestureFrameRef.current = window.requestAnimationFrame(() => {
-      touchGestureFrameRef.current = null;
-
-      const nextViewport = pagesViewportRef.current;
-      if (!nextViewport) return;
-
-      const rect = nextViewport.getBoundingClientRect();
-      const nextScrollLeft =
-        touchGesture.initialContentX * nextZoomLevel - (center.x - rect.left);
-      const maxScrollLeft = Math.max(0, nextViewport.scrollWidth - nextViewport.clientWidth);
-      nextViewport.scrollLeft = Math.min(Math.max(nextScrollLeft, 0), maxScrollLeft);
-
-      const desiredViewportTop = center.y - touchGesture.initialContentY * nextZoomLevel;
-      applyTouchGestureVerticalScroll(rect.top - desiredViewportTop);
-    });
-  }, [applyTouchGestureVerticalScroll, cancelTouchGestureFrame]);
+  }, [getZoomScrollElement]);
 
   const startTouchGesture = useCallback(() => {
     const viewport = pagesViewportRef.current;
