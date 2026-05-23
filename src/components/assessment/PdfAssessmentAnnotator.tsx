@@ -184,6 +184,8 @@ type TrackedTouchPointer = {
 type TouchGestureState = {
   initialDistance: number;
   initialZoomLevel: number;
+  initialCenterX: number;
+  initialCenterY: number;
   initialContentX: number;
   initialContentY: number;
 };
@@ -1487,7 +1489,6 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     const points = getTrackedTouchPoints(touchPointersRef.current);
     if (points.length < 2) return;
 
-    const center = getTouchGestureCenter(points);
     const distance = Math.max(getTouchGestureDistance(points), 1);
     const nextZoomLevel = clampZoomLevel(
       touchGesture.initialZoomLevel * (distance / touchGesture.initialDistance)
@@ -1507,11 +1508,12 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       pageStack: viewport,
       nextZoomLevel,
       targetScrollLeft:
-        touchGesture.initialContentX * nextZoomLevel - (center.x - rect.left),
+        touchGesture.initialContentX * nextZoomLevel -
+        (touchGesture.initialCenterX - rect.left),
       targetScrollTop:
         pageStackTopInScrollContent +
         touchGesture.initialContentY * nextZoomLevel -
-        (center.y - scrollViewportTop),
+        (touchGesture.initialCenterY - scrollViewportTop),
     };
 
     setZoomLevel((current) => (current === nextZoomLevel ? current : nextZoomLevel));
@@ -1529,6 +1531,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     touchGestureRef.current = {
       initialDistance: Math.max(getTouchGestureDistance(points), 1),
       initialZoomLevel: zoomLevel,
+      initialCenterX: center.x,
+      initialCenterY: center.y,
       initialContentX: (viewport.scrollLeft + center.x - rect.left) / zoomLevel,
       initialContentY: (center.y - rect.top) / zoomLevel,
     };
