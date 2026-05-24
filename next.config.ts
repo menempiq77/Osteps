@@ -1,5 +1,6 @@
-import * as path from 'path';
 import type { NextConfig } from "next";
+
+const srcPath = `${__dirname}/src`;
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: __dirname,
@@ -23,13 +24,13 @@ const nextConfig: NextConfig = {
   },
   turbopack: {
     resolveAlias: {
-      "@": path.resolve(__dirname, "src"),
+      "@": srcPath,
     },
   },
   webpack: (config, { dev, isServer, webpack }) => {
     config.resolve.alias = {
       ...config.resolve.alias,
-      '@': path.resolve(__dirname, 'src'),
+      '@': srcPath,
     };
 
     if (dev) {
