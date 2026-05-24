@@ -186,8 +186,8 @@ type TouchGestureState = {
   initialZoomLevel: number;
   initialCenterX: number;
   initialCenterY: number;
-  initialContentX: number;
-  initialContentY: number;
+  initialScrollLeft: number;
+  initialScrollTop: number;
 };
 
 type PendingTouchPageAction = {
@@ -1489,57 +1489,55 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     const points = getTrackedTouchPoints(touchPointersRef.current);
     if (points.length < 2) return;
 
+    const center = getTouchGestureCenter(points);
     const distance = Math.max(getTouchGestureDistance(points), 1);
     const nextZoomLevel = clampZoomLevel(
       touchGesture.initialZoomLevel * (distance / touchGesture.initialDistance)
     );
+    const targetScrollLeft = touchGesture.initialScrollLeft + touchGesture.initialCenterX - center.x;
+    const targetScrollTop = touchGesture.initialScrollTop + touchGesture.initialCenterY - center.y;
 
-    const scrollViewportTop =
-      typeof document !== "undefined" &&
-      (scrollElement === document.scrollingElement || scrollElement === document.documentElement)
-        ? 0
-        : scrollElement.getBoundingClientRect().top;
-    const rect = viewport.getBoundingClientRect();
-    const pageStackTopInScrollContent =
-      rect.top - scrollViewportTop + scrollElement.scrollTop;
+    if (nextZoomLevel === zoomLevel) {
+      const maxScrollLeft = Math.max(0, viewport.scrollWidth - viewport.clientWidth);
+      const maxScrollTop = Math.max(0, scrollElement.scrollHeight - scrollElement.clientHeight);
+      viewport.scrollLeft = Math.min(Math.max(targetScrollLeft, 0), maxScrollLeft);
+      scrollElement.scrollTop = Math.min(Math.max(targetScrollTop, 0), maxScrollTop);
+      pendingZoomScrollRef.current = null;
+      return;
+    }
 
     pendingZoomScrollRef.current = {
       scrollElement,
       pageStack: viewport,
       nextZoomLevel,
-      targetScrollLeft:
-        touchGesture.initialContentX * nextZoomLevel -
-        (touchGesture.initialCenterX - rect.left),
-      targetScrollTop:
-        pageStackTopInScrollContent +
-        touchGesture.initialContentY * nextZoomLevel -
-        (touchGesture.initialCenterY - scrollViewportTop),
+      targetScrollLeft,
+      targetScrollTop,
     };
 
     setZoomLevel((current) => (current === nextZoomLevel ? current : nextZoomLevel));
-  }, [getZoomScrollElement]);
+  }, [getZoomScrollElement, zoomLevel]);
 
   const startTouchGesture = useCallback(() => {
     const viewport = pagesViewportRef.current;
-    if (!viewport || zoomLevel <= 0) return;
+    const scrollElement = getZoomScrollElement();
+    if (!viewport || !scrollElement || zoomLevel <= 0) return;
 
     const points = getTrackedTouchPoints(touchPointersRef.current);
     if (points.length < 2) return;
 
     const center = getTouchGestureCenter(points);
-    const rect = viewport.getBoundingClientRect();
     touchGestureRef.current = {
       initialDistance: Math.max(getTouchGestureDistance(points), 1),
       initialZoomLevel: zoomLevel,
       initialCenterX: center.x,
       initialCenterY: center.y,
-      initialContentX: (viewport.scrollLeft + center.x - rect.left) / zoomLevel,
-      initialContentY: (center.y - rect.top) / zoomLevel,
+      initialScrollLeft: viewport.scrollLeft,
+      initialScrollTop: scrollElement.scrollTop,
     };
     suppressTouchClickRef.current = true;
     clearTransientPointerState();
     syncTouchGesture();
-  }, [clearTransientPointerState, syncTouchGesture, zoomLevel]);
+  }, [clearTransientPointerState, getZoomScrollElement, syncTouchGesture, zoomLevel]);
 
   const syncNativeTouchList = useCallback((touches: TouchList) => {
     touchPointersRef.current.clear();
