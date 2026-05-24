@@ -1077,6 +1077,11 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     targetScrollTop: number;
     targetScrollLeft: number;
     lockScrollPosition?: boolean;
+    anchorPageNumber?: number;
+    anchorClientX?: number;
+    anchorClientY?: number;
+    anchorRatioX?: number;
+    anchorRatioY?: number;
   } | null>(null);
   const annotationCanvasRefs = useRef<Record<number, HTMLCanvasElement | null>>({});
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1281,6 +1286,20 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       const nextZoomLevel = clampZoomLevel(currentZoomLevel + zoomDelta);
       if (nextZoomLevel === currentZoomLevel) return;
 
+      const lockedScrollTop = scrollElement.scrollTop;
+      const lockedScrollLeft = pageStack.scrollLeft;
+      const restoreLockedScroll = () => {
+        scrollElement.scrollTop = lockedScrollTop;
+        pageStack.scrollLeft = lockedScrollLeft;
+      };
+
+      const pageShell =
+        event.target instanceof Element
+          ? event.target.closest<HTMLElement>("[data-page-shell]")
+          : null;
+      const anchorPageNumber = Number(pageShell?.dataset.pageShell || 0);
+      const hasAnchorPage = Number.isFinite(anchorPageNumber) && anchorPageNumber > 0;
+
       const isDocumentScroll =
         typeof document !== "undefined" &&
         (scrollElement === document.scrollingElement ||
@@ -1297,14 +1316,22 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       const anchorXInStack = pageStack.scrollLeft + anchorXInViewport;
       const zoomRatio = nextZoomLevel / Math.max(currentZoomLevel, 0.01);
 
-      const targetScrollTop =
-        pageStackTopInScrollContent + anchorYInStack * zoomRatio - anchorYInViewport;
-      const targetScrollLeft = anchorXInStack * zoomRatio - anchorXInViewport;
+      const targetScrollTop = hasAnchorPage
+        ? lockedScrollTop
+        : pageStackTopInScrollContent + anchorYInStack * zoomRatio - anchorYInViewport;
+      const targetScrollLeft = hasAnchorPage
+        ? lockedScrollLeft
+        : anchorXInStack * zoomRatio - anchorXInViewport;
 
-      const restoreAnchoredScroll = () => {
-        scrollElement.scrollTop = Math.max(0, targetScrollTop);
-        pageStack.scrollLeft = Math.max(0, targetScrollLeft);
-      };
+      const pageShellRect = pageShell?.getBoundingClientRect();
+      const anchorRatioX =
+        hasAnchorPage && pageShellRect
+          ? Math.min(Math.max((event.clientX - pageShellRect.left) / Math.max(pageShellRect.width, 1), 0), 1)
+          : undefined;
+      const anchorRatioY =
+        hasAnchorPage && pageShellRect
+          ? Math.min(Math.max((event.clientY - pageShellRect.top) / Math.max(pageShellRect.height, 1), 0), 1)
+          : undefined;
 
       zoomLevelRef.current = nextZoomLevel;
       pendingZoomScrollRef.current = {
@@ -1314,12 +1341,17 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         targetScrollTop,
         targetScrollLeft,
         lockScrollPosition: true,
+        anchorPageNumber: hasAnchorPage ? anchorPageNumber : undefined,
+        anchorClientX: hasAnchorPage ? event.clientX : undefined,
+        anchorClientY: hasAnchorPage ? event.clientY : undefined,
+        anchorRatioX,
+        anchorRatioY,
       };
       setZoomLevel(nextZoomLevel);
 
       window.requestAnimationFrame(() => {
-        restoreAnchoredScroll();
-        window.requestAnimationFrame(restoreAnchoredScroll);
+        restoreLockedScroll();
+        window.requestAnimationFrame(restoreLockedScroll);
       });
     };
 
@@ -1338,12 +1370,36 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     if (!pending || pending.nextZoomLevel !== zoomLevel) return;
     pendingZoomScrollRef.current = null;
 
+    let targetScrollTop = pending.targetScrollTop;
+    let targetScrollLeft = pending.targetScrollLeft;
+
+    if (
+      pending.anchorPageNumber &&
+      typeof pending.anchorClientX === "number" &&
+      typeof pending.anchorClientY === "number" &&
+      typeof pending.anchorRatioX === "number" &&
+      typeof pending.anchorRatioY === "number"
+    ) {
+      const anchorPage = pending.pageStack.querySelector<HTMLElement>(
+        `[data-page-shell="${pending.anchorPageNumber}"]`
+      );
+      if (anchorPage) {
+        const pageRect = anchorPage.getBoundingClientRect();
+        const currentAnchorClientX = pageRect.left + pageRect.width * pending.anchorRatioX;
+        const currentAnchorClientY = pageRect.top + pageRect.height * pending.anchorRatioY;
+        targetScrollTop =
+          pending.scrollElement.scrollTop + (currentAnchorClientY - pending.anchorClientY);
+        targetScrollLeft =
+          pending.pageStack.scrollLeft + (currentAnchorClientX - pending.anchorClientX);
+      }
+    }
+
     const maxScrollTop = Math.max(
       0,
       pending.scrollElement.scrollHeight - pending.scrollElement.clientHeight
     );
     const clampedScrollTop = Math.min(
-      Math.max(pending.targetScrollTop, 0),
+      Math.max(targetScrollTop, 0),
       maxScrollTop
     );
     pending.scrollElement.scrollTop = clampedScrollTop;
@@ -1353,7 +1409,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       pending.pageStack.scrollWidth - pending.pageStack.clientWidth
     );
     const clampedScrollLeft = Math.min(
-      Math.max(pending.targetScrollLeft, 0),
+      Math.max(targetScrollLeft, 0),
       maxScrollLeft
     );
     pending.pageStack.scrollLeft = clampedScrollLeft;
@@ -5308,6 +5364,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                 }}
               >
                 <div
+                  data-page-shell={page.pageNumber}
                   className="relative origin-top-left"
                   style={{
                     width: page.width,
