@@ -1538,20 +1538,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     let targetScrollLeft: number;
     let targetScrollTop: number;
     if (isPinchFrame) {
-      // Center-anchored zoom: compute the scrollTop that keeps the initial pinch
-      // midpoint under the same screen position after the content grows/shrinks.
-      //   newScrollTop = stackTop + anchorInStack * zoomRatio - anchorScreenY
-      // where anchorInStack = initialScrollTop + anchorScreenY - stackTop
-      const { initialScrollTop, initialCenterY, pageStackTopInScrollContent, scrollViewportTop } =
-        touchGesture;
-      const anchorScreenY = initialCenterY - scrollViewportTop;
-      const anchorInStack = initialScrollTop + anchorScreenY - pageStackTopInScrollContent;
-      const zoomRatio = nextZoomLevel / Math.max(touchGesture.initialZoomLevel, 0.01);
-      targetScrollTop = Math.max(
-        0,
-        pageStackTopInScrollContent + anchorInStack * zoomRatio - anchorScreenY
-      );
-      targetScrollLeft = viewport.scrollLeft; // keep horizontal position
+      // User requirement: during pinch on the paper, the paper must NOT scroll at all.
+      // Freeze both scroll positions to whatever they were when the gesture started.
+      targetScrollLeft = touchGesture.initialScrollLeft;
+      targetScrollTop = touchGesture.initialScrollTop;
     } else {
       // Stable distance → pan: move scroll by how much the center moved.
       targetScrollLeft = touchGesture.lastScrollLeft + touchGesture.lastCenterX - center.x;
