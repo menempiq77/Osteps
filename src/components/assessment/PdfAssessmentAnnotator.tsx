@@ -285,7 +285,7 @@ const EXAM_EXIT_REASON_MAX_LENGTH = 500;
 const MIN_ZOOM_LEVEL = 0.5;
 const MAX_ZOOM_LEVEL = 2;
 const ZOOM_STEP = 0.1;
-const TOUCH_PINCH_DISTANCE_THRESHOLD_PX = 2;
+const TOUCH_PINCH_DISTANCE_THRESHOLD_PX = 0.5;
 const MIN_TEXT_FONT_SIZE = 12;
 const MAX_TEXT_FONT_SIZE = 36;
 
@@ -1067,6 +1067,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     nextZoomLevel: number;
     targetScrollTop: number;
     targetScrollLeft: number;
+    lockScrollPosition?: boolean;
   } | null>(null);
   const annotationCanvasRefs = useRef<Record<number, HTMLCanvasElement | null>>({});
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1276,6 +1277,21 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     if (touchGestureRef.current) {
       touchGestureRef.current.lastScrollLeft = clampedScrollLeft;
       touchGestureRef.current.lastScrollTop = clampedScrollTop;
+    }
+
+    if (pending.lockScrollPosition && typeof window !== "undefined") {
+      const restoreLockedScroll = () => {
+        pending.scrollElement.scrollTop = clampedScrollTop;
+        pending.pageStack.scrollLeft = clampedScrollLeft;
+        if (touchGestureRef.current) {
+          touchGestureRef.current.lastScrollLeft = clampedScrollLeft;
+          touchGestureRef.current.lastScrollTop = clampedScrollTop;
+        }
+      };
+      window.requestAnimationFrame(() => {
+        restoreLockedScroll();
+        window.requestAnimationFrame(restoreLockedScroll);
+      });
     }
   }, [zoomLevel]);
 
@@ -1508,12 +1524,13 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       touchGesture.initialZoomLevel * (distance / touchGesture.initialDistance)
     );
     const isPinchFrame =
+      nextZoomLevel !== zoomLevel ||
       Math.abs(distance - touchGesture.lastDistance) >= TOUCH_PINCH_DISTANCE_THRESHOLD_PX;
     const targetScrollLeft = isPinchFrame
-      ? touchGesture.lastScrollLeft
+      ? viewport.scrollLeft
       : touchGesture.lastScrollLeft + touchGesture.lastCenterX - center.x;
     const targetScrollTop = isPinchFrame
-      ? touchGesture.lastScrollTop
+      ? scrollElement.scrollTop
       : touchGesture.lastScrollTop + touchGesture.lastCenterY - center.y;
 
     touchGesture.lastDistance = distance;
@@ -1541,6 +1558,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       nextZoomLevel,
       targetScrollLeft,
       targetScrollTop,
+      lockScrollPosition: isPinchFrame,
     };
 
     setZoomLevel((current) => (current === nextZoomLevel ? current : nextZoomLevel));
@@ -5134,7 +5152,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
           </div>
         )}
 
-        <div ref={pagesViewportRef} className="space-y-6 overflow-x-auto pb-10" style={{ touchAction: "pan-x pan-y", overflowAnchor: "none" }}>
+        <div ref={pagesViewportRef} className="space-y-6 overflow-x-auto pb-10" style={{ touchAction: "none", overflowAnchor: "none" }}>
           {(pages.length > 0 ? pages : [{ pageNumber: 1, width: 900, height: 1200 }]).map((page) => (
             <div key={page.pageNumber} className="mx-auto w-fit rounded-lg bg-white p-3 shadow" style={{ overflowAnchor: "none" }}>
               <div className="mb-2 text-xs font-medium text-gray-500">Page {page.pageNumber}</div>
@@ -5173,10 +5191,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                     data-page-number={page.pageNumber}
                     className="absolute inset-0"
                     style={{
-                      touchAction:
-                        editable && (tool === "pen" || tool === "highlighter" || tool === "eraser")
-                          ? "none"
-                          : "pan-x pan-y",
+                      touchAction: "none",
                       userSelect: "none",
                       WebkitUserSelect: "none",
                       cursor: !editable
