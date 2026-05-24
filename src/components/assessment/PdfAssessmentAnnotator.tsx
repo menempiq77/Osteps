@@ -1276,34 +1276,50 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       const pageStack = pagesViewportRef.current;
       if (!scrollElement || !pageStack) return;
 
-      const lockedScrollTop = scrollElement.scrollTop;
-      const lockedScrollLeft = pageStack.scrollLeft;
-      const restoreLockedScroll = () => {
-        scrollElement.scrollTop = lockedScrollTop;
-        pageStack.scrollLeft = lockedScrollLeft;
-      };
-
       const currentZoomLevel = zoomLevelRef.current;
       const zoomDelta = Math.max(-ZOOM_STEP, Math.min(ZOOM_STEP, -event.deltaY * 0.002));
       const nextZoomLevel = clampZoomLevel(currentZoomLevel + zoomDelta);
-
-      restoreLockedScroll();
       if (nextZoomLevel === currentZoomLevel) return;
+
+      const isDocumentScroll =
+        typeof document !== "undefined" &&
+        (scrollElement === document.scrollingElement ||
+          scrollElement === document.documentElement ||
+          scrollElement === document.body);
+      const scrollViewportTop = isDocumentScroll ? 0 : scrollElement.getBoundingClientRect().top;
+      const stackRect = pageStack.getBoundingClientRect();
+      const pageStackTopInScrollContent =
+        stackRect.top - scrollViewportTop + scrollElement.scrollTop;
+      const anchorYInViewport = event.clientY - scrollViewportTop;
+      const anchorYInStack =
+        scrollElement.scrollTop + anchorYInViewport - pageStackTopInScrollContent;
+      const anchorXInViewport = event.clientX - stackRect.left;
+      const anchorXInStack = pageStack.scrollLeft + anchorXInViewport;
+      const zoomRatio = nextZoomLevel / Math.max(currentZoomLevel, 0.01);
+
+      const targetScrollTop =
+        pageStackTopInScrollContent + anchorYInStack * zoomRatio - anchorYInViewport;
+      const targetScrollLeft = anchorXInStack * zoomRatio - anchorXInViewport;
+
+      const restoreAnchoredScroll = () => {
+        scrollElement.scrollTop = Math.max(0, targetScrollTop);
+        pageStack.scrollLeft = Math.max(0, targetScrollLeft);
+      };
 
       zoomLevelRef.current = nextZoomLevel;
       pendingZoomScrollRef.current = {
         scrollElement,
         pageStack,
         nextZoomLevel,
-        targetScrollTop: lockedScrollTop,
-        targetScrollLeft: lockedScrollLeft,
+        targetScrollTop,
+        targetScrollLeft,
         lockScrollPosition: true,
       };
       setZoomLevel(nextZoomLevel);
 
       window.requestAnimationFrame(() => {
-        restoreLockedScroll();
-        window.requestAnimationFrame(restoreLockedScroll);
+        restoreAnchoredScroll();
+        window.requestAnimationFrame(restoreAnchoredScroll);
       });
     };
 
