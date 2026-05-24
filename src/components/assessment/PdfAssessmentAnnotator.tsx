@@ -188,6 +188,11 @@ type TouchGestureState = {
   initialCenterY: number;
   initialScrollLeft: number;
   initialScrollTop: number;
+  lastDistance: number;
+  lastCenterX: number;
+  lastCenterY: number;
+  lastScrollLeft: number;
+  lastScrollTop: number;
 };
 
 type PendingTouchPageAction = {
@@ -280,6 +285,7 @@ const EXAM_EXIT_REASON_MAX_LENGTH = 500;
 const MIN_ZOOM_LEVEL = 0.5;
 const MAX_ZOOM_LEVEL = 2;
 const ZOOM_STEP = 0.1;
+const TOUCH_PINCH_DISTANCE_THRESHOLD_PX = 2;
 const MIN_TEXT_FONT_SIZE = 12;
 const MAX_TEXT_FONT_SIZE = 36;
 
@@ -1251,19 +1257,26 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       0,
       pending.scrollElement.scrollHeight - pending.scrollElement.clientHeight
     );
-    pending.scrollElement.scrollTop = Math.min(
+    const clampedScrollTop = Math.min(
       Math.max(pending.targetScrollTop, 0),
       maxScrollTop
     );
+    pending.scrollElement.scrollTop = clampedScrollTop;
 
     const maxScrollLeft = Math.max(
       0,
       pending.pageStack.scrollWidth - pending.pageStack.clientWidth
     );
-    pending.pageStack.scrollLeft = Math.min(
+    const clampedScrollLeft = Math.min(
       Math.max(pending.targetScrollLeft, 0),
       maxScrollLeft
     );
+    pending.pageStack.scrollLeft = clampedScrollLeft;
+
+    if (touchGestureRef.current) {
+      touchGestureRef.current.lastScrollLeft = clampedScrollLeft;
+      touchGestureRef.current.lastScrollTop = clampedScrollTop;
+    }
   }, [zoomLevel]);
 
   useEffect(() => {
@@ -1494,14 +1507,30 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     const nextZoomLevel = clampZoomLevel(
       touchGesture.initialZoomLevel * (distance / touchGesture.initialDistance)
     );
-    const targetScrollLeft = touchGesture.initialScrollLeft + touchGesture.initialCenterX - center.x;
-    const targetScrollTop = touchGesture.initialScrollTop + touchGesture.initialCenterY - center.y;
+    const isPinchFrame =
+      Math.abs(distance - touchGesture.lastDistance) >= TOUCH_PINCH_DISTANCE_THRESHOLD_PX;
+    const targetScrollLeft = isPinchFrame
+      ? touchGesture.lastScrollLeft
+      : touchGesture.lastScrollLeft + touchGesture.lastCenterX - center.x;
+    const targetScrollTop = isPinchFrame
+      ? touchGesture.lastScrollTop
+      : touchGesture.lastScrollTop + touchGesture.lastCenterY - center.y;
+
+    touchGesture.lastDistance = distance;
+    touchGesture.lastCenterX = center.x;
+    touchGesture.lastCenterY = center.y;
+    touchGesture.lastScrollLeft = targetScrollLeft;
+    touchGesture.lastScrollTop = targetScrollTop;
 
     if (nextZoomLevel === zoomLevel) {
       const maxScrollLeft = Math.max(0, viewport.scrollWidth - viewport.clientWidth);
       const maxScrollTop = Math.max(0, scrollElement.scrollHeight - scrollElement.clientHeight);
-      viewport.scrollLeft = Math.min(Math.max(targetScrollLeft, 0), maxScrollLeft);
-      scrollElement.scrollTop = Math.min(Math.max(targetScrollTop, 0), maxScrollTop);
+      const clampedScrollLeft = Math.min(Math.max(targetScrollLeft, 0), maxScrollLeft);
+      const clampedScrollTop = Math.min(Math.max(targetScrollTop, 0), maxScrollTop);
+      viewport.scrollLeft = clampedScrollLeft;
+      scrollElement.scrollTop = clampedScrollTop;
+      touchGesture.lastScrollLeft = clampedScrollLeft;
+      touchGesture.lastScrollTop = clampedScrollTop;
       pendingZoomScrollRef.current = null;
       return;
     }
@@ -1526,13 +1555,19 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     if (points.length < 2) return;
 
     const center = getTouchGestureCenter(points);
+    const initialDistance = Math.max(getTouchGestureDistance(points), 1);
     touchGestureRef.current = {
-      initialDistance: Math.max(getTouchGestureDistance(points), 1),
+      initialDistance,
       initialZoomLevel: zoomLevel,
       initialCenterX: center.x,
       initialCenterY: center.y,
       initialScrollLeft: viewport.scrollLeft,
       initialScrollTop: scrollElement.scrollTop,
+      lastDistance: initialDistance,
+      lastCenterX: center.x,
+      lastCenterY: center.y,
+      lastScrollLeft: viewport.scrollLeft,
+      lastScrollTop: scrollElement.scrollTop,
     };
     suppressTouchClickRef.current = true;
     clearTransientPointerState();
