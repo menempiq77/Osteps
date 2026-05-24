@@ -1538,12 +1538,27 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     let targetScrollLeft: number;
     let targetScrollTop: number;
     if (isPinchFrame) {
-      // User requirement: during pinch on the paper, the paper must NOT scroll at all.
-      // Freeze both scroll positions to whatever they were when the gesture started.
-      targetScrollLeft = touchGesture.initialScrollLeft;
-      targetScrollTop = touchGesture.initialScrollTop;
+      // Keep the initial pinch midpoint locked to the same screen position as
+      // zoom changes. Recompute the page-stack top in document coordinates on
+      // EVERY frame so we always use the current rendered layout (gesture-start
+      // snapshot can become stale once setZoomLevel has fired one frame).
+      const isDocScroll =
+        typeof document !== "undefined" &&
+        (scrollElement === document.scrollingElement || scrollElement === document.documentElement);
+      const scrollVPTop = isDocScroll ? 0 : scrollElement.getBoundingClientRect().top;
+      const stackTopNow =
+        viewport.getBoundingClientRect().top - scrollVPTop + scrollElement.scrollTop;
+      const anchorScreenY = touchGesture.initialCenterY - scrollVPTop;
+      // Anchor position in the page stack at the gesture's initial zoom.
+      const anchorInStackInitial =
+        touchGesture.initialScrollTop +
+        anchorScreenY -
+        touchGesture.pageStackTopInScrollContent;
+      const zoomRatio = nextZoomLevel / Math.max(touchGesture.initialZoomLevel, 0.01);
+      targetScrollTop = Math.max(0, stackTopNow + anchorInStackInitial * zoomRatio - anchorScreenY);
+      targetScrollLeft = viewport.scrollLeft;
     } else {
-      // Stable distance → pan: move scroll by how much the center moved.
+      // Stable distance → pan: move scroll by how much the fingers moved.
       targetScrollLeft = touchGesture.lastScrollLeft + touchGesture.lastCenterX - center.x;
       targetScrollTop = touchGesture.lastScrollTop + touchGesture.lastCenterY - center.y;
     }
