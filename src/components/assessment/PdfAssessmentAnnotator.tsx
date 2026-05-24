@@ -188,6 +188,11 @@ type TouchGestureState = {
   initialCenterY: number;
   initialScrollLeft: number;
   initialScrollTop: number;
+  // Page stack top in scroll-content coordinates (doc Y), captured once at gesture start.
+  // Used for center-anchored zoom so the pinch midpoint stays under the fingers.
+  pageStackTopInScrollContent: number;
+  // Y offset of the scroll container's top edge in screen coordinates (0 for document scroll).
+  scrollViewportTop: number;
   lastDistance: number;
   lastCenterX: number;
   lastCenterY: number;
@@ -1529,12 +1534,29 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     const isPinchFrame =
       nextZoomLevel !== zoomLevel ||
       Math.abs(distance - touchGesture.lastDistance) >= TOUCH_PINCH_DISTANCE_THRESHOLD_PX;
-    const targetScrollLeft = isPinchFrame
-      ? viewport.scrollLeft
-      : touchGesture.lastScrollLeft + touchGesture.lastCenterX - center.x;
-    const targetScrollTop = isPinchFrame
-      ? scrollElement.scrollTop
-      : touchGesture.lastScrollTop + touchGesture.lastCenterY - center.y;
+
+    let targetScrollLeft: number;
+    let targetScrollTop: number;
+    if (isPinchFrame) {
+      // Center-anchored zoom: compute the scrollTop that keeps the initial pinch
+      // midpoint under the same screen position after the content grows/shrinks.
+      //   newScrollTop = stackTop + anchorInStack * zoomRatio - anchorScreenY
+      // where anchorInStack = initialScrollTop + anchorScreenY - stackTop
+      const { initialScrollTop, initialCenterY, pageStackTopInScrollContent, scrollViewportTop } =
+        touchGesture;
+      const anchorScreenY = initialCenterY - scrollViewportTop;
+      const anchorInStack = initialScrollTop + anchorScreenY - pageStackTopInScrollContent;
+      const zoomRatio = nextZoomLevel / Math.max(touchGesture.initialZoomLevel, 0.01);
+      targetScrollTop = Math.max(
+        0,
+        pageStackTopInScrollContent + anchorInStack * zoomRatio - anchorScreenY
+      );
+      targetScrollLeft = viewport.scrollLeft; // keep horizontal position
+    } else {
+      // Stable distance → pan: move scroll by how much the center moved.
+      targetScrollLeft = touchGesture.lastScrollLeft + touchGesture.lastCenterX - center.x;
+      targetScrollTop = touchGesture.lastScrollTop + touchGesture.lastCenterY - center.y;
+    }
 
     touchGesture.lastDistance = distance;
     touchGesture.lastCenterX = center.x;
@@ -1577,6 +1599,13 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
     const center = getTouchGestureCenter(points);
     const initialDistance = Math.max(getTouchGestureDistance(points), 1);
+    // Compute scroll viewport offset and page stack document-Y for center-anchored zoom.
+    const isDocScroll =
+      typeof document !== "undefined" &&
+      (scrollElement === document.scrollingElement || scrollElement === document.documentElement);
+    const scrollVPTop = isDocScroll ? 0 : scrollElement.getBoundingClientRect().top;
+    const stackTop =
+      viewport.getBoundingClientRect().top - scrollVPTop + scrollElement.scrollTop;
     touchGestureRef.current = {
       initialDistance,
       initialZoomLevel: zoomLevel,
@@ -1584,6 +1613,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       initialCenterY: center.y,
       initialScrollLeft: viewport.scrollLeft,
       initialScrollTop: scrollElement.scrollTop,
+      pageStackTopInScrollContent: stackTop,
+      scrollViewportTop: scrollVPTop,
       lastDistance: initialDistance,
       lastCenterX: center.x,
       lastCenterY: center.y,
