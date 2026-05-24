@@ -1648,6 +1648,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
     const isPaperTouchTarget = (target: EventTarget | null) =>
       target instanceof Element && Boolean(target.closest("[data-page-number]"));
+    const isPaperViewportTouchTarget = (target: EventTarget | null) => {
+      const viewport = pagesViewportRef.current;
+      return Boolean(viewport && target instanceof Node && viewport.contains(target));
+    };
 
     const handleTouchPointerDown = (event: PointerEvent) => {
       if (event.pointerType !== "touch") return;
@@ -1731,7 +1735,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     };
 
     const handleNativeTouchStart = (event: TouchEvent) => {
-      if (isPaperTouchTarget(event.target)) return;
+      if (!isPaperViewportTouchTarget(event.target)) return;
       if (event.touches.length < 2) return;
 
       event.preventDefault();
@@ -1747,7 +1751,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     };
 
     const handleNativeTouchMove = (event: TouchEvent) => {
-      if (isPaperTouchTarget(event.target)) return;
+      if (!isPaperViewportTouchTarget(event.target)) return;
       if (!touchGestureRef.current && event.touches.length < 2) return;
 
       event.preventDefault();
@@ -1763,7 +1767,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     };
 
     const handleNativeTouchEnd = (event: TouchEvent) => {
-      if (isPaperTouchTarget(event.target)) return;
+      if (!isPaperViewportTouchTarget(event.target)) return;
       if (!touchGestureRef.current && !suppressTouchClickRef.current) return;
 
       event.preventDefault();
