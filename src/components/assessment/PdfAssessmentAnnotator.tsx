@@ -1059,6 +1059,9 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const touchPointersRef = useRef<Map<number, TrackedTouchPointer>>(new Map());
   const touchGestureRef = useRef<TouchGestureState | null>(null);
   const touchGestureFrameRef = useRef<number | null>(null);
+  // Stable refs so native handlers are never re-registered when zoomLevel changes
+  const syncTouchGestureStableRef = useRef<() => void>(() => {});
+  const startTouchGestureStableRef = useRef<() => void>(() => {});
   const pendingTouchPageActionRef = useRef<PendingTouchPageAction | null>(null);
   const suppressTouchClickRef = useRef(false);
   const pendingZoomScrollRef = useRef<{
@@ -1592,6 +1595,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     syncTouchGesture();
   }, [clearTransientPointerState, getZoomScrollElement, syncTouchGesture, zoomLevel]);
 
+  // Keep stable refs in sync with latest callbacks
+  useEffect(() => { syncTouchGestureStableRef.current = syncTouchGesture; }, [syncTouchGesture]);
+  useEffect(() => { startTouchGestureStableRef.current = startTouchGesture; }, [startTouchGesture]);
+
   const syncNativeTouchList = useCallback((touches: TouchList) => {
     touchPointersRef.current.clear();
     for (let index = 0; index < Math.min(touches.length, 2); index += 1) {
@@ -1695,6 +1702,20 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     [cancelTouchGestureFrame, syncNativeTouchList]
   );
 
+  // Disable browser scroll anchoring while the annotator is mounted so that
+  // zoom-induced content-height changes do not auto-adjust document.scrollTop.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const prevDoc = document.documentElement.style.overflowAnchor;
+    const prevBody = document.body.style.overflowAnchor;
+    document.documentElement.style.overflowAnchor = "none";
+    document.body.style.overflowAnchor = "none";
+    return () => {
+      document.documentElement.style.overflowAnchor = prevDoc;
+      document.body.style.overflowAnchor = prevBody;
+    };
+  }, []);
+
   useEffect(() => {
     const container = examContainerRef.current;
     if (!container || typeof window === "undefined") return;
@@ -1788,40 +1809,49 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     };
 
     const handleNativeTouchStart = (event: TouchEvent) => {
-      if (!isPaperViewportTouchTarget(event.target)) return;
       if (event.touches.length < 2) return;
+      // Handle if target is on the paper OR we already have an active gesture
+      if (!isPaperViewportTouchTarget(event.target) && !touchGestureRef.current) return;
 
       event.preventDefault();
       event.stopPropagation();
       syncNativeTouches(event.touches);
 
       if (!touchGestureRef.current) {
-        startTouchGesture();
+        startTouchGestureStableRef.current();
         return;
       }
 
-      syncTouchGesture();
+      syncTouchGestureStableRef.current();
     };
 
     const handleNativeTouchMove = (event: TouchEvent) => {
+      // If a gesture is already active, ALWAYS prevent scroll regardless of target
+      if (touchGestureRef.current) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.touches.length >= 2) {
+          syncNativeTouches(event.touches);
+          syncTouchGestureStableRef.current();
+        }
+        return;
+      }
+
+      // For starting a new gesture, require a paper viewport target
       if (!isPaperViewportTouchTarget(event.target)) return;
-      if (!touchGestureRef.current && event.touches.length < 2) return;
+      if (event.touches.length < 2) return;
 
       event.preventDefault();
       event.stopPropagation();
       syncNativeTouches(event.touches);
-
-      if (!touchGestureRef.current && touchPointersRef.current.size >= 2) {
-        startTouchGesture();
-        return;
-      }
-
-      syncTouchGesture();
+      startTouchGestureStableRef.current();
     };
 
     const handleNativeTouchEnd = (event: TouchEvent) => {
-      if (!isPaperViewportTouchTarget(event.target)) return;
-      if (!touchGestureRef.current && !suppressTouchClickRef.current) return;
+      // If active gesture or suppress-click: handle regardless of target
+      if (!touchGestureRef.current && !suppressTouchClickRef.current) {
+        if (!isPaperViewportTouchTarget(event.target)) return;
+      }
 
       event.preventDefault();
       event.stopPropagation();
@@ -1886,7 +1916,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       touchGestureRef.current = null;
       cancelTouchGestureFrame();
     };
-  }, [cancelTouchGestureFrame, startTouchGesture, syncTouchGesture]);
+  }, [cancelTouchGestureFrame]);
 
   const renderErrorMessage =
     !renderError || canOpenOriginalFile
