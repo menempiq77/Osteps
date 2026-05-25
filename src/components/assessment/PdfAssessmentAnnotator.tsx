@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
 import { Alert, Button, Input, InputNumber, Modal, message, Select, Spin, Tag } from "antd";
 import {
   AlignCenter,
@@ -1270,7 +1270,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         pendingZoomScrollRef.current = null;
       }
 
-      setZoomLevel(nextZoomLevel);
+      zoomLevelRef.current = nextZoomLevel;
+      flushSync(() => setZoomLevel(nextZoomLevel));
     },
     [getZoomScrollElement, zoomLevel]
   );
@@ -1360,7 +1361,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         anchorRatioX,
         anchorRatioY,
       };
-      setZoomLevel(nextZoomLevel);
+      flushSync(() => setZoomLevel(nextZoomLevel));
     };
 
     viewport.addEventListener("wheel", handleWheelPinch, {
@@ -1671,11 +1672,12 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
     const center = getTouchGestureCenter(points);
     const distance = Math.max(getTouchGestureDistance(points), 1);
+    const currentZoomLevel = zoomLevelRef.current;
     const nextZoomLevel = clampZoomLevel(
       touchGesture.initialZoomLevel * (distance / touchGesture.initialDistance)
     );
     const isPinchFrame =
-      nextZoomLevel !== zoomLevel ||
+      nextZoomLevel !== currentZoomLevel ||
       Math.abs(distance - touchGesture.lastDistance) >= TOUCH_PINCH_DISTANCE_THRESHOLD_PX;
 
     let targetScrollLeft: number;
@@ -1720,7 +1722,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     touchGesture.lastScrollLeft = targetScrollLeft;
     touchGesture.lastScrollTop = targetScrollTop;
 
-    if (nextZoomLevel === zoomLevel) {
+    if (nextZoomLevel === currentZoomLevel) {
       const maxScrollLeft = Math.max(0, viewport.scrollWidth - viewport.clientWidth);
       const maxScrollTop = Math.max(0, scrollElement.scrollHeight - scrollElement.clientHeight);
       const clampedScrollLeft = Math.min(Math.max(targetScrollLeft, 0), maxScrollLeft);
@@ -1754,13 +1756,15 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       anchorRatioY: isPinchFrame ? touchGesture.anchorRatioY : undefined,
     };
 
-    setZoomLevel((current) => (current === nextZoomLevel ? current : nextZoomLevel));
-  }, [getZoomScrollElement, zoomLevel]);
+    zoomLevelRef.current = nextZoomLevel;
+    flushSync(() => setZoomLevel((current) => (current === nextZoomLevel ? current : nextZoomLevel)));
+  }, [getZoomScrollElement]);
 
   const startTouchGesture = useCallback(() => {
     const viewport = pagesViewportRef.current;
     const scrollElement = getZoomScrollElement();
-    if (!viewport || !scrollElement || zoomLevel <= 0) return;
+    const currentZoomLevel = zoomLevelRef.current;
+    if (!viewport || !scrollElement || currentZoomLevel <= 0) return;
 
     const points = getTrackedTouchPoints(touchPointersRef.current);
     if (points.length < 2) return;
@@ -1782,7 +1786,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     const anchorPageRect = anchorPage?.getBoundingClientRect();
     touchGestureRef.current = {
       initialDistance,
-      initialZoomLevel: zoomLevel,
+      initialZoomLevel: currentZoomLevel,
       initialCenterX: center.x,
       initialCenterY: center.y,
       initialScrollLeft: viewport.scrollLeft,
@@ -1807,11 +1811,11 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     suppressTouchClickRef.current = true;
     clearTransientPointerState();
     syncTouchGesture();
-  }, [clearTransientPointerState, getZoomScrollElement, syncTouchGesture, zoomLevel]);
+  }, [clearTransientPointerState, getZoomScrollElement, syncTouchGesture]);
 
   // Keep stable refs in sync with latest callbacks
-  useEffect(() => { syncTouchGestureStableRef.current = syncTouchGesture; }, [syncTouchGesture]);
-  useEffect(() => { startTouchGestureStableRef.current = startTouchGesture; }, [startTouchGesture]);
+  useLayoutEffect(() => { syncTouchGestureStableRef.current = syncTouchGesture; }, [syncTouchGesture]);
+  useLayoutEffect(() => { startTouchGestureStableRef.current = startTouchGesture; }, [startTouchGesture]);
 
   const syncNativeTouchList = useCallback((touches: TouchList) => {
     touchPointersRef.current.clear();
@@ -4831,7 +4835,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         className="fixed left-0 right-0 top-0 z-[90] border-b bg-white/95 px-4 py-3 shadow-sm backdrop-blur"
         style={toolbarChromeStyle}
       >
-        <div className={shouldEnforceExamScreen ? "flex flex-col gap-4" : "mx-auto flex max-w-7xl flex-col gap-4"}>
+        <div className={shouldEnforceExamScreen ? "flex flex-col gap-4" : "flex w-full flex-col gap-4"}>
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-lg font-semibold text-gray-900">{title}</h1>
             {role === "teacher" && (
@@ -5135,7 +5139,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
       <div
         ref={viewerScrollRef}
-        className={shouldEnforceExamScreen ? "h-[calc(100vh-85px)] overflow-auto p-4" : "mx-auto max-w-7xl p-4"}
+        className={shouldEnforceExamScreen ? "h-[calc(100vh-85px)] overflow-auto p-4" : "w-full p-4"}
         style={{ paddingTop: toolbarHeight ? toolbarHeight + 16 : undefined, touchAction: "pan-x pan-y", overflowAnchor: "none" }}
       >
         {documentFileMismatch ? (
@@ -5358,7 +5362,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
           </div>
         )}
 
-        <div ref={pagesViewportRef} className="space-y-6 overflow-x-auto pb-10" style={{ touchAction: "pan-x pan-y", overflowAnchor: "none" }}>
+        <div ref={pagesViewportRef} className="space-y-6 overflow-x-auto pb-10" style={{ touchAction: "pan-x pan-y", overflowAnchor: "none", overscrollBehavior: "contain" }}>
           {(pages.length > 0 ? pages : [{ pageNumber: 1, width: 900, height: 1200 }]).map((page) => (
             <div key={page.pageNumber} className="mx-auto w-fit rounded-lg bg-white p-3 shadow" style={{ overflowAnchor: "none" }}>
               <div className="mb-2 text-xs font-medium text-gray-500">Page {page.pageNumber}</div>
