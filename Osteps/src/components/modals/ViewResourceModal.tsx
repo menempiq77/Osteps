@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useRef, useState } from "react";
-import { Modal, Button, Divider, Tag, Typography } from "antd";
+import { Modal, Button, Divider, Spin, Tag, Typography } from "antd";
 import { ExpandOutlined, CompressOutlined, LinkOutlined } from "@ant-design/icons";
 import { IMG_BASE_URL } from "@/lib/config";
 
@@ -161,6 +161,20 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
     return `${window.location.origin}/api/resource-proxy?url=${encodeURIComponent(normalizedUrl)}`;
   };
 
+  const isProxiedPreviewUrl = (url: string) => {
+    if (!url || typeof window === "undefined") return false;
+
+    try {
+      const resolvedUrl = new URL(url, window.location.origin);
+      return (
+        resolvedUrl.origin === window.location.origin &&
+        resolvedUrl.pathname === "/api/resource-proxy"
+      );
+    } catch {
+      return false;
+    }
+  };
+
   const getVideoEmbedUrl = (url: string) => {
     const youTubeMatch = url.match(
       /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{6,})/i
@@ -202,19 +216,24 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
   }, [open, currentItem?.url]);
 
   useEffect(() => {
-    if (!open || !currentItem?.url) return;
+    if (!open || !currentItem?.url || iframeLoaded) return;
     const normalizedType = (currentItem.type || "").toLowerCase();
     const shouldCheckEmbed = !["audio", "video"].includes(normalizedType);
     if (!shouldCheckEmbed) return;
 
+    const proxiedPreview = isProxiedPreviewUrl(mediaUrl);
+    const timeoutMs = proxiedPreview ? 12000 : 6000;
+
     const timer = window.setTimeout(() => {
-      if (!iframeLoaded) {
+      if (iframeLoaded) return;
+
+      if (hasBrowserBlockedPreview() || !proxiedPreview) {
         setEmbedBlocked(true);
       }
-    }, 2800);
+    }, timeoutMs);
 
     return () => window.clearTimeout(timer);
-  }, [open, currentItem?.url, currentItem?.type, iframeLoaded]);
+  }, [open, currentItem?.url, currentItem?.type, iframeLoaded, mediaUrl]);
 
   useEffect(() => {
     if (!open || !iframeLoaded || !currentItem?.url || embedBlocked) return;
@@ -346,29 +365,51 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
             </Button>
           </div>
         ) : (
-          <iframe
-            ref={iframeRef}
-            key={mediaUrl || currentItem.url || "resource-frame"}
-            src={mediaUrl || currentItem.url}
-            title={currentItem.title}
-            onLoad={() => {
-              setIframeLoaded(true);
-              setEmbedBlocked(false);
+          <div style={{ position: "relative" }}>
+            {!iframeLoaded && (
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  zIndex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexDirection: "column",
+                  gap: "12px",
+                  background: "#fff",
+                  borderRadius: isFullscreen ? "0" : "8px",
+                }}
+              >
+                <Spin size="large" />
+                <Text type="secondary">Loading preview...</Text>
+              </div>
+            )}
+            <iframe
+              ref={iframeRef}
+              key={mediaUrl || currentItem.url || "resource-frame"}
+              src={mediaUrl || currentItem.url}
+              title={currentItem.title}
+              onLoad={() => {
+                setIframeLoaded(true);
+                setEmbedBlocked(false);
 
-              window.setTimeout(() => {
-                if (hasBrowserBlockedPreview()) {
-                  setEmbedBlocked(true);
-                }
-              }, 120);
-            }}
-            onError={() => setEmbedBlocked(true)}
-            style={{
-              width: "100%",
-              height: playerHeight,
-              border: "none",
-              borderRadius: isFullscreen ? "0" : "8px",
-            }}
-          />
+                window.setTimeout(() => {
+                  if (hasBrowserBlockedPreview()) {
+                    setEmbedBlocked(true);
+                  }
+                }, 120);
+              }}
+              onError={() => setEmbedBlocked(true)}
+              style={{
+                width: "100%",
+                height: playerHeight,
+                border: "none",
+                borderRadius: isFullscreen ? "0" : "8px",
+                opacity: iframeLoaded ? 1 : 0,
+              }}
+            />
+          </div>
         )}
         <div style={{ marginTop: "10px", display: isFullscreen ? "none" : "block" }}>
           <Text type="secondary">If preview is blocked by the provider, use Open in Browser.</Text>

@@ -201,9 +201,7 @@ export default function DashboardLayout({
     /^\/dashboard\/s\/\d+\/subject-cards$/.test(pathname);
   const isStandaloneTeacherRoute =
     pathname === "/dashboard/teachers" || pathname.startsWith("/dashboard/teachers/");
-  const isLibraryRoute =
-    unscopedPathname === "/dashboard/library" ||
-    unscopedPathname.startsWith("/dashboard/library/");
+  const isLibraryRoute = unscopedPathname === "/dashboard/library";
   const isLeaderboardRoute =
     unscopedPathname === "/dashboard/leaderboard" ||
     unscopedPathname === "/dashboard/leaderboard/" ||
@@ -222,7 +220,6 @@ export default function DashboardLayout({
   const isMindUpgradeRoute = unscopedPathname === "/dashboard/mind-upgrade" || unscopedPathname.startsWith("/dashboard/mind-upgrade/");
   const isAnnouncementsRoute = unscopedPathname === "/dashboard/announcements";
   const isAssessmentDocumentRoute = unscopedPathname === "/dashboard/assessment-document";
-  const shouldDisableAnimatedRouteShell = isAssessmentDocumentRoute;
   const isStudentExamAssessmentRoute =
     isAssessmentDocumentRoute &&
     searchParams.get("role") !== "teacher" &&
@@ -443,9 +440,7 @@ export default function DashboardLayout({
         <div className={(isImmersiveLessonGroupRoute ? "h-screen overflow-hidden" : "flex-1 h-screen overflow-y-auto") + " relative"}>
           <div
             className={`dashboard-route-overlay ${
-              !shouldDisableAnimatedRouteShell && isRouteTransitioning
-                ? "dashboard-route-overlay-active"
-                : ""
+              isRouteTransitioning ? "dashboard-route-overlay-active" : ""
             }`}
           />
           <div
@@ -512,13 +507,9 @@ export default function DashboardLayout({
 
             <div
               key={pathname}
-              className={
-                shouldDisableAnimatedRouteShell
-                  ? ""
-                  : `dashboard-route-transition ${
-                      isRouteTransitioning ? "dashboard-route-transition-active" : ""
-                    }`
-              }
+              className={`dashboard-route-transition ${
+                isRouteTransitioning ? "dashboard-route-transition-active" : ""
+              }`}
             >
               {children}
             </div>

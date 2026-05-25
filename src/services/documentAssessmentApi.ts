@@ -6,7 +6,6 @@ export type Point = { x: number; y: number };
 export type PenAnnotation = {
   id: string;
   type: "pen";
-  tool?: "pen" | "highlighter";
   page: number;
   color: string;
   width: number;
@@ -22,10 +21,6 @@ export type TextAnnotation = {
   text: string;
   color: string;
   fontSize: number;
-  width?: number;
-  fontWeight?: "normal" | "bold";
-  underline?: boolean;
-  textAlign?: "left" | "center" | "right";
 };
 
 export type AssessmentDocumentAnnotation = PenAnnotation | TextAnnotation;

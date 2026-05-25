@@ -563,7 +563,6 @@ const Sidebar = () => {
       className={`sidebar-shell h-screen bg-white/85 backdrop-blur-xl shadow-lg transition-all duration-300 ${
         isOpen ? "w-64" : "w-20"
       }`}
-      style={{ touchAction: "pan-x pan-y" }}
     >
       <div className="flex flex-col h-full">
         {/* Header with collapse button */}

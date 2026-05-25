@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Raleway } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./provider";
+import { FloatingCountdownTimer } from "@/components/common/FloatingCountdownTimer";
 
 const raleway = Raleway({
   variable: "--font-raleway",
@@ -29,6 +30,7 @@ export default function RootLayout({
     <html lang="en" className={`${raleway.variable}`}>
       <body className={`font-sans antialiased`} suppressHydrationWarning={true}>
         <Providers>{children}</Providers>
+        <FloatingCountdownTimer />
       </body>
     </html>
   );
