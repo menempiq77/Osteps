@@ -1079,6 +1079,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     nextZoomLevel: number;
     targetScrollTop: number;
     targetScrollLeft: number;
+    baseScrollTop?: number;
+    baseScrollLeft?: number;
     lockScrollPosition?: boolean;
     anchorPageNumber?: number;
     anchorClientX?: number;
@@ -1343,6 +1345,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         nextZoomLevel,
         targetScrollTop,
         targetScrollLeft,
+        baseScrollTop: lockedScrollTop,
+        baseScrollLeft: lockedScrollLeft,
         lockScrollPosition: true,
         anchorPageNumber: hasAnchorPage ? anchorPageNumber : undefined,
         anchorClientX: hasAnchorPage ? event.clientX : undefined,
@@ -1375,6 +1379,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
     let targetScrollTop = pending.targetScrollTop;
     let targetScrollLeft = pending.targetScrollLeft;
+    const baseScrollTop = pending.baseScrollTop ?? pending.scrollElement.scrollTop;
+    const baseScrollLeft = pending.baseScrollLeft ?? pending.pageStack.scrollLeft;
 
     if (
       pending.anchorPageNumber &&
@@ -1391,9 +1397,9 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         const currentAnchorClientX = pageRect.left + pageRect.width * pending.anchorRatioX;
         const currentAnchorClientY = pageRect.top + pageRect.height * pending.anchorRatioY;
         targetScrollTop =
-          pending.scrollElement.scrollTop + (currentAnchorClientY - pending.anchorClientY);
+          baseScrollTop + (currentAnchorClientY - pending.anchorClientY);
         targetScrollLeft =
-          pending.pageStack.scrollLeft + (currentAnchorClientX - pending.anchorClientX);
+          baseScrollLeft + (currentAnchorClientX - pending.anchorClientX);
       }
     }
 
@@ -1731,6 +1737,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       nextZoomLevel,
       targetScrollLeft,
       targetScrollTop,
+      baseScrollTop: scrollElement.scrollTop,
+      baseScrollLeft: viewport.scrollLeft,
       lockScrollPosition: isPinchFrame,
       anchorPageNumber: isPinchFrame ? touchGesture.anchorPageNumber : undefined,
       anchorClientX: isPinchFrame ? touchGesture.initialCenterX : undefined,
