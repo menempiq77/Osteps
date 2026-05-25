@@ -1291,14 +1291,51 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     if (!viewport || typeof window === "undefined") return;
 
     const handleWheelPinch = (event: WheelEvent) => {
-      if (!event.ctrlKey && !event.metaKey) return;
-
-      event.preventDefault();
-      event.stopPropagation();
-
       const scrollElement = getZoomScrollElement();
       const pageStack = pagesViewportRef.current;
       if (!scrollElement || !pageStack) return;
+
+      if (!event.ctrlKey && !event.metaKey) {
+        const verticalDelta = event.deltaY;
+        const horizontalDelta = event.shiftKey ? event.deltaY : event.deltaX;
+        let handled = false;
+
+        if (Math.abs(verticalDelta) > 0.1 && !event.shiftKey) {
+          const maxScrollTop = Math.max(
+            0,
+            scrollElement.scrollHeight - scrollElement.clientHeight
+          );
+          const nextScrollTop = Math.min(
+            Math.max(scrollElement.scrollTop + verticalDelta, 0),
+            maxScrollTop
+          );
+          if (nextScrollTop !== scrollElement.scrollTop) {
+            scrollElement.scrollTop = nextScrollTop;
+            handled = true;
+          }
+        }
+
+        if (Math.abs(horizontalDelta) > 0.1) {
+          const maxScrollLeft = Math.max(0, pageStack.scrollWidth - pageStack.clientWidth);
+          const nextScrollLeft = Math.min(
+            Math.max(pageStack.scrollLeft + horizontalDelta, 0),
+            maxScrollLeft
+          );
+          if (nextScrollLeft !== pageStack.scrollLeft) {
+            pageStack.scrollLeft = nextScrollLeft;
+            handled = true;
+          }
+        }
+
+        if (handled) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
 
       const currentZoomLevel = zoomLevelRef.current;
       const zoomDelta = Math.max(-ZOOM_STEP, Math.min(ZOOM_STEP, -event.deltaY * 0.002));
@@ -5353,7 +5390,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
           </div>
         )}
 
-        <div ref={pagesViewportRef} className="space-y-6 overflow-x-auto pb-10" style={{ touchAction: "none", overflowAnchor: "none", overscrollBehavior: "contain" }}>
+        <div ref={pagesViewportRef} className="space-y-6 overflow-x-auto pb-10" style={{ touchAction: "none", overflowAnchor: "none", overscrollBehaviorX: "contain", overscrollBehaviorY: "auto" }}>
           {(pages.length > 0 ? pages : [{ pageNumber: 1, width: 900, height: 1200 }]).map((page) => (
             <div key={page.pageNumber} className="mx-auto w-fit rounded-lg bg-white p-3 shadow" style={{ overflowAnchor: "none" }}>
               <div className="mb-2 text-xs font-medium text-gray-500">Page {page.pageNumber}</div>
