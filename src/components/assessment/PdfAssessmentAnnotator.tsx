@@ -193,6 +193,9 @@ type TouchGestureState = {
   pageStackTopInScrollContent: number;
   // Y offset of the scroll container's top edge in screen coordinates (0 for document scroll).
   scrollViewportTop: number;
+  anchorPageNumber?: number;
+  anchorRatioX?: number;
+  anchorRatioY?: number;
   lastDistance: number;
   lastCenterX: number;
   lastCenterY: number;
@@ -1670,25 +1673,33 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     let targetScrollLeft: number;
     let targetScrollTop: number;
     if (isPinchFrame) {
-      // Keep the initial pinch midpoint locked to the same screen position as
-      // zoom changes. Recompute the page-stack top in document coordinates on
-      // EVERY frame so we always use the current rendered layout (gesture-start
-      // snapshot can become stale once setZoomLevel has fired one frame).
-      const isDocScroll =
-        typeof document !== "undefined" &&
-        (scrollElement === document.scrollingElement || scrollElement === document.documentElement);
-      const scrollVPTop = isDocScroll ? 0 : scrollElement.getBoundingClientRect().top;
-      const stackTopNow =
-        viewport.getBoundingClientRect().top - scrollVPTop + scrollElement.scrollTop;
-      const anchorScreenY = touchGesture.initialCenterY - scrollVPTop;
-      // Anchor position in the page stack at the gesture's initial zoom.
-      const anchorInStackInitial =
-        touchGesture.initialScrollTop +
-        anchorScreenY -
-        touchGesture.pageStackTopInScrollContent;
-      const zoomRatio = nextZoomLevel / Math.max(touchGesture.initialZoomLevel, 0.01);
-      targetScrollTop = Math.max(0, stackTopNow + anchorInStackInitial * zoomRatio - anchorScreenY);
-      targetScrollLeft = viewport.scrollLeft;
+      if (
+        touchGesture.anchorPageNumber &&
+        typeof touchGesture.anchorRatioX === "number" &&
+        typeof touchGesture.anchorRatioY === "number"
+      ) {
+        // The page-local anchor is resolved in useLayoutEffect after zoom renders.
+        // Hold current scroll here and let the post-render correction keep the
+        // same page pixel visually fixed during the pinch.
+        targetScrollTop = scrollElement.scrollTop;
+        targetScrollLeft = viewport.scrollLeft;
+      } else {
+        // Fallback if we could not resolve a specific page shell under the gesture.
+        const isDocScroll =
+          typeof document !== "undefined" &&
+          (scrollElement === document.scrollingElement || scrollElement === document.documentElement);
+        const scrollVPTop = isDocScroll ? 0 : scrollElement.getBoundingClientRect().top;
+        const stackTopNow =
+          viewport.getBoundingClientRect().top - scrollVPTop + scrollElement.scrollTop;
+        const anchorScreenY = touchGesture.initialCenterY - scrollVPTop;
+        const anchorInStackInitial =
+          touchGesture.initialScrollTop +
+          anchorScreenY -
+          touchGesture.pageStackTopInScrollContent;
+        const zoomRatio = nextZoomLevel / Math.max(touchGesture.initialZoomLevel, 0.01);
+        targetScrollTop = Math.max(0, stackTopNow + anchorInStackInitial * zoomRatio - anchorScreenY);
+        targetScrollLeft = viewport.scrollLeft;
+      }
     } else {
       // Stable distance → pan: move scroll by how much the fingers moved.
       targetScrollLeft = touchGesture.lastScrollLeft + touchGesture.lastCenterX - center.x;
@@ -1721,6 +1732,11 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       targetScrollLeft,
       targetScrollTop,
       lockScrollPosition: isPinchFrame,
+      anchorPageNumber: isPinchFrame ? touchGesture.anchorPageNumber : undefined,
+      anchorClientX: isPinchFrame ? touchGesture.initialCenterX : undefined,
+      anchorClientY: isPinchFrame ? touchGesture.initialCenterY : undefined,
+      anchorRatioX: isPinchFrame ? touchGesture.anchorRatioX : undefined,
+      anchorRatioY: isPinchFrame ? touchGesture.anchorRatioY : undefined,
     };
 
     setZoomLevel((current) => (current === nextZoomLevel ? current : nextZoomLevel));
@@ -1743,6 +1759,12 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     const scrollVPTop = isDocScroll ? 0 : scrollElement.getBoundingClientRect().top;
     const stackTop =
       viewport.getBoundingClientRect().top - scrollVPTop + scrollElement.scrollTop;
+    const anchorPage =
+      typeof document !== "undefined"
+        ? document.elementFromPoint(center.x, center.y)?.closest<HTMLElement>("[data-page-shell]")
+        : null;
+    const anchorPageNumber = Number(anchorPage?.dataset.pageShell || 0);
+    const anchorPageRect = anchorPage?.getBoundingClientRect();
     touchGestureRef.current = {
       initialDistance,
       initialZoomLevel: zoomLevel,
@@ -1752,6 +1774,15 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       initialScrollTop: scrollElement.scrollTop,
       pageStackTopInScrollContent: stackTop,
       scrollViewportTop: scrollVPTop,
+      anchorPageNumber: Number.isFinite(anchorPageNumber) && anchorPageNumber > 0 ? anchorPageNumber : undefined,
+      anchorRatioX:
+        anchorPageRect
+          ? Math.min(Math.max((center.x - anchorPageRect.left) / Math.max(anchorPageRect.width, 1), 0), 1)
+          : undefined,
+      anchorRatioY:
+        anchorPageRect
+          ? Math.min(Math.max((center.y - anchorPageRect.top) / Math.max(anchorPageRect.height, 1), 0), 1)
+          : undefined,
       lastDistance: initialDistance,
       lastCenterX: center.x,
       lastCenterY: center.y,
@@ -3446,24 +3477,11 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   };
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>, pageNumber: number) => {
-    const isTouchDrawingTool =
-      event.pointerType === "touch" &&
-      editable &&
-      (tool === "pen" || tool === "highlighter" || tool === "eraser");
-
-    if (event.pointerType === "touch" && !isTouchDrawingTool) {
+    if (event.pointerType === "touch") {
       pendingTouchPageActionRef.current = null;
       return;
     }
 
-    if (
-      event.pointerType === "touch" &&
-      (touchGestureRef.current || touchPointersRef.current.size >= 2)
-    ) {
-      event.preventDefault();
-      event.stopPropagation();
-      return;
-    }
     if (!editable || tool === "text") return;
     const target = event.currentTarget;
     const point = getPointerPoint(event, target, zoomLevel);
@@ -3500,19 +3518,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   };
 
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
-    const isTouchDrawingTool =
-      event.pointerType === "touch" &&
-      editable &&
-      (tool === "pen" || tool === "highlighter" || tool === "eraser");
-
-    if (event.pointerType === "touch" && !isTouchDrawingTool) return;
-
-    if (
-      event.pointerType === "touch" &&
-      (touchGestureRef.current || touchPointersRef.current.size >= 2)
-    ) {
-      event.preventDefault();
-      event.stopPropagation();
+    if (event.pointerType === "touch") {
       return;
     }
     const pendingTouchPageAction = pendingTouchPageActionRef.current;
@@ -3558,22 +3564,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   };
 
   const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
-    const isTouchDrawingTool =
-      event.pointerType === "touch" &&
-      editable &&
-      (tool === "pen" || tool === "highlighter" || tool === "eraser");
-
-    if (event.pointerType === "touch" && !isTouchDrawingTool) {
+    if (event.pointerType === "touch") {
       pendingTouchPageActionRef.current = null;
-      return;
-    }
-
-    if (
-      event.pointerType === "touch" &&
-      (touchGestureRef.current || touchPointersRef.current.size >= 2)
-    ) {
-      event.preventDefault();
-      event.stopPropagation();
       return;
     }
     const pendingTouchPageAction = pendingTouchPageActionRef.current;
@@ -5350,7 +5342,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
           </div>
         )}
 
-        <div ref={pagesViewportRef} className="space-y-6 overflow-x-auto pb-10" style={{ touchAction: "none", overflowAnchor: "none" }}>
+        <div ref={pagesViewportRef} className="space-y-6 overflow-x-auto pb-10" style={{ touchAction: "pan-x pan-y", overflowAnchor: "none" }}>
           {(pages.length > 0 ? pages : [{ pageNumber: 1, width: 900, height: 1200 }]).map((page) => (
             <div key={page.pageNumber} className="mx-auto w-fit rounded-lg bg-white p-3 shadow" style={{ overflowAnchor: "none" }}>
               <div className="mb-2 text-xs font-medium text-gray-500">Page {page.pageNumber}</div>
@@ -5390,7 +5382,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                     data-page-number={page.pageNumber}
                     className="absolute inset-0"
                     style={{
-                      touchAction: "none",
+                      touchAction: "pan-x pan-y",
                       userSelect: "none",
                       WebkitUserSelect: "none",
                       cursor: !editable
