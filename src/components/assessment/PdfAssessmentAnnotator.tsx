@@ -3624,9 +3624,17 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
       if (!editable || (tool !== "pen" && tool !== "highlighter" && tool !== "eraser")) return;
       if (touchPointersRef.current.size >= 2) {
+        event.preventDefault();
+        event.stopPropagation();
+        touchScrollRef.current = null;
         activeStrokeRef.current = null;
         setActiveStroke(null);
         erasingRef.current = false;
+        if (!touchGestureRef.current) {
+          startTouchGestureStableRef.current();
+        } else {
+          syncTouchGestureStableRef.current();
+        }
         return;
       }
 
@@ -3692,6 +3700,16 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       });
 
       if (touchPointersRef.current.size >= 2 || touchGestureRef.current || touchScrollRef.current) {
+        if (touchPointersRef.current.size >= 2 || touchGestureRef.current) {
+          event.preventDefault();
+          event.stopPropagation();
+          touchScrollRef.current = null;
+          if (!touchGestureRef.current) {
+            startTouchGestureStableRef.current();
+          } else {
+            syncTouchGestureStableRef.current();
+          }
+        }
         pendingTouchPageActionRef.current = null;
         activeStrokeRef.current = null;
         setActiveStroke(null);
@@ -3784,6 +3802,23 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
     if (event.pointerType === "touch") {
       touchPointersRef.current.delete(event.pointerId);
+
+      if (touchGestureRef.current) {
+        event.preventDefault();
+        event.stopPropagation();
+        pendingTouchPageActionRef.current = null;
+        activeStrokeRef.current = null;
+        setActiveStroke(null);
+        erasingRef.current = false;
+
+        if (touchPointersRef.current.size >= 2) {
+          syncTouchGestureStableRef.current();
+        } else {
+          touchGestureRef.current = null;
+        }
+        return;
+      }
+
       const pendingTouchPageAction = pendingTouchPageActionRef.current;
       if (pendingTouchPageAction?.pointerId === event.pointerId) {
         event.preventDefault();
