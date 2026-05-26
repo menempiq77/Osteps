@@ -5856,10 +5856,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                                 setTextToolbarMenu(null);
                                 deleteEditingText();
                               }}
-                              className="flex h-[40px] min-w-[54px] items-center justify-center border-l border-slate-200 bg-white px-2 transition hover:bg-red-50"
+                              className="flex h-[40px] min-w-[54px] items-center justify-center border-l border-red-700 bg-red-500 px-2 text-white transition hover:bg-red-600"
                             >
-                              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white shadow-sm">
-                                <Trash2 className="h-3.5 w-3.5" />
+                              <span className="flex h-7 w-7 items-center justify-center rounded-full border border-white/35 bg-red-600 text-white shadow-sm">
+                                <Trash2 className="h-4 w-4" />
                               </span>
                             </button>
                           </div>
