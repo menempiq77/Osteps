@@ -5621,7 +5621,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                         76,
                         estimatedLineCount * editingText.fontSize * 1.35 + 28
                       );
-                      const toolbarWidth = Math.min(Math.max(540, page.width - 24), 960);
+                      const toolbarWidth = Math.min(Math.max(360, page.width - 24), 720);
                       const toolbarLeft = Math.min(
                         Math.max(12, editingText.x),
                         Math.max(12, page.width - toolbarWidth - 12)
@@ -5652,7 +5652,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                                   )
                                 }
                                 className={[
-                                  "flex h-[74px] min-w-[168px] items-center justify-between px-5 transition",
+                                  "flex h-[46px] min-w-[100px] items-center justify-between px-3 transition",
                                   textToolbarMenu === "color"
                                     ? "bg-slate-100"
                                     : "bg-white hover:bg-slate-50",
@@ -5660,12 +5660,12 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                               >
                                 <span
                                   className={[
-                                    "h-10 w-10 rounded-full border-2",
+                                    "h-6 w-6 rounded-full border-2",
                                     color === "#ffffff" ? "border-slate-300" : "border-white/80",
                                   ].join(" ")}
                                   style={{ backgroundColor: color }}
                                 />
-                                <ChevronDown className="h-4 w-4 text-slate-700" />
+                                <ChevronDown className="h-3 w-3 text-slate-700" />
                               </button>
                               {textToolbarMenu === "color" && (
                                 <div className="absolute left-0 top-full mt-2 rounded-[18px] border border-slate-200 bg-white p-4 shadow-[0_18px_40px_rgba(15,23,42,0.16)]">
@@ -5711,13 +5711,13 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                                 );
                               }}
                               className={[
-                                "flex h-[74px] min-w-[112px] items-center justify-center border-r border-slate-200 transition",
+                                "flex h-[46px] min-w-[62px] items-center justify-center border-r border-slate-200 transition",
                                 activeTextFontWeight === "bold"
                                   ? "bg-slate-100 text-black"
                                   : "bg-white text-slate-800 hover:bg-slate-50",
                               ].join(" ")}
                             >
-                              <Bold className="h-6 w-6" />
+                              <Bold className="h-4 w-4" />
                             </button>
 
                             <button
@@ -5734,13 +5734,13 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                                 );
                               }}
                               className={[
-                                "flex h-[74px] min-w-[112px] items-center justify-center border-r border-slate-200 transition",
+                                "flex h-[46px] min-w-[62px] items-center justify-center border-r border-slate-200 transition",
                                 activeTextUnderline
                                   ? "bg-slate-100 text-black"
                                   : "bg-white text-slate-800 hover:bg-slate-50",
                               ].join(" ")}
                             >
-                              <Underline className="h-6 w-6" />
+                              <Underline className="h-4 w-4" />
                             </button>
 
                             <div className="relative flex border-r border-slate-200">
@@ -5755,14 +5755,14 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                                   )
                                 }
                                 className={[
-                                  "flex h-[74px] min-w-[168px] items-center justify-center gap-3 px-5 transition",
+                                  "flex h-[46px] min-w-[90px] items-center justify-center gap-2 px-3 transition",
                                   textToolbarMenu === "align"
                                     ? "bg-slate-100"
                                     : "bg-white hover:bg-slate-50",
                                 ].join(" ")}
                               >
-                                <AlignmentIcon className="h-6 w-6 text-slate-800" />
-                                <ChevronDown className="h-4 w-4 text-slate-700" />
+                                <AlignmentIcon className="h-4 w-4 text-slate-800" />
+                                <ChevronDown className="h-3 w-3 text-slate-700" />
                               </button>
                               {textToolbarMenu === "align" && (
                                 <div className="absolute left-0 top-full mt-2 flex rounded-[18px] border border-slate-200 bg-white p-2 shadow-[0_18px_40px_rgba(15,23,42,0.16)]">
@@ -5806,16 +5806,16 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                                   )
                                 }
                                 className={[
-                                  "flex h-[74px] min-w-[258px] items-center justify-between px-6 text-left transition",
+                                  "flex h-[46px] min-w-[130px] items-center justify-between px-3 text-left transition",
                                   textToolbarMenu === "size"
                                     ? "bg-slate-100"
                                     : "bg-white hover:bg-slate-50",
                                 ].join(" ")}
                               >
-                                <span className="text-[18px] font-medium text-slate-900">
+                                <span className="text-[13px] font-medium text-slate-900">
                                   {activeTextSizeOption?.label ?? `${activeTextFontSize}px`}
                                 </span>
-                                <ChevronDown className="h-4 w-4 text-slate-700" />
+                                <ChevronDown className="h-3 w-3 text-slate-700" />
                               </button>
                               {textToolbarMenu === "size" && (
                                 <div className="absolute left-0 top-full mt-2 w-[320px] overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.16)]">
@@ -5834,7 +5834,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                                         );
                                       }}
                                       className={[
-                                        "flex w-full items-center px-6 py-4 text-left text-[18px] transition",
+                                        "flex w-full items-center px-4 py-3 text-left text-[14px] transition",
                                         activeTextFontSize === value
                                           ? "bg-black text-white"
                                           : "bg-white text-slate-900 hover:bg-slate-100",
@@ -5856,9 +5856,9 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                                 setTextToolbarMenu(null);
                                 deleteEditingText();
                               }}
-                              className="flex h-[74px] min-w-[118px] items-center justify-center text-slate-900 transition hover:bg-red-50 hover:text-red-600"
+                              className="flex h-[46px] min-w-[56px] items-center justify-center text-slate-900 transition hover:bg-red-50 hover:text-red-600"
                             >
-                              <Trash2 className="h-7 w-7" />
+                              <Trash2 className="h-4 w-4" />
                             </button>
                           </div>
 
@@ -5871,6 +5871,20 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                             }}
                             onPointerDown={(event) => event.stopPropagation()}
                           >
+                            <button
+                              type="button"
+                              title="Delete text"
+                              aria-label="Delete text"
+                              onMouseDown={(event) => event.preventDefault()}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setTextToolbarMenu(null);
+                                deleteEditingText();
+                              }}
+                              className="absolute -right-3 -top-3 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white shadow transition hover:bg-red-600"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
                             <Input.TextArea
                               autoFocus
                               value={editingText.value}
