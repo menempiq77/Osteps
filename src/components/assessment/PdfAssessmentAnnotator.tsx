@@ -2033,11 +2033,21 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       if (!isPaperViewportTouchTarget(event.target) && !touchGestureRef.current && !touchScrollRef.current) return;
 
       if (touchStrokeToolActive && isPaperViewportTouchTarget(event.target)) {
-        if (event.touches.length >= 2) {
-          pendingTouchPageActionRef.current = null;
-          activeStrokeRef.current = null;
-          setActiveStroke(null);
-          erasingRef.current = false;
+        if (event.touches.length < 2) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+        touchScrollRef.current = null;
+        pendingTouchPageActionRef.current = null;
+        activeStrokeRef.current = null;
+        setActiveStroke(null);
+        erasingRef.current = false;
+        syncNativeTouches(event.touches);
+
+        if (!touchGestureRef.current) {
+          startTouchGestureStableRef.current();
+        } else {
+          syncTouchGestureStableRef.current();
         }
         return;
       }
@@ -2075,12 +2085,22 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     };
 
     const handleNativeTouchMove = (event: TouchEvent) => {
-      if (touchStrokeToolActive && isPaperViewportTouchTarget(event.target)) {
-        if (event.touches.length >= 2) {
-          pendingTouchPageActionRef.current = null;
-          activeStrokeRef.current = null;
-          setActiveStroke(null);
-          erasingRef.current = false;
+      if (touchStrokeToolActive && (isPaperViewportTouchTarget(event.target) || touchGestureRef.current)) {
+        if (event.touches.length < 2) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+        touchScrollRef.current = null;
+        pendingTouchPageActionRef.current = null;
+        activeStrokeRef.current = null;
+        setActiveStroke(null);
+        erasingRef.current = false;
+        syncNativeTouches(event.touches);
+
+        if (!touchGestureRef.current) {
+          startTouchGestureStableRef.current();
+        } else {
+          syncTouchGestureStableRef.current();
         }
         return;
       }
