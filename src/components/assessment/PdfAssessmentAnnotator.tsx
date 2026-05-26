@@ -1212,9 +1212,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     role !== "student" && !savedDocumentUrl && currentDocumentUrl && studentAnnotations.length > 0
   );
   const editable = role === "teacher" || (!studentLocked && !examEditingLocked && !documentIdentityUnverified);
-  const strokeToolTouchMode = editable && (tool === "pen" || tool === "highlighter" || tool === "eraser");
   const nativeGestureTouchAction: React.CSSProperties["touchAction"] = "pan-x pan-y pinch-zoom";
-  const paperTouchAction: React.CSSProperties["touchAction"] = strokeToolTouchMode ? "none" : nativeGestureTouchAction;
+  const paperTouchAction: React.CSSProperties["touchAction"] = nativeGestureTouchAction;
   const oppositeLayer = role === "teacher" ? "student" : "teacher";
   const documentLoaded = Boolean(state);
   const documentReadyForCurrentStudent = documentLoaded && loadedDocumentKey === documentLoadKey;
@@ -1298,7 +1297,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       const pageStack = pagesViewportRef.current;
       if (!scrollElement || !pageStack) return;
 
-      if ((event.ctrlKey || event.metaKey) && !strokeToolTouchMode) {
+      if (event.ctrlKey || event.metaKey) {
         return;
       }
 
@@ -1422,7 +1421,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     return () => {
       viewport.removeEventListener("wheel", handleWheelPinch, true);
     };
-  }, [getZoomScrollElement, strokeToolTouchMode]);
+  }, [getZoomScrollElement]);
 
   useLayoutEffect(() => {
     const pending = pendingZoomScrollRef.current;
@@ -1884,8 +1883,9 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   useEffect(() => {
     const container = examContainerRef.current;
     if (!container || typeof window === "undefined") return;
-    const touchStrokeToolActive =
-      editable && (tool === "pen" || tool === "highlighter" || tool === "eraser");
+    // Fingers are reserved for native page navigation in every tool mode.
+    // Drawing tools still work with mouse/stylus pointer events below.
+    const touchStrokeToolActive = false;
 
     const isPaperViewportTouchTarget = (target: EventTarget | null) => {
       const viewport = pagesViewportRef.current;
@@ -2931,12 +2931,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const startResizeSelectedPen = useCallback(
     (event: React.PointerEvent<HTMLElement>, edge: "left" | "right") => {
       if (!editable || tool !== "cursor" || !selectedPenAnnotation) return;
-      if (
-        event.pointerType === "touch" &&
-        (touchGestureRef.current || touchScrollRef.current || touchPointersRef.current.size >= 2)
-      ) {
-        return;
-      }
+      if (event.pointerType === "touch") return;
 
       const originBounds = getPenBounds(selectedPenAnnotation);
       if (!originBounds) return;
@@ -2959,12 +2954,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const startDragSelectedPen = useCallback(
     (event: React.PointerEvent<HTMLElement>) => {
       if (!editable || tool !== "cursor" || !selectedPenAnnotation) return;
-      if (
-        event.pointerType === "touch" &&
-        (touchGestureRef.current || touchScrollRef.current || touchPointersRef.current.size >= 2)
-      ) {
-        return;
-      }
+      if (event.pointerType === "touch") return;
 
       const originBounds = getPenBounds(selectedPenAnnotation);
       if (!originBounds) return;
@@ -3572,29 +3562,6 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>, pageNumber: number) => {
     if (event.pointerType === "touch") {
       pendingTouchPageActionRef.current = null;
-      if (!editable || tool === "text" || tool === "cursor") return;
-      if (touchGestureRef.current || touchScrollRef.current || touchPointersRef.current.size >= 2) {
-        return;
-      }
-
-      const target = event.currentTarget;
-      const point = getPointerPoint(event, target, zoomLevel);
-      pendingTouchPageActionRef.current = {
-        pointerId: event.pointerId,
-        pageNumber,
-        startClientX: event.clientX,
-        startClientY: event.clientY,
-        startedAtMs: Date.now(),
-        startPoint: point,
-        target,
-        mode: tool === "eraser" ? "eraser" : "stroke",
-        strokeTool: tool === "highlighter" ? "highlighter" : "pen",
-        strokeColor: color,
-        strokeWidth: drawingStrokeWidth,
-      };
-      suppressTouchClickRef.current = true;
-      event.preventDefault();
-      event.stopPropagation();
       return;
     }
 
@@ -3634,14 +3601,11 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   };
 
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
-    const pendingTouchPageAction = pendingTouchPageActionRef.current;
-    if (
-      event.pointerType === "touch" &&
-      (touchGestureRef.current || touchScrollRef.current || touchPointersRef.current.size >= 2)
-    ) {
+    if (event.pointerType === "touch") {
       pendingTouchPageActionRef.current = null;
       return;
     }
+    const pendingTouchPageAction = pendingTouchPageActionRef.current;
     if (
       event.pointerType === "touch" &&
       pendingTouchPageAction?.pointerId === event.pointerId
@@ -3686,6 +3650,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   };
 
   const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType === "touch") {
+      pendingTouchPageActionRef.current = null;
+      return;
+    }
     const pendingTouchPageAction = pendingTouchPageActionRef.current;
     if (
       event.pointerType === "touch" &&
@@ -3855,12 +3823,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     edge: "left" | "right" = "right"
   ) => {
     if (!editable) return;
-    if (
-      event.pointerType === "touch" &&
-      (touchGestureRef.current || touchScrollRef.current || touchPointersRef.current.size >= 2)
-    ) {
-      return;
-    }
+    if (event.pointerType === "touch") return;
     event.preventDefault();
     event.stopPropagation();
     if (annotation.id) {
@@ -3879,14 +3842,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   };
 
   const handleTextPointerDown = (event: React.PointerEvent<HTMLDivElement>, annotation: TextAnnotation) => {
-    if (
-      event.pointerType === "touch" &&
-      (touchGestureRef.current || touchScrollRef.current || touchPointersRef.current.size >= 2)
-    ) {
-      event.preventDefault();
-      event.stopPropagation();
-      return;
-    }
+    if (event.pointerType === "touch") return;
     if (!editable || !activeAnnotations.some((item) => item.id === annotation.id)) return;
     if (tool === "eraser") {
       event.preventDefault();
@@ -3911,14 +3867,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   };
 
   const handleTextPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (
-      event.pointerType === "touch" &&
-      (touchGestureRef.current || touchScrollRef.current || touchPointersRef.current.size >= 2)
-    ) {
-      event.preventDefault();
-      event.stopPropagation();
-      return;
-    }
+    if (event.pointerType === "touch") return;
     const draggingText = draggingTextRef.current;
     if (!draggingText) return;
     event.preventDefault();
@@ -3942,14 +3891,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   };
 
   const handleTextPointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (
-      event.pointerType === "touch" &&
-      (touchGestureRef.current || touchScrollRef.current || touchPointersRef.current.size >= 2)
-    ) {
-      event.preventDefault();
-      event.stopPropagation();
-      return;
-    }
+    if (event.pointerType === "touch") return;
     const draggingText = draggingTextRef.current;
     if (!draggingText) return;
     event.preventDefault();
