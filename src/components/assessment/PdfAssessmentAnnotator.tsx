@@ -1213,7 +1213,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   );
   const editable = role === "teacher" || (!studentLocked && !examEditingLocked && !documentIdentityUnverified);
   const strokeToolTouchMode = editable && (tool === "pen" || tool === "highlighter" || tool === "eraser");
-  const paperTouchAction: React.CSSProperties["touchAction"] = strokeToolTouchMode ? "none" : "auto";
+  const nativeGestureTouchAction: React.CSSProperties["touchAction"] = "pan-x pan-y pinch-zoom";
+  const paperTouchAction: React.CSSProperties["touchAction"] = strokeToolTouchMode ? "none" : nativeGestureTouchAction;
   const oppositeLayer = role === "teacher" ? "student" : "teacher";
   const documentLoaded = Boolean(state);
   const documentReadyForCurrentStudent = documentLoaded && loadedDocumentKey === documentLoadKey;
@@ -4929,7 +4930,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         : "100%",
     transform: toolbarViewportScale === 1 ? undefined : `scale(${1 / toolbarViewportScale})`,
     transformOrigin: "top left",
-    touchAction: "pan-x pan-y",
+    touchAction: nativeGestureTouchAction,
     willChange: "transform, left, top",
   };
 
@@ -5157,7 +5158,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   );
 
   return (
-    <div ref={examContainerRef} className="min-h-screen bg-slate-100" style={{ touchAction: "pan-x pan-y" }}>
+    <div ref={examContainerRef} className="min-h-screen bg-slate-100" style={{ touchAction: nativeGestureTouchAction }}>
       {contextHolder}
       {shouldEnforceExamScreen ? (
         <>
@@ -5245,7 +5246,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       <div
         ref={viewerScrollRef}
         className={shouldEnforceExamScreen ? "h-[calc(100vh-85px)] overflow-auto p-4" : "w-full p-4"}
-        style={{ paddingTop: toolbarHeight ? toolbarHeight + 16 : undefined, touchAction: "pan-x pan-y", overflowAnchor: "none" }}
+        style={{ paddingTop: toolbarHeight ? toolbarHeight + 16 : undefined, touchAction: nativeGestureTouchAction, overflowAnchor: "none" }}
       >
         {documentFileMismatch ? (
           <Alert
