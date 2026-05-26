@@ -691,7 +691,7 @@ const compactAnnotationsForAiDraft = (annotations: AssessmentDocumentAnnotation[
 
 const drawPen = (context: CanvasRenderingContext2D, annotation: PenAnnotation) => {
   const points = getSafePenPoints(annotation);
-  if (points.length < 2) return;
+  if (points.length === 0) return;
   const strokeTool = annotation.tool === "highlighter" ? "highlighter" : "pen";
   context.save();
   if (strokeTool === "highlighter") {
@@ -699,9 +699,17 @@ const drawPen = (context: CanvasRenderingContext2D, annotation: PenAnnotation) =
     context.globalCompositeOperation = "multiply";
   }
   context.strokeStyle = annotation.color;
+  context.fillStyle = annotation.color;
   context.lineWidth = annotation.width;
   context.lineCap = "round";
   context.lineJoin = "round";
+  if (points.length === 1) {
+    context.beginPath();
+    context.arc(points[0].x, points[0].y, Math.max(annotation.width / 2, 1), 0, Math.PI * 2);
+    context.fill();
+    context.restore();
+    return;
+  }
   context.beginPath();
   context.moveTo(points[0].x, points[0].y);
   for (const point of points.slice(1)) {
@@ -838,14 +846,22 @@ const findPenAnnotationAtPoint = (
 
 const drawSelectedPenHighlight = (context: CanvasRenderingContext2D, annotation: PenAnnotation) => {
   const points = getSafePenPoints(annotation);
-  if (points.length < 2) return;
+  if (points.length === 0) return;
 
   context.save();
+  context.globalAlpha = 0.28;
+  if (points.length === 1) {
+    context.fillStyle = "#7c3aed";
+    context.beginPath();
+    context.arc(points[0].x, points[0].y, Math.max((annotation.width + 10) / 2, 6), 0, Math.PI * 2);
+    context.fill();
+    context.restore();
+    return;
+  }
   context.strokeStyle = "#7c3aed";
   context.lineWidth = annotation.width + 10;
   context.lineCap = "round";
   context.lineJoin = "round";
-  context.globalAlpha = 0.28;
   context.beginPath();
   context.moveTo(points[0].x, points[0].y);
   for (const point of points.slice(1)) {
@@ -3611,7 +3627,20 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       setLayerAnnotations(nextAnnotations, {
         previousAnnotations: cloneAnnotationsSnapshot(currentAnnotations),
       });
+      return;
     }
+
+    const currentAnnotations = activeAnnotationsRef.current;
+    const dotStroke: PenAnnotation = {
+      id: makeId(),
+      type: "pen",
+      tool: pendingAction.strokeTool || "pen",
+      page: pendingAction.pageNumber,
+      color: pendingAction.strokeColor || color,
+      width: pendingAction.strokeWidth || drawingStrokeWidth,
+      points: [pendingAction.startPoint],
+    };
+    setLayerAnnotations([...currentAnnotations, dotStroke]);
   };
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>, pageNumber: number) => {
@@ -3849,7 +3878,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         event.stopPropagation();
         activeStrokeRef.current = null;
         setActiveStroke(null);
-        if (getSafePenPoints(completedTouchStroke).length > 1) {
+        if (getSafePenPoints(completedTouchStroke).length > 0) {
           setLayerAnnotations([...activeAnnotations, completedTouchStroke]);
         }
       }
@@ -3894,7 +3923,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     event.stopPropagation();
     activeStrokeRef.current = null;
     setActiveStroke(null);
-    if (getSafePenPoints(completedStroke).length > 1) {
+    if (getSafePenPoints(completedStroke).length > 0) {
       setLayerAnnotations([...activeAnnotations, completedStroke]);
     }
   };
