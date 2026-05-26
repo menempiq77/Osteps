@@ -1213,7 +1213,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   );
   const editable = role === "teacher" || (!studentLocked && !examEditingLocked && !documentIdentityUnverified);
   const nativeGestureTouchAction: React.CSSProperties["touchAction"] = "pan-x pan-y pinch-zoom";
-  const paperTouchAction: React.CSSProperties["touchAction"] = nativeGestureTouchAction;
+  const paperTouchAction: React.CSSProperties["touchAction"] =
+    tool === "pen" || tool === "highlighter" || tool === "eraser" ? "none" : nativeGestureTouchAction;
   const oppositeLayer = role === "teacher" ? "student" : "teacher";
   const documentLoaded = Boolean(state);
   const documentReadyForCurrentStudent = documentLoaded && loadedDocumentKey === documentLoadKey;
