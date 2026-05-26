@@ -1212,6 +1212,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     role !== "student" && !savedDocumentUrl && currentDocumentUrl && studentAnnotations.length > 0
   );
   const editable = role === "teacher" || (!studentLocked && !examEditingLocked && !documentIdentityUnverified);
+  const strokeToolTouchMode = editable && (tool === "pen" || tool === "highlighter" || tool === "eraser");
+  const paperTouchAction: React.CSSProperties["touchAction"] = strokeToolTouchMode ? "none" : "auto";
   const oppositeLayer = role === "teacher" ? "student" : "teacher";
   const documentLoaded = Boolean(state);
   const documentReadyForCurrentStudent = documentLoaded && loadedDocumentKey === documentLoadKey;
@@ -1294,6 +1296,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       const scrollElement = getZoomScrollElement();
       const pageStack = pagesViewportRef.current;
       if (!scrollElement || !pageStack) return;
+
+      if ((event.ctrlKey || event.metaKey) && !strokeToolTouchMode) {
+        return;
+      }
 
       if (!event.ctrlKey && !event.metaKey) {
         const verticalDelta = event.deltaY;
@@ -1415,7 +1421,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     return () => {
       viewport.removeEventListener("wheel", handleWheelPinch, true);
     };
-  }, [getZoomScrollElement]);
+  }, [getZoomScrollElement, strokeToolTouchMode]);
 
   useLayoutEffect(() => {
     const pending = pendingZoomScrollRef.current;
@@ -1887,6 +1893,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
     const handleTouchPointerDown = (event: PointerEvent) => {
       if (event.pointerType !== "touch") return;
+      if (!touchStrokeToolActive) return;
       if (!isPaperViewportTouchTarget(event.target) && !touchGestureRef.current) return;
 
       touchPointersRef.current.set(event.pointerId, {
@@ -1911,6 +1918,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
     const handleTouchPointerMove = (event: PointerEvent) => {
       if (event.pointerType !== "touch") return;
+      if (!touchStrokeToolActive) return;
       if (!isPaperViewportTouchTarget(event.target) && !touchGestureRef.current) return;
       if (!touchPointersRef.current.has(event.pointerId)) return;
 
@@ -1936,6 +1944,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
     const handleTouchPointerEnd = (event: PointerEvent) => {
       if (event.pointerType !== "touch") return;
+      if (!touchStrokeToolActive) return;
       if (!isPaperViewportTouchTarget(event.target) && !touchGestureRef.current) return;
 
       const hadPointer = touchPointersRef.current.delete(event.pointerId);
@@ -2019,6 +2028,14 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       // Handle if target is on the paper OR we already have an active gesture
       if (!isPaperViewportTouchTarget(event.target) && !touchGestureRef.current && !touchScrollRef.current) return;
 
+      if (!touchStrokeToolActive && isPaperViewportTouchTarget(event.target)) {
+        touchPointersRef.current.clear();
+        touchGestureRef.current = null;
+        touchScrollRef.current = null;
+        pendingTouchPageActionRef.current = null;
+        return;
+      }
+
       if (event.touches.length === 1 && !touchGestureRef.current) {
         if (touchStrokeToolActive) return;
         const touch = event.touches.item(0);
@@ -2044,6 +2061,14 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     };
 
     const handleNativeTouchMove = (event: TouchEvent) => {
+      if (!touchStrokeToolActive && isPaperViewportTouchTarget(event.target)) {
+        touchPointersRef.current.clear();
+        touchGestureRef.current = null;
+        touchScrollRef.current = null;
+        pendingTouchPageActionRef.current = null;
+        return;
+      }
+
       // If a gesture is already active, ALWAYS prevent scroll regardless of target
       if (touchGestureRef.current) {
         event.preventDefault();
@@ -2085,6 +2110,17 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     };
 
     const handleNativeTouchEnd = (event: TouchEvent) => {
+      if (!touchStrokeToolActive && isPaperViewportTouchTarget(event.target)) {
+        touchPointersRef.current.clear();
+        touchGestureRef.current = null;
+        touchScrollRef.current = null;
+        pendingTouchPageActionRef.current = null;
+        window.setTimeout(() => {
+          suppressTouchClickRef.current = false;
+        }, 0);
+        return;
+      }
+
       const manualScrollState = touchScrollRef.current;
       const hadManualScroll = Boolean(manualScrollState);
       const manualScrollMoved = Boolean(manualScrollState?.moved);
@@ -5431,7 +5467,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
           </div>
         )}
 
-        <div ref={pagesViewportRef} className="space-y-6 overflow-x-auto pb-10" style={{ touchAction: "none", overflowAnchor: "none", overscrollBehaviorX: "contain", overscrollBehaviorY: "auto" }}>
+        <div ref={pagesViewportRef} className="space-y-6 overflow-x-auto pb-10" style={{ touchAction: paperTouchAction, overflowAnchor: "none", overscrollBehaviorX: "contain", overscrollBehaviorY: "auto" }}>
           {(pages.length > 0 ? pages : [{ pageNumber: 1, width: 900, height: 1200 }]).map((page) => (
             <div key={page.pageNumber} className="mx-auto w-fit rounded-lg bg-white p-3 shadow" style={{ overflowAnchor: "none" }}>
               <div className="mb-2 text-xs font-medium text-gray-500">Page {page.pageNumber}</div>
@@ -5471,7 +5507,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                     data-page-number={page.pageNumber}
                     className="absolute inset-0"
                     style={{
-                      touchAction: "none",
+                      touchAction: paperTouchAction,
                       userSelect: "none",
                       WebkitUserSelect: "none",
                       cursor: !editable
