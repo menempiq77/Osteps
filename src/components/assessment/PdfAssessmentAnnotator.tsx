@@ -1314,10 +1314,6 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       const pageStack = pagesViewportRef.current;
       if (!scrollElement || !pageStack) return;
 
-      if (event.ctrlKey || event.metaKey) {
-        return;
-      }
-
       if (!event.ctrlKey && !event.metaKey) {
         const verticalDelta = event.deltaY;
         const horizontalDelta = event.shiftKey ? event.deltaY : event.deltaX;
