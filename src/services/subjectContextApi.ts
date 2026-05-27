@@ -144,6 +144,7 @@ export const fetchMySubjectContext = async (options?: {
   const isSchoolAdmin = roleKey === "SCHOOL_ADMIN";
   const isStudent = roleKey === "STUDENT";
   const isStaffWorkspaceRole = ["ADMIN", "HOD", "TEACHER"].includes(roleKey);
+  const canDeriveSubjectsFromClasses = roleKey === "TEACHER";
   const known = normalizeSubjects(options?.knownSubjects ?? []);
 
   console.log("[SubjectContext] bootstrap — role:", roleKey, "known:", known.length, "userId:", options?.userId);
@@ -193,13 +194,15 @@ export const fetchMySubjectContext = async (options?: {
       addUnique(known);
     }
 
-    // Source 3: derive from teacher's assigned classes ↔ subject-class mappings
-    try {
-      const derived = await fetchTeacherAssignedSubjectsFromClasses();
-      console.log("[SubjectContext] class-based derivation returned", derived.length, "subjects:", derived.map(s => s.name));
-      addUnique(derived);
-    } catch (err: any) {
-      console.warn("[SubjectContext] class-based derivation failed:", err?.message);
+    // Teachers can derive subjects from class links when explicit subject assignments are incomplete.
+    if (canDeriveSubjectsFromClasses) {
+      try {
+        const derived = await fetchTeacherAssignedSubjectsFromClasses();
+        console.log("[SubjectContext] class-based derivation returned", derived.length, "subjects:", derived.map(s => s.name));
+        addUnique(derived);
+      } catch (err: any) {
+        console.warn("[SubjectContext] class-based derivation failed:", err?.message);
+      }
     }
 
     if (merged.length > 0) {
