@@ -722,9 +722,9 @@ export default function StudentList() {
   const renderStudentMarkerPicker = (studentId: string) => {
     const activeMarkerKey = studentMarkers[studentId];
     return (
-      <div className="w-44" onClick={(event) => event.stopPropagation()}>
+      <div className="w-56" onClick={(event) => event.stopPropagation()}>
         <div className="mb-2 text-[11px] font-medium text-slate-500">Quick marker</div>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-4 gap-2">
           {STUDENT_CARD_MARKER_OPTIONS.map((option) => {
             const isActive = option.key === activeMarkerKey;
             return (
@@ -737,7 +737,7 @@ export default function StudentList() {
                   event.stopPropagation();
                   setStudentCardMarker(studentId, option.key);
                 }}
-                className={`flex h-9 items-center justify-center rounded-lg border text-lg transition ${
+                className={`flex h-9 items-center justify-center rounded-lg border text-base leading-none transition ${
                   isActive
                     ? "border-emerald-400 bg-emerald-50 shadow-sm"
                     : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"

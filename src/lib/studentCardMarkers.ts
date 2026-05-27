@@ -1,10 +1,17 @@
 export type StudentCardMarkerKey =
   | "star"
   | "red-flag"
+  | "red-flags-2"
+  | "red-flags-3"
   | "sparkles"
   | "heart"
   | "smile"
-  | "idea";
+  | "sad"
+  | "angry"
+  | "idea"
+  | "fire"
+  | "trophy"
+  | "check";
 
 export type StudentCardMarkerOption = {
   key: StudentCardMarkerKey;
@@ -17,10 +24,17 @@ const STORAGE_KEY = "osteps:student-card-markers:v1";
 export const STUDENT_CARD_MARKER_OPTIONS: StudentCardMarkerOption[] = [
   { key: "star", symbol: "⭐", label: "Star" },
   { key: "red-flag", symbol: "🚩", label: "Red flag" },
+  { key: "red-flags-2", symbol: "🚩🚩", label: "Two red flags" },
+  { key: "red-flags-3", symbol: "🚩🚩🚩", label: "Three red flags" },
   { key: "sparkles", symbol: "✨", label: "Sparkles" },
   { key: "heart", symbol: "💚", label: "Heart" },
   { key: "smile", symbol: "😊", label: "Smile" },
+  { key: "sad", symbol: "😔", label: "Sad face" },
+  { key: "angry", symbol: "😠", label: "Angry face" },
   { key: "idea", symbol: "💡", label: "Idea" },
+  { key: "fire", symbol: "🔥", label: "Fire" },
+  { key: "trophy", symbol: "🏆", label: "Trophy" },
+  { key: "check", symbol: "✅", label: "Check" },
 ];
 
 type StudentCardMarkerStore = Record<string, Record<string, StudentCardMarkerKey>>;
