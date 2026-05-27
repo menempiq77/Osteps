@@ -2911,6 +2911,26 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     );
   }, [editable, selectedPenAnnotation, setLayerAnnotations]);
 
+  const isShortcutInputTarget = useCallback(
+    (target: EventTarget | null, options?: { includeButtons?: boolean }) => {
+      const element = target instanceof Element ? target : null;
+      const htmlElement = target instanceof HTMLElement ? target : null;
+      const tagName = String(element?.tagName || "").toLowerCase();
+      const blockedTags = options?.includeButtons
+        ? ["input", "textarea", "select", "button"]
+        : ["input", "textarea", "select"];
+
+      return Boolean(
+        htmlElement?.isContentEditable ||
+          blockedTags.includes(tagName) ||
+          element?.closest(".ant-input") ||
+          element?.closest(".ant-input-number") ||
+          element?.closest("[contenteditable='true']")
+      );
+    },
+    []
+  );
+
   useEffect(() => {
     if (typeof window === "undefined" || !editable || tool !== "cursor" || !selectedPenAnnotation) {
       return;
@@ -2919,15 +2939,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     const handleDeleteKey = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
 
-      const target = event.target as HTMLElement | null;
-      const tagName = String(target?.tagName || "").toLowerCase();
-      if (
-        target?.isContentEditable ||
-        ["input", "textarea", "select", "button"].includes(tagName) ||
-        target?.closest(".ant-input") ||
-        target?.closest(".ant-input-number") ||
-        target?.closest("[contenteditable='true']")
-      ) {
+      if (isShortcutInputTarget(event.target, { includeButtons: true })) {
         return;
       }
 
@@ -2942,7 +2954,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     return () => {
       window.removeEventListener("keydown", handleDeleteKey, true);
     };
-  }, [deleteSelectedPenAnnotation, editable, selectedPenAnnotation, tool]);
+  }, [deleteSelectedPenAnnotation, editable, isShortcutInputTarget, selectedPenAnnotation, tool]);
 
   const updateSelectedPenAnnotation = useCallback(
     (updates: Partial<Pick<PenAnnotation, "color" | "width" | "points">>) => {
@@ -5040,6 +5052,121 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       setExportingPaper(false);
     }
   };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleKeyboardShortcut = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || !(event.ctrlKey || event.metaKey) || event.altKey) {
+        return;
+      }
+
+      if (isShortcutInputTarget(event.target)) {
+        return;
+      }
+
+      const key = String(event.key || "").toLowerCase();
+      const isZoomInShortcut = key === "+" || key === "=" || event.code === "NumpadAdd";
+      const isZoomOutShortcut = key === "-" || key === "_" || event.code === "NumpadSubtract";
+      const isRedoShortcut = key === "y" || (key === "z" && event.shiftKey);
+
+      if (shouldEnforceExamScreen && ["p", "s", "d"].includes(key)) {
+        return;
+      }
+
+      if (
+        !isZoomInShortcut &&
+        !isZoomOutShortcut &&
+        key !== "z" &&
+        !isRedoShortcut &&
+        key !== "s" &&
+        key !== "m" &&
+        key !== "p" &&
+        key !== "t" &&
+        key !== "h" &&
+        key !== "e" &&
+        !(key === "d" && role === "teacher")
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (isZoomInShortcut) {
+        changeZoomLevel(ZOOM_STEP);
+        return;
+      }
+
+      if (isZoomOutShortcut) {
+        changeZoomLevel(-ZOOM_STEP);
+        return;
+      }
+
+      if (key === "z" && !event.shiftKey) {
+        undo();
+        return;
+      }
+
+      if (isRedoShortcut) {
+        redo();
+        return;
+      }
+
+      if (key === "s") {
+        void saveNow();
+        return;
+      }
+
+      if (key === "d" && role === "teacher") {
+        void downloadSubmittedPaper();
+        return;
+      }
+
+      if (!editable) {
+        return;
+      }
+
+      if (key === "m") {
+        setTool("cursor");
+        return;
+      }
+
+      if (key === "p") {
+        setTool("pen");
+        return;
+      }
+
+      if (key === "t") {
+        setTool("text");
+        return;
+      }
+
+      if (key === "h") {
+        setTool("highlighter");
+        return;
+      }
+
+      if (key === "e") {
+        setTool("eraser");
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyboardShortcut, true);
+    return () => {
+      window.removeEventListener("keydown", handleKeyboardShortcut, true);
+    };
+  }, [
+    changeZoomLevel,
+    downloadSubmittedPaper,
+    editable,
+    isShortcutInputTarget,
+    redo,
+    role,
+    saveNow,
+    shouldEnforceExamScreen,
+    undo,
+  ]);
 
   useEffect(() => {
     autoDownloadAttemptedRef.current = false;
