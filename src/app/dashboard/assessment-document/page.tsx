@@ -8,7 +8,7 @@ import { useSelector } from "react-redux";
 import PdfAssessmentAnnotator from "@/components/assessment/PdfAssessmentAnnotator";
 import type { AssessmentDocumentLayer } from "@/services/documentAssessmentApi";
 import { fetchStudentTasks, fetchTasks } from "@/services/api";
-import { fetchStudentProfileData } from "@/services/studentsApi";
+import { fetchStudentProfileData, fetchStudents } from "@/services/studentsApi";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import { IMG_BASE_URL } from "@/lib/config";
 import { resolveExamWindow } from "@/lib/taskTypeMetadata";
@@ -119,6 +119,8 @@ export default function AssessmentDocumentPage() {
   const studentId = role === "student" ? authenticatedStudentId : requestedStudentId;
   const fileUrl = searchParams.get("fileUrl") || "";
   const title = searchParams.get("title") || "PDF Assessment";
+  const classId = searchParams.get("classId") || "";
+  const subjectClassId = searchParams.get("subjectClassId") || "";
   const maxMarksParam = searchParams.get("maxMarks");
   const maxMarks = maxMarksParam ? Number(maxMarksParam) : undefined;
   const initialSelfAssessmentMarkParam = searchParams.get("selfAssessmentMark");
@@ -130,6 +132,7 @@ export default function AssessmentDocumentPage() {
   const teacherMarks = searchParams.get("teacherMarks") || "";
   const teacherFeedback = searchParams.get("teacherFeedback") || "";
   const autoDownloadTeacherPaper = role === "teacher" && searchParams.get("autoDownload") === "1";
+  const scopedSubjectId = canUseSubjectContext ? activeSubjectId ?? undefined : undefined;
   const fallbackExamMode = searchParams.get("examMode") === "1";
   const fallbackExamStartAt = searchParams.get("examStartAt") || null;
   const fallbackExamDurationMinutes = searchParams.get("examDurationMinutes");
@@ -155,6 +158,8 @@ export default function AssessmentDocumentPage() {
   const [teacherStudentTasks, setTeacherStudentTasks] = useState<AssessmentDocumentStudentTask[]>([]);
   const [teacherStudentTasksLoading, setTeacherStudentTasksLoading] = useState(false);
   const [teacherStudentNamesById, setTeacherStudentNamesById] = useState<Record<string, string>>({});
+  const [teacherClassStudentIds, setTeacherClassStudentIds] = useState<string[] | null>(null);
+  const [teacherClassStudentsLoading, setTeacherClassStudentsLoading] = useState(false);
 
   const waitingForStudentSession = role === "student" && !authenticatedStudentId;
   const missing = !assessmentId || !taskId || !studentId || !fileUrl;
@@ -186,10 +191,7 @@ export default function AssessmentDocumentPage() {
     const loadTeacherStudentTasks = async () => {
       setTeacherStudentTasksLoading(true);
       try {
-        const rows = await fetchStudentTasks(
-          Number(assessmentId),
-          canUseSubjectContext ? activeSubjectId : undefined
-        );
+        const rows = await fetchStudentTasks(Number(assessmentId), scopedSubjectId);
         if (cancelled) return;
         const matchingRows = (rows || []).filter((row: AssessmentDocumentStudentTask) => {
           const rowTaskId = row.task_id ?? row.task?.id;
@@ -209,7 +211,48 @@ export default function AssessmentDocumentPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeSubjectId, assessmentId, canUseSubjectContext, role, taskId]);
+  }, [assessmentId, role, scopedSubjectId, taskId]);
+
+  useEffect(() => {
+    if (role !== "teacher" || !classId) {
+      setTeacherClassStudentIds(null);
+      setTeacherClassStudentsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadTeacherClassStudents = async () => {
+      setTeacherClassStudentsLoading(true);
+      try {
+        let rows = await fetchStudents(classId, scopedSubjectId, subjectClassId || undefined);
+        if ((!Array.isArray(rows) || rows.length === 0) && subjectClassId) {
+          rows = await fetchStudents(classId, scopedSubjectId, undefined);
+        }
+        if (cancelled) return;
+
+        const nextIds = Array.from(
+          new Set(
+            (Array.isArray(rows) ? rows : [])
+              .map((student: any) => String(student?.id ?? student?.student_id ?? "").trim())
+              .filter(Boolean)
+          )
+        );
+        setTeacherClassStudentIds(nextIds);
+      } catch (error) {
+        console.error("Failed to load class-scoped students for assessment document:", error);
+        if (!cancelled) setTeacherClassStudentIds([]);
+      } finally {
+        if (!cancelled) setTeacherClassStudentsLoading(false);
+      }
+    };
+
+    void loadTeacherClassStudents();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [classId, role, scopedSubjectId, subjectClassId]);
 
   useEffect(() => {
     if (role !== "teacher" || teacherStudentTasks.length === 0) return;
@@ -235,7 +278,7 @@ export default function AssessmentDocumentPage() {
       const entries = await Promise.all(
         missingNameIds.slice(0, 80).map(async (id) => {
           try {
-            const profile = await fetchStudentProfileData(id, canUseSubjectContext ? activeSubjectId : undefined);
+            const profile = await fetchStudentProfileData(id, scopedSubjectId);
             const name = getStudentNameFromProfile(profile);
             return name ? ([id, name] as const) : null;
           } catch {
@@ -255,7 +298,18 @@ export default function AssessmentDocumentPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeSubjectId, canUseSubjectContext, role, teacherStudentNamesById, teacherStudentTasks]);
+  }, [role, scopedSubjectId, teacherStudentNamesById, teacherStudentTasks]);
+
+  const filteredTeacherStudentTasks = useMemo(() => {
+    if (role !== "teacher") return teacherStudentTasks;
+    if (!classId) return teacherStudentTasks;
+    if (teacherClassStudentIds == null) return [];
+
+    const allowedStudentIds = new Set(teacherClassStudentIds);
+    return teacherStudentTasks.filter((task) =>
+      allowedStudentIds.has(String(task.student_id ?? "").trim())
+    );
+  }, [classId, role, teacherClassStudentIds, teacherStudentTasks]);
 
   useEffect(() => {
     if (missing || role !== "student") {
@@ -311,7 +365,9 @@ export default function AssessmentDocumentPage() {
 
   const teacherStudentOptions = useMemo<TeacherStudentOption[]>(() => {
     const byId = new Map<string, TeacherStudentOption>();
-    for (const task of teacherStudentTasks) {
+    const allowedStudentIds = teacherClassStudentIds ? new Set(teacherClassStudentIds) : null;
+
+    for (const task of filteredTeacherStudentTasks) {
       const optionStudentId = task.student_id;
       if (optionStudentId == null || String(optionStudentId).trim() === "") continue;
       const value = String(optionStudentId);
@@ -326,6 +382,7 @@ export default function AssessmentDocumentPage() {
       studentId &&
       requestedStudentName &&
       !isPlaceholderStudentName(requestedStudentName) &&
+      (!allowedStudentIds || allowedStudentIds.has(String(studentId))) &&
       !byId.has(String(studentId))
     ) {
       byId.set(String(studentId), {
@@ -335,11 +392,21 @@ export default function AssessmentDocumentPage() {
       });
     }
     return Array.from(byId.values()).sort((left, right) => left.label.localeCompare(right.label));
-  }, [requestedStudentName, role, studentId, teacherStudentNamesById, teacherStudentTasks]);
+  }, [
+    filteredTeacherStudentTasks,
+    requestedStudentName,
+    role,
+    studentId,
+    teacherClassStudentIds,
+    teacherStudentNamesById,
+  ]);
 
   const currentTeacherStudentTask = useMemo(() => {
-    return teacherStudentTasks.find((task) => String(task.student_id) === String(studentId)) || null;
-  }, [studentId, teacherStudentTasks]);
+    return (
+      filteredTeacherStudentTasks.find((task) => String(task.student_id) === String(studentId)) ||
+      null
+    );
+  }, [filteredTeacherStudentTasks, studentId]);
 
   const currentTeacherStudentName = useMemo(() => {
     if (currentTeacherStudentTask) return getStudentNameFromTask(currentTeacherStudentTask, teacherStudentNamesById);
@@ -347,7 +414,9 @@ export default function AssessmentDocumentPage() {
   }, [currentTeacherStudentTask, requestedStudentName, studentId, teacherStudentNamesById, teacherStudentOptions]);
 
   const handleTeacherStudentChange = (nextStudentId: string) => {
-    const nextTask = teacherStudentTasks.find((task) => String(task.student_id) === String(nextStudentId));
+    const nextTask = filteredTeacherStudentTasks.find(
+      (task) => String(task.student_id) === String(nextStudentId)
+    );
     if (!nextTask) return;
 
     const sourcePath = nextTask.task?.file_path || nextTask.file_path || "";
@@ -432,7 +501,7 @@ export default function AssessmentDocumentPage() {
           currentStudentName={role === "teacher" ? currentTeacherStudentName : undefined}
           subjectName={activeSubject?.name}
           studentSwitcherOptions={role === "teacher" ? teacherStudentOptions : undefined}
-          studentSwitcherLoading={teacherStudentTasksLoading}
+          studentSwitcherLoading={teacherStudentTasksLoading || teacherClassStudentsLoading}
           onStudentChange={role === "teacher" ? handleTeacherStudentChange : undefined}
           autoDownloadTeacherPaper={autoDownloadTeacherPaper}
         />

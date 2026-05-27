@@ -747,6 +747,8 @@ export default function AssessmentDrawer() {
     ) {
       params.set("selfAssessmentMark", String(getSelfAssessmentMarkForTask(task)));
     }
+    if (classId) params.set("classId", String(classId));
+    if (subjectClassId) params.set("subjectClassId", String(subjectClassId));
     if (options.autoDownload) params.set("autoDownload", "1");
     return `/dashboard/assessment-document?${params.toString()}`;
   };
