@@ -98,13 +98,14 @@ const TEXT_ALIGNMENT_OPTIONS: Array<{
 const TOOL_BUTTONS: Array<{
   value: Tool;
   label: string;
+  shortcut: string;
   Icon: typeof PenTool;
 }> = [
-  { value: "cursor", label: "Cursor", Icon: MousePointer2 },
-  { value: "pen", label: "Pen", Icon: PenTool },
-  { value: "highlighter", label: "Highlighter", Icon: Highlighter },
-  { value: "eraser", label: "Eraser", Icon: Eraser },
-  { value: "text", label: "Text", Icon: Type },
+  { value: "cursor", label: "Cursor", shortcut: "Ctrl+M", Icon: MousePointer2 },
+  { value: "pen", label: "Pen", shortcut: "Ctrl+P", Icon: PenTool },
+  { value: "highlighter", label: "Highlighter", shortcut: "Ctrl+H", Icon: Highlighter },
+  { value: "eraser", label: "Eraser", shortcut: "Ctrl+E", Icon: Eraser },
+  { value: "text", label: "Text", shortcut: "Ctrl+Q", Icon: Type },
 ];
 
 const TOUCH_PAGE_ACTION_GRACE_MS = 120;
@@ -5082,7 +5083,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         key !== "s" &&
         key !== "m" &&
         key !== "p" &&
-        key !== "t" &&
+        key !== "q" &&
         key !== "h" &&
         key !== "e" &&
         !(key === "d" && role === "teacher")
@@ -5137,7 +5138,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         return;
       }
 
-      if (key === "t") {
+      if (key === "q") {
         setTool("text");
         return;
       }
@@ -5280,15 +5281,15 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
           <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-3">
             <div className="order-2 flex flex-wrap items-center gap-2">
               <div className="flex flex-wrap items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
-                {TOOL_BUTTONS.map(({ value, label, Icon }) => (
+                {TOOL_BUTTONS.map(({ value, label, shortcut, Icon }) => (
                   <Button
                     key={value}
                     type="text"
                     icon={<Icon className="h-5 w-5" strokeWidth={2.2} />}
                     disabled={!editable}
                     onClick={() => setTool(value)}
-                    title={label}
-                    aria-label={`Use ${label.toLowerCase()} tool`}
+                    title={`${label} ${shortcut}`}
+                    aria-label={`Use ${label.toLowerCase()} tool (${shortcut})`}
                     className={[
                       "!flex !h-11 !w-11 !items-center !justify-center !rounded-xl !border !p-0 !shadow-none",
                       tool === value
