@@ -3242,29 +3242,6 @@ export default function StudentList() {
               >
                 Deduct Points
               </Button>
-              {hasAccess && (
-                <Button
-                  icon={<EditOutlined />}
-                  onClick={() => {
-                    openEditStudent(selectedStudentAction);
-                    setSelectedStudentAction(null);
-                  }}
-                >
-                  Edit
-                </Button>
-              )}
-              {hasAccess && (
-                <Button
-                  icon={<DeleteOutlined />}
-                  danger
-                  onClick={() => {
-                    showDeleteConfirm(selectedStudentAction);
-                    setSelectedStudentAction(null);
-                  }}
-                >
-                  Delete
-                </Button>
-              )}
               <Button
                 icon={<PictureOutlined />}
                 onClick={() => openAvatarPicker(selectedStudentAction)}
@@ -3290,6 +3267,31 @@ export default function StudentList() {
                 Open Student Profile
               </Button>
             </div>
+            {hasAccess && (
+              <div className="flex justify-end gap-2 pt-1">
+                <Button
+                  size="small"
+                  icon={<EditOutlined />}
+                  onClick={() => {
+                    openEditStudent(selectedStudentAction);
+                    setSelectedStudentAction(null);
+                  }}
+                >
+                  Edit
+                </Button>
+                <Button
+                  size="small"
+                  icon={<DeleteOutlined />}
+                  danger
+                  onClick={() => {
+                    showDeleteConfirm(selectedStudentAction);
+                    setSelectedStudentAction(null);
+                  }}
+                >
+                  Delete
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </Modal>
