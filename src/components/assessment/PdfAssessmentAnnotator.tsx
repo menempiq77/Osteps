@@ -5304,6 +5304,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                   size="small"
                   onClick={() => changeZoomLevel(-ZOOM_STEP)}
                   disabled={zoomLevel <= MIN_ZOOM_LEVEL}
+                  title="Ctrl+-"
+                  aria-label="Zoom out (Ctrl+-)"
                 >
                   -
                 </Button>
@@ -5314,13 +5316,15 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                   size="small"
                   onClick={() => changeZoomLevel(ZOOM_STEP)}
                   disabled={zoomLevel >= MAX_ZOOM_LEVEL}
+                  title="Ctrl++"
+                  aria-label="Zoom in (Ctrl++)"
                 >
                   +
                 </Button>
               </div>
               <Button onClick={undo} disabled={!editable || undoStack.length === 0}>Undo</Button>
               <Button onClick={redo} disabled={!editable || redoStack.length === 0}>Redo</Button>
-              <Button onClick={saveNow} disabled={!editable} loading={saving}>Save now</Button>
+              <Button onClick={saveNow} disabled={!editable} loading={saving} title="Ctrl+S" aria-label="Save now (Ctrl+S)">Save now</Button>
             </div>
 
             {(tool !== "eraser" && (tool !== "cursor" || canEditSelectedStroke)) && (
@@ -5441,7 +5445,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                   onClick={() => void downloadSubmittedPaper()}
                   loading={exportingPaper}
                   disabled={!canDownloadSubmittedPaper || rendering}
-                  title={canDownloadSubmittedPaper ? "Download this student paper as a PDF" : "Download is available after the student submits or the paper is locked"}
+                  title={canDownloadSubmittedPaper ? "Download this student paper as a PDF (Ctrl+D)" : "Download is available after the student submits or the paper is locked (Ctrl+D)"}
+                  aria-label="Download paper (Ctrl+D)"
                 >
                   Download paper
                 </Button>
