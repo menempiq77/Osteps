@@ -1,6 +1,6 @@
 import api from "@/services/api";
 import { fetchSubjects } from "@/services/subjectsApi";
-import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
+import { fetchSubjectClasses, fetchStaffSubjectAssignments } from "@/services/subjectWorkspaceApi";
 import { fetchAssignYears } from "@/services/yearsApi";
 import { resolveSubjectClassLinkedIdWithFallback } from "@/lib/subjectClassResolution";
 import type { SubjectBrief, SubjectContextResponse } from "@/types/subjectContext";
@@ -13,6 +13,18 @@ const normalizeSubjects = (raw: any): SubjectBrief[] => {
       name: String(item?.name ?? ""),
       code: item?.code ?? null,
       class_label: item?.class_label ?? null,
+    }))
+    .filter((item) => Number.isFinite(item.id) && item.id > 0 && item.name.trim().length > 0);
+};
+
+const normalizeStaffAssignmentSubjects = (raw: any): SubjectBrief[] => {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item) => ({
+      id: Number(item?.subject_id ?? item?.subject?.id ?? 0),
+      name: String(item?.subject_name ?? item?.subject?.name ?? ""),
+      code: item?.subject_code ?? item?.subject?.code ?? null,
+      class_label: null,
     }))
     .filter((item) => Number.isFinite(item.id) && item.id > 0 && item.name.trim().length > 0);
 };
@@ -224,6 +236,51 @@ export const fetchMySubjectContext = async (options?: {
       console.warn("[SubjectContext] /subjects/my-context failed:", err?.response?.status, err?.message);
     }
 
+    if (roleKey === "HOD") {
+      try {
+        const currentUserId = Number(options?.userId ?? 0);
+        const assignmentRows = await fetchStaffSubjectAssignments("HOD");
+        const ownAssignmentRows = (Array.isArray(assignmentRows) ? assignmentRows : []).filter(
+          (row: any) =>
+            Number(row?.user_id ?? row?.userId ?? 0) === currentUserId &&
+            String(row?.role_scope ?? "").trim().toUpperCase() === "HOD"
+        );
+        const authoritativeSubjects = normalizeStaffAssignmentSubjects(ownAssignmentRows);
+        if (authoritativeSubjects.length > 0) {
+          const authoritativeRoles = authoritativeSubjects.map((subject) => ({
+            subject_id: subject.id,
+            role_scope: "HOD",
+          }));
+          const finalSubjectRoles = dedupeSubjectRoles([
+            ...apiSubjectRoles,
+            ...knownSubjectRoles,
+            ...authoritativeRoles,
+          ]).filter((role) =>
+            authoritativeSubjects.some((subject) => subject.id === role.subject_id)
+          );
+          const resolvedDefaultSubjectId =
+            [apiDefaultId, authoritativeSubjects[0]?.id ?? null]
+              .filter((value): value is number => Number.isFinite(value as number) && Number(value) > 0)
+              .find((value) => authoritativeSubjects.some((subject) => subject.id === value)) ?? null;
+
+          console.log(
+            "[SubjectContext] HOD staff-assignments returned",
+            authoritativeSubjects.length,
+            "subjects:",
+            authoritativeSubjects.map((subject) => subject.name)
+          );
+
+          return {
+            assigned_subjects: authoritativeSubjects,
+            default_subject_id: resolvedDefaultSubjectId,
+            subject_roles: finalSubjectRoles,
+          };
+        }
+      } catch (err: any) {
+        console.warn("[SubjectContext] HOD staff-assignments failed:", err?.response?.status, err?.message);
+      }
+    }
+
     // Source 2: knownSubjects from login response
     if (known.length > 0) {
       console.log("[SubjectContext] merging knownSubjects from login:", known.map(s => s.name));
@@ -258,21 +315,7 @@ export const fetchMySubjectContext = async (options?: {
       };
     }
 
-    // Last resort for staff: show all school subjects so teacher is never stuck
-    console.log("[SubjectContext] falling back to all school subjects for staff role:", roleKey);
-    try {
-      const subjects = normalizeSubjects(await fetchSubjects());
-      if (subjects.length > 0) {
-        return {
-          assigned_subjects: subjects,
-          default_subject_id: subjects[0]?.id ?? null,
-          subject_roles: [],
-        };
-      }
-    } catch (err: any) {
-      console.warn("[SubjectContext] fetchSubjects fallback failed:", err?.message);
-    }
-
+    console.warn("[SubjectContext] strict staff fallback — returning empty for role:", roleKey);
     return { assigned_subjects: [], default_subject_id: null, subject_roles: [] };
   }
 

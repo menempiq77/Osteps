@@ -72,7 +72,9 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
   const seedSubjectRoles = normalizeSeedSubjectRoles(currentUser?.subject_roles);
   const rawSeedSubjects = normalizeSeedSubjects(currentUser?.assigned_subjects);
   const seedSubjects =
-    ["ADMIN", "HOD", "TEACHER"].includes(roleKey) && seedSubjectRoles.length > 0
+    roleKey === "HOD" && seedSubjectRoles.length === 0
+      ? []
+      : ["ADMIN", "HOD", "TEACHER"].includes(roleKey) && seedSubjectRoles.length > 0
       ? rawSeedSubjects.filter((subject) =>
           seedSubjectRoles.some((subjectRole) => subjectRole.subject_id === Number(subject.id))
         )
