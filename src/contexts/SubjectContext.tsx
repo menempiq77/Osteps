@@ -41,6 +41,23 @@ const normalizeSeedSubjects = (
     .filter((item) => Number.isFinite(item.id) && item.id > 0 && item.name.trim().length > 0);
 };
 
+const normalizeSeedSubjectRoles = (
+  raw: Array<{ subject_id: number; role_scope: string }> | undefined
+) => {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item) => ({
+      subject_id: Number(item?.subject_id ?? 0),
+      role_scope: String(item?.role_scope ?? "").trim().toUpperCase(),
+    }))
+    .filter(
+      (item) =>
+        Number.isFinite(item.subject_id) &&
+        item.subject_id > 0 &&
+        item.role_scope.length > 0
+    );
+};
+
 export function SubjectContextProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -48,10 +65,18 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
   const { currentUser } = useSelector((state: RootState) => state.auth);
 
   const role = currentUser?.role;
+  const roleKey = (role ?? "").trim().toUpperCase().replace(/\s+/g, "_");
   const userId = currentUser?.id;
   const canUseSubjectContext = isSubjectContextEnabled() && isRoleEligible(role);
   const subjectIdParam = searchParams.get("subject_id") ?? "";
-  const seedSubjects = normalizeSeedSubjects(currentUser?.assigned_subjects);
+  const seedSubjectRoles = normalizeSeedSubjectRoles(currentUser?.subject_roles);
+  const rawSeedSubjects = normalizeSeedSubjects(currentUser?.assigned_subjects);
+  const seedSubjects =
+    ["ADMIN", "HOD", "TEACHER"].includes(roleKey) && seedSubjectRoles.length > 0
+      ? rawSeedSubjects.filter((subject) =>
+          seedSubjectRoles.some((subjectRole) => subjectRole.subject_id === Number(subject.id))
+        )
+      : rawSeedSubjects;
   const seedActiveSubjectId = (() => {
     const fromPath = extractSubjectIdFromPath(pathname);
     const fromStorage = getStoredSubjectId();
@@ -105,6 +130,7 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
         const context = await fetchMySubjectContext({
           role: currentUser?.role,
           knownSubjects: currentUser?.assigned_subjects,
+          knownSubjectRoles: currentUser?.subject_roles,
           studentId: currentUser?.student,
           studentClassId: currentUser?.studentClass,
           userId: currentUser?.id,
