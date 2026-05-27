@@ -211,6 +211,32 @@ const getRowClassFilterOptions = (
   return fallbackValue && fallbackLabel ? [{ value: fallbackValue, label: fallbackLabel }] : [];
 };
 
+const getRowEditSubjectIds = (row: Partial<StudentListRow>): number[] =>
+  Array.from(
+    new Set(
+      [
+        ...(Array.isArray(row.subjectIds) ? row.subjectIds : []),
+        ...(
+          Array.isArray(row.currentAssignments)
+            ? row.currentAssignments.map((assignment) => Number(assignment.subjectId))
+            : []
+        ),
+      ].filter((value) => Number.isFinite(value) && Number(value) > 0)
+    )
+  ).map((value) => Number(value));
+
+const getRowEditSubjectClassIds = (row: Partial<StudentListRow>): number[] =>
+  Array.from(
+    new Set(
+      [
+        ...(Array.isArray(row.currentAssignments)
+          ? row.currentAssignments.map((assignment) => Number(assignment.subjectClassId))
+          : []),
+        Number(row.subjectClassId),
+      ].filter((value) => Number.isFinite(value) && Number(value) > 0)
+    )
+  ).map((value) => Number(value));
+
 
 const resolveSubjectClassLinkedId = (row: SubjectClassRow): string =>
   String(
@@ -2235,13 +2261,15 @@ export default function AllStudentsPage() {
 
     setEditingStudents([]);
     setEditingStudent(record);
+    const initialSubjectIds = getRowEditSubjectIds(record);
+    const initialSubjectClassIds = getRowEditSubjectClassIds(record);
     editForm.setFieldsValue({
       student_name: record.name,
       user_name: record.userName,
       email: record.email,
       class_id: record.classId,
-      subject_ids: record.subjectIds?.filter((id) => Number.isFinite(id) && id > 0) || [],
-      class_ids: [],
+      subject_ids: initialSubjectIds,
+      class_ids: initialSubjectClassIds,
       status: record.status,
       gender: record.genderRaw || undefined,
       nationality: record.nationality || "",
@@ -2311,13 +2339,15 @@ export default function AllStudentsPage() {
           };
 
           setEditingStudent(hydratedRecord);
+          const hydratedSubjectIds = getRowEditSubjectIds(hydratedRecord);
+          const hydratedSubjectClassIds = getRowEditSubjectClassIds(hydratedRecord);
           editForm.setFieldsValue({
             student_name: hydratedRecord.name,
             user_name: hydratedRecord.userName,
             email: hydratedRecord.email,
             class_id: hydratedRecord.classId,
-            subject_ids: hydratedRecord.subjectIds?.filter((id) => Number.isFinite(id) && id > 0) || [],
-            class_ids: [],
+            subject_ids: hydratedSubjectIds,
+            class_ids: hydratedSubjectClassIds,
             status: hydratedRecord.status,
             gender: hydratedRecord.genderRaw || undefined,
             nationality: hydratedRecord.nationality || "",
