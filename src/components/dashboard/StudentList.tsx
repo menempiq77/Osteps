@@ -11,6 +11,7 @@ import {
   Form,
   Input,
   Modal,
+  Popover,
   Popconfirm,
   Spin,
   message,
@@ -65,6 +66,13 @@ import {
   mergeSubjectStudentHints,
   readSubjectStudentHints,
 } from "@/lib/subjectStudentHints";
+import {
+  getStudentCardMarkerOption,
+  readStudentCardMarkers,
+  STUDENT_CARD_MARKER_OPTIONS,
+  StudentCardMarkerKey,
+  writeStudentCardMarker,
+} from "@/lib/studentCardMarkers";
 
 type Student = {
   id: string;
@@ -368,6 +376,10 @@ export default function StudentList() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const { subjects, activeSubjectId, activeSubject, toSubjectHref } = useSubjectContext();
   const [messageApi, contextHolder] = message.useMessage();
+  const markerOwnerKey = useMemo(
+    () => String(currentUser?.id ?? currentUser?.email ?? "").trim() || null,
+    [currentUser?.email, currentUser?.id]
+  );
   const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<"behavior" | "seating" | "story">("behavior");
   const [isAddStudentModalOpen, setIsAddStudentModalOpen] = useState(false);
@@ -378,6 +390,10 @@ export default function StudentList() {
   const [selectedStudentAction, setSelectedStudentAction] = useState<any | null>(
     null
   );
+  const [studentMarkers, setStudentMarkers] = useState<Record<string, StudentCardMarkerKey>>(
+    {}
+  );
+  const [openMarkerPickerId, setOpenMarkerPickerId] = useState<string | null>(null);
   const [isWholeClassActionModalOpen, setIsWholeClassActionModalOpen] = useState(false);
   const [isWholeClassBehaviorMode, setIsWholeClassBehaviorMode] = useState(false);
   const [isSelectedStudentsBehaviorMode, setIsSelectedStudentsBehaviorMode] =
@@ -688,6 +704,63 @@ export default function StudentList() {
   useEffect(() => {
     setRecentAddedHints(readSubjectStudentHints(subjectHintScopeKey));
   }, [subjectHintScopeKey]);
+
+  useEffect(() => {
+    setStudentMarkers(readStudentCardMarkers(markerOwnerKey));
+  }, [markerOwnerKey]);
+
+  const setStudentCardMarker = (
+    studentId: string | number,
+    markerKey: StudentCardMarkerKey | null
+  ) => {
+    const normalizedStudentId = toStudentId(studentId);
+    const nextMarkers = writeStudentCardMarker(markerOwnerKey, normalizedStudentId, markerKey);
+    setStudentMarkers(nextMarkers);
+    setOpenMarkerPickerId(null);
+  };
+
+  const renderStudentMarkerPicker = (studentId: string) => {
+    const activeMarkerKey = studentMarkers[studentId];
+    return (
+      <div className="w-44" onClick={(event) => event.stopPropagation()}>
+        <div className="mb-2 text-[11px] font-medium text-slate-500">Quick marker</div>
+        <div className="grid grid-cols-3 gap-2">
+          {STUDENT_CARD_MARKER_OPTIONS.map((option) => {
+            const isActive = option.key === activeMarkerKey;
+            return (
+              <button
+                key={option.key}
+                type="button"
+                title={option.label}
+                aria-label={option.label}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setStudentCardMarker(studentId, option.key);
+                }}
+                className={`flex h-9 items-center justify-center rounded-lg border text-lg transition ${
+                  isActive
+                    ? "border-emerald-400 bg-emerald-50 shadow-sm"
+                    : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+                }`}
+              >
+                <span aria-hidden="true">{option.symbol}</span>
+              </button>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            setStudentCardMarker(studentId, null);
+          }}
+          className="mt-2 w-full rounded-lg border border-dashed border-slate-200 px-2 py-1 text-xs text-slate-500 transition hover:border-slate-300 hover:text-slate-700"
+        >
+          Remove marker
+        </button>
+      </div>
+    );
+  };
 
   const rememberRecentAddedStudent = (studentLike: any, fallbackInput?: any) => {
     const id = String(studentLike?.id ?? studentLike?.student_id ?? "").trim();
@@ -2729,6 +2802,7 @@ export default function StudentList() {
               const isSavingAvatar = savingAvatarStudentIds.includes(studentId);
               const attendanceEntry = attendanceByStudent[studentId];
               const isPresent = attendanceEntry?.isPresent !== false;
+              const studentMarker = getStudentCardMarkerOption(studentMarkers[studentId]);
               return (
                 <div
                   key={studentId}
@@ -2801,14 +2875,42 @@ export default function StudentList() {
                           : safeNumber(student.total_points)}
                       </div>
                       <div className="text-xs text-slate-400">points</div>
+                      <Popover
+                        trigger="click"
+                        placement="bottomRight"
+                        open={openMarkerPickerId === studentId}
+                        onOpenChange={(open) => setOpenMarkerPickerId(open ? studentId : null)}
+                        content={renderStudentMarkerPicker(studentId)}
+                      >
+                        <span
+                          onClick={(event) => event.stopPropagation()}
+                          className="mt-1 inline-flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border border-slate-200 text-[11px] font-semibold leading-none text-slate-500 transition hover:border-slate-300 hover:text-slate-700"
+                          role="button"
+                          aria-label="Choose student marker"
+                          title="Choose student marker"
+                        >
+                          =
+                        </span>
+                      </Popover>
                     </div>
                   </div>
 
                   <div className="mt-2">
-                    <div className={`text-lg font-semibold truncate capitalize ${
+                    <div className={`text-lg font-semibold capitalize ${
                       isPresent ? "text-slate-800" : "text-slate-200"
                     }`}>
-                      {student.student_name}
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <span className="truncate">{student.student_name}</span>
+                        {studentMarker && (
+                          <span
+                            className="shrink-0 text-sm leading-none"
+                            title={studentMarker.label}
+                            aria-label={studentMarker.label}
+                          >
+                            {studentMarker.symbol}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className={`text-xs truncate ${isPresent ? "text-slate-500" : "text-slate-300"}`}>
                       @{student.user_name || "N/A"}
@@ -3099,6 +3201,7 @@ export default function StudentList() {
                 const studentId = toStudentId(student.id);
                 const seatingImageSrc = getStudentImagePath(student) || "";
                 const isSavingAvatar = savingAvatarStudentIds.includes(studentId);
+                const studentMarker = getStudentCardMarkerOption(studentMarkers[studentId]);
 
                 return (
                   <div
@@ -3125,8 +3228,17 @@ export default function StudentList() {
                     }}
                     onClick={() => handleStudentClick(student.id)}
                   >
-                    <div className="text-lg font-semibold text-slate-700 truncate capitalize">
-                      {student.student_name}
+                    <div className="flex min-w-0 items-center gap-1.5 text-lg font-semibold text-slate-700 capitalize">
+                      <span className="truncate">{student.student_name}</span>
+                      {studentMarker && (
+                        <span
+                          className="shrink-0 text-sm leading-none"
+                          title={studentMarker.label}
+                          aria-label={studentMarker.label}
+                        >
+                          {studentMarker.symbol}
+                        </span>
+                      )}
                     </div>
                     <div className="mt-1 flex items-center gap-2">
                       <div className="h-10 w-10 rounded-full bg-emerald-100 overflow-hidden flex items-center justify-center text-sm font-semibold uppercase text-emerald-700">
