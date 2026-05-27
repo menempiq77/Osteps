@@ -32,10 +32,15 @@ import BehaviorModal from "@/components/modals/behaviorModals/BehaviorModal";
 import {
   addStudent as apiAddStudent,
   deleteStudent as apiDeleteStudent,
+  fetchStudentProfileData,
   fetchStudents,
   updateStudent as apiUpdateStudent,
   uploadStudentAvatar,
 } from "@/services/studentsApi";
+import {
+  assignStudentsToSubjects,
+  fetchSubjectClasses,
+} from "@/services/subjectWorkspaceApi";
 import {
   addBehaviour,
   addBehaviourType,
@@ -68,14 +73,32 @@ type Student = {
   email: string;
   class_id: number;
   class_name?: string;
+  subject_class_id?: number;
+  subject_ids?: number[];
+  class_ids?: number[];
   status: "active" | "inactive" | "suspended";
   gender?: string;
   student_gender?: string;
   sex?: string;
   student_sex?: string;
+  nationality?: string;
+  is_sen?: boolean;
+  sen_details?: string;
   profile_path?: string | null;
   profile_photo?: string | null;
   avatar?: string | null;
+};
+
+type EditSubjectOption = {
+  value: number;
+  label: string;
+};
+
+type EditSubjectClassOption = {
+  value: number;
+  label: string;
+  subjectId: number;
+  linkedClassId?: number;
 };
 
 type SeatingStateItem = {
@@ -143,15 +166,43 @@ const safeNumber = (value: unknown) => {
 };
 
 const toStudentId = (id: string | number) => String(id);
+const toPositiveNumberIds = (values: unknown[]) =>
+  Array.from(
+    new Set(
+      values
+        .flatMap((value) => (Array.isArray(value) ? value : [value]))
+        .map((value) => Number(value))
+        .filter((value) => Number.isFinite(value) && value > 0)
+    )
+  );
+
 const extractStudentSubjectClassIds = (student: Record<string, any>) =>
-  [
+  toPositiveNumberIds([
     student?.subject_class_id,
     student?.subjectClassId,
     student?.pivot?.subject_class_id,
-  ]
-    .flatMap((value) => (Array.isArray(value) ? value : [value]))
-    .map((value) => String(value ?? "").trim())
-    .filter(Boolean);
+    ...(Array.isArray(student?.subjects)
+      ? (student.subjects as Array<Record<string, unknown>>).map(
+          (subject) => subject?.subject_class_id ?? (subject as any)?.pivot?.subject_class_id
+        )
+      : []),
+  ]);
+
+const extractStudentSubjectIds = (student: Record<string, any>) =>
+  toPositiveNumberIds([
+    student?.subject_id,
+    student?.subjectId,
+    student?.pivot?.subject_id,
+    ...(Array.isArray(student?.subjects)
+      ? (student.subjects as Array<Record<string, unknown>>).map(
+          (subject) =>
+            subject?.subject_id ??
+            subject?.subjectId ??
+            subject?.id ??
+            (subject as any)?.pivot?.subject_id
+        )
+      : []),
+  ]);
 
 const normalizeText = (value: string) =>
   value.toLowerCase().replace(/[\s_-]+/g, " ").trim();
@@ -315,7 +366,7 @@ export default function StudentList() {
   const querySubjectClassId = searchParams.get("subjectClassId") || "";
   const queryClient = useQueryClient();
   const { currentUser } = useSelector((state: RootState) => state.auth);
-  const { activeSubjectId, activeSubject, toSubjectHref } = useSubjectContext();
+  const { subjects, activeSubjectId, activeSubject, toSubjectHref } = useSubjectContext();
   const [messageApi, contextHolder] = message.useMessage();
   const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<"behavior" | "seating" | "story">("behavior");
@@ -492,6 +543,95 @@ export default function StudentList() {
   const seatingScopeId = isSubjectWorkspaceMode
     ? `subject:${scopedSubjectId}:class:${effectiveSubjectClassId || classIdStr}`
     : String(effectiveClassId || classIdStr || "");
+  const editSubjectOptions = useMemo<EditSubjectOption[]>(() => {
+    const sourceSubjects =
+      Array.isArray(subjects) && subjects.length > 0
+        ? subjects
+        : activeSubject
+          ? [activeSubject]
+          : [];
+    const normalized = sourceSubjects
+      .map((subject) => {
+        const value = Number(subject.id);
+        const baseLabel = String(subject.name || "").replace(/islamiat/gi, "Islamic").trim();
+        return { value, baseLabel };
+      })
+      .filter((item) => Number.isFinite(item.value) && item.value > 0 && !!item.baseLabel);
+
+    const duplicateCounts = new Map<string, number>();
+    normalized.forEach((item) => {
+      const key = item.baseLabel.toLowerCase();
+      duplicateCounts.set(key, (duplicateCounts.get(key) || 0) + 1);
+    });
+
+    return normalized
+      .map((item) => {
+        const key = item.baseLabel.toLowerCase();
+        const isDuplicateName = (duplicateCounts.get(key) || 0) > 1;
+        return {
+          label: isDuplicateName ? `${item.baseLabel} (#${item.value})` : item.baseLabel,
+          value: item.value,
+        };
+      })
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [subjects, activeSubject]);
+  const editSubjectIdsForLookup = useMemo(
+    () => toPositiveNumberIds(editSubjectOptions.map((option) => option.value)),
+    [editSubjectOptions]
+  );
+
+  const { data: editSubjectClassOptions = [] } = useQuery<EditSubjectClassOption[]>({
+    queryKey: [
+      "student-list-edit-subject-classes",
+      !!editStudent,
+      editSubjectIdsForLookup.join(","),
+    ],
+    enabled: hasAccess && !!editStudent && editSubjectIdsForLookup.length > 0,
+    queryFn: async () => {
+      const rows = await Promise.all(
+        editSubjectIdsForLookup.map(async (subjectId) => {
+          try {
+            const items = await fetchSubjectClasses({ subject_id: subjectId });
+            return (Array.isArray(items) ? items : [])
+              .map((item: any) => {
+                const subjectName =
+                  editSubjectOptions.find((option) => Number(option.value) === Number(subjectId))?.label ||
+                  `Subject ${subjectId}`;
+                const detail = item.base_class_label ? ` (${String(item.base_class_label)})` : "";
+                return {
+                  value: Number(item.id),
+                  label: `${subjectName} - ${String(item.name || `Class ${item.id}`)}${detail}`,
+                  subjectId,
+                  linkedClassId: Number(
+                    item.linked_class_id ??
+                      item.linkedClassId ??
+                      item.linkedClass?.id ??
+                      item.linked_class?.id ??
+                      item.classId ??
+                      item.class_id_value ??
+                      item.class_id ??
+                      item.class?.class_id ??
+                      item.classes?.class_id ??
+                      item.base_class?.class_id ??
+                      item.base_class_id ??
+                      item.baseClassId ??
+                      item.class?.id ??
+                      item.classes?.id ??
+                      item.base_class?.id ??
+                      0
+                  ) || undefined,
+                };
+              })
+              .filter((item) => Number.isFinite(item.value) && item.value > 0);
+          } catch {
+            return [] as EditSubjectClassOption[];
+          }
+        })
+      );
+
+      return rows.flat();
+    },
+  });
 
   const { data: studentsData, isLoading: studentsLoading } = useQuery({
     queryKey: studentsQueryKey,
@@ -626,13 +766,41 @@ export default function StudentList() {
   });
 
   const updateStudentMutation = useMutation({
-    mutationFn: ({ id, values }: { id: string; values: any }) =>
+    mutationFn: ({ id, values }: { id: string; values: any; assignment?: { subjectIds: number[]; subjectClassIds: number[] } }) =>
       apiUpdateStudent(id, values, scopedSubjectId),
-    onSuccess: () => {
+    onSuccess: async (_data, variables) => {
       console.log('[Student Update] Success - refetching student data');
+      const assignment = variables.assignment;
+      const studentId = Number(variables.id);
+      if (
+        Number.isFinite(studentId) &&
+        studentId > 0 &&
+        assignment &&
+        (assignment.subjectIds.length > 0 || assignment.subjectClassIds.length > 0)
+      ) {
+        try {
+          await assignStudentsToSubjects({
+            subjectIds: assignment.subjectIds,
+            studentIds: [studentId],
+            subjects: editSubjectOptions.map((option) => ({
+              id: Number(option.value),
+              name: option.label,
+            })),
+            subjectClassIds: assignment.subjectClassIds,
+            forceReassign: false,
+            allowCrossClass: true,
+          });
+        } catch {
+          messageApi.warning("Student updated but subject assignment may need manual sync.");
+        }
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ["all-students-list"] });
+      await queryClient.invalidateQueries({ queryKey: ["students"] });
+      await queryClient.invalidateQueries({ queryKey: ["class-students-behavior-summary"] });
       // Force immediate refetch instead of just invalidating
-      queryClient.refetchQueries({ queryKey: studentsQueryKey });
-      queryClient.refetchQueries({ queryKey: behaviorSummaryQueryKey });
+      await queryClient.refetchQueries({ queryKey: studentsQueryKey, type: "active" });
+      await queryClient.refetchQueries({ queryKey: behaviorSummaryQueryKey, type: "active" });
       setEditStudent(null);
       messageApi.success("Student updated successfully.");
     },
@@ -803,6 +971,8 @@ export default function StudentList() {
           s.gender ?? s.student_gender ?? s.sex ?? s.student_sex
         );
         const rawGender = fromApiGender;
+        const subjectIds = extractStudentSubjectIds(s as Record<string, any>);
+        const classIds = extractStudentSubjectClassIds(s as Record<string, any>);
         return {
         id: sid,
         student_name: s.student_name,
@@ -810,9 +980,15 @@ export default function StudentList() {
         email: s.email,
         class_id: s.class_id,
         class_name: s.class_name,
+        subject_class_id: classIds[0] ?? (Number((s as any).subject_class_id ?? 0) || undefined),
+        subject_ids: subjectIds.length > 0 ? subjectIds : scopedSubjectId ? [scopedSubjectId] : [],
+        class_ids: classIds.length > 0 ? classIds : effectiveSubjectClassId ? [Number(effectiveSubjectClassId)] : [],
         status: s.status || "active",
         gender: rawGender,
         student_gender: rawGender,
+        nationality: (s as any).nationality || undefined,
+        is_sen: Boolean((s as any).is_sen ?? (s as any).isSen),
+        sen_details: String((s as any).sen_details ?? (s as any).senDetails ?? "").trim(),
         profile_path: getStudentImagePath(s),
         positive_points: fp?.positive ?? 0,
         negative_points: fp?.negative ?? 0,
@@ -836,18 +1012,42 @@ export default function StudentList() {
           fromStudents?.student_sex
       );
       const rawGender = fromApiGender;
+      const source = ({ ...(fromStudents || {}), ...(item as any) } as Record<string, any>);
+      const subjectIds = extractStudentSubjectIds(source);
+      const classIds = extractStudentSubjectClassIds(source);
       return {
         id,
         student_name: item.student_name || fromStudents?.student_name || "Student",
         user_name: item.user_name || fromStudents?.user_name || "",
         email: fromStudents?.email || "",
         class_id: fromStudents?.class_id || Number(effectiveClassId) || 0,
+        class_name: fromStudents?.class_name,
+        subject_class_id:
+          classIds[0] ??
+          (Number((item as any)?.subject_class_id ?? fromStudents?.subject_class_id ?? 0) ||
+            undefined),
+        subject_ids: subjectIds.length > 0 ? subjectIds : scopedSubjectId ? [scopedSubjectId] : [],
+        class_ids: classIds.length > 0 ? classIds : effectiveSubjectClassId ? [Number(effectiveSubjectClassId)] : [],
         status: (item.status || fromStudents?.status || "active") as
           | "active"
           | "inactive"
           | "suspended",
         gender: rawGender,
         student_gender: rawGender,
+        nationality:
+          String(
+            (item as any)?.nationality ??
+              (item as any)?.student_nationality ??
+              fromStudents?.nationality ??
+              ""
+          ).trim() || undefined,
+        is_sen: Boolean((item as any)?.is_sen ?? (item as any)?.isSen ?? fromStudents?.is_sen),
+        sen_details: String(
+          (item as any)?.sen_details ??
+            (item as any)?.senDetails ??
+            fromStudents?.sen_details ??
+            ""
+        ).trim(),
         profile_path: getStudentImagePath(item) || getStudentImagePath(fromStudents),
         positive_points:
           safeNumber(item.positive_points) ||
@@ -861,7 +1061,104 @@ export default function StudentList() {
           safeNumber(item.total_points) || fallbackPointsByStudent[id]?.total || 0,
       };
     });
-  }, [behaviorSummary, students, summaryError, effectiveClassId, fallbackPointsByStudent]);
+  }, [
+    behaviorSummary,
+    students,
+    summaryError,
+    effectiveClassId,
+    fallbackPointsByStudent,
+    scopedSubjectId,
+    effectiveSubjectClassId,
+  ]);
+
+  const openEditStudent = (student: Student | null) => {
+    if (!student) return;
+
+    const fallbackSubjectIds =
+      Array.isArray(student.subject_ids) && student.subject_ids.length > 0
+        ? student.subject_ids
+        : scopedSubjectId
+          ? [scopedSubjectId]
+          : [];
+    const fallbackClassIds =
+      Array.isArray(student.class_ids) && student.class_ids.length > 0
+        ? student.class_ids
+        : student.subject_class_id
+          ? [Number(student.subject_class_id)]
+          : effectiveSubjectClassId
+            ? [Number(effectiveSubjectClassId)]
+            : [];
+
+    setEditStudent({
+      ...student,
+      subject_ids: fallbackSubjectIds,
+      class_ids: fallbackClassIds,
+      subject_class_id: fallbackClassIds[0] ?? student.subject_class_id,
+    });
+
+    void (async () => {
+      try {
+        const profile = (await fetchStudentProfileData(student.id, scopedSubjectId ?? undefined)) as
+          | Record<string, unknown>
+          | null;
+
+        if (!profile || typeof profile !== "object") {
+          return;
+        }
+
+        const profileSubjectIds = extractStudentSubjectIds(profile as Record<string, any>);
+        const profileClassIds = extractStudentSubjectClassIds(profile as Record<string, any>);
+        const nextGender = normalizeGenderRaw(
+          (profile as any)?.gender ??
+            (profile as any)?.student_gender ??
+            (profile as any)?.sex ??
+            (profile as any)?.student_sex ??
+            student.gender ??
+            student.student_gender
+        );
+
+        setEditStudent((current) => {
+          if (!current || String(current.id) !== String(student.id)) {
+            return current;
+          }
+
+          return {
+            ...current,
+            student_name: String((profile as any)?.student_name ?? (profile as any)?.name ?? current.student_name),
+            user_name: String((profile as any)?.user_name ?? (profile as any)?.username ?? current.user_name),
+            email: String((profile as any)?.email ?? current.email ?? ""),
+            class_id: Number((profile as any)?.class_id ?? current.class_id ?? effectiveClassId ?? 0),
+            class_name: String((profile as any)?.class_name ?? current.class_name ?? "") || current.class_name,
+            subject_class_id:
+              profileClassIds[0] ??
+              (Number((profile as any)?.subject_class_id ?? current.subject_class_id ?? 0) ||
+                current.subject_class_id),
+            subject_ids: profileSubjectIds.length > 0 ? profileSubjectIds : current.subject_ids,
+            class_ids: profileClassIds.length > 0 ? profileClassIds : current.class_ids,
+            status: String((profile as any)?.status ?? current.status ?? "active").toLowerCase() as
+              | "active"
+              | "inactive"
+              | "suspended",
+            gender: nextGender,
+            student_gender: nextGender,
+            nationality: String(
+              (profile as any)?.nationality ??
+                (profile as any)?.student_nationality ??
+                (profile as any)?.country ??
+                current.nationality ??
+                ""
+            ).trim() || undefined,
+            is_sen: Boolean((profile as any)?.is_sen ?? (profile as any)?.isSen ?? current.is_sen),
+            sen_details: String(
+              (profile as any)?.sen_details ?? (profile as any)?.senDetails ?? current.sen_details ?? ""
+            ).trim(),
+          };
+        });
+      } catch {
+        // Keep fallback row data if profile hydration fails.
+      }
+    })();
+  };
 
   useEffect(() => {
     const shouldUseFallback =
@@ -1161,6 +1458,15 @@ export default function StudentList() {
     }
     if (!editStudent) return;
     const nextPassword = String(values.password ?? "").trim();
+    const selectedSubjectIds = toPositiveNumberIds(
+      Array.isArray(values.subject_ids) ? values.subject_ids : editStudent.subject_ids || []
+    );
+    const selectedSubjectClassIds = toPositiveNumberIds(
+      Array.isArray(values.class_ids) ? values.class_ids : editStudent.class_ids || []
+    );
+    const matchedSubjectClass = editSubjectClassOptions.find(
+      (option) => selectedSubjectClassIds.length > 0 && Number(option.value) === selectedSubjectClassIds[0]
+    );
     
     // Only use the new gender if explicitly set, otherwise keep current
     const nextGender = values.gender
@@ -1179,13 +1485,29 @@ export default function StudentList() {
       student_name: values.student_name,
       email: values.email,
       user_name: values.user_name,
-      class_id: Number(effectiveClassId),
+      class_id:
+        matchedSubjectClass?.linkedClassId && matchedSubjectClass.linkedClassId > 0
+          ? matchedSubjectClass.linkedClassId
+          : Number(editStudent.class_id ?? effectiveClassId),
       status: values.status,
+      nationality: values.nationality != null ? String(values.nationality).trim() : editStudent.nationality || "",
+      student_nationality:
+        values.nationality != null ? String(values.nationality).trim() : editStudent.nationality || "",
+      country: values.nationality != null ? String(values.nationality).trim() : editStudent.nationality || "",
+      is_sen: values.is_sen != null ? Boolean(values.is_sen) : Boolean(editStudent.is_sen),
+      sen_details:
+        values.is_sen != null ? Boolean(values.is_sen) : Boolean(editStudent.is_sen)
+          ? String(values.sen_details ?? editStudent.sen_details ?? "").trim()
+          : "",
       // Backend expects password key on update; empty string keeps current password.
       password: nextPassword,
     };
 
-    if (effectiveSubjectClassId) {
+    if (selectedSubjectClassIds.length > 0) {
+      payload.subject_class_id = selectedSubjectClassIds[0];
+    } else if (Number(editStudent.subject_class_id ?? 0) > 0) {
+      payload.subject_class_id = Number(editStudent.subject_class_id);
+    } else if (effectiveSubjectClassId) {
       payload.subject_class_id = Number(effectiveSubjectClassId);
     }
 
@@ -1207,6 +1529,10 @@ export default function StudentList() {
     updateStudentMutation.mutate({
       id: editStudent.id,
       values: payload,
+      assignment: {
+        subjectIds: selectedSubjectIds,
+        subjectClassIds: selectedSubjectClassIds,
+      },
     });
   };
 
@@ -2880,6 +3206,9 @@ export default function StudentList() {
         onCancel={() => setEditStudent(null)}
         onOk={handleSaveEdit}
         student={editStudent}
+        subjectOptions={editSubjectOptions}
+        classOptions={editSubjectClassOptions}
+        showAssignmentFields={editSubjectOptions.length > 0 || editSubjectClassOptions.length > 0}
       />
 
       <Modal
@@ -2917,7 +3246,7 @@ export default function StudentList() {
                 <Button
                   icon={<EditOutlined />}
                   onClick={() => {
-                    setEditStudent(selectedStudentAction);
+                    openEditStudent(selectedStudentAction);
                     setSelectedStudentAction(null);
                   }}
                 >

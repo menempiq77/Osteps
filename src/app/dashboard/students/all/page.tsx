@@ -1907,6 +1907,12 @@ export default function AllStudentsPage() {
       await queryClient.invalidateQueries({
         queryKey: ["all-students-list"],
       });
+      await queryClient.invalidateQueries({
+        queryKey: ["students"],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["class-students-behavior-summary"],
+      });
       await queryClient.refetchQueries({
         queryKey: ["all-students-list"],
         type: "active",
