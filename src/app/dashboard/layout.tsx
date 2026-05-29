@@ -249,10 +249,23 @@ export default function DashboardLayout({
 
   useEffect(() => {
     if (isHydrated && !currentUser) {
+      try {
+        const storedUser = window.localStorage.getItem("currentUser");
+        if (storedUser) {
+          const parsedUser = JSON.parse(storedUser) as Partial<User> | null;
+          if (parsedUser?.id && parsedUser?.role) {
+            dispatch(setCurrentUser(parsedUser as User));
+            return;
+          }
+        }
+      } catch {
+        // Fall through to sign-in redirect when stored auth is missing or invalid.
+      }
+
       router.replace("/");
       window.location.replace("/");
     }
-  }, [currentUser, router, isHydrated]);
+  }, [currentUser, dispatch, router, isHydrated]);
 
   useEffect(() => {
     if (!isHydrated) return;
