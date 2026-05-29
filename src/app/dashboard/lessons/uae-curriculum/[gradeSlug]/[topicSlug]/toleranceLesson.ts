@@ -144,12 +144,12 @@ export const toleranceLesson: CourseLesson = {
               "Al-Anbiya' 107"
             ],
             sourceNotes: [
-              "Tolerance in Islam means leniency, peace, mercy, rejection of violence, kindness in dealing with others, acceptance of differences, and not forcing others to do something.",
-              "Mercy: 'It is part of the mercy of Allah that you deal gently with them...' (Ali 'Imran 159).",
-              "Forgiveness: 'Hold to forgiveness; command what is right; but turn away from the ignorant.' (Al-A'raf 199).",
-              "Kind dialogue: 'Dispute not with the People of the Book except in a way that is best.' (Al-'Ankabut 46).",
-              "Doing good: 'Do good, as Allah has been good to you.' (Al-Qasas 77).",
-              "The Prophet's mission itself was mercy for all humanity: 'We sent you not, but as a mercy for all worlds.' (Al-Anbiya' 107)."
+              "Tolerance in Islam is not passive weakness. It is the deliberate choice to deal with people through mercy, justice, patience, and wise speech while remaining faithful to what is right. A strong definition for your answer is that Islamic tolerance protects human dignity, refuses oppression and mockery, and opens the door to reform instead of revenge.",
+              "The Qur'an builds this meaning through connected values. In Ali 'Imran 159 Allah links gentleness with winning hearts, in Al-A'raf 199 He commands forgiveness and rising above ignorant behaviour, in Al-'Ankabut 46 He teaches respectful dialogue, and in Al-Qasas 77 He connects faith to active goodness. These verses help students explain that tolerance grows from mercy, forgiveness, kind speech, and ihsan.",
+              "The Sunnah turns those values into lived character. Aishah reported that the Prophet ﷺ did not repay evil with evil, but pardoned and forgave, and another hadith teaches that Allah loves gentleness in all matters. Add Al-Anbiya' 107 to show that the Messenger himself was sent as mercy to all worlds, so tolerance is part of the Prophetic mission, not just a social habit.",
+              "A powerful Islamic story is the Conquest of Makkah. After years of persecution, the Prophet ﷺ had the power to punish many of his enemies, yet he chose forgiveness and opened a path back to guidance. This story proves that real tolerance appears most clearly when a person has the power to retaliate but chooses mercy for the sake of Allah.",
+              "Think about a school situation: a classmate speaks harshly, mocks someone, or turns a discussion into an argument. A tolerant Muslim does not answer with insults. He or she stays calm, speaks respectfully, corrects the mistake wisely, and tries to repair the relationship. This helps students move from Qur'anic evidence to a clear life example.",
+              "For a strong conclusion, ask two critical-thinking questions: what happens to a family, classroom, or country when people choose revenge, mockery, and violence, and what grows when people forgive, listen, and do good? Use that contrast to prove that tolerance is a foundation for social peace, unity, and coexistence."
             ],
             memberRoles: [
               "Lead analyst: writes the group definition of tolerance.",
@@ -176,12 +176,12 @@ export const toleranceLesson: CourseLesson = {
               "Examples of Umar ibn Al-Khattab and Amr ibn Al-'As"
             ],
             sourceNotes: [
-              "Aishah said the Prophet ﷺ did not respond to evil with evil; rather, he pardoned and forgave.",
-              "The Charter of Madinah was one of the first written constitutions and protected rights for Muslims and non-Muslims alike.",
-              "The Prophet ﷺ treated prisoners of Badr generously and allowed teaching Muslim children as ransom for literate captives.",
-              "When told a funeral was for a Jew, the Prophet ﷺ said: 'Is he not a soul?'",
-              "Umar ibn Al-Khattab guaranteed safety for the people of Jerusalem, their lives, property, and churches.",
-              "Amr ibn Al-'As guaranteed safety for the people of Egypt and their churches, and the Copts welcomed Islamic rule because of justice and tolerance."
+              "When you compare Prophetic and historical models, look for the same core values appearing in different settings: mercy, justice, protection of rights, and respect for human dignity. Your comparison should show that tolerance in Islam is not one isolated event but a repeating pattern in leadership, law, and personal behaviour.",
+              "Aishah described the Prophet ﷺ as someone who did not repay evil with evil but pardoned and forgave. The hadith about the Jewish funeral adds another angle: when people said the deceased was a Jew, the Prophet asked, 'Is he not a soul?' Together these reports show personal mercy and universal respect for human worth.",
+              "The Charter of Madinah shows tolerance at the level of society and government. It organised Muslims, Jews, and other groups into one civic community with rights and responsibilities, proving that tolerance can be written into public order and not left as a private feeling only.",
+              "The prisoners of Badr show tolerance in a time of conflict. Instead of humiliating captives, the Prophet ﷺ treated them generously and allowed some to earn freedom by teaching Muslim children. This combines mercy with wisdom and shows that even war does not cancel human dignity.",
+              "Umar ibn Al-Khattab in Jerusalem and Amr ibn Al-'As in Egypt continued the same tradition by guaranteeing safety for people, homes, and places of worship. Use these examples to show continuity: the values seen in the Prophet's life also appeared in later Islamic leadership.",
+              "For critical thinking, ask which example shows tolerance in private character, which in public law, which in victory, and which in dealing with religious difference. Then explain what all the cases share and what unique lesson each one adds to your comparison."
             ],
             memberRoles: [
               "Comparison leader: creates the compare/contrast table.",
@@ -209,13 +209,12 @@ export const toleranceLesson: CourseLesson = {
               "Al-Baqarah 256"
             ],
             sourceNotes: [
-              "Main values: respecting others and forgiving insults.",
-              "Respecting others includes respecting people regardless of religion, colour, or race.",
-              "Forgiving insults is supported by 'Hold to forgiveness...' and 'So pardon and overlook...'.",
-              "At the Conquest of Makkah, the Prophet ﷺ forgave those who harmed him and said: 'No blame upon you today. Allah will forgive you.'",
-              "Tolerance leads to Paradise, purifies hearts, spreads peace, strengthens societies, and ensures security.",
-              "Tolerance-enhancing methods include controlling anger, keeping good company, remembering accountability before Allah, and studying the Prophet's biography.",
-              "Students may also reflect on: 'There is no compulsion in religion.' (Al-Baqarah 256)."
+              "Your poster or mind map should have clear branches such as values of tolerance, why tolerance matters, how Muslims develop tolerance, and examples from the Qur'an, Sunnah, and daily life. This structure helps the visual stay attractive while still serving the learning objective.",
+              "Under values, include respect, forgiveness, patience, justice, and refusing to insult others. Al-A'raf 199 teaches forgiveness, Al-Baqarah 109 encourages pardon, Ali 'Imran 134 praises those who restrain anger and pardon people, and Al-Baqarah 256 reminds students that faith cannot be built on compulsion.",
+              "Under methods, mention controlling anger, remembering accountability before Allah, choosing good company, learning the Prophet's biography, and training yourself to answer ignorance with wisdom. A useful hadith here is that Allah loves gentleness, which shows that tolerance grows through disciplined character.",
+              "Add one memorable Islamic story. At the Conquest of Makkah the Prophet ﷺ forgave people who had harmed him, and in Surah Yusuf the words 'No blame upon you today' became a model of forgiveness and moral greatness. Stories make the poster memorable, not just informative.",
+              "Add life scenarios such as responding politely to a classmate from another culture, refusing to mock someone online, helping a non-Muslim neighbour, or staying fair during disagreement in a group task. These examples prove that tolerance is practiced at school, at home, and in the wider community.",
+              "For critical thinking, ask viewers which value is hardest to practice: forgiving, controlling anger, or speaking kindly in disagreement. Their answer can become the short oral explanation that brings the poster to life."
             ],
             memberRoles: [
               "Mind-map leader: decides the main headings and branches.",
@@ -242,12 +241,12 @@ export const toleranceLesson: CourseLesson = {
               "'Is he not a soul?'"
             ],
             sourceNotes: [
-              "The Prophet ﷺ taught leniency in markets: 'May Allah's mercy be on him who is lenient in his buying, selling, and in demanding back his money.'",
-              "The lesson asks students to explain how to practice tolerance with the teacher, father, non-Muslim neighbour, and non-Muslim cleaner.",
-              "Students also answer: how would you act if a friend wronged you, or if a non-Muslim student asked for help?",
-              "Respecting others means not insulting people because of religion, colour, or race.",
-              "Forgiving insults and turning away from ignorant behaviour are central applications of tolerance.",
-              "Tolerance rejects violence and supports kindness, justice, and peace in everyday life."
+              "When judging a life scenario, use one rule each time: the best response is the one that keeps truth, respect, and kindness together. Islamic tolerance does not mean approving wrong behaviour; it means correcting or responding without injustice, insult, or revenge.",
+              "If a teacher or father becomes upset, tolerance appears in patience, respectful speech, and choosing the right time to explain yourself. If a friend wrongs you, tolerance means resisting revenge, clarifying the problem calmly, and being ready to forgive when repentance appears. Al-A'raf 199 is a strong verse for these answers.",
+              "If the situation involves a non-Muslim neighbour, cleaner, or student, the Muslim response should show dignity, fairness, service, and safety. The Prophet ﷺ stood for the funeral of a Jew and taught mercy in everyday dealings, which proves that respect is not limited to Muslims only.",
+              "A market-life hadith strengthens your judgment: 'May Allah have mercy on a person who is lenient when he sells, buys, and asks for what is due.' This shows that tolerance reaches money, work, and ordinary transactions, not only big historical events.",
+              "Use a short Islamic story when you justify an answer. The Prophet ﷺ answered rough behaviour with patience, and he forgave many people when he could have punished them. Such examples help students explain why gentleness is strength, not weakness.",
+              "For critical thinking, test each possible response by asking: would this action increase peace, protect dignity, and bring hearts closer to guidance, or would it increase anger and division? Choose the response that best matches mercy, justice, and wisdom together."
             ],
             memberRoles: [
               "Scenario judge: selects the most tolerant response for each case.",
@@ -274,13 +273,12 @@ export const toleranceLesson: CourseLesson = {
               "Examples from Madinah, Jerusalem, and Egypt"
             ],
             sourceNotes: [
-              "The lesson asks students to respond logically to claims that Islam is a religion of violence and inflexibility.",
-              "Allah does not forbid kind and just dealings with those who do not fight Muslims because of religion. (Al-Mumtahanah 8)",
-              "Tolerance restrains anger, pardons people, and is loved by Allah. (Ali 'Imran 134)",
-              "The UAE commits to tolerance and rejects violence in domestic and international relations.",
-              "Violence spreads anger, hatred, fear, broken trust, and division in both the individual and society.",
-              "Sheikh Zayed said: 'The greatest advice I give to my sons is to avoid arrogance...'",
-              "Historical examples from the Prophet ﷺ, Umar ibn Al-Khattab, and Amr ibn Al-'As show coexistence, justice, and protection of rights."
+              "Begin your argument with a direct claim: Islam is not a religion of violence or rigidity; it is a religion of truth guided by mercy, justice, dignity, and disciplined strength. This opening helps students answer the accusation clearly instead of speaking around it.",
+              "Use Qur'an evidence to build the case. Ali 'Imran 134 praises those who restrain anger and pardon people, while Al-Mumtahanah 8 permits kindness and justice toward those who do not fight Muslims. These verses show that peaceful coexistence is a religious principle, not a modern invention added later.",
+              "Then bring Prophetic evidence. Aishah said the Prophet ﷺ did not repay evil with evil, the Charter of Madinah protected different communities, and the treatment of prisoners of Badr showed mercy even after conflict. These examples show what Islam looked like when the Prophet himself led society.",
+              "Bring historical and contemporary proof together. Umar ibn Al-Khattab and Amr ibn Al-'As protected people and churches, while the UAE presents tolerance as a civil value that rejects extremism and arrogance. This helps students show that tolerance is both an Islamic inheritance and a present responsibility.",
+              "Add a life-based argument about the harms of violence. Violence spreads fear, broken trust, hatred, and social fragmentation, while tolerance opens the door to dialogue, cooperation, safety, and reform. Real communities survive through justice and restraint, not through permanent hostility.",
+              "For critical thinking, ask the class: if Islam were built on violence alone, why do its greatest models keep returning to mercy, covenants, pardon, and protection of rights? Use that question to finish with a persuasive conclusion."
             ],
             memberRoles: [
               "Argument leader: builds the main claim and counterclaim.",
