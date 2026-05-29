@@ -262,7 +262,20 @@ export default function DashboardLayout({
   }, [pathname, isHydrated]);
 
   if (!currentUser) {
-    return null;
+    return (
+      <div className="dashboard-theme-scope flex min-h-screen items-center justify-center bg-[var(--theme-soft)] px-4 text-center">
+        <div className="max-w-md rounded-2xl border border-[var(--theme-border)] bg-white px-6 py-5 shadow-sm">
+          <div className="text-sm font-semibold text-[var(--theme-dark)]">
+            {isHydrated ? "Redirecting to sign in" : "Loading dashboard"}
+          </div>
+          <p className="mt-2 text-sm text-slate-500">
+            {isHydrated
+              ? "This dashboard needs an active session. If you opened it in a fresh incognito window, sign in first."
+              : "Please wait while your dashboard session is restored."}
+          </p>
+        </div>
+      </div>
+    );
   }
 
   const shouldApplyMaxWidth = !isImmersiveLessonGroupRoute && !isReportsRoute;
