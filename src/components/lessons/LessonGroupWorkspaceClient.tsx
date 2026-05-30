@@ -10,8 +10,12 @@ type Point = {
   y: number;
 };
 
+type StrokeTool = "pen" | "highlighter";
+type WorkspaceMode = "text" | StrokeTool | "eraser";
+
 type InkStroke = {
   id: string;
+  tool?: StrokeTool;
   color: string;
   width: number;
   points: Point[];
@@ -42,7 +46,7 @@ type TextNote = {
 };
 
 type WorkspaceState = {
-  mode: "text" | "pen";
+  mode: WorkspaceMode;
   writing: string;
   strokes: InkStroke[];
   pastedImages: PastedImage[];
@@ -84,6 +88,23 @@ const EMPTY_WORKSPACE: WorkspaceState = {
   pageColor: "#ffffff",
   showLines: false,
 };
+
+const PEN_COLOR = "#1f2937";
+const PEN_WIDTH = 2.5;
+const HIGHLIGHTER_COLOR = "#fde047";
+const HIGHLIGHTER_WIDTH = 16;
+const ERASER_RADIUS = 20;
+
+const TOOL_BUTTONS: Array<{ value: WorkspaceMode; label: string }> = [
+  { value: "text", label: "Text" },
+  { value: "pen", label: "Pen" },
+  { value: "highlighter", label: "Highlighter" },
+  { value: "eraser", label: "Eraser" },
+];
+
+function isStrokeMode(mode: WorkspaceMode): mode is StrokeTool {
+  return mode === "pen" || mode === "highlighter";
+}
 
 function workspaceKey(lessonSlug: string, groupSlug: string) {
   return `lesson_group_workspace_v3:${lessonSlug}:${groupSlug}`;
@@ -202,6 +223,36 @@ function computeNoteSize(text: string, fontSize: number, bold: boolean) {
   return { width, height };
 }
 
+function distanceToSegment(point: Point, start: Point, end: Point) {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  if (dx === 0 && dy === 0) return Math.hypot(point.x - start.x, point.y - start.y);
+
+  const t = clamp(((point.x - start.x) * dx + (point.y - start.y) * dy) / (dx * dx + dy * dy), 0, 1);
+  return Math.hypot(point.x - (start.x + t * dx), point.y - (start.y + t * dy));
+}
+
+function strokeTouchesEraser(stroke: InkStroke, point: Point) {
+  const radius = ERASER_RADIUS + stroke.width / 2;
+  if (stroke.points.some((entry) => Math.hypot(entry.x - point.x, entry.y - point.y) <= radius)) return true;
+
+  for (let index = 1; index < stroke.points.length; index += 1) {
+    if (distanceToSegment(point, stroke.points[index - 1], stroke.points[index]) <= radius) return true;
+  }
+
+  return false;
+}
+
+function noteTouchesEraser(note: TextNote, point: Point) {
+  const padding = ERASER_RADIUS;
+  return (
+    point.x >= note.x - padding &&
+    point.x <= note.x + note.width + padding &&
+    point.y >= note.y - padding &&
+    point.y <= note.y + note.height + padding
+  );
+}
+
 function cloneWorkspaceState(value: WorkspaceState): WorkspaceState {
   return JSON.parse(JSON.stringify(value)) as WorkspaceState;
 }
@@ -216,6 +267,8 @@ export default function LessonGroupWorkspaceClient({
   const storageKey = useMemo(() => workspaceKey(lessonSlug, group.slug), [lessonSlug, group.slug]);
   const workspaceRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const erasingRef = useRef(false);
+  const activeStrokeRef = useRef<InkStroke | null>(null);
   const [workspace, setWorkspace] = useState<WorkspaceState>(EMPTY_WORKSPACE);
   const [showInfoSheet, setShowInfoSheet] = useState(false);
   const [activeStroke, setActiveStroke] = useState<InkStroke | null>(null);
@@ -224,6 +277,18 @@ export default function LessonGroupWorkspaceClient({
   const [activeImageId, setActiveImageId] = useState<string | null>(null);
   const [undoStack, setUndoStack] = useState<WorkspaceState[]>([]);
   const [redoStack, setRedoStack] = useState<WorkspaceState[]>([]);
+
+  useEffect(() => {
+    if (workspace.mode !== "text" || !activeNoteId) return;
+    const frameId = window.requestAnimationFrame(() => {
+      const textareas = Array.from(
+        workspaceRef.current?.querySelectorAll<HTMLTextAreaElement>("textarea[data-note-input-id]") ?? []
+      );
+      const activeTextarea = textareas.find((element) => element.dataset.noteInputId === activeNoteId);
+      activeTextarea?.focus();
+    });
+    return () => window.cancelAnimationFrame(frameId);
+  }, [activeNoteId, workspace.mode, workspace.notes.length]);
 
   useEffect(() => {
     try {
@@ -287,10 +352,31 @@ export default function LessonGroupWorkspaceClient({
             .filter((item): item is TextNote => item !== null)
         : [];
 
+      const parsedStrokes: InkStroke[] = Array.isArray(parsed.strokes)
+        ? parsed.strokes
+            .map((item) => {
+              if (!item || typeof item.id !== "string" || !Array.isArray(item.points)) return null;
+              const points = item.points.filter(
+                (point): point is Point =>
+                  point != null && typeof point.x === "number" && typeof point.y === "number"
+              );
+              if (!points.length) return null;
+
+              return {
+                id: item.id,
+                tool: item.tool === "highlighter" ? "highlighter" : "pen",
+                color: typeof item.color === "string" ? item.color : PEN_COLOR,
+                width: typeof item.width === "number" ? item.width : PEN_WIDTH,
+                points,
+              } as InkStroke;
+            })
+            .filter((item): item is InkStroke => item !== null)
+        : [];
+
       setWorkspace({
         mode: "text",
         writing: parsed.writing ?? "",
-        strokes: Array.isArray(parsed.strokes) ? (parsed.strokes as InkStroke[]) : [],
+        strokes: parsedStrokes,
         pastedImages: parsedPastedImages,
         notes: parsedNotes,
         pageColor: typeof parsed.pageColor === "string" ? parsed.pageColor : "#ffffff",
@@ -458,39 +544,73 @@ export default function LessonGroupWorkspaceClient({
   function startStroke(clientX: number, clientY: number) {
     const point = toWorkPoint(clientX, clientY);
     if (!point) return;
-    setActiveStroke({
+    const tool = workspace.mode === "highlighter" ? "highlighter" : "pen";
+    setUndoStack((current) => [...current.slice(-49), cloneWorkspaceState(workspace)]);
+    setRedoStack([]);
+    const nextStroke: InkStroke = {
       id: createId("stroke"),
-      color: "#1f2937",
-      width: 2.5,
+      tool,
+      color: tool === "highlighter" ? HIGHLIGHTER_COLOR : PEN_COLOR,
+      width: tool === "highlighter" ? HIGHLIGHTER_WIDTH : PEN_WIDTH,
       points: [point],
-    });
+    };
+    activeStrokeRef.current = nextStroke;
+    setActiveStroke(nextStroke);
   }
 
   function extendStroke(clientX: number, clientY: number) {
     const point = toWorkPoint(clientX, clientY);
     if (!point) return;
-    setActiveStroke((current) => {
-      if (!current) return current;
-      return { ...current, points: [...current.points, point] };
-    });
+    const current = activeStrokeRef.current;
+    if (!current) return;
+    const nextStroke = { ...current, points: [...current.points, point] };
+    activeStrokeRef.current = nextStroke;
+    setActiveStroke(nextStroke);
   }
 
   function finishStroke() {
-    setActiveStroke((current) => {
-      if (!current || current.points.length < 1) return null;
-      setWorkspace((workspaceState) => ({ ...workspaceState, strokes: [...workspaceState.strokes, current] }));
-      return null;
-    });
+    const current = activeStrokeRef.current;
+    activeStrokeRef.current = null;
+    setActiveStroke(null);
+    if (!current || current.points.length < 1) return;
+    setWorkspace((workspaceState) => ({ ...workspaceState, strokes: [...workspaceState.strokes, current] }));
   }
 
   function clearInk() {
     setWorkspace((current) => ({ ...current, strokes: [] }));
+    activeStrokeRef.current = null;
     setActiveStroke(null);
   }
 
+  function eraseAt(clientX: number, clientY: number) {
+    const point = toWorkPoint(clientX, clientY);
+    if (!point) return;
+
+    setWorkspace((current) => {
+      const nextStrokes = current.strokes.filter((stroke) => !strokeTouchesEraser(stroke, point));
+      const nextNotes = current.notes.filter((note) => !noteTouchesEraser(note, point));
+      if (nextStrokes.length === current.strokes.length && nextNotes.length === current.notes.length) {
+        return current;
+      }
+      return { ...current, strokes: nextStrokes, notes: nextNotes };
+    });
+    setActiveNoteId(null);
+    setActiveImageId(null);
+  }
+
+  function startEraser(clientX: number, clientY: number) {
+    setUndoStack((current) => [...current.slice(-49), cloneWorkspaceState(workspace)]);
+    setRedoStack([]);
+    erasingRef.current = true;
+    eraseAt(clientX, clientY);
+  }
+
   function onWorkspacePointerMove(event: React.PointerEvent<HTMLDivElement>) {
-    if (workspace.mode === "pen" && activeStroke) {
+    if (isStrokeMode(workspace.mode) && activeStrokeRef.current) {
       extendStroke(event.clientX, event.clientY);
+    }
+    if (workspace.mode === "eraser" && erasingRef.current) {
+      eraseAt(event.clientX, event.clientY);
     }
     if (workspace.mode === "text" && dragTarget) {
       applyDragAt(event.clientX, event.clientY);
@@ -587,16 +707,18 @@ export default function LessonGroupWorkspaceClient({
   }
 
   function onWorkspacePointerUp() {
-    if (workspace.mode === "pen" && activeStroke) {
+    if (isStrokeMode(workspace.mode) && activeStrokeRef.current) {
       finishStroke();
     }
+    erasingRef.current = false;
     setDragTarget(null);
   }
 
   function onWorkspacePointerLeave() {
-    if (workspace.mode === "pen" && activeStroke) {
+    if (isStrokeMode(workspace.mode) && activeStrokeRef.current) {
       finishStroke();
     }
+    erasingRef.current = false;
   }
 
   useEffect(() => {
@@ -711,22 +833,35 @@ export default function LessonGroupWorkspaceClient({
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
             <div className="rounded-full border border-slate-200 bg-slate-50 p-1">
-            {(["text", "pen"] as const).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setWorkspace((current) => ({ ...current, mode }))}
-                className={
-                  "rounded-full px-2.5 py-1 text-[11px] font-semibold transition " +
-                  (workspace.mode === mode
-                    ? "bg-[var(--theme-dark)] text-white"
-                    : "text-slate-500 hover:bg-white hover:text-slate-700")
-                }
-              >
-                {mode === "text" ? "Text" : "Pen"}
-              </button>
-            ))}
-          </div>
+              {TOOL_BUTTONS.map((tool) => (
+                <button
+                  key={tool.value}
+                  type="button"
+                  onClick={() => {
+                    activeStrokeRef.current = null;
+                    setActiveStroke(null);
+                    erasingRef.current = false;
+                    setDragTarget(null);
+                    if (tool.value !== "text") {
+                      setActiveNoteId(null);
+                      setActiveImageId(null);
+                    }
+                    setWorkspace((current) => ({ ...current, mode: tool.value }));
+                  }}
+                  className={
+                    "rounded-full px-2.5 py-1 text-[11px] font-semibold transition " +
+                    (workspace.mode === tool.value
+                      ? "bg-[var(--theme-dark)] text-white"
+                      : "text-slate-500 hover:bg-white hover:text-slate-700")
+                  }
+                >
+                  {tool.label}
+                </button>
+              ))}
+            </div>
+          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+            Auto-saved
+          </span>
           <button
             type="button"
             onClick={onPickImage}
@@ -889,12 +1024,23 @@ export default function LessonGroupWorkspaceClient({
         <div
           ref={workspaceRef}
           className="relative h-full w-full overflow-hidden rounded-xl border border-slate-200 bg-white"
-          style={{ backgroundColor: workspace.pageColor }}
+          style={{
+            backgroundColor: workspace.pageColor,
+            cursor: workspace.mode === "text" ? "text" : workspace.mode === "eraser" ? "cell" : "crosshair",
+            touchAction: workspace.mode === "text" ? "auto" : "none",
+          }}
           onDragOver={(event) => event.preventDefault()}
           onDrop={(event) => event.preventDefault()}
           onPointerDown={(event) => {
-            if (workspace.mode !== "pen") return;
-            startStroke(event.clientX, event.clientY);
+            if (isStrokeMode(workspace.mode)) {
+              event.preventDefault();
+              startStroke(event.clientX, event.clientY);
+              return;
+            }
+            if (workspace.mode === "eraser") {
+              event.preventDefault();
+              startEraser(event.clientX, event.clientY);
+            }
           }}
           onPointerMove={onWorkspacePointerMove}
           onPointerUp={onWorkspacePointerUp}
@@ -917,8 +1063,7 @@ export default function LessonGroupWorkspaceClient({
             </div>
           ) : null}
 
-          {workspace.mode === "text"
-            ? workspace.notes.map((note) => (
+          {workspace.notes.map((note) => (
                 <div
                   key={note.id}
                   data-note="true"
@@ -928,8 +1073,15 @@ export default function LessonGroupWorkspaceClient({
                       ? "border-slate-300/80 bg-white/25"
                       : "border-transparent bg-transparent")
                   }
-                  style={{ left: note.x, top: note.y, width: note.width + 8, height: note.height + 8 }}
+                  style={{
+                    left: note.x,
+                    top: note.y,
+                    width: note.width + 8,
+                    height: note.height + 8,
+                    pointerEvents: workspace.mode === "text" ? "auto" : "none",
+                  }}
                   onPointerDown={(event) => {
+                    if (workspace.mode !== "text") return;
                     setActiveNoteId(note.id);
                     setActiveImageId(null);
                     if (!workspaceRef.current) return;
@@ -943,6 +1095,7 @@ export default function LessonGroupWorkspaceClient({
                   }}
                 >
                   <textarea
+                    data-note-input-id={note.id}
                     value={note.text}
                     onChange={(event) =>
                       updateNote(note.id, (current) => {
@@ -972,11 +1125,9 @@ export default function LessonGroupWorkspaceClient({
                     }}
                   />
                 </div>
-              ))
-            : null}
+              ))}
 
-          {workspace.mode === "text"
-            ? workspace.pastedImages.map((image) => (
+          {workspace.pastedImages.map((image) => (
                 <div
                   key={image.id}
                   data-image="true"
@@ -986,8 +1137,14 @@ export default function LessonGroupWorkspaceClient({
                       ? "border-violet-400 shadow-[0_0_0_3px_rgba(139,92,246,0.12)]"
                       : "border-slate-200")
                   }
-                  style={{ left: image.x, top: image.y, width: image.width }}
+                  style={{
+                    left: image.x,
+                    top: image.y,
+                    width: image.width,
+                    pointerEvents: workspace.mode === "text" ? "auto" : "none",
+                  }}
                   onPointerMove={(event) => {
+                    if (workspace.mode !== "text") return;
                     const imageRect = (event.currentTarget as HTMLDivElement).getBoundingClientRect();
                     const localX = event.clientX - imageRect.left;
                     const localY = event.clientY - imageRect.top;
@@ -998,6 +1155,7 @@ export default function LessonGroupWorkspaceClient({
                     (event.currentTarget as HTMLDivElement).style.cursor = "default";
                   }}
                   onPointerDown={(event) => {
+                    if (workspace.mode !== "text") return;
                     const target = event.target as HTMLElement;
                     if (target.closest("button")) return;
                     event.stopPropagation();
@@ -1092,14 +1250,13 @@ export default function LessonGroupWorkspaceClient({
                     </>
                   ) : null}
                 </div>
-              ))
-            : null}
+              ))}
 
           <svg
             className="absolute inset-0"
             width="100%"
             height="100%"
-            style={{ pointerEvents: workspace.mode === "pen" ? "auto" : "none" }}
+            style={{ pointerEvents: workspace.mode === "text" ? "none" : "auto" }}
           >
             {workspace.strokes.map((stroke) => (
               <path
@@ -1108,8 +1265,10 @@ export default function LessonGroupWorkspaceClient({
                 fill="none"
                 stroke={stroke.color}
                 strokeWidth={stroke.width}
+                strokeOpacity={stroke.tool === "highlighter" ? 0.42 : 1}
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                style={{ mixBlendMode: stroke.tool === "highlighter" ? "multiply" : "normal" }}
               />
             ))}
             {activeStroke ? (
@@ -1118,8 +1277,10 @@ export default function LessonGroupWorkspaceClient({
                 fill="none"
                 stroke={activeStroke.color}
                 strokeWidth={activeStroke.width}
+                strokeOpacity={activeStroke.tool === "highlighter" ? 0.42 : 1}
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                style={{ mixBlendMode: activeStroke.tool === "highlighter" ? "multiply" : "normal" }}
               />
             ) : null}
           </svg>
