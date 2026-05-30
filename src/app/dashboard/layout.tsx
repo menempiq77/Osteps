@@ -464,11 +464,13 @@ export default function DashboardLayout({
         {!isImmersiveLessonGroupRoute && !isLibraryRoute ? <Sidebar /> : null}
 
         <div className={(isImmersiveLessonGroupRoute ? "h-screen overflow-hidden" : "flex-1 h-screen overflow-y-auto") + " relative"}>
-          <div
-            className={`dashboard-route-overlay ${
-              isRouteTransitioning ? "dashboard-route-overlay-active" : ""
-            }`}
-          />
+          {!isImmersiveLessonGroupRoute ? (
+            <div
+              className={`dashboard-route-overlay ${
+                isRouteTransitioning ? "dashboard-route-overlay-active" : ""
+              }`}
+            />
+          ) : null}
           <div
             className={
               isImmersiveLessonGroupRoute
@@ -533,9 +535,13 @@ export default function DashboardLayout({
 
             <div
               key={pathname}
-              className={`dashboard-route-transition ${
-                isRouteTransitioning ? "dashboard-route-transition-active" : ""
-              }`}
+              className={
+                isImmersiveLessonGroupRoute
+                  ? ""
+                  : `dashboard-route-transition ${
+                      isRouteTransitioning ? "dashboard-route-transition-active" : ""
+                    }`
+              }
             >
               {children}
             </div>

@@ -697,17 +697,17 @@ export default function LessonGroupWorkspaceClient({
 
   return (
     <div className="h-screen w-full overflow-hidden bg-slate-50 p-2 md:p-3">
-      <div className="flex h-full flex-col gap-2">
-      <div className="sticky top-0 z-20 grid gap-2 md:grid-cols-[1fr_1fr_auto] rounded-xl border border-white/70 bg-white px-3 py-2 shadow-sm">
-        <div>
+      <div className="flex h-full flex-col gap-3">
+      <div className="grid gap-3 rounded-xl border border-white/70 bg-white px-3 py-3 shadow-sm xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto]">
+        <div className="min-w-0">
           <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--theme-dark)]">Learning objective</div>
           <div className="mt-0.5 text-xs text-slate-700">{getText(group.learningObjective)}</div>
         </div>
-        <div>
+        <div className="min-w-0">
           <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--theme-dark)]">Task</div>
           <div className="mt-0.5 text-xs text-slate-700">{getText(group.task)}</div>
         </div>
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex flex-wrap items-center gap-2 xl:justify-end">
           <div className="rounded-full border border-slate-200 bg-slate-50 p-1">
             {(["text", "pen"] as const).map((mode) => (
               <button
