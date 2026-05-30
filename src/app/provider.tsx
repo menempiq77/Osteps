@@ -38,13 +38,15 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <Provider store={store}>
         <PersistGate loading={<AppBootFallback />} persistor={persistor}>
           <LanguageProvider>
-            <Suspense fallback={null}>
+            <Suspense fallback={<AppBootFallback />}>
               {children}
-              <GlobalAiAssistant />
-              {process.env.NODE_ENV === "development" && (
-                <ReactQueryDevtools initialIsOpen={false} />
-              )}
             </Suspense>
+            <Suspense fallback={null}>
+              <GlobalAiAssistant />
+            </Suspense>
+            {process.env.NODE_ENV === "development" && (
+              <ReactQueryDevtools initialIsOpen={false} />
+            )}
           </LanguageProvider>
         </PersistGate>
       </Provider>
