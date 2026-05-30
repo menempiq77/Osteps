@@ -11,10 +11,38 @@ import { GlobalAiAssistant } from "@/components/GlobalAiAssistant";
 
 function AppBootFallback() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[var(--theme-soft,#eef9f2)] px-4 text-center">
-      <div className="max-w-md rounded-2xl border border-[var(--theme-border,#b9e2cd)] bg-white px-6 py-5 shadow-sm">
-        <div className="text-sm font-semibold text-[var(--theme-dark,#2f8f5b)]">Loading Osteps</div>
-        <p className="mt-2 text-sm text-slate-500">Please wait while your session is restored.</p>
+    <div
+      className="flex min-h-screen items-center justify-center bg-[var(--theme-soft,#eef9f2)] px-4 text-center"
+      style={{
+        alignItems: "center",
+        background: "#eef9f2",
+        display: "flex",
+        justifyContent: "center",
+        minHeight: "100vh",
+        padding: 16,
+        textAlign: "center",
+      }}
+    >
+      <div
+        className="max-w-md rounded-2xl border border-[var(--theme-border,#b9e2cd)] bg-white px-6 py-5 shadow-sm"
+        style={{
+          background: "#ffffff",
+          border: "1px solid #b9e2cd",
+          borderRadius: 16,
+          boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)",
+          maxWidth: 420,
+          padding: "20px 24px",
+        }}
+      >
+        <div
+          className="text-sm font-semibold text-[var(--theme-dark,#2f8f5b)]"
+          style={{ color: "#2f8f5b", fontSize: 14, fontWeight: 700 }}
+        >
+          Loading Osteps
+        </div>
+        <p className="mt-2 text-sm text-slate-500" style={{ color: "#64748b", fontSize: 14, marginTop: 8 }}>
+          Please wait while your session is restored.
+        </p>
       </div>
     </div>
   );

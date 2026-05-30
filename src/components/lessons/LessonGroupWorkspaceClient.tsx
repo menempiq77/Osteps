@@ -698,17 +698,19 @@ export default function LessonGroupWorkspaceClient({
   return (
     <div className="h-screen w-full overflow-hidden bg-slate-50 p-2 md:p-3">
       <div className="flex h-full flex-col gap-3">
-      <div className="grid gap-3 rounded-xl border border-white/70 bg-white px-3 py-3 shadow-sm xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto]">
-        <div className="min-w-0">
-          <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--theme-dark)]">Learning objective</div>
-          <div className="mt-0.5 text-xs text-slate-700">{getText(group.learningObjective)}</div>
-        </div>
-        <div className="min-w-0">
-          <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--theme-dark)]">Task</div>
-          <div className="mt-0.5 text-xs text-slate-700">{getText(group.task)}</div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 xl:justify-end">
-          <div className="rounded-full border border-slate-200 bg-slate-50 p-1">
+        <div className="rounded-xl border border-white/70 bg-white px-3 py-3 shadow-sm">
+          <div className="grid gap-3 lg:grid-cols-[minmax(220px,0.85fr)_minmax(360px,1.15fr)]">
+            <div className="min-w-0">
+              <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--theme-dark)]">Learning objective</div>
+              <div className="mt-0.5 text-xs leading-relaxed text-slate-700">{getText(group.learningObjective)}</div>
+            </div>
+            <div className="min-w-0">
+              <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--theme-dark)]">Task</div>
+              <div className="mt-0.5 text-xs leading-relaxed text-slate-700">{getText(group.task)}</div>
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+            <div className="rounded-full border border-slate-200 bg-slate-50 p-1">
             {(["text", "pen"] as const).map((mode) => (
               <button
                 key={mode}
@@ -849,8 +851,8 @@ export default function LessonGroupWorkspaceClient({
           >
             X
           </button>
+            </div>
         </div>
-      </div>
 
       <input
         ref={fileInputRef}

@@ -249,6 +249,10 @@ export default function DashboardLayout({
 
   useEffect(() => {
     if (isHydrated && !currentUser) {
+      if (isImmersiveLessonGroupRoute) {
+        return;
+      }
+
       try {
         const storedUser = window.localStorage.getItem("currentUser");
         if (storedUser) {
@@ -265,7 +269,7 @@ export default function DashboardLayout({
       router.replace("/");
       window.location.replace("/");
     }
-  }, [currentUser, dispatch, router, isHydrated]);
+  }, [currentUser, dispatch, router, isHydrated, isImmersiveLessonGroupRoute]);
 
   useEffect(() => {
     if (!isHydrated) return;
@@ -273,6 +277,16 @@ export default function DashboardLayout({
     const timer = setTimeout(() => setIsRouteTransitioning(false), 420);
     return () => clearTimeout(timer);
   }, [pathname, isHydrated]);
+
+  if (!currentUser && isImmersiveLessonGroupRoute) {
+    return (
+      <div className="dashboard-theme-scope min-h-screen bg-white">
+        <div className="h-screen overflow-hidden relative">
+          <div className="h-full w-full">{children}</div>
+        </div>
+      </div>
+    );
+  }
 
   if (!currentUser) {
     return (
