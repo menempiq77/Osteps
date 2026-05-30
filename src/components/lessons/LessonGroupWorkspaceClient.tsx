@@ -1,6 +1,21 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Eraser,
+  Highlighter,
+  ImagePlus,
+  Minus,
+  MousePointer2,
+  PenTool,
+  Plus,
+  Redo2,
+  Save,
+  Type,
+  Undo2,
+  X,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import type { LessonSection } from "./LessonCourseStepper";
 
 type GroupTask = NonNullable<NonNullable<LessonSection["groupTasks"]>["groups"]>[number];
@@ -11,7 +26,7 @@ type Point = {
 };
 
 type StrokeTool = "pen" | "highlighter";
-type WorkspaceMode = "text" | StrokeTool | "eraser";
+type WorkspaceMode = "select" | "text" | StrokeTool | "eraser";
 
 type InkStroke = {
   id: string;
@@ -80,7 +95,7 @@ type Props = {
 };
 
 const EMPTY_WORKSPACE: WorkspaceState = {
-  mode: "text",
+  mode: "pen",
   writing: "",
   strokes: [],
   pastedImages: [],
@@ -95,15 +110,36 @@ const HIGHLIGHTER_COLOR = "#fde047";
 const HIGHLIGHTER_WIDTH = 16;
 const ERASER_RADIUS = 20;
 
-const TOOL_BUTTONS: Array<{ value: WorkspaceMode; label: string }> = [
-  { value: "text", label: "Text" },
-  { value: "pen", label: "Pen" },
-  { value: "highlighter", label: "Highlighter" },
-  { value: "eraser", label: "Eraser" },
+const COLOR_SWATCHES = [
+  { value: "#bdbdbd", label: "Gray" },
+  { value: "#e26cb5", label: "Pink" },
+  { value: "#f59a45", label: "Orange" },
+  { value: "#fde45c", label: "Yellow" },
+  { value: "#a9e34b", label: "Green" },
+  { value: "#79dbe8", label: "Cyan" },
+  { value: "#9077e8", label: "Purple" },
+  { value: "#e94a42", label: "Red" },
+  { value: "#ffffff", label: "White" },
+  { value: "#111827", label: "Black" },
+] as const;
+
+const PEN_WIDTH_OPTIONS = [2.5, 4, 6, 8] as const;
+const HIGHLIGHTER_WIDTH_OPTIONS = [10, 16, 24] as const;
+
+const TOOL_BUTTONS: Array<{ value: WorkspaceMode; label: string; Icon: LucideIcon }> = [
+  { value: "select", label: "Cursor", Icon: MousePointer2 },
+  { value: "pen", label: "Pen", Icon: PenTool },
+  { value: "highlighter", label: "Highlighter", Icon: Highlighter },
+  { value: "eraser", label: "Eraser", Icon: Eraser },
+  { value: "text", label: "Text", Icon: Type },
 ];
 
 function isStrokeMode(mode: WorkspaceMode): mode is StrokeTool {
   return mode === "pen" || mode === "highlighter";
+}
+
+function isObjectMode(mode: WorkspaceMode) {
+  return mode === "select" || mode === "text";
 }
 
 function workspaceKey(lessonSlug: string, groupSlug: string) {
@@ -277,6 +313,11 @@ export default function LessonGroupWorkspaceClient({
   const [activeImageId, setActiveImageId] = useState<string | null>(null);
   const [undoStack, setUndoStack] = useState<WorkspaceState[]>([]);
   const [redoStack, setRedoStack] = useState<WorkspaceState[]>([]);
+  const [penColor, setPenColor] = useState(PEN_COLOR);
+  const [highlighterColor, setHighlighterColor] = useState(HIGHLIGHTER_COLOR);
+  const [penWidth, setPenWidth] = useState(PEN_WIDTH);
+  const [highlighterWidth, setHighlighterWidth] = useState(HIGHLIGHTER_WIDTH);
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
 
   useEffect(() => {
     if (workspace.mode !== "text" || !activeNoteId) return;
@@ -374,7 +415,14 @@ export default function LessonGroupWorkspaceClient({
         : [];
 
       setWorkspace({
-        mode: "text",
+        mode:
+          parsed.mode === "select" ||
+          parsed.mode === "text" ||
+          parsed.mode === "pen" ||
+          parsed.mode === "highlighter" ||
+          parsed.mode === "eraser"
+            ? parsed.mode
+            : EMPTY_WORKSPACE.mode,
         writing: parsed.writing ?? "",
         strokes: parsedStrokes,
         pastedImages: parsedPastedImages,
@@ -426,6 +474,12 @@ export default function LessonGroupWorkspaceClient({
   useEffect(() => {
     try {
       window.localStorage.setItem(storageKey, JSON.stringify(workspace));
+      setLastSavedAt(
+        new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      );
     } catch {
       // ignore storage errors
     }
@@ -550,8 +604,8 @@ export default function LessonGroupWorkspaceClient({
     const nextStroke: InkStroke = {
       id: createId("stroke"),
       tool,
-      color: tool === "highlighter" ? HIGHLIGHTER_COLOR : PEN_COLOR,
-      width: tool === "highlighter" ? HIGHLIGHTER_WIDTH : PEN_WIDTH,
+      color: tool === "highlighter" ? highlighterColor : penColor,
+      width: tool === "highlighter" ? highlighterWidth : penWidth,
       points: [point],
     };
     activeStrokeRef.current = nextStroke;
@@ -612,13 +666,13 @@ export default function LessonGroupWorkspaceClient({
     if (workspace.mode === "eraser" && erasingRef.current) {
       eraseAt(event.clientX, event.clientY);
     }
-    if (workspace.mode === "text" && dragTarget) {
+    if (isObjectMode(workspace.mode) && dragTarget) {
       applyDragAt(event.clientX, event.clientY);
     }
   }
 
   function applyDragAt(clientX: number, clientY: number) {
-    if (workspace.mode !== "text" || !dragTarget || !workspaceRef.current) return;
+    if (!isObjectMode(workspace.mode) || !dragTarget || !workspaceRef.current) return;
 
     const rect = workspaceRef.current.getBoundingClientRect();
 
@@ -722,7 +776,7 @@ export default function LessonGroupWorkspaceClient({
   }
 
   useEffect(() => {
-    if (workspace.mode !== "text" || !dragTarget) return;
+    if (!isObjectMode(workspace.mode) || !dragTarget) return;
 
     const onWindowPointerMove = (event: PointerEvent) => {
       applyDragAt(event.clientX, event.clientY);
@@ -817,9 +871,63 @@ export default function LessonGroupWorkspaceClient({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [activeImageId, activeNoteId, redoStack.length, undoStack.length, workspace]);
 
+  function setToolMode(mode: WorkspaceMode) {
+    activeStrokeRef.current = null;
+    setActiveStroke(null);
+    erasingRef.current = false;
+    setDragTarget(null);
+    if (!isObjectMode(mode)) {
+      setActiveNoteId(null);
+      setActiveImageId(null);
+    }
+    setWorkspace((current) => ({ ...current, mode }));
+  }
+
+  function saveWorkspaceNow() {
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify(workspace));
+      setLastSavedAt(
+        new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      );
+    } catch {
+      // ignore storage errors
+    }
+  }
+
+  function handleActiveColorChange(value: string) {
+    if (workspace.mode === "highlighter") {
+      setHighlighterColor(value);
+      return;
+    }
+    if (workspace.mode === "text") {
+      updateActiveNote((note) => ({ ...note, color: value }));
+      return;
+    }
+    setPenColor(value);
+  }
+
+  function handleStrokeWidthChange(value: number) {
+    if (workspace.mode === "highlighter") {
+      setHighlighterWidth(value);
+      return;
+    }
+    setPenWidth(value);
+  }
+
+  const selectedNote = activeNoteId ? workspace.notes.find((note) => note.id === activeNoteId) ?? null : null;
+  const strokeControlsTool: StrokeTool = workspace.mode === "highlighter" ? "highlighter" : "pen";
+  const activeStrokeColor = strokeControlsTool === "highlighter" ? highlighterColor : penColor;
+  const activeStrokeWidth = strokeControlsTool === "highlighter" ? highlighterWidth : penWidth;
+  const activeStrokeWidthOptions = strokeControlsTool === "highlighter" ? HIGHLIGHTER_WIDTH_OPTIONS : PEN_WIDTH_OPTIONS;
+  const showStrokeControls = workspace.mode === "pen" || workspace.mode === "highlighter" || workspace.mode === "select";
+  const showTextControls = workspace.mode === "text";
+
   return (
-    <div className="h-screen w-full overflow-hidden bg-slate-50 p-2 md:p-3">
-      <div className="flex h-full flex-col gap-3">
+    <div className="min-h-screen w-full overflow-y-auto bg-slate-50 p-2 md:p-3">
+      <div className="flex min-h-[calc(100vh-1rem)] flex-col gap-3 md:min-h-[calc(100vh-1.5rem)]">
         <div className="rounded-xl border border-white/70 bg-white px-3 py-3 shadow-sm">
           <div className="grid gap-3 lg:grid-cols-[minmax(220px,0.85fr)_minmax(360px,1.15fr)]">
             <div className="min-w-0">
@@ -831,162 +939,299 @@ export default function LessonGroupWorkspaceClient({
               <div className="mt-0.5 text-xs leading-relaxed text-slate-700">{getText(group.task)}</div>
             </div>
           </div>
-          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
-            <div className="rounded-full border border-slate-200 bg-slate-50 p-1">
-              {TOOL_BUTTONS.map((tool) => (
+          <div className="mt-3 border-t border-slate-100 pt-3">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3 shadow-sm">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
+                  {TOOL_BUTTONS.map(({ value, label, Icon }) => {
+                    const selected = workspace.mode === value;
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setToolMode(value)}
+                        title={label}
+                        aria-label={label}
+                        className={[
+                          "flex h-11 w-11 items-center justify-center rounded-xl border p-0 transition",
+                          selected
+                            ? "border-black bg-black text-white shadow-sm"
+                            : "border-transparent bg-white text-slate-800 hover:border-slate-200 hover:bg-slate-100 hover:text-black",
+                        ].join(" ")}
+                      >
+                        <Icon className="h-5 w-5" strokeWidth={2.2} />
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-2 py-1 shadow-sm">
+                  <button
+                    type="button"
+                    disabled
+                    aria-label="Zoom out"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-400 disabled:cursor-not-allowed"
+                  >
+                    <Minus className="h-4 w-4" />
+                  </button>
+                  <span className="w-14 text-center text-xs font-semibold tabular-nums text-slate-600">100%</span>
+                  <button
+                    type="button"
+                    disabled
+                    aria-label="Zoom in"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-400 disabled:cursor-not-allowed"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
+
                 <button
-                  key={tool.value}
                   type="button"
-                  onClick={() => {
-                    activeStrokeRef.current = null;
-                    setActiveStroke(null);
-                    erasingRef.current = false;
-                    setDragTarget(null);
-                    if (tool.value !== "text") {
-                      setActiveNoteId(null);
-                      setActiveImageId(null);
-                    }
-                    setWorkspace((current) => ({ ...current, mode: tool.value }));
-                  }}
-                  className={
-                    "rounded-full px-2.5 py-1 text-[11px] font-semibold transition " +
-                    (workspace.mode === tool.value
-                      ? "bg-[var(--theme-dark)] text-white"
-                      : "text-slate-500 hover:bg-white hover:text-slate-700")
-                  }
+                  onClick={undoWorkspace}
+                  disabled={undoStack.length === 0}
+                  className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
                 >
-                  {tool.label}
+                  <Undo2 className="h-4 w-4" />
+                  Undo
                 </button>
-              ))}
+                <button
+                  type="button"
+                  onClick={redoWorkspace}
+                  disabled={redoStack.length === 0}
+                  className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                >
+                  <Redo2 className="h-4 w-4" />
+                  Redo
+                </button>
+                <button
+                  type="button"
+                  onClick={saveWorkspaceNow}
+                  className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
+                  aria-label="Save now"
+                  title="Save now"
+                >
+                  <Save className="h-4 w-4" />
+                  Save now
+                </button>
+                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                  {lastSavedAt ? `Auto-saved ${lastSavedAt}` : "Auto-saved"}
+                </span>
+
+                <div className="ml-auto flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={onPickImage}
+                    className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+                  >
+                    <ImagePlus className="h-4 w-4" />
+                    Add pic
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setWorkspace((current) => ({
+                        ...current,
+                        showLines: !current.showLines,
+                      }))
+                    }
+                    className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+                  >
+                    {workspace.showLines ? "Remove lines" : "Add lines"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowInfoSheet((current) => !current)}
+                    className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+                  >
+                    {showInfoSheet ? "Hide information" : "Information"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => window.history.back()}
+                    className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+                    aria-label="Close page"
+                    title="Close"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-slate-200 pt-3">
+                {showStrokeControls ? (
+                  <>
+                    <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white px-2 py-2 shadow-sm">
+                      {COLOR_SWATCHES.map(({ value, label }) => {
+                        const selected = activeStrokeColor.toLowerCase() === value.toLowerCase();
+                        return (
+                          <button
+                            key={value}
+                            type="button"
+                            title={label}
+                            aria-label={`Set ${label.toLowerCase()} color`}
+                            onClick={() => handleActiveColorChange(value)}
+                            className={[
+                              "h-10 w-10 rounded-full border-2 transition",
+                              value === "#ffffff" ? "border-slate-300" : "border-white/80",
+                              selected ? "ring-4 ring-[#9b8cff] ring-offset-2 ring-offset-white" : "hover:scale-105",
+                            ].join(" ")}
+                            style={{ backgroundColor: value }}
+                          />
+                        );
+                      })}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
+                      {activeStrokeWidthOptions.map((widthValue) => {
+                        const selected = activeStrokeWidth === widthValue;
+                        const previewHeight =
+                          strokeControlsTool === "highlighter"
+                            ? Math.max(8, Math.round(widthValue / 2.5))
+                            : Math.max(3, Math.round(widthValue));
+
+                        return (
+                          <button
+                            key={widthValue}
+                            type="button"
+                            onClick={() => handleStrokeWidthChange(widthValue)}
+                            className={[
+                              "flex h-10 min-w-12 items-center justify-center rounded-xl border px-3 transition",
+                              selected
+                                ? "border-black bg-black text-white"
+                                : "border-transparent bg-white text-slate-800 hover:border-slate-200 hover:bg-slate-100",
+                            ].join(" ")}
+                            aria-label={`Set stroke width ${widthValue}`}
+                          >
+                            <span
+                              className={selected ? "rounded-full bg-white" : "rounded-full bg-slate-800"}
+                              style={{
+                                width: strokeControlsTool === "highlighter" ? 24 : 20,
+                                height: previewHeight,
+                                opacity: strokeControlsTool === "highlighter" ? 0.7 : 1,
+                              }}
+                            />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : showTextControls ? (
+                  <>
+                    <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white px-2 py-2 shadow-sm">
+                      {COLOR_SWATCHES.map(({ value, label }) => {
+                        const selected = Boolean(selectedNote && selectedNote.color.toLowerCase() === value.toLowerCase());
+                        return (
+                          <button
+                            key={value}
+                            type="button"
+                            title={label}
+                            aria-label={`Set text to ${label.toLowerCase()}`}
+                            disabled={!selectedNote}
+                            onClick={() => handleActiveColorChange(value)}
+                            className={[
+                              "h-10 w-10 rounded-full border-2 transition disabled:cursor-not-allowed disabled:opacity-40",
+                              value === "#ffffff" ? "border-slate-300" : "border-white/80",
+                              selected ? "ring-4 ring-[#9b8cff] ring-offset-2 ring-offset-white" : "hover:scale-105",
+                            ].join(" ")}
+                            style={{ backgroundColor: value }}
+                          />
+                        );
+                      })}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateActiveNote((note) => {
+                            const nextFontSize = clamp(note.fontSize - 2, 12, 64);
+                            const size = computeNoteSize(note.text, nextFontSize, note.bold);
+                            return { ...note, fontSize: nextFontSize, width: size.width, height: size.height };
+                          })
+                        }
+                        className="h-10 rounded-xl border border-transparent bg-white px-3 text-sm font-semibold text-slate-700 transition hover:border-slate-200 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+                        disabled={!selectedNote}
+                      >
+                        A-
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateActiveNote((note) => {
+                            const nextFontSize = clamp(note.fontSize + 2, 12, 64);
+                            const size = computeNoteSize(note.text, nextFontSize, note.bold);
+                            return { ...note, fontSize: nextFontSize, width: size.width, height: size.height };
+                          })
+                        }
+                        className="h-10 rounded-xl border border-transparent bg-white px-3 text-sm font-semibold text-slate-700 transition hover:border-slate-200 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+                        disabled={!selectedNote}
+                      >
+                        A+
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateActiveNote((note) => {
+                            const nextBold = !note.bold;
+                            const size = computeNoteSize(note.text, note.fontSize, nextBold);
+                            return { ...note, bold: nextBold, width: size.width, height: size.height };
+                          })
+                        }
+                        className={[
+                          "h-10 rounded-xl border px-3 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-40",
+                          selectedNote?.bold
+                            ? "border-black bg-black text-white"
+                            : "border-transparent bg-white text-slate-700 hover:border-slate-200 hover:bg-slate-100",
+                        ].join(" ")}
+                        disabled={!selectedNote}
+                      >
+                        B
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => updateActiveNote((note) => ({ ...note, highlighted: !note.highlighted }))}
+                        className={[
+                          "h-10 rounded-xl border px-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40",
+                          selectedNote?.highlighted
+                            ? "border-black bg-black text-white"
+                            : "border-transparent bg-white text-slate-700 hover:border-slate-200 hover:bg-slate-100",
+                        ].join(" ")}
+                        disabled={!selectedNote}
+                      >
+                        Highlight
+                      </button>
+                      <input
+                        type="color"
+                        value={selectedNote?.highlightColor ?? "#fff59d"}
+                        onChange={(event) =>
+                          updateActiveNote((note) => ({ ...note, highlightColor: event.target.value, highlighted: true }))
+                        }
+                        disabled={!selectedNote}
+                        className="h-10 w-10 cursor-pointer rounded-xl border border-slate-200 bg-white p-1 disabled:cursor-not-allowed disabled:opacity-40"
+                        aria-label="Highlight color"
+                        title="Highlight color"
+                      />
+                    </div>
+                  </>
+                ) : null}
+
+                <label className="ml-auto flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 shadow-sm">
+                  Page
+                  <input
+                    type="color"
+                    value={workspace.pageColor}
+                    onChange={(event) =>
+                      setWorkspace((current) => ({
+                        ...current,
+                        pageColor: event.target.value,
+                      }))
+                    }
+                    className="h-7 w-7 cursor-pointer rounded border border-slate-200 bg-white p-0.5"
+                    aria-label="Page color"
+                    title="Page color"
+                  />
+                </label>
+              </div>
             </div>
-          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
-            Auto-saved
-          </span>
-          <button
-            type="button"
-            onClick={onPickImage}
-            className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
-          >
-            Add pic
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              updateActiveNote((note) => {
-                const nextFontSize = clamp(note.fontSize - 2, 12, 64);
-                const size = computeNoteSize(note.text, nextFontSize, note.bold);
-                return { ...note, fontSize: nextFontSize, width: size.width, height: size.height };
-              })
-            }
-            className="rounded-full border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
-            disabled={!activeNoteId}
-          >
-            A-
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              updateActiveNote((note) => {
-                const nextFontSize = clamp(note.fontSize + 2, 12, 64);
-                const size = computeNoteSize(note.text, nextFontSize, note.bold);
-                return { ...note, fontSize: nextFontSize, width: size.width, height: size.height };
-              })
-            }
-            className="rounded-full border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
-            disabled={!activeNoteId}
-          >
-            A+
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              updateActiveNote((note) => {
-                const nextBold = !note.bold;
-                const size = computeNoteSize(note.text, note.fontSize, nextBold);
-                return { ...note, bold: nextBold, width: size.width, height: size.height };
-              })
-            }
-            className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
-            disabled={!activeNoteId}
-          >
-            B
-          </button>
-          <button
-            type="button"
-            onClick={() => updateActiveNote((note) => ({ ...note, highlighted: !note.highlighted }))}
-            className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
-            disabled={!activeNoteId}
-          >
-            Highlight
-          </button>
-          <input
-            type="color"
-            value={
-              activeNoteId
-                ? workspace.notes.find((item) => item.id === activeNoteId)?.color ?? "#334155"
-                : "#334155"
-            }
-            onChange={(event) => updateActiveNote((note) => ({ ...note, color: event.target.value }))}
-            disabled={!activeNoteId}
-            className="h-8 w-8 cursor-pointer rounded border border-slate-200 bg-white p-1 disabled:cursor-not-allowed"
-            aria-label="Text color"
-            title="Text color"
-          />
-          <input
-            type="color"
-            value={
-              activeNoteId
-                ? workspace.notes.find((item) => item.id === activeNoteId)?.highlightColor ?? "#fff59d"
-                : "#fff59d"
-            }
-            onChange={(event) => updateActiveNote((note) => ({ ...note, highlightColor: event.target.value, highlighted: true }))}
-            disabled={!activeNoteId}
-            className="h-8 w-8 cursor-pointer rounded border border-slate-200 bg-white p-1 disabled:cursor-not-allowed"
-            aria-label="Highlight color"
-            title="Highlight color"
-          />
-          <button
-            type="button"
-            onClick={() =>
-              setWorkspace((current) => ({
-                ...current,
-                showLines: !current.showLines,
-              }))
-            }
-            className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
-          >
-            {workspace.showLines ? "Remove lines" : "Add lines"}
-          </button>
-          <input
-            type="color"
-            value={workspace.pageColor}
-            onChange={(event) =>
-              setWorkspace((current) => ({
-                ...current,
-                pageColor: event.target.value,
-              }))
-            }
-            className="h-8 w-8 cursor-pointer rounded border border-slate-200 bg-white p-1"
-            aria-label="Page color"
-            title="Page color"
-          />
-          <button
-            type="button"
-            onClick={() => setShowInfoSheet((current) => !current)}
-            className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
-          >
-            {showInfoSheet ? "Hide information sheet" : "Open information sheet"}
-          </button>
-          <button
-            type="button"
-            onClick={() => window.history.back()}
-            className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
-            aria-label="Close page"
-            title="Close"
-          >
-            X
-          </button>
-            </div>
+          </div>
         </div>
 
       <input
@@ -1020,14 +1265,21 @@ export default function LessonGroupWorkspaceClient({
         </div>
       ) : null}
 
-      <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-[linear-gradient(180deg,_#eef2f7_0%,_#f8fafc_100%)] p-2">
+      <div className="min-h-[360px] flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-[linear-gradient(180deg,_#eef2f7_0%,_#f8fafc_100%)] p-2">
         <div
           ref={workspaceRef}
-          className="relative h-full w-full overflow-hidden rounded-xl border border-slate-200 bg-white"
+          className="relative h-full min-h-[340px] w-full overflow-hidden rounded-xl border border-slate-200 bg-white"
           style={{
             backgroundColor: workspace.pageColor,
-            cursor: workspace.mode === "text" ? "text" : workspace.mode === "eraser" ? "cell" : "crosshair",
-            touchAction: workspace.mode === "text" ? "auto" : "none",
+            cursor:
+              workspace.mode === "text"
+                ? "text"
+                : workspace.mode === "eraser"
+                  ? "cell"
+                  : workspace.mode === "select"
+                    ? "default"
+                    : "crosshair",
+            touchAction: isObjectMode(workspace.mode) ? "auto" : "none",
           }}
           onDragOver={(event) => event.preventDefault()}
           onDrop={(event) => event.preventDefault()}
@@ -1078,10 +1330,10 @@ export default function LessonGroupWorkspaceClient({
                     top: note.y,
                     width: note.width + 8,
                     height: note.height + 8,
-                    pointerEvents: workspace.mode === "text" ? "auto" : "none",
+                    pointerEvents: isObjectMode(workspace.mode) ? "auto" : "none",
                   }}
                   onPointerDown={(event) => {
-                    if (workspace.mode !== "text") return;
+                    if (!isObjectMode(workspace.mode)) return;
                     setActiveNoteId(note.id);
                     setActiveImageId(null);
                     if (!workspaceRef.current) return;
@@ -1141,10 +1393,10 @@ export default function LessonGroupWorkspaceClient({
                     left: image.x,
                     top: image.y,
                     width: image.width,
-                    pointerEvents: workspace.mode === "text" ? "auto" : "none",
+                    pointerEvents: isObjectMode(workspace.mode) ? "auto" : "none",
                   }}
                   onPointerMove={(event) => {
-                    if (workspace.mode !== "text") return;
+                    if (!isObjectMode(workspace.mode)) return;
                     const imageRect = (event.currentTarget as HTMLDivElement).getBoundingClientRect();
                     const localX = event.clientX - imageRect.left;
                     const localY = event.clientY - imageRect.top;
@@ -1155,7 +1407,7 @@ export default function LessonGroupWorkspaceClient({
                     (event.currentTarget as HTMLDivElement).style.cursor = "default";
                   }}
                   onPointerDown={(event) => {
-                    if (workspace.mode !== "text") return;
+                    if (!isObjectMode(workspace.mode)) return;
                     const target = event.target as HTMLElement;
                     if (target.closest("button")) return;
                     event.stopPropagation();
@@ -1256,7 +1508,7 @@ export default function LessonGroupWorkspaceClient({
             className="absolute inset-0"
             width="100%"
             height="100%"
-            style={{ pointerEvents: workspace.mode === "text" ? "none" : "auto" }}
+            style={{ pointerEvents: isObjectMode(workspace.mode) ? "none" : "auto" }}
           >
             {workspace.strokes.map((stroke) => (
               <path
