@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  ChevronDown,
+  ChevronUp,
   Eraser,
   Highlighter,
   ImagePlus,
@@ -325,6 +327,7 @@ export default function LessonGroupWorkspaceClient({
   const [penWidth, setPenWidth] = useState(PEN_WIDTH);
   const [highlighterWidth, setHighlighterWidth] = useState(HIGHLIGHTER_WIDTH);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
 
   useEffect(() => {
     if (workspace.mode !== "text" || !activeNoteId) return;
@@ -1015,6 +1018,7 @@ export default function LessonGroupWorkspaceClient({
   const showStrokeControls = workspace.mode === "pen" || workspace.mode === "highlighter" || workspace.mode === "select";
   const showTextControls = workspace.mode === "text";
   const pageCount = clamp(Math.floor(workspace.pageCount || 1), 1, MAX_PAGE_COUNT);
+  const activeToolLabel = TOOL_BUTTONS.find(({ value }) => value === workspace.mode)?.label ?? "Pen";
   const documentHeight = pageCount * PAGE_HEIGHT + (pageCount - 1) * PAGE_GAP;
   const pageBackgroundImage = workspace.showLines
     ? "repeating-linear-gradient(to bottom, transparent 0, transparent 29px, rgba(15,23,42,0.12) 29px, rgba(15,23,42,0.12) 30px)"
@@ -1027,354 +1031,396 @@ export default function LessonGroupWorkspaceClient({
       style={{ WebkitOverflowScrolling: "touch" }}
     >
       <div className="flex min-h-[calc(100vh-1rem)] flex-col gap-3 md:min-h-[calc(100vh-1.5rem)]">
-        <div className="rounded-xl border border-white/70 bg-white px-3 py-3 shadow-sm">
-          <div className="grid gap-3 lg:grid-cols-[minmax(220px,0.85fr)_minmax(360px,1.15fr)]">
+        <div className="overflow-hidden rounded-xl border border-white/70 bg-white shadow-sm">
+          <div
+            className={[
+              "flex flex-wrap items-center justify-between gap-3 px-3 py-2.5",
+              isHeaderCollapsed ? "" : "border-b border-slate-100",
+            ].join(" ")}
+          >
             <div className="min-w-0">
-              <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--theme-dark)]">Learning objective</div>
-              <div className="mt-0.5 text-xs leading-relaxed text-slate-700">{getText(group.learningObjective)}</div>
-            </div>
-            <div className="min-w-0">
-              <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--theme-dark)]">Task</div>
-              <div className="mt-0.5 text-xs leading-relaxed text-slate-700">{getText(group.task)}</div>
-            </div>
-          </div>
-          <div className="mt-3 border-t border-slate-100 pt-3">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3 shadow-sm">
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="flex flex-wrap items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
-                  {TOOL_BUTTONS.map(({ value, label, Icon }) => {
-                    const selected = workspace.mode === value;
-                    return (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => setToolMode(value)}
-                        title={label}
-                        aria-label={label}
-                        className={[
-                          "flex h-11 w-11 items-center justify-center rounded-xl border p-0 transition",
-                          selected
-                            ? "border-black bg-black text-white shadow-sm"
-                            : "border-transparent bg-white text-slate-800 hover:border-slate-200 hover:bg-slate-100 hover:text-black",
-                        ].join(" ")}
-                      >
-                        <Icon className="h-5 w-5" strokeWidth={2.2} />
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-2 py-1 shadow-sm">
-                  <button
-                    type="button"
-                    disabled
-                    aria-label="Zoom out"
-                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-400 disabled:cursor-not-allowed"
-                  >
-                    <Minus className="h-4 w-4" />
-                  </button>
-                  <span className="w-14 text-center text-xs font-semibold tabular-nums text-slate-600">100%</span>
-                  <button
-                    type="button"
-                    disabled
-                    aria-label="Zoom in"
-                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-400 disabled:cursor-not-allowed"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </button>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={undoWorkspace}
-                  disabled={undoStack.length === 0}
-                  className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
-                >
-                  <Undo2 className="h-4 w-4" />
-                  Undo
-                </button>
-                <button
-                  type="button"
-                  onClick={redoWorkspace}
-                  disabled={redoStack.length === 0}
-                  className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
-                >
-                  <Redo2 className="h-4 w-4" />
-                  Redo
-                </button>
-                <button
-                  type="button"
-                  onClick={saveWorkspaceNow}
-                  className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
-                  aria-label="Save now"
-                  title="Save now"
-                >
-                  <Save className="h-4 w-4" />
-                  Save now
-                </button>
-                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
-                  {lastSavedAt ? `Auto-saved ${lastSavedAt}` : "Auto-saved"}
+              <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--theme-dark)]">Workspace controls</div>
+              <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] font-medium text-slate-500">
+                <span className="rounded-full bg-slate-100 px-2 py-1">{pageCount} {pageCount === 1 ? "page" : "pages"}</span>
+                <span className="rounded-full bg-slate-100 px-2 py-1">{activeToolLabel}</span>
+                <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-700">
+                  {lastSavedAt ? `Saved ${lastSavedAt}` : "Auto-save on"}
                 </span>
-
-                <div className="ml-auto flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={onPickImage}
-                    className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
-                  >
-                    <ImagePlus className="h-4 w-4" />
-                    Add pic
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setWorkspace((current) => ({
-                        ...current,
-                        showLines: !current.showLines,
-                      }))
-                    }
-                    className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
-                  >
-                    {workspace.showLines ? "Remove lines" : "Add lines"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={addPage}
-                    disabled={pageCount >= MAX_PAGE_COUNT}
-                    className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add page
-                  </button>
-                  <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-500 shadow-sm">
-                    {pageCount} {pageCount === 1 ? "page" : "pages"}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setShowInfoSheet((current) => !current)}
-                    className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
-                  >
-                    {showInfoSheet ? "Hide information" : "Information"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => window.history.back()}
-                    className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
-                    aria-label="Close page"
-                    title="Close"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
+                {showInfoSheet ? <span className="rounded-full bg-sky-50 px-2 py-1 text-sky-700">Information open</span> : null}
               </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsHeaderCollapsed((current) => !current)}
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+              aria-expanded={!isHeaderCollapsed}
+              aria-label={isHeaderCollapsed ? "Expand workspace controls" : "Collapse workspace controls"}
+              title={isHeaderCollapsed ? "Expand workspace controls" : "Collapse workspace controls"}
+            >
+              {isHeaderCollapsed ? "Open" : "Collapse"}
+              {isHeaderCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+            </button>
+          </div>
 
-              <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-slate-200 pt-3">
-                {showStrokeControls ? (
-                  <>
-                    <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white px-2 py-2 shadow-sm">
-                      {COLOR_SWATCHES.map(({ value, label }) => {
-                        const selected = activeStrokeColor.toLowerCase() === value.toLowerCase();
-                        return (
-                          <button
-                            key={value}
-                            type="button"
-                            title={label}
-                            aria-label={`Set ${label.toLowerCase()} color`}
-                            onClick={() => handleActiveColorChange(value)}
-                            className={[
-                              "h-10 w-10 rounded-full border-2 transition",
-                              value === "#ffffff" ? "border-slate-300" : "border-white/80",
-                              selected ? "ring-4 ring-[#9b8cff] ring-offset-2 ring-offset-white" : "hover:scale-105",
-                            ].join(" ")}
-                            style={{ backgroundColor: value }}
-                          />
-                        );
-                      })}
+          <div
+            className={[
+              "grid overflow-hidden transition-all duration-300 ease-out",
+              isHeaderCollapsed ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100",
+            ].join(" ")}
+            aria-hidden={isHeaderCollapsed}
+          >
+            <div className={isHeaderCollapsed ? "pointer-events-none min-h-0" : "min-h-0"}>
+              <div className="px-3 py-3">
+                <div className="grid gap-3 lg:grid-cols-[minmax(220px,0.85fr)_minmax(360px,1.15fr)]">
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--theme-dark)]">Learning objective</div>
+                    <div className="mt-0.5 text-xs leading-relaxed text-slate-700">{getText(group.learningObjective)}</div>
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--theme-dark)]">Task</div>
+                    <div className="mt-0.5 text-xs leading-relaxed text-slate-700">{getText(group.task)}</div>
+                  </div>
+                </div>
+                <div className="mt-3 border-t border-slate-100 pt-3">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3 shadow-sm">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
+                        {TOOL_BUTTONS.map(({ value, label, Icon }) => {
+                          const selected = workspace.mode === value;
+                          return (
+                            <button
+                              key={value}
+                              type="button"
+                              onClick={() => setToolMode(value)}
+                              title={label}
+                              aria-label={label}
+                              className={[
+                                "flex h-11 w-11 items-center justify-center rounded-xl border p-0 transition",
+                                selected
+                                  ? "border-black bg-black text-white shadow-sm"
+                                  : "border-transparent bg-white text-slate-800 hover:border-slate-200 hover:bg-slate-100 hover:text-black",
+                              ].join(" ")}
+                            >
+                              <Icon className="h-5 w-5" strokeWidth={2.2} />
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-2 py-1 shadow-sm">
+                        <button
+                          type="button"
+                          disabled
+                          aria-label="Zoom out"
+                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-400 disabled:cursor-not-allowed"
+                        >
+                          <Minus className="h-4 w-4" />
+                        </button>
+                        <span className="w-14 text-center text-xs font-semibold tabular-nums text-slate-600">100%</span>
+                        <button
+                          type="button"
+                          disabled
+                          aria-label="Zoom in"
+                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-400 disabled:cursor-not-allowed"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </button>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={undoWorkspace}
+                        disabled={undoStack.length === 0}
+                        className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                      >
+                        <Undo2 className="h-4 w-4" />
+                        Undo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={redoWorkspace}
+                        disabled={redoStack.length === 0}
+                        className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                      >
+                        <Redo2 className="h-4 w-4" />
+                        Redo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={saveWorkspaceNow}
+                        className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
+                        aria-label="Save now"
+                        title="Save now"
+                      >
+                        <Save className="h-4 w-4" />
+                        Save now
+                      </button>
+                      <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                        {lastSavedAt ? `Auto-saved ${lastSavedAt}` : "Auto-saved"}
+                      </span>
+
+                      <div className="ml-auto flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={onPickImage}
+                          className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+                        >
+                          <ImagePlus className="h-4 w-4" />
+                          Add pic
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setWorkspace((current) => ({
+                              ...current,
+                              showLines: !current.showLines,
+                            }))
+                          }
+                          className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+                        >
+                          {workspace.showLines ? "Remove lines" : "Add lines"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={addPage}
+                          disabled={pageCount >= MAX_PAGE_COUNT}
+                          className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                        >
+                          <Plus className="h-4 w-4" />
+                          Add page
+                        </button>
+                        <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-500 shadow-sm">
+                          {pageCount} {pageCount === 1 ? "page" : "pages"}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setShowInfoSheet((current) => !current)}
+                          className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+                        >
+                          {showInfoSheet ? "Hide information" : "Information"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => window.history.back()}
+                          className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+                          aria-label="Close page"
+                          title="Close"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
-                      {activeStrokeWidthOptions.map((widthValue) => {
-                        const selected = activeStrokeWidth === widthValue;
-                        const previewHeight =
-                          strokeControlsTool === "highlighter"
-                            ? Math.max(8, Math.round(widthValue / 2.5))
-                            : Math.max(3, Math.round(widthValue));
 
-                        return (
-                          <button
-                            key={widthValue}
-                            type="button"
-                            onClick={() => handleStrokeWidthChange(widthValue)}
-                            className={[
-                              "flex h-10 min-w-12 items-center justify-center rounded-xl border px-3 transition",
-                              selected
-                                ? "border-black bg-black text-white"
-                                : "border-transparent bg-white text-slate-800 hover:border-slate-200 hover:bg-slate-100",
-                            ].join(" ")}
-                            aria-label={`Set stroke width ${widthValue}`}
-                          >
-                            <span
-                              className={selected ? "rounded-full bg-white" : "rounded-full bg-slate-800"}
-                              style={{
-                                width: strokeControlsTool === "highlighter" ? 24 : 20,
-                                height: previewHeight,
-                                opacity: strokeControlsTool === "highlighter" ? 0.7 : 1,
-                              }}
+                    <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-slate-200 pt-3">
+                      {showStrokeControls ? (
+                        <>
+                          <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white px-2 py-2 shadow-sm">
+                            {COLOR_SWATCHES.map(({ value, label }) => {
+                              const selected = activeStrokeColor.toLowerCase() === value.toLowerCase();
+                              return (
+                                <button
+                                  key={value}
+                                  type="button"
+                                  title={label}
+                                  aria-label={`Set ${label.toLowerCase()} color`}
+                                  onClick={() => handleActiveColorChange(value)}
+                                  className={[
+                                    "h-10 w-10 rounded-full border-2 transition",
+                                    value === "#ffffff" ? "border-slate-300" : "border-white/80",
+                                    selected ? "ring-4 ring-[#9b8cff] ring-offset-2 ring-offset-white" : "hover:scale-105",
+                                  ].join(" ")}
+                                  style={{ backgroundColor: value }}
+                                />
+                              );
+                            })}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
+                            {activeStrokeWidthOptions.map((widthValue) => {
+                              const selected = activeStrokeWidth === widthValue;
+                              const previewHeight =
+                                strokeControlsTool === "highlighter"
+                                  ? Math.max(8, Math.round(widthValue / 2.5))
+                                  : Math.max(3, Math.round(widthValue));
+
+                              return (
+                                <button
+                                  key={widthValue}
+                                  type="button"
+                                  onClick={() => handleStrokeWidthChange(widthValue)}
+                                  className={[
+                                    "flex h-10 min-w-12 items-center justify-center rounded-xl border px-3 transition",
+                                    selected
+                                      ? "border-black bg-black text-white"
+                                      : "border-transparent bg-white text-slate-800 hover:border-slate-200 hover:bg-slate-100",
+                                  ].join(" ")}
+                                  aria-label={`Set stroke width ${widthValue}`}
+                                >
+                                  <span
+                                    className={selected ? "rounded-full bg-white" : "rounded-full bg-slate-800"}
+                                    style={{
+                                      width: strokeControlsTool === "highlighter" ? 24 : 20,
+                                      height: previewHeight,
+                                      opacity: strokeControlsTool === "highlighter" ? 0.7 : 1,
+                                    }}
+                                  />
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </>
+                      ) : showTextControls ? (
+                        <>
+                          <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white px-2 py-2 shadow-sm">
+                            {COLOR_SWATCHES.map(({ value, label }) => {
+                              const selected = Boolean(selectedNote && selectedNote.color.toLowerCase() === value.toLowerCase());
+                              return (
+                                <button
+                                  key={value}
+                                  type="button"
+                                  title={label}
+                                  aria-label={`Set text to ${label.toLowerCase()}`}
+                                  disabled={!selectedNote}
+                                  onClick={() => handleActiveColorChange(value)}
+                                  className={[
+                                    "h-10 w-10 rounded-full border-2 transition disabled:cursor-not-allowed disabled:opacity-40",
+                                    value === "#ffffff" ? "border-slate-300" : "border-white/80",
+                                    selected ? "ring-4 ring-[#9b8cff] ring-offset-2 ring-offset-white" : "hover:scale-105",
+                                  ].join(" ")}
+                                  style={{ backgroundColor: value }}
+                                />
+                              );
+                            })}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateActiveNote((note) => {
+                                  const nextFontSize = clamp(note.fontSize - 2, 12, 64);
+                                  const size = computeNoteSize(note.text, nextFontSize, note.bold);
+                                  return { ...note, fontSize: nextFontSize, width: size.width, height: size.height };
+                                })
+                              }
+                              className="h-10 rounded-xl border border-transparent bg-white px-3 text-sm font-semibold text-slate-700 transition hover:border-slate-200 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+                              disabled={!selectedNote}
+                            >
+                              A-
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateActiveNote((note) => {
+                                  const nextFontSize = clamp(note.fontSize + 2, 12, 64);
+                                  const size = computeNoteSize(note.text, nextFontSize, note.bold);
+                                  return { ...note, fontSize: nextFontSize, width: size.width, height: size.height };
+                                })
+                              }
+                              className="h-10 rounded-xl border border-transparent bg-white px-3 text-sm font-semibold text-slate-700 transition hover:border-slate-200 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+                              disabled={!selectedNote}
+                            >
+                              A+
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateActiveNote((note) => {
+                                  const nextBold = !note.bold;
+                                  const size = computeNoteSize(note.text, note.fontSize, nextBold);
+                                  return { ...note, bold: nextBold, width: size.width, height: size.height };
+                                })
+                              }
+                              className={[
+                                "h-10 rounded-xl border px-3 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-40",
+                                selectedNote?.bold
+                                  ? "border-black bg-black text-white"
+                                  : "border-transparent bg-white text-slate-700 hover:border-slate-200 hover:bg-slate-100",
+                              ].join(" ")}
+                              disabled={!selectedNote}
+                            >
+                              B
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => updateActiveNote((note) => ({ ...note, highlighted: !note.highlighted }))}
+                              className={[
+                                "h-10 rounded-xl border px-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40",
+                                selectedNote?.highlighted
+                                  ? "border-black bg-black text-white"
+                                  : "border-transparent bg-white text-slate-700 hover:border-slate-200 hover:bg-slate-100",
+                              ].join(" ")}
+                              disabled={!selectedNote}
+                            >
+                              Highlight
+                            </button>
+                            <input
+                              type="color"
+                              value={selectedNote?.highlightColor ?? "#fff59d"}
+                              onChange={(event) =>
+                                updateActiveNote((note) => ({ ...note, highlightColor: event.target.value, highlighted: true }))
+                              }
+                              disabled={!selectedNote}
+                              className="h-10 w-10 cursor-pointer rounded-xl border border-slate-200 bg-white p-1 disabled:cursor-not-allowed disabled:opacity-40"
+                              aria-label="Highlight color"
+                              title="Highlight color"
                             />
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </>
-                ) : showTextControls ? (
-                  <>
-                    <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white px-2 py-2 shadow-sm">
-                      {COLOR_SWATCHES.map(({ value, label }) => {
-                        const selected = Boolean(selectedNote && selectedNote.color.toLowerCase() === value.toLowerCase());
-                        return (
-                          <button
-                            key={value}
-                            type="button"
-                            title={label}
-                            aria-label={`Set text to ${label.toLowerCase()}`}
-                            disabled={!selectedNote}
-                            onClick={() => handleActiveColorChange(value)}
-                            className={[
-                              "h-10 w-10 rounded-full border-2 transition disabled:cursor-not-allowed disabled:opacity-40",
-                              value === "#ffffff" ? "border-slate-300" : "border-white/80",
-                              selected ? "ring-4 ring-[#9b8cff] ring-offset-2 ring-offset-white" : "hover:scale-105",
-                            ].join(" ")}
-                            style={{ backgroundColor: value }}
-                          />
-                        );
-                      })}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateActiveNote((note) => {
-                            const nextFontSize = clamp(note.fontSize - 2, 12, 64);
-                            const size = computeNoteSize(note.text, nextFontSize, note.bold);
-                            return { ...note, fontSize: nextFontSize, width: size.width, height: size.height };
-                          })
-                        }
-                        className="h-10 rounded-xl border border-transparent bg-white px-3 text-sm font-semibold text-slate-700 transition hover:border-slate-200 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-                        disabled={!selectedNote}
-                      >
-                        A-
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateActiveNote((note) => {
-                            const nextFontSize = clamp(note.fontSize + 2, 12, 64);
-                            const size = computeNoteSize(note.text, nextFontSize, note.bold);
-                            return { ...note, fontSize: nextFontSize, width: size.width, height: size.height };
-                          })
-                        }
-                        className="h-10 rounded-xl border border-transparent bg-white px-3 text-sm font-semibold text-slate-700 transition hover:border-slate-200 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-                        disabled={!selectedNote}
-                      >
-                        A+
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateActiveNote((note) => {
-                            const nextBold = !note.bold;
-                            const size = computeNoteSize(note.text, note.fontSize, nextBold);
-                            return { ...note, bold: nextBold, width: size.width, height: size.height };
-                          })
-                        }
-                        className={[
-                          "h-10 rounded-xl border px-3 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-40",
-                          selectedNote?.bold
-                            ? "border-black bg-black text-white"
-                            : "border-transparent bg-white text-slate-700 hover:border-slate-200 hover:bg-slate-100",
-                        ].join(" ")}
-                        disabled={!selectedNote}
-                      >
-                        B
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => updateActiveNote((note) => ({ ...note, highlighted: !note.highlighted }))}
-                        className={[
-                          "h-10 rounded-xl border px-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40",
-                          selectedNote?.highlighted
-                            ? "border-black bg-black text-white"
-                            : "border-transparent bg-white text-slate-700 hover:border-slate-200 hover:bg-slate-100",
-                        ].join(" ")}
-                        disabled={!selectedNote}
-                      >
-                        Highlight
-                      </button>
-                      <input
-                        type="color"
-                        value={selectedNote?.highlightColor ?? "#fff59d"}
-                        onChange={(event) =>
-                          updateActiveNote((note) => ({ ...note, highlightColor: event.target.value, highlighted: true }))
-                        }
-                        disabled={!selectedNote}
-                        className="h-10 w-10 cursor-pointer rounded-xl border border-slate-200 bg-white p-1 disabled:cursor-not-allowed disabled:opacity-40"
-                        aria-label="Highlight color"
-                        title="Highlight color"
-                      />
-                    </div>
-                  </>
-                ) : null}
+                          </div>
+                        </>
+                      ) : null}
 
-                <label className="ml-auto flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 shadow-sm">
-                  Page
-                  <input
-                    type="color"
-                    value={workspace.pageColor}
-                    onChange={(event) =>
-                      setWorkspace((current) => ({
-                        ...current,
-                        pageColor: event.target.value,
-                      }))
-                    }
-                    className="h-7 w-7 cursor-pointer rounded border border-slate-200 bg-white p-0.5"
-                    aria-label="Page color"
-                    title="Page color"
-                  />
-                </label>
+                      <label className="ml-auto flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 shadow-sm">
+                        Page
+                        <input
+                          type="color"
+                          value={workspace.pageColor}
+                          onChange={(event) =>
+                            setWorkspace((current) => ({
+                              ...current,
+                              pageColor: event.target.value,
+                            }))
+                          }
+                          className="h-7 w-7 cursor-pointer rounded border border-slate-200 bg-white p-0.5"
+                          aria-label="Page color"
+                          title="Page color"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                {showInfoSheet ? (
+                  <div className="mt-3 rounded-xl border border-[var(--theme-border)] bg-white px-4 py-3 text-xs text-slate-700 shadow-sm">
+                    <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--theme-dark)]">Information sheet</div>
+                    <div className="mb-2 flex flex-wrap gap-1.5">
+                      {group.evidence.map((item, index) => (
+                        <span
+                          key={`evidence-${index}`}
+                          className="rounded-full border border-[var(--theme-border)] bg-[var(--theme-soft)] px-2 py-1 text-[11px] font-medium"
+                        >
+                          {getText(item)}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="grid gap-1.5">
+                      {group.sourceNotes.map((item, index) => (
+                        <div key={`source-${index}`} className="rounded-md bg-slate-50 px-2.5 py-2 leading-5 text-slate-600">
+                          {getText(item)}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>
         </div>
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={onImageInputChange}
-      />
-
-      {showInfoSheet ? (
-        <div className="mb-2 rounded-xl border border-[var(--theme-border)] bg-white px-4 py-3 text-xs text-slate-700 shadow-sm">
-          <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--theme-dark)]">Information sheet</div>
-          <div className="mb-2 flex flex-wrap gap-1.5">
-            {group.evidence.map((item, index) => (
-              <span
-                key={`evidence-${index}`}
-                className="rounded-full border border-[var(--theme-border)] bg-[var(--theme-soft)] px-2 py-1 text-[11px] font-medium"
-              >
-                {getText(item)}
-              </span>
-            ))}
-          </div>
-          <div className="grid gap-1.5">
-            {group.sourceNotes.map((item, index) => (
-              <div key={`source-${index}`} className="rounded-md bg-slate-50 px-2.5 py-2 leading-5 text-slate-600">
-                {getText(item)}
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={onImageInputChange}
+        />
 
       <div className="rounded-2xl border border-slate-200 bg-[linear-gradient(180deg,_#eef2f7_0%,_#f8fafc_100%)] p-2">
         <div
