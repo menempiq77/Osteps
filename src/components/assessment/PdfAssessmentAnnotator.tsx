@@ -9,6 +9,7 @@ import {
   AlignRight,
   Bold,
   ChevronDown,
+  ChevronUp,
   Eraser,
   Highlighter,
   MousePointer2,
@@ -1008,6 +1009,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const [examExitModalOpen, setExamExitModalOpen] = useState(false);
   const [examExitReason, setExamExitReason] = useState("");
   const [examExitContext, setExamExitContext] = useState<ExamExitContext>("fullscreen");
+  const [isToolbarCollapsed, setIsToolbarCollapsed] = useState(false);
   const [screenshotWarningVisible, setScreenshotWarningVisible] = useState(false);
   const [handlingExamExit, setHandlingExamExit] = useState(false);
   const [teacherExamAlertDismissed, setTeacherExamAlertDismissed] = useState(false);
@@ -5238,6 +5240,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         style={toolbarChromeStyle}
       >
         <div className={shouldEnforceExamScreen ? "flex flex-col gap-4" : "flex w-full flex-col gap-4"}>
+          <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-lg font-semibold text-gray-900">{title}</h1>
             {role === "teacher" && (
@@ -5277,7 +5280,22 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
               {maxMarks != null && <Tag className="mb-0 shrink-0 whitespace-nowrap tabular-nums">{maxMarks} marks</Tag>}
             </div>
           </div>
-
+          <button
+            type="button"
+            onClick={() => setIsToolbarCollapsed((c) => !c)}
+            aria-expanded={!isToolbarCollapsed}
+            aria-label={isToolbarCollapsed ? "Expand annotation tools" : "Collapse annotation tools"}
+            className="shrink-0 flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 transition"
+          >
+            {isToolbarCollapsed ? "Open" : "Collapse"}
+            {isToolbarCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+          </button>
+          </div>
+          <div
+            className={["grid overflow-hidden transition-all duration-300 ease-out", isToolbarCollapsed ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100"].join(" ")}
+            aria-hidden={isToolbarCollapsed}
+          >
+            <div className={isToolbarCollapsed ? "pointer-events-none min-h-0" : "min-h-0"}>
           <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-3">
             <div className="order-2 flex flex-wrap items-center gap-2">
               <div className="flex flex-wrap items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
@@ -5453,6 +5471,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                 <Button type="primary" onClick={finalizeTeacherMark} loading={finishing}>Save markbook mark</Button>
               </div>
             )}
+          </div>
+            </div>
           </div>
         </div>
       </div>
