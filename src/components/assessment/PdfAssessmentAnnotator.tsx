@@ -5239,63 +5239,62 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         className="fixed left-0 right-0 top-0 z-[90] border-b bg-white/95 px-4 py-3 shadow-sm backdrop-blur"
         style={toolbarChromeStyle}
       >
-        <div className={shouldEnforceExamScreen ? "flex flex-col gap-4" : "flex w-full flex-col gap-4"}>
-          <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
+        <div className={shouldEnforceExamScreen ? "flex flex-col gap-2" : "flex w-full flex-col gap-2"}>
+          <div className="flex items-center justify-between gap-3">
             <h1 className="truncate text-lg font-semibold text-gray-900">{title}</h1>
-            {role === "teacher" && (
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">Student</span>
-                {studentSwitcherOptions.length > 0 && onStudentChange ? (
-                  <Select
-                    showSearch
-                    value={studentId}
-                    loading={studentSwitcherLoading}
-                    onChange={(value) => void handleStudentSwitcherChange(value)}
-                    className="min-w-64"
-                    optionFilterProp="label"
-                    options={studentSwitcherOptions.map((option) => ({
-                      value: option.value,
-                      label: option.status ? `${option.label} · ${option.status}` : option.label,
-                    }))}
-                  />
-                ) : (
-                  <span className="rounded-md bg-slate-100 px-2 py-1 text-sm font-medium text-slate-800">
-                    {displayStudentName}
-                  </span>
-                )}
-              </div>
-            )}
-            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500 sm:flex-nowrap sm:overflow-hidden">
-              <Tag className="mb-0 shrink-0 whitespace-nowrap" color={role === "teacher" ? "red" : "blue"}>{role === "teacher" ? "Teacher marking" : "Student copy"}</Tag>
-              <Tag className="mb-0 shrink-0 whitespace-nowrap" color={state?.status === "draft" ? "gold" : state?.status === "submitted" ? "green" : "purple"}>{state?.status || "draft"}</Tag>
-              <Tag className="mb-0 shrink-0 whitespace-nowrap" color={studentLocked ? "default" : "cyan"}>{studentLocked ? "Student locked" : "Student open"}</Tag>
-              <Tag
-                className="mb-0 inline-flex min-w-[4.75rem] shrink-0 justify-center whitespace-nowrap"
-                color={autosaveStatusColor}
-                title={lastSavedAt ? `Saved ${lastSavedAt}` : autosaveStatusLabel}
-              >
-                {autosaveStatusLabel}
-              </Tag>
-              {maxMarks != null && <Tag className="mb-0 shrink-0 whitespace-nowrap tabular-nums">{maxMarks} marks</Tag>}
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setIsToolbarCollapsed((c) => !c)}
-            aria-expanded={!isToolbarCollapsed}
-            aria-label={isToolbarCollapsed ? "Expand annotation tools" : "Collapse annotation tools"}
-            className="shrink-0 flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 transition"
-          >
-            {isToolbarCollapsed ? "Open" : "Collapse"}
-            {isToolbarCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-          </button>
+            <button
+              type="button"
+              onClick={() => setIsToolbarCollapsed((c) => !c)}
+              aria-expanded={!isToolbarCollapsed}
+              aria-label={isToolbarCollapsed ? "Expand annotation tools" : "Collapse annotation tools"}
+              className="shrink-0 flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 transition"
+            >
+              {isToolbarCollapsed ? "Open" : "Collapse"}
+              {isToolbarCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+            </button>
           </div>
           <div
             className={["grid overflow-hidden transition-all duration-300 ease-out", isToolbarCollapsed ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100"].join(" ")}
             aria-hidden={isToolbarCollapsed}
           >
             <div className={isToolbarCollapsed ? "pointer-events-none min-h-0" : "min-h-0"}>
+          <div className="flex flex-col gap-3">
+          {role === "teacher" && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">Student</span>
+              {studentSwitcherOptions.length > 0 && onStudentChange ? (
+                <Select
+                  showSearch
+                  value={studentId}
+                  loading={studentSwitcherLoading}
+                  onChange={(value) => void handleStudentSwitcherChange(value)}
+                  className="min-w-64"
+                  optionFilterProp="label"
+                  options={studentSwitcherOptions.map((option) => ({
+                    value: option.value,
+                    label: option.status ? `${option.label} · ${option.status}` : option.label,
+                  }))}
+                />
+              ) : (
+                <span className="rounded-md bg-slate-100 px-2 py-1 text-sm font-medium text-slate-800">
+                  {displayStudentName}
+                </span>
+              )}
+            </div>
+          )}
+          <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 sm:flex-nowrap sm:overflow-hidden">
+            <Tag className="mb-0 shrink-0 whitespace-nowrap" color={role === "teacher" ? "red" : "blue"}>{role === "teacher" ? "Teacher marking" : "Student copy"}</Tag>
+            <Tag className="mb-0 shrink-0 whitespace-nowrap" color={state?.status === "draft" ? "gold" : state?.status === "submitted" ? "green" : "purple"}>{state?.status || "draft"}</Tag>
+            <Tag className="mb-0 shrink-0 whitespace-nowrap" color={studentLocked ? "default" : "cyan"}>{studentLocked ? "Student locked" : "Student open"}</Tag>
+            <Tag
+              className="mb-0 inline-flex min-w-[4.75rem] shrink-0 justify-center whitespace-nowrap"
+              color={autosaveStatusColor}
+              title={lastSavedAt ? `Saved ${lastSavedAt}` : autosaveStatusLabel}
+            >
+              {autosaveStatusLabel}
+            </Tag>
+            {maxMarks != null && <Tag className="mb-0 shrink-0 whitespace-nowrap tabular-nums">{maxMarks} marks</Tag>}
+          </div>
           <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-3">
             <div className="order-2 flex flex-wrap items-center gap-2">
               <div className="flex flex-wrap items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
@@ -5471,6 +5470,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                 <Button type="primary" onClick={finalizeTeacherMark} loading={finishing}>Save markbook mark</Button>
               </div>
             )}
+          </div>
           </div>
             </div>
           </div>
