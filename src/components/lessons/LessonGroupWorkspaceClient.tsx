@@ -307,6 +307,7 @@ export default function LessonGroupWorkspaceClient({
 }: Props) {
   const storageKey = useMemo(() => workspaceKey(lessonSlug, group.slug), [lessonSlug, group.slug]);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const pendingPageScrollRef = useRef(false);
   const workspaceRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const erasingRef = useRef(false);
@@ -599,19 +600,45 @@ export default function LessonGroupWorkspaceClient({
   function addPage() {
     setUndoStack((current) => [...current.slice(-49), cloneWorkspaceState(workspace)]);
     setRedoStack([]);
+    pendingPageScrollRef.current = true;
     setWorkspace((current) => ({
       ...current,
       pageCount: clamp((current.pageCount || 1) + 1, 1, MAX_PAGE_COUNT),
     }));
-    window.requestAnimationFrame(() => {
-      const scrollContainer = scrollContainerRef.current;
-      if (scrollContainer) {
-        scrollContainer.scrollTo({ top: scrollContainer.scrollHeight, behavior: "smooth" });
-        return;
-      }
-      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" });
-    });
   }
+
+  useEffect(() => {
+    if (!pendingPageScrollRef.current || !scrollContainerRef.current || !workspaceRef.current) return;
+
+    pendingPageScrollRef.current = false;
+
+    const scrollContainer = scrollContainerRef.current;
+    const workspaceElement = workspaceRef.current;
+
+    const scrollToNewPage = () => {
+      const scrollContainerRect = scrollContainer.getBoundingClientRect();
+      const workspaceRect = workspaceElement.getBoundingClientRect();
+      const nextTop =
+        scrollContainer.scrollTop +
+        (workspaceRect.top - scrollContainerRect.top) +
+        Math.max(0, workspace.pageCount - 1) * (PAGE_HEIGHT + PAGE_GAP) -
+        16;
+
+      scrollContainer.scrollTo({ top: Math.max(0, nextTop), behavior: "smooth" });
+    };
+
+    let secondFrame: number | null = null;
+    const firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(scrollToNewPage);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      if (secondFrame !== null) {
+        window.cancelAnimationFrame(secondFrame);
+      }
+    };
+  }, [workspace.pageCount]);
 
   function toWorkPoint(clientX: number, clientY: number) {
     const rect = workspaceRef.current?.getBoundingClientRect();
@@ -770,6 +797,7 @@ export default function LessonGroupWorkspaceClient({
     if (workspace.mode !== "text") return;
     if (!workspaceRef.current) return;
     if (dragTarget) return;
+    if (event.pointerType === "touch") return;
 
     setActiveImageId(null);
 
@@ -958,7 +986,11 @@ export default function LessonGroupWorkspaceClient({
     : undefined;
 
   return (
-    <div ref={scrollContainerRef} className="h-full min-h-0 w-full overflow-y-auto bg-slate-50 p-2 md:p-3">
+    <div
+      ref={scrollContainerRef}
+      className="h-full min-h-0 w-full overflow-y-auto bg-slate-50 p-2 md:p-3"
+      style={{ WebkitOverflowScrolling: "touch" }}
+    >
       <div className="flex min-h-[calc(100vh-1rem)] flex-col gap-3 md:min-h-[calc(100vh-1.5rem)]">
         <div className="rounded-xl border border-white/70 bg-white px-3 py-3 shadow-sm">
           <div className="grid gap-3 lg:grid-cols-[minmax(220px,0.85fr)_minmax(360px,1.15fr)]">
@@ -1325,17 +1357,19 @@ export default function LessonGroupWorkspaceClient({
                   : workspace.mode === "select"
                     ? "default"
                     : "crosshair",
-            touchAction: isObjectMode(workspace.mode) ? "auto" : "none",
+            touchAction: isObjectMode(workspace.mode) ? "auto" : "pan-y",
           }}
           onDragOver={(event) => event.preventDefault()}
           onDrop={(event) => event.preventDefault()}
           onPointerDown={(event) => {
             if (isStrokeMode(workspace.mode)) {
+              if (event.pointerType === "touch") return;
               event.preventDefault();
               startStroke(event.clientX, event.clientY);
               return;
             }
             if (workspace.mode === "eraser") {
+              if (event.pointerType === "touch") return;
               event.preventDefault();
               startEraser(event.clientX, event.clientY);
             }
