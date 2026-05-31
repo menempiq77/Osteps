@@ -68,6 +68,7 @@ type WorkspaceState = {
   notes: TextNote[];
   pageColor: string;
   showLines: boolean;
+  pageCount: number;
 };
 
 type DragTarget =
@@ -102,6 +103,7 @@ const EMPTY_WORKSPACE: WorkspaceState = {
   notes: [],
   pageColor: "#ffffff",
   showLines: false,
+  pageCount: 1,
 };
 
 const PEN_COLOR = "#1f2937";
@@ -109,6 +111,9 @@ const PEN_WIDTH = 2.5;
 const HIGHLIGHTER_COLOR = "#fde047";
 const HIGHLIGHTER_WIDTH = 16;
 const ERASER_RADIUS = 20;
+const PAGE_HEIGHT = 960;
+const PAGE_GAP = 24;
+const MAX_PAGE_COUNT = 12;
 
 const COLOR_SWATCHES = [
   { value: "#bdbdbd", label: "Gray" },
@@ -301,6 +306,7 @@ export default function LessonGroupWorkspaceClient({
   group,
 }: Props) {
   const storageKey = useMemo(() => workspaceKey(lessonSlug, group.slug), [lessonSlug, group.slug]);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const workspaceRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const erasingRef = useRef(false);
@@ -429,6 +435,10 @@ export default function LessonGroupWorkspaceClient({
         notes: parsedNotes,
         pageColor: typeof parsed.pageColor === "string" ? parsed.pageColor : "#ffffff",
         showLines: typeof parsed.showLines === "boolean" ? parsed.showLines : false,
+        pageCount:
+          typeof parsed.pageCount === "number" && Number.isFinite(parsed.pageCount)
+            ? clamp(Math.floor(parsed.pageCount), 1, MAX_PAGE_COUNT)
+            : EMPTY_WORKSPACE.pageCount,
       });
     } catch {
       setWorkspace(EMPTY_WORKSPACE);
@@ -584,6 +594,23 @@ export default function LessonGroupWorkspaceClient({
     } catch {
       // ignore
     }
+  }
+
+  function addPage() {
+    setUndoStack((current) => [...current.slice(-49), cloneWorkspaceState(workspace)]);
+    setRedoStack([]);
+    setWorkspace((current) => ({
+      ...current,
+      pageCount: clamp((current.pageCount || 1) + 1, 1, MAX_PAGE_COUNT),
+    }));
+    window.requestAnimationFrame(() => {
+      const scrollContainer = scrollContainerRef.current;
+      if (scrollContainer) {
+        scrollContainer.scrollTo({ top: scrollContainer.scrollHeight, behavior: "smooth" });
+        return;
+      }
+      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" });
+    });
   }
 
   function toWorkPoint(clientX: number, clientY: number) {
@@ -924,9 +951,14 @@ export default function LessonGroupWorkspaceClient({
   const activeStrokeWidthOptions = strokeControlsTool === "highlighter" ? HIGHLIGHTER_WIDTH_OPTIONS : PEN_WIDTH_OPTIONS;
   const showStrokeControls = workspace.mode === "pen" || workspace.mode === "highlighter" || workspace.mode === "select";
   const showTextControls = workspace.mode === "text";
+  const pageCount = clamp(Math.floor(workspace.pageCount || 1), 1, MAX_PAGE_COUNT);
+  const documentHeight = pageCount * PAGE_HEIGHT + (pageCount - 1) * PAGE_GAP;
+  const pageBackgroundImage = workspace.showLines
+    ? "repeating-linear-gradient(to bottom, transparent 0, transparent 29px, rgba(15,23,42,0.12) 29px, rgba(15,23,42,0.12) 30px)"
+    : undefined;
 
   return (
-    <div className="min-h-screen w-full overflow-y-auto bg-slate-50 p-2 md:p-3">
+    <div ref={scrollContainerRef} className="h-full min-h-0 w-full overflow-y-auto bg-slate-50 p-2 md:p-3">
       <div className="flex min-h-[calc(100vh-1rem)] flex-col gap-3 md:min-h-[calc(100vh-1.5rem)]">
         <div className="rounded-xl border border-white/70 bg-white px-3 py-3 shadow-sm">
           <div className="grid gap-3 lg:grid-cols-[minmax(220px,0.85fr)_minmax(360px,1.15fr)]">
@@ -1038,6 +1070,18 @@ export default function LessonGroupWorkspaceClient({
                   >
                     {workspace.showLines ? "Remove lines" : "Add lines"}
                   </button>
+                  <button
+                    type="button"
+                    onClick={addPage}
+                    disabled={pageCount >= MAX_PAGE_COUNT}
+                    className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add page
+                  </button>
+                  <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-500 shadow-sm">
+                    {pageCount} {pageCount === 1 ? "page" : "pages"}
+                  </span>
                   <button
                     type="button"
                     onClick={() => setShowInfoSheet((current) => !current)}
@@ -1265,12 +1309,14 @@ export default function LessonGroupWorkspaceClient({
         </div>
       ) : null}
 
-      <div className="min-h-[360px] flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-[linear-gradient(180deg,_#eef2f7_0%,_#f8fafc_100%)] p-2">
+      <div className="rounded-2xl border border-slate-200 bg-[linear-gradient(180deg,_#eef2f7_0%,_#f8fafc_100%)] p-2">
         <div
           ref={workspaceRef}
-          className="relative h-full min-h-[340px] w-full overflow-hidden rounded-xl border border-slate-200 bg-white"
+          className="relative w-full overflow-hidden rounded-xl"
           style={{
-            backgroundColor: workspace.pageColor,
+            height: documentHeight,
+            minHeight: documentHeight,
+            backgroundColor: "transparent",
             cursor:
               workspace.mode === "text"
                 ? "text"
@@ -1299,15 +1345,27 @@ export default function LessonGroupWorkspaceClient({
           onPointerLeave={onWorkspacePointerLeave}
           onPointerDownCapture={onWorkspaceTextPointerDown}
         >
-          {workspace.showLines ? (
-            <div
-              className="pointer-events-none absolute inset-0"
-              style={{
-                backgroundImage:
-                  "repeating-linear-gradient(to bottom, transparent 0, transparent 29px, rgba(15,23,42,0.12) 29px, rgba(15,23,42,0.12) 30px)",
-              }}
-            />
-          ) : null}
+          {Array.from({ length: pageCount }).map((_, index) => {
+            const top = index * (PAGE_HEIGHT + PAGE_GAP);
+            return (
+              <div
+                key={`page-${index}`}
+                className="pointer-events-none absolute inset-x-0 rounded-xl border border-slate-200 shadow-[0_18px_50px_rgba(15,23,42,0.08)]"
+                style={{
+                  top,
+                  height: PAGE_HEIGHT,
+                  backgroundColor: workspace.pageColor,
+                  backgroundImage: pageBackgroundImage,
+                }}
+              >
+                {pageCount > 1 ? (
+                  <div className="absolute right-4 top-3 rounded-full bg-slate-100/90 px-2.5 py-1 text-[11px] font-semibold text-slate-500">
+                    Page {index + 1}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
 
           {workspace.mode === "text" && workspace.notes.length === 0 ? (
             <div className="pointer-events-none absolute left-4 top-3 text-xs text-slate-400">
