@@ -281,8 +281,8 @@ export default function DashboardLayout({
   if (!currentUser && isImmersiveLessonGroupRoute) {
     return (
       <div className="dashboard-theme-scope min-h-screen bg-white">
-        <div className="h-screen overflow-hidden relative">
-          <div className="h-full w-full">{children}</div>
+        <div className="relative min-h-screen">
+          <div className="w-full">{children}</div>
         </div>
       </div>
     );
@@ -477,7 +477,7 @@ export default function DashboardLayout({
       >
         {!isImmersiveLessonGroupRoute && !isLibraryRoute ? <Sidebar /> : null}
 
-        <div className={(isImmersiveLessonGroupRoute ? "h-screen overflow-hidden" : "flex-1 h-screen overflow-y-auto") + " relative"}>
+        <div className={(isImmersiveLessonGroupRoute ? "min-h-screen" : "flex-1 h-screen overflow-y-auto") + " relative"}>
           {!isImmersiveLessonGroupRoute ? (
             <div
               className={`dashboard-route-overlay ${
@@ -488,7 +488,7 @@ export default function DashboardLayout({
           <div
             className={
               isImmersiveLessonGroupRoute
-                ? "h-full w-full"
+                ? "w-full"
                 : `mx-auto ${shouldApplyMaxWidth ? "max-w-7xl p-3 md:p-6" : ""}`
             }
           >

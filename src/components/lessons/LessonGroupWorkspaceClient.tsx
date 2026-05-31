@@ -607,20 +607,46 @@ export default function LessonGroupWorkspaceClient({
     }));
   }
 
+  function getActiveScrollElement() {
+    const scrollContainer = scrollContainerRef.current;
+    if (scrollContainer && scrollContainer.scrollHeight > scrollContainer.clientHeight + 1) {
+      return scrollContainer;
+    }
+    if (typeof document === "undefined") {
+      return null;
+    }
+    return (document.scrollingElement || document.documentElement || document.body) as HTMLElement | null;
+  }
+
+  function isDocumentScrollElement(element: HTMLElement) {
+    if (typeof document === "undefined") {
+      return false;
+    }
+    return (
+      element === document.scrollingElement ||
+      element === document.documentElement ||
+      element === document.body
+    );
+  }
+
   useEffect(() => {
-    if (!pendingPageScrollRef.current || !scrollContainerRef.current || !workspaceRef.current) return;
+    if (!pendingPageScrollRef.current || !workspaceRef.current) return;
+
+    const scrollContainer = getActiveScrollElement();
+    if (!scrollContainer) return;
 
     pendingPageScrollRef.current = false;
 
-    const scrollContainer = scrollContainerRef.current;
     const workspaceElement = workspaceRef.current;
 
     const scrollToNewPage = () => {
-      const scrollContainerRect = scrollContainer.getBoundingClientRect();
       const workspaceRect = workspaceElement.getBoundingClientRect();
+      const scrollViewportTop = isDocumentScrollElement(scrollContainer)
+        ? 0
+        : scrollContainer.getBoundingClientRect().top;
       const nextTop =
         scrollContainer.scrollTop +
-        (workspaceRect.top - scrollContainerRect.top) +
+        (workspaceRect.top - scrollViewportTop) +
         Math.max(0, workspace.pageCount - 1) * (PAGE_HEIGHT + PAGE_GAP) -
         16;
 
@@ -997,7 +1023,7 @@ export default function LessonGroupWorkspaceClient({
   return (
     <div
       ref={scrollContainerRef}
-      className="h-full min-h-0 w-full overflow-y-auto bg-slate-50 p-2 md:p-3"
+      className="min-h-screen w-full bg-slate-50 p-2 md:p-3"
       style={{ WebkitOverflowScrolling: "touch" }}
     >
       <div className="flex min-h-[calc(100vh-1rem)] flex-col gap-3 md:min-h-[calc(100vh-1.5rem)]">
