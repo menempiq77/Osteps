@@ -624,18 +624,27 @@ export default function LessonGroupWorkspaceClient({
         Math.max(0, workspace.pageCount - 1) * (PAGE_HEIGHT + PAGE_GAP) -
         16;
 
-      scrollContainer.scrollTo({ top: Math.max(0, nextTop), behavior: "smooth" });
+      const targetTop = Math.max(0, nextTop);
+      scrollContainer.scrollTop = targetTop;
+      scrollContainer.scrollTo({ top: targetTop });
     };
 
     let secondFrame: number | null = null;
+    let fallbackTimeout: number | null = null;
     const firstFrame = window.requestAnimationFrame(() => {
-      secondFrame = window.requestAnimationFrame(scrollToNewPage);
+      secondFrame = window.requestAnimationFrame(() => {
+        scrollToNewPage();
+        fallbackTimeout = window.setTimeout(scrollToNewPage, 80);
+      });
     });
 
     return () => {
       window.cancelAnimationFrame(firstFrame);
       if (secondFrame !== null) {
         window.cancelAnimationFrame(secondFrame);
+      }
+      if (fallbackTimeout !== null) {
+        window.clearTimeout(fallbackTimeout);
       }
     };
   }, [workspace.pageCount]);
