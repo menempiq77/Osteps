@@ -252,6 +252,8 @@ export default function AssessmentDrawer() {
   const [examActionValues, setExamActionValues] = useState({
     examStartAt: "",
     examDurationMinutes: 60,
+    dueDate: "",
+    dueDateHasTime: false,
     openStudentEdits: true,
   });
   const [examActionSaving, setExamActionSaving] = useState(false);
@@ -668,6 +670,34 @@ export default function AssessmentDrawer() {
     );
   };
 
+  const isPdfTask = (task: StudentAssessmentTask | null) => {
+    if (!task || task?.submission_type === "quiz") return false;
+    const definition = getTaskDefinitionForAction(task);
+    return String(definition?.task_type || "").toLowerCase() === "pdf";
+  };
+
+  const taskDueDateHasTime = (value?: string | null) => {
+    const raw = String(value || "").trim();
+    return /(?:T|\s)\d{1,2}:\d{2}/.test(raw);
+  };
+
+  const formatTaskDueDateValue = (value: dayjs.Dayjs, hasTime: boolean) =>
+    hasTime ? value.format("YYYY-MM-DDTHH:mm:ssZ") : value.format("YYYY-MM-DD");
+
+  const getTaskDueDateSummary = (task: StudentAssessmentTask) => {
+    const definition = getTaskDefinitionForAction(task);
+    const rawDueDate = String(definition.due_date || "").trim();
+    if (!rawDueDate) return "No due date set";
+
+    const parsedDueDate = dayjs(rawDueDate);
+    if (!parsedDueDate.isValid()) return `Due ${rawDueDate}`;
+
+    const hasTime = taskDueDateHasTime(rawDueDate);
+    const label = parsedDueDate.format(hasTime ? "DD MMM YYYY, HH:mm" : "DD MMM YYYY");
+    const deadline = hasTime ? parsedDueDate : parsedDueDate.endOf("day");
+    return deadline.isBefore(dayjs()) ? `Closed ${label}` : `Due ${label}`;
+  };
+
   const getExamScheduleSummary = (task: StudentAssessmentTask) => {
     const definition = getTaskDefinitionForAction(task);
     const examWindow = resolveExamWindow(definition);
@@ -686,14 +716,23 @@ export default function AssessmentDrawer() {
     return "Exam timing needs updating";
   };
 
+  const getTaskActionSummary = (task: StudentAssessmentTask) =>
+    isExamTask(task) ? getExamScheduleSummary(task) : getTaskDueDateSummary(task);
+
   const openExamActionModal = (task: StudentAssessmentTask) => {
     const definition = getTaskDefinitionForAction(task);
+    const dueDateHasTime = taskDueDateHasTime(definition.due_date);
+    const currentDueDate = dayjs(definition.due_date || "").isValid()
+      ? dayjs(definition.due_date || "")
+      : dayjs();
     setExamActionTask(task);
     setExamActionValues({
       examStartAt:
         definition.exam_start_at || dayjs().format("YYYY-MM-DDTHH:mm:ssZ"),
       examDurationMinutes: Number(definition.exam_duration_minutes || 60),
-      openStudentEdits: true,
+      dueDate: formatTaskDueDateValue(currentDueDate, dueDateHasTime),
+      dueDateHasTime,
+      openStudentEdits: isPdfTask(task),
     });
   };
 
@@ -739,6 +778,25 @@ export default function AssessmentDrawer() {
     return formData;
   };
 
+  const buildDueDateActionFormData = (
+    task: StudentAssessmentTask,
+    dueDate: string
+  ) => {
+    const definition = getTaskDefinitionForAction(task);
+    const formData = new FormData();
+    formData.append("assessment_id", String(definition.assessment_id || task.assessment_id));
+    formData.append("task_name", definition.task_name || task.task?.task_name || "Assessment task");
+    formData.append("description", definition.description || "");
+    formData.append("due_date", dueDate);
+    formData.append("allocated_marks", String(definition.allocated_marks ?? task.task?.allocated_marks ?? 0));
+    appendTaskTypeValue(formData, definition.task_type || "null");
+    if (definition.url) formData.append("url", String(definition.url));
+    if (canUseSubjectContext && activeSubjectId) {
+      formData.append("subject_id", String(activeSubjectId));
+    }
+    return formData;
+  };
+
   const openStudentEditsForTask = async (task: StudentAssessmentTask) => {
     if (!task?.assessment_id || !task?.task_id || !task?.student_id) return;
 
@@ -772,7 +830,8 @@ export default function AssessmentDrawer() {
       return;
     }
 
-    const nextValues = options.closeNow
+    const actionIsExam = isExamTask(examActionTask);
+    const nextExamValues = options.closeNow
       ? {
           examStartAt: dayjs().subtract(2, "minute").format("YYYY-MM-DDTHH:mm:ssZ"),
           examDurationMinutes: 1,
@@ -781,26 +840,51 @@ export default function AssessmentDrawer() {
           examStartAt: examActionValues.examStartAt,
           examDurationMinutes: examActionValues.examDurationMinutes,
         };
+    const nextDueDate = options.closeNow
+      ? formatTaskDueDateValue(dayjs().subtract(1, "day"), examActionValues.dueDateHasTime)
+      : examActionValues.dueDate;
 
-    if (!nextValues.examStartAt || !dayjs(nextValues.examStartAt).isValid()) {
-      message.error("Please choose a valid exam opening time.");
-      return;
-    }
+    if (actionIsExam) {
+      if (!nextExamValues.examStartAt || !dayjs(nextExamValues.examStartAt).isValid()) {
+        message.error("Please choose a valid exam opening time.");
+        return;
+      }
 
-    if (!Number.isFinite(Number(nextValues.examDurationMinutes)) || Number(nextValues.examDurationMinutes) <= 0) {
-      message.error("Please enter a valid exam duration.");
+      if (!Number.isFinite(Number(nextExamValues.examDurationMinutes)) || Number(nextExamValues.examDurationMinutes) <= 0) {
+        message.error("Please enter a valid exam duration.");
+        return;
+      }
+    } else if (!nextDueDate || !dayjs(nextDueDate).isValid()) {
+      message.error("Please choose a valid due date.");
       return;
     }
 
     try {
       setExamActionSaving(true);
-      await updateTask(String(taskId), buildExamActionFormData(examActionTask, nextValues));
+      await updateTask(
+        String(taskId),
+        actionIsExam
+          ? buildExamActionFormData(examActionTask, nextExamValues)
+          : buildDueDateActionFormData(examActionTask, nextDueDate)
+      );
 
-      if (!options.closeNow && examActionValues.openStudentEdits) {
+      if (!options.closeNow && examActionValues.openStudentEdits && isPdfTask(examActionTask)) {
         await openStudentEditsForTask(examActionTask);
       }
 
-      message.success(options.closeNow ? "Exam closed for students." : "Exam time updated and student edits opened.");
+      message.success(
+        options.closeNow
+          ? actionIsExam
+            ? "Exam closed for students."
+            : "Task closed for students."
+          : actionIsExam
+            ? isPdfTask(examActionTask) && examActionValues.openStudentEdits
+              ? "Exam time updated and student edits opened."
+              : "Exam time updated."
+            : isPdfTask(examActionTask) && examActionValues.openStudentEdits
+              ? "Due date updated and student edits opened."
+              : "Due date updated."
+      );
       setExamActionTask(null);
       await Promise.all([
         loadStudentTasks(Number(assessmentId)),
@@ -1125,6 +1209,8 @@ export default function AssessmentDrawer() {
     setBulkDownloading(false);
   };
 
+  const taskActionIsExam = examActionTask ? isExamTask(examActionTask) : false;
+  const taskActionIsPdf = isPdfTask(examActionTask);
   const examActionEndAt =
     examActionValues.examStartAt && dayjs(examActionValues.examStartAt).isValid()
       ? dayjs(examActionValues.examStartAt).add(
@@ -1132,8 +1218,12 @@ export default function AssessmentDrawer() {
           "minute"
         )
       : null;
+  const taskActionDueAt =
+    examActionValues.dueDate && dayjs(examActionValues.dueDate).isValid()
+      ? dayjs(examActionValues.dueDate)
+      : null;
   const examActionCurrentSummary = examActionTask
-    ? getExamScheduleSummary(examActionTask)
+    ? getTaskActionSummary(examActionTask)
     : null;
 
   if (!initialDataReady) {
@@ -1355,7 +1445,7 @@ export default function AssessmentDrawer() {
                         ? getWholeMark(getQuizTotalMarks(task))
                         : getWholeMark(task?.task?.allocated_marks)}
                     </span>
-                    {currentUser?.role !== "STUDENT" && isExamTask(task) && (
+                    {currentUser?.role !== "STUDENT" && task?.submission_type !== "quiz" && (
                       <Button
                         size="small"
                         onClick={() => openExamActionModal(task)}
@@ -1397,9 +1487,9 @@ export default function AssessmentDrawer() {
                       </span>
                     </div>
                     <div className="ml-auto flex flex-wrap items-center gap-2 text-xs">
-                      {isExamTask(task) && getExamScheduleSummary(task) && (
+                      {getTaskActionSummary(task) && (
                         <span className="rounded-full bg-blue-50 px-2 py-1 font-medium text-blue-700">
-                          {getExamScheduleSummary(task)}
+                          {getTaskActionSummary(task)}
                         </span>
                       )}
                       {task?.status && (
@@ -1636,7 +1726,7 @@ export default function AssessmentDrawer() {
       </div>
 
       <Modal
-        title={`Exam actions: ${examActionTask?.task?.task_name || "Assessment task"}`}
+        title={`${taskActionIsExam ? "Exam" : "Task"} actions: ${examActionTask?.task?.task_name || "Assessment task"}`}
         open={!!examActionTask}
         onCancel={() => {
           if (!examActionSaving) setExamActionTask(null);
@@ -1648,7 +1738,7 @@ export default function AssessmentDrawer() {
             loading={examActionSaving}
             onClick={() => handleSaveExamAction({ closeNow: true })}
           >
-            Close exam now
+            {taskActionIsExam ? "Close exam now" : "Close task now"}
           </Button>,
           <Button
             key="cancel"
@@ -1664,7 +1754,7 @@ export default function AssessmentDrawer() {
             loading={examActionSaving}
             onClick={() => handleSaveExamAction()}
           >
-            Save / open exam
+            {taskActionIsExam ? "Save / open exam" : "Save due date"}
           </Button>,
         ]}
         width={620}
@@ -1673,92 +1763,147 @@ export default function AssessmentDrawer() {
         <div className="space-y-4">
           <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
             <p className="font-semibold">Current status</p>
-            <p>{examActionCurrentSummary || "No exam window is set."}</p>
+            <p>{examActionCurrentSummary || (taskActionIsExam ? "No exam window is set." : "No due date is set.")}</p>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-sm font-semibold text-slate-700">
-                Exam opens at
-              </label>
-              <DatePicker
-                showTime={{ format: "HH:mm" }}
-                value={
-                  examActionValues.examStartAt
-                    ? dayjs(examActionValues.examStartAt)
-                    : undefined
-                }
-                onChange={(date) =>
-                  setExamActionValues((current) => ({
-                    ...current,
-                    examStartAt: date ? date.format("YYYY-MM-DDTHH:mm:ssZ") : "",
-                  }))
-                }
-                disabled={examActionSaving}
-                className="!w-full"
-                format="YYYY-MM-DD HH:mm"
-              />
-            </div>
+          {taskActionIsExam ? (
+            <>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-slate-700">
+                    Exam opens at
+                  </label>
+                  <DatePicker
+                    showTime={{ format: "HH:mm" }}
+                    value={
+                      examActionValues.examStartAt
+                        ? dayjs(examActionValues.examStartAt)
+                        : undefined
+                    }
+                    onChange={(date) =>
+                      setExamActionValues((current) => ({
+                        ...current,
+                        examStartAt: date ? date.format("YYYY-MM-DDTHH:mm:ssZ") : "",
+                      }))
+                    }
+                    disabled={examActionSaving}
+                    className="!w-full"
+                    format="YYYY-MM-DD HH:mm"
+                  />
+                </div>
 
-            <div>
-              <label className="mb-1 block text-sm font-semibold text-slate-700">
-                Exam duration (minutes)
-              </label>
-              <InputNumber
-                min={1}
-                value={examActionValues.examDurationMinutes}
-                onChange={(value) =>
-                  setExamActionValues((current) => ({
-                    ...current,
-                    examDurationMinutes: Number(value || 1),
-                  }))
-                }
-                disabled={examActionSaving}
-                className="!w-full"
-              />
-            </div>
-          </div>
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-slate-700">
+                    Exam duration (minutes)
+                  </label>
+                  <InputNumber
+                    min={1}
+                    value={examActionValues.examDurationMinutes}
+                    onChange={(value) =>
+                      setExamActionValues((current) => ({
+                        ...current,
+                        examDurationMinutes: Number(value || 1),
+                      }))
+                    }
+                    disabled={examActionSaving}
+                    className="!w-full"
+                  />
+                </div>
+              </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              size="small"
-              onClick={() =>
-                setExamActionValues((current) => ({
-                  ...current,
-                  examStartAt: dayjs().format("YYYY-MM-DDTHH:mm:ssZ"),
-                  examDurationMinutes: current.examDurationMinutes || 60,
-                  openStudentEdits: true,
-                }))
-              }
-              disabled={examActionSaving}
-            >
-              Set open time to now
-            </Button>
-            {examActionEndAt && (
-              <span className="text-xs font-medium text-slate-500">
-                Students can work until {examActionEndAt.format("DD MMM YYYY, HH:mm")}
-              </span>
-            )}
-          </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  size="small"
+                  onClick={() =>
+                    setExamActionValues((current) => ({
+                      ...current,
+                      examStartAt: dayjs().format("YYYY-MM-DDTHH:mm:ssZ"),
+                      examDurationMinutes: current.examDurationMinutes || 60,
+                      openStudentEdits: true,
+                    }))
+                  }
+                  disabled={examActionSaving}
+                >
+                  Set open time to now
+                </Button>
+                {examActionEndAt && (
+                  <span className="text-xs font-medium text-slate-500">
+                    Students can work until {examActionEndAt.format("DD MMM YYYY, HH:mm")}
+                  </span>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <div>
+                <label className="mb-1 block text-sm font-semibold text-slate-700">
+                  {examActionValues.dueDateHasTime ? "Due date and time" : "Due date"}
+                </label>
+                <DatePicker
+                  showTime={examActionValues.dueDateHasTime ? { format: "HH:mm" } : undefined}
+                  value={taskActionDueAt || undefined}
+                  onChange={(date) =>
+                    setExamActionValues((current) => ({
+                      ...current,
+                      dueDate: date
+                        ? formatTaskDueDateValue(date, current.dueDateHasTime)
+                        : "",
+                    }))
+                  }
+                  disabled={examActionSaving}
+                  className="!w-full"
+                  format={examActionValues.dueDateHasTime ? "YYYY-MM-DD HH:mm" : "YYYY-MM-DD"}
+                />
+                <p className="mt-1 text-xs text-slate-500">
+                  This task uses {examActionValues.dueDateHasTime ? "a date and time" : "a date-only deadline"}, so the same format will be kept.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  size="small"
+                  onClick={() =>
+                    setExamActionValues((current) => ({
+                      ...current,
+                      dueDate: formatTaskDueDateValue(dayjs(), current.dueDateHasTime),
+                    }))
+                  }
+                  disabled={examActionSaving}
+                >
+                  {examActionValues.dueDateHasTime ? "Set deadline to now" : "Set due date to today"}
+                </Button>
+                {taskActionDueAt && (
+                  <span className="text-xs font-medium text-slate-500">
+                    Students can submit until {taskActionDueAt.format(examActionValues.dueDateHasTime ? "DD MMM YYYY, HH:mm" : "DD MMM YYYY")}
+                  </span>
+                )}
+              </div>
+            </>
+          )}
 
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
             <p>
-              Updating the exam window affects every student for this task. The checkbox below only opens editing for this card's student.
+              {taskActionIsExam
+                ? "Updating the exam window affects every student for this task."
+                : "Updating the due date affects every student for this task."}
+              {taskActionIsPdf ? " The checkbox below only opens PDF editing for this card's student." : ""}
             </p>
           </div>
 
-          <Checkbox
-            checked={examActionValues.openStudentEdits}
-            onChange={(event) =>
-              setExamActionValues((current) => ({
-                ...current,
-                openStudentEdits: event.target.checked,
-              }))
-            }
-            disabled={examActionSaving || !examActionTask?.student_id}
-          >
-            Open {examActionTask ? getStudentNameForTask(examActionTask) : "this student"} for PDF edits after saving
-          </Checkbox>
+          {taskActionIsPdf && (
+            <Checkbox
+              checked={examActionValues.openStudentEdits}
+              onChange={(event) =>
+                setExamActionValues((current) => ({
+                  ...current,
+                  openStudentEdits: event.target.checked,
+                }))
+              }
+              disabled={examActionSaving || !examActionTask?.student_id}
+            >
+              Open {examActionTask ? getStudentNameForTask(examActionTask) : "this student"} for PDF edits after saving
+            </Checkbox>
+          )}
         </div>
       </Modal>
 
