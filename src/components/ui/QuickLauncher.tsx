@@ -131,6 +131,33 @@ const SECTION_ICON_STYLES: Record<string, { shell: string; icon: string; accent:
   },
 };
 
+const getModuleEmoji = (entry: Pick<LauncherEntry, "name" | "section">) => {
+  const name = entry.name.toLowerCase();
+  if (name.includes("arabic")) return "📙";
+  if (name.includes("islam") || name.includes("quran")) return "📖";
+  if (name.includes("math")) return "➗";
+  if (name.includes("social") || name.includes("moral")) return "🌍";
+  if (name.includes("student")) return "👥";
+  if (name.includes("teacher")) return "👩‍🏫";
+  if (name.includes("manager")) return "🗂️";
+  if (name.includes("view")) return "📁";
+  if (name.includes("hub") || name.includes("subject")) return "📚";
+  if (name.includes("approval")) return "✅";
+  if (name.includes("setting")) return "⚙️";
+  if (name.includes("quiz") || name.includes("assessment")) return "📝";
+  if (name.includes("tracker") || name.includes("progress")) return "📈";
+  if (name.includes("report")) return "📊";
+  if (name.includes("library") || name.includes("lesson")) return "📚";
+  if (name.includes("material")) return "📄";
+  if (name.includes("class") || name.includes("school")) return "🏫";
+  if (name.includes("timetable") || name.includes("calendar")) return "🗓️";
+  if (name.includes("behaviour") || name.includes("behavior")) return "🌱";
+  if (entry.section === "Account") return "⚙️";
+  if (entry.section === "Teaching") return "🎓";
+  if (entry.section === "Resources") return "📚";
+  return "✨";
+};
+
 const roleLabel = (role?: string | null) => {
   const normalized = normalizeDashboardRole(role);
   if (normalized === "SUPER_ADMIN") return "Super Admin";
@@ -182,6 +209,12 @@ export default function QuickLauncher() {
   });
 
   const roleKey = normalizeDashboardRole(currentUser?.role);
+  const currentUserLabel = String(
+    (currentUser as any)?.name ??
+      (currentUser as any)?.user_name ??
+      (currentUser as any)?.email ??
+      roleLabel(currentUser?.role)
+  );
   const isStudent = roleKey === "STUDENT";
   const isIslamicContext =
     !canUseSubjectContext ||
@@ -494,22 +527,48 @@ export default function QuickLauncher() {
       </button>
 
       {open ? (
-        <div className="fixed inset-0 z-[120] flex items-start justify-center bg-slate-950/55 p-3 pt-6 backdrop-blur-sm md:p-6">
-          <button
-            type="button"
-            aria-label="Close quick launcher"
-            className="absolute inset-0"
-            onClick={() => setOpen(false)}
-          />
+        <div className="fixed inset-0 z-[120] bg-[#3f3f4d]">
+          <div className="flex h-full w-full flex-col overflow-hidden bg-[#3f3f4d] text-white">
+            <header className="flex h-14 shrink-0 items-center justify-between bg-white px-5 text-[#3f3f4d] shadow-sm">
+              <div className="flex min-w-0 items-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className="flex h-9 w-9 items-center justify-center rounded-sm border border-slate-200 bg-white text-[#3f3f4d] shadow-sm transition hover:bg-slate-50"
+                  aria-label="Close quick launcher"
+                >
+                  <span className="grid grid-cols-3 gap-[3px]">
+                    {triggerSquares.map((_, index) => (
+                      <span key={index} className="h-1.5 w-1.5 rounded-[1px] bg-[#3f3f4d]" />
+                    ))}
+                  </span>
+                </button>
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-sm">
+                    👤
+                  </span>
+                  <span className="truncate text-sm font-semibold">
+                    {currentUserLabel}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="hidden text-xs font-semibold uppercase tracking-[0.18em] text-slate-400 sm:inline">
+                  Quick Launcher
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className="flex h-8 w-8 items-center justify-center rounded-sm text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                  aria-label="Close quick launcher"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </header>
 
-          <div
-            className="relative z-10 flex w-full max-w-6xl overflow-hidden rounded-lg bg-[#3f3f4d] text-white shadow-[0_28px_70px_rgba(0,0,0,0.45)]"
-            style={{
-              border: "1px solid rgba(255,255,255,0.08)",
-              maxHeight: "min(88vh, 760px)",
-            }}
-          >
-            <aside className="hidden w-72 shrink-0 border-r border-white/10 bg-[#383846] p-5 md:block">
+            <div className="flex min-h-0 flex-1 overflow-hidden">
+            <aside className="hidden w-80 shrink-0 border-r border-white/10 bg-[#3b3b49] p-6 md:block">
               <div className="mb-5 flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-sm bg-[#4d4d5a] text-white shadow-inner">
                   <span className="grid grid-cols-3 gap-[3px]">
@@ -538,7 +597,7 @@ export default function QuickLauncher() {
                 <Search className="h-4 w-4 shrink-0 text-[#3f3f4d]" />
               </label>
 
-              <div className="mt-5">
+              <div className="mt-6">
                 <p className="mb-2 text-sm font-bold uppercase text-white">Filters</p>
                 <div className="space-y-1">
                   {[
@@ -567,7 +626,7 @@ export default function QuickLauncher() {
                 </div>
               </div>
 
-              <div className="mt-6">
+              <div className="mt-7">
                 <p className="mb-2 text-sm font-bold uppercase text-white">Categories</p>
                 <div className="space-y-1">
                   {availableCategories.map((category) => {
@@ -589,13 +648,13 @@ export default function QuickLauncher() {
               </div>
             </aside>
 
-            <main className="min-w-0 flex-1 overflow-y-auto p-5 md:p-6">
-              <div className="mb-5 flex items-center justify-between gap-3">
+            <main className="min-w-0 flex-1 overflow-y-auto p-5 md:p-8">
+              <div className="mb-6 flex items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wide text-white/50 md:hidden">
                     Quick Launcher
                   </p>
-                  <h2 className="text-base font-bold uppercase text-white">{activeFilterTitle}</h2>
+                  <h2 className="text-lg font-bold uppercase text-white">{activeFilterTitle}</h2>
                   <p className="mt-0.5 text-xs text-white/50">
                     {filteredEntries.length} module{filteredEntries.length === 1 ? "" : "s"}
                   </p>
@@ -644,29 +703,27 @@ export default function QuickLauncher() {
                   <p className="mt-1 text-xs text-white/45">Try another search, filter, or category.</p>
                 </div>
               ) : (
-                <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="grid gap-x-8 gap-y-6 sm:grid-cols-2 xl:grid-cols-3">
                   {filteredEntries.map((entry) => {
-                    const Icon = entry.icon;
-                    const iconStyle = SECTION_ICON_STYLES[entry.section];
                     const isFavorite = favoriteIdSet.has(entry.id);
+                    const emoji = getModuleEmoji(entry);
                     return (
                       <div
                         key={entry.id}
-                        className="group flex min-h-[60px] items-center bg-[#555462] transition hover:bg-[#616071]"
+                        className="group flex min-h-[78px] items-center bg-[#555462] transition hover:bg-[#616071]"
                       >
                         <button
                           type="button"
                           onClick={() => handleEntryClick(entry)}
-                          className="flex min-w-0 flex-1 items-center gap-4 px-5 py-4 text-left"
+                          className="flex min-w-0 flex-1 items-center gap-5 px-6 py-5 text-left"
                         >
-                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-[#464553]">
-                            <Icon
-                              className={`h-5 w-5 ${iconStyle?.icon ?? "text-white/70"}`}
-                              strokeWidth={1.8}
-                            />
+                          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-sm bg-[#474654] shadow-inner">
+                            <span className="text-2xl leading-none opacity-85 saturate-75">
+                              {emoji}
+                            </span>
                           </span>
                           <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm font-semibold text-white">
+                            <span className="block truncate text-sm font-semibold text-white/90">
                               {entry.name}
                             </span>
                             {entry.active || entry.badge ? (
@@ -677,7 +734,7 @@ export default function QuickLauncher() {
                               </span>
                             ) : null}
                           </span>
-                          <ChevronRight className="h-4 w-4 shrink-0 text-white/25 transition group-hover:translate-x-0.5 group-hover:text-white/60" />
+                          <ChevronRight className="h-4 w-4 shrink-0 text-white/20 transition group-hover:translate-x-0.5 group-hover:text-white/55" />
                         </button>
                         <button
                           type="button"
@@ -696,6 +753,7 @@ export default function QuickLauncher() {
                 </div>
               )}
             </main>
+            </div>
           </div>
         </div>
       ) : null}
