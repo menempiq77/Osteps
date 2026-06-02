@@ -9,6 +9,7 @@ import {
   ChevronRight,
   Search,
   Settings,
+  Star,
   Users,
   X,
 } from "lucide-react";
@@ -155,6 +156,7 @@ export default function QuickLauncher() {
   const router = useRouter();
   const pathname = usePathname();
   const searchRef = useRef<HTMLInputElement | null>(null);
+  const mobileSearchRef = useRef<HTMLInputElement | null>(null);
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const {
     subjects,
@@ -168,6 +170,16 @@ export default function QuickLauncher() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
+  const [favoriteIds, setFavoriteIds] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const stored = window.localStorage.getItem("osteps:quick-launcher:favorites");
+      const parsed = stored ? JSON.parse(stored) : [];
+      return Array.isArray(parsed) ? parsed.filter((id) => typeof id === "string") : [];
+    } catch {
+      return [];
+    }
+  });
 
   const roleKey = normalizeDashboardRole(currentUser?.role);
   const isStudent = roleKey === "STUDENT";
@@ -361,16 +373,20 @@ export default function QuickLauncher() {
     return dedupeEntries([...subjectEntries, ...navigationEntries, ...studentUtilityEntries, ...extraEntries]);
   }, [extraEntries, navigationEntries, studentUtilityEntries, subjectEntries]);
 
-  const availableFilters = useMemo(() => {
+  const availableCategories = useMemo(() => {
     const sections = new Set(allEntries.map((entry) => entry.section));
-    return FILTER_ORDER.filter((filter) => filter === "All" || sections.has(filter));
+    return FILTER_ORDER.filter((filter) => filter !== "All" && sections.has(filter));
   }, [allEntries]);
 
-  const filteredSections = useMemo(() => {
+  const favoriteIdSet = useMemo(() => new Set(favoriteIds), [favoriteIds]);
+
+  const filteredEntries = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
-    const filtered = allEntries.filter((entry) => {
-      const passesFilter = activeFilter === "All" || entry.section === activeFilter;
+    return allEntries.filter((entry) => {
+      const passesFilter =
+        activeFilter === "All" ||
+        (activeFilter === "Favourites" ? favoriteIdSet.has(entry.id) : entry.section === activeFilter);
       if (!passesFilter) return false;
       if (!normalizedQuery) return true;
 
@@ -385,14 +401,34 @@ export default function QuickLauncher() {
 
       return haystack.includes(normalizedQuery);
     });
+  }, [activeFilter, allEntries, favoriteIdSet, query]);
 
-    return FILTER_ORDER.filter((section) => section !== "All")
-      .map((section) => ({
-        section,
-        items: filtered.filter((entry) => entry.section === section),
-      }))
-      .filter((group) => group.items.length > 0);
-  }, [activeFilter, allEntries, query]);
+  const activeFilterTitle =
+    activeFilter === "All"
+      ? "All Modules"
+      : activeFilter === "Favourites"
+        ? "Favourites"
+        : SECTION_LABELS[activeFilter]?.title || activeFilter;
+
+  const toggleFavorite = (entryId: string) => {
+    setFavoriteIds((current) =>
+      current.includes(entryId)
+        ? current.filter((id) => id !== entryId)
+        : [...current, entryId]
+    );
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(
+        "osteps:quick-launcher:favorites",
+        JSON.stringify(favoriteIds)
+      );
+    } catch {
+      // Ignore private browsing/localStorage failures.
+    }
+  }, [favoriteIds]);
 
   useEffect(() => {
     setOpen(false);
@@ -410,7 +446,12 @@ export default function QuickLauncher() {
     document.addEventListener("keydown", handleKeyDown);
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const timer = window.setTimeout(() => searchRef.current?.focus(), 60);
+    const timer = window.setTimeout(() => {
+      const target = window.matchMedia("(max-width: 767px)").matches
+        ? mobileSearchRef.current
+        : searchRef.current;
+      target?.focus();
+    }, 60);
 
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
@@ -453,286 +494,208 @@ export default function QuickLauncher() {
       </button>
 
       {open ? (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-          {/* backdrop */}
+        <div className="fixed inset-0 z-[120] flex items-start justify-center bg-slate-950/55 p-3 pt-6 backdrop-blur-sm md:p-6">
           <button
             type="button"
             aria-label="Close quick launcher"
-            className="absolute inset-0 bg-slate-950/75 backdrop-blur-sm"
+            className="absolute inset-0"
             onClick={() => setOpen(false)}
           />
 
-          {/* panel */}
           <div
-            className="relative z-10 flex w-full max-w-5xl flex-col overflow-hidden rounded-2xl shadow-[0_32px_80px_rgba(2,6,23,0.55)]"
+            className="relative z-10 flex w-full max-w-6xl overflow-hidden rounded-lg bg-[#3f3f4d] text-white shadow-[0_28px_70px_rgba(0,0,0,0.45)]"
             style={{
-              background: "linear-gradient(160deg, #0f172a 0%, #1e293b 100%)",
-              border: "1px solid rgba(148,163,184,0.12)",
-              maxHeight: "min(86vh, 780px)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              maxHeight: "min(88vh, 760px)",
             }}
           >
-            {/* ── Header ── */}
-            <div
-              className="flex flex-shrink-0 items-center justify-between px-5 py-4"
-              style={{ borderBottom: "1px solid rgba(148,163,184,0.10)" }}
-            >
-              <div className="flex items-center gap-3">
-                {/* grid icon */}
-                <div
-                  className="flex h-9 w-9 items-center justify-center rounded-xl"
-                  style={{ background: "rgba(56,193,108,0.15)", border: "1px solid rgba(56,193,108,0.25)" }}
-                >
+            <aside className="hidden w-72 shrink-0 border-r border-white/10 bg-[#383846] p-5 md:block">
+              <div className="mb-5 flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-sm bg-[#4d4d5a] text-white shadow-inner">
                   <span className="grid grid-cols-3 gap-[3px]">
-                    {Array.from({ length: 9 }).map((_, i) => (
-                      <span key={i} className="h-1 w-1 rounded-[2px]" style={{ background: "#38C16C" }} />
+                    {triggerSquares.map((_, index) => (
+                      <span key={index} className="h-1.5 w-1.5 rounded-[1px] bg-white/90" />
                     ))}
                   </span>
                 </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold uppercase tracking-wide text-white">Quick Launcher</p>
+                  <p className="truncate text-[11px] text-white/55">
+                    {roleLabel(currentUser?.role)} modules
+                    {activeSubject ? ` / ${formatDashboardSubjectName(activeSubject.name)}` : ""}
+                  </p>
+                </div>
+              </div>
+
+              <label className="flex h-9 items-center gap-2 bg-white px-3 text-[#3f3f4d]">
+                <input
+                  ref={searchRef}
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search for a module..."
+                  className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-slate-400"
+                />
+                <Search className="h-4 w-4 shrink-0 text-[#3f3f4d]" />
+              </label>
+
+              <div className="mt-5">
+                <p className="mb-2 text-sm font-bold uppercase text-white">Filters</p>
+                <div className="space-y-1">
+                  {[
+                    { key: "All", label: "All Modules" },
+                    { key: "Favourites", label: "Favourites" },
+                  ].map((filter) => {
+                    const isActive = activeFilter === filter.key;
+                    return (
+                      <button
+                        key={filter.key}
+                        type="button"
+                        onClick={() => setActiveFilter(filter.key)}
+                        className={`flex w-full items-center justify-between px-3 py-2 text-left text-xs font-semibold transition ${
+                          isActive ? "bg-[#575666] text-white" : "text-white/70 hover:bg-white/5 hover:text-white"
+                        }`}
+                      >
+                        <span>{filter.label}</span>
+                        {filter.key === "Favourites" && favoriteIds.length > 0 ? (
+                          <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] text-white/80">
+                            {favoriteIds.length}
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <p className="mb-2 text-sm font-bold uppercase text-white">Categories</p>
+                <div className="space-y-1">
+                  {availableCategories.map((category) => {
+                    const isActive = activeFilter === category;
+                    return (
+                      <button
+                        key={category}
+                        type="button"
+                        onClick={() => setActiveFilter(category)}
+                        className={`block w-full px-3 py-2 text-left text-xs transition ${
+                          isActive ? "bg-[#575666] font-semibold text-white" : "text-white/65 hover:bg-white/5 hover:text-white"
+                        }`}
+                      >
+                        {category}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </aside>
+
+            <main className="min-w-0 flex-1 overflow-y-auto p-5 md:p-6">
+              <div className="mb-5 flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#38C16C" }}>
+                  <p className="text-xs font-bold uppercase tracking-wide text-white/50 md:hidden">
                     Quick Launcher
                   </p>
-                  <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
-                    <span>{roleLabel(currentUser?.role)} shortcuts</span>
-                    {activeSubject ? (
-                      <>
-                        <span className="text-slate-600">/</span>
-                        <span className="font-semibold text-slate-200">
-                          {formatDashboardSubjectName(activeSubject.name)}
-                        </span>
-                      </>
-                    ) : null}
-                  </div>
+                  <h2 className="text-base font-bold uppercase text-white">{activeFilterTitle}</h2>
+                  <p className="mt-0.5 text-xs text-white/50">
+                    {filteredEntries.length} module{filteredEntries.length === 1 ? "" : "s"}
+                  </p>
                 </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-700/60 hover:text-slate-100"
-                aria-label="Close quick launcher"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="flex min-h-0 flex-1 overflow-hidden lg:grid lg:grid-cols-[220px_minmax(0,1fr)]">
-              {/* ── Sidebar ── */}
-              <aside
-                className="flex-shrink-0 p-3"
-                style={{ borderRight: "1px solid rgba(148,163,184,0.10)" }}
-              >
-                {/* search */}
-                <label
-                  className="flex items-center gap-2 rounded-xl px-3 py-2 transition focus-within:ring-1"
-                  style={{
-                    background: "rgba(148,163,184,0.08)",
-                    border: "1px solid rgba(148,163,184,0.14)",
-                  }}
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className="flex h-8 w-8 items-center justify-center rounded-sm text-white/70 transition hover:bg-white/10 hover:text-white"
+                  aria-label="Close quick launcher"
                 >
-                  <Search className="h-3.5 w-3.5 flex-shrink-0 text-slate-500" />
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="mb-5 grid gap-2 md:hidden">
+                <label className="flex h-9 items-center gap-2 bg-white px-3 text-[#3f3f4d]">
                   <input
-                    ref={searchRef}
+                    ref={mobileSearchRef}
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
-                    placeholder="Search…"
-                    className="w-full bg-transparent text-sm text-slate-200 outline-none placeholder:text-slate-500"
+                    placeholder="Search for a module..."
+                    className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-slate-400"
                   />
+                  <Search className="h-4 w-4 shrink-0 text-[#3f3f4d]" />
                 </label>
-
-                {/* filters */}
-                <div className="mt-4">
-                  <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
-                    Filters
-                  </p>
-                  <div className="space-y-0.5">
-                    {availableFilters.map((filter) => {
-                      const isActive = activeFilter === filter;
-                      return (
-                        <button
-                          key={filter}
-                          type="button"
-                          onClick={() => setActiveFilter(filter)}
-                          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition"
-                          style={{
-                            background: isActive ? "rgba(56,193,108,0.14)" : "transparent",
-                            border: isActive ? "1px solid rgba(56,193,108,0.28)" : "1px solid transparent",
-                            color: isActive ? "#86efac" : "rgba(148,163,184,0.85)",
-                          }}
-                        >
-                          {isActive && (
-                            <span className="h-1.5 w-1.5 rounded-full flex-shrink-0" style={{ background: "#38C16C" }} />
-                          )}
-                          <span className={isActive ? "font-semibold" : "font-medium"}>
-                            {filter === "All" ? "Everything" : filter}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </aside>
-
-              {/* ── Content ── */}
-              <div className="overflow-y-auto p-4">
-                {filteredSections.length === 0 ? (
-                  <div className="flex h-full min-h-[200px] flex-col items-center justify-center rounded-xl px-6 text-center"
-                    style={{ border: "1px dashed rgba(148,163,184,0.15)" }}>
-                    <div
-                      className="flex h-10 w-10 items-center justify-center rounded-xl"
-                      style={{ background: "rgba(148,163,184,0.10)", border: "1px solid rgba(148,163,184,0.15)" }}
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {["All", "Favourites", ...availableCategories].map((filter) => (
+                    <button
+                      key={filter}
+                      type="button"
+                      onClick={() => setActiveFilter(filter)}
+                      className={`shrink-0 px-3 py-1.5 text-xs font-semibold ${
+                        activeFilter === filter ? "bg-[#575666] text-white" : "bg-white/5 text-white/70"
+                      }`}
                     >
-                      <Search className="h-4 w-4 text-slate-400" />
-                    </div>
-                    <p className="mt-3 text-sm font-semibold text-slate-300">No matches</p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      Try a different search or switch the filter.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-5">
-                    {filteredSections.map(({ section, items }) => {
-                      const sectionMeta = SECTION_LABELS[section] || {
-                        title: section,
-                        note: "",
-                      };
-                      const accentColor = SECTION_ICON_STYLES[section]?.accent ?? "#64748b";
-
-                      return (
-                        <section key={section}>
-                          <div className="mb-2.5 flex items-center gap-2.5">
-                            <span
-                              className="h-3 w-0.5 rounded-full flex-shrink-0"
-                              style={{ background: accentColor }}
-                            />
-                            <h3 className="text-sm font-bold text-slate-100">{sectionMeta.title}</h3>
-                            <div className="h-px flex-1" style={{ background: "rgba(148,163,184,0.08)" }} />
-                          </div>
-
-                          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                            {items.map((entry, entryIdx) => {
-                              const Icon = entry.icon;
-
-                              // ── Gradient subject card ──
-                              if (entry.kind === "subject" && entry.subjectName) {
-                                const pal = getSubjectPalette(entry.subjectName, entryIdx);
-                                return (
-                                  <button
-                                    key={entry.id}
-                                    type="button"
-                                    onClick={() => handleEntryClick(entry)}
-                                    className="group relative overflow-hidden rounded-xl text-left transition-all duration-200 hover:-translate-y-0.5"
-                                    style={{
-                                      background: `linear-gradient(135deg, ${pal.from} 0%, ${pal.to} 100%)`,
-                                      boxShadow: entry.active
-                                        ? `0 0 0 2px ${pal.from}, 0 6px 20px ${pal.glow}`
-                                        : `0 3px 14px ${pal.glow}`,
-                                    }}
-                                  >
-                                    <div
-                                      className="pointer-events-none absolute -top-4 -right-4 h-16 w-16 rounded-full opacity-20"
-                                      style={{ background: "rgba(255,255,255,0.6)" }}
-                                    />
-                                    <div className="relative p-3.5">
-                                      <div className="flex items-center justify-between gap-2">
-                                        <div
-                                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-                                          style={{ background: "rgba(255,255,255,0.18)", color: "#fff" }}
-                                        >
-                                          <Icon className="h-3.5 w-3.5" />
-                                        </div>
-                                        {entry.active && (
-                                          <span
-                                            className="rounded-full px-2 py-0.5 text-[10px] font-bold text-white"
-                                            style={{ background: "rgba(255,255,255,0.22)" }}
-                                          >
-                                            ✓ Active
-                                          </span>
-                                        )}
-                                      </div>
-                                      <p className="mt-2.5 text-sm font-bold text-white leading-snug">{entry.name}</p>
-                                      <p
-                                        className="mt-0.5 text-[11px] font-medium"
-                                        style={{ color: "rgba(255,255,255,0.65)" }}
-                                      >
-                                        {entry.meta}
-                                      </p>
-                                      <div
-                                        className="mt-2.5 flex items-center gap-1 text-[11px] font-semibold text-white"
-                                        style={{ opacity: 0.80 }}
-                                      >
-                                        Open dashboard
-                                        <ChevronRight className="h-3 w-3 transition group-hover:translate-x-0.5" />
-                                      </div>
-                                    </div>
-                                  </button>
-                                );
-                              }
-
-                              // ── Standard card ──
-                              const iconStyle = SECTION_ICON_STYLES[entry.section];
-                              return (
-                                <button
-                                  key={entry.id}
-                                  type="button"
-                                  onClick={() => handleEntryClick(entry)}
-                                  className="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all duration-200 hover:-translate-y-0.5"
-                                  style={{
-                                    background: entry.active
-                                      ? "rgba(148,163,184,0.12)"
-                                      : "rgba(148,163,184,0.06)",
-                                    border: entry.active
-                                      ? `1px solid rgba(148,163,184,0.22)`
-                                      : "1px solid rgba(148,163,184,0.10)",
-                                  }}
-                                  onMouseEnter={(e) => {
-                                    (e.currentTarget as HTMLButtonElement).style.background = "rgba(148,163,184,0.12)";
-                                    (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(148,163,184,0.22)";
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    if (!entry.active) {
-                                      (e.currentTarget as HTMLButtonElement).style.background = "rgba(148,163,184,0.06)";
-                                      (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(148,163,184,0.10)";
-                                    }
-                                  }}
-                                >
-                                  <div
-                                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border ${iconStyle?.shell ?? "border-slate-600 bg-slate-800"}`}
-                                  >
-                                    <Icon className={`h-3.5 w-3.5 ${iconStyle?.icon ?? "text-slate-300"}`} />
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <div className="flex flex-wrap items-center gap-1.5">
-                                      <span className="text-sm font-semibold text-slate-100 truncate">{entry.name}</span>
-                                      {entry.active && (
-                                        <span
-                                          className="rounded-full px-1.5 py-0.5 text-[10px] font-bold text-white"
-                                          style={{ background: iconStyle?.accent ?? "#64748b" }}
-                                        >
-                                          Active
-                                        </span>
-                                      )}
-                                      {entry.badge ? (
-                                        <span
-                                          className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold text-white"
-                                          style={{ background: iconStyle?.accent ?? "#64748b" }}
-                                        >
-                                          {entry.badge}
-                                        </span>
-                                      ) : null}
-                                    </div>
-                                  </div>
-                                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-600 transition group-hover:text-slate-300 group-hover:translate-x-0.5" />
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </section>
-                      );
-                    })}
-                  </div>
-                )}
+                      {filter === "All" ? "All Modules" : filter}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+
+              {filteredEntries.length === 0 ? (
+                <div className="flex min-h-[240px] flex-col items-center justify-center border border-dashed border-white/15 text-center">
+                  <Search className="h-7 w-7 text-white/40" />
+                  <p className="mt-3 text-sm font-semibold text-white">No modules found</p>
+                  <p className="mt-1 text-xs text-white/45">Try another search, filter, or category.</p>
+                </div>
+              ) : (
+                <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                  {filteredEntries.map((entry) => {
+                    const Icon = entry.icon;
+                    const iconStyle = SECTION_ICON_STYLES[entry.section];
+                    const isFavorite = favoriteIdSet.has(entry.id);
+                    return (
+                      <div
+                        key={entry.id}
+                        className="group flex min-h-[60px] items-center bg-[#555462] transition hover:bg-[#616071]"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => handleEntryClick(entry)}
+                          className="flex min-w-0 flex-1 items-center gap-4 px-5 py-4 text-left"
+                        >
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-[#464553]">
+                            <Icon
+                              className={`h-5 w-5 ${iconStyle?.icon ?? "text-white/70"}`}
+                              strokeWidth={1.8}
+                            />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-semibold text-white">
+                              {entry.name}
+                            </span>
+                            {entry.active || entry.badge ? (
+                              <span className="mt-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-white/55">
+                                {entry.active ? "Active" : null}
+                                {entry.active && entry.badge ? <span>•</span> : null}
+                                {entry.badge ? `${entry.badge}` : null}
+                              </span>
+                            ) : null}
+                          </span>
+                          <ChevronRight className="h-4 w-4 shrink-0 text-white/25 transition group-hover:translate-x-0.5 group-hover:text-white/60" />
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={isFavorite ? `Remove ${entry.name} from favourites` : `Add ${entry.name} to favourites`}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            toggleFavorite(entry.id);
+                          }}
+                          className="mr-4 flex h-8 w-8 shrink-0 items-center justify-center text-white/70 transition hover:text-white"
+                        >
+                          <Star className={`h-4 w-4 ${isFavorite ? "fill-white text-white" : ""}`} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </main>
           </div>
         </div>
       ) : null}
