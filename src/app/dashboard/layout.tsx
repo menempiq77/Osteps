@@ -317,33 +317,150 @@ export default function DashboardLayout({
     return role;
   })();
   const userDisplayName = String(currentUser?.name || currentUser?.email || "").replace(/_/g, " ");
+  const userInitial = userDisplayName.trim().charAt(0).toUpperCase() || "O";
+  const currentDashboardTitle = breadcrumbItems[breadcrumbItems.length - 1]?.label || "Dashboard";
 
-  const renderNavigationButtons = (compact = false) => (
-    <div className={`flex items-center gap-2 ${compact ? "justify-end" : ""}`}>
-      <QuickLauncher />
+  const renderThemeSwitcher = () => (
+    <div className="flex items-center gap-1 rounded-full border border-[var(--theme-border)] bg-[var(--theme-soft)] px-2.5 py-1.5 shadow-inner">
+      <span className="hidden text-[11px] font-bold uppercase tracking-wide text-[var(--theme-dark)] xl:inline">
+        Style
+      </span>
+      {(Object.keys(THEMES) as ThemeName[]).map((name) => (
+        <button
+          key={name}
+          type="button"
+          title={THEMES[name].label}
+          onClick={() => handleThemeChange(name)}
+          className={`h-5 w-5 rounded-full border transition ${
+            themeName === name
+              ? "scale-110 ring-2 ring-offset-1 ring-[var(--theme-border)]"
+              : "opacity-80 hover:opacity-100"
+          }`}
+          style={{ backgroundColor: THEMES[name].primary }}
+        />
+      ))}
+    </div>
+  );
+
+  const renderUserSummary = () => (
+    <div className="flex min-w-0 items-center gap-2 rounded-full border border-[var(--theme-border)] bg-white px-2.5 py-1 shadow-sm">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--theme-soft)] text-sm font-black text-[var(--theme-dark)]">
+        {userInitial}
+      </span>
+      <span className="hidden min-w-0 flex-col leading-tight sm:flex">
+        <span className="max-w-[150px] truncate text-xs font-bold text-gray-900">
+          {userDisplayName || "Osteps User"}
+        </span>
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--theme-dark)]">
+          {userRoleLabel}
+        </span>
+      </span>
+    </div>
+  );
+
+  const renderNavigationButtons = () => (
+    <div className="flex flex-wrap items-center justify-start gap-1.5 lg:justify-end">
       <button
         type="button"
         onClick={() => router.push("/dashboard/subject-cards")}
-        className="rounded-lg border border-[var(--theme-border)] bg-white px-3 py-1.5 text-sm font-medium text-[var(--theme-dark)] transition hover:bg-[var(--theme-soft)]"
+        className="rounded-full border border-[var(--theme-border)] bg-white px-3 py-1.5 text-xs font-bold text-[var(--theme-dark)] transition hover:bg-[var(--theme-soft)]"
       >
         Home
       </button>
       <button
         type="button"
         onClick={() => window.history.back()}
-        className="rounded-lg border border-[var(--theme-border)] bg-[var(--theme-soft)] px-3 py-1.5 text-sm font-medium text-[var(--theme-dark)] transition hover:bg-[var(--theme-soft-2)]"
+        className="rounded-full border border-[var(--theme-border)] bg-[var(--theme-soft)] px-3 py-1.5 text-xs font-bold text-[var(--theme-dark)] transition hover:bg-[var(--theme-soft-2)]"
       >
         Back
       </button>
       <button
         type="button"
         onClick={() => window.history.forward()}
-        className="rounded-lg border border-[var(--theme-border)] bg-[var(--theme-soft)] px-3 py-1.5 text-sm font-medium text-[var(--theme-dark)] transition hover:bg-[var(--theme-soft-2)]"
+        className="rounded-full border border-[var(--theme-border)] bg-[var(--theme-soft)] px-3 py-1.5 text-xs font-bold text-[var(--theme-dark)] transition hover:bg-[var(--theme-soft-2)]"
       >
         Next
       </button>
     </div>
   );
+
+  const renderDashboardTopBar = ({
+    title,
+    subtitle,
+    showBreadcrumb = false,
+    showSubjectSwitcher = false,
+  }: {
+    title: string;
+    subtitle?: string;
+    showBreadcrumb?: boolean;
+    showSubjectSwitcher?: boolean;
+  }) => {
+    const visibleBreadcrumbs = showBreadcrumb ? breadcrumbItems : [];
+
+    return (
+      <div className="relative z-20 mb-4 overflow-hidden rounded-2xl border border-[var(--theme-border)] bg-white shadow-sm">
+        <div className="h-1 w-full bg-gradient-to-r from-[var(--primary)] via-[var(--theme-scroll-start)] to-[var(--theme-scroll-end)]" />
+        <div className="flex flex-col gap-3 px-3 py-3 md:px-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <QuickLauncher />
+            <div className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--theme-soft)] text-lg font-black text-[var(--theme-dark)] ring-1 ring-[var(--theme-border)] sm:flex">
+              O
+            </div>
+            <div className="min-w-0">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <h1 className="truncate text-base font-black text-gray-950 md:text-lg">
+                  {title}
+                </h1>
+                <span className="rounded-full bg-[var(--theme-soft)] px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--theme-dark)]">
+                  Osteps
+                </span>
+              </div>
+              {subtitle ? (
+                <p className="mt-0.5 line-clamp-1 text-xs font-medium text-gray-500">
+                  {subtitle}
+                </p>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2 lg:items-end">
+            <div className="flex flex-wrap items-center justify-start gap-2 lg:justify-end">
+              {renderUserSummary()}
+              {showSubjectSwitcher ? <SubjectSwitcher /> : null}
+              {renderThemeSwitcher()}
+            </div>
+            {renderNavigationButtons()}
+          </div>
+        </div>
+        {visibleBreadcrumbs.length > 0 ? (
+          <div className="border-t border-[var(--theme-border)] bg-[var(--theme-soft)]/60 px-3 py-2 md:px-4">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+              {visibleBreadcrumbs.map((item, index) => {
+                const isLast = index === visibleBreadcrumbs.length - 1;
+                return (
+                  <div key={item.href} className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => router.push(item.href)}
+                      disabled={isLast}
+                      className={`transition-colors ${
+                        isLast
+                          ? "cursor-default font-bold text-gray-800"
+                          : "font-semibold text-gray-500 hover:text-[var(--theme-dark)]"
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                    {!isLast && <span className="text-gray-300">/</span>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    );
+  };
 
   const withSubjectContext = (content: React.ReactNode) => (
     <SubjectContextProvider>{content}</SubjectContextProvider>
@@ -369,25 +486,10 @@ export default function DashboardLayout({
           style={impersonating ? { paddingTop: 56 } : undefined}
         >
           <div className="mx-auto max-w-7xl">
-            <div className="mb-4 flex items-center justify-end gap-2">
-              <div className="flex items-center gap-1 rounded-lg border border-[var(--theme-border)] bg-[var(--theme-soft)] px-2 py-1">
-                {(Object.keys(THEMES) as ThemeName[]).map((name) => (
-                  <button
-                    key={name}
-                    type="button"
-                    title={THEMES[name].label}
-                    onClick={() => handleThemeChange(name)}
-                    className={`h-5 w-5 rounded-full border transition ${
-                      themeName === name
-                        ? "scale-110 ring-2 ring-offset-1 ring-[var(--theme-border)]"
-                        : "opacity-80 hover:opacity-100"
-                    }`}
-                    style={{ backgroundColor: THEMES[name].primary }}
-                  />
-                ))}
-              </div>
-              {renderNavigationButtons(true)}
-            </div>
+            {renderDashboardTopBar({
+              title: "Dashboard Home",
+              subtitle: "Open the launcher, change the style, or move through your Osteps pages.",
+            })}
             {children}
           </div>
         </div>
@@ -450,14 +552,10 @@ export default function DashboardLayout({
       isSettingsRoute ? (
         <div className="dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] p-3 md:p-6">
           <div className="mx-auto max-w-7xl">
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-1.5 rounded-lg border border-[var(--theme-border)] bg-white px-2.5 py-1 text-xs shadow-sm">
-                <span className="font-semibold text-gray-800 truncate max-w-[140px]">{userDisplayName}</span>
-                <span className="text-gray-300">·</span>
-                <span className="font-medium text-[var(--theme-dark)]">{userRoleLabel}</span>
-              </div>
-              {renderNavigationButtons(true)}
-            </div>
+            {renderDashboardTopBar({
+              title: currentDashboardTitle,
+              subtitle: "Your Osteps shortcuts, theme, and page controls stay together here.",
+            })}
             <div
               key={pathname}
               className={`dashboard-route-transition ${
@@ -493,58 +591,12 @@ export default function DashboardLayout({
             }
           >
             {!isImmersiveLessonGroupRoute ? (
-              <div className="mb-4 rounded-xl border border-[var(--theme-border)] bg-white px-3 py-2 md:px-4 md:py-3">
-                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                  <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500">
-                    {breadcrumbItems.map((item, index) => {
-                      const isLast = index === breadcrumbItems.length - 1;
-                      return (
-                        <div key={item.href} className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => router.push(item.href)}
-                            disabled={isLast}
-                            className={`transition-colors ${
-                              isLast
-                                ? "cursor-default font-medium text-gray-800"
-                                : "text-gray-500 hover:text-[var(--theme-dark)]"
-                            }`}
-                          >
-                            {item.label}
-                          </button>
-                          {!isLast && <span className="text-gray-300">/</span>}
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {!isLibraryRoute ? <SubjectSwitcher /> : null}
-                    <div className="flex items-center gap-1 rounded-lg border border-[var(--theme-border)] bg-[var(--theme-soft)] px-2 py-1">
-                      {(Object.keys(THEMES) as ThemeName[]).map((name) => (
-                        <button
-                          key={name}
-                          type="button"
-                          title={THEMES[name].label}
-                          onClick={() => handleThemeChange(name)}
-                          className={`h-5 w-5 rounded-full border transition ${
-                            themeName === name
-                              ? "scale-110 ring-2 ring-offset-1 ring-[var(--theme-border)]"
-                              : "opacity-80 hover:opacity-100"
-                          }`}
-                          style={{ backgroundColor: THEMES[name].primary }}
-                        />
-                      ))}
-                    </div>
-                    {renderNavigationButtons()}
-                  </div>
-                </div>
-                <div className="mt-2 flex items-center gap-1.5 rounded-lg border border-[var(--theme-border)] bg-[var(--theme-soft)] px-2.5 py-1 text-xs w-fit">
-                  <span className="font-semibold text-gray-800 truncate max-w-[160px]">{userDisplayName}</span>
-                  <span className="text-gray-300">·</span>
-                  <span className="font-medium text-[var(--theme-dark)]">{userRoleLabel}</span>
-                </div>
-              </div>
+              renderDashboardTopBar({
+                title: currentDashboardTitle,
+                subtitle: "Switch modules, subjects, style, and page history from one top bar.",
+                showBreadcrumb: true,
+                showSubjectSwitcher: !isLibraryRoute,
+              })
             ) : null}
 
             <div
