@@ -1559,6 +1559,7 @@ export default function DashboardPage() {
   const activeStat = activeStatTitle
     ? stats.find((stat) => stat.title === activeStatTitle) ?? null
     : null;
+  const isYearInlinePanel = activeStat?.title === "Total Years";
   const visibleActiveStatDetails = activeStatDetails.slice(0, STAT_DETAIL_LIMIT);
 
   const COLORS = [
@@ -1903,9 +1904,18 @@ export default function DashboardPage() {
                       </div>
                     ) : visibleActiveStatDetails.length > 0 ? (
                       <>
-                        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                        <div className={isYearInlinePanel ? "grid gap-2" : "grid gap-2 sm:grid-cols-2 xl:grid-cols-3"}>
                           {visibleActiveStatDetails.map((item) => {
-                            const content = (
+                            const content = isYearInlinePanel ? (
+                              <div className="flex min-w-0 items-center justify-between gap-3">
+                                <span className="truncate text-sm font-bold text-slate-800">{item.title}</span>
+                                {item.badge ? (
+                                  <span className="shrink-0 text-sm font-semibold text-emerald-700">
+                                    {item.badge}
+                                  </span>
+                                ) : null}
+                              </div>
+                            ) : (
                               <>
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="min-w-0">
@@ -1928,19 +1938,25 @@ export default function DashboardPage() {
                                 ) : null}
                               </>
                             );
+                            const detailCardClass = isYearInlinePanel
+                              ? "group block rounded-xl border border-emerald-100 bg-white px-4 py-2.5 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50/40 hover:shadow-md"
+                              : "group block rounded-2xl border border-slate-100 bg-gradient-to-br from-white to-slate-50 px-3.5 py-3 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md";
+                            const staticDetailCardClass = isYearInlinePanel
+                              ? "rounded-xl border border-emerald-100 bg-white px-4 py-2.5 shadow-sm"
+                              : "rounded-2xl border border-slate-100 bg-gradient-to-br from-white to-slate-50 px-3.5 py-3 shadow-sm";
 
                             return item.href ? (
                               <Link
                                 key={item.key}
                                 href={item.href}
-                                className="group block rounded-2xl border border-slate-100 bg-gradient-to-br from-white to-slate-50 px-3.5 py-3 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
+                                className={detailCardClass}
                               >
                                 {content}
                               </Link>
                             ) : (
                               <div
                                 key={item.key}
-                                className="rounded-2xl border border-slate-100 bg-gradient-to-br from-white to-slate-50 px-3.5 py-3 shadow-sm"
+                                className={staticDetailCardClass}
                               >
                                 {content}
                               </div>
