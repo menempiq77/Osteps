@@ -1,6 +1,6 @@
 "use client";
 import dynamic from "next/dynamic";
-import { Alert, Card, Statistic, Row, Col, Button, Select, Spin } from "antd";
+import { Alert, Card, Button, Select, Spin } from "antd";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import {
@@ -26,6 +26,8 @@ import {
   searchStudentProfile,
 } from "@/services/dashboardApis";
 import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
+import { fetchClasses } from "@/services/classesApi";
+import { fetchTeachers } from "@/services/teacherApi";
 import { fetchStudentProfileData, fetchStudents } from "@/services/studentsApi";
 import { fetchAssessmentByStudent, fetchSchoolLogo } from "@/services/api";
 import { fetchTrackers } from "@/services/trackersApi";
@@ -142,6 +144,60 @@ const parseUpdatedTimestamp = (value: unknown): number | null => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+type StatDetailItem = {
+  key: string;
+  title: string;
+  meta?: string;
+  badge?: string;
+  classId?: string;
+  subjectClassId?: string;
+};
+
+const STAT_DETAIL_LIMIT = 12;
+const STAT_CARD_STYLES = [
+  { accent: "#2563eb", soft: "#eff6ff", border: "#bfdbfe", glow: "rgba(37,99,235,0.14)" },
+  { accent: "#059669", soft: "#ecfdf5", border: "#a7f3d0", glow: "rgba(5,150,105,0.14)" },
+  { accent: "#7c3aed", soft: "#f5f3ff", border: "#ddd6fe", glow: "rgba(124,58,237,0.14)" },
+  { accent: "#d97706", soft: "#fffbeb", border: "#fde68a", glow: "rgba(217,119,6,0.14)" },
+];
+
+const cleanDashboardLabel = (value: unknown, fallback = "Untitled") => {
+  const text = String(value ?? "").replace(/_/g, " ").trim();
+  return text || fallback;
+};
+
+const extractClassLabel = (row: any) =>
+  cleanDashboardLabel(
+    row?.class_name ??
+      row?.name ??
+      row?.base_class_label ??
+      row?.class?.class_name ??
+      row?.classes?.class_name ??
+      row?.base_class?.class_name,
+    "Class"
+  );
+
+const extractYearLabel = (row: any) =>
+  cleanDashboardLabel(
+    row?.year?.name ??
+      row?.year_name ??
+      row?.class?.year?.name ??
+      row?.classes?.year?.name ??
+      row?.base_class?.year?.name ??
+      (resolveSubjectClassYearId(row) ? `Year ${resolveSubjectClassYearId(row)}` : ""),
+    "Year"
+  );
+
+const uniqueDetailItems = (items: StatDetailItem[]) => {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = item.key || item.title;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
 const getStudentsListLink = (options: {
   isSubjectWorkspaceMode: boolean;
   activeSubjectId?: number | null;
@@ -245,12 +301,17 @@ export default function DashboardPage() {
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
+  const [activeStatTitle, setActiveStatTitle] = useState<string | null>(null);
   const [impersonating, setImpersonating] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     setImpersonating(!!localStorage.getItem(IMPERSONATION_STORAGE_KEY));
   }, [pathname]);
+
+  useEffect(() => {
+    setActiveStatTitle(null);
+  }, [activeSubjectId, currentUser?.role]);
 
   const getSubjectScopedSummary = async (
     subjectId: number,
@@ -550,6 +611,186 @@ export default function DashboardPage() {
       };
     },
     enabled: currentUser?.role === "TEACHER" && !isSubjectWorkspaceMode,
+  });
+
+  const { data: activeStatDetails = [], isLoading: activeStatDetailsLoading } = useQuery({
+    queryKey: [
+      "dashboard-inline-stat-details",
+      currentUser?.role,
+      activeStatTitle,
+      schoolId,
+      activeSubjectId,
+      activeSubject?.name,
+      isSubjectWorkspaceMode,
+    ],
+    enabled: !!activeStatTitle && currentUser?.role !== "STUDENT",
+    staleTime: 60 * 1000,
+    queryFn: async (): Promise<StatDetailItem[]> => {
+      const title = String(activeStatTitle || "");
+      const subjectId = Number(activeSubjectId ?? 0);
+
+      const loadYears = async () => {
+        if (isSubjectWorkspaceMode && subjectId > 0) {
+          const subjectClasses = await fetchSubjectClasses({ subject_id: subjectId });
+          const yearMap = new Map<string, StatDetailItem>();
+          (Array.isArray(subjectClasses) ? subjectClasses : []).forEach((row: any) => {
+            const yearId = String(resolveSubjectClassYearId(row) || extractYearLabel(row));
+            if (!yearId) return;
+            const existing = yearMap.get(yearId);
+            const classCount = Number(existing?.badge?.replace(/\D/g, "") || 0) + 1;
+            yearMap.set(yearId, {
+              key: yearId,
+              title: extractYearLabel(row),
+              meta: `Used in ${formatSubjectDashboardName(activeSubject?.name)} workspace`,
+              badge: `${classCount} class${classCount === 1 ? "" : "es"}`,
+            });
+          });
+          return Array.from(yearMap.values());
+        }
+
+        const years = schoolId > 0
+          ? await fetchYearsBySchool(schoolId)
+          : await fetchAssignYears();
+        return uniqueDetailItems(
+          (Array.isArray(years) ? years : []).map((year: any, index: number) => ({
+            key: String(year?.id ?? index),
+            title: cleanDashboardLabel(year?.name ?? year?.year_name, `Year ${index + 1}`),
+            meta: year?.description ? String(year.description) : "School year group",
+            badge: Array.isArray(year?.classes) ? `${year.classes.length} classes` : undefined,
+          }))
+        );
+      };
+
+      const loadClasses = async () => {
+        if (isSubjectWorkspaceMode && subjectId > 0) {
+          const subjectClasses = await fetchSubjectClasses({ subject_id: subjectId });
+          const rows = await Promise.all(
+            (Array.isArray(subjectClasses) ? subjectClasses : []).map(async (row: any, index: number) => {
+              const subjectClassId = String(row?.id ?? "").trim();
+              const linkedClassId = await resolveSubjectClassLinkedIdWithFallback(row, subjectId).catch(() => row?.class_id ?? row?.base_class_id ?? row?.id);
+              return {
+                key: String(subjectClassId || linkedClassId || index),
+                title: extractClassLabel(row),
+                meta: extractYearLabel(row),
+                badge: formatSubjectDashboardName(activeSubject?.name),
+                classId: String(linkedClassId || subjectClassId || ""),
+                subjectClassId,
+              };
+            })
+          );
+          return uniqueDetailItems(rows);
+        }
+
+        if (currentUser?.role === "TEACHER") {
+          const assignedYears = await fetchAssignYears();
+          return uniqueDetailItems(
+            (Array.isArray(assignedYears) ? assignedYears : [])
+              .flatMap((entry: any) => {
+                const classes = entry?.classes;
+                return Array.isArray(classes) ? classes : classes ? [classes] : [];
+              })
+              .map((cls: any, index: number) => ({
+                key: String(cls?.id ?? cls?.class_id ?? index),
+                title: extractClassLabel(cls),
+                meta: extractYearLabel(cls),
+                badge: cls?.students_count ? `${cls.students_count} students` : undefined,
+                classId: String(cls?.id ?? cls?.class_id ?? ""),
+              }))
+          );
+        }
+
+        const years = schoolId > 0 ? await fetchYearsBySchool(schoolId) : [];
+        const classRows = (
+          await Promise.all(
+            (Array.isArray(years) ? years : []).map(async (year: any) => {
+              try {
+                const rows = await fetchClasses(String(year?.id));
+                return (Array.isArray(rows) ? rows : []).map((row: any) => ({ row, year }));
+              } catch {
+                return [] as Array<{ row: any; year: any }>;
+              }
+            })
+          )
+        ).flat();
+
+        return uniqueDetailItems(
+          classRows.map(({ row, year }, index) => ({
+            key: String(row?.id ?? index),
+            title: extractClassLabel(row),
+            meta: cleanDashboardLabel(year?.name, "Year"),
+            badge: row?.number_of_terms ? `${row.number_of_terms} terms` : undefined,
+            classId: String(row?.id ?? ""),
+          }))
+        );
+      };
+
+      const loadTeachers = async () => {
+        const teachers = await fetchTeachers(isSubjectWorkspaceMode && subjectId > 0 ? subjectId : "all");
+        return uniqueDetailItems(
+          (Array.isArray(teachers) ? teachers : []).map((teacher: any, index: number) => ({
+            key: String(teacher?.id ?? teacher?.user_id ?? index),
+            title: cleanDashboardLabel(teacher?.name ?? teacher?.teacher_name ?? teacher?.user?.name, `Teacher ${index + 1}`),
+            meta: cleanDashboardLabel(teacher?.email ?? teacher?.user?.email ?? teacher?.subject_name ?? "Teacher account", "Teacher account"),
+            badge: teacher?.status ? cleanDashboardLabel(teacher.status) : undefined,
+          }))
+        );
+      };
+
+      const loadStudents = async () => {
+        const classItems = await loadClasses();
+        const studentRows = (
+          await Promise.all(
+            classItems.map(async (item) => {
+              try {
+                const targetClassId = item.classId || item.key;
+                const rows = await fetchStudents(
+                  targetClassId,
+                  isSubjectWorkspaceMode ? subjectId : undefined,
+                  isSubjectWorkspaceMode ? item.subjectClassId || item.key : undefined
+                );
+                return (Array.isArray(rows) ? rows : []).map((student: any) => ({ student, classItem: item }));
+              } catch {
+                return [] as Array<{ student: any; classItem: StatDetailItem }>;
+              }
+            })
+          )
+        ).flat();
+
+        return uniqueDetailItems(
+          studentRows.map(({ student, classItem }, index) => ({
+            key: String(student?.id ?? student?.student_id ?? `${classItem.key}-${index}`),
+            title: cleanDashboardLabel(student?.student_name ?? student?.name ?? student?.user?.name, `Student ${index + 1}`),
+            meta: classItem.title,
+            badge: student?.status ? cleanDashboardLabel(student.status) : undefined,
+          }))
+        );
+      };
+
+      if (title === "Total Years") return loadYears();
+      if (title === "Total Classes" || title === "My Classes") return loadClasses();
+      if (title === "Total Teachers") return loadTeachers();
+      if (title === "Total Students") return loadStudents();
+      if (title === "Total Schools") {
+        return uniqueDetailItems(
+          (Array.isArray(schools) ? schools : []).map((school: any, index: number) => ({
+            key: String(school?.id ?? index),
+            title: cleanDashboardLabel(school?.name ?? school?.school_name, `School ${index + 1}`),
+            meta: cleanDashboardLabel(school?.address ?? school?.email ?? "School record", "School record"),
+          }))
+        );
+      }
+      if (title === "Total Admins") {
+        return uniqueDetailItems(
+          (Array.isArray(superAdmins) ? superAdmins : []).map((admin: any, index: number) => ({
+            key: String(admin?.id ?? index),
+            title: cleanDashboardLabel(admin?.name ?? admin?.email, `Admin ${index + 1}`),
+            meta: cleanDashboardLabel(admin?.email ?? admin?.role ?? "Admin account", "Admin account"),
+          }))
+        );
+      }
+
+      return [];
+    },
   });
   
   const {
@@ -1201,6 +1442,9 @@ export default function DashboardPage() {
       "My Classes": (
         <BookOpen className="h-5 w-5" style={{ color: THEME_COLOR }} />
       ),
+      "Total Classes": (
+        <BookOpen className="h-5 w-5" style={{ color: THEME_COLOR }} />
+      ),
       "Total Students": (
         <GraduationCap className="h-5 w-5" style={{ color: THEME_COLOR }} />
       ),
@@ -1211,6 +1455,12 @@ export default function DashboardPage() {
     HOD: {
       "Total Years": (
         <LayoutDashboard className="h-5 w-5" style={{ color: THEME_COLOR }} />
+      ),
+      "Total Classes": (
+        <LayoutDashboard className="h-5 w-5" style={{ color: THEME_COLOR }} />
+      ),
+      "Total Teachers": (
+        <Users className="h-5 w-5" style={{ color: THEME_COLOR }} />
       ),
       "My Classes": (
         <BookOpen className="h-5 w-5" style={{ color: THEME_COLOR }} />
@@ -1243,6 +1493,10 @@ export default function DashboardPage() {
     pieChartTitle,
     barChartTitle,
   } = getDashboardData();
+  const activeStat = activeStatTitle
+    ? stats.find((stat) => stat.title === activeStatTitle) ?? null
+    : null;
+  const visibleActiveStatDetails = activeStatDetails.slice(0, STAT_DETAIL_LIMIT);
 
   const COLORS = [
     THEME_COLOR,
@@ -1502,43 +1756,126 @@ export default function DashboardPage() {
           ) : (
             <>
               {/* Stats Cards */}
-              <Row gutter={[16, 16]}>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 {stats.map((stat, index) => {
                   const icon = currentUser?.role
                     ? (statIcons[currentUser?.role] as Record<string, JSX.Element>)[
                         stat.title
                       ]
                     : null;
+                  const cardStyle = STAT_CARD_STYLES[index % STAT_CARD_STYLES.length];
+                  const isActiveStat = activeStatTitle === stat.title;
 
                   return (
-                    <Col
+                    <button
                       key={index}
-                      xs={24}
-                      md={
-                        currentUser?.role === "SCHOOL_ADMIN" ||
-                        currentUser?.role === "HOD"
-                          ? 6
-                          : 12
-                      }
+                      type="button"
+                      onClick={() => setActiveStatTitle((current) => (current === stat.title ? null : stat.title))}
+                      className="group relative overflow-hidden rounded-2xl border bg-white px-4 py-3 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2"
+                      style={{
+                        borderColor: isActiveStat ? cardStyle.accent : cardStyle.border,
+                        boxShadow: isActiveStat
+                          ? `0 14px 30px ${cardStyle.glow}, 0 0 0 2px ${cardStyle.border}`
+                          : `0 8px 22px ${cardStyle.glow}`,
+                      }}
                     >
-                    <Link href={stat?.link || "#"}>
-                      <Card className="premium-card border-0 hover:shadow-md transition-all">
-                        <Statistic
-                          title={
-                            <span className="text-[#000000] font-medium !font-['Raleway']">
-                              {stat?.title}
+                      <span
+                        className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full opacity-60 transition group-hover:scale-110"
+                        style={{ backgroundColor: cardStyle.soft }}
+                      />
+                      <span className="relative flex items-start justify-between gap-3">
+                        <span className="min-w-0">
+                          <span className="block truncate text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+                            {stat?.title}
+                          </span>
+                          <span className="mt-2 flex items-center gap-2">
+                            <span
+                              className="flex h-8 w-8 items-center justify-center rounded-xl border"
+                              style={{ backgroundColor: cardStyle.soft, borderColor: cardStyle.border }}
+                            >
+                              {icon}
                             </span>
-                          }
-                          value={stat?.value}
-                          prefix={icon}
-                          valueStyle={{ color: THEME_COLOR_DARK }}
-                        />
-                      </Card>
-                    </Link>
-                    </Col>
+                            <span className="text-2xl font-black leading-none" style={{ color: cardStyle.accent }}>
+                              {stat?.value}
+                            </span>
+                          </span>
+                        </span>
+                        <span
+                          className="rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide"
+                          style={{ backgroundColor: cardStyle.soft, color: cardStyle.accent }}
+                        >
+                          {isActiveStat ? "Open" : "View"}
+                        </span>
+                      </span>
+                    </button>
                   );
                 })}
-              </Row>
+
+              </div>
+
+              {activeStat ? (
+                <div className="mt-4 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_14px_32px_rgba(15,23,42,0.08)]">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/80 px-4 py-3">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                        Inline information
+                      </p>
+                      <h3 className="mt-1 text-base font-bold text-slate-800">
+                        {activeStat.title} · {activeStat.value}
+                      </h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveStatTitle(null)}
+                      className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-500 transition hover:border-slate-300 hover:text-slate-800"
+                    >
+                      Close
+                    </button>
+                  </div>
+
+                  <div className="p-4">
+                    {activeStatDetailsLoading ? (
+                      <div className="flex h-24 items-center justify-center">
+                        <Spin />
+                      </div>
+                    ) : visibleActiveStatDetails.length > 0 ? (
+                      <>
+                        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                          {visibleActiveStatDetails.map((item) => (
+                            <div
+                              key={item.key}
+                              className="rounded-2xl border border-slate-100 bg-gradient-to-br from-white to-slate-50 px-3.5 py-3 shadow-sm"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-bold text-slate-800">{item.title}</p>
+                                  {item.meta ? (
+                                    <p className="mt-1 truncate text-xs text-slate-500">{item.meta}</p>
+                                  ) : null}
+                                </div>
+                                {item.badge ? (
+                                  <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                                    {item.badge}
+                                  </span>
+                                ) : null}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        {activeStatDetails.length > STAT_DETAIL_LIMIT ? (
+                          <p className="mt-3 text-xs font-medium text-slate-500">
+                            Showing first {STAT_DETAIL_LIMIT} of {activeStatDetails.length} records.
+                          </p>
+                        ) : null}
+                      </>
+                    ) : (
+                      <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm font-medium text-slate-500">
+                        No detailed records are available for this card yet.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : null}
             </>
           )}
 
