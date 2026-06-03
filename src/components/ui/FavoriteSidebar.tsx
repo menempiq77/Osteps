@@ -1,0 +1,307 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useSelector } from "react-redux";
+import { useQuery } from "@tanstack/react-query";
+import { BookOpen, MoreVertical, Star } from "lucide-react";
+import { RootState } from "@/store/store";
+import { useSubjectContext } from "@/contexts/SubjectContext";
+import {
+  buildDashboardNavigation,
+  buildStudentUtilityLinks,
+  formatDashboardSubjectName,
+  normalizeDashboardRole,
+  type DashboardNavItem,
+} from "@/lib/dashboardNavigation";
+import { isSharedPath } from "@/lib/subjectRouting";
+import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
+
+const FAVORITES_STORAGE_KEY = "osteps:quick-launcher:favorites";
+const FAVORITES_CHANGED_EVENT = "osteps:quick-launcher:favorites-changed";
+
+type FavoriteEntry = {
+  id: string;
+  name: string;
+  href?: string;
+  icon: DashboardNavItem["icon"];
+  section: DashboardNavItem["section"];
+  active?: boolean;
+  kind: "link" | "subject";
+  subjectId?: number;
+};
+
+const readFavoriteIds = () => {
+  if (typeof window === "undefined") return [];
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(FAVORITES_STORAGE_KEY) || "[]");
+    return Array.isArray(parsed) ? parsed.filter((id) => typeof id === "string") : [];
+  } catch {
+    return [];
+  }
+};
+
+const sidebarAccent: Record<string, string> = {
+  Subjects: "#60a5fa",
+  Workspace: "#93c5fd",
+  Teaching: "#a78bfa",
+  Communication: "#f9a8d4",
+  Resources: "#86efac",
+  Account: "#fbbf24",
+};
+
+const itemLabel = (value: string) =>
+  value
+    .replace(/ Dashboard$/i, "")
+    .replace(/Content Approvals/i, "Approvals")
+    .replace(/Mind-upgrade/i, "Mind Upgrade");
+
+export default function FavoriteSidebar() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const { currentUser } = useSelector((state: RootState) => state.auth);
+  const {
+    subjects,
+    activeSubjectId,
+    activeSubject,
+    canUseSubjectContext,
+    setActiveSubjectId,
+    toSubjectHref,
+  } = useSubjectContext();
+  const [favoriteIds, setFavoriteIds] = useState<string[]>(readFavoriteIds);
+
+  const roleKey = normalizeDashboardRole(currentUser?.role);
+  const isStudent = roleKey === "STUDENT";
+  const isIslamicContext =
+    !canUseSubjectContext ||
+    !activeSubject ||
+    /islam|islamiat|islamic/i.test(activeSubject.name);
+
+  const { data: studentSubjectClasses = [] } = useQuery({
+    queryKey: ["favorite-sidebar-student-subject-classes", activeSubjectId],
+    queryFn: async () => {
+      if (!activeSubjectId) return [];
+      const classes = await fetchSubjectClasses({ subject_id: Number(activeSubjectId) });
+      return Array.isArray(classes) ? classes : [];
+    },
+    enabled: isStudent && !!activeSubjectId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const studentSubjectClassId =
+    (Array.isArray(studentSubjectClasses) && studentSubjectClasses[0]?.id) || currentUser?.studentClass;
+  const studentTrackerHref = studentSubjectClassId
+    ? `/dashboard/trackers/${studentSubjectClassId}`
+    : "/dashboard/subject-cards";
+
+  const subjectEntries = useMemo<FavoriteEntry[]>(() => {
+    const subjectRank = (name: string) => {
+      const n = name.toLowerCase();
+      if (n.includes("arabic")) return 0;
+      if (n.includes("islamic") || n.includes("islamiat")) return 1;
+      return 2;
+    };
+
+    return [...subjects]
+      .sort((a, b) => {
+        const rankDiff = subjectRank(a.name) - subjectRank(b.name);
+        if (rankDiff !== 0) return rankDiff;
+        return a.name.localeCompare(b.name);
+      })
+      .map((subject) => ({
+        id: `subject-${subject.id}`,
+        name: `${formatDashboardSubjectName(subject.name)} Dashboard`,
+        section: "Subjects",
+        icon: BookOpen,
+        active: Number(activeSubjectId) === Number(subject.id),
+        kind: "subject" as const,
+        subjectId: subject.id,
+      }));
+  }, [activeSubjectId, subjects]);
+
+  const navigationEntries = useMemo<FavoriteEntry[]>(() => {
+    const items = buildDashboardNavigation({
+      roleKey,
+      canUseSubjectContext,
+      activeSubjectId,
+      formattedActiveSubjectName: activeSubject?.name,
+      isIslamicContext,
+      studentTrackerHref,
+    });
+
+    return items
+      .filter((item) => item.section !== "Subjects")
+      .map((item) => {
+        const href =
+          canUseSubjectContext && activeSubjectId && !isSharedPath(item.href)
+            ? toSubjectHref(item.href)
+            : item.href;
+        return {
+          id: `nav-${item.name}-${item.href}`,
+          name: item.name,
+          section: item.section,
+          icon: item.icon,
+          href,
+          active: pathname.replace(/\/+$/, "") === href.replace(/\/+$/, ""),
+          kind: "link" as const,
+        };
+      });
+  }, [activeSubject?.name, activeSubjectId, canUseSubjectContext, isIslamicContext, pathname, roleKey, studentTrackerHref, toSubjectHref]);
+
+  const extraEntries = useMemo<FavoriteEntry[]>(() => {
+    const items: FavoriteEntry[] = [];
+
+    if (canUseSubjectContext && !navigationEntries.some((item) => item.href === "/dashboard/subject-cards")) {
+      items.push({
+        id: "extra-subject-hub",
+        name: "Subject Hub",
+        section: "Workspace",
+        icon: BookOpen,
+        href: "/dashboard/subject-cards",
+        kind: "link",
+      });
+    }
+
+    if (roleKey === "SCHOOL_ADMIN") {
+      items.push(
+        {
+          id: "extra-all-students",
+          name: "All Students",
+          section: "Workspace",
+          icon: BookOpen,
+          href: "/dashboard/students/all-students",
+          kind: "link",
+        },
+        {
+          id: "extra-teachers",
+          name: "Teachers",
+          section: "Workspace",
+          icon: BookOpen,
+          href: "/dashboard/teachers",
+          kind: "link",
+        }
+      );
+    }
+
+    if (["SCHOOL_ADMIN", "HOD", "TEACHER", "STUDENT"].includes(roleKey)) {
+      const settingsHref =
+        roleKey === "STUDENT" ? "/dashboard/students/settings"
+        : roleKey === "TEACHER" ? "/dashboard/teachers/settings"
+        : "/dashboard/school-admin/settings";
+      items.push({
+        id: "extra-settings",
+        name: "Settings",
+        section: "Account",
+        icon: BookOpen,
+        href: settingsHref,
+        kind: "link",
+      });
+    }
+
+    return items;
+  }, [canUseSubjectContext, navigationEntries, roleKey]);
+
+  const studentUtilityEntries = useMemo<FavoriteEntry[]>(() => {
+    if (!isStudent) return [];
+    return buildStudentUtilityLinks(currentUser?.student).map((item) => {
+      const href =
+        canUseSubjectContext && activeSubjectId && !isSharedPath(item.href)
+          ? toSubjectHref(item.href)
+          : item.href;
+      return {
+        id: `utility-${item.name}-${item.href}`,
+        name: item.name,
+        section: item.section,
+        icon: item.icon,
+        href,
+        active: pathname.replace(/\/+$/, "") === href.replace(/\/+$/, ""),
+        kind: "link" as const,
+      };
+    });
+  }, [activeSubjectId, canUseSubjectContext, currentUser?.student, isStudent, pathname, toSubjectHref]);
+
+  const allEntries = useMemo(() => {
+    const seen = new Set<string>();
+    return [...subjectEntries, ...navigationEntries, ...studentUtilityEntries, ...extraEntries].filter((entry) => {
+      if (seen.has(entry.id)) return false;
+      seen.add(entry.id);
+      return true;
+    });
+  }, [extraEntries, navigationEntries, studentUtilityEntries, subjectEntries]);
+
+  const favoriteEntries = useMemo(() => {
+    return favoriteIds
+      .map((id) => allEntries.find((entry) => entry.id === id))
+      .filter((entry): entry is FavoriteEntry => Boolean(entry))
+      .slice(0, 10);
+  }, [allEntries, favoriteIds]);
+
+  useEffect(() => {
+    const syncFavorites = () => setFavoriteIds(readFavoriteIds());
+    window.addEventListener("storage", syncFavorites);
+    window.addEventListener(FAVORITES_CHANGED_EVENT, syncFavorites);
+    return () => {
+      window.removeEventListener("storage", syncFavorites);
+      window.removeEventListener(FAVORITES_CHANGED_EVENT, syncFavorites);
+    };
+  }, []);
+
+  const handleClick = (entry: FavoriteEntry) => {
+    if (entry.kind === "subject" && entry.subjectId) {
+      setActiveSubjectId(entry.subjectId, { navigate: true });
+      return;
+    }
+    if (entry.href) {
+      router.push(entry.href);
+    }
+  };
+
+  return (
+    <aside className="fixed bottom-0 left-0 top-[78px] z-[650] hidden w-[88px] flex-col overflow-hidden rounded-tr-2xl border-r border-white/10 bg-[#444454] text-white shadow-[12px_0_28px_rgba(15,23,42,0.18)] md:flex">
+      <div className="flex-1 overflow-y-auto py-3">
+        {favoriteEntries.length === 0 ? (
+          <div className="flex h-full flex-col items-center justify-center gap-3 px-3 text-center text-white/55">
+            <Star className="h-7 w-7" />
+            <span className="text-[10px] font-semibold leading-tight">
+              Star modules in Quick Launcher
+            </span>
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            {favoriteEntries.map((entry) => {
+              const Icon = entry.icon;
+              const accent = sidebarAccent[entry.section] || "#93c5fd";
+              return (
+                <button
+                  key={entry.id}
+                  type="button"
+                  onClick={() => handleClick(entry)}
+                  className={`group relative flex w-full flex-col items-center gap-1.5 px-2 py-3 text-center transition ${
+                    entry.active ? "bg-[#525264] text-white" : "text-white/85 hover:bg-white/10 hover:text-white"
+                  }`}
+                  title={entry.name}
+                >
+                  <span
+                    className={`absolute left-0 top-1/2 h-12 w-1 -translate-y-1/2 rounded-r-full transition ${
+                      entry.active ? "opacity-100" : "opacity-0 group-hover:opacity-70"
+                    }`}
+                    style={{ backgroundColor: accent }}
+                  />
+                  <Icon className="h-8 w-8" style={{ color: accent }} />
+                  <span className="line-clamp-2 max-w-[72px] text-[11px] font-semibold leading-tight drop-shadow">
+                    {itemLabel(entry.name)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+      <div className="border-t border-white/10 p-3">
+        <div className="flex h-10 items-center justify-center rounded bg-white/10 text-white/75">
+          <MoreVertical className="h-5 w-5" />
+        </div>
+      </div>
+    </aside>
+  );
+}

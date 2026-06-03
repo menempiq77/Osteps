@@ -458,6 +458,11 @@ export default function QuickLauncher() {
         "osteps:quick-launcher:favorites",
         JSON.stringify(favoriteIds)
       );
+      window.dispatchEvent(
+        new CustomEvent("osteps:quick-launcher:favorites-changed", {
+          detail: favoriteIds,
+        })
+      );
     } catch {
       // Ignore private browsing/localStorage failures.
     }
@@ -527,7 +532,7 @@ export default function QuickLauncher() {
       </button>
 
       {open ? (
-        <div className="fixed inset-0 z-[120] bg-[#3f3f4d]">
+        <div className="fixed inset-0 z-[1200] bg-[#3f3f4d]">
           <div className="flex h-full w-full flex-col overflow-hidden bg-[#3f3f4d] text-white">
             <header className="flex h-14 shrink-0 items-center justify-between bg-white px-5 text-[#3f3f4d] shadow-sm">
               <div className="flex min-w-0 items-center gap-4">

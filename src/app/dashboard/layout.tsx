@@ -13,11 +13,7 @@ import { IMPERSONATION_STORAGE_KEY, isImpersonating, logout, setCurrentUser } fr
 import { User } from "@/features/auth/types";
 
 const QuickLauncher = dynamic(() => import("@/components/ui/QuickLauncher"));
-const Sidebar = dynamic(() => import("@/components/ui/Sidebar"), {
-  loading: () => (
-    <aside className="h-screen w-20 border-r border-[var(--theme-border)] bg-white/70 md:w-64" />
-  ),
-});
+const FavoriteSidebar = dynamic(() => import("@/components/ui/FavoriteSidebar"));
 
 const THEME_STORAGE_KEY = "osteps-dashboard-theme";
 const THEMES = {
@@ -484,8 +480,9 @@ export default function DashboardLayout({
             </button>
           </div>
         )}
+        <FavoriteSidebar />
         <div
-          className="dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] px-3 pb-3 pt-[96px] md:px-6 md:pb-6 md:pt-[88px]"
+          className="dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] px-3 pb-3 pt-[96px] md:pb-6 md:pl-[110px] md:pr-6 md:pt-[88px]"
           style={impersonating ? { paddingTop: 136 } : undefined}
         >
           <div className="mx-auto max-w-7xl">
@@ -532,6 +529,7 @@ export default function DashboardLayout({
           </button>
         </div>
       )}
+      {!isImmersiveLessonGroupRoute ? <FavoriteSidebar /> : null}
       <div style={impersonating ? { paddingTop: 40 } : undefined}>
       {isStandaloneTeacherRoute ||
       isAllStudentsStandaloneRoute ||
@@ -550,7 +548,7 @@ export default function DashboardLayout({
       isAnnouncementsRoute ||
       isReportsRoute ||
       isSettingsRoute ? (
-        <div className="dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] px-3 pb-3 pt-[96px] md:px-6 md:pb-6 md:pt-[88px]">
+        <div className="dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] px-3 pb-3 pt-[96px] md:pb-6 md:pl-[110px] md:pr-6 md:pt-[88px]">
           <div className="mx-auto max-w-7xl">
             {renderDashboardTopBar({})}
             <div
@@ -570,8 +568,6 @@ export default function DashboardLayout({
           (isImmersiveLessonGroupRoute ? "bg-white" : "bg-[var(--theme-soft)] flex")
         }
       >
-        {!isImmersiveLessonGroupRoute && !isLibraryRoute ? <Sidebar /> : null}
-
         <div className={(isImmersiveLessonGroupRoute ? "min-h-screen" : "flex-1 h-screen overflow-y-auto") + " relative"}>
           {!isImmersiveLessonGroupRoute ? (
             <div
@@ -584,7 +580,7 @@ export default function DashboardLayout({
             className={
               isImmersiveLessonGroupRoute
                 ? "w-full"
-                : `mx-auto ${shouldApplyMaxWidth ? "max-w-7xl px-3 pb-3 pt-[96px] md:px-6 md:pb-6 md:pt-[88px]" : "pt-[96px] md:pt-[88px]"}`
+                : `mx-auto ${shouldApplyMaxWidth ? "max-w-7xl px-3 pb-3 pt-[96px] md:pb-6 md:pl-[110px] md:pr-6 md:pt-[88px]" : "pt-[96px] md:pl-[96px] md:pt-[88px]"}`
             }
           >
             {!isImmersiveLessonGroupRoute ? (
