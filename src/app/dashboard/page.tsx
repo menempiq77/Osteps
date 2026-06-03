@@ -1561,7 +1561,8 @@ export default function DashboardPage() {
     : null;
   const isYearInlinePanel = activeStat?.title === "Total Years";
   const isClassInlinePanel = activeStat?.title === "Total Classes" || activeStat?.title === "My Classes";
-  const isCompactInlinePanel = isYearInlinePanel || isClassInlinePanel;
+  const isTeacherInlinePanel = activeStat?.title === "Total Teachers";
+  const isCompactInlinePanel = isYearInlinePanel || isClassInlinePanel || isTeacherInlinePanel;
   const visibleActiveStatDetails = activeStatDetails.slice(0, STAT_DETAIL_LIMIT);
 
   const COLORS = [
@@ -1918,6 +1919,15 @@ export default function DashboardPage() {
                                 ) : null}
                               </div>
                             ) : isClassInlinePanel ? (
+                              <div className="flex min-w-0 items-center justify-between gap-3">
+                                <span className="truncate text-sm font-bold text-slate-800">{item.title}</span>
+                                {item.meta ? (
+                                  <span className="shrink-0 truncate text-sm font-semibold text-slate-500">
+                                    {item.meta}
+                                  </span>
+                                ) : null}
+                              </div>
+                            ) : isTeacherInlinePanel ? (
                               <div className="flex min-w-0 items-center justify-between gap-3">
                                 <span className="truncate text-sm font-bold text-slate-800">{item.title}</span>
                                 {item.meta ? (
