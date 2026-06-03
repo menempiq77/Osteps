@@ -1560,6 +1560,8 @@ export default function DashboardPage() {
     ? stats.find((stat) => stat.title === activeStatTitle) ?? null
     : null;
   const isYearInlinePanel = activeStat?.title === "Total Years";
+  const isClassInlinePanel = activeStat?.title === "Total Classes" || activeStat?.title === "My Classes";
+  const isCompactInlinePanel = isYearInlinePanel || isClassInlinePanel;
   const visibleActiveStatDetails = activeStatDetails.slice(0, STAT_DETAIL_LIMIT);
 
   const COLORS = [
@@ -1904,7 +1906,7 @@ export default function DashboardPage() {
                       </div>
                     ) : visibleActiveStatDetails.length > 0 ? (
                       <>
-                        <div className={isYearInlinePanel ? "grid gap-2" : "grid gap-2 sm:grid-cols-2 xl:grid-cols-3"}>
+                        <div className={isCompactInlinePanel ? "grid gap-2" : "grid gap-2 sm:grid-cols-2 xl:grid-cols-3"}>
                           {visibleActiveStatDetails.map((item) => {
                             const content = isYearInlinePanel ? (
                               <div className="flex min-w-0 items-center justify-between gap-3">
@@ -1912,6 +1914,15 @@ export default function DashboardPage() {
                                 {item.badge ? (
                                   <span className="shrink-0 text-sm font-semibold text-emerald-700">
                                     {item.badge}
+                                  </span>
+                                ) : null}
+                              </div>
+                            ) : isClassInlinePanel ? (
+                              <div className="flex min-w-0 items-center justify-between gap-3">
+                                <span className="truncate text-sm font-bold text-slate-800">{item.title}</span>
+                                {item.meta ? (
+                                  <span className="shrink-0 truncate text-sm font-semibold text-slate-500">
+                                    {item.meta}
                                   </span>
                                 ) : null}
                               </div>
@@ -1938,10 +1949,10 @@ export default function DashboardPage() {
                                 ) : null}
                               </>
                             );
-                            const detailCardClass = isYearInlinePanel
+                            const detailCardClass = isCompactInlinePanel
                               ? "group block rounded-xl border border-emerald-100 bg-white px-4 py-2.5 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50/40 hover:shadow-md"
                               : "group block rounded-2xl border border-slate-100 bg-gradient-to-br from-white to-slate-50 px-3.5 py-3 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md";
-                            const staticDetailCardClass = isYearInlinePanel
+                            const staticDetailCardClass = isCompactInlinePanel
                               ? "rounded-xl border border-emerald-100 bg-white px-4 py-2.5 shadow-sm"
                               : "rounded-2xl border border-slate-100 bg-gradient-to-br from-white to-slate-50 px-3.5 py-3 shadow-sm";
 
