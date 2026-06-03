@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector } from "react-redux";
 import { Empty, Modal, Input, Form, message } from "antd";
 import {
   BarChartOutlined,
@@ -12,31 +12,24 @@ import {
   CheckCircleFilled,
   DeleteOutlined,
   EditOutlined,
-  LogoutOutlined,
   NotificationOutlined,
   PlusOutlined,
   QuestionCircleOutlined,
   ReadOutlined,
   RocketOutlined,
   SearchOutlined,
-  SettingOutlined,
   SolutionOutlined,
   TableOutlined,
   TeamOutlined,
   ToolOutlined,
   TrophyOutlined,
 } from "@ant-design/icons";
-import { RootState, AppDispatch } from "@/store/store";
+import { RootState } from "@/store/store";
 import { useSubjectContext } from "@/contexts/SubjectContext";
-import { useRouter } from "next/navigation";
-import { logout } from "@/features/auth/authSlice";
 import { addSubject, updateSubject, deleteSubject } from "@/services/subjectsApi";
 
 const MyScheduleWidget = dynamic(() => import("@/components/dashboard/MyScheduleWidget"), {
   loading: () => <ScheduleWidgetSkeleton />,
-});
-const SubjectCardsHeroGpu = dynamic(() => import("@/components/dashboard/SubjectCardsHeroGpu"), {
-  ssr: false,
 });
 
 // ── Subject colour palette ────────────────────────────────────────────────────
@@ -109,17 +102,6 @@ const LINK_COLORS: Record<string, LinkColor> = {
 };
 const DEFAULT_LINK: LinkColor = { bg: "#f0fdf4", iconColor: "#38C16C", border: "#b9e2cd" };
 const lc = (name: string): LinkColor => LINK_COLORS[name] ?? DEFAULT_LINK;
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-const roleLabel = (role?: string) => {
-  const n = String(role || "").trim().toUpperCase();
-  if (n === "SCHOOL_ADMIN") return "School Admin";
-  if (n === "ADMIN") return "Platform Admin";
-  if (n === "HOD") return "HOD";
-  if (n === "TEACHER") return "Teacher";
-  if (n === "STUDENT") return "Student";
-  return "User";
-};
 
 const isSchoolAdminRole = (role?: string | null) =>
   String(role || "").trim().toUpperCase() === "SCHOOL_ADMIN";
@@ -197,8 +179,6 @@ function SubjectCardsSkeleton({ includeCreateCard }: { includeCreateCard: boolea
 
 export default function SubjectCardsPage() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
-  const dispatch = useDispatch<AppDispatch>();
-  const router = useRouter();
   const { subjects, loading, canUseSubjectContext, activeSubjectId, setActiveSubjectId, refreshSubjects } =
     useSubjectContext();
 
@@ -220,20 +200,9 @@ export default function SubjectCardsPage() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const deleteNameMatches = deleteTyped.trim().toLowerCase() === (deleteConfirmSubject?.name ?? "").trim().toLowerCase();
   const isStaffWorkspaceRole = ["ADMIN", "HOD", "TEACHER"].includes(role);
-  const showAccountInfoChips = ["TEACHER", "STUDENT", "HOD"].includes(role) || isSchoolAdmin;
-  const settingsHref =
-    role === "STUDENT" ? "/dashboard/students/settings"
-    : role === "TEACHER" ? "/dashboard/teachers/settings"
-    : "/dashboard/school-admin/settings";
-  const accountDisplayName = String(currentUser?.name || "User").trim() || "User";
   const leaderboardHref = activeSubjectId
     ? `/dashboard/s/${activeSubjectId}/leaderboard`
     : "/dashboard/leaderboard";
-
-  const handleLogout = () => {
-    dispatch(logout());
-    router.push("/");
-  };
 
   useEffect(() => {
     setSubjectColorMap(readSubjectColorMap());
@@ -322,13 +291,6 @@ export default function SubjectCardsPage() {
       return name.includes(normalizedSubjectSearch) || code.includes(normalizedSubjectSearch);
     });
   }, [normalizedSubjectSearch, subjects]);
-  const heroPalette = useMemo(() => {
-    const resolved = subjects.slice(0, 4).map((subject, index) =>
-      getSubjectPalette(subjectColorMap, subject.id, String(subject.name), index).gradFrom
-    );
-    return [...resolved, "#38C16C", "#0ea5e9", "#8b5cf6", "#f97316"].slice(0, 4);
-  }, [subjectColorMap, subjects]);
-
   if (!loading && (!canUseSubjectContext || !canEnterSubjectWorkspace)) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-8">
@@ -346,106 +308,8 @@ export default function SubjectCardsPage() {
     { name: "Leaderboard",    href: leaderboardHref,                            desc: "See how you rank against your classmates and the whole school.",   Icon: TrophyOutlined },
   ];
 
-  // ── Hero header ─────────────────────────────────────────────────────────────
-  const initials = accountDisplayName
-    .split(" ")
-    .slice(0, 2)
-    .map((w: string) => w[0]?.toUpperCase() ?? "")
-    .join("");
-
   return (
     <div className="space-y-6 pb-10">
-
-      {/* ── Hero ─────────────────────────────────────────────────────────── */}
-      <div
-        className="relative overflow-hidden rounded-3xl px-6 py-8 md:px-10 md:py-10"
-        style={{
-          background: "linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0a2318 100%)",
-        }}
-      >
-        <SubjectCardsHeroGpu colors={heroPalette} />
-
-        {/* decorative blobs */}
-        <div className="pointer-events-none absolute -top-10 -right-10 h-48 w-48 rounded-full opacity-10"
-             style={{ background: "radial-gradient(circle, #38C16C, transparent 70%)" }} />
-        <div className="pointer-events-none absolute bottom-0 left-20 h-32 w-32 rounded-full opacity-10"
-             style={{ background: "radial-gradient(circle, #38C16C, transparent 70%)" }} />
-
-        <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-          {/* left: avatar + info */}
-          <div className="flex items-center gap-5">
-            <div
-              className="flex-shrink-0 h-16 w-16 rounded-2xl flex items-center justify-center
-                         text-xl font-bold text-white shadow-lg"
-              style={{
-                background: "linear-gradient(135deg, #38C16C 0%, #16a34a 100%)",
-                boxShadow: "0 0 0 3px rgba(56,193,108,0.35)",
-              }}
-            >
-              {initials || "U"}
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-green-400 mb-1">
-                {roleLabel(currentUser?.role)} workspace
-              </p>
-              <h1 className="text-2xl font-bold text-white leading-tight">
-                Welcome back, {accountDisplayName.split(" ")[0]}
-              </h1>
-              {showAccountInfoChips && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <span
-                    className="inline-flex items-center gap-1.5 rounded-full px-3 py-1
-                               text-xs font-semibold text-green-300"
-                    style={{ background: "rgba(56,193,108,0.15)", border: "1px solid rgba(56,193,108,0.3)" }}
-                  >
-                    {roleLabel(currentUser?.role)}
-                  </span>
-                  <span
-                    className="inline-flex items-center gap-1.5 rounded-full px-3 py-1
-                               text-xs font-medium text-slate-300"
-                    style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)" }}
-                  >
-                    {accountDisplayName}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* right: settings + sign out */}
-          <div className="flex-shrink-0 flex items-center gap-2">
-            <Link href={settingsHref}>
-              <button
-                className="flex items-center justify-center h-10 w-10 rounded-xl text-white
-                           transition-all duration-200 hover:scale-105 active:scale-95"
-                style={{
-                  background: "rgba(255,255,255,0.10)",
-                  border: "1px solid rgba(255,255,255,0.18)",
-                }}
-                onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.20)")}
-                onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,255,255,0.10)")}
-              >
-                <SettingOutlined />
-              </button>
-            </Link>
-            <button
-              onClick={handleLogout}
-              className="flex-shrink-0 flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm
-                         font-semibold text-white transition-all duration-200 hover:scale-105 active:scale-95"
-              style={{
-                background: "rgba(239,68,68,0.15)",
-                border: "1px solid rgba(239,68,68,0.35)",
-              }}
-              onMouseEnter={e => (e.currentTarget.style.background = "rgba(239,68,68,0.28)")}
-              onMouseLeave={e => (e.currentTarget.style.background = "rgba(239,68,68,0.15)")}
-            >
-              <LogoutOutlined />
-              Sign Out
-            </button>
-          </div>
-        </div>
-      </div>
-
       {/* ── My Schedule ─────────────────────────────────────────────────── */}
       <div>
         <div className="flex items-center gap-3 mb-4">

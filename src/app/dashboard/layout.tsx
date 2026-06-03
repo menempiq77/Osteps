@@ -326,7 +326,6 @@ export default function DashboardLayout({
       .map((part) => part.charAt(0).toUpperCase())
       .join("") || "O";
   const userFirstName = userDisplayName.trim().split(/\s+/)[0] || "there";
-  const currentDashboardTitle = breadcrumbItems[breadcrumbItems.length - 1]?.label || "Dashboard";
   const normalizedRole = String(currentUser?.role || "").trim().toUpperCase();
   const workspaceLabel = `${userRoleLabel} Workspace`.toUpperCase();
   const settingsHref =
@@ -418,94 +417,57 @@ export default function DashboardLayout({
   );
 
   const renderDashboardTopBar = ({
-    title,
-    showBreadcrumb = false,
     showSubjectSwitcher = false,
   }: {
-    title: string;
-    showBreadcrumb?: boolean;
     showSubjectSwitcher?: boolean;
   }) => {
-    const visibleBreadcrumbs = showBreadcrumb ? breadcrumbItems : [];
-
     return (
       <div
-        className="relative z-20 mb-4 overflow-hidden rounded-[28px] border border-white/10 px-4 py-4 text-white shadow-[0_22px_55px_rgba(15,23,42,0.18)] md:px-5"
+        className="fixed left-0 right-0 top-0 z-[900] overflow-hidden border-b border-white/10 px-3 py-2 text-white shadow-[0_18px_42px_rgba(15,23,42,0.22)] md:px-5"
         style={{
           background:
             "linear-gradient(135deg, #2c211c 0%, #18343b 28%, #33406b 56%, #3b2735 100%)",
         }}
       >
-        <div className="pointer-events-none absolute -left-10 -top-16 h-44 w-44 rounded-full bg-[#38C16C]/20 blur-3xl" />
-        <div className="pointer-events-none absolute left-1/2 top-4 h-12 w-56 -translate-x-1/2 rounded-full bg-amber-500/10 blur-xl" />
-        <div className="pointer-events-none absolute -right-12 bottom-2 h-40 w-40 rounded-full bg-red-500/10 blur-3xl" />
-        <div className="flex flex-col gap-3 px-3 py-3 md:px-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="relative flex min-w-0 flex-1 items-center gap-4">
+        <div className="pointer-events-none absolute -left-10 -top-16 h-36 w-36 rounded-full bg-[#38C16C]/20 blur-3xl" />
+        <div className="pointer-events-none absolute left-1/2 top-2 h-10 w-56 -translate-x-1/2 rounded-full bg-amber-500/10 blur-xl" />
+        <div className="pointer-events-none absolute -right-12 bottom-0 h-32 w-32 rounded-full bg-red-500/10 blur-3xl" />
+        <div className="relative flex min-h-[82px] w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
             <div className="flex shrink-0 items-center gap-3">
               <QuickLauncher />
-              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-3xl bg-[#38C16C] text-xl font-black text-white shadow-[0_0_0_5px_rgba(56,193,108,0.25)] sm:h-20 sm:w-20 sm:text-2xl">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#38C16C] text-lg font-black text-white shadow-[0_0_0_4px_rgba(56,193,108,0.25)] sm:h-16 sm:w-16 sm:text-xl">
                 {userInitials}
               </div>
             </div>
             <div className="min-w-0">
-              <p className="mb-1 text-[11px] font-black uppercase tracking-[0.2em] text-green-300 md:text-sm">
+              <p className="mb-0.5 text-[10px] font-black uppercase tracking-[0.2em] text-green-300 md:text-xs">
                 {workspaceLabel}
               </p>
-              <h1 className="truncate text-2xl font-black leading-tight text-white md:text-3xl">
+              <h1 className="truncate text-xl font-black leading-tight text-white md:text-2xl">
                 Welcome back, {userFirstName}
               </h1>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <span className="rounded-full border border-[#38C16C]/30 bg-[#38C16C]/15 px-3 py-1 text-xs font-black text-green-300">
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-[#38C16C]/30 bg-[#38C16C]/15 px-2.5 py-0.5 text-[11px] font-black text-green-300">
                   {userRoleLabel}
                 </span>
-                <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold text-slate-200">
+                <span className="rounded-full border border-white/15 bg-white/10 px-2.5 py-0.5 text-[11px] font-semibold text-slate-200">
                   {userDisplayName || "Osteps User"}
                 </span>
-                {title ? (
-                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-slate-300">
-                    {title}
-                  </span>
-                ) : null}
               </div>
             </div>
           </div>
 
-          <div className="relative flex flex-col gap-2 lg:items-end">
-            <div className="flex flex-wrap items-center justify-start gap-2 lg:justify-end">
+          <div className="flex flex-wrap items-center justify-start gap-2 sm:justify-end">
+            <div className="hidden items-center gap-2 xl:flex">
               {renderUserSummary()}
-              {showSubjectSwitcher ? <SubjectSwitcher /> : null}
-              {renderThemeSwitcher()}
-              {renderAccountActions()}
             </div>
+            {showSubjectSwitcher ? <SubjectSwitcher /> : null}
+            {renderThemeSwitcher()}
             {renderNavigationButtons()}
+            {renderAccountActions()}
           </div>
         </div>
-        {visibleBreadcrumbs.length > 0 ? (
-          <div className="relative border-t border-white/10 bg-white/5 px-3 py-2 md:px-4">
-            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-300">
-              {visibleBreadcrumbs.map((item, index) => {
-                const isLast = index === visibleBreadcrumbs.length - 1;
-                return (
-                  <div key={item.href} className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => router.push(item.href)}
-                      disabled={isLast}
-                      className={`transition-colors ${
-                        isLast
-                          ? "cursor-default font-bold text-white"
-                          : "font-semibold text-slate-300 hover:text-green-300"
-                      }`}
-                    >
-                      {item.label}
-                    </button>
-                    {!isLast && <span className="text-white/25">/</span>}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ) : null}
       </div>
     );
   };
@@ -530,13 +492,11 @@ export default function DashboardLayout({
           </div>
         )}
         <div
-          className="dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] p-3 md:p-6"
-          style={impersonating ? { paddingTop: 56 } : undefined}
+          className="dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] px-3 pb-3 pt-[112px] md:px-6 md:pb-6 md:pt-[104px]"
+          style={impersonating ? { paddingTop: 152 } : undefined}
         >
           <div className="mx-auto max-w-7xl">
-            {renderDashboardTopBar({
-              title: "Dashboard Home",
-            })}
+            {renderDashboardTopBar({})}
             {children}
           </div>
         </div>
@@ -597,11 +557,9 @@ export default function DashboardLayout({
       isAnnouncementsRoute ||
       isReportsRoute ||
       isSettingsRoute ? (
-        <div className="dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] p-3 md:p-6">
+        <div className="dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] px-3 pb-3 pt-[112px] md:px-6 md:pb-6 md:pt-[104px]">
           <div className="mx-auto max-w-7xl">
-            {renderDashboardTopBar({
-              title: currentDashboardTitle,
-            })}
+            {renderDashboardTopBar({})}
             <div
               key={pathname}
               className={`dashboard-route-transition ${
@@ -633,13 +591,11 @@ export default function DashboardLayout({
             className={
               isImmersiveLessonGroupRoute
                 ? "w-full"
-                : `mx-auto ${shouldApplyMaxWidth ? "max-w-7xl p-3 md:p-6" : ""}`
+                : `mx-auto ${shouldApplyMaxWidth ? "max-w-7xl px-3 pb-3 pt-[112px] md:px-6 md:pb-6 md:pt-[104px]" : "pt-[112px] md:pt-[104px]"}`
             }
           >
             {!isImmersiveLessonGroupRoute ? (
               renderDashboardTopBar({
-                title: currentDashboardTitle,
-                showBreadcrumb: true,
                 showSubjectSwitcher: !isLibraryRoute,
               })
             ) : null}
