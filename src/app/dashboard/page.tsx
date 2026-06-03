@@ -152,6 +152,10 @@ type StatDetailItem = {
   href?: string;
   classId?: string;
   subjectClassId?: string;
+  yearLabel?: string;
+  classLabel?: string;
+  subjectLabel?: string;
+  gender?: string;
 };
 
 const STAT_DETAIL_LIMIT = 12;
@@ -806,7 +810,44 @@ export default function DashboardPage() {
                   isSubjectWorkspaceMode ? subjectId : undefined,
                   isSubjectWorkspaceMode ? item.subjectClassId || item.key : undefined
                 );
-                return (Array.isArray(rows) ? rows : []).map((student: any) => ({ student, classItem: item }));
+                const rawRows = Array.isArray(rows) ? rows : [];
+
+                if (!isSubjectWorkspaceMode) {
+                  return rawRows.map((student: any) => ({ student, classItem: item }));
+                }
+
+                const subjectClassId = item.subjectClassId || item.key;
+                const inScopeRows = filterStudentsBySubjectScope(rawRows, {
+                  subjectId,
+                  subjectName: activeSubject?.name,
+                  subjectClassId,
+                });
+                const hintBucket = readSubjectStudentHints(
+                  makeSubjectHintScopeKey(subjectId, subjectClassId)
+                );
+                const hintedRows = rawRows.filter((student: any) => {
+                  if (
+                    studentMatchesSubjectScope(student, {
+                      subjectId,
+                      subjectName: activeSubject?.name,
+                      subjectClassId,
+                    })
+                  ) {
+                    return false;
+                  }
+
+                  const scopedIds = extractStudentSubjectClassIds(student);
+                  if (scopedIds.length > 0) return false;
+                  return matchesSubjectStudentHint(student, hintBucket);
+                });
+                const scopedRows = [...inScopeRows, ...hintedRows];
+                const finalRows = scopedRows.length > 0
+                  ? scopedRows
+                  : rawRows.some((student: any) => hasAnySubjectMarkers(student))
+                    ? []
+                    : rawRows;
+
+                return finalRows.map((student: any) => ({ student, classItem: item }));
               } catch {
                 return [] as Array<{ student: any; classItem: StatDetailItem }>;
               }
@@ -815,15 +856,48 @@ export default function DashboardPage() {
         ).flat();
 
         return uniqueDetailItems(
-          studentRows.map(({ student, classItem }, index) => ({
-            key: String(student?.id ?? student?.student_id ?? `${classItem.key}-${index}`),
-            title: cleanDashboardLabel(student?.student_name ?? student?.name ?? student?.user?.name, `Student ${index + 1}`),
-            meta: classItem.title,
-            badge: student?.status ? cleanDashboardLabel(student.status) : undefined,
-            href: student?.id || student?.student_id
-              ? `/dashboard/students/all-students/profile/${student?.id ?? student?.student_id}`
-              : classItem.href,
-          }))
+          studentRows.map(({ student, classItem }, index) => {
+            const subjectNames = Array.isArray(student?.subjects)
+              ? student.subjects
+                  .map((subject: any) => cleanDashboardLabel(subject?.name ?? subject?.subject_name ?? subject, ""))
+                  .filter(Boolean)
+                  .join(", ")
+              : "";
+            const subjectLabel = isSubjectWorkspaceMode
+              ? formatSubjectDashboardName(activeSubject?.name)
+              : cleanDashboardLabel(student?.subject_name ?? student?.subject?.name ?? subjectNames, "");
+            const classLabel = cleanDashboardLabel(
+              student?.class?.class_name ??
+                student?.class?.name ??
+                student?.class_name ??
+                classItem.title,
+              classItem.title
+            );
+            const yearLabel = cleanDashboardLabel(
+              student?.year?.name ??
+                student?.year_name ??
+                student?.year_group ??
+                student?.class?.year?.name ??
+                classItem.yearLabel ??
+                classItem.meta,
+              ""
+            );
+            const gender = cleanDashboardLabel(student?.gender ?? student?.student_gender, "");
+
+            return {
+              key: String(student?.id ?? student?.student_id ?? `${classItem.key}-${index}`),
+              title: cleanDashboardLabel(student?.student_name ?? student?.name ?? student?.user?.name, `Student ${index + 1}`),
+              meta: classLabel,
+              badge: student?.status ? cleanDashboardLabel(student.status) : undefined,
+              href: student?.id || student?.student_id
+                ? `/dashboard/students/all-students/profile/${student?.id ?? student?.student_id}`
+                : classItem.href,
+              yearLabel,
+              classLabel,
+              subjectLabel,
+              gender,
+            };
+          })
         );
       };
 
@@ -1563,7 +1637,7 @@ export default function DashboardPage() {
   const isClassInlinePanel = activeStat?.title === "Total Classes" || activeStat?.title === "My Classes";
   const isTeacherInlinePanel = activeStat?.title === "Total Teachers";
   const isStudentInlinePanel = activeStat?.title === "Total Students";
-  const isCompactInlinePanel = isYearInlinePanel || isClassInlinePanel || isTeacherInlinePanel || isStudentInlinePanel;
+  const isCompactInlinePanel = isYearInlinePanel || isClassInlinePanel || isTeacherInlinePanel;
   const visibleActiveStatDetails = activeStatDetails.slice(0, STAT_DETAIL_LIMIT);
 
   const COLORS = [
@@ -1908,92 +1982,168 @@ export default function DashboardPage() {
                       </div>
                     ) : visibleActiveStatDetails.length > 0 ? (
                       <>
-                        <div className={isCompactInlinePanel ? "grid gap-2" : "grid gap-2 sm:grid-cols-2 xl:grid-cols-3"}>
-                          {visibleActiveStatDetails.map((item) => {
-                            const content = isYearInlinePanel ? (
-                              <div className="flex min-w-0 items-center justify-between gap-3">
-                                <span className="truncate text-sm font-bold text-slate-800">{item.title}</span>
-                                {item.badge ? (
-                                  <span className="shrink-0 text-sm font-semibold text-emerald-700">
-                                    {item.badge}
-                                  </span>
-                                ) : null}
-                              </div>
-                            ) : isClassInlinePanel ? (
-                              <div className="flex min-w-0 items-center justify-between gap-3">
-                                <span className="truncate text-sm font-bold text-slate-800">{item.title}</span>
-                                {item.meta ? (
-                                  <span className="shrink-0 truncate text-sm font-semibold text-slate-500">
-                                    {item.meta}
-                                  </span>
-                                ) : null}
-                              </div>
-                            ) : isTeacherInlinePanel ? (
-                              <div className="flex min-w-0 items-center justify-between gap-3">
-                                <span className="truncate text-sm font-bold text-slate-800">{item.title}</span>
-                                {item.meta ? (
-                                  <span className="shrink-0 truncate text-sm font-semibold text-slate-500">
-                                    {item.meta}
-                                  </span>
-                                ) : null}
-                              </div>
-                            ) : isStudentInlinePanel ? (
-                              <div className="flex min-w-0 items-center justify-between gap-3">
-                                <span className="truncate text-sm font-bold text-slate-800">{item.title}</span>
-                                {item.meta ? (
-                                  <span className="shrink-0 truncate text-sm font-semibold text-slate-500">
-                                    {item.meta}
-                                  </span>
-                                ) : null}
-                              </div>
-                            ) : (
-                              <>
-                                <div className="flex items-start justify-between gap-3">
-                                  <div className="min-w-0">
-                                    <p className="truncate text-sm font-bold text-slate-800">{item.title}</p>
-                                    {item.meta ? (
-                                      <p className="mt-1 truncate text-xs text-slate-500">{item.meta}</p>
-                                    ) : null}
-                                  </div>
+                        {isStudentInlinePanel ? (
+                          <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+                            <div className="overflow-x-auto">
+                              <table className="min-w-full border-collapse text-left text-sm">
+                                <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                  <tr>
+                                    <th className="px-4 py-3">Student Name</th>
+                                    <th className="px-4 py-3">Year Group</th>
+                                    <th className="px-4 py-3">Class</th>
+                                    <th className="px-4 py-3">Subjects</th>
+                                    <th className="px-4 py-3">Gender</th>
+                                    <th className="px-4 py-3">Action</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                  {visibleActiveStatDetails.map((item) => {
+                                    const gender = String(item.gender || "").toLowerCase();
+                                    const genderClass = gender.includes("female")
+                                      ? "border-pink-200 bg-pink-50 text-pink-600"
+                                      : gender.includes("male")
+                                        ? "border-blue-200 bg-blue-50 text-blue-600"
+                                        : "border-slate-200 bg-slate-50 text-slate-500";
+
+                                    return (
+                                      <tr key={item.key} className="transition hover:bg-emerald-50/30">
+                                        <td className="whitespace-nowrap px-4 py-3 font-semibold text-emerald-700">
+                                          {item.title}
+                                        </td>
+                                        <td className="px-4 py-3 text-slate-600">
+                                          {item.yearLabel ? (
+                                            <span className="inline-flex rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600">
+                                              {item.yearLabel}
+                                            </span>
+                                          ) : (
+                                            <span className="text-slate-400">-</span>
+                                          )}
+                                        </td>
+                                        <td className="px-4 py-3 text-slate-600">
+                                          {item.classLabel || item.meta ? (
+                                            <span className="inline-flex rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600">
+                                              {item.classLabel || item.meta}
+                                            </span>
+                                          ) : (
+                                            <span className="text-slate-400">-</span>
+                                          )}
+                                        </td>
+                                        <td className="px-4 py-3 text-slate-600">
+                                          {item.subjectLabel ? (
+                                            <span className="inline-flex rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600">
+                                              {item.subjectLabel}
+                                            </span>
+                                          ) : (
+                                            <span className="text-slate-400">-</span>
+                                          )}
+                                        </td>
+                                        <td className="px-4 py-3 text-slate-600">
+                                          {item.gender ? (
+                                            <span className={`inline-flex rounded-md border px-2 py-1 text-xs font-medium ${genderClass}`}>
+                                              {item.gender}
+                                            </span>
+                                          ) : (
+                                            <span className="text-slate-400">-</span>
+                                          )}
+                                        </td>
+                                        <td className="whitespace-nowrap px-4 py-3">
+                                          {item.href ? (
+                                            <Link
+                                              href={item.href}
+                                              className="inline-flex rounded-md bg-amber-500 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-amber-600"
+                                            >
+                                              View
+                                            </Link>
+                                          ) : (
+                                            <span className="text-xs font-medium text-slate-400">No action</span>
+                                          )}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className={isCompactInlinePanel ? "grid gap-2" : "grid gap-2 sm:grid-cols-2 xl:grid-cols-3"}>
+                            {visibleActiveStatDetails.map((item) => {
+                              const content = isYearInlinePanel ? (
+                                <div className="flex min-w-0 items-center justify-between gap-3">
+                                  <span className="truncate text-sm font-bold text-slate-800">{item.title}</span>
                                   {item.badge ? (
-                                    <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                                    <span className="shrink-0 text-sm font-semibold text-emerald-700">
                                       {item.badge}
                                     </span>
                                   ) : null}
                                 </div>
-                                {item.href ? (
-                                  <div className="mt-3 flex items-center gap-1 text-xs font-bold text-emerald-700">
-                                    <span>Open</span>
-                                    <ChevronRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
+                              ) : isClassInlinePanel ? (
+                                <div className="flex min-w-0 items-center justify-between gap-3">
+                                  <span className="truncate text-sm font-bold text-slate-800">{item.title}</span>
+                                  {item.meta ? (
+                                    <span className="shrink-0 truncate text-sm font-semibold text-slate-500">
+                                      {item.meta}
+                                    </span>
+                                  ) : null}
+                                </div>
+                              ) : isTeacherInlinePanel ? (
+                                <div className="flex min-w-0 items-center justify-between gap-3">
+                                  <span className="truncate text-sm font-bold text-slate-800">{item.title}</span>
+                                  {item.meta ? (
+                                    <span className="shrink-0 truncate text-sm font-semibold text-slate-500">
+                                      {item.meta}
+                                    </span>
+                                  ) : null}
+                                </div>
+                              ) : (
+                                <>
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                      <p className="truncate text-sm font-bold text-slate-800">{item.title}</p>
+                                      {item.meta ? (
+                                        <p className="mt-1 truncate text-xs text-slate-500">{item.meta}</p>
+                                      ) : null}
+                                    </div>
+                                    {item.badge ? (
+                                      <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                                        {item.badge}
+                                      </span>
+                                    ) : null}
                                   </div>
-                                ) : null}
-                              </>
-                            );
-                            const detailCardClass = isCompactInlinePanel
-                              ? "group block rounded-xl border border-emerald-100 bg-white px-4 py-2.5 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50/40 hover:shadow-md"
-                              : "group block rounded-2xl border border-slate-100 bg-gradient-to-br from-white to-slate-50 px-3.5 py-3 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md";
-                            const staticDetailCardClass = isCompactInlinePanel
-                              ? "rounded-xl border border-emerald-100 bg-white px-4 py-2.5 shadow-sm"
-                              : "rounded-2xl border border-slate-100 bg-gradient-to-br from-white to-slate-50 px-3.5 py-3 shadow-sm";
+                                  {item.href ? (
+                                    <div className="mt-3 flex items-center gap-1 text-xs font-bold text-emerald-700">
+                                      <span>Open</span>
+                                      <ChevronRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
+                                    </div>
+                                  ) : null}
+                                </>
+                              );
+                              const detailCardClass = isCompactInlinePanel
+                                ? "group block rounded-xl border border-emerald-100 bg-white px-4 py-2.5 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50/40 hover:shadow-md"
+                                : "group block rounded-2xl border border-slate-100 bg-gradient-to-br from-white to-slate-50 px-3.5 py-3 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md";
+                              const staticDetailCardClass = isCompactInlinePanel
+                                ? "rounded-xl border border-emerald-100 bg-white px-4 py-2.5 shadow-sm"
+                                : "rounded-2xl border border-slate-100 bg-gradient-to-br from-white to-slate-50 px-3.5 py-3 shadow-sm";
 
-                            return item.href ? (
-                              <Link
-                                key={item.key}
-                                href={item.href}
-                                className={detailCardClass}
-                              >
-                                {content}
-                              </Link>
-                            ) : (
-                              <div
-                                key={item.key}
-                                className={staticDetailCardClass}
-                              >
-                                {content}
-                              </div>
-                            );
-                          })}
-                        </div>
+                              return item.href ? (
+                                <Link
+                                  key={item.key}
+                                  href={item.href}
+                                  className={detailCardClass}
+                                >
+                                  {content}
+                                </Link>
+                              ) : (
+                                <div
+                                  key={item.key}
+                                  className={staticDetailCardClass}
+                                >
+                                  {content}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                         {activeStatDetails.length > STAT_DETAIL_LIMIT ? (
                           <p className="mt-3 text-xs font-medium text-slate-500">
                             Showing first {STAT_DETAIL_LIMIT} of {activeStatDetails.length} records.
