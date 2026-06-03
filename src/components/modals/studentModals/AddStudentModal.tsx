@@ -50,6 +50,33 @@ const resolveExistingStudentYearName = (student: ExistingStudentOption) => {
   return match?.[0]?.trim() || "";
 };
 
+const getExistingStudentDetailParts = (student: ExistingStudentOption) => {
+  const yearName = resolveExistingStudentYearName(student);
+  return [
+    student.className,
+    yearName,
+    student.subjects?.length ? student.subjects.join(", ") : "",
+    student.userName ? `@${student.userName}` : "",
+    student.email,
+  ].filter(Boolean) as string[];
+};
+
+const getExistingStudentDetailText = (student: ExistingStudentOption) =>
+  getExistingStudentDetailParts(student).join(" • ");
+
+const getExistingStudentSearchText = (student: ExistingStudentOption) =>
+  [
+    student.name,
+    student.userName,
+    student.email,
+    student.className,
+    resolveExistingStudentYearName(student),
+    ...(student.subjects || []),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
 const makeExistingFilterOptions = (values: unknown[]) => {
   const byKey = new Map<string, string>();
 
@@ -107,34 +134,29 @@ export const AddStudentModal = ({
   const canUseExistingMode = canAssignExisting && typeof onAssignExisting === "function";
   const [mode, setMode] = useState<"existing" | "new">("new");
   const [selectedExistingStudentIds, setSelectedExistingStudentIds] = useState<string[]>([]);
+  const [existingStudentSearch, setExistingStudentSearch] = useState("");
   const [existingFilters, setExistingFilters] = useState<ExistingStudentFilterState>({
     ...EMPTY_EXISTING_STUDENT_FILTERS,
   });
   const existingStudentOptions = useMemo(
     () =>
       existingStudents.map((student) => {
-        const yearName = resolveExistingStudentYearName(student);
-        const detailParts = [
-          student.className,
-          yearName,
-          student.subjects?.length ? student.subjects.join(", ") : "",
-          student.userName ? `@${student.userName}` : "",
-          student.email,
-        ].filter(Boolean);
+        const detailParts = getExistingStudentDetailParts(student);
         const label = detailParts.length > 0 ? `${student.name} — ${detailParts.join(" • ")}` : student.name;
         return {
           value: String(student.id),
           label,
-          searchText: [student.name, student.userName, student.email, student.className, yearName, ...(student.subjects || [])]
-            .filter(Boolean)
-            .join(" ")
-            .toLowerCase(),
+          searchText: getExistingStudentSearchText(student),
         };
       }),
     [existingStudents]
   );
-  const existingStudentOptionById = useMemo(
-    () => new Map(existingStudentOptions.map((option) => [option.value, option])),
+  const existingStudentById = useMemo(
+    () => new Map(existingStudents.map((student) => [String(student.id), student])),
+    [existingStudents]
+  );
+  const existingStudentSearchTextById = useMemo(
+    () => new Map(existingStudentOptions.map((option) => [option.value, option.searchText])),
     [existingStudentOptions]
   );
   const existingSubjectFilterOptions = useMemo(
@@ -167,23 +189,29 @@ export const AddStudentModal = ({
     () => existingStudents.filter((student) => existingStudentMatchesFilters(student, existingFilters)),
     [existingStudents, existingFilters]
   );
-  const filteredExistingStudentIds = useMemo(
-    () => filteredExistingStudents.map((student) => String(student.id)),
-    [filteredExistingStudents]
-  );
-  const filteredExistingStudentOptions = useMemo(() => {
-    const filteredIds = new Set(filteredExistingStudentIds);
-    return existingStudentOptions.filter((option) => filteredIds.has(option.value));
-  }, [existingStudentOptions, filteredExistingStudentIds]);
-  const displayedExistingStudentOptions = useMemo(() => {
-    const visibleValues = new Set(filteredExistingStudentOptions.map((option) => option.value));
-    const selectedHiddenOptions = selectedExistingStudentIds
-      .filter((id) => !visibleValues.has(id))
-      .map((id) => existingStudentOptionById.get(id))
-      .filter((option): option is NonNullable<typeof option> => Boolean(option));
+  const visibleExistingStudents = useMemo(() => {
+    const search = normalizeExistingFilterValue(existingStudentSearch);
+    if (!search) return filteredExistingStudents;
 
-    return [...selectedHiddenOptions, ...filteredExistingStudentOptions];
-  }, [existingStudentOptionById, filteredExistingStudentOptions, selectedExistingStudentIds]);
+    return filteredExistingStudents.filter((student) =>
+      String(existingStudentSearchTextById.get(String(student.id)) || "").includes(search)
+    );
+  }, [existingStudentSearch, existingStudentSearchTextById, filteredExistingStudents]);
+  const visibleExistingStudentIds = useMemo(
+    () => visibleExistingStudents.map((student) => String(student.id)),
+    [visibleExistingStudents]
+  );
+  const selectedExistingStudents = useMemo(
+    () =>
+      selectedExistingStudentIds
+        .map((id) => existingStudentById.get(id))
+        .filter((student): student is ExistingStudentOption => Boolean(student)),
+    [existingStudentById, selectedExistingStudentIds]
+  );
+  const selectedExistingStudentIdSet = useMemo(
+    () => new Set(selectedExistingStudentIds),
+    [selectedExistingStudentIds]
+  );
   const hasExistingFilters = Boolean(
     existingFilters.subject || existingFilters.year || existingFilters.className
   );
@@ -192,14 +220,27 @@ export const AddStudentModal = ({
     if (!open) return;
     setMode(canUseExistingMode ? "existing" : "new");
     setSelectedExistingStudentIds([]);
+    setExistingStudentSearch("");
     setExistingFilters({ ...EMPTY_EXISTING_STUDENT_FILTERS });
   }, [open, canUseExistingMode]);
 
   const selectAllFilteredExistingStudents = () => {
-    if (filteredExistingStudentIds.length === 0) return;
+    if (visibleExistingStudentIds.length === 0) return;
     setSelectedExistingStudentIds((current) =>
-      Array.from(new Set([...current, ...filteredExistingStudentIds]))
+      Array.from(new Set([...current, ...visibleExistingStudentIds]))
     );
+  };
+
+  const toggleExistingStudentSelection = (studentId: string) => {
+    setSelectedExistingStudentIds((current) =>
+      current.includes(studentId)
+        ? current.filter((id) => id !== studentId)
+        : [...current, studentId]
+    );
+  };
+
+  const removeExistingStudentSelection = (studentId: string) => {
+    setSelectedExistingStudentIds((current) => current.filter((id) => id !== studentId));
   };
 
   const handleSubmit = async () => {
@@ -250,6 +291,7 @@ export const AddStudentModal = ({
 
   const handleCancel = () => {
     setSelectedExistingStudentIds([]);
+    setExistingStudentSearch("");
     setExistingFilters({ ...EMPTY_EXISTING_STUDENT_FILTERS });
     onCancel();
   };
@@ -385,7 +427,7 @@ export const AddStudentModal = ({
             <Button
               size="small"
               onClick={selectAllFilteredExistingStudents}
-              disabled={existingStudentsLoading || filteredExistingStudentIds.length === 0}
+              disabled={existingStudentsLoading || visibleExistingStudentIds.length === 0}
             >
               Select all shown
             </Button>
@@ -413,38 +455,121 @@ export const AddStudentModal = ({
             <label className="mb-1 block text-sm font-medium text-slate-700">
               Existing students
             </label>
-            <Select
-              mode="multiple"
-              showSearch
-              allowClear
-              value={selectedExistingStudentIds}
-              onChange={(values) => setSelectedExistingStudentIds(values.map(String))}
-              options={displayedExistingStudentOptions}
-              loading={existingStudentsLoading}
-              disabled={existingStudentsLoading}
-              placeholder={
-                existingStudentsLoading
-                  ? "Loading existing students..."
-                  : filteredExistingStudentOptions.length > 0
-                    ? "Search and choose students"
-                    : hasExistingFilters
-                      ? "No students match these filters"
-                      : "No unassigned existing students found"
-              }
-              filterOption={(input, option) =>
-                String((option as any)?.searchText ?? option?.label ?? "")
-                  .toLowerCase()
-                  .includes(input.toLowerCase())
-              }
-              className="w-full"
-              maxTagCount="responsive"
-              notFoundContent={existingStudentsLoading ? <Spin size="small" /> : "No students found"}
-            />
+            <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="text-sm font-semibold text-slate-700">
+                  Selected students
+                  <span className="ml-2 rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">
+                    {selectedExistingStudentIds.length}
+                  </span>
+                </div>
+                <Button
+                  size="small"
+                  onClick={() => setSelectedExistingStudentIds([])}
+                  disabled={selectedExistingStudentIds.length === 0}
+                >
+                  Remove all
+                </Button>
+              </div>
+
+              {selectedExistingStudents.length > 0 ? (
+                <div className="mt-2 flex max-h-32 flex-wrap gap-2 overflow-y-auto pr-1">
+                  {selectedExistingStudents.map((student) => (
+                    <div
+                      key={String(student.id)}
+                      className="flex max-w-full items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm text-emerald-900"
+                    >
+                      <span className="truncate font-medium">{student.name}</span>
+                      <span className="hidden max-w-[260px] truncate text-xs text-emerald-700 md:inline">
+                        {getExistingStudentDetailText(student)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeExistingStudentSelection(String(student.id))}
+                        className="ml-1 rounded-full px-1 text-base leading-none text-emerald-700 hover:bg-emerald-100 hover:text-emerald-950"
+                        aria-label={`Remove ${student.name}`}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-2 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-500">
+                  No students selected yet. Tick students from the list below.
+                </div>
+              )}
+            </div>
+
+            <div className="mt-3">
+              <Input
+                value={existingStudentSearch}
+                onChange={(event) => setExistingStudentSearch(event.target.value)}
+                allowClear
+                placeholder="Search by student name, username, class, year, or subject"
+                disabled={existingStudentsLoading}
+              />
+            </div>
+
+            <div className="mt-2 max-h-64 overflow-y-auto rounded-2xl border border-slate-200 bg-white">
+              {existingStudentsLoading ? (
+                <div className="flex items-center justify-center gap-2 px-3 py-8 text-sm text-slate-500">
+                  <Spin size="small" />
+                  Loading existing students...
+                </div>
+              ) : visibleExistingStudents.length > 0 ? (
+                <div className="divide-y divide-slate-100">
+                  {visibleExistingStudents.map((student) => {
+                    const studentId = String(student.id);
+                    const isSelected = selectedExistingStudentIdSet.has(studentId);
+                    const details = getExistingStudentDetailText(student);
+
+                    return (
+                      <button
+                        key={studentId}
+                        type="button"
+                        onClick={() => toggleExistingStudentSelection(studentId)}
+                        className={`flex w-full items-start gap-3 px-3 py-2.5 text-left transition ${
+                          isSelected ? "bg-emerald-50" : "bg-white hover:bg-slate-50"
+                        }`}
+                      >
+                        <Checkbox
+                          checked={isSelected}
+                          onClick={(event) => event.stopPropagation()}
+                          onChange={() => toggleExistingStudentSelection(studentId)}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-semibold text-slate-900">{student.name}</span>
+                            {isSelected && (
+                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                                Selected
+                              </span>
+                            )}
+                          </div>
+                          {details && (
+                            <div className="mt-0.5 text-xs text-slate-500">
+                              {details}
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="px-3 py-8 text-center text-sm text-slate-500">
+                  {hasExistingFilters || existingStudentSearch
+                    ? "No students match these filters."
+                    : "No unassigned existing students found."}
+                </div>
+              )}
+            </div>
           </div>
           <div className="text-xs text-slate-500">
             {existingStudentsLoading
               ? "Checking students from all classes and subject assignments..."
-              : `${filteredExistingStudentOptions.length} shown of ${existingStudentOptions.length} available student${existingStudentOptions.length === 1 ? "" : "s"}.`}
+              : `${visibleExistingStudents.length} shown of ${existingStudentOptions.length} available student${existingStudentOptions.length === 1 ? "" : "s"}.`}
           </div>
         </div>
       ) : (
