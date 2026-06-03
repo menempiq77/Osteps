@@ -257,7 +257,7 @@ export default function FavoriteSidebar() {
   };
 
   return (
-    <aside className="fixed bottom-0 left-0 top-[78px] z-[650] hidden w-[88px] flex-col overflow-hidden rounded-tr-2xl border-r border-white/10 bg-[#444454] text-white shadow-[12px_0_28px_rgba(15,23,42,0.18)] md:flex">
+    <aside className="fixed bottom-0 left-0 top-[78px] z-[650] hidden w-[88px] flex-col overflow-hidden rounded-tr-2xl border-r border-white/10 bg-[#424253] text-white shadow-[12px_0_28px_rgba(15,23,42,0.18)] md:flex">
       <div className="flex-1 overflow-y-auto py-3">
         {favoriteEntries.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 px-3 text-center text-white/55">

@@ -14,6 +14,7 @@ import { User } from "@/features/auth/types";
 
 const QuickLauncher = dynamic(() => import("@/components/ui/QuickLauncher"));
 const FavoriteSidebar = dynamic(() => import("@/components/ui/FavoriteSidebar"));
+const SubjectRightSidebar = dynamic(() => import("@/components/ui/SubjectRightSidebar"));
 
 const THEME_STORAGE_KEY = "osteps-dashboard-theme";
 const THEMES = {
@@ -196,6 +197,7 @@ export default function DashboardLayout({
   const isSubjectCardsEntryRoute =
     pathname === "/dashboard/subject-cards" ||
     /^\/dashboard\/s\/\d+\/subject-cards$/.test(pathname);
+  const isSubjectWorkspaceRoute = /^\/dashboard\/s\/\d+(?:\/|$)/.test(pathname);
   const isStandaloneTeacherRoute =
     pathname === "/dashboard/teachers" || pathname.startsWith("/dashboard/teachers/");
   const isLibraryRoute = unscopedPathname === "/dashboard/library";
@@ -303,6 +305,16 @@ export default function DashboardLayout({
   }
 
   const shouldApplyMaxWidth = !isImmersiveLessonGroupRoute && !isReportsRoute;
+  const showSubjectRightSidebar = isSubjectWorkspaceRoute && !isStudentExamAssessmentRoute;
+  const dashboardPaddingClass = showSubjectRightSidebar
+    ? "px-3 pb-3 pt-[96px] md:pb-6 md:pl-[110px] md:pr-[112px] md:pt-[88px]"
+    : "px-3 pb-3 pt-[96px] md:pb-6 md:pl-[110px] md:pr-6 md:pt-[88px]";
+  const mainContentPaddingClass = showSubjectRightSidebar
+    ? "max-w-7xl px-3 pb-3 pt-[96px] md:pb-6 md:pl-[110px] md:pr-[112px] md:pt-[88px]"
+    : "max-w-7xl px-3 pb-3 pt-[96px] md:pb-6 md:pl-[110px] md:pr-6 md:pt-[88px]";
+  const fullWidthContentPaddingClass = showSubjectRightSidebar
+    ? "pt-[96px] md:pl-[96px] md:pr-[96px] md:pt-[88px]"
+    : "pt-[96px] md:pl-[96px] md:pt-[88px]";
 
   const userRoleLabel = (() => {
     const role = (currentUser?.role || "").toUpperCase().replace(/\s+/g, "_");
@@ -481,8 +493,9 @@ export default function DashboardLayout({
           </div>
         )}
         <FavoriteSidebar />
+        {showSubjectRightSidebar ? <SubjectRightSidebar /> : null}
         <div
-          className="dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] px-3 pb-3 pt-[96px] md:pb-6 md:pl-[110px] md:pr-6 md:pt-[88px]"
+          className={`dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] ${dashboardPaddingClass}`}
           style={impersonating ? { paddingTop: 136 } : undefined}
         >
           <div className="mx-auto max-w-7xl">
@@ -530,6 +543,7 @@ export default function DashboardLayout({
         </div>
       )}
       {!isImmersiveLessonGroupRoute ? <FavoriteSidebar /> : null}
+      {showSubjectRightSidebar ? <SubjectRightSidebar /> : null}
       <div style={impersonating ? { paddingTop: 40 } : undefined}>
       {isStandaloneTeacherRoute ||
       isAllStudentsStandaloneRoute ||
@@ -548,7 +562,7 @@ export default function DashboardLayout({
       isAnnouncementsRoute ||
       isReportsRoute ||
       isSettingsRoute ? (
-        <div className="dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] px-3 pb-3 pt-[96px] md:pb-6 md:pl-[110px] md:pr-6 md:pt-[88px]">
+        <div className={`dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] ${dashboardPaddingClass}`}>
           <div className="mx-auto max-w-7xl">
             {renderDashboardTopBar({})}
             <div
@@ -580,7 +594,7 @@ export default function DashboardLayout({
             className={
               isImmersiveLessonGroupRoute
                 ? "w-full"
-                : `mx-auto ${shouldApplyMaxWidth ? "max-w-7xl px-3 pb-3 pt-[96px] md:pb-6 md:pl-[110px] md:pr-6 md:pt-[88px]" : "pt-[96px] md:pl-[96px] md:pt-[88px]"}`
+                : `mx-auto ${shouldApplyMaxWidth ? mainContentPaddingClass : fullWidthContentPaddingClass}`
             }
           >
             {!isImmersiveLessonGroupRoute ? (
