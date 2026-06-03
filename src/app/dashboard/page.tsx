@@ -158,6 +158,22 @@ type StatDetailItem = {
   gender?: string;
 };
 
+type StudentInlineFilters = {
+  year: string;
+  class: string;
+  subject: string;
+  gender: string;
+};
+
+const EMPTY_STUDENT_INLINE_FILTERS: StudentInlineFilters = {
+  year: "",
+  class: "",
+  subject: "",
+  gender: "",
+};
+
+const normalizeDetailFilterValue = (value: unknown) => String(value ?? "").trim();
+
 const STAT_DETAIL_LIMIT = 12;
 const STAT_CARD_STYLES = [
   { accent: "#2563eb", soft: "#eff6ff", border: "#bfdbfe", glow: "rgba(37,99,235,0.14)" },
@@ -311,6 +327,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
   const [activeStatTitle, setActiveStatTitle] = useState<string | null>(null);
+  const [studentInlineFilters, setStudentInlineFilters] = useState<StudentInlineFilters>(EMPTY_STUDENT_INLINE_FILTERS);
   const [impersonating, setImpersonating] = useState(false);
 
   useEffect(() => {
@@ -320,7 +337,14 @@ export default function DashboardPage() {
 
   useEffect(() => {
     setActiveStatTitle(null);
+    setStudentInlineFilters(EMPTY_STUDENT_INLINE_FILTERS);
   }, [activeSubjectId, currentUser?.role]);
+
+  useEffect(() => {
+    if (activeStatTitle !== "Total Students") {
+      setStudentInlineFilters(EMPTY_STUDENT_INLINE_FILTERS);
+    }
+  }, [activeStatTitle]);
 
   const getSubjectScopedSummary = async (
     subjectId: number,
@@ -1638,7 +1662,47 @@ export default function DashboardPage() {
   const isTeacherInlinePanel = activeStat?.title === "Total Teachers";
   const isStudentInlinePanel = activeStat?.title === "Total Students";
   const isCompactInlinePanel = isYearInlinePanel || isClassInlinePanel || isTeacherInlinePanel;
-  const visibleActiveStatDetails = activeStatDetails.slice(0, STAT_DETAIL_LIMIT);
+  const studentFilterOptions = useMemo(() => {
+    const buildOptions = (getValue: (item: StatDetailItem) => unknown) => {
+      const optionsByKey = new Map<string, string>();
+      activeStatDetails.forEach((item) => {
+        const label = normalizeDetailFilterValue(getValue(item));
+        if (!label) return;
+        const key = label.toLowerCase();
+        if (!optionsByKey.has(key)) optionsByKey.set(key, label);
+      });
+
+      return Array.from(optionsByKey.values()).sort((a, b) =>
+        a.localeCompare(b, undefined, { sensitivity: "base", numeric: true })
+      );
+    };
+
+    return {
+      years: buildOptions((item) => item.yearLabel),
+      classes: buildOptions((item) => item.classLabel || item.meta),
+      subjects: buildOptions((item) => item.subjectLabel),
+      genders: buildOptions((item) => item.gender),
+    };
+  }, [activeStatDetails]);
+  const hasStudentInlineFilters = Object.values(studentInlineFilters).some(Boolean);
+  const filteredActiveStatDetails = useMemo(() => {
+    if (!isStudentInlinePanel) return activeStatDetails;
+
+    const matchesFilter = (value: unknown, selected: string) => {
+      if (!selected) return true;
+      return normalizeDetailFilterValue(value).toLowerCase() === selected.toLowerCase();
+    };
+
+    return activeStatDetails.filter((item) =>
+      matchesFilter(item.yearLabel, studentInlineFilters.year) &&
+      matchesFilter(item.classLabel || item.meta, studentInlineFilters.class) &&
+      matchesFilter(item.subjectLabel, studentInlineFilters.subject) &&
+      matchesFilter(item.gender, studentInlineFilters.gender)
+    );
+  }, [activeStatDetails, isStudentInlinePanel, studentInlineFilters]);
+  const visibleActiveStatDetails = filteredActiveStatDetails.slice(0, STAT_DETAIL_LIMIT);
+  const activeStatDetailCount = isStudentInlinePanel ? filteredActiveStatDetails.length : activeStatDetails.length;
+  const hasVisibleDetailPanel = isStudentInlinePanel ? activeStatDetails.length > 0 : visibleActiveStatDetails.length > 0;
 
   const COLORS = [
     THEME_COLOR,
@@ -1980,7 +2044,7 @@ export default function DashboardPage() {
                       <div className="flex h-24 items-center justify-center">
                         <Spin />
                       </div>
-                    ) : visibleActiveStatDetails.length > 0 ? (
+                    ) : hasVisibleDetailPanel ? (
                       <>
                         {isStudentInlinePanel ? (
                           <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
@@ -1988,16 +2052,81 @@ export default function DashboardPage() {
                               <table className="min-w-full border-collapse text-left text-sm">
                                 <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
                                   <tr>
-                                    <th className="px-4 py-3">Student Name</th>
-                                    <th className="px-4 py-3">Year Group</th>
-                                    <th className="px-4 py-3">Class</th>
-                                    <th className="px-4 py-3">Subjects</th>
-                                    <th className="px-4 py-3">Gender</th>
-                                    <th className="px-4 py-3">Action</th>
+                                    <th className="px-4 py-3 align-top">Student Name</th>
+                                    <th className="px-4 py-3 align-top">
+                                      <div className="space-y-1.5">
+                                        <span>Year Group</span>
+                                        <Select
+                                          size="small"
+                                          allowClear
+                                          placeholder="All years"
+                                          value={studentInlineFilters.year || undefined}
+                                          onChange={(value) => setStudentInlineFilters((current) => ({ ...current, year: value || "" }))}
+                                          options={studentFilterOptions.years.map((value) => ({ value, label: value }))}
+                                          style={{ minWidth: 140 }}
+                                        />
+                                      </div>
+                                    </th>
+                                    <th className="px-4 py-3 align-top">
+                                      <div className="space-y-1.5">
+                                        <span>Class</span>
+                                        <Select
+                                          size="small"
+                                          allowClear
+                                          placeholder="All classes"
+                                          value={studentInlineFilters.class || undefined}
+                                          onChange={(value) => setStudentInlineFilters((current) => ({ ...current, class: value || "" }))}
+                                          options={studentFilterOptions.classes.map((value) => ({ value, label: value }))}
+                                          style={{ minWidth: 120 }}
+                                        />
+                                      </div>
+                                    </th>
+                                    <th className="px-4 py-3 align-top">
+                                      <div className="space-y-1.5">
+                                        <span>Subjects</span>
+                                        <Select
+                                          size="small"
+                                          allowClear
+                                          placeholder="All subjects"
+                                          value={studentInlineFilters.subject || undefined}
+                                          onChange={(value) => setStudentInlineFilters((current) => ({ ...current, subject: value || "" }))}
+                                          options={studentFilterOptions.subjects.map((value) => ({ value, label: value }))}
+                                          style={{ minWidth: 130 }}
+                                        />
+                                      </div>
+                                    </th>
+                                    <th className="px-4 py-3 align-top">
+                                      <div className="space-y-1.5">
+                                        <span>Gender</span>
+                                        <Select
+                                          size="small"
+                                          allowClear
+                                          placeholder="All genders"
+                                          value={studentInlineFilters.gender || undefined}
+                                          onChange={(value) => setStudentInlineFilters((current) => ({ ...current, gender: value || "" }))}
+                                          options={studentFilterOptions.genders.map((value) => ({ value, label: value }))}
+                                          style={{ minWidth: 120 }}
+                                        />
+                                      </div>
+                                    </th>
+                                    <th className="px-4 py-3 align-top">
+                                      <div className="space-y-1.5">
+                                        <span>Action</span>
+                                        {hasStudentInlineFilters ? (
+                                          <button
+                                            type="button"
+                                            onClick={() => setStudentInlineFilters(EMPTY_STUDENT_INLINE_FILTERS)}
+                                            className="block rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-bold normal-case tracking-normal text-slate-500 transition hover:border-slate-300 hover:text-slate-800"
+                                          >
+                                            Clear
+                                          </button>
+                                        ) : null}
+                                      </div>
+                                    </th>
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
-                                  {visibleActiveStatDetails.map((item) => {
+                                  {visibleActiveStatDetails.length > 0 ? visibleActiveStatDetails.map((item) => {
                                     const gender = String(item.gender || "").toLowerCase();
                                     const genderClass = gender.includes("female")
                                       ? "border-pink-200 bg-pink-50 text-pink-600"
@@ -2060,7 +2189,13 @@ export default function DashboardPage() {
                                         </td>
                                       </tr>
                                     );
-                                  })}
+                                  }) : (
+                                    <tr>
+                                      <td colSpan={6} className="px-4 py-8 text-center text-sm font-medium text-slate-500">
+                                        No students match the selected filters.
+                                      </td>
+                                    </tr>
+                                  )}
                                 </tbody>
                               </table>
                             </div>
@@ -2144,9 +2279,13 @@ export default function DashboardPage() {
                             })}
                           </div>
                         )}
-                        {activeStatDetails.length > STAT_DETAIL_LIMIT ? (
+                        {activeStatDetailCount > STAT_DETAIL_LIMIT ? (
                           <p className="mt-3 text-xs font-medium text-slate-500">
-                            Showing first {STAT_DETAIL_LIMIT} of {activeStatDetails.length} records.
+                            Showing first {STAT_DETAIL_LIMIT} of {activeStatDetailCount} {hasStudentInlineFilters ? "filtered " : ""}records.
+                          </p>
+                        ) : isStudentInlinePanel && hasStudentInlineFilters ? (
+                          <p className="mt-3 text-xs font-medium text-slate-500">
+                            Showing {activeStatDetailCount} filtered records.
                           </p>
                         ) : null}
                       </>
