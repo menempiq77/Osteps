@@ -170,24 +170,28 @@ const cleanDashboardLabel = (value: unknown, fallback = "Untitled") => {
 const extractClassLabel = (row: any) =>
   cleanDashboardLabel(
     row?.class_name ??
-      row?.name ??
       row?.base_class_label ??
       row?.class?.class_name ??
       row?.classes?.class_name ??
-      row?.base_class?.class_name,
+      row?.base_class?.class_name ??
+      row?.name,
     "Class"
   );
 
-const extractYearLabel = (row: any) =>
-  cleanDashboardLabel(
-    row?.year?.name ??
+const extractYearLabel = (row: any, yearNameById?: Map<string, string>) => {
+  const yearId = resolveSubjectClassYearId(row);
+  const mappedYearName = yearId > 0 ? yearNameById?.get(String(yearId)) : undefined;
+  return cleanDashboardLabel(
+    mappedYearName ??
+      row?.year?.name ??
       row?.year_name ??
       row?.class?.year?.name ??
       row?.classes?.year?.name ??
       row?.base_class?.year?.name ??
-      (resolveSubjectClassYearId(row) ? `Year ${resolveSubjectClassYearId(row)}` : ""),
+      (yearId ? `Year ${yearId}` : ""),
     "Year"
   );
+};
 
 const uniqueDetailItems = (items: StatDetailItem[]) => {
   const seen = new Set<string>();
@@ -634,9 +638,44 @@ export default function DashboardPage() {
     queryFn: async (): Promise<StatDetailItem[]> => {
       const title = String(activeStatTitle || "");
       const subjectId = Number(activeSubjectId ?? 0);
+      let cachedYearNameById: Map<string, string> | null = null;
+
+      const loadYearNameById = async () => {
+        if (cachedYearNameById) return cachedYearNameById;
+
+        const yearNameById = new Map<string, string>();
+        const addYear = (year: any) => {
+          const id = String(year?.id ?? year?.year_id ?? year?.yearId ?? "").trim();
+          const name = cleanDashboardLabel(year?.name ?? year?.year_name ?? year?.label, "");
+          if (id && name) yearNameById.set(id, name);
+        };
+
+        if (schoolId > 0) {
+          const schoolYears = await fetchYearsBySchool(schoolId).catch(() => []);
+          (Array.isArray(schoolYears) ? schoolYears : []).forEach(addYear);
+        }
+
+        if (yearNameById.size === 0 || currentUser?.role === "TEACHER") {
+          const assignedYears = await fetchAssignYears().catch(() => []);
+          (Array.isArray(assignedYears) ? assignedYears : []).forEach((entry: any) => {
+            addYear(entry?.year ?? entry);
+            const classes = entry?.classes;
+            (Array.isArray(classes) ? classes : classes ? [classes] : []).forEach((cls: any) => {
+              addYear({
+                id: cls?.year?.id ?? cls?.year_id,
+                name: cls?.year?.name ?? cls?.year_name,
+              });
+            });
+          });
+        }
+
+        cachedYearNameById = yearNameById;
+        return yearNameById;
+      };
 
       const loadYears = async () => {
         if (isSubjectWorkspaceMode && subjectId > 0) {
+          const yearNameById = await loadYearNameById();
           const subjectClasses = await fetchSubjectClasses({ subject_id: subjectId });
           const yearMap = new Map<string, StatDetailItem>();
           (Array.isArray(subjectClasses) ? subjectClasses : []).forEach((row: any) => {
@@ -646,7 +685,7 @@ export default function DashboardPage() {
             const classCount = Number(existing?.badge?.replace(/\D/g, "") || 0) + 1;
             yearMap.set(yearId, {
               key: yearId,
-              title: extractYearLabel(row),
+              title: extractYearLabel(row, yearNameById),
               meta: `Used in ${formatSubjectDashboardName(activeSubject?.name)} workspace`,
               badge: `${classCount} class${classCount === 1 ? "" : "es"}`,
               href: buildScopedDashboardHref(`/dashboard/classes?year=${yearId}`),
@@ -671,6 +710,7 @@ export default function DashboardPage() {
 
       const loadClasses = async () => {
         if (isSubjectWorkspaceMode && subjectId > 0) {
+          const yearNameById = await loadYearNameById();
           const subjectClasses = await fetchSubjectClasses({ subject_id: subjectId });
           const rows = await Promise.all(
             (Array.isArray(subjectClasses) ? subjectClasses : []).map(async (row: any, index: number) => {
@@ -679,16 +719,16 @@ export default function DashboardPage() {
               return {
                 key: String(subjectClassId || linkedClassId || index),
                 title: extractClassLabel(row),
-                meta: extractYearLabel(row),
+                meta: extractYearLabel(row, yearNameById),
                 badge: formatSubjectDashboardName(activeSubject?.name),
                 classId: String(linkedClassId || subjectClassId || ""),
                 subjectClassId,
                 href: linkedClassId
-                  ? `/dashboard/students/${linkedClassId}?${new URLSearchParams({
+                  ? buildScopedDashboardHref(`/dashboard/students/${linkedClassId}?${new URLSearchParams({
                       yearId: String(resolveSubjectClassYearId(row) || ""),
                       subjectClassLabel: extractClassLabel(row),
                       subjectClassId,
-                    }).toString()}`
+                    }).toString()}`)
                   : buildScopedDashboardHref("/dashboard/classes"),
               };
             })
