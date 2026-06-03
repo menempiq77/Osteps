@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { useQuery } from "@tanstack/react-query";
@@ -29,6 +30,7 @@ import {
 } from "@/lib/dashboardNavigation";
 import { isSharedPath } from "@/lib/subjectRouting";
 import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
+import OstepsLogo from "@/assets/images/Logo2.jpg";
 
 const FAVORITES_STORAGE_KEY = "osteps:quick-launcher:favorites";
 const FAVORITES_CHANGED_EVENT = "osteps:quick-launcher:favorites-changed";
@@ -391,6 +393,24 @@ export default function FavoriteSidebar() {
 
   return (
     <aside className="fixed bottom-0 left-0 top-[78px] z-[650] hidden w-[88px] flex-col overflow-hidden rounded-tr-2xl border-r border-white/10 bg-[#424253] text-white shadow-[12px_0_28px_rgba(15,23,42,0.18)] md:flex">
+      <div className="shrink-0 border-b border-white/10 px-2 pb-3 pt-3">
+        <button
+          type="button"
+          onClick={() => router.push("/dashboard/subject-cards")}
+          className="group flex h-[72px] w-full items-center justify-center rounded-2xl border border-white/15 bg-white/[0.08] p-1.5 shadow-inner transition hover:bg-white/15 hover:shadow-[0_0_0_3px_rgba(56,193,108,0.18)]"
+          aria-label="Go to Home"
+          title="Home"
+        >
+          <Image
+            src={OstepsLogo}
+            alt="Osteps Home"
+            width={64}
+            height={64}
+            className="h-16 w-16 rounded-xl object-contain object-center transition group-hover:scale-105"
+            priority
+          />
+        </button>
+      </div>
       <div className="flex-1 overflow-y-auto py-3">
         {favoriteEntries.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 px-3 text-center text-white/55">
