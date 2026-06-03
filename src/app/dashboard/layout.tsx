@@ -318,9 +318,17 @@ export default function DashboardLayout({
     return role;
   })();
   const userDisplayName = String(currentUser?.name || currentUser?.email || "").replace(/_/g, " ");
-  const userInitial = userDisplayName.trim().charAt(0).toUpperCase() || "O";
+  const userInitials =
+    userDisplayName
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((part) => part.charAt(0).toUpperCase())
+      .join("") || "O";
+  const userFirstName = userDisplayName.trim().split(/\s+/)[0] || "there";
   const currentDashboardTitle = breadcrumbItems[breadcrumbItems.length - 1]?.label || "Dashboard";
   const normalizedRole = String(currentUser?.role || "").trim().toUpperCase();
+  const workspaceLabel = `${userRoleLabel} Workspace`.toUpperCase();
   const settingsHref =
     normalizedRole === "STUDENT" ? "/dashboard/students/settings"
     : normalizedRole === "TEACHER" ? "/dashboard/teachers/settings"
@@ -333,9 +341,6 @@ export default function DashboardLayout({
 
   const renderThemeSwitcher = () => (
     <div className="flex items-center gap-1 rounded-full border border-white/15 bg-white/10 px-2.5 py-1.5 shadow-inner backdrop-blur">
-      <span className="hidden text-[11px] font-bold uppercase tracking-wide text-green-300 xl:inline">
-        Style
-      </span>
       {(Object.keys(THEMES) as ThemeName[]).map((name) => (
         <button
           key={name}
@@ -356,15 +361,10 @@ export default function DashboardLayout({
   const renderUserSummary = () => (
     <div className="flex min-w-0 items-center gap-2 rounded-full border border-white/12 bg-white/10 px-2.5 py-1 shadow-sm backdrop-blur">
       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#38C16C] text-sm font-black text-white shadow-[0_0_0_3px_rgba(56,193,108,0.25)]">
-        {userInitial}
+        {userInitials.charAt(0)}
       </span>
-      <span className="hidden min-w-0 flex-col leading-tight sm:flex">
-        <span className="max-w-[150px] truncate text-xs font-bold text-white">
-          {userDisplayName || "Osteps User"}
-        </span>
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-green-300">
-          {userRoleLabel}
-        </span>
+      <span className="hidden max-w-[170px] truncate text-xs font-bold text-white sm:inline">
+        {userDisplayName || "Osteps User"}
       </span>
     </div>
   );
@@ -419,12 +419,10 @@ export default function DashboardLayout({
 
   const renderDashboardTopBar = ({
     title,
-    subtitle,
     showBreadcrumb = false,
     showSubjectSwitcher = false,
   }: {
     title: string;
-    subtitle?: string;
     showBreadcrumb?: boolean;
     showSubjectSwitcher?: boolean;
   }) => {
@@ -442,25 +440,33 @@ export default function DashboardLayout({
         <div className="pointer-events-none absolute left-1/2 top-4 h-12 w-56 -translate-x-1/2 rounded-full bg-amber-500/10 blur-xl" />
         <div className="pointer-events-none absolute -right-12 bottom-2 h-40 w-40 rounded-full bg-red-500/10 blur-3xl" />
         <div className="flex flex-col gap-3 px-3 py-3 md:px-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="relative flex min-w-0 flex-1 items-center gap-3">
-            <QuickLauncher />
-            <div className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#38C16C] text-lg font-black text-white shadow-[0_0_0_3px_rgba(56,193,108,0.28)] sm:flex">
-              O
+          <div className="relative flex min-w-0 flex-1 items-center gap-4">
+            <div className="flex shrink-0 items-center gap-3">
+              <QuickLauncher />
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-3xl bg-[#38C16C] text-xl font-black text-white shadow-[0_0_0_5px_rgba(56,193,108,0.25)] sm:h-20 sm:w-20 sm:text-2xl">
+                {userInitials}
+              </div>
             </div>
             <div className="min-w-0">
-              <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <h1 className="truncate text-base font-black text-white md:text-lg">
-                  {title}
-                </h1>
-                <span className="rounded-full border border-[#38C16C]/30 bg-[#38C16C]/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.16em] text-green-300">
-                  Osteps
+              <p className="mb-1 text-[11px] font-black uppercase tracking-[0.2em] text-green-300 md:text-sm">
+                {workspaceLabel}
+              </p>
+              <h1 className="truncate text-2xl font-black leading-tight text-white md:text-3xl">
+                Welcome back, {userFirstName}
+              </h1>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-[#38C16C]/30 bg-[#38C16C]/15 px-3 py-1 text-xs font-black text-green-300">
+                  {userRoleLabel}
                 </span>
+                <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold text-slate-200">
+                  {userDisplayName || "Osteps User"}
+                </span>
+                {title ? (
+                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-slate-300">
+                    {title}
+                  </span>
+                ) : null}
               </div>
-              {subtitle ? (
-                <p className="mt-0.5 line-clamp-1 text-xs font-semibold text-slate-200/80">
-                  {subtitle}
-                </p>
-              ) : null}
             </div>
           </div>
 
@@ -530,7 +536,6 @@ export default function DashboardLayout({
           <div className="mx-auto max-w-7xl">
             {renderDashboardTopBar({
               title: "Dashboard Home",
-              subtitle: "Open the launcher, change the style, or move through your Osteps pages.",
             })}
             {children}
           </div>
@@ -596,7 +601,6 @@ export default function DashboardLayout({
           <div className="mx-auto max-w-7xl">
             {renderDashboardTopBar({
               title: currentDashboardTitle,
-              subtitle: "Your Osteps shortcuts, theme, and page controls stay together here.",
             })}
             <div
               key={pathname}
@@ -635,7 +639,6 @@ export default function DashboardLayout({
             {!isImmersiveLessonGroupRoute ? (
               renderDashboardTopBar({
                 title: currentDashboardTitle,
-                subtitle: "Switch modules, subjects, style, and page history from one top bar.",
                 showBreadcrumb: true,
                 showSubjectSwitcher: !isLibraryRoute,
               })
