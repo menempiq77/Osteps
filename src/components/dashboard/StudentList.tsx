@@ -38,6 +38,8 @@ import {
   updateStudent as apiUpdateStudent,
   uploadStudentAvatar,
 } from "@/services/studentsApi";
+import { fetchClasses } from "@/services/classesApi";
+import { fetchYears, fetchYearsBySchool } from "@/services/yearsApi";
 import {
   assignStudentsToSubjects,
   fetchSubjectClasses,
@@ -554,6 +556,11 @@ export default function StudentList() {
   const pickerAvatarInputRef = useRef<HTMLInputElement | null>(null);
   const role = currentUser?.role;
   const hasAccess = role === "SCHOOL_ADMIN";
+  const schoolId = Number(
+    typeof (currentUser as any)?.school === "object"
+      ? (currentUser as any)?.school?.id
+      : (currentUser as any)?.school ?? (currentUser as any)?.school_id ?? 0
+  );
   const canArrangeSeats =
     role === "SCHOOL_ADMIN" || role === "HOD" || role === "TEACHER";
   const scopedSubjectId =
@@ -839,6 +846,7 @@ export default function StudentList() {
       rowsBySubject.flat().forEach((row: any) => {
         const rowId = String(row?.id ?? "").trim();
         if (!rowId) return;
+        ids.add(rowId);
 
         const linkedClassId = String(
           row?.class_id ??
@@ -869,10 +877,59 @@ export default function StudentList() {
 
         if (sameLinkedClass || sameLabelAndYear || rowId === targetSubjectClassId) {
           ids.add(rowId);
+          if (linkedClassId) ids.add(linkedClassId);
         }
       });
 
       return Array.from(ids);
+    },
+  });
+
+  const {
+    data: allExistingStudentBaseClassIds = [],
+    isFetching: allExistingStudentClassesLoading,
+  } = useQuery<string[]>({
+    queryKey: [
+      "student-list-existing-school-base-class-ids",
+      String(schoolId || "all-schools"),
+    ],
+    enabled:
+      isAddStudentModalOpen &&
+      hasAccess &&
+      isSubjectWorkspaceMode &&
+      !!effectiveSubjectClassId &&
+      !resolvingSubjectClass,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      let years: Array<Record<string, any>> = [];
+      try {
+        const rows = schoolId > 0 ? await fetchYearsBySchool(schoolId) : await fetchYears();
+        years = Array.isArray(rows) ? rows : [];
+      } catch {
+        years = [];
+      }
+
+      const classRows = await Promise.all(
+        years.map(async (year) => {
+          const yearId = String(year?.id ?? "").trim();
+          if (!yearId) return [] as Array<Record<string, any>>;
+          try {
+            const rows = await fetchClasses(yearId);
+            return Array.isArray(rows) ? rows : [];
+          } catch {
+            return [] as Array<Record<string, any>>;
+          }
+        })
+      );
+
+      return Array.from(
+        new Set(
+          classRows
+            .flat()
+            .map((row) => String(row?.id ?? "").trim())
+            .filter((id) => id && id !== "0")
+        )
+      );
     },
   });
 
@@ -885,6 +942,7 @@ export default function StudentList() {
             classIdForStudentsFetch,
             fallbackRouteClassId,
             effectiveSubjectClassId,
+            ...allExistingStudentBaseClassIds,
             ...relatedExistingStudentClassIds,
           ]
             .map((id) => String(id ?? "").trim())
@@ -896,6 +954,7 @@ export default function StudentList() {
       classIdForStudentsFetch,
       fallbackRouteClassId,
       effectiveSubjectClassId,
+      allExistingStudentBaseClassIds,
       relatedExistingStudentClassIds,
     ]
   );
@@ -3649,7 +3708,12 @@ export default function StudentList() {
         classId={Number(effectiveClassId || classIdStr)}
         canAssignExisting={hasAccess && isSubjectWorkspaceMode && !!effectiveSubjectClassId}
         existingStudents={existingStudentOptions}
-        existingStudentsLoading={existingStudentsLoading || relatedExistingStudentClassesLoading || resolvingSubjectClass}
+        existingStudentsLoading={
+          existingStudentsLoading ||
+          relatedExistingStudentClassesLoading ||
+          allExistingStudentClassesLoading ||
+          resolvingSubjectClass
+        }
         assignExistingLoading={assignExistingStudentMutation.isPending}
         onAssignExisting={handleAssignExistingStudents}
       />

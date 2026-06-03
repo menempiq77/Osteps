@@ -179,7 +179,7 @@ export const AddStudentModal = ({
       {mode === "existing" && canUseExistingMode ? (
         <div className="space-y-3">
           <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-            Select students who already exist in this class or another subject, then assign them to this subject class.
+            Select students who already exist in another class or subject, then assign them to this subject class as well.
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">
