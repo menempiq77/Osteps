@@ -438,13 +438,13 @@ export default function DashboardLayout({
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.28),transparent_28%),radial-gradient(circle_at_8%_18%,rgba(56,193,108,0.18),transparent_24%),radial-gradient(circle_at_92%_50%,rgba(255,255,255,0.10),transparent_25%)]" />
         <div className="pointer-events-none absolute -left-10 -top-16 h-36 w-36 rounded-full bg-[#38C16C]/18 blur-3xl" />
         <div className="pointer-events-none absolute -right-12 bottom-0 h-32 w-32 rounded-full bg-[#38C16C]/10 blur-3xl" />
-        <div className="pointer-events-none absolute left-1/2 top-1/2 hidden h-[58px] w-[134px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-2xl border border-white/15 bg-white/[0.08] shadow-[0_14px_36px_rgba(0,0,0,0.16)] backdrop-blur-lg 2xl:flex">
+        <div className="pointer-events-none absolute left-1/2 top-1/2 hidden h-[72px] w-[210px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-[28px] border-2 border-white/20 bg-white/[0.10] p-2 shadow-[0_16px_42px_rgba(0,0,0,0.18)] ring-1 ring-white/10 backdrop-blur-lg 2xl:flex">
           <Image
             src={OstepsLogo}
             alt="Osteps"
-            width={112}
-            height={48}
-            className="h-12 w-28 rounded-xl object-cover object-center opacity-95"
+            width={72}
+            height={72}
+            className="h-16 w-16 rounded-2xl object-contain object-center opacity-100"
             priority
           />
         </div>
