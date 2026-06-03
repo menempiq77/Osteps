@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useSelector, useDispatch } from "react-redux";
-import { LogOut, Settings as SettingsIcon } from "lucide-react";
+import { ArrowLeft, ArrowRight, Home, LogOut, Settings as SettingsIcon } from "lucide-react";
 import { RootState } from "@/store/store";
 import SubjectSwitcher from "@/components/ui/SubjectSwitcher";
 import { SubjectContextProvider } from "@/contexts/SubjectContext";
@@ -357,39 +357,34 @@ export default function DashboardLayout({
     </div>
   );
 
-  const renderUserSummary = () => (
-    <div className="flex min-w-0 items-center gap-2 rounded-full border border-white/12 bg-white/10 px-2.5 py-1 shadow-sm backdrop-blur">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#38C16C] text-sm font-black text-white shadow-[0_0_0_3px_rgba(56,193,108,0.25)]">
-        {userInitials.charAt(0)}
-      </span>
-      <span className="hidden max-w-[170px] truncate text-xs font-bold text-white sm:inline">
-        {userDisplayName || "Osteps User"}
-      </span>
-    </div>
-  );
-
   const renderNavigationButtons = () => (
     <div className="flex flex-wrap items-center justify-start gap-1.5 lg:justify-end">
       <button
         type="button"
         onClick={() => router.push("/dashboard/subject-cards")}
-        className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-white/20"
+        className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/20"
+        aria-label="Home"
+        title="Home"
       >
-        Home
+        <Home className="h-4 w-4" />
       </button>
       <button
         type="button"
         onClick={() => window.history.back()}
-        className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-white/20"
+        className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/20"
+        aria-label="Back"
+        title="Back"
       >
-        Back
+        <ArrowLeft className="h-4 w-4" />
       </button>
       <button
         type="button"
         onClick={() => window.history.forward()}
-        className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-white/20"
+        className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/20"
+        aria-label="Next"
+        title="Next"
       >
-        Next
+        <ArrowRight className="h-4 w-4" />
       </button>
     </div>
   );
@@ -399,19 +394,20 @@ export default function DashboardLayout({
       <button
         type="button"
         onClick={() => router.push(settingsHref)}
-        className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white shadow-sm transition-all duration-200 hover:scale-105 hover:bg-white/20 active:scale-95"
+        className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white shadow-sm transition-all duration-200 hover:scale-105 hover:bg-white/20 active:scale-95"
         aria-label="Open settings"
         title="Settings"
       >
-        <SettingsIcon className="h-5 w-5" />
+        <SettingsIcon className="h-4 w-4" />
       </button>
       <button
         type="button"
         onClick={handleLogout}
-        className="flex h-10 shrink-0 items-center gap-2 rounded-xl border border-red-400/35 bg-red-500/15 px-4 text-sm font-bold text-white shadow-sm transition-all duration-200 hover:scale-105 hover:bg-red-500/25 active:scale-95"
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-red-400/35 bg-red-500/15 text-white shadow-sm transition-all duration-200 hover:scale-105 hover:bg-red-500/25 active:scale-95"
+        aria-label="Sign out"
+        title="Sign out"
       >
         <LogOut className="h-4 w-4" />
-        <span className="hidden sm:inline">Sign Out</span>
       </button>
     </div>
   );
@@ -423,7 +419,7 @@ export default function DashboardLayout({
   }) => {
     return (
       <div
-        className="fixed left-0 right-0 top-0 z-[900] overflow-hidden border-b border-white/10 px-3 py-2 text-white shadow-[0_18px_42px_rgba(15,23,42,0.22)] md:px-5"
+        className="fixed left-0 right-0 top-0 z-[900] overflow-hidden border-b border-white/10 px-3 py-1.5 text-white shadow-[0_18px_42px_rgba(15,23,42,0.22)] md:px-4"
         style={{
           background:
             "linear-gradient(135deg, #2c211c 0%, #18343b 28%, #33406b 56%, #3b2735 100%)",
@@ -432,11 +428,11 @@ export default function DashboardLayout({
         <div className="pointer-events-none absolute -left-10 -top-16 h-36 w-36 rounded-full bg-[#38C16C]/20 blur-3xl" />
         <div className="pointer-events-none absolute left-1/2 top-2 h-10 w-56 -translate-x-1/2 rounded-full bg-amber-500/10 blur-xl" />
         <div className="pointer-events-none absolute -right-12 bottom-0 h-32 w-32 rounded-full bg-red-500/10 blur-3xl" />
-        <div className="relative flex min-h-[82px] w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative flex min-h-[70px] w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 flex-1 items-center gap-3">
             <div className="flex shrink-0 items-center gap-3">
               <QuickLauncher />
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#38C16C] text-lg font-black text-white shadow-[0_0_0_4px_rgba(56,193,108,0.25)] sm:h-16 sm:w-16 sm:text-xl">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#38C16C] text-base font-black text-white shadow-[0_0_0_4px_rgba(56,193,108,0.25)] sm:h-14 sm:w-14 sm:text-lg">
                 {userInitials}
               </div>
             </div>
@@ -444,10 +440,10 @@ export default function DashboardLayout({
               <p className="mb-0.5 text-[10px] font-black uppercase tracking-[0.2em] text-green-300 md:text-xs">
                 {workspaceLabel}
               </p>
-              <h1 className="truncate text-xl font-black leading-tight text-white md:text-2xl">
-                Welcome back, {userFirstName}
-              </h1>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <h1 className="truncate text-lg font-black leading-tight text-white md:text-xl">
+                  Welcome back, {userFirstName}
+                </h1>
                 <span className="rounded-full border border-[#38C16C]/30 bg-[#38C16C]/15 px-2.5 py-0.5 text-[11px] font-black text-green-300">
                   {userRoleLabel}
                 </span>
@@ -459,9 +455,6 @@ export default function DashboardLayout({
           </div>
 
           <div className="flex flex-wrap items-center justify-start gap-2 sm:justify-end">
-            <div className="hidden items-center gap-2 xl:flex">
-              {renderUserSummary()}
-            </div>
             {showSubjectSwitcher ? <SubjectSwitcher /> : null}
             {renderThemeSwitcher()}
             {renderNavigationButtons()}
@@ -492,8 +485,8 @@ export default function DashboardLayout({
           </div>
         )}
         <div
-          className="dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] px-3 pb-3 pt-[112px] md:px-6 md:pb-6 md:pt-[104px]"
-          style={impersonating ? { paddingTop: 152 } : undefined}
+          className="dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] px-3 pb-3 pt-[96px] md:px-6 md:pb-6 md:pt-[88px]"
+          style={impersonating ? { paddingTop: 136 } : undefined}
         >
           <div className="mx-auto max-w-7xl">
             {renderDashboardTopBar({})}
@@ -557,7 +550,7 @@ export default function DashboardLayout({
       isAnnouncementsRoute ||
       isReportsRoute ||
       isSettingsRoute ? (
-        <div className="dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] px-3 pb-3 pt-[112px] md:px-6 md:pb-6 md:pt-[104px]">
+        <div className="dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] px-3 pb-3 pt-[96px] md:px-6 md:pb-6 md:pt-[88px]">
           <div className="mx-auto max-w-7xl">
             {renderDashboardTopBar({})}
             <div
@@ -591,7 +584,7 @@ export default function DashboardLayout({
             className={
               isImmersiveLessonGroupRoute
                 ? "w-full"
-                : `mx-auto ${shouldApplyMaxWidth ? "max-w-7xl px-3 pb-3 pt-[112px] md:px-6 md:pb-6 md:pt-[104px]" : "pt-[112px] md:pt-[104px]"}`
+                : `mx-auto ${shouldApplyMaxWidth ? "max-w-7xl px-3 pb-3 pt-[96px] md:px-6 md:pb-6 md:pt-[88px]" : "pt-[96px] md:pt-[88px]"}`
             }
           >
             {!isImmersiveLessonGroupRoute ? (

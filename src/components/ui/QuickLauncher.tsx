@@ -513,7 +513,7 @@ export default function QuickLauncher() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="group flex h-11 w-11 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/20 hover:shadow-md"
+        className="group flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/20 hover:shadow-md"
         aria-label="Open quick launcher"
       >
         <span className="grid grid-cols-3 gap-1">
