@@ -1663,9 +1663,13 @@ export default function DashboardPage() {
   const isStudentInlinePanel = activeStat?.title === "Total Students";
   const isCompactInlinePanel = isYearInlinePanel || isClassInlinePanel || isTeacherInlinePanel;
   const studentFilterOptions = useMemo(() => {
-    const buildOptions = (getValue: (item: StatDetailItem) => unknown) => {
+    const matchesSelected = (item: StatDetailItem, getValue: (item: StatDetailItem) => unknown, selected: string) => {
+      if (!selected) return true;
+      return normalizeDetailFilterValue(getValue(item)).toLowerCase() === selected.toLowerCase();
+    };
+    const buildOptions = (items: StatDetailItem[], getValue: (item: StatDetailItem) => unknown) => {
       const optionsByKey = new Map<string, string>();
-      activeStatDetails.forEach((item) => {
+      items.forEach((item) => {
         const label = normalizeDetailFilterValue(getValue(item));
         if (!label) return;
         const key = label.toLowerCase();
@@ -1676,14 +1680,23 @@ export default function DashboardPage() {
         a.localeCompare(b, undefined, { sensitivity: "base", numeric: true })
       );
     };
+    const yearMatchedDetails = activeStatDetails.filter((item) =>
+      matchesSelected(item, (entry) => entry.yearLabel, studentInlineFilters.year)
+    );
+    const classMatchedDetails = yearMatchedDetails.filter((item) =>
+      matchesSelected(item, (entry) => entry.classLabel || entry.meta, studentInlineFilters.class)
+    );
+    const subjectMatchedDetails = classMatchedDetails.filter((item) =>
+      matchesSelected(item, (entry) => entry.subjectLabel, studentInlineFilters.subject)
+    );
 
     return {
-      years: buildOptions((item) => item.yearLabel),
-      classes: buildOptions((item) => item.classLabel || item.meta),
-      subjects: buildOptions((item) => item.subjectLabel),
-      genders: buildOptions((item) => item.gender),
+      years: buildOptions(activeStatDetails, (item) => item.yearLabel),
+      classes: buildOptions(yearMatchedDetails, (item) => item.classLabel || item.meta),
+      subjects: buildOptions(classMatchedDetails, (item) => item.subjectLabel),
+      genders: buildOptions(subjectMatchedDetails, (item) => item.gender),
     };
-  }, [activeStatDetails]);
+  }, [activeStatDetails, studentInlineFilters.class, studentInlineFilters.subject, studentInlineFilters.year]);
   const hasStudentInlineFilters = Object.values(studentInlineFilters).some(Boolean);
   const filteredActiveStatDetails = useMemo(() => {
     if (!isStudentInlinePanel) return activeStatDetails;
@@ -1700,7 +1713,7 @@ export default function DashboardPage() {
       matchesFilter(item.gender, studentInlineFilters.gender)
     );
   }, [activeStatDetails, isStudentInlinePanel, studentInlineFilters]);
-  const visibleActiveStatDetails = filteredActiveStatDetails.slice(0, STAT_DETAIL_LIMIT);
+  const visibleActiveStatDetails = isStudentInlinePanel ? filteredActiveStatDetails : filteredActiveStatDetails.slice(0, STAT_DETAIL_LIMIT);
   const activeStatDetailCount = isStudentInlinePanel ? filteredActiveStatDetails.length : activeStatDetails.length;
   const hasVisibleDetailPanel = isStudentInlinePanel ? activeStatDetails.length > 0 : visibleActiveStatDetails.length > 0;
 
@@ -2061,7 +2074,7 @@ export default function DashboardPage() {
                                           allowClear
                                           placeholder="All years"
                                           value={studentInlineFilters.year || undefined}
-                                          onChange={(value) => setStudentInlineFilters((current) => ({ ...current, year: value || "" }))}
+                                          onChange={(value) => setStudentInlineFilters((current) => ({ ...current, year: value || "", class: "" }))}
                                           options={studentFilterOptions.years.map((value) => ({ value, label: value }))}
                                           style={{ minWidth: 140 }}
                                         />
@@ -2179,7 +2192,8 @@ export default function DashboardPage() {
                                           {item.href ? (
                                             <Link
                                               href={item.href}
-                                              className="inline-flex rounded-md bg-amber-500 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-amber-600"
+                                              className="inline-flex rounded-md px-3 py-1.5 text-xs font-bold shadow-sm transition hover:opacity-90"
+                                              style={{ backgroundColor: "#d4a72c", border: "1px solid #c49a21", color: "#ffffff" }}
                                             >
                                               View
                                             </Link>
@@ -2279,13 +2293,13 @@ export default function DashboardPage() {
                             })}
                           </div>
                         )}
-                        {activeStatDetailCount > STAT_DETAIL_LIMIT ? (
+                        {isStudentInlinePanel ? (
+                          <p className="mt-3 text-xs font-medium text-slate-500">
+                            Showing {activeStatDetailCount} {hasStudentInlineFilters ? "filtered " : ""}records.
+                          </p>
+                        ) : activeStatDetailCount > STAT_DETAIL_LIMIT ? (
                           <p className="mt-3 text-xs font-medium text-slate-500">
                             Showing first {STAT_DETAIL_LIMIT} of {activeStatDetailCount} {hasStudentInlineFilters ? "filtered " : ""}records.
-                          </p>
-                        ) : isStudentInlinePanel && hasStudentInlineFilters ? (
-                          <p className="mt-3 text-xs font-medium text-slate-500">
-                            Showing {activeStatDetailCount} filtered records.
                           </p>
                         ) : null}
                       </>
