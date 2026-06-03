@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { useQuery } from "@tanstack/react-query";
@@ -35,6 +35,11 @@ const compactLabel = (value: string) =>
     .replace(/Manage Quiz/i, "Quiz")
     .replace(/Mind-upgrade/i, "Mind Upgrade");
 
+const subjectInitials = (value: string) => {
+  const parts = value.trim().split(/\s+/).filter(Boolean);
+  return parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "S";
+};
+
 export default function SubjectRightSidebar() {
   const router = useRouter();
   const pathname = usePathname();
@@ -43,8 +48,15 @@ export default function SubjectRightSidebar() {
     activeSubjectId,
     activeSubject,
     canUseSubjectContext,
+    subjects,
+    setActiveSubjectId,
     toSubjectHref,
+    loading: subjectContextLoading,
   } = useSubjectContext();
+  const [isSubjectPickerOpen, setIsSubjectPickerOpen] = useState(false);
+  const [subjectSearch, setSubjectSearch] = useState("");
+  const subjectButtonRef = useRef<HTMLButtonElement | null>(null);
+  const subjectPickerRef = useRef<HTMLDivElement | null>(null);
 
   const roleKey = normalizeDashboardRole(currentUser?.role);
   const isStudent = roleKey === "STUDENT";
@@ -69,6 +81,51 @@ export default function SubjectRightSidebar() {
   const studentTrackerHref = studentSubjectClassId
     ? `/dashboard/trackers/${studentSubjectClassId}`
     : "/dashboard/subject-cards";
+
+  useEffect(() => {
+    if (!isSubjectPickerOpen) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (subjectPickerRef.current?.contains(target)) return;
+      if (subjectButtonRef.current?.contains(target)) return;
+      setIsSubjectPickerOpen(false);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsSubjectPickerOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isSubjectPickerOpen]);
+
+  const sortedSubjects = useMemo(
+    () => [...subjects].sort((a, b) => formatDashboardSubjectName(a.name).localeCompare(formatDashboardSubjectName(b.name))),
+    [subjects]
+  );
+
+  const visibleSubjects = useMemo(() => {
+    const query = subjectSearch.trim().toLowerCase();
+    if (!query) return sortedSubjects;
+    return sortedSubjects.filter((subject) =>
+      [subject.name, formatDashboardSubjectName(subject.name), subject.code, subject.class_label]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query))
+    );
+  }, [sortedSubjects, subjectSearch]);
+
+  const handleSubjectPick = (subjectId: number) => {
+    setActiveSubjectId(subjectId, { navigate: true });
+    setIsSubjectPickerOpen(false);
+    setSubjectSearch("");
+  };
 
   const entries = useMemo(() => {
     const items = buildDashboardNavigation({
@@ -104,49 +161,155 @@ export default function SubjectRightSidebar() {
   };
 
   return (
-    <aside className="fixed bottom-0 right-0 top-[78px] z-[640] hidden w-[92px] flex-col overflow-hidden rounded-tl-2xl border-l border-white/10 bg-[#424253] text-white shadow-[-12px_0_28px_rgba(15,23,42,0.18)] md:flex">
-      <div className="border-b border-white/10 px-2 py-3 text-center">
-        <div className="mx-auto mb-1 h-1 w-8 rounded-full bg-[#38C16C]" />
-        <div className="text-[10px] font-black uppercase tracking-wide text-white/70">
-          Subject
+    <>
+      <aside className="fixed bottom-0 right-0 top-[78px] z-[640] hidden w-[92px] flex-col overflow-hidden rounded-tl-2xl border-l border-white/10 bg-[#424253] text-white shadow-[-12px_0_28px_rgba(15,23,42,0.18)] md:flex">
+        <div className="border-b border-white/10 px-2 py-3 text-center">
+          <button
+            ref={subjectButtonRef}
+            type="button"
+            onClick={() => setIsSubjectPickerOpen((open) => !open)}
+            disabled={!canUseSubjectContext}
+            className={`group w-full rounded-xl px-1.5 py-1.5 text-center transition ${
+              canUseSubjectContext ? "hover:bg-white/10" : "cursor-not-allowed opacity-60"
+            }`}
+            aria-haspopup="dialog"
+            aria-expanded={isSubjectPickerOpen}
+            title={canUseSubjectContext ? "Choose subject" : "Subject switching unavailable"}
+          >
+            <div className="mx-auto mb-1 h-1 w-8 rounded-full bg-[#38C16C] transition group-hover:w-10" />
+            <div className="text-[10px] font-black uppercase tracking-wide text-white/70">
+              Subject
+            </div>
+            {activeSubject ? (
+              <div className="mt-1 line-clamp-2 text-[10px] font-semibold leading-tight text-white">
+                {formatDashboardSubjectName(activeSubject.name)}
+              </div>
+            ) : null}
+          </button>
         </div>
-      </div>
-      <nav className="flex-1 overflow-y-auto py-2">
-        <div className="space-y-1.5">
-          {entries.map((item) => {
-            const Icon = item.icon;
-            const active = isActive(item.href);
-            const accent = sectionAccent[item.section] || "#93c5fd";
-            return (
-              <button
-                key={`${item.name}-${item.href}`}
-                type="button"
-                onClick={() => router.push(item.href)}
-                className={`group relative flex w-full flex-col items-center gap-1.5 px-2 py-3 text-center transition ${
-                  active ? "bg-[#525264] text-white" : "text-white/85 hover:bg-white/10 hover:text-white"
-                }`}
-                title={item.name}
-              >
-                <span
-                  className={`absolute right-0 top-1/2 h-12 w-1 -translate-y-1/2 rounded-l-full transition ${
-                    active ? "opacity-100" : "opacity-0 group-hover:opacity-70"
+        <nav className="flex-1 overflow-y-auto py-2">
+          <div className="space-y-1.5">
+            {entries.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.href);
+              const accent = sectionAccent[item.section] || "#93c5fd";
+              return (
+                <button
+                  key={`${item.name}-${item.href}`}
+                  type="button"
+                  onClick={() => router.push(item.href)}
+                  className={`group relative flex w-full flex-col items-center gap-1.5 px-2 py-3 text-center transition ${
+                    active ? "bg-[#525264] text-white" : "text-white/85 hover:bg-white/10 hover:text-white"
                   }`}
-                  style={{ backgroundColor: accent }}
-                />
-                <Icon className="h-8 w-8" style={{ color: accent }} />
-                <span className="line-clamp-2 max-w-[74px] text-[11px] font-semibold leading-tight drop-shadow">
-                  {compactLabel(item.name)}
-                </span>
+                  title={item.name}
+                >
+                  <span
+                    className={`absolute right-0 top-1/2 h-12 w-1 -translate-y-1/2 rounded-l-full transition ${
+                      active ? "opacity-100" : "opacity-0 group-hover:opacity-70"
+                    }`}
+                    style={{ backgroundColor: accent }}
+                  />
+                  <Icon className="h-8 w-8" style={{ color: accent }} />
+                  <span className="line-clamp-2 max-w-[74px] text-[11px] font-semibold leading-tight drop-shadow">
+                    {compactLabel(item.name)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+        <div className="border-t border-white/10 p-3">
+          <div className="flex h-10 items-center justify-center rounded bg-white/10 text-white/75">
+            <MoreVertical className="h-5 w-5" />
+          </div>
+        </div>
+      </aside>
+
+      {isSubjectPickerOpen ? (
+        <div
+          ref={subjectPickerRef}
+          className="fixed right-[104px] top-[90px] z-[720] hidden w-[300px] overflow-hidden rounded-2xl border border-white/10 bg-[#353545] text-white shadow-[0_24px_60px_rgba(15,23,42,0.35)] md:block"
+          role="dialog"
+          aria-label="Choose subject"
+        >
+          <div className="border-b border-white/10 px-4 py-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-black">Choose subject</div>
+                <div className="text-xs text-white/55">
+                  {subjects.length} {subjects.length === 1 ? "subject" : "subjects"} available
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsSubjectPickerOpen(false)}
+                className="rounded-full bg-white/10 px-2 py-1 text-xs font-bold text-white/70 transition hover:bg-white/20 hover:text-white"
+                aria-label="Close subject chooser"
+              >
+                ×
               </button>
-            );
-          })}
+            </div>
+          </div>
+
+          <div className="p-3">
+            <input
+              value={subjectSearch}
+              onChange={(event) => setSubjectSearch(event.target.value)}
+              placeholder="Search subjects..."
+              autoFocus
+              className="w-full rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-sm text-white outline-none placeholder:text-white/40 focus:border-[#38C16C] focus:ring-2 focus:ring-[#38C16C]/25"
+            />
+          </div>
+
+          <div className="max-h-[360px] overflow-y-auto px-2 pb-2">
+            {subjectContextLoading ? (
+              <div className="rounded-xl px-3 py-6 text-center text-sm text-white/60">
+                Loading subjects...
+              </div>
+            ) : visibleSubjects.length === 0 ? (
+              <div className="rounded-xl px-3 py-6 text-center text-sm text-white/60">
+                No subjects found.
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                {visibleSubjects.map((subject) => {
+                  const label = formatDashboardSubjectName(subject.name);
+                  const active = Number(activeSubjectId) === Number(subject.id);
+                  return (
+                    <button
+                      key={subject.id}
+                      type="button"
+                      onClick={() => handleSubjectPick(subject.id)}
+                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition ${
+                        active ? "bg-[#38C16C] text-white shadow-lg shadow-[#38C16C]/20" : "text-white/88 hover:bg-white/10"
+                      }`}
+                    >
+                      <span
+                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-black ${
+                          active ? "bg-white/20 text-white" : "bg-white/10 text-[#86efac]"
+                        }`}
+                      >
+                        {subjectInitials(label)}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-bold">{label}</span>
+                        <span className={`block text-[11px] ${active ? "text-white/85" : "text-white/45"}`}>
+                          {subject.class_label ? subject.class_label : "Open this subject"}
+                        </span>
+                      </span>
+                      {active ? (
+                        <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide">
+                          Active
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
-      </nav>
-      <div className="border-t border-white/10 p-3">
-        <div className="flex h-10 items-center justify-center rounded bg-white/10 text-white/75">
-          <MoreVertical className="h-5 w-5" />
-        </div>
-      </div>
-    </aside>
+      ) : null}
+    </>
   );
 }
