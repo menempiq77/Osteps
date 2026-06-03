@@ -149,6 +149,7 @@ type StatDetailItem = {
   title: string;
   meta?: string;
   badge?: string;
+  href?: string;
   classId?: string;
   subjectClassId?: string;
 };
@@ -613,6 +614,11 @@ export default function DashboardPage() {
     enabled: currentUser?.role === "TEACHER" && !isSubjectWorkspaceMode,
   });
 
+  const buildScopedDashboardHref = (href: string) =>
+    isSubjectWorkspaceMode && activeSubjectId
+      ? toSubjectScopedPath(href, Number(activeSubjectId), activeSubject?.name)
+      : href;
+
   const { data: activeStatDetails = [], isLoading: activeStatDetailsLoading } = useQuery({
     queryKey: [
       "dashboard-inline-stat-details",
@@ -643,6 +649,7 @@ export default function DashboardPage() {
               title: extractYearLabel(row),
               meta: `Used in ${formatSubjectDashboardName(activeSubject?.name)} workspace`,
               badge: `${classCount} class${classCount === 1 ? "" : "es"}`,
+              href: buildScopedDashboardHref(`/dashboard/classes?year=${yearId}`),
             });
           });
           return Array.from(yearMap.values());
@@ -657,6 +664,7 @@ export default function DashboardPage() {
             title: cleanDashboardLabel(year?.name ?? year?.year_name, `Year ${index + 1}`),
             meta: year?.description ? String(year.description) : "School year group",
             badge: Array.isArray(year?.classes) ? `${year.classes.length} classes` : undefined,
+            href: year?.id ? buildScopedDashboardHref(`/dashboard/classes?year=${year.id}`) : "/dashboard/classes",
           }))
         );
       };
@@ -675,6 +683,13 @@ export default function DashboardPage() {
                 badge: formatSubjectDashboardName(activeSubject?.name),
                 classId: String(linkedClassId || subjectClassId || ""),
                 subjectClassId,
+                href: linkedClassId
+                  ? `/dashboard/students/${linkedClassId}?${new URLSearchParams({
+                      yearId: String(resolveSubjectClassYearId(row) || ""),
+                      subjectClassLabel: extractClassLabel(row),
+                      subjectClassId,
+                    }).toString()}`
+                  : buildScopedDashboardHref("/dashboard/classes"),
               };
             })
           );
@@ -695,6 +710,7 @@ export default function DashboardPage() {
                 meta: extractYearLabel(cls),
                 badge: cls?.students_count ? `${cls.students_count} students` : undefined,
                 classId: String(cls?.id ?? cls?.class_id ?? ""),
+                href: cls?.id || cls?.class_id ? `/dashboard/students/${cls?.id ?? cls?.class_id}` : "/dashboard/classes",
               }))
           );
         }
@@ -720,6 +736,7 @@ export default function DashboardPage() {
             meta: cleanDashboardLabel(year?.name, "Year"),
             badge: row?.number_of_terms ? `${row.number_of_terms} terms` : undefined,
             classId: String(row?.id ?? ""),
+            href: row?.id ? `/dashboard/students/${row.id}` : "/dashboard/classes",
           }))
         );
       };
@@ -732,6 +749,7 @@ export default function DashboardPage() {
             title: cleanDashboardLabel(teacher?.name ?? teacher?.teacher_name ?? teacher?.user?.name, `Teacher ${index + 1}`),
             meta: cleanDashboardLabel(teacher?.email ?? teacher?.user?.email ?? teacher?.subject_name ?? "Teacher account", "Teacher account"),
             badge: teacher?.status ? cleanDashboardLabel(teacher.status) : undefined,
+            href: teacher?.id || teacher?.user_id ? `/dashboard/teachers/${teacher?.id ?? teacher?.user_id}/assignedClasses` : "/dashboard/teachers",
           }))
         );
       };
@@ -762,6 +780,9 @@ export default function DashboardPage() {
             title: cleanDashboardLabel(student?.student_name ?? student?.name ?? student?.user?.name, `Student ${index + 1}`),
             meta: classItem.title,
             badge: student?.status ? cleanDashboardLabel(student.status) : undefined,
+            href: student?.id || student?.student_id
+              ? `/dashboard/students/all-students/profile/${student?.id ?? student?.student_id}`
+              : classItem.href,
           }))
         );
       };
@@ -776,6 +797,7 @@ export default function DashboardPage() {
             key: String(school?.id ?? index),
             title: cleanDashboardLabel(school?.name ?? school?.school_name, `School ${index + 1}`),
             meta: cleanDashboardLabel(school?.address ?? school?.email ?? "School record", "School record"),
+            href: "/dashboard/schools",
           }))
         );
       }
@@ -785,6 +807,7 @@ export default function DashboardPage() {
             key: String(admin?.id ?? index),
             title: cleanDashboardLabel(admin?.name ?? admin?.email, `Admin ${index + 1}`),
             meta: cleanDashboardLabel(admin?.email ?? admin?.role ?? "Admin account", "Admin account"),
+            href: "/dashboard/admins",
           }))
         );
       }
@@ -1841,26 +1864,48 @@ export default function DashboardPage() {
                     ) : visibleActiveStatDetails.length > 0 ? (
                       <>
                         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                          {visibleActiveStatDetails.map((item) => (
-                            <div
-                              key={item.key}
-                              className="rounded-2xl border border-slate-100 bg-gradient-to-br from-white to-slate-50 px-3.5 py-3 shadow-sm"
-                            >
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0">
-                                  <p className="truncate text-sm font-bold text-slate-800">{item.title}</p>
-                                  {item.meta ? (
-                                    <p className="mt-1 truncate text-xs text-slate-500">{item.meta}</p>
+                          {visibleActiveStatDetails.map((item) => {
+                            const content = (
+                              <>
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <p className="truncate text-sm font-bold text-slate-800">{item.title}</p>
+                                    {item.meta ? (
+                                      <p className="mt-1 truncate text-xs text-slate-500">{item.meta}</p>
+                                    ) : null}
+                                  </div>
+                                  {item.badge ? (
+                                    <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                                      {item.badge}
+                                    </span>
                                   ) : null}
                                 </div>
-                                {item.badge ? (
-                                  <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
-                                    {item.badge}
-                                  </span>
+                                {item.href ? (
+                                  <div className="mt-3 flex items-center gap-1 text-xs font-bold text-emerald-700">
+                                    <span>Open</span>
+                                    <ChevronRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
+                                  </div>
                                 ) : null}
+                              </>
+                            );
+
+                            return item.href ? (
+                              <Link
+                                key={item.key}
+                                href={item.href}
+                                className="group block rounded-2xl border border-slate-100 bg-gradient-to-br from-white to-slate-50 px-3.5 py-3 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
+                              >
+                                {content}
+                              </Link>
+                            ) : (
+                              <div
+                                key={item.key}
+                                className="rounded-2xl border border-slate-100 bg-gradient-to-br from-white to-slate-50 px-3.5 py-3 shadow-sm"
+                              >
+                                {content}
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                         {activeStatDetails.length > STAT_DETAIL_LIMIT ? (
                           <p className="mt-3 text-xs font-medium text-slate-500">
