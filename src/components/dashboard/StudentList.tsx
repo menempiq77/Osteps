@@ -111,6 +111,14 @@ type EditSubjectClassOption = {
   linkedClassId?: number;
 };
 
+type ExistingStudentClassMeta = {
+  id: string;
+  className?: string;
+  yearName?: string;
+  subjectName?: string;
+  linkedClassId?: string;
+};
+
 type SeatingStateItem = {
   student_id: string;
   x: number;
@@ -216,6 +224,7 @@ const extractStudentSubjectIds = (student: Record<string, any>) =>
 
 const normalizeText = (value: string) =>
   value.toLowerCase().replace(/[\s_-]+/g, " ").trim();
+const isFallbackClassLabel = (value: unknown) => /^Class\s+\d+$/i.test(String(value ?? "").trim());
 const normalizeGenderRaw = (raw: unknown): "male" | "female" | "" => {
   const value = String(raw ?? "").trim().toLowerCase();
   if (["male", "m", "boy"].includes(value)) return "male";
@@ -803,9 +812,9 @@ export default function StudentList() {
   );
 
   const {
-    data: relatedExistingStudentClassIds = [],
+    data: relatedExistingStudentClassMeta = [],
     isFetching: relatedExistingStudentClassesLoading,
-  } = useQuery<string[]>({
+  } = useQuery<ExistingStudentClassMeta[]>({
     queryKey: [
       "student-list-existing-related-class-ids",
       String(scopedSubjectId ?? "school"),
@@ -841,12 +850,15 @@ export default function StudentList() {
       );
       const targetYearId = Number(resolvedSubjectClassContext?.yearId || queryYearId || 0);
       const targetSubjectClassId = String(effectiveSubjectClassId || "").trim();
-      const ids = new Set<string>();
+      const metaById = new Map<string, ExistingStudentClassMeta>();
 
       rowsBySubject.flat().forEach((row: any) => {
         const rowId = String(row?.id ?? "").trim();
         if (!rowId) return;
-        ids.add(rowId);
+        const subjectId = Number(row?.subject_id ?? row?.subjectId ?? 0);
+        const subjectName =
+          editSubjectOptions.find((option) => Number(option.value) === subjectId)?.label ||
+          String(row?.subject?.name ?? row?.subject_name ?? "").replace(/islamiat/gi, "Islamic").trim();
 
         const linkedClassId = String(
           row?.class_id ??
@@ -866,9 +878,32 @@ export default function StudentList() {
               ""
           )
         );
+          const labelText = String(
+            row?.base_class_label ??
+              row?.class?.class_name ??
+              row?.classes?.class_name ??
+              row?.base_class?.class_name ??
+              row?.name ??
+              ""
+          ).trim();
         const yearId = Number(
           row?.year_id ?? row?.class?.year_id ?? row?.classes?.year_id ?? row?.base_class?.year_id ?? 0
         );
+          const yearName = String(
+            row?.year?.name ??
+              row?.class?.year?.name ??
+              row?.classes?.year?.name ??
+              row?.base_class?.year?.name ??
+              (yearId ? `Year ${yearId}` : "")
+          ).trim();
+          const rowMeta: ExistingStudentClassMeta = {
+            id: rowId,
+            className: labelText,
+            yearName,
+            subjectName,
+            linkedClassId,
+          };
+          metaById.set(rowId, rowMeta);
         const sameLinkedClass = !!targetLinkedClassId && linkedClassId === targetLinkedClassId;
         const sameLabelAndYear =
           !!targetLabel &&
@@ -876,19 +911,32 @@ export default function StudentList() {
           (!targetYearId || !yearId || Number(yearId) === Number(targetYearId));
 
         if (sameLinkedClass || sameLabelAndYear || rowId === targetSubjectClassId) {
-          ids.add(rowId);
-          if (linkedClassId) ids.add(linkedClassId);
+          metaById.set(rowId, rowMeta);
+          if (linkedClassId) {
+            metaById.set(linkedClassId, {
+              id: linkedClassId,
+              className: labelText,
+              yearName,
+              subjectName,
+              linkedClassId,
+            });
+          }
         }
       });
 
-      return Array.from(ids);
+      return Array.from(metaById.values());
     },
   });
 
+  const relatedExistingStudentClassIds = useMemo(
+    () => relatedExistingStudentClassMeta.map((item) => item.id),
+    [relatedExistingStudentClassMeta]
+  );
+
   const {
-    data: allExistingStudentBaseClassIds = [],
+    data: allExistingStudentBaseClassMeta = [],
     isFetching: allExistingStudentClassesLoading,
-  } = useQuery<string[]>({
+  } = useQuery<ExistingStudentClassMeta[]>({
     queryKey: [
       "student-list-existing-school-base-class-ids",
       String(schoolId || "all-schools"),
@@ -912,26 +960,33 @@ export default function StudentList() {
       const classRows = await Promise.all(
         years.map(async (year) => {
           const yearId = String(year?.id ?? "").trim();
-          if (!yearId) return [] as Array<Record<string, any>>;
+          const yearName = String(year?.name ?? (yearId ? `Year ${yearId}` : "")).trim();
+          if (!yearId) return [] as ExistingStudentClassMeta[];
           try {
             const rows = await fetchClasses(yearId);
-            return Array.isArray(rows) ? rows : [];
+            return (Array.isArray(rows) ? rows : [])
+              .map((row: Record<string, any>) => ({
+                id: String(row?.id ?? "").trim(),
+                className: String(row?.class_name ?? row?.name ?? "").trim(),
+                yearName,
+              }))
+              .filter((row) => row.id && row.id !== "0");
           } catch {
-            return [] as Array<Record<string, any>>;
+            return [] as ExistingStudentClassMeta[];
           }
         })
       );
 
       return Array.from(
-        new Set(
-          classRows
-            .flat()
-            .map((row) => String(row?.id ?? "").trim())
-            .filter((id) => id && id !== "0")
-        )
+        new Map(classRows.flat().map((row) => [row.id, row] as const)).values()
       );
     },
   });
+
+  const allExistingStudentBaseClassIds = useMemo(
+    () => allExistingStudentBaseClassMeta.map((item) => item.id),
+    [allExistingStudentBaseClassMeta]
+  );
 
   const existingStudentFetchClassIds = useMemo(
     () =>
@@ -959,6 +1014,36 @@ export default function StudentList() {
     ]
   );
 
+  const existingStudentClassMetaById = useMemo(() => {
+    const entries = new Map<string, ExistingStudentClassMeta>();
+    [...allExistingStudentBaseClassMeta, ...relatedExistingStudentClassMeta].forEach((item) => {
+      const id = String(item.id ?? "").trim();
+      if (!id) return;
+      const existing = entries.get(id);
+      entries.set(id, {
+        id,
+        className:
+          (existing?.className && !isFallbackClassLabel(existing.className)
+            ? existing.className
+            : item.className) || existing?.className,
+        yearName: existing?.yearName || item.yearName,
+        subjectName: existing?.subjectName || item.subjectName,
+        linkedClassId: existing?.linkedClassId || item.linkedClassId,
+      });
+    });
+
+    return entries;
+  }, [allExistingStudentBaseClassMeta, relatedExistingStudentClassMeta]);
+
+  const existingStudentClassMetaSignature = useMemo(
+    () =>
+      Array.from(existingStudentClassMetaById.entries())
+        .map(([id, meta]) => `${id}:${meta.className || ""}:${meta.yearName || ""}:${meta.subjectName || ""}`)
+        .sort()
+        .join("|"),
+    [existingStudentClassMetaById]
+  );
+
   const currentStudentCandidateIds = useMemo(
     () =>
       new Set(
@@ -978,6 +1063,7 @@ export default function StudentList() {
       String(scopedSubjectId ?? "school"),
       effectiveSubjectClassId || "no-subject-class",
       existingStudentFetchClassIds.join(","),
+      existingStudentClassMetaSignature,
     ],
     enabled:
       isAddStudentModalOpen &&
@@ -1003,7 +1089,21 @@ export default function StudentList() {
 
       const byId = new Map<string, ExistingStudentOption>();
       rowsByClass.flat().forEach(({ row, candidateClassId }) => {
-        const option = toExistingStudentOption(row, candidateClassId);
+        const meta = existingStudentClassMetaById.get(String(candidateClassId));
+        const baseOption = toExistingStudentOption(row, candidateClassId);
+        const option = baseOption
+          ? {
+              ...baseOption,
+              className:
+                (baseOption.className && !isFallbackClassLabel(baseOption.className)
+                  ? baseOption.className
+                  : meta?.className) || baseOption.className,
+              yearName: baseOption.yearName || meta?.yearName || "",
+              subjects: Array.from(
+                new Set([...(baseOption.subjects || []), ...(meta?.subjectName ? [meta.subjectName] : [])])
+              ),
+            }
+          : null;
         if (!option) return;
 
         const key = String(option.id);
@@ -1015,7 +1115,10 @@ export default function StudentList() {
 
         byId.set(key, {
           ...existing,
-          className: existing.className || option.className,
+          className:
+            (existing.className && !isFallbackClassLabel(existing.className)
+              ? existing.className
+              : option.className) || existing.className,
           yearName: existing.yearName || option.yearName,
           subjects: Array.from(new Set([...(existing.subjects || []), ...(option.subjects || [])])),
           raw: existing.raw || option.raw,

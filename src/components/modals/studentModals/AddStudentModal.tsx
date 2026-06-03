@@ -41,6 +41,15 @@ const EMPTY_EXISTING_STUDENT_FILTERS: ExistingStudentFilterState = {
 const normalizeExistingFilterValue = (value: unknown) =>
   String(value ?? "").trim().toLowerCase();
 
+const resolveExistingStudentYearName = (student: ExistingStudentOption) => {
+  const directYear = String(student.yearName ?? "").trim();
+  if (directYear) return directYear;
+
+  const className = String(student.className ?? "").trim();
+  const match = className.match(/Year\s*\d+(?:\s*\([^)]*\))?/i);
+  return match?.[0]?.trim() || "";
+};
+
 const makeExistingFilterOptions = (values: unknown[]) => {
   const byKey = new Map<string, string>();
 
@@ -74,7 +83,7 @@ const existingStudentMatchesFilters = (
   if (!existingStudentMatchesSubjectFilter(student, filters.subject)) {
     return false;
   }
-  if (filters.year && normalizeExistingFilterValue(student.yearName) !== filters.year) {
+  if (filters.year && normalizeExistingFilterValue(resolveExistingStudentYearName(student)) !== filters.year) {
     return false;
   }
   if (filters.className && normalizeExistingFilterValue(student.className) !== filters.className) {
@@ -104,9 +113,10 @@ export const AddStudentModal = ({
   const existingStudentOptions = useMemo(
     () =>
       existingStudents.map((student) => {
+        const yearName = resolveExistingStudentYearName(student);
         const detailParts = [
           student.className,
-          student.yearName,
+          yearName,
           student.subjects?.length ? student.subjects.join(", ") : "",
           student.userName ? `@${student.userName}` : "",
           student.email,
@@ -115,7 +125,7 @@ export const AddStudentModal = ({
         return {
           value: String(student.id),
           label,
-          searchText: [student.name, student.userName, student.email, student.className, student.yearName, ...(student.subjects || [])]
+          searchText: [student.name, student.userName, student.email, student.className, yearName, ...(student.subjects || [])]
             .filter(Boolean)
             .join(" ")
             .toLowerCase(),
@@ -136,7 +146,7 @@ export const AddStudentModal = ({
       makeExistingFilterOptions(
         existingStudents
           .filter((student) => existingStudentMatchesSubjectFilter(student, existingFilters.subject))
-          .map((student) => student.yearName)
+          .map((student) => resolveExistingStudentYearName(student))
       ),
     [existingStudents, existingFilters.subject]
   );
@@ -147,7 +157,7 @@ export const AddStudentModal = ({
           .filter(
             (student) =>
               existingStudentMatchesSubjectFilter(student, existingFilters.subject) &&
-              (!existingFilters.year || normalizeExistingFilterValue(student.yearName) === existingFilters.year)
+              (!existingFilters.year || normalizeExistingFilterValue(resolveExistingStudentYearName(student)) === existingFilters.year)
           )
           .map((student) => student.className)
       ),
