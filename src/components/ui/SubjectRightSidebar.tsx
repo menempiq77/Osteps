@@ -57,6 +57,8 @@ export default function SubjectRightSidebar() {
   const [subjectSearch, setSubjectSearch] = useState("");
   const subjectButtonRef = useRef<HTMLButtonElement | null>(null);
   const subjectPickerRef = useRef<HTMLDivElement | null>(null);
+  const shouldSuppressUnscopedSubjectNav = canUseSubjectContext && !activeSubjectId;
+  const isResolvingSubjectContext = shouldSuppressUnscopedSubjectNav && subjectContextLoading;
 
   const roleKey = normalizeDashboardRole(currentUser?.role);
   const isStudent = roleKey === "STUDENT";
@@ -128,6 +130,8 @@ export default function SubjectRightSidebar() {
   };
 
   const entries = useMemo(() => {
+    if (shouldSuppressUnscopedSubjectNav) return [];
+
     const items = buildDashboardNavigation({
       roleKey,
       canUseSubjectContext,
@@ -147,7 +151,7 @@ export default function SubjectRightSidebar() {
         href,
       };
     });
-  }, [activeSubject?.name, activeSubjectId, canUseSubjectContext, isIslamicContext, roleKey, studentTrackerHref, toSubjectHref]);
+  }, [activeSubject?.name, activeSubjectId, canUseSubjectContext, isIslamicContext, roleKey, shouldSuppressUnscopedSubjectNav, studentTrackerHref, toSubjectHref]);
 
   const currentPath = normalizePath(pathname);
   const currentUnscoped = normalizePath(stripSubjectScope(pathname));
@@ -168,13 +172,19 @@ export default function SubjectRightSidebar() {
             ref={subjectButtonRef}
             type="button"
             onClick={() => setIsSubjectPickerOpen((open) => !open)}
-            disabled={!canUseSubjectContext}
+            disabled={!canUseSubjectContext || (isResolvingSubjectContext && subjects.length === 0)}
             className={`group w-full rounded-xl px-1.5 py-1.5 text-center transition ${
-              canUseSubjectContext ? "hover:bg-white/10" : "cursor-not-allowed opacity-60"
+              canUseSubjectContext && !(isResolvingSubjectContext && subjects.length === 0) ? "hover:bg-white/10" : "cursor-not-allowed opacity-60"
             }`}
             aria-haspopup="dialog"
             aria-expanded={isSubjectPickerOpen}
-            title={canUseSubjectContext ? "Choose subject" : "Subject switching unavailable"}
+            title={
+              isResolvingSubjectContext
+                ? "Loading subject"
+                : canUseSubjectContext
+                ? "Choose subject"
+                : "Subject switching unavailable"
+            }
           >
             <div className="mx-auto mb-1 h-1 w-8 rounded-full bg-[#38C16C] transition group-hover:w-10" />
             <div className="text-[10px] font-black uppercase tracking-wide text-white/70">
@@ -184,12 +194,33 @@ export default function SubjectRightSidebar() {
               <div className="mt-1 line-clamp-2 text-[10px] font-semibold leading-tight text-white">
                 {formatDashboardSubjectName(activeSubject.name)}
               </div>
+            ) : isResolvingSubjectContext ? (
+              <div className="mt-1 text-[10px] font-semibold leading-tight text-white/55">
+                Loading...
+              </div>
+            ) : shouldSuppressUnscopedSubjectNav ? (
+              <div className="mt-1 text-[10px] font-semibold leading-tight text-white/55">
+                Choose
+              </div>
             ) : null}
           </button>
         </div>
         <nav className="flex-1 overflow-y-auto py-2">
           <div className="space-y-1.5">
-            {entries.map((item) => {
+            {isResolvingSubjectContext ? (
+              <div className="space-y-4 px-3 py-3" aria-label="Loading subject sidebar">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <div key={index} className="flex animate-pulse flex-col items-center gap-2">
+                    <div className="h-8 w-8 rounded-xl bg-white/10" />
+                    <div className="h-3 w-14 rounded-full bg-white/10" />
+                  </div>
+                ))}
+              </div>
+            ) : shouldSuppressUnscopedSubjectNav ? (
+              <div className="px-3 py-6 text-center text-[11px] font-semibold leading-tight text-white/50">
+                Choose a subject to show shortcuts.
+              </div>
+            ) : entries.map((item) => {
               const Icon = item.icon;
               const active = isActive(item.href);
               const accent = sectionAccent[item.section] || "#93c5fd";

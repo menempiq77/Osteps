@@ -205,7 +205,10 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
 
     if (isSubjectScopedPath(pathname)) {
       const activeSubject = subjects.find((subject) => subject.id === activeSubjectId) ?? null;
-      router.replace(toSubjectScopedPath(pathname, activeSubjectId, activeSubject?.name ?? null));
+      const nextPath = toSubjectScopedPath(pathname, activeSubjectId, activeSubject?.name ?? null);
+      if (nextPath !== pathname) {
+        router.replace(nextPath);
+      }
     }
   }, [activeSubjectId, canUseSubjectContext, loading, pathname, router, subjects]);
 
