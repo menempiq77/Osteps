@@ -2,13 +2,14 @@
 
 import dynamic from "next/dynamic";
 import { useSelector, useDispatch } from "react-redux";
+import { LogOut, Settings as SettingsIcon } from "lucide-react";
 import { RootState } from "@/store/store";
 import SubjectSwitcher from "@/components/ui/SubjectSwitcher";
 import { SubjectContextProvider } from "@/contexts/SubjectContext";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { getStoredSubjectName } from "@/lib/subjectScope";
-import { IMPERSONATION_STORAGE_KEY, isImpersonating, setCurrentUser } from "@/features/auth/authSlice";
+import { IMPERSONATION_STORAGE_KEY, isImpersonating, logout, setCurrentUser } from "@/features/auth/authSlice";
 import { User } from "@/features/auth/types";
 
 const QuickLauncher = dynamic(() => import("@/components/ui/QuickLauncher"));
@@ -319,10 +320,20 @@ export default function DashboardLayout({
   const userDisplayName = String(currentUser?.name || currentUser?.email || "").replace(/_/g, " ");
   const userInitial = userDisplayName.trim().charAt(0).toUpperCase() || "O";
   const currentDashboardTitle = breadcrumbItems[breadcrumbItems.length - 1]?.label || "Dashboard";
+  const normalizedRole = String(currentUser?.role || "").trim().toUpperCase();
+  const settingsHref =
+    normalizedRole === "STUDENT" ? "/dashboard/students/settings"
+    : normalizedRole === "TEACHER" ? "/dashboard/teachers/settings"
+    : "/dashboard/school-admin/settings";
+
+  const handleLogout = () => {
+    dispatch(logout());
+    router.push("/");
+  };
 
   const renderThemeSwitcher = () => (
-    <div className="flex items-center gap-1 rounded-full border border-[var(--theme-border)] bg-[var(--theme-soft)] px-2.5 py-1.5 shadow-inner">
-      <span className="hidden text-[11px] font-bold uppercase tracking-wide text-[var(--theme-dark)] xl:inline">
+    <div className="flex items-center gap-1 rounded-full border border-white/15 bg-white/10 px-2.5 py-1.5 shadow-inner backdrop-blur">
+      <span className="hidden text-[11px] font-bold uppercase tracking-wide text-green-300 xl:inline">
         Style
       </span>
       {(Object.keys(THEMES) as ThemeName[]).map((name) => (
@@ -343,15 +354,15 @@ export default function DashboardLayout({
   );
 
   const renderUserSummary = () => (
-    <div className="flex min-w-0 items-center gap-2 rounded-full border border-[var(--theme-border)] bg-white px-2.5 py-1 shadow-sm">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--theme-soft)] text-sm font-black text-[var(--theme-dark)]">
+    <div className="flex min-w-0 items-center gap-2 rounded-full border border-white/12 bg-white/10 px-2.5 py-1 shadow-sm backdrop-blur">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#38C16C] text-sm font-black text-white shadow-[0_0_0_3px_rgba(56,193,108,0.25)]">
         {userInitial}
       </span>
       <span className="hidden min-w-0 flex-col leading-tight sm:flex">
-        <span className="max-w-[150px] truncate text-xs font-bold text-gray-900">
+        <span className="max-w-[150px] truncate text-xs font-bold text-white">
           {userDisplayName || "Osteps User"}
         </span>
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--theme-dark)]">
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-green-300">
           {userRoleLabel}
         </span>
       </span>
@@ -363,23 +374,45 @@ export default function DashboardLayout({
       <button
         type="button"
         onClick={() => router.push("/dashboard/subject-cards")}
-        className="rounded-full border border-[var(--theme-border)] bg-white px-3 py-1.5 text-xs font-bold text-[var(--theme-dark)] transition hover:bg-[var(--theme-soft)]"
+        className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-white/20"
       >
         Home
       </button>
       <button
         type="button"
         onClick={() => window.history.back()}
-        className="rounded-full border border-[var(--theme-border)] bg-[var(--theme-soft)] px-3 py-1.5 text-xs font-bold text-[var(--theme-dark)] transition hover:bg-[var(--theme-soft-2)]"
+        className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-white/20"
       >
         Back
       </button>
       <button
         type="button"
         onClick={() => window.history.forward()}
-        className="rounded-full border border-[var(--theme-border)] bg-[var(--theme-soft)] px-3 py-1.5 text-xs font-bold text-[var(--theme-dark)] transition hover:bg-[var(--theme-soft-2)]"
+        className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-white/20"
       >
         Next
+      </button>
+    </div>
+  );
+
+  const renderAccountActions = () => (
+    <div className="flex shrink-0 items-center gap-2">
+      <button
+        type="button"
+        onClick={() => router.push(settingsHref)}
+        className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white shadow-sm transition-all duration-200 hover:scale-105 hover:bg-white/20 active:scale-95"
+        aria-label="Open settings"
+        title="Settings"
+      >
+        <SettingsIcon className="h-5 w-5" />
+      </button>
+      <button
+        type="button"
+        onClick={handleLogout}
+        className="flex h-10 shrink-0 items-center gap-2 rounded-xl border border-red-400/35 bg-red-500/15 px-4 text-sm font-bold text-white shadow-sm transition-all duration-200 hover:scale-105 hover:bg-red-500/25 active:scale-95"
+      >
+        <LogOut className="h-4 w-4" />
+        <span className="hidden sm:inline">Sign Out</span>
       </button>
     </div>
   );
@@ -398,43 +431,52 @@ export default function DashboardLayout({
     const visibleBreadcrumbs = showBreadcrumb ? breadcrumbItems : [];
 
     return (
-      <div className="relative z-20 mb-4 overflow-hidden rounded-2xl border border-[var(--theme-border)] bg-white shadow-sm">
-        <div className="h-1 w-full bg-gradient-to-r from-[var(--primary)] via-[var(--theme-scroll-start)] to-[var(--theme-scroll-end)]" />
+      <div
+        className="relative z-20 mb-4 overflow-hidden rounded-[28px] border border-white/10 px-4 py-4 text-white shadow-[0_22px_55px_rgba(15,23,42,0.18)] md:px-5"
+        style={{
+          background:
+            "linear-gradient(135deg, #2c211c 0%, #18343b 28%, #33406b 56%, #3b2735 100%)",
+        }}
+      >
+        <div className="pointer-events-none absolute -left-10 -top-16 h-44 w-44 rounded-full bg-[#38C16C]/20 blur-3xl" />
+        <div className="pointer-events-none absolute left-1/2 top-4 h-12 w-56 -translate-x-1/2 rounded-full bg-amber-500/10 blur-xl" />
+        <div className="pointer-events-none absolute -right-12 bottom-2 h-40 w-40 rounded-full bg-red-500/10 blur-3xl" />
         <div className="flex flex-col gap-3 px-3 py-3 md:px-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex min-w-0 flex-1 items-center gap-3">
+          <div className="relative flex min-w-0 flex-1 items-center gap-3">
             <QuickLauncher />
-            <div className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--theme-soft)] text-lg font-black text-[var(--theme-dark)] ring-1 ring-[var(--theme-border)] sm:flex">
+            <div className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#38C16C] text-lg font-black text-white shadow-[0_0_0_3px_rgba(56,193,108,0.28)] sm:flex">
               O
             </div>
             <div className="min-w-0">
               <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <h1 className="truncate text-base font-black text-gray-950 md:text-lg">
+                <h1 className="truncate text-base font-black text-white md:text-lg">
                   {title}
                 </h1>
-                <span className="rounded-full bg-[var(--theme-soft)] px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--theme-dark)]">
+                <span className="rounded-full border border-[#38C16C]/30 bg-[#38C16C]/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.16em] text-green-300">
                   Osteps
                 </span>
               </div>
               {subtitle ? (
-                <p className="mt-0.5 line-clamp-1 text-xs font-medium text-gray-500">
+                <p className="mt-0.5 line-clamp-1 text-xs font-semibold text-slate-200/80">
                   {subtitle}
                 </p>
               ) : null}
             </div>
           </div>
 
-          <div className="flex flex-col gap-2 lg:items-end">
+          <div className="relative flex flex-col gap-2 lg:items-end">
             <div className="flex flex-wrap items-center justify-start gap-2 lg:justify-end">
               {renderUserSummary()}
               {showSubjectSwitcher ? <SubjectSwitcher /> : null}
               {renderThemeSwitcher()}
+              {renderAccountActions()}
             </div>
             {renderNavigationButtons()}
           </div>
         </div>
         {visibleBreadcrumbs.length > 0 ? (
-          <div className="border-t border-[var(--theme-border)] bg-[var(--theme-soft)]/60 px-3 py-2 md:px-4">
-            <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+          <div className="relative border-t border-white/10 bg-white/5 px-3 py-2 md:px-4">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-300">
               {visibleBreadcrumbs.map((item, index) => {
                 const isLast = index === visibleBreadcrumbs.length - 1;
                 return (
@@ -445,13 +487,13 @@ export default function DashboardLayout({
                       disabled={isLast}
                       className={`transition-colors ${
                         isLast
-                          ? "cursor-default font-bold text-gray-800"
-                          : "font-semibold text-gray-500 hover:text-[var(--theme-dark)]"
+                          ? "cursor-default font-bold text-white"
+                          : "font-semibold text-slate-300 hover:text-green-300"
                       }`}
                     >
                       {item.label}
                     </button>
-                    {!isLast && <span className="text-gray-300">/</span>}
+                    {!isLast && <span className="text-white/25">/</span>}
                   </div>
                 );
               })}
