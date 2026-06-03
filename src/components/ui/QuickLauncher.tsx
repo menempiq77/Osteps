@@ -5,12 +5,19 @@ import { usePathname, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { useQuery } from "@tanstack/react-query";
 import {
+  Award,
+  BarChart3,
   BookOpen,
+  BookText,
+  CalendarDays,
   ChevronRight,
+  Library,
+  Megaphone,
   Search,
   Settings,
   Star,
   Users,
+  Wrench,
   X,
 } from "lucide-react";
 import { RootState } from "@/store/store";
@@ -144,13 +151,17 @@ const getModuleEmoji = (entry: Pick<LauncherEntry, "name" | "section">) => {
   if (name.includes("hub") || name.includes("subject")) return "📚";
   if (name.includes("approval")) return "✅";
   if (name.includes("setting")) return "⚙️";
+  if (name.includes("course")) return "📘";
   if (name.includes("quiz") || name.includes("assessment")) return "📝";
   if (name.includes("tracker") || name.includes("progress")) return "📈";
-  if (name.includes("report")) return "📊";
+  if (name.includes("report") || name.includes("markbook")) return "📊";
   if (name.includes("library") || name.includes("lesson")) return "📚";
   if (name.includes("material")) return "📄";
   if (name.includes("class") || name.includes("school")) return "🏫";
   if (name.includes("timetable") || name.includes("calendar")) return "🗓️";
+  if (name.includes("announcement")) return "📣";
+  if (name.includes("tool")) return "🛠️";
+  if (name.includes("leaderboard")) return "🏆";
   if (name.includes("behaviour") || name.includes("behavior")) return "🌱";
   if (entry.section === "Account") return "⚙️";
   if (entry.section === "Teaching") return "🎓";
@@ -318,6 +329,12 @@ export default function QuickLauncher() {
 
   const extraEntries = useMemo<LauncherEntry[]>(() => {
     const items: LauncherEntry[] = [];
+    const addEntryIfMissing = (entry: LauncherEntry) => {
+      const alreadyExists = [...navigationEntries, ...items].some(
+        (item) => item.name === entry.name || (entry.href && item.href === entry.href)
+      );
+      if (!alreadyExists) items.push(entry);
+    };
 
     if (canUseSubjectContext && !navigationEntries.some((item) => item.href === "/dashboard/subject-cards")) {
       items.push({
@@ -357,6 +374,146 @@ export default function QuickLauncher() {
       );
     }
 
+    if (roleKey === "SCHOOL_ADMIN") {
+      [
+        {
+          id: "school-students-staff",
+          name: "Students & Staff",
+          description: "Manage all students and teachers across subjects.",
+          section: "Workspace",
+          keywords: ["students", "teachers", "staff", "school-wide"],
+          icon: Users,
+          href: "/dashboard/students-staff",
+          kind: "link" as const,
+        },
+        {
+          id: "school-courses",
+          name: "Courses",
+          description: "Access subject courses including Lessons and Mind-upgrade.",
+          section: "Resources",
+          keywords: ["courses", "lessons", "mind upgrade"],
+          icon: BookText,
+          href: "/dashboard/courses",
+          kind: "link" as const,
+        },
+        {
+          id: "school-markbook",
+          name: "Markbook",
+          description: "Open student reports and performance summaries.",
+          section: "Teaching",
+          keywords: ["markbook", "reports", "performance"],
+          icon: BarChart3,
+          href: "/dashboard/students/markbook",
+          kind: "link" as const,
+        },
+        {
+          id: "nav-Library-/dashboard/library",
+          name: "Library",
+          description: "Open shared resources available to assigned subjects.",
+          section: "Resources",
+          keywords: ["library", "resources", "books", "materials"],
+          icon: Library,
+          href: "/dashboard/library",
+          kind: "link" as const,
+        },
+        {
+          id: "nav-Timetable-/dashboard/timetable-builder",
+          name: "Timetable",
+          description: "Open the timetable builder and schedule tools.",
+          section: "Workspace",
+          keywords: ["timetable", "schedule", "builder"],
+          icon: CalendarDays,
+          href: "/dashboard/timetable-builder",
+          kind: "link" as const,
+        },
+        {
+          id: "school-calendar",
+          name: "Calendar",
+          description: "Open the calendar view by subject, class, or teacher.",
+          section: "Workspace",
+          keywords: ["calendar", "schedule", "time table"],
+          icon: CalendarDays,
+          href: "/dashboard/time_table?view=calendar",
+          kind: "link" as const,
+        },
+        {
+          id: "nav-Announcements-/dashboard/announcements",
+          name: "Announcements",
+          description: "Send announcements to HODs, teachers, and students.",
+          section: "Communication",
+          keywords: ["announcements", "messages", "updates"],
+          icon: Megaphone,
+          href: "/dashboard/announcements",
+          kind: "link" as const,
+        },
+        {
+          id: "nav-Tools-/dashboard/tools",
+          name: "Tools",
+          description: "Open extra tools that support all subjects.",
+          section: "Workspace",
+          keywords: ["tools", "utilities", "support"],
+          icon: Wrench,
+          href: "/dashboard/tools",
+          kind: "link" as const,
+        },
+        {
+          id: "nav-Leaderboard-/dashboard/leaderboard/",
+          name: "Leaderboard",
+          description: "See school-wide student rankings across all subjects.",
+          section: "Teaching",
+          keywords: ["leaderboard", "ranking", "points"],
+          icon: Award,
+          href: activeSubjectId ? `/dashboard/s/${activeSubjectId}/leaderboard` : "/dashboard/leaderboard",
+          kind: "link" as const,
+        },
+      ].forEach(addEntryIfMissing);
+    }
+
+    if (["HOD", "TEACHER"].includes(roleKey)) {
+      [
+        {
+          id: "school-courses",
+          name: "Courses",
+          description: "Access subject courses including Lessons and Mind-upgrade.",
+          section: "Resources",
+          keywords: ["courses", "lessons", "mind upgrade"],
+          icon: BookText,
+          href: "/dashboard/courses",
+          kind: "link" as const,
+        },
+        {
+          id: "school-markbook",
+          name: "Markbook",
+          description: "Open student reports and performance summaries.",
+          section: "Teaching",
+          keywords: ["markbook", "reports", "performance"],
+          icon: BarChart3,
+          href: "/dashboard/students/markbook",
+          kind: "link" as const,
+        },
+        {
+          id: "nav-Library-/dashboard/library",
+          name: "Library",
+          description: "Open shared resources for the current school workspace.",
+          section: "Resources",
+          keywords: ["library", "resources", "materials"],
+          icon: Library,
+          href: "/dashboard/library",
+          kind: "link" as const,
+        },
+        {
+          id: "nav-Leaderboard-/dashboard/leaderboard/",
+          name: "Leaderboard",
+          description: "See school-wide student rankings across all subjects.",
+          section: "Teaching",
+          keywords: ["leaderboard", "ranking", "points"],
+          icon: Award,
+          href: activeSubjectId ? `/dashboard/s/${activeSubjectId}/leaderboard` : "/dashboard/leaderboard",
+          kind: "link" as const,
+        },
+      ].forEach(addEntryIfMissing);
+    }
+
     if (["SCHOOL_ADMIN", "HOD", "TEACHER", "STUDENT"].includes(roleKey)) {
       const settingsHref =
         roleKey === "STUDENT" ? "/dashboard/students/settings"
@@ -375,7 +532,7 @@ export default function QuickLauncher() {
     }
 
     return items;
-  }, [canUseSubjectContext, navigationEntries, roleKey]);
+  }, [activeSubjectId, canUseSubjectContext, navigationEntries, roleKey]);
 
   const studentUtilityEntries = useMemo<LauncherEntry[]>(() => {
     if (!isStudent) return [];

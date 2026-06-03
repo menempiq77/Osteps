@@ -4,7 +4,20 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { useQuery } from "@tanstack/react-query";
-import { BookOpen, MoreVertical, Star } from "lucide-react";
+import {
+  Award,
+  BarChart3,
+  BookOpen,
+  BookText,
+  CalendarDays,
+  Library,
+  Megaphone,
+  MoreVertical,
+  Settings,
+  Star,
+  Users,
+  Wrench,
+} from "lucide-react";
 import { RootState } from "@/store/store";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import {
@@ -150,6 +163,12 @@ export default function FavoriteSidebar() {
 
   const extraEntries = useMemo<FavoriteEntry[]>(() => {
     const items: FavoriteEntry[] = [];
+    const addEntryIfMissing = (entry: FavoriteEntry) => {
+      const alreadyExists = [...navigationEntries, ...items].some(
+        (item) => item.name === entry.name || (entry.href && item.href === entry.href)
+      );
+      if (!alreadyExists) items.push(entry);
+    };
 
     if (canUseSubjectContext && !navigationEntries.some((item) => item.href === "/dashboard/subject-cards")) {
       items.push({
@@ -168,7 +187,7 @@ export default function FavoriteSidebar() {
           id: "extra-all-students",
           name: "All Students",
           section: "Workspace",
-          icon: BookOpen,
+          icon: Users,
           href: "/dashboard/students/all-students",
           kind: "link",
         },
@@ -176,11 +195,125 @@ export default function FavoriteSidebar() {
           id: "extra-teachers",
           name: "Teachers",
           section: "Workspace",
-          icon: BookOpen,
+          icon: Users,
           href: "/dashboard/teachers",
           kind: "link",
         }
       );
+    }
+
+    if (roleKey === "SCHOOL_ADMIN") {
+      [
+        {
+          id: "school-students-staff",
+          name: "Students & Staff",
+          section: "Workspace",
+          icon: Users,
+          href: "/dashboard/students-staff",
+          kind: "link" as const,
+        },
+        {
+          id: "school-courses",
+          name: "Courses",
+          section: "Resources",
+          icon: BookText,
+          href: "/dashboard/courses",
+          kind: "link" as const,
+        },
+        {
+          id: "school-markbook",
+          name: "Markbook",
+          section: "Teaching",
+          icon: BarChart3,
+          href: "/dashboard/students/markbook",
+          kind: "link" as const,
+        },
+        {
+          id: "nav-Library-/dashboard/library",
+          name: "Library",
+          section: "Resources",
+          icon: Library,
+          href: "/dashboard/library",
+          kind: "link" as const,
+        },
+        {
+          id: "nav-Timetable-/dashboard/timetable-builder",
+          name: "Timetable",
+          section: "Workspace",
+          icon: CalendarDays,
+          href: "/dashboard/timetable-builder",
+          kind: "link" as const,
+        },
+        {
+          id: "school-calendar",
+          name: "Calendar",
+          section: "Workspace",
+          icon: CalendarDays,
+          href: "/dashboard/time_table?view=calendar",
+          kind: "link" as const,
+        },
+        {
+          id: "nav-Announcements-/dashboard/announcements",
+          name: "Announcements",
+          section: "Communication",
+          icon: Megaphone,
+          href: "/dashboard/announcements",
+          kind: "link" as const,
+        },
+        {
+          id: "nav-Tools-/dashboard/tools",
+          name: "Tools",
+          section: "Workspace",
+          icon: Wrench,
+          href: "/dashboard/tools",
+          kind: "link" as const,
+        },
+        {
+          id: "nav-Leaderboard-/dashboard/leaderboard/",
+          name: "Leaderboard",
+          section: "Teaching",
+          icon: Award,
+          href: activeSubjectId ? `/dashboard/s/${activeSubjectId}/leaderboard` : "/dashboard/leaderboard",
+          kind: "link" as const,
+        },
+      ].forEach(addEntryIfMissing);
+    }
+
+    if (["HOD", "TEACHER"].includes(roleKey)) {
+      [
+        {
+          id: "school-courses",
+          name: "Courses",
+          section: "Resources",
+          icon: BookText,
+          href: "/dashboard/courses",
+          kind: "link" as const,
+        },
+        {
+          id: "school-markbook",
+          name: "Markbook",
+          section: "Teaching",
+          icon: BarChart3,
+          href: "/dashboard/students/markbook",
+          kind: "link" as const,
+        },
+        {
+          id: "nav-Library-/dashboard/library",
+          name: "Library",
+          section: "Resources",
+          icon: Library,
+          href: "/dashboard/library",
+          kind: "link" as const,
+        },
+        {
+          id: "nav-Leaderboard-/dashboard/leaderboard/",
+          name: "Leaderboard",
+          section: "Teaching",
+          icon: Award,
+          href: activeSubjectId ? `/dashboard/s/${activeSubjectId}/leaderboard` : "/dashboard/leaderboard",
+          kind: "link" as const,
+        },
+      ].forEach(addEntryIfMissing);
     }
 
     if (["SCHOOL_ADMIN", "HOD", "TEACHER", "STUDENT"].includes(roleKey)) {
@@ -192,14 +325,14 @@ export default function FavoriteSidebar() {
         id: "extra-settings",
         name: "Settings",
         section: "Account",
-        icon: BookOpen,
+        icon: Settings,
         href: settingsHref,
         kind: "link",
       });
     }
 
     return items;
-  }, [canUseSubjectContext, navigationEntries, roleKey]);
+  }, [activeSubjectId, canUseSubjectContext, navigationEntries, roleKey]);
 
   const studentUtilityEntries = useMemo<FavoriteEntry[]>(() => {
     if (!isStudent) return [];
