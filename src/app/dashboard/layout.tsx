@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Image from "next/image";
 import { useSelector, useDispatch } from "react-redux";
 import { ArrowLeft, ArrowRight, Home, LogOut, Settings as SettingsIcon } from "lucide-react";
 import { RootState } from "@/store/store";
@@ -11,6 +12,7 @@ import { useEffect, useMemo, useState } from "react";
 import { getStoredSubjectName } from "@/lib/subjectScope";
 import { IMPERSONATION_STORAGE_KEY, isImpersonating, logout, setCurrentUser } from "@/features/auth/authSlice";
 import { User } from "@/features/auth/types";
+import OstepsLogo from "@/assets/images/Logo2.jpg";
 
 const QuickLauncher = dynamic(() => import("@/components/ui/QuickLauncher"));
 const FavoriteSidebar = dynamic(() => import("@/components/ui/FavoriteSidebar"));
@@ -347,7 +349,7 @@ export default function DashboardLayout({
   };
 
   const renderThemeSwitcher = () => (
-    <div className="flex items-center gap-1 rounded-full border border-white/15 bg-white/10 px-2.5 py-1.5 shadow-inner backdrop-blur">
+    <div className="flex items-center gap-1 rounded-full border border-white/15 bg-white/[0.08] px-2.5 py-1.5 shadow-inner backdrop-blur-md">
       {(Object.keys(THEMES) as ThemeName[]).map((name) => (
         <button
           key={name}
@@ -370,7 +372,7 @@ export default function DashboardLayout({
       <button
         type="button"
         onClick={() => router.push("/dashboard/subject-cards")}
-        className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/20"
+        className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-white/[0.08] text-white shadow-sm backdrop-blur-md transition hover:bg-white/20"
         aria-label="Home"
         title="Home"
       >
@@ -379,7 +381,7 @@ export default function DashboardLayout({
       <button
         type="button"
         onClick={() => window.history.back()}
-        className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/20"
+        className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-white/[0.08] text-white shadow-sm backdrop-blur-md transition hover:bg-white/20"
         aria-label="Back"
         title="Back"
       >
@@ -388,7 +390,7 @@ export default function DashboardLayout({
       <button
         type="button"
         onClick={() => window.history.forward()}
-        className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/20"
+        className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-white/[0.08] text-white shadow-sm backdrop-blur-md transition hover:bg-white/20"
         aria-label="Next"
         title="Next"
       >
@@ -402,7 +404,7 @@ export default function DashboardLayout({
       <button
         type="button"
         onClick={() => router.push(settingsHref)}
-        className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white shadow-sm transition-all duration-200 hover:scale-105 hover:bg-white/20 active:scale-95"
+        className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/20 bg-white/[0.08] text-white shadow-sm backdrop-blur-md transition-all duration-200 hover:scale-105 hover:bg-white/20 active:scale-95"
         aria-label="Open settings"
         title="Settings"
       >
@@ -411,7 +413,7 @@ export default function DashboardLayout({
       <button
         type="button"
         onClick={handleLogout}
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-red-400/35 bg-red-500/15 text-white shadow-sm transition-all duration-200 hover:scale-105 hover:bg-red-500/25 active:scale-95"
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white/[0.08] text-white shadow-sm backdrop-blur-md transition-all duration-200 hover:scale-105 hover:bg-white/20 active:scale-95"
         aria-label="Sign out"
         title="Sign out"
       >
@@ -430,17 +432,27 @@ export default function DashboardLayout({
         className="fixed left-0 right-0 top-0 z-[900] overflow-hidden border-b border-white/10 px-3 py-1.5 text-white shadow-[0_18px_42px_rgba(15,23,42,0.22)] md:px-4"
         style={{
           background:
-            "linear-gradient(135deg, #2c211c 0%, #18343b 28%, #33406b 56%, #3b2735 100%)",
+            "linear-gradient(105deg, #242936 0%, #253742 30%, #373f61 63%, #403344 100%)",
         }}
       >
-        <div className="pointer-events-none absolute -left-10 -top-16 h-36 w-36 rounded-full bg-[#38C16C]/20 blur-3xl" />
-        <div className="pointer-events-none absolute left-1/2 top-2 h-10 w-56 -translate-x-1/2 rounded-full bg-amber-500/10 blur-xl" />
-        <div className="pointer-events-none absolute -right-12 bottom-0 h-32 w-32 rounded-full bg-red-500/10 blur-3xl" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.28),transparent_28%),radial-gradient(circle_at_8%_18%,rgba(56,193,108,0.18),transparent_24%),radial-gradient(circle_at_92%_50%,rgba(255,255,255,0.10),transparent_25%)]" />
+        <div className="pointer-events-none absolute -left-10 -top-16 h-36 w-36 rounded-full bg-[#38C16C]/18 blur-3xl" />
+        <div className="pointer-events-none absolute -right-12 bottom-0 h-32 w-32 rounded-full bg-[#38C16C]/10 blur-3xl" />
+        <div className="pointer-events-none absolute left-1/2 top-1/2 hidden h-[58px] w-[134px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-2xl border border-white/15 bg-white/[0.08] shadow-[0_14px_36px_rgba(0,0,0,0.16)] backdrop-blur-lg 2xl:flex">
+          <Image
+            src={OstepsLogo}
+            alt="Osteps"
+            width={112}
+            height={48}
+            className="h-12 w-28 rounded-xl object-cover object-center opacity-95"
+            priority
+          />
+        </div>
         <div className="relative flex min-h-[70px] w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 flex-1 items-center gap-3">
             <div className="flex shrink-0 items-center gap-3">
               <QuickLauncher />
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#38C16C] text-base font-black text-white shadow-[0_0_0_4px_rgba(56,193,108,0.25)] sm:h-14 sm:w-14 sm:text-lg">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-[#38C16C] text-base font-black text-white shadow-[0_0_0_4px_rgba(56,193,108,0.20)] sm:h-14 sm:w-14 sm:text-lg">
                 {userInitials}
               </div>
             </div>
@@ -455,7 +467,7 @@ export default function DashboardLayout({
                 <span className="rounded-full border border-[#38C16C]/30 bg-[#38C16C]/15 px-2.5 py-0.5 text-[11px] font-black text-green-300">
                   {userRoleLabel}
                 </span>
-                <span className="rounded-full border border-white/15 bg-white/10 px-2.5 py-0.5 text-[11px] font-semibold text-slate-200">
+                <span className="rounded-full border border-white/15 bg-white/[0.08] px-2.5 py-0.5 text-[11px] font-semibold text-slate-200 backdrop-blur-md">
                   {userDisplayName || "Osteps User"}
                 </span>
               </div>
