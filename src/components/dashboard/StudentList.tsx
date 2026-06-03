@@ -27,7 +27,7 @@ import {
 } from "@ant-design/icons";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AddStudentModal } from "../modals/studentModals/AddStudentModal";
+import { AddStudentModal, type ExistingStudentOption } from "../modals/studentModals/AddStudentModal";
 import { EditStudentModal } from "../modals/studentModals/EditStudentModal";
 import BehaviorModal from "@/components/modals/behaviorModals/BehaviorModal";
 import {
@@ -219,6 +219,100 @@ const normalizeGenderRaw = (raw: unknown): "male" | "female" | "" => {
   if (["male", "m", "boy"].includes(value)) return "male";
   if (["female", "f", "girl"].includes(value)) return "female";
   return "";
+};
+
+const extractStudentCandidateIds = (student: Record<string, any> | undefined | null) =>
+  Array.from(
+    new Set(
+      [student?.id, student?.student_id, student?.studentId]
+        .map((value) => String(value ?? "").trim())
+        .filter(Boolean)
+    )
+  );
+
+const resolveExistingStudentName = (student: Record<string, any>) =>
+  String(
+    student?.student_name ??
+      student?.name ??
+      student?.full_name ??
+      student?.studentName ??
+      student?.user?.name ??
+      "Student"
+  ).trim();
+
+const resolveExistingStudentUserName = (student: Record<string, any>) =>
+  String(
+    student?.user_name ??
+      student?.username ??
+      student?.student_username ??
+      student?.user?.user_name ??
+      student?.user?.username ??
+      ""
+  ).trim();
+
+const extractExistingStudentSubjectNames = (student: Record<string, any>) => {
+  const rawSubjects = Array.isArray(student?.subjects)
+    ? student.subjects
+    : student?.subject_name
+      ? [student.subject_name]
+      : student?.subject
+        ? [student.subject]
+        : [];
+
+  return Array.from(
+    new Set(
+      rawSubjects
+        .map((subject: any) => {
+          if (typeof subject === "string") return subject;
+          if (subject && typeof subject === "object") {
+            return String(subject.name ?? subject.subject_name ?? subject.title ?? "");
+          }
+          return "";
+        })
+        .map((name: string) => name.replace(/islamiat/gi, "Islamic").trim())
+        .filter(Boolean)
+    )
+  );
+};
+
+const toExistingStudentOption = (
+  student: Record<string, any>,
+  fallbackClassId: string
+): ExistingStudentOption | null => {
+  const id = extractStudentCandidateIds(student)[0];
+  if (!id) return null;
+
+  const className = String(
+    student?.class_name ??
+      student?.class?.class_name ??
+      student?.classes?.class_name ??
+      student?.base_class?.class_name ??
+      student?.className ??
+      (fallbackClassId ? `Class ${fallbackClassId}` : "")
+  ).trim();
+  const yearName = String(
+    student?.year_name ??
+      student?.year?.name ??
+      student?.class?.year?.name ??
+      student?.classes?.year?.name ??
+      student?.yearName ??
+      ""
+  ).trim();
+  const rawGender = normalizeGenderRaw(
+    student?.gender ?? student?.student_gender ?? student?.sex ?? student?.student_sex
+  );
+
+  return {
+    id,
+    name: resolveExistingStudentName(student),
+    userName: resolveExistingStudentUserName(student),
+    email: String(student?.email ?? student?.student_email ?? "").trim(),
+    className,
+    yearName,
+    gender: rawGender === "male" ? "Male" : rawGender === "female" ? "Female" : "",
+    subjects: extractExistingStudentSubjectNames(student),
+    raw: student,
+  };
 };
 
 const getLocalTimestampLabel = (timeZone?: string) => {
@@ -701,6 +795,198 @@ export default function StudentList() {
     ]
   );
 
+  const {
+    data: relatedExistingStudentClassIds = [],
+    isFetching: relatedExistingStudentClassesLoading,
+  } = useQuery<string[]>({
+    queryKey: [
+      "student-list-existing-related-class-ids",
+      String(scopedSubjectId ?? "school"),
+      effectiveSubjectClassId || "no-subject-class",
+      effectiveClassId || classIdForStudentsFetch || fallbackRouteClassId || "unresolved",
+      String(resolvedSubjectClassContext?.yearId || queryYearId || "no-year"),
+      String(resolvedSubjectClassContext?.label || querySubjectClassLabel || "no-label"),
+      editSubjectIdsForLookup.join(","),
+    ],
+    enabled:
+      isAddStudentModalOpen &&
+      hasAccess &&
+      isSubjectWorkspaceMode &&
+      !!effectiveSubjectClassId &&
+      editSubjectIdsForLookup.length > 0 &&
+      !resolvingSubjectClass,
+    queryFn: async () => {
+      const rowsBySubject = await Promise.all(
+        editSubjectIdsForLookup.map(async (subjectId) => {
+          try {
+            const rows = await fetchSubjectClasses({ subject_id: subjectId });
+            return Array.isArray(rows) ? rows : [];
+          } catch {
+            return [];
+          }
+        })
+      );
+      const targetLinkedClassId = String(
+        effectiveClassId || classIdForStudentsFetch || fallbackRouteClassId || ""
+      ).trim();
+      const targetLabel = normalizeText(
+        String(resolvedSubjectClassContext?.label || querySubjectClassLabel || "")
+      );
+      const targetYearId = Number(resolvedSubjectClassContext?.yearId || queryYearId || 0);
+      const targetSubjectClassId = String(effectiveSubjectClassId || "").trim();
+      const ids = new Set<string>();
+
+      rowsBySubject.flat().forEach((row: any) => {
+        const rowId = String(row?.id ?? "").trim();
+        if (!rowId) return;
+
+        const linkedClassId = String(
+          row?.class_id ??
+            row?.base_class_id ??
+            row?.class?.id ??
+            row?.classes?.id ??
+            row?.base_class?.id ??
+            ""
+        ).trim();
+        const label = normalizeText(
+          String(
+            row?.base_class_label ??
+              row?.class?.class_name ??
+              row?.classes?.class_name ??
+              row?.base_class?.class_name ??
+              row?.name ??
+              ""
+          )
+        );
+        const yearId = Number(
+          row?.year_id ?? row?.class?.year_id ?? row?.classes?.year_id ?? row?.base_class?.year_id ?? 0
+        );
+        const sameLinkedClass = !!targetLinkedClassId && linkedClassId === targetLinkedClassId;
+        const sameLabelAndYear =
+          !!targetLabel &&
+          label === targetLabel &&
+          (!targetYearId || !yearId || Number(yearId) === Number(targetYearId));
+
+        if (sameLinkedClass || sameLabelAndYear || rowId === targetSubjectClassId) {
+          ids.add(rowId);
+        }
+      });
+
+      return Array.from(ids);
+    },
+  });
+
+  const existingStudentFetchClassIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          [
+            effectiveClassId,
+            classIdForStudentsFetch,
+            fallbackRouteClassId,
+            effectiveSubjectClassId,
+            ...relatedExistingStudentClassIds,
+          ]
+            .map((id) => String(id ?? "").trim())
+            .filter((id) => id && id !== "0")
+        )
+      ),
+    [
+      effectiveClassId,
+      classIdForStudentsFetch,
+      fallbackRouteClassId,
+      effectiveSubjectClassId,
+      relatedExistingStudentClassIds,
+    ]
+  );
+
+  const currentStudentCandidateIds = useMemo(
+    () =>
+      new Set(
+        (students as Array<Record<string, any>>).flatMap((student) =>
+          extractStudentCandidateIds(student)
+        )
+      ),
+    [students]
+  );
+
+  const {
+    data: existingStudentCandidates = [],
+    isFetching: existingStudentsLoading,
+  } = useQuery<ExistingStudentOption[]>({
+    queryKey: [
+      "student-list-existing-candidates",
+      String(scopedSubjectId ?? "school"),
+      effectiveSubjectClassId || "no-subject-class",
+      existingStudentFetchClassIds.join(","),
+    ],
+    enabled:
+      isAddStudentModalOpen &&
+      hasAccess &&
+      isSubjectWorkspaceMode &&
+      !!effectiveSubjectClassId &&
+      existingStudentFetchClassIds.length > 0 &&
+      !resolvingSubjectClass,
+    queryFn: async () => {
+      const rowsByClass = await Promise.all(
+        existingStudentFetchClassIds.map(async (candidateClassId) => {
+          try {
+            const rows = await fetchStudents(candidateClassId, undefined, undefined);
+            return (Array.isArray(rows) ? rows : []).map((row) => ({
+              row: row as Record<string, any>,
+              candidateClassId,
+            }));
+          } catch {
+            return [] as Array<{ row: Record<string, any>; candidateClassId: string }>;
+          }
+        })
+      );
+
+      const byId = new Map<string, ExistingStudentOption>();
+      rowsByClass.flat().forEach(({ row, candidateClassId }) => {
+        const option = toExistingStudentOption(row, candidateClassId);
+        if (!option) return;
+
+        const key = String(option.id);
+        const existing = byId.get(key);
+        if (!existing) {
+          byId.set(key, option);
+          return;
+        }
+
+        byId.set(key, {
+          ...existing,
+          className: existing.className || option.className,
+          yearName: existing.yearName || option.yearName,
+          subjects: Array.from(new Set([...(existing.subjects || []), ...(option.subjects || [])])),
+          raw: existing.raw || option.raw,
+        });
+      });
+
+      return Array.from(byId.values()).sort((a, b) =>
+        String(a.name || "").localeCompare(String(b.name || ""))
+      );
+    },
+  });
+
+  const existingStudentOptions = useMemo(
+    () =>
+      existingStudentCandidates.filter((candidate) => {
+        const candidateIds = extractStudentCandidateIds(
+          (candidate.raw as Record<string, any> | undefined) || { id: candidate.id }
+        );
+        return candidateIds.length === 0
+          ? !currentStudentCandidateIds.has(String(candidate.id))
+          : candidateIds.every((id) => !currentStudentCandidateIds.has(id));
+      }),
+    [existingStudentCandidates, currentStudentCandidateIds]
+  );
+
+  const existingStudentLookup = useMemo(
+    () => new Map(existingStudentOptions.map((student) => [String(student.id), student])),
+    [existingStudentOptions]
+  );
+
   useEffect(() => {
     setRecentAddedHints(readSubjectStudentHints(subjectHintScopeKey));
   }, [subjectHintScopeKey]);
@@ -834,6 +1120,80 @@ export default function StudentList() {
         (error as any)?.response?.data?.msg ||
         (error as any)?.response?.data?.message ||
         "Failed to add student.";
+      messageApi.error(backendMessage);
+    },
+  });
+
+  const assignExistingStudentMutation = useMutation({
+    mutationFn: async (studentIds: number[]) => {
+      const uniqueStudentIds = Array.from(
+        new Set(
+          studentIds
+            .map((id) => Number(id))
+            .filter((id) => Number.isFinite(id) && id > 0)
+        )
+      );
+      const subjectId = Number(scopedSubjectId ?? 0);
+      const subjectClassId = Number(effectiveSubjectClassId || 0);
+
+      if (!hasAccess) {
+        throw new Error("Only School Admin can assign existing students.");
+      }
+      if (!Number.isFinite(subjectId) || subjectId <= 0 || !Number.isFinite(subjectClassId) || subjectClassId <= 0) {
+        throw new Error("Open a subject class before assigning existing students.");
+      }
+      if (uniqueStudentIds.length === 0) {
+        throw new Error("Please choose at least one existing student.");
+      }
+
+      await assignStudentsToSubjects({
+        subjectIds: [subjectId],
+        studentIds: uniqueStudentIds,
+        subjects: editSubjectOptions.map((option) => ({
+          id: Number(option.value),
+          name: option.label,
+        })),
+        subjectClassIds: [subjectClassId],
+        forceReassign: false,
+        allowCrossClass: true,
+      });
+
+      return uniqueStudentIds;
+    },
+    onSuccess: async (studentIds) => {
+      const selectedStudents = studentIds
+        .map((id) => existingStudentLookup.get(String(id)))
+        .filter((student): student is ExistingStudentOption => Boolean(student));
+      const nextHints = mergeSubjectStudentHints(subjectHintScopeKey, {
+        ids: studentIds.map((id) => String(id)),
+        usernames: selectedStudents
+          .map((student) => String(student.userName || "").trim().toLowerCase())
+          .filter(Boolean),
+        emails: selectedStudents
+          .map((student) => String(student.email || "").trim().toLowerCase())
+          .filter(Boolean),
+        names: selectedStudents
+          .map((student) => String(student.name || "").trim().toLowerCase())
+          .filter(Boolean),
+      });
+      setRecentAddedHints(nextHints);
+
+      await queryClient.invalidateQueries({ queryKey: ["all-students-list"] });
+      await queryClient.invalidateQueries({ queryKey: ["students"] });
+      await queryClient.invalidateQueries({ queryKey: ["student-list-existing-candidates"] });
+      await queryClient.refetchQueries({ queryKey: studentsQueryKey, type: "active" });
+      await queryClient.refetchQueries({ queryKey: behaviorSummaryQueryKey, type: "active" });
+      setIsAddStudentModalOpen(false);
+      messageApi.success(
+        `Assigned ${studentIds.length} existing student${studentIds.length === 1 ? "" : "s"} to this subject class.`
+      );
+    },
+    onError: (error: unknown) => {
+      const backendMessage =
+        (error as { message?: string })?.message?.trim() ||
+        (error as any)?.response?.data?.msg ||
+        (error as any)?.response?.data?.message ||
+        "Failed to assign existing students.";
       messageApi.error(backendMessage);
     },
   });
@@ -1522,6 +1882,10 @@ export default function StudentList() {
       messageApi.error("Failed to add students.");
       throw new Error("Bulk add failed");
     }
+  };
+
+  const handleAssignExistingStudents = async (studentIds: number[]) => {
+    await assignExistingStudentMutation.mutateAsync(studentIds);
   };
 
   const handleSaveEdit = (values: any) => {
@@ -3283,6 +3647,11 @@ export default function StudentList() {
         onCancel={() => setIsAddStudentModalOpen(false)}
         onOk={handleAddNewStudent}
         classId={Number(effectiveClassId || classIdStr)}
+        canAssignExisting={hasAccess && isSubjectWorkspaceMode && !!effectiveSubjectClassId}
+        existingStudents={existingStudentOptions}
+        existingStudentsLoading={existingStudentsLoading || relatedExistingStudentClassesLoading || resolvingSubjectClass}
+        assignExistingLoading={assignExistingStudentMutation.isPending}
+        onAssignExisting={handleAssignExistingStudents}
       />
 
       <Modal

@@ -1,11 +1,29 @@
-import { Modal, Form, Input, Select, Button, Checkbox } from "antd";
+import { useEffect, useMemo, useState } from "react";
+import { Modal, Form, Input, Select, Button, Checkbox, Spin } from "antd";
 import { MinusCircleOutlined, PlusOutlined } from "@ant-design/icons";
+
+export type ExistingStudentOption = {
+  id: string | number;
+  name: string;
+  userName?: string;
+  email?: string;
+  className?: string;
+  yearName?: string;
+  gender?: string;
+  subjects?: string[];
+  raw?: Record<string, unknown>;
+};
 
 type AddStudentModalProps = {
   open: boolean;
   onCancel: () => void;
   onOk: (values: any) => Promise<void> | void;
   classId: number;
+  canAssignExisting?: boolean;
+  existingStudents?: ExistingStudentOption[];
+  existingStudentsLoading?: boolean;
+  assignExistingLoading?: boolean;
+  onAssignExisting?: (studentIds: number[]) => Promise<void> | void;
 };
 
 export const AddStudentModal = ({
@@ -13,11 +31,65 @@ export const AddStudentModal = ({
   onCancel,
   onOk,
   classId,
+  canAssignExisting = false,
+  existingStudents = [],
+  existingStudentsLoading = false,
+  assignExistingLoading = false,
+  onAssignExisting,
 }: AddStudentModalProps) => {
   const [form] = Form.useForm();
+  const canUseExistingMode = canAssignExisting && typeof onAssignExisting === "function";
+  const [mode, setMode] = useState<"existing" | "new">("new");
+  const [selectedExistingStudentIds, setSelectedExistingStudentIds] = useState<string[]>([]);
+  const existingStudentOptions = useMemo(
+    () =>
+      existingStudents.map((student) => {
+        const detailParts = [
+          student.className,
+          student.yearName,
+          student.subjects?.length ? student.subjects.join(", ") : "",
+          student.userName ? `@${student.userName}` : "",
+          student.email,
+        ].filter(Boolean);
+        const label = detailParts.length > 0 ? `${student.name} — ${detailParts.join(" • ")}` : student.name;
+        return {
+          value: String(student.id),
+          label,
+          searchText: [student.name, student.userName, student.email, student.className, student.yearName, ...(student.subjects || [])]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase(),
+        };
+      }),
+    [existingStudents]
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    setMode(canUseExistingMode ? "existing" : "new");
+    setSelectedExistingStudentIds([]);
+  }, [open, canUseExistingMode]);
 
   const handleSubmit = async () => {
     try {
+      if (mode === "existing") {
+        const studentIds = Array.from(
+          new Set(
+            selectedExistingStudentIds
+              .map((id) => Number(id))
+              .filter((id) => Number.isFinite(id) && id > 0)
+          )
+        );
+
+        if (!canUseExistingMode || studentIds.length === 0) {
+          return;
+        }
+
+        await onAssignExisting?.(studentIds);
+        setSelectedExistingStudentIds([]);
+        return;
+      }
+
       const values = await form.validateFields();
       const rows = Array.isArray(values?.students) ? values.students : [];
       const sanitizedRows = rows
@@ -44,14 +116,25 @@ export const AddStudentModal = ({
     }
   };
 
+  const handleCancel = () => {
+    setSelectedExistingStudentIds([]);
+    onCancel();
+  };
+
+  const submitDisabled =
+    mode === "existing" && (!canUseExistingMode || selectedExistingStudentIds.length === 0);
+
+  const submitLoading = mode === "existing" ? assignExistingLoading : false;
+
   return (
     <Modal
-      title="Add New Student"
+      title="Add Student"
       open={open}
-      onCancel={onCancel}
+      onCancel={handleCancel}
       onOk={handleSubmit}
+      width={720}
       footer={[
-        <Button key="back" onClick={onCancel}>
+        <Button key="back" onClick={handleCancel}>
           Cancel
         </Button>,
         <Button
@@ -59,11 +142,82 @@ export const AddStudentModal = ({
           type="primary"
           className="!bg-primary !text-white hover:!bg-primary/90 !border-none"
           onClick={handleSubmit}
+          disabled={submitDisabled}
+          loading={submitLoading}
         >
-          Add Student
+          {mode === "existing" ? "Assign Students" : "Add Student"}
         </Button>,
       ]}
     >
+      {canUseExistingMode && (
+        <div className="mb-4 grid grid-cols-2 rounded-xl bg-slate-100 p-1 text-sm">
+          <button
+            type="button"
+            onClick={() => setMode("existing")}
+            className={`rounded-lg px-3 py-2 font-medium transition ${
+              mode === "existing"
+                ? "bg-white text-emerald-700 shadow-sm"
+                : "text-slate-600 hover:text-emerald-700"
+            }`}
+          >
+            Assign Existing
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("new")}
+            className={`rounded-lg px-3 py-2 font-medium transition ${
+              mode === "new"
+                ? "bg-white text-emerald-700 shadow-sm"
+                : "text-slate-600 hover:text-emerald-700"
+            }`}
+          >
+            Create New
+          </button>
+        </div>
+      )}
+
+      {mode === "existing" && canUseExistingMode ? (
+        <div className="space-y-3">
+          <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+            Select students who already exist in this class or another subject, then assign them to this subject class.
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              Existing students
+            </label>
+            <Select
+              mode="multiple"
+              showSearch
+              allowClear
+              value={selectedExistingStudentIds}
+              onChange={(values) => setSelectedExistingStudentIds(values.map(String))}
+              options={existingStudentOptions}
+              loading={existingStudentsLoading}
+              disabled={existingStudentsLoading}
+              placeholder={
+                existingStudentsLoading
+                  ? "Loading existing students..."
+                  : existingStudentOptions.length > 0
+                    ? "Search and choose students"
+                    : "No unassigned existing students found"
+              }
+              filterOption={(input, option) =>
+                String((option as any)?.searchText ?? option?.label ?? "")
+                  .toLowerCase()
+                  .includes(input.toLowerCase())
+              }
+              className="w-full"
+              maxTagCount="responsive"
+              notFoundContent={existingStudentsLoading ? <Spin size="small" /> : "No students found"}
+            />
+          </div>
+          <div className="text-xs text-slate-500">
+            {existingStudentsLoading
+              ? "Checking students from the linked class..."
+              : `${existingStudentOptions.length} available student${existingStudentOptions.length === 1 ? "" : "s"}.`}
+          </div>
+        </div>
+      ) : (
       <Form
         form={form}
         layout="vertical"
@@ -193,6 +347,7 @@ export const AddStudentModal = ({
           )}
         </Form.List>
       </Form>
+      )}
     </Modal>
   );
 };
