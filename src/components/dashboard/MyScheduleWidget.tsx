@@ -298,15 +298,15 @@ export default function MyScheduleWidget({ currentUser, isStudent }: MyScheduleW
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white/95 shadow-[0_10px_26px_rgba(66,66,83,0.07)]">
       {contextHolder}
 
       {/* ── Header ──────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-3 px-5 py-4 border-b border-slate-100">
+      <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 px-4 py-3">
         {/* Title */}
         <div className="flex items-center gap-2 flex-shrink-0">
           <div
-            className="h-8 w-8 rounded-lg flex items-center justify-center text-white flex-shrink-0"
+            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-white"
             style={{ background: "var(--primary)" }}
           >
             <CalendarOutlined style={{ fontSize: 15 }} />
@@ -326,7 +326,7 @@ export default function MyScheduleWidget({ currentUser, isStudent }: MyScheduleW
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => setSelectedDate((d) => d.subtract(1, "day"))}
-            className="h-8 w-8 rounded-lg border border-slate-200 flex items-center justify-center
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200
                        text-slate-500 hover:bg-slate-50 hover:border-slate-300 transition-colors"
           >
             <LeftOutlined style={{ fontSize: 11 }} />
@@ -344,7 +344,7 @@ export default function MyScheduleWidget({ currentUser, isStudent }: MyScheduleW
 
           <button
             onClick={() => setSelectedDate((d) => d.add(1, "day"))}
-            className="h-8 w-8 rounded-lg border border-slate-200 flex items-center justify-center
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200
                        text-slate-500 hover:bg-slate-50 hover:border-slate-300 transition-colors"
           >
             <RightOutlined style={{ fontSize: 11 }} />
@@ -365,8 +365,8 @@ export default function MyScheduleWidget({ currentUser, isStudent }: MyScheduleW
         {!isStudent && (
           <button
             onClick={openAddModal}
-            className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold
-                       text-white transition-all hover:opacity-90 active:scale-95 flex-shrink-0"
+            className="flex flex-shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold
+                       text-white transition-all hover:opacity-90 active:scale-95"
             style={{ background: "var(--primary)" }}
           >
             <PlusOutlined />
@@ -376,20 +376,20 @@ export default function MyScheduleWidget({ currentUser, isStudent }: MyScheduleW
       </div>
 
       {/* ── Event grid ──────────────────────────────────────────────── */}
-      <div className="p-4 min-h-[220px]">
+      <div className="min-h-[132px] p-3">
         {isLoading ? (
-          <div className="flex justify-center items-center h-44">
+          <div className="flex h-28 items-center justify-center">
             <Spin size="large" />
           </div>
         ) : todayEvents.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-44 gap-3 text-slate-400">
+          <div className="flex h-28 flex-col items-center justify-center gap-2 text-slate-400">
             <div
-              className="h-14 w-14 rounded-2xl flex items-center justify-center"
+              className="flex h-10 w-10 items-center justify-center rounded-2xl"
               style={{ background: "var(--theme-soft, #f8fafc)" }}
             >
-              <CalendarOutlined style={{ fontSize: 24, opacity: 0.5 }} />
+              <CalendarOutlined style={{ fontSize: 18, opacity: 0.5 }} />
             </div>
-            <p className="text-sm font-medium text-slate-400 text-center">
+            <p className="text-center text-xs font-medium text-slate-400">
               {isWeekend
                 ? "Weekend — no classes scheduled"
                 : `No slots for ${selectedDate.format("dddd, D MMMM")}`}
@@ -397,7 +397,7 @@ export default function MyScheduleWidget({ currentUser, isStudent }: MyScheduleW
             {!isStudent && !isWeekend && (
               <button
                 onClick={openAddModal}
-                className="text-xs font-semibold rounded-lg px-3 py-1.5 border transition-colors hover:opacity-80"
+                className="rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors hover:opacity-80"
                 style={{ borderColor: "var(--primary)", color: "var(--primary)" }}
               >
                 + Add a slot
@@ -405,13 +405,13 @@ export default function MyScheduleWidget({ currentUser, isStudent }: MyScheduleW
             )}
           </div>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {todayEvents.map((event: any, idx: number) => {
               const c = getEventColor(event.title, idx);
               return (
                 <div
                   key={event.id}
-                  className="rounded-xl p-3.5 transition-all hover:shadow-md"
+                  className="rounded-xl p-3 transition-all hover:shadow-md"
                   style={{
                     background: c.bg,
                     border: `1.5px solid ${c.border}30`,
@@ -491,7 +491,7 @@ export default function MyScheduleWidget({ currentUser, isStudent }: MyScheduleW
 
       {/* ── Footer ──────────────────────────────────────────────────── */}
       <div
-        className="px-5 py-3 flex items-center justify-between"
+        className="flex items-center justify-between px-4 py-2.5"
         style={{ borderTop: "1px solid #e2e8f0" }}
       >
         <p className="text-xs text-slate-400">
