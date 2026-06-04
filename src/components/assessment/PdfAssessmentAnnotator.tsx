@@ -1000,7 +1000,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const [zoomLevel, setZoomLevel] = useState(1);
   const [visualViewportScale, setVisualViewportScale] = useState(1);
   const [visualViewportOffset, setVisualViewportOffset] = useState({ left: 0, top: 0, width: 0 });
-  const [toolbarSidebarOffset, setToolbarSidebarOffset] = useState(0);
+  const [toolbarSidebarInsets, setToolbarSidebarInsets] = useState({ left: 0, right: 0 });
   const [toolbarHeight, setToolbarHeight] = useState(0);
   const [toolbarPortalReady, setToolbarPortalReady] = useState(false);
   const [isExamFullscreen, setIsExamFullscreen] = useState(false);
@@ -1518,30 +1518,56 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
   useEffect(() => {
     if (typeof window === "undefined" || shouldEnforceExamScreen) {
-      setToolbarSidebarOffset(0);
+      setToolbarSidebarInsets({ left: 0, right: 0 });
       return;
     }
 
-    let observedSidebar: HTMLElement | null = null;
+    const SIDEBAR_SAFE_GAP_PX = 20;
+    const observedSidebars = new Set<HTMLElement>();
     const resizeObserver = new ResizeObserver(() => updateToolbarSidebarOffset());
 
-    const readSidebarOffset = () => {
-      const sidebar = document.querySelector<HTMLElement>(".sidebar-shell");
-      const rect = sidebar?.getBoundingClientRect();
-      const nextOffset = rect && rect.width > 0 && rect.right > 0 && rect.left < window.innerWidth
-        ? Math.max(0, Math.round(rect.right))
-        : 0;
-      setToolbarSidebarOffset((current) => (current === nextOffset ? current : nextOffset));
+    const observeSidebar = (element: HTMLElement) => {
+      if (observedSidebars.has(element)) return;
+      observedSidebars.add(element);
+      resizeObserver.observe(element);
+    };
 
-      if (sidebar && sidebar !== observedSidebar) {
-        if (observedSidebar) resizeObserver.unobserve(observedSidebar);
-        observedSidebar = sidebar;
-        resizeObserver.observe(sidebar);
-      }
+    const readSidebarInsets = () => {
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      let nextLeft = 0;
+      let nextRight = 0;
+
+      document.querySelectorAll<HTMLElement>(".sidebar-shell, aside.fixed").forEach((sidebar) => {
+        if (sidebar.closest("[data-assessment-toolbar='true']")) return;
+
+        const style = window.getComputedStyle(sidebar);
+        const isLegacySidebar = sidebar.classList.contains("sidebar-shell");
+        if (!isLegacySidebar && style.position !== "fixed") return;
+        if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) return;
+
+        const rect = sidebar.getBoundingClientRect();
+        if (rect.width < 32 || rect.height < 80 || rect.bottom <= 0 || rect.top >= viewportHeight) return;
+
+        const safeGap = isLegacySidebar ? 0 : SIDEBAR_SAFE_GAP_PX;
+        const isLeftSidebar = rect.left <= 8 && rect.right > 0 && rect.right < viewportWidth * 0.45;
+        const isRightSidebar = rect.right >= viewportWidth - 8 && rect.left < viewportWidth && rect.left > viewportWidth * 0.55;
+
+        if (isLeftSidebar) nextLeft = Math.max(nextLeft, Math.round(rect.right + safeGap));
+        if (isRightSidebar) nextRight = Math.max(nextRight, Math.round(viewportWidth - rect.left + safeGap));
+
+        observeSidebar(sidebar);
+      });
+
+      setToolbarSidebarInsets((current) =>
+        current.left === nextLeft && current.right === nextRight
+          ? current
+          : { left: nextLeft, right: nextRight }
+      );
     };
 
     function updateToolbarSidebarOffset() {
-      window.requestAnimationFrame(readSidebarOffset);
+      window.requestAnimationFrame(readSidebarInsets);
     }
 
     updateToolbarSidebarOffset();
@@ -5216,15 +5242,17 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const aiDeductionRows = getAiDeductionRows(aiDraftPreview);
   const toolbarViewportScale = visualViewportScale > 0 ? visualViewportScale : 1;
   const toolbarIsBrowserZoomed = toolbarViewportScale > 1.01;
-  const toolbarLeftOffset = shouldEnforceExamScreen ? 0 : toolbarSidebarOffset;
+  const toolbarLeftOffset = shouldEnforceExamScreen ? 0 : toolbarSidebarInsets.left;
+  const toolbarRightOffset = shouldEnforceExamScreen ? 0 : toolbarSidebarInsets.right;
+  const toolbarHorizontalOffset = toolbarLeftOffset + toolbarRightOffset;
   const toolbarChromeStyle: React.CSSProperties = {
     position: "fixed",
     left: toolbarIsBrowserZoomed ? visualViewportOffset.left + toolbarLeftOffset : toolbarLeftOffset,
     top: toolbarIsBrowserZoomed ? visualViewportOffset.top : 0,
     width: toolbarIsBrowserZoomed && visualViewportOffset.width
-      ? Math.max(0, visualViewportOffset.width - toolbarLeftOffset) * toolbarViewportScale
-      : toolbarLeftOffset
-        ? `calc(100% - ${toolbarLeftOffset}px)`
+      ? Math.max(0, visualViewportOffset.width - toolbarHorizontalOffset) * toolbarViewportScale
+      : toolbarHorizontalOffset
+        ? `calc(100% - ${toolbarHorizontalOffset}px)`
         : "100%",
     transform: toolbarViewportScale === 1 ? undefined : `scale(${1 / toolbarViewportScale})`,
     transformOrigin: "top left",
