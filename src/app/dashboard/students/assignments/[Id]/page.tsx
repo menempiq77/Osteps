@@ -13,6 +13,7 @@ import { RootState } from "@/store/store";
 import { IMG_BASE_URL } from "@/lib/config";
 import dayjs from "dayjs";
 import { normalizeTaskRecord, resolveExamWindow } from "@/lib/taskTypeMetadata";
+import { isSubmittedStatus, toStudentSubmissionStatus } from "@/lib/studentSubmissionStatus";
 
 interface Task {
   id: number;
@@ -38,6 +39,7 @@ interface Task {
   teacher_assessment_marks?: number;
   teacher_feedback?: string;
   file_path?: string;
+  has_submission?: boolean;
 }
 interface CurrentUser {
   student?: string;
@@ -128,8 +130,9 @@ export default function AssignmentDetailPage() {
 
     if (normalizedTask.type === "task") {
       const studentTask = normalizedTask.student_assessment_tasks?.find(
-        (st: any) => st.student_id === studentId
+        (st: any) => String(st.student_id) === String(studentId)
       );
+      const hasSubmission = Boolean(studentTask);
       const selfAssessmentMark = await hydrateTaskSelfAssessmentMark(
         normalizedTask,
         studentTask?.self_assessment_mark
@@ -137,7 +140,8 @@ export default function AssignmentDetailPage() {
 
       return {
         ...normalizedTask,
-        status: studentTask?.status || "not-started",
+        status: toStudentSubmissionStatus(studentTask?.status, hasSubmission),
+        has_submission: hasSubmission,
         self_assessment_marks: selfAssessmentMark ?? 0,
         additional_notes: studentTask?.additional_notes || "",
         teacher_assessment_marks: studentTask?.teacher_assessment_score || 0,
@@ -147,8 +151,9 @@ export default function AssignmentDetailPage() {
 
     if (normalizedTask.type === "quiz" && normalizedTask.quiz) {
       const submission = normalizedTask.quiz.submissions?.find(
-        (sub: any) => sub.student_id === studentId
+        (sub: any) => String(sub.student_id) === String(studentId)
       );
+      const hasSubmission = Boolean(submission);
 
       const totalMarks = submission?.answers?.reduce(
         (sum: number, ans: any) => sum + (parseFloat(ans.marks) || 0),
@@ -176,7 +181,8 @@ export default function AssignmentDetailPage() {
 
       return {
         ...normalizedTask,
-        status: submission?.status || "not-started",
+        status: toStudentSubmissionStatus(submission?.status, hasSubmission),
+        has_submission: hasSubmission,
         obtained_marks: totalMarks || 0,
         total_marks: totalPossibleMarks || 0,
         quiz_comments: comments,
@@ -299,18 +305,18 @@ export default function AssignmentDetailPage() {
       setIsDrawerOpen(true);
     }
   };
-  const getStatusBadge = (status: string = "not-completed") => {
-    const isCompleted = status.toLowerCase() === "completed";
+  const getStatusBadge = (status: string = "not-completed", hasSubmission = false) => {
+    const isSubmitted = isSubmittedStatus(status, hasSubmission);
 
     return (
       <span
         className={`rounded-full px-2 py-1 text-xs font-medium ${
-          isCompleted
+          isSubmitted
             ? "bg-green-100 text-green-700"
             : "bg-yellow-100 text-yellow-700"
         }`}
       >
-        {isCompleted ? "Completed" : "Not Completed"}
+        {isSubmitted ? "Submitted" : "Not Completed"}
       </span>
     );
   };
@@ -360,29 +366,30 @@ export default function AssignmentDetailPage() {
               const examWindow = resolveExamWindow(task);
               const examAccessMessage = getExamAccessMessage(task);
               const onlineAnswerAvailable = supportsOnlineAnswer(task);
+              const taskSubmitted = isSubmittedStatus(task.status, task.has_submission);
               const dueDateApplies = !task.exam_mode;
               const examAccessBlocked =
                 onlineAnswerAvailable && examWindow.examMode && examWindow.state !== "open";
               const actionDisabledReason =
                 dueDateApplies &&
                 isDueDateExpired(task.due_date) &&
-                task.status !== "completed"
+                !taskSubmitted
                   ? "The due date for this task has expired"
                   : examAccessMessage;
               const actionLabel =
                 task?.type === "quiz"
                   ? "View Quiz"
                   : task.exam_mode && onlineAnswerAvailable
-                  ? task.status === "completed"
+                  ? taskSubmitted
                     ? "Continue Exam"
                     : examAccessBlocked
                     ? examWindow.state === "scheduled"
                       ? "Exam Locked"
                       : "Exam Closed"
                     : "Open Exam"
-                  : task.status === "completed" && !isDueDateExpired(task.due_date)
-                  ? "Edit Submission"
-                  : task.status === "completed"
+                  : taskSubmitted && !isDueDateExpired(task.due_date)
+                  ? "Edit"
+                  : taskSubmitted
                   ? "Submitted"
                   : "Submit Work";
 
@@ -426,7 +433,7 @@ export default function AssignmentDetailPage() {
                     <div className="text-[11px] text-gray-500">
                       Allocated marks {task?.type === "quiz" ? task?.total_marks || 0 : task?.allocated_marks || 0}
                     </div>
-                    <div className="mt-2 flex justify-end">{getStatusBadge(task.status)}</div>
+                    <div className="mt-2 flex justify-end">{getStatusBadge(task.status, task.has_submission)}</div>
                   </div>
                 </div>
 
@@ -550,7 +557,7 @@ export default function AssignmentDetailPage() {
                         onClick={() => handleOpenDrawer(task)}
                         disabled={
                           !task.exam_mode &&
-                          task.status === "completed" &&
+                          taskSubmitted &&
                           isDueDateExpired(task.due_date)
                         }
                       >

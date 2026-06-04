@@ -22,6 +22,7 @@ import { RootState } from "@/store/store";
 import dayjs from "dayjs";
 import { requestDocumentFullscreenFromGesture } from "@/lib/browserFullscreen";
 import { resolveExamWindow } from "@/lib/taskTypeMetadata";
+import { isSubmittedStatus } from "@/lib/studentSubmissionStatus";
 
 interface Task {
   id: string;
@@ -44,6 +45,7 @@ interface Task {
   exam_start_at?: string | null;
   exam_duration_minutes?: number | null;
   exam_end_at?: string | null;
+  has_submission?: boolean;
 }
 
 interface AssignmentDrawerProps {
@@ -83,6 +85,10 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
   const examWindow = resolveExamWindow(selectedTask);
   const isOnlineExamTask = Boolean(
     selectedTask?.exam_mode && selectedTask?.task_type === "pdf" && selectedTask?.file_path
+  );
+  const selectedTaskSubmitted = isSubmittedStatus(
+    selectedTask?.status,
+    selectedTask?.has_submission
   );
 
   const buildOnlinePdfHref = () => {
@@ -274,8 +280,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
   };
 
   const renderUploadArea = () => {
-    // if (selectedTask?.status === "completed") return null;
-    if ((!canEditSubmission && selectedTask?.status === "completed") || isNATask) return null;
+    if ((!canEditSubmission && selectedTaskSubmitted) || isNATask) return null;
     if (selectedTask?.task_type === "url") {
       return (
         <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
@@ -318,7 +323,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
               className="!bg-primary !border-primary"
               onClick={() => void handleOpenOnlinePdf()}
             >
-              {selectedTask.status === "completed" ? "Continue exam" : "Start exam"}
+              {selectedTaskSubmitted ? "Continue exam" : "Start exam"}
             </Button>
           ) : examWindow.state === "scheduled" && examWindow.startAt ? (
             <p className="text-sm text-amber-800">
@@ -403,7 +408,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
         open={isOpen}
         width={600}
         footer={
-          !isOnlineExamTask && (selectedTask?.status !== "completed" || canEditSubmission) ? (
+          !isOnlineExamTask && (!selectedTaskSubmitted || canEditSubmission) ? (
             <div className="flex justify-end">
               <Button
                 type="primary"
@@ -411,7 +416,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
                 loading={isSubmitting}
                 className="w-full !bg-primary !border-primary"
               >
-                {selectedTask?.status === "completed"
+                {selectedTaskSubmitted
                   ? "Update Submission"
                   : "Submit Assignment"}
               </Button>
@@ -436,7 +441,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
                   </div>
                 )}
               </div>
-            ) : selectedTask.status === "completed" && !canEditSubmission ? (
+            ) : selectedTaskSubmitted && !canEditSubmission ? (
               <>
                 <div>
                   <h4 className="font-medium text-gray-800">Your Submission</h4>
