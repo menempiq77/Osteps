@@ -9,6 +9,7 @@ import {
   BarChart3,
   BookOpen,
   BookText,
+  Brain,
   CalendarDays,
   ChevronRight,
   Library,
@@ -512,6 +513,55 @@ export default function QuickLauncher() {
       ].forEach(addEntryIfMissing);
     }
 
+    if (roleKey === "STUDENT") {
+      [
+        {
+          id: "nav-Library-/dashboard/library",
+          name: "Library",
+          description: "Open shared reading and learning resources.",
+          section: "Resources",
+          keywords: ["library", "resources", "books", "materials"],
+          icon: Library,
+          href: "/dashboard/library",
+          kind: "link" as const,
+        },
+        {
+          id: "nav-Leaderboard-/dashboard/leaderboard",
+          name: "Leaderboard",
+          description: "See your points and ranking across the school.",
+          section: "Teaching",
+          keywords: ["leaderboard", "ranking", "points"],
+          icon: Award,
+          href: activeSubjectId ? `/dashboard/s/${activeSubjectId}/leaderboard` : "/dashboard/leaderboard",
+          kind: "link" as const,
+        },
+        {
+          id: "nav-Lessons-/dashboard/lessons",
+          name: "Lessons",
+          description: "Review subject lessons and activities.",
+          section: "Teaching",
+          keywords: ["lessons", "activities", "learning"],
+          icon: BookText,
+          href: "/dashboard/lessons",
+          kind: "link" as const,
+        },
+        ...(isIslamicContext
+          ? [
+              {
+                id: "nav-Mind-upgrade-/dashboard/mind-upgrade",
+                name: "Mind-upgrade",
+                description: "Open your Islamic mind-upgrade space.",
+                section: "Resources",
+                keywords: ["mind upgrade", "islamic", "activities"],
+                icon: Brain,
+                href: "/dashboard/mind-upgrade",
+                kind: "link" as const,
+              },
+            ]
+          : []),
+      ].forEach(addEntryIfMissing);
+    }
+
     if (["SCHOOL_ADMIN", "HOD", "TEACHER", "STUDENT"].includes(roleKey)) {
       const settingsHref =
         roleKey === "STUDENT" ? "/dashboard/students/settings"
@@ -530,7 +580,7 @@ export default function QuickLauncher() {
     }
 
     return items;
-  }, [activeSubjectId, canUseSubjectContext, navigationEntries, roleKey]);
+  }, [activeSubjectId, canUseSubjectContext, isIslamicContext, navigationEntries, roleKey]);
 
   const studentUtilityEntries = useMemo<LauncherEntry[]>(() => {
     if (!isStudent) return [];

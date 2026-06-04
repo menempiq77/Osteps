@@ -10,6 +10,7 @@ import {
   BarChart3,
   BookOpen,
   BookText,
+  Brain,
   CalendarDays,
   Library,
   Megaphone,
@@ -311,6 +312,47 @@ export default function FavoriteSidebar() {
       ].forEach(addEntryIfMissing);
     }
 
+    if (roleKey === "STUDENT") {
+      [
+        {
+          id: "nav-Library-/dashboard/library",
+          name: "Library",
+          section: "Resources",
+          icon: Library,
+          href: "/dashboard/library",
+          kind: "link" as const,
+        },
+        {
+          id: "nav-Leaderboard-/dashboard/leaderboard",
+          name: "Leaderboard",
+          section: "Teaching",
+          icon: Award,
+          href: activeSubjectId ? `/dashboard/s/${activeSubjectId}/leaderboard` : "/dashboard/leaderboard",
+          kind: "link" as const,
+        },
+        {
+          id: "nav-Lessons-/dashboard/lessons",
+          name: "Lessons",
+          section: "Teaching",
+          icon: BookText,
+          href: "/dashboard/lessons",
+          kind: "link" as const,
+        },
+        ...(isIslamicContext
+          ? [
+              {
+                id: "nav-Mind-upgrade-/dashboard/mind-upgrade",
+                name: "Mind-upgrade",
+                section: "Resources",
+                icon: Brain,
+                href: "/dashboard/mind-upgrade",
+                kind: "link" as const,
+              },
+            ]
+          : []),
+      ].forEach(addEntryIfMissing);
+    }
+
     if (["SCHOOL_ADMIN", "HOD", "TEACHER", "STUDENT"].includes(roleKey)) {
       const settingsHref =
         roleKey === "STUDENT" ? "/dashboard/students/settings"
@@ -327,7 +369,7 @@ export default function FavoriteSidebar() {
     }
 
     return items;
-  }, [activeSubjectId, canUseSubjectContext, navigationEntries, roleKey]);
+  }, [activeSubjectId, canUseSubjectContext, isIslamicContext, navigationEntries, roleKey]);
 
   const studentUtilityEntries = useMemo<FavoriteEntry[]>(() => {
     if (!isStudent) return [];
