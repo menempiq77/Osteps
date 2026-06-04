@@ -34,14 +34,14 @@ const MyScheduleWidget = dynamic(() => import("@/components/dashboard/MySchedule
 
 // ── Subject colour palette ────────────────────────────────────────────────────
 const PALETTE = [
-  { gradFrom: "#f07a2f", gradTo: "#b84a1a", glow: "rgba(184,74,26,0.22)" },   // orange
-  { gradFrom: "#4f8fd8", gradTo: "#2f527e", glow: "rgba(79,143,216,0.20)" },   // blue
-  { gradFrom: "#8f73f3", gradTo: "#46338f", glow: "rgba(143,115,243,0.22)" },   // violet
-  { gradFrom: "#d85a94", gradTo: "#90345f", glow: "rgba(216,90,148,0.20)" },   // rose
-  { gradFrom: "#45b7a7", gradTo: "#2c776f", glow: "rgba(69,183,167,0.20)" },   // teal
-  { gradFrom: "#dba94a", gradTo: "#915f1f", glow: "rgba(219,169,74,0.20)" },   // amber
-  { gradFrom: "#5f67df", gradTo: "#393b91", glow: "rgba(95,103,223,0.22)" },   // indigo
-  { gradFrom: "#48bf7f", gradTo: "#28745c", glow: "rgba(72,191,127,0.20)" },   // emerald
+  { gradFrom: "#f59e0b", gradTo: "#8a4f12", glow: "rgba(245,158,11,0.18)" },   // amber
+  { gradFrom: "#60a5fa", gradTo: "#2f527e", glow: "rgba(96,165,250,0.18)" },   // blue
+  { gradFrom: "#a78bfa", gradTo: "#46338f", glow: "rgba(167,139,250,0.18)" },   // violet
+  { gradFrom: "#f472b6", gradTo: "#90345f", glow: "rgba(244,114,182,0.17)" },   // rose
+  { gradFrom: "#38C16C", gradTo: "#28745c", glow: "rgba(56,193,108,0.18)" },   // green
+  { gradFrom: "#facc15", gradTo: "#915f1f", glow: "rgba(250,204,21,0.16)" },   // gold
+  { gradFrom: "#818cf8", gradTo: "#393b91", glow: "rgba(129,140,248,0.18)" },   // indigo
+  { gradFrom: "#2dd4bf", gradTo: "#2c776f", glow: "rgba(45,212,191,0.16)" },   // teal
 ];
 
 const NAME_MAP: Record<string, number> = {
@@ -87,18 +87,18 @@ function getSubjectPalette(colorMap: Record<string, number>, subjectId: number, 
 // ── Quick-link colour map ─────────────────────────────────────────────────────
 type LinkColor = { bg: string; iconColor: string; border: string };
 const LINK_COLORS: Record<string, LinkColor> = {
-  "Library":       { bg: "#eef5ff", iconColor: "#3d6fd1", border: "#bfd4ff" },
-  "Timetable":     { bg: "#fff5eb", iconColor: "#c96722", border: "#f1c49b" },
-  "Announcements": { bg: "#fff0f3", iconColor: "#c94763", border: "#f2bdc8" },
-  "Ask a Question":{ bg: "#f2efff", iconColor: "#7d63dd", border: "#d2c7ff" },
-  "Behavior":      { bg: "#fff9df", iconColor: "#b7791f", border: "#efd676" },
-  "Leaderboard":   { bg: "#fff8df", iconColor: "#b7791f", border: "#efd676" },
-  "Settings":      { bg: "#f5f7fb", iconColor: "#4b5563", border: "#d9dfeb" },
+  "Library":       { bg: "#edf7f2", iconColor: "#259b5a", border: "#b9e2cd" },
+  "Timetable":     { bg: "#f3f4f8", iconColor: "#424253", border: "#d9dfeb" },
+  "Announcements": { bg: "#fff1f8", iconColor: "#c0266f", border: "#f5c6dc" },
+  "Ask a Question":{ bg: "#f3f0ff", iconColor: "#6d5bd0", border: "#d8cffd" },
+  "Behavior":      { bg: "#fff9df", iconColor: "#a16207", border: "#efd676" },
+  "Leaderboard":   { bg: "#fff8df", iconColor: "#a16207", border: "#efd676" },
+  "Settings":      { bg: "#f5f7fb", iconColor: "#424253", border: "#d9dfeb" },
   "All Students":  { bg: "#ecfbf4", iconColor: "#229463", border: "#a8e4c7" },
-  "Teachers":      { bg: "#eef5ff", iconColor: "#3d6fd1", border: "#bfd4ff" },
+  "Teachers":      { bg: "#eef5ff", iconColor: "#3867be", border: "#bfd4ff" },
   "Students & Staff": { bg: "#ecfbf4", iconColor: "#229463", border: "#a8e4c7" },
   "Markbook":      { bg: "#eefbf1", iconColor: "#31a65c", border: "#a8e4b8" },
-  "Tools":         { bg: "#f2efff", iconColor: "#7d63dd", border: "#d2c7ff" },
+  "Tools":         { bg: "#f3f0ff", iconColor: "#6d5bd0", border: "#d8cffd" },
 };
 const DEFAULT_LINK: LinkColor = { bg: "#effaf3", iconColor: "#38C16C", border: "#b9e2cd" };
 const lc = (name: string): LinkColor => LINK_COLORS[name] ?? DEFAULT_LINK;
@@ -111,45 +111,76 @@ type QLProps = { name: string; href: string; desc: string; Icon: React.Component
 function QuickLinkCard({ name, href, desc, Icon }: QLProps) {
   const c = lc(name);
   return (
-    <Link href={href}>
+    <Link href={href} className="block">
       <div
-        className="group flex cursor-pointer items-center gap-3 rounded-xl border bg-white/95 p-3
-                   shadow-[0_8px_18px_rgba(66,66,83,0.05)] transition-all duration-200
+        className="group flex min-h-[54px] cursor-pointer items-center gap-2 rounded-xl border bg-white/95 p-2
+                   shadow-[0_8px_18px_rgba(66,66,83,0.04)] transition-all duration-200
                    hover:-translate-y-0.5 hover:shadow-[0_12px_24px_rgba(66,66,83,0.10)]"
         style={{ borderColor: c.border }}
       >
         <div
-          className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-base
+          className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-sm
                      transition-transform duration-200 group-hover:scale-110"
-          style={{ background: c.bg, color: c.iconColor, border: `1.5px solid ${c.border}` }}
+          style={{ background: c.bg, color: c.iconColor, border: `1px solid ${c.border}` }}
         >
           <Icon />
         </div>
         <div className="min-w-0">
-          <p className="truncate text-[13px] font-bold text-[#303042]">{name}</p>
-          <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-slate-500">{desc}</p>
+          <p className="truncate text-[12px] font-extrabold text-[#303042]">{name}</p>
+          <p className="mt-0.5 line-clamp-1 text-[10px] leading-snug text-slate-500">{desc}</p>
         </div>
       </div>
     </Link>
   );
 }
 
+type SectionHeaderProps = {
+  accent: string;
+  title: string;
+  subtitle?: string;
+  count?: string;
+};
+
+function SectionHeader({ accent, title, subtitle, count }: SectionHeaderProps) {
+  return (
+    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+      <div
+        className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-xl shadow-sm"
+        style={{ background: `${accent}18`, color: accent, border: `1px solid ${accent}32` }}
+      >
+        <div className="h-3.5 w-1.5 rounded-full" style={{ background: accent }} />
+      </div>
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="truncate text-[13px] font-black leading-tight text-[#252538] sm:text-sm">{title}</h2>
+          {count ? (
+            <span className="rounded-full border border-[#38C16C]/25 bg-[#38C16C]/10 px-2 py-0.5 text-[10px] font-black text-[#229463]">
+              {count}
+            </span>
+          ) : null}
+        </div>
+        {subtitle ? <p className="mt-0.5 truncate text-[10px] font-medium text-slate-400">{subtitle}</p> : null}
+      </div>
+    </div>
+  );
+}
+
 function ScheduleWidgetSkeleton() {
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 px-4 py-3">
+    <div className="overflow-hidden rounded-xl border border-white/80 bg-white/95 shadow-[0_10px_24px_rgba(66,66,83,0.05)]">
+      <div className="flex flex-wrap items-center gap-2.5 border-b border-slate-100 px-3 py-2">
         <div className="h-7 w-7 animate-pulse rounded-lg bg-slate-200" />
         <div className="space-y-2">
-          <div className="h-3.5 w-24 animate-pulse rounded bg-slate-200" />
+          <div className="h-3 w-24 animate-pulse rounded bg-slate-200" />
           <div className="h-2.5 w-16 animate-pulse rounded bg-slate-100" />
         </div>
-        <div className="ml-auto h-8 w-44 animate-pulse rounded-lg bg-slate-100" />
+        <div className="ml-auto h-7 w-40 animate-pulse rounded-lg bg-slate-100" />
       </div>
-      <div className="grid gap-2 p-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-2 p-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {Array.from({ length: 3 }).map((_, index) => (
-          <div key={index} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-            <div className="mb-3 h-5 w-24 animate-pulse rounded-full bg-slate-200" />
-            <div className="mb-2 h-4 w-3/4 animate-pulse rounded bg-slate-200" />
+          <div key={index} className="rounded-xl border border-slate-100 bg-slate-50 p-2.5">
+            <div className="mb-2.5 h-4 w-24 animate-pulse rounded-full bg-slate-200" />
+            <div className="mb-2 h-3.5 w-3/4 animate-pulse rounded bg-slate-200" />
             <div className="mb-2 h-3 w-1/2 animate-pulse rounded bg-slate-100" />
             <div className="h-3 w-2/5 animate-pulse rounded bg-slate-100" />
           </div>
@@ -161,17 +192,17 @@ function ScheduleWidgetSkeleton() {
 
 function SubjectCardsSkeleton({ includeCreateCard }: { includeCreateCard: boolean }) {
   return (
-    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-7">
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 2xl:grid-cols-8">
       {Array.from({ length: includeCreateCard ? 6 : 5 }).map((_, index) => (
         <div
           key={index}
-          className="overflow-hidden rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
+          className="min-h-[94px] overflow-hidden rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm"
         >
-          <div className="mb-4 h-5 w-14 animate-pulse rounded-full bg-slate-100" />
-          <div className="mb-2.5 h-8 w-8 animate-pulse rounded-lg bg-slate-100" />
-          <div className="mb-2 h-4 w-3/4 animate-pulse rounded bg-slate-200" />
-          <div className="mb-3 h-3 w-1/2 animate-pulse rounded bg-slate-100" />
-          <div className="h-7 w-16 animate-pulse rounded-lg bg-slate-100" />
+          <div className="mb-3 h-4 w-12 animate-pulse rounded-full bg-slate-100" />
+          <div className="mb-2 h-7 w-7 animate-pulse rounded-lg bg-slate-100" />
+          <div className="mb-1.5 h-3.5 w-3/4 animate-pulse rounded bg-slate-200" />
+          <div className="mb-2 h-2.5 w-1/2 animate-pulse rounded bg-slate-100" />
+          <div className="h-6 w-14 animate-pulse rounded-lg bg-slate-100" />
         </div>
       ))}
     </div>
@@ -310,42 +341,43 @@ export default function SubjectCardsPage() {
   ];
 
   return (
-    <div className="space-y-4 pb-6">
+    <div className="relative space-y-3 overflow-hidden rounded-[22px] border border-white/80 bg-[linear-gradient(135deg,#f8fafc_0%,#eef7f1_44%,#f7f8fb_100%)] p-2.5 pb-4 shadow-[0_18px_44px_rgba(66,66,83,0.10)] sm:p-3">
+      <div className="pointer-events-none absolute -right-14 -top-16 h-44 w-44 rounded-full bg-[#38C16C]/10 blur-2xl" />
+      <div className="pointer-events-none absolute -bottom-20 -left-14 h-48 w-48 rounded-full bg-[#424253]/10 blur-2xl" />
       {/* ── My Schedule ─────────────────────────────────────────────────── */}
-      <div>
-        <div className="mb-2.5 flex items-center gap-2.5">
-          <div className="h-6 w-1 rounded-full bg-[#38C16C]" />
-          <h2 className="text-base font-extrabold text-[#252538]">My Schedule</h2>
-          <div className="h-px flex-1 bg-slate-100" />
+      <section className="relative rounded-[18px] border border-white/80 bg-white/70 p-2 shadow-[0_10px_26px_rgba(66,66,83,0.05)] backdrop-blur">
+        <div className="mb-2">
+          <SectionHeader
+            accent="#38C16C"
+            title="My Schedule"
+            subtitle="Today’s timetable and quick calendar controls"
+          />
         </div>
         {loading ? <ScheduleWidgetSkeleton /> : <MyScheduleWidget currentUser={currentUser} isStudent={isStudent} />}
-      </div>
+      </section>
 
       {/* ── Subject cards ─────────────────────────────────────────────────── */}
-      <div>
-        <div className="mb-3 flex items-center gap-2.5">
-          <div className="h-6 w-1 rounded-full bg-[#38C16C]" />
-          <h2 className="text-base font-extrabold text-[#252538]">
-            {isStudent ? "Choose a Subject" : "Choose a Subject Dashboard"}
-          </h2>
-          <div className="h-px flex-1 bg-slate-100" />
-        </div>
+      <section className="relative rounded-[18px] border border-white/80 bg-white/75 p-2.5 shadow-[0_12px_30px_rgba(66,66,83,0.06)] backdrop-blur">
+        <div className="mb-2 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+          <SectionHeader
+            accent="#38C16C"
+            title={isStudent ? "Choose a Subject" : "Choose a Subject Dashboard"}
+            subtitle="Open the subject workspace quickly"
+            count={!loading && subjects.length > 0 ? `${filteredSubjects.length}/${subjects.length}` : undefined}
+          />
 
-        {!loading && subjects.length > 0 && (
-          <div className="mb-3 flex flex-col gap-3 rounded-xl border border-slate-200 bg-white/95 p-2.5 shadow-[0_10px_24px_rgba(66,66,83,0.06)] sm:flex-row sm:items-center sm:justify-between">
+          {!loading && subjects.length > 0 && (
             <Input
               value={subjectSearch}
               onChange={(event) => setSubjectSearch(event.target.value)}
               allowClear
               prefix={<SearchOutlined className="text-slate-400" />}
               placeholder="Search subjects by name or code"
-              className="!rounded-lg sm:max-w-sm"
+              size="small"
+              className="!h-8 !rounded-xl !border-slate-200 !bg-white/95 text-xs lg:!w-[270px]"
             />
-            <div className="px-2 text-[11px] font-semibold text-slate-500">
-              {filteredSubjects.length} of {subjects.length} subject{subjects.length !== 1 ? "s" : ""}
-            </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {loading ? (
           <SubjectCardsSkeleton includeCreateCard={isSchoolAdmin} />
@@ -358,7 +390,7 @@ export default function SubjectCardsPage() {
             <Empty description="No subjects match that search." />
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-7">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 2xl:grid-cols-8">
             {filteredSubjects.map((subject, idx) => {
               const isActive = Number(activeSubjectId) === Number(subject.id);
               const displayName = typeof subject.name === "string"
@@ -372,33 +404,33 @@ export default function SubjectCardsPage() {
               return (
                 <div
                   key={subject.id}
-                  className="relative min-h-[118px] cursor-pointer overflow-hidden rounded-xl
-                             ring-1 ring-white/15 transition-all duration-300 hover:-translate-y-0.5"
+                  className="relative min-h-[94px] cursor-pointer overflow-hidden rounded-xl
+                             ring-1 ring-white/20 transition-all duration-300 hover:-translate-y-0.5"
                   style={{
                     background: `linear-gradient(135deg, ${pal.gradFrom} 0%, ${pal.gradTo} 100%)`,
                     boxShadow: isActive
-                      ? `0 0 0 2px rgba(56,193,108,0.85), 0 12px 26px ${pal.glow}`
-                      : `0 8px 22px ${pal.glow}`,
+                      ? `0 0 0 2px rgba(56,193,108,0.85), 0 10px 22px ${pal.glow}`
+                      : `0 7px 18px ${pal.glow}`,
                   }}
                   onClick={() => setActiveSubjectId(Number(subject.id), { navigate: true })}
                 >
                   {/* decorative circle */}
                   <div
-                    className="pointer-events-none absolute -right-6 -top-7 h-20 w-20 rounded-full opacity-20"
+                    className="pointer-events-none absolute -right-6 -top-8 h-[72px] w-[72px] rounded-full opacity-20"
                     style={{ background: "rgba(255,255,255,0.5)" }}
                   />
                   <div
-                    className="pointer-events-none absolute -bottom-4 -left-4 h-14 w-14 rounded-full opacity-10"
+                    className="pointer-events-none absolute -bottom-4 -left-4 h-12 w-12 rounded-full opacity-10"
                     style={{ background: "rgba(255,255,255,0.5)" }}
                   />
 
-                  <div className="relative flex min-h-[118px] flex-col p-3">
+                  <div className="relative flex min-h-[94px] flex-col p-2.5">
                     {/* admin actions row */}
                     {isSchoolAdmin && (
-                      <div className="absolute right-2.5 top-2.5 flex items-center gap-1">
+                      <div className="absolute right-2 top-2 flex items-center gap-1">
                         <button
                           onClick={(e) => { e.stopPropagation(); openEditModal({ id: subject.id, name: subject.name }); }}
-                          className="flex h-5 w-5 items-center justify-center rounded-full
+                          className="flex h-[18px] w-[18px] items-center justify-center rounded-full
                                      transition-all duration-200 hover:scale-110"
                           style={{ background: "rgba(255,255,255,0.25)", color: "#fff" }}
                           title="Edit subject"
@@ -407,7 +439,7 @@ export default function SubjectCardsPage() {
                         </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); handleDeleteSubject({ id: subject.id, name: subject.name }); }}
-                          className="flex h-5 w-5 items-center justify-center rounded-full
+                          className="flex h-[18px] w-[18px] items-center justify-center rounded-full
                                      transition-all duration-200 hover:scale-110"
                           style={{ background: "rgba(255,255,255,0.25)", color: "#fff" }}
                           title="Delete subject"
@@ -420,7 +452,7 @@ export default function SubjectCardsPage() {
                     {/* active badge */}
                     {isActive && (
                       <div
-                        className="absolute left-2.5 top-2.5 flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black"
+                        className="absolute left-2 top-2 flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-black"
                         style={{ background: "rgba(255,255,255,0.25)", color: "#fff" }}
                       >
                         <CheckCircleFilled style={{ fontSize: 10 }} />
@@ -430,29 +462,29 @@ export default function SubjectCardsPage() {
 
                     {/* icon */}
                     <div
-                      className="mb-2 mt-7 flex h-8 w-8 items-center justify-center rounded-lg text-sm"
+                      className="mb-1.5 mt-5 flex h-7 w-7 items-center justify-center rounded-lg text-xs"
                       style={{ background: "rgba(255,255,255,0.20)", color: "#fff" }}
                     >
                       <BookOutlined />
                     </div>
 
                     {/* name */}
-                    <h3 className="mb-1 truncate text-[13px] font-extrabold leading-tight text-white">
+                    <h3 className="mb-0.5 truncate text-[12px] font-extrabold leading-tight text-white">
                       {displayName}
                     </h3>
                     {displayCode && (
-                      <p className="mb-2 truncate text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.70)" }}>
+                      <p className="mb-1.5 truncate text-[10px] font-medium" style={{ color: "rgba(255,255,255,0.70)" }}>
                         {displayCode}
                       </p>
                     )}
 
                     {/* CTA */}
                     <button
-                      className="mt-auto flex w-fit items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-bold
+                      className="mt-auto flex w-fit items-center gap-1 rounded-lg px-2 py-0.5 text-[10px] font-bold
                                  transition-all duration-200 hover:scale-105 active:scale-95"
                       style={{
                         background: "rgba(255,255,255,0.22)",
-                        border: "1.5px solid rgba(255,255,255,0.35)",
+                        border: "1px solid rgba(255,255,255,0.35)",
                         color: "#fff",
                       }}
                     >
@@ -468,7 +500,7 @@ export default function SubjectCardsPage() {
             {isSchoolAdmin && (
               <div
                 onClick={openCreateModal}
-                className="relative flex min-h-[118px] cursor-pointer flex-col items-center justify-center overflow-hidden rounded-xl
+                className="relative flex min-h-[94px] cursor-pointer flex-col items-center justify-center overflow-hidden rounded-xl
                            transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg"
                 style={{
                   border: "1.5px dashed #93a0b7",
@@ -476,71 +508,68 @@ export default function SubjectCardsPage() {
                 }}
               >
                 <div
-                  className="mb-2 flex h-8 w-8 items-center justify-center rounded-lg text-sm"
+                  className="mb-1.5 flex h-7 w-7 items-center justify-center rounded-lg text-xs"
                   style={{ background: "#eef2f7", color: "#424253" }}
                 >
                   <PlusOutlined />
                 </div>
-                <p className="text-[11px] font-bold text-slate-600">Create a Subject</p>
+                <p className="text-[10px] font-bold text-slate-600">Create a Subject</p>
               </div>
             )}
           </div>
         )}
-      </div>
+      </section>
 
       {/* ── Student quick links ───────────────────────────────────────────── */}
       {isStudent && (
-        <div>
-          <div className="mb-3 flex items-center gap-2.5">
-            <div className="h-6 w-1 rounded-full bg-[#5f67df]" />
-            <h2 className="text-base font-extrabold text-[#252538]">Student Tools</h2>
-            <span className="text-xs font-medium text-slate-400 ml-1 hidden sm:block">
-              Quick access to the pages you use most
-            </span>
-            <div className="flex-1 h-px bg-slate-100" />
+        <section className="relative rounded-[18px] border border-white/80 bg-white/75 p-2.5 shadow-[0_10px_26px_rgba(66,66,83,0.05)] backdrop-blur">
+          <div className="mb-2">
+            <SectionHeader
+              accent="#818cf8"
+              title="Student Tools"
+              subtitle="Quick access to the pages you use most"
+            />
           </div>
-          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6">
             {studentQuickLinks.map((item) => (
               <QuickLinkCard key={item.name} {...item} />
             ))}
           </div>
-        </div>
+        </section>
       )}
 
       {/* ── Staff shared resources ────────────────────────────────────────── */}
       {isStaffWorkspaceRole && (
-        <div>
-          <div className="mb-3 flex items-center gap-2.5">
-            <div className="h-6 w-1 rounded-full bg-[#45b7a7]" />
-            <h2 className="text-base font-extrabold text-[#252538]">Shared Resources</h2>
-            <span className="text-xs font-medium text-slate-400 ml-1 hidden sm:block">
-              Available outside the subject workspace
-            </span>
-            <div className="flex-1 h-px bg-slate-100" />
+        <section className="relative rounded-[18px] border border-white/80 bg-white/75 p-2.5 shadow-[0_10px_26px_rgba(66,66,83,0.05)] backdrop-blur">
+          <div className="mb-2">
+            <SectionHeader
+              accent="#2dd4bf"
+              title="Shared Resources"
+              subtitle="Available outside the subject workspace"
+            />
           </div>
-          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-5">
             <QuickLinkCard name="Courses"     href="/dashboard/courses"             desc="Access subject courses including Lessons and Mind-upgrade."       Icon={ReadOutlined} />
             <QuickLinkCard name="Markbook"    href="/dashboard/students/markbook"    desc="Open student reports and performance summaries."                 Icon={BarChartOutlined} />
             <QuickLinkCard name="Library"     href="/dashboard/library"             desc="Open shared resources for the current school workspace."          Icon={BookOutlined} />
             <QuickLinkCard name="Leaderboard" href={leaderboardHref}                desc="School-wide student rankings across all subjects."               Icon={TrophyOutlined} />
 
           </div>
-        </div>
+        </section>
       )}
 
       {/* ── School-admin management ───────────────────────────────────────── */}
       {isSchoolAdmin && !isStudent && (
-        <div>
-          <div className="mb-3 flex items-center gap-2.5">
-            <div className="h-6 w-1 rounded-full bg-[#d85a94]" />
-            <h2 className="text-base font-extrabold text-[#252538]">School-wide Management</h2>
-            <span className="text-xs font-medium text-slate-400 ml-1 hidden sm:block">
-              All-subject tools — manage students and staff here
-            </span>
-            <div className="flex-1 h-px bg-slate-100" />
+        <section className="relative rounded-[18px] border border-white/80 bg-white/75 p-2.5 shadow-[0_10px_26px_rgba(66,66,83,0.05)] backdrop-blur">
+          <div className="mb-2">
+            <SectionHeader
+              accent="#f472b6"
+              title="School-wide Management"
+              subtitle="All-subject tools — manage students and staff here"
+            />
           </div>
 
-          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6">
             <QuickLinkCard name="Students & Staff" href="/dashboard/students-staff"      desc="Manage all students and teachers across subjects."                  Icon={TeamOutlined} />
             <QuickLinkCard name="Courses"           href="/dashboard/courses"            desc="Access subject courses including Lessons and Mind-upgrade."         Icon={ReadOutlined} />
             <QuickLinkCard name="Markbook"          href="/dashboard/students/markbook"   desc="Open student reports and performance summaries."                    Icon={BarChartOutlined} />
@@ -551,7 +580,7 @@ export default function SubjectCardsPage() {
             <QuickLinkCard name="Tools"         href="/dashboard/tools"                 desc="Extra tools that support all subjects."                             Icon={ToolOutlined} />
             <QuickLinkCard name="Leaderboard"   href={leaderboardHref}                  desc="See school-wide student rankings across all subjects."              Icon={TrophyOutlined} />
           </div>
-        </div>
+        </section>
       )}
 
       {/* ── Create / Edit subject modal ───────────────────────────────── */}

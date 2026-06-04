@@ -298,21 +298,21 @@ export default function MyScheduleWidget({ currentUser, isStudent }: MyScheduleW
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white/95 shadow-[0_10px_26px_rgba(66,66,83,0.07)]">
+    <div className="overflow-hidden rounded-xl border border-white/80 bg-white/95 shadow-[0_10px_24px_rgba(66,66,83,0.06)]">
       {contextHolder}
 
       {/* ── Header ──────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 px-4 py-3">
+      <div className="flex flex-wrap items-center gap-2.5 border-b border-slate-100 px-3 py-2">
         {/* Title */}
         <div className="flex items-center gap-2 flex-shrink-0">
           <div
-            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-white"
-            style={{ background: "var(--primary)" }}
+            className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-white shadow-sm"
+            style={{ background: "linear-gradient(135deg, #38C16C, var(--primary))" }}
           >
-            <CalendarOutlined style={{ fontSize: 15 }} />
+            <CalendarOutlined style={{ fontSize: 14 }} />
           </div>
           <div>
-            <p className="font-bold text-slate-800 text-sm leading-tight">My Schedule</p>
+            <p className="font-bold text-slate-800 text-[13px] leading-tight">My Schedule</p>
             <p className="text-[10px] text-slate-400 leading-tight">
               {isToday ? "Today's classes" : selectedDate.format("dddd")}
             </p>
@@ -326,7 +326,7 @@ export default function MyScheduleWidget({ currentUser, isStudent }: MyScheduleW
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => setSelectedDate((d) => d.subtract(1, "day"))}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200
+            className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200
                        text-slate-500 hover:bg-slate-50 hover:border-slate-300 transition-colors"
           >
             <LeftOutlined style={{ fontSize: 11 }} />
@@ -338,13 +338,13 @@ export default function MyScheduleWidget({ currentUser, isStudent }: MyScheduleW
             format="ddd, D MMM YYYY"
             allowClear={false}
             size="small"
-            className="!w-[185px]"
+            className="!h-7 !w-[170px]"
             inputReadOnly
           />
 
           <button
             onClick={() => setSelectedDate((d) => d.add(1, "day"))}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200
+            className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200
                        text-slate-500 hover:bg-slate-50 hover:border-slate-300 transition-colors"
           >
             <RightOutlined style={{ fontSize: 11 }} />
@@ -353,7 +353,7 @@ export default function MyScheduleWidget({ currentUser, isStudent }: MyScheduleW
           {!isToday && (
             <button
               onClick={() => setSelectedDate(dayjs())}
-              className="text-xs font-semibold rounded-lg px-2.5 py-1.5 border transition-colors hover:opacity-80"
+              className="rounded-lg border px-2 py-1 text-[11px] font-semibold transition-colors hover:opacity-80"
               style={{ borderColor: "var(--primary)", color: "var(--primary)" }}
             >
               Today
@@ -365,7 +365,7 @@ export default function MyScheduleWidget({ currentUser, isStudent }: MyScheduleW
         {!isStudent && (
           <button
             onClick={openAddModal}
-            className="flex flex-shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold
+            className="flex flex-shrink-0 items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-[11px] font-semibold
                        text-white transition-all hover:opacity-90 active:scale-95"
             style={{ background: "var(--primary)" }}
           >
@@ -376,18 +376,18 @@ export default function MyScheduleWidget({ currentUser, isStudent }: MyScheduleW
       </div>
 
       {/* ── Event grid ──────────────────────────────────────────────── */}
-      <div className="min-h-[132px] p-3">
+      <div className="min-h-[108px] p-2">
         {isLoading ? (
-          <div className="flex h-28 items-center justify-center">
+          <div className="flex h-24 items-center justify-center">
             <Spin size="large" />
           </div>
         ) : todayEvents.length === 0 ? (
-          <div className="flex h-28 flex-col items-center justify-center gap-2 text-slate-400">
+          <div className="flex h-24 flex-col items-center justify-center gap-1.5 text-slate-400">
             <div
-              className="flex h-10 w-10 items-center justify-center rounded-2xl"
+              className="flex h-9 w-9 items-center justify-center rounded-2xl"
               style={{ background: "var(--theme-soft, #f8fafc)" }}
             >
-              <CalendarOutlined style={{ fontSize: 18, opacity: 0.5 }} />
+              <CalendarOutlined style={{ fontSize: 16, opacity: 0.5 }} />
             </div>
             <p className="text-center text-xs font-medium text-slate-400">
               {isWeekend
@@ -397,7 +397,7 @@ export default function MyScheduleWidget({ currentUser, isStudent }: MyScheduleW
             {!isStudent && !isWeekend && (
               <button
                 onClick={openAddModal}
-                className="rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors hover:opacity-80"
+                className="rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition-colors hover:opacity-80"
                 style={{ borderColor: "var(--primary)", color: "var(--primary)" }}
               >
                 + Add a slot
@@ -405,13 +405,13 @@ export default function MyScheduleWidget({ currentUser, isStudent }: MyScheduleW
             )}
           </div>
         ) : (
-          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {todayEvents.map((event: any, idx: number) => {
               const c = getEventColor(event.title, idx);
               return (
                 <div
                   key={event.id}
-                  className="rounded-xl p-3 transition-all hover:shadow-md"
+                  className="rounded-xl p-2.5 transition-all hover:shadow-md"
                   style={{
                     background: c.bg,
                     border: `1.5px solid ${c.border}30`,
@@ -419,9 +419,9 @@ export default function MyScheduleWidget({ currentUser, isStudent }: MyScheduleW
                   }}
                 >
                   {/* Time badge + action buttons */}
-                  <div className="flex items-center justify-between mb-2 gap-1">
+                  <div className="mb-1.5 flex items-center justify-between gap-1">
                     <span
-                      className="text-[10px] font-bold rounded-full px-2 py-0.5 flex-shrink-0"
+                      className="flex-shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold"
                       style={{ background: `${c.accent}18`, color: c.accent }}
                     >
                       {event.startTime} – {event.endTime}
@@ -430,7 +430,7 @@ export default function MyScheduleWidget({ currentUser, isStudent }: MyScheduleW
                       <div className="flex items-center gap-0.5 flex-shrink-0">
                         <button
                           onClick={() => handleEditEvent(event)}
-                          className="h-6 w-6 rounded-md flex items-center justify-center
+                          className="flex h-5 w-5 items-center justify-center rounded-md
                                      text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                           title="Edit slot"
                         >
@@ -440,7 +440,7 @@ export default function MyScheduleWidget({ currentUser, isStudent }: MyScheduleW
                           onClick={() =>
                             setDeleteModal({ open: true, eventId: String(event.id) })
                           }
-                          className="h-6 w-6 rounded-md flex items-center justify-center
+                          className="flex h-5 w-5 items-center justify-center rounded-md
                                      text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
                           title="Delete slot"
                         >
@@ -451,7 +451,7 @@ export default function MyScheduleWidget({ currentUser, isStudent }: MyScheduleW
                   </div>
 
                   {/* Subject name */}
-                  <p className="font-bold text-sm leading-tight mb-1.5" style={{ color: c.text }}>
+                  <p className="mb-1 truncate text-[13px] font-bold leading-tight" style={{ color: c.text }}>
                     {event.title}
                   </p>
 
@@ -491,16 +491,16 @@ export default function MyScheduleWidget({ currentUser, isStudent }: MyScheduleW
 
       {/* ── Footer ──────────────────────────────────────────────────── */}
       <div
-        className="flex items-center justify-between px-4 py-2.5"
+        className="flex items-center justify-between px-3 py-2"
         style={{ borderTop: "1px solid #e2e8f0" }}
       >
-        <p className="text-xs text-slate-400">
+        <p className="text-[11px] text-slate-400">
           {todayEvents.length} slot{todayEvents.length !== 1 ? "s" : ""}
           {isToday ? " today" : ` on ${selectedDate.format("D MMM")}`}
         </p>
         <Link
           href="/dashboard/time_table?view=calendar"
-          className="text-xs font-semibold transition-colors hover:opacity-80"
+          className="text-[11px] font-semibold transition-colors hover:opacity-80"
           style={{ color: "var(--primary)" }}
         >
           View Full Timetable →
