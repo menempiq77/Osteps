@@ -11,6 +11,7 @@ import {
   ChevronDown,
   ChevronUp,
   Eraser,
+  FileText,
   Highlighter,
   MousePointer2,
   PenTool,
@@ -1001,6 +1002,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const [visualViewportScale, setVisualViewportScale] = useState(1);
   const [visualViewportOffset, setVisualViewportOffset] = useState({ left: 0, top: 0, width: 0 });
   const [toolbarSidebarInsets, setToolbarSidebarInsets] = useState({ left: 0, right: 0 });
+  const [toolbarTopInset, setToolbarTopInset] = useState(0);
   const [toolbarHeight, setToolbarHeight] = useState(0);
   const [toolbarPortalReady, setToolbarPortalReady] = useState(false);
   const [isExamFullscreen, setIsExamFullscreen] = useState(false);
@@ -1012,7 +1014,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const [isToolbarCollapsed, setIsToolbarCollapsed] = useState(false);
   const [screenshotWarningVisible, setScreenshotWarningVisible] = useState(false);
   const [handlingExamExit, setHandlingExamExit] = useState(false);
-  const [teacherExamAlertDismissed, setTeacherExamAlertDismissed] = useState(false);
+  const [teacherExamNotesOpen, setTeacherExamNotesOpen] = useState(false);
   const [teacherExamStudentInfo, setTeacherExamStudentInfo] = useState<TeacherExamStudentInfo | null>(null);
   const [activeStroke, setActiveStroke] = useState<PenAnnotation | null>(null);
   const [editingText, setEditingText] = useState<EditingText | null>(null);
@@ -1519,10 +1521,12 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   useEffect(() => {
     if (typeof window === "undefined" || shouldEnforceExamScreen) {
       setToolbarSidebarInsets({ left: 0, right: 0 });
+      setToolbarTopInset(0);
       return;
     }
 
     const SIDEBAR_SAFE_GAP_PX = 20;
+    const TOP_BAR_SAFE_GAP_PX = 8;
     const observedSidebars = new Set<HTMLElement>();
     const resizeObserver = new ResizeObserver(() => updateToolbarSidebarOffset());
 
@@ -1537,6 +1541,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       const viewportHeight = window.innerHeight;
       let nextLeft = 0;
       let nextRight = 0;
+      let nextTop = 0;
 
       document.querySelectorAll<HTMLElement>(".sidebar-shell, aside.fixed").forEach((sidebar) => {
         if (sidebar.closest("[data-assessment-toolbar='true']")) return;
@@ -1559,11 +1564,36 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         observeSidebar(sidebar);
       });
 
+      document.querySelectorAll<HTMLElement>("div.fixed, header.fixed").forEach((topBar) => {
+        if (topBar.closest("[data-assessment-toolbar='true']")) return;
+
+        const style = window.getComputedStyle(topBar);
+        if (style.position !== "fixed") return;
+        if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) return;
+
+        const rect = topBar.getBoundingClientRect();
+        const zIndex = Number.parseInt(style.zIndex || "0", 10);
+        const isTopWorkspaceBar =
+          rect.top <= 8 &&
+          rect.bottom > 40 &&
+          rect.bottom < viewportHeight * 0.35 &&
+          rect.left <= viewportWidth * 0.15 &&
+          rect.right >= viewportWidth * 0.85 &&
+          Number.isFinite(zIndex) &&
+          zIndex >= 500;
+
+        if (!isTopWorkspaceBar) return;
+
+        nextTop = Math.max(nextTop, Math.round(rect.bottom + TOP_BAR_SAFE_GAP_PX));
+        observeSidebar(topBar);
+      });
+
       setToolbarSidebarInsets((current) =>
         current.left === nextLeft && current.right === nextRight
           ? current
           : { left: nextLeft, right: nextRight }
       );
+      setToolbarTopInset((current) => (current === nextTop ? current : nextTop));
     };
 
     function updateToolbarSidebarOffset() {
@@ -5245,10 +5275,11 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const toolbarLeftOffset = shouldEnforceExamScreen ? 0 : toolbarSidebarInsets.left;
   const toolbarRightOffset = shouldEnforceExamScreen ? 0 : toolbarSidebarInsets.right;
   const toolbarHorizontalOffset = toolbarLeftOffset + toolbarRightOffset;
+  const toolbarTopOffset = shouldEnforceExamScreen ? 0 : toolbarTopInset;
   const toolbarChromeStyle: React.CSSProperties = {
     position: "fixed",
     left: toolbarIsBrowserZoomed ? visualViewportOffset.left + toolbarLeftOffset : toolbarLeftOffset,
-    top: toolbarIsBrowserZoomed ? visualViewportOffset.top : 0,
+    top: toolbarIsBrowserZoomed ? visualViewportOffset.top + toolbarTopOffset : toolbarTopOffset,
     width: toolbarIsBrowserZoomed && visualViewportOffset.width
       ? Math.max(0, visualViewportOffset.width - toolbarHorizontalOffset) * toolbarViewportScale
       : toolbarHorizontalOffset
@@ -5590,6 +5621,25 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
           />
         </div>
       </Modal>
+      <Modal
+        open={teacherExamNotesOpen}
+        title={`Exam exit notes: ${teacherExamStudentInfo?.studentName ?? "Selected student"} (${teacherExamStudentInfo?.className ?? "Unknown class"})`}
+        onCancel={() => setTeacherExamNotesOpen(false)}
+        footer={null}
+        width={760}
+        destroyOnClose
+      >
+        <div className="max-h-[68vh] space-y-2 overflow-y-auto pr-1">
+          {examExitEvents.map((event) => (
+            <div key={`${event.createdAt}-${event.context}-${event.reason}`} className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+              <div className="font-semibold">
+                {new Date(event.createdAt).toLocaleString()} · {formatExamExitContext(event.context)}
+              </div>
+              <div className="mt-1 whitespace-pre-wrap">{event.reason}</div>
+            </div>
+          ))}
+        </div>
+      </Modal>
       {toolbarPortalReady ? createPortal(toolbarChrome, document.body) : toolbarChrome}
 
       <div
@@ -5720,27 +5770,22 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
             />
           </div>
         )}
-        {role === "teacher" && examExitEvents.length > 0 && !teacherExamAlertDismissed && (
-          <Alert
-            className="mb-4"
-            type="warning"
-            showIcon
-            closable
-            onClose={() => setTeacherExamAlertDismissed(true)}
-            message={`Exam exit notes: ${teacherExamStudentInfo?.studentName ?? "Selected student"} (${teacherExamStudentInfo?.className ?? "Unknown class"})`}
-            description={
-              <div className="space-y-2">
-                {examExitEvents.map((event) => (
-                  <div key={`${event.createdAt}-${event.context}-${event.reason}`} className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
-                    <div className="font-medium">
-                      {new Date(event.createdAt).toLocaleString()} · {formatExamExitContext(event.context)}
-                    </div>
-                    <div className="mt-1 whitespace-pre-wrap">{event.reason}</div>
-                  </div>
-                ))}
-              </div>
-            }
-          />
+        {role === "teacher" && examExitEvents.length > 0 && (
+          <div className="mb-4 flex justify-end">
+            <button
+              type="button"
+              onClick={() => setTeacherExamNotesOpen(true)}
+              className="relative inline-flex h-10 items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 text-sm font-semibold text-amber-800 shadow-sm transition hover:border-amber-300 hover:bg-amber-100"
+              title="View exam exit notes"
+              aria-label={`View ${examExitEvents.length} exam exit note${examExitEvents.length === 1 ? "" : "s"}`}
+            >
+              <FileText className="h-4 w-4" />
+              <span>Exam notes</span>
+              <span className="rounded-full bg-amber-200 px-1.5 py-0.5 text-[10px] font-black text-amber-900">
+                {examExitEvents.length}
+              </span>
+            </button>
+          </div>
         )}
         {shouldRequireExamFullscreen && !isExamFullscreen && !examExitModalOpen && !examStartModalOpen && (
           <Alert
