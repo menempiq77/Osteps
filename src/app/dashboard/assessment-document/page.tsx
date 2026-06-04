@@ -160,9 +160,12 @@ export default function AssessmentDocumentPage() {
   const [teacherStudentNamesById, setTeacherStudentNamesById] = useState<Record<string, string>>({});
   const [teacherClassStudentIds, setTeacherClassStudentIds] = useState<string[] | null>(null);
   const [teacherClassStudentsLoading, setTeacherClassStudentsLoading] = useState(false);
+  const [resolvedFileUrl, setResolvedFileUrl] = useState(fileUrl);
+  const [resolvingTeacherFileUrl, setResolvingTeacherFileUrl] = useState(false);
+  const effectiveFileUrl = resolvedFileUrl || fileUrl;
 
   const waitingForStudentSession = role === "student" && !authenticatedStudentId;
-  const missing = !assessmentId || !taskId || !studentId || !fileUrl;
+  const missing = !assessmentId || !taskId || !studentId || !effectiveFileUrl;
   const examWindow = resolveExamWindow(resolvedExamConfig);
   const isStudentExamRoute = role === "student" && (fallbackExamMode || resolvedExamConfig.exam_mode);
 
@@ -178,6 +181,44 @@ export default function AssessmentDocumentPage() {
   useEffect(() => {
     setResolvedExamConfig(fallbackExamConfig);
   }, [fallbackExamConfig]);
+
+  useEffect(() => {
+    setResolvedFileUrl(fileUrl);
+    setResolvingTeacherFileUrl(false);
+  }, [assessmentId, fileUrl, taskId, studentId]);
+
+  useEffect(() => {
+    if (role !== "teacher" || fileUrl || resolvedFileUrl || !assessmentId || !taskId) {
+      setResolvingTeacherFileUrl(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const resolveTeacherFileUrl = async () => {
+      setResolvingTeacherFileUrl(true);
+      try {
+        const tasks = await fetchTasks(Number(assessmentId), scopedSubjectId);
+        const matchingTask = (tasks || []).find(
+          (task: any) => String(task?.id) === String(taskId) && String(task?.type || "task") === "task"
+        );
+        const nextFileUrl = fileUrlForDocument(matchingTask?.file_path ?? "");
+        if (!cancelled && nextFileUrl) {
+          setResolvedFileUrl(nextFileUrl);
+        }
+      } catch (error) {
+        console.error("Failed to resolve assessment document file:", error);
+      } finally {
+        if (!cancelled) setResolvingTeacherFileUrl(false);
+      }
+    };
+
+    void resolveTeacherFileUrl();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [assessmentId, fileUrl, resolvedFileUrl, role, scopedSubjectId, taskId]);
 
   useEffect(() => {
     if (role !== "teacher" || !assessmentId || !taskId) {
@@ -408,6 +449,16 @@ export default function AssessmentDocumentPage() {
     );
   }, [filteredTeacherStudentTasks, studentId]);
 
+  useEffect(() => {
+    if (role !== "teacher" || fileUrl || resolvedFileUrl || !currentTeacherStudentTask) return;
+
+    const sourcePath = currentTeacherStudentTask.task?.file_path || currentTeacherStudentTask.file_path || "";
+    const nextFileUrl = fileUrlForDocument(sourcePath);
+    if (nextFileUrl) {
+      setResolvedFileUrl(nextFileUrl);
+    }
+  }, [currentTeacherStudentTask, fileUrl, resolvedFileUrl, role]);
+
   const currentTeacherStudentName = useMemo(() => {
     if (currentTeacherStudentTask) return getStudentNameFromTask(currentTeacherStudentTask, teacherStudentNamesById);
     return teacherStudentOptions.find((option) => option.value === studentId)?.label || requestedStudentName || undefined;
@@ -426,7 +477,7 @@ export default function AssessmentDocumentPage() {
     params.set("studentId", String(nextTask.student_id));
     params.set("studentName", getStudentNameFromTask(nextTask, teacherStudentNamesById));
     params.set("role", "teacher");
-    params.set("fileUrl", fileUrlForDocument(sourcePath) || fileUrl);
+    params.set("fileUrl", fileUrlForDocument(sourcePath) || effectiveFileUrl);
     params.set("title", nextTask.task?.task_name || title || "PDF Assessment");
     params.set("maxMarks", String(nextTask.task?.allocated_marks || maxMarks || 0));
     params.set("teacherMarks", String(nextTask.teacher_assessment_score || nextTask.teacher_assessment_marks || ""));
@@ -453,6 +504,11 @@ export default function AssessmentDocumentPage() {
         <div className={isStudentExamRoute ? "flex items-center justify-center gap-3 p-8" : "mx-auto flex max-w-3xl items-center justify-center gap-3 p-8"}>
           <Spin />
           <span className="text-sm text-gray-600">Checking student session...</span>
+        </div>
+      ) : resolvingTeacherFileUrl ? (
+        <div className={isStudentExamRoute ? "flex items-center justify-center gap-3 p-8" : "mx-auto flex max-w-3xl items-center justify-center gap-3 p-8"}>
+          <Spin />
+          <span className="text-sm text-gray-600">Opening assessment paper...</span>
         </div>
       ) : missing ? (
         <div className={isStudentExamRoute ? "p-4" : "mx-auto max-w-3xl p-4"}>
@@ -483,7 +539,7 @@ export default function AssessmentDocumentPage() {
           taskId={taskId}
           studentId={studentId}
           role={role}
-          fileUrl={fileUrl}
+          fileUrl={effectiveFileUrl}
           title={title}
           maxMarks={Number.isFinite(maxMarks) ? maxMarks : undefined}
           initialSelfAssessmentMark={

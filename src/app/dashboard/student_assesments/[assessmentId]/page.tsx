@@ -1001,11 +1001,20 @@ export default function AssessmentDrawer() {
       : `${IMG_BASE_URL}/storage/${cleanPath}`;
   };
 
+  const getTaskSourceFilePath = (task: StudentAssessmentTask) => {
+    const definition = getTaskDefinitionForAction(task);
+    return definition.file_path || task.task?.file_path || task.file_path || "";
+  };
+
+  const getOriginalPdfUrlForTask = (task: StudentAssessmentTask) =>
+    fileUrlForDocument(getTaskSourceFilePath(task));
+
   const buildTeacherDocumentWorkspaceUrl = (
     task: StudentAssessmentTask,
     options: { autoDownload?: boolean } = {}
   ) => {
-    const sourcePath = task.task?.file_path || task.file_path;
+    const definition = getTaskDefinitionForAction(task);
+    const sourcePath = getTaskSourceFilePath(task);
     const studentName = getStudentNameForTask(task);
     const params = new URLSearchParams({
       assessmentId: String(task.assessment_id),
@@ -1014,8 +1023,8 @@ export default function AssessmentDrawer() {
       studentName,
       role: "teacher",
       fileUrl: fileUrlForDocument(sourcePath),
-      title: task.task?.task_name || "PDF Assessment",
-      maxMarks: String(task.task?.allocated_marks || 0),
+      title: definition.task_name || task.task?.task_name || "PDF Assessment",
+      maxMarks: String(definition.allocated_marks || task.task?.allocated_marks || 0),
       teacherMarks: String(
         task.teacher_assessment_score || task.teacher_assessment_marks || ""
       ),
@@ -1069,7 +1078,7 @@ export default function AssessmentDrawer() {
     if (task?.submission_type === "quiz") return Boolean(task?.quiz?.id);
     const taskType = String(task.task?.task_type || "").toLowerCase();
     if (taskType === "pdf") {
-      return Boolean(task.student_id && (task.task?.file_path || task.file_path));
+      return Boolean(task.student_id && getTaskSourceFilePath(task));
     }
     return Boolean(getSubmittedFileUrl(task));
   };
@@ -1966,13 +1975,9 @@ export default function AssessmentDrawer() {
                     >
                       Download answered PDF
                     </Button>
-                    {fileUrlForDocument(
-                      viewingTask.task?.file_path || viewingTask.file_path
-                    ) && (
+                    {getOriginalPdfUrlForTask(viewingTask) && (
                       <a
-                        href={fileUrlForDocument(
-                          viewingTask.task?.file_path || viewingTask.file_path
-                        )}
+                        href={getOriginalPdfUrlForTask(viewingTask)}
                         target="_blank"
                         rel="noopener noreferrer"
                         download
