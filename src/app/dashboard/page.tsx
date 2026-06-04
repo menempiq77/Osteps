@@ -1713,9 +1713,12 @@ export default function DashboardPage() {
       matchesFilter(item.gender, studentInlineFilters.gender)
     );
   }, [activeStatDetails, isStudentInlinePanel, studentInlineFilters]);
-  const visibleActiveStatDetails = isStudentInlinePanel ? filteredActiveStatDetails : filteredActiveStatDetails.slice(0, STAT_DETAIL_LIMIT);
-  const activeStatDetailCount = isStudentInlinePanel ? filteredActiveStatDetails.length : activeStatDetails.length;
-  const hasVisibleDetailPanel = isStudentInlinePanel ? activeStatDetails.length > 0 : visibleActiveStatDetails.length > 0;
+  const shouldShowAllInlineRecords = isStudentInlinePanel || isClassInlinePanel;
+  const visibleActiveStatDetails = shouldShowAllInlineRecords
+    ? filteredActiveStatDetails
+    : filteredActiveStatDetails.slice(0, STAT_DETAIL_LIMIT);
+  const activeStatDetailCount = shouldShowAllInlineRecords ? filteredActiveStatDetails.length : activeStatDetails.length;
+  const hasVisibleDetailPanel = shouldShowAllInlineRecords ? activeStatDetails.length > 0 : visibleActiveStatDetails.length > 0;
 
   const COLORS = [
     THEME_COLOR,
@@ -2296,6 +2299,10 @@ export default function DashboardPage() {
                         {isStudentInlinePanel ? (
                           <p className="mt-3 text-xs font-medium text-slate-500">
                             Showing {activeStatDetailCount} {hasStudentInlineFilters ? "filtered " : ""}records.
+                          </p>
+                        ) : isClassInlinePanel ? (
+                          <p className="mt-3 text-xs font-medium text-slate-500">
+                            Showing all {activeStatDetailCount} classes.
                           </p>
                         ) : activeStatDetailCount > STAT_DETAIL_LIMIT ? (
                           <p className="mt-3 text-xs font-medium text-slate-500">
