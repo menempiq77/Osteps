@@ -15,6 +15,7 @@ import { User } from "@/features/auth/types";
 const QuickLauncher = dynamic(() => import("@/components/ui/QuickLauncher"));
 const FavoriteSidebar = dynamic(() => import("@/components/ui/FavoriteSidebar"));
 const SubjectRightSidebar = dynamic(() => import("@/components/ui/SubjectRightSidebar"));
+const PinnedPagesDock = dynamic(() => import("@/components/ui/PinnedPagesDock"));
 
 const THEME_STORAGE_KEY = "osteps-dashboard-theme";
 const THEMES = {
@@ -494,6 +495,7 @@ export default function DashboardLayout({
         )}
         <FavoriteSidebar />
         {showSubjectRightSidebar ? <SubjectRightSidebar /> : null}
+        <PinnedPagesDock />
         <div
           className={`dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] ${dashboardPaddingClass}`}
           style={impersonating ? { paddingTop: 136 } : undefined}
@@ -544,6 +546,7 @@ export default function DashboardLayout({
       )}
       {!isImmersiveLessonGroupRoute ? <FavoriteSidebar /> : null}
       {showSubjectRightSidebar ? <SubjectRightSidebar /> : null}
+      {!isImmersiveLessonGroupRoute ? <PinnedPagesDock /> : null}
       <div style={impersonating ? { paddingTop: 40 } : undefined}>
       {isStandaloneTeacherRoute ||
       isAllStudentsStandaloneRoute ||
