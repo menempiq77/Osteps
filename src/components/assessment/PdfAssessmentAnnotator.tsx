@@ -2479,7 +2479,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   }, [examWindow.examMode, role, studentId]);
 
   useEffect(() => {
-    setTeacherExamAlertDismissed(false);
+    setTeacherExamNotesOpen(false);
   }, [assessmentId, studentId, taskId, examExitEvents.length, examExitEvents[0]?.createdAt]);
 
   useEffect(() => {
