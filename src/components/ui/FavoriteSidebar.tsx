@@ -28,12 +28,14 @@ import {
   normalizeDashboardRole,
   type DashboardNavItem,
 } from "@/lib/dashboardNavigation";
+import {
+  QUICK_LAUNCHER_FAVORITES_CHANGED_EVENT,
+  getQuickLauncherFavoritesStorageKey,
+  readQuickLauncherFavoriteIds,
+} from "@/lib/quickLauncherFavorites";
 import { isSharedPath } from "@/lib/subjectRouting";
 import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
 import OstepsLogo from "@/assets/images/Logo2.jpg";
-
-const FAVORITES_STORAGE_KEY = "osteps:quick-launcher:favorites";
-const FAVORITES_CHANGED_EVENT = "osteps:quick-launcher:favorites-changed";
 
 type FavoriteEntry = {
   id: string;
@@ -44,16 +46,6 @@ type FavoriteEntry = {
   active?: boolean;
   kind: "link" | "subject";
   subjectId?: number;
-};
-
-const readFavoriteIds = () => {
-  if (typeof window === "undefined") return [];
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(FAVORITES_STORAGE_KEY) || "[]");
-    return Array.isArray(parsed) ? parsed.filter((id) => typeof id === "string") : [];
-  } catch {
-    return [];
-  }
 };
 
 const sidebarAccent: Record<string, string> = {
@@ -83,7 +75,8 @@ export default function FavoriteSidebar() {
     setActiveSubjectId,
     toSubjectHref,
   } = useSubjectContext();
-  const [favoriteIds, setFavoriteIds] = useState<string[]>(readFavoriteIds);
+  const favoriteStorageKey = getQuickLauncherFavoritesStorageKey(currentUser);
+  const [favoriteIds, setFavoriteIds] = useState<string[]>(() => readQuickLauncherFavoriteIds(currentUser));
 
   const roleKey = normalizeDashboardRole(currentUser?.role);
   const isStudent = roleKey === "STUDENT";
@@ -372,14 +365,18 @@ export default function FavoriteSidebar() {
   }, [allEntries, favoriteIds]);
 
   useEffect(() => {
-    const syncFavorites = () => setFavoriteIds(readFavoriteIds());
+    setFavoriteIds(readQuickLauncherFavoriteIds(currentUser));
+  }, [currentUser, favoriteStorageKey]);
+
+  useEffect(() => {
+    const syncFavorites = () => setFavoriteIds(readQuickLauncherFavoriteIds(currentUser));
     window.addEventListener("storage", syncFavorites);
-    window.addEventListener(FAVORITES_CHANGED_EVENT, syncFavorites);
+    window.addEventListener(QUICK_LAUNCHER_FAVORITES_CHANGED_EVENT, syncFavorites);
     return () => {
       window.removeEventListener("storage", syncFavorites);
-      window.removeEventListener(FAVORITES_CHANGED_EVENT, syncFavorites);
+      window.removeEventListener(QUICK_LAUNCHER_FAVORITES_CHANGED_EVENT, syncFavorites);
     };
-  }, []);
+  }, [currentUser, favoriteStorageKey]);
 
   const handleClick = (entry: FavoriteEntry) => {
     if (entry.kind === "subject" && entry.subjectId) {

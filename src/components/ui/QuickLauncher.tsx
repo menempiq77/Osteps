@@ -29,6 +29,11 @@ import {
   normalizeDashboardRole,
   type DashboardNavItem,
 } from "@/lib/dashboardNavigation";
+import {
+  getQuickLauncherFavoritesStorageKey,
+  readQuickLauncherFavoriteIds,
+  writeQuickLauncherFavoriteIds,
+} from "@/lib/quickLauncherFavorites";
 import { isSharedPath } from "@/lib/subjectRouting";
 import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
 
@@ -208,16 +213,9 @@ export default function QuickLauncher() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
-  const [favoriteIds, setFavoriteIds] = useState<string[]>(() => {
-    if (typeof window === "undefined") return [];
-    try {
-      const stored = window.localStorage.getItem("osteps:quick-launcher:favorites");
-      const parsed = stored ? JSON.parse(stored) : [];
-      return Array.isArray(parsed) ? parsed.filter((id) => typeof id === "string") : [];
-    } catch {
-      return [];
-    }
-  });
+  const favoriteStorageKey = getQuickLauncherFavoritesStorageKey(currentUser);
+  const [favoriteIds, setFavoriteIds] = useState<string[]>(() => readQuickLauncherFavoriteIds(currentUser));
+  const [loadedFavoriteStorageKey, setLoadedFavoriteStorageKey] = useState(favoriteStorageKey);
 
   const roleKey = normalizeDashboardRole(currentUser?.role);
   const currentUserLabel = String(
@@ -609,21 +607,14 @@ export default function QuickLauncher() {
   };
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem(
-        "osteps:quick-launcher:favorites",
-        JSON.stringify(favoriteIds)
-      );
-      window.dispatchEvent(
-        new CustomEvent("osteps:quick-launcher:favorites-changed", {
-          detail: favoriteIds,
-        })
-      );
-    } catch {
-      // Ignore private browsing/localStorage failures.
-    }
-  }, [favoriteIds]);
+    setFavoriteIds(readQuickLauncherFavoriteIds(currentUser));
+    setLoadedFavoriteStorageKey(favoriteStorageKey);
+  }, [currentUser, favoriteStorageKey]);
+
+  useEffect(() => {
+    if (loadedFavoriteStorageKey !== favoriteStorageKey) return;
+    writeQuickLauncherFavoriteIds(favoriteIds, currentUser);
+  }, [currentUser, favoriteIds, favoriteStorageKey, loadedFavoriteStorageKey]);
 
   useEffect(() => {
     setOpen(false);
