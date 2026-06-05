@@ -18,6 +18,7 @@ import { useSubjectContext } from "@/contexts/SubjectContext";
 import { IMG_BASE_URL } from "@/lib/config";
 import { fetchAssessmentDocument, saveAssessmentDocumentAnnotations } from "@/services/documentAssessmentApi";
 import { buildTaskTypeValue, resolveExamWindow } from "@/lib/taskTypeMetadata";
+import { parseSubmissionAttachments } from "@/lib/submissionAttachments";
 import dayjs from "dayjs";
 
 interface Student {
@@ -68,6 +69,7 @@ interface StudentAssessmentTask {
   self_assessment_mark: string;
   additional_notes: string;
   file_path: string;
+  file_paths?: unknown;
   created_at: string;
   updated_at: string;
   teacher_assessment_score?: string;
@@ -1069,8 +1071,37 @@ export default function AssessmentDrawer() {
   const getSubmittedFileUrl = (task: StudentAssessmentTask) => {
     const taskType = String(task.task?.task_type || "").toLowerCase();
     if (taskType === "url") return task.task?.url || task.file_path || "";
+    const attachments = parseSubmissionAttachments(task.file_paths, task.file_path);
+    if (attachments.length > 0) return attachments[0].url;
     return fileUrlForDocument(
       task.file_path || (taskType !== "pdf" ? task.task?.file_path : "")
+    );
+  };
+
+  const renderSubmissionAttachmentLinks = (task: StudentAssessmentTask) => {
+    const attachments = parseSubmissionAttachments(task.file_paths, task.file_path);
+    if (attachments.length === 0) return null;
+
+    return (
+      <div className="mt-3 rounded-lg border border-gray-200 bg-white p-3">
+        <div className="mb-2 text-sm font-semibold text-gray-800">
+          Student uploaded files ({attachments.length})
+        </div>
+        <div className="space-y-1.5">
+          {attachments.map((attachment) => (
+            <a
+              key={attachment.path}
+              href={attachment.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between gap-2 rounded-md border border-gray-200 px-2.5 py-2 text-sm text-blue-700 hover:bg-blue-50 hover:underline"
+            >
+              <span className="truncate">{attachment.name}</span>
+              <span className="shrink-0 text-xs font-semibold">Open</span>
+            </a>
+          ))}
+        </div>
+      </div>
     );
   };
 
@@ -1987,27 +2018,34 @@ export default function AssessmentDrawer() {
                       </a>
                     )}
                   </div>
+                  {renderSubmissionAttachmentLinks(viewingTask)}
                 </div>
               ) : viewingTask.task?.task_type.toLowerCase() === "video" ? (
-                <video
-                  controls
-                  className="w-full rounded-lg border"
-                  style={{ maxHeight: "400px" }}
-                >
-                  <source
-                    src={getSubmittedFileUrl(viewingTask)}
-                    type="video/mp4"
-                  />
-                  Your browser does not support the video tag.
-                </video>
+                <>
+                  <video
+                    controls
+                    className="w-full rounded-lg border"
+                    style={{ maxHeight: "400px" }}
+                  >
+                    <source
+                      src={getSubmittedFileUrl(viewingTask)}
+                      type="video/mp4"
+                    />
+                    Your browser does not support the video tag.
+                  </video>
+                  {renderSubmissionAttachmentLinks(viewingTask)}
+                </>
               ) : viewingTask.task?.task_type.toLowerCase() === "audio" ? (
-                <audio controls className="w-full">
-                  <source
-                    src={getSubmittedFileUrl(viewingTask)}
-                    type="audio/mpeg"
-                  />
-                  Your browser does not support the audio element.
-                </audio>
+                <>
+                  <audio controls className="w-full">
+                    <source
+                      src={getSubmittedFileUrl(viewingTask)}
+                      type="audio/mpeg"
+                    />
+                    Your browser does not support the audio element.
+                  </audio>
+                  {renderSubmissionAttachmentLinks(viewingTask)}
+                </>
               ) : viewingTask.task?.task_type.toLowerCase() === "url" ? (
                 <div className="p-4 border rounded-lg bg-blue-50">
                   <LinkOutlined className="text-blue-500 text-2xl mb-2" />
@@ -2021,15 +2059,17 @@ export default function AssessmentDrawer() {
                     {getSubmittedFileUrl(viewingTask)}
                   </a>
                 </div>
-              ) : viewingTask.file_path ? (
-                <a
-                  href={getSubmittedFileUrl(viewingTask)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline"
-                >
-                  View File
-                </a>
+              ) : viewingTask.file_path || viewingTask.file_paths ? (
+                renderSubmissionAttachmentLinks(viewingTask) || (
+                  <a
+                    href={getSubmittedFileUrl(viewingTask)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline"
+                  >
+                    View File
+                  </a>
+                )
               ) : (
                 <p className="text-gray-500 italic">No file or URL provided.</p>
               )}

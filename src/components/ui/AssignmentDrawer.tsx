@@ -15,6 +15,7 @@ import {
   PlayCircleOutlined,
   FilePdfOutlined,
 } from "@ant-design/icons";
+import { ExternalLink, Paperclip, Trash2 } from "lucide-react";
 import { uploadTaskByStudent } from "@/services/api";
 import { IMG_BASE_URL } from "@/lib/config";
 import { useSelector } from "react-redux";
@@ -23,6 +24,11 @@ import dayjs from "dayjs";
 import { requestDocumentFullscreenFromGesture } from "@/lib/browserFullscreen";
 import { resolveExamWindow } from "@/lib/taskTypeMetadata";
 import { isSubmittedStatus } from "@/lib/studentSubmissionStatus";
+import {
+  SubmissionAttachment,
+  parseSubmissionAttachments,
+  serializeKeptSubmissionAttachments,
+} from "@/lib/submissionAttachments";
 
 interface Task {
   id: string;
@@ -46,6 +52,8 @@ interface Task {
   exam_duration_minutes?: number | null;
   exam_end_at?: string | null;
   has_submission?: boolean;
+  submitted_file_path?: string | null;
+  submitted_file_paths?: unknown;
 }
 
 interface AssignmentDrawerProps {
@@ -73,6 +81,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
   const router = useRouter();
   const [form] = Form.useForm();
   const [fileList, setFileList] = useState<UploadFile[]>([]);
+  const [existingAttachments, setExistingAttachments] = useState<SubmissionAttachment[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
   const [inputError, setInputError] = useState(false);
@@ -152,12 +161,17 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
         selectedTask?.selfAssessment ?? selectedTask?.self_assessment_marks ?? undefined,
       notes: selectedTask?.additional_notes ?? "",
     });
+    setExistingAttachments(
+      parseSubmissionAttachments(
+        selectedTask?.submitted_file_paths,
+        selectedTask?.submitted_file_path
+      )
+    );
+    setFileList([]);
   }, [isOpen, selectedTask, form]);
 
   const handleFileChange = (info: any) => {
-    let newFileList = [...info.fileList];
-    newFileList = newFileList.slice(-1);
-    newFileList = newFileList.map((file) => {
+    const newFileList = [...info.fileList].map((file) => {
       if (file.response) {
         file.url = file.response.url;
       }
@@ -168,15 +182,6 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
   };
 
   const beforeUpload = (file: File) => {
-    // Reset file list to only include the new file
-    setFileList([
-      {
-        uid: file.name,
-        name: file.name,
-        status: "done",
-        originFileObj: file,
-      },
-    ]);
     return false;
   };
 
@@ -199,6 +204,17 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
       formData.append("file_path", fileList[0].originFileObj);
     }
 
+    formData.append(
+      "kept_file_paths",
+      serializeKeptSubmissionAttachments(existingAttachments)
+    );
+
+    fileList.forEach((file) => {
+      if (file.originFileObj) {
+        formData.append("file_paths[]", file.originFileObj, file.name);
+      }
+    });
+
     const response = await uploadTaskByStudent(formData, assessmentId);
 
     if (response?.status_code === 409) {
@@ -208,10 +224,11 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
       return;
     }
 
-    messageApi.success("Task submitted successfully!");
+    messageApi.success(selectedTaskSubmitted ? "Submission updated successfully!" : "Task submitted successfully!");
     onClose();
     form.resetFields();
     setFileList([]);
+    setExistingAttachments([]);
   } catch (error: any) {
     console.error("Error submitting Task:", error);
     messageApi.error("Failed to submit Task. Please try again.");
@@ -237,6 +254,10 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
   };
 
   const renderFilePreview = () => {
+    if (existingAttachments.length > 0) {
+      return renderAttachmentList(false);
+    }
+
     if (!selectedTask?.url) return null;
 
     switch (selectedTask.type) {
@@ -279,6 +300,72 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
     }
   };
 
+  const renderAttachmentList = (editable: boolean) => {
+    if (existingAttachments.length === 0) {
+      return editable ? null : <p className="text-sm text-gray-500">No uploaded files saved yet.</p>;
+    }
+
+    return (
+      <div className="space-y-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
+        <div className="flex items-center justify-between gap-2">
+          <h4 className="text-sm font-semibold text-gray-800">
+            Uploaded files ({existingAttachments.length})
+          </h4>
+          {editable && (
+            <span className="text-xs text-gray-500">
+              Remove files you do not want to keep.
+            </span>
+          )}
+        </div>
+        <div className="space-y-1.5">
+          {existingAttachments.map((attachment) => (
+            <div
+              key={attachment.path}
+              className="flex items-center justify-between gap-2 rounded-md border border-gray-200 bg-white px-2.5 py-2"
+            >
+              <div className="min-w-0 flex items-center gap-2">
+                <Paperclip className="h-4 w-4 shrink-0 text-gray-500" />
+                <span className="truncate text-sm font-medium text-gray-700">
+                  {attachment.name}
+                </span>
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                <Button
+                  size="small"
+                  type="link"
+                  href={attachment.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="!h-7 !px-1 text-xs"
+                >
+                  <span className="inline-flex items-center gap-1">
+                    View <ExternalLink className="h-3 w-3" />
+                  </span>
+                </Button>
+                {editable && (
+                  <Button
+                    size="small"
+                    danger
+                    type="text"
+                    className="!h-7 !px-1.5"
+                    onClick={() =>
+                      setExistingAttachments((current) =>
+                        current.filter((item) => item.path !== attachment.path)
+                      )
+                    }
+                    title="Remove this file from the saved submission"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   const renderUploadArea = () => {
     if ((!canEditSubmission && selectedTaskSubmitted) || isNATask) return null;
     if (selectedTask?.task_type === "url") {
@@ -300,7 +387,6 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
         : "application/pdf";
 
     const hasFile = fileList.length > 0;
-    const file = hasFile ? fileList[0] : null;
 
     if (isOnlineExamTask) {
       return (
@@ -360,7 +446,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
         )}
         <Upload.Dragger
           name="file"
-          multiple={false}
+          multiple
           fileList={fileList}
           beforeUpload={beforeUpload}
           onChange={handleFileChange}
@@ -372,12 +458,12 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
             <div className="text-center">
               <p className="font-medium text-gray-700">
                 {hasFile
-                  ? file?.name
-                  : `Drag & drop your ${selectedTask?.task_type} file here`}
+                  ? `${fileList.length} new file${fileList.length === 1 ? "" : "s"} ready to save`
+                  : `Drag & drop your ${selectedTask?.task_type} files here`}
               </p>
               <p className="text-sm text-gray-500 mt-1">
-                {hasFile && file?.size
-                  ? `${(file.size / (1024 * 1024)).toFixed(2)} MB`
+                {hasFile
+                  ? "You can remove any selected file before saving."
                   : `or click to browse files (${selectedTask?.task_type?.toUpperCase()} only)`}
               </p>
             </div>
@@ -417,7 +503,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
                 className="w-full !bg-primary !border-primary"
               >
                 {selectedTaskSubmitted
-                  ? "Update Submission"
+                  ? "Save Changes"
                   : "Submit Assignment"}
               </Button>
             </div>
@@ -482,6 +568,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
                 className="flex-1 flex flex-col"
               >
                 <div className="flex-1">
+                  {renderAttachmentList(true)}
                   <div className="mb-8">{renderUploadArea()}</div>
 
                   <Form.Item

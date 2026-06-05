@@ -40,6 +40,8 @@ interface Task {
   teacher_feedback?: string;
   file_path?: string;
   has_submission?: boolean;
+  submitted_file_path?: string | null;
+  submitted_file_paths?: unknown;
 }
 interface CurrentUser {
   student?: string;
@@ -146,6 +148,8 @@ export default function AssignmentDetailPage() {
         additional_notes: studentTask?.additional_notes || "",
         teacher_assessment_marks: studentTask?.teacher_assessment_score || 0,
         teacher_feedback: studentTask?.teacher_feedback || null,
+        submitted_file_path: studentTask?.file_path || null,
+        submitted_file_paths: studentTask?.file_paths ?? null,
       };
     }
 

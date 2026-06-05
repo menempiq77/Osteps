@@ -312,6 +312,7 @@ const normalizeTaskTreeToStudentTasks = (rows: any[] = []) => {
           : "",
       additional_notes: submission?.additional_notes ?? "",
       file_path: submission?.file_path ?? row?.file_path ?? "",
+      file_paths: submission?.file_paths ?? null,
       created_at: submission?.created_at ?? row?.created_at,
       updated_at: submission?.updated_at ?? row?.updated_at,
       teacher_assessment_score:
