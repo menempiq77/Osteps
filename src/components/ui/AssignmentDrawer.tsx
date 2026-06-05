@@ -112,12 +112,18 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
   const [existingAttachments, setExistingAttachments] = useState<SubmissionAttachment[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [micLevel, setMicLevel] = useState(0);
   const [recordingPreviewUrl, setRecordingPreviewUrl] = useState<string | null>(null);
+  const [recordingWarning, setRecordingWarning] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
   const [inputError, setInputError] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const audioSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const analyserFrameRef = useRef<number | null>(null);
+  const recordingPeakRef = useRef(0);
   const recordingChunksRef = useRef<BlobPart[]>([]);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const recordingPreviewUrlRef = useRef<string | null>(null);
@@ -147,6 +153,62 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
     }
   };
 
+  const stopMicLevelMonitor = () => {
+    if (analyserFrameRef.current !== null) {
+      cancelAnimationFrame(analyserFrameRef.current);
+      analyserFrameRef.current = null;
+    }
+
+    audioSourceRef.current?.disconnect();
+    audioSourceRef.current = null;
+
+    if (audioContextRef.current && audioContextRef.current.state !== "closed") {
+      void audioContextRef.current.close();
+    }
+    audioContextRef.current = null;
+    setMicLevel(0);
+  };
+
+  const startMicLevelMonitor = (stream: MediaStream) => {
+    stopMicLevelMonitor();
+    recordingPeakRef.current = 0;
+
+    const AudioContextConstructor =
+      window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextConstructor) return;
+
+    try {
+      const audioContext = new AudioContextConstructor();
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      const source = audioContext.createMediaStreamSource(stream);
+      const samples = new Uint8Array(analyser.fftSize);
+
+      source.connect(analyser);
+      audioContextRef.current = audioContext;
+      audioSourceRef.current = source;
+
+      const tick = () => {
+        analyser.getByteTimeDomainData(samples);
+        let sum = 0;
+
+        for (const sample of samples) {
+          const normalized = (sample - 128) / 128;
+          sum += normalized * normalized;
+        }
+
+        const rms = Math.sqrt(sum / samples.length);
+        recordingPeakRef.current = Math.max(recordingPeakRef.current, rms);
+        setMicLevel(Math.min(100, Math.round(rms * 450)));
+        analyserFrameRef.current = requestAnimationFrame(tick);
+      };
+
+      tick();
+    } catch (error) {
+      console.warn("Unable to monitor microphone level:", error);
+    }
+  };
+
   const stopRecordingStream = () => {
     mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
     mediaStreamRef.current = null;
@@ -154,6 +216,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
 
   const resetRecordingState = () => {
     clearRecordingTimer();
+    stopMicLevelMonitor();
     stopRecordingStream();
     setIsRecording(false);
     setRecordingSeconds(0);
@@ -167,7 +230,10 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
       URL.revokeObjectURL(recordingPreviewUrlRef.current);
     }
     recordingPreviewUrlRef.current = url;
-    if (!url) recordingPreviewUidRef.current = null;
+    if (!url) {
+      recordingPreviewUidRef.current = null;
+      setRecordingWarning(null);
+    }
     setRecordingPreviewUrl(url);
   };
 
@@ -225,7 +291,11 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
     router.push(href);
   };
 
-  const addRecordingToFileList = (blob: Blob, mimeType: string) => {
+  const addRecordingToFileList = (
+    blob: Blob,
+    mimeType: string,
+    soundDetected: boolean
+  ) => {
     const safeTaskName = (selectedTask?.name || "recording")
       .replace(/[^a-z0-9]+/gi, "-")
       .replace(/^-+|-+$/g, "")
@@ -251,9 +321,16 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
         originFileObj: file as any,
       },
     ]);
-    messageApi.success(
-      `Recording added. Press ${selectedTaskSubmitted ? "Save Changes" : "Submit Assignment"} to save it.`
-    );
+    if (soundDetected) {
+      setRecordingWarning(null);
+      messageApi.success(
+        `Recording added. Press ${selectedTaskSubmitted ? "Save Changes" : "Submit Assignment"} to save it.`
+      );
+    } else {
+      const warning = "The website recorded the file, but it could not detect microphone sound. Check the device microphone, selected input, browser permission, or mic mute button, then record again.";
+      setRecordingWarning(warning);
+      messageApi.warning("No microphone sound was detected in this recording.");
+    }
   };
 
   const startAudioRecording = async () => {
@@ -279,7 +356,9 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
       mediaStreamRef.current = stream;
       mediaRecorderRef.current = recorder;
       recordingChunksRef.current = [];
+      recordingPeakRef.current = 0;
       shouldSaveRecordingRef.current = false;
+      setRecordingWarning(null);
 
       recorder.ondataavailable = (event) => {
         if (event.data?.size > 0) {
@@ -296,9 +375,14 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
         const chunks = recordingChunksRef.current;
         const shouldSave = shouldSaveRecordingRef.current;
         const finalMimeType = mimeType || chunks[0]?.type || "audio/webm";
+        const soundDetected = recordingPeakRef.current > 0.015;
 
         if (shouldSave && chunks.length > 0) {
-          addRecordingToFileList(new Blob(chunks, { type: finalMimeType }), finalMimeType);
+          addRecordingToFileList(
+            new Blob(chunks, { type: finalMimeType }),
+            finalMimeType,
+            soundDetected
+          );
         }
 
         resetRecordingState();
@@ -306,6 +390,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
 
       setRecordingSeconds(0);
       setIsRecording(true);
+      startMicLevelMonitor(stream);
       recorder.start();
       recordingTimerRef.current = setInterval(() => {
         setRecordingSeconds((seconds) => seconds + 1);
@@ -621,12 +706,34 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
             </Button>
           )}
         </div>
+        {isRecording && (
+          <div className="mt-3 rounded-md border border-emerald-200 bg-white p-3">
+            <div className="mb-2 flex items-center justify-between text-xs font-semibold text-emerald-900">
+              <span>Microphone sound level</span>
+              <span>{micLevel > 8 ? "Sound detected" : "Speak now"}</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-gray-200">
+              <div
+                className={`h-full rounded-full transition-all ${micLevel > 8 ? "bg-emerald-500" : "bg-amber-400"}`}
+                style={{ width: `${Math.max(isRecording ? 4 : 0, micLevel)}%` }}
+              />
+            </div>
+            <p className="mt-2 text-xs text-gray-600">
+              If this bar does not move while you speak, the browser is not receiving microphone sound from the device.
+            </p>
+          </div>
+        )}
         {recordingPreviewUrl && !isRecording && (
           <div className="mt-3 rounded-md border border-emerald-200 bg-white p-3">
             <p className="mb-2 text-xs font-semibold text-emerald-800">
               Latest recording preview
             </p>
             <audio controls src={recordingPreviewUrl} className="w-full" />
+            {recordingWarning && (
+              <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs font-medium text-amber-800">
+                {recordingWarning}
+              </div>
+            )}
             <p className="mt-2 text-xs text-gray-500">
               The recording has been added to the new files list below. Remove it there if you do not want to submit it.
             </p>
