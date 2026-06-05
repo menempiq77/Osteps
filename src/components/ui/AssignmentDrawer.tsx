@@ -61,6 +61,8 @@ type AudioInputDeviceOption = {
   label: string;
 };
 
+const AUTO_AUDIO_INPUT_ID = "__auto_microphone__";
+
 interface AssignmentDrawerProps {
   isOpen: boolean;
   onClose: () => void;
@@ -117,6 +119,53 @@ const getAudioInputOptions = async (): Promise<AudioInputDeviceOption[]> => {
     }));
 };
 
+const isGenericMicrophoneLabel = (label: string) => /^Microphone \d+$/i.test(label.trim());
+
+const chooseAutoAudioInputDevice = (devices: AudioInputDeviceOption[]) => {
+  const defaultDevice = devices.find((device) =>
+    device.label.toLowerCase().startsWith("default")
+  );
+
+  if (defaultDevice) {
+    const defaultTargetLabel = defaultDevice.label
+      .replace(/^default\s*-\s*/i, "")
+      .trim()
+      .toLowerCase();
+    const matchingPhysicalDevice = devices.find((device) => {
+      const label = device.label.toLowerCase();
+      return (
+        device.deviceId !== defaultDevice.deviceId &&
+        !label.startsWith("default") &&
+        !label.startsWith("communications") &&
+        defaultTargetLabel &&
+        (label === defaultTargetLabel || defaultTargetLabel.includes(label) || label.includes(defaultTargetLabel))
+      );
+    });
+
+    if (matchingPhysicalDevice) return matchingPhysicalDevice;
+  }
+
+  const scoredDevices = devices
+    .filter((device) => device.deviceId)
+    .map((device, index) => {
+      const label = device.label.toLowerCase();
+      let score = 0;
+
+      if (label.startsWith("default")) score += 100;
+      if (label.includes("microphone")) score += 20;
+      if (label.includes("array") || label.includes("built-in") || label.includes("internal")) score += 8;
+      if (label.includes("communications")) score -= 35;
+      if (label.includes("cast")) score -= 70;
+      if (label.includes("monitor") || label.includes("output") || label.includes("stereo mix")) score -= 60;
+      if (isGenericMicrophoneLabel(device.label)) score -= 5;
+
+      return { device, score, index };
+    });
+
+  scoredDevices.sort((a, b) => b.score - a.score || a.index - b.index);
+  return scoredDevices[0]?.device || null;
+};
+
 const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
   isOpen,
   onClose,
@@ -133,7 +182,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [micLevel, setMicLevel] = useState(0);
   const [audioInputDevices, setAudioInputDevices] = useState<AudioInputDeviceOption[]>([]);
-  const [selectedAudioInputId, setSelectedAudioInputId] = useState("");
+  const [selectedAudioInputId, setSelectedAudioInputId] = useState(AUTO_AUDIO_INPUT_ID);
   const [activeMicrophoneLabel, setActiveMicrophoneLabel] = useState("");
   const [recordingPreviewUrl, setRecordingPreviewUrl] = useState<string | null>(null);
   const [recordingWarning, setRecordingWarning] = useState<string | null>(null);
@@ -269,8 +318,12 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
       const devices = await getAudioInputOptions();
       setAudioInputDevices(devices);
 
-      if (preferredDeviceId && !devices.some((device) => device.deviceId === preferredDeviceId)) {
-        setSelectedAudioInputId("");
+      if (
+        preferredDeviceId &&
+        preferredDeviceId !== AUTO_AUDIO_INPUT_ID &&
+        !devices.some((device) => device.deviceId === preferredDeviceId)
+      ) {
+        setSelectedAudioInputId(AUTO_AUDIO_INPUT_ID);
       }
     } catch (error) {
       console.warn("Unable to list microphones:", error);
@@ -391,10 +444,32 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
         noiseSuppression: false,
         autoGainControl: true,
       };
-      const requestedAudioConstraints: MediaTrackConstraints = selectedAudioInputId
+      const shouldAutoSelectMicrophone = selectedAudioInputId === AUTO_AUDIO_INPUT_ID;
+      let devices = await getAudioInputOptions();
+
+      if (
+        shouldAutoSelectMicrophone &&
+        (devices.length === 0 || devices.every((device) => isGenericMicrophoneLabel(device.label)))
+      ) {
+        const permissionStream = await navigator.mediaDevices.getUserMedia({
+          audio: baseAudioConstraints,
+        });
+        permissionStream.getTracks().forEach((track) => track.stop());
+        devices = await getAudioInputOptions();
+      }
+
+      setAudioInputDevices(devices);
+
+      const autoDevice = shouldAutoSelectMicrophone
+        ? chooseAutoAudioInputDevice(devices)
+        : null;
+      const requestedDeviceId = shouldAutoSelectMicrophone
+        ? autoDevice?.deviceId || ""
+        : selectedAudioInputId;
+      const requestedAudioConstraints: MediaTrackConstraints = requestedDeviceId
         ? {
             ...baseAudioConstraints,
-            deviceId: { exact: selectedAudioInputId },
+            deviceId: { exact: requestedDeviceId },
           }
         : baseAudioConstraints;
       let stream: MediaStream;
@@ -404,10 +479,12 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
           audio: requestedAudioConstraints,
         });
       } catch (error) {
-        if (!selectedAudioInputId) throw error;
+        if (!requestedDeviceId) throw error;
 
-        setSelectedAudioInputId("");
-        messageApi.warning("That microphone was unavailable, so the browser default microphone was used.");
+        if (!shouldAutoSelectMicrophone) {
+          setSelectedAudioInputId(AUTO_AUDIO_INPUT_ID);
+        }
+        messageApi.warning("That microphone was unavailable, so another microphone was used automatically.");
         stream = await navigator.mediaDevices.getUserMedia({
           audio: baseAudioConstraints,
         });
@@ -415,10 +492,14 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
 
       const track = stream.getAudioTracks()[0];
       const trackDeviceId = track?.getSettings?.().deviceId || "";
-      const devices = await getAudioInputOptions();
+      devices = await getAudioInputOptions();
       setAudioInputDevices(devices);
       const activeDevice = devices.find((device) => device.deviceId === trackDeviceId);
-      setActiveMicrophoneLabel(activeDevice?.label || track?.label || "Browser default microphone");
+      setActiveMicrophoneLabel(
+        activeDevice?.label ||
+          track?.label ||
+          (shouldAutoSelectMicrophone ? "Auto-selected microphone" : "Browser default microphone")
+      );
       const mimeType = getSupportedAudioMimeType();
       const recorder = new MediaRecorder(
         stream,
@@ -805,6 +886,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
                 onChange={(event) => setSelectedAudioInputId(event.target.value)}
                 className="mt-1 w-full rounded-md border border-emerald-200 bg-white px-2 py-2 text-sm text-gray-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:cursor-not-allowed disabled:bg-gray-100"
               >
+                <option value={AUTO_AUDIO_INPUT_ID}>Auto select best microphone (recommended)</option>
                 <option value="">Browser default microphone</option>
                 {audioInputDevices.map((device, index) => (
                   <option
@@ -830,7 +912,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
             </p>
           )}
           <p className="mt-2 text-xs text-gray-500">
-            If the level stays silent, choose another microphone here and record again.
+            Auto tries the best real microphone first. If the level stays silent, choose another microphone here and record again.
           </p>
         </div>
         {isRecording && (
