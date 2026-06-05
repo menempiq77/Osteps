@@ -2144,7 +2144,6 @@ export default function AllStudentsPage() {
           (matchedSubjectClass?.linkedClassId && matchedSubjectClass.linkedClassId > 0
             ? matchedSubjectClass.linkedClassId
             : null) ??
-          selectedSubjectClassIds[0] ??
           row.class_id ??
           0
         );
@@ -2172,6 +2171,10 @@ export default function AllStudentsPage() {
 
     if (payloadRows.length === 0) {
       messageApi.warning("Please fill in at least one student.");
+      return;
+    }
+    if (payloadRows.some((row) => !Number.isFinite(row.classId) || row.classId <= 0)) {
+      messageApi.error("One or more selected classes are not linked to a school class yet.");
       return;
     }
 
@@ -2412,8 +2415,14 @@ export default function AllStudentsPage() {
       }
 
       const values = await editForm.validateFields();
+      const studentBeingEdited = editingStudent;
+      if (!studentBeingEdited) {
+        messageApi.error("Missing student record for update.");
+        return;
+      }
 
-      /* Resolve class_id from subject class selection, like Add Students flow. */
+      /* Resolve class_id from subject class selection, like Add Students flow.
+         class_ids stores subject_classes.id, but update-student expects school_classes.id. */
       const selectedSubjectClassIds = Array.from(
         new Set(
           (Array.isArray(values.class_ids) ? values.class_ids : [])
@@ -2421,41 +2430,75 @@ export default function AllStudentsPage() {
             .filter((id: number) => Number.isFinite(id) && id > 0)
         )
       );
-      if (selectedSubjectClassIds.length > 0) {
-        values.class_id = selectedSubjectClassIds[0];
+      const selectedSubjectClasses = selectedSubjectClassIds
+        .map((id) => assignSubjectClasses.find((item) => Number(item.id) === Number(id)))
+        .filter((item): item is SubjectClassOption => Boolean(item));
+
+      if (selectedSubjectClasses.length !== selectedSubjectClassIds.length) {
+        messageApi.error("One or more selected classes are no longer available. Please refresh and try again.");
+        return;
       }
 
-      editMutation.mutate(values, {
-        onSuccess: async () => {
-          /* After update, sync subject assignments if subjects/classes were selected. */
-          const editSubjectIds = Array.from(
-            new Set(
-              (Array.isArray(values.subject_ids) ? values.subject_ids : [])
-                .map((id: unknown) => Number(id))
-                .filter((id: number) => Number.isFinite(id) && id > 0)
-            )
-          );
-          if ((editSubjectIds.length > 0 || selectedSubjectClassIds.length > 0) && editingStudent) {
-            const studentId = Number(
-              editingStudent.studentId || editingStudent.profileId
+      if (selectedSubjectClassIds.length > 0) {
+        const resolvedBaseClassId = selectedSubjectClasses
+          .map((item) => Number(item.linkedClassId))
+          .find((id) => Number.isFinite(id) && id > 0);
+        const fallbackBaseClassId = Number(studentBeingEdited.classId);
+        values.class_id =
+          resolvedBaseClassId ??
+          (Number.isFinite(fallbackBaseClassId) && fallbackBaseClassId > 0
+            ? fallbackBaseClassId
+            : undefined);
+
+        if (!values.class_id) {
+          messageApi.error("The selected subject class is not linked to a school class yet.");
+          return;
+        }
+      }
+
+      const explicitSubjectIds = Array.from(
+        new Set(
+          (Array.isArray(values.subject_ids) ? values.subject_ids : [])
+            .map((id: unknown) => Number(id))
+            .filter((id: number) => Number.isFinite(id) && id > 0)
+        )
+      );
+      const subjectIdsFromSelectedClasses = selectedSubjectClasses
+        .map((item) => Number(item.subjectId))
+        .filter((id) => Number.isFinite(id) && id > 0);
+      const editSubjectIds = Array.from(
+        new Set([...explicitSubjectIds, ...subjectIdsFromSelectedClasses])
+      );
+      values.subject_ids = editSubjectIds;
+
+      await editMutation.mutateAsync(values);
+
+      /* After update, sync subject assignments if subjects/classes were selected. */
+      if (editSubjectIds.length > 0 || selectedSubjectClassIds.length > 0) {
+        const studentId = Number(
+          studentBeingEdited.enrollmentStudentId || studentBeingEdited.profileId || studentBeingEdited.studentId
+        );
+        if (Number.isFinite(studentId) && studentId > 0) {
+          try {
+            await assignStudentsToSubjects({
+              subjectIds: editSubjectIds,
+              studentIds: [studentId],
+              subjects: subjects.map((s) => ({ id: Number(s.id), name: displaySubjectName(s.name) })),
+              subjectClassIds: selectedSubjectClassIds,
+              forceReassign: false,
+              allowCrossClass: true,
+            });
+            await queryClient.invalidateQueries({ queryKey: ["all-students-list"] });
+            await queryClient.refetchQueries({ queryKey: ["all-students-list"], type: "active" });
+          } catch (error: any) {
+            messageApi.warning(
+              error?.response?.data?.msg ||
+                error?.message ||
+                "Student updated but subject assignment may need manual sync."
             );
-            if (Number.isFinite(studentId) && studentId > 0) {
-              try {
-                await assignStudentsToSubjects({
-                  subjectIds: editSubjectIds,
-                  studentIds: [studentId],
-                  subjects: subjects.map((s) => ({ id: Number(s.id), name: displaySubjectName(s.name) })),
-                  subjectClassIds: selectedSubjectClassIds,
-                  forceReassign: false,
-                  allowCrossClass: true,
-                });
-              } catch {
-                messageApi.warning("Student updated but subject assignment may need manual sync.");
-              }
-            }
           }
-        },
-      });
+        }
+      }
     } catch {
       // validation message handled by antd
     }
@@ -3077,6 +3120,26 @@ export default function AllStudentsPage() {
                         options={editSubjectClassOptions}
                         placeholder="Select one or more classes related to selected subject(s)"
                         maxTagCount="responsive"
+                        onChange={(nextClassIds) => {
+                          const classIds = (Array.isArray(nextClassIds) ? nextClassIds : [])
+                            .map((id: unknown) => Number(id))
+                            .filter((id: number) => Number.isFinite(id) && id > 0);
+                          const currentSubjectIds = (Array.isArray(getFieldValue("subject_ids"))
+                            ? getFieldValue("subject_ids")
+                            : [])
+                            .map((id: unknown) => Number(id))
+                            .filter((id: number) => Number.isFinite(id) && id > 0);
+                          const classSubjectIds = assignSubjectClasses
+                            .filter((item) => classIds.includes(Number(item.id)))
+                            .map((item) => Number(item.subjectId))
+                            .filter((id) => Number.isFinite(id) && id > 0);
+                          const mergedSubjectIds = Array.from(
+                            new Set([...currentSubjectIds, ...classSubjectIds])
+                          );
+                          if (mergedSubjectIds.length !== currentSubjectIds.length) {
+                            editForm.setFieldsValue({ subject_ids: mergedSubjectIds });
+                          }
+                        }}
                       />
                     </Form.Item>
                   );
