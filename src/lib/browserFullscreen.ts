@@ -1,6 +1,8 @@
 type FullscreenCapableDocument = Document & {
   webkitFullscreenElement?: Element | null;
   msFullscreenElement?: Element | null;
+  webkitExitFullscreen?: () => Promise<void> | void;
+  msExitFullscreen?: () => Promise<void> | void;
 };
 
 type FullscreenCapableElement = HTMLElement & {
@@ -10,6 +12,11 @@ type FullscreenCapableElement = HTMLElement & {
 
 const getCurrentFullscreenElement = (doc: FullscreenCapableDocument) =>
   doc.fullscreenElement ?? doc.webkitFullscreenElement ?? doc.msFullscreenElement ?? null;
+
+export const isDocumentFullscreenActive = () => {
+  if (typeof document === "undefined") return false;
+  return Boolean(getCurrentFullscreenElement(document as FullscreenCapableDocument));
+};
 
 export const requestDocumentFullscreenFromGesture = async (): Promise<boolean> => {
   if (typeof document === "undefined") return false;
@@ -46,4 +53,23 @@ export const requestDocumentFullscreenFromGesture = async (): Promise<boolean> =
   }
 
   return Boolean(getCurrentFullscreenElement(fullscreenDocument));
+};
+
+export const exitDocumentFullscreenIfActive = async (): Promise<void> => {
+  if (typeof document === "undefined") return;
+
+  const fullscreenDocument = document as FullscreenCapableDocument;
+  if (!getCurrentFullscreenElement(fullscreenDocument)) return;
+
+  try {
+    if (fullscreenDocument.exitFullscreen) {
+      await fullscreenDocument.exitFullscreen();
+    } else if (fullscreenDocument.webkitExitFullscreen) {
+      await Promise.resolve(fullscreenDocument.webkitExitFullscreen());
+    } else if (fullscreenDocument.msExitFullscreen) {
+      await Promise.resolve(fullscreenDocument.msExitFullscreen());
+    }
+  } catch {
+    // Ignore browser-specific fullscreen exit failures.
+  }
 };

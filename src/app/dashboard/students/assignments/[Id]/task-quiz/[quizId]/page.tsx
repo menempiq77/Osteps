@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   Button,
@@ -12,6 +12,8 @@ import {
   message,
   Skeleton,
   Breadcrumb,
+  Modal,
+  Alert,
 } from "antd";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
@@ -19,6 +21,15 @@ import {
   fetchQuizQuestions,
   submitTaskQuizByStudent,
 } from "@/services/quizApi";
+import {
+  exitDocumentFullscreenIfActive,
+  isDocumentFullscreenActive,
+  requestDocumentFullscreenFromGesture,
+} from "@/lib/browserFullscreen";
+import {
+  QuizExamIncidentContext,
+  saveQuizExamIncident,
+} from "@/services/quizExamIntegrityApi";
 import Link from "next/link";
 
 interface Option {
@@ -34,6 +45,7 @@ interface QuizQuestion {
   type: string;
   correct_answer: number | null;
   options: Option[];
+  marks?: number | string;
 }
 
 interface Quiz {
@@ -65,11 +77,22 @@ export default function QuranQuizPage() {
   const [quizData, setQuizData] = useState<Quiz | null>(null);
   const [answers, setAnswers] = useState<Record<number, any>>({});
   const [selfAssessmentMark, setSelfAssessmentMark] = useState<number | null>(null);
+  const [selfAssessmentTouched, setSelfAssessmentTouched] = useState(false);
+  const [fullscreenPromptOpen, setFullscreenPromptOpen] = useState(false);
+  const [fullscreenWarningCount, setFullscreenWarningCount] = useState(0);
   const [messageApi, contextHolder] = message.useMessage();
+  const quizFinishedRef = useRef(false);
+  const lastIncidentRef = useRef<{ key: string; time: number } | null>(null);
+  const titleRef = useRef("Quiz");
 
   const canUpload =
     currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "TEACHER";
   const isStudent = currentUser?.role === "STUDENT";
+  const totalSelfAssessmentMarks =
+    quizData?.quiz_queston?.reduce(
+      (sum, question) => sum + (parseFloat(String(question.marks ?? 0)) || 0),
+      0
+    ) || 0;
 
   useEffect(() => {
     const loadQuizQuestions = async () => {
@@ -102,6 +125,153 @@ export default function QuranQuizPage() {
 
     loadQuizQuestions();
   }, [quizId]);
+
+  useEffect(() => {
+    titleRef.current = quizData?.name || "Quiz";
+  }, [quizData?.name]);
+
+  const recordIntegrityIncident = (
+    reason: string,
+    context: QuizExamIncidentContext,
+    options?: { keepalive?: boolean }
+  ) => {
+    if (!isStudent || quizFinishedRef.current || !currentUser?.student || !quizId || !Id) return;
+
+    const now = Date.now();
+    const key = `${reason}:${context}`;
+    if (
+      lastIncidentRef.current?.key === key &&
+      now - lastIncidentRef.current.time < 2000
+    ) {
+      return;
+    }
+    lastIncidentRef.current = { key, time: now };
+    setFullscreenWarningCount((count) => count + 1);
+
+    void saveQuizExamIncident(
+      {
+        assessmentId: String(Id),
+        quizId: String(quizId),
+        studentId: String(currentUser.student),
+        title: titleRef.current,
+        reason,
+        context,
+      },
+      options
+    ).catch((error) => {
+      console.error("Failed to save quiz integrity incident:", error);
+    });
+  };
+
+  const requireQuizFullscreen = (reason: string, context: QuizExamIncidentContext) => {
+    if (!isStudent || quizFinishedRef.current) return;
+
+    if (!isDocumentFullscreenActive()) {
+      setFullscreenPromptOpen(true);
+      recordIntegrityIncident(reason, context);
+    } else {
+      setFullscreenPromptOpen(false);
+    }
+  };
+
+  const returnToFullscreen = async () => {
+    const enteredFullscreen = await requestDocumentFullscreenFromGesture();
+    if (enteredFullscreen) {
+      setFullscreenPromptOpen(false);
+      messageApi.success("Fullscreen restored. Continue your quiz.");
+    } else {
+      messageApi.warning("Please allow fullscreen to continue the quiz.");
+    }
+  };
+
+  useEffect(() => {
+    if (!isStudent || !quizData || !currentUser?.student) return;
+
+    const handleFullscreenChange = () => {
+      requireQuizFullscreen("Student left fullscreen during quiz", "fullscreen");
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden && !quizFinishedRef.current) {
+        recordIntegrityIncident("Student switched tab or minimized the quiz", "screen", {
+          keepalive: true,
+        });
+      }
+    };
+
+    const handleWindowBlur = () => {
+      if (!quizFinishedRef.current) {
+        recordIntegrityIncident("Quiz window lost focus", "screen", {
+          keepalive: true,
+        });
+      }
+    };
+
+    const handlePageHide = () => {
+      if (!quizFinishedRef.current) {
+        recordIntegrityIncident("Student tried to leave or close the quiz", "leave", {
+          keepalive: true,
+        });
+      }
+    };
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (quizFinishedRef.current) return;
+      recordIntegrityIncident("Student tried to refresh or close the quiz", "leave", {
+        keepalive: true,
+      });
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    const handlePopState = () => {
+      if (quizFinishedRef.current) return;
+      recordIntegrityIncident("Student tried to use browser back during the quiz", "leave");
+      window.history.pushState(null, "", window.location.href);
+      setFullscreenPromptOpen(true);
+    };
+
+    const handleDocumentClick = (event: MouseEvent) => {
+      if (quizFinishedRef.current) return;
+      const target = event.target as HTMLElement | null;
+      const anchor = target?.closest?.("a[href]") as HTMLAnchorElement | null;
+      if (!anchor) return;
+
+      const href = anchor.getAttribute("href") || "";
+      if (!href || href.startsWith("#")) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      recordIntegrityIncident("Student tried to navigate away during the quiz", "leave");
+      setFullscreenPromptOpen(true);
+    };
+
+    const initialCheck = window.setTimeout(() => {
+      requireQuizFullscreen("Quiz opened outside fullscreen", "fullscreen");
+    }, 700);
+
+    window.history.pushState(null, "", window.location.href);
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange as EventListener);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    document.addEventListener("click", handleDocumentClick, true);
+    window.addEventListener("blur", handleWindowBlur);
+    window.addEventListener("popstate", handlePopState);
+    window.addEventListener("pagehide", handlePageHide);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.clearTimeout(initialCheck);
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange as EventListener);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      document.removeEventListener("click", handleDocumentClick, true);
+      window.removeEventListener("blur", handleWindowBlur);
+      window.removeEventListener("popstate", handlePopState);
+      window.removeEventListener("pagehide", handlePageHide);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [isStudent, quizData, currentUser?.student, quizId, Id]);
 
   const getCorrectAnswerText = (question: QuizQuestion) => {
     if (question.type === "true_false") {
@@ -169,6 +339,12 @@ export default function QuranQuizPage() {
   const handleSubmit = async () => {
     if (!quizData || !currentUser) return;
 
+    if (selfAssessmentMark === null || selfAssessmentMark === undefined) {
+      setSelfAssessmentTouched(true);
+      messageApi.error("Self Assessment Mark is required before submitting.");
+      return;
+    }
+
     try {
       setSubmitting(true);
 
@@ -203,6 +379,9 @@ export default function QuranQuizPage() {
 
       // ✅ check if already submitted
       if (res?.status === 409) {
+        quizFinishedRef.current = true;
+        setFullscreenPromptOpen(false);
+        await exitDocumentFullscreenIfActive();
         messageApi.warning(
           res.message || "You have already submitted this quiz."
         );
@@ -210,9 +389,15 @@ export default function QuranQuizPage() {
       }
 
       messageApi.success("Quiz submitted successfully!");
+      quizFinishedRef.current = true;
+      setFullscreenPromptOpen(false);
+      await exitDocumentFullscreenIfActive();
       router.push(`${quizId}/quiz-result`);
     } catch (error: any) {
       if (error?.response?.status === 409) {
+        quizFinishedRef.current = true;
+        setFullscreenPromptOpen(false);
+        await exitDocumentFullscreenIfActive();
         messageApi.warning("You have already submitted this quiz.");
       } else {
         messageApi.error("Failed to submit quiz");
@@ -226,6 +411,31 @@ export default function QuranQuizPage() {
   return (
     <div className="p-3 md:p-6 max-w-5xl mx-auto min-h-screen">
       {contextHolder}
+      <Modal
+        open={isStudent && fullscreenPromptOpen && !quizFinishedRef.current}
+        title="Stay in fullscreen to continue"
+        closable={false}
+        maskClosable={false}
+        keyboard={false}
+        footer={[
+          <Button
+            key="fullscreen"
+            type="primary"
+            onClick={() => void returnToFullscreen()}
+            className="!bg-primary !border-primary"
+          >
+            Return to fullscreen
+          </Button>,
+        ]}
+      >
+        <p className="text-gray-700">
+          This quiz is protected. Leaving fullscreen, switching tabs, or moving away
+          from the quiz is recorded for your teacher.
+        </p>
+        <p className="mt-2 text-sm text-gray-500">
+          You can exit fullscreen normally after you submit your answers.
+        </p>
+      </Modal>
       <div className="mb-4">
         <Breadcrumb
           items={[
@@ -265,6 +475,15 @@ export default function QuranQuizPage() {
           </div>
 
           <div className="p-6 space-y-6">
+            {isStudent && fullscreenWarningCount > 0 && (
+              <Alert
+                type="warning"
+                showIcon
+                message="Quiz integrity warning"
+                description={`Fullscreen/tab-change attempts recorded: ${fullscreenWarningCount}. Your teacher can review these attempts.`}
+              />
+            )}
+
             {!quizData?.quiz_queston?.length ? (
               <div className="text-center text-gray-500 py-8">
                 No questions available.
@@ -420,20 +639,31 @@ export default function QuranQuizPage() {
             <div className="p-4 bg-gray-50 border-t border-gray-200">
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <span className="text-red-500 mr-1">*</span>
                   Self Assessment Mark
-                  {quizData?.quiz_queston && (
+                  {quizData?.quiz_queston && totalSelfAssessmentMarks > 0 && (
                     <span className="text-gray-400 font-normal ml-1">
-                      (out of {quizData.quiz_queston.reduce((s, q) => s + (parseFloat(String(q.marks)) || 0), 0)})
+                      (out of {totalSelfAssessmentMarks})
                     </span>
                   )}
                 </label>
                 <InputNumber
                   min={0}
+                  max={totalSelfAssessmentMarks || undefined}
                   value={selfAssessmentMark ?? undefined}
-                  onChange={(val) => setSelfAssessmentMark(val)}
+                  status={selfAssessmentTouched && selfAssessmentMark == null ? "error" : undefined}
+                  onChange={(val) => {
+                    setSelfAssessmentMark(val);
+                    setSelfAssessmentTouched(true);
+                  }}
                   placeholder="Enter your self mark"
                   className="w-40"
                 />
+                {selfAssessmentTouched && selfAssessmentMark == null && (
+                  <p className="mt-1 text-xs text-red-600">
+                    Self Assessment Mark is required.
+                  </p>
+                )}
               </div>
               <div className="text-right">
                 <Button

@@ -9,11 +9,16 @@ import {
   Skeleton,
   Tag,
   InputNumber,
+  Alert,
 } from "antd";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { fetchStudents } from "@/services/studentsApi";
 import { fetchQuizQuestions, fetchSubmittedQuizDetails, quizAnswerMarks } from "@/services/quizApi";
+import {
+  fetchQuizExamIncidents,
+  QuizExamIncident,
+} from "@/services/quizExamIntegrityApi";
 import TextArea from "antd/es/input/TextArea";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 
@@ -85,6 +90,7 @@ export default function QuranQuizPage() {
   );
   const [customMarks, setCustomMarks] = useState<Record<number, number>>({});
   const [customComments, setCustomComments] = useState<Record<number, string>>({});
+  const [quizIncidents, setQuizIncidents] = useState<QuizExamIncident[]>([]);
   const [loadingStates, setLoadingStates] = useState<Record<number, boolean>>(
     {}
   );
@@ -133,6 +139,28 @@ export default function QuranQuizPage() {
       }
     };
     loadSubmittedQuizDetails();
+  }, [quizId, selectedStudentId]);
+
+  useEffect(() => {
+    const loadQuizIncidents = async () => {
+      if (!selectedStudentId) {
+        setQuizIncidents([]);
+        return;
+      }
+
+      try {
+        const incidents = await fetchQuizExamIncidents({
+          quizId: Number(quizId),
+          studentId: Number(selectedStudentId),
+        });
+        setQuizIncidents(incidents);
+      } catch (error) {
+        console.error("Failed to load quiz integrity incidents:", error);
+        setQuizIncidents([]);
+      }
+    };
+
+    void loadQuizIncidents();
   }, [quizId, selectedStudentId]);
 
   useEffect(() => {
@@ -316,6 +344,34 @@ export default function QuranQuizPage() {
           </div>
 
           <div className="p-6 space-y-6">
+            {quizIncidents.length > 0 && (
+              <Alert
+                type="warning"
+                showIcon
+                message={`Quiz integrity events recorded (${quizIncidents.length})`}
+                description={
+                  <div className="mt-2 space-y-2">
+                    {quizIncidents.slice(0, 6).map((incident) => (
+                      <div
+                        key={incident.id}
+                        className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+                      >
+                        <div className="font-semibold">{incident.reason}</div>
+                        <div className="text-xs text-amber-800">
+                          {new Date(incident.createdAt).toLocaleString()} · {incident.context}
+                        </div>
+                      </div>
+                    ))}
+                    {quizIncidents.length > 6 && (
+                      <div className="text-xs font-medium text-amber-800">
+                        +{quizIncidents.length - 6} more event(s)
+                      </div>
+                    )}
+                  </div>
+                }
+              />
+            )}
+
             {!quizData?.quiz_queston?.length ? (
               <div className="text-center text-gray-500 py-8">
                 No questions available.

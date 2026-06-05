@@ -298,6 +298,7 @@ export default function AssignmentDetailPage() {
 
   const handleOpenDrawer = async (task: Task) => {
     if (task.type === "quiz") {
+      await requestDocumentFullscreenFromGesture();
       router.push(`/dashboard/students/assignments/${assignmentId}/task-quiz/${task?.quiz?.id}`);
     } else {
       const examWindow = resolveExamWindow(task);
