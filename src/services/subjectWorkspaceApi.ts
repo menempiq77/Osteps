@@ -239,6 +239,52 @@ export const assignStudentsToSubjects = async ({
   return results;
 };
 
+export const syncStudentsSubjectClassMembership = async ({
+  subjectIds,
+  studentIds,
+  subjects = [],
+  subjectClassIds = [],
+  previousSubjectClassIds = [],
+  forceReassign = false,
+  allowCrossClass = false,
+}: AssignStudentsToSubjectsPayload & { previousSubjectClassIds?: number[] }) => {
+  const uniqueStudentIds = Array.from(
+    new Set(studentIds.map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0))
+  );
+  const nextSubjectClassIds = Array.from(
+    new Set(subjectClassIds.map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0))
+  );
+  const previousIds = Array.from(
+    new Set(previousSubjectClassIds.map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0))
+  );
+  const nextClassSet = new Set(nextSubjectClassIds);
+  const removedSubjectClassIds = previousIds.filter((id) => !nextClassSet.has(id));
+
+  if (uniqueStudentIds.length === 0) {
+    throw new Error("Please choose at least one student.");
+  }
+
+  for (const subjectClassId of removedSubjectClassIds) {
+    await unenrollStudentsFromSubjectClass({
+      subject_class_id: subjectClassId,
+      student_ids: uniqueStudentIds,
+    });
+  }
+
+  if (subjectIds.length === 0 && nextSubjectClassIds.length === 0) {
+    return [] as Array<{ subjectId: number; subjectClassId: number }>;
+  }
+
+  return assignStudentsToSubjects({
+    subjectIds,
+    studentIds: uniqueStudentIds,
+    subjects,
+    subjectClassIds: nextSubjectClassIds,
+    forceReassign,
+    allowCrossClass,
+  });
+};
+
 export const checkSubjectWorkspaceAvailability = async (subjectId: number): Promise<{
   available: boolean;
   message?: string;

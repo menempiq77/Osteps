@@ -198,6 +198,18 @@ export const EditStudentModal = ({
                       options={filteredClassOptions}
                       placeholder="Select one or more classes related to selected subject(s)"
                       maxTagCount="responsive"
+                      onChange={(nextClassIds) => {
+                        const selectedClassIds = normalizeIdArray(
+                          Array.isArray(nextClassIds) ? nextClassIds : []
+                        );
+                        const nextSubjectIds = classOptions
+                          .filter((option) => selectedClassIds.includes(Number(option.value)))
+                          .map((option) => Number(option.subjectId))
+                          .filter((id) => Number.isFinite(id) && id > 0);
+                        form.setFieldsValue({
+                          subject_ids: Array.from(new Set(nextSubjectIds)),
+                        });
+                      }}
                     />
                   </Form.Item>
                 );

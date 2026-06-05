@@ -17,6 +17,15 @@ const normalizeSubjects = (raw: any): SubjectBrief[] => {
     .filter((item) => Number.isFinite(item.id) && item.id > 0 && item.name.trim().length > 0);
 };
 
+const dedupeSubjects = (subjects: SubjectBrief[]): SubjectBrief[] =>
+  Array.from(
+    new Map(
+      subjects
+        .filter((subject) => Number.isFinite(Number(subject.id)) && Number(subject.id) > 0)
+        .map((subject) => [Number(subject.id), subject])
+    ).values()
+  );
+
 const normalizeStaffAssignmentSubjects = (raw: any): SubjectBrief[] => {
   if (!Array.isArray(raw)) return [];
   return raw
@@ -152,7 +161,7 @@ const fetchStudentSubjectsFromBaseClass = async (studentClassId: number): Promis
   const results = await Promise.all(
     allSubjects.map(async (subject) => {
       try {
-        const subjectClasses = await fetchSubjectClasses({ subject_id: Number(subject.id), include_inactive: true });
+        const subjectClasses = await fetchSubjectClasses({ subject_id: Number(subject.id) });
         const linked = (Array.isArray(subjectClasses) ? subjectClasses : []).some((sc: any) => {
           const linkedId = Number(
             sc.class_id ?? sc.base_class_id ?? sc.class?.id ?? sc.classes?.id ?? sc.base_class?.id ?? 0
@@ -350,20 +359,22 @@ export const fetchMySubjectContext = async (options?: {
   // (because the admin token has full access). Skip it and rely on class-based fetch instead.
   const isAdminImpersonating =
     typeof window !== "undefined" && !!localStorage.getItem("osteps_impersonating_admin");
+  let apiContext: SubjectContextResponse | null = null;
 
   // Non-staff: try backend API first, then knownSubjects (skip when impersonating)
   if (!isAdminImpersonating) {
     try {
       const res = await api.get("/subjects/my-context");
       const normalized = extractContext(res.data);
+      apiContext = normalized;
       console.log("[SubjectContext] /subjects/my-context returned", normalized.assigned_subjects.length, "subjects:", normalized.assigned_subjects.map(s => s.name));
-      if (normalized.assigned_subjects.length > 0) return normalized;
+      if (normalized.assigned_subjects.length > 0 && !isStudent) return normalized;
     } catch (err: any) {
       console.warn("[SubjectContext] /subjects/my-context failed:", err?.response?.status, err?.message);
     }
   }
 
-  if (known.length > 0) {
+  if (known.length > 0 && !isStudent) {
     console.log("[SubjectContext] using knownSubjects from login:", known.map(s => s.name));
     return {
       assigned_subjects: known,
@@ -376,21 +387,24 @@ export const fetchMySubjectContext = async (options?: {
   if (isStudent) {
     const sid = Number(options?.studentId ?? 0);
     const classId = Number(options?.studentClassId ?? 0);
+    const collectedSubjects: SubjectBrief[] = [
+      ...(apiContext?.assigned_subjects ?? []),
+      ...known,
+    ];
 
-    // When impersonating: derive subjects from which subject-classes are linked to the student's base class.
-    // This works even for "Not linked" students whose pivot data is missing, because it checks the
-    // subject-class → base-class mapping that the admin configured, not the student's individual enrollment.
-    if (isAdminImpersonating && classId > 0) {
+    // Derive subjects from subject-classes linked to the student's base class.
+    // This keeps each base class connected to its subject even when the student's
+    // individual enrollment row is missing or stale.
+    if (classId > 0) {
       try {
         const derived = await fetchStudentSubjectsFromBaseClass(classId);
         if (derived.length > 0) {
-          console.log("[SubjectContext] impersonation class-based derivation:", derived.map(s => s.name));
-          return { assigned_subjects: derived, default_subject_id: derived[0]?.id ?? null, subject_roles: [] };
+          console.log("[SubjectContext] class-based derivation:", derived.map(s => s.name));
+          collectedSubjects.push(...derived);
         }
       } catch (err: any) {
-        console.warn("[SubjectContext] impersonation class-based derivation failed:", err?.message);
+        console.warn("[SubjectContext] class-based derivation failed:", err?.message);
       }
-      return { assigned_subjects: [], default_subject_id: null, subject_roles: [] };
     }
 
     if (Number.isFinite(classId) && classId > 0 && Number.isFinite(sid) && sid > 0) {
@@ -407,16 +421,22 @@ export const fetchMySubjectContext = async (options?: {
         if (me?.subjects) {
           const enrolled = normalizeSubjects(me.subjects);
           if (enrolled.length > 0) {
-            return {
-              assigned_subjects: enrolled,
-              default_subject_id: enrolled[0]?.id ?? null,
-              subject_roles: [],
-            };
+            collectedSubjects.push(...enrolled);
           }
         }
       } catch {
         // continue to other fallbacks
       }
+    }
+
+    const mergedStudentSubjects = dedupeSubjects(collectedSubjects);
+    if (mergedStudentSubjects.length > 0) {
+      return {
+        assigned_subjects: mergedStudentSubjects,
+        default_subject_id:
+          apiContext?.default_subject_id ?? mergedStudentSubjects[0]?.id ?? null,
+        subject_roles: apiContext?.subject_roles ?? [],
+      };
     }
 
     // Last resort: fetch all school subjects so student isn't stuck.

@@ -48,6 +48,7 @@ import {
   assignStudentsToSubjects,
   checkSubjectWorkspaceAvailability,
   fetchSubjectClasses,
+  syncStudentsSubjectClassMembership,
 } from "@/services/subjectWorkspaceApi";
 
 type StudentListRow = {
@@ -122,6 +123,17 @@ type SubjectClassOption = {
   name: string;
   yearId: number;
   baseClassLabel: string;
+  linkedClassId?: number;
+};
+
+type InferredSubjectAssignment = {
+  id: number;
+  name: string;
+  subjectClassId?: number;
+  subjectClassName: string;
+  baseClassLabel: string;
+  yearId: number;
+  yearLabel: string;
   linkedClassId?: number;
 };
 
@@ -567,18 +579,10 @@ export default function AllStudentsPage() {
 
       const subjectClassIdToSubject = new Map<
         string,
-        {
-          id: number;
-          name: string;
-          subjectClassId?: number;
-          subjectClassName: string;
-          baseClassLabel: string;
-          yearId: number;
-          yearLabel: string;
-          linkedClassId?: number;
-        }
+        InferredSubjectAssignment
       >();
       const linkedClassToSubjects = new Map<string, Set<string>>();
+      const linkedClassToSubjectAssignments = new Map<string, InferredSubjectAssignment[]>();
 
       const hintEntriesBySubject = new Map<string, { subjectId: number; subjectName: string; bucket: StudentHintBucket }>();
       if (typeof window !== "undefined") {
@@ -657,17 +661,19 @@ export default function AllStudentsPage() {
             ) ||
             (resolvedYearId > 0 ? `Year ${resolvedYearId}` : "Unknown");
 
+          const subjectAssignment: InferredSubjectAssignment = {
+            id: resolvedSubjectId,
+            name: subjectName,
+            subjectClassId: resolvedSubjectClassId,
+            subjectClassName: resolvedSubjectClassName,
+            baseClassLabel: resolvedBaseClassLabel,
+            yearId: resolvedYearId,
+            yearLabel: resolvedYearLabel,
+            linkedClassId: resolvedLinkedClassId,
+          };
+
           extractSubjectClassCandidateIds(row).forEach((candidateId) => {
-            subjectClassIdToSubject.set(candidateId, {
-              id: resolvedSubjectId,
-              name: subjectName,
-              subjectClassId: resolvedSubjectClassId,
-              subjectClassName: resolvedSubjectClassName,
-              baseClassLabel: resolvedBaseClassLabel,
-              yearId: resolvedYearId,
-              yearLabel: resolvedYearLabel,
-              linkedClassId: resolvedLinkedClassId,
-            });
+            subjectClassIdToSubject.set(candidateId, subjectAssignment);
           });
 
           const linkedId = resolveSubjectClassLinkedId(row);
@@ -675,6 +681,16 @@ export default function AllStudentsPage() {
           const bucket = linkedClassToSubjects.get(linkedId) ?? new Set<string>();
           bucket.add(subjectName);
           linkedClassToSubjects.set(linkedId, bucket);
+          const assignments = linkedClassToSubjectAssignments.get(linkedId) ?? [];
+          const assignmentKey = `${subjectAssignment.id}-${subjectAssignment.subjectClassId || subjectAssignment.subjectClassName}`;
+          if (
+            !assignments.some(
+              (entry) => `${entry.id}-${entry.subjectClassId || entry.subjectClassName}` === assignmentKey
+            )
+          ) {
+            assignments.push(subjectAssignment);
+          }
+          linkedClassToSubjectAssignments.set(linkedId, assignments);
         });
       }
 
@@ -963,9 +979,43 @@ export default function AllStudentsPage() {
                   actualClass?.year?.name ||
                   yearName;
 
+                const inferredFromLinkedClass = Array.from(
+                  new Map(
+                    [actualStudentClassId, Number(linkedClassId)]
+                      .filter((id) => Number.isFinite(id) && id > 0)
+                      .flatMap((id) => linkedClassToSubjectAssignments.get(String(id)) ?? [])
+                      .map((entry) => [
+                        `${entry.id}-${entry.subjectClassId || entry.subjectClassName}`,
+                        entry,
+                      ])
+                  ).values()
+                );
+                const inferredSubjectAssignments = Array.from(
+                  new Map(
+                    [...inferredFromSubjectClass, ...inferredFromLinkedClass].map((entry) => [
+                      `${entry.id}-${entry.subjectClassId || entry.subjectClassName}`,
+                      entry,
+                    ])
+                  ).values()
+                );
+
+                inferredSubjectAssignments.forEach((entry) => {
+                  const normalizedName = displaySubjectName(entry.name);
+                  const hasSubjectId = subjectIds.some((id) => Number(id) === Number(entry.id));
+                  const hasSubjectName = subjectNames.some(
+                    (name) => displaySubjectName(name).toLowerCase() === normalizedName.toLowerCase()
+                  );
+                  if (!hasSubjectName) {
+                    subjectNames.push(normalizedName);
+                  }
+                  if (!hasSubjectId && Number.isFinite(Number(entry.id)) && Number(entry.id) > 0) {
+                    subjectIds.push(Number(entry.id));
+                  }
+                });
+
                 const currentAssignments = Array.from(
                   new Map(
-                    inferredFromSubjectClass.map((entry) => {
+                    inferredSubjectAssignments.map((entry) => {
                       const assignment = {
                         subjectId: entry.id,
                         subjectName: entry.name,
@@ -2133,6 +2183,13 @@ export default function AllStudentsPage() {
               .filter((id) => Number.isFinite(id) && id > 0)
           )
         );
+        const selectedClassSubjectIds = assignSubjectClasses
+          .filter((cls) => selectedSubjectClassIds.some((id) => Number(id) === Number(cls.id)))
+          .map((cls) => Number(cls.subjectId))
+          .filter((id) => Number.isFinite(id) && id > 0);
+        const assignmentSubjectIds = Array.from(
+          new Set([...selectedSubjectIds, ...selectedClassSubjectIds])
+        );
 
         /* Resolve the base class ID from the subject class's linkedClassId.
            The backend addStudent expects a school_classes record (base class) as class_id,
@@ -2163,7 +2220,7 @@ export default function AllStudentsPage() {
             is_sen: !!row.is_sen,
             sen_details: row.is_sen && row.sen_details ? String(row.sen_details).trim() : "",
           },
-          subjectIds: selectedSubjectIds,
+          subjectIds: assignmentSubjectIds,
           subjectClassIds: selectedSubjectClassIds,
           classId: resolvedClassId,
         };
@@ -2474,17 +2531,23 @@ export default function AllStudentsPage() {
       await editMutation.mutateAsync(values);
 
       /* After update, sync subject assignments if subjects/classes were selected. */
-      if (editSubjectIds.length > 0 || selectedSubjectClassIds.length > 0) {
+      const previousSubjectClassIds = getRowEditSubjectClassIds(studentBeingEdited);
+      if (
+        editSubjectIds.length > 0 ||
+        selectedSubjectClassIds.length > 0 ||
+        previousSubjectClassIds.length > 0
+      ) {
         const studentId = Number(
           studentBeingEdited.enrollmentStudentId || studentBeingEdited.profileId || studentBeingEdited.studentId
         );
         if (Number.isFinite(studentId) && studentId > 0) {
           try {
-            await assignStudentsToSubjects({
+            await syncStudentsSubjectClassMembership({
               subjectIds: editSubjectIds,
               studentIds: [studentId],
               subjects: subjects.map((s) => ({ id: Number(s.id), name: displaySubjectName(s.name) })),
               subjectClassIds: selectedSubjectClassIds,
+              previousSubjectClassIds,
               forceReassign: false,
               allowCrossClass: true,
             });
@@ -3124,21 +3187,13 @@ export default function AllStudentsPage() {
                           const classIds = (Array.isArray(nextClassIds) ? nextClassIds : [])
                             .map((id: unknown) => Number(id))
                             .filter((id: number) => Number.isFinite(id) && id > 0);
-                          const currentSubjectIds = (Array.isArray(getFieldValue("subject_ids"))
-                            ? getFieldValue("subject_ids")
-                            : [])
-                            .map((id: unknown) => Number(id))
-                            .filter((id: number) => Number.isFinite(id) && id > 0);
                           const classSubjectIds = assignSubjectClasses
                             .filter((item) => classIds.includes(Number(item.id)))
                             .map((item) => Number(item.subjectId))
                             .filter((id) => Number.isFinite(id) && id > 0);
-                          const mergedSubjectIds = Array.from(
-                            new Set([...currentSubjectIds, ...classSubjectIds])
-                          );
-                          if (mergedSubjectIds.length !== currentSubjectIds.length) {
-                            editForm.setFieldsValue({ subject_ids: mergedSubjectIds });
-                          }
+                          editForm.setFieldsValue({
+                            subject_ids: Array.from(new Set(classSubjectIds)),
+                          });
                         }}
                       />
                     </Form.Item>
@@ -3343,6 +3398,19 @@ export default function AllStudentsPage() {
                               options={rowSubjectClassOptions}
                               placeholder="Select one or more classes related to selected subject(s)"
                               maxTagCount="responsive"
+                              onChange={(nextClassIds) => {
+                                const classIds = (Array.isArray(nextClassIds) ? nextClassIds : [])
+                                  .map((id: unknown) => Number(id))
+                                  .filter((id: number) => Number.isFinite(id) && id > 0);
+                                const classSubjectIds = assignSubjectClasses
+                                  .filter((item) => classIds.includes(Number(item.id)))
+                                  .map((item) => Number(item.subjectId))
+                                  .filter((id) => Number.isFinite(id) && id > 0);
+                                addForm.setFieldValue(
+                                  ["students", field.name, "subject_ids"],
+                                  Array.from(new Set(classSubjectIds))
+                                );
+                              }}
                             />
                           </Form.Item>
                         );

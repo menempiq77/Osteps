@@ -43,6 +43,7 @@ import { fetchYears, fetchYearsBySchool } from "@/services/yearsApi";
 import {
   assignStudentsToSubjects,
   fetchSubjectClasses,
+  syncStudentsSubjectClassMembership,
 } from "@/services/subjectWorkspaceApi";
 import {
   addBehaviour,
@@ -1361,7 +1362,7 @@ export default function StudentList() {
   });
 
   const updateStudentMutation = useMutation({
-    mutationFn: ({ id, values }: { id: string; values: any; assignment?: { subjectIds: number[]; subjectClassIds: number[] } }) =>
+    mutationFn: ({ id, values }: { id: string; values: any; assignment?: { subjectIds: number[]; subjectClassIds: number[]; previousSubjectClassIds?: number[] } }) =>
       apiUpdateStudent(id, values, scopedSubjectId),
     onSuccess: async (_data, variables) => {
       console.log('[Student Update] Success - refetching student data');
@@ -1371,10 +1372,12 @@ export default function StudentList() {
         Number.isFinite(studentId) &&
         studentId > 0 &&
         assignment &&
-        (assignment.subjectIds.length > 0 || assignment.subjectClassIds.length > 0)
+        (assignment.subjectIds.length > 0 ||
+          assignment.subjectClassIds.length > 0 ||
+          (assignment.previousSubjectClassIds?.length ?? 0) > 0)
       ) {
         try {
-          await assignStudentsToSubjects({
+          await syncStudentsSubjectClassMembership({
             subjectIds: assignment.subjectIds,
             studentIds: [studentId],
             subjects: editSubjectOptions.map((option) => ({
@@ -1382,6 +1385,7 @@ export default function StudentList() {
               name: option.label,
             })),
             subjectClassIds: assignment.subjectClassIds,
+            previousSubjectClassIds: assignment.previousSubjectClassIds ?? [],
             forceReassign: false,
             allowCrossClass: true,
           });
@@ -2057,12 +2061,17 @@ export default function StudentList() {
     }
     if (!editStudent) return;
     const nextPassword = String(values.password ?? "").trim();
-    const selectedSubjectIds = toPositiveNumberIds(
+    const formSubjectIds = toPositiveNumberIds(
       Array.isArray(values.subject_ids) ? values.subject_ids : editStudent.subject_ids || []
     );
     const selectedSubjectClassIds = toPositiveNumberIds(
       Array.isArray(values.class_ids) ? values.class_ids : editStudent.class_ids || []
     );
+    const selectedClassSubjectIds = editSubjectClassOptions
+      .filter((option) => selectedSubjectClassIds.includes(Number(option.value)))
+      .map((option) => Number(option.subjectId))
+      .filter((id) => Number.isFinite(id) && id > 0);
+    const selectedSubjectIds = Array.from(new Set([...formSubjectIds, ...selectedClassSubjectIds]));
     const matchedSubjectClass = editSubjectClassOptions.find(
       (option) => selectedSubjectClassIds.length > 0 && Number(option.value) === selectedSubjectClassIds[0]
     );
@@ -2131,6 +2140,7 @@ export default function StudentList() {
       assignment: {
         subjectIds: selectedSubjectIds,
         subjectClassIds: selectedSubjectClassIds,
+        previousSubjectClassIds: toPositiveNumberIds(editStudent.class_ids || []),
       },
     });
   };
