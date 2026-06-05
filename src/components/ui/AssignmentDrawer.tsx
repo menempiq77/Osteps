@@ -56,6 +56,11 @@ interface Task {
   submitted_file_paths?: unknown;
 }
 
+type AudioInputDeviceOption = {
+  deviceId: string;
+  label: string;
+};
+
 interface AssignmentDrawerProps {
   isOpen: boolean;
   onClose: () => void;
@@ -98,6 +103,20 @@ const getAudioFileExtension = (mimeType: string) => {
   return "webm";
 };
 
+const getAudioInputOptions = async (): Promise<AudioInputDeviceOption[]> => {
+  if (typeof navigator === "undefined" || !navigator.mediaDevices?.enumerateDevices) {
+    return [];
+  }
+
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  return devices
+    .filter((device) => device.kind === "audioinput")
+    .map((device, index) => ({
+      deviceId: device.deviceId,
+      label: device.label || `Microphone ${index + 1}`,
+    }));
+};
+
 const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
   isOpen,
   onClose,
@@ -113,6 +132,9 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [micLevel, setMicLevel] = useState(0);
+  const [audioInputDevices, setAudioInputDevices] = useState<AudioInputDeviceOption[]>([]);
+  const [selectedAudioInputId, setSelectedAudioInputId] = useState("");
+  const [activeMicrophoneLabel, setActiveMicrophoneLabel] = useState("");
   const [recordingPreviewUrl, setRecordingPreviewUrl] = useState<string | null>(null);
   const [recordingWarning, setRecordingWarning] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -181,12 +203,17 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
       const audioContext = new AudioContextConstructor();
       const analyser = audioContext.createAnalyser();
       analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.2;
       const source = audioContext.createMediaStreamSource(stream);
       const samples = new Uint8Array(analyser.fftSize);
 
       source.connect(analyser);
       audioContextRef.current = audioContext;
       audioSourceRef.current = source;
+
+      if (audioContext.state === "suspended") {
+        void audioContext.resume();
+      }
 
       const tick = () => {
         analyser.getByteTimeDomainData(samples);
@@ -235,6 +262,19 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
       setRecordingWarning(null);
     }
     setRecordingPreviewUrl(url);
+  };
+
+  const refreshAudioInputDevices = async (preferredDeviceId = selectedAudioInputId) => {
+    try {
+      const devices = await getAudioInputOptions();
+      setAudioInputDevices(devices);
+
+      if (preferredDeviceId && !devices.some((device) => device.deviceId === preferredDeviceId)) {
+        setSelectedAudioInputId("");
+      }
+    } catch (error) {
+      console.warn("Unable to list microphones:", error);
+    }
   };
 
   const buildOnlinePdfHref = () => {
@@ -346,7 +386,39 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const baseAudioConstraints: MediaTrackConstraints = {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: true,
+      };
+      const requestedAudioConstraints: MediaTrackConstraints = selectedAudioInputId
+        ? {
+            ...baseAudioConstraints,
+            deviceId: { exact: selectedAudioInputId },
+          }
+        : baseAudioConstraints;
+      let stream: MediaStream;
+
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: requestedAudioConstraints,
+        });
+      } catch (error) {
+        if (!selectedAudioInputId) throw error;
+
+        setSelectedAudioInputId("");
+        messageApi.warning("That microphone was unavailable, so the browser default microphone was used.");
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: baseAudioConstraints,
+        });
+      }
+
+      const track = stream.getAudioTracks()[0];
+      const trackDeviceId = track?.getSettings?.().deviceId || "";
+      const devices = await getAudioInputOptions();
+      setAudioInputDevices(devices);
+      const activeDevice = devices.find((device) => device.deviceId === trackDeviceId);
+      setActiveMicrophoneLabel(activeDevice?.label || track?.label || "Browser default microphone");
       const mimeType = getSupportedAudioMimeType();
       const recorder = new MediaRecorder(
         stream,
@@ -444,6 +516,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
     if (!isOpen || !selectedTask) return;
     cancelAudioRecording();
     replaceRecordingPreviewUrl(null);
+    setActiveMicrophoneLabel("");
     form.setFieldsValue({
       selfAssessment:
         selectedTask?.selfAssessment ?? selectedTask?.self_assessment_marks ?? undefined,
@@ -457,6 +530,22 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
     );
     setFileList([]);
   }, [isOpen, selectedTask, form]);
+
+  useEffect(() => {
+    if (!isOpen || !isAudioSubmissionTask) return;
+
+    void refreshAudioInputDevices();
+
+    const mediaDevices = navigator.mediaDevices;
+    if (!mediaDevices?.addEventListener) return;
+
+    const handleDeviceChange = () => void refreshAudioInputDevices();
+    mediaDevices.addEventListener("devicechange", handleDeviceChange);
+
+    return () => {
+      mediaDevices.removeEventListener("devicechange", handleDeviceChange);
+    };
+  }, [isOpen, isAudioSubmissionTask, selectedAudioInputId]);
 
   const handleFileChange = (info: any) => {
     const newFileList = [...info.fileList].map((file) => {
@@ -705,6 +794,44 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
               Start recording
             </Button>
           )}
+        </div>
+        <div className="mt-3 rounded-md border border-emerald-200 bg-white p-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+            <label className="flex-1 text-xs font-semibold text-emerald-900">
+              Microphone source
+              <select
+                value={selectedAudioInputId}
+                disabled={isRecording}
+                onChange={(event) => setSelectedAudioInputId(event.target.value)}
+                className="mt-1 w-full rounded-md border border-emerald-200 bg-white px-2 py-2 text-sm text-gray-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:cursor-not-allowed disabled:bg-gray-100"
+              >
+                <option value="">Browser default microphone</option>
+                {audioInputDevices.map((device, index) => (
+                  <option
+                    key={`${device.deviceId || device.label}-${index}`}
+                    value={device.deviceId}
+                  >
+                    {device.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <Button
+              size="small"
+              disabled={isRecording}
+              onClick={() => void refreshAudioInputDevices()}
+            >
+              Refresh microphones
+            </Button>
+          </div>
+          {activeMicrophoneLabel && (
+            <p className="mt-2 text-xs text-emerald-800">
+              Recording from: <span className="font-semibold">{activeMicrophoneLabel}</span>
+            </p>
+          )}
+          <p className="mt-2 text-xs text-gray-500">
+            If the level stays silent, choose another microphone here and record again.
+          </p>
         </div>
         {isRecording && (
           <div className="mt-3 rounded-md border border-emerald-200 bg-white p-3">
