@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Drawer,
@@ -15,7 +15,7 @@ import {
   PlayCircleOutlined,
   FilePdfOutlined,
 } from "@ant-design/icons";
-import { ExternalLink, Paperclip, Trash2 } from "lucide-react";
+import { ExternalLink, Mic, Paperclip, Square, Trash2, X } from "lucide-react";
 import { uploadTaskByStudent } from "@/services/api";
 import { IMG_BASE_URL } from "@/lib/config";
 import { useSelector } from "react-redux";
@@ -70,6 +70,34 @@ const getCurrentReturnToPath = () => {
   return `${window.location.pathname}${window.location.search}`;
 };
 
+const formatRecordingTime = (seconds: number) => {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+};
+
+const getSupportedAudioMimeType = () => {
+  if (typeof window === "undefined" || typeof MediaRecorder === "undefined") {
+    return "";
+  }
+
+  const candidates = [
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/mp4",
+    "audio/ogg;codecs=opus",
+    "audio/ogg",
+  ];
+
+  return candidates.find((type) => MediaRecorder.isTypeSupported(type)) || "";
+};
+
+const getAudioFileExtension = (mimeType: string) => {
+  if (mimeType.includes("mp4")) return "m4a";
+  if (mimeType.includes("ogg")) return "ogg";
+  return "webm";
+};
+
 const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
   isOpen,
   onClose,
@@ -82,9 +110,19 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
   const [form] = Form.useForm();
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [existingAttachments, setExistingAttachments] = useState<SubmissionAttachment[]>([]);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [recordingPreviewUrl, setRecordingPreviewUrl] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
   const [inputError, setInputError] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const recordingChunksRef = useRef<BlobPart[]>([]);
+  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const recordingPreviewUrlRef = useRef<string | null>(null);
+  const recordingPreviewUidRef = useRef<string | null>(null);
+  const shouldSaveRecordingRef = useRef(false);
   const { currentUser } = useSelector((state: RootState) => state.auth) as {
     currentUser?: { student?: string | number };
   };
@@ -99,6 +137,39 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
     selectedTask?.status,
     selectedTask?.has_submission
   );
+  const isAudioSubmissionTask =
+    selectedTask?.task_type === "audio" || selectedTask?.type === "audio";
+
+  const clearRecordingTimer = () => {
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+  };
+
+  const stopRecordingStream = () => {
+    mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+    mediaStreamRef.current = null;
+  };
+
+  const resetRecordingState = () => {
+    clearRecordingTimer();
+    stopRecordingStream();
+    setIsRecording(false);
+    setRecordingSeconds(0);
+    shouldSaveRecordingRef.current = false;
+    recordingChunksRef.current = [];
+    mediaRecorderRef.current = null;
+  };
+
+  const replaceRecordingPreviewUrl = (url: string | null) => {
+    if (recordingPreviewUrlRef.current) {
+      URL.revokeObjectURL(recordingPreviewUrlRef.current);
+    }
+    recordingPreviewUrlRef.current = url;
+    if (!url) recordingPreviewUidRef.current = null;
+    setRecordingPreviewUrl(url);
+  };
 
   const buildOnlinePdfHref = () => {
     if (!selectedTask?.file_path || !assessmentId) return "#";
@@ -154,8 +225,140 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
     router.push(href);
   };
 
+  const addRecordingToFileList = (blob: Blob, mimeType: string) => {
+    const safeTaskName = (selectedTask?.name || "recording")
+      .replace(/[^a-z0-9]+/gi, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 40) || "recording";
+    const extension = getAudioFileExtension(mimeType || blob.type);
+    const fileName = `${safeTaskName}-${dayjs().format("YYYYMMDD-HHmmss")}.${extension}`;
+    const file = new File([blob], fileName, {
+      type: mimeType || blob.type || "audio/webm",
+    });
+    const previewUrl = URL.createObjectURL(blob);
+    const uid = `recording-${Date.now()}`;
+
+    recordingPreviewUidRef.current = uid;
+    replaceRecordingPreviewUrl(previewUrl);
+    setFileList((current) => [
+      ...current,
+      {
+        uid,
+        name: fileName,
+        status: "done",
+        size: file.size,
+        type: file.type,
+        originFileObj: file as any,
+      },
+    ]);
+    messageApi.success(
+      `Recording added. Press ${selectedTaskSubmitted ? "Save Changes" : "Submit Assignment"} to save it.`
+    );
+  };
+
+  const startAudioRecording = async () => {
+    if (isRecording) return;
+
+    if (
+      typeof window === "undefined" ||
+      typeof MediaRecorder === "undefined" ||
+      !navigator.mediaDevices?.getUserMedia
+    ) {
+      messageApi.error("This browser does not support direct audio recording.");
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = getSupportedAudioMimeType();
+      const recorder = new MediaRecorder(
+        stream,
+        mimeType ? { mimeType } : undefined
+      );
+
+      mediaStreamRef.current = stream;
+      mediaRecorderRef.current = recorder;
+      recordingChunksRef.current = [];
+      shouldSaveRecordingRef.current = false;
+
+      recorder.ondataavailable = (event) => {
+        if (event.data?.size > 0) {
+          recordingChunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onerror = () => {
+        messageApi.error("Recording stopped because the microphone had a problem.");
+        resetRecordingState();
+      };
+
+      recorder.onstop = () => {
+        const chunks = recordingChunksRef.current;
+        const shouldSave = shouldSaveRecordingRef.current;
+        const finalMimeType = mimeType || chunks[0]?.type || "audio/webm";
+
+        if (shouldSave && chunks.length > 0) {
+          addRecordingToFileList(new Blob(chunks, { type: finalMimeType }), finalMimeType);
+        }
+
+        resetRecordingState();
+      };
+
+      setRecordingSeconds(0);
+      setIsRecording(true);
+      recorder.start();
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingSeconds((seconds) => seconds + 1);
+      }, 1000);
+    } catch (error) {
+      console.error("Unable to start audio recording:", error);
+      resetRecordingState();
+      messageApi.error("Allow microphone access to record directly from the website.");
+    }
+  };
+
+  const stopAudioRecording = () => {
+    const recorder = mediaRecorderRef.current;
+    shouldSaveRecordingRef.current = true;
+
+    if (recorder && recorder.state !== "inactive") {
+      recorder.stop();
+    } else {
+      resetRecordingState();
+    }
+  };
+
+  const cancelAudioRecording = () => {
+    const recorder = mediaRecorderRef.current;
+    shouldSaveRecordingRef.current = false;
+
+    if (recorder && recorder.state !== "inactive") {
+      recorder.stop();
+    } else {
+      resetRecordingState();
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      shouldSaveRecordingRef.current = false;
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
+      clearRecordingTimer();
+      stopRecordingStream();
+      if (recordingPreviewUrlRef.current) {
+        URL.revokeObjectURL(recordingPreviewUrlRef.current);
+        recordingPreviewUrlRef.current = null;
+        recordingPreviewUidRef.current = null;
+      }
+    };
+  }, []);
+
   useEffect(() => {
     if (!isOpen || !selectedTask) return;
+    cancelAudioRecording();
+    replaceRecordingPreviewUrl(null);
     form.setFieldsValue({
       selfAssessment:
         selectedTask?.selfAssessment ?? selectedTask?.self_assessment_marks ?? undefined,
@@ -179,6 +382,12 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
     });
 
     setFileList(newFileList);
+    if (
+      recordingPreviewUidRef.current &&
+      !newFileList.some((file) => file.uid === recordingPreviewUidRef.current)
+    ) {
+      replaceRecordingPreviewUrl(null);
+    }
   };
 
   const beforeUpload = (file: File) => {
@@ -229,6 +438,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
     form.resetFields();
     setFileList([]);
     setExistingAttachments([]);
+    replaceRecordingPreviewUrl(null);
   } catch (error: any) {
     console.error("Error submitting Task:", error);
     messageApi.error("Failed to submit Task. Please try again.");
@@ -366,6 +576,66 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
     );
   };
 
+  const renderAudioRecorder = () => {
+    if (!isAudioSubmissionTask) return null;
+
+    return (
+      <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h4 className="text-sm font-semibold text-emerald-900">
+              Record directly from the website
+            </h4>
+            <p className="text-xs text-emerald-800">
+              Use this if you want to record your recitation now instead of uploading an audio file.
+            </p>
+          </div>
+          {isRecording ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-2 rounded-full bg-red-100 px-3 py-1 text-sm font-semibold text-red-700">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-red-600" />
+                Recording {formatRecordingTime(recordingSeconds)}
+              </span>
+              <Button
+                type="primary"
+                danger
+                onClick={stopAudioRecording}
+                className="inline-flex items-center gap-1"
+              >
+                <Square className="h-4 w-4" />
+                Stop and use recording
+              </Button>
+              <Button onClick={cancelAudioRecording} className="inline-flex items-center gap-1">
+                <X className="h-4 w-4" />
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <Button
+              type="primary"
+              onClick={() => void startAudioRecording()}
+              className="!bg-primary !border-primary inline-flex items-center gap-1"
+            >
+              <Mic className="h-4 w-4" />
+              Start recording
+            </Button>
+          )}
+        </div>
+        {recordingPreviewUrl && !isRecording && (
+          <div className="mt-3 rounded-md border border-emerald-200 bg-white p-3">
+            <p className="mb-2 text-xs font-semibold text-emerald-800">
+              Latest recording preview
+            </p>
+            <audio controls src={recordingPreviewUrl} className="w-full" />
+            <p className="mt-2 text-xs text-gray-500">
+              The recording has been added to the new files list below. Remove it there if you do not want to submit it.
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderUploadArea = () => {
     if ((!canEditSubmission && selectedTaskSubmitted) || isNATask) return null;
     if (selectedTask?.task_type === "url") {
@@ -444,6 +714,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
             </Button>
           </div>
         )}
+        {renderAudioRecorder()}
         <Upload.Dragger
           name="file"
           multiple
@@ -487,8 +758,11 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
         }
         placement="right"
         onClose={() => {
+          cancelAudioRecording();
           form.resetFields();
           setFileList([]);
+          setExistingAttachments([]);
+          replaceRecordingPreviewUrl(null);
           onClose();
         }}
         open={isOpen}
@@ -500,6 +774,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
                 type="primary"
                 onClick={() => form.submit()}
                 loading={isSubmitting}
+                disabled={isRecording}
                 className="w-full !bg-primary !border-primary"
               >
                 {selectedTaskSubmitted
