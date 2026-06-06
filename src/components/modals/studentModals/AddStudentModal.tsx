@@ -25,6 +25,7 @@ type SubjectClassFilterOption = {
   subjectName: string;
   subjectId?: number;
   subjectClassId?: number;
+  linkedClassId?: string;   // school_classes.id — used for raw class_id matching
   yearLabel: string;
   classLabel: string;
 };
@@ -149,10 +150,18 @@ const existingStudentMatchesFilters = (
     );
 
     if (matchingOption) {
-      // Primary: student's class name matches the subject class label directly.
+      // 1. Most reliable: compare the student's raw class_id (DB foreign key) against the
+      //    subject class's linked school_class id. This bypasses all class_name string issues
+      //    since the students table has no class_name column — only class_id.
+      if (matchingOption.linkedClassId) {
+        const rawClassId = Number((student.raw as any)?.class_id ?? 0);
+        if (rawClassId > 0 && rawClassId === Number(matchingOption.linkedClassId)) return true;
+      }
+
+      // 2. Fallback: className string match (for students whose className was resolved from meta).
       if (norm(student.className) === norm(matchingOption.classLabel)) return true;
 
-      // Secondary: match via explicit subject assignment data (for already dual-enrolled students).
+      // 3. Fallback: explicit subject assignment data (for already dual-enrolled students).
       const assignments = getExistingStudentAssignments(student);
       if (matchingOption.subjectClassId) {
         if (assignments.some((a) => Number(a.subjectClassId) === matchingOption.subjectClassId)) return true;
