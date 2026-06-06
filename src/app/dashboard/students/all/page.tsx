@@ -1450,8 +1450,20 @@ export default function AllStudentsPage() {
 
   const classOptions = useMemo(() => {
     const selectedSubjectIds = normalizeSubjectIdList(subjectFilter);
+    const selectedYearLabel = yearFilter === "all" ? "" : String(yearFilter ?? "").trim();
+    const selectedYearId = Number(yearIdFilter);
+    const hasYearIdFilter = Number.isFinite(selectedYearId) && selectedYearId > 0;
+    const matchesSelectedYear = (yearLabel: unknown, yearId: unknown) => {
+      const labelMatches = !selectedYearLabel || String(yearLabel ?? "").trim() === selectedYearLabel;
+      const idMatches = !hasYearIdFilter || Number(yearId) === selectedYearId;
+      return labelMatches && idMatches;
+    };
     const subjectClassOptions = subjectFilterClassRows
-      .filter((row) => selectedSubjectIds.length === 0 || selectedSubjectIds.includes(row.subjectId))
+      .filter(
+        (row) =>
+          (selectedSubjectIds.length === 0 || selectedSubjectIds.includes(row.subjectId)) &&
+          matchesSelectedYear(row.yearLabel, row.yearId)
+      )
       .map((row) => ({
         value: toClassFilterValue(row.classLabel),
         label: row.classLabel,
@@ -1462,18 +1474,38 @@ export default function AllStudentsPage() {
           ...subjectClassOptions,
           ...students
           .filter((row) => {
+            const rowMatchesYear =
+              (!selectedYearLabel && !hasYearIdFilter) ||
+              ((selectedYearLabel
+                ? getRowYearGroupsForSubjects(row, subjectFilter).includes(selectedYearLabel)
+                : true) &&
+                (!hasYearIdFilter ||
+                  getRowYearIdsForSubjects(row, subjectFilter).some((id) => Number(id) === selectedYearId)));
+            if (!rowMatchesYear) return false;
             if (selectedSubjectIds.length === 0) return true;
             const rowSubjectIds = getRowEditSubjectIds(row);
             return selectedSubjectIds.some((id) => rowSubjectIds.includes(id));
           })
-          .flatMap((row) =>
-            getRowClassFilterOptionsForSubjects(row, subjectFilter).length > 0
-              ? getRowClassFilterOptionsForSubjects(row, subjectFilter).map((option) => ({
+          .flatMap((row) => {
+            const scopedAssignments = getRowAssignmentsForSubjects(row, subjectFilter).filter((assignment) =>
+              matchesSelectedYear(assignment.yearLabel, assignment.yearId)
+            );
+            const scopedOptions = scopedAssignments.length > 0
+              ? scopedAssignments
+                  .map((assignment) => {
+                    const label = String(assignment.baseClassLabel || assignment.subjectClassName || "").trim();
+                    return label ? { value: toClassFilterValue(label), label } : null;
+                  })
+                  .filter((option): option is { value: string; label: string } => Boolean(option))
+              : getRowClassFilterOptionsForSubjects(row, subjectFilter).map((option) => ({
                   value: toClassFilterValue(option.label),
                   label: option.label,
-                }))
-              : [{ value: toClassFilterValue(row.className), label: row.className }]
-          ),
+                }));
+
+            return scopedOptions.length > 0
+              ? scopedOptions
+              : [{ value: toClassFilterValue(row.className), label: row.className }];
+          }),
         ]
           .map((option) => [option.value, option.label])
       ).entries()
@@ -1481,7 +1513,7 @@ export default function AllStudentsPage() {
     return unique
       .map(([value, label]) => ({ value, label }))
       .sort((a, b) => String(a.label).localeCompare(String(b.label)));
-  }, [students, subjectFilter, subjectFilterClassRows]);
+  }, [students, subjectFilter, subjectFilterClassRows, yearFilter, yearIdFilter]);
 
   const legacyClassFilterValueMap = useMemo(() => {
     const entries = students.flatMap((row) =>
@@ -2859,7 +2891,11 @@ export default function AllStudentsPage() {
 
           <Select
             value={yearFilter}
-            onChange={(value) => setYearFilter(value)}
+            onChange={(value) => {
+              setYearFilter(value);
+              setYearIdFilter("");
+              setClassFilters([]);
+            }}
             style={{ width: 220 }}
             optionFilterProp="label"
             showSearch
@@ -2874,7 +2910,7 @@ export default function AllStudentsPage() {
             value={classFilters}
             onChange={(value) => setClassFilters(value)}
             style={{ width: 280 }}
-            placeholder="Filter by class (multi-select)"
+            placeholder={yearFilter === "all" ? "Filter by class (multi-select)" : "Filter by class in selected year"}
             options={classOptions}
             optionFilterProp="label"
             maxTagCount="responsive"
