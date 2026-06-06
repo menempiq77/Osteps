@@ -183,6 +183,21 @@ const existingStudentMatchesFilters = (
     // No matchingOption — fall through to generic matching below.
   }
 
+  // Direct meta-resolved match: student.className and student.yearName are both set from
+  // allExistingStudentBaseClassMeta (school year names). When all three filters are set,
+  // match by these directly — this works even when subjectClassOptions is empty or has
+  // raw year-id strings, and even when students have no subjects/assignments data.
+  if (filters.className) {
+    const classMatch = norm(student.className) === filters.className;
+    if (classMatch) {
+      const resolvedYear =
+        student.yearName ||
+        resolveExistingStudentYearName(student);
+      const yearMatch = !filters.year || norm(resolvedYear) === filters.year;
+      if (yearMatch) return true;
+    }
+  }
+
   if (!existingStudentMatchesSubjectFilter(student, filters.subject)) {
     return false;
   }
@@ -256,17 +271,8 @@ export const AddStudentModal = ({
     [existingStudents]
   );
   const existingYearFilterOptions = useMemo(() => {
-    if (subjectClassOptions.length > 0 && existingFilters.subject) {
-      // Use subject_classes data for accurate year options scoped to selected subject.
-      return makeExistingFilterOptions(
-        subjectClassOptions
-          .filter(
-            (opt) =>
-              normalizeExistingFilterValue(opt.subjectName) === existingFilters.subject
-          )
-          .map((opt) => opt.yearLabel)
-      );
-    }
+    // Always derive year options from student.yearName (properly resolved via school years meta)
+    // rather than subjectClassOptions.yearLabel which may contain raw "Year N" fallbacks.
     return makeExistingFilterOptions(
       existingStudents.flatMap((student) => {
         const assignments = getExistingStudentAssignments(student).filter(
@@ -274,13 +280,16 @@ export const AddStudentModal = ({
             !existingFilters.subject ||
             normalizeExistingFilterValue(assignment.subjectName) === existingFilters.subject
         );
-        if (assignments.length > 0) return assignments.map((assignment) => assignment.yearName);
+        if (assignments.length > 0)
+          return assignments.map((assignment) =>
+            student.yearName || assignment.yearName || resolveExistingStudentYearName(student)
+          );
         return existingStudentMatchesSubjectFilter(student, existingFilters.subject)
-          ? [resolveExistingStudentYearName(student)]
+          ? [student.yearName || resolveExistingStudentYearName(student)]
           : [];
       })
     );
-  }, [existingStudents, existingFilters.subject, subjectClassOptions]);
+  }, [existingStudents, existingFilters.subject]);
   const existingClassFilterOptions = useMemo(() => {
     if (subjectClassOptions.length > 0 && existingFilters.subject) {
       // Use subject_classes data for accurate class options scoped to subject + year.
