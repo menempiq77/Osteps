@@ -100,6 +100,22 @@ const getWholeMark = (value: unknown) => {
   return Number.isFinite(parsed) ? Math.trunc(parsed) : 0;
 };
 
+const pickTeacherMarkValue = (task: StudentAssessmentTask) => {
+  const candidates = [
+    task?.teacher_assessment_score,
+    task?.teacher_assessment_marks,
+    task?.teacher_assessment_mark,
+  ];
+
+  for (const candidate of candidates) {
+    if (candidate == null) continue;
+    if (String(candidate).trim() === "") continue;
+    return candidate;
+  }
+
+  return null;
+};
+
 const getSelfAssessmentLookupKey = (task: StudentAssessmentTask) =>
   `${task.assessment_id}:${task.task_id}:${task.student_id}`;
 
@@ -598,7 +614,7 @@ export default function AssessmentDrawer() {
     if (assessmentOpenTaskId !== taskId) {
       const task = displayTasks.find((t) => t.id === taskId);
       setFormValues({
-        marks: task?.teacher_assessment_marks || "",
+        marks: String(task ? pickTeacherMarkValue(task) ?? "" : ""),
         feedback: task?.teacher_assessment_feedback || "",
       });
     }
@@ -916,8 +932,7 @@ export default function AssessmentDrawer() {
   };
 
   const hasTeacherAssessmentScore = (task: StudentAssessmentTask) =>
-    task.teacher_assessment_score != null &&
-    String(task.teacher_assessment_score).trim() !== "";
+    pickTeacherMarkValue(task) != null;
 
   const hasTeacherQuizMark = (task: StudentAssessmentTask) =>
     task.teacher_assessment_mark != null &&
@@ -1028,7 +1043,7 @@ export default function AssessmentDrawer() {
       title: definition.task_name || task.task?.task_name || "PDF Assessment",
       maxMarks: String(definition.allocated_marks || task.task?.allocated_marks || 0),
       teacherMarks: String(
-        task.teacher_assessment_score || task.teacher_assessment_marks || ""
+        pickTeacherMarkValue(task) ?? ""
       ),
       teacherFeedback: String(task.teacher_feedback || ""),
     });
@@ -1523,7 +1538,7 @@ export default function AssessmentDrawer() {
                         Self <span className="font-semibold text-blue-700">{getWholeMark(getSelfAssessmentMarkForTask(task))}/{getWholeMark(task?.task?.allocated_marks)}</span>
                       </span>
                       <span className="text-gray-600">
-                        Teacher <span className="font-semibold text-green-700">{hasTeacherAssessmentScore(task) ? `${getWholeMark(task?.teacher_assessment_score)}/${getWholeMark(task?.task?.allocated_marks)}` : "Pending"}</span>
+                        Teacher <span className="font-semibold text-green-700">{hasTeacherAssessmentScore(task) ? `${getWholeMark(pickTeacherMarkValue(task))}/${getWholeMark(task?.task?.allocated_marks)}` : "Pending"}</span>
                       </span>
                     </div>
                     <div className="ml-auto flex flex-wrap items-center gap-2 text-xs">

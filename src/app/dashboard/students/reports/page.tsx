@@ -33,7 +33,10 @@ interface Task {
     student_id: number;
     student_name: string;
     teacher_assessment_marks: number | null;
+    teacher_assessment_mark?: number | null;
+    teacher_assessment_score?: number | null;
     mind_points?: number;
+    id?: number;
     submission_id?: number;
   }>;
   not_submitted?: Array<{
@@ -83,6 +86,22 @@ interface Grade {
 
 function asArray<T = any>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
+}
+
+function getSubmissionTeacherMark(submission: any): number {
+  const candidates = [
+    submission?.teacher_assessment_marks,
+    submission?.teacher_assessment_mark,
+    submission?.teacher_assessment_score,
+  ];
+
+  for (const candidate of candidates) {
+    if (candidate == null || String(candidate).trim() === "") continue;
+    const parsed = Number(candidate);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+
+  return 0;
 }
 
 const broadcastAssessmentMarkUpdate = (detail: {
@@ -436,10 +455,10 @@ export default function ReportsPage() {
             studentsMap.set(submission.student_id, { student_name: submission.student_name, taskMarks: new Map() });
           }
           studentsMap.get(submission.student_id)!.taskMarks.set(task.task_id, {
-            marks: Number(submission.teacher_assessment_marks ?? 0),
+            marks: getSubmissionTeacherMark(submission),
             allocated: Number(task.allocated_marks),
             submitted: true,
-            submissionId: submission.submission_id ?? undefined,
+            submissionId: submission.submission_id ?? submission.id ?? undefined,
           });
         });
 

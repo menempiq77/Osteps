@@ -212,9 +212,24 @@ const normalizeFetchedTask = (row: any) => {
 
 const normalizeStudentTask = (row: any) => {
   if (!row?.task) return row;
+  const teacherMarkValue =
+    row?.teacher_assessment_score ??
+    row?.teacher_assessment_marks ??
+    row?.teacher_assessment_mark;
+
   return {
     ...row,
     task: normalizeTaskRecord(row.task),
+    teacher_assessment_score:
+      teacherMarkValue != null && String(teacherMarkValue).trim() !== ""
+        ? String(teacherMarkValue)
+        : row?.teacher_assessment_score,
+    teacher_assessment_marks:
+      teacherMarkValue != null && String(teacherMarkValue).trim() !== ""
+        ? String(teacherMarkValue)
+        : row?.teacher_assessment_marks,
+    teacher_assessment_mark:
+      row?.teacher_assessment_mark ?? teacherMarkValue ?? null,
   };
 };
 
