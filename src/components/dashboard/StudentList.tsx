@@ -1083,6 +1083,29 @@ export default function StudentList() {
     [existingStudentClassMetaById]
   );
 
+  // Build proper subject-class filter options for AddStudentModal year/class dropdowns.
+  // Year names are resolved from allExistingStudentBaseClassMeta (which uses fetchYearsBySchool)
+  // so they match the school year label format instead of falling back to "Year N".
+  const subjectClassFilterOptions = useMemo(() => {
+    const yearNameByBaseClassId = new Map<string, string>(
+      allExistingStudentBaseClassMeta
+        .filter((m) => m.id && m.yearName)
+        .map((m) => [String(m.id), String(m.yearName)])
+    );
+    return relatedExistingStudentClassMeta
+      .filter((m) => m.subjectName && m.className)
+      .map((m) => ({
+        subjectName: String(m.subjectName || ""),
+        subjectId: m.subjectId,
+        yearLabel:
+          yearNameByBaseClassId.get(String(m.linkedClassId || "")) ||
+          m.yearName ||
+          "",
+        classLabel: String(m.className || ""),
+      }))
+      .filter((m) => m.yearLabel && m.classLabel && m.subjectName);
+  }, [relatedExistingStudentClassMeta, allExistingStudentBaseClassMeta]);
+
   const currentStudentCandidateIds = useMemo(
     () =>
       new Set(
@@ -3873,6 +3896,7 @@ export default function StudentList() {
           allExistingStudentClassesLoading ||
           resolvingSubjectClass
         }
+        subjectClassOptions={subjectClassFilterOptions}
         assignExistingLoading={assignExistingStudentMutation.isPending}
         onAssignExisting={handleAssignExistingStudents}
       />

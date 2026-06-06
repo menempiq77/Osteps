@@ -21,6 +21,13 @@ export type ExistingStudentOption = {
   raw?: Record<string, unknown>;
 };
 
+type SubjectClassFilterOption = {
+  subjectName: string;
+  subjectId?: number;
+  yearLabel: string;
+  classLabel: string;
+};
+
 type AddStudentModalProps = {
   open: boolean;
   onCancel: () => void;
@@ -31,6 +38,7 @@ type AddStudentModalProps = {
   existingStudentsLoading?: boolean;
   assignExistingLoading?: boolean;
   onAssignExisting?: (studentIds: number[]) => Promise<void> | void;
+  subjectClassOptions?: SubjectClassFilterOption[];
 };
 
 type ExistingStudentFilterState = {
@@ -152,6 +160,7 @@ export const AddStudentModal = ({
   existingStudentsLoading = false,
   assignExistingLoading = false,
   onAssignExisting,
+  subjectClassOptions = [],
 }: AddStudentModalProps) => {
   const [form] = Form.useForm();
   const canUseExistingMode = canAssignExisting && typeof onAssignExisting === "function";
@@ -194,44 +203,64 @@ export const AddStudentModal = ({
       ),
     [existingStudents]
   );
-  const existingYearFilterOptions = useMemo(
-    () =>
-      makeExistingFilterOptions(
-        existingStudents.flatMap((student) => {
-          const assignments = getExistingStudentAssignments(student).filter(
-            (assignment) =>
-              !existingFilters.subject ||
-              normalizeExistingFilterValue(assignment.subjectName) === existingFilters.subject
-          );
-          if (assignments.length > 0) return assignments.map((assignment) => assignment.yearName);
-          return existingStudentMatchesSubjectFilter(student, existingFilters.subject)
-            ? [resolveExistingStudentYearName(student)]
-            : [];
-        })
-      ),
-    [existingStudents, existingFilters.subject]
-  );
-  const existingClassFilterOptions = useMemo(
-    () =>
-      makeExistingFilterOptions(
-        existingStudents.flatMap((student) => {
-          const assignments = getExistingStudentAssignments(student).filter((assignment) => {
-            const subjectMatches =
-              !existingFilters.subject ||
-              normalizeExistingFilterValue(assignment.subjectName) === existingFilters.subject;
-            const yearMatches =
-              !existingFilters.year || normalizeExistingFilterValue(assignment.yearName) === existingFilters.year;
-            return subjectMatches && yearMatches;
-          });
-          if (assignments.length > 0) return assignments.map((assignment) => assignment.className);
-          return existingStudentMatchesSubjectFilter(student, existingFilters.subject) &&
-            (!existingFilters.year || normalizeExistingFilterValue(resolveExistingStudentYearName(student)) === existingFilters.year)
-            ? [student.className]
-            : [];
-        })
-      ),
-    [existingStudents, existingFilters.subject, existingFilters.year]
-  );
+  const existingYearFilterOptions = useMemo(() => {
+    if (subjectClassOptions.length > 0 && existingFilters.subject) {
+      // Use subject_classes data for accurate year options scoped to selected subject.
+      return makeExistingFilterOptions(
+        subjectClassOptions
+          .filter(
+            (opt) =>
+              normalizeExistingFilterValue(opt.subjectName) === existingFilters.subject
+          )
+          .map((opt) => opt.yearLabel)
+      );
+    }
+    return makeExistingFilterOptions(
+      existingStudents.flatMap((student) => {
+        const assignments = getExistingStudentAssignments(student).filter(
+          (assignment) =>
+            !existingFilters.subject ||
+            normalizeExistingFilterValue(assignment.subjectName) === existingFilters.subject
+        );
+        if (assignments.length > 0) return assignments.map((assignment) => assignment.yearName);
+        return existingStudentMatchesSubjectFilter(student, existingFilters.subject)
+          ? [resolveExistingStudentYearName(student)]
+          : [];
+      })
+    );
+  }, [existingStudents, existingFilters.subject, subjectClassOptions]);
+  const existingClassFilterOptions = useMemo(() => {
+    if (subjectClassOptions.length > 0 && existingFilters.subject) {
+      // Use subject_classes data for accurate class options scoped to subject + year.
+      return makeExistingFilterOptions(
+        subjectClassOptions
+          .filter(
+            (opt) =>
+              normalizeExistingFilterValue(opt.subjectName) === existingFilters.subject &&
+              (!existingFilters.year ||
+                normalizeExistingFilterValue(opt.yearLabel) === existingFilters.year)
+          )
+          .map((opt) => opt.classLabel)
+      );
+    }
+    return makeExistingFilterOptions(
+      existingStudents.flatMap((student) => {
+        const assignments = getExistingStudentAssignments(student).filter((assignment) => {
+          const subjectMatches =
+            !existingFilters.subject ||
+            normalizeExistingFilterValue(assignment.subjectName) === existingFilters.subject;
+          const yearMatches =
+            !existingFilters.year || normalizeExistingFilterValue(assignment.yearName) === existingFilters.year;
+          return subjectMatches && yearMatches;
+        });
+        if (assignments.length > 0) return assignments.map((assignment) => assignment.className);
+        return existingStudentMatchesSubjectFilter(student, existingFilters.subject) &&
+          (!existingFilters.year || normalizeExistingFilterValue(resolveExistingStudentYearName(student)) === existingFilters.year)
+          ? [student.className]
+          : [];
+      })
+    );
+  }, [existingStudents, existingFilters.subject, existingFilters.year, subjectClassOptions]);
   const canShowExistingStudentList = Boolean(
     existingFilters.subject && existingFilters.year && existingFilters.className
   );
