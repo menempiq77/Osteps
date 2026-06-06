@@ -156,14 +156,13 @@ export const fetchAssessmentByStudent = async (termId: number, subjectId?: numbe
   const response = await api.get(`/get-student-assessment/${termId}`, {
     params: withSubjectQuery({}, subjectId),
   });
-  const getTeacherMarkValue = (row: any) =>
-    row?.teacher_assessment_score ??
-    row?.teacher_assessment_marks ??
-    row?.teacher_assessment_mark;
   return filterAssessmentsForTerm(response.data.data ?? [], termId);
 };
 // add Assessment
-    const teacherMarkValue = getTeacherMarkValue(row);
+export const addAssessment = async (assessmentData: { name: string; school_id?: number; type?: string; subject_id?: number }) => {
+  const response = await api.post('/add-assessment', assessmentData);
+  return response.data;
+};
 // edit Assessment
 export const updateAssessment = async (id: string, assessmentData: any) => {
   const response = await api.post(`/update-assessment/${id}`, assessmentData);
@@ -211,20 +210,19 @@ const normalizeFetchedTask = (row: any) => {
   return normalizeTaskRecord(row);
 };
 
-            getTeacherMarkValue(submission) != null &&
-            String(getTeacherMarkValue(submission)).trim() !== ""
-              ? String(getTeacherMarkValue(submission))
-  const teacherMarkValue =
-    row?.teacher_assessment_score ??
-    row?.teacher_assessment_marks ??
-    row?.teacher_assessment_mark;
+const getTeacherMarkValue = (row: any) =>
+  row?.teacher_assessment_score ??
+  row?.teacher_assessment_marks ??
+  row?.teacher_assessment_mark;
 
-            getTeacherMarkValue(submission) != null &&
-            String(getTeacherMarkValue(submission)).trim() !== ""
-              ? String(getTeacherMarkValue(submission))
+const normalizeStudentTask = (row: any) => {
+  if (!row?.task) return row;
+  const teacherMarkValue = getTeacherMarkValue(row);
+
+  return {
+    ...row,
     task: normalizeTaskRecord(row.task),
-          teacher_assessment_mark:
-            submission?.teacher_assessment_mark ?? getTeacherMarkValue(submission) ?? null,
+    teacher_assessment_score:
       teacherMarkValue != null && String(teacherMarkValue).trim() !== ""
         ? String(teacherMarkValue)
         : row?.teacher_assessment_score,
@@ -261,21 +259,19 @@ const normalizeTaskTreeToStudentTasks = (rows: any[] = []) => {
   return rows.flatMap((row: any) => {
     if (row?.type === "quiz") {
       const quiz = row?.quiz ?? null;
-      return toArray(quiz?.submissions).map((submission: any) => ({
-          getTeacherMarkValue(submission) != null &&
-          String(getTeacherMarkValue(submission)).trim() !== ""
-            ? String(getTeacherMarkValue(submission))
+      return toArray(quiz?.submissions).map((submission: any) => {
+        const teacherMarkValue = getTeacherMarkValue(submission);
+
+        return {
+        id: submission?.id,
         assessment_id: submission?.assessment_id ?? row?.assessment_id,
         task_id: row?.id,
         task: {
           id: row?.id,
           assessment_id: row?.assessment_id,
-          getTeacherMarkValue(submission) != null &&
-          String(getTeacherMarkValue(submission)).trim() !== ""
-            ? String(getTeacherMarkValue(submission))
+          task_name: quiz?.name ?? "Quiz",
+          allocated_marks: sumQuizMarks(quiz),
           task_type: "quiz",
-        teacher_assessment_mark:
-          submission?.teacher_assessment_mark ?? getTeacherMarkValue(submission) ?? null,
           description: "",
           file_path: null,
           created_at: row?.created_at ?? submission?.created_at,
@@ -291,19 +287,21 @@ const normalizeTaskTreeToStudentTasks = (rows: any[] = []) => {
         created_at: submission?.created_at ?? row?.created_at,
         updated_at: submission?.updated_at ?? row?.updated_at,
         teacher_assessment_score:
-          submission?.teacher_assessment_mark != null
-            ? String(submission.teacher_assessment_mark)
+          teacherMarkValue != null && String(teacherMarkValue).trim() !== ""
+            ? String(teacherMarkValue)
             : undefined,
         teacher_feedback: submission?.comment ?? "",
         teacher_assessment_feedback: submission?.comment ?? "",
         submission_type: "quiz",
         teacher_assessment_marks:
-          submission?.teacher_assessment_mark != null
-            ? String(submission.teacher_assessment_mark)
+          teacherMarkValue != null && String(teacherMarkValue).trim() !== ""
+            ? String(teacherMarkValue)
             : undefined,
-        teacher_assessment_mark: submission?.teacher_assessment_mark ?? null,
+        teacher_assessment_mark:
+          submission?.teacher_assessment_mark ?? teacherMarkValue ?? null,
         status: submission?.status ?? "completed",
-      }));
+      };
+      });
     }
 
     const normalizedTask = normalizeTaskRecord({
@@ -323,7 +321,10 @@ const normalizeTaskTreeToStudentTasks = (rows: any[] = []) => {
       exam_end_at: row?.exam_end_at,
     });
 
-    return toArray(row?.student_assessment_tasks).map((submission: any) => ({
+    return toArray(row?.student_assessment_tasks).map((submission: any) => {
+      const teacherMarkValue = getTeacherMarkValue(submission);
+
+      return {
       id: submission?.id,
       student_id: submission?.student_id,
       assessment_id: submission?.assessment_id ?? row?.assessment_id,
@@ -339,18 +340,21 @@ const normalizeTaskTreeToStudentTasks = (rows: any[] = []) => {
       created_at: submission?.created_at ?? row?.created_at,
       updated_at: submission?.updated_at ?? row?.updated_at,
       teacher_assessment_score:
-        submission?.teacher_assessment_score != null
-          ? String(submission.teacher_assessment_score)
+        teacherMarkValue != null && String(teacherMarkValue).trim() !== ""
+          ? String(teacherMarkValue)
           : undefined,
       teacher_feedback: submission?.teacher_feedback ?? "",
       teacher_assessment_feedback: submission?.teacher_feedback ?? "",
       submission_type: submission?.submission_type ?? "task",
       teacher_assessment_marks:
-        submission?.teacher_assessment_score != null
-          ? String(submission.teacher_assessment_score)
+        teacherMarkValue != null && String(teacherMarkValue).trim() !== ""
+          ? String(teacherMarkValue)
           : undefined,
+      teacher_assessment_mark:
+        submission?.teacher_assessment_mark ?? teacherMarkValue ?? null,
       status: submission?.status ?? "completed",
-    }));
+    };
+    });
   });
 };
 
