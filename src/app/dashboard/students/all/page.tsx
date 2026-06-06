@@ -261,15 +261,13 @@ const resolveSubjectClassLinkedId = (row: SubjectClassRow): string =>
   ).trim();
 
 const extractSubjectClassCandidateIds = (row: SubjectClassRow): string[] => {
+  // Only subject_classes.id belongs in this map. Base school class ids can
+  // collide with subject class ids (for example subject_class 6 vs class 6),
+  // which makes an explicit enrollment point at the wrong subject class.
   return Array.from(
     new Set(
       [
         row.id,
-        row.class_id,
-        row.base_class_id,
-        row.class?.id,
-        row.classes?.id,
-        row.base_class?.id,
       ]
         .map((value) => String(value ?? "").trim())
         .filter(Boolean)
