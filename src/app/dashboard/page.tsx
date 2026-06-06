@@ -245,7 +245,11 @@ const getStudentsListLink = (options: {
 
 const extractLiveStudentClassId = (profile: any, fallback?: number | string | null) =>
   Number(
-    profile?.class_id ??
+    profile?.subject_context?.class_id ??
+      profile?.subject_context?.base_class_id ??
+      profile?.subject_class?.class_id ??
+      profile?.subject_class?.base_class_id ??
+      profile?.class_id ??
       profile?.class?.id ??
       profile?.student?.class_id ??
       profile?.student?.class?.id ??
@@ -255,11 +259,28 @@ const extractLiveStudentClassId = (profile: any, fallback?: number | string | nu
 
 const extractLiveStudentClassName = (profile: any, fallback?: string | null) =>
   String(
-    profile?.class?.class_name ??
+    profile?.subject_context?.base_class_label ??
+      profile?.subject_context?.subject_class_name ??
+      profile?.subject_class?.base_class_label ??
+      profile?.subject_class?.name ??
+      profile?.class?.class_name ??
       profile?.class?.name ??
       profile?.student?.class?.class_name ??
       profile?.student?.class?.name ??
       profile?.class_name ??
+      fallback ??
+      ""
+  ).trim();
+
+const extractLiveStudentYearName = (profile: any, fallback?: string | null) =>
+  String(
+    profile?.subject_context?.year_name ??
+      profile?.subject_context?.year?.name ??
+      profile?.subject_class?.year_name ??
+      profile?.subject_class?.year?.name ??
+      profile?.class?.year?.name ??
+      profile?.student?.class?.year?.name ??
+      profile?.year_name ??
       fallback ??
       ""
   ).trim();
@@ -1158,7 +1179,10 @@ export default function DashboardPage() {
     return `${Math.floor(seconds / 86400)} days ago`;
   }
 
-  const studentYearName = currentUser?.studentYearName;
+  const studentYearName = extractLiveStudentYearName(
+    liveStudentProfile,
+    currentUser?.studentYearName
+  );
   const studentClassName = extractLiveStudentClassName(
     liveStudentProfile,
     currentUser?.studentClassName

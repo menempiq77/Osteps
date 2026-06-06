@@ -981,9 +981,11 @@ export default function AllStudentsPage() {
 
                 const inferredFromLinkedClass = Array.from(
                   new Map(
-                    [actualStudentClassId, Number(linkedClassId)]
-                      .filter((id) => Number.isFinite(id) && id > 0)
-                      .flatMap((id) => linkedClassToSubjectAssignments.get(String(id)) ?? [])
+                    (inferredFromSubjectClass.length > 0
+                      ? []
+                      : [actualStudentClassId, Number(linkedClassId)]
+                          .filter((id) => Number.isFinite(id) && id > 0)
+                          .flatMap((id) => linkedClassToSubjectAssignments.get(String(id)) ?? []))
                       .map((entry) => [
                         `${entry.id}-${entry.subjectClassId || entry.subjectClassName}`,
                         entry,
