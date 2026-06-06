@@ -4627,6 +4627,15 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       messageApi.warning("Enter the teacher mark before finalising.");
       return;
     }
+    // Normalize Arabic-Indic digits (٠١٢٣٤٥٦٧٨٩) to ASCII digits so Number() works correctly
+    const normalizedMark = teacherMarks.trim().replace(/[\u0660-\u0669]/g, (d) =>
+      String(d.charCodeAt(0) - 0x0660)
+    );
+    const parsedMarkValue = parseFloat(normalizedMark);
+    if (!Number.isFinite(parsedMarkValue)) {
+      messageApi.warning("Enter a valid numeric teacher mark before finalising.");
+      return;
+    }
     const aiPreviewFeedback = aiDraftPreview
       ? [
           aiDraftPreview.feedback,
@@ -4646,7 +4655,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       await addStudentTaskMarks(Number(studentId), {
         assessment_id: Number(assessmentId),
         task_id: Number(taskId),
-        teacher_assessment_marks: Number(teacherMarks || 0),
+        teacher_assessment_marks: parsedMarkValue,
         teacher_assessment_feedback:
           teacherFeedback.trim() || aiPreviewFeedback || "Marked online on the PDF.",
       });
