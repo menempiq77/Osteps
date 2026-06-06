@@ -963,7 +963,7 @@ export default function StudentList() {
       Array.from(
         new Set(
           relatedExistingStudentClassMeta
-            .map((item) => String(item.linkedClassId || item.id || "").trim())
+            .map((item) => String(item.linkedClassId || "").trim())
             .filter((id) => id && id !== "0")
         )
       ),
@@ -1034,7 +1034,6 @@ export default function StudentList() {
             effectiveClassId,
             classIdForStudentsFetch,
             fallbackRouteClassId,
-            effectiveSubjectClassId,
             ...allExistingStudentBaseClassIds,
             ...relatedExistingStudentClassIds,
           ]
@@ -1046,7 +1045,6 @@ export default function StudentList() {
       effectiveClassId,
       classIdForStudentsFetch,
       fallbackRouteClassId,
-      effectiveSubjectClassId,
       allExistingStudentBaseClassIds,
       relatedExistingStudentClassIds,
     ]
@@ -1155,6 +1153,8 @@ export default function StudentList() {
       isSubjectWorkspaceMode &&
       !!effectiveSubjectClassId &&
       existingStudentFetchClassIds.length > 0 &&
+      !relatedExistingStudentClassesLoading &&
+      !allExistingStudentClassesLoading &&
       !resolvingSubjectClass,
     queryFn: async () => {
       const rowsByClass = await Promise.all(

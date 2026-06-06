@@ -259,16 +259,21 @@ export const AddStudentModal = ({
     [existingStudentOptions]
   );
   const existingSubjectFilterOptions = useMemo(
-    () =>
-      makeExistingFilterOptions(
+    () => {
+      if (subjectClassOptions.length > 0) {
+        return makeExistingFilterOptions(subjectClassOptions.map((option) => option.subjectName));
+      }
+
+      return makeExistingFilterOptions(
         existingStudents.flatMap((student) => {
           const assignments = getExistingStudentAssignments(student);
           return assignments.length > 0
             ? assignments.map((assignment) => assignment.subjectName)
             : student.subjects || [];
         })
-      ),
-    [existingStudents]
+      );
+    },
+    [existingStudents, subjectClassOptions]
   );
   const existingYearFilterOptions = useMemo(() => {
     if (subjectClassOptions.length > 0 && existingFilters.subject) {
