@@ -158,15 +158,39 @@ const existingStudentMatchesFilters = (
     if (matchingOption?.subjectClassId) {
       const targetId = matchingOption.subjectClassId;
       const assignments = getExistingStudentAssignments(student);
-      // Match by exact subject class id — most reliable
+      // 1. Match by exact subject class id — most reliable
       if (assignments.some((a) => Number(a.subjectClassId) === targetId)) return true;
-      // Fallback: subject + class name match (student may lack subjectClassId in API response)
+      // 2. Fallback: subject + assignment.className match (student has assignments but no subjectClassId)
       if (
         assignments.some(
           (a) =>
             norm(a.subjectName) === filters.subject &&
-            (!filters.className || norm(a.className) === filters.className)
+            (!filters.className ||
+              norm(a.className) === filters.className ||
+              norm(student.className) === filters.className)
         )
+      )
+        return true;
+      // 3. Fallback: student has no subjectAssignments (fetched via school class endpoint);
+      //    match by subject from student.subjects string array + student's base className.
+      const hasMatchingSubject =
+        (student.subjects || []).some((s) => norm(String(s)) === filters.subject);
+      if (
+        hasMatchingSubject &&
+        (!filters.className || norm(student.className) === filters.className)
+      )
+        return true;
+      return false;
+    }
+
+    // matchingOption found but has no subjectClassId — fall back to class name matching
+    if (matchingOption) {
+      const hasMatchingSubject =
+        getExistingStudentAssignments(student).some((a) => norm(a.subjectName) === filters.subject) ||
+        (student.subjects || []).some((s) => norm(String(s)) === filters.subject);
+      if (
+        hasMatchingSubject &&
+        (!filters.className || norm(student.className) === filters.className)
       )
         return true;
       return false;
