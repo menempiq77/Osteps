@@ -135,32 +135,28 @@ const existingStudentMatchesFilters = (
 ) => {
   const norm = normalizeExistingFilterValue;
 
-  // When we have subject class options data, resolve the exact subjectClassId for the
-  // selected subject+year+class combo and match by ID — this avoids year label format
-  // mismatches (e.g. "Year 8" vs "Year 8 (25-26)").
-  if (subjectClassOptions.length > 0 && filters.subject) {
-    const matchingOption =
-      filters.year && filters.className
-        ? subjectClassOptions.find(
-            (opt) =>
-              norm(opt.subjectName) === filters.subject &&
-              norm(opt.yearLabel) === filters.year &&
-              norm(opt.classLabel) === filters.className
-          )
-        : filters.className
-          ? subjectClassOptions.find(
-              (opt) =>
-                norm(opt.subjectName) === filters.subject &&
-                norm(opt.classLabel) === filters.className
-            )
-          : null;
+  // When subject class options are available and a class is selected, use the subject-class
+  // definition as the authoritative source of which students belong.
+  // A student matches if their className equals the subject class's classLabel.
+  // This avoids relying on student.subjects being populated (which is inconsistent
+  // when students are fetched via the school class endpoint without subject eager-loading).
+  if (subjectClassOptions.length > 0 && filters.subject && filters.className) {
+    const matchingOption = subjectClassOptions.find(
+      (opt) =>
+        norm(opt.subjectName) === filters.subject &&
+        (!filters.year || norm(opt.yearLabel) === filters.year) &&
+        norm(opt.classLabel) === filters.className
+    );
 
-    if (matchingOption?.subjectClassId) {
-      const targetId = matchingOption.subjectClassId;
+    if (matchingOption) {
+      // Primary: student's class name matches the subject class label directly.
+      if (norm(student.className) === norm(matchingOption.classLabel)) return true;
+
+      // Secondary: match via explicit subject assignment data (for already dual-enrolled students).
       const assignments = getExistingStudentAssignments(student);
-      // 1. Match by exact subject class id — most reliable
-      if (assignments.some((a) => Number(a.subjectClassId) === targetId)) return true;
-      // 2. Fallback: subject + assignment.className match (student has assignments but no subjectClassId)
+      if (matchingOption.subjectClassId) {
+        if (assignments.some((a) => Number(a.subjectClassId) === matchingOption.subjectClassId)) return true;
+      }
       if (
         assignments.some(
           (a) =>
@@ -171,30 +167,11 @@ const existingStudentMatchesFilters = (
         )
       )
         return true;
-      // 3. Fallback: student has no subjectAssignments (fetched via school class endpoint);
-      //    match by subject from student.subjects string array + student's base className.
-      const hasMatchingSubject =
-        (student.subjects || []).some((s) => norm(String(s)) === filters.subject);
-      if (
-        hasMatchingSubject &&
-        (!filters.className || norm(student.className) === filters.className)
-      )
-        return true;
+
       return false;
     }
 
-    // matchingOption found but has no subjectClassId — fall back to class name matching
-    if (matchingOption) {
-      const hasMatchingSubject =
-        getExistingStudentAssignments(student).some((a) => norm(a.subjectName) === filters.subject) ||
-        (student.subjects || []).some((s) => norm(String(s)) === filters.subject);
-      if (
-        hasMatchingSubject &&
-        (!filters.className || norm(student.className) === filters.className)
-      )
-        return true;
-      return false;
-    }
+    // No matchingOption — fall through to generic matching below.
   }
 
   if (!existingStudentMatchesSubjectFilter(student, filters.subject)) {
