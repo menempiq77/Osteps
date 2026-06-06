@@ -156,13 +156,14 @@ export const fetchAssessmentByStudent = async (termId: number, subjectId?: numbe
   const response = await api.get(`/get-student-assessment/${termId}`, {
     params: withSubjectQuery({}, subjectId),
   });
+  const getTeacherMarkValue = (row: any) =>
+    row?.teacher_assessment_score ??
+    row?.teacher_assessment_marks ??
+    row?.teacher_assessment_mark;
   return filterAssessmentsForTerm(response.data.data ?? [], termId);
 };
 // add Assessment
-export const addAssessment = async (assessmentData: { name: string; school_id?: number; type?: string; subject_id?: number }) => {
-  const response = await api.post('/add-assessment', assessmentData);
-  return response.data;
-};
+    const teacherMarkValue = getTeacherMarkValue(row);
 // edit Assessment
 export const updateAssessment = async (id: string, assessmentData: any) => {
   const response = await api.post(`/update-assessment/${id}`, assessmentData);
@@ -210,17 +211,20 @@ const normalizeFetchedTask = (row: any) => {
   return normalizeTaskRecord(row);
 };
 
-const normalizeStudentTask = (row: any) => {
-  if (!row?.task) return row;
+            getTeacherMarkValue(submission) != null &&
+            String(getTeacherMarkValue(submission)).trim() !== ""
+              ? String(getTeacherMarkValue(submission))
   const teacherMarkValue =
     row?.teacher_assessment_score ??
     row?.teacher_assessment_marks ??
     row?.teacher_assessment_mark;
 
-  return {
-    ...row,
+            getTeacherMarkValue(submission) != null &&
+            String(getTeacherMarkValue(submission)).trim() !== ""
+              ? String(getTeacherMarkValue(submission))
     task: normalizeTaskRecord(row.task),
-    teacher_assessment_score:
+          teacher_assessment_mark:
+            submission?.teacher_assessment_mark ?? getTeacherMarkValue(submission) ?? null,
       teacherMarkValue != null && String(teacherMarkValue).trim() !== ""
         ? String(teacherMarkValue)
         : row?.teacher_assessment_score,
@@ -258,16 +262,20 @@ const normalizeTaskTreeToStudentTasks = (rows: any[] = []) => {
     if (row?.type === "quiz") {
       const quiz = row?.quiz ?? null;
       return toArray(quiz?.submissions).map((submission: any) => ({
-        id: submission?.id,
-        student_id: submission?.student_id,
+          getTeacherMarkValue(submission) != null &&
+          String(getTeacherMarkValue(submission)).trim() !== ""
+            ? String(getTeacherMarkValue(submission))
         assessment_id: submission?.assessment_id ?? row?.assessment_id,
         task_id: row?.id,
         task: {
           id: row?.id,
           assessment_id: row?.assessment_id,
-          task_name: quiz?.name ?? "Quiz",
-          allocated_marks: sumQuizMarks(quiz),
+          getTeacherMarkValue(submission) != null &&
+          String(getTeacherMarkValue(submission)).trim() !== ""
+            ? String(getTeacherMarkValue(submission))
           task_type: "quiz",
+        teacher_assessment_mark:
+          submission?.teacher_assessment_mark ?? getTeacherMarkValue(submission) ?? null,
           description: "",
           file_path: null,
           created_at: row?.created_at ?? submission?.created_at,

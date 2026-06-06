@@ -42,6 +42,14 @@ interface StudentAssessmentTask {
   teacher_feedback?: string;
   submission_type: string;
   teacher_assessment_marks?: string;
+  teacher_assessment_mark?: string | number | null;
+  teacher_assessment_feedback?: string;
+  quiz?: {
+    id: number;
+    name?: string;
+    quiz_queston?: Array<{ marks?: string | number | null }>;
+  };
+  status?: string;
 }
 
 interface StudentOption {
@@ -90,6 +98,22 @@ const buildStudentOptions = (
   }
 
   return Array.from(byId.values());
+};
+
+const pickTeacherMarkValue = (task: StudentAssessmentTask) => {
+  const candidates = [
+    task?.teacher_assessment_score,
+    task?.teacher_assessment_marks,
+    task?.teacher_assessment_mark,
+  ];
+
+  for (const candidate of candidates) {
+    if (candidate == null) continue;
+    if (String(candidate).trim() === "") continue;
+    return candidate;
+  }
+
+  return null;
 };
 
 export default function AssessmentDrawer() {
@@ -241,7 +265,7 @@ export default function AssessmentDrawer() {
     if (assessmentOpenTaskId !== taskId) {
       const task = assementTasks.find((t) => t.id === taskId);
       setFormValues({
-        marks: task?.teacher_assessment_marks || "",
+        marks: String(task ? pickTeacherMarkValue(task) ?? "" : ""),
         feedback: task?.teacher_assessment_feedback || "",
       });
     }
@@ -336,7 +360,7 @@ export default function AssessmentDrawer() {
       fileUrl: fileUrlForDocument(sourcePath),
       title: task.task?.task_name || "PDF Assessment",
       maxMarks: String(task.task?.allocated_marks || 0),
-      teacherMarks: String(task.teacher_assessment_score || task.teacher_assessment_marks || ""),
+      teacherMarks: String(pickTeacherMarkValue(task) ?? ""),
       teacherFeedback: String(task.teacher_feedback || ""),
     });
     if (options.autoDownload) params.set("autoDownload", "1");
@@ -456,7 +480,7 @@ export default function AssessmentDrawer() {
                     {/* Teacher Assessment */}
                     <div
                       className={`p-3 rounded-md border ${
-                        task?.teacher_assessment_marks
+                        pickTeacherMarkValue(task) != null
                           ? "bg-green-50 border-green-100"
                           : "bg-gray-50 border-gray-200"
                       }`}
@@ -465,23 +489,23 @@ export default function AssessmentDrawer() {
                         <span className="text-xs font-medium text-gray-700">
                           TEACHER
                         </span>
-                        {task?.teacher_assessment_score ? (
+                        {pickTeacherMarkValue(task) != null ? (
                           <span className="text-sm font-semibold text-green-600">
-                            {task?.teacher_assessment_score}/
+                            {pickTeacherMarkValue(task)}/
                             {task?.task?.allocated_marks}
                           </span>
                         ) : (
                           <span className="text-xs text-gray-500">Pending</span>
                         )}
                       </div>
-                      {task?.teacher_assessment_score ? (
+                      {pickTeacherMarkValue(task) != null ? (
                         <div className="w-full bg-green-100 rounded-full h-1.5">
                           <div
                             className="bg-green-500 h-1.5 rounded-full"
                             style={{
                               width: `${
                                 (parseInt(
-                                  task?.teacher_assessment_score || "0"
+                                  String(pickTeacherMarkValue(task) ?? "0")
                                 ) /
                                   parseInt(task?.task?.allocated_marks)) *
                                 100
@@ -499,7 +523,7 @@ export default function AssessmentDrawer() {
                   <div className="flex justify-end items-center gap-2 mb-3">
                     <span className="text-xs text-gray-500 font-medium">Total Teacher Marks:</span>
                     <span className="text-sm font-bold text-green-700">
-                      {task?.teacher_assessment_score ?? task?.teacher_assessment_marks ?? 0}
+                      {pickTeacherMarkValue(task) ?? 0}
                       /{task?.task?.allocated_marks}
                     </span>
                   </div>
@@ -598,7 +622,7 @@ export default function AssessmentDrawer() {
                           <span>Hide</span>
                         ) : (
                           <span>
-                            {task?.teacher_assessment_score !== null
+                            {pickTeacherMarkValue(task) != null
                               ? "Update Marks"
                               : "Mark Assessment"}
                           </span>

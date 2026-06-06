@@ -105,6 +105,23 @@ const fileUrlForDocument = (path: string | null | undefined) => {
     : `${IMG_BASE_URL}/storage/${cleanPath}`;
 };
 
+const pickTeacherMarkValue = (task: AssessmentDocumentStudentTask | null | undefined) => {
+  const candidates = [
+    task?.teacher_assessment_score,
+    task?.teacher_assessment_marks,
+    (task as { teacher_assessment_mark?: string | number | null } | null | undefined)
+      ?.teacher_assessment_mark,
+  ];
+
+  for (const candidate of candidates) {
+    if (candidate == null) continue;
+    if (String(candidate).trim() === "") continue;
+    return candidate;
+  }
+
+  return null;
+};
+
 export default function AssessmentDocumentPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -480,7 +497,7 @@ export default function AssessmentDocumentPage() {
     params.set("fileUrl", fileUrlForDocument(sourcePath) || effectiveFileUrl);
     params.set("title", nextTask.task?.task_name || title || "PDF Assessment");
     params.set("maxMarks", String(nextTask.task?.allocated_marks || maxMarks || 0));
-    params.set("teacherMarks", String(nextTask.teacher_assessment_score || nextTask.teacher_assessment_marks || ""));
+    params.set("teacherMarks", String(pickTeacherMarkValue(nextTask) ?? ""));
     params.set("teacherFeedback", String(nextTask.teacher_feedback || ""));
     params.delete("autoDownload");
     router.push(`/dashboard/assessment-document?${params.toString()}`);
