@@ -117,6 +117,7 @@ type ExistingStudentClassMeta = {
   className?: string;
   yearName?: string;
   subjectName?: string;
+  subjectId?: number;
   linkedClassId?: string;
 };
 
@@ -289,7 +290,8 @@ const extractExistingStudentSubjectNames = (student: Record<string, any>) => {
 
 const toExistingStudentOption = (
   student: Record<string, any>,
-  fallbackClassId: string
+  fallbackClassId: string,
+  subjectClassMetaById?: Map<string, ExistingStudentClassMeta>
 ): ExistingStudentOption | null => {
   const id = extractStudentCandidateIds(student)[0];
   if (!id) return null;
@@ -313,6 +315,27 @@ const toExistingStudentOption = (
   const rawGender = normalizeGenderRaw(
     student?.gender ?? student?.student_gender ?? student?.sex ?? student?.student_sex
   );
+  const rawSubjects = Array.isArray(student?.subjects)
+    ? (student.subjects as Array<Record<string, any>>)
+    : [];
+  const subjectAssignments = rawSubjects
+    .map((subject) => {
+      const subjectClassId = Number(subject?.subject_class_id ?? subject?.pivot?.subject_class_id ?? 0);
+      const subjectId = Number(subject?.id ?? subject?.subject_id ?? subject?.pivot?.subject_id ?? 0);
+      const meta = subjectClassId > 0 ? subjectClassMetaById?.get(String(subjectClassId)) : undefined;
+      const subjectName = String(
+        subject?.name ?? subject?.subject_name ?? meta?.subjectName ?? ""
+      ).replace(/islamiat/gi, "Islamic").trim();
+      if (!subjectName) return null;
+      return {
+        subjectName,
+        subjectId: Number.isFinite(subjectId) && subjectId > 0 ? subjectId : meta?.subjectId,
+        subjectClassId: Number.isFinite(subjectClassId) && subjectClassId > 0 ? subjectClassId : undefined,
+        className: meta?.className || String(subject?.subject_class_name ?? "").trim(),
+        yearName: meta?.yearName || "",
+      };
+    })
+    .filter((assignment): assignment is NonNullable<typeof assignment> => Boolean(assignment));
 
   return {
     id,
@@ -323,6 +346,7 @@ const toExistingStudentOption = (
     yearName,
     gender: rawGender === "male" ? "Male" : rawGender === "female" ? "Female" : "",
     subjects: extractExistingStudentSubjectNames(student),
+    subjectAssignments,
     raw: student,
   };
 };
@@ -902,6 +926,7 @@ export default function StudentList() {
             className: labelText,
             yearName,
             subjectName,
+            subjectId,
             linkedClassId,
           };
           metaById.set(rowId, rowMeta);
@@ -919,6 +944,7 @@ export default function StudentList() {
               className: labelText,
               yearName,
               subjectName,
+              subjectId,
               linkedClassId,
             });
           }
@@ -1021,15 +1047,27 @@ export default function StudentList() {
       const id = String(item.id ?? "").trim();
       if (!id) return;
       const existing = entries.get(id);
+      const preferIncomingSubjectMeta = Boolean(item.subjectName || item.subjectId);
       entries.set(id, {
         id,
         className:
-          (existing?.className && !isFallbackClassLabel(existing.className)
-            ? existing.className
-            : item.className) || existing?.className,
-        yearName: existing?.yearName || item.yearName,
-        subjectName: existing?.subjectName || item.subjectName,
-        linkedClassId: existing?.linkedClassId || item.linkedClassId,
+          preferIncomingSubjectMeta
+            ? item.className || existing?.className
+            : (existing?.className && !isFallbackClassLabel(existing.className)
+                ? existing.className
+                : item.className) || existing?.className,
+        yearName: preferIncomingSubjectMeta
+          ? item.yearName || existing?.yearName
+          : existing?.yearName || item.yearName,
+        subjectName: preferIncomingSubjectMeta
+          ? item.subjectName || existing?.subjectName
+          : existing?.subjectName || item.subjectName,
+        subjectId: preferIncomingSubjectMeta
+          ? item.subjectId || existing?.subjectId
+          : existing?.subjectId || item.subjectId,
+        linkedClassId: preferIncomingSubjectMeta
+          ? item.linkedClassId || existing?.linkedClassId
+          : existing?.linkedClassId || item.linkedClassId,
       });
     });
 
@@ -1091,7 +1129,7 @@ export default function StudentList() {
       const byId = new Map<string, ExistingStudentOption>();
       rowsByClass.flat().forEach(({ row, candidateClassId }) => {
         const meta = existingStudentClassMetaById.get(String(candidateClassId));
-        const baseOption = toExistingStudentOption(row, candidateClassId);
+        const baseOption = toExistingStudentOption(row, candidateClassId, existingStudentClassMetaById);
         const option = baseOption
           ? {
               ...baseOption,
@@ -1122,6 +1160,14 @@ export default function StudentList() {
               : option.className) || existing.className,
           yearName: existing.yearName || option.yearName,
           subjects: Array.from(new Set([...(existing.subjects || []), ...(option.subjects || [])])),
+          subjectAssignments: Array.from(
+            new Map(
+              [...(existing.subjectAssignments || []), ...(option.subjectAssignments || [])].map((assignment) => [
+                `${assignment.subjectId || assignment.subjectName}:${assignment.subjectClassId || assignment.className || ""}`,
+                assignment,
+              ])
+            ).values()
+          ),
           raw: existing.raw || option.raw,
         });
       });

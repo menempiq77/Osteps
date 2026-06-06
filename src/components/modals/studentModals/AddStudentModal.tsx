@@ -11,6 +11,13 @@ export type ExistingStudentOption = {
   yearName?: string;
   gender?: string;
   subjects?: string[];
+  subjectAssignments?: Array<{
+    subjectName: string;
+    subjectId?: number;
+    subjectClassId?: number;
+    className?: string;
+    yearName?: string;
+  }>;
   raw?: Record<string, unknown>;
 };
 
@@ -61,6 +68,9 @@ const getExistingStudentDetailParts = (student: ExistingStudentOption) => {
   ].filter(Boolean) as string[];
 };
 
+const getExistingStudentAssignments = (student: ExistingStudentOption) =>
+  Array.isArray(student.subjectAssignments) ? student.subjectAssignments : [];
+
 const getExistingStudentDetailText = (student: ExistingStudentOption) =>
   getExistingStudentDetailParts(student).join(" • ");
 
@@ -98,6 +108,12 @@ const existingStudentMatchesSubjectFilter = (
   subjectFilter: string
 ) => {
   if (!subjectFilter) return true;
+  const assignments = getExistingStudentAssignments(student);
+  if (assignments.length > 0) {
+    return assignments.some(
+      (assignment) => normalizeExistingFilterValue(assignment.subjectName) === subjectFilter
+    );
+  }
   return (student.subjects || []).some(
     (subject) => normalizeExistingFilterValue(subject) === subjectFilter
   );
@@ -110,12 +126,19 @@ const existingStudentMatchesFilters = (
   if (!existingStudentMatchesSubjectFilter(student, filters.subject)) {
     return false;
   }
+  const assignments = getExistingStudentAssignments(student);
+  if (assignments.length > 0 && filters.subject) {
+    return assignments.some((assignment) => {
+      const subjectMatches = normalizeExistingFilterValue(assignment.subjectName) === filters.subject;
+      const yearMatches = !filters.year || normalizeExistingFilterValue(assignment.yearName) === filters.year;
+      const classMatches = !filters.className || normalizeExistingFilterValue(assignment.className) === filters.className;
+      return subjectMatches && yearMatches && classMatches;
+    });
+  }
   if (filters.year && normalizeExistingFilterValue(resolveExistingStudentYearName(student)) !== filters.year) {
     return false;
   }
-  if (filters.className && normalizeExistingFilterValue(student.className) !== filters.className) {
-    return false;
-  }
+  if (filters.className && normalizeExistingFilterValue(student.className) !== filters.className) return false;
   return true;
 };
 
@@ -160,34 +183,64 @@ export const AddStudentModal = ({
     [existingStudentOptions]
   );
   const existingSubjectFilterOptions = useMemo(
-    () => makeExistingFilterOptions(existingStudents.flatMap((student) => student.subjects || [])),
+    () =>
+      makeExistingFilterOptions(
+        existingStudents.flatMap((student) => {
+          const assignments = getExistingStudentAssignments(student);
+          return assignments.length > 0
+            ? assignments.map((assignment) => assignment.subjectName)
+            : student.subjects || [];
+        })
+      ),
     [existingStudents]
   );
   const existingYearFilterOptions = useMemo(
     () =>
       makeExistingFilterOptions(
-        existingStudents
-          .filter((student) => existingStudentMatchesSubjectFilter(student, existingFilters.subject))
-          .map((student) => resolveExistingStudentYearName(student))
+        existingStudents.flatMap((student) => {
+          const assignments = getExistingStudentAssignments(student).filter(
+            (assignment) =>
+              !existingFilters.subject ||
+              normalizeExistingFilterValue(assignment.subjectName) === existingFilters.subject
+          );
+          if (assignments.length > 0) return assignments.map((assignment) => assignment.yearName);
+          return existingStudentMatchesSubjectFilter(student, existingFilters.subject)
+            ? [resolveExistingStudentYearName(student)]
+            : [];
+        })
       ),
     [existingStudents, existingFilters.subject]
   );
   const existingClassFilterOptions = useMemo(
     () =>
       makeExistingFilterOptions(
-        existingStudents
-          .filter(
-            (student) =>
-              existingStudentMatchesSubjectFilter(student, existingFilters.subject) &&
-              (!existingFilters.year || normalizeExistingFilterValue(resolveExistingStudentYearName(student)) === existingFilters.year)
-          )
-          .map((student) => student.className)
+        existingStudents.flatMap((student) => {
+          const assignments = getExistingStudentAssignments(student).filter((assignment) => {
+            const subjectMatches =
+              !existingFilters.subject ||
+              normalizeExistingFilterValue(assignment.subjectName) === existingFilters.subject;
+            const yearMatches =
+              !existingFilters.year || normalizeExistingFilterValue(assignment.yearName) === existingFilters.year;
+            return subjectMatches && yearMatches;
+          });
+          if (assignments.length > 0) return assignments.map((assignment) => assignment.className);
+          return existingStudentMatchesSubjectFilter(student, existingFilters.subject) &&
+            (!existingFilters.year || normalizeExistingFilterValue(resolveExistingStudentYearName(student)) === existingFilters.year)
+            ? [student.className]
+            : [];
+        })
       ),
     [existingStudents, existingFilters.subject, existingFilters.year]
   );
+  const canShowExistingStudentList = Boolean(
+    existingFilters.subject && existingFilters.year && existingFilters.className
+  );
   const filteredExistingStudents = useMemo(
-    () => existingStudents.filter((student) => existingStudentMatchesFilters(student, existingFilters)),
-    [existingStudents, existingFilters]
+    () =>
+      canShowExistingStudentList
+        ? existingStudents.filter((student) => existingStudentMatchesFilters(student, existingFilters))
+        : [],
+    [canShowExistingStudentList, existingStudents, existingFilters]
   );
   const visibleExistingStudents = useMemo(() => {
     const search = normalizeExistingFilterValue(existingStudentSearch);
@@ -448,7 +501,9 @@ export const AddStudentModal = ({
               </Button>
             )}
             <span>
-              {selectedExistingStudentIds.length} selected. You can assign all selected students at once.
+              {canShowExistingStudentList
+                ? `${selectedExistingStudentIds.length} selected. You can assign all selected students at once.`
+                : "Choose subject, year group, and class first."}
             </span>
           </div>
           <div>
@@ -517,6 +572,10 @@ export const AddStudentModal = ({
                   <Spin size="small" />
                   Loading existing students...
                 </div>
+              ) : !canShowExistingStudentList ? (
+                <div className="px-3 py-8 text-center text-sm text-slate-500">
+                  Choose a subject, year group, and class to show matching existing students.
+                </div>
               ) : visibleExistingStudents.length > 0 ? (
                 <div className="divide-y divide-slate-100">
                   {visibleExistingStudents.map((student) => {
@@ -569,7 +628,9 @@ export const AddStudentModal = ({
           <div className="text-xs text-slate-500">
             {existingStudentsLoading
               ? "Checking students from all classes and subject assignments..."
-              : `${visibleExistingStudents.length} shown of ${existingStudentOptions.length} available student${existingStudentOptions.length === 1 ? "" : "s"}.`}
+              : canShowExistingStudentList
+                ? `${visibleExistingStudents.length} shown of ${existingStudentOptions.length} available student${existingStudentOptions.length === 1 ? "" : "s"}.`
+                : "No students are shown until subject, year group, and class are selected."}
           </div>
         </div>
       ) : (
