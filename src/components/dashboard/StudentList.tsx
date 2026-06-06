@@ -1186,6 +1186,25 @@ export default function StudentList() {
               subjects: Array.from(
                 new Set([...(baseOption.subjects || []), ...(meta?.subjectName ? [meta.subjectName] : [])])
               ),
+              sourceClasses: Array.from(
+                new Map(
+                  [
+                    ...(baseOption.sourceClasses || []),
+                    {
+                      classId: String(candidateClassId),
+                      className: meta?.className || baseOption.className,
+                      yearName: meta?.yearName || baseOption.yearName || "",
+                      subjectName: meta?.subjectName,
+                      subjectId: meta?.subjectId,
+                    },
+                  ]
+                    .filter((entry) => entry.classId)
+                    .map((entry) => [
+                      `${entry.classId}:${entry.subjectId || entry.subjectName || ""}`,
+                      entry,
+                    ])
+                ).values()
+              ),
             }
           : null;
         if (!option) return;
@@ -1205,6 +1224,16 @@ export default function StudentList() {
               : option.className) || existing.className,
           yearName: existing.yearName || option.yearName,
           subjects: Array.from(new Set([...(existing.subjects || []), ...(option.subjects || [])])),
+          sourceClasses: Array.from(
+            new Map(
+              [...(existing.sourceClasses || []), ...(option.sourceClasses || [])]
+                .filter((entry) => entry.classId)
+                .map((entry) => [
+                  `${entry.classId}:${entry.subjectId || entry.subjectName || ""}`,
+                  entry,
+                ])
+            ).values()
+          ),
           subjectAssignments: Array.from(
             new Map(
               [...(existing.subjectAssignments || []), ...(option.subjectAssignments || [])].map((assignment) => [

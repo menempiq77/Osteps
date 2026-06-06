@@ -11,6 +11,13 @@ export type ExistingStudentOption = {
   yearName?: string;
   gender?: string;
   subjects?: string[];
+  sourceClasses?: Array<{
+    classId: string;
+    className?: string;
+    yearName?: string;
+    subjectName?: string;
+    subjectId?: number;
+  }>;
   subjectAssignments?: Array<{
     subjectName: string;
     subjectId?: number;
@@ -150,6 +157,13 @@ const existingStudentMatchesFilters = (
     );
 
     if (matchingOption) {
+      if (matchingOption.linkedClassId) {
+        const sourceClassMatch = (student.sourceClasses || []).some(
+          (sourceClass) => String(sourceClass.classId) === String(matchingOption.linkedClassId)
+        );
+        if (sourceClassMatch) return true;
+      }
+
       // 1. Most reliable: compare the student's raw class_id (DB foreign key) against the
       //    subject class's linked school_class id. This bypasses all class_name string issues
       //    since the students table has no class_name column — only class_id.
