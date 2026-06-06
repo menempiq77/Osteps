@@ -1097,6 +1097,7 @@ export default function StudentList() {
       .map((m) => ({
         subjectName: String(m.subjectName || ""),
         subjectId: m.subjectId,
+        subjectClassId: Number(m.id),  // subject_classes.id for direct ID matching
         yearLabel:
           yearNameByBaseClassId.get(String(m.linkedClassId || "")) ||
           m.yearName ||

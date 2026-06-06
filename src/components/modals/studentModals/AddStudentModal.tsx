@@ -24,6 +24,7 @@ export type ExistingStudentOption = {
 type SubjectClassFilterOption = {
   subjectName: string;
   subjectId?: number;
+  subjectClassId?: number;
   yearLabel: string;
   classLabel: string;
 };
@@ -129,24 +130,65 @@ const existingStudentMatchesSubjectFilter = (
 
 const existingStudentMatchesFilters = (
   student: ExistingStudentOption,
-  filters: ExistingStudentFilterState
+  filters: ExistingStudentFilterState,
+  subjectClassOptions: SubjectClassFilterOption[] = []
 ) => {
+  const norm = normalizeExistingFilterValue;
+
+  // When we have subject class options data, resolve the exact subjectClassId for the
+  // selected subject+year+class combo and match by ID — this avoids year label format
+  // mismatches (e.g. "Year 8" vs "Year 8 (25-26)").
+  if (subjectClassOptions.length > 0 && filters.subject) {
+    const matchingOption =
+      filters.year && filters.className
+        ? subjectClassOptions.find(
+            (opt) =>
+              norm(opt.subjectName) === filters.subject &&
+              norm(opt.yearLabel) === filters.year &&
+              norm(opt.classLabel) === filters.className
+          )
+        : filters.className
+          ? subjectClassOptions.find(
+              (opt) =>
+                norm(opt.subjectName) === filters.subject &&
+                norm(opt.classLabel) === filters.className
+            )
+          : null;
+
+    if (matchingOption?.subjectClassId) {
+      const targetId = matchingOption.subjectClassId;
+      const assignments = getExistingStudentAssignments(student);
+      // Match by exact subject class id — most reliable
+      if (assignments.some((a) => Number(a.subjectClassId) === targetId)) return true;
+      // Fallback: subject + class name match (student may lack subjectClassId in API response)
+      if (
+        assignments.some(
+          (a) =>
+            norm(a.subjectName) === filters.subject &&
+            (!filters.className || norm(a.className) === filters.className)
+        )
+      )
+        return true;
+      return false;
+    }
+  }
+
   if (!existingStudentMatchesSubjectFilter(student, filters.subject)) {
     return false;
   }
   const assignments = getExistingStudentAssignments(student);
   if (assignments.length > 0 && filters.subject) {
     return assignments.some((assignment) => {
-      const subjectMatches = normalizeExistingFilterValue(assignment.subjectName) === filters.subject;
-      const yearMatches = !filters.year || normalizeExistingFilterValue(assignment.yearName) === filters.year;
-      const classMatches = !filters.className || normalizeExistingFilterValue(assignment.className) === filters.className;
+      const subjectMatches = norm(assignment.subjectName) === filters.subject;
+      const yearMatches = !filters.year || norm(assignment.yearName) === filters.year;
+      const classMatches = !filters.className || norm(assignment.className) === filters.className;
       return subjectMatches && yearMatches && classMatches;
     });
   }
-  if (filters.year && normalizeExistingFilterValue(resolveExistingStudentYearName(student)) !== filters.year) {
+  if (filters.year && norm(resolveExistingStudentYearName(student)) !== filters.year) {
     return false;
   }
-  if (filters.className && normalizeExistingFilterValue(student.className) !== filters.className) return false;
+  if (filters.className && norm(student.className) !== filters.className) return false;
   return true;
 };
 
@@ -267,9 +309,11 @@ export const AddStudentModal = ({
   const filteredExistingStudents = useMemo(
     () =>
       canShowExistingStudentList
-        ? existingStudents.filter((student) => existingStudentMatchesFilters(student, existingFilters))
+        ? existingStudents.filter((student) =>
+            existingStudentMatchesFilters(student, existingFilters, subjectClassOptions)
+          )
         : [],
-    [canShowExistingStudentList, existingStudents, existingFilters]
+    [canShowExistingStudentList, existingStudents, existingFilters, subjectClassOptions]
   );
   const visibleExistingStudents = useMemo(() => {
     const search = normalizeExistingFilterValue(existingStudentSearch);
