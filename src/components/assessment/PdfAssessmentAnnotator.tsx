@@ -4627,11 +4627,16 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       messageApi.warning("Enter the teacher mark before finalising.");
       return;
     }
-    // Normalize Arabic-Indic digits (٠١٢٣٤٥٦٧٨٩) to ASCII digits so Number() works correctly
-    const normalizedMark = teacherMarks.trim().replace(/[\u0660-\u0669]/g, (d) =>
-      String(d.charCodeAt(0) - 0x0660)
-    );
-    const parsedMarkValue = parseFloat(normalizedMark);
+    // Normalize Arabic/Persian digits and separators so marks like ٣١ or ۳۱ save as 31.
+    const normalizedMark = teacherMarks
+      .trim()
+      .replace(/[\u200e\u200f\u061c]/g, "")
+      .replace(/[\u0660-\u0669]/g, (digit) => String(digit.charCodeAt(0) - 0x0660))
+      .replace(/[\u06f0-\u06f9]/g, (digit) => String(digit.charCodeAt(0) - 0x06f0))
+      .replace(/[\u066b]/g, ".")
+      .replace(/[\u066c\s]/g, "")
+      .replace(/,/g, ".");
+    const parsedMarkValue = Number(normalizedMark);
     if (!Number.isFinite(parsedMarkValue)) {
       messageApi.warning("Enter a valid numeric teacher mark before finalising.");
       return;
