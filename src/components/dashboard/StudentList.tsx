@@ -115,6 +115,7 @@ type EditSubjectClassOption = {
 type ExistingStudentClassMeta = {
   id: string;
   className?: string;
+  yearId?: string;
   yearName?: string;
   subjectName?: string;
   subjectId?: number;
@@ -924,6 +925,7 @@ export default function StudentList() {
           const rowMeta: ExistingStudentClassMeta = {
             id: rowId,
             className: labelText,
+            yearId: Number.isFinite(yearId) && yearId > 0 ? String(yearId) : undefined,
             yearName,
             subjectName,
             subjectId,
@@ -942,6 +944,7 @@ export default function StudentList() {
             metaById.set(linkedClassId, {
               id: linkedClassId,
               className: labelText,
+              yearId: Number.isFinite(yearId) && yearId > 0 ? String(yearId) : undefined,
               yearName,
               subjectName,
               subjectId,
@@ -956,7 +959,14 @@ export default function StudentList() {
   });
 
   const relatedExistingStudentClassIds = useMemo(
-    () => relatedExistingStudentClassMeta.map((item) => item.id),
+    () =>
+      Array.from(
+        new Set(
+          relatedExistingStudentClassMeta
+            .map((item) => String(item.linkedClassId || item.id || "").trim())
+            .filter((id) => id && id !== "0")
+        )
+      ),
     [relatedExistingStudentClassMeta]
   );
 
@@ -995,6 +1005,7 @@ export default function StudentList() {
               .map((row: Record<string, any>) => ({
                 id: String(row?.id ?? "").trim(),
                 className: String(row?.class_name ?? row?.name ?? "").trim(),
+                yearId,
                 yearName,
               }))
               .filter((row) => row.id && row.id !== "0");
@@ -1059,6 +1070,9 @@ export default function StudentList() {
         yearName: preferIncomingSubjectMeta
           ? item.yearName || existing?.yearName
           : existing?.yearName || item.yearName,
+        yearId: preferIncomingSubjectMeta
+          ? item.yearId || existing?.yearId
+          : existing?.yearId || item.yearId,
         subjectName: preferIncomingSubjectMeta
           ? item.subjectName || existing?.subjectName
           : existing?.subjectName || item.subjectName,
@@ -1092,6 +1106,11 @@ export default function StudentList() {
         .filter((m) => m.id && m.yearName)
         .map((m) => [String(m.id), String(m.yearName)])
     );
+    const yearNameByYearId = new Map<string, string>(
+      allExistingStudentBaseClassMeta
+        .filter((m) => m.yearId && m.yearName)
+        .map((m) => [String(m.yearId), String(m.yearName)])
+    );
     return relatedExistingStudentClassMeta
       .filter((m) => m.subjectName && m.className)
       .map((m) => ({
@@ -1100,6 +1119,7 @@ export default function StudentList() {
         subjectClassId: Number(m.id),  // subject_classes.id for subject class ID matching
         linkedClassId: m.linkedClassId ? String(m.linkedClassId) : undefined, // school_classes.id for raw class_id matching
         yearLabel:
+          yearNameByYearId.get(String(m.yearId || "")) ||
           yearNameByBaseClassId.get(String(m.linkedClassId || "")) ||
           m.yearName ||
           "",

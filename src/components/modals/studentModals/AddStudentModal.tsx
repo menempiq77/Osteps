@@ -271,8 +271,19 @@ export const AddStudentModal = ({
     [existingStudents]
   );
   const existingYearFilterOptions = useMemo(() => {
-    // Always derive year options from student.yearName (properly resolved via school years meta)
-    // rather than subjectClassOptions.yearLabel which may contain raw "Year N" fallbacks.
+    if (subjectClassOptions.length > 0 && existingFilters.subject) {
+      // Source year options from subject_classes scoped to the selected subject.
+      // Student top-level yearName can belong to another subject/class, so it must not
+      // drive this dropdown after a subject is selected.
+      return makeExistingFilterOptions(
+        subjectClassOptions
+          .filter(
+            (opt) => normalizeExistingFilterValue(opt.subjectName) === existingFilters.subject
+          )
+          .map((opt) => opt.yearLabel)
+      );
+    }
+
     return makeExistingFilterOptions(
       existingStudents.flatMap((student) => {
         const assignments = getExistingStudentAssignments(student).filter(
@@ -281,15 +292,13 @@ export const AddStudentModal = ({
             normalizeExistingFilterValue(assignment.subjectName) === existingFilters.subject
         );
         if (assignments.length > 0)
-          return assignments.map((assignment) =>
-            student.yearName || assignment.yearName || resolveExistingStudentYearName(student)
-          );
+          return assignments.map((assignment) => assignment.yearName || resolveExistingStudentYearName(student));
         return existingStudentMatchesSubjectFilter(student, existingFilters.subject)
           ? [student.yearName || resolveExistingStudentYearName(student)]
           : [];
       })
     );
-  }, [existingStudents, existingFilters.subject]);
+  }, [existingStudents, existingFilters.subject, subjectClassOptions]);
   const existingClassFilterOptions = useMemo(() => {
     if (subjectClassOptions.length > 0 && existingFilters.subject) {
       // Use subject_classes data for accurate class options scoped to subject + year.
