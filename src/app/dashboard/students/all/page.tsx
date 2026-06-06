@@ -137,6 +137,15 @@ type InferredSubjectAssignment = {
   linkedClassId?: number;
 };
 
+type SubjectFilterClassRow = {
+  subjectId: number;
+  subjectClassId: number;
+  yearId: number;
+  yearLabel: string;
+  classLabel: string;
+  linkedClassId?: number;
+};
+
 const normalizeGender = (raw: unknown): "Male" | "Female" | "Unknown" => {
   const value = String(raw ?? "").trim().toLowerCase();
   if (!value) return "Unknown";
@@ -221,6 +230,110 @@ const getRowClassFilterOptions = (
   const fallbackValue = String(row.subjectClassId ?? row.classId ?? "").trim();
   const fallbackLabel = String(row.className ?? "").trim();
   return fallbackValue && fallbackLabel ? [{ value: fallbackValue, label: fallbackLabel }] : [];
+};
+
+const normalizeSubjectIdList = (ids: Array<number | string>): number[] =>
+  Array.from(
+    new Set(
+      ids
+        .map((id) => Number(id))
+        .filter((id) => Number.isFinite(id) && id > 0)
+    )
+  );
+
+const getRowAssignmentsForSubjects = (
+  row: Partial<StudentListRow>,
+  subjectIds: Array<number | string>
+) => {
+  const wantedIds = normalizeSubjectIdList(subjectIds);
+  const assignments = Array.isArray(row.currentAssignments) ? row.currentAssignments : [];
+  if (wantedIds.length === 0) return assignments;
+  const wantedSet = new Set(wantedIds.map((id) => Number(id)));
+  return assignments.filter((assignment) => wantedSet.has(Number(assignment.subjectId)));
+};
+
+const getRowYearGroupsForSubjects = (
+  row: Partial<StudentListRow>,
+  subjectIds: Array<number | string>
+): string[] => {
+  const scopedAssignments = getRowAssignmentsForSubjects(row, subjectIds);
+  if (normalizeSubjectIdList(subjectIds).length > 0 && scopedAssignments.length > 0) {
+    return uniqueNonEmptyStrings(scopedAssignments.map((assignment) => assignment.yearLabel));
+  }
+  return getRowYearGroups(row);
+};
+
+const getRowYearIdsForSubjects = (
+  row: Partial<StudentListRow>,
+  subjectIds: Array<number | string>
+): number[] => {
+  const scopedAssignments = getRowAssignmentsForSubjects(row, subjectIds);
+  if (normalizeSubjectIdList(subjectIds).length > 0 && scopedAssignments.length > 0) {
+    return Array.from(
+      new Set(
+        scopedAssignments
+          .map((assignment) => Number(assignment.yearId))
+          .filter((id) => Number.isFinite(id) && id > 0)
+      )
+    );
+  }
+  return getRowYearIds(row);
+};
+
+const getRowClassNamesForSubjects = (
+  row: Partial<StudentListRow>,
+  subjectIds: Array<number | string>
+): string[] => {
+  const scopedAssignments = getRowAssignmentsForSubjects(row, subjectIds);
+  if (normalizeSubjectIdList(subjectIds).length > 0 && scopedAssignments.length > 0) {
+    return uniqueNonEmptyStrings(
+      scopedAssignments.map(
+        (assignment) => assignment.baseClassLabel || assignment.subjectClassName
+      )
+    );
+  }
+  return getRowClassNames(row);
+};
+
+const getRowClassFilterOptionsForSubjects = (
+  row: Partial<StudentListRow>,
+  subjectIds: Array<number | string>
+): Array<{ value: string; label: string }> => {
+  const scopedAssignments = getRowAssignmentsForSubjects(row, subjectIds);
+  if (normalizeSubjectIdList(subjectIds).length > 0 && scopedAssignments.length > 0) {
+    return Array.from(
+      new Map(
+        scopedAssignments
+          .map((assignment) => {
+            const value = String(
+              assignment.subjectClassId ?? assignment.linkedClassId ?? ""
+            ).trim();
+            const label = String(
+              assignment.baseClassLabel || assignment.subjectClassName || ""
+            ).trim();
+            return value && label ? [value, { value, label }] as const : null;
+          })
+          .filter((entry): entry is readonly [string, { value: string; label: string }] => Boolean(entry))
+      ).values()
+    );
+  }
+  return getRowClassFilterOptions(row);
+};
+
+const getRowSubjectNamesForSubjects = (
+  row: Partial<StudentListRow>,
+  subjectIds: Array<number | string>
+): string[] => {
+  const wantedIds = normalizeSubjectIdList(subjectIds);
+  if (wantedIds.length === 0) return uniqueNonEmptyStrings(row.subjectNames || []);
+  const scopedAssignments = getRowAssignmentsForSubjects(row, wantedIds);
+  if (scopedAssignments.length > 0) {
+    return uniqueNonEmptyStrings(scopedAssignments.map((assignment) => assignment.subjectName));
+  }
+  const wantedSet = new Set(wantedIds.map((id) => Number(id)));
+  return uniqueNonEmptyStrings(
+    (row.subjectNames || []).filter((_name, index) => wantedSet.has(Number(row.subjectIds?.[index])))
+  );
 };
 
 const getRowEditSubjectIds = (row: Partial<StudentListRow>): number[] =>
@@ -1151,11 +1264,118 @@ export default function AllStudentsPage() {
     },
   });
 
+  const { data: subjectFilterClassRows = [] } = useQuery<SubjectFilterClassRow[]>({
+    queryKey: [
+      "all-students-subject-filter-classes",
+      schoolId,
+      subjects.map((subject) => Number(subject.id)).sort().join(","),
+    ],
+    enabled: canView && subjects.length > 0,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const years = schoolId > 0 ? ((await fetchYearsBySchool(schoolId)) || []) : [];
+      const yearNameById = new Map(
+        (Array.isArray(years) ? years : [])
+          .map((year) => {
+            const id = Number(year?.id);
+            const name = String(year?.name ?? "").trim();
+            return Number.isFinite(id) && id > 0 && name ? ([id, name] as const) : null;
+          })
+          .filter((entry): entry is readonly [number, string] => Boolean(entry))
+      );
+
+      const rows = await Promise.all(
+        subjects.map(async (subject) => {
+          const subjectId = Number(subject.id);
+          if (!Number.isFinite(subjectId) || subjectId <= 0) return [] as SubjectFilterClassRow[];
+          try {
+            const items = await fetchSubjectClasses({ subject_id: subjectId });
+            return (Array.isArray(items) ? items : [])
+              .filter((item: any) => item?.is_active === undefined || Number(item.is_active) === 1)
+              .map((item: any) => {
+                const subjectClassId = Number(item?.id ?? 0);
+                const yearId = Number(
+                  item?.year_id ?? item?.class?.year_id ?? item?.classes?.year_id ?? item?.base_class?.year_id ?? 0
+                );
+                const classLabel = String(
+                  item?.base_class_label ??
+                    item?.class?.class_name ??
+                    item?.classes?.class_name ??
+                    item?.base_class?.class_name ??
+                    item?.name ??
+                    ""
+                ).trim();
+                const linkedClassId = Number(
+                  item?.class_id ??
+                    item?.base_class_id ??
+                    item?.linked_class_id ??
+                    item?.linkedClassId ??
+                    item?.class?.id ??
+                    item?.classes?.id ??
+                    item?.base_class?.id ??
+                    0
+                );
+                return {
+                  subjectId,
+                  subjectClassId,
+                  yearId,
+                  yearLabel: yearNameById.get(yearId) || (yearId > 0 ? `Year ${yearId}` : ""),
+                  classLabel,
+                  linkedClassId: Number.isFinite(linkedClassId) && linkedClassId > 0 ? linkedClassId : undefined,
+                };
+              })
+              .filter(
+                (item: SubjectFilterClassRow) =>
+                  Number.isFinite(item.subjectClassId) &&
+                  item.subjectClassId > 0 &&
+                  item.yearLabel &&
+                  item.classLabel
+              );
+          } catch {
+            return [] as SubjectFilterClassRow[];
+          }
+        })
+      );
+
+      return Array.from(
+        new Map(
+          rows
+            .flat()
+            .map((row) => [`${row.subjectId}:${row.subjectClassId}`, row] as const)
+        ).values()
+      );
+    },
+  });
+
   const yearOptions = useMemo(() => {
-      return Array.from(new Set(students.flatMap((row) => getRowYearGroups(row))))
+      const selectedSubjectIds = normalizeSubjectIdList(subjectFilter);
+      const classYearOptions = subjectFilterClassRows
+        .filter((row) => selectedSubjectIds.length === 0 || selectedSubjectIds.includes(row.subjectId))
+        .map((row) => row.yearLabel);
+      return Array.from(
+        new Set(
+          [
+            ...classYearOptions,
+            ...students
+            .filter((row) => {
+              if (selectedSubjectIds.length === 0) return true;
+              const rowSubjectIds = getRowEditSubjectIds(row);
+              return selectedSubjectIds.some((id) => rowSubjectIds.includes(id));
+            })
+            .flatMap((row) => getRowYearGroupsForSubjects(row, subjectFilter)),
+          ]
+        )
+      )
       .filter(Boolean)
       .sort((a, b) => a.localeCompare(b));
-  }, [students]);
+  }, [students, subjectFilter, subjectFilterClassRows]);
+
+  useEffect(() => {
+    if (yearFilter === "all") return;
+    if (!yearOptions.includes(yearFilter)) {
+      setYearFilter("all");
+    }
+  }, [yearFilter, yearOptions]);
 
   const filteredStudents = useMemo(() => {
     const q = nameFilter.trim().toLowerCase();
@@ -1164,31 +1384,31 @@ export default function AllStudentsPage() {
       const nameMatch = !q || row.name.toLowerCase().includes(q);
       const yearMatch =
         yearFilter === "all" ||
-        getRowYearGroups(row).includes(yearFilter);
+        getRowYearGroupsForSubjects(row, subjectFilter).includes(yearFilter);
       const yearIdMatch =
         !yearIdFilter ||
-        getRowYearIds(row).some((value) => String(value) === yearIdFilter);
+        getRowYearIdsForSubjects(row, subjectFilter).some((value) => String(value) === yearIdFilter);
       const classMatch =
         classFilters.length === 0 ||
-        getRowClassFilterOptions(row).some((option) =>
+        getRowClassFilterOptionsForSubjects(row, subjectFilter).some((option) =>
           classFilters.includes(toClassFilterValue(option.label))
         ) ||
-        getRowClassNames(row).some((name) =>
+        getRowClassNamesForSubjects(row, subjectFilter).some((name) =>
           classFilters.includes(toClassFilterValue(name))
         ) ||
-        getRowClassFilterOptions(row).some((option) => classFilters.includes(option.value)) ||
+        getRowClassFilterOptionsForSubjects(row, subjectFilter).some((option) => classFilters.includes(option.value)) ||
         classFilters.includes(String((row as any).subjectClassId ?? row.classId)) ||
         classFilters.includes(String(row.classId));
       const subjectClassMatch =
         !wantedSubjectClassLabel ||
-        getRowClassNames(row).some(
+        getRowClassNamesForSubjects(row, subjectFilter).some(
           (name) => name.trim().toLowerCase() === wantedSubjectClassLabel
         );
       const genderMatch =
         genderFilters.length === 0 || genderFilters.includes(row.gender);
       const subjectMatch =
         subjectFilter.length === 0 ||
-        row.subjectIds.some((id) => subjectFilter.includes(id));
+        normalizeSubjectIdList(subjectFilter).some((id) => getRowEditSubjectIds(row).includes(id));
       return (
         nameMatch &&
         yearMatch &&
@@ -1213,6 +1433,11 @@ export default function AllStudentsPage() {
   const subjectFilterOptions = useMemo(() => {
     const map = new Map<number, string>();
     students.forEach((row) => {
+      row.currentAssignments.forEach((assignment) => {
+        const id = Number(assignment.subjectId);
+        const label = displaySubjectName(assignment.subjectName);
+        if (Number.isFinite(id) && id > 0 && label && !map.has(id)) map.set(id, label);
+      });
       row.subjectIds.forEach((id, idx) => {
         if (!map.has(id)) map.set(id, row.subjectNames[idx] ?? "");
       });
@@ -1224,24 +1449,39 @@ export default function AllStudentsPage() {
   }, [students]);
 
   const classOptions = useMemo(() => {
+    const selectedSubjectIds = normalizeSubjectIdList(subjectFilter);
+    const subjectClassOptions = subjectFilterClassRows
+      .filter((row) => selectedSubjectIds.length === 0 || selectedSubjectIds.includes(row.subjectId))
+      .map((row) => ({
+        value: toClassFilterValue(row.classLabel),
+        label: row.classLabel,
+      }));
     const unique = Array.from(
       new Map(
-        students
+        [
+          ...subjectClassOptions,
+          ...students
+          .filter((row) => {
+            if (selectedSubjectIds.length === 0) return true;
+            const rowSubjectIds = getRowEditSubjectIds(row);
+            return selectedSubjectIds.some((id) => rowSubjectIds.includes(id));
+          })
           .flatMap((row) =>
-            getRowClassFilterOptions(row).length > 0
-              ? getRowClassFilterOptions(row).map((option) => ({
+            getRowClassFilterOptionsForSubjects(row, subjectFilter).length > 0
+              ? getRowClassFilterOptionsForSubjects(row, subjectFilter).map((option) => ({
                   value: toClassFilterValue(option.label),
                   label: option.label,
                 }))
               : [{ value: toClassFilterValue(row.className), label: row.className }]
-          )
+          ),
+        ]
           .map((option) => [option.value, option.label])
       ).entries()
     );
     return unique
       .map(([value, label]) => ({ value, label }))
       .sort((a, b) => String(a.label).localeCompare(String(b.label)));
-  }, [students]);
+  }, [students, subjectFilter, subjectFilterClassRows]);
 
   const legacyClassFilterValueMap = useMemo(() => {
     const entries = students.flatMap((row) =>
@@ -2621,6 +2861,8 @@ export default function AllStudentsPage() {
             value={yearFilter}
             onChange={(value) => setYearFilter(value)}
             style={{ width: 220 }}
+            optionFilterProp="label"
+            showSearch
             options={[
               { label: "All Year Groups", value: "all" },
               ...yearOptions.map((year) => ({ label: year, value: year })),
@@ -2660,10 +2902,17 @@ export default function AllStudentsPage() {
             <Select
               mode="multiple"
               value={subjectFilter}
-              onChange={(value) => setSubjectFilter(value as number[])}
+              onChange={(value) => {
+                setSubjectFilter(value as number[]);
+                setYearFilter("all");
+                setYearIdFilter("");
+                setClassFilters([]);
+              }}
               style={{ width: 260 }}
               placeholder="Filter by subject"
               options={subjectFilterOptions}
+              optionFilterProp="label"
+              showSearch
               maxTagCount="responsive"
               allowClear
             />
@@ -2740,7 +2989,7 @@ export default function AllStudentsPage() {
                   dataIndex: "yearGroup",
                   key: "yearGroup",
                   render: (_: unknown, record: StudentListRow) => {
-                    const values = getRowYearGroups(record);
+                    const values = getRowYearGroupsForSubjects(record, subjectFilter);
                     return (
                       <Space size={[4, 4]} wrap>
                         {values.map((value) => (
@@ -2755,7 +3004,7 @@ export default function AllStudentsPage() {
                   dataIndex: "className",
                   key: "className",
                   render: (_: unknown, record: StudentListRow) => {
-                    const values = getRowClassNames(record);
+                    const values = getRowClassNamesForSubjects(record, subjectFilter);
                     return (
                       <Space size={[4, 4]} wrap>
                         {values.map((value) => (
@@ -2769,7 +3018,8 @@ export default function AllStudentsPage() {
                   title: "Subjects",
                   dataIndex: "subjectNames",
                   key: "subjectNames",
-                  render: (value: string[]) => {
+                  render: (_value: string[], record: StudentListRow) => {
+                    const value = getRowSubjectNamesForSubjects(record, subjectFilter);
                     if (!Array.isArray(value) || value.length === 0) return <Tag>Not linked</Tag>;
                     return (
                       <Space size={[4, 4]} wrap>
