@@ -41,9 +41,9 @@ export default function YearsList({
   const [draggingYearId, setDraggingYearId] = useState<number | null>(null);
   const [dragOverYearId, setDragOverYearId] = useState<number | null>(null);
 
-  const isStudent =
-    currentUser?.role === "STUDENT" || currentUser?.role === "HOD" || currentUser?.role === "TEACHER";
-  const canManageOrder = !isStudent;
+  const roleKey = String(currentUser?.role ?? "").trim().toUpperCase().replace(/\s+/g, "_");
+  const isStudent = roleKey === "STUDENT";
+  const canManageOrder = roleKey === "SCHOOL_ADMIN" || roleKey === "HOD" || roleKey === "TEACHER";
 
   useEffect(() => {
     setLocalYears(years || []);
@@ -222,7 +222,7 @@ export default function YearsList({
               </div>
 
               {/* Actions */}
-              {!isStudent && (
+              {canManageOrder && (
                 <div className="flex shrink-0 items-center gap-1 pr-3">
                   <button
                     onClick={() => onEditYear(year.id)}
