@@ -9,6 +9,11 @@ import { fetchClasses } from "@/services/classesApi";
 import { fetchTrackers } from "@/services/trackersApi";
 import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
 import { resolveSubjectClassLinkedIdWithFallback } from "@/lib/subjectClassResolution";
+import {
+  buildTeacherAssignedClassOptions,
+  buildYearOptionsFromTeacherClasses,
+  filterTeacherClassesByYear,
+} from "@/lib/teacherAssignedClasses";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { useSubjectContext } from "@/contexts/SubjectContext";
@@ -49,61 +54,6 @@ const buildYearsFromSubjectClasses = (subjectClasses: any[], schoolYears: any[] 
 
   return Array.from(yearsById.values()).sort((left: any, right: any) => Number(left.id) - Number(right.id));
 };
-
-const normalizeSubjectName = (value: unknown) =>
-  String(value ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/islamiat/g, "islamic")
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-
-const assignedItemMatchesSubject = (item: any, subjectName?: string | null) => {
-  const expected = normalizeSubjectName(subjectName);
-  if (!expected) return true;
-  const labels = [
-    item?.subject,
-    item?.subject_name,
-    item?.subjectName,
-    item?.subjects?.name,
-    item?.classes?.subject,
-    item?.classes?.subject_name,
-    item?.classes?.subjectName,
-  ].map(normalizeSubjectName).filter(Boolean);
-  return labels.length === 0 || labels.includes(expected);
-};
-
-const getAssignedClass = (item: any) => {
-  const classesValue = item?.classes;
-  if (Array.isArray(classesValue)) return classesValue[0] ?? null;
-  return classesValue ?? null;
-};
-
-const buildYearsFromAssignedClasses = (assignedYears: any[], subjectName?: string | null) =>
-  Array.from(
-    new Map(
-      (Array.isArray(assignedYears) ? assignedYears : [])
-        .filter((item: any) => assignedItemMatchesSubject(item, subjectName))
-        .map((item: any) => getAssignedClass(item)?.year)
-        .filter((year: any) => year?.id)
-        .map((year: any) => [Number(year.id), year])
-    ).values()
-  );
-
-const buildClassesFromAssignedYears = (
-  assignedYears: any[],
-  selectedYear: string | number,
-  subjectName?: string | null
-) =>
-  Array.from(
-    new Map(
-      (Array.isArray(assignedYears) ? assignedYears : [])
-        .filter((item: any) => assignedItemMatchesSubject(item, subjectName))
-        .map(getAssignedClass)
-        .filter((cls: any) => cls && Number(cls?.year_id ?? cls?.year?.id) === Number(selectedYear))
-        .map((cls: any) => [Number(cls.id), cls])
-    ).values()
-  );
 
 type Tracker = {
   id: string;
@@ -152,27 +102,22 @@ export default function TrackerList() {
           fetchSubjectClasses({ subject_id: Number(activeSubjectId) }).catch(() => []),
           isTeacher ? fetchAssignYears().catch(() => []) : Promise.resolve([]),
         ]);
+        if (isTeacher) {
+          const teacherClasses = buildTeacherAssignedClassOptions(assignedYears, subjectClasses);
+          const teacherYears = buildYearOptionsFromTeacherClasses(teacherClasses);
+          if (teacherYears.length > 0) return teacherYears;
+        }
         let schoolYears: any[] = [];
         const numericSchoolId = Number(schoolId);
         if (Number.isFinite(numericSchoolId) && numericSchoolId > 0) {
           schoolYears = await fetchYearsBySchool(numericSchoolId).catch(() => []);
         }
-        if (isTeacher) {
-          schoolYears = [
-            ...schoolYears,
-            ...buildYearsFromAssignedClasses(assignedYears, activeSubject?.name),
-          ];
-        }
         const subjectClassYears = buildYearsFromSubjectClasses(subjectClasses, schoolYears);
-        if (subjectClassYears.length > 0) return subjectClassYears;
-        return isTeacher ? buildYearsFromAssignedClasses(assignedYears, activeSubject?.name) : [];
+        return subjectClassYears;
       }
       if (isTeacher) {
-        const res = await fetchAssignYears();
-        const rawYears = res
-          .map((item: any) => item?.classes?.year)
-          .filter((year: any) => year);
-        return Array.from(new Map(rawYears.map((y: any) => [y.id, y])).values());
+        const teacherClasses = buildTeacherAssignedClassOptions(await fetchAssignYears());
+        return buildYearOptionsFromTeacherClasses(teacherClasses);
       }
       return await fetchYearsBySchool(schoolId);
     },
@@ -191,22 +136,27 @@ export default function TrackerList() {
 
   // ── Classes (subject-filtered) ────────────────────────────────────────────
   const { data: classes = [], isLoading: classesLoading } = useQuery({
-    queryKey: ["vt-classes", selectedYear, canUseSubjectContext, activeSubjectId, activeSubject?.name, isTeacher],
+    queryKey: ["vt-classes", selectedYear, canUseSubjectContext, activeSubjectId, isTeacher],
     queryFn: async () => {
       if (!selectedYear) return [];
       if (canUseSubjectContext && activeSubjectId) {
-        const subjectClasses = await fetchSubjectClasses({
-          subject_id: Number(activeSubjectId),
-          year_id: Number(selectedYear),
-        }).catch(() => []);
-        if (!Array.isArray(subjectClasses) || subjectClasses.length === 0) {
-          if (isTeacher) {
-            return buildClassesFromAssignedYears(
-              await fetchAssignYears().catch(() => []),
-              selectedYear,
-              activeSubject?.name
-            );
+        const [subjectClasses, assignedYears] = await Promise.all([
+          fetchSubjectClasses({
+            subject_id: Number(activeSubjectId),
+            year_id: Number(selectedYear),
+          }).catch(() => []),
+          isTeacher ? fetchAssignYears().catch(() => []) : Promise.resolve([]),
+        ]);
+        if (isTeacher) {
+          const teacherClasses = filterTeacherClassesByYear(
+            buildTeacherAssignedClassOptions(assignedYears, subjectClasses),
+            selectedYear
+          );
+          if (teacherClasses.length > 0) {
+            return teacherClasses;
           }
+        }
+        if (!Array.isArray(subjectClasses) || subjectClasses.length === 0) {
           return [];
         }
         return await Promise.all(
@@ -224,10 +174,10 @@ export default function TrackerList() {
         );
       }
       if (isTeacher) {
-        const res = await fetchAssignYears();
-        let classesData = res.map((item: any) => item.classes).filter((cls: any) => cls);
-        classesData = Array.from(new Map(classesData.map((cls: any) => [cls.id, cls])).values());
-        return classesData.filter((cls: any) => cls.year_id === Number(selectedYear));
+        return filterTeacherClassesByYear(
+          buildTeacherAssignedClassOptions(await fetchAssignYears()),
+          selectedYear
+        );
       }
       return await fetchClasses(selectedYear);
     },
