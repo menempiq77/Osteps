@@ -15,12 +15,6 @@ import { fetchClasses } from "@/services/classesApi";
 import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
 import { resolveSubjectClassLinkedIdWithFallback } from "@/lib/subjectClassResolution";
 
-const normalizeClassLabel = (value: unknown) =>
-  String(value ?? "")
-    .toLowerCase()
-    .replace(/[\s_-]+/g, " ")
-    .trim();
-
 const buildYearsFromSubjectClasses = (subjectClasses: any[], schoolYears: any[] = []) => {
   const schoolYearById = new Map(
     (Array.isArray(schoolYears) ? schoolYears : [])
@@ -56,47 +50,60 @@ const buildYearsFromSubjectClasses = (subjectClasses: any[], schoolYears: any[] 
   return Array.from(yearsById.values()).sort((left: any, right: any) => Number(left.id) - Number(right.id));
 };
 
-const buildYearsFromAssignedClasses = (assignedYears: any[]) =>
+const normalizeSubjectName = (value: unknown) =>
+  String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/islamiat/g, "islamic")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+const assignedItemMatchesSubject = (item: any, subjectName?: string | null) => {
+  const expected = normalizeSubjectName(subjectName);
+  if (!expected) return true;
+  const labels = [
+    item?.subject,
+    item?.subject_name,
+    item?.subjectName,
+    item?.subjects?.name,
+    item?.classes?.subject,
+    item?.classes?.subject_name,
+    item?.classes?.subjectName,
+  ].map(normalizeSubjectName).filter(Boolean);
+  return labels.length === 0 || labels.includes(expected);
+};
+
+const getAssignedClass = (item: any) => {
+  const classesValue = item?.classes;
+  if (Array.isArray(classesValue)) return classesValue[0] ?? null;
+  return classesValue ?? null;
+};
+
+const buildYearsFromAssignedClasses = (assignedYears: any[], subjectName?: string | null) =>
   Array.from(
     new Map(
       (Array.isArray(assignedYears) ? assignedYears : [])
-        .map((item: any) => item?.classes?.year)
+        .filter((item: any) => assignedItemMatchesSubject(item, subjectName))
+        .map((item: any) => getAssignedClass(item)?.year)
         .filter((year: any) => year?.id)
         .map((year: any) => [Number(year.id), year])
     ).values()
   );
 
-const mapTeacherSubjectClasses = (subjectClasses: any[], assignedYears: any[]) => {
-  const assignedClasses = (Array.isArray(assignedYears) ? assignedYears : [])
-    .flatMap((item: any) => {
-      const value = item?.classes;
-      return Array.isArray(value) ? value : value ? [value] : [];
-    })
-    .filter((row: any) => row?.id);
-
-  const assignedKeyMap = new Map(
-    assignedClasses.map((row: any) => [
-      `${normalizeClassLabel(row?.class_name)}::${Number(row?.year_id ?? row?.year?.id ?? 0)}`,
-      row,
-    ])
+const buildClassesFromAssignedYears = (
+  assignedYears: any[],
+  selectedYear: string | number,
+  subjectName?: string | null
+) =>
+  Array.from(
+    new Map(
+      (Array.isArray(assignedYears) ? assignedYears : [])
+        .filter((item: any) => assignedItemMatchesSubject(item, subjectName))
+        .map(getAssignedClass)
+        .filter((cls: any) => cls && Number(cls?.year_id ?? cls?.year?.id) === Number(selectedYear))
+        .map((cls: any) => [Number(cls.id), cls])
+    ).values()
   );
-
-  return (Array.isArray(subjectClasses) ? subjectClasses : [])
-    .map((row: any) => {
-      const yearId = Number(row?.year_id ?? row?.year?.id ?? 0);
-      const key = `${normalizeClassLabel(row?.base_class_label ?? row?.name)}::${yearId}`;
-      const assignedClass = assignedKeyMap.get(key);
-      if (!assignedClass) return null;
-      return {
-        ...row,
-        linked_class_id: String(assignedClass?.id ?? ""),
-        linked_class_name: String(assignedClass?.class_name ?? row?.base_class_label ?? row?.name ?? ""),
-        linked_year_id: Number(assignedClass?.year_id ?? assignedClass?.year?.id ?? yearId),
-        linked_year_name: String(assignedClass?.year?.name ?? ""),
-      };
-    })
-    .filter(Boolean);
-};
 
 interface CurrentUser {
   student?: string;
@@ -128,7 +135,7 @@ export default function StudentAssessmentPage() {
   const { currentUser } = useSelector((state: RootState) => state.auth) as {
     currentUser: CurrentUser;
   };
-  const { activeSubjectId, canUseSubjectContext, toSubjectHref, loading: subjectContextLoading } = useSubjectContext();
+  const { activeSubjectId, activeSubject, canUseSubjectContext, toSubjectHref, loading: subjectContextLoading } = useSubjectContext();
 
   const isTeacher = currentUser?.role === "TEACHER";
   const schoolId = currentUser?.school;
@@ -144,11 +151,10 @@ export default function StudentAssessmentPage() {
     queryKey: yearsQueryKey,
     queryFn: async () => {
       if (canUseSubjectContext && activeSubjectId) {
-        const subjectClasses = await fetchSubjectClasses({ subject_id: Number(activeSubjectId) });
-        const assignedYears = isTeacher ? await fetchAssignYears().catch(() => []) : [];
-        const scopedSubjectClasses = isTeacher
-          ? mapTeacherSubjectClasses(subjectClasses, assignedYears)
-          : subjectClasses;
+        const [subjectClasses, assignedYears] = await Promise.all([
+          fetchSubjectClasses({ subject_id: Number(activeSubjectId) }).catch(() => []),
+          isTeacher ? fetchAssignYears().catch(() => []) : Promise.resolve([]),
+        ]);
         let schoolYears: any[] = [];
         const numericSchoolId = Number(schoolId);
         if (Number.isFinite(numericSchoolId) && numericSchoolId > 0) {
@@ -157,10 +163,12 @@ export default function StudentAssessmentPage() {
         if (isTeacher) {
           schoolYears = [
             ...schoolYears,
-            ...buildYearsFromAssignedClasses(assignedYears),
+            ...buildYearsFromAssignedClasses(assignedYears, activeSubject?.name),
           ];
         }
-        return buildYearsFromSubjectClasses(scopedSubjectClasses, schoolYears);
+        const subjectClassYears = buildYearsFromSubjectClasses(subjectClasses, schoolYears);
+        if (subjectClassYears.length > 0) return subjectClassYears;
+        return isTeacher ? buildYearsFromAssignedClasses(assignedYears, activeSubject?.name) : [];
       } else if (isTeacher) {
         const res = await fetchAssignYears();
         const years = res
@@ -191,31 +199,38 @@ export default function StudentAssessmentPage() {
 
   /** ------------------ FETCH CLASSES ------------------ */
   const { data: classes = [], isLoading: classesLoading } = useQuery({
-    queryKey: ["classes", selectedYear, isTeacher, activeSubjectId, canUseSubjectContext],
+    queryKey: ["classes", selectedYear, isTeacher, activeSubjectId, activeSubject?.name, canUseSubjectContext],
     queryFn: async () => {
       if (!selectedYear) return [];
       if (canUseSubjectContext && activeSubjectId) {
         const subjectClasses = await fetchSubjectClasses({
           subject_id: Number(activeSubjectId),
           year_id: Number(selectedYear),
-        });
-        const scopedSubjectClasses = isTeacher
-          ? mapTeacherSubjectClasses(subjectClasses, await fetchAssignYears().catch(() => []))
-          : subjectClasses;
+        }).catch(() => []);
+
+        if (!Array.isArray(subjectClasses) || subjectClasses.length === 0) {
+          if (isTeacher) {
+            return buildClassesFromAssignedYears(
+              await fetchAssignYears().catch(() => []),
+              selectedYear,
+              activeSubject?.name
+            );
+          }
+          return [];
+        }
 
         return await Promise.all(
-          (Array.isArray(scopedSubjectClasses) ? scopedSubjectClasses : []).map(async (row: any) => {
-            const linkedClassId =
-              String(row?.linked_class_id ?? "") ||
-              (await resolveSubjectClassLinkedIdWithFallback(row, Number(activeSubjectId)));
+          (Array.isArray(subjectClasses) ? subjectClasses : []).map(async (row: any) => {
+            const linkedClassId = await resolveSubjectClassLinkedIdWithFallback(
+              row,
+              Number(activeSubjectId)
+            );
 
             return {
               id: String(linkedClassId || row?.id || ""),
-              class_name: String(
-                row?.linked_class_name ?? row?.base_class_label ?? row?.name ?? `Class ${row?.id ?? ""}`
-              ),
+              class_name: String(row?.base_class_label ?? row?.name ?? `Class ${row?.id ?? ""}`),
               subject_class_id: String(row?.id ?? ""),
-              year_id: Number(row?.linked_year_id ?? row?.year_id ?? 0),
+              year_id: Number(row?.year_id ?? 0),
             };
           })
         );
