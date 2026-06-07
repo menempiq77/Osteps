@@ -15,6 +15,12 @@ import { useSubjectContext } from "@/contexts/SubjectContext";
 import Link from "next/link";
 import { DeadlineCountdown } from "@/components/common/DeadlineCountdown";
 
+const normalizeClassLabel = (value: unknown) =>
+  String(value ?? "")
+    .toLowerCase()
+    .replace(/[\s_-]+/g, " ")
+    .trim();
+
 const buildYearsFromSubjectClasses = (subjectClasses: any[], schoolYears: any[] = []) => {
   const schoolYearById = new Map(
     (Array.isArray(schoolYears) ? schoolYears : [])
@@ -60,6 +66,38 @@ const buildYearsFromAssignedClasses = (assignedYears: any[]) =>
     ).values()
   );
 
+const mapTeacherSubjectClasses = (subjectClasses: any[], assignedYears: any[]) => {
+  const assignedClasses = (Array.isArray(assignedYears) ? assignedYears : [])
+    .flatMap((item: any) => {
+      const value = item?.classes;
+      return Array.isArray(value) ? value : value ? [value] : [];
+    })
+    .filter((row: any) => row?.id);
+
+  const assignedKeyMap = new Map(
+    assignedClasses.map((row: any) => [
+      `${normalizeClassLabel(row?.class_name)}::${Number(row?.year_id ?? row?.year?.id ?? 0)}`,
+      row,
+    ])
+  );
+
+  return (Array.isArray(subjectClasses) ? subjectClasses : [])
+    .map((row: any) => {
+      const yearId = Number(row?.year_id ?? row?.year?.id ?? 0);
+      const key = `${normalizeClassLabel(row?.base_class_label ?? row?.name)}::${yearId}`;
+      const assignedClass = assignedKeyMap.get(key);
+      if (!assignedClass) return null;
+      return {
+        ...row,
+        linked_class_id: String(assignedClass?.id ?? ""),
+        linked_class_name: String(assignedClass?.class_name ?? row?.base_class_label ?? row?.name ?? ""),
+        linked_year_id: Number(assignedClass?.year_id ?? assignedClass?.year?.id ?? yearId),
+        linked_year_name: String(assignedClass?.year?.name ?? ""),
+      };
+    })
+    .filter(Boolean);
+};
+
 type Tracker = {
   id: string;
   class_id: number;
@@ -103,6 +141,10 @@ export default function TrackerList() {
     queryFn: async () => {
       if (canUseSubjectContext && activeSubjectId) {
         const subjectClasses = await fetchSubjectClasses({ subject_id: Number(activeSubjectId) });
+        const assignedYears = isTeacher ? await fetchAssignYears().catch(() => []) : [];
+        const scopedSubjectClasses = isTeacher
+          ? mapTeacherSubjectClasses(subjectClasses, assignedYears)
+          : subjectClasses;
         let schoolYears: any[] = [];
         const numericSchoolId = Number(schoolId);
         if (Number.isFinite(numericSchoolId) && numericSchoolId > 0) {
@@ -111,10 +153,10 @@ export default function TrackerList() {
         if (isTeacher) {
           schoolYears = [
             ...schoolYears,
-            ...buildYearsFromAssignedClasses(await fetchAssignYears().catch(() => [])),
+            ...buildYearsFromAssignedClasses(assignedYears),
           ];
         }
-        return buildYearsFromSubjectClasses(subjectClasses, schoolYears);
+        return buildYearsFromSubjectClasses(scopedSubjectClasses, schoolYears);
       }
       if (isTeacher) {
         const res = await fetchAssignYears();
@@ -148,16 +190,20 @@ export default function TrackerList() {
           subject_id: Number(activeSubjectId),
           year_id: Number(selectedYear),
         });
+        const scopedSubjectClasses = isTeacher
+          ? mapTeacherSubjectClasses(subjectClasses, await fetchAssignYears().catch(() => []))
+          : subjectClasses;
         return await Promise.all(
-          (Array.isArray(subjectClasses) ? subjectClasses : []).map(async (row: any) => {
-            const linkedClassId = await resolveSubjectClassLinkedIdWithFallback(
-              row,
-              Number(activeSubjectId)
-            );
+          (Array.isArray(scopedSubjectClasses) ? scopedSubjectClasses : []).map(async (row: any) => {
+            const linkedClassId =
+              String(row?.linked_class_id ?? "") ||
+              (await resolveSubjectClassLinkedIdWithFallback(row, Number(activeSubjectId)));
             return {
               id: String(linkedClassId || row?.id || ""),
-              class_name: String(row?.base_class_label ?? row?.name ?? `Class ${row?.id ?? ""}`),
-              year_id: Number(row?.year_id ?? 0),
+              class_name: String(
+                row?.linked_class_name ?? row?.base_class_label ?? row?.name ?? `Class ${row?.id ?? ""}`
+              ),
+              year_id: Number(row?.linked_year_id ?? row?.year_id ?? 0),
             };
           })
         );

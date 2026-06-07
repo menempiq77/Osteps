@@ -15,6 +15,12 @@ import { fetchClasses } from "@/services/classesApi";
 import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
 import { resolveSubjectClassLinkedIdWithFallback } from "@/lib/subjectClassResolution";
 
+const normalizeClassLabel = (value: unknown) =>
+  String(value ?? "")
+    .toLowerCase()
+    .replace(/[\s_-]+/g, " ")
+    .trim();
+
 const buildYearsFromSubjectClasses = (subjectClasses: any[], schoolYears: any[] = []) => {
   const schoolYearById = new Map(
     (Array.isArray(schoolYears) ? schoolYears : [])
@@ -59,6 +65,38 @@ const buildYearsFromAssignedClasses = (assignedYears: any[]) =>
         .map((year: any) => [Number(year.id), year])
     ).values()
   );
+
+const mapTeacherSubjectClasses = (subjectClasses: any[], assignedYears: any[]) => {
+  const assignedClasses = (Array.isArray(assignedYears) ? assignedYears : [])
+    .flatMap((item: any) => {
+      const value = item?.classes;
+      return Array.isArray(value) ? value : value ? [value] : [];
+    })
+    .filter((row: any) => row?.id);
+
+  const assignedKeyMap = new Map(
+    assignedClasses.map((row: any) => [
+      `${normalizeClassLabel(row?.class_name)}::${Number(row?.year_id ?? row?.year?.id ?? 0)}`,
+      row,
+    ])
+  );
+
+  return (Array.isArray(subjectClasses) ? subjectClasses : [])
+    .map((row: any) => {
+      const yearId = Number(row?.year_id ?? row?.year?.id ?? 0);
+      const key = `${normalizeClassLabel(row?.base_class_label ?? row?.name)}::${yearId}`;
+      const assignedClass = assignedKeyMap.get(key);
+      if (!assignedClass) return null;
+      return {
+        ...row,
+        linked_class_id: String(assignedClass?.id ?? ""),
+        linked_class_name: String(assignedClass?.class_name ?? row?.base_class_label ?? row?.name ?? ""),
+        linked_year_id: Number(assignedClass?.year_id ?? assignedClass?.year?.id ?? yearId),
+        linked_year_name: String(assignedClass?.year?.name ?? ""),
+      };
+    })
+    .filter(Boolean);
+};
 
 interface CurrentUser {
   student?: string;
@@ -107,6 +145,10 @@ export default function StudentAssessmentPage() {
     queryFn: async () => {
       if (canUseSubjectContext && activeSubjectId) {
         const subjectClasses = await fetchSubjectClasses({ subject_id: Number(activeSubjectId) });
+        const assignedYears = isTeacher ? await fetchAssignYears().catch(() => []) : [];
+        const scopedSubjectClasses = isTeacher
+          ? mapTeacherSubjectClasses(subjectClasses, assignedYears)
+          : subjectClasses;
         let schoolYears: any[] = [];
         const numericSchoolId = Number(schoolId);
         if (Number.isFinite(numericSchoolId) && numericSchoolId > 0) {
@@ -115,10 +157,10 @@ export default function StudentAssessmentPage() {
         if (isTeacher) {
           schoolYears = [
             ...schoolYears,
-            ...buildYearsFromAssignedClasses(await fetchAssignYears().catch(() => [])),
+            ...buildYearsFromAssignedClasses(assignedYears),
           ];
         }
-        return buildYearsFromSubjectClasses(subjectClasses, schoolYears);
+        return buildYearsFromSubjectClasses(scopedSubjectClasses, schoolYears);
       } else if (isTeacher) {
         const res = await fetchAssignYears();
         const years = res
@@ -157,19 +199,23 @@ export default function StudentAssessmentPage() {
           subject_id: Number(activeSubjectId),
           year_id: Number(selectedYear),
         });
+        const scopedSubjectClasses = isTeacher
+          ? mapTeacherSubjectClasses(subjectClasses, await fetchAssignYears().catch(() => []))
+          : subjectClasses;
 
         return await Promise.all(
-          (Array.isArray(subjectClasses) ? subjectClasses : []).map(async (row: any) => {
-            const linkedClassId = await resolveSubjectClassLinkedIdWithFallback(
-              row,
-              Number(activeSubjectId)
-            );
+          (Array.isArray(scopedSubjectClasses) ? scopedSubjectClasses : []).map(async (row: any) => {
+            const linkedClassId =
+              String(row?.linked_class_id ?? "") ||
+              (await resolveSubjectClassLinkedIdWithFallback(row, Number(activeSubjectId)));
 
             return {
               id: String(linkedClassId || row?.id || ""),
-              class_name: String(row?.base_class_label ?? row?.name ?? `Class ${row?.id ?? ""}`),
+              class_name: String(
+                row?.linked_class_name ?? row?.base_class_label ?? row?.name ?? `Class ${row?.id ?? ""}`
+              ),
               subject_class_id: String(row?.id ?? ""),
-              year_id: Number(row?.year_id ?? 0),
+              year_id: Number(row?.linked_year_id ?? row?.year_id ?? 0),
             };
           })
         );
