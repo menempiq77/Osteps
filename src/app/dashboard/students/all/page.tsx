@@ -901,7 +901,7 @@ export default function AllStudentsPage() {
 
             const classStudents = (await fetchStudents(
               linkedClassId,
-              isSubjectWorkspaceMode ? Number(scopedSubjectId) : undefined,
+              isSubjectWorkspaceMode ? Number(scopedSubjectId) : 0,
               role === "TEACHER" && isSubjectWorkspaceMode && subjectClassId
                 ? subjectClassId
                 : undefined

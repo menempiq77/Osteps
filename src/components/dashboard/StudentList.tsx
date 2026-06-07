@@ -1160,7 +1160,7 @@ export default function StudentList() {
       const rowsByClass = await Promise.all(
         existingStudentFetchClassIds.map(async (candidateClassId) => {
           try {
-            const rows = await fetchStudents(candidateClassId, undefined, undefined);
+            const rows = await fetchStudents(candidateClassId, 0, undefined);
             return (Array.isArray(rows) ? rows : []).map((row) => ({
               row: row as Record<string, any>,
               candidateClassId,
