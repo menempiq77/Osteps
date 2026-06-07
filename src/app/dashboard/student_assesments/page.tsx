@@ -15,6 +15,41 @@ import { fetchClasses } from "@/services/classesApi";
 import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
 import { resolveSubjectClassLinkedIdWithFallback } from "@/lib/subjectClassResolution";
 
+const buildYearsFromSubjectClasses = (subjectClasses: any[], schoolYears: any[] = []) => {
+  const schoolYearById = new Map(
+    (Array.isArray(schoolYears) ? schoolYears : [])
+      .map((year: any) => [Number(year?.id), year])
+      .filter(([id]) => Number.isFinite(id) && id > 0)
+  );
+  const yearsById = new Map<number, any>();
+
+  (Array.isArray(subjectClasses) ? subjectClasses : []).forEach((item: any) => {
+    const yearId = Number(
+      item?.year_id ??
+        item?.year?.id ??
+        item?.class?.year_id ??
+        item?.class?.year?.id ??
+        item?.base_class?.year_id ??
+        item?.base_class?.year?.id ??
+        0
+    );
+    if (!Number.isFinite(yearId) || yearId <= 0 || yearsById.has(yearId)) return;
+
+    const schoolYear = schoolYearById.get(yearId);
+    yearsById.set(yearId, {
+      id: yearId,
+      name:
+        schoolYear?.name ??
+        item?.year?.name ??
+        item?.class?.year?.name ??
+        item?.base_class?.year?.name ??
+        `Year ${yearId}`,
+    });
+  });
+
+  return Array.from(yearsById.values()).sort((left: any, right: any) => Number(left.id) - Number(right.id));
+};
+
 interface CurrentUser {
   student?: string;
   avatar?: string;
@@ -61,20 +96,13 @@ export default function StudentAssessmentPage() {
     queryKey: yearsQueryKey,
     queryFn: async () => {
       if (canUseSubjectContext && activeSubjectId) {
-        const [schoolYears, subjectClasses] = await Promise.all([
-          fetchYearsBySchool(schoolId),
-          fetchSubjectClasses({ subject_id: Number(activeSubjectId) }),
-        ]);
-        const allowedYearIds = new Set(
-          (Array.isArray(subjectClasses) ? subjectClasses : [])
-            .map((item: any) =>
-              Number(item?.year_id ?? item?.class?.year_id ?? item?.base_class?.year_id ?? 0)
-            )
-            .filter((id: number) => Number.isFinite(id) && id > 0)
-        );
-        return (Array.isArray(schoolYears) ? schoolYears : []).filter((year: any) =>
-          allowedYearIds.has(Number(year?.id))
-        );
+        const subjectClasses = await fetchSubjectClasses({ subject_id: Number(activeSubjectId) });
+        let schoolYears: any[] = [];
+        const numericSchoolId = Number(schoolId);
+        if (Number.isFinite(numericSchoolId) && numericSchoolId > 0) {
+          schoolYears = await fetchYearsBySchool(numericSchoolId).catch(() => []);
+        }
+        return buildYearsFromSubjectClasses(subjectClasses, schoolYears);
       } else if (isTeacher) {
         const res = await fetchAssignYears();
         const years = res
