@@ -1026,6 +1026,17 @@ export default function StudentList() {
     [allExistingStudentBaseClassMeta]
   );
 
+  const existingStudentBaseClassMetaById = useMemo(() => {
+    return new Map(
+      allExistingStudentBaseClassMeta
+        .map((item) => {
+          const id = String(item.id ?? "").trim();
+          return id ? ([id, item] as const) : null;
+        })
+        .filter((entry): entry is readonly [string, ExistingStudentClassMeta] => Boolean(entry))
+    );
+  }, [allExistingStudentBaseClassMeta]);
+
   const existingStudentFetchClassIds = useMemo(
     () =>
       Array.from(
@@ -1173,7 +1184,11 @@ export default function StudentList() {
 
       const byId = new Map<string, ExistingStudentOption>();
       rowsByClass.flat().forEach(({ row, candidateClassId }) => {
-        const meta = existingStudentClassMetaById.get(String(candidateClassId));
+        // candidateClassId is always a school_classes.id. Do not read from
+        // existingStudentClassMetaById here because that map also contains
+        // subject_classes.id entries, and those IDs collide with school_classes.id
+        // (e.g. subject class 8 = 10IsB-Islamic, school class 8 = 8IsA).
+        const meta = existingStudentBaseClassMetaById.get(String(candidateClassId));
         const baseOption = toExistingStudentOption(row, candidateClassId, existingStudentClassMetaById);
         const option = baseOption
           ? {

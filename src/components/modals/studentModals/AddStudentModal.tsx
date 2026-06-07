@@ -162,14 +162,14 @@ const existingStudentMatchesFilters = (
           (sourceClass) => String(sourceClass.classId) === String(matchingOption.linkedClassId)
         );
         if (sourceClassMatch) return true;
-      }
 
-      // 1. Most reliable: compare the student's raw class_id (DB foreign key) against the
-      //    subject class's linked school_class id. This bypasses all class_name string issues
-      //    since the students table has no class_name column — only class_id.
-      if (matchingOption.linkedClassId) {
         const rawClassId = Number((student.raw as any)?.class_id ?? 0);
         if (rawClassId > 0 && rawClassId === Number(matchingOption.linkedClassId)) return true;
+
+        // The selected subject class is linked to an exact school class, so do not fall
+        // back to label matching. Label metadata can be wrong when subject_classes.id
+        // collides with school_classes.id.
+        return false;
       }
 
       // 2. Fallback: className string match (for students whose className was resolved from meta).
