@@ -91,6 +91,7 @@ export const unenrollStudentsFromSubjectClass = async (payload: { subject_class_
 export const syncStudentsSubjects = async (payload: {
   student_ids: number[];
   subject_ids: number[];
+  preserve_existing_subjects?: boolean;
 }) => {
   const res = await api.post("/subject-classes/sync-students-subjects", payload);
   return res.data;
@@ -234,6 +235,7 @@ export const assignStudentsToSubjects = async ({
   await syncStudentsSubjects({
     student_ids: uniqueStudentIds,
     subject_ids: Array.from(new Set(results.map((item) => Number(item.subjectId)).filter((id) => id > 0))),
+    preserve_existing_subjects: allowCrossClass || undefined,
   });
 
   return results;
