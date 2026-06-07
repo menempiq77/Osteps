@@ -50,6 +50,16 @@ const buildYearsFromSubjectClasses = (subjectClasses: any[], schoolYears: any[] 
   return Array.from(yearsById.values()).sort((left: any, right: any) => Number(left.id) - Number(right.id));
 };
 
+const buildYearsFromAssignedClasses = (assignedYears: any[]) =>
+  Array.from(
+    new Map(
+      (Array.isArray(assignedYears) ? assignedYears : [])
+        .map((item: any) => item?.classes?.year)
+        .filter((year: any) => year?.id)
+        .map((year: any) => [Number(year.id), year])
+    ).values()
+  );
+
 interface CurrentUser {
   student?: string;
   avatar?: string;
@@ -101,6 +111,12 @@ export default function StudentAssessmentPage() {
         const numericSchoolId = Number(schoolId);
         if (Number.isFinite(numericSchoolId) && numericSchoolId > 0) {
           schoolYears = await fetchYearsBySchool(numericSchoolId).catch(() => []);
+        }
+        if (isTeacher) {
+          schoolYears = [
+            ...schoolYears,
+            ...buildYearsFromAssignedClasses(await fetchAssignYears().catch(() => [])),
+          ];
         }
         return buildYearsFromSubjectClasses(subjectClasses, schoolYears);
       } else if (isTeacher) {
