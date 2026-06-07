@@ -716,40 +716,42 @@ export default function Page() {
       {contextHolder}
       <Breadcrumb
         items={[
-          {
-            title: <Link href="/dashboard">Dashboard</Link>,
-          },
-          {
-            title: <span>{pageTitle}</span>,
-          },
+          { title: <Link href="/dashboard">Dashboard</Link> },
+          { title: <span>{pageTitle}</span> },
         ]}
-        className="!mb-2"
+        className="!mb-4"
       />
-      <div className="premium-hero mb-6 rounded-2xl p-4 md:p-5">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold">{pageTitle}</h1>
-            <p className="text-sm text-gray-600 mt-1">
-              {isSubjectWorkspaceMode && formattedSubjectName
-                ? `Manage ${formattedSubjectName} academic years as folders and drag cards to set your preferred order.`
-                : "Manage your years as folders and drag cards to set your preferred order."}
-            </p>
-          </div>
-          {currentUser?.role !== "STUDENT" &&
-            currentUser?.role !== "HOD" &&
-            currentUser?.role !== "TEACHER" && (
-            <Button
-              type="primary"
-              className="premium-pill-btn !bg-primary !text-white !cursor-pointer"
-              onClick={() => {
-                setCurrentYear(null);
-                setIsModalOpen(true);
-              }}
-            >
-              Add Year
-            </Button>
-            )}
+
+      {/* Page header */}
+      <div
+        className="mb-5 flex items-center justify-between gap-4 rounded-2xl px-5 py-4"
+        style={{
+          background: "linear-gradient(135deg, color-mix(in srgb, var(--primary) 9%, white), color-mix(in srgb, var(--primary) 4%, white))",
+          border: "1px solid color-mix(in srgb, var(--primary) 20%, white)",
+        }}
+      >
+        <div className="min-w-0">
+          <h1 className="truncate text-xl font-bold text-slate-800">{pageTitle}</h1>
+          <p className="mt-0.5 truncate text-sm text-slate-500">
+            {isSubjectWorkspaceMode && formattedSubjectName
+              ? `${formattedSubjectName} academic years — drag rows to reorder.`
+              : "Academic year folders — drag rows to reorder."}
+          </p>
         </div>
+        {currentUser?.role !== "STUDENT" &&
+          currentUser?.role !== "HOD" &&
+          currentUser?.role !== "TEACHER" && (
+          <Button
+            type="primary"
+            className="premium-pill-btn shrink-0 !bg-primary !text-white !cursor-pointer"
+            onClick={() => {
+              setCurrentYear(null);
+              setIsModalOpen(true);
+            }}
+          >
+            + Add Year
+          </Button>
+        )}
       </div>
       <YearsList
         key={years?.length}

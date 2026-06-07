@@ -7,8 +7,10 @@ import { useSelector } from "react-redux";
 import {
   EditOutlined,
   DeleteOutlined,
-  MenuOutlined,
+  HolderOutlined,
   FolderOpenOutlined,
+  TeamOutlined,
+  AppstoreOutlined,
 } from "@ant-design/icons";
 
 interface Year {
@@ -37,8 +39,8 @@ export default function YearsList({
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [localYears, setLocalYears] = useState<Year[]>(years || []);
   const [draggingYearId, setDraggingYearId] = useState<number | null>(null);
+  const [dragOverYearId, setDragOverYearId] = useState<number | null>(null);
 
-  // Check if current user is a student
   const isStudent =
     currentUser?.role === "STUDENT" || currentUser?.role === "HOD" || currentUser?.role === "TEACHER";
   const canManageOrder = !isStudent;
@@ -66,144 +68,191 @@ export default function YearsList({
 
   const getPaletteColor = (palette?: string) => {
     switch (palette) {
-      case "yellow":
-        return "#d97706";
-      case "red":
-        return "#dc2626";
-      case "blue":
-        return "#2563eb";
-      case "purple":
-        return "#7c3aed";
+      case "yellow": return "#d97706";
+      case "red":    return "#dc2626";
+      case "blue":   return "#2563eb";
+      case "purple": return "#7c3aed";
       case "green":
-      default:
-        return "var(--primary)";
+      default:       return "var(--primary)";
+    }
+  };
+
+  const getPaletteBg = (palette?: string) => {
+    switch (palette) {
+      case "yellow": return "rgba(251,191,36,0.08)";
+      case "red":    return "rgba(239,68,68,0.07)";
+      case "blue":   return "rgba(37,99,235,0.07)";
+      case "purple": return "rgba(124,58,237,0.07)";
+      case "green":
+      default:       return "color-mix(in srgb, var(--primary) 7%, white)";
     }
   };
 
   return (
-    <div className="relative overflow-auto">
-      <div
-        className="rounded-2xl p-4 shadow-sm md:p-5"
-        style={{
-          border: "1px solid color-mix(in srgb, var(--primary) 20%, white)",
-          background:
-            "linear-gradient(180deg, rgba(255,255,255,0.98), color-mix(in srgb, var(--primary) 10%, white))",
-        }}
-      >
-        {canManageOrder && (
-          <div
-            className="mb-4 inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs"
-            style={{
-              border: "1px solid color-mix(in srgb, var(--primary) 35%, white)",
-              backgroundColor: "color-mix(in srgb, var(--primary) 10%, white)",
-              color: "var(--theme-dark)",
-            }}
-          >
-            <MenuOutlined />
-            Drag folder cards to reorder
-          </div>
-        )}
+    <div className="space-y-2.5">
+      {canManageOrder && localYears.length > 0 && (
+        <div className="flex items-center gap-2 px-1 text-xs text-slate-400 select-none">
+          <HolderOutlined />
+          <span>Drag rows to reorder</span>
+        </div>
+      )}
 
-        {localYears?.length > 0 ? (
-          <div className="space-y-2">
-            {localYears.map((year) => {
-              const stats = yearStats[year.id] ?? { classes: 0, students: 0 };
-              const accentColor = getPaletteColor(year.color);
-              return (
+      {localYears.length > 0 ? (
+        localYears.map((year, index) => {
+          const stats = yearStats[year.id] ?? { classes: 0, students: 0 };
+          const accentColor = getPaletteColor(year.color);
+          const cardBg = getPaletteBg(year.color);
+          const isDragging = draggingYearId === year.id;
+          const isOver = dragOverYearId === year.id && !isDragging;
+
+          return (
+            <div
+              key={`${year.id}-${year.name}`}
+              draggable={canManageOrder}
+              onDragStart={(e) => {
+                setDraggingYearId(year.id);
+                e.dataTransfer.effectAllowed = "move";
+              }}
+              onDragOver={(e) => {
+                if (!canManageOrder) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                setDragOverYearId(year.id);
+              }}
+              onDragLeave={() => setDragOverYearId(null)}
+              onDrop={() => {
+                if (canManageOrder && draggingYearId) {
+                  reorderYears(draggingYearId, year.id);
+                }
+                setDragOverYearId(null);
+              }}
+              onDragEnd={() => {
+                setDraggingYearId(null);
+                setDragOverYearId(null);
+              }}
+              className="group flex items-center gap-0 rounded-xl border transition-all duration-150"
+              style={{
+                background: isOver ? `color-mix(in srgb, ${accentColor} 12%, white)` : cardBg,
+                borderColor: isOver
+                  ? accentColor
+                  : isDragging
+                  ? `color-mix(in srgb, ${accentColor} 55%, white)`
+                  : `color-mix(in srgb, ${accentColor} 22%, white)`,
+                boxShadow: isDragging
+                  ? `0 4px 16px color-mix(in srgb, ${accentColor} 18%, transparent)`
+                  : isOver
+                  ? `0 0 0 2px ${accentColor}22`
+                  : "0 1px 3px rgba(0,0,0,0.05)",
+                opacity: isDragging ? 0.55 : 1,
+              }}
+            >
+              {/* Drag handle + index */}
+              {canManageOrder && (
                 <div
-                  key={`${year?.id}-${year?.name}`}
-                  draggable={canManageOrder}
-                  onDragStart={() => setDraggingYearId(year.id)}
-                  onDragOver={(e) => {
-                    if (canManageOrder) e.preventDefault();
-                  }}
-                  onDrop={() => {
-                    if (canManageOrder && draggingYearId) {
-                      reorderYears(draggingYearId, year.id);
-                    }
-                  }}
-                  onDragEnd={() => setDraggingYearId(null)}
-                  className="flex flex-wrap items-center gap-3 rounded-lg border bg-white px-3 py-2 text-sm"
+                  className="flex flex-col items-center justify-center self-stretch px-3 cursor-grab active:cursor-grabbing select-none"
                   style={{
-                    borderColor:
-                      draggingYearId === year.id
-                        ? `color-mix(in srgb, ${accentColor} 45%, white)`
-                        : `color-mix(in srgb, ${accentColor} 18%, white)`,
-                    backgroundColor:
-                      draggingYearId === year.id
-                        ? `color-mix(in srgb, ${accentColor} 10%, white)`
-                        : "rgba(255,255,255,0.96)",
+                    borderRight: `1px solid color-mix(in srgb, ${accentColor} 18%, white)`,
+                    minWidth: 44,
+                    gap: 2,
                   }}
                 >
+                  <HolderOutlined style={{ color: accentColor, fontSize: 14, opacity: 0.7 }} />
+                  <span style={{ fontSize: 10, color: "var(--theme-muted, #94a3b8)", lineHeight: 1 }}>
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                </div>
+              )}
+
+              {/* Colour accent strip */}
+              <div
+                className="self-stretch w-1 rounded-l shrink-0"
+                style={{ background: accentColor, marginLeft: canManageOrder ? 0 : undefined, borderRadius: canManageOrder ? 0 : "8px 0 0 8px" }}
+              />
+
+              {/* Main content */}
+              <div className="flex flex-1 flex-wrap items-center gap-x-5 gap-y-1.5 px-4 py-3 min-w-0">
+                {/* Year name */}
+                <button
+                  onClick={() => handleViewClasses(year.id)}
+                  className="inline-flex items-center gap-2 text-left font-semibold transition-colors"
+                  style={{ fontSize: 15, color: accentColor, minWidth: 140 }}
+                >
+                  <FolderOpenOutlined style={{ fontSize: 16 }} />
+                  <span className="truncate">{year.name}</span>
+                </button>
+
+                {/* Stats pills */}
+                <div className="flex items-center gap-2">
                   <button
-                    onClick={() => handleViewClasses(year?.id)}
-                    className="inline-flex cursor-pointer items-center gap-2 text-left text-[15px] font-semibold"
-                    style={{ color: accentColor }}
+                    type="button"
+                    onClick={() => handleViewClasses(year.id)}
+                    className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors hover:brightness-95"
+                    style={{
+                      background: `color-mix(in srgb, ${accentColor} 12%, white)`,
+                      color: accentColor,
+                      border: `1px solid color-mix(in srgb, ${accentColor} 25%, white)`,
+                    }}
                   >
-                    <FolderOpenOutlined />
-                    {year?.name}
+                    <AppstoreOutlined style={{ fontSize: 11 }} />
+                    {stats.classes} {stats.classes === 1 ? "Class" : "Classes"}
                   </button>
 
-                  <div className="flex flex-wrap items-center gap-3 text-[13px] text-slate-600">
-                    <button
-                      type="button"
-                      onClick={() => handleViewClasses(year.id)}
-                      className="cursor-pointer hover:text-[var(--theme-dark)]"
-                    >
-                      Classes: {stats.classes}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        router.push(
-                          toSubjectHref(
-                            `/dashboard/students/all?yearId=${year.id}${
-                              activeSubjectId ? `&subjectId=${activeSubjectId}` : ""
-                            }`
-                          )
+                  <button
+                    type="button"
+                    onClick={() =>
+                      router.push(
+                        toSubjectHref(
+                          `/dashboard/students/all?yearId=${year.id}${
+                            activeSubjectId ? `&subjectId=${activeSubjectId}` : ""
+                          }`
                         )
-                      }
-                      className="cursor-pointer hover:text-[var(--theme-dark)]"
-                    >
-                      Students: {stats.students}
-                    </button>
-                  </div>
-
-                  {!isStudent && (
-                    <div className="ml-auto flex items-center gap-3 text-[12px]">
-                      {canManageOrder && (
-                        <span className="inline-flex cursor-grab items-center gap-1 text-slate-500">
-                          <MenuOutlined />
-                          Move
-                        </span>
-                      )}
-                      <button
-                        onClick={() => onEditYear(year?.id)}
-                        className="cursor-pointer text-slate-600 hover:text-[var(--theme-dark)]"
-                      >
-                        <EditOutlined /> Edit
-                      </button>
-                      <button
-                        onClick={() => onDeleteYear(year?.id)}
-                        className="cursor-pointer text-rose-600 hover:text-rose-700"
-                      >
-                        <DeleteOutlined /> {activeSubjectId ? "Remove" : "Delete"}
-                      </button>
-                    </div>
-                  )}
+                      )
+                    }
+                    className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors hover:brightness-95"
+                    style={{
+                      background: "rgba(100,116,139,0.08)",
+                      color: "#475569",
+                      border: "1px solid rgba(100,116,139,0.15)",
+                    }}
+                  >
+                    <TeamOutlined style={{ fontSize: 11 }} />
+                    {stats.students} {stats.students === 1 ? "Student" : "Students"}
+                  </button>
                 </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div
-            className="rounded-xl border border-dashed bg-white py-10 text-center text-sm text-gray-500"
-            style={{ borderColor: "color-mix(in srgb, var(--primary) 35%, white)" }}
-          >
-            No years found.
-          </div>
-        )}
-      </div>
+              </div>
+
+              {/* Actions */}
+              {!isStudent && (
+                <div className="flex shrink-0 items-center gap-1 pr-3">
+                  <button
+                    onClick={() => onEditYear(year.id)}
+                    className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                    title="Edit year"
+                  >
+                    <EditOutlined />
+                    <span className="hidden sm:inline">Edit</span>
+                  </button>
+                  <button
+                    onClick={() => onDeleteYear(year.id)}
+                    className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-rose-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
+                    title={activeSubjectId ? "Remove from subject" : "Delete year"}
+                  >
+                    <DeleteOutlined />
+                    <span className="hidden sm:inline">{activeSubjectId ? "Remove" : "Delete"}</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })
+      ) : (
+        <div
+          className="rounded-xl border border-dashed bg-white py-12 text-center text-sm text-slate-400"
+          style={{ borderColor: "color-mix(in srgb, var(--primary) 30%, white)" }}
+        >
+          No year groups found.
+        </div>
+      )}
     </div>
   );
 }
