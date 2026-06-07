@@ -137,7 +137,8 @@ export default function StudentAssessmentPage() {
   };
   const { activeSubjectId, activeSubject, canUseSubjectContext, toSubjectHref, loading: subjectContextLoading } = useSubjectContext();
 
-  const isTeacher = currentUser?.role === "TEACHER";
+  const roleKey = String(currentUser?.role ?? "").trim().toUpperCase().replace(/\s+/g, "_");
+  const isTeacher = roleKey === "TEACHER";
   const schoolId = currentUser?.school;
 
   /** ------------------ LOAD YEARS (via React Query to prevent double-fetch flicker) -- */
