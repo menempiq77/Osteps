@@ -285,19 +285,10 @@ export async function POST(request: NextRequest) {
   const existingDocumentUrl = normalizeDocumentUrl(state.metadata?.documentFileUrl);
   const incomingDocumentUrl = normalizeDocumentUrl(payloadMetadata.documentFileUrl);
 
-  if (existingDocumentUrl && incomingDocumentUrl && existingDocumentUrl !== incomingDocumentUrl) {
-    return NextResponse.json(
-      {
-        message:
-          "This saved answer belongs to a different PDF than the task currently points to. Student answers were not changed.",
-        documentFileMismatch: true,
-        savedDocumentFileUrl: existingDocumentUrl,
-        incomingDocumentFileUrl: incomingDocumentUrl,
-        state,
-      },
-      { status: 409 }
-    );
-  }
+  // If a document already has a recorded PDF identity, keep that identity authoritative.
+  // Students may still have an older browser bundle or route URL that sends the current
+  // task file URL after a teacher/admin replaced the task file. The annotator renders the
+  // saved PDF identity, so rejecting these saves would block valid reopened work.
 
   if (
     !existingDocumentUrl &&
