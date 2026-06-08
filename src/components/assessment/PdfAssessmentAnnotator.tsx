@@ -4600,7 +4600,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         await uploadTaskByStudent(formData, Number(assessmentId));
       } catch (error: any) {
         const duplicateSubmission =
-          Number(error?.response?.data?.status_code ?? error?.response?.status ?? 0) === 409;
+          Number(error?.response?.data?.status_code ?? error?.response?.status ?? 0) === 409 ||
+          /already submitted|teacher marked/i.test(
+            String(error?.response?.data?.msg || error?.response?.data?.message || error?.message || "")
+          );
         if (!duplicateSubmission) throw error;
       }
     },
@@ -4615,6 +4618,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     }
     setFinishing(true);
     try {
+      const wasAlreadyMarked = state?.status === "marked" || Boolean(state?.markedAt);
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       if (selfAssessmentSaveTimerRef.current) clearTimeout(selfAssessmentSaveTimerRef.current);
       saveTimerRef.current = null;
@@ -4623,12 +4627,14 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       pendingAutosaveRef.current = null;
       setAutosaveQueued(false);
       await saveAnnotations(snapshot, "submitted", { studentLocked: false });
-      await submitAssessmentRecord(
-        examWindow.examMode
-          ? "Completed online exam workspace"
-          : "Completed online PDF workspace",
-        !examWindow.examMode
-      );
+      if (!wasAlreadyMarked) {
+        await submitAssessmentRecord(
+          examWindow.examMode
+            ? "Completed online exam workspace"
+            : "Completed online PDF workspace",
+          !examWindow.examMode
+        );
+      }
 
       messageApi.success(
         examWindow.examMode
