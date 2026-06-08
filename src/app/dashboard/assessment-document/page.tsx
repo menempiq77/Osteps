@@ -380,17 +380,19 @@ export default function AssessmentDocumentPage() {
     const loadTaskConfig = async () => {
       setCheckingExamAccess(true);
       try {
-        const tasks = await fetchTasks(Number(assessmentId));
+        const tasks = await fetchTasks(Number(assessmentId), scopedSubjectId);
         const matchingTask = tasks.find(
           (task: any) => Number(task?.id) === Number(taskId) && task?.type === "task"
         );
 
         if (!cancelled && matchingTask) {
+          const fetchedExamMode = Boolean(matchingTask.exam_mode);
           setResolvedExamConfig({
-            exam_mode: Boolean(matchingTask.exam_mode),
-            exam_start_at: matchingTask.exam_start_at || null,
-            exam_duration_minutes: matchingTask.exam_duration_minutes ?? null,
-            exam_end_at: matchingTask.exam_end_at || null,
+            exam_mode: fetchedExamMode || fallbackExamConfig.exam_mode,
+            exam_start_at: matchingTask.exam_start_at || fallbackExamConfig.exam_start_at || null,
+            exam_duration_minutes:
+              matchingTask.exam_duration_minutes ?? fallbackExamConfig.exam_duration_minutes ?? null,
+            exam_end_at: matchingTask.exam_end_at || fallbackExamConfig.exam_end_at || null,
           });
         }
       } catch (error) {
@@ -405,7 +407,7 @@ export default function AssessmentDocumentPage() {
     return () => {
       cancelled = true;
     };
-  }, [assessmentId, missing, role, taskId]);
+  }, [assessmentId, fallbackExamConfig, missing, role, scopedSubjectId, taskId]);
 
   const getExamAccessMessage = () => {
     if (!examWindow.examMode) return null;

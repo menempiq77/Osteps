@@ -10,6 +10,7 @@ import {
   Bold,
   ChevronDown,
   ChevronUp,
+  Clock3,
   Eraser,
   FileText,
   Highlighter,
@@ -1241,6 +1242,14 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const documentReadyForCurrentStudent = documentLoaded && loadedDocumentKey === documentLoadKey;
   const safeReturnTo = sanitizeReturnToPath(returnTo);
   const zoomPercent = Math.round(zoomLevel * 100);
+  const studentExamTimerVisible = role === "student" && examWindow.examMode && examWindow.state === "open";
+  const examTimerIsCritical = studentExamTimerVisible && (examWindow.remainingMs ?? 0) <= 5 * 60 * 1000;
+  const examTimerIsLow = studentExamTimerVisible && (examWindow.remainingMs ?? 0) <= 15 * 60 * 1000;
+  const examTimerClassName = examTimerIsCritical
+    ? "border-red-200 bg-red-50 text-red-700 shadow-red-100"
+    : examTimerIsLow
+      ? "border-amber-200 bg-amber-50 text-amber-700 shadow-amber-100"
+      : "border-teal-200 bg-teal-50 text-teal-700 shadow-teal-100";
   const canOpenOriginalFile = role !== "student";
   const displayStudentName = currentStudentName || teacherExamStudentInfo?.studentName || "Selected student";
   const canDownloadSubmittedPaper = role === "teacher" && documentLoaded && (studentLocked || state?.status === "submitted" || state?.status === "marked");
@@ -5314,7 +5323,21 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       >
         <div className={shouldEnforceExamScreen ? "flex flex-col gap-2" : "flex w-full flex-col gap-2"}>
           <div className="flex items-center justify-between gap-3">
-            <h1 className="truncate text-lg font-semibold text-gray-900">{title}</h1>
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+              <h1 className="min-w-0 truncate text-lg font-semibold text-gray-900">{title}</h1>
+              {studentExamTimerVisible && (
+                <div
+                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold tabular-nums shadow-sm ${examTimerClassName}`}
+                  title="Exam timer: when it reaches zero, your latest work is submitted automatically."
+                >
+                  <Clock3 className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Time left</span>
+                  <span className="font-mono text-sm font-black leading-none">
+                    {formatCountdown(examWindow.remainingMs)}
+                  </span>
+                </div>
+              )}
+            </div>
             <button
               type="button"
               onClick={() => setIsToolbarCollapsed((c) => !c)}
@@ -5766,24 +5789,6 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
             description="This attempt has been recorded for the teacher. Continue your exam in fullscreen mode."
           />
         ) : null}
-        {role === "student" && examWindow.examMode && examWindow.state === "open" && (
-          <div className={shouldEnforceExamScreen ? "sticky top-0 z-10 mb-4" : "mb-4"}>
-            <Alert
-              type="warning"
-              showIcon
-              message={
-                <span className="inline-flex items-center gap-1 whitespace-nowrap tabular-nums">
-                  <span>Exam timer running:</span>
-                  <span className="inline-block min-w-[5.5rem] text-center font-medium">
-                    {formatCountdown(examWindow.remainingMs)}
-                  </span>
-                  <span>remaining.</span>
-                </span>
-              }
-              description="When the timer reaches zero, this workspace becomes read-only and your latest work is submitted automatically."
-            />
-          </div>
-        )}
         {role === "teacher" && examExitEvents.length > 0 && (
           <div className="mb-4 flex justify-end">
             <button
