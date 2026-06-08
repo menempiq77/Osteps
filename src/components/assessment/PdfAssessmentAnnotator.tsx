@@ -1254,6 +1254,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const documentFileMismatch = Boolean(
     savedDocumentUrl && currentDocumentUrl && savedDocumentUrl !== currentDocumentUrl
   );
+  const activeDocumentIdentityUrl = savedDocumentUrl || currentDocumentUrl;
 
   const fileExtension = useMemo(() => {
     try {
@@ -2849,7 +2850,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       const metadata = {
         title,
         maxMarks,
-        documentFileUrl: normalizeDocumentUrl(fileUrl),
+        documentFileUrl: activeDocumentIdentityUrl,
         teacherMarks,
         teacherFeedback,
         ...metadataOverrides,
@@ -2880,7 +2881,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       if (!options?.silent) setSaving(false);
       return nextState;
     },
-    [assessmentId, taskId, studentId, role, title, maxMarks, fileUrl, teacherMarks, teacherFeedback, selfAssessmentMark, getAnnotationsSignature, persistLocalDraft]
+    [assessmentId, taskId, studentId, role, title, maxMarks, activeDocumentIdentityUrl, teacherMarks, teacherFeedback, selfAssessmentMark, getAnnotationsSignature, persistLocalDraft]
   );
 
   const persistExamExitReason = useCallback(
@@ -3483,7 +3484,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       const metadata = {
         title,
         maxMarks,
-        documentFileUrl: normalizeDocumentUrl(fileUrl),
+        documentFileUrl: activeDocumentIdentityUrl,
         selfAssessmentMark: normalizeSelfAssessmentValue(selfAssessmentMark),
         clientSaveId: clientSaveIdRef.current,
         clientSaveSeq: nextClientSaveSeq,
@@ -3512,7 +3513,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     return () => {
       window.removeEventListener("pagehide", flushOnPageExit);
     };
-  }, [assessmentId, fileUrl, getCurrentLayerSnapshot, maxMarks, persistLocalDraft, role, selfAssessmentMark, studentId, taskId, title]);
+  }, [activeDocumentIdentityUrl, assessmentId, getCurrentLayerSnapshot, maxMarks, persistLocalDraft, role, selfAssessmentMark, studentId, taskId, title]);
 
   useEffect(() => {
     if (role !== "student" || !documentLoaded) return;
