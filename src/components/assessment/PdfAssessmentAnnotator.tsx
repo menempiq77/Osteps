@@ -702,6 +702,46 @@ const cloneAnnotationsSnapshot = (annotations: AssessmentDocumentAnnotation[]) =
       : { ...annotation }
   );
 
+const editingTextToAnnotation = (
+  editingText: EditingText | null,
+  color: string
+): TextAnnotation | null => {
+  if (!editingText?.value.trim() || !editingText.id) return null;
+
+  return {
+    id: editingText.id,
+    type: "text",
+    page: editingText.page,
+    x: editingText.x,
+    y: editingText.y,
+    text: editingText.value.trim(),
+    color,
+    fontSize: editingText.fontSize,
+    width: editingText.width,
+    fontWeight: editingText.fontWeight,
+    underline: editingText.underline,
+    textAlign: editingText.textAlign,
+  };
+};
+
+const mergeEditingTextIntoAnnotations = (
+  annotations: AssessmentDocumentAnnotation[],
+  editingText: EditingText | null,
+  color: string
+) => {
+  const textAnnotation = editingTextToAnnotation(editingText, color);
+  if (!textAnnotation) return annotations;
+
+  const existingIndex = annotations.findIndex(
+    (annotation) => annotation.id === textAnnotation.id && annotation.type === "text"
+  );
+  if (existingIndex < 0) return [...annotations, textAnnotation];
+
+  return annotations.map((annotation, index) =>
+    index === existingIndex ? textAnnotation : annotation
+  );
+};
+
 const getTextFont = (fontSize: number, fontWeight: TextFontWeight = "normal") =>
   `${fontWeight === "bold" ? "700" : "400"} ${fontSize}px Arial, sans-serif`;
 
@@ -1111,6 +1151,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const pagesViewportRef = useRef<HTMLDivElement | null>(null);
   const activeStrokeRef = useRef<PenAnnotation | null>(null);
   const activeAnnotationsRef = useRef<AssessmentDocumentAnnotation[]>([]);
+  const editingTextRef = useRef<EditingText | null>(null);
+  const colorRef = useRef(color);
   const historyGestureStartRef = useRef<AssessmentDocumentAnnotation[] | null>(null);
   const resizingTextRef = useRef<ResizingText | null>(null);
   const resizingPenRef = useRef<ResizingPen | null>(null);
@@ -2699,6 +2741,14 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   }, [activeAnnotations]);
 
   useEffect(() => {
+    editingTextRef.current = editingText;
+  }, [editingText]);
+
+  useEffect(() => {
+    colorRef.current = color;
+  }, [color]);
+
+  useEffect(() => {
     if (tool !== "cursor") {
       draggingPenRef.current = null;
       setDraggingPen(false);
@@ -2723,13 +2773,16 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
   const getCurrentLayerSnapshot = useCallback(() => {
     const activeStroke = activeStrokeRef.current;
-    if (!activeStroke) return activeAnnotationsRef.current;
+    const baseAnnotations = activeStroke
+      ? activeAnnotationsRef.current.filter((annotation) => annotation.id !== activeStroke.id)
+      : activeAnnotationsRef.current;
+    const withActiveStroke = activeStroke ? [...baseAnnotations, activeStroke] : baseAnnotations;
 
-    const baseAnnotations = activeAnnotationsRef.current.filter(
-      (annotation) => annotation.id !== activeStroke.id
+    return mergeEditingTextIntoAnnotations(
+      withActiveStroke,
+      editingTextRef.current,
+      colorRef.current
     );
-
-    return [...baseAnnotations, activeStroke];
   }, []);
 
   const beginHistoryGesture = useCallback(() => {
@@ -2934,6 +2987,11 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     },
     [messageApi, saveAnnotations]
   );
+
+  useEffect(() => {
+    if (!editable || !editingText?.value.trim()) return;
+    queueAutosave(getCurrentLayerSnapshot());
+  }, [editable, editingText, getCurrentLayerSnapshot, queueAutosave]);
 
   const setLayerAnnotations = useCallback(
     (
@@ -4048,6 +4106,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       zoomLevel
     );
     setEditingText({
+      id: makeId(),
       page: pageNumber,
       x: point.x,
       y: point.y,
@@ -4062,27 +4121,20 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
   const commitEditingText = () => {
     if (!editingText?.value.trim()) {
+      if (editingText?.id) {
+        setLayerAnnotations(
+          activeAnnotationsRef.current.filter((annotation) => annotation.id !== editingText.id)
+        );
+      }
       setEditingText(null);
       return;
     }
     if (editingText.id) {
+      const nextTextAnnotation = editingTextToAnnotation(editingText, color);
       setLayerAnnotations(
-        activeAnnotations.map((annotation) =>
-          annotation.id === editingText.id && annotation.type === "text"
-            ? {
-                ...annotation,
-                text: editingText.value.trim(),
-                x: editingText.x,
-                y: editingText.y,
-                color,
-                fontSize: editingText.fontSize,
-                width: editingText.width,
-                fontWeight: editingText.fontWeight,
-                underline: editingText.underline,
-                textAlign: editingText.textAlign,
-              }
-            : annotation
-        )
+        nextTextAnnotation
+          ? mergeEditingTextIntoAnnotations(activeAnnotations, editingText, color)
+          : activeAnnotations
       );
       setTextFontSize(editingText.fontSize);
       setTextFontWeight(editingText.fontWeight);
