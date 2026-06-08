@@ -176,6 +176,30 @@ const toFiniteNumber = (value: unknown) => {
   return Number.isFinite(numericValue) ? numericValue : null;
 };
 
+const isExamExitMetadataPayload = (metadata: Record<string, unknown>) =>
+  Array.isArray(metadata.examExitEvents) ||
+  typeof metadata.lastExamExitReason === "string" ||
+  typeof metadata.lastExamExitAt === "string";
+
+const pickExamExitMetadata = (metadata: Record<string, unknown>) => {
+  const safeMetadata: Record<string, unknown> = {};
+
+  if (Array.isArray(metadata.examExitEvents)) {
+    safeMetadata.examExitEvents = metadata.examExitEvents;
+  }
+  if (typeof metadata.lastExamExitReason === "string") {
+    safeMetadata.lastExamExitReason = metadata.lastExamExitReason;
+  }
+  if (metadata.lastExamExitContext === "fullscreen" || metadata.lastExamExitContext === "screen" || metadata.lastExamExitContext === "leave") {
+    safeMetadata.lastExamExitContext = metadata.lastExamExitContext;
+  }
+  if (typeof metadata.lastExamExitAt === "string") {
+    safeMetadata.lastExamExitAt = metadata.lastExamExitAt;
+  }
+
+  return safeMetadata;
+};
+
 const requiredIds = (request: NextRequest) => {
   const searchParams = request.nextUrl.searchParams;
   const assessmentId = searchParams.get("assessmentId");
@@ -233,6 +257,17 @@ export async function POST(request: NextRequest) {
   const layer = payload.layer === "teacher" ? "teacher" : "student";
   const state = await readState(ids.assessmentId, ids.taskId, ids.studentId);
   const payloadMetadata = payload.metadata && typeof payload.metadata === "object" ? payload.metadata : {};
+
+  if (layer === "student" && state.studentLocked && isExamExitMetadataPayload(payloadMetadata)) {
+    state.metadata = {
+      ...state.metadata,
+      ...pickExamExitMetadata(payloadMetadata),
+    };
+    state.updatedAt = new Date().toISOString();
+    await writeState(state);
+    return NextResponse.json(state);
+  }
+
   const existingDocumentUrl = normalizeDocumentUrl(state.metadata?.documentFileUrl);
   const incomingDocumentUrl = normalizeDocumentUrl(payloadMetadata.documentFileUrl);
 
