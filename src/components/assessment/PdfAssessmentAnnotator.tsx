@@ -65,13 +65,15 @@ const COLOR_SWATCHS = [
 ] as const;
 const PEN_WIDTH_OPTIONS = [2, 4, 6, 8] as const;
 const HIGHLIGHTER_WIDTH_OPTIONS = [10, 16, 24] as const;
-const TEXT_SIZE_OPTIONS = [14, 16, 18, 24] as const;
+const TEXT_SIZE_OPTIONS = [10, 12, 14, 18] as const;
 const TEXT_SIZE_DROPDOWN_OPTIONS = [
-  { label: "Small", value: 14 },
-  { label: "Medium", value: 18 },
-  { label: "Large", value: 24 },
-  { label: "Extra Large", value: 30 },
-  { label: "Huge", value: 36 },
+  { label: "Tiny", value: 10 },
+  { label: "Small", value: 12 },
+  { label: "Medium", value: 14 },
+  { label: "Large", value: 18 },
+  { label: "Extra Large", value: 24 },
+  { label: "Huge", value: 30 },
+  { label: "Massive", value: 36 },
 ] as const;
 const TEXT_COLOR_DROPDOWN_SWATCHS = [
   { value: "#111827", label: "Black" },
@@ -138,6 +140,15 @@ type EditingText = {
 
 type DraggingText = {
   id: string;
+  startClientX: number;
+  startClientY: number;
+  originX: number;
+  originY: number;
+  x: number;
+  y: number;
+};
+
+type DraggingEditingText = {
   startClientX: number;
   startClientY: number;
   originX: number;
@@ -293,15 +304,16 @@ const PEN_SELECTION_BOX_PADDING = 12;
 const PEN_SELECTION_BOX_MIN_SIZE = 32;
 const PEN_RESIZE_MIN_SCALE = 0.25;
 const TEXT_ERASER_PADDING = 18;
-const TEXT_ANNOTATION_MIN_WIDTH = 120;
-const TEXT_ANNOTATION_DEFAULT_WIDTH = 360;
-const TEXT_ANNOTATION_MAX_WIDTH = 900;
+const TEXT_ANNOTATION_MIN_WIDTH = 80;
+const TEXT_ANNOTATION_DEFAULT_WIDTH = 220;
+const TEXT_ANNOTATION_MAX_WIDTH = 700;
+const TEXT_DRAG_EDGE_HIT_SIZE_PX = 12;
 const EXAM_EXIT_REASON_MAX_LENGTH = 500;
 const MIN_ZOOM_LEVEL = 0.5;
 const MAX_ZOOM_LEVEL = 2;
 const ZOOM_STEP = 0.1;
 const TOUCH_PINCH_DISTANCE_THRESHOLD_PX = 0.5;
-const MIN_TEXT_FONT_SIZE = 12;
+const MIN_TEXT_FONT_SIZE = 10;
 const MAX_TEXT_FONT_SIZE = 36;
 
 const makeId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -645,6 +657,20 @@ const getPointerPoint = (
   };
 };
 
+const isPointerNearElementEdge = (element: HTMLElement, clientX: number, clientY: number) => {
+  const rect = element.getBoundingClientRect();
+  const horizontalDistance = Math.min(
+    Math.abs(clientX - rect.left),
+    Math.abs(rect.right - clientX)
+  );
+  const verticalDistance = Math.min(
+    Math.abs(clientY - rect.top),
+    Math.abs(rect.bottom - clientY)
+  );
+
+  return horizontalDistance <= TEXT_DRAG_EDGE_HIT_SIZE_PX || verticalDistance <= TEXT_DRAG_EDGE_HIT_SIZE_PX;
+};
+
 const getTrackedTouchPoints = (pointers: Map<number, TrackedTouchPointer>) =>
   Array.from(pointers.values()).slice(0, 2);
 
@@ -983,7 +1009,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const [color, setColor] = useState(role === "teacher" ? "#dc2626" : "#111827");
   const [penWidth, setPenWidth] = useState(3);
   const [highlighterWidth, setHighlighterWidth] = useState(16);
-  const [textFontSize, setTextFontSize] = useState(role === "teacher" ? 18 : 16);
+  const [textFontSize, setTextFontSize] = useState(14);
   const [textFontWeight, setTextFontWeight] = useState<TextFontWeight>("normal");
   const [textUnderline, setTextUnderline] = useState(false);
   const [textAlignment, setTextAlignment] = useState<TextAlignment>("left");
@@ -1090,6 +1116,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const resizingPenRef = useRef<ResizingPen | null>(null);
   const draggingPenRef = useRef<DraggingPen | null>(null);
   const erasingRef = useRef(false);
+  const draggingEditingTextRef = useRef<DraggingEditingText | null>(null);
   const draggingTextRef = useRef<DraggingText | null>(null);
   const touchPointersRef = useRef<Map<number, TrackedTouchPointer>>(new Map());
   const touchGestureRef = useRef<TouchGestureState | null>(null);
@@ -2361,7 +2388,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   }, [initialSelfAssessmentMark]);
 
   useEffect(() => {
-    setTextFontSize(role === "teacher" ? 18 : 16);
+    setTextFontSize(14);
   }, [role]);
 
   const isExamFullscreenActive = useCallback(() => {
@@ -4126,6 +4153,49 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const clampTextAnnotationWidth = (value: number) =>
     Math.min(TEXT_ANNOTATION_MAX_WIDTH, Math.max(TEXT_ANNOTATION_MIN_WIDTH, value));
 
+  const startDragEditingText = (event: React.PointerEvent<HTMLElement>) => {
+    if (!editable || !editingText || event.pointerType === "touch") return;
+    event.preventDefault();
+    event.stopPropagation();
+    setTextToolbarMenu(null);
+    event.currentTarget.setPointerCapture(event.pointerId);
+    draggingEditingTextRef.current = {
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      originX: editingText.x,
+      originY: editingText.y,
+      x: editingText.x,
+      y: editingText.y,
+    };
+  };
+
+  const handleEditingTextPointerMove = (event: React.PointerEvent<HTMLElement>) => {
+    if (event.pointerType === "touch") return;
+    const draggingEditor = draggingEditingTextRef.current;
+    if (!draggingEditor) return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    const x = Math.max(
+      0,
+      draggingEditor.originX + (event.clientX - draggingEditor.startClientX) / zoomLevel
+    );
+    const y = Math.max(
+      0,
+      draggingEditor.originY + (event.clientY - draggingEditor.startClientY) / zoomLevel
+    );
+    draggingEditingTextRef.current = { ...draggingEditor, x, y };
+    setEditingText((current) => (current ? { ...current, x, y } : current));
+  };
+
+  const handleEditingTextPointerUp = (event: React.PointerEvent<HTMLElement>) => {
+    if (event.pointerType === "touch") return;
+    if (!draggingEditingTextRef.current) return;
+    event.preventDefault();
+    event.stopPropagation();
+    draggingEditingTextRef.current = null;
+  };
+
   const startResizeTextAnnotation = (
     event: React.PointerEvent<HTMLElement>,
     annotation: TextAnnotation | EditingText,
@@ -4159,7 +4229,9 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       deleteTextAnnotation(annotation);
       return;
     }
-    if (tool !== "cursor") return;
+    const textToolEdgeDrag =
+      tool === "text" && isPointerNearElementEdge(event.currentTarget, event.clientX, event.clientY);
+    if (tool !== "cursor" && !textToolEdgeDrag) return;
     event.preventDefault();
     event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -4219,6 +4291,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
   useEffect(() => {
     if (editingText) return;
+    draggingEditingTextRef.current = null;
     setTextToolbarMenu(null);
   }, [editingText]);
 
@@ -6003,8 +6076,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                     {editingText?.page === page.pageNumber && (() => {
                       const estimatedLineCount = Math.max(1, editingText.value.split(/\r?\n/).length);
                       const estimatedTextHeight = Math.max(
-                        76,
-                        estimatedLineCount * editingText.fontSize * 1.35 + 28
+                        42,
+                        estimatedLineCount * editingText.fontSize * 1.3 + 16
                       );
                       const toolbarWidth = Math.min(Math.max(300, page.width - 72), 480);
                       const toolbarLeft = Math.min(
@@ -6250,14 +6323,37 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                           </div>
 
                           <div
-                            className="absolute z-20 rounded-[20px] border-[3px] border-[#6d5efc] bg-white/95 shadow-[0_18px_40px_rgba(109,94,252,0.18)]"
+                            className="absolute z-20 rounded-[12px] border-2 border-[#6d5efc] bg-white/95 shadow-[0_12px_28px_rgba(109,94,252,0.16)]"
                             style={{ left: editingText.x, top: editingText.y, width: editingText.width }}
                             onClick={(event) => {
                               event.stopPropagation();
                               setTextToolbarMenu(null);
                             }}
                             onPointerDown={(event) => event.stopPropagation()}
+                            onPointerMove={handleEditingTextPointerMove}
+                            onPointerUp={handleEditingTextPointerUp}
+                            onPointerCancel={handleEditingTextPointerUp}
                           >
+                            <span
+                              className="absolute inset-x-3 top-[-7px] z-10 h-3 cursor-move rounded-full"
+                              title="Hold this edge to move the text box"
+                              onPointerDown={startDragEditingText}
+                            />
+                            <span
+                              className="absolute inset-x-3 bottom-[-7px] z-10 h-3 cursor-move rounded-full"
+                              title="Hold this edge to move the text box"
+                              onPointerDown={startDragEditingText}
+                            />
+                            <span
+                              className="absolute bottom-3 left-[-7px] top-3 z-10 w-3 cursor-move rounded-full"
+                              title="Hold this edge to move the text box"
+                              onPointerDown={startDragEditingText}
+                            />
+                            <span
+                              className="absolute bottom-3 right-[-7px] top-3 z-10 w-3 cursor-move rounded-full"
+                              title="Hold this edge to move the text box"
+                              onPointerDown={startDragEditingText}
+                            />
                             <Input.TextArea
                               autoFocus
                               value={editingText.value}
@@ -6278,7 +6374,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                               }}
                               placeholder="Type here..."
                               autoSize={{ minRows: 1, maxRows: 10 }}
-                              className="!w-full rounded-[16px] !border-0 !bg-transparent px-5 py-4"
+                              className="!w-full rounded-[10px] !border-0 !bg-transparent !px-3 !py-2"
                               style={{
                                 color,
                                 fontSize: editingText.fontSize,
@@ -6289,12 +6385,12 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                               }}
                             />
                             <span
-                              className="absolute left-[-9px] top-1/2 h-10 w-4 -translate-y-1/2 cursor-ew-resize rounded-full border-[3px] border-[#6d5efc] bg-white shadow"
+                              className="absolute left-[-8px] top-1/2 z-20 h-8 w-3 -translate-y-1/2 cursor-ew-resize rounded-full border-2 border-[#6d5efc] bg-white shadow"
                               title="Drag to make the text box wider"
                               onPointerDown={(event) => startResizeTextAnnotation(event, editingText, "left")}
                             />
                             <span
-                              className="absolute right-[-9px] top-1/2 h-10 w-4 -translate-y-1/2 cursor-ew-resize rounded-full border-[3px] border-[#6d5efc] bg-white shadow"
+                              className="absolute right-[-8px] top-1/2 z-20 h-8 w-3 -translate-y-1/2 cursor-ew-resize rounded-full border-2 border-[#6d5efc] bg-white shadow"
                               title="Drag to make the text box wider"
                               onPointerDown={(event) => startResizeTextAnnotation(event, editingText, "right")}
                             />
@@ -6351,7 +6447,12 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                         return (
                           <div
                             key={annotation.id}
-                            className="group absolute whitespace-pre-wrap break-words rounded-2xl border border-transparent bg-white/70 px-4 py-3 leading-snug shadow-sm transition"
+                            className={[
+                              "group absolute whitespace-pre-wrap break-words rounded-xl border bg-white/65 px-2 py-1 leading-tight shadow-sm transition",
+                              isEditableText && (tool === "cursor" || tool === "text")
+                                ? "border-transparent hover:border-[#6d5efc]/60 hover:bg-white/85 hover:shadow-md"
+                                : "border-transparent",
+                            ].join(" ")}
                             style={{
                               left: annotation.x,
                               top: annotation.y,
@@ -6368,7 +6469,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                                 : tool === "cursor"
                                 ? "move"
                                 : tool === "text"
-                                ? "text"
+                                ? "grab"
                                 : "default",
                               touchAction: "none",
                               pointerEvents:
