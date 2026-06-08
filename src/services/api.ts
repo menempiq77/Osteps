@@ -442,7 +442,28 @@ export const uploadTaskByStudent = async (formData: FormData, assessmentId: numb
       'Content-Type': 'multipart/form-data',
     },
   });
-  return response.data;
+  const payload = response.data;
+  const embeddedStatusCode = Number(
+    payload?.status_code ?? payload?.statusCode ?? payload?.code ?? response.status
+  );
+  const embeddedFailure =
+    payload?.success === false ||
+    payload?.status === false ||
+    payload?.ok === false ||
+    embeddedStatusCode >= 400;
+
+  if (embeddedFailure) {
+    const error: any = new Error(
+      payload?.msg || payload?.message || "Failed to submit task"
+    );
+    error.response = {
+      data: payload,
+      status: embeddedStatusCode,
+    };
+    throw error;
+  }
+
+  return payload;
 };
 // add add-student-task-marks
 export const addStudentTaskMarks = async (studentId: number, taskData: {

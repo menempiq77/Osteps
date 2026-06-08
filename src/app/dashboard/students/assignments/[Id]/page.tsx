@@ -5,7 +5,7 @@ import { Calendar } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import AssignmentDrawer from "@/components/ui/AssignmentDrawer";
 import { Breadcrumb, Button, Spin, Tooltip } from "antd";
-import { fetchTasks } from "@/services/api";
+import { fetchStudentTasks, fetchTasks } from "@/services/api";
 import { fetchAssessmentDocument } from "@/services/documentAssessmentApi";
 import { requestDocumentFullscreenFromGesture } from "@/lib/browserFullscreen";
 import { useSelector } from "react-redux";
@@ -68,6 +68,30 @@ const getCurrentReturnToPath = () => {
   return `${window.location.pathname}${window.location.search}`;
 };
 
+const getTaskSubmissionStudentId = (submission: any) =>
+  submission?.student_id ?? submission?.student?.id ?? null;
+
+const getTaskSubmissionTaskId = (submission: any) =>
+  submission?.task_id ?? submission?.task?.id ?? null;
+
+const buildStudentSubmissionByTaskId = (submissions: any[], studentId: unknown) => {
+  const byTaskId = new Map<string, any>();
+  const targetStudentId = String(studentId ?? "").trim();
+  if (!targetStudentId) return byTaskId;
+
+  for (const submission of submissions || []) {
+    if (String(getTaskSubmissionStudentId(submission) ?? "").trim() !== targetStudentId) {
+      continue;
+    }
+
+    const taskId = getTaskSubmissionTaskId(submission);
+    if (taskId == null || String(taskId).trim() === "") continue;
+    byTaskId.set(String(taskId), submission);
+  }
+
+  return byTaskId;
+};
+
 export default function AssignmentDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -127,17 +151,21 @@ export default function AssignmentDetailPage() {
     }
   };
 
-  const mapTaskWithStudentData = async (task: any) => {
+  const mapTaskWithStudentData = async (
+    task: any,
+    submittedTaskByTaskId: Map<string, any>
+  ) => {
     const normalizedTask = normalizeTaskRecord(task);
 
     if (normalizedTask.type === "task") {
-      const studentTask = normalizedTask.student_assessment_tasks?.find(
+      const nestedStudentTask = normalizedTask.student_assessment_tasks?.find(
         (st: any) => String(st.student_id) === String(studentId)
       );
+      const studentTask = nestedStudentTask ?? submittedTaskByTaskId.get(String(normalizedTask.id));
       const hasSubmission = Boolean(studentTask);
       const selfAssessmentMark = await hydrateTaskSelfAssessmentMark(
         normalizedTask,
-        studentTask?.self_assessment_mark
+        studentTask?.self_assessment_mark ?? studentTask?.self_assessment_marks
       );
 
       return {
@@ -146,10 +174,11 @@ export default function AssignmentDetailPage() {
         has_submission: hasSubmission,
         self_assessment_marks: selfAssessmentMark ?? 0,
         additional_notes: studentTask?.additional_notes || "",
-        teacher_assessment_marks: studentTask?.teacher_assessment_score || 0,
+        teacher_assessment_marks:
+          studentTask?.teacher_assessment_score ?? studentTask?.teacher_assessment_marks ?? 0,
         teacher_feedback: studentTask?.teacher_feedback || null,
-        submitted_file_path: studentTask?.file_path || null,
-        submitted_file_paths: studentTask?.file_paths ?? null,
+        submitted_file_path: studentTask?.file_path ?? studentTask?.submitted_file_path ?? null,
+        submitted_file_paths: studentTask?.file_paths ?? studentTask?.submitted_file_paths ?? null,
       };
     }
 
@@ -198,16 +227,32 @@ export default function AssignmentDetailPage() {
     return normalizedTask;
   };
 
-  const enrichTasksWithStudentData = async (fetchedTasks: any[] | null | undefined) => {
-    return Promise.all((fetchedTasks || []).map((task) => mapTaskWithStudentData(task)));
+  const loadSubmittedTaskRows = async () => {
+    try {
+      return await fetchStudentTasks(Number(assignmentId));
+    } catch (error) {
+      console.error("Error loading submitted task rows:", error);
+      return [];
+    }
+  };
+
+  const enrichTasksWithStudentData = async (
+    fetchedTasks: any[] | null | undefined,
+    submittedTaskRows: any[] = []
+  ) => {
+    const submittedTaskByTaskId = buildStudentSubmissionByTaskId(submittedTaskRows, studentId);
+    return Promise.all(
+      (fetchedTasks || []).map((task) => mapTaskWithStudentData(task, submittedTaskByTaskId))
+    );
   };
 
   const loadTasks = async () => {
     try {
       setLoading(true);
       const fetchedTasks = await fetchTasks(assignmentId);
+      const submittedTaskRows = await loadSubmittedTaskRows();
 
-      const tasksWithStudentData = await enrichTasksWithStudentData(fetchedTasks);
+      const tasksWithStudentData = await enrichTasksWithStudentData(fetchedTasks, submittedTaskRows);
 
       console.log(tasksWithStudentData, "tasksWithStudentData");
       setTasks(tasksWithStudentData);
@@ -226,7 +271,8 @@ export default function AssignmentDetailPage() {
   const loadTasksSilently = async () => {
     try {
       const fetchedTasks = await fetchTasks(assignmentId);
-      const tasksWithStudentData = await enrichTasksWithStudentData(fetchedTasks);
+      const submittedTaskRows = await loadSubmittedTaskRows();
+      const tasksWithStudentData = await enrichTasksWithStudentData(fetchedTasks, submittedTaskRows);
       setTasks(tasksWithStudentData);
     } catch (error) {
       console.error("Error refreshing tasks:", error);

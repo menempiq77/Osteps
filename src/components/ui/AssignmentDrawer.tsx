@@ -696,7 +696,13 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
     replaceRecordingPreviewUrl(null);
   } catch (error: any) {
     console.error("Error submitting Task:", error);
-    messageApi.error("Failed to submit Task. Please try again.");
+    const statusCode = Number(error?.response?.data?.status_code ?? error?.response?.status ?? 0);
+    const backendMessage = error?.response?.data?.msg || error?.response?.data?.message;
+    if (statusCode === 409) {
+      messageApi.warning(backendMessage || "You have already submitted this task.");
+    } else {
+      messageApi.error(backendMessage || "Failed to submit Task. Please try again.");
+    }
   } finally {
     setIsSubmitting(false);
   }
