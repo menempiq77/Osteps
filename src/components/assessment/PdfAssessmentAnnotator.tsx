@@ -5313,10 +5313,11 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     touchAction: nativeGestureTouchAction,
     willChange: "transform, left, top",
   };
+  const showFormattingControls = tool !== "eraser" && (tool !== "cursor" || canEditSelectedStroke);
 
   const compactAnnotationTools = (
-    <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
-      <div className="flex flex-wrap items-center gap-0.5 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+    <div className="flex min-w-0 flex-nowrap items-center justify-end gap-1.5 overflow-x-auto pb-0.5">
+      <div className="flex h-9 w-[10.9rem] shrink-0 items-center gap-0.5 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
         {TOOL_BUTTONS.map(({ value, label, shortcut, Icon }) => (
           <Button
             key={value}
@@ -5336,7 +5337,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         ))}
       </div>
 
-      <div className="flex h-9 items-center gap-1 rounded-xl border border-slate-200 bg-white px-1.5 shadow-sm">
+      <div className="flex h-9 w-[8.3rem] shrink-0 items-center gap-1 rounded-xl border border-slate-200 bg-white px-1.5 shadow-sm">
         <Button
           size="small"
           onClick={() => changeZoomLevel(-ZOOM_STEP)}
@@ -5362,100 +5363,127 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         </Button>
       </div>
 
-      <div className="flex h-9 items-center gap-1 rounded-xl border border-slate-200 bg-white px-1.5 shadow-sm">
+      <div className="flex h-9 w-[12.8rem] shrink-0 items-center gap-1 rounded-xl border border-slate-200 bg-white px-1.5 shadow-sm">
         <Button size="small" className="!h-7" onClick={undo} disabled={!editable || undoStack.length === 0}>Undo</Button>
         <Button size="small" className="!h-7" onClick={redo} disabled={!editable || redoStack.length === 0}>Redo</Button>
         <Button size="small" className="!h-7" onClick={saveNow} disabled={!editable} loading={saving} title="Ctrl+S" aria-label="Save now (Ctrl+S)">Save</Button>
       </div>
 
-      {(tool !== "eraser" && (tool !== "cursor" || canEditSelectedStroke)) && (
-        <>
-          <div className="hidden h-7 w-px bg-slate-200 xl:block" />
-          <div className="flex h-9 items-center gap-1 rounded-xl border border-slate-200 bg-white px-1.5 shadow-sm">
-            {COLOR_SWATCHS.map(({ value, label }) => (
+      <div className="hidden h-7 w-px shrink-0 bg-slate-200 xl:block" />
+      <div className={["flex h-9 w-[18rem] shrink-0 items-center gap-1 rounded-xl border border-slate-200 bg-white px-1.5 shadow-sm", showFormattingControls ? "" : "pointer-events-none invisible"].join(" ")}>
+        {COLOR_SWATCHS.map(({ value, label }) => (
+          <button
+            key={value}
+            type="button"
+            title={label}
+            aria-label={`Set color to ${label.toLowerCase()}`}
+            disabled={!editable}
+            onClick={() => handleStrokeColorChange(value)}
+            className={[
+              "h-6 w-6 rounded-full border transition",
+              value === "#ffffff" ? "border-slate-300" : "border-white/80",
+              activeStrokeColor === value
+                ? "ring-2 ring-[#9b8cff] ring-offset-1 ring-offset-white"
+                : "hover:scale-105",
+              !editable ? "cursor-not-allowed opacity-50" : "",
+            ].join(" ")}
+            style={{ backgroundColor: value }}
+          />
+        ))}
+      </div>
+
+      <div className={["flex h-9 w-[9.5rem] shrink-0 items-center gap-1 rounded-xl border border-slate-200 bg-white px-1.5 shadow-sm", showFormattingControls ? "" : "pointer-events-none invisible"].join(" ")}>
+        {tool === "text" ? (
+          TEXT_SIZE_OPTIONS.map((fontSize) => (
+            <button
+              key={fontSize}
+              type="button"
+              disabled={!editable}
+              onClick={() => {
+                setTextFontSize(fontSize);
+                setEditingText((current) =>
+                  current ? { ...current, fontSize } : current
+                );
+              }}
+              className={[
+                "h-7 min-w-8 rounded-lg border px-2 text-xs font-bold transition",
+                textFontSize === fontSize
+                  ? "border-slate-950 bg-slate-950 text-white"
+                  : "border-transparent bg-white text-slate-700 hover:border-slate-200 hover:bg-slate-100",
+                !editable ? "cursor-not-allowed opacity-50" : "",
+              ].join(" ")}
+            >
+              {fontSize}
+            </button>
+          ))
+        ) : (
+          activeStrokeWidthOptions.map((widthValue) => {
+            const selected = activeStrokeWidth === widthValue;
+            const previewHeight =
+              strokeControlsTool === "highlighter"
+                ? Math.max(5, Math.round(widthValue / 3))
+                : Math.max(2, Math.round(widthValue / 1.5));
+
+            return (
               <button
-                key={value}
+                key={widthValue}
                 type="button"
-                title={label}
-                aria-label={`Set color to ${label.toLowerCase()}`}
                 disabled={!editable}
-                onClick={() => handleStrokeColorChange(value)}
+                onClick={() => handleStrokeWidthChange(widthValue)}
                 className={[
-                  "h-6 w-6 rounded-full border transition",
-                  value === "#ffffff" ? "border-slate-300" : "border-white/80",
-                  activeStrokeColor === value
-                    ? "ring-2 ring-[#9b8cff] ring-offset-1 ring-offset-white"
-                    : "hover:scale-105",
+                  "flex h-7 min-w-8 items-center justify-center rounded-lg border px-2 transition",
+                  selected
+                    ? "border-slate-950 bg-slate-950 text-white"
+                    : "border-transparent bg-white text-slate-800 hover:border-slate-200 hover:bg-slate-100",
                   !editable ? "cursor-not-allowed opacity-50" : "",
                 ].join(" ")}
-                style={{ backgroundColor: value }}
-              />
-            ))}
-          </div>
-
-          {tool === "text" ? (
-            <div className="flex h-9 items-center gap-1 rounded-xl border border-slate-200 bg-white px-1.5 shadow-sm">
-              {TEXT_SIZE_OPTIONS.map((fontSize) => (
-                <button
-                  key={fontSize}
-                  type="button"
-                  disabled={!editable}
-                  onClick={() => {
-                    setTextFontSize(fontSize);
-                    setEditingText((current) =>
-                      current ? { ...current, fontSize } : current
-                    );
+              >
+                <span
+                  className={selected ? "rounded-full bg-white" : "rounded-full bg-slate-800"}
+                  style={{
+                    width: strokeControlsTool === "highlighter" ? 18 : 16,
+                    height: previewHeight,
+                    opacity: strokeControlsTool === "highlighter" ? 0.7 : 1,
                   }}
-                  className={[
-                    "h-7 min-w-8 rounded-lg border px-2 text-xs font-bold transition",
-                    textFontSize === fontSize
-                      ? "border-slate-950 bg-slate-950 text-white"
-                      : "border-transparent bg-white text-slate-700 hover:border-slate-200 hover:bg-slate-100",
-                    !editable ? "cursor-not-allowed opacity-50" : "",
-                  ].join(" ")}
-                >
-                  {fontSize}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="flex h-9 items-center gap-1 rounded-xl border border-slate-200 bg-white px-1.5 shadow-sm">
-              {activeStrokeWidthOptions.map((widthValue) => {
-                const selected = activeStrokeWidth === widthValue;
-                const previewHeight =
-                  strokeControlsTool === "highlighter"
-                    ? Math.max(5, Math.round(widthValue / 3))
-                    : Math.max(2, Math.round(widthValue / 1.5));
+                />
+              </button>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
 
-                return (
-                  <button
-                    key={widthValue}
-                    type="button"
-                    disabled={!editable}
-                    onClick={() => handleStrokeWidthChange(widthValue)}
-                    className={[
-                      "flex h-7 min-w-8 items-center justify-center rounded-lg border px-2 transition",
-                      selected
-                        ? "border-slate-950 bg-slate-950 text-white"
-                        : "border-transparent bg-white text-slate-800 hover:border-slate-200 hover:bg-slate-100",
-                      !editable ? "cursor-not-allowed opacity-50" : "",
-                    ].join(" ")}
-                  >
-                    <span
-                      className={selected ? "rounded-full bg-white" : "rounded-full bg-slate-800"}
-                      style={{
-                        width: strokeControlsTool === "highlighter" ? 18 : 16,
-                        height: previewHeight,
-                        opacity: strokeControlsTool === "highlighter" ? 0.7 : 1,
-                      }}
-                    />
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </>
-      )}
+  const compactWorkflowControls = role === "student" ? (
+    <div className="flex min-w-0 shrink-0 flex-nowrap items-center gap-1.5 overflow-x-auto pb-0.5">
+      <Tag className="!mb-0 shrink-0 whitespace-nowrap" color="blue">Student copy</Tag>
+      <Tag className="!mb-0 shrink-0 whitespace-nowrap" color={state?.status === "draft" ? "gold" : state?.status === "submitted" ? "green" : "purple"}>{state?.status || "draft"}</Tag>
+      <Tag className="!mb-0 shrink-0 whitespace-nowrap" color={studentLocked ? "default" : "cyan"}>{studentLocked ? "Student locked" : "Student open"}</Tag>
+      <Tag
+        className="!mb-0 inline-flex min-w-[4.75rem] shrink-0 justify-center whitespace-nowrap"
+        color={autosaveStatusColor}
+        title={lastSavedAt ? `Saved ${lastSavedAt}` : autosaveStatusLabel}
+      >
+        {autosaveStatusLabel}
+      </Tag>
+      {maxMarks != null && <Tag className="!mb-0 shrink-0 whitespace-nowrap tabular-nums">{maxMarks} marks</Tag>}
+      <div className="mx-1 h-7 w-px shrink-0 bg-slate-200" />
+      <InputNumber min={0} max={maxMarks} value={selfAssessmentMark ?? undefined} onChange={(value) => setSelfAssessmentMark(value == null ? null : Number(value))} placeholder={examWindow.examMode ? "Predicted" : "Self"} disabled={!editable} className="!w-16 shrink-0" size="small" />
+      <Button size="small" type="primary" className="shrink-0 !bg-[#16a34a] !border-[#16a34a] !text-white hover:!bg-[#15803d] hover:!border-[#15803d] disabled:!bg-gray-200 disabled:!border-gray-200 disabled:!text-gray-500" onClick={finishStudentWork} loading={finishing} disabled={!editable}>{examWindow.examMode ? "Submit exam" : "Submit work"}</Button>
+    </div>
+  ) : (
+    <div className="flex min-w-0 shrink-0 flex-nowrap items-center gap-1.5 overflow-x-auto pb-0.5">
+      <Tag className="!mb-0 shrink-0 whitespace-nowrap" color="red">Teacher marking</Tag>
+      <Tag className="!mb-0 shrink-0 whitespace-nowrap" color={state?.status === "draft" ? "gold" : state?.status === "submitted" ? "green" : "purple"}>{state?.status || "draft"}</Tag>
+      <Tag className="!mb-0 shrink-0 whitespace-nowrap" color={studentLocked ? "default" : "cyan"}>{studentLocked ? "Student locked" : "Student open"}</Tag>
+      <Tag
+        className="!mb-0 inline-flex min-w-[4.75rem] shrink-0 justify-center whitespace-nowrap"
+        color={autosaveStatusColor}
+        title={lastSavedAt ? `Saved ${lastSavedAt}` : autosaveStatusLabel}
+      >
+        {autosaveStatusLabel}
+      </Tag>
+      {maxMarks != null && <Tag className="!mb-0 shrink-0 whitespace-nowrap tabular-nums">{maxMarks} marks</Tag>}
     </div>
   );
 
@@ -5483,27 +5511,32 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                 </div>
               )}
             </div>
-            <div className="flex min-w-[18rem] flex-[3_1_42rem] justify-end">
+            <div className="flex min-w-[18rem] flex-[3_1_42rem] justify-center">
               {compactAnnotationTools}
             </div>
-            <button
-              type="button"
-              onClick={() => setIsToolbarCollapsed((c) => !c)}
-              aria-expanded={!isToolbarCollapsed}
-              aria-label={isToolbarCollapsed ? "Expand annotation tools" : "Collapse annotation tools"}
-              className="shrink-0 flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 transition"
-            >
-              {isToolbarCollapsed ? "Open" : "Collapse"}
-              {isToolbarCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-            </button>
+            <div className="flex min-w-[20rem] flex-[1_1_34rem] justify-end">
+              {compactWorkflowControls}
+            </div>
+            {role === "teacher" && (
+              <button
+                type="button"
+                onClick={() => setIsToolbarCollapsed((c) => !c)}
+                aria-expanded={!isToolbarCollapsed}
+                aria-label={isToolbarCollapsed ? "Expand marking controls" : "Collapse marking controls"}
+                className="shrink-0 flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 transition"
+              >
+                {isToolbarCollapsed ? "Open" : "Collapse"}
+                {isToolbarCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+              </button>
+            )}
           </div>
-          <div
-            className={["grid overflow-hidden transition-all duration-300 ease-out", isToolbarCollapsed ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100"].join(" ")}
-            aria-hidden={isToolbarCollapsed}
-          >
+          {role === "teacher" && (
+            <div
+              className={["grid overflow-hidden transition-all duration-300 ease-out", isToolbarCollapsed ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100"].join(" ")}
+              aria-hidden={isToolbarCollapsed}
+            >
             <div className={isToolbarCollapsed ? "pointer-events-none min-h-0" : "min-h-0"}>
           <div className="flex flex-col gap-3">
-          {role === "teacher" && (
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">Student</span>
               {studentSwitcherOptions.length > 0 && onStudentChange ? (
@@ -5525,28 +5558,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                 </span>
               )}
             </div>
-          )}
-          <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 sm:flex-nowrap sm:overflow-hidden">
-            <Tag className="mb-0 shrink-0 whitespace-nowrap" color={role === "teacher" ? "red" : "blue"}>{role === "teacher" ? "Teacher marking" : "Student copy"}</Tag>
-            <Tag className="mb-0 shrink-0 whitespace-nowrap" color={state?.status === "draft" ? "gold" : state?.status === "submitted" ? "green" : "purple"}>{state?.status || "draft"}</Tag>
-            <Tag className="mb-0 shrink-0 whitespace-nowrap" color={studentLocked ? "default" : "cyan"}>{studentLocked ? "Student locked" : "Student open"}</Tag>
-            <Tag
-              className="mb-0 inline-flex min-w-[4.75rem] shrink-0 justify-center whitespace-nowrap"
-              color={autosaveStatusColor}
-              title={lastSavedAt ? `Saved ${lastSavedAt}` : autosaveStatusLabel}
-            >
-              {autosaveStatusLabel}
-            </Tag>
-            {maxMarks != null && <Tag className="mb-0 shrink-0 whitespace-nowrap tabular-nums">{maxMarks} marks</Tag>}
-          </div>
           <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/80 px-2 py-1.5">
-            {role === "student" ? (
-              <>
-                <InputNumber min={0} max={maxMarks} value={selfAssessmentMark ?? undefined} onChange={(value) => setSelfAssessmentMark(value == null ? null : Number(value))} placeholder={examWindow.examMode ? "Predicted mark" : "Self mark"} disabled={!editable} className="w-28" size="small" />
-                <Button size="small" type="primary" className="!bg-[#16a34a] !border-[#16a34a] !text-white hover:!bg-[#15803d] hover:!border-[#15803d] disabled:!bg-gray-200 disabled:!border-gray-200 disabled:!text-gray-500" onClick={finishStudentWork} loading={finishing} disabled={!editable}>{examWindow.examMode ? "Submit exam" : "Submit work"}</Button>
-              </>
-            ) : (
-              <>
+            <>
                 <Button
                   size="small"
                   onClick={toggleStudentEditingLock}
@@ -5578,12 +5591,12 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                   Download paper
                 </Button>
                 <Button size="small" type="primary" onClick={finalizeTeacherMark} loading={finishing}>Save markbook mark</Button>
-              </>
-            )}
+            </>
           </div>
           </div>
             </div>
-          </div>
+            </div>
+          )}
         </div>
       </div>
   );
