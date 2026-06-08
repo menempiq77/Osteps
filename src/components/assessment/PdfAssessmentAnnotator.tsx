@@ -16,9 +16,12 @@ import {
   Highlighter,
   MousePointer2,
   PenTool,
+  Redo2,
+  Save,
   Trash2,
   Type,
   Underline,
+  Undo2,
 } from "lucide-react";
 import type {
   AssessmentDocumentAnnotation,
@@ -5316,7 +5319,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const showFormattingControls = tool !== "eraser" && (tool !== "cursor" || canEditSelectedStroke);
 
   const compactAnnotationTools = (
-    <div className="flex min-w-0 flex-nowrap items-center justify-end gap-1.5 overflow-x-auto pb-0.5">
+    <div className="flex max-w-full min-w-0 flex-nowrap items-center gap-1.5 overflow-x-auto pb-0.5">
       <div className="flex h-9 w-[10.9rem] shrink-0 items-center gap-0.5 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
         {TOOL_BUTTONS.map(({ value, label, shortcut, Icon }) => (
           <Button
@@ -5363,14 +5366,39 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         </Button>
       </div>
 
-      <div className="flex h-9 w-[12.8rem] shrink-0 items-center gap-1 rounded-xl border border-slate-200 bg-white px-1.5 shadow-sm">
-        <Button size="small" className="!h-7" onClick={undo} disabled={!editable || undoStack.length === 0}>Undo</Button>
-        <Button size="small" className="!h-7" onClick={redo} disabled={!editable || redoStack.length === 0}>Redo</Button>
-        <Button size="small" className="!h-7" onClick={saveNow} disabled={!editable} loading={saving} title="Ctrl+S" aria-label="Save now (Ctrl+S)">Save</Button>
+      <div className="flex h-9 w-[6.9rem] shrink-0 items-center gap-1 rounded-xl border border-slate-200 bg-white px-1.5 shadow-sm">
+        <Button
+          size="small"
+          className="!flex !h-7 !w-7 !items-center !justify-center !px-0"
+          icon={<Undo2 className="h-3.5 w-3.5" />}
+          onClick={undo}
+          disabled={!editable || undoStack.length === 0}
+          title="Undo"
+          aria-label="Undo"
+        />
+        <Button
+          size="small"
+          className="!flex !h-7 !w-7 !items-center !justify-center !px-0"
+          icon={<Redo2 className="h-3.5 w-3.5" />}
+          onClick={redo}
+          disabled={!editable || redoStack.length === 0}
+          title="Redo"
+          aria-label="Redo"
+        />
+        <Button
+          size="small"
+          className="!flex !h-7 !w-7 !items-center !justify-center !px-0"
+          icon={<Save className="h-3.5 w-3.5" />}
+          onClick={saveNow}
+          disabled={!editable}
+          loading={saving}
+          title="Save now (Ctrl+S)"
+          aria-label="Save now (Ctrl+S)"
+        />
       </div>
 
       <div className="hidden h-7 w-px shrink-0 bg-slate-200 xl:block" />
-      <div className={["flex h-9 w-[18rem] shrink-0 items-center gap-1 rounded-xl border border-slate-200 bg-white px-1.5 shadow-sm", showFormattingControls ? "" : "pointer-events-none invisible"].join(" ")}>
+      <div className={["flex h-9 w-[16.2rem] shrink-0 items-center gap-1 rounded-xl border border-slate-200 bg-white px-1.5 shadow-sm", showFormattingControls ? "" : "pointer-events-none invisible"].join(" ")}>
         {COLOR_SWATCHS.map(({ value, label }) => (
           <button
             key={value}
@@ -5380,7 +5408,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
             disabled={!editable}
             onClick={() => handleStrokeColorChange(value)}
             className={[
-              "h-6 w-6 rounded-full border transition",
+              "h-[22px] w-[22px] rounded-full border transition",
               value === "#ffffff" ? "border-slate-300" : "border-white/80",
               activeStrokeColor === value
                 ? "ring-2 ring-[#9b8cff] ring-offset-1 ring-offset-white"
@@ -5456,18 +5484,23 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
   const compactWorkflowControls = role === "student" ? (
     <div className="flex min-w-0 shrink-0 flex-nowrap items-center gap-1.5 overflow-x-auto pb-0.5">
-      <Tag className="!mb-0 shrink-0 whitespace-nowrap" color="blue">Student copy</Tag>
-      <Tag className="!mb-0 shrink-0 whitespace-nowrap" color={state?.status === "draft" ? "gold" : state?.status === "submitted" ? "green" : "purple"}>{state?.status || "draft"}</Tag>
-      <Tag className="!mb-0 shrink-0 whitespace-nowrap" color={studentLocked ? "default" : "cyan"}>{studentLocked ? "Student locked" : "Student open"}</Tag>
-      <Tag
-        className="!mb-0 inline-flex min-w-[4.75rem] shrink-0 justify-center whitespace-nowrap"
-        color={autosaveStatusColor}
-        title={lastSavedAt ? `Saved ${lastSavedAt}` : autosaveStatusLabel}
-      >
-        {autosaveStatusLabel}
-      </Tag>
+      <span
+        className="h-2.5 w-2.5 shrink-0 rounded-full bg-blue-500"
+        title="Student copy"
+        aria-label="Student copy"
+      />
+      <span
+        className={["h-2.5 w-2.5 shrink-0 rounded-full", state?.status === "draft" ? "bg-amber-400" : state?.status === "submitted" ? "bg-emerald-500" : "bg-purple-500"].join(" ")}
+        title={`Status: ${state?.status || "draft"}`}
+        aria-label={`Status: ${state?.status || "draft"}`}
+      />
+      <span
+        className={["h-2.5 w-2.5 shrink-0 rounded-full", studentLocked ? "bg-slate-400" : "bg-cyan-500"].join(" ")}
+        title={studentLocked ? "Student locked" : "Student open"}
+        aria-label={studentLocked ? "Student locked" : "Student open"}
+      />
       {maxMarks != null && <Tag className="!mb-0 shrink-0 whitespace-nowrap tabular-nums">{maxMarks} marks</Tag>}
-      <div className="mx-1 h-7 w-px shrink-0 bg-slate-200" />
+      <div className="mx-1 h-6 w-px shrink-0 bg-slate-200" />
       <InputNumber min={0} max={maxMarks} value={selfAssessmentMark ?? undefined} onChange={(value) => setSelfAssessmentMark(value == null ? null : Number(value))} placeholder={examWindow.examMode ? "Predicted" : "Self"} disabled={!editable} className="!w-16 shrink-0" size="small" />
       <Button size="small" type="primary" className="shrink-0 !bg-[#16a34a] !border-[#16a34a] !text-white hover:!bg-[#15803d] hover:!border-[#15803d] disabled:!bg-gray-200 disabled:!border-gray-200 disabled:!text-gray-500" onClick={finishStudentWork} loading={finishing} disabled={!editable}>{examWindow.examMode ? "Submit exam" : "Submit work"}</Button>
     </div>
@@ -5494,9 +5527,9 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         className="fixed left-0 right-0 top-0 z-[90] border-b bg-white/95 px-4 py-2 shadow-sm backdrop-blur"
         style={toolbarChromeStyle}
       >
-        <div className={shouldEnforceExamScreen ? "flex flex-col gap-2" : "flex w-full flex-col gap-2"}>
+        <div className={shouldEnforceExamScreen ? "flex flex-col gap-1.5" : "flex w-full flex-col gap-1.5"}>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex min-w-[15rem] flex-[1_1_18rem] flex-wrap items-center gap-2">
+            <div className="flex min-w-[15rem] flex-[1_1_22rem] flex-wrap items-center gap-2">
               <h1 className="min-w-0 truncate text-lg font-semibold text-gray-900">{title}</h1>
               {studentExamTimerVisible && (
                 <div
@@ -5510,9 +5543,6 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                   </span>
                 </div>
               )}
-            </div>
-            <div className="flex min-w-[18rem] flex-[3_1_42rem] justify-center">
-              {compactAnnotationTools}
             </div>
             <div className="flex min-w-[20rem] flex-[1_1_34rem] justify-end">
               {compactWorkflowControls}
@@ -5529,6 +5559,9 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                 {isToolbarCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
               </button>
             )}
+          </div>
+          <div className="flex w-full justify-center overflow-x-auto overflow-y-hidden">
+            {compactAnnotationTools}
           </div>
           {role === "teacher" && (
             <div
