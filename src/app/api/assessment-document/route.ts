@@ -258,6 +258,20 @@ export async function POST(request: NextRequest) {
   const state = await readState(ids.assessmentId, ids.taskId, ids.studentId);
   const payloadMetadata = payload.metadata && typeof payload.metadata === "object" ? payload.metadata : {};
 
+  if (
+    layer === "student" &&
+    isExamExitMetadataPayload(payloadMetadata) &&
+    !Array.isArray(payload.annotations)
+  ) {
+    state.metadata = {
+      ...state.metadata,
+      ...pickExamExitMetadata(payloadMetadata),
+    };
+    state.updatedAt = new Date().toISOString();
+    await writeState(state);
+    return NextResponse.json(state);
+  }
+
   if (layer === "student" && state.studentLocked && isExamExitMetadataPayload(payloadMetadata)) {
     state.metadata = {
       ...state.metadata,

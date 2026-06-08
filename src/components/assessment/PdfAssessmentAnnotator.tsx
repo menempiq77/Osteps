@@ -33,6 +33,7 @@ import type {
 import {
   fetchAssessmentDocument,
   saveAssessmentDocumentAnnotations,
+  saveAssessmentDocumentMetadata,
 } from "@/services/documentAssessmentApi";
 import { draftAssessmentMark } from "@/services/aiMarkingApi";
 import type {
@@ -2894,17 +2895,37 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         role,
       };
 
-      await saveAnnotations(getCurrentLayerSnapshot(), undefined, {
+      const metadata = {
+        examExitEvents: [...existingLogs, nextEntry],
+        lastExamExitReason: nextEntry.reason,
+        lastExamExitContext: context,
+        lastExamExitAt: nextEntry.createdAt,
+      };
+
+      await saveAssessmentDocumentMetadata({
+        assessmentId,
+        taskId,
+        studentId,
+        layer: role,
         metadata: {
-          examExitEvents: [...existingLogs, nextEntry],
-          lastExamExitReason: nextEntry.reason,
-          lastExamExitContext: context,
-          lastExamExitAt: nextEntry.createdAt,
+          ...(state?.metadata && typeof state.metadata === "object" ? state.metadata : {}),
+          ...metadata,
         },
-        silent: true,
       });
+
+      setState((current) =>
+        current
+          ? {
+              ...current,
+              metadata: {
+                ...(current.metadata && typeof current.metadata === "object" ? current.metadata : {}),
+                ...metadata,
+              },
+            }
+          : current
+      );
     },
-    [getCurrentLayerSnapshot, role, saveAnnotations, state?.metadata?.examExitEvents]
+    [assessmentId, role, state?.metadata, state?.metadata?.examExitEvents, studentId, taskId]
   );
 
   useEffect(() => {
@@ -4679,7 +4700,39 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       pendingAutosaveRef.current = null;
       setAutosaveQueued(false);
 
-      await persistExamExitReason(trimmedReason, examExitContext);
+      try {
+        await persistExamExitReason(trimmedReason, examExitContext);
+      } catch (error) {
+        console.error("Could not save exam exit reason before leaving:", error);
+        try {
+          const fallbackEntry = {
+            reason: trimmedReason,
+            context: examExitContext,
+            createdAt: new Date().toISOString(),
+            role,
+          };
+          window.localStorage.setItem(
+            `osteps:pending-exam-exit:${assessmentId}:${taskId}:${studentId}:${fallbackEntry.createdAt}`,
+            JSON.stringify(fallbackEntry)
+          );
+          const params = new URLSearchParams({ assessmentId, taskId, studentId });
+          const payload = JSON.stringify({
+            layer: role,
+            metadata: {
+              examExitEvents: [...examExitEvents, fallbackEntry],
+              lastExamExitReason: fallbackEntry.reason,
+              lastExamExitContext: fallbackEntry.context,
+              lastExamExitAt: fallbackEntry.createdAt,
+            },
+          });
+          navigator.sendBeacon?.(
+            `/api/assessment-document?${params.toString()}`,
+            new Blob([payload], { type: "application/json" })
+          );
+        } catch {
+          // The student must still be able to leave the exam screen.
+        }
+      }
 
       if (
         typeof document !== "undefined" &&
@@ -4704,7 +4757,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       approvedExamExitRef.current = false;
       suppressExamExitPromptRef.current = false;
       console.error(error);
-      messageApi.error("Could not save the exit reason. Please try again.");
+      messageApi.error("Could not exit the exam. Please try again.");
     } finally {
       setHandlingExamExit(false);
     }

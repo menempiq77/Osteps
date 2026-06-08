@@ -127,6 +127,33 @@ export const saveAssessmentDocumentAnnotations = async ({
   return response.json();
 };
 
+export const saveAssessmentDocumentMetadata = async ({
+  assessmentId,
+  taskId,
+  studentId,
+  layer,
+  metadata,
+}: {
+  assessmentId: string | number;
+  taskId: string | number;
+  studentId: string | number;
+  layer: AssessmentDocumentLayer;
+  metadata: Record<string, unknown>;
+}): Promise<AssessmentDocumentState> => {
+  const response = await fetch(buildUrl(assessmentId, taskId, studentId), {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getDocumentIdentityHeaders() },
+    body: JSON.stringify({ layer, metadata }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+    throw new Error(error?.message || "Failed to save document metadata");
+  }
+
+  return response.json();
+};
+
 export const fetchAssessmentDocumentExamIncidents = async ({
   studentId,
   assessmentId,
