@@ -5314,16 +5314,161 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     willChange: "transform, left, top",
   };
 
+  const compactAnnotationTools = (
+    <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
+      <div className="flex flex-wrap items-center gap-0.5 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+        {TOOL_BUTTONS.map(({ value, label, shortcut, Icon }) => (
+          <Button
+            key={value}
+            type="text"
+            icon={<Icon className="h-4 w-4" strokeWidth={2.2} />}
+            disabled={!editable}
+            onClick={() => setTool(value)}
+            title={`${label} ${shortcut}`}
+            aria-label={`Use ${label.toLowerCase()} tool (${shortcut})`}
+            className={[
+              "!flex !h-8 !w-8 !items-center !justify-center !rounded-lg !border !p-0 !shadow-none",
+              tool === value
+                ? "!border-slate-950 !bg-slate-950 !text-white hover:!border-slate-950 hover:!bg-slate-950 hover:!text-white"
+                : "!border-transparent !bg-white !text-slate-700 hover:!border-slate-200 hover:!bg-slate-100 hover:!text-slate-950",
+            ].join(" ")}
+          />
+        ))}
+      </div>
+
+      <div className="flex h-9 items-center gap-1 rounded-xl border border-slate-200 bg-white px-1.5 shadow-sm">
+        <Button
+          size="small"
+          onClick={() => changeZoomLevel(-ZOOM_STEP)}
+          disabled={zoomLevel <= MIN_ZOOM_LEVEL}
+          title="Ctrl+-"
+          aria-label="Zoom out (Ctrl+-)"
+          className="!h-7 !min-w-7 !px-1"
+        >
+          -
+        </Button>
+        <span className="w-11 text-center text-xs font-semibold tabular-nums text-slate-600">
+          {zoomPercent}%
+        </span>
+        <Button
+          size="small"
+          onClick={() => changeZoomLevel(ZOOM_STEP)}
+          disabled={zoomLevel >= MAX_ZOOM_LEVEL}
+          title="Ctrl++"
+          aria-label="Zoom in (Ctrl++)"
+          className="!h-7 !min-w-7 !px-1"
+        >
+          +
+        </Button>
+      </div>
+
+      <div className="flex h-9 items-center gap-1 rounded-xl border border-slate-200 bg-white px-1.5 shadow-sm">
+        <Button size="small" className="!h-7" onClick={undo} disabled={!editable || undoStack.length === 0}>Undo</Button>
+        <Button size="small" className="!h-7" onClick={redo} disabled={!editable || redoStack.length === 0}>Redo</Button>
+        <Button size="small" className="!h-7" onClick={saveNow} disabled={!editable} loading={saving} title="Ctrl+S" aria-label="Save now (Ctrl+S)">Save</Button>
+      </div>
+
+      {(tool !== "eraser" && (tool !== "cursor" || canEditSelectedStroke)) && (
+        <>
+          <div className="hidden h-7 w-px bg-slate-200 xl:block" />
+          <div className="flex h-9 items-center gap-1 rounded-xl border border-slate-200 bg-white px-1.5 shadow-sm">
+            {COLOR_SWATCHS.map(({ value, label }) => (
+              <button
+                key={value}
+                type="button"
+                title={label}
+                aria-label={`Set color to ${label.toLowerCase()}`}
+                disabled={!editable}
+                onClick={() => handleStrokeColorChange(value)}
+                className={[
+                  "h-6 w-6 rounded-full border transition",
+                  value === "#ffffff" ? "border-slate-300" : "border-white/80",
+                  activeStrokeColor === value
+                    ? "ring-2 ring-[#9b8cff] ring-offset-1 ring-offset-white"
+                    : "hover:scale-105",
+                  !editable ? "cursor-not-allowed opacity-50" : "",
+                ].join(" ")}
+                style={{ backgroundColor: value }}
+              />
+            ))}
+          </div>
+
+          {tool === "text" ? (
+            <div className="flex h-9 items-center gap-1 rounded-xl border border-slate-200 bg-white px-1.5 shadow-sm">
+              {TEXT_SIZE_OPTIONS.map((fontSize) => (
+                <button
+                  key={fontSize}
+                  type="button"
+                  disabled={!editable}
+                  onClick={() => {
+                    setTextFontSize(fontSize);
+                    setEditingText((current) =>
+                      current ? { ...current, fontSize } : current
+                    );
+                  }}
+                  className={[
+                    "h-7 min-w-8 rounded-lg border px-2 text-xs font-bold transition",
+                    textFontSize === fontSize
+                      ? "border-slate-950 bg-slate-950 text-white"
+                      : "border-transparent bg-white text-slate-700 hover:border-slate-200 hover:bg-slate-100",
+                    !editable ? "cursor-not-allowed opacity-50" : "",
+                  ].join(" ")}
+                >
+                  {fontSize}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="flex h-9 items-center gap-1 rounded-xl border border-slate-200 bg-white px-1.5 shadow-sm">
+              {activeStrokeWidthOptions.map((widthValue) => {
+                const selected = activeStrokeWidth === widthValue;
+                const previewHeight =
+                  strokeControlsTool === "highlighter"
+                    ? Math.max(5, Math.round(widthValue / 3))
+                    : Math.max(2, Math.round(widthValue / 1.5));
+
+                return (
+                  <button
+                    key={widthValue}
+                    type="button"
+                    disabled={!editable}
+                    onClick={() => handleStrokeWidthChange(widthValue)}
+                    className={[
+                      "flex h-7 min-w-8 items-center justify-center rounded-lg border px-2 transition",
+                      selected
+                        ? "border-slate-950 bg-slate-950 text-white"
+                        : "border-transparent bg-white text-slate-800 hover:border-slate-200 hover:bg-slate-100",
+                      !editable ? "cursor-not-allowed opacity-50" : "",
+                    ].join(" ")}
+                  >
+                    <span
+                      className={selected ? "rounded-full bg-white" : "rounded-full bg-slate-800"}
+                      style={{
+                        width: strokeControlsTool === "highlighter" ? 18 : 16,
+                        height: previewHeight,
+                        opacity: strokeControlsTool === "highlighter" ? 0.7 : 1,
+                      }}
+                    />
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+
   const toolbarChrome = (
       <div
         ref={toolbarChromeRef}
         data-assessment-toolbar="true"
-        className="fixed left-0 right-0 top-0 z-[90] border-b bg-white/95 px-4 py-3 shadow-sm backdrop-blur"
+        className="fixed left-0 right-0 top-0 z-[90] border-b bg-white/95 px-4 py-2 shadow-sm backdrop-blur"
         style={toolbarChromeStyle}
       >
         <div className={shouldEnforceExamScreen ? "flex flex-col gap-2" : "flex w-full flex-col gap-2"}>
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex min-w-[15rem] flex-[1_1_18rem] flex-wrap items-center gap-2">
               <h1 className="min-w-0 truncate text-lg font-semibold text-gray-900">{title}</h1>
               {studentExamTimerVisible && (
                 <div
@@ -5337,6 +5482,9 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                   </span>
                 </div>
               )}
+            </div>
+            <div className="flex min-w-[18rem] flex-[3_1_42rem] justify-end">
+              {compactAnnotationTools}
             </div>
             <button
               type="button"
@@ -5391,151 +5539,16 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
             </Tag>
             {maxMarks != null && <Tag className="mb-0 shrink-0 whitespace-nowrap tabular-nums">{maxMarks} marks</Tag>}
           </div>
-          <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-3">
-            <div className="order-2 flex flex-wrap items-center gap-2">
-              <div className="flex flex-wrap items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
-                {TOOL_BUTTONS.map(({ value, label, shortcut, Icon }) => (
-                  <Button
-                    key={value}
-                    type="text"
-                    icon={<Icon className="h-5 w-5" strokeWidth={2.2} />}
-                    disabled={!editable}
-                    onClick={() => setTool(value)}
-                    title={`${label} ${shortcut}`}
-                    aria-label={`Use ${label.toLowerCase()} tool (${shortcut})`}
-                    className={[
-                      "!flex !h-11 !w-11 !items-center !justify-center !rounded-xl !border !p-0 !shadow-none",
-                      tool === value
-                        ? "!border-black !bg-black !text-white hover:!border-black hover:!bg-black hover:!text-white"
-                        : "!border-transparent !bg-white !text-slate-800 hover:!border-slate-200 hover:!bg-slate-100 hover:!text-black",
-                    ].join(" ")}
-                  />
-                ))}
-              </div>
-              <div className="flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1">
-                <Button
-                  size="small"
-                  onClick={() => changeZoomLevel(-ZOOM_STEP)}
-                  disabled={zoomLevel <= MIN_ZOOM_LEVEL}
-                  title="Ctrl+-"
-                  aria-label="Zoom out (Ctrl+-)"
-                >
-                  -
-                </Button>
-                <span className="w-14 text-center text-xs font-medium tabular-nums text-gray-600">
-                  {zoomPercent}%
-                </span>
-                <Button
-                  size="small"
-                  onClick={() => changeZoomLevel(ZOOM_STEP)}
-                  disabled={zoomLevel >= MAX_ZOOM_LEVEL}
-                  title="Ctrl++"
-                  aria-label="Zoom in (Ctrl++)"
-                >
-                  +
-                </Button>
-              </div>
-              <Button onClick={undo} disabled={!editable || undoStack.length === 0}>Undo</Button>
-              <Button onClick={redo} disabled={!editable || redoStack.length === 0}>Redo</Button>
-              <Button onClick={saveNow} disabled={!editable} loading={saving} title="Ctrl+S" aria-label="Save now (Ctrl+S)">Save now</Button>
-            </div>
-
-            {(tool !== "eraser" && (tool !== "cursor" || canEditSelectedStroke)) && (
-              <div className="order-3 flex flex-wrap items-center gap-3 border-t border-slate-200 pt-2">
-                <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white px-2 py-2 shadow-sm">
-                  {COLOR_SWATCHS.map(({ value, label }) => (
-                    <button
-                      key={value}
-                      type="button"
-                      title={label}
-                      aria-label={`Set color to ${label.toLowerCase()}`}
-                      disabled={!editable}
-                      onClick={() => handleStrokeColorChange(value)}
-                      className={[
-                        "h-10 w-10 rounded-full border-2 transition",
-                        value === "#ffffff" ? "border-slate-300" : "border-white/80",
-                        activeStrokeColor === value
-                          ? "ring-4 ring-[#9b8cff] ring-offset-2 ring-offset-white"
-                          : "hover:scale-105",
-                        !editable ? "cursor-not-allowed opacity-50" : "",
-                      ].join(" ")}
-                      style={{ backgroundColor: value }}
-                    />
-                  ))}
-                </div>
-
-                {tool === "text" ? (
-                  <div className="flex flex-wrap items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
-                    {TEXT_SIZE_OPTIONS.map((fontSize) => (
-                      <button
-                        key={fontSize}
-                        type="button"
-                        disabled={!editable}
-                        onClick={() => {
-                          setTextFontSize(fontSize);
-                          setEditingText((current) =>
-                            current ? { ...current, fontSize } : current
-                          );
-                        }}
-                        className={[
-                          "min-w-12 rounded-xl border px-3 py-2 text-sm font-semibold transition",
-                          textFontSize === fontSize
-                            ? "border-black bg-black text-white"
-                            : "border-transparent bg-white text-slate-700 hover:border-slate-200 hover:bg-slate-100",
-                          !editable ? "cursor-not-allowed opacity-50" : "",
-                        ].join(" ")}
-                      >
-                        {fontSize}
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
-                    {activeStrokeWidthOptions.map((widthValue) => {
-                      const selected = activeStrokeWidth === widthValue;
-                      const previewHeight =
-                        strokeControlsTool === "highlighter"
-                          ? Math.max(8, Math.round(widthValue / 2.5))
-                          : Math.max(3, Math.round(widthValue));
-
-                      return (
-                        <button
-                          key={widthValue}
-                          type="button"
-                          disabled={!editable}
-                          onClick={() => handleStrokeWidthChange(widthValue)}
-                          className={[
-                            "flex h-10 min-w-12 items-center justify-center rounded-xl border px-3 transition",
-                            selected
-                              ? "border-black bg-black text-white"
-                              : "border-transparent bg-white text-slate-800 hover:border-slate-200 hover:bg-slate-100",
-                            !editable ? "cursor-not-allowed opacity-50" : "",
-                          ].join(" ")}
-                        >
-                          <span
-                            className={selected ? "rounded-full bg-white" : "rounded-full bg-slate-800"}
-                            style={{
-                              width: strokeControlsTool === "highlighter" ? 24 : 20,
-                              height: previewHeight,
-                              opacity: strokeControlsTool === "highlighter" ? 0.7 : 1,
-                            }}
-                          />
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/80 px-2 py-1.5">
             {role === "student" ? (
-              <div className="order-1 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-2">
-                <InputNumber min={0} max={maxMarks} value={selfAssessmentMark ?? undefined} onChange={(value) => setSelfAssessmentMark(value == null ? null : Number(value))} placeholder={examWindow.examMode ? "Predicted mark" : "Self mark"} disabled={!editable} className="w-32" />
-                <Button type="primary" className="!bg-[#16a34a] !border-[#16a34a] !text-white hover:!bg-[#15803d] hover:!border-[#15803d] disabled:!bg-gray-200 disabled:!border-gray-200 disabled:!text-gray-500" onClick={finishStudentWork} loading={finishing} disabled={!editable}>{examWindow.examMode ? "Submit exam" : "Submit work"}</Button>
-              </div>
+              <>
+                <InputNumber min={0} max={maxMarks} value={selfAssessmentMark ?? undefined} onChange={(value) => setSelfAssessmentMark(value == null ? null : Number(value))} placeholder={examWindow.examMode ? "Predicted mark" : "Self mark"} disabled={!editable} className="w-28" size="small" />
+                <Button size="small" type="primary" className="!bg-[#16a34a] !border-[#16a34a] !text-white hover:!bg-[#15803d] hover:!border-[#15803d] disabled:!bg-gray-200 disabled:!border-gray-200 disabled:!text-gray-500" onClick={finishStudentWork} loading={finishing} disabled={!editable}>{examWindow.examMode ? "Submit exam" : "Submit work"}</Button>
+              </>
             ) : (
-              <div className="order-1 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-2">
+              <>
                 <Button
+                  size="small"
                   onClick={toggleStudentEditingLock}
                   loading={changingStudentLock}
                   type={studentLocked ? "default" : "primary"}
@@ -5543,18 +5556,19 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                 >
                   {studentLocked ? "Open for student edits" : "Lock student editing"}
                 </Button>
-                <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-1 text-sm text-blue-700">
+                <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-xs text-blue-700">
                   <span className="font-medium">{examWindow.examMode ? "Predicted" : "Self"}</span>
                   <span className="font-semibold">
                     {selfAssessmentMark ?? "-"}
                     {maxMarks != null ? `/${maxMarks}` : ""}
                   </span>
                 </div>
-                <Input className="w-24" placeholder="Marks" value={teacherMarks} onChange={(event) => setTeacherMarks(event.target.value)} />
-                <Button onClick={requestAiDraftMark} loading={aiDrafting} disabled={!documentReadyForCurrentStudent || rendering}>
+                <Input size="small" className="w-20" placeholder="Marks" value={teacherMarks} onChange={(event) => setTeacherMarks(event.target.value)} />
+                <Button size="small" onClick={requestAiDraftMark} loading={aiDrafting} disabled={!documentReadyForCurrentStudent || rendering}>
                   Ask AI to Mark
                 </Button>
                 <Button
+                  size="small"
                   onClick={() => void downloadSubmittedPaper()}
                   loading={exportingPaper}
                   disabled={!canDownloadSubmittedPaper || rendering}
@@ -5563,8 +5577,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                 >
                   Download paper
                 </Button>
-                <Button type="primary" onClick={finalizeTeacherMark} loading={finishing}>Save markbook mark</Button>
-              </div>
+                <Button size="small" type="primary" onClick={finalizeTeacherMark} loading={finishing}>Save markbook mark</Button>
+              </>
             )}
           </div>
           </div>
