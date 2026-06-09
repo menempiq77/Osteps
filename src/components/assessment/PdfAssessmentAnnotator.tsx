@@ -304,7 +304,7 @@ const PEN_SELECTION_RADIUS = 12;
 const PEN_SELECTION_BOX_PADDING = 12;
 const PEN_SELECTION_BOX_MIN_SIZE = 32;
 const PEN_RESIZE_MIN_SCALE = 0.25;
-const PEN_POINT_MIN_DISTANCE = 0.35;
+const SAVE_RETRY_DELAY_MS = 900;
 const TEXT_ERASER_PADDING = 18;
 const TEXT_ANNOTATION_MIN_WIDTH = 80;
 const TEXT_ANNOTATION_DEFAULT_WIDTH = 220;
@@ -694,27 +694,44 @@ const getSafePenPoints = (annotation: { points?: Array<{ x?: number; y?: number 
       )
     : [];
 
-const getPointDistance = (left: { x: number; y: number }, right: { x: number; y: number }) =>
-  Math.hypot(left.x - right.x, left.y - right.y);
-
-const shouldAppendPenPoint = (
-  points: Array<{ x: number; y: number }>,
-  point: { x: number; y: number }
-) => {
-  const lastPoint = points[points.length - 1];
-  if (!lastPoint) return true;
-  return getPointDistance(lastPoint, point) >= PEN_POINT_MIN_DISTANCE;
-};
-
-const appendPointToPenStroke = (stroke: PenAnnotation, point: { x: number; y: number }) => {
-  if (!shouldAppendPenPoint(getSafePenPoints(stroke), point)) return stroke;
-  return { ...stroke, points: [...stroke.points, point] };
-};
-
 const finalizePenStroke = (stroke: PenAnnotation): PenAnnotation => {
   const points = getSafePenPoints(stroke);
   return { ...stroke, points: points.map((point) => ({ ...point })) };
 };
+
+const roundAnnotationNumber = (value: number) => Math.round(value * 10) / 10;
+
+const compactAnnotationForStorage = (
+  annotation: AssessmentDocumentAnnotation
+): AssessmentDocumentAnnotation => {
+  if (annotation.type === "pen") {
+    return {
+      ...annotation,
+      points: getSafePenPoints(annotation).map((point) => ({
+        x: roundAnnotationNumber(point.x),
+        y: roundAnnotationNumber(point.y),
+      })),
+    };
+  }
+
+  return {
+    ...annotation,
+    x: roundAnnotationNumber(annotation.x),
+    y: roundAnnotationNumber(annotation.y),
+    width:
+      typeof annotation.width === "number"
+        ? roundAnnotationNumber(annotation.width)
+        : annotation.width,
+  };
+};
+
+const compactAnnotationsForStorage = (annotations: AssessmentDocumentAnnotation[]) =>
+  annotations.map(compactAnnotationForStorage);
+
+const waitForSaveRetry = () =>
+  new Promise((resolve) => {
+    setTimeout(resolve, SAVE_RETRY_DELAY_MS);
+  });
 
 const cloneAnnotationsSnapshot = (annotations: AssessmentDocumentAnnotation[]) =>
   annotations.map((annotation) =>
@@ -809,23 +826,8 @@ const drawPen = (context: CanvasRenderingContext2D, annotation: PenAnnotation) =
   }
   context.beginPath();
   context.moveTo(points[0].x, points[0].y);
-  if (points.length === 2) {
-    context.lineTo(points[1].x, points[1].y);
-  } else {
-    for (let index = 0; index < points.length - 1; index += 1) {
-      const previous = points[index - 1] || points[index];
-      const current = points[index];
-      const next = points[index + 1];
-      const afterNext = points[index + 2] || next;
-      context.bezierCurveTo(
-        current.x + (next.x - previous.x) / 6,
-        current.y + (next.y - previous.y) / 6,
-        next.x - (afterNext.x - current.x) / 6,
-        next.y - (afterNext.y - current.y) / 6,
-        next.x,
-        next.y
-      );
-    }
+  for (const point of points.slice(1)) {
+    context.lineTo(point.x, point.y);
   }
   context.stroke();
   context.restore();
@@ -2849,13 +2851,14 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       if (typeof window === "undefined") return;
 
       try {
+        const compactAnnotations = compactAnnotationsForStorage(annotations);
         window.localStorage.setItem(
           localDraftKey,
           JSON.stringify({
-            annotations,
+            annotations: compactAnnotations,
             metadata: metadata || {},
             updatedAtMs: Date.now(),
-            signature: getAnnotationsSignature(annotations),
+            signature: getAnnotationsSignature(compactAnnotations),
           })
         );
       } catch {
@@ -2876,6 +2879,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         metadata?: Record<string, unknown>;
       }
     ) => {
+      const annotationsForStorage = compactAnnotationsForStorage(nextAnnotations);
       const metadataOverrides = options?.metadata || {};
       const nextSelfAssessmentMark = normalizeSelfAssessmentValue(
         Object.prototype.hasOwnProperty.call(metadataOverrides, "selfAssessmentMark")
@@ -2896,24 +2900,31 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         clientSaveId: clientSaveIdRef.current,
         clientSaveSeq: nextClientSaveSeq,
         clientSavedAt: new Date().toISOString(),
-        annotationsCount: nextAnnotations.length,
+        annotationsCount: annotationsForStorage.length,
       };
 
-      persistLocalDraft(nextAnnotations, metadata);
+      persistLocalDraft(annotationsForStorage, metadata);
 
       if (!options?.silent) setSaving(true);
-      const nextState = await saveAssessmentDocumentAnnotations({
+      const savePayload = {
         assessmentId,
         taskId,
         studentId,
         layer: role,
-        annotations: nextAnnotations,
+        annotations: annotationsForStorage,
         status: nextStatus,
         studentLocked: options?.studentLocked,
         metadata,
-      });
+      };
+      let nextState: AssessmentDocumentState;
+      try {
+        nextState = await saveAssessmentDocumentAnnotations(savePayload);
+      } catch (error) {
+        await waitForSaveRetry();
+        nextState = await saveAssessmentDocumentAnnotations(savePayload);
+      }
       lastSavedSelfAssessmentRef.current = nextSelfAssessmentMark;
-      lastLiveSyncedSignatureRef.current = getAnnotationsSignature(nextAnnotations);
+      lastLiveSyncedSignatureRef.current = getAnnotationsSignature(annotationsForStorage);
       if (options?.syncState !== false) setState(nextState);
       setLastSavedAt(new Date().toLocaleTimeString());
       if (!options?.silent) setSaving(false);
@@ -4002,8 +4013,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         event.preventDefault();
         event.stopPropagation();
         const point = getPointerPoint(event, event.currentTarget, zoomLevel);
-        const nextStroke = appendPointToPenStroke(currentTouchStroke, point);
-        if (nextStroke === currentTouchStroke) return;
+        const nextStroke = { ...currentTouchStroke, points: [...currentTouchStroke.points, point] };
         activeStrokeRef.current = nextStroke;
         setActiveStroke(nextStroke);
       }
@@ -4048,8 +4058,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     event.preventDefault();
     event.stopPropagation();
     const point = getPointerPoint(event, event.currentTarget, zoomLevel);
-    const nextStroke = appendPointToPenStroke(currentStroke, point);
-    if (nextStroke === currentStroke) return;
+    const nextStroke = { ...currentStroke, points: [...currentStroke.points, point] };
     activeStrokeRef.current = nextStroke;
     setActiveStroke(nextStroke);
   };
