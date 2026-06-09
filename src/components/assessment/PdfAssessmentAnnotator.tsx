@@ -304,8 +304,7 @@ const PEN_SELECTION_RADIUS = 12;
 const PEN_SELECTION_BOX_PADDING = 12;
 const PEN_SELECTION_BOX_MIN_SIZE = 32;
 const PEN_RESIZE_MIN_SCALE = 0.25;
-const PEN_POINT_MIN_DISTANCE = 1.25;
-const PEN_SMOOTHING_PASSES = 2;
+const PEN_POINT_MIN_DISTANCE = 0.35;
 const TEXT_ERASER_PADDING = 18;
 const TEXT_ANNOTATION_MIN_WIDTH = 80;
 const TEXT_ANNOTATION_DEFAULT_WIDTH = 220;
@@ -712,48 +711,9 @@ const appendPointToPenStroke = (stroke: PenAnnotation, point: { x: number; y: nu
   return { ...stroke, points: [...stroke.points, point] };
 };
 
-const filterClosePenPoints = (points: Array<{ x: number; y: number }>) => {
-  if (points.length <= 2) return points.map((point) => ({ ...point }));
-
-  const filtered: Array<{ x: number; y: number }> = [{ ...points[0] }];
-  for (let index = 1; index < points.length - 1; index += 1) {
-    if (shouldAppendPenPoint(filtered, points[index])) {
-      filtered.push({ ...points[index] });
-    }
-  }
-
-  const lastPoint = points[points.length - 1];
-  const previousPoint = filtered[filtered.length - 1];
-  if (!previousPoint || getPointDistance(previousPoint, lastPoint) > 0) {
-    filtered.push({ ...lastPoint });
-  }
-
-  return filtered;
-};
-
-const smoothPenPoints = (points: Array<{ x: number; y: number }>) => {
-  let smoothed = filterClosePenPoints(points);
-  if (smoothed.length <= 2) return smoothed;
-
-  for (let pass = 0; pass < PEN_SMOOTHING_PASSES; pass += 1) {
-    smoothed = smoothed.map((point, index, entries) => {
-      if (index === 0 || index === entries.length - 1) return { ...point };
-      const previous = entries[index - 1];
-      const next = entries[index + 1];
-      return {
-        x: previous.x * 0.25 + point.x * 0.5 + next.x * 0.25,
-        y: previous.y * 0.25 + point.y * 0.5 + next.y * 0.25,
-      };
-    });
-  }
-
-  return smoothed;
-};
-
-const beautifyPenStroke = (stroke: PenAnnotation): PenAnnotation => {
+const finalizePenStroke = (stroke: PenAnnotation): PenAnnotation => {
   const points = getSafePenPoints(stroke);
-  if (points.length <= 2) return { ...stroke, points: points.map((point) => ({ ...point })) };
-  return { ...stroke, points: smoothPenPoints(points) };
+  return { ...stroke, points: points.map((point) => ({ ...point })) };
 };
 
 const cloneAnnotationsSnapshot = (annotations: AssessmentDocumentAnnotation[]) =>
@@ -852,17 +812,20 @@ const drawPen = (context: CanvasRenderingContext2D, annotation: PenAnnotation) =
   if (points.length === 2) {
     context.lineTo(points[1].x, points[1].y);
   } else {
-    for (let index = 1; index < points.length - 1; index += 1) {
+    for (let index = 0; index < points.length - 1; index += 1) {
+      const previous = points[index - 1] || points[index];
       const current = points[index];
       const next = points[index + 1];
-      const midPoint = {
-        x: (current.x + next.x) / 2,
-        y: (current.y + next.y) / 2,
-      };
-      context.quadraticCurveTo(current.x, current.y, midPoint.x, midPoint.y);
+      const afterNext = points[index + 2] || next;
+      context.bezierCurveTo(
+        current.x + (next.x - previous.x) / 6,
+        current.y + (next.y - previous.y) / 6,
+        next.x - (afterNext.x - current.x) / 6,
+        next.y - (afterNext.y - current.y) / 6,
+        next.x,
+        next.y
+      );
     }
-    const lastPoint = points[points.length - 1];
-    context.lineTo(lastPoint.x, lastPoint.y);
   }
   context.stroke();
   context.restore();
@@ -4142,7 +4105,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         activeStrokeRef.current = null;
         setActiveStroke(null);
         if (getSafePenPoints(completedTouchStroke).length > 0) {
-          setLayerAnnotations([...activeAnnotations, beautifyPenStroke(completedTouchStroke)]);
+          setLayerAnnotations([...activeAnnotations, finalizePenStroke(completedTouchStroke)]);
         }
       }
       return;
@@ -4187,7 +4150,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     activeStrokeRef.current = null;
     setActiveStroke(null);
     if (getSafePenPoints(completedStroke).length > 0) {
-      setLayerAnnotations([...activeAnnotations, beautifyPenStroke(completedStroke)]);
+      setLayerAnnotations([...activeAnnotations, finalizePenStroke(completedStroke)]);
     }
   };
 
