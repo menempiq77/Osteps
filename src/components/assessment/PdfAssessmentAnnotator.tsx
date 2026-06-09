@@ -304,6 +304,8 @@ const PEN_SELECTION_RADIUS = 12;
 const PEN_SELECTION_BOX_PADDING = 12;
 const PEN_SELECTION_BOX_MIN_SIZE = 32;
 const PEN_RESIZE_MIN_SCALE = 0.25;
+const PEN_MIN_POINT_DISTANCE = 0.75;
+const MAX_CANVAS_PIXEL_RATIO = 2;
 const SAVE_RETRY_DELAY_MS = 900;
 const TEXT_ERASER_PADDING = 18;
 const TEXT_ANNOTATION_MIN_WIDTH = 80;
@@ -659,6 +661,48 @@ const getPointerPoint = (
   };
 };
 
+// Capture every intermediate pointer sample the browser batched between frames.
+// This is what makes fast handwriting look continuous and smooth instead of angular.
+const getCoalescedPagePoints = (
+  event: React.PointerEvent<HTMLDivElement>,
+  target: HTMLDivElement,
+  zoomLevel: number
+) => {
+  const rect = target.getBoundingClientRect();
+  const nativeEvent = event.nativeEvent as PointerEvent;
+  const coalesced =
+    typeof nativeEvent.getCoalescedEvents === "function" ? nativeEvent.getCoalescedEvents() : [];
+  const sourceEvents = coalesced.length > 0 ? coalesced : [nativeEvent];
+  return sourceEvents.map((pointerEvent) => ({
+    x: (pointerEvent.clientX - rect.left) / zoomLevel,
+    y: (pointerEvent.clientY - rect.top) / zoomLevel,
+  }));
+};
+
+// Render annotation canvases at the device pixel ratio so ink stays crisp on
+// retina/high-DPI tablets instead of looking soft and low quality.
+const prepareCanvasForDpr = (
+  canvas: HTMLCanvasElement,
+  cssWidth: number,
+  cssHeight: number
+) => {
+  const pixelRatio =
+    typeof window !== "undefined"
+      ? Math.min(window.devicePixelRatio || 1, MAX_CANVAS_PIXEL_RATIO)
+      : 1;
+  const targetWidth = Math.max(1, Math.round(cssWidth * pixelRatio));
+  const targetHeight = Math.max(1, Math.round(cssHeight * pixelRatio));
+  // Only resize when needed; resizing clears + reallocates the backing store, which
+  // would stutter the live stroke. Callers always clearRect after this.
+  if (canvas.width !== targetWidth) canvas.width = targetWidth;
+  if (canvas.height !== targetHeight) canvas.height = targetHeight;
+  canvas.style.width = `${cssWidth}px`;
+  canvas.style.height = `${cssHeight}px`;
+  const context = canvas.getContext("2d");
+  if (context) context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+  return context;
+};
+
 const isPointerNearElementEdge = (element: HTMLElement, clientX: number, clientY: number) => {
   const rect = element.getBoundingClientRect();
   const horizontalDistance = Math.min(
@@ -694,9 +738,25 @@ const getSafePenPoints = (annotation: { points?: Array<{ x?: number; y?: number 
       )
     : [];
 
+// Drop only points that sit almost exactly on top of the previous one. This keeps
+// the handwriting shape identical while preventing dense coalesced capture from
+// bloating the saved payload (and the resulting autosave failures).
+const reducePenPoints = (points: Array<{ x: number; y: number }>) => {
+  if (points.length <= 2) return points.map((point) => ({ ...point }));
+  const reduced: Array<{ x: number; y: number }> = [{ ...points[0] }];
+  for (let index = 1; index < points.length - 1; index += 1) {
+    const lastKept = reduced[reduced.length - 1];
+    if (Math.hypot(points[index].x - lastKept.x, points[index].y - lastKept.y) >= PEN_MIN_POINT_DISTANCE) {
+      reduced.push({ ...points[index] });
+    }
+  }
+  reduced.push({ ...points[points.length - 1] });
+  return reduced;
+};
+
 const finalizePenStroke = (stroke: PenAnnotation): PenAnnotation => {
   const points = getSafePenPoints(stroke);
-  return { ...stroke, points: points.map((point) => ({ ...point })) };
+  return { ...stroke, points: reducePenPoints(points) };
 };
 
 const roundAnnotationNumber = (value: number) => Math.round(value * 10) / 10;
@@ -803,6 +863,33 @@ const compactAnnotationsForAiDraft = (annotations: AssessmentDocumentAnnotation[
     return annotation;
   }) as AssessmentDocumentAnnotation[];
 
+// Trace ink as a smooth curve through the captured samples (quadratic through
+// midpoints). The path passes over the real points, so handwriting stays faithful
+// while reading as a continuous, OneNote-like stroke instead of straight segments.
+const traceSmoothPenPath = (
+  context: CanvasRenderingContext2D,
+  points: Array<{ x: number; y: number }>
+) => {
+  context.beginPath();
+  context.moveTo(points[0].x, points[0].y);
+  if (points.length === 2) {
+    context.lineTo(points[1].x, points[1].y);
+    return;
+  }
+  for (let index = 1; index < points.length - 1; index += 1) {
+    const current = points[index];
+    const next = points[index + 1];
+    context.quadraticCurveTo(
+      current.x,
+      current.y,
+      (current.x + next.x) / 2,
+      (current.y + next.y) / 2
+    );
+  }
+  const lastPoint = points[points.length - 1];
+  context.lineTo(lastPoint.x, lastPoint.y);
+};
+
 const drawPen = (context: CanvasRenderingContext2D, annotation: PenAnnotation) => {
   const points = getSafePenPoints(annotation);
   if (points.length === 0) return;
@@ -824,11 +911,7 @@ const drawPen = (context: CanvasRenderingContext2D, annotation: PenAnnotation) =
     context.restore();
     return;
   }
-  context.beginPath();
-  context.moveTo(points[0].x, points[0].y);
-  for (const point of points.slice(1)) {
-    context.lineTo(point.x, point.y);
-  }
+  traceSmoothPenPath(context, points);
   context.stroke();
   context.restore();
 };
@@ -976,11 +1059,7 @@ const drawSelectedPenHighlight = (context: CanvasRenderingContext2D, annotation:
   context.lineWidth = annotation.width + 10;
   context.lineCap = "round";
   context.lineJoin = "round";
-  context.beginPath();
-  context.moveTo(points[0].x, points[0].y);
-  for (const point of points.slice(1)) {
-    context.lineTo(point.x, point.y);
-  }
+  traceSmoothPenPath(context, points);
   context.stroke();
   context.restore();
 };
@@ -1234,6 +1313,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     anchorRatioY?: number;
   } | null>(null);
   const annotationCanvasRefs = useRef<Record<number, HTMLCanvasElement | null>>({});
+  const activeStrokeCanvasRefs = useRef<Record<number, HTMLCanvasElement | null>>({});
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const selfAssessmentSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const teacherDraftSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -3493,13 +3573,9 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     for (const page of pages) {
       const canvas = annotationCanvasRefs.current[page.pageNumber];
       if (!canvas) continue;
-      canvas.width = page.width;
-      canvas.height = page.height;
-      canvas.style.width = `${page.width}px`;
-      canvas.style.height = `${page.height}px`;
-      const context = canvas.getContext("2d");
+      const context = prepareCanvasForDpr(canvas, page.width, page.height);
       if (!context) continue;
-      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.clearRect(0, 0, page.width, page.height);
       const allPenAnnotations = [...studentAnnotations, ...teacherAnnotations].filter(
         (annotation): annotation is PenAnnotation => annotation.type === "pen" && annotation.page === page.pageNumber
       );
@@ -3508,9 +3584,22 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         drawSelectedPenHighlight(context, selectedPenAnnotation);
         drawPen(context, selectedPenAnnotation);
       }
+    }
+  }, [pages, studentAnnotations, teacherAnnotations, selectedPenAnnotation]);
+
+  // The in-progress stroke is drawn on its own lightweight canvas so writing stays
+  // smooth: we only redraw the single active stroke each frame instead of every
+  // saved annotation on the page.
+  useEffect(() => {
+    for (const page of pages) {
+      const canvas = activeStrokeCanvasRefs.current[page.pageNumber];
+      if (!canvas) continue;
+      const context = prepareCanvasForDpr(canvas, page.width, page.height);
+      if (!context) continue;
+      context.clearRect(0, 0, page.width, page.height);
       if (activeStroke?.page === page.pageNumber) drawPen(context, activeStroke);
     }
-  }, [pages, studentAnnotations, teacherAnnotations, activeStroke, selectedPenAnnotation]);
+  }, [pages, activeStroke]);
 
   useEffect(() => {
     return () => {
@@ -4012,8 +4101,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       if (currentTouchStroke) {
         event.preventDefault();
         event.stopPropagation();
-        const point = getPointerPoint(event, event.currentTarget, zoomLevel);
-        const nextStroke = { ...currentTouchStroke, points: [...currentTouchStroke.points, point] };
+        const points = getCoalescedPagePoints(event, event.currentTarget, zoomLevel);
+        const nextStroke = { ...currentTouchStroke, points: [...currentTouchStroke.points, ...points] };
         activeStrokeRef.current = nextStroke;
         setActiveStroke(nextStroke);
       }
@@ -4057,8 +4146,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     if (!currentStroke) return;
     event.preventDefault();
     event.stopPropagation();
-    const point = getPointerPoint(event, event.currentTarget, zoomLevel);
-    const nextStroke = { ...currentStroke, points: [...currentStroke.points, point] };
+    const points = getCoalescedPagePoints(event, event.currentTarget, zoomLevel);
+    const nextStroke = { ...currentStroke, points: [...currentStroke.points, ...points] };
     activeStrokeRef.current = nextStroke;
     setActiveStroke(nextStroke);
   };
@@ -6211,6 +6300,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                     />
                   )}
                   <canvas ref={(element) => { annotationCanvasRefs.current[page.pageNumber] = element; }} className="pointer-events-none absolute inset-0" />
+                  <canvas ref={(element) => { activeStrokeCanvasRefs.current[page.pageNumber] = element; }} className="pointer-events-none absolute inset-0" />
                   <div
                     data-page-number={page.pageNumber}
                     className="absolute inset-0"
