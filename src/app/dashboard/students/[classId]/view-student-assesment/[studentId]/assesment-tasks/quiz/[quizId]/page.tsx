@@ -16,6 +16,9 @@ import { RootState } from "@/store/store";
 import { fetchStudents } from "@/services/studentsApi";
 import { fetchQuizQuestions, fetchSubmittedQuizDetails, quizAnswerMarks } from "@/services/quizApi";
 import TextArea from "antd/es/input/TextArea";
+import QuizMediaAnswerDisplay from "@/components/quiz/QuizMediaAnswerDisplay";
+
+const MEDIA_QUESTION_TYPES = ["recording", "image_upload", "reading"];
 
 interface Option {
   id: number;
@@ -335,23 +338,39 @@ export default function QuranQuizPage() {
                       (ans) => ans.question_id === question.id
                     );
                     const isCorrect = submitted?.is_correct === 1;
+                    const isMediaType = MEDIA_QUESTION_TYPES.includes(
+                      question.type
+                    );
                     const isTextType =
                       question.type === "short_answer" ||
-                      question.type === "paragraph";
+                      question.type === "paragraph" ||
+                      isMediaType;
 
                     return (
                       <div className="mt-2 text-sm">
                         {submitted && (
                           <>
-                            <Tag
-                              color={isCorrect ? "green" : "red"}
-                              className="mt-1 w-full !py-2"
-                            >
-                              <div className="">
-                                <strong>Submitted Answer:</strong>{" "}
-                                {renderSubmittedAnswer(question)}
+                            {isMediaType ? (
+                              <div className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                <strong className="mb-2 block">
+                                  Submitted Answer:
+                                </strong>
+                                <QuizMediaAnswerDisplay
+                                  question={question}
+                                  answer={submitted.submitted_answer}
+                                />
                               </div>
-                            </Tag>
+                            ) : (
+                              <Tag
+                                color={isCorrect ? "green" : "red"}
+                                className="mt-1 w-full !py-2"
+                              >
+                                <div className="">
+                                  <strong>Submitted Answer:</strong>{" "}
+                                  {renderSubmittedAnswer(question)}
+                                </div>
+                              </Tag>
+                            )}
 
                             {canUpload && (
                               <div className="mt-4">

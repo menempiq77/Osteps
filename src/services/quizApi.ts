@@ -160,4 +160,19 @@ export const rejectQuizRequest = async (id: number) => {
   return response.data;
 };
 
+// Upload a file (audio recording, image, or book PDF) used by media question types.
+// Returns { path, url } where url is the publicly servable storage URL.
+export const uploadQuizFile = async (
+  file: File,
+  subjectId?: number
+): Promise<{ path: string; url: string }> => {
+  const formData = new FormData();
+  formData.append('file', file, file.name);
+  const response = await api.post('/upload-quiz-file', formData, {
+    params: withSubjectQuery({}, subjectId),
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data.data;
+};
+
 export default api;

@@ -15,6 +15,7 @@ import {
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { fetchQuizQuestions } from "@/services/quizApi";
+import QuizMediaAnswerInput from "@/components/quiz/QuizMediaAnswerInput";
 interface Option {
   id: number;
   option_text: string;
@@ -75,6 +76,14 @@ export default function QuranQuizPage() {
   const getCorrectAnswerText = (question: QuizQuestion) => {
     if (question.type === "true_false") {
       return question.correct_answer === 1 ? "True" : "False";
+    }
+
+    if (
+      question.type === "recording" ||
+      question.type === "image_upload" ||
+      question.type === "reading"
+    ) {
+      return "Student submission (auto full marks)";
     }
 
     if (question.type === "multiple_choice" || question.type === "drop_down") {
@@ -202,6 +211,17 @@ export default function QuranQuizPage() {
                           <Radio value="false">False</Radio>
                         </Space>
                       </Radio.Group>
+                    )}
+
+                    {["recording", "image_upload", "reading"].includes(
+                      question.type
+                    ) && (
+                      <QuizMediaAnswerInput
+                        question={question}
+                        value={undefined}
+                        onChange={() => {}}
+                        disabled
+                      />
                     )}
                   </div>
 

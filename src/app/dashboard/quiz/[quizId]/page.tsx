@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Trash2, Plus, X, Edit, GripVertical } from "lucide-react";
+import { ArrowLeft, Trash2, Plus, X, Edit, GripVertical, BookOpen, Mic, Image as ImageIcon, Upload as UploadIcon } from "lucide-react";
 import { DragDropContext, Draggable, Droppable, type DropResult } from "@hello-pangea/dnd";
 import {
   Button,
@@ -16,6 +16,7 @@ import {
   Skeleton,
   Modal,
   InputNumber,
+  Upload,
 } from "antd";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
@@ -25,7 +26,9 @@ import {
   fetchQuizQuestions,
   reorderQuizQuestions,
   updateQuizQuestion,
+  uploadQuizFile,
 } from "@/services/quizApi";
+import { buildStorageUrl } from "@/lib/submissionAttachments";
 
 interface Option {
   id: number;
@@ -53,7 +56,7 @@ interface Quiz {
 interface QuestionPayload {
   question_text: string;
   type: string;
-  correct_answer: number | number[] | null;
+  correct_answer: number | number[] | string | null;
   marks: number;
   options?: string[];
 }
@@ -73,6 +76,9 @@ const quizTypeLabels: Record<string, string> = {
   check_boxes: "Checkboxes",
   drop_down: "Dropdown",
   true_false: "True/False",
+  recording: "Recording",
+  image_upload: "Upload Pictures + Comment",
+  reading: "Reading",
 };
 
 const quizTypeOptions = [
@@ -82,7 +88,12 @@ const quizTypeOptions = [
   { value: "check_boxes", label: "Checkboxes" },
   { value: "drop_down", label: "Dropdown" },
   { value: "true_false", label: "True/False" },
+  { value: "recording", label: "Recording" },
+  { value: "image_upload", label: "Upload Pictures + Comment" },
+  { value: "reading", label: "Reading" },
 ];
+
+const MEDIA_QUESTION_TYPES = ["recording", "image_upload", "reading"];
 
 const questionTypeAliases: Record<string, string> = {
   shortanswer: "short_answer",
@@ -305,6 +316,8 @@ export default function QuranQuizPage() {
   const [orderedQuestions, setOrderedQuestions] = useState<QuizQuestion[]>([]);
   const [reorderingQuestions, setReorderingQuestions] = useState(false);
   const [optionCount, setOptionCount] = useState(3);
+  const [readingBookUrl, setReadingBookUrl] = useState<string>("");
+  const [uploadingBook, setUploadingBook] = useState(false);
   const [bulkPasteText, setBulkPasteText] = useState("");
   const [savingBulk, setSavingBulk] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
@@ -362,6 +375,7 @@ export default function QuranQuizPage() {
     });
     setQuizType("short_answer");
     setOptionCount(3);
+    setReadingBookUrl("");
     setEditState({ isEditing: false, questionId: null });
   };
 
@@ -428,7 +442,7 @@ export default function QuranQuizPage() {
 
   const buildQuestionPayload = (values: Record<string, any>): QuestionPayload => {
     let options: string[] = [];
-    let correctAnswer: number | number[] | null = null;
+    let correctAnswer: number | number[] | string | null = null;
 
     if (["multiple_choice", "check_boxes", "drop_down"].includes(values.type)) {
       for (let i = 1; i <= optionCount; i++) {
@@ -440,6 +454,9 @@ export default function QuranQuizPage() {
     } else if (values.type === "true_false") {
       options = ["True", "False"];
       correctAnswer = values.correctAnswer;
+    } else if (values.type === "reading") {
+      // Store the uploaded book URL in correct_answer so students can read it.
+      correctAnswer = readingBookUrl || null;
     }
 
     return {
@@ -568,6 +585,9 @@ export default function QuranQuizPage() {
     setShowAddQuestion(false);
     setEditState({ isEditing: true, questionId: question.id });
     setQuizType(question.type);
+    setReadingBookUrl(
+      question.type === "reading" ? String(question.correct_answer || "") : ""
+    );
 
     // pre-fill options if type has them
     if (
@@ -643,6 +663,21 @@ export default function QuranQuizPage() {
     }
   };
 
+  const handleBookUpload = async (file: File) => {
+    try {
+      setUploadingBook(true);
+      const { url } = await uploadQuizFile(file);
+      setReadingBookUrl(url);
+      messageApi.success("Reading material uploaded");
+    } catch (error) {
+      messageApi.error("Failed to upload reading material");
+      console.error("Error uploading reading material:", error);
+    } finally {
+      setUploadingBook(false);
+    }
+    return false;
+  };
+
   const renderManualQuestionForm = (inlineEditing = false) => (
     <Form form={quizForm} layout="vertical" initialValues={{ type: "short_answer", marks: 1 }}>
       <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_180px]">
@@ -694,6 +729,60 @@ export default function QuranQuizPage() {
             <Radio value={0}>False</Radio>
           </Radio.Group>
         </Form.Item>
+      )}
+
+      {quizType === "recording" && (
+        <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4 text-sm text-gray-600">
+          <p className="flex items-center gap-2 font-medium text-gray-700">
+            <Mic size={16} /> Recording question
+          </p>
+          <p className="mt-1">
+            Students record audio directly from the website using their microphone, just like
+            assessment task recordings. It is auto-marked with the full marks above on submit.
+          </p>
+        </div>
+      )}
+
+      {quizType === "image_upload" && (
+        <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4 text-sm text-gray-600">
+          <p className="flex items-center gap-2 font-medium text-gray-700">
+            <ImageIcon size={16} /> Upload pictures + comment
+          </p>
+          <p className="mt-1">
+            Students upload one or more photos and write a comment. It is auto-marked with the
+            full marks above on submit.
+          </p>
+        </div>
+      )}
+
+      {quizType === "reading" && (
+        <div className="space-y-3">
+          <Divider orientation="left">Reading material</Divider>
+          <Upload
+            accept="application/pdf,.pdf,image/*"
+            showUploadList={false}
+            beforeUpload={handleBookUpload}
+            maxCount={1}
+          >
+            <Button icon={<UploadIcon size={16} />} loading={uploadingBook}>
+              {readingBookUrl ? "Replace book / PDF" : "Upload book / PDF"}
+            </Button>
+          </Upload>
+          {readingBookUrl && (
+            <a
+              href={readingBookUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 text-sm text-primary hover:underline"
+            >
+              <BookOpen size={14} /> View uploaded reading material
+            </a>
+          )}
+          <p className="text-xs text-gray-500">
+            Students read this inline, then write a short response that is auto-marked with the
+            full marks above on submit.
+          </p>
+        </div>
       )}
 
       {["multiple_choice", "check_boxes", "drop_down"].includes(quizType) && (
@@ -929,6 +1018,14 @@ export default function QuranQuizPage() {
   const getCorrectAnswerText = (question: QuizQuestion) => {
     if (question.type === "true_false") {
       return normalizeTrueFalseAnswer(question.correct_answer) === 1 ? "True" : "False";
+    }
+
+    if (question.type === "reading") {
+      return question.correct_answer ? "Reading material attached" : "No material attached";
+    }
+
+    if (question.type === "recording" || question.type === "image_upload") {
+      return "Student submission (auto full marks)";
     }
 
     if (question.type === "multiple_choice" || question.type === "drop_down") {
@@ -1408,6 +1505,36 @@ Explain how Tawakkul helps a Muslim in daily life :: assessment (4 marks)`}
                                               <Radio value="false">False</Radio>
                                             </Space>
                                           </Radio.Group>
+                                        )}
+
+                                        {question.type === "recording" && (
+                                          <div className="flex items-center gap-2 text-sm text-gray-500">
+                                            <Mic size={16} /> Students record audio from the website.
+                                          </div>
+                                        )}
+
+                                        {question.type === "image_upload" && (
+                                          <div className="flex items-center gap-2 text-sm text-gray-500">
+                                            <ImageIcon size={16} /> Students upload photos and write a comment.
+                                          </div>
+                                        )}
+
+                                        {question.type === "reading" && (
+                                          <div className="flex items-center gap-2 text-sm text-gray-500">
+                                            <BookOpen size={16} />
+                                            {question.correct_answer ? (
+                                              <a
+                                                href={buildStorageUrl(String(question.correct_answer))}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-primary hover:underline"
+                                              >
+                                                View reading material
+                                              </a>
+                                            ) : (
+                                              <span>No reading material attached.</span>
+                                            )}
+                                          </div>
                                         )}
                                       </div>
 

@@ -101,6 +101,25 @@ export default function QuizResultPage() {
       return answer.answer ? "True" : "False";
     }
 
+    if (question.type === "recording") {
+      return answer.answer && (answer.answer as any).audio
+        ? "Audio recording submitted"
+        : "Not answered";
+    }
+
+    if (question.type === "image_upload") {
+      const data = (answer.answer as any) || {};
+      const count = Array.isArray(data.images) ? data.images.length : 0;
+      if (!count && !data.comment) return "Not answered";
+      const photos = count ? `${count} photo${count > 1 ? "s" : ""} submitted` : "";
+      return [photos, data.comment].filter(Boolean).join(" — ") || "Submitted";
+    }
+
+    if (question.type === "reading") {
+      const data = (answer.answer as any) || {};
+      return data.response || "Reading completed";
+    }
+
     return answer.answer?.toString() || "Not answered";
   };
 

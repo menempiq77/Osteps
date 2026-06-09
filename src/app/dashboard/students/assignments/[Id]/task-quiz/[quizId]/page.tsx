@@ -21,6 +21,7 @@ import {
   fetchQuizQuestions,
   submitTaskQuizByStudent,
 } from "@/services/quizApi";
+import QuizMediaAnswerInput from "@/components/quiz/QuizMediaAnswerInput";
 import {
   exitDocumentFullscreenIfActive,
   isDocumentFullscreenActive,
@@ -276,6 +277,14 @@ export default function QuranQuizPage() {
   const getCorrectAnswerText = (question: QuizQuestion) => {
     if (question.type === "true_false") {
       return question.correct_answer === 1 ? "True" : "False";
+    }
+
+    if (
+      question.type === "recording" ||
+      question.type === "image_upload" ||
+      question.type === "reading"
+    ) {
+      return "Student submission (auto full marks)";
     }
 
     if (question.type === "multiple_choice" || question.type === "drop_down") {
@@ -617,6 +626,18 @@ export default function QuranQuizPage() {
                           <Radio value="false">False</Radio>
                         </Space>
                       </Radio.Group>
+                    )}
+
+                    {["recording", "image_upload", "reading"].includes(
+                      question.type
+                    ) && (
+                      <QuizMediaAnswerInput
+                        question={question}
+                        value={answers[question.id]}
+                        onChange={(val) =>
+                          handleAnswerChange(question.id, val, question.type)
+                        }
+                      />
                     )}
                   </div>
 
