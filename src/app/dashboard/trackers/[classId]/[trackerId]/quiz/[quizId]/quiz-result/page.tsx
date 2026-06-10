@@ -3,7 +3,12 @@ import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, XCircle, Trophy } from "lucide-react";
 import { Button, Progress, message } from "antd";
-import { fetchQuizQuestions } from "@/services/quizApi";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store/store";
+import { fetchQuizQuestions, fetchSubmittedQuizDetails } from "@/services/quizApi";
+import QuizMediaAnswerDisplay from "@/components/quiz/QuizMediaAnswerDisplay";
+
+const MEDIA_QUESTION_TYPES = ["recording", "image_upload", "reading"];
 
 interface QuizResult {
   totalQuestions: number;
@@ -16,6 +21,9 @@ interface QuizResult {
     correctAnswer: string;
     isCorrect: boolean;
     isSubjective: boolean;
+    questionType: string;
+    rawAnswer: unknown;
+    correctAnswerRaw: string | null;
   }[];
 }
 
@@ -47,6 +55,7 @@ interface StoredAnswer {
 export default function QuizResultPage() {
   const router = useRouter();
   const { quizId } = useParams();
+  const { currentUser } = useSelector((state: RootState) => state.auth);
   const [loading, setLoading] = useState(false);
   const [quizData, setQuizData] = useState<Quiz | null>(null);
   const [userAnswers, setUserAnswers] = useState<StoredAnswer[]>([]);
@@ -58,11 +67,40 @@ export default function QuizResultPage() {
         const response = await fetchQuizQuestions(Number(quizId));
         setQuizData(response);
 
-        // Retrieve stored answers from localStorage
+        // Prefer the answers from this session (localStorage); otherwise load the
+        // student's stored submission from the backend so the View button always
+        // shows what was actually submitted.
         const storedAnswers = localStorage.getItem(`quiz_${quizId}_answers`);
+        let localAnswers: StoredAnswer[] = [];
         if (storedAnswers) {
-          const parsedAnswers = JSON.parse(storedAnswers);
-          setUserAnswers(parsedAnswers.answers || []);
+          try {
+            const parsedAnswers = JSON.parse(storedAnswers);
+            localAnswers = parsedAnswers.answers || [];
+          } catch {
+            localAnswers = [];
+          }
+        }
+
+        if (localAnswers.length > 0) {
+          setUserAnswers(localAnswers);
+        } else if (currentUser?.student) {
+          try {
+            const details = await fetchSubmittedQuizDetails(
+              Number(quizId),
+              Number(currentUser.student),
+              "tracker"
+            );
+            if (Array.isArray(details)) {
+              setUserAnswers(
+                details.map((detail: any) => ({
+                  question_id: detail.question_id,
+                  answer: detail.submitted_answer,
+                }))
+              );
+            }
+          } catch (fetchError) {
+            console.error("Failed to load submitted answers", fetchError);
+          }
         }
       } catch {
         message.error("Failed to load quiz questions");
@@ -71,7 +109,7 @@ export default function QuizResultPage() {
       }
     };
     loadQuizQuestions();
-  }, [quizId]);
+  }, [quizId, currentUser?.student]);
 
   // Function to get user's answer text
   const getUserAnswerText = (questionId: number): string => {
@@ -237,6 +275,7 @@ export default function QuizResultPage() {
       timeTaken: "0:00", // You can store and retrieve the time taken if needed
       quizDetails: quizData?.quiz_queston?.map((question) => {
         const correctness = isAnswerCorrect(question.id);
+        const stored = userAnswers.find((a) => a.question_id === question.id);
         return {
           question: question.question_text,
           userAnswer: getUserAnswerText(question.id),
@@ -244,6 +283,9 @@ export default function QuizResultPage() {
           isCorrect: correctness === true, // true for correct, false for incorrect, null for subjective
           isSubjective:
             question.type === "short_answer" || question.type === "paragraph",
+          questionType: question.type,
+          rawAnswer: stored?.answer ?? null,
+          correctAnswerRaw: question.correct_answer ?? null,
         };
       }),
     };
@@ -341,20 +383,36 @@ export default function QuizResultPage() {
                       Q{index + 1}: {item.question}
                     </p>
                     <div className="mt-2">
-                      <p className="text-sm">
-                        <span className="font-medium">Your answer:</span>{" "}
-                        <span className="text-gray-600">
-                          {item.userAnswer || "Not answered"}
-                        </span>
-                      </p>
-                      {!item.isSubjective && (
+                      {MEDIA_QUESTION_TYPES.includes(item.questionType) ? (
+                        <div className="text-sm">
+                          <span className="font-medium">Your answer:</span>
+                          <div className="mt-2">
+                            <QuizMediaAnswerDisplay
+                              question={{
+                                type: item.questionType,
+                                correct_answer: item.correctAnswerRaw,
+                              }}
+                              answer={item.rawAnswer}
+                            />
+                          </div>
+                        </div>
+                      ) : (
                         <p className="text-sm">
-                          <span className="font-medium">Correct answer:</span>{" "}
-                          <span className="text-green-600">
-                            {item.correctAnswer}
+                          <span className="font-medium">Your answer:</span>{" "}
+                          <span className="text-gray-600">
+                            {item.userAnswer || "Not answered"}
                           </span>
                         </p>
                       )}
+                      {!item.isSubjective &&
+                        !MEDIA_QUESTION_TYPES.includes(item.questionType) && (
+                          <p className="text-sm">
+                            <span className="font-medium">Correct answer:</span>{" "}
+                            <span className="text-green-600">
+                              {item.correctAnswer}
+                            </span>
+                          </p>
+                        )}
                     </div>
                   </div>
                   <div>

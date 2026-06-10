@@ -552,6 +552,25 @@ export default function TrackerTopicsPage() {
                               Enter Points
                             </Button>
                           )}
+                        {topic.type === "quiz" &&
+                          isStudent &&
+                          topic.quiz?.submissions?.some(
+                            (s) =>
+                              Number(s.student_id) === currentStudentId &&
+                              s.type === "tracker"
+                          ) && (
+                            <Button
+                              className="!text-primary"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(
+                                  `${trackerId}/quiz/${topic?.quiz_id}/quiz-result`
+                                );
+                              }}
+                            >
+                              View
+                            </Button>
+                          )}
                       </td>
                     </tr>
               ))}
