@@ -1,14 +1,20 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { Button, Image, Input, Upload, message } from "antd";
+import { Button, Image, Input, Select, Upload, message } from "antd";
 import type { UploadFile, UploadProps } from "antd";
-import { Mic, Square, Trash2, BookOpen, ExternalLink, Maximize2 } from "lucide-react";
+import { Mic, Square, Trash2, BookOpen, ExternalLink, Maximize2, AlertTriangle } from "lucide-react";
 import { uploadQuizFile } from "@/services/quizApi";
 import {
+  AUTO_AUDIO_INPUT_ID,
+  BASE_AUDIO_CONSTRAINTS,
+  chooseAutoAudioInputDevice,
   createRecordingFile,
   formatRecordingTime,
+  getAudioInputOptions,
   getSupportedAudioMimeType,
+  isGenericMicrophoneLabel,
+  type AudioInputDeviceOption,
 } from "@/lib/audioRecording";
 import { buildStorageUrl } from "@/lib/submissionAttachments";
 import QuizAudioPlayer from "@/components/quiz/QuizAudioPlayer";
@@ -97,6 +103,11 @@ function RecordingInput({
   const [seconds, setSeconds] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [localPreviewUrl, setLocalPreviewUrl] = useState<string>("");
+  const [micLevel, setMicLevel] = useState(0);
+  const [audioInputDevices, setAudioInputDevices] = useState<AudioInputDeviceOption[]>([]);
+  const [selectedAudioInputId, setSelectedAudioInputId] = useState<string>(AUTO_AUDIO_INPUT_ID);
+  const [activeMicrophoneLabel, setActiveMicrophoneLabel] = useState("");
+  const [recordingWarning, setRecordingWarning] = useState<string>("");
   const [messageApi, contextHolder] = message.useMessage();
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -105,12 +116,74 @@ function RecordingInput({
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mimeTypeRef = useRef<string>("");
   const localPreviewUrlRef = useRef<string>("");
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const audioSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const analyserFrameRef = useRef<number | null>(null);
+  const recordingPeakRef = useRef(0);
+
+  const stopMicLevelMonitor = () => {
+    if (analyserFrameRef.current !== null) {
+      cancelAnimationFrame(analyserFrameRef.current);
+      analyserFrameRef.current = null;
+    }
+    audioSourceRef.current?.disconnect();
+    audioSourceRef.current = null;
+    if (audioContextRef.current && audioContextRef.current.state !== "closed") {
+      void audioContextRef.current.close();
+    }
+    audioContextRef.current = null;
+    setMicLevel(0);
+  };
+
+  const startMicLevelMonitor = (stream: MediaStream) => {
+    stopMicLevelMonitor();
+    recordingPeakRef.current = 0;
+
+    const AudioContextConstructor =
+      window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextConstructor) return;
+
+    try {
+      const audioContext = new AudioContextConstructor();
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.2;
+      const source = audioContext.createMediaStreamSource(stream);
+      const samples = new Uint8Array(analyser.fftSize);
+
+      source.connect(analyser);
+      audioContextRef.current = audioContext;
+      audioSourceRef.current = source;
+
+      if (audioContext.state === "suspended") {
+        void audioContext.resume();
+      }
+
+      const tick = () => {
+        analyser.getByteTimeDomainData(samples);
+        let sum = 0;
+        for (const sample of samples) {
+          const normalized = (sample - 128) / 128;
+          sum += normalized * normalized;
+        }
+        const rms = Math.sqrt(sum / samples.length);
+        recordingPeakRef.current = Math.max(recordingPeakRef.current, rms);
+        setMicLevel(Math.min(100, Math.round(rms * 450)));
+        analyserFrameRef.current = requestAnimationFrame(tick);
+      };
+
+      tick();
+    } catch (error) {
+      console.warn("Unable to monitor microphone level:", error);
+    }
+  };
 
   const stopTracksAndTimer = () => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
+    stopMicLevelMonitor();
     mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
     mediaStreamRef.current = null;
   };
@@ -144,14 +217,50 @@ function RecordingInput({
       return;
     }
 
+    setRecordingWarning("");
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: true,
-        },
-      });
+      const shouldAutoSelect = selectedAudioInputId === AUTO_AUDIO_INPUT_ID;
+      let devices = await getAudioInputOptions();
+
+      // Without permission the labels are blank; prompt once so we can pick the right mic.
+      if (
+        shouldAutoSelect &&
+        (devices.length === 0 || devices.every((device) => isGenericMicrophoneLabel(device.label)))
+      ) {
+        const permissionStream = await navigator.mediaDevices.getUserMedia({
+          audio: BASE_AUDIO_CONSTRAINTS,
+        });
+        permissionStream.getTracks().forEach((track) => track.stop());
+        devices = await getAudioInputOptions();
+      }
+      setAudioInputDevices(devices);
+
+      const autoDevice = shouldAutoSelect ? chooseAutoAudioInputDevice(devices) : null;
+      const requestedDeviceId = shouldAutoSelect ? autoDevice?.deviceId || "" : selectedAudioInputId;
+      const requestedAudioConstraints: MediaTrackConstraints = requestedDeviceId
+        ? { ...BASE_AUDIO_CONSTRAINTS, deviceId: { exact: requestedDeviceId } }
+        : BASE_AUDIO_CONSTRAINTS;
+
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: requestedAudioConstraints });
+      } catch (deviceError) {
+        if (!requestedDeviceId) throw deviceError;
+        if (!shouldAutoSelect) setSelectedAudioInputId(AUTO_AUDIO_INPUT_ID);
+        messageApi.warning("That microphone was unavailable, so another microphone was used automatically.");
+        stream = await navigator.mediaDevices.getUserMedia({ audio: BASE_AUDIO_CONSTRAINTS });
+      }
+
+      const track = stream.getAudioTracks()[0];
+      const trackDeviceId = track?.getSettings?.().deviceId || "";
+      devices = await getAudioInputOptions();
+      setAudioInputDevices(devices);
+      const activeDevice = devices.find((device) => device.deviceId === trackDeviceId);
+      setActiveMicrophoneLabel(
+        activeDevice?.label || track?.label || (shouldAutoSelect ? "Auto-selected microphone" : "Selected microphone")
+      );
+
       const mimeType = getSupportedAudioMimeType();
       mimeTypeRef.current = mimeType;
       const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
@@ -159,6 +268,7 @@ function RecordingInput({
       mediaStreamRef.current = stream;
       mediaRecorderRef.current = recorder;
       chunksRef.current = [];
+      recordingPeakRef.current = 0;
 
       recorder.ondataavailable = (event) => {
         if (event.data?.size > 0) {
@@ -168,6 +278,7 @@ function RecordingInput({
 
       recorder.onstop = async () => {
         const chunks = chunksRef.current;
+        const soundDetected = recordingPeakRef.current > 0.015;
         stopTracksAndTimer();
         setIsRecording(false);
         if (!chunks.length) return;
@@ -179,11 +290,21 @@ function RecordingInput({
         );
         // Play back instantly from a local blob URL (independent of upload/network).
         setPreviewUrl(URL.createObjectURL(file));
+
+        if (!soundDetected) {
+          setRecordingWarning(
+            "No microphone sound was detected. Check that the right microphone is selected below (not a monitor/output device), that it is not muted, and that the browser has mic permission, then record again."
+          );
+          messageApi.warning("No microphone sound was detected in this recording.");
+        }
+
         try {
           setUploading(true);
           const { url } = await uploadQuizFile(file, subjectId);
           onChange({ audio: url, name: file.name });
-          messageApi.success("Recording saved. Submit the quiz to keep it.");
+          if (soundDetected) {
+            messageApi.success("Recording saved. Submit the quiz to keep it.");
+          }
         } catch (error) {
           console.error("Recording upload failed:", error);
           messageApi.error("Could not upload the recording. Please try again.");
@@ -192,8 +313,15 @@ function RecordingInput({
         }
       };
 
+      recorder.onerror = () => {
+        messageApi.error("Recording stopped because the microphone had a problem.");
+        stopTracksAndTimer();
+        setIsRecording(false);
+      };
+
       setSeconds(0);
       setIsRecording(true);
+      startMicLevelMonitor(stream);
       recorder.start();
       timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
     } catch (error) {
@@ -217,8 +345,16 @@ function RecordingInput({
   const clearRecording = () => {
     if (disabled) return;
     setPreviewUrl("");
+    setRecordingWarning("");
     onChange({});
   };
+
+  const deviceOptions = [
+    { value: AUTO_AUDIO_INPUT_ID, label: "Automatic (recommended)" },
+    ...audioInputDevices
+      .filter((device) => device.deviceId)
+      .map((device) => ({ value: device.deviceId, label: device.label })),
+  ];
 
   return (
     <div className="space-y-3">
@@ -255,6 +391,52 @@ function RecordingInput({
 
         {uploading && <span className="text-sm text-gray-500">Saving recording…</span>}
       </div>
+
+      {isRecording && (
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500">Mic level</span>
+            <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-200">
+              <div
+                className="h-full rounded-full bg-emerald-500 transition-[width] duration-75"
+                style={{ width: `${micLevel}%` }}
+              />
+            </div>
+          </div>
+          {activeMicrophoneLabel && (
+            <p className="text-xs text-gray-400">Using: {activeMicrophoneLabel}</p>
+          )}
+          <p className="text-xs text-gray-400">
+            Speak now — the bar above should move. If it stays flat, pick a different microphone below.
+          </p>
+        </div>
+      )}
+
+      {!disabled && (
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-gray-500">Microphone</span>
+          <Select
+            size="small"
+            value={selectedAudioInputId}
+            onChange={setSelectedAudioInputId}
+            options={deviceOptions}
+            disabled={isRecording}
+            className="max-w-xs"
+            onClick={async () => {
+              if (audioInputDevices.length === 0) {
+                setAudioInputDevices(await getAudioInputOptions());
+              }
+            }}
+          />
+        </div>
+      )}
+
+      {recordingWarning && (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+          <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+          <span>{recordingWarning}</span>
+        </div>
+      )}
 
       {(localPreviewUrl || value.audio) && !isRecording && (
         <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3 sm:flex-row sm:items-center">
