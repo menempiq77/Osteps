@@ -153,6 +153,15 @@ export default function QuizResultPage() {
       return answer.answer === correctAnswer;
     }
 
+    // Recording, photo upload, and reading are auto-awarded full marks on submit.
+    if (
+      question.type === "recording" ||
+      question.type === "image_upload" ||
+      question.type === "reading"
+    ) {
+      return true;
+    }
+
     return false;
   };
 
@@ -189,14 +198,21 @@ export default function QuizResultPage() {
     }
 
     const totalQuestions = quizData?.quiz_queston?.length;
-    const correctAnswers = quizData?.quiz_queston?.reduce((count, question) => {
+    // Auto-graded questions exclude subjective ones (short answer / paragraph)
+    // that still need a teacher. Score reflects auto-graded questions.
+    const gradedQuestions = quizData?.quiz_queston?.filter(
+      (question) => isAnswerCorrect(question.id) !== null
+    );
+    const totalGraded = gradedQuestions?.length ?? 0;
+    const correctAnswers = gradedQuestions?.reduce((count, question) => {
       const isCorrect = isAnswerCorrect(question.id);
       return count + (isCorrect === true ? 1 : 0); // Only count truly correct answers
-    }, 0);
-    const scorePercentage = Math.round((correctAnswers / totalQuestions) * 100);
+    }, 0) ?? 0;
+    const scorePercentage =
+      totalGraded > 0 ? Math.round((correctAnswers / totalGraded) * 100) : 0;
 
     return {
-      totalQuestions,
+      totalQuestions: totalGraded || totalQuestions,
       correctAnswers,
       scorePercentage,
       timeTaken: "0:00", // You can store and retrieve the time taken if needed
