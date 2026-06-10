@@ -810,11 +810,30 @@ export default function StudentList() {
         const arr = Array.isArray(rows) ? rows : [];
         if (arr.length > 0) return arr;
       }
-      // Pass 2: try WITHOUT subject_class_id — mirrors All Students page (SCHOOL_ADMIN).
-      // Needed when add-student didn't create a subject_class_id enrollment row, so the
-      // backend's subject_class_id filter would incorrectly exclude the student.
+      // Pass 2: try WITHOUT subject_class_id but still subject-scoped. Covers
+      // students who are enrolled in the subject (any of its classes) but whose
+      // specific subject_class_id enrollment row is missing.
       for (const candidateId of candidateIds) {
         const rows = await fetchStudents(candidateId, scopedSubjectId, undefined);
+        const arr = Array.isArray(rows) ? rows : [];
+        if (arr.length > 0) return arr;
+      }
+      // Pass 3: truly unscoped fetch by the linked base class — this is what the
+      // SCHOOL_ADMIN All Students page does (it passes no subject_id, so the backend
+      // returns students by students.class_id rather than by enrollment). Recovers
+      // students who belong to the class (students.class_id = linked base class) but
+      // have no active student_subject_enrollments row, which every subject-scoped
+      // pass above excludes. Restricted to the resolved base class IDs (never the
+      // subject_class_id) to avoid ID-collision over-fetching.
+      const baseClassCandidateIds = Array.from(
+        new Set(
+          [resolvedSubjectClassContext?.linkedClassId, fallbackRouteClassId]
+            .map((id) => String(id ?? "").trim())
+            .filter(Boolean)
+        )
+      );
+      for (const candidateId of baseClassCandidateIds) {
+        const rows = await fetchStudents(candidateId, 0, undefined);
         const arr = Array.isArray(rows) ? rows : [];
         if (arr.length > 0) return arr;
       }
