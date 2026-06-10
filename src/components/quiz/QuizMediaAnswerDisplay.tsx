@@ -1,8 +1,10 @@
 "use client";
 
 import React from "react";
+import { Image } from "antd";
 import { BookOpen, ExternalLink } from "lucide-react";
 import { buildStorageUrl } from "@/lib/submissionAttachments";
+import QuizAudioPlayer from "@/components/quiz/QuizAudioPlayer";
 
 export type QuizMediaDisplayQuestion = {
   type: string;
@@ -36,7 +38,7 @@ export default function QuizMediaAnswerDisplay({ question, answer }: Props) {
     if (!audio) {
       return <span className="text-sm text-gray-400">No recording submitted.</span>;
     }
-    return <audio controls src={buildStorageUrl(audio)} className="w-full max-w-sm" />;
+    return <QuizAudioPlayer src={buildStorageUrl(audio)} className="w-full max-w-sm" />;
   }
 
   if (question.type === "image_upload") {
@@ -45,21 +47,20 @@ export default function QuizMediaAnswerDisplay({ question, answer }: Props) {
     return (
       <div className="space-y-3">
         {images.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {images.map((img, index) => {
-              const url = buildStorageUrl(img);
-              return (
-                <a key={index} href={url} target="_blank" rel="noopener noreferrer">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={url}
-                    alt={`Submitted image ${index + 1}`}
-                    className="h-24 w-24 rounded-lg border border-gray-200 object-cover"
-                  />
-                </a>
-              );
-            })}
-          </div>
+          <Image.PreviewGroup>
+            <div className="flex flex-wrap gap-2">
+              {images.map((img, index) => (
+                <Image
+                  key={index}
+                  src={buildStorageUrl(img)}
+                  alt={`Submitted image ${index + 1}`}
+                  width={96}
+                  height={96}
+                  className="rounded-lg border border-gray-200 object-cover"
+                />
+              ))}
+            </div>
+          </Image.PreviewGroup>
         ) : (
           <span className="text-sm text-gray-400">No images submitted.</span>
         )}

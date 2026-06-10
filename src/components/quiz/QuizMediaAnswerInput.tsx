@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { Button, Input, Upload, message } from "antd";
+import { Button, Image, Input, Upload, message } from "antd";
 import type { UploadFile, UploadProps } from "antd";
-import { Mic, Square, Trash2, BookOpen, ExternalLink } from "lucide-react";
+import { Mic, Square, Trash2, BookOpen, ExternalLink, Maximize2 } from "lucide-react";
 import { uploadQuizFile } from "@/services/quizApi";
 import {
   createRecordingFile,
@@ -11,6 +11,7 @@ import {
   getSupportedAudioMimeType,
 } from "@/lib/audioRecording";
 import { buildStorageUrl } from "@/lib/submissionAttachments";
+import QuizAudioPlayer from "@/components/quiz/QuizAudioPlayer";
 
 export type QuizMediaQuestion = {
   id: number;
@@ -95,6 +96,7 @@ function RecordingInput({
   const [isRecording, setIsRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [uploading, setUploading] = useState(false);
+  const [localPreviewUrl, setLocalPreviewUrl] = useState<string>("");
   const [messageApi, contextHolder] = message.useMessage();
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -102,6 +104,7 @@ function RecordingInput({
   const chunksRef = useRef<BlobPart[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mimeTypeRef = useRef<string>("");
+  const localPreviewUrlRef = useRef<string>("");
 
   const stopTracksAndTimer = () => {
     if (timerRef.current) {
@@ -112,9 +115,20 @@ function RecordingInput({
     mediaStreamRef.current = null;
   };
 
+  const setPreviewUrl = (url: string) => {
+    if (localPreviewUrlRef.current) {
+      URL.revokeObjectURL(localPreviewUrlRef.current);
+    }
+    localPreviewUrlRef.current = url;
+    setLocalPreviewUrl(url);
+  };
+
   useEffect(() => {
     return () => {
       stopTracksAndTimer();
+      if (localPreviewUrlRef.current) {
+        URL.revokeObjectURL(localPreviewUrlRef.current);
+      }
     };
   }, []);
 
@@ -163,6 +177,8 @@ function RecordingInput({
             (chunks[0] instanceof Blob ? chunks[0].type : "") ||
             "audio/webm"
         );
+        // Play back instantly from a local blob URL (independent of upload/network).
+        setPreviewUrl(URL.createObjectURL(file));
         try {
           setUploading(true);
           const { url } = await uploadQuizFile(file, subjectId);
@@ -200,6 +216,7 @@ function RecordingInput({
 
   const clearRecording = () => {
     if (disabled) return;
+    setPreviewUrl("");
     onChange({});
   };
 
@@ -239,9 +256,12 @@ function RecordingInput({
         {uploading && <span className="text-sm text-gray-500">Saving recording…</span>}
       </div>
 
-      {value.audio && !isRecording && (
+      {(localPreviewUrl || value.audio) && !isRecording && (
         <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3 sm:flex-row sm:items-center">
-          <audio controls src={buildStorageUrl(value.audio)} className="w-full sm:max-w-sm" />
+          <QuizAudioPlayer
+            src={localPreviewUrl || buildStorageUrl(value.audio || "")}
+            className="w-full sm:max-w-sm"
+          />
           {!disabled && (
             <Button
               type="text"
@@ -274,6 +294,8 @@ function ImageUploadInput({
 }) {
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [comment, setComment] = useState<string>(value.comment || "");
+  const [previewSrc, setPreviewSrc] = useState<string>("");
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
   const initializedRef = useRef(false);
 
@@ -323,6 +345,19 @@ function ImageUploadInput({
     emitChange(fileList, next);
   };
 
+  // Show the picture inside the website instead of opening an external link.
+  const handlePreview: UploadProps["onPreview"] = (file) => {
+    const remote = (file.response as { url?: string })?.url;
+    const src =
+      file.url ||
+      (remote ? buildStorageUrl(remote) : "") ||
+      file.thumbUrl ||
+      (file.originFileObj ? URL.createObjectURL(file.originFileObj as Blob) : "");
+    if (!src) return;
+    setPreviewSrc(src);
+    setPreviewOpen(true);
+  };
+
   return (
     <div className="space-y-3">
       {contextHolder}
@@ -333,6 +368,7 @@ function ImageUploadInput({
         fileList={fileList}
         customRequest={customRequest}
         onChange={handleChange}
+        onPreview={handlePreview}
         disabled={disabled}
       >
         {!disabled && fileList.length >= 12 ? null : !disabled ? (
@@ -350,6 +386,20 @@ function ImageUploadInput({
         onChange={(e) => handleCommentChange(e.target.value)}
         disabled={disabled}
       />
+
+      {previewSrc && (
+        <Image
+          wrapperStyle={{ display: "none" }}
+          src={previewSrc}
+          preview={{
+            visible: previewOpen,
+            onVisibleChange: (visible) => {
+              setPreviewOpen(visible);
+              if (!visible) setPreviewSrc("");
+            },
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -376,32 +426,7 @@ function ReadingInput({
 
   return (
     <div className="space-y-3">
-      {bookUrl ? (
-        <div className="overflow-hidden rounded-lg border border-gray-200">
-          <div className="flex items-center justify-between gap-2 bg-gray-50 px-3 py-2">
-            <span className="flex items-center gap-2 text-sm font-medium text-gray-700">
-              <BookOpen size={16} /> Reading material
-            </span>
-            <a
-              href={bookUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 text-sm text-primary hover:underline"
-            >
-              Open in new tab <ExternalLink size={14} />
-            </a>
-          </div>
-          <iframe
-            src={bookUrl}
-            title="Reading material"
-            className="h-[480px] w-full"
-          />
-        </div>
-      ) : (
-        <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4 text-sm text-gray-500">
-          No reading material has been attached to this question yet.
-        </div>
-      )}
+      <ReadingMaterialViewer bookUrl={bookUrl} />
 
       <div>
         <p className="mb-1 text-sm font-medium text-gray-700">Your response</p>
@@ -413,6 +438,74 @@ function ReadingInput({
           disabled={disabled}
         />
       </div>
+    </div>
+  );
+}
+
+/* ------------------------- Reading material -------------------------- */
+
+export function ReadingMaterialViewer({ bookUrl }: { bookUrl: string }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  const isImage = /\.(png|jpe?g|gif|webp|bmp|svg)(\?|#|$)/i.test(bookUrl);
+
+  const enterFullscreen = () => {
+    const el = containerRef.current;
+    if (!el) return;
+    if (document.fullscreenElement) {
+      document.exitFullscreen?.();
+    } else {
+      el.requestFullscreen?.();
+    }
+  };
+
+  if (!bookUrl) {
+    return (
+      <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4 text-sm text-gray-500">
+        No reading material has been attached to this question yet.
+      </div>
+    );
+  }
+
+  return (
+    <div
+      ref={containerRef}
+      className="flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white"
+    >
+      <div className="flex items-center justify-between gap-2 bg-gray-50 px-3 py-2">
+        <span className="flex items-center gap-2 text-sm font-medium text-gray-700">
+          <BookOpen size={16} /> Reading material
+        </span>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={enterFullscreen}
+            className="flex items-center gap-1 text-sm text-primary hover:underline"
+          >
+            <Maximize2 size={14} /> Full screen
+          </button>
+          <a
+            href={bookUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-sm text-primary hover:underline"
+          >
+            Open in new tab <ExternalLink size={14} />
+          </a>
+        </div>
+      </div>
+      {isImage ? (
+        <div className="flex max-h-[70vh] flex-1 justify-center overflow-auto bg-neutral-100 p-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={bookUrl} alt="Reading material" className="max-w-full object-contain" />
+        </div>
+      ) : (
+        <iframe
+          src={bookUrl}
+          title="Reading material"
+          className="h-[70vh] w-full flex-1 bg-neutral-100"
+        />
+      )}
     </div>
   );
 }
