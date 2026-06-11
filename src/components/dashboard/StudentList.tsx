@@ -1422,8 +1422,57 @@ export default function StudentList() {
   const seatingApiReady = !!seatingScopeId && canArrangeSeats && !seatingQuery.isError;
   const seatingUnavailableMessage = getSeatingApiUnavailableMessage(seatingApiError);
 
+  // After adding student(s) inside a subject workspace, create the matching
+  // subject-class enrollment row. The /add-student endpoint only sets the base
+  // students.class_id and does NOT enroll the student into the subject class, so
+  // without this the student is invisible to every subject-scoped read (class
+  // roster count, dashboard "Total Students") and has no enrolled subject, which
+  // makes their own account fall back to showing every subject. Enrolling here
+  // keeps the count, roster, and the student's subject list consistent.
+  const enrollAddedStudentsToSubjectClass = async (addedStudents: any[]) => {
+    if (!isSubjectWorkspaceMode) return;
+    const subjectId = Number(scopedSubjectId ?? 0);
+    const subjectClassId = Number(effectiveSubjectClassId || 0);
+    if (!Number.isFinite(subjectId) || subjectId <= 0) return;
+    if (!Number.isFinite(subjectClassId) || subjectClassId <= 0) return;
+    const studentIds = Array.from(
+      new Set(
+        addedStudents
+          .map((student) => Number(student?.id ?? student?.student_id ?? 0))
+          .filter((id) => Number.isFinite(id) && id > 0)
+      )
+    );
+    if (studentIds.length === 0) return;
+    try {
+      await assignStudentsToSubjects({
+        subjectIds: [subjectId],
+        studentIds,
+        subjects: editSubjectOptions.map((option) => ({
+          id: Number(option.value),
+          name: option.label,
+        })),
+        subjectClassIds: [subjectClassId],
+        forceReassign: false,
+        allowCrossClass: true,
+      });
+    } catch (error: unknown) {
+      const backendMessage =
+        (error as { message?: string })?.message?.trim() ||
+        (error as any)?.response?.data?.msg ||
+        (error as any)?.response?.data?.message ||
+        "linking to this subject class failed";
+      messageApi.warning(
+        `Student added, but ${backendMessage}. Use "Assign" on the student to retry.`
+      );
+    }
+  };
+
   const addStudentMutation = useMutation({
-    mutationFn: (payload: any) => apiAddStudent(payload, scopedSubjectId),
+    mutationFn: async (payload: any) => {
+      const added = await apiAddStudent(payload, scopedSubjectId);
+      await enrollAddedStudentsToSubjectClass([added]);
+      return added;
+    },
     onSuccess: (data: any, variables: any) => {
       rememberRecentAddedStudent(data, variables);
       queryClient.refetchQueries({ queryKey: studentsQueryKey });
@@ -2176,17 +2225,21 @@ export default function StudentList() {
 
     let successCount = 0;
     let failedCount = 0;
+    const addedStudents: any[] = [];
 
     for (const payload of payloads) {
       try {
         // eslint-disable-next-line no-await-in-loop
         const added = await apiAddStudent(payload, scopedSubjectId);
         rememberRecentAddedStudent(added, payload);
+        addedStudents.push(added);
         successCount += 1;
       } catch {
         failedCount += 1;
       }
     }
+
+    await enrollAddedStudentsToSubjectClass(addedStudents);
 
     if (successCount > 0) {
       queryClient.refetchQueries({ queryKey: studentsQueryKey });
