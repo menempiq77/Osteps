@@ -361,8 +361,12 @@ export default function AssessmentDrawer({
 
             {viewingTask.isAudio && (
               <div className="mt-4">
-                <audio controls className="w-full">
-                  <source src={viewingTask.fileUrl} type="audio/mpeg" />
+                <audio
+                  key={viewingTask.fileUrl}
+                  controls
+                  className="w-full"
+                  src={viewingTask.fileUrl}
+                >
                   Your browser does not support the audio element.
                 </audio>
               </div>
@@ -371,11 +375,12 @@ export default function AssessmentDrawer({
             {viewingTask.isVideo && (
               <div className="mt-4">
                 <video
+                  key={viewingTask.fileUrl}
                   controls
                   className="w-full rounded-lg border"
                   style={{ maxHeight: "400px" }}
+                  src={viewingTask.fileUrl}
                 >
-                  <source src={viewingTask.fileUrl} type="video/mp4" />
                   Your browser does not support the video tag.
                 </video>
               </div>
