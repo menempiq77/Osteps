@@ -1093,14 +1093,29 @@ export default function AssessmentDrawer() {
     );
   };
 
-  const renderSubmissionAttachmentLinks = (task: StudentAssessmentTask) => {
+  // Resolve ONLY the student's own submitted media file. Never falls back to
+  // task.task.file_path (the task's attached sample, which is identical for
+  // every student) so the inline audio/video player plays the actual recording
+  // for the student being viewed.
+  const getStudentSubmissionMediaUrl = (task: StudentAssessmentTask) => {
     const attachments = parseSubmissionAttachments(task.file_paths, task.file_path);
+    return attachments.length > 0 ? attachments[0].url : "";
+  };
+
+  const renderSubmissionAttachmentLinks = (
+    task: StudentAssessmentTask,
+    excludeUrl?: string
+  ) => {
+    const attachments = parseSubmissionAttachments(
+      task.file_paths,
+      task.file_path
+    ).filter((attachment) => !excludeUrl || attachment.url !== excludeUrl);
     if (attachments.length === 0) return null;
 
     return (
       <div className="mt-3 rounded-lg border border-gray-200 bg-white p-3">
         <div className="mb-2 text-sm font-semibold text-gray-800">
-          Student uploaded files ({attachments.length})
+          {excludeUrl ? "Other uploaded files" : "Student uploaded files"} ({attachments.length})
         </div>
         <div className="space-y-1.5">
           {attachments.map((attachment) => (
@@ -2037,29 +2052,46 @@ export default function AssessmentDrawer() {
                 </div>
               ) : viewingTask.task?.task_type.toLowerCase() === "video" ? (
                 <>
-                  <video
-                    controls
-                    className="w-full rounded-lg border"
-                    style={{ maxHeight: "400px" }}
-                  >
-                    <source
-                      src={getSubmittedFileUrl(viewingTask)}
-                      type="video/mp4"
-                    />
-                    Your browser does not support the video tag.
-                  </video>
-                  {renderSubmissionAttachmentLinks(viewingTask)}
+                  {getStudentSubmissionMediaUrl(viewingTask) ? (
+                    <video
+                      key={getStudentSubmissionMediaUrl(viewingTask)}
+                      controls
+                      className="w-full rounded-lg border"
+                      style={{ maxHeight: "400px" }}
+                      src={getStudentSubmissionMediaUrl(viewingTask)}
+                    >
+                      Your browser does not support the video tag.
+                    </video>
+                  ) : (
+                    <p className="text-gray-500 italic">
+                      No recording submitted.
+                    </p>
+                  )}
+                  {renderSubmissionAttachmentLinks(
+                    viewingTask,
+                    getStudentSubmissionMediaUrl(viewingTask)
+                  )}
                 </>
               ) : viewingTask.task?.task_type.toLowerCase() === "audio" ? (
                 <>
-                  <audio controls className="w-full">
-                    <source
-                      src={getSubmittedFileUrl(viewingTask)}
-                      type="audio/mpeg"
-                    />
-                    Your browser does not support the audio element.
-                  </audio>
-                  {renderSubmissionAttachmentLinks(viewingTask)}
+                  {getStudentSubmissionMediaUrl(viewingTask) ? (
+                    <audio
+                      key={getStudentSubmissionMediaUrl(viewingTask)}
+                      controls
+                      className="w-full"
+                      src={getStudentSubmissionMediaUrl(viewingTask)}
+                    >
+                      Your browser does not support the audio element.
+                    </audio>
+                  ) : (
+                    <p className="text-gray-500 italic">
+                      No recording submitted.
+                    </p>
+                  )}
+                  {renderSubmissionAttachmentLinks(
+                    viewingTask,
+                    getStudentSubmissionMediaUrl(viewingTask)
+                  )}
                 </>
               ) : viewingTask.task?.task_type.toLowerCase() === "url" ? (
                 <div className="p-4 border rounded-lg bg-blue-50">

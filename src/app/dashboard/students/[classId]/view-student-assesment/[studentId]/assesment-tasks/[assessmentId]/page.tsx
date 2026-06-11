@@ -800,25 +800,32 @@ export default function AssessmentDrawer() {
                   )}
                 </div>
               ) : viewingTask.task?.task_type.toLowerCase() === "video" ? (
-                <video
-                  controls
-                  className="w-full rounded-lg border"
-                  style={{ maxHeight: "400px" }}
-                >
-                  <source
+                fileUrlForDocument(viewingTask.file_path) ? (
+                  <video
+                    key={fileUrlForDocument(viewingTask.file_path)}
+                    controls
+                    className="w-full rounded-lg border"
+                    style={{ maxHeight: "400px" }}
                     src={fileUrlForDocument(viewingTask.file_path)}
-                    type="video/mp4"
-                  />
-                  Your browser does not support the video tag.
-                </video>
+                  >
+                    Your browser does not support the video tag.
+                  </video>
+                ) : (
+                  <p className="text-gray-500 italic">No recording submitted.</p>
+                )
               ) : viewingTask.task?.task_type.toLowerCase() === "audio" ? (
-                <audio controls className="w-full">
-                  <source
+                fileUrlForDocument(viewingTask.file_path) ? (
+                  <audio
+                    key={fileUrlForDocument(viewingTask.file_path)}
+                    controls
+                    className="w-full"
                     src={fileUrlForDocument(viewingTask.file_path)}
-                    type="audio/mpeg"
-                  />
-                  Your browser does not support the audio element.
-                </audio>
+                  >
+                    Your browser does not support the audio element.
+                  </audio>
+                ) : (
+                  <p className="text-gray-500 italic">No recording submitted.</p>
+                )
               ) : viewingTask.task?.task_type.toLowerCase() === "url" ? (
                 <div className="p-4 border rounded-lg bg-blue-50">
                   <LinkOutlined className="text-blue-500 text-2xl mb-2" />
