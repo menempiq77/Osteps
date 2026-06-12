@@ -1717,6 +1717,49 @@ export default function AssessmentDrawer() {
 
                 {assessmentOpenTaskId === task.id && (
                   <div className="mt-3 space-y-3 border-t border-gray-100 pt-3">
+                    {task?.task?.task_type?.toLowerCase() === "audio" && (
+                      <div>
+                        <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                          Student Recording
+                        </label>
+                        {getStudentSubmissionMediaUrl(task) ? (
+                          <audio
+                            key={getStudentSubmissionMediaUrl(task)}
+                            controls
+                            className="w-full"
+                            src={getStudentSubmissionMediaUrl(task)}
+                          >
+                            Your browser does not support the audio element.
+                          </audio>
+                        ) : (
+                          <p className="text-gray-500 italic text-sm">
+                            No recording submitted.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                    {task?.task?.task_type?.toLowerCase() === "video" && (
+                      <div>
+                        <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                          Student Recording
+                        </label>
+                        {getStudentSubmissionMediaUrl(task) ? (
+                          <video
+                            key={getStudentSubmissionMediaUrl(task)}
+                            controls
+                            className="w-full rounded-lg border"
+                            style={{ maxHeight: "400px" }}
+                            src={getStudentSubmissionMediaUrl(task)}
+                          >
+                            Your browser does not support the video tag.
+                          </video>
+                        ) : (
+                          <p className="text-gray-500 italic text-sm">
+                            No recording submitted.
+                          </p>
+                        )}
+                      </div>
+                    )}
                     <div>
                       <label className="mb-1.5 block text-sm font-medium text-gray-700">
                         Marks
