@@ -22,7 +22,7 @@ import {
 } from "@/services/api";
 import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { DragDropContext, Draggable, Droppable, type DropResult } from "@hello-pangea/dnd";
-import { addQuize, assignTaskQuiz } from "@/services/quizApi";
+import { addQuize, assignTaskQuiz, updateQuize } from "@/services/quizApi";
 import { IMG_BASE_URL } from "@/lib/config";
 import { extractSubjectIdFromPath, toSubjectScopedPath } from "@/lib/subjectRouting";
 import { buildTaskTypeValue, normalizeTaskRecord } from "@/lib/taskTypeMetadata";
@@ -720,18 +720,14 @@ export function AssessmentTasksDrawer({
         editingQuizWeight
       );
 
-      // Persist to backend if there's an API endpoint
-      if (task.quiz_id) {
-        try {
-          // Try to update quiz name via API if available
-          await updateTask(String(task.quiz_id), {
-            task_name: editingQuizName,
-            percentage_weight: editingQuizWeight,
-          } as any);
-        } catch (e) {
-          // If API fails, still update locally
-          console.log("Quiz API update not available, updating locally only");
-        }
+      // Persist the quiz name to the backend; let failures surface as an error.
+      const quizId = task.quiz_id ?? task.quiz?.id;
+      if (quizId != null) {
+        await updateQuize(
+          String(quizId),
+          { name: editingQuizName },
+          resolvedSubjectId ?? undefined
+        );
       }
 
       setOrderedTasks(updatedTasks);
