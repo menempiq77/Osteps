@@ -7,6 +7,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { fetchTasks, reorderAssessments } from "@/services/api";
+import { resolveWeight } from "@/lib/assessmentWeights";
 import { DragDropContext, Draggable, Droppable, DropResult } from "@hello-pangea/dnd";
 import { GripVertical } from "lucide-react";
 import { message } from "antd";
@@ -69,6 +70,7 @@ export default function AllAssessmentList({
   const [assessmentList, setAssessmentList] = useState(assessments);
   const [assignDrawerOpen, setAssignDrawerOpen] = useState(false);
   const [assigningAssessment, setAssigningAssessment] = useState<Assessment | null>(null);
+  const [weightTotals, setWeightTotals] = useState<Record<string, number | null>>({});
 
   const [selectedTermId, setSelectedTermId] = useState<string | null>(
     termId ? termId.toString() : null
@@ -77,6 +79,49 @@ export default function AllAssessmentList({
 
   useEffect(() => {
     setAssessmentList(assessments);
+  }, [assessments]);
+
+  const sumTaskWeights = (assessmentId: string, rows: any[]): number =>
+    (rows ?? []).reduce((total, row: any) => {
+      const weight = resolveWeight(row?.percentage_weight, {
+        assessmentId,
+        taskId: row?.id,
+        quizId: row?.quiz_id ?? row?.quiz?.id,
+      });
+      return total + (Number.isFinite(weight) ? weight : 0);
+    }, 0);
+
+  // Compute each assessment's total task weight so the cards can surface it.
+  useEffect(() => {
+    let cancelled = false;
+    const ids = assessments
+      .filter((a) => a.type === "assessment")
+      .map((a) => a.id);
+    if (ids.length === 0) {
+      setWeightTotals({});
+      return;
+    }
+    (async () => {
+      const entries = await Promise.all(
+        ids.map(async (id) => {
+          try {
+            const rows = await fetchTasks(Number(id));
+            return [id, sumTaskWeights(id, rows)] as const;
+          } catch {
+            return [id, null] as const;
+          }
+        })
+      );
+      if (cancelled) return;
+      const next: Record<string, number | null> = {};
+      entries.forEach(([id, total]) => {
+        next[id] = total;
+      });
+      setWeightTotals(next);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [assessments]);
 
   useEffect(() => {
@@ -134,6 +179,10 @@ export default function AllAssessmentList({
       if (selectedAssessment) {
         const freshTasks = await fetchTasks(selectedAssessment);
         setTasks(freshTasks);
+        setWeightTotals((prev) => ({
+          ...prev,
+          [selectedAssessment]: sumTaskWeights(selectedAssessment, freshTasks),
+        }));
       }
     } catch (error) {
       console.error("Error refreshing tasks:", error);
@@ -240,6 +289,26 @@ export default function AllAssessmentList({
                               >
                                 {assignment.type === "quiz" ? "Quiz" : "Assessment"}
                               </span>
+                              {assignment.type === "assessment" &&
+                                weightTotals[assignment.id] != null && (
+                                  <span
+                                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium mt-1 ml-2 ${
+                                      Math.round(weightTotals[assignment.id]!) === 100
+                                        ? "bg-emerald-100 text-emerald-700"
+                                        : weightTotals[assignment.id]! > 0
+                                        ? "bg-amber-100 text-amber-700"
+                                        : "bg-gray-100 text-gray-500"
+                                    }`}
+                                    title={
+                                      Math.round(weightTotals[assignment.id]!) === 100
+                                        ? "Task weights total 100%"
+                                        : "Task weights do not total 100% — grades may be miscalculated"
+                                    }
+                                  >
+                                    Weight:{" "}
+                                    {Math.round(weightTotals[assignment.id]! * 10) / 10}%
+                                  </span>
+                                )}
                             </div>
 
                             {/* Actions — visible on hover */}
