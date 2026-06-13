@@ -222,6 +222,7 @@ export function AssessmentTasksDrawer({
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
   const [selectedQuizId, setSelectedQuizId] = useState<number | null>(null);
   const [newQuizName, setNewQuizName] = useState("");
+  const [quizPercentageWeight, setQuizPercentageWeight] = useState<number>(0);
   const [createdQuizzes, setCreatedQuizzes] = useState<any[]>([]);
   const [orderedTasks, setOrderedTasks] = useState<Task[]>([]);
   const [messageApi, contextHolder] = message.useMessage();
@@ -432,6 +433,11 @@ export function AssessmentTasksDrawer({
           type: "quiz",
           quiz: selectedQuiz,
           task_name: selectedQuiz.name,
+          description: "",
+          task_type: "quiz",
+          due_date: "",
+          allocated_marks: 0,
+          percentage_weight: quizPercentageWeight,
         };
 
         const updatedTasks = [...orderedTasks, newQuizTask];
@@ -442,6 +448,7 @@ export function AssessmentTasksDrawer({
 
       setSelectedType(null);
       setSelectedQuizId(null);
+      setQuizPercentageWeight(0);
     } catch (error) {
       messageApi.error("Failed to assign quiz");
       console.error("Error assigning quiz:", error);
@@ -503,6 +510,11 @@ export function AssessmentTasksDrawer({
           type: "quiz",
           quiz: createdQuizRecord,
           task_name: createdQuizRecord.name,
+          description: "",
+          task_type: "quiz",
+          due_date: "",
+          allocated_marks: 0,
+          percentage_weight: quizPercentageWeight,
         },
       ];
 
@@ -510,6 +522,7 @@ export function AssessmentTasksDrawer({
       setOrderedTasks(updatedTasks);
       onTasksChange(updatedTasks);
       setNewQuizName("");
+      setQuizPercentageWeight(0);
       setSelectedQuizId(null);
       setSelectedType(null);
       messageApi.success("Quiz created and assigned successfully");
@@ -616,6 +629,7 @@ export function AssessmentTasksDrawer({
     setSelectedType(null);
     setSelectedQuizId(null);
     setNewQuizName("");
+    setQuizPercentageWeight(0);
     reset();
     setEditingTaskId(null);
   };
@@ -1174,6 +1188,18 @@ export function AssessmentTasksDrawer({
                     </Option>
                   ))}
                 </Select>
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Percentage Weight (%)</p>
+                  <InputNumber
+                    min={0}
+                    max={100}
+                    value={quizPercentageWeight}
+                    onChange={(value) => setQuizPercentageWeight(Number(value || 0))}
+                    className="w-full"
+                    disabled={loading}
+                    placeholder="0-100%"
+                  />
+                </div>
                 <div className="flex justify-end gap-2">
                   <button
                     type="button"
@@ -1195,6 +1221,18 @@ export function AssessmentTasksDrawer({
                   placeholder="Quiz title"
                   disabled={loading}
                 />
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Percentage Weight (%)</p>
+                  <InputNumber
+                    min={0}
+                    max={100}
+                    value={quizPercentageWeight}
+                    onChange={(value) => setQuizPercentageWeight(Number(value || 0))}
+                    className="w-full"
+                    disabled={loading}
+                    placeholder="0-100%"
+                  />
+                </div>
                 <div className="flex justify-end gap-2">
                   <Button onClick={handleCancel} disabled={loading}>Cancel</Button>
                   <button
@@ -1298,6 +1336,14 @@ export function AssessmentTasksDrawer({
                                 <p className="mb-4 text-sm text-gray-600">
                                   {task?.description || "No description provided"}
                                 </p>
+                                {task?.type === "quiz" && task?.percentage_weight ? (
+                                  <div className="mt-2 text-sm text-gray-500">
+                                    Weight:{" "}
+                                    <span className="font-medium text-blue-600">
+                                      {task.percentage_weight}%
+                                    </span>
+                                  </div>
+                                ) : null}
                                 {task?.exam_mode && task?.exam_start_at && (
                                   <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
                                     Opens {dayjs(task.exam_start_at).format("DD MMM YYYY, HH:mm")} for {task.exam_duration_minutes || 0} minute{task.exam_duration_minutes === 1 ? "" : "s"}.
