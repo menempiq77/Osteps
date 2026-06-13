@@ -593,7 +593,7 @@ export default function LibraryPage() {
                   </Badge>
                 )}
               </div>
-              <p className="mt-1.5 max-w-md text-sm text-emerald-50/90">
+              <p className="mt-1.5 max-w-md text-sm text-white/85">
                 Browse, search and open your school&apos;s resources — books, PDFs, videos and websites, all in one place.
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
