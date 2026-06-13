@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { EditOutlined, DeleteOutlined, TeamOutlined, FileTextOutlined, BookOutlined, CopyOutlined } from "@ant-design/icons";
 import { AssessmentTasksDrawer } from "../ui/AssessmentTasksDrawer";
 import AssessmentAssignDrawer from "./AssessmentAssignDrawer";
@@ -11,6 +11,27 @@ import { resolveWeight } from "@/lib/assessmentWeights";
 import { DragDropContext, Draggable, Droppable, DropResult } from "@hello-pangea/dnd";
 import { GripVertical } from "lucide-react";
 import { message } from "antd";
+
+// Run async tasks with a bounded concurrency so we don't flood the API.
+async function mapLimit<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let cursor = 0;
+  const workers = Array.from(
+    { length: Math.min(limit, items.length) },
+    async () => {
+      while (cursor < items.length) {
+        const current = cursor++;
+        results[current] = await fn(items[current]);
+      }
+    }
+  );
+  await Promise.all(workers);
+  return results;
+}
 
 
 interface Task {
@@ -71,6 +92,7 @@ export default function AllAssessmentList({
   const [assignDrawerOpen, setAssignDrawerOpen] = useState(false);
   const [assigningAssessment, setAssigningAssessment] = useState<Assessment | null>(null);
   const [weightTotals, setWeightTotals] = useState<Record<string, number | null>>({});
+  const tasksCacheRef = useRef<Record<string, Task[]>>({});
 
   const [selectedTermId, setSelectedTermId] = useState<string | null>(
     termId ? termId.toString() : null
@@ -102,16 +124,15 @@ export default function AllAssessmentList({
       return;
     }
     (async () => {
-      const entries = await Promise.all(
-        ids.map(async (id) => {
-          try {
-            const rows = await fetchTasks(Number(id));
-            return [id, sumTaskWeights(id, rows)] as const;
-          } catch {
-            return [id, null] as const;
-          }
-        })
-      );
+      const entries = await mapLimit(ids, 4, async (id) => {
+        try {
+          const rows = await fetchTasks(Number(id));
+          tasksCacheRef.current[id] = rows as Task[];
+          return [id, sumTaskWeights(id, rows)] as const;
+        } catch {
+          return [id, null] as const;
+        }
+      });
       if (cancelled) return;
       const next: Record<string, number | null> = {};
       entries.forEach(([id, total]) => {
@@ -131,12 +152,17 @@ export default function AllAssessmentList({
   }, [drawerVisible, selectedAssessment]);
 
   const loadTasks = async () => {
-    try {
-      setLoading(true);
-      if (!selectedAssessment) return;
+    if (!selectedAssessment) return;
 
+    const cached = tasksCacheRef.current[selectedAssessment];
+    if (cached) {
+      setTasks(cached);
+    }
+    try {
+      if (!cached) setLoading(true);
       const fetchedTasks: Task[] = await fetchTasks(selectedAssessment);
       setTasks(fetchedTasks);
+      tasksCacheRef.current[selectedAssessment] = fetchedTasks;
     } catch (error) {
       console.error("Error loading tasks:", error);
     } finally {
@@ -179,6 +205,7 @@ export default function AllAssessmentList({
       if (selectedAssessment) {
         const freshTasks = await fetchTasks(selectedAssessment);
         setTasks(freshTasks);
+        tasksCacheRef.current[selectedAssessment] = freshTasks;
         setWeightTotals((prev) => ({
           ...prev,
           [selectedAssessment]: sumTaskWeights(selectedAssessment, freshTasks),
