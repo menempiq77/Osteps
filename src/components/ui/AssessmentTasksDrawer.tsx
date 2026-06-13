@@ -49,6 +49,7 @@ type TaskFormData = {
   isUrl: boolean;
   isNA: boolean;
   allocatedMarks: number;
+  percentageWeight: number;
   url?: string;
   file?: FileList;
 };
@@ -61,6 +62,7 @@ type Task = {
   task_type_config?: unknown;
   due_date: string;
   allocated_marks: number;
+  percentage_weight?: number;
   url?: string;
   exam_mode?: boolean;
   exam_start_at?: string | null;
@@ -70,6 +72,7 @@ type Task = {
   name?: string;
   dueDate?: string;
   allocatedMarks?: number;
+  percentageWeight?: number;
   isAudio?: boolean;
   isVideo?: boolean;
   isPdf?: boolean;
@@ -261,6 +264,7 @@ export function AssessmentTasksDrawer({
       isUrl: false,
       isNA: false,
       allocatedMarks: 0,
+      percentageWeight: 0,
       url: "",
     },
   });
@@ -339,6 +343,7 @@ export function AssessmentTasksDrawer({
       formData.append("description", data.description);
       formData.append("due_date", resolvedDueDate);
       formData.append("allocated_marks", data.allocatedMarks.toString());
+      formData.append("percentage_weight", data.percentageWeight.toString());
 
       if (taskTypeValue && typeof taskTypeValue === "object") {
         Object.entries(taskTypeValue).forEach(([key, value]) => {
@@ -534,6 +539,7 @@ export function AssessmentTasksDrawer({
     setValue("isUrl", taskType === "url");
 
     setValue("allocatedMarks", task.allocated_marks);
+    setValue("percentageWeight", task.percentage_weight ?? 0);
     setValue("url", task.url || "");
     setValue("isNA", !taskType);
     setValue("examMode", Boolean(task.exam_mode));
@@ -878,6 +884,39 @@ export function AssessmentTasksDrawer({
           {errors.allocatedMarks && (
             <p className="text-red-500 text-sm mt-1">
               {errors.allocatedMarks.message}
+            </p>
+          )}
+        </div>
+
+        <div>
+          <p className="font-medium">Percentage Weight (%)</p>
+          <p className="text-xs text-gray-500 mb-1">
+            Weight this task contributes to total (0-100%)
+          </p>
+          <Controller
+            name="percentageWeight"
+            control={control}
+            rules={{
+              required: "Percentage weight is required",
+              min: { value: 0, message: "Min 0%" },
+              max: { value: 100, message: "Max 100%" },
+            }}
+            render={({ field }) => (
+              <InputNumber
+                {...field}
+                id="percentageWeight"
+                min={0}
+                max={100}
+                className="!mt-1 !w-full"
+                disabled={loading}
+                status={errors.percentageWeight ? "error" : ""}
+                onChange={(value) => field.onChange(value)}
+              />
+            )}
+          />
+          {errors.percentageWeight && (
+            <p className="text-red-500 text-sm mt-1">
+              {errors.percentageWeight.message}
             </p>
           )}
         </div>
@@ -1287,6 +1326,14 @@ export function AssessmentTasksDrawer({
                                     <span className="font-medium">
                                       {task?.allocated_marks}
                                     </span>
+                                    {task?.percentage_weight ? (
+                                      <>
+                                        {" "}| Weight:{" "}
+                                        <span className="font-medium text-blue-600">
+                                          {task.percentage_weight}%
+                                        </span>
+                                      </>
+                                    ) : null}
                                   </div>
                                 )}
                                 {task?.task_type === "url" && task?.url && (

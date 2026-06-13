@@ -27,6 +27,7 @@ interface Task {
   assessment_id: number;
   teacher_assessment_marks: number | null;
   allocated_marks: string;
+  percentage_weight?: string;
   task_type?: string;
   quiz_id?: number;
   submitted?: Array<{
@@ -420,7 +421,7 @@ export default function ReportsPage() {
     };
 
     // Build flat list of tasks across all assessments, filtered by selected term
-    const allTaskColumns: { taskId: number; taskName: string; allocatedMarks: number; term: string; assessmentId: number; taskType: string }[] = [];
+    const allTaskColumns: { taskId: number; taskName: string; allocatedMarks: number; percentageWeight: number; term: string; assessmentId: number; taskType: string }[] = [];
     const seenTaskIds = new Set<number>();
     filteredAssessments.forEach((assessment) => {
       const term = extractTerm(assessment.assessment_name);
@@ -432,6 +433,7 @@ export default function ReportsPage() {
             taskId: task.task_id,
             taskName: task.task_name,
             allocatedMarks: Number(task.allocated_marks),
+            percentageWeight: Number(task.percentage_weight ?? 0),
             term,
             assessmentId: assessment.assessment_id,
             taskType: task.task_type ?? 'task',
@@ -440,10 +442,11 @@ export default function ReportsPage() {
       });
     });
 
-    const maxPossibleTotal = allTaskColumns.reduce((s, c) => s + c.allocatedMarks, 0);
+    // Max possible total is 100 (percentage-based scale)
+    const maxPossibleTotal = 100;
 
     // Build student rows: one entry per student, keyed by student_id
-    const studentsMap = new Map<number, { student_name: string; taskMarks: Map<number, { marks: number; allocated: number; submitted: boolean; submissionId?: number }> }>();
+    const studentsMap = new Map<number, { student_name: string; taskMarks: Map<number, { marks: number; allocated: number; percentageWeight: number; submitted: boolean; submissionId?: number }> }>();
 
     filteredAssessments.forEach((assessment) => {
       const term = extractTerm(assessment.assessment_name);
@@ -457,6 +460,7 @@ export default function ReportsPage() {
           studentsMap.get(submission.student_id)!.taskMarks.set(task.task_id, {
             marks: getSubmissionTeacherMark(submission),
             allocated: Number(task.allocated_marks),
+            percentageWeight: Number(task.percentage_weight ?? 0),
             submitted: true,
             submissionId: submission.submission_id ?? submission.id ?? undefined,
           });
@@ -470,6 +474,7 @@ export default function ReportsPage() {
             studentsMap.get(student.student_id)!.taskMarks.set(task.task_id, {
               marks: 0,
               allocated: Number(task.allocated_marks),
+              percentageWeight: Number(task.percentage_weight ?? 0),
               submitted: false,
             });
           }
@@ -479,13 +484,17 @@ export default function ReportsPage() {
 
     const students = Array.from(studentsMap.entries()).map(([studentId, studentData]) => {
       let total = 0;
-      const taskMarks: Record<number, { marks: number; allocated: number; submitted: boolean; submissionId?: number }> = {};
+      const taskMarks: Record<number, { marks: number; allocated: number; percentageWeight: number; submitted: boolean; submissionId?: number }> = {};
 
       allTaskColumns.forEach((col) => {
         const mark = studentData.taskMarks.get(col.taskId);
         if (mark) {
           taskMarks[col.taskId] = mark;
-          if (mark.submitted) total += mark.marks;
+          // Calculate weighted contribution: (marks / allocated) * percentageWeight
+          if (mark.submitted && mark.allocated > 0 && mark.percentageWeight > 0) {
+            const weightedMark = (mark.marks / mark.allocated) * mark.percentageWeight;
+            total += weightedMark;
+          }
         }
       });
 
@@ -896,6 +905,11 @@ export default function ReportsPage() {
                         </span>
                       )}
                       <span className="block text-gray-400 normal-case font-normal">/{col.allocatedMarks}</span>
+                      {col.percentageWeight > 0 && (
+                        <span className="block text-blue-500 normal-case font-normal text-[10px]">
+                          Weight: {col.percentageWeight}%
+                        </span>
+                      )}
                     </th>
                   ))}
                   <th
