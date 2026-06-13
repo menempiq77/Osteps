@@ -293,7 +293,7 @@ export default function ReportsPage() {
                 .map((item) => [String(item.classes.id), item])
             ).values()
           );
-        } else if (isSchoolAdmin) {
+        } else if (isSchoolAdmin && !scopedSubjectId) {
           const adminData = await fetchAllYearClasses();
           response = adminData.school_classs.map((cls: any) => {
             const year = adminData.years.find((y: any) => y.id === cls.year_id);
