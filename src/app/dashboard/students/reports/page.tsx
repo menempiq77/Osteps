@@ -27,6 +27,7 @@ interface Task {
   assessment_id: number;
   teacher_assessment_marks: number | null;
   allocated_marks: string;
+  percentage_weight?: string;
   task_type?: string;
   quiz_id?: number;
   submitted?: Array<{
@@ -420,7 +421,7 @@ export default function ReportsPage() {
     };
 
     // Build flat list of tasks across all assessments, filtered by selected term
-    const allTaskColumns: { taskId: number; taskName: string; allocatedMarks: number; term: string; assessmentId: number; taskType: string }[] = [];
+    const allTaskColumns: { taskId: number; taskName: string; allocatedMarks: number; percentageWeight: number; term: string; assessmentId: number; taskType: string }[] = [];
     const seenTaskIds = new Set<number>();
     filteredAssessments.forEach((assessment) => {
       const term = extractTerm(assessment.assessment_name);
@@ -432,6 +433,7 @@ export default function ReportsPage() {
             taskId: task.task_id,
             taskName: task.task_name,
             allocatedMarks: Number(task.allocated_marks),
+            percentageWeight: Number(task.percentage_weight ?? 0),
             term,
             assessmentId: assessment.assessment_id,
             taskType: task.task_type ?? 'task',
@@ -440,10 +442,11 @@ export default function ReportsPage() {
       });
     });
 
-    const maxPossibleTotal = allTaskColumns.reduce((s, c) => s + c.allocatedMarks, 0);
+    // Max possible total is 100 (percentage-based), or sum of all percentage weights
+    const maxPossibleTotal = 100;
 
     // Build student rows: one entry per student, keyed by student_id
-    const studentsMap = new Map<number, { student_name: string; taskMarks: Map<number, { marks: number; allocated: number; submitted: boolean; submissionId?: number }> }>();
+    const studentsMap = new Map<number, { student_name: string; taskMarks: Map<number, { marks: number; allocated: number; percentageWeight: number; submitted: boolean; submissionId?: number }> }>();
 
     filteredAssessments.forEach((assessment) => {
       const term = extractTerm(assessment.assessment_name);
@@ -457,6 +460,7 @@ export default function ReportsPage() {
           studentsMap.get(submission.student_id)!.taskMarks.set(task.task_id, {
             marks: getSubmissionTeacherMark(submission),
             allocated: Number(task.allocated_marks),
+            percentageWeight: Number(task.percentage_weight ?? 0),
             submitted: true,
             submissionId: submission.submission_id ?? submission.id ?? undefined,
           });
@@ -470,6 +474,7 @@ export default function ReportsPage() {
             studentsMap.get(student.student_id)!.taskMarks.set(task.task_id, {
               marks: 0,
               allocated: Number(task.allocated_marks),
+              percentageWeight: Number(task.percentage_weight ?? 0),
               submitted: false,
             });
           }
@@ -479,13 +484,17 @@ export default function ReportsPage() {
 
     const students = Array.from(studentsMap.entries()).map(([studentId, studentData]) => {
       let total = 0;
-      const taskMarks: Record<number, { marks: number; allocated: number; submitted: boolean; submissionId?: number }> = {};
+      const taskMarks: Record<number, { marks: number; allocated: number; percentageWeight: number; submitted: boolean; submissionId?: number }> = {};
 
       allTaskColumns.forEach((col) => {
         const mark = studentData.taskMarks.get(col.taskId);
         if (mark) {
           taskMarks[col.taskId] = mark;
-          if (mark.submitted) total += mark.marks;
+          // Calculate weighted contribution: (marks / allocated) * percentageWeight
+          if (mark.submitted && mark.allocated > 0 && mark.percentageWeight > 0) {
+            const weightedMark = (mark.marks / mark.allocated) * mark.percentageWeight;
+            total += weightedMark;
+          }
         }
       });
 
@@ -594,11 +603,11 @@ export default function ReportsPage() {
   const getEffectiveMark = (
     studentId: number,
     taskId: number,
-    mark: { marks: number; allocated: number; submitted: boolean } | undefined
+    mark: { marks: number; allocated: number; percentageWeight: number; submitted: boolean } | undefined
   ) => {
     const key = `${studentId}_${taskId}`;
     if (localMarkOverrides[key] !== undefined) {
-      return { marks: localMarkOverrides[key], submitted: true };
+      return { marks: localMarkOverrides[key], submitted: true, allocated: mark?.allocated ?? 0, percentageWeight: mark?.percentageWeight ?? 0 };
     }
     return mark;
   };
@@ -611,7 +620,7 @@ export default function ReportsPage() {
 
   const commitEdit = async (
     studentId: number,
-    col: { taskId: number; assessmentId: number; allocatedMarks: number; taskType: string }
+    col: { taskId: number; assessmentId: number; allocatedMarks: number; percentageWeight: number; taskType: string }
   ) => {
     const valStr = editingValue.trim();
     setEditingCell(null);
@@ -663,7 +672,7 @@ export default function ReportsPage() {
   };
 
   // ── Rename Column ─────────────────────────────────────────────────────────
-  const handleRenameColumn = async (col: { taskId: number; allocatedMarks: number }) => {
+  const handleRenameColumn = async (col: { taskId: number; allocatedMarks: number; percentageWeight: number }) => {
     const name = renameValue.trim();
     if (!name) { setRenamingTaskId(null); return; }
     setSavingRename(true);
@@ -673,6 +682,7 @@ export default function ReportsPage() {
       fd.append("description", "");
       fd.append("due_date", new Date().toISOString().split("T")[0]);
       fd.append("allocated_marks", String(col.allocatedMarks));
+      fd.append("percentage_weight", String(col.percentageWeight ?? 0));
       fd.append("task_type", "null");
       await updateTask(String(col.taskId), fd);
       const updated = await fetchWholeAssessmentsReport(schoolId, scopedSubjectId);
@@ -896,6 +906,11 @@ export default function ReportsPage() {
                         </span>
                       )}
                       <span className="block text-gray-400 normal-case font-normal">/{col.allocatedMarks}</span>
+                      {col.percentageWeight > 0 && (
+                        <span className="block text-blue-500 normal-case font-normal text-[10px]">
+                          Weight: {col.percentageWeight}%
+                        </span>
+                      )}
                     </th>
                   ))}
                   <th
@@ -922,11 +937,14 @@ export default function ReportsPage() {
               <tbody className="divide-y divide-gray-200 bg-white">
                 {filteredData && filteredData.length > 0 ? (
                   filteredData.map((student, index) => {
-                    // Compute effective total using local overrides
+                    // Compute effective total using local overrides (weighted)
                     let effectiveTotal = 0;
                     taskColumns.forEach((col) => {
                       const eff = getEffectiveMark(student.student_id, col.taskId, student.taskMarks[col.taskId]);
-                      if (eff?.submitted) effectiveTotal += eff.marks;
+                      if (eff?.submitted && eff.allocated > 0 && eff.percentageWeight > 0) {
+                        const weightedMark = (eff.marks / eff.allocated) * eff.percentageWeight;
+                        effectiveTotal += weightedMark;
+                      }
                     });
                     const maxPoss = student.maxPossibleTotal;
                     const effectivePct = maxPoss > 0 ? (effectiveTotal / maxPoss) * 100 : 0;
