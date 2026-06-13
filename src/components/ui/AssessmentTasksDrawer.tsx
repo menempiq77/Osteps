@@ -26,6 +26,7 @@ import { addQuize, assignTaskQuiz } from "@/services/quizApi";
 import { IMG_BASE_URL } from "@/lib/config";
 import { extractSubjectIdFromPath, toSubjectScopedPath } from "@/lib/subjectRouting";
 import { buildTaskTypeValue, normalizeTaskRecord } from "@/lib/taskTypeMetadata";
+import { resolveWeight, setStoredWeight } from "@/lib/assessmentWeights";
 import { RootState } from "@/store/store";
 import { Dayjs } from "dayjs";
 import dayjs from "dayjs";
@@ -275,7 +276,15 @@ export function AssessmentTasksDrawer({
   const examModeEnabled = watch("examMode");
 
   useEffect(() => {
-    setOrderedTasks(sortTasksBySavedOrder(initialTasks ?? [], assessmentId));
+    const withWeights = (initialTasks ?? []).map((task) => ({
+      ...task,
+      percentage_weight: resolveWeight(task.percentage_weight, {
+        assessmentId,
+        taskId: task.id,
+        quizId: task.quiz_id ?? task.quiz?.id,
+      }),
+    }));
+    setOrderedTasks(sortTasksBySavedOrder(withWeights, assessmentId));
   }, [assessmentId, initialTasks]);
 
   const onSubmitTask = async (data: TaskFormData) => {
@@ -371,11 +380,16 @@ export function AssessmentTasksDrawer({
       let updatedTasks;
       if (editingTaskId) {
         const updatedTask = await updateTask(editingTaskId.toString(), formData);
+        setStoredWeight(
+          { assessmentId, taskId: editingTaskId },
+          data.percentageWeight
+        );
         updatedTasks = orderedTasks?.map((task) =>
           task.id === editingTaskId
             ? {
                 ...task,
                 ...normalizeTaskRecord(updatedTask),
+                percentage_weight: data.percentageWeight,
                 isAudio: updatedTask?.task_type === "audio",
                 isVideo: updatedTask?.task_type === "video",
                 isPdf: updatedTask?.task_type === "pdf",
@@ -386,6 +400,12 @@ export function AssessmentTasksDrawer({
         messageApi.success("Task updated successfully");
       } else {
         const newTask = await addTask(formData);
+        if (newTask?.id != null) {
+          setStoredWeight(
+            { assessmentId, taskId: newTask.id },
+            data.percentageWeight
+          );
+        }
         updatedTasks = [
           ...orderedTasks,
           {
@@ -393,6 +413,7 @@ export function AssessmentTasksDrawer({
             name: newTask.task_name,
             dueDate: newTask.due_date,
             allocatedMarks: newTask.allocated_marks,
+            percentage_weight: data.percentageWeight,
             isAudio: newTask.task_type === "audio",
             isVideo: newTask.task_type === "video",
             isPdf: newTask.task_type === "pdf",
@@ -425,7 +446,16 @@ export function AssessmentTasksDrawer({
 
     try {
       setLoading(true);
-      await assignTaskQuiz(selectedQuizId, assessmentId, resolvedSubjectId ?? undefined);
+      await assignTaskQuiz(
+        selectedQuizId,
+        assessmentId,
+        resolvedSubjectId ?? undefined,
+        quizPercentageWeight
+      );
+      setStoredWeight(
+        { assessmentId, quizId: selectedQuizId },
+        quizPercentageWeight
+      );
       messageApi.success("Quiz assigned successfully");
 
       const selectedQuiz = availableQuizzes.find((q) => Number(q.id) === Number(selectedQuizId));
@@ -491,7 +521,16 @@ export function AssessmentTasksDrawer({
         tagQuizWithSubject(createdQuizId, Number(resolvedSubjectId));
       }
 
-      await assignTaskQuiz(createdQuizId, assessmentId, resolvedSubjectId ?? undefined);
+      await assignTaskQuiz(
+        createdQuizId,
+        assessmentId,
+        resolvedSubjectId ?? undefined,
+        quizPercentageWeight
+      );
+      setStoredWeight(
+        { assessmentId, quizId: createdQuizId },
+        quizPercentageWeight
+      );
 
       const createdQuizRecord = {
         ...(result?.data ?? result ?? {}),
@@ -555,7 +594,14 @@ export function AssessmentTasksDrawer({
     setValue("isUrl", taskType === "url");
 
     setValue("allocatedMarks", task.allocated_marks);
-    setValue("percentageWeight", task.percentage_weight ?? 0);
+    setValue(
+      "percentageWeight",
+      resolveWeight(task.percentage_weight, {
+        assessmentId,
+        taskId: task.id,
+        quizId: task.quiz_id ?? task.quiz?.id,
+      })
+    );
     setValue("url", task.url || "");
     setValue("isNA", !taskType);
     setValue("examMode", Boolean(task.exam_mode));
@@ -643,7 +689,13 @@ export function AssessmentTasksDrawer({
   const handleEditQuiz = (task: Task) => {
     setEditingQuizTaskId(task.id);
     setEditingQuizName(task.task_name || task.quiz?.name || "");
-    setEditingQuizWeight(task.percentage_weight ?? 0);
+    setEditingQuizWeight(
+      resolveWeight(task.percentage_weight, {
+        assessmentId,
+        taskId: task.id,
+        quizId: task.quiz_id ?? task.quiz?.id,
+      })
+    );
   };
 
   const handleSaveQuizEdit = async (task: Task) => {
@@ -662,6 +714,11 @@ export function AssessmentTasksDrawer({
         }
         return t;
       });
+
+      setStoredWeight(
+        { assessmentId, taskId: task.id, quizId: task.quiz_id ?? task.quiz?.id },
+        editingQuizWeight
+      );
 
       // Persist to backend if there's an API endpoint
       if (task.quiz_id) {

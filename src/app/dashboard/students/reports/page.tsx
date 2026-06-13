@@ -19,6 +19,7 @@ import Link from "next/link";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
 import { resolveSubjectClassLinkedIdWithFallback } from "@/lib/subjectClassResolution";
+import { resolveWeight } from "@/lib/assessmentWeights";
 interface Task {
   student_id: number;
   student_name: string;
@@ -104,6 +105,63 @@ function getSubmissionTeacherMark(submission: any): number {
 
   return 0;
 }
+
+type WeightColumn = {
+  taskId: number;
+  allocatedMarks: number;
+  percentageWeight: number;
+};
+
+type WeightedResult = {
+  earned: number;
+  max: number;
+  percentage: number;
+  weighted: boolean;
+};
+
+// Single source of truth for the markbook total/percentage.
+// When any column has a percentage weight, each task contributes
+// (marks / allocated) * weight and the total is scored out of the sum of
+// weights. With no weights configured we keep the legacy behaviour of a raw
+// mark sum on a fixed 100-point scale.
+function computeWeightedResult(
+  columns: WeightColumn[],
+  getMark: (col: WeightColumn) => { marks: number; submitted: boolean } | undefined
+): WeightedResult {
+  const totalWeight = columns.reduce(
+    (sum, col) => sum + (col.percentageWeight > 0 ? col.percentageWeight : 0),
+    0
+  );
+
+  if (totalWeight > 0) {
+    let earned = 0;
+    columns.forEach((col) => {
+      if (col.percentageWeight <= 0) return;
+      const mark = getMark(col);
+      if (mark?.submitted && col.allocatedMarks > 0) {
+        earned += (mark.marks / col.allocatedMarks) * col.percentageWeight;
+      }
+    });
+    return {
+      earned,
+      max: totalWeight,
+      percentage: (earned / totalWeight) * 100,
+      weighted: true,
+    };
+  }
+
+  let earned = 0;
+  columns.forEach((col) => {
+    const mark = getMark(col);
+    if (mark?.submitted) earned += mark.marks;
+  });
+  return { earned, max: 100, percentage: earned, weighted: false };
+}
+
+const formatTotal = (value: number): string => {
+  const rounded = Math.round(value * 10) / 10;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+};
 
 const broadcastAssessmentMarkUpdate = (detail: {
   assessmentId: number;
@@ -229,6 +287,10 @@ export default function ReportsPage() {
         setLoading(true);
         setClassesReady(false);
         setError(null);
+        // Clear any prior subject's classes/report so stale year groups from a
+        // different subject can't be shown if this fetch is slow or fails.
+        setAssignedClasses([]);
+        setWholeAssesmentData([]);
 
         let response: AssignedClass[] = [];
 
@@ -356,6 +418,12 @@ export default function ReportsPage() {
       } catch (error) {
         console.error("Error fetching data:", error);
         setError("Failed to load class data");
+        // Keep the filters empty rather than falling back to stale data from a
+        // previously selected subject.
+        setAssignedClasses([]);
+        setWholeAssesmentData([]);
+        setSelectedYear(null);
+        setSelectedClass(null);
       } finally {
         setLoading(false);
         setClassesReady(true);
@@ -380,16 +448,25 @@ export default function ReportsPage() {
   // assignedClasses is now already subject-filtered (narrowed in the fetch effect above)
   const effectiveAssignedClasses = assignedClasses;
 
+  // Only build the year list from the current subject's classes, and ignore any
+  // rows with an unresolved (<= 0) year id so unrelated/blank years never appear.
   const uniqueYearIds = classesReady
-    ? [...new Set(effectiveAssignedClasses.map(item => item.classes.year.id))]
+    ? [
+        ...new Set(
+          effectiveAssignedClasses
+            .map(item => Number(item.classes.year.id))
+            .filter(id => Number.isFinite(id) && id > 0)
+        ),
+      ]
     : [];
   const years = uniqueYearIds.map(id => {
-    const item = effectiveAssignedClasses.find(item => item.classes.year.id === id);
-    return { id: item!.classes.year.id, name: item!.classes.year.name };
+    const item = effectiveAssignedClasses.find(item => Number(item.classes.year.id) === id);
+    return { id, name: item!.classes.year.name };
   });
 
   const classes = effectiveAssignedClasses
     .filter(item => !selectedYear || item.classes.year.id.toString() === selectedYear)
+    .filter(item => Number.isFinite(Number(item.classes.id)) && Number(item.classes.id) > 0)
     .map(item => ({ id: item.classes.id, name: item.classes.class_name }));
 
   // Assessments and whole-report data are now fetched together in the main effect above.
@@ -433,7 +510,11 @@ export default function ReportsPage() {
             taskId: task.task_id,
             taskName: task.task_name,
             allocatedMarks: Number(task.allocated_marks),
-            percentageWeight: Number(task.percentage_weight ?? 0),
+            percentageWeight: resolveWeight(task.percentage_weight, {
+              assessmentId: assessment.assessment_id,
+              taskId: task.task_id,
+              quizId: task.quiz_id,
+            }),
             term,
             assessmentId: assessment.assessment_id,
             taskType: task.task_type ?? 'task',
@@ -441,9 +522,6 @@ export default function ReportsPage() {
         }
       });
     });
-
-    // Max possible total is 100 (percentage-based scale)
-    const maxPossibleTotal = 100;
 
     // Build student rows: one entry per student, keyed by student_id
     const studentsMap = new Map<number, { student_name: string; taskMarks: Map<number, { marks: number; allocated: number; percentageWeight: number; submitted: boolean; submissionId?: number }> }>();
@@ -460,7 +538,11 @@ export default function ReportsPage() {
           studentsMap.get(submission.student_id)!.taskMarks.set(task.task_id, {
             marks: getSubmissionTeacherMark(submission),
             allocated: Number(task.allocated_marks),
-            percentageWeight: Number(task.percentage_weight ?? 0),
+            percentageWeight: resolveWeight(task.percentage_weight, {
+              assessmentId: assessment.assessment_id,
+              taskId: task.task_id,
+              quizId: task.quiz_id,
+            }),
             submitted: true,
             submissionId: submission.submission_id ?? submission.id ?? undefined,
           });
@@ -474,7 +556,11 @@ export default function ReportsPage() {
             studentsMap.get(student.student_id)!.taskMarks.set(task.task_id, {
               marks: 0,
               allocated: Number(task.allocated_marks),
-              percentageWeight: Number(task.percentage_weight ?? 0),
+              percentageWeight: resolveWeight(task.percentage_weight, {
+                assessmentId: assessment.assessment_id,
+                taskId: task.task_id,
+                quizId: task.quiz_id,
+              }),
               submitted: false,
             });
           }
@@ -483,33 +569,31 @@ export default function ReportsPage() {
     });
 
     const students = Array.from(studentsMap.entries()).map(([studentId, studentData]) => {
-      let total = 0;
       const taskMarks: Record<number, { marks: number; allocated: number; percentageWeight: number; submitted: boolean; submissionId?: number }> = {};
 
       allTaskColumns.forEach((col) => {
         const mark = studentData.taskMarks.get(col.taskId);
         if (mark) {
           taskMarks[col.taskId] = mark;
-          // Calculate weighted contribution: (marks / allocated) * percentageWeight
-          if (mark.submitted && mark.allocated > 0 && mark.percentageWeight > 0) {
-            const weightedMark = (mark.marks / mark.allocated) * mark.percentageWeight;
-            total += weightedMark;
-          }
         }
       });
 
-      const percentage = maxPossibleTotal > 0 ? (total / maxPossibleTotal) * 100 : 0;
+      const result = computeWeightedResult(allTaskColumns, (col) =>
+        studentData.taskMarks.get(col.taskId)
+      );
       const courseGrade = grades?.find(
-        (g) => percentage >= parseInt(g.min_percentage) && percentage <= parseInt(g.max_percentage)
+        (g) =>
+          result.percentage >= parseInt(g.min_percentage) &&
+          result.percentage <= parseInt(g.max_percentage)
       )?.grade ?? "N/A";
 
       return {
         student_id: studentId,
         student: studentData.student_name,
         taskMarks,
-        total,
-        maxPossibleTotal,
-        percentage: percentage.toFixed(2),
+        total: result.earned,
+        maxPossibleTotal: result.max,
+        percentage: result.percentage.toFixed(2),
         courseGrade,
       };
     }).sort((a, b) => a.student.localeCompare(b.student));
@@ -747,6 +831,11 @@ export default function ReportsPage() {
                     setSelectedYear(null);
                     setSelectedClass(null);
                     setSelectedTerm("all");
+                    // Drop the previous subject's data immediately so its year
+                    // groups can't linger in the filters while the new subject loads.
+                    setClassesReady(false);
+                    setAssignedClasses([]);
+                    setWholeAssesmentData([]);
                   }}
                   style={{ width: 220 }}
                   placeholder="Select Subject"
@@ -936,14 +1025,13 @@ export default function ReportsPage() {
               <tbody className="divide-y divide-gray-200 bg-white">
                 {filteredData && filteredData.length > 0 ? (
                   filteredData.map((student, index) => {
-                    // Compute effective total using local overrides
-                    let effectiveTotal = 0;
-                    taskColumns.forEach((col) => {
-                      const eff = getEffectiveMark(student.student_id, col.taskId, student.taskMarks[col.taskId]);
-                      if (eff?.submitted) effectiveTotal += eff.marks;
-                    });
-                    const maxPoss = student.maxPossibleTotal;
-                    const effectivePct = maxPoss > 0 ? (effectiveTotal / maxPoss) * 100 : 0;
+                    // Compute effective weighted total using local overrides
+                    const effectiveResult = computeWeightedResult(taskColumns, (col) =>
+                      getEffectiveMark(student.student_id, col.taskId, student.taskMarks[col.taskId])
+                    );
+                    const effectiveTotal = effectiveResult.earned;
+                    const maxPoss = effectiveResult.max;
+                    const effectivePct = effectiveResult.percentage;
                     const effectiveGrade =
                       grades?.find(
                         (g) =>
@@ -1013,7 +1101,7 @@ export default function ReportsPage() {
 
                         {/* Total */}
                         <td className="px-2 py-2 border border-gray-300 whitespace-nowrap text-sm font-semibold text-center text-gray-800">
-                          {effectiveTotal}/{maxPoss}
+                          {formatTotal(effectiveTotal)}/{formatTotal(maxPoss)}
                         </td>
 
                         {/* Percentage */}
