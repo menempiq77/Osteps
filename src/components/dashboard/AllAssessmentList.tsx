@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { EditOutlined, DeleteOutlined, TeamOutlined, FileTextOutlined, BookOutlined, CopyOutlined } from "@ant-design/icons";
+import { EditOutlined, DeleteOutlined, TeamOutlined, FileTextOutlined, BookOutlined, CopyOutlined, RightOutlined } from "@ant-design/icons";
 import { AssessmentTasksDrawer } from "../ui/AssessmentTasksDrawer";
 import AssessmentAssignDrawer from "./AssessmentAssignDrawer";
 import { useParams, useRouter } from "next/navigation";
@@ -266,33 +266,34 @@ export default function AllAssessmentList({
                         <div
                           {...provided.draggableProps}
                           ref={provided.innerRef}
-                          className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all duration-200 overflow-hidden group"
+                          className="bg-white rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-lg hover:border-[color-mix(in_srgb,var(--primary)_45%,white)] hover:-translate-y-0.5 transition-all duration-200 overflow-hidden group"
                         >
-                          <div className="flex items-center gap-3 p-3 md:p-4">
+                          <div className="flex items-center gap-3 sm:gap-4 p-3.5 sm:p-4">
                             {/* Drag handle */}
                             <div
                               {...provided.dragHandleProps}
-                              className="flex-shrink-0 cursor-grab text-gray-300 hover:text-gray-500 transition-colors"
+                              className="flex-shrink-0 cursor-grab text-slate-300 hover:text-slate-500 transition-colors"
+                              title="Drag to reorder"
                             >
                               <GripVertical size={18} />
                             </div>
 
                             {/* Type icon */}
                             <div
-                              className={`flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ${
+                              className={`flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center ring-1 ${
                                 assignment.type === "quiz"
-                                  ? "bg-blue-50 text-blue-600"
-                                  : "bg-green-50 text-green-600"
+                                  ? "bg-blue-50 text-blue-600 ring-blue-100"
+                                  : "bg-emerald-50 text-emerald-600 ring-emerald-100"
                               }`}
                             >
                               {assignment.type === "quiz" ? (
-                                <BookOutlined className="text-base" />
+                                <BookOutlined className="text-lg" />
                               ) : (
-                                <FileTextOutlined className="text-base" />
+                                <FileTextOutlined className="text-lg" />
                               )}
                             </div>
 
-                            {/* Name + badge */}
+                            {/* Name + badges */}
                             <div className="flex-1 min-w-0">
                               <button
                                 type="button"
@@ -303,44 +304,54 @@ export default function AllAssessmentList({
                                     assignment.quiz_id
                                   )
                                 }
-                                className="text-left font-semibold text-gray-800 hover:text-[var(--primary)] hover:underline cursor-pointer transition-colors text-sm md:text-base block w-full truncate"
+                                className="text-left font-semibold text-slate-800 hover:text-[var(--primary)] cursor-pointer transition-colors text-sm sm:text-base block w-full truncate"
                               >
                                 {assignment.name || assignment?.quiz?.name || "Untitled"}
                               </button>
-                              <span
-                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium mt-1 ${
-                                  assignment.type === "quiz"
-                                    ? "bg-blue-100 text-blue-700"
-                                    : "bg-green-100 text-green-700"
-                                }`}
-                              >
-                                {assignment.type === "quiz" ? "Quiz" : "Assessment"}
-                              </span>
-                              {assignment.type === "assessment" &&
-                                weightTotals[assignment.id] != null && (
-                                  <span
-                                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium mt-1 ml-2 ${
-                                      Math.round(weightTotals[assignment.id]!) === 100
-                                        ? "bg-emerald-100 text-emerald-700"
-                                        : weightTotals[assignment.id]! > 0
-                                        ? "bg-amber-100 text-amber-700"
-                                        : "bg-gray-100 text-gray-500"
-                                    }`}
-                                    title={
-                                      Math.round(weightTotals[assignment.id]!) === 100
-                                        ? "Task weights total 100%"
-                                        : "Task weights do not total 100% — grades may be miscalculated"
-                                    }
-                                  >
-                                    Weight:{" "}
-                                    {Math.round(weightTotals[assignment.id]! * 10) / 10}%
-                                  </span>
-                                )}
+                              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                                <span
+                                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                                    assignment.type === "quiz"
+                                      ? "bg-blue-100 text-blue-700"
+                                      : "bg-emerald-100 text-emerald-700"
+                                  }`}
+                                >
+                                  {assignment.type === "quiz" ? "Quiz" : "Assessment"}
+                                </span>
+                                {assignment.type === "assessment" &&
+                                  weightTotals[assignment.id] != null && (
+                                    <span
+                                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                                        Math.round(weightTotals[assignment.id]!) === 100
+                                          ? "bg-emerald-100 text-emerald-700"
+                                          : weightTotals[assignment.id]! > 0
+                                          ? "bg-amber-100 text-amber-700"
+                                          : "bg-slate-100 text-slate-500"
+                                      }`}
+                                      title={
+                                        Math.round(weightTotals[assignment.id]!) === 100
+                                          ? "Task weights total 100%"
+                                          : "Task weights do not total 100% — grades may be miscalculated"
+                                      }
+                                    >
+                                      <span
+                                        className={`w-1.5 h-1.5 rounded-full ${
+                                          Math.round(weightTotals[assignment.id]!) === 100
+                                            ? "bg-emerald-500"
+                                            : weightTotals[assignment.id]! > 0
+                                            ? "bg-amber-500"
+                                            : "bg-slate-400"
+                                        }`}
+                                      />
+                                      Weight {Math.round(weightTotals[assignment.id]! * 10) / 10}%
+                                    </span>
+                                  )}
+                              </div>
                             </div>
 
                             {/* Actions — visible on hover */}
                             {canUpload && (
-                              <div className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <div className="flex-shrink-0 flex items-center gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 sm:translate-x-1 sm:group-hover:translate-x-0 transition-all duration-200">
                                 <button
                                   onClick={() => handleAssignAssesment(assignment)}
                                   className="p-2 rounded-lg text-blue-500 hover:bg-blue-50 hover:text-blue-700 cursor-pointer transition-colors"
@@ -371,6 +382,23 @@ export default function AllAssessmentList({
                                 </button>
                               </div>
                             )}
+
+                            {/* Chevron affordance */}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleAssignmentClick(
+                                  assignment.id,
+                                  assignment.type,
+                                  assignment.quiz_id
+                                )
+                              }
+                              className="flex-shrink-0 text-slate-300 group-hover:text-[var(--primary)] transition-colors cursor-pointer"
+                              title="Open"
+                              aria-label="Open assessment"
+                            >
+                              <RightOutlined className="text-xs" />
+                            </button>
                           </div>
                         </div>
                       )}

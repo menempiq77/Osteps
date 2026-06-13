@@ -307,14 +307,25 @@ export default function Page() {
         ]}
         className="!mb-2"
       />
-      <div className="premium-hero flex items-center justify-between mb-4 px-4 py-3 rounded-xl">
-        <h1 className="text-2xl font-bold">
-          {activeSubject?.name ? `${activeSubject.name} — ` : ""}All Assessments
-        </h1>
+      <div className="premium-hero flex flex-col gap-4 mb-5 px-5 py-5 rounded-xl sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 truncate">
+              {activeSubject?.name ? `${activeSubject.name} — ` : ""}All Assessments
+            </h1>
+            <span className="inline-flex items-center rounded-full bg-white/70 px-2.5 py-0.5 text-xs font-semibold text-slate-600 ring-1 ring-slate-900/5">
+              {assessments.length} {assessments.length === 1 ? "item" : "items"}
+            </span>
+          </div>
+          <p className="mt-1 text-sm text-slate-500">
+            Create, organise and weight your assessments. Drag cards to reorder.
+          </p>
+        </div>
         {!isTeacher && (
           <Button
             type="primary"
-            className="premium-pill-btn !bg-primary !text-white !border-0 hover:!opacity-90"
+            size="large"
+            className="premium-pill-btn !bg-primary !text-white !border-0 hover:!opacity-90 self-start sm:self-auto shrink-0"
             icon={<PlusOutlined />}
             onClick={() => {
               setIsAddingQuiz(false);
