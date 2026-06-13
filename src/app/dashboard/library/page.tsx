@@ -574,157 +574,157 @@ export default function LibraryPage() {
       />
 
       <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-        <div className="rounded-2xl border border-emerald-100 bg-white p-4 md:p-5 shadow-sm">
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div>
-                <div className="flex items-center gap-3">
-                  <Typography.Title level={3} style={{ margin: 0 }}>
-                    {"School Library"}
-                  </Typography.Title>
-                  {isSchoolAdmin && (
-                    <Badge
-                      count={pendingItems.length}
-                      size="small"
-                      offset={[-2, 2]}
+        <div className="overflow-hidden rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-600 via-emerald-600 to-teal-600 shadow-sm">
+          <div className="flex flex-col gap-5 p-5 md:flex-row md:items-center md:justify-between md:p-7">
+            <div className="text-white">
+              <div className="flex items-center gap-3">
+                <h2 className="m-0 text-2xl font-bold tracking-tight text-white md:text-[28px]">
+                  School Library
+                </h2>
+                {isSchoolAdmin && (
+                  <Badge count={pendingItems.length} size="small" offset={[-2, 2]}>
+                    <button
+                      onClick={() => setApprovalsOpen(true)}
+                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/30 bg-white/15 text-white backdrop-blur transition-all duration-200 hover:bg-white/25 active:scale-95"
+                      title="Pending upload approvals"
                     >
-                      <button
-                        onClick={() => setApprovalsOpen(true)}
-                        className="flex items-center justify-center h-9 w-9 rounded-xl border
-                                   text-slate-500 transition-all duration-200
-                                   hover:text-amber-600 hover:border-amber-300 hover:bg-amber-50
-                                   active:scale-95"
-                        style={{ borderColor: pendingItems.length > 0 ? "#fcd34d" : "#e2e8f0",
-                                 background: pendingItems.length > 0 ? "#fffbeb" : "#f8fafc",
-                                 color: pendingItems.length > 0 ? "#d97706" : undefined }}
-                        title="Pending upload approvals"
-                      >
-                        <BellOutlined style={{ fontSize: 16 }} />
-                      </button>
-                    </Badge>
-                  )}
-                </div>
-                <Typography.Text type="secondary" className="block mt-1">
-                  Browse, search and open your school&apos;s resources.
-                </Typography.Text>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Tag className="m-0 rounded-full border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700">
-                    {totalResourcesCount} Total
-                  </Tag>
-                  {(searchQuery ||
-                    activeTypeTab !== "all" ||
-                    activeCategoryTab !== "all") && (
-                    <Tag className="m-0 rounded-full border-sky-200 bg-sky-50 px-3 py-1 text-sky-700">
-                      {visibleResourcesCount} shown
-                    </Tag>
-                  )}
-                </div>
+                      <BellOutlined style={{ fontSize: 16 }} />
+                    </button>
+                  </Badge>
+                )}
               </div>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <Input
-                  allowClear
-                  size="large"
-                  prefix={<SearchOutlined className="text-gray-400" />}
-                  placeholder="Search resources..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="!rounded-xl sm:!w-72"
-                />
-                {canUpload && (
-                  <Button
-                    type="primary"
-                    icon={<UploadOutlined />}
-                    onClick={openUploadModal}
-                    className="flex items-center !h-11 !rounded-xl !bg-primary !border-primary !px-5 !font-medium"
-                  >
-                    {isMobile ? "Upload" : "Upload Resource"}
-                  </Button>
+              <p className="mt-1.5 max-w-md text-sm text-emerald-50/90">
+                Browse, search and open your school&apos;s resources — books, PDFs, videos and websites, all in one place.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-white backdrop-blur">
+                  <FileOutlined /> {totalResourcesCount} resources
+                </span>
+                {(searchQuery ||
+                  activeTypeTab !== "all" ||
+                  activeCategoryTab !== "all") && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-300/95 px-3 py-1 text-xs font-semibold text-amber-900">
+                    {visibleResourcesCount} shown
+                  </span>
                 )}
               </div>
             </div>
-
-            <div className="rounded-xl border border-gray-100 bg-gray-50/40 px-3 pt-2">
-              <Tabs
-                activeKey={activeTypeTab}
-                onChange={(key) => {
-                  if (key === "add") {
-                    window.location.href = "/dashboard/library/resourcestype";
-                    return;
-                  }
-                  setActiveTypeTab(key);
-                  setActiveCategoryTab("all");
-                }}
-                tabBarStyle={{
-                  marginBottom: 0,
-                  border: "none",
-                }}
-                tabBarGutter={24}
-                items={typeTabItems}
+            <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center md:w-auto">
+              <Input
+                allowClear
+                size="large"
+                prefix={<SearchOutlined className="text-gray-400" />}
+                placeholder="Search resources..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="!rounded-xl sm:!w-72"
               />
+              {canUpload && (
+                <Button
+                  size="large"
+                  icon={<UploadOutlined />}
+                  onClick={openUploadModal}
+                  className="flex items-center justify-center !h-11 !rounded-xl !border-0 !bg-white !px-5 !font-semibold !text-emerald-700 shadow-sm hover:!bg-emerald-50"
+                >
+                  {isMobile ? "Upload" : "Upload Resource"}
+                </Button>
+              )}
             </div>
-
-            {categories?.length > 0 && (
-              <div className="rounded-xl border border-gray-100 bg-gray-50/40 p-3 md:p-4">
-                <div className="mb-3 text-sm font-medium text-gray-600">
-                  Browse by category
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    size="middle"
-                    type={activeCategoryTab === "all" ? "primary" : "default"}
-                    shape="round"
-                    onClick={() => setActiveCategoryTab("all")}
-                    className={`transition-all ${
-                      activeCategoryTab === "all"
-                        ? "!bg-primary !hover:bg-green-700"
-                        : "bg-white hover:bg-gray-50 hover:!border-green-600 hover:!text-green-600"
-                    }`}
-                  >
-                    All
-                  </Button>
-
-                  {categories?.map((category) => (
-                    <Button
-                      key={category?.id}
-                      size="middle"
-                      type={
-                        activeCategoryTab === String(category.id)
-                          ? "primary"
-                          : "default"
-                      }
-                      shape="round"
-                      onClick={() => setActiveCategoryTab(String(category.id))}
-                      className={`transition-all ${
-                        activeCategoryTab === String(category.id)
-                          ? "!bg-primary !hover:bg-green-700"
-                          : "bg-white hover:bg-gray-50 border-gray-200 hover:!border-green-600 hover:!text-green-600"
-                      }`}
-                    >
-                      {formatCategoryLabel(category?.name)}
-                    </Button>
-                  ))}
-
-                  {canUpload && (
-                    <Link
-                      href="/dashboard/library/librarycategory"
-                      className="transition-all flex items-center gap-1 bg-white hover:bg-gray-50 border border-dashed rounded-full px-4 !text-green-600 border-green-600"
-                    >
-                      <Plus size={18} /> Add More
-                    </Link>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-100 px-3 pt-1">
+            <Tabs
+              activeKey={activeTypeTab}
+              onChange={(key) => {
+                if (key === "add") {
+                  window.location.href = "/dashboard/library/resourcestype";
+                  return;
+                }
+                setActiveTypeTab(key);
+                setActiveCategoryTab("all");
+              }}
+              tabBarStyle={{ marginBottom: 0, border: "none" }}
+              tabBarGutter={24}
+              items={typeTabItems}
+            />
+          </div>
+
+          {categories?.length > 0 && (
+            <div className="flex items-center gap-2 overflow-x-auto px-4 py-3">
+              <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Categories
+              </span>
+              <Button
+                size="small"
+                type={activeCategoryTab === "all" ? "primary" : "default"}
+                shape="round"
+                onClick={() => setActiveCategoryTab("all")}
+                className={`shrink-0 transition-all ${
+                  activeCategoryTab === "all"
+                    ? "!bg-primary"
+                    : "bg-white hover:bg-gray-50 hover:!border-green-600 hover:!text-green-600"
+                }`}
+              >
+                All
+              </Button>
+
+              {categories?.map((category) => (
+                <Button
+                  key={category?.id}
+                  size="small"
+                  type={
+                    activeCategoryTab === String(category.id)
+                      ? "primary"
+                      : "default"
+                  }
+                  shape="round"
+                  onClick={() => setActiveCategoryTab(String(category.id))}
+                  className={`shrink-0 transition-all ${
+                    activeCategoryTab === String(category.id)
+                      ? "!bg-primary"
+                      : "bg-white hover:bg-gray-50 border-gray-200 hover:!border-green-600 hover:!text-green-600"
+                  }`}
+                >
+                  {formatCategoryLabel(category?.name)}
+                </Button>
+              ))}
+
+              {canUpload && (
+                <Link
+                  href="/dashboard/library/librarycategory"
+                  className="flex shrink-0 items-center gap-1 rounded-full border border-dashed border-green-600 bg-white px-3 py-1 text-xs !text-green-600 transition-all hover:bg-gray-50"
+                >
+                  <Plus size={16} /> Add
+                </Link>
+              )}
+            </div>
+          )}
+        </div>
+
         {filteredItems?.length === 0 ? (
-          <Card className="shadow-sm rounded-2xl border border-gray-100">
-            <div className="text-center py-12">
-              <FileOutlined className="text-4xl text-gray-300 mb-4" />
-              <Typography.Text type="secondary" className="text-lg">
-                No resources found in this category
+          <Card className="rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-50 ring-1 ring-slate-100">
+                <FileOutlined className="text-3xl text-slate-300" />
+              </div>
+              <Typography.Text type="secondary" className="text-base">
+                No resources found
               </Typography.Text>
+              <Typography.Text type="secondary" className="text-xs">
+                Try a different search, type or category{canUpload ? " — or upload a new resource." : "."}
+              </Typography.Text>
+              {canUpload && (
+                <Button
+                  type="primary"
+                  icon={<UploadOutlined />}
+                  onClick={openUploadModal}
+                  className="mt-1 !rounded-xl !bg-primary !border-primary"
+                >
+                  Upload Resource
+                </Button>
+              )}
             </div>
           </Card>
         ) : (
@@ -733,7 +733,7 @@ export default function LibraryPage() {
               screens.md ? "md:grid-cols-2" : ""
             } ${screens.lg ? "lg:grid-cols-3" : ""} ${
               screens.xl ? "xl:grid-cols-4" : ""
-            } gap-4`}
+            } gap-5`}
           >
             {filteredItems?.map((item) => {
               const resourceType = getResourceName(
@@ -760,24 +760,24 @@ export default function LibraryPage() {
               return (
                 <Card
                   key={item.id}
-                  className="hover:shadow-xl hover:-translate-y-1 shadow-sm transition-all duration-300 border border-gray-100 rounded-2xl overflow-hidden flex flex-col h-full cursor-pointer"
+                  className="group flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-slate-200 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-emerald-200 hover:shadow-xl"
                   hoverable
                   styles={{ body: { padding: 0 } }}
                   onClick={() => openResourceDirectly(item)}
                 >
-                  <div className="relative h-40 bg-gradient-to-br from-emerald-50 via-white to-sky-50">
+                  <div className="relative h-44 overflow-hidden bg-gradient-to-br from-slate-50 via-white to-emerald-50/60">
                     {coverUrl ? (
                       <img
                         src={coverUrl}
                         alt={item.title}
-                        className="w-full h-40 object-cover"
+                        className="h-44 w-full object-cover transition-transform duration-500 group-hover:scale-105"
                         loading="lazy"
                         onError={(e) => {
                           (e.currentTarget as HTMLImageElement).style.display = "none";
                         }}
                       />
                     ) : faviconUrl ? (
-                      <div className="h-40 flex flex-col items-center justify-center gap-3">
+                      <div className="flex h-44 flex-col items-center justify-center gap-3">
                         <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-slate-100">
                           <img
                             src={faviconUrl}
@@ -786,14 +786,14 @@ export default function LibraryPage() {
                             loading="lazy"
                           />
                         </div>
-                        <div className="px-3 text-xs font-medium text-slate-500 truncate max-w-[90%]">
+                        <div className="max-w-[90%] truncate px-3 text-xs font-medium text-slate-500">
                           {domainLabel}
                         </div>
                       </div>
                     ) : (
-                      <div className="h-40 flex flex-col items-center justify-center gap-2">
+                      <div className="flex h-44 flex-col items-center justify-center gap-2">
                         <div
-                          className="flex h-14 w-14 items-center justify-center rounded-2xl border text-3xl"
+                          className="flex h-16 w-16 items-center justify-center rounded-2xl border text-3xl"
                           style={{
                             backgroundColor: getEmojiStyleForType(resourceType).bg,
                             borderColor: getEmojiStyleForType(resourceType).border,
@@ -802,20 +802,30 @@ export default function LibraryPage() {
                         >
                           {getEmojiForType(resourceType)}
                         </div>
-                        <div className="text-xs uppercase tracking-wide text-gray-500">
-                          {resourceType || "resource"}
-                        </div>
                       </div>
                     )}
 
-                    {isExternal && (coverUrl || faviconUrl) && (
-                      <span className="absolute bottom-2 left-2 inline-flex items-center gap-1 text-[11px] font-medium bg-white/90 backdrop-blur text-gray-700 px-2 py-1 rounded-full shadow-sm">
+                    {coverUrl && (
+                      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/45 to-transparent" />
+                    )}
+
+                    <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-semibold capitalize text-slate-700 shadow-sm backdrop-blur">
+                      <span>{getEmojiForType(resourceType)}</span>
+                      {getResourceName(item.library_resources_id)}
+                    </span>
+
+                    {isExternal && coverUrl && (
+                      <span className="absolute bottom-2 left-3 inline-flex items-center gap-1 text-[11px] font-medium text-white drop-shadow">
                         {domainLabel}
                       </span>
                     )}
 
+                    <span className="pointer-events-none absolute bottom-3 right-3 translate-y-1 rounded-full bg-emerald-600 px-3 py-1 text-[11px] font-semibold text-white opacity-0 shadow-md transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+                      Open
+                    </span>
+
                     {canUpload && !isTeacher && (
-                      <div className="absolute top-3 right-3 flex gap-2">
+                      <div className="absolute right-3 top-3 flex gap-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                         <Button
                           shape="circle"
                           size="small"
@@ -826,7 +836,7 @@ export default function LibraryPage() {
                             setItemToDelete(item.id);
                             setDeleteModalVisible(true);
                           }}
-                          className="shadow-sm bg-white hover:bg-red-50 border-none"
+                          className="border-none bg-white shadow-sm hover:bg-red-50"
                         />
                         <Button
                           shape="circle"
@@ -836,23 +846,23 @@ export default function LibraryPage() {
                             e.stopPropagation();
                             handleEdit(item);
                           }}
-                          className="shadow-sm bg-white hover:bg-blue-50 border-none"
+                          className="border-none bg-white shadow-sm hover:bg-blue-50"
                         />
                       </div>
                     )}
                   </div>
 
-                <div className="p-4 flex-grow flex flex-col">
-                  <h3 className="text-base font-semibold mb-1 line-clamp-2 text-gray-900">
+                <div className="flex flex-grow flex-col p-4">
+                  <h3 className="mb-1 line-clamp-2 text-base font-semibold text-slate-900">
                     {item.title}
                   </h3>
-                  <p className="mb-2 text-sm text-gray-600 line-clamp-1 min-h-[20px]">
+                  <p className="mb-3 line-clamp-2 min-h-[40px] text-sm text-slate-500">
                     {item.description || " "}
                   </p>
 
                   {parseTags(item.tags)?.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {parseTags(item.tags).map((tag) => (
+                    <div className="mb-3 flex flex-wrap gap-1.5">
+                      {parseTags(item.tags).slice(0, 3).map((tag) => (
                         <Tag
                           key={`${item.id}-${tag}`}
                           className="m-0 rounded-full border-emerald-100 bg-emerald-50 text-emerald-700"
@@ -863,33 +873,22 @@ export default function LibraryPage() {
                     </div>
                   )}
 
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    <Tag className="m-0 rounded-full border-sky-100 bg-sky-50 px-2 py-[1px] text-sky-700">
-                      {getResourceName(item.library_resources_id)}
-                    </Tag>
+                  <div className="mt-auto flex items-center justify-between border-t border-slate-100 pt-3">
                     <Tag
                       color={getCategoryColor(item.library_categories_id)}
-                      className="m-0 rounded-full px-2 py-[1px]"
+                      className="m-0 rounded-full px-2.5 py-[1px]"
                     >
                       {getCategoryName(item.library_categories_id)}
                     </Tag>
-                  </div>
-
-                  <div className="mt-auto">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-xs text-gray-500">
-                        {item.size || "N/A"}
-                      </span>
-                      <span className="text-xs text-gray-400">
-                        {item.updated_at
-                          ? new Date(item.updated_at).toLocaleDateString("en-US", {
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                            })
-                          : "N/A"}
-                      </span>
-                    </div>
+                    <span className="text-xs text-slate-400">
+                      {item.updated_at
+                        ? new Date(item.updated_at).toLocaleDateString("en-US", {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          })
+                        : "N/A"}
+                    </span>
                   </div>
                 </div>
                 </Card>
