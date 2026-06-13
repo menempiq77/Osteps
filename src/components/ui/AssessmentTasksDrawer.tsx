@@ -725,7 +725,7 @@ export function AssessmentTasksDrawer({
       if (quizId != null) {
         await updateQuize(
           String(quizId),
-          { name: editingQuizName },
+          { name: editingQuizName, school_id: schoolId },
           resolvedSubjectId ?? undefined
         );
       }
