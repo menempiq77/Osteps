@@ -1333,17 +1333,16 @@ export function AssessmentTasksDrawer({
                                     </button>
                                   </div>
                                 </div>
-                                <p className="mb-4 text-sm text-gray-600">
-                                  {task?.description || "No description provided"}
-                                </p>
-                                {task?.type === "quiz" && task?.percentage_weight ? (
-                                  <div className="mt-2 text-sm text-gray-500">
-                                    Weight:{" "}
-                                    <span className="font-medium text-blue-600">
-                                      {task.percentage_weight}%
+                                <div className="flex items-center justify-between mb-4">
+                                  <p className="text-sm text-gray-600">
+                                    {task?.description || "No description provided"}
+                                  </p>
+                                  {task?.type === "quiz" && typeof task?.percentage_weight === 'number' ? (
+                                    <span className="text-sm font-medium text-blue-600">
+                                      Weight: {task.percentage_weight}%
                                     </span>
-                                  </div>
-                                ) : null}
+                                  ) : null}
+                                </div>
                                 {task?.exam_mode && task?.exam_start_at && (
                                   <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
                                     Opens {dayjs(task.exam_start_at).format("DD MMM YYYY, HH:mm")} for {task.exam_duration_minutes || 0} minute{task.exam_duration_minutes === 1 ? "" : "s"}.
