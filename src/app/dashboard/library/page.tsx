@@ -10,6 +10,7 @@ import {
   EditOutlined,
   FileOutlined,
   PlusOutlined,
+  SearchOutlined,
   UploadOutlined,
 } from "@ant-design/icons";
 import {
@@ -20,6 +21,7 @@ import {
   Drawer,
   Form,
   Grid,
+  Input,
   message,
   Modal,
   Space,
@@ -62,6 +64,7 @@ type LibraryItem = {
   library_resources_id?: number;
   library_categories_id?: number;
   file_path?: string;
+  thumbnail_url?: string | null;
   updated_at?: string;
   uploaded_by?: string;
 };
@@ -71,6 +74,7 @@ export default function LibraryPage() {
   const [activeTypeTab, setActiveTypeTab] = React.useState<string>("all");
   const [activeCategoryTab, setActiveCategoryTab] =
     React.useState<string>("all");
+  const [searchQuery, setSearchQuery] = React.useState<string>("");
   const [isUploadModalOpen, setIsUploadModalOpen] = React.useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = React.useState(false);
   const [currentItem, setCurrentItem] = React.useState<LibraryItem | null>(
@@ -238,6 +242,10 @@ export default function LibraryPage() {
       if (tags.length > 0) {
         formData.append("tags", tags.join(","));
       }
+      formData.append(
+        "thumbnail_url",
+        values.thumbnail_url ? String(values.thumbnail_url).trim() : ""
+      );
 
       if (values.source === "link" && values.link) {
         formData.append("external_link", values.link);
@@ -321,6 +329,7 @@ export default function LibraryPage() {
       category: item.library_categories_id,
       description: item.description,
       tags: parseTags(item.tags),
+      thumbnail_url: item.thumbnail_url || undefined,
       source: isLink ? "link" : "upload",
       link: isLink ? cleanPath : undefined,
     });
@@ -362,6 +371,7 @@ export default function LibraryPage() {
       size: item.size || "N/A",
       subject: getCategoryName(item.library_categories_id),
       tags: parseTags(item.tags),
+      thumbnail_url: item.thumbnail_url || undefined,
     });
     setIsViewModalOpen(true);
   };
@@ -522,7 +532,20 @@ export default function LibraryPage() {
       activeCategoryTab === "all" ||
       String(item.library_categories_id ?? "") === String(activeCategoryTab);
 
-    return typeMatch && categoryMatch;
+    const query = searchQuery.trim().toLowerCase();
+    const searchMatch =
+      !query ||
+      [
+        item.title,
+        item.description,
+        getCategoryName(item.library_categories_id),
+        getResourceName(item.library_resources_id),
+        parseTags(item.tags).join(" "),
+      ]
+        .filter(Boolean)
+        .some((field) => String(field).toLowerCase().includes(query));
+
+    return typeMatch && categoryMatch && searchMatch;
   });
 
   const totalResourcesCount = libraryItems?.length || 0;
@@ -581,22 +604,43 @@ export default function LibraryPage() {
                     </Badge>
                   )}
                 </div>
+                <Typography.Text type="secondary" className="block mt-1">
+                  Browse, search and open your school&apos;s resources.
+                </Typography.Text>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Tag className="m-0 rounded-full border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700">
                     {totalResourcesCount} Total
                   </Tag>
+                  {(searchQuery ||
+                    activeTypeTab !== "all" ||
+                    activeCategoryTab !== "all") && (
+                    <Tag className="m-0 rounded-full border-sky-200 bg-sky-50 px-3 py-1 text-sky-700">
+                      {visibleResourcesCount} shown
+                    </Tag>
+                  )}
                 </div>
               </div>
-              {canUpload && (
-                <Button
-                  type="primary"
-                  icon={<UploadOutlined />}
-                  onClick={openUploadModal}
-                  className="flex items-center !h-11 !rounded-xl !bg-primary !border-primary !px-5 !font-medium"
-                >
-                  {isMobile ? "Upload" : "Upload Resource"}
-                </Button>
-              )}
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <Input
+                  allowClear
+                  size="large"
+                  prefix={<SearchOutlined className="text-gray-400" />}
+                  placeholder="Search resources..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="!rounded-xl sm:!w-72"
+                />
+                {canUpload && (
+                  <Button
+                    type="primary"
+                    icon={<UploadOutlined />}
+                    onClick={openUploadModal}
+                    className="flex items-center !h-11 !rounded-xl !bg-primary !border-primary !px-5 !font-medium"
+                  >
+                    {isMobile ? "Upload" : "Upload Resource"}
+                  </Button>
+                )}
+              </div>
             </div>
 
             <div className="rounded-xl border border-gray-100 bg-gray-50/40 px-3 pt-2">
@@ -700,11 +744,17 @@ export default function LibraryPage() {
               const domainLabel = isExternal
                 ? getLinkDomain(cleanPath)
                 : "";
-              const coverUrl =
-                isExternal && resourceType === "video"
-                  ? getVideoThumbnailUrl(cleanPath)
-                  : isImageUrl(cleanPath)
-                  ? cleanPath
+              const savedThumb = (item.thumbnail_url || "").trim();
+              const coverUrl = savedThumb
+                ? savedThumb
+                : isExternal && resourceType === "video"
+                ? getVideoThumbnailUrl(cleanPath)
+                : isImageUrl(cleanPath)
+                ? cleanPath
+                : "";
+              const faviconUrl =
+                !coverUrl && isExternal
+                  ? `https://www.google.com/s2/favicons?domain=${domainLabel}&sz=128`
                   : "";
 
               return (
@@ -715,17 +765,35 @@ export default function LibraryPage() {
                   styles={{ body: { padding: 0 } }}
                   onClick={() => openResourceDirectly(item)}
                 >
-                  <div className="relative">
+                  <div className="relative h-40 bg-gradient-to-br from-emerald-50 via-white to-sky-50">
                     {coverUrl ? (
                       <img
                         src={coverUrl}
                         alt={item.title}
-                        className="w-full h-32 object-cover"
+                        className="w-full h-40 object-cover"
+                        loading="lazy"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).style.display = "none";
+                        }}
                       />
+                    ) : faviconUrl ? (
+                      <div className="h-40 flex flex-col items-center justify-center gap-3">
+                        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-slate-100">
+                          <img
+                            src={faviconUrl}
+                            alt={domainLabel}
+                            className="h-9 w-9 object-contain"
+                            loading="lazy"
+                          />
+                        </div>
+                        <div className="px-3 text-xs font-medium text-slate-500 truncate max-w-[90%]">
+                          {domainLabel}
+                        </div>
+                      </div>
                     ) : (
-                      <div className="h-32 bg-gradient-to-br from-emerald-50 via-white to-sky-50 flex flex-col items-center justify-center gap-2">
+                      <div className="h-40 flex flex-col items-center justify-center gap-2">
                         <div
-                          className="flex h-11 w-11 items-center justify-center rounded-full border text-2xl"
+                          className="flex h-14 w-14 items-center justify-center rounded-2xl border text-3xl"
                           style={{
                             backgroundColor: getEmojiStyleForType(resourceType).bg,
                             borderColor: getEmojiStyleForType(resourceType).border,
@@ -740,8 +808,8 @@ export default function LibraryPage() {
                       </div>
                     )}
 
-                    {isExternal && (
-                      <span className="absolute bottom-2 left-2 text-xs bg-white/90 text-gray-700 px-2 py-1 rounded-full">
+                    {isExternal && (coverUrl || faviconUrl) && (
+                      <span className="absolute bottom-2 left-2 inline-flex items-center gap-1 text-[11px] font-medium bg-white/90 backdrop-blur text-gray-700 px-2 py-1 rounded-full shadow-sm">
                         {domainLabel}
                       </span>
                     )}

@@ -10,9 +10,52 @@ import {
   Space,
   Radio,
   Tooltip,
+  Spin,
+  message,
 } from "antd";
-import { SearchOutlined, PictureOutlined, CloseCircleOutlined } from "@ant-design/icons";
+import {
+  SearchOutlined,
+  PictureOutlined,
+  CloseCircleOutlined,
+  LinkOutlined,
+  CheckCircleFilled,
+} from "@ant-design/icons";
 import { UploadOutlined } from "@ant-design/icons";
+
+type ImageResult = { thumb: string; full: string; title: string };
+
+// Free, keyless image search via Wikimedia Commons (CORS-enabled with origin=*).
+async function searchCommonsImages(query: string): Promise<ImageResult[]> {
+  const endpoint =
+    "https://commons.wikimedia.org/w/api.php?" +
+    new URLSearchParams({
+      action: "query",
+      format: "json",
+      origin: "*",
+      generator: "search",
+      gsrsearch: `${query} filetype:bitmap`,
+      gsrlimit: "24",
+      gsrnamespace: "6",
+      prop: "imageinfo",
+      iiprop: "url",
+      iiurlwidth: "320",
+    }).toString();
+
+  const res = await fetch(endpoint);
+  const data = await res.json();
+  const pages = data?.query?.pages ? Object.values(data.query.pages) : [];
+  return (pages as any[])
+    .map((p) => {
+      const info = p?.imageinfo?.[0];
+      if (!info?.thumburl) return null;
+      return {
+        thumb: info.thumburl as string,
+        full: (info.url as string) || (info.thumburl as string),
+        title: String(p?.title || "").replace(/^File:/, ""),
+      };
+    })
+    .filter(Boolean) as ImageResult[];
+}
 
 interface UploadResourceModalProps {
   open: boolean;
@@ -57,8 +100,70 @@ const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
 
   const selectedResourceType = Form.useWatch("type", form);
   const selectedSource = Form.useWatch("source", form);
+  const linkValue = Form.useWatch("link", form);
   const thumbnailUrlValue = Form.useWatch("thumbnail_url", form);
   const [thumbPreviewError, setThumbPreviewError] = useState(false);
+  const [searchPanelOpen, setSearchPanelOpen] = useState(false);
+  const [imageQuery, setImageQuery] = useState("");
+  const [imageResults, setImageResults] = useState<ImageResult[]>([]);
+  const [searchingImages, setSearchingImages] = useState(false);
+  const [fetchingFromLink, setFetchingFromLink] = useState(false);
+
+  const setThumbnail = (url: string) => {
+    form.setFieldsValue({ thumbnail_url: url });
+    setThumbPreviewError(false);
+  };
+
+  const runImageSearch = async (term: string) => {
+    const query = term.trim();
+    if (!query) return;
+    setSearchingImages(true);
+    try {
+      const results = await searchCommonsImages(query);
+      setImageResults(results);
+      if (results.length === 0) {
+        message.info("No images found. Try a different search term.");
+      }
+    } catch {
+      message.error("Image search failed. You can paste an image URL instead.");
+    } finally {
+      setSearchingImages(false);
+    }
+  };
+
+  const openImageSearch = () => {
+    const next = !searchPanelOpen;
+    setSearchPanelOpen(next);
+    if (next && imageResults.length === 0) {
+      const seed = form.getFieldValue("title") || "";
+      setImageQuery(seed);
+      if (seed.trim()) runImageSearch(seed);
+    }
+  };
+
+  const fetchThumbnailFromLink = async () => {
+    const link = (form.getFieldValue("link") || "").trim();
+    if (!link) {
+      message.info("Enter a resource link first.");
+      return;
+    }
+    setFetchingFromLink(true);
+    try {
+      const res = await fetch(`/api/link-preview?url=${encodeURIComponent(link)}`);
+      const data = await res.json();
+      const image = data?.image || data?.favicon;
+      if (image) {
+        setThumbnail(image);
+        message.success("Cover image loaded from link.");
+      } else {
+        message.info("Couldn't find an image on that page. Try searching instead.");
+      }
+    } catch {
+      message.error("Couldn't fetch a preview from that link.");
+    } finally {
+      setFetchingFromLink(false);
+    }
+  };
 
   const selectedResource = useMemo(() => {
     if (!selectedResourceType) return null;
@@ -240,30 +345,99 @@ const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
 
         {/* Cover Image */}
         <div className="mb-4 rounded-2xl border border-gray-100 bg-gray-50 p-4">
-          <div className="mb-3 flex items-center justify-between">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <span className="flex items-center gap-2 text-sm font-semibold text-gray-700">
               <PictureOutlined className="text-emerald-600" /> Cover Image
-              <span className="text-xs font-normal text-gray-400">(optional ? appears on the card)</span>
+              <span className="text-xs font-normal text-gray-400">
+                (optional — appears on the card)
+              </span>
             </span>
-            <Tooltip title={`Search Google Images for "${form.getFieldValue('title') || 'resource'}" cover image`}>
+            <div className="flex items-center gap-2">
+              {isLinkMode && (
+                <Tooltip title="Pull a cover image from the resource link">
+                  <Button
+                    size="small"
+                    icon={<LinkOutlined />}
+                    loading={fetchingFromLink}
+                    disabled={!linkValue}
+                    onClick={fetchThumbnailFromLink}
+                    className="!rounded-xl"
+                  >
+                    Use from link
+                  </Button>
+                </Tooltip>
+              )}
               <Button
                 size="small"
+                type={searchPanelOpen ? "primary" : "default"}
                 icon={<SearchOutlined />}
-                onClick={() => {
-                  const title = form.getFieldValue("title") || "";
-                  const q = encodeURIComponent(title + " book cover");
-                  window.open(`https://www.google.com/search?q=${q}&tbm=isch`, "_blank", "noopener,noreferrer");
-                }}
-                className="!rounded-xl"
+                onClick={openImageSearch}
+                className={`!rounded-xl ${searchPanelOpen ? "!bg-primary !border-primary" : ""}`}
               >
                 Search images
               </Button>
-            </Tooltip>
+            </div>
           </div>
+
+          {searchPanelOpen && (
+            <div className="mb-3 rounded-xl border border-gray-200 bg-white p-3">
+              <Input.Search
+                placeholder="Search images (e.g. Qur'an, mosque, prayer)"
+                enterButton
+                allowClear
+                value={imageQuery}
+                onChange={(e) => setImageQuery(e.target.value)}
+                onSearch={(value) => runImageSearch(value)}
+                loading={searchingImages}
+              />
+              <div className="mt-3 max-h-56 overflow-y-auto">
+                {searchingImages ? (
+                  <div className="flex h-32 items-center justify-center">
+                    <Spin />
+                  </div>
+                ) : imageResults.length > 0 ? (
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                    {imageResults.map((img) => {
+                      const selected = thumbnailUrlValue === img.full;
+                      return (
+                        <button
+                          type="button"
+                          key={img.full}
+                          title={img.title}
+                          onClick={() => setThumbnail(img.full)}
+                          className={`relative aspect-square overflow-hidden rounded-lg border transition-all ${
+                            selected
+                              ? "border-emerald-500 ring-2 ring-emerald-200"
+                              : "border-gray-200 hover:border-emerald-300"
+                          }`}
+                        >
+                          <img
+                            src={img.thumb}
+                            alt={img.title}
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                          />
+                          {selected && (
+                            <span className="absolute right-1 top-1 text-emerald-500">
+                              <CheckCircleFilled />
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="py-6 text-center text-xs text-gray-400">
+                    Type a keyword and press search to find a cover image.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
 
           <Form.Item name="thumbnail_url" noStyle>
             <Input
-              placeholder="Paste an image URL here (https://...)"
+              placeholder="Or paste an image URL here (https://...)"
               allowClear={{ clearIcon: <CloseCircleOutlined /> }}
               onChange={() => setThumbPreviewError(false)}
               className="!rounded-xl"
@@ -281,11 +455,13 @@ const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
             </div>
           )}
           {thumbnailUrlValue && thumbPreviewError && (
-            <p className="mt-2 text-xs text-red-500">? Could not load this image URL ? check that it is a direct image link.</p>
+            <p className="mt-2 text-xs text-red-500">
+              Could not load this image URL — check that it is a direct image link.
+            </p>
           )}
-          {!thumbnailUrlValue && (
+          {!thumbnailUrlValue && !searchPanelOpen && (
             <p className="mt-2 text-xs text-gray-400">
-              Tip: right-click an image in Google Images ? "Copy image address" ? paste above.
+              Tip: click “Search images” to find and pick a cover without copying links.
             </p>
           )}
         </div>

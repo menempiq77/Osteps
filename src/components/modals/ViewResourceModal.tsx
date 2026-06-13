@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useRef, useState } from "react";
-import { Modal, Button, Divider, Tag, Typography } from "antd";
+import { Modal, Button, Divider, Tag, Typography, Spin } from "antd";
 import { ExpandOutlined, CompressOutlined, LinkOutlined } from "@ant-design/icons";
 import { IMG_BASE_URL } from "@/lib/config";
 
@@ -171,11 +171,14 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
     const shouldCheckEmbed = !["audio", "video"].includes(normalizedType);
     if (!shouldCheckEmbed) return;
 
+    // The proxy strips frame-blocking headers, so a reachable site will fire
+    // onLoad within a few seconds. Give it a generous window before falling
+    // back to the "open in new tab" prompt so we don't bail out prematurely.
     const timer = window.setTimeout(() => {
       if (!iframeLoaded) {
         setEmbedBlocked(true);
       }
-    }, 2800);
+    }, 20000);
 
     return () => window.clearTimeout(timer);
   }, [open, currentItem?.url, currentItem?.type, iframeLoaded]);
@@ -268,41 +271,17 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
 
     return (
       <div style={{ padding: isFullscreen ? "0" : "12px" }}>
-        {embedBlocked ? (
-          <div
-            style={{
-              width: "100%",
-              height: playerHeight,
-              borderRadius: isFullscreen ? "0" : "8px",
-              background: "#f8fafc",
-              border: "1px solid #e5e7eb",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexDirection: "column",
-              gap: "12px",
-              padding: "24px",
-            }}
-          >
-            <Text strong style={{ fontSize: 16 }}>
-              This website blocks in-app preview.
-            </Text>
-            <Text type="secondary">Open it in a new tab to view the content.</Text>
-            <Button
-              type="primary"
-              icon={<LinkOutlined />}
-              onClick={() => {
-                const finalUrl = normalizeResourceUrl(currentItem?.url);
-                console.log('[OpenLink-EmbedBlocked] Original URL:', currentItem?.url);
-                console.log('[OpenLink-EmbedBlocked] Final URL:', finalUrl);
-                window.open(finalUrl, '_blank');
-              }}
-              className="!bg-primary !border-primary"
-            >
-              Open Link
-            </Button>
-          </div>
-        ) : (
+        <div
+          style={{
+            position: "relative",
+            width: "100%",
+            height: playerHeight,
+            borderRadius: isFullscreen ? "0" : "8px",
+            overflow: "hidden",
+            border: "1px solid #e5e7eb",
+            background: "#fff",
+          }}
+        >
           <iframe
             key={previewFrameUrl || "resource-frame"}
             src={previewFrameUrl}
@@ -314,13 +293,64 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
             onError={() => setEmbedBlocked(true)}
             style={{
               width: "100%",
-              height: playerHeight,
+              height: "100%",
               border: "none",
-              borderRadius: isFullscreen ? "0" : "8px",
             }}
             sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-presentation allow-same-origin allow-scripts"
           />
-        )}
+
+          {!iframeLoaded && !embedBlocked && (
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "12px",
+                background: "#f8fafc",
+              }}
+            >
+              <Spin />
+              <Text type="secondary">Loading preview…</Text>
+            </div>
+          )}
+
+          {embedBlocked && (
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "12px",
+                padding: "24px",
+                background: "#f8fafc",
+              }}
+            >
+              <Text strong style={{ fontSize: 16 }}>
+                Preview is taking too long.
+              </Text>
+              <Text type="secondary" style={{ textAlign: "center" }}>
+                Some sites are slow or block embedding. Open it in a new tab to view the content.
+              </Text>
+              <Button
+                type="primary"
+                icon={<LinkOutlined />}
+                onClick={() => {
+                  const finalUrl = normalizeResourceUrl(currentItem?.url);
+                  window.open(finalUrl, "_blank");
+                }}
+                className="!bg-primary !border-primary"
+              >
+                Open Link
+              </Button>
+            </div>
+          )}
+        </div>
         <div style={{ marginTop: "10px", display: isFullscreen ? "none" : "block" }}>
           <Text type="secondary">If preview is blocked by the provider, use Open Link.</Text>
         </div>
