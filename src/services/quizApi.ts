@@ -126,10 +126,16 @@ export const assignAssesmentQuiz = async (termId: number, quizId: number, subjec
   return response.data;
 };
 // add assign Task Quiz
-export const assignTaskQuiz = async (quizId: number, assessmentId: number, subjectId?: number) => {
+export const assignTaskQuiz = async (
+  quizId: number,
+  assessmentId: number,
+  subjectId?: number,
+  percentageWeight?: number
+) => {
   const response = await api.post('/assign-task-quiz', withSubjectPayload({
-    quiz_id: quizId, 
+    quiz_id: quizId,
     assessment_id: assessmentId,
+    ...(percentageWeight != null ? { percentage_weight: percentageWeight } : {}),
   }, subjectId));
   return response.data;
 };
