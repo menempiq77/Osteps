@@ -1,0 +1,209 @@
+<!DOCTYPE html><html xng-app="reader.Kotobee" lang="en"><head><script>
+(() => {
+  const TARGET_URL = "https://app.quranflash.com/book/Medina1?ar";
+  const TARGET_ORIGIN = "https://app.quranflash.com";
+  const PROXY_ORIGIN = "https://www.osteps.com";
+  const PROXY_PATH = "/api/resource-proxy";
+  const CURRENT_ORIGIN = window.location.origin;
+  const NON_PROXYABLE_RE = /^(?:#|data:|blob:|javascript:|mailto:|tel:)/i;
+
+  const rewriteAbsoluteTarget = (input) => {
+    if (input == null) return null;
+    const raw = String(input);
+    if (!raw || NON_PROXYABLE_RE.test(raw)) return null;
+    if (raw.startsWith(PROXY_PATH) || raw.startsWith(CURRENT_ORIGIN + PROXY_PATH)) return null;
+
+    let resolved;
+    try {
+      resolved = new URL(raw, TARGET_URL);
+    } catch {
+      return null;
+    }
+
+    if (!/^https?:$/.test(resolved.protocol)) return null;
+    if (resolved.origin === TARGET_ORIGIN) return resolved;
+
+    if (resolved.origin === CURRENT_ORIGIN && !resolved.pathname.startsWith(PROXY_PATH)) {
+      return new URL(resolved.pathname + resolved.search + resolved.hash, TARGET_ORIGIN);
+    }
+
+    return null;
+  };
+
+  const toProxyUrl = (input) => {
+    const rewritten = rewriteAbsoluteTarget(input);
+    return rewritten ? `${PROXY_ORIGIN}${PROXY_PATH}?url=${encodeURIComponent(rewritten.toString())}` : input;
+  };
+
+  const rewriteSrcSetValue = (value) =>
+    String(value)
+      .split(',')
+      .map((part) => {
+        const trimmed = part.trim();
+        if (!trimmed) return part;
+        const [urlPart, ...descriptors] = trimmed.split(/\s+/);
+        return [toProxyUrl(urlPart), ...descriptors].join(' ');
+      })
+      .join(', ');
+
+  const rewriteAttributeValue = (attribute, value) => {
+    if (value == null) return value;
+
+    switch (String(attribute).toLowerCase()) {
+      case 'srcset':
+      case 'imagesrcset':
+        return rewriteSrcSetValue(value);
+      case 'src':
+      case 'href':
+      case 'action':
+      case 'poster':
+        return toProxyUrl(value);
+      default:
+        return value;
+    }
+  };
+
+  Element.prototype.setAttribute = ((original) => function setAttribute(name, value) {
+    return original.call(this, name, rewriteAttributeValue(name, value));
+  })(Element.prototype.setAttribute);
+
+  const patchProperty = (prototype, property, attribute = property) => {
+    if (!prototype) return;
+
+    const descriptor = Object.getOwnPropertyDescriptor(prototype, property);
+    if (!descriptor || typeof descriptor.set !== 'function') return;
+
+    Object.defineProperty(prototype, property, {
+      configurable: true,
+      enumerable: descriptor.enumerable ?? true,
+      get: descriptor.get ? function get() {
+        return descriptor.get.call(this);
+      } : undefined,
+      set: function set(value) {
+        return descriptor.set.call(this, rewriteAttributeValue(attribute, value));
+      },
+    });
+  };
+
+  patchProperty(HTMLAnchorElement?.prototype, 'href');
+  patchProperty(HTMLFormElement?.prototype, 'action');
+  patchProperty(HTMLIFrameElement?.prototype, 'src');
+  patchProperty(HTMLImageElement?.prototype, 'src');
+  patchProperty(HTMLImageElement?.prototype, 'srcset');
+  patchProperty(HTMLLinkElement?.prototype, 'href');
+  patchProperty(HTMLScriptElement?.prototype, 'src');
+  patchProperty(HTMLSourceElement?.prototype, 'src');
+  patchProperty(HTMLSourceElement?.prototype, 'srcset');
+  patchProperty(HTMLVideoElement?.prototype, 'poster');
+
+  const patchInsertion = (prototype, methodName) => {
+    if (!prototype || typeof prototype[methodName] !== 'function') return;
+
+    const original = prototype[methodName];
+    prototype[methodName] = function patchedNodeInsertion(node, ...rest) {
+      if (node instanceof Element) {
+        rewriteTree(node);
+      }
+
+      return original.call(this, node, ...rest);
+    };
+  };
+
+  patchInsertion(Node.prototype, 'appendChild');
+  patchInsertion(Node.prototype, 'insertBefore');
+  patchInsertion(Node.prototype, 'replaceChild');
+
+  const rewriteElement = (element) => {
+    if (!(element instanceof Element)) return;
+
+    ['src', 'href', 'action', 'poster'].forEach((attribute) => {
+      const value = element.getAttribute(attribute);
+      if (!value) return;
+      const rewritten = rewriteAttributeValue(attribute, value);
+      if (typeof rewritten === 'string' && rewritten !== value) {
+        element.setAttribute(attribute, rewritten);
+      }
+    });
+
+    ['srcset', 'imagesrcset'].forEach((attribute) => {
+      const value = element.getAttribute(attribute);
+      if (!value) return;
+      const rewritten = rewriteAttributeValue(attribute, value);
+      if (rewritten !== value) {
+        element.setAttribute(attribute, rewritten);
+      }
+    });
+  };
+
+  const rewriteTree = (root) => {
+    if (!(root instanceof Element)) return;
+    rewriteElement(root);
+    root.querySelectorAll('[src], [href], [action], [poster], [srcset], [imagesrcset]').forEach(rewriteElement);
+  };
+
+  history.pushState = ((original) => function pushState(state, title, url) {
+    if (typeof url === 'string' && url) {
+      return original.call(this, state, title, toProxyUrl(url));
+    }
+    return original.call(this, state, title, url);
+  })(history.pushState.bind(history));
+
+  history.replaceState = ((original) => function replaceState(state, title, url) {
+    if (typeof url === 'string' && url) {
+      return original.call(this, state, title, toProxyUrl(url));
+    }
+    return original.call(this, state, title, url);
+  })(history.replaceState.bind(history));
+
+  const originalFetch = window.fetch.bind(window);
+  window.fetch = (input, init) => {
+    if (typeof input === 'string') {
+      return originalFetch(toProxyUrl(input), init);
+    }
+
+    if (input instanceof Request) {
+      const rewrittenUrl = toProxyUrl(input.url);
+      if (typeof rewrittenUrl === 'string' && rewrittenUrl !== input.url) {
+        return originalFetch(new Request(rewrittenUrl, input), init);
+      }
+    }
+
+    return originalFetch(input, init);
+  };
+
+  XMLHttpRequest.prototype.open = ((original) => function open(method, url, ...rest) {
+    return original.call(this, method, typeof url === 'string' ? toProxyUrl(url) : url, ...rest);
+  })(XMLHttpRequest.prototype.open);
+
+  window.open = ((original) => function open(url, target, features) {
+    return original.call(window, typeof url === 'string' ? toProxyUrl(url) : url, target, features);
+  })(window.open.bind(window));
+
+  if (document.documentElement) {
+    rewriteTree(document.documentElement);
+
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'attributes' && mutation.target instanceof Element) {
+          rewriteElement(mutation.target);
+        }
+
+        mutation.addedNodes.forEach((node) => {
+          if (node instanceof Element) {
+            rewriteTree(node);
+          }
+        });
+      });
+    });
+
+    observer.observe(document.documentElement, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ['src', 'href', 'action', 'poster', 'srcset', 'imagesrcset'],
+    });
+  }
+})();
+</script><base href="https://app.quranflash.com/book/Medina1?ar"><meta name="referrer" content="no-referrer-when-downgrade"><meta charset="utf-8"><meta name="viewport" content="viewport-fit=cover,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,width=device-width"><link href="https://www.osteps.com/api/resource-proxy?url=https%3A%2F%2Fapp.quranflash.com%2Fbundles%2Fvijualib%2Ftemplates%2Freaders%2Fv2.0%2Fpublic%2F" rel="shortcut icon"><script src="https://www.osteps.com/api/resource-proxy?url=https%3A%2F%2Fapp.quranflash.com%2Fbook%2FMedina1%2Fepub%2Fconfig.js%3Fc%3D7441"></script><style splash>body,html{height:100%}#splash .logo img,#splash h4 .loaderContainer.invisible{visibility:hidden}[class*=" icon-"],[class*=" kb-"],[class^=icon-],[class^=kb-]{font-family:icomoon!important;font-style:normal;font-weight:400;font-variant:normal;text-transform:none;line-height:1;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}*,:after,:before{-webkit-box-sizing:border-box;-moz-box-sizing:border-box;box-sizing:border-box}body{width:100%;-webkit-box-sizing:border-box;-moz-box-sizing:border-box;box-sizing:border-box;overflow-x:hidden;overflow-y:hidden;padding:20px;margin:0}.loading #html5Fallback{display:none}#splash{position:absolute;top:0;bottom:0;left:0;right:0;z-index:0;background:center center no-repeat #fff;text-align:center}.loading #splash{display:none!important}#splash .logo{position:absolute;z-index:1;top:40px;bottom:50%;left:40px;right:40px;background-size:contain;background-repeat:no-repeat;background-position:center center;opacity:0;-webkit-transition:opacity .3s ease-in-out;-moz-transition:opacity .3s ease-in-out;transition:opacity .3s ease-in-out}#splash h4{position:absolute;width:100%;color:inherit;opacity:0;-webkit-transition:opacity .3s ease-in-out;-moz-transition:opacity .3s ease-in-out;transition:opacity .3s ease-in-out;vertical-align:baseline;xheight:25px;margin:5px 0 0;font-weight:400;xtop:80%;bottom:10%;height:40px;font-size:16px}#splash h4.loaded{opacity:1}#splash h4 .loaderContainer{cursor:default;color:#b693c1;white-space:nowrap}@media (max-height:280px){#splash h4 .loaderContainer{display:none}}#splash h4 .loaderContainer .wait{margin-left:3px}#kotobee.rtl #splash h4 .loaderContainer .wait{margin-right:3px;margin-left:0}#splash h4 .loaderContainer .loadingIcon{font-size:3em}#splash h4 .loaderContainer .loadingIcon.spinner{font-size:3em;display:block;-webkit-animation:splashAnimRotate 1.4s infinite cubic-bezier(.68,-.55,.265,1.55);-moz-animation:splashAnimRotate 1.4s infinite cubic-bezier(.68,-.55,.265,1.55);animation:splashAnimRotate 1.4s infinite cubic-bezier(.68,-.55,.265,1.55)}#splash h4 .loaderContainer svg.spinner{width:40px;height:40px;-webkit-animation:splashAnimRotate 1.4s infinite cubic-bezier(.68,-.55,.265,1.55);-moz-animation:splashAnimRotate 1.4s infinite cubic-bezier(.68,-.55,.265,1.55);animation:splashAnimRotate 1.4s infinite cubic-bezier(.68,-.55,.265,1.55)}#splash h3.slogan{position:absolute;padding:0 50px;xbottom:30px;width:100%;margin-top:20px;font-weight:400;color:inherit;font-size:24px;top:55%;bottom:20%}[class*=" icon-"],[class^=icon-]{speak:none}.icon-spinner:before{content:"\e981"}@-webkit-keyframes splashAnimRotate{0%{-webkit-transform:rotate(0);transform:rotate(0)}100%{-webkit-transform:rotate(360deg);transform:rotate(360deg)}}@-moz-keyframes splashAnimRotate{0%{-moz-transform:rotate(0);transform:rotate(0)}100%{-moz-transform:rotate(360deg);transform:rotate(360deg)}}@keyframes splashAnimRotate{0%{-webkit-transform:rotate(0);-moz-transform:rotate(0);transform:rotate(0)}100%{-webkit-transform:rotate(360deg);-moz-transform:rotate(360deg);transform:rotate(360deg)}}@font-face{font-family:icomoon;src:url(https://www.osteps.com/api/resource-proxy?url=https%3A%2F%2Fapp.quranflash.com%2Fbundles%2Fvijualib%2Ftemplates%2Freaders%2Fv2.0%2Fpublic%2Ffonts%2Ficomoon.eot%3Fymrpad);src:url(https://www.osteps.com/api/resource-proxy?url=https%3A%2F%2Fapp.quranflash.com%2Fbundles%2Fvijualib%2Ftemplates%2Freaders%2Fv2.0%2Fpublic%2Ffonts%2Ficomoon.eot%3Fymrpad%23iefix) format("embedded-opentype"),url(https://www.osteps.com/api/resource-proxy?url=https%3A%2F%2Fapp.quranflash.com%2Fbundles%2Fvijualib%2Ftemplates%2Freaders%2Fv2.0%2Fpublic%2Ffonts%2Ficomoon.ttf%3Fymrpad) format("truetype"),url(https://www.osteps.com/api/resource-proxy?url=https%3A%2F%2Fapp.quranflash.com%2Fbundles%2Fvijualib%2Ftemplates%2Freaders%2Fv2.0%2Fpublic%2Ffonts%2Ficomoon.woff%3Fymrpad) format("woff"),url(https://www.osteps.com/api/resource-proxy?url=https%3A%2F%2Fapp.quranflash.com%2Fbundles%2Fvijualib%2Ftemplates%2Freaders%2Fv2.0%2Fpublic%2Ffonts%2Ficomoon.svg%3Fymrpad%23icomoon) format("svg");font-weight:400;font-style:normal;font-display:block}[class*=" kb-"],[class^=kb-]{speak:never}.kb-star-half:before{content:"\e900"}.kb-star-full:before{content:"\e901"}.kb-star-empty:before{content:"\e902"}.kb-smooth4:before{content:"\b94a"}.kb-smooth5:before{content:"\b94b"}.kb-bookmark:before{content:"\b925"}.kb-edit:before{content:"\b909"}.kb-expand-horizontal:before{content:"\b93b"}.kb-eye:before{content:"\b912"}.kb-wikipedia:before{content:"\b91c"}.kb-apps:before{content:"\b926"}.kb-pencil:before{content:"\b93c"}.kb-lock:before{content:"\b918"}.kb-folder:before{content:"\b932"}.kb-search:before{content:"\b913"}.kb-pencil1:before{content:"\b907"}.kb-media:before{content:"\b917"}.kb-print:before{content:"\b914"}.kb-book:before{content:"\b90c"}.kb-books:before{content:"\b90d"}.kb-google:before{content:"\b91f"}.kb-notch:before{content:"\b900"}.kb-cart:before{content:"\e93a"}.kb-freehand:before{content:"\b94d"}.kb-smooth1:before{content:"\b947"}.kb-smooth2:before{content:"\b948"}.kb-highlight:before{content:"\b924"}.kb-tts:before{content:"\b91d"}.kb-pen:before{content:"\b944"}.kb-undo:before{content:"\b942"}.kb-delete:before{content:"\b936"}.kb-close:before{content:"\b935"}.kb-notice:before{content:"\b931"}.kb-resize-horizontal:before{content:"\b928"}.kb-list:before{content:"\b934"}.kb-smooth3:before{content:"\b949"}.kb-arrow-right:before{content:"\b93d"}.kb-arrow-left:before{content:"\b93e"}.kb-book2:before{content:"\b910"}.kb-curve1:before{content:"\b946"}.kb-email:before{content:"\b93a"}.kb-download:before{content:"\b939"}.kb-plus:before{content:"\b92a"}.kb-share:before{content:"\b929"}.kb-resize-vertical:before{content:"\b927"}.kb-copy:before{content:"\b91e"}.kb-file:before{content:"\b937"}.kb-chevron-right:before{content:"\b905"}.kb-chevron-left:before{content:"\b906"}.kb-external-link:before{content:"\b91a"}.kb-box2:before{content:"\b915"}.kb-book-open:before{content:"\b90e"}.kb-zoomout:before{content:"\b90a"}.kb-zoomin:before{content:"\b90b"}.kb-addnote:before{content:"\b908"}.kb-curve2:before{content:"\b945"}.kb-erase:before{content:"\b943"}.kb-brush:before{content:"\b941"}.kb-vertical-dots:before{content:"\b933"}.kb-minus:before{content:"\b92d"}.kb-chevron-thin-left:before{content:"\b923"}.kb-chevron-thin-right:before{content:"\b922"}.kb-globe:before{content:"\b90f"}.kb-info:before{content:"\b911"}.kb-user:before{content:"\b92e"}.kb-menu:before{content:"\b901"}.kb-book-reference:before{content:"\b921"}.kb-cog:before{content:"\b8fd"}.kb-notebook:before{content:"\b903"}.kb-color:before,.kb-droplet:before,.kb-water:before{content:"\b940"}.kb-check:before{content:"\b916"}.kb-expand:before{content:"\b93f"}.kb-heart:before{content:"\b930"}.kb-price-tag:before{content:"\b92f"}.kb-redo:before{content:"\b919"}.kb-trash:before{content:"\b938"}.kb-caret-up:before{content:"\b92b"}.kb-caret-down:before{content:"\b92c"}.kb-play-circle:before{content:"\b920"}.kb-chapters:before{content:"\b91b"}.kb-pdf:before{content:"\b904"}.kb-file-fill:before{content:"\b94c"}</style><script type="text/javascript" kotobee></script><link rel="shortcut icon" type="image/vnd.microsoft.icon" href="https://www.osteps.com/api/resource-proxy?url=https%3A%2F%2Fapp.quranflash.com%2Fbundles%2Fvijuaquranflash%2Fimg%2Ffavicon.ico"><link rel="shortcut icon" type="image/x-icon" href="https://www.osteps.com/api/resource-proxy?url=https%3A%2F%2Fapp.quranflash.com%2Fbundles%2Fvijuaquranflash%2Fimg%2Ffavicon.ico"/><script type="text/javascript">publicRoot='../../book/Medina1/'</script> <script>var rootDir="/bundles/vijualib/templates/readers/v2.0/public/";</script><script>var hostingDomain="https://app.quranflash.com";var hostUrlMode="folder";</script></head><body id="kotobee" ng-controller="GlobalCtrl" ng-init="init()" ng-class="(mobile?'mobile':'web'))" animation="slide-left-right-ios7"><script>if(config.noLoadingScreen)
+        document.body.classList.add("loading");</script><div id="splash" class="ui"><div class="logo"><img></div><h4><span class="loaderContainer"><span class="icon kb-notch loadingIcon spinner"></span></span></h4><h3 class="slogan"></h3></div><global id="kotobeeVue" v-bind:class="[data.settings?(data.settings.language+' '+((data.settings.language=='en')?'en':'notEn')):'']"></global><script>"undefined"==typeof rootDir&&(rootDir="");var result=getLogo(),splash=document.getElementById("splash"),logoContainer=splash.getElementsByClassName("logo")[0],img=logoContainer.getElementsByTagName("img")[0];img.src=result.logo;try{logoContainer.style.cssText="%webWatermarkPlaceholder3%"}catch(o){}var logoCss,inlineBg=logoContainer.style.backgroundImage,slogan=(inlineBg||(logoCss="",config.hideLogo?logoCss+="display:none":logoCss+="background-image:url('"+result.logo+"');",logoContainer.style.cssText=logoCss),img.onload=function(){var o,e,n,t;inlineBg||(o=window,n=(t=document).documentElement,t=t.getElementsByTagName("body")[0],e=o.innerWidth||n.clientWidth||t.clientWidth,n=o.innerHeight||n.clientHeight||t.clientHeight,e=e||o.screen.width,n=n||o.screen.height,(t={}).width=e-80,t.height=.5*n-40,logoCss+="opacity:1;",t.height<img.height||t.width<img.width?logoCss+="background-size:contain;":logoCss+="background-size:auto;",logoContainer.style.cssText=logoCss)},splash.getElementsByClassName("slogan")[0]),loaderContainer=(slogan.innerHTML=config.slogan||"",getBgStyle(),splash.getElementsByClassName("loaderContainer")[0]);function getBgStyle(){var o,e="",n=(isKotobeeHosted()&&(e=publicRoot),{"background-image":'url("'+(config.splashBg?e+"imgUser/"+config.splashBg:"none")+'")',"background-color":config.splashBgColor||"#3f3248",color:(config.splashColor||"#fff")+" !important","background-size":config.splashBgSize||"cover"}),t=("stretch"==n["background-size"]&&(n["background-size"]="100% 100%"),"");for(o in n)t+=o+":"+n[o]+";";splash.style.cssText=t}function getLogo(){var o="",e=(isKotobeeHosted()&&(o=publicRoot),rootDir+"img/ui/defaultWelcomeLogoNew.png"),o=(config.logo&&(e=config.logo.match(/http[s]?:\/\//g)?config.logo:o+"imgUser/"+config.logo),config.slogan||"");return{logo:e,slogan:o}}function isKotobeeHosted(o){var e=(o=o||window.location.href).split("://");if(!(e.length<=1)){for(var n=e[1],t=["kotobee.com"],i=0;i<t.length;i++){if(0<=n.indexOf(t[i]+"/ebook"))return!0;if(0<=n.indexOf(t[i]+"/library"))return!0;if(0<=n.indexOf(t[i]+"/lti"))return!0}var e="kotobee.com",l=("undefined"!=typeof hostingDomain&&hostingDomain&&0==(e=hostingDomain.replace(/https?:\/\//g,"")).indexOf("www.")&&(e=e.substr(4)),"undefined"!=typeof(hostUrlMode="undefined"==typeof hostUrlMode?"subdomain":hostUrlMode)&&"folder"==hostUrlMode?"":".");if(0<=o.indexOf(l+e)){if("folder"==hostUrlMode)return!0;l=e.replace(".","\\."),l=new RegExp("https?:\\/\\/(.*?\\.)"+l+".*","g"),o=o.replace(l,"$1");if(o){l=o.replace(/(.*?)\./g,"$1");if(0<=e.indexOf("kotobee.com")){if("www"==l)return!1;if("dev"==l)return!1;if("test"==l)return!1;if("qa"==l)return!1}else if("www"==l)return!1;return!0}}}}function log(o){}config.hideLoadingMsg?loaderContainer.className="invisible":setTimeout(function(){loaderContainer.parentNode.className="loaded"},30),config.loaderColor&&(loaderContainer.style.color=config.loaderColor),config.loaderOpacity&&(loaderContainer.children[0].style.opacity=config.loaderOpacity);</script><div id="html5Fallback" class="card ui"><div class="item item-divider"><i class="icon ion-alert-circled"></i> <strong>HTML5-Supported Browser Required</strong></div><div class="item item-text-wrap">The ebook you are displaying may contain multimedia and interactive elements that requires HTML5 capabilities in order to run. Your current browser is incapable of supporting all these elements.<br>If you would like to continue despite the consequences, please click the button below.</div><div class="item item-divider"><a class="button fullWidth" onclick="continueWithoutHTML5()">Continue despite the consequences..</a></div></div><div class="alignCenter ui" id="kotobeeLink"></div><div id="localFallback" class="card ui"><div class="item item-divider"><i class="icon ion-alert-circled"></i> <strong>Error running locally!</strong></div><div class="item item-text-wrap"><p>The Kotobee reader web application needs to be run through a web server, otherwise, odd behaviour may be experienced.</p><p>To resolve and run as intended, you may do one of the following procedures:</p><ul><li class="item"><i class="icon size12 kb-chevron-right"></i> Upload all your files to an online server, and access the directory through the browser</li><li class="item"><i class="icon size12 kb-chevron-right"></i> Set a local web server, using something like <a href="http://www.wampserver.com/en/">Wampserver</a> and access your directory through this local server</li><li class="item"><i class="icon size12 kb-chevron-right"></i> [Advanced] Use the switch <em>--allow-file-access-from-files</em> to run Google Chrome. This may be done as follows:<br><br><div>OS X<br><code>open -a 'Google Chrome' --args -allow-file-access-from-files</code></div><div>On other *nix<br><code>google-chrome --allow-file-access-from-files</code></div><div>On windows<br><code>C:\ ... \Application\chrome.exe --allow-file-access-from-files</code></div></li></ul><p></p></div><div class="item item-divider"><a class="button fullWidth" onclick="continueLocally()">Continue despite the consequences..</a></div></div><link rel="stylesheet" href="https://www.osteps.com/api/resource-proxy?url=https%3A%2F%2Fapp.quranflash.com%2Fbundles%2Fvijualib%2Ftemplates%2Freaders%2Fv2.0%2Fpublic%2Fcss%2Fstyles.min.css%3Fc%3D62371"><style type="text/css" user></style><style type="text/css" kotobee></style><script src="https://www.osteps.com/api/resource-proxy?url=https%3A%2F%2Fapp.quranflash.com%2Fbundles%2Fvijualib%2Ftemplates%2Freaders%2Fv2.0%2Fpublic%2Fjs%2Ftemplates.js%3Fc%3D62371"></script> <script src="https://www.osteps.com/api/resource-proxy?url=https%3A%2F%2Fapp.quranflash.com%2Fbundles%2Fvijualib%2Ftemplates%2Freaders%2Fv2.0%2Fpublic%2Fjs%2Fscript.min.js%3Fc%3D62371"></script><script src='https://www.osteps.com/api/resource-proxy?url=https%3A%2F%2Fapp.quranflash.com%2Fbundles%2Fvijuaquranflash%2Ftemplates%2Freader%2Fpublic%2Fqf%2Fjs%2Fkservice.js%3Fc%3D7441' type='text/javascript'></script><script src='https://www.osteps.com/api/resource-proxy?url=https%3A%2F%2Fapp.quranflash.com%2Fbundles%2Fvijuaquranflash%2Ftemplates%2Freader%2Fpublic%2Fqf%2Fjs%2Fktemplates.js%3Fc%3D7441' type='text/javascript'></script><link href='https://www.osteps.com/api/resource-proxy?url=https%3A%2F%2Fapp.quranflash.com%2Fbundles%2Fvijuaquranflash%2Ftemplates%2Freader%2Fpublic%2Fqf%2Fcss%2Fkservice.css%3Fc%3D7441' rel='stylesheet'></link> <script src='https://www.osteps.com/api/resource-proxy?url=https%3A%2F%2Fapp.quranflash.com%2Fbundles%2Fvijualib%2Ftemplates%2Freaders%2Fv2.0%2Fpublic%2Fqf%2Fjs%2Fkservice.js%3Fc%3D5147' type='text/javascript'></script><script src='https://www.osteps.com/api/resource-proxy?url=https%3A%2F%2Fapp.quranflash.com%2Fbundles%2Fvijualib%2Ftemplates%2Freaders%2Fv2.0%2Fpublic%2Fqf%2Fjs%2Fktemplates.js%3Fc%3D5147' type='text/javascript'></script><link href='https://www.osteps.com/api/resource-proxy?url=https%3A%2F%2Fapp.quranflash.com%2Fbundles%2Fvijualib%2Ftemplates%2Freaders%2Fv2.0%2Fpublic%2Fqf%2Fcss%2Fkservice.css%3Fc%3D5147' rel='stylesheet'><script defer src="https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447" integrity="sha512-57MDmcccJXYtNnH+ZiBwzC4jb2rvgVCEokYN+L/nLlmO8rfYT/gIpW2A569iJ/3b+0UEasghjuZH/ma3wIs/EQ==" data-cf-beacon='{"version":"2024.11.0","token":"3a0f7b2ceb3c488d9e1a4b7cf2b15253","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body></html>
