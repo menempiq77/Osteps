@@ -37,6 +37,8 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [embedBlocked, setEmbedBlocked] = useState(false);
+  const [previewMode, setPreviewMode] = useState<"live" | "image">("live");
+  const [snapshotLoaded, setSnapshotLoaded] = useState(false);
 
   const normalizeResourceUrl = (url?: string) => {
     if (!url) {
@@ -110,6 +112,38 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
     return clean.endsWith(".pdf");
   };
 
+  const isPdfResource = (url: string, type: string) =>
+    (type || "").toLowerCase() === "pdf" || isLikelyEmbeddableDocument(url);
+
+  // PDFs render in the browser's built-in viewer. We route every http(s) PDF
+  // through the same-origin proxy so it is served with the right content-type
+  // and without frame-blocking headers (Chrome refuses PDFs from a sandboxed
+  // cross-origin frame, which is why a direct link showed a broken icon).
+  const getPdfFrameUrl = (url: string) => {
+    const normalized = normalizeResourceUrl(url);
+    if (/^https?:\/\//i.test(normalized)) {
+      return `/api/resource-proxy?url=${encodeURIComponent(normalized)}`;
+    }
+    return normalized;
+  };
+
+  // Some published pages (e.g. Canva sites) send X-Frame-Options and are
+  // single-page apps that render blank when proxied. For those we show a
+  // readable full-page snapshot instead of a blank frame.
+  const isSnapshotPreferred = (url: string) => {
+    try {
+      const host = new URL(normalizeResourceUrl(url)).hostname.toLowerCase();
+      return /\.canva\.site$/i.test(host);
+    } catch {
+      return false;
+    }
+  };
+
+  const getSnapshotUrl = (url: string) => {
+    const normalized = normalizeResourceUrl(url);
+    return `https://image.thum.io/get/width/1200/fullpage/noanimate/${normalized}`;
+  };
+
   const getPreviewFrameUrl = (url: string, type: string) => {
     const normalized = normalizeResourceUrl(url);
     const normalizedType = (type || "").toLowerCase();
@@ -149,12 +183,16 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
       setMediaUrl(normalized);
       setIframeLoaded(false);
       setEmbedBlocked(false);
+      setSnapshotLoaded(false);
+      setPreviewMode(isSnapshotPreferred(currentItem.url) ? "image" : "live");
       return;
     }
 
     setMediaUrl("");
     setIframeLoaded(false);
     setEmbedBlocked(false);
+    setSnapshotLoaded(false);
+    setPreviewMode("live");
     if (videoRef.current) {
       videoRef.current.pause();
       videoRef.current.currentTime = 0;
@@ -168,7 +206,10 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
   useEffect(() => {
     if (!open || !currentItem?.url) return;
     const normalizedType = (currentItem.type || "").toLowerCase();
-    const shouldCheckEmbed = !["audio", "video"].includes(normalizedType);
+    const shouldCheckEmbed =
+      !["audio", "video"].includes(normalizedType) &&
+      previewMode === "live" &&
+      !isPdfResource(currentItem.url, normalizedType);
     if (!shouldCheckEmbed) return;
 
     // The proxy strips frame-blocking headers, so a reachable site will fire
@@ -181,7 +222,7 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
     }, 20000);
 
     return () => window.clearTimeout(timer);
-  }, [open, currentItem?.url, currentItem?.type, iframeLoaded]);
+  }, [open, currentItem?.url, currentItem?.type, iframeLoaded, previewMode]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -269,86 +310,188 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
       );
     }
 
+    // PDFs / documents: render inline in the browser's PDF viewer.
+    if (isPdfResource(currentItem.url, normalizedType)) {
+      const pdfUrl = getPdfFrameUrl(mediaUrl || currentItem.url);
+      return (
+        <div style={{ padding: isFullscreen ? "0" : "12px" }}>
+          <iframe
+            key={pdfUrl || "pdf-frame"}
+            src={pdfUrl}
+            title={currentItem.title}
+            style={{
+              width: "100%",
+              height: playerHeight,
+              border: "1px solid #e5e7eb",
+              borderRadius: isFullscreen ? "0" : "8px",
+              background: "#fff",
+            }}
+          />
+          <div style={{ marginTop: "10px", display: isFullscreen ? "none" : "block" }}>
+            <Text type="secondary">If the document does not display, use Open Link.</Text>
+          </div>
+        </div>
+      );
+    }
+
+    const snapshotUrl = getSnapshotUrl(mediaUrl || currentItem.url);
+
     return (
       <div style={{ padding: isFullscreen ? "0" : "12px" }}>
+        {!isFullscreen && (
+          <div style={{ marginBottom: "10px" }}>
+            <Button.Group>
+              <Button
+                type={previewMode === "live" ? "primary" : "default"}
+                className={previewMode === "live" ? "!bg-primary !border-primary" : ""}
+                onClick={() => {
+                  setPreviewMode("live");
+                  setIframeLoaded(false);
+                  setEmbedBlocked(false);
+                }}
+              >
+                Live page
+              </Button>
+              <Button
+                type={previewMode === "image" ? "primary" : "default"}
+                className={previewMode === "image" ? "!bg-primary !border-primary" : ""}
+                onClick={() => {
+                  setPreviewMode("image");
+                  setSnapshotLoaded(false);
+                }}
+              >
+                Page image
+              </Button>
+            </Button.Group>
+            <Text type="secondary" style={{ marginLeft: 10, fontSize: 12 }}>
+              {previewMode === "image"
+                ? "A readable snapshot — use Live page or Open Link to interact."
+                : "Some sites block embedding; switch to Page image if it stays blank."}
+            </Text>
+          </div>
+        )}
+
         <div
           style={{
             position: "relative",
             width: "100%",
             height: playerHeight,
             borderRadius: isFullscreen ? "0" : "8px",
-            overflow: "hidden",
+            overflow: previewMode === "image" ? "auto" : "hidden",
             border: "1px solid #e5e7eb",
             background: "#fff",
           }}
         >
-          <iframe
-            key={previewFrameUrl || "resource-frame"}
-            src={previewFrameUrl}
-            title={currentItem.title}
-            onLoad={() => {
-              setIframeLoaded(true);
-              setEmbedBlocked(false);
-            }}
-            onError={() => setEmbedBlocked(true)}
-            style={{
-              width: "100%",
-              height: "100%",
-              border: "none",
-            }}
-            sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-presentation allow-same-origin allow-scripts"
-          />
-
-          {!iframeLoaded && !embedBlocked && (
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "12px",
-                background: "#f8fafc",
-              }}
-            >
-              <Spin />
-              <Text type="secondary">Loading preview…</Text>
-            </div>
-          )}
-
-          {embedBlocked && (
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "12px",
-                padding: "24px",
-                background: "#f8fafc",
-              }}
-            >
-              <Text strong style={{ fontSize: 16 }}>
-                Preview is taking too long.
-              </Text>
-              <Text type="secondary" style={{ textAlign: "center" }}>
-                Some sites are slow or block embedding. Open it in a new tab to view the content.
-              </Text>
-              <Button
-                type="primary"
-                icon={<LinkOutlined />}
-                onClick={() => {
-                  const finalUrl = normalizeResourceUrl(currentItem?.url);
-                  window.open(finalUrl, "_blank");
+          {previewMode === "image" ? (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                key={snapshotUrl}
+                src={snapshotUrl}
+                alt={currentItem.title}
+                onLoad={() => setSnapshotLoaded(true)}
+                onError={() => setSnapshotLoaded(true)}
+                style={{ width: "100%", display: "block" }}
+              />
+              {!snapshotLoaded && (
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "12px",
+                    background: "#f8fafc",
+                  }}
+                >
+                  <Spin />
+                  <Text type="secondary">Rendering page snapshot…</Text>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <iframe
+                key={previewFrameUrl || "resource-frame"}
+                src={previewFrameUrl}
+                title={currentItem.title}
+                onLoad={() => {
+                  setIframeLoaded(true);
+                  setEmbedBlocked(false);
                 }}
-                className="!bg-primary !border-primary"
-              >
-                Open Link
-              </Button>
-            </div>
+                onError={() => setEmbedBlocked(true)}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  border: "none",
+                }}
+                sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-presentation allow-same-origin allow-scripts"
+              />
+
+              {!iframeLoaded && !embedBlocked && (
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "12px",
+                    background: "#f8fafc",
+                  }}
+                >
+                  <Spin />
+                  <Text type="secondary">Loading preview…</Text>
+                </div>
+              )}
+
+              {embedBlocked && (
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "12px",
+                    padding: "24px",
+                    background: "#f8fafc",
+                  }}
+                >
+                  <Text strong style={{ fontSize: 16 }}>
+                    This page can&apos;t be embedded.
+                  </Text>
+                  <Text type="secondary" style={{ textAlign: "center" }}>
+                    Some sites block embedding. View a readable snapshot, or open it in a new tab.
+                  </Text>
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <Button
+                      onClick={() => {
+                        setPreviewMode("image");
+                        setSnapshotLoaded(false);
+                      }}
+                    >
+                      View page image
+                    </Button>
+                    <Button
+                      type="primary"
+                      icon={<LinkOutlined />}
+                      onClick={() => {
+                        const finalUrl = normalizeResourceUrl(currentItem?.url);
+                        window.open(finalUrl, "_blank");
+                      }}
+                      className="!bg-primary !border-primary"
+                    >
+                      Open Link
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
         <div style={{ marginTop: "10px", display: isFullscreen ? "none" : "block" }}>

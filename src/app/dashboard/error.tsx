@@ -23,12 +23,28 @@ const clearSavedDashboardSession = () => {
 };
 
 export default function DashboardError({ error, reset }: DashboardErrorProps) {
-  useEffect(() => {
-    console.error("Dashboard route crashed:", error);
-  }, [error]);
-
   const message = String(error?.message || "Unexpected client error.");
   const staleClientError = isLikelyStaleClientError(message);
+
+  useEffect(() => {
+    console.error("Dashboard route crashed:", error);
+
+    // A stale chunk after a deployment is recoverable by fetching the new HTML
+    // (which references the new chunk names). Reload automatically once, with a
+    // short-lived guard so we never get stuck in a reload loop if it persists.
+    if (staleClientError && typeof window !== "undefined") {
+      try {
+        const KEY = "dashboardChunkReloadAt";
+        const last = Number(window.sessionStorage.getItem(KEY) || "0");
+        if (Date.now() - last > 20000) {
+          window.sessionStorage.setItem(KEY, String(Date.now()));
+          window.location.reload();
+        }
+      } catch {
+        // sessionStorage unavailable; fall back to showing the recovery UI.
+      }
+    }
+  }, [error, staleClientError]);
 
   return (
     <div className="mx-auto flex min-h-[70vh] max-w-3xl items-center p-4 md:p-6">
