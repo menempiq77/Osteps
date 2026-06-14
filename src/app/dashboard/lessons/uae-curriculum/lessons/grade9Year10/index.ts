@@ -3,6 +3,7 @@ import { withAllahAndMessenger } from "./withAllahAndMessenger";
 import { sevenDestructiveSins } from "./sevenDestructiveSins";
 import { forgivingTheJust } from "./forgivingTheJust";
 import { mutualAdvice } from "./mutualAdvice";
+import { zakatInIslam } from "./zakatInIslam";
 
 // Keyed by the topic slug (topicSlugify of the English title in data.ts).
 export const grade9Year10Lessons: Record<string, CourseLesson> = {
@@ -10,4 +11,5 @@ export const grade9Year10Lessons: Record<string, CourseLesson> = {
   "the-seven-destructive-sins": sevenDestructiveSins,
   "the-forgiving-the-just-glorified-is-he": forgivingTheJust,
   "mutual-advice-in-islam": mutualAdvice,
+  "zakat-in-islam": zakatInIslam,
 };
