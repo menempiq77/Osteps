@@ -27,6 +27,7 @@ import { oathsAndVows } from "./oathsAndVows";
 import { battleOfHunayn } from "./battleOfHunayn";
 import { myHealthMyResponsibility } from "./myHealthMyResponsibility";
 import { proofsOfOneness } from "./proofsOfOneness";
+import { maintainingFamilyTies } from "./maintainingFamilyTies";
 
 // Keyed by the topic slug (topicSlugify of the English title in data.ts).
 export const grade8Year9Lessons: Record<string, CourseLesson> = {
@@ -58,4 +59,5 @@ export const grade8Year9Lessons: Record<string, CourseLesson> = {
   "the-battle-of-hunayn": battleOfHunayn,
   "my-health-is-my-responsibility": myHealthMyResponsibility,
   "proofs-of-the-oneness-and-power-of-allah-surah-ya-sin-69-83": proofsOfOneness,
+  "maintaining-family-ties": maintainingFamilyTies,
 };
