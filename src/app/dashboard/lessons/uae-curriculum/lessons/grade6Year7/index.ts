@@ -5,6 +5,11 @@ import { volunteering } from "./volunteering";
 import { sanctityOfMuslim } from "./sanctityOfMuslim";
 import { obligationsOfPrayer } from "./obligationsOfPrayer";
 import { uaeServiceWorld } from "./uaeServiceWorld";
+import { qualitiesOfBelievers } from "./qualitiesOfBelievers";
+import { takeAccountOfYourselves } from "./takeAccountOfYourselves";
+import { etiquetteOfTheMosque } from "./etiquetteOfTheMosque";
+import { patienceAndCertainty } from "./patienceAndCertainty";
+import { imamMalik } from "./imamMalik";
 
 // Keyed by the topic slug (topicSlugify of the English title in data.ts).
 export const grade6Year7Lessons: Record<string, CourseLesson> = {
@@ -14,4 +19,9 @@ export const grade6Year7Lessons: Record<string, CourseLesson> = {
   "the-sanctity-of-a-muslim": sanctityOfMuslim,
   "the-obligations-sunnahs-and-disliked-acts-of-prayer": obligationsOfPrayer,
   "the-uae-in-service-of-the-world": uaeServiceWorld,
+  "the-qualities-of-believers-and-their-reward-as-sajdah-13-22": qualitiesOfBelievers,
+  "take-account-of-yourselves": takeAccountOfYourselves,
+  "etiquette-of-the-mosque": etiquetteOfTheMosque,
+  "patience-and-certainty-as-sajdah-23-30": patienceAndCertainty,
+  "imam-malik-ibn-anas": imamMalik,
 };
