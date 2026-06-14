@@ -11,6 +11,7 @@ import { hajj } from "./hajj";
 import { farewellPilgrimage } from "./farewellPilgrimage";
 import { faithIsABlessing } from "./faithIsABlessing";
 import { societyMenAndWomen } from "./societyMenAndWomen";
+import { justiceInIslam } from "./justiceInIslam";
 
 // Keyed by the topic slug (topicSlugify of the English title in data.ts).
 export const grade9Year10Lessons: Record<string, CourseLesson> = {
@@ -26,4 +27,5 @@ export const grade9Year10Lessons: Record<string, CourseLesson> = {
   "the-farewell-pilgrimage-and-the-death-of-the-prophet": farewellPilgrimage,
   "faith-is-a-blessing-from-allah": faithIsABlessing,
   "society-has-both-men-and-women": societyMenAndWomen,
+  "justice-in-islam": justiceInIslam,
 };
