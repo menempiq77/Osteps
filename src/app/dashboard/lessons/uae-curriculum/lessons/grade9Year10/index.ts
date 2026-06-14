@@ -10,6 +10,7 @@ import { religionIsSincereAdvice } from "./religionIsSincereAdvice";
 import { hajj } from "./hajj";
 import { farewellPilgrimage } from "./farewellPilgrimage";
 import { faithIsABlessing } from "./faithIsABlessing";
+import { societyMenAndWomen } from "./societyMenAndWomen";
 
 // Keyed by the topic slug (topicSlugify of the English title in data.ts).
 export const grade9Year10Lessons: Record<string, CourseLesson> = {
@@ -24,4 +25,5 @@ export const grade9Year10Lessons: Record<string, CourseLesson> = {
   "hajj": hajj,
   "the-farewell-pilgrimage-and-the-death-of-the-prophet": farewellPilgrimage,
   "faith-is-a-blessing-from-allah": faithIsABlessing,
+  "society-has-both-men-and-women": societyMenAndWomen,
 };
