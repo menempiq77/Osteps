@@ -19,6 +19,7 @@ import { workWorship } from "./workWorship";
 import { travellerSickPrayer } from "./travellerSickPrayer";
 import { blessingsOfLife } from "./blessingsOfLife";
 import { caringOrphan } from "./caringOrphan";
+import { humility } from "./humility";
 
 // Keyed by the topic slug (topicSlugify of the English title in data.ts).
 export const grade7Year8Lessons: Record<string, CourseLesson> = {
@@ -42,4 +43,5 @@ export const grade7Year8Lessons: Record<string, CourseLesson> = {
   "prayer-for-the-traveler-and-the-sick": travellerSickPrayer,
   "the-blessings-of-life": blessingsOfLife,
   "caring-for-an-orphan": caringOrphan,
+  "humility": humility,
 };
