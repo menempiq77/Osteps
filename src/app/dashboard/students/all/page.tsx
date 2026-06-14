@@ -3012,12 +3012,17 @@ export default function AllStudentsPage() {
                   dataIndex: "name",
                   key: "name",
                   render: (_: unknown, record: StudentListRow) => (
-                    <Link
-                      href={buildStudentProfileHref(record)}
-                      className="text-blue-600 hover:text-blue-800 hover:underline"
-                    >
-                      {record.name}
-                    </Link>
+                    <div className="flex flex-col">
+                      <Link
+                        href={buildStudentProfileHref(record)}
+                        className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                      >
+                        {record.name}
+                      </Link>
+                      {record.userName ? (
+                        <span className="text-xs text-gray-400 font-mono">@{record.userName}</span>
+                      ) : null}
+                    </div>
                   ),
                 },
                 {
