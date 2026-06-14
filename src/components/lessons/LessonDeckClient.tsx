@@ -969,7 +969,7 @@ export default function LessonDeckClient({ lesson }: Props) {
       >
         <span
           className={
-            "flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-black " +
+            "flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-sm font-black leading-none " +
             (completed ? "bg-green-500 text-white" : active ? "bg-teal-500 text-white" : "bg-gray-100 text-gray-600")
           }
         >
@@ -1044,18 +1044,18 @@ export default function LessonDeckClient({ lesson }: Props) {
                 >
                   <span
                     className={
-                      "flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-black " +
+                      "flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-sm font-black leading-none " +
                       (completed
                         ? "bg-green-500 text-white"
                         : active
                         ? "bg-teal-500 text-white"
-                        : "bg-slate-100 text-slate-600")
+                        : "bg-slate-100 text-slate-700")
                     }
                   >
                     {completed ? "✓" : sectionIndex + 1}
                   </span>
                 </button>
-                {orderIndex < orderedParts.length - 1 ? <span className="text-slate-200">›</span> : null}
+                {orderIndex < orderedParts.length - 1 ? <span className="text-slate-300">›</span> : null}
               </div>
             );
           })}
