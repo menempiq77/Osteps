@@ -185,7 +185,9 @@ export default function LessonQuizClient({
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-      <div className="mb-2 text-xl font-black text-gray-900">Quiz (10 questions)</div>
+      <div className="mb-2 text-xl font-black text-gray-900">
+        Quiz ({questions.length} {questions.length === 1 ? "question" : "questions"})
+      </div>
       <div className="mb-5 text-sm font-bold text-gray-700">
         Pass requirement: at least {passMark}/{questions.length}.
       </div>
