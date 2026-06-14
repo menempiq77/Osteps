@@ -2,17 +2,17 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useSelector } from "react-redux";
 import { useQuery } from "@tanstack/react-query";
 import {
   Alert,
   Button,
   Empty,
+  Select,
   Spin,
   Table,
   Tag,
-  Tooltip,
 } from "antd";
 import {
   ArrowLeftOutlined,
@@ -30,11 +30,12 @@ import {
   YAxis,
 } from "recharts";
 import { RootState } from "@/store/store";
-import { fetchStudentProfileData } from "@/services/studentsApi";
+import { fetchStudentProfileData, fetchStudents } from "@/services/studentsApi";
 import { fetchGrades } from "@/services/gradesApi";
 import { fetchStudentNarrativeReports } from "@/services/studentNarrativeReportApi";
 import TeacherReportEditor from "@/components/reports/TeacherReportEditor";
 import SupportWellbeingEditor from "@/components/reports/SupportWellbeingEditor";
+import BehaviourHistoryEditor from "@/components/reports/BehaviourHistoryEditor";
 
 type AnyObj = Record<string, unknown>;
 
@@ -72,13 +73,6 @@ const pct = (earned: number, max: number) =>
 
 const isAttendanceBehaviour = (name: string) =>
   /attendance/i.test(name);
-
-const formatDate = (value: unknown) => {
-  const s = String(value ?? "").trim();
-  if (!s) return "—";
-  const d = new Date(s);
-  return Number.isNaN(d.getTime()) ? s : d.toLocaleDateString();
-};
 
 // ── small presentational helpers ──────────────────────────────────────────────
 function SectionCard({
@@ -180,10 +174,14 @@ function Donut({
 
 export default function StudentReportPage() {
   const params = useParams<{ studentId?: string }>();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const studentId = String(params?.studentId ?? "").trim();
   const subjectIdParam = searchParams.get("subject_id");
   const subjectId = subjectIdParam ? Number(subjectIdParam) : undefined;
+  const classIdParam = searchParams.get("class_id");
+  const subjectClassIdParam = searchParams.get("subject_class_id");
+  const queryString = searchParams.toString();
 
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const schoolId = currentUser?.school as number | undefined;
@@ -225,6 +223,37 @@ export default function StudentReportPage() {
     enabled: Boolean(studentId),
   });
 
+  // Classmates for the quick "jump to student" dropdown
+  const { data: classmates = [] } = useQuery({
+    queryKey: [
+      "student-report-classmates",
+      classIdParam ?? "",
+      subjectId ?? 0,
+      subjectClassIdParam ?? "",
+    ],
+    queryFn: async () => {
+      const rows = await fetchStudents(
+        Number(classIdParam),
+        subjectId ?? undefined,
+        subjectClassIdParam ? Number(subjectClassIdParam) : undefined
+      );
+      return asArray(rows)
+        .map((row) => ({
+          id: num(row?.id ?? row?.student_id),
+          name: String(row?.student_name ?? row?.name ?? "Student"),
+        }))
+        .filter((r) => r.id > 0);
+    },
+    enabled: Boolean(classIdParam),
+  });
+
+  const goToStudent = (id: number) => {
+    if (!id || String(id) === studentId) return;
+    router.push(
+      `/dashboard/reports/student/${id}${queryString ? `?${queryString}` : ""}`
+    );
+  };
+
   const s = (student ?? {}) as AnyObj;
   const subjectContext = (s?.subject_context ?? {}) as AnyObj;
 
@@ -246,6 +275,16 @@ export default function StudentReportPage() {
       status: String(s?.status ?? "").trim(),
     };
   }, [s, subjectContext]);
+
+  const studentOptions = useMemo(() => {
+    const currentId = num(s?.id ?? studentId);
+    const map = new Map<number, string>();
+    classmates.forEach((c) => map.set(c.id, c.name));
+    if (currentId > 0 && !map.has(currentId)) map.set(currentId, profile.name);
+    return Array.from(map.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [classmates, s, studentId, profile.name]);
 
   // ── Behaviour & attendance ──────────────────────────────────────────────────
   const behaviourRows = useMemo(() => asArray(s?.behaviour), [s]);
@@ -286,6 +325,8 @@ export default function StudentReportPage() {
         }
         return {
           key: String(row?.id ?? i),
+          id: num(row?.id),
+          behaviourId: num(b?.id),
           date: String(row?.date ?? row?.created_at ?? ""),
           type: String(b?.name ?? "Behaviour"),
           points,
@@ -452,13 +493,27 @@ export default function StudentReportPage() {
   return (
     <div className="space-y-4" id="report-print">
       {/* Top actions (hidden on print) */}
-      <div className="no-print flex items-center justify-between gap-3">
-        <Link
-          href="/dashboard/reports"
-          className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-slate-900"
-        >
-          <ArrowLeftOutlined /> Back to Reports
-        </Link>
+      <div className="no-print flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Link
+            href="/dashboard/reports"
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-slate-900"
+          >
+            <ArrowLeftOutlined /> Back to Reports
+          </Link>
+          {studentOptions.length > 1 ? (
+            <Select
+              showSearch
+              value={num(s?.id ?? studentId)}
+              options={studentOptions}
+              onChange={(v) => goToStudent(Number(v))}
+              optionFilterProp="label"
+              placeholder="Jump to student"
+              className="min-w-[220px]"
+              size="middle"
+            />
+          ) : null}
+        </div>
         <Button
           icon={<PrinterOutlined />}
           onClick={() => window.print()}
@@ -761,41 +816,20 @@ export default function StudentReportPage() {
       </SectionCard>
 
       {/* Behaviour history */}
-      <SectionCard title="Behaviour history" subtitle="Most recent conduct events">
-        <Table
-          size="small"
-          rowKey="key"
-          dataSource={conduct.events}
-          pagination={{ pageSize: 8, hideOnSinglePage: true }}
-          columns={[
-            { title: "Date", dataIndex: "date", key: "date", render: formatDate, width: 110 },
-            { title: "Type", dataIndex: "type", key: "type" },
-            {
-              title: "Points",
-              dataIndex: "points",
-              key: "points",
-              width: 90,
-              render: (v: number) => (
-                <Tag color={v > 0 ? "green" : v < 0 ? "red" : "default"}>
-                  {v > 0 ? "+" : ""}
-                  {v}
-                </Tag>
-              ),
-            },
-            {
-              title: "Note",
-              dataIndex: "description",
-              key: "description",
-              render: (v: string) =>
-                v ? (
-                  <Tooltip title={v}>
-                    <span className="line-clamp-1 max-w-[280px]">{v}</span>
-                  </Tooltip>
-                ) : (
-                  "—"
-                ),
-            },
-          ]}
+      <SectionCard
+        title="Behaviour history"
+        subtitle={
+          canEditSupport
+            ? "Most recent conduct events — edit or delete any entry"
+            : "Most recent conduct events"
+        }
+      >
+        <BehaviourHistoryEditor
+          events={conduct.events}
+          studentId={num(s?.id ?? studentId)}
+          subjectId={subjectId ?? null}
+          canEdit={canEditSupport}
+          onChanged={() => refetchProfile()}
         />
       </SectionCard>
 
