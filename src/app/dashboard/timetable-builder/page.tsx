@@ -1,18 +1,34 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import React, { useState, useMemo, useCallback, useEffect } from "react";
-import dayjs, { Dayjs } from "dayjs";
-import isoWeek from "dayjs/plugin/isoWeek";
+import dayjs from "dayjs";
 import {
-  Badge, Button, DatePicker, Dropdown, Form, Input, Modal, Popover, Radio, Select, Spin,
-  Tag, Tooltip, Typography, message,
+  Button,
+  DatePicker,
+  Form,
+  Input,
+  Modal,
+  Segmented,
+  Select,
+  Tooltip,
+  message,
 } from "antd";
 import {
-  ArrowLeftOutlined, ArrowRightOutlined, CopyOutlined,
-  DeleteOutlined, EditOutlined, FilterOutlined, PlusOutlined, SettingOutlined,
-  WarningOutlined, ClearOutlined, UploadOutlined,
-} from "@ant-design/icons";
+  CalendarDays,
+  Plus,
+  Pencil,
+  Trash2,
+  Printer,
+  Settings2,
+  Users,
+  DoorOpen,
+  School as SchoolIcon,
+  GraduationCap,
+  Video,
+  AlertTriangle,
+  Copy,
+} from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
@@ -24,1317 +40,1177 @@ import {
 } from "@/services/timetableApi";
 import { fetchTeachers } from "@/services/teacherApi";
 import { fetchYearsBySchool } from "@/services/yearsApi";
-import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
 import { fetchClasses } from "@/services/classesApi";
 import { fetchSubjects } from "@/services/subjectsApi";
 import {
-  loadPeriods, savePeriods,
-  loadSchoolDays, saveSchoolDays,
+  loadPeriods,
+  savePeriods,
+  loadSchoolDays,
+  saveSchoolDays,
   DAYS_OF_WEEK,
   SchoolPeriod,
 } from "@/lib/schoolPeriods";
-import { detectConflicts, hasHardConflict, hasSoftConflict } from "@/lib/timetableConflicts";
-import TimetableManagerSidebar, { TimetableManagerSidebarKey } from "@/components/timetable/TimetableManagerSidebar";
-import TimetableModeTabs from "@/components/timetable/TimetableModeTabs";
+import {
+  loadPattern,
+  savePattern,
+  weekLabelForDate,
+  TimetablePattern,
+  WeekLabel,
+} from "@/lib/timetablePattern";
+import { detectConflicts, hasHardConflict } from "@/lib/timetableConflicts";
 
-const TimetableImportModal = dynamic(
-  () => import("@/components/timetable/TimetableImportModal"),
-  { ssr: false }
-);
 const PeriodsConfigModal = dynamic(
   () => import("@/components/timetable/PeriodsConfigModal"),
   { ssr: false }
 );
-const DuplicateWeekModal = dynamic(
-  () => import("@/components/timetable/DuplicateWeekModal"),
-  { ssr: false }
-);
-const CopyClassWeekModal = dynamic(
-  () => import("@/components/timetable/CopyClassWeekModal"),
-  { ssr: false }
-);
-
-dayjs.extend(isoWeek);
 
 const { Option } = Select;
-const { Title, Text } = Typography;
 
-type BuilderSidebarView = "spreadsheets" | "subject" | "teacher" | "year-group";
-type BuilderWeekMode = "every_week" | "A" | "B";
-type AlternatingWeekType = "A" | "B";
+type ViewMode = "class" | "teacher" | "room" | "school";
 
-type AlternatingCycleConfig = {
-  enabled: boolean;
-  anchorWeek: string;
-  anchorType: AlternatingWeekType;
-};
-
-interface SlotFormValues {
-  subject_id: string;
-  teacher_id: string;
-  year_id?: string;
-  class_id: string;
-  room?: string;
-  zoom_link?: string;
+interface Lesson {
+  id: number;
+  subject: string;
+  year_id: number | null;
+  class_id: number | null;
+  teacher_id: number | null;
+  teacher_name: string;
+  room: string;
+  zoom_link: string;
+  day: string;
+  week_label: WeekLabel | null;
+  start_time: string; // HH:mm
+  end_time: string; // HH:mm
 }
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
-export default function TimetableBuilderPage() {
+interface IdName {
+  id: number;
+  name?: string;
+  class_name?: string;
+  teacher_name?: string;
+  user_id?: number;
+  year_id?: number;
+}
+
+const hhmm = (t?: string | null): string => (t ? String(t).slice(0, 5) : "");
+
+const toMinutes = (t: string): number => {
+  const [h, m] = hhmm(t).split(":").map(Number);
+  return (h || 0) * 60 + (m || 0);
+};
+
+const mapLesson = (raw: Record<string, unknown>): Lesson => {
+  const teacher = (raw.teacher as Record<string, unknown> | undefined) ?? undefined;
+  const wl = String(raw.week_label ?? "").toUpperCase();
+  return {
+    id: Number(raw.id),
+    subject: String(raw.subject ?? "").trim(),
+    year_id: raw.year_id != null ? Number(raw.year_id) : null,
+    class_id: raw.class_id != null ? Number(raw.class_id) : null,
+    teacher_id: raw.teacher_id != null ? Number(raw.teacher_id) : null,
+    teacher_name: String(teacher?.teacher_name ?? "").trim(),
+    room: String(raw.room ?? "").trim(),
+    zoom_link: String(raw.zoom_link ?? "").trim(),
+    day: String(raw.day ?? "").trim(),
+    week_label: wl === "A" || wl === "B" ? (wl as WeekLabel) : null,
+    start_time: hhmm(String(raw.start_time ?? "")),
+    end_time: hhmm(String(raw.end_time ?? "")),
+  };
+};
+
+export default function TimetablePage() {
   const queryClient = useQueryClient();
   const [messageApi, contextHolder] = message.useMessage();
   const { currentUser } = useSelector((state: RootState) => state.auth);
-  const schoolId = currentUser?.school;
+  const schoolId = currentUser?.school ?? null;
+  const role = String(currentUser?.role ?? "").toUpperCase();
+  const isAdmin = role === "SCHOOL_ADMIN";
+  const isHOD = role === "HOD";
+  const isTeacher = role === "TEACHER";
+  const isStudent = role === "STUDENT";
 
-  // Periods config
+  // ── Config (school days / periods / A-B pattern) ──────────────────────────
   const [periods, setPeriods] = useState<SchoolPeriod[]>(() => loadPeriods());
   const [schoolDays, setSchoolDays] = useState<string[]>(() => loadSchoolDays());
-  const [periodsModalOpen, setPeriodsModalOpen] = useState(false);
+  const [pattern, setPattern] = useState<TimetablePattern>(() => loadPattern());
+  const [configOpen, setConfigOpen] = useState(false);
+  const [patternOpen, setPatternOpen] = useState(false);
 
-  // Week navigation
-  const [anchor, setAnchor] = useState<Dayjs>(dayjs());
-  const firstDayIdx = useMemo(() => {
-    const first = schoolDays[0] ?? "Sunday";
-    return DAYS_OF_WEEK.findIndex((d) => d.value === first);
-  }, [schoolDays]);
-  const weekSun = useMemo(() => weekStart(anchor, firstDayIdx), [anchor, firstDayIdx]);
-  const [alternatingCycle, setAlternatingCycle] = useState<AlternatingCycleConfig>(() => loadAlternatingCycleConfig());
+  const orderedDays = useMemo(
+    () =>
+      DAYS_OF_WEEK.map((d) => d.value).filter((d) => schoolDays.includes(d)),
+    [schoolDays]
+  );
 
-  useEffect(() => {
-    saveAlternatingCycleConfig(alternatingCycle);
-  }, [alternatingCycle]);
+  // Active A/B week (defaults to whatever this calendar week is)
+  const [activeWeek, setActiveWeek] = useState<WeekLabel>(() =>
+    weekLabelForDate(loadPattern())
+  );
+  const thisCalendarWeek = useMemo(() => weekLabelForDate(pattern), [pattern]);
 
-  // Duplicate week modal
-  const [duplicateOpen, setDuplicateOpen] = useState(false);
-  const [copyClassWeekOpen, setCopyClassWeekOpen] = useState(false);
-  const [importOpen, setImportOpen] = useState(false);
-  const [copyClassWeekLoading, setCopyClassWeekLoading] = useState(false);
+  // ── View state ────────────────────────────────────────────────────────────
+  const [view, setView] = useState<ViewMode>(
+    isTeacher ? "teacher" : "class"
+  );
+  const [yearId, setYearId] = useState<string | null>(null);
+  const [classId, setClassId] = useState<string | null>(
+    isStudent && currentUser?.studentClass
+      ? String(currentUser.studentClass)
+      : null
+  );
+  const [teacherId, setTeacherId] = useState<string | null>(null);
+  const [room, setRoom] = useState<string | null>(null);
 
-  // Popover state: { key: "day|periodId", mode: "add"|"edit", slotId?: number }
-  const [popoverKey, setPopoverKey] = useState<string | null>(null);
-  const [popoverMode, setPopoverMode] = useState<"add" | "edit">("add");
-  const [editingSlot, setEditingSlot] = useState<any>(null);
-  const [formConflicts, setFormConflicts] = useState<ReturnType<typeof detectConflicts>>([]);
-
-  // Year/class cascade for the form
-  const [formYear, setFormYear] = useState<string | null>(null);
-
-  // ── Filter state ──────────────────────────────────────────────────────────
-  const [filterSubjectId, setFilterSubjectId] = useState<string | null>(null);
-  const [filterYearId,    setFilterYearId]    = useState<string | null>(null);
-  const [filterClassId,   setFilterClassId]   = useState<string | null>(null);
-  const [filterTeacherId, setFilterTeacherId] = useState<string | null>(null);
-  const [sidebarView, setSidebarView] = useState<BuilderSidebarView>("spreadsheets");
-
-  // ── Data queries ──────────────────────────────────────────────────────────
-  const { data: slots = [], isLoading: slotsLoading } = useQuery({
+  // ── Data ──────────────────────────────────────────────────────────────────
+  const { data: rawSlots = [], isLoading } = useQuery({
     queryKey: ["timetable", "all"],
     queryFn: () => fetchTimetableData("all"),
   });
+  const lessons = useMemo<Lesson[]>(
+    () => (rawSlots as Record<string, unknown>[]).map(mapLesson),
+    [rawSlots]
+  );
 
-  const { data: subjects = [] } = useQuery({
+  const { data: subjects = [] } = useQuery<IdName[]>({
     queryKey: ["subjects"],
     queryFn: () => fetchSubjects(),
   });
 
-  const { data: teachers = [] } = useQuery({
+  const { data: teachers = [] } = useQuery<IdName[]>({
     queryKey: ["teachers", "all"],
     queryFn: () => fetchTeachers("all"),
   });
 
-  const { data: years = [] } = useQuery({
+  const { data: years = [] } = useQuery<IdName[]>({
     queryKey: ["years", schoolId],
     enabled: !!schoolId,
     queryFn: () => fetchYearsBySchool(schoolId as number),
   });
 
-  const { data: classes = [] } = useQuery<any[]>({
-    queryKey: ["classes", formYear],
-    enabled: !!formYear,
-    queryFn: () => fetchClasses(String(formYear)),
+  const { data: yearClasses = [] } = useQuery<IdName[]>({
+    queryKey: ["classes", yearId],
+    enabled: !!yearId,
+    queryFn: () => fetchClasses(String(yearId)),
   });
 
-  // All classes for conflict detection (load lazily – use all years)
-  const { data: allClasses = [] } = useQuery<any[]>({
-    queryKey: ["all-classes-builder", schoolId],
+  const { data: allClasses = [] } = useQuery<IdName[]>({
+    queryKey: ["all-classes", schoolId],
     enabled: !!schoolId,
     queryFn: async () => {
-      const yr: any[] = (await fetchYearsBySchool(schoolId as number)) ?? [];
-      const arr = await Promise.all(yr.map((y) => fetchClasses(String(y.id)).catch(() => [])));
-      return arr.flat();
+      const yr = (await fetchYearsBySchool(schoolId as number)) as IdName[];
+      const arr = await Promise.all(
+        (yr ?? []).map((y) => fetchClasses(String(y.id)).catch(() => []))
+      );
+      return arr.flat() as IdName[];
     },
   });
 
-  // Subject-classes for the active subject filter — used to derive which years are valid
-  const { data: subjectClassRows = [], isFetched: subjectClassesFetched } = useQuery<any[]>({
-    queryKey: ["subject-classes-filter", filterSubjectId],
-    enabled: !!filterSubjectId,
-    queryFn: () => fetchSubjectClasses({ subject_id: Number(filterSubjectId) }),
-  });
+  const myTeacherId = useMemo(() => {
+    if (!isTeacher || !currentUser?.id) return null;
+    const me = teachers.find((t) => Number(t.user_id) === Number(currentUser.id));
+    return me ? Number(me.id) : null;
+  }, [teachers, currentUser?.id, isTeacher]);
 
-  // Years that actually appear in ANY slot (for filter bar dropdown).
-  // When a subject filter is active, ONLY show years from that subject's classes.
-  // An empty result for the subject stays empty — never fall through to global list.
-  // Falls back to years that have at least one class configured (excludes empty/test years).
-  const yearsInUse = useMemo(() => {
-    if (filterSubjectId) {
-      if (!subjectClassesFetched) return []; // still loading — show nothing yet
-      const ids = new Set((subjectClassRows as any[]).map((r) => String(r.year_id)).filter(Boolean));
-      return (years as any[]).filter((y) => ids.has(String(y.id))); // may be [] if no classes
+  // Lock teacher view to own record
+  useEffect(() => {
+    if (isTeacher && myTeacherId != null && !teacherId) {
+      setTeacherId(String(myTeacherId));
     }
-    const slotYearIds = new Set((slots as any[]).map((s) => String(s.year_id)).filter(Boolean));
-    if (slotYearIds.size > 0) return (years as any[]).filter((y) => slotYearIds.has(String(y.id)));
-    const classYearIds = new Set((allClasses as any[]).map((c) => String(c.year_id)).filter(Boolean));
-    if (classYearIds.size > 0) return (years as any[]).filter((y) => classYearIds.has(String(y.id)));
-    return years as any[];
-  }, [filterSubjectId, subjectClassesFetched, subjectClassRows, slots, years, allClasses]);
+  }, [isTeacher, myTeacherId, teacherId]);
 
-  // Classes for filter dropdown (filtered by selected year)
-  const { data: filterClasses = [] } = useQuery<any[]>({
-    queryKey: ["filter-classes", filterYearId],
-    enabled: !!filterYearId,
-    queryFn: () => fetchClasses(String(filterYearId)),
-  });
-
-  const selectedSubject = useMemo(() => {
-    if (!filterSubjectId) return null;
-    return (subjects as any[]).find((subject: any) => String(subject.id) === filterSubjectId) ?? null;
-  }, [filterSubjectId, subjects]);
-
-  // Subject name for the active filter (used as fallback when API omits subject_id on slots)
-  const filterSubjectName = selectedSubject?.name ?? null;
-
-  const selectedTeacher = useMemo(() => {
-    if (!filterTeacherId) return null;
-    return (teachers as any[]).find((teacher: any) => String(teacher.id) === filterTeacherId) ?? null;
-  }, [filterTeacherId, teachers]);
-
-  const selectedYearGroup = useMemo(() => {
-    if (!filterYearId) return null;
-    return (years as any[]).find((year: any) => String(year.id) === filterYearId) ?? null;
-  }, [filterYearId, years]);
-
-  const selectedClassGroup = useMemo(() => {
-    if (!filterClassId) return null;
-    return (filterClasses as any[]).find((klass: any) => String(klass.id) === filterClassId) ?? null;
-  }, [filterClassId, filterClasses]);
+  // Default year / class selection
+  useEffect(() => {
+    if (yearId || years.length === 0) return;
+    setYearId(String(years[0].id));
+  }, [yearId, years]);
 
   useEffect(() => {
-    if (filterYearId) return;
-    const firstYear = (yearsInUse as any[])[0] ?? (years as any[])[0];
-    if (!firstYear) return;
-    setFilterYearId(String(firstYear.id));
-  }, [filterYearId, yearsInUse, years]);
+    if (isStudent) return;
+    if (!yearId || yearClasses.length === 0) return;
+    if (classId && yearClasses.some((c) => String(c.id) === classId)) return;
+    setClassId(String(yearClasses[0].id));
+  }, [yearId, yearClasses, classId, isStudent]);
+
+  const rooms = useMemo(() => {
+    const set = new Set(lessons.map((l) => l.room).filter(Boolean));
+    return Array.from(set).sort();
+  }, [lessons]);
 
   useEffect(() => {
-    if (!filterYearId) return;
-    if (filterClasses.length === 0) {
-      if (filterClassId !== null) {
-        setFilterClassId(null);
-      }
-      return;
-    }
-    if (filterClassId && filterClasses.some((klass: any) => String(klass.id) === filterClassId)) {
-      return;
-    }
-    setFilterClassId(String(filterClasses[0].id));
-  }, [filterYearId, filterClassId, filterClasses]);
+    if (view === "room" && !room && rooms.length > 0) setRoom(rooms[0]);
+  }, [view, room, rooms]);
 
-  const selectedClassSlots = useMemo(() => {
-    if (!filterClassId) return [] as any[];
-    return (slots as any[]).filter((slot: any) => String(slot.class_id) === filterClassId);
-  }, [slots, filterClassId]);
+  // ── Helpers ─────────────────────────────────────────────────────────────
+  const subjectNames = useMemo(
+    () => subjects.map((s) => s.name).filter(Boolean) as string[],
+    [subjects]
+  );
+  const teacherName = (id: number | null): string => {
+    if (id == null) return "";
+    const t = teachers.find((x) => Number(x.id) === id);
+    return (t?.teacher_name || t?.name || "") as string;
+  };
+  const className = (id: number | null): string => {
+    if (id == null) return "";
+    const c = allClasses.find((x) => Number(x.id) === id);
+    return (c?.class_name || "") as string;
+  };
 
-  const destinationClasses = useMemo(() => {
-    return filterClasses.filter((klass: any) => String(klass.id) !== filterClassId);
-  }, [filterClasses, filterClassId]);
+  const canEdit = (isAdmin || isHOD) && view === "class" && !!classId;
 
-  const currentWeekType = useMemo<AlternatingWeekType | null>(() => {
-    if (!alternatingCycle.enabled) return null;
-    const anchorWeek = weekStart(dayjs(alternatingCycle.anchorWeek), firstDayIdx);
-    const weekDistance = Math.abs(weekSun.diff(anchorWeek, "week"));
-    if (weekDistance % 2 === 0) {
-      return alternatingCycle.anchorType;
-    }
-    return alternatingCycle.anchorType === "A" ? "B" : "A";
-  }, [alternatingCycle, firstDayIdx, weekSun]);
+  // Lessons in the active A/B week (every-week lessons always included)
+  const weekScoped = useMemo(() => {
+    if (pattern.mode === "single") return lessons;
+    return lessons.filter((l) => !l.week_label || l.week_label === activeWeek);
+  }, [lessons, pattern.mode, activeWeek]);
 
-  const currentWeekMode = useMemo<BuilderWeekMode>(() => {
-    return currentWeekType ?? "every_week";
-  }, [currentWeekType]);
-
-  const handleWeekModeChange = useCallback((value: BuilderWeekMode) => {
-    if (value === "every_week") {
-      setAlternatingCycle((current) => ({ ...current, enabled: false }));
-      return;
-    }
-
-    setAlternatingCycle({
-      enabled: true,
-      anchorWeek: weekSun.format("YYYY-MM-DD"),
-      anchorType: value,
-    });
-  }, [weekSun]);
-
-  useEffect(() => {
-    if (sidebarView !== "subject") return;
-    if (filterSubjectId) return;
-    const firstSubject = (subjects as any[])[0];
-    if (!firstSubject) return;
-    setFilterSubjectId(String(firstSubject.id));
-  }, [sidebarView, filterSubjectId, subjects]);
-
-  useEffect(() => {
-    if (sidebarView !== "teacher") return;
-    if (filterTeacherId) return;
-    const firstTeacher = (teachers as any[])[0];
-    if (!firstTeacher) return;
-    setFilterTeacherId(String(firstTeacher.id));
-  }, [sidebarView, filterTeacherId, teachers]);
-
-  useEffect(() => {
-    if (sidebarView !== "year-group") return;
-    if (filterYearId) return;
-    const firstYear = (yearsInUse as any[])[0] ?? (years as any[])[0];
-    if (!firstYear) return;
-    setFilterYearId(String(firstYear.id));
-  }, [sidebarView, filterYearId, yearsInUse, years]);
-
-  const handleSidebarSelect = useCallback((key: TimetableManagerSidebarKey) => {
-    if (key === "subject") {
-      setSidebarView("subject");
-      setFilterTeacherId(null);
-      setFilterYearId(null);
-      setFilterClassId(null);
-      setFilterSubjectId((current) => {
-        if (current) return current;
-        const firstSubject = (subjects as any[])[0];
-        return firstSubject ? String(firstSubject.id) : null;
-      });
-      return;
-    }
-
-    if (key === "teacher") {
-      setSidebarView("teacher");
-      setFilterSubjectId(null);
-      setFilterYearId(null);
-      setFilterClassId(null);
-      setFilterTeacherId((current) => {
-        if (current) return current;
-        const firstTeacher = (teachers as any[])[0];
-        return firstTeacher ? String(firstTeacher.id) : null;
-      });
-      return;
-    }
-
-    if (key === "year-group") {
-      setSidebarView("year-group");
-      setFilterSubjectId(null);
-      setFilterTeacherId(null);
-      setFilterClassId(null);
-      setFilterYearId((current) => {
-        if (current) return current;
-        const firstYear = (yearsInUse as any[])[0] ?? (years as any[])[0];
-        return firstYear ? String(firstYear.id) : null;
-      });
-      return;
-    }
-
-    if (key === "spreadsheets") {
-      setSidebarView("spreadsheets");
-      setFilterSubjectId(null);
-      setFilterTeacherId(null);
-      setFilterYearId(null);
-      setFilterClassId(null);
-    }
-  }, [subjects, teachers, yearsInUse, years]);
-
-  // ── Week slots ────────────────────────────────────────────────────────────
-  const weekSlots = useMemo(() => {
-    if (sidebarView === "subject" && !filterSubjectId) return [];
-    if (sidebarView === "teacher" && !filterTeacherId) return [];
-    if (sidebarView === "year-group" && !filterYearId) return [];
-
-    let ws = slotsForWeek(slots, weekSun);
-    if (filterSubjectId) ws = ws.filter((s: any) =>
-      String(s.subject_id) === filterSubjectId ||
-      (filterSubjectName && s.subject === filterSubjectName)
-    );
-    if (filterYearId)    ws = ws.filter((s: any) => String(s.year_id)    === filterYearId);
-    if (filterClassId)   ws = ws.filter((s: any) => String(s.class_id)   === filterClassId);
-    if (filterTeacherId) ws = ws.filter((s: any) => String(s.teacher_id) === filterTeacherId);
-    return ws;
-  }, [slots, weekSun, sidebarView, filterSubjectId, filterSubjectName, filterYearId, filterClassId, filterTeacherId]);
-
-  // Build conflict map: slotId → Conflict[]
+  // Conflict map across the whole school for the active week
   const conflictMap = useMemo(() => {
-    const map: Record<string, ReturnType<typeof detectConflicts>> = {};
-    for (const slot of slots) {
-      const candidate = {
-        id: slot.id,
-        day_of_week: slot.day,
-        start_time: slot.start_time,
-        end_time: slot.end_time,
-        teacher_id: slot.teacher_id,
-        class_id: slot.class_id,
-        room: slot.room,
-      };
-      map[slot.id] = detectConflicts(
-        slots.map((s: any) => ({
-          id: s.id,
-          day_of_week: s.day,
-          start_time: s.start_time,
-          end_time: s.end_time,
-          teacher_id: s.teacher_id,
-          class_id: s.class_id,
-          room: s.room,
-        })),
-        candidate
-      );
+    const pool = weekScoped.map((l) => ({
+      id: l.id,
+      day_of_week: l.day,
+      start_time: l.start_time,
+      end_time: l.end_time,
+      teacher_id: l.teacher_id,
+      class_id: l.class_id,
+      room: l.room,
+    }));
+    const map: Record<number, ReturnType<typeof detectConflicts>> = {};
+    for (const s of pool) {
+      map[s.id as number] = detectConflicts(pool, s);
     }
     return map;
-  }, [slots]);
+  }, [weekScoped]);
 
-  // Stats for the selected class view
-  const stats = useMemo(() => {
-    const teacherSet = new Set(weekSlots.map((s: any) => s.teacher_id).filter(Boolean));
-    const classSet = new Set(weekSlots.map((s: any) => s.class_id).filter(Boolean));
-    const conflictSlots = weekSlots.filter((s: any) => (conflictMap[s.id] ?? []).length > 0);
-    return {
-      slots: weekSlots.length,
-      teachers: teacherSet.size,
-      classes: classSet.size,
-      conflicts: conflictSlots.length,
-    };
-  }, [weekSlots, conflictMap]);
+  // Which lessons appear given the current view
+  const visibleLessons = useMemo(() => {
+    if (view === "class") {
+      const cid = classId ? Number(classId) : null;
+      return weekScoped.filter((l) => l.class_id === cid);
+    }
+    if (view === "teacher") {
+      const tid = teacherId ? Number(teacherId) : null;
+      return weekScoped.filter((l) => l.teacher_id === tid);
+    }
+    if (view === "room") {
+      return weekScoped.filter((l) => l.room && l.room === room);
+    }
+    return weekScoped; // school
+  }, [view, weekScoped, classId, teacherId, room]);
 
-  // ── Mutations ─────────────────────────────────────────────────────────────
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["timetable"] });
+  const lessonsAt = (day: string, period: SchoolPeriod): Lesson[] => {
+    const ps = toMinutes(period.startTime);
+    const pe = toMinutes(period.endTime);
+    return visibleLessons
+      .filter((l) => l.day === day)
+      .filter((l) => {
+        const s = toMinutes(l.start_time);
+        return s >= ps && s < pe;
+      })
+      .sort((a, b) => a.start_time.localeCompare(b.start_time));
+  };
+
+  // ── Add / edit lesson ─────────────────────────────────────────────────────
+  const [form] = Form.useForm();
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
+  const [editorCell, setEditorCell] = useState<{ day: string; period: SchoolPeriod } | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+
+  const invalidate = () =>
+    queryClient.invalidateQueries({ queryKey: ["timetable"] });
 
   const addMutation = useMutation({
     mutationFn: (data: Parameters<typeof addTimetableSlot>[0]) =>
       addTimetableSlot(data, "all"),
-    onSuccess: () => { invalidate(); messageApi.success("Slot added"); },
-    onError: () => messageApi.error("Failed to add slot"),
+    onSuccess: () => {
+      messageApi.success("Lesson added");
+      invalidate();
+      closeEditor();
+    },
+    onError: () => messageApi.error("Failed to add lesson"),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Parameters<typeof updateTimetableSlot>[1] }) =>
       updateTimetableSlot(id, data, "all"),
-    onSuccess: () => { invalidate(); messageApi.success("Slot updated"); },
-    onError: () => messageApi.error("Failed to update slot"),
+    onSuccess: () => {
+      messageApi.success("Lesson updated");
+      invalidate();
+      closeEditor();
+    },
+    onError: () => messageApi.error("Failed to update lesson"),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteTimetableSlot(id),
-    onSuccess: () => { invalidate(); messageApi.success("Slot deleted"); },
-    onError: () => messageApi.error("Failed to delete slot"),
+    onSuccess: () => {
+      messageApi.success("Lesson removed");
+      invalidate();
+      closeEditor();
+    },
+    onError: () => messageApi.error("Failed to remove lesson"),
   });
 
-  // ── Popover helpers ───────────────────────────────────────────────────────
   const openAdd = (day: string, period: SchoolPeriod) => {
-    if (!filterYearId || !filterClassId) {
-      messageApi.warning("Select a year group and class first.");
+    setEditingLesson(null);
+    setEditorCell({ day, period });
+    form.resetFields();
+    setEditorOpen(true);
+  };
+
+  const openEdit = (lesson: Lesson) => {
+    // If editing from a non-class view, jump to that class first.
+    if (view !== "class") {
+      if (lesson.class_id) {
+        const cls = allClasses.find((c) => Number(c.id) === lesson.class_id);
+        if (cls?.year_id) setYearId(String(cls.year_id));
+        setClassId(String(lesson.class_id));
+      }
+      if (isAdmin || isHOD) setView("class");
       return;
     }
-    setPopoverMode("add");
-    setEditingSlot({ day, period });
-    setFormConflicts([]);
-    setPopoverKey(`${day}|${period.id}`);
+    setEditingLesson(lesson);
+    setEditorCell(null);
+    form.setFieldsValue({
+      subject: lesson.subject || undefined,
+      teacher_id: lesson.teacher_id ? String(lesson.teacher_id) : undefined,
+      room: lesson.room || undefined,
+      zoom_link: lesson.zoom_link || undefined,
+    });
+    setEditorOpen(true);
   };
 
-  const openEdit = (slot: any) => {
-    setPopoverMode("edit");
-    setEditingSlot(slot);
-    setFormConflicts([]);
-    setPopoverKey(`edit|${slot.id}`);
+  const closeEditor = () => {
+    setEditorOpen(false);
+    setEditingLesson(null);
+    setEditorCell(null);
+    setConfirmingDelete(false);
+    form.resetFields();
   };
 
-  const closePopover = () => setPopoverKey(null);
-
-  const handleFormSave = useCallback(
-    (values: SlotFormValues) => {
-      if (!editingSlot || !filterYearId || !filterClassId) {
-        messageApi.warning("Select a year group and class first.");
-        return;
+  const candidateConflicts = (values: { teacher_id?: string; room?: string }) => {
+    const day = editingLesson ? editingLesson.day : editorCell?.day ?? "";
+    const start = editingLesson
+      ? editingLesson.start_time
+      : editorCell?.period.startTime ?? "";
+    const end = editingLesson
+      ? editingLesson.end_time
+      : editorCell?.period.endTime ?? "";
+    return detectConflicts(
+      weekScoped.map((l) => ({
+        id: l.id,
+        day_of_week: l.day,
+        start_time: l.start_time,
+        end_time: l.end_time,
+        teacher_id: l.teacher_id,
+        class_id: l.class_id,
+        room: l.room,
+      })),
+      {
+        id: editingLesson?.id,
+        day_of_week: day,
+        start_time: start,
+        end_time: end,
+        teacher_id: values.teacher_id ? Number(values.teacher_id) : null,
+        class_id: classId ? Number(classId) : null,
+        room: values.room ?? null,
       }
+    );
+  };
 
-      // Build candidate for conflict detection
-      const candidate = {
-        id: popoverMode === "edit" ? editingSlot.id : undefined,
-        day_of_week: popoverMode === "add" ? editingSlot.day : editingSlot.day,
-        start_time: popoverMode === "add" ? editingSlot.period.startTime : editingSlot.start_time,
-        end_time: popoverMode === "add" ? editingSlot.period.endTime : editingSlot.end_time,
-        teacher_id: Number(values.teacher_id) || null,
-        class_id: Number(filterClassId) || null,
-        room: values.room || null,
-      };
+  const submitEditor = async () => {
+    const values = await form.validateFields();
+    const wl = pattern.mode === "ab" ? activeWeek : null;
+    const base = {
+      subject: values.subject ?? "",
+      year_id: String(yearId ?? ""),
+      teacher_id: values.teacher_id ? String(values.teacher_id) : "",
+      class_id: String(classId ?? ""),
+      room: values.room ?? "",
+      date: "",
+      zoom_link: values.zoom_link ?? "",
+      week_label: wl,
+      school_id: schoolId ?? undefined,
+    };
 
-      const foundConflicts = detectConflicts(
-        slots.map((s: any) => ({
-          id: s.id,
-          day_of_week: s.day,
-          start_time: s.start_time,
-          end_time: s.end_time,
-          teacher_id: s.teacher_id,
-          class_id: s.class_id,
-          room: s.room,
-        })),
-        candidate
-      );
+    if (editingLesson) {
+      updateMutation.mutate({
+        id: String(editingLesson.id),
+        data: {
+          ...base,
+          day: editingLesson.day,
+          start_time: editingLesson.start_time,
+          end_time: editingLesson.end_time,
+        },
+      });
+    } else if (editorCell) {
+      addMutation.mutate({
+        ...base,
+        day: editorCell.day,
+        start_time: editorCell.period.startTime,
+        end_time: editorCell.period.endTime,
+      });
+    }
+  };
 
-      if (hasHardConflict(foundConflicts)) {
-        setFormConflicts(foundConflicts);
-        return; // block save
-      }
-      if (hasSoftConflict(foundConflicts)) {
-        setFormConflicts(foundConflicts);
-        // soft conflicts: show warning but still proceed
-      }
+  // ── Copy a day's lessons to other days (class view) ───────────────────────
+  const [copyOpen, setCopyOpen] = useState(false);
+  const [copyFromDay, setCopyFromDay] = useState<string | null>(null);
+  const [copyToDays, setCopyToDays] = useState<string[]>([]);
 
-      const day = popoverMode === "add" ? editingSlot.day : editingSlot.day;
-      const date = dayOffset(day, weekSun, firstDayIdx);
-      // Resolve subject name from the selected subject_id
-      const selectedSubject = (subjects as any[]).find(
-        (s: any) => String(s.id) === String(values.subject_id)
-      );
-      const payload = {
-        subject: selectedSubject?.name ?? "",
-        subject_id: values.subject_id,
-        teacher_id: values.teacher_id,
-        year_id: filterYearId,
-        class_id: filterClassId,
-        room: values.room ?? "",
-        zoom_link: values.zoom_link,
-        date,
-        day,
-        start_time: popoverMode === "add" ? editingSlot.period.startTime : editingSlot.start_time,
-        end_time: popoverMode === "add" ? editingSlot.period.endTime : editingSlot.end_time,
-        school_id: schoolId ?? undefined,
-      };
-
-      if (popoverMode === "add") {
-        addMutation.mutate(payload as any, { onSuccess: closePopover });
-      } else {
-        updateMutation.mutate(
-          { id: String(editingSlot.id), data: payload as any },
-          { onSuccess: closePopover }
-        );
-      }
-    },
-    [editingSlot, filterClassId, filterYearId, messageApi, popoverMode, slots, weekSun, schoolId, subjects, addMutation, updateMutation]
-  );
-
-  // ── Reset timetable ──────────────────────────────────────────────────────
-  const [resetting, setResetting] = useState(false);
-  const [resetScope, setResetScope] = useState<"week" | "class" | null>(null);
-
-  const handleReset = (scope: "week" | "class") => {
-    if (!filterClassId) {
-      messageApi.warning("Select a class first.");
+  const doCopyDay = async () => {
+    if (!copyFromDay || copyToDays.length === 0 || !classId) return;
+    const source = weekScoped.filter(
+      (l) => l.class_id === Number(classId) && l.day === copyFromDay
+    );
+    if (source.length === 0) {
+      messageApi.warning("That day has no lessons to copy.");
       return;
     }
-    setResetScope(scope);
-  };
-
-  const confirmReset = async () => {
-    if (!resetScope || !filterClassId) return;
-    const target = resetScope === "week"
-      ? weekSlots
-      : selectedClassSlots;
-    setResetting(true);
-    setResetScope(null);
-    let failed = 0;
-    for (const slot of target) {
-      try {
-        await deleteTimetableSlot(String(slot.id));
-      } catch {
-        failed++;
-      }
-    }
-    await invalidate();
-    setResetting(false);
-    if (failed === 0) {
-      messageApi.success(`Deleted ${target.length} slot${target.length !== 1 ? "s" : ""}`);
-    } else {
-      messageApi.warning(`Deleted ${target.length - failed}/${target.length} slots (${failed} failed)`);
-    }
-  };
-
-  // ── Duplicate week ────────────────────────────────────────────────────────
-  const handleDuplicate = async ({
-    targetWeekSuns,
-    clearExisting,
-  }: {
-    targetWeekSuns: Dayjs[];
-    clearExisting: boolean;
-  }) => {
-    if (!filterYearId || !filterClassId) {
-      messageApi.warning("Select a year group and class first.");
-      return;
-    }
-    const source = weekSlots;
-    for (const targetSun of targetWeekSuns) {
-      if (clearExisting) {
-        const existingTargetSlots = slotsForWeek(selectedClassSlots, targetSun);
-        await Promise.all(
-          existingTargetSlots.map((slot: any) => deleteTimetableSlot(String(slot.id)))
-        );
-      }
-
-      for (const slot of source) {
-        const srcDate = dayjs(slot.date);
-        const dayDiff = srcDate.diff(weekSun, "day");
-        const newDate = targetSun.add(dayDiff, "day").format("YYYY-MM-DD");
+    const wl = pattern.mode === "ab" ? activeWeek : null;
+    let count = 0;
+    for (const targetDay of copyToDays) {
+      for (const l of source) {
         await addTimetableSlot(
           {
-            subject: slot.subject,
-            subject_id: String(slot.subject_id ?? ""),
-            teacher_id: String(slot.teacher_id ?? ""),
-            year_id: filterYearId,
-            class_id: filterClassId,
-            room: slot.room ?? "",
-            zoom_link: slot.zoom_link,
-            date: newDate,
-            day: slot.day,
-            start_time: slot.start_time,
-            end_time: slot.end_time,
+            subject: l.subject,
+            year_id: String(l.year_id ?? yearId ?? ""),
+            teacher_id: l.teacher_id ? String(l.teacher_id) : "",
+            class_id: String(classId),
+            room: l.room,
+            date: "",
+            day: targetDay,
+            week_label: wl,
+            start_time: l.start_time,
+            end_time: l.end_time,
+            zoom_link: l.zoom_link,
             school_id: schoolId ?? undefined,
           },
           "all"
         );
+        count += 1;
       }
     }
-    await invalidate();
-    messageApi.success(
-      `Copied ${source.length} slot${source.length !== 1 ? "s" : ""} to ${targetWeekSuns.length} week${targetWeekSuns.length !== 1 ? "s" : ""}`
-    );
+    messageApi.success(`Copied ${count} lesson${count !== 1 ? "s" : ""}.`);
+    invalidate();
+    setCopyOpen(false);
+    setCopyToDays([]);
   };
 
-  const handleCopyToClasses = useCallback(
-    async ({
-      targetClassIds,
-      clearExisting,
-      copyTeachers,
-    }: {
-      targetClassIds: string[];
-      clearExisting: boolean;
-      copyTeachers: boolean;
-    }) => {
-      if (!filterYearId || !filterClassId || targetClassIds.length === 0) {
-        messageApi.warning("Select a source class and destination classes first.");
-        return;
-      }
+  // ── Print / export ────────────────────────────────────────────────────────
+  const handlePrint = () => {
+    const title =
+      view === "class"
+        ? `Timetable — ${className(classId ? Number(classId) : null) || "Class"}`
+        : view === "teacher"
+        ? `Timetable — ${teacherName(teacherId ? Number(teacherId) : null) || "Teacher"}`
+        : view === "room"
+        ? `Timetable — Room ${room ?? ""}`
+        : "School Timetable";
 
-      const source = weekSlots;
-      if (source.length === 0) {
-        messageApi.warning("There are no lessons in this class for the selected week.");
-        return;
-      }
-
-      setCopyClassWeekLoading(true);
-      try {
-        const weekSourceSlots = slotsForWeek(slots, weekSun);
-
-        for (const targetClassId of targetClassIds) {
-          const targetClass = destinationClasses.find((klass: any) => String(klass.id) === targetClassId);
-          if (!targetClass) continue;
-
-          if (clearExisting) {
-            const existingTargetSlots = weekSourceSlots.filter(
-              (slot: any) => String(slot.class_id) === targetClassId
-            );
-            await Promise.all(
-              existingTargetSlots.map((slot: any) => deleteTimetableSlot(String(slot.id)))
-            );
-          }
-
-          for (const slot of source) {
-            await addTimetableSlot(
-              {
-                subject: slot.subject,
-                subject_id: String(slot.subject_id ?? ""),
-                teacher_id: copyTeachers ? String(slot.teacher_id ?? "") : "",
-                year_id: String(targetClass.year_id ?? filterYearId),
-                class_id: String(targetClass.id),
-                room: slot.room ?? "",
-                zoom_link: slot.zoom_link,
-                date: slot.date,
-                day: slot.day,
-                start_time: slot.start_time,
-                end_time: slot.end_time,
-                school_id: schoolId ?? undefined,
-              },
-              "all"
-            );
-          }
+    const teachingPeriods = periods;
+    const head = `<tr><th>Period</th>${orderedDays
+      .map((d) => `<th>${d}</th>`)
+      .join("")}</tr>`;
+    const rows = teachingPeriods
+      .map((p) => {
+        if (!p.isTeaching) {
+          return `<tr><td class="ph">${p.label}<br><span>${p.startTime}–${p.endTime}</span></td><td class="band" colspan="${orderedDays.length}">${p.label}</td></tr>`;
         }
+        const cells = orderedDays
+          .map((d) => {
+            const items = lessonsAt(d, p)
+              .map((l) => {
+                const lines = [l.subject || "Lesson"];
+                if (view !== "teacher" && l.teacher_id)
+                  lines.push(teacherName(l.teacher_id));
+                if (view !== "class" && l.class_id)
+                  lines.push(className(l.class_id));
+                if (l.room) lines.push("Room " + l.room);
+                return `<div class="cell">${lines
+                  .filter(Boolean)
+                  .map((t, i) => `<span class="${i === 0 ? "s1" : "s2"}">${t}</span>`)
+                  .join("")}</div>`;
+              })
+              .join("");
+            return `<td>${items}</td>`;
+          })
+          .join("");
+        return `<tr><td class="ph">${p.label}<br><span>${p.startTime}–${p.endTime}</span></td>${cells}</tr>`;
+      })
+      .join("");
 
-        await invalidate();
-        setCopyClassWeekOpen(false);
-        messageApi.success(
-          `Copied ${source.length} slot${source.length !== 1 ? "s" : ""} to ${targetClassIds.length} class${targetClassIds.length !== 1 ? "es" : ""}`
-        );
-      } catch {
-        messageApi.error("Failed to copy this class week to the selected classes");
-      } finally {
-        setCopyClassWeekLoading(false);
-      }
-    },
-    [destinationClasses, filterClassId, filterYearId, invalidate, messageApi, schoolId, slots, weekSlots, weekSun]
-  );
-
-  // ── Grid helpers ──────────────────────────────────────────────────────────
-  const teachingPeriods = periods.filter((p) => p.isTeaching);
-  const allDisplayedPeriods = periods;
-
-  const getCellSlots = (day: string, period: SchoolPeriod) => {
-    return weekSlots.filter(
-      (s: any) =>
-        s.day === day &&
-        s.start_time.slice(0, 5) === period.startTime &&
-        s.end_time.slice(0, 5) === period.endTime
-    );
+    const win = window.open("", "_blank", "width=1100,height=800");
+    if (!win) return;
+    const ab =
+      pattern.mode === "ab" ? ` — Week ${activeWeek}` : "";
+    win.document.write(`<!doctype html><html><head><title>${title}</title>
+<style>
+  body{font-family:Inter,Arial,sans-serif;color:#0f172a;padding:24px}
+  h1{font-size:18px;margin:0 0 12px}
+  table{border-collapse:collapse;width:100%}
+  th,td{border:1px solid #cbd5e1;padding:6px;vertical-align:top;font-size:11px}
+  th{background:#f1f5f9;text-align:center}
+  td.ph{background:#f8fafc;font-weight:700;text-align:center;white-space:nowrap}
+  td.ph span{font-weight:400;color:#64748b;font-size:10px}
+  td.band{background:#f1f5f9;text-align:center;font-weight:600;color:#64748b}
+  .cell{margin-bottom:4px;padding:4px 6px;border-radius:6px;background:#eef2ff;display:flex;flex-direction:column}
+  .s1{font-weight:700}
+  .s2{color:#475569;font-size:10px}
+</style></head><body>
+  <h1>${title}${ab}</h1>
+  <table><thead>${head}</thead><tbody>${rows}</tbody></table>
+  <script>window.onload=function(){window.print();}</script>
+</body></html>`);
+    win.document.close();
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
+  const showSelectors = !isStudent;
+  const cellEditable = canEdit;
+
+  const viewOptions = [
+    { label: "By Class", value: "class", icon: <GraduationCap size={14} /> },
+    { label: "By Teacher", value: "teacher", icon: <Users size={14} /> },
+    { label: "By Room", value: "room", icon: <DoorOpen size={14} /> },
+    { label: "Whole school", value: "school", icon: <SchoolIcon size={14} /> },
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30 p-4 md:p-6">
+    <div className="dashboard-theme-scope px-1 pb-24">
       {contextHolder}
 
       {/* Header */}
-      <div className="max-w-screen-xl mx-auto mb-5">
-        <div className="mb-4">
-          <TimetableModeTabs activeTab="timetable" />
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1
+            className="m-0 flex items-center gap-2 text-2xl font-extrabold leading-tight"
+            style={{ color: "var(--theme-dark)" }}
+          >
+            <CalendarDays size={24} /> Timetable
+          </h1>
+          <p className="mt-1 text-sm text-slate-500">
+            {isStudent
+              ? "Your weekly class schedule."
+              : isTeacher
+              ? "Your weekly teaching schedule."
+              : "Build a repeating weekly schedule for your whole school."}
+          </p>
         </div>
-
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <Title level={3} style={{ margin: 0 }}>
-              Class Timetable Builder
-            </Title>
-            <Text type="secondary" className="text-sm">
-              Choose a year group and class, then click cells to place lessons. Teachers, HODs, and students will see the timetable from their assigned classes.
-            </Text>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button icon={<ArrowLeftOutlined />} onClick={() => setAnchor((a) => a.subtract(7, "day"))} />
-            <DatePicker
-              value={weekSun}
-              format="DD MMM YYYY"
-              style={{ width: 160 }}
-              onChange={(d) => { if (d) setAnchor(d); }}
-            />
-            <Button icon={<ArrowRightOutlined />} onClick={() => setAnchor((a) => a.add(7, "day"))} />
-            <Button onClick={() => setAnchor(dayjs())}>This Week</Button>
-            <Button icon={<CopyOutlined />} disabled={!filterClassId} onClick={() => setDuplicateOpen(true)}>Copy Week</Button>
-            <Button icon={<CopyOutlined />} disabled={!filterClassId || weekSlots.length === 0 || destinationClasses.length === 0} onClick={() => setCopyClassWeekOpen(true)}>
-              Copy To Classes
-            </Button>
-            <Button icon={<UploadOutlined />} onClick={() => setImportOpen(true)}>Import</Button>
-            <Dropdown
-              menu={{
-                items: [
-                  {
-                    key: "week",
-                    label: `Reset this week for ${selectedClassGroup?.class_name ?? "selected class"} (${weekSlots.length} slots)`,
-                    danger: true,
-                  },
-                  {
-                    key: "class",
-                    label: `Reset all weeks for ${selectedClassGroup?.class_name ?? "selected class"} (${selectedClassSlots.length} slots)`,
-                    danger: true,
-                  },
-                ],
-                onClick: ({ key }) => handleReset(key as "week" | "class"),
-              }}
-              trigger={["click"]}
-            >
-              <Button danger icon={<ClearOutlined />} loading={resetting} disabled={!filterClassId}>Reset</Button>
-            </Dropdown>
-            <Button icon={<SettingOutlined />} onClick={() => setPeriodsModalOpen(true)}>Periods</Button>
-            <a href="/dashboard/timetable-generator">
-              <Button type="primary" className="bg-gradient-to-r from-blue-500 to-indigo-500">
-                ⚡ Generate
+        <div className="flex flex-wrap items-center gap-2">
+          <Button icon={<Printer size={15} />} onClick={handlePrint}>
+            Print / PDF
+          </Button>
+          {(isAdmin || isHOD) && (
+            <>
+              <Button
+                icon={<Settings2 size={15} />}
+                onClick={() => setConfigOpen(true)}
+              >
+                Days &amp; periods
               </Button>
-            </a>
-          </div>
+              <Button
+                type="primary"
+                icon={<CalendarDays size={15} />}
+                onClick={() => setPatternOpen(true)}
+              >
+                {pattern.mode === "ab" ? "Two-week A/B" : "Same every week"}
+              </Button>
+            </>
+          )}
         </div>
-
       </div>
 
-      <div className="max-w-screen-xl mx-auto grid gap-4">
-        <div className="min-w-0 space-y-4">
-          <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-              <div>
-                <div className="text-base font-semibold text-slate-800">Build Timetable By Class</div>
-                <div className="text-sm text-slate-500">
-                  Add lessons once to the class timetable. Assigned teachers and students will pick them up automatically.
-                </div>
-              </div>
+      {/* Toolbar */}
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+        <Segmented
+          value={view}
+          onChange={(v) => setView(v as ViewMode)}
+          options={
+            isStudent
+              ? [viewOptions[0]]
+              : isTeacher
+              ? [viewOptions[1], viewOptions[0], viewOptions[2], viewOptions[3]]
+              : viewOptions
+          }
+        />
 
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <Select
-                  showSearch
-                  optionFilterProp="children"
-                  placeholder="Select a year group"
-                  style={{ width: 220 }}
-                  value={filterYearId ?? undefined}
-                  onChange={(value) => {
-                    setFilterYearId(value ?? null);
-                    setFilterClassId(null);
-                  }}
-                >
-                  {(yearsInUse.length > 0 ? yearsInUse : years).map((year: any) => (
-                    <Option key={year.id} value={String(year.id)}>
-                      {year.name}
-                    </Option>
-                  ))}
-                </Select>
-
-                <Select
-                  showSearch
-                  optionFilterProp="children"
-                  placeholder="Select a class"
-                  style={{ width: 220 }}
-                  disabled={!filterYearId || filterClasses.length === 0}
-                  value={filterClassId ?? undefined}
-                  onChange={(value) => setFilterClassId(value ?? null)}
-                >
-                  {filterClasses.map((klass: any) => (
-                    <Option key={klass.id} value={String(klass.id)}>
-                      {klass.class_name}
-                    </Option>
-                  ))}
-                </Select>
-              </div>
-            </div>
-
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              <Tag color="blue">{selectedYearGroup?.name ?? "Choose year group"}</Tag>
-              <Tag color="cyan">{selectedClassGroup?.class_name ?? "Choose class"}</Tag>
-              <Tag color="green">{weekSlots.length} lesson{weekSlots.length !== 1 ? "s" : ""} this week</Tag>
-              {currentWeekType && <Tag color={currentWeekType === "A" ? "purple" : "magenta"}>Week {currentWeekType}</Tag>}
-              {stats.conflicts > 0 && (
-                <Tag color="error" icon={<WarningOutlined />}>{stats.conflicts} conflict{stats.conflicts !== 1 ? "s" : ""} this week</Tag>
-              )}
-            </div>
-
-            <div className="mt-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-              <div className="text-xs text-slate-500">
-                Use alternating mode if this class changes between Week A and Week B.
-              </div>
-              <Radio.Group
-                value={currentWeekMode}
-                onChange={(event) => handleWeekModeChange(event.target.value as BuilderWeekMode)}
-                optionType="button"
-                buttonStyle="solid"
-                size="small"
+        <div className="flex flex-wrap items-center gap-2">
+          {showSelectors && view === "class" && (
+            <>
+              <Select
+                value={yearId ?? undefined}
+                onChange={(v) => {
+                  setYearId(v);
+                  setClassId(null);
+                }}
+                placeholder="Year group"
+                style={{ minWidth: 150 }}
+                showSearch
+                optionFilterProp="children"
               >
-                <Radio.Button value="every_week">Same Every Week</Radio.Button>
-                <Radio.Button value="A">This Week = A</Radio.Button>
-                <Radio.Button value="B">This Week = B</Radio.Button>
-              </Radio.Group>
-            </div>
+                {years.map((y) => (
+                  <Option key={y.id} value={String(y.id)}>
+                    {y.name}
+                  </Option>
+                ))}
+              </Select>
+              <Select
+                value={classId ?? undefined}
+                onChange={(v) => setClassId(v)}
+                placeholder="Class"
+                style={{ minWidth: 140 }}
+                showSearch
+                optionFilterProp="children"
+              >
+                {yearClasses.map((c) => (
+                  <Option key={c.id} value={String(c.id)}>
+                    {c.class_name}
+                  </Option>
+                ))}
+              </Select>
+            </>
+          )}
 
-            {!filterYearId ? (
-              <div className="mt-4 text-xs text-slate-500">
-                Select a year group to load its classes.
-              </div>
-            ) : filterClasses.length === 0 ? (
-              <div className="mt-4 text-xs text-slate-500">
-                No classes are configured for this year group yet.
-              </div>
-            ) : (
-              <div className="mt-4 text-xs text-slate-500">
-                These lessons are saved against <strong>{selectedClassGroup?.class_name ?? "the selected class"}</strong> and flow to assigned teachers and students automatically.
-              </div>
-            )}
-          </div>
+          {showSelectors && view === "teacher" && (
+            <Select
+              value={teacherId ?? undefined}
+              onChange={(v) => setTeacherId(v)}
+              placeholder="Teacher"
+              style={{ minWidth: 180 }}
+              showSearch
+              optionFilterProp="children"
+              disabled={isTeacher}
+            >
+              {teachers.map((t) => (
+                <Option key={t.id} value={String(t.id)}>
+                  {t.teacher_name || t.name}
+                </Option>
+              ))}
+            </Select>
+          )}
 
-          <div className="flex flex-wrap items-center gap-3">
-            <Tag color="blue" style={{ fontSize: 13 }}>{weekLabel(weekSun)}</Tag>
-            {currentWeekType && (
-              <Tag color={currentWeekType === "A" ? "purple" : "magenta"}>Week {currentWeekType}</Tag>
-            )}
-            <span className="text-xs text-slate-500">
-              {stats.slots} lessons · {stats.teachers} teachers · {stats.classes} class{stats.classes !== 1 ? "es" : ""}
+          {view === "room" && (
+            <Select
+              value={room ?? undefined}
+              onChange={(v) => setRoom(v)}
+              placeholder="Room"
+              style={{ minWidth: 140 }}
+              showSearch
+              notFoundContent="No rooms used yet"
+            >
+              {rooms.map((r) => (
+                <Option key={r} value={r}>
+                  Room {r}
+                </Option>
+              ))}
+            </Select>
+          )}
+
+          {canEdit && (
+            <Button
+              icon={<Copy size={14} />}
+              onClick={() => {
+                setCopyFromDay(orderedDays[0] ?? null);
+                setCopyToDays([]);
+                setCopyOpen(true);
+              }}
+            >
+              Copy day
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* A/B week banner */}
+      {pattern.mode === "ab" && (
+        <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm">
+          <span className="font-semibold text-indigo-900">Two-week rotation</span>
+          <Segmented
+            size="small"
+            value={activeWeek}
+            onChange={(v) => setActiveWeek(v as WeekLabel)}
+            options={[
+              { label: "Week A", value: "A" },
+              { label: "Week B", value: "B" },
+            ]}
+          />
+          <span className="text-indigo-700">
+            This calendar week is <strong>Week {thisCalendarWeek}</strong>.
+          </span>
+          {(isAdmin || isHOD) && (
+            <span className="text-xs text-indigo-500">
+              Tip: mark a lesson&apos;s week below; lessons left as &quot;every week&quot; show in both.
             </span>
-            {selectedClassGroup && (
-              <Tag color="cyan">Class: {selectedClassGroup.class_name}</Tag>
-            )}
-          </div>
+          )}
+        </div>
+      )}
 
-          {/* Grid */}
-          <div className="overflow-x-auto rounded-3xl border border-slate-200 bg-white p-3 shadow-sm">
-            {slotsLoading ? (
-              <div className="flex justify-center items-center h-64"><Spin size="large" /></div>
-            ) : (
-              <table className="w-full border-collapse text-xs" style={{ minWidth: 700 }}>
+      {/* Grid */}
+      {orderedDays.length === 0 ? (
+        <Empty text="No school days set. Click “Days & periods” to choose them." />
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+          <table className="w-full border-collapse text-sm">
             <thead>
               <tr>
-                <th className="bg-slate-100 border border-slate-200 p-2 text-slate-500 font-medium w-20">Period</th>
-                {schoolDays.map((day) => {
-                  const date = weekSun.add((DAYS_OF_WEEK.findIndex((d) => d.value === day) - firstDayIdx + 7) % 7, "day");
-                  const isToday = date.format("YYYY-MM-DD") === dayjs().format("YYYY-MM-DD");
-                  return (
-                    <th
-                      key={day}
-                      className={`border border-slate-200 p-2 font-medium text-center ${isToday ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-600"}`}
-                    >
-                      <div>{day.slice(0, 3)}</div>
-                      <div className={`text-xs font-normal ${isToday ? "text-blue-500" : "text-slate-400"}`}>
-                        {date.format("D MMM")}
-                      </div>
-                    </th>
-                  );
-                })}
+                <th className="sticky left-0 z-10 w-28 border-b border-r border-slate-200 bg-slate-50 p-2 text-left text-xs font-semibold text-slate-500">
+                  Period
+                </th>
+                {orderedDays.map((d) => (
+                  <th
+                    key={d}
+                    className="border-b border-r border-slate-200 bg-slate-50 p-2 text-center text-xs font-semibold text-slate-600"
+                  >
+                    {d}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {allDisplayedPeriods.map((period) => (
-                <tr key={period.id} className={period.isTeaching ? "" : "bg-slate-50"}>
-                  {/* Period label */}
-                  <td className="border border-slate-200 p-1.5 text-center align-middle bg-slate-50">
-                    <div className="font-semibold text-slate-700">{period.label}</div>
-                    <div className="text-slate-400">{period.startTime}</div>
-                    <div className="text-slate-400">{period.endTime}</div>
-                  </td>
-
-                  {schoolDays.map((day) => {
-                    const cellSlots = getCellSlots(day, period);
-                    const cellKey = `${day}|${period.id}`;
-                    const isAddOpen = popoverKey === cellKey && popoverMode === "add";
-
-                    return (
-                      <td
-                        key={day}
-                        className={`border border-slate-200 p-1 align-top min-w-[120px] ${!period.isTeaching ? "bg-slate-50" : "hover:bg-blue-50/20 cursor-pointer"}`}
-                        style={{ verticalAlign: "top" }}
-                      >
-                        {/* Existing slot chips */}
-                        <div className="max-h-36 overflow-y-auto flex flex-col gap-0.5">
-                        {cellSlots.slice(0, 4).map((slot: any) => {
-                          const slotKey = `edit|${slot.id}`;
-                          const isEditOpen = popoverKey === slotKey;
-                          const slotConflicts = conflictMap[slot.id] ?? [];
-                          const chip = chipColor(slot.subject ?? "");
-                          const hasHard = hasHardConflict(slotConflicts);
-                          const hasSoft = hasSoftConflict(slotConflicts);
-
-                          return (
-                            <Popover
-                              key={slot.id}
-                              open={isEditOpen}
-                              trigger="click"
-                              placement="right"
-                              onOpenChange={(open) => {
-                                if (!open) closePopover();
-                              }}
-                              content={
-                                isEditOpen ? (
-                                  <SlotForm
-                                    initial={{
-                                      subject_id: String(slot.subject_id ?? ""),
-                                      teacher_id: String(slot.teacher_id ?? ""),
-                                      room: slot.room ?? "",
-                                      zoom_link: slot.zoom_link ?? "",
-                                    }}
-                                    subjects={subjects}
-                                    teachers={teachers}
-                                    onSave={handleFormSave}
-                                    onCancel={closePopover}
-                                    loading={updateMutation.isPending}
-                                    conflicts={formConflicts}
-                                    yearLabel={selectedYearGroup?.name}
-                                    classLabel={selectedClassGroup?.class_name}
-                                  />
-                                ) : null
-                              }
-                            >
-                              <Tooltip
-                                title={
-                                  slotConflicts.length > 0
-                                    ? slotConflicts.map((c) => c.message).join("; ")
-                                    : `${slot.subject} · ${slot.teacher?.teacher_name ?? ""}`
-                                }
-                              >
-                                <div
-                                  onClick={() => openEdit(slot)}
-                                  className="rounded mb-0.5 px-1.5 py-0.5 cursor-pointer border text-xs flex items-center justify-between gap-1 group"
-                                  style={{
-                                    background: chip.bg,
-                                    color: chip.text,
-                                    borderColor: hasHard ? "#ef4444" : hasSoft ? "#f59e0b" : chip.border,
-                                    borderWidth: hasHard || hasSoft ? 2 : 1,
-                                  }}
-                                >
-                                  <span className="truncate max-w-[80px]">{slot.subject}</span>
-                                  <div className="flex items-center gap-0.5 shrink-0">
-                                    {hasHard && <span title="Conflict">🔴</span>}
-                                    {hasSoft && !hasHard && <span title="Room conflict">🟡</span>}
-                                    <EditOutlined
-                                      className="opacity-0 group-hover:opacity-100 transition-opacity"
-                                      style={{ fontSize: 10 }}
-                                    />
-                                    <DeleteOutlined
-                                      className="opacity-0 group-hover:opacity-100 transition-opacity text-red-400"
-                                      style={{ fontSize: 10 }}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        Modal.confirm({
-                                          title: "Delete slot?",
-                                          content: `${slot.subject} on ${slot.day}`,
-                                          okType: "danger",
-                                          okText: "Delete",
-                                          onOk: () => deleteMutation.mutate(String(slot.id)),
-                                        });
-                                      }}
-                                    />
-                                  </div>
-                                </div>
-                              </Tooltip>
-                            </Popover>
-                          );
-                        })}
-
-                        {/* +N more overflow badge */}
-                        {cellSlots.length > 4 && (
-                          <Popover
-                            trigger="click"
-                            placement="right"
-                            content={
-                              <div style={{ maxWidth: 260 }}>
-                                <p className="text-xs font-semibold text-slate-600 mb-2">
-                                  All {cellSlots.length} slots in this cell
-                                </p>
-                                {cellSlots.map((slot: any) => {
-                                  const chip = chipColor(slot.subject ?? "");
-                                  return (
-                                    <div
-                                      key={slot.id}
-                                      className="rounded px-2 py-1 mb-1 text-xs border flex items-center justify-between gap-2 cursor-pointer hover:opacity-80"
-                                      style={{ background: chip.bg, color: chip.text, borderColor: chip.border }}
-                                      onClick={() => openEdit(slot)}
-                                    >
-                                      <span className="font-medium truncate max-w-[140px]">{slot.subject}</span>
-                                      <span className="text-slate-400 shrink-0">{slot.class?.class_name ?? ""}</span>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            }
-                          >
-                            <button className="w-full text-[10px] text-blue-500 hover:text-blue-700 text-center py-0.5 rounded hover:bg-blue-50">
-                              +{cellSlots.length - 4} more
-                            </button>
-                          </Popover>
-                        )}
+              {periods.map((p) => {
+                if (!p.isTeaching) {
+                  return (
+                    <tr key={p.id}>
+                      <td className="sticky left-0 z-10 border-b border-r border-slate-200 bg-slate-50 p-2 text-center text-xs font-semibold text-slate-500">
+                        {p.label}
+                        <div className="font-normal text-slate-400">
+                          {p.startTime}
                         </div>
-
-                        {/* Add button (only for teaching periods) */}
-                        {period.isTeaching && (
-                          <Popover
-                            open={isAddOpen}
-                            trigger="click"
-                            placement="right"
-                            onOpenChange={(open) => { if (!open) closePopover(); }}
-                            content={
-                              isAddOpen ? (
-                                <SlotForm
-                                  subjects={subjects}
-                                  teachers={teachers}
-                                  onSave={handleFormSave}
-                                  onCancel={closePopover}
-                                  loading={addMutation.isPending}
-                                  conflicts={formConflicts}
-                                  yearLabel={selectedYearGroup?.name}
-                                  classLabel={selectedClassGroup?.class_name}
-                                />
-                              ) : null
-                            }
-                          >
-                            <button
-                              className="w-full mt-0.5 rounded border border-dashed border-slate-300 text-slate-400 hover:border-blue-400 hover:text-blue-500 hover:bg-blue-50 transition-colors flex items-center justify-center gap-0.5 py-0.5"
-                              onClick={() => openAdd(day, period)}
-                            >
-                              <PlusOutlined style={{ fontSize: 9 }} />
-                              <span className="text-[10px]">Add</span>
-                            </button>
-                          </Popover>
-                        )}
                       </td>
-                    );
-                  })}
-                </tr>
-              ))}
+                      <td
+                        colSpan={orderedDays.length}
+                        className="border-b border-slate-200 bg-slate-50/60 p-1 text-center text-xs font-medium uppercase tracking-wide text-slate-400"
+                      >
+                        {p.label}
+                      </td>
+                    </tr>
+                  );
+                }
+                return (
+                  <tr key={p.id}>
+                    <td className="sticky left-0 z-10 border-b border-r border-slate-200 bg-white p-2 text-center text-xs font-semibold text-slate-600">
+                      {p.label}
+                      <div className="font-normal text-slate-400">
+                        {p.startTime}
+                        <br />
+                        {p.endTime}
+                      </div>
+                    </td>
+                    {orderedDays.map((d) => {
+                      const items = lessonsAt(d, p);
+                      return (
+                        <td
+                          key={d}
+                          className="border-b border-r border-slate-100 p-1 align-top"
+                          style={{ minWidth: 150 }}
+                        >
+                          {items.map((l) => {
+                            const conflicts = conflictMap[l.id] ?? [];
+                            const hard = hasHardConflict(conflicts);
+                            const soft = conflicts.length > 0 && !hard;
+                            return (
+                              <LessonCard
+                                key={l.id}
+                                lesson={l}
+                                view={view}
+                                teacherName={teacherName}
+                                className={className}
+                                hard={hard}
+                                soft={soft}
+                                conflictText={conflicts.map((c) => c.message).join("\n")}
+                                editable={cellEditable}
+                                onClick={() => {
+                                  if (cellEditable || view !== "class") openEdit(l);
+                                }}
+                              />
+                            );
+                          })}
+                          {cellEditable && (
+                            <button
+                              type="button"
+                              onClick={() => openAdd(d, p)}
+                              className="flex w-full items-center justify-center gap-1 rounded-md border border-dashed border-slate-200 py-1.5 text-xs font-medium text-slate-400 transition hover:border-[var(--theme-border)] hover:bg-[var(--theme-soft)] hover:text-[var(--theme-dark)]"
+                            >
+                              <Plus size={12} /> Add
+                            </button>
+                          )}
+                          {!cellEditable && items.length === 0 && (
+                            <div className="py-2 text-center text-xs text-slate-300">
+                              —
+                            </div>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
             </tbody>
-              </table>
-            )}
-          </div>
-
-          {/* Legend */}
-          <div className="flex flex-wrap gap-3 px-1 text-xs text-slate-500">
-            <span className="flex items-center gap-1"><span>🔴</span> Hard conflict (teacher/class double-booked)</span>
-            <span className="flex items-center gap-1"><span>🟡</span> Soft conflict (room double-booked)</span>
-          </div>
+          </table>
         </div>
-      </div>
+      )}
 
-      {/* Modals */}
-      <PeriodsConfigModal
-        open={periodsModalOpen}
-        onClose={() => setPeriodsModalOpen(false)}
-        periods={periods}
-        schoolDays={schoolDays}
-        onChange={(p, d) => { savePeriods(p); setPeriods(p); saveSchoolDays(d); setSchoolDays(d); }}
-      />
-      <DuplicateWeekModal
-        open={duplicateOpen}
-        onClose={() => setDuplicateOpen(false)}
-        sourceWeek={weekSun}
-        sourceWeekType={currentWeekType}
-        allSlots={selectedClassSlots}
-        onConfirm={handleDuplicate}
-      />
-      <CopyClassWeekModal
-        open={copyClassWeekOpen}
-        onClose={() => setCopyClassWeekOpen(false)}
-        sourceWeek={weekSun}
-        sourceClassName={selectedClassGroup?.class_name}
-        sourceSlotCount={weekSlots.length}
-        destinationClasses={destinationClasses}
-        onConfirm={handleCopyToClasses}
-        loading={copyClassWeekLoading}
-      />
-      <TimetableImportModal
-        open={importOpen}
-        onClose={() => setImportOpen(false)}
-        initialWeek={weekSun}
-        firstDayIdx={firstDayIdx}
-        schoolId={schoolId ?? undefined}
-        periods={periods}
-        schoolDays={schoolDays}
-        subjects={subjects as any[]}
-        teachers={teachers as any[]}
-        years={years as any[]}
-        classes={allClasses as any[]}
-        existingSlots={slots as any[]}
-        onApplied={invalidate}
-      />
+      {!isLoading && (isAdmin || isHOD) && (
+        <div className="mt-3 flex flex-wrap gap-4 text-xs text-slate-500">
+          <span className="inline-flex items-center gap-1">
+            <span className="inline-block h-3 w-3 rounded-sm bg-rose-200 ring-1 ring-rose-400" />
+            Teacher/class double-booked
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <span className="inline-block h-3 w-3 rounded-sm bg-amber-100 ring-1 ring-amber-400" />
+            Room clash
+          </span>
+        </div>
+      )}
 
-      {/* Reset confirmation modal */}
+      {/* Lesson editor */}
       <Modal
-        open={!!resetScope}
-        title={resetScope === "week" ? "Reset This Week" : "Reset This Class"}
-        okText="Delete"
-        okButtonProps={{ danger: true }}
-        cancelText="Cancel"
-        onCancel={() => setResetScope(null)}
-        onOk={confirmReset}
+        title={editingLesson ? "Edit lesson" : "Add lesson"}
+        open={editorOpen}
+        onCancel={closeEditor}
+        footer={null}
+        destroyOnClose
       >
-        {resetScope === "week" && (
-          <p>This will permanently delete all <strong>{weekSlots.length} slot{weekSlots.length !== 1 ? "s" : ""}</strong> for <strong>{selectedClassGroup?.class_name ?? "this class"}</strong> in <strong>{weekLabel(weekSun)}</strong>. This cannot be undone.</p>
-        )}
-        {resetScope === "class" && (
-          <p>This will permanently delete <strong>all {selectedClassSlots.length} slot{selectedClassSlots.length !== 1 ? "s" : ""}</strong> saved for <strong>{selectedClassGroup?.class_name ?? "this class"}</strong> across every week. This cannot be undone.</p>
+        <div className="mb-3 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">
+          <strong>{className(classId ? Number(classId) : null) || "Class"}</strong>
+          {" · "}
+          {editingLesson
+            ? `${editingLesson.day} ${editingLesson.start_time}–${editingLesson.end_time}`
+            : editorCell
+            ? `${editorCell.day} ${editorCell.period.startTime}–${editorCell.period.endTime}`
+            : ""}
+          {pattern.mode === "ab" ? ` · Week ${activeWeek}` : ""}
+        </div>
+        <Form form={form} layout="vertical" onFinish={submitEditor}>
+          <Form.Item
+            name="subject"
+            label="Subject"
+            rules={[{ required: true, message: "Pick a subject" }]}
+          >
+            <Select
+              showSearch
+              placeholder="Subject"
+              optionFilterProp="children"
+              allowClear
+            >
+              {subjectNames.map((s) => (
+                <Option key={s} value={s}>
+                  {s}
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+          <Form.Item name="teacher_id" label="Teacher">
+            <Select
+              showSearch
+              placeholder="Teacher"
+              optionFilterProp="children"
+              allowClear
+            >
+              {teachers.map((t) => (
+                <Option key={t.id} value={String(t.id)}>
+                  {t.teacher_name || t.name}
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+          <div className="grid grid-cols-2 gap-3">
+            <Form.Item name="room" label="Room">
+              <Input placeholder="e.g. C7" />
+            </Form.Item>
+            <Form.Item name="zoom_link" label="Online link (optional)">
+              <Input placeholder="Zoom / Meet / Teams URL" />
+            </Form.Item>
+          </div>
+
+          <ConflictHint getValues={() => form.getFieldsValue()} compute={candidateConflicts} />
+
+          {editingLesson && confirmingDelete ? (
+            <div className="mt-2 rounded-lg border border-rose-200 bg-rose-50 p-3">
+              <p className="mb-2 text-sm text-rose-700">
+                Remove {editingLesson.subject || "this lesson"} (
+                {editingLesson.day} {editingLesson.start_time}&ndash;
+                {editingLesson.end_time})? This cannot be undone.
+              </p>
+              <div className="flex justify-end gap-2">
+                <Button onClick={() => setConfirmingDelete(false)}>
+                  Keep
+                </Button>
+                <Button
+                  danger
+                  type="primary"
+                  icon={<Trash2 size={14} />}
+                  loading={deleteMutation.isPending}
+                  onClick={() =>
+                    deleteMutation.mutate(String(editingLesson.id))
+                  }
+                >
+                  Remove lesson
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-2 flex items-center justify-between">
+              {editingLesson ? (
+                <Button
+                  danger
+                  icon={<Trash2 size={14} />}
+                  onClick={() => setConfirmingDelete(true)}
+                >
+                  Delete
+                </Button>
+              ) : (
+                <span />
+              )}
+              <div className="flex gap-2">
+                <Button onClick={closeEditor}>Cancel</Button>
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  loading={addMutation.isPending || updateMutation.isPending}
+                >
+                  {editingLesson ? "Save" : "Add lesson"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </Form>
+      </Modal>
+
+      {/* Copy day modal */}
+      <Modal
+        title="Copy a day's lessons"
+        open={copyOpen}
+        onCancel={() => setCopyOpen(false)}
+        onOk={doCopyDay}
+        okText="Copy"
+        okButtonProps={{ disabled: !copyFromDay || copyToDays.length === 0 }}
+      >
+        <p className="mb-2 text-sm text-slate-600">
+          Copy every lesson from one day to other days for{" "}
+          <strong>{className(classId ? Number(classId) : null)}</strong>
+          {pattern.mode === "ab" ? ` (Week ${activeWeek})` : ""}.
+        </p>
+        <div className="mb-3">
+          <div className="mb-1 text-xs font-semibold text-slate-500">From</div>
+          <Select
+            value={copyFromDay ?? undefined}
+            onChange={(v) => setCopyFromDay(v)}
+            style={{ width: "100%" }}
+          >
+            {orderedDays.map((d) => (
+              <Option key={d} value={d}>
+                {d}
+              </Option>
+            ))}
+          </Select>
+        </div>
+        <div>
+          <div className="mb-1 text-xs font-semibold text-slate-500">To</div>
+          <Select
+            mode="multiple"
+            value={copyToDays}
+            onChange={(v) => setCopyToDays(v)}
+            style={{ width: "100%" }}
+            placeholder="Pick day(s)"
+          >
+            {orderedDays
+              .filter((d) => d !== copyFromDay)
+              .map((d) => (
+                <Option key={d} value={d}>
+                  {d}
+                </Option>
+              ))}
+          </Select>
+        </div>
+      </Modal>
+
+      {/* Pattern modal */}
+      <Modal
+        title="Weekly pattern"
+        open={patternOpen}
+        onCancel={() => setPatternOpen(false)}
+        onOk={() => {
+          savePattern(pattern);
+          setActiveWeek(weekLabelForDate(pattern));
+          setPatternOpen(false);
+          messageApi.success("Pattern saved");
+        }}
+        okText="Save"
+      >
+        <Segmented
+          block
+          value={pattern.mode}
+          onChange={(v) =>
+            setPattern((p) => ({ ...p, mode: v as TimetablePattern["mode"] }))
+          }
+          options={[
+            { label: "Same every week", value: "single" },
+            { label: "Two-week A/B", value: "ab" },
+          ]}
+        />
+        {pattern.mode === "single" ? (
+          <p className="mt-3 text-sm text-slate-600">
+            One repeating weekly timetable. Simplest option — what most schools use.
+          </p>
+        ) : (
+          <div className="mt-3 space-y-3 text-sm text-slate-600">
+            <p>
+              Build a <strong>Week A</strong> and a <strong>Week B</strong>; the
+              system shows the right one each calendar week automatically.
+            </p>
+            <div>
+              <div className="mb-1 text-xs font-semibold text-slate-500">
+                Pick a date that is in <strong>Week A</strong>
+              </div>
+              <DatePicker
+                value={dayjs(pattern.anchor)}
+                onChange={(d) =>
+                  setPattern((p) => ({
+                    ...p,
+                    anchor: (d ?? dayjs()).format("YYYY-MM-DD"),
+                  }))
+                }
+                allowClear={false}
+                style={{ width: "100%" }}
+              />
+              <p className="mt-1 text-xs text-slate-400">
+                The week containing this date becomes Week A; weeks then alternate
+                A, B, A, B…
+              </p>
+            </div>
+          </div>
         )}
       </Modal>
+
+      {/* Days & periods config */}
+      <PeriodsConfigModal
+        open={configOpen}
+        onClose={() => setConfigOpen(false)}
+        periods={periods}
+        schoolDays={schoolDays}
+        onChange={(p, d) => {
+          setPeriods(p);
+          savePeriods(p);
+          setSchoolDays(d);
+          saveSchoolDays(d);
+        }}
+      />
     </div>
   );
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function weekStart(anchor: Dayjs, firstDayIdx: number): Dayjs {
-  const anchorDay = anchor.day(); // 0=Sun … 6=Sat
-  const diff = (anchorDay - firstDayIdx + 7) % 7;
-  return anchor.subtract(diff, "day").startOf("day");
-}
-
-function slotsForWeek(slots: any[], weekSun: Dayjs): any[] {
-  const from = weekSun.format("YYYY-MM-DD");
-  const to = weekSun.add(6, "day").format("YYYY-MM-DD");
-  return (slots as any[]).filter((s: any) => s.date >= from && s.date <= to);
-}
-
-function dayOffset(day: string, weekSun: Dayjs, firstDayIdx: number): string {
-  const dayIdx = DAYS_OF_WEEK.findIndex((d) => d.value === day);
-  const offset = (dayIdx - firstDayIdx + 7) % 7;
-  return weekSun.add(offset, "day").format("YYYY-MM-DD");
-}
-
-function weekLabel(weekSun: Dayjs): string {
-  return `${weekSun.format("D MMM")} – ${weekSun.add(6, "day").format("D MMM YYYY")}`;
-}
-
-const ALTERNATING_CYCLE_STORAGE_KEY = "osteps_timetable_alternating_cycle";
-
-function loadAlternatingCycleConfig(): AlternatingCycleConfig {
-  if (typeof window === "undefined") {
-    return {
-      enabled: false,
-      anchorWeek: dayjs().format("YYYY-MM-DD"),
-      anchorType: "A",
-    };
-  }
-
-  try {
-    const raw = localStorage.getItem(ALTERNATING_CYCLE_STORAGE_KEY);
-    if (!raw) {
-      return {
-        enabled: false,
-        anchorWeek: dayjs().format("YYYY-MM-DD"),
-        anchorType: "A",
-      };
-    }
-    const parsed = JSON.parse(raw) as Partial<AlternatingCycleConfig>;
-    return {
-      enabled: parsed.enabled === true,
-      anchorWeek: typeof parsed.anchorWeek === "string" && parsed.anchorWeek ? parsed.anchorWeek : dayjs().format("YYYY-MM-DD"),
-      anchorType: parsed.anchorType === "B" ? "B" : "A",
-    };
-  } catch {
-    return {
-      enabled: false,
-      anchorWeek: dayjs().format("YYYY-MM-DD"),
-      anchorType: "A",
-    };
-  }
-}
-
-function saveAlternatingCycleConfig(config: AlternatingCycleConfig): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(ALTERNATING_CYCLE_STORAGE_KEY, JSON.stringify(config));
-}
-
-const CHIP_PALETTE = [
-  { bg: "#dbeafe", text: "#1d4ed8", border: "#93c5fd" },
-  { bg: "#dcfce7", text: "#15803d", border: "#86efac" },
-  { bg: "#fef9c3", text: "#a16207", border: "#fde047" },
-  { bg: "#fce7f3", text: "#be185d", border: "#f9a8d4" },
-  { bg: "#ede9fe", text: "#7c3aed", border: "#c4b5fd" },
-  { bg: "#ffedd5", text: "#c2410c", border: "#fdba74" },
-  { bg: "#cffafe", text: "#0891b2", border: "#67e8f9" },
-  { bg: "#f0fdf4", text: "#166534", border: "#bbf7d0" },
-];
-
-function chipColor(subject: string): { bg: string; text: string; border: string } {
-  let hash = 0;
-  for (let i = 0; i < subject.length; i++) {
-    hash = (hash * 31 + subject.charCodeAt(i)) & 0xffffffff;
-  }
-  return CHIP_PALETTE[Math.abs(hash) % CHIP_PALETTE.length];
-}
-
-// ── SlotForm ──────────────────────────────────────────────────────────────────
-
-interface SlotFormProps {
-  initial?: SlotFormValues;
-  subjects: any[];
-  teachers: any[];
-  onSave: (values: SlotFormValues) => void;
-  onCancel: () => void;
-  loading?: boolean;
-  conflicts?: ReturnType<typeof detectConflicts>;
-  yearLabel?: string | null;
-  classLabel?: string | null;
-}
-
-function SlotForm({
-  initial,
-  subjects,
-  teachers,
-  onSave,
-  onCancel,
-  loading,
-  conflicts = [],
-  yearLabel,
-  classLabel,
-}: SlotFormProps) {
-  const [form] = Form.useForm<SlotFormValues>();
-
-  useEffect(() => {
-    if (initial) {
-      form.setFieldsValue(initial);
-    } else {
-      form.resetFields();
-    }
-  }, [initial, form]);
-
-  const hardConflict = hasHardConflict(conflicts);
-
+function Empty({ text }: { text: string }) {
   return (
-    <Form
-      form={form}
-      layout="vertical"
-      initialValues={initial}
-      onFinish={onSave}
-      style={{ width: 280 }}
-      size="small"
-    >
-      {conflicts.length > 0 && (
-        <div
-          className={`mb-2 rounded p-2 text-xs ${
-            hardConflict
-              ? "bg-red-50 text-red-700 border border-red-200"
-              : "bg-yellow-50 text-yellow-700 border border-yellow-200"
-          }`}
-        >
-          {conflicts.map((c, i) => (
-            <div key={i}>⚠ {c.message}</div>
-          ))}
-        </div>
-      )}
+    <div className="rounded-xl border border-dashed border-slate-200 bg-white p-10 text-center text-sm text-slate-400">
+      {text}
+    </div>
+  );
+}
 
-      {(yearLabel || classLabel) && (
-        <div className="mb-2 rounded border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-          Saving to <strong>{yearLabel ?? "Selected year"}</strong>
-          {classLabel ? <> · <strong>{classLabel}</strong></> : null}
-        </div>
-      )}
-
-      <Form.Item
-        name="subject_id"
-        label="Subject"
-        rules={[{ required: true, message: "Select a subject" }]}
-      >
-        <Select placeholder="Subject" showSearch optionFilterProp="children" allowClear>
-          {subjects.map((s: any) => (
-            <Option key={s.id} value={String(s.id)}>{s.name}</Option>
-          ))}
-        </Select>
-      </Form.Item>
-
-      <Form.Item name="teacher_id" label="Teacher">
-        <Select placeholder="Teacher" showSearch optionFilterProp="children" allowClear>
-          {teachers.map((t: any) => (
-            <Option key={t.id} value={String(t.id)}>{t.teacher_name || t.name}</Option>
-          ))}
-        </Select>
-      </Form.Item>
-
-      <Form.Item name="room" label="Room">
-        <Input placeholder="Room" />
-      </Form.Item>
-
-      <Form.Item name="zoom_link" label="Zoom Link">
-        <Input placeholder="https://..." />
-      </Form.Item>
-
-      <div className="flex justify-end gap-2 mt-1">
-        <Button size="small" onClick={onCancel}>Cancel</Button>
-        <Button
-          size="small"
-          type="primary"
-          htmlType="submit"
-          loading={loading}
-          disabled={hardConflict}
-          className="bg-blue-500"
-        >
-          Save
-        </Button>
+function LessonCard({
+  lesson,
+  view,
+  teacherName,
+  className,
+  hard,
+  soft,
+  conflictText,
+  editable,
+  onClick,
+}: {
+  lesson: Lesson;
+  view: ViewMode;
+  teacherName: (id: number | null) => string;
+  className: (id: number | null) => string;
+  hard: boolean;
+  soft: boolean;
+  conflictText: string;
+  editable: boolean;
+  onClick: () => void;
+}) {
+  const base =
+    "mb-1 w-full rounded-md border px-2 py-1 text-left text-xs transition";
+  const tone = hard
+    ? "border-rose-300 bg-rose-50"
+    : soft
+    ? "border-amber-300 bg-amber-50"
+    : "border-[var(--theme-border)] bg-[var(--theme-soft)]";
+  const sub = (
+    <>
+      <div className="flex items-center gap-1 font-semibold text-[var(--theme-dark)]">
+        <span className="truncate">{lesson.subject || "Lesson"}</span>
+        {lesson.zoom_link && (
+          <Video size={12} className="shrink-0 text-indigo-500" />
+        )}
+        {(hard || soft) && (
+          <AlertTriangle
+            size={12}
+            className={hard ? "shrink-0 text-rose-500" : "shrink-0 text-amber-500"}
+          />
+        )}
       </div>
-    </Form>
+      {view !== "teacher" && lesson.teacher_id != null && (
+        <div className="truncate text-slate-500">
+          {teacherName(lesson.teacher_id)}
+        </div>
+      )}
+      {view !== "class" && lesson.class_id != null && (
+        <div className="truncate text-slate-500">{className(lesson.class_id)}</div>
+      )}
+      {lesson.room && <div className="truncate text-slate-400">Room {lesson.room}</div>}
+    </>
+  );
+
+  const inner = (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`${base} ${tone} ${editable || view !== "class" ? "hover:brightness-95" : "cursor-default"} group relative`}
+    >
+      {sub}
+      {editable && (
+        <Pencil
+          size={11}
+          className="absolute right-1 top-1 text-slate-300 opacity-0 transition group-hover:opacity-100"
+        />
+      )}
+    </button>
+  );
+
+  return conflictText ? (
+    <Tooltip title={conflictText}>{inner}</Tooltip>
+  ) : (
+    inner
+  );
+}
+
+function ConflictHint({
+  getValues,
+  compute,
+}: {
+  getValues: () => { teacher_id?: string; room?: string };
+  compute: (v: { teacher_id?: string; room?: string }) => ReturnType<typeof detectConflicts>;
+}) {
+  const conflicts = compute(getValues());
+  if (conflicts.length === 0) return null;
+  const hard = hasHardConflict(conflicts);
+  return (
+    <div
+      className={`mb-2 rounded-md border px-3 py-2 text-xs ${
+        hard
+          ? "border-rose-300 bg-rose-50 text-rose-700"
+          : "border-amber-300 bg-amber-50 text-amber-700"
+      }`}
+    >
+      <div className="mb-0.5 flex items-center gap-1 font-semibold">
+        <AlertTriangle size={12} /> {hard ? "Conflict" : "Heads up"}
+      </div>
+      {conflicts.map((c, i) => (
+        <div key={i}>{c.message}</div>
+      ))}
+    </div>
   );
 }

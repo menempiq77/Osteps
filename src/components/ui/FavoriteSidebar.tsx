@@ -461,7 +461,7 @@ export default function FavoriteSidebar() {
         name: "Timetable",
         section: "Workspace",
         icon: CalendarDays,
-        href: canManageTimetable ? "/dashboard/timetable-builder" : "/dashboard/time_table",
+        href: "/dashboard/timetable-builder",
         kind: "link",
       },
       {
