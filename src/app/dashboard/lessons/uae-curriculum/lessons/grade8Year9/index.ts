@@ -4,6 +4,7 @@ import { maddAsli } from "./maddAsli";
 import { actionsByIntentions } from "./actionsByIntentions";
 import { sincerity } from "./sincerity";
 import { halalEarning } from "./halalEarning";
+import { blessingSecurity } from "./blessingSecurity";
 
 // Keyed by the topic slug (topicSlugify of the English title in data.ts).
 export const grade8Year9Lessons: Record<string, CourseLesson> = {
@@ -12,4 +13,5 @@ export const grade8Year9Lessons: Record<string, CourseLesson> = {
   "actions-are-by-intentions": actionsByIntentions,
   "sincerity": sincerity,
   "halal-earning": halalEarning,
+  "the-blessing-of-security": blessingSecurity,
 };
