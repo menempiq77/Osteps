@@ -19,6 +19,7 @@ import { powerOfAllah } from "./powerOfAllah";
 import { maddFari } from "./maddFari";
 import { socialUnity } from "./socialUnity";
 import { virtuesOfBeliever } from "./virtuesOfBeliever";
+import { prohibitionFrightening } from "./prohibitionFrightening";
 
 // Keyed by the topic slug (topicSlugify of the English title in data.ts).
 export const grade8Year9Lessons: Record<string, CourseLesson> = {
@@ -42,4 +43,5 @@ export const grade8Year9Lessons: Record<string, CourseLesson> = {
   "secondary-madd": maddFari,
   "social-unity": socialUnity,
   "virtues-of-the-believer": virtuesOfBeliever,
+  "the-prohibition-of-frightening-a-person": prohibitionFrightening,
 };
