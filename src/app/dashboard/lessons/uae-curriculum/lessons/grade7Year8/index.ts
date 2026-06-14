@@ -24,6 +24,7 @@ import { voluntaryPrayer } from "./voluntaryPrayer";
 import { rewardExcellence } from "./rewardExcellence";
 import { coexistence } from "./coexistence";
 import { gatherings } from "./gatherings";
+import { rufaydah } from "./rufaydah";
 
 // Keyed by the topic slug (topicSlugify of the English title in data.ts).
 export const grade7Year8Lessons: Record<string, CourseLesson> = {
@@ -52,4 +53,5 @@ export const grade7Year8Lessons: Record<string, CourseLesson> = {
   "the-reward-of-excellence": rewardExcellence,
   "coexistence-among-people": coexistence,
   "gatherings-and-their-etiquette": gatherings,
+  "lady-rufaydah-al-aslamiyyah": rufaydah,
 };
