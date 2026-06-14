@@ -59,7 +59,7 @@ export const theHeart: CourseLesson = {
         { en: "Identify diseases of the heart and their cures.", ar: "أُحَدِّدُ أمراضَ القَلبِ وعِلاجَها." },
       ],
       image: {
-        src: IMG.plantGrowing,
+        src: IMG.plantBulb,
         alt: { en: "A growing plant — the heart is nourished or starved.", ar: "نَبتةٌ تَنمو — القَلبُ يُغَذّى أو يَجوع." },
         caption: { en: "The heart lives by remembrance and dies by heedlessness.", ar: "القَلبُ يَحيا بِالذِّكرِ ويَموتُ بِالغَفلة." },
       },
