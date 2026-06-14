@@ -23,6 +23,8 @@ import { musaProphetOfAllah } from "./musaProphetOfAllah";
 import { scholarsPreservingSunnah } from "./scholarsPreservingSunnah";
 import { beliefInTheUnseen } from "./beliefInTheUnseen";
 import { obedienceToAuthority } from "./obedienceToAuthority";
+import { dhulQarnayn } from "./dhulQarnayn";
+import { tolerance } from "./tolerance";
 
 // Keyed by the topic slug (topicSlugify of the English title in data.ts).
 export const grade10Year11Lessons: Record<string, CourseLesson> = {
@@ -50,4 +52,6 @@ export const grade10Year11Lessons: Record<string, CourseLesson> = {
   "the-efforts-of-scholars-in-preserving-the-sunnah": scholarsPreservingSunnah,
   "belief-in-the-unseen": beliefInTheUnseen,
   "obedience-to-the-guardian-of-authority": obedienceToAuthority,
+  "dhul-qarnayn-the-righteous-man": dhulQarnayn,
+  "tolerance": tolerance,
 };
