@@ -28,6 +28,7 @@ const SUBJECT_SCOPED_PREFIXES = [
 
 const SHARED_PREFIXES = [
   "/dashboard/subject-cards",
+  "/dashboard/reports",
   "/dashboard/students/all-school",
   "/dashboard/students/all-students",
   "/dashboard/students-staff",
@@ -74,6 +75,7 @@ const SUBJECT_ROUTE_ROOTS = new Set([
   "mind-upgrade",
   "subjects",
   "subject-cards",
+  "reports",
   "schools",
   "library",
   "time_table",
