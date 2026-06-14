@@ -7,6 +7,7 @@ import { zakatInIslam } from "./zakatInIslam";
 import { safetyOfSociety } from "./safetyOfSociety";
 import { halalIsClear } from "./halalIsClear";
 import { religionIsSincereAdvice } from "./religionIsSincereAdvice";
+import { hajj } from "./hajj";
 
 // Keyed by the topic slug (topicSlugify of the English title in data.ts).
 export const grade9Year10Lessons: Record<string, CourseLesson> = {
@@ -18,4 +19,5 @@ export const grade9Year10Lessons: Record<string, CourseLesson> = {
   "the-safety-of-society-and-the-unity-of-its-people": safetyOfSociety,
   "the-halal-is-clear": halalIsClear,
   "religion-is-sincere-advice": religionIsSincereAdvice,
+  "hajj": hajj,
 };
