@@ -70,6 +70,7 @@ export const addTimetableSlot = async (timetableData: {
   room: string;
   date: string;
   day: string;
+  week_label?: string | null;
   start_time: string;
   end_time: string;
   zoom_link?: string;
@@ -97,6 +98,7 @@ export const updateTimetableSlot = async (
     room: string;
     date: string;
     day: string;
+    week_label?: string | null;
     start_time: string;
     end_time: string;
     zoom_link?: string;

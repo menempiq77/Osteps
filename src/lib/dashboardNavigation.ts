@@ -616,7 +616,7 @@ export const buildStudentUtilityLinks = (studentId?: number | null): DashboardNa
   return [
     {
       name: "Timetable",
-      href: "/dashboard/time_table?view=calendar",
+      href: "/dashboard/timetable-builder",
       icon: BookOpen,
       description: "Check your schedule for classes and activities.",
       section: "Workspace",
