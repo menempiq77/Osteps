@@ -25,6 +25,8 @@ import { beliefInTheUnseen } from "./beliefInTheUnseen";
 import { obedienceToAuthority } from "./obedienceToAuthority";
 import { dhulQarnayn } from "./dhulQarnayn";
 import { tolerance } from "./tolerance";
+import { jihadPartOne } from "./jihadPartOne";
+import { jihadPartTwo } from "./jihadPartTwo";
 
 // Keyed by the topic slug (topicSlugify of the English title in data.ts).
 export const grade10Year11Lessons: Record<string, CourseLesson> = {
@@ -54,4 +56,6 @@ export const grade10Year11Lessons: Record<string, CourseLesson> = {
   "obedience-to-the-guardian-of-authority": obedienceToAuthority,
   "dhul-qarnayn-the-righteous-man": dhulQarnayn,
   "tolerance": tolerance,
+  "jihad-in-the-cause-of-allah-part-one": jihadPartOne,
+  "jihad-in-the-cause-of-allah-part-two": jihadPartTwo,
 };
