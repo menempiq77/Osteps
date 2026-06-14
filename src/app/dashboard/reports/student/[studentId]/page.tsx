@@ -34,6 +34,7 @@ import { fetchStudentProfileData } from "@/services/studentsApi";
 import { fetchGrades } from "@/services/gradesApi";
 import { fetchStudentNarrativeReports } from "@/services/studentNarrativeReportApi";
 import TeacherReportEditor from "@/components/reports/TeacherReportEditor";
+import SupportWellbeingEditor from "@/components/reports/SupportWellbeingEditor";
 
 type AnyObj = Record<string, unknown>;
 
@@ -192,11 +193,22 @@ export default function StudentReportPage() {
     isLoading,
     isError,
     error,
+    refetch: refetchProfile,
   } = useQuery({
     queryKey: ["student-report-profile", studentId, subjectId ?? 0],
     queryFn: () => fetchStudentProfileData(studentId, subjectId ?? 0),
     enabled: Boolean(studentId),
   });
+
+  const normalizedRole = String(currentUser?.role ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "_");
+  const canEditSupport =
+    normalizedRole === "SCHOOL_ADMIN" ||
+    normalizedRole === "SUPER_ADMIN" ||
+    normalizedRole === "HOD" ||
+    normalizedRole === "TEACHER";
 
   const { data: grades = [] } = useQuery({
     queryKey: ["student-report-grades", schoolId ?? 0],
@@ -738,24 +750,14 @@ export default function StudentReportPage() {
 
       {/* Support needs */}
       <SectionCard title="Support & wellbeing" subtitle="Extra support / SEN information">
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-            <p className="m-0 text-[11px] font-semibold uppercase text-slate-500">
-              Extra support
-            </p>
-            <p className="m-0 mt-1 font-semibold text-slate-800">
-              {profile.isSen ? "Yes" : "No"}
-            </p>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 sm:col-span-2">
-            <p className="m-0 text-[11px] font-semibold uppercase text-slate-500">
-              Support details
-            </p>
-            <p className="m-0 mt-1 text-slate-700">
-              {profile.senDetails || "No support details recorded."}
-            </p>
-          </div>
-        </div>
+        <SupportWellbeingEditor
+          studentId={num(s?.id ?? studentId)}
+          subjectId={subjectId ?? null}
+          isSen={profile.isSen}
+          senDetails={profile.senDetails}
+          canEdit={canEditSupport}
+          onChanged={() => refetchProfile()}
+        />
       </SectionCard>
 
       {/* Behaviour history */}
