@@ -12,6 +12,8 @@ import { ghusl } from "./ghusl";
 import { tayammum } from "./tayammum";
 import { battleAhzab } from "./battleAhzab";
 import { arRahman } from "./arRahman";
+import { theHeart } from "./theHeart";
+import { religionIsEase } from "./religionIsEase";
 
 // Keyed by the topic slug (topicSlugify of the English title in data.ts).
 export const grade7Year8Lessons: Record<string, CourseLesson> = {
@@ -28,4 +30,6 @@ export const grade7Year8Lessons: Record<string, CourseLesson> = {
   "tayammum-and-wiping-over-the-socks": tayammum,
   "the-battle-of-al-ahzab": battleAhzab,
   "surat-ar-rahman-1-25": arRahman,
+  "the-heart-and-human-righteousness": theHeart,
+  "religion-is-ease": religionIsEase,
 };
