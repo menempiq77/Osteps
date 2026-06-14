@@ -7,6 +7,7 @@ import { halalEarning } from "./halalEarning";
 import { blessingSecurity } from "./blessingSecurity";
 import { peopleOfTown } from "./peopleOfTown";
 import { drawingCloser } from "./drawingCloser";
+import { divineDecree } from "./divineDecree";
 
 // Keyed by the topic slug (topicSlugify of the English title in data.ts).
 export const grade8Year9Lessons: Record<string, CourseLesson> = {
@@ -18,4 +19,5 @@ export const grade8Year9Lessons: Record<string, CourseLesson> = {
   "the-blessing-of-security": blessingSecurity,
   "the-people-of-the-town-from-surah-ya-sin-13-19": peopleOfTown,
   "drawing-closer-to-allah": drawingCloser,
+  "belief-in-divine-decree": divineDecree,
 };
