@@ -23,6 +23,7 @@ import { prohibitionFrightening } from "./prohibitionFrightening";
 import { bestToFamily } from "./bestToFamily";
 import { pathToParadise } from "./pathToParadise";
 import { followingGoodExamples } from "./followingGoodExamples";
+import { oathsAndVows } from "./oathsAndVows";
 
 // Keyed by the topic slug (topicSlugify of the English title in data.ts).
 export const grade8Year9Lessons: Record<string, CourseLesson> = {
@@ -50,4 +51,5 @@ export const grade8Year9Lessons: Record<string, CourseLesson> = {
   "i-am-the-best-of-you-to-my-family": bestToFamily,
   "the-path-to-paradise-surah-ya-sin-55-68": pathToParadise,
   "following-good-examples": followingGoodExamples,
+  "oaths-and-vows": oathsAndVows,
 };
