@@ -3,6 +3,7 @@ import { truthfulnessOfMessenger } from "./truthfulnessOfMessenger";
 import { maddAsli } from "./maddAsli";
 import { actionsByIntentions } from "./actionsByIntentions";
 import { sincerity } from "./sincerity";
+import { halalEarning } from "./halalEarning";
 
 // Keyed by the topic slug (topicSlugify of the English title in data.ts).
 export const grade8Year9Lessons: Record<string, CourseLesson> = {
@@ -10,4 +11,5 @@ export const grade8Year9Lessons: Record<string, CourseLesson> = {
   "rules-of-madd-the-original-madd-first": maddAsli,
   "actions-are-by-intentions": actionsByIntentions,
   "sincerity": sincerity,
+  "halal-earning": halalEarning,
 };
