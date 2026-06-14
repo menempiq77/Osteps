@@ -61,6 +61,7 @@ const downloadAudioFromUrl = async (
 ): Promise<string> => {
   const outputTpl = path.join(tempDir, "source.%(ext)s");
   const customBin = (process.env.YT_DLP_PATH || "").trim();
+  const cookiesFile = (process.env.YT_DLP_COOKIES || "").trim();
   const args = [
     "--no-playlist",
     "--no-warnings",
@@ -69,8 +70,13 @@ const downloadAudioFromUrl = async (
     "bestaudio/best",
     "-o",
     outputTpl,
-    url,
   ];
+  // Cookies let yt-dlp bypass bot/login checks on YouTube, Instagram, Facebook,
+  // etc. when running from a server IP. Optional — direct media links work without.
+  if (cookiesFile) {
+    args.push("--cookies", cookiesFile);
+  }
+  args.push(url);
 
   const candidates: Array<{ bin: string; prefix: string[]; label: string }> = [];
   if (customBin) {
@@ -79,8 +85,7 @@ const downloadAudioFromUrl = async (
   }
   candidates.push(
     { bin: "yt-dlp", prefix: [], label: "yt-dlp" },
-    { bin: "python3", prefix: ["-m", "yt_dlp"], label: "python3 -m yt_dlp" },
-    { bin: "python", prefix: ["-m", "yt_dlp"], label: "python -m yt_dlp" }
+    { bin: "python3", prefix: ["-m", "yt_dlp"], label: "python3 -m yt_dlp" }
   );
 
   const attempts: Array<{ command: string; error: string }> = [];
@@ -111,6 +116,18 @@ const downloadAudioFromUrl = async (
   diagnostics.ytDlpAttempts = attempts;
 
   if (!succeeded) {
+    const lower = String(lastError).toLowerCase();
+    if (
+      lower.includes("confirm you") ||
+      lower.includes("sign in") ||
+      lower.includes("cookies") ||
+      lower.includes("login required") ||
+      lower.includes("private")
+    ) {
+      throw new Error(
+        "This site (e.g. YouTube/Instagram/Facebook) is blocking server downloads and needs a login/cookies file to access. Uploading the audio/video file directly works without any login."
+      );
+    }
     throw new Error(
       sanitizeError(lastError) ||
         "Could not download media from that link. The site may require login or the link is private."
