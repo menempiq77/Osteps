@@ -8,6 +8,8 @@ import { naturalPurity } from "./naturalPurity";
 import { creatorAllKnowing } from "./creatorAllKnowing";
 import { repentance } from "./repentance";
 import { helperForbearing } from "./helperForbearing";
+import { ghusl } from "./ghusl";
+import { tayammum } from "./tayammum";
 
 // Keyed by the topic slug (topicSlugify of the English title in data.ts).
 export const grade7Year8Lessons: Record<string, CourseLesson> = {
@@ -20,4 +22,6 @@ export const grade7Year8Lessons: Record<string, CourseLesson> = {
   "the-creator-the-all-knowing": creatorAllKnowing,
   "repentance-is-the-opportunity-of-a-lifetime": repentance,
   "the-helper-the-forbearing-glorified-is-he": helperForbearing,
+  "ghusl": ghusl,
+  "tayammum-and-wiping-over-the-socks": tayammum,
 };
