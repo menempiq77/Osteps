@@ -390,6 +390,11 @@ class ClassEnrollmentController extends Controller
                 }
             }
 
+            // Enroll the new student into every active subject class that maps
+            // to this base class, so they appear in Students & Staff assigned to
+            // the class AND its subject(s) — mirrors enrollStudents().
+            $this->enrollIntoSubjectClasses($student, $class, $school->id);
+
             $req->status = 'approved';
             $req->created_student_id = $student->id;
             $req->save();
@@ -423,5 +428,42 @@ class ClassEnrollmentController extends Controller
         }
         $req->delete();
         return response()->json(['status_code' => 200, 'msg' => 'Request removed.']);
+    }
+
+    /**
+     * Enroll a freshly-created student into every active subject class that maps
+     * to the given base class (matched by normalized class label + year + school).
+     */
+    private function enrollIntoSubjectClasses(Student $student, SchoolClass $class, int $schoolId): void
+    {
+        $baseLabel = $this->normalizeClassLabel($class->class_name);
+        if ($baseLabel === '') {
+            return;
+        }
+
+        $subjectClasses = DB::table('subject_classes')
+            ->where('school_id', $schoolId)
+            ->where('is_active', 1)
+            ->when((int) ($class->year_id ?? 0) > 0, fn ($q) => $q->where('year_id', (int) $class->year_id))
+            ->get();
+
+        foreach ($subjectClasses as $sc) {
+            if ($this->normalizeClassLabel($sc->base_class_label ?? '') !== $baseLabel) {
+                continue;
+            }
+            DB::table('student_subject_enrollments')->updateOrInsert(
+                ['student_id' => $student->id, 'subject_class_id' => (int) $sc->id],
+                ['is_active' => 1, 'enrolled_at' => now(), 'updated_at' => now(), 'created_at' => now()]
+            );
+        }
+    }
+
+    private function normalizeClassLabel(?string $value): string
+    {
+        $normalized = strtolower(trim((string) ($value ?? '')));
+        $normalized = str_replace(['-', '_'], '', $normalized);
+        $normalized = preg_replace('/\s+/', '', $normalized) ?? '';
+
+        return $normalized;
     }
 }
