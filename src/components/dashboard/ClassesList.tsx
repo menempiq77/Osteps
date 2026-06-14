@@ -3,7 +3,7 @@ import { RootState } from "@/store/store";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import { useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   readSubjectClassBaseMap,
   resolveBaseClassIdByYearAndLabel,
@@ -18,8 +18,13 @@ import {
   RollbackOutlined,
   TeamOutlined,
   ReadOutlined,
+  ShareAltOutlined,
+  UsergroupAddOutlined,
 } from "@ant-design/icons";
-import { message } from "antd";
+import { Badge, message } from "antd";
+import ClassJoinLinkModal from "@/components/modals/ClassJoinLinkModal";
+import ClassEnrollmentReviewModal from "@/components/modals/ClassEnrollmentReviewModal";
+import { fetchPendingCounts } from "@/services/classEnrollmentApi";
 
 interface Class {
   id: string;
@@ -64,6 +69,82 @@ export default function ClassesList({
 
   const isStudent = currentUser?.role === "STUDENT";
   const canManageOrder = hasAccess;
+
+  const role = currentUser?.role;
+  const canShare = role === "SCHOOL_ADMIN" || role === "HOD" || role === "TEACHER";
+  const canReview = role === "SCHOOL_ADMIN" || role === "HOD";
+
+  const [pendingCounts, setPendingCounts] = useState<Record<string, number>>({});
+  const [joinModal, setJoinModal] = useState<{ open: boolean; classId: string | null; className: string }>({ open: false, classId: null, className: "" });
+  const [reviewModal, setReviewModal] = useState<{ open: boolean; classId: string | null; className: string }>({ open: false, classId: null, className: "" });
+
+  const loadPendingCounts = useCallback(async () => {
+    if (!canShare || archivedView) return;
+    try {
+      const counts = await fetchPendingCounts();
+      setPendingCounts(counts || {});
+    } catch {
+      /* non-blocking */
+    }
+  }, [canShare, archivedView]);
+
+  useEffect(() => {
+    void loadPendingCounts();
+  }, [loadPendingCounts]);
+
+  const resolveBaseId = useCallback(
+    (cls: Class): string | null => {
+      if (!subjectScoped) return String(cls.id);
+      const apiLinked = String(cls.linked_class_id ?? "").trim();
+      if (apiLinked) return apiLinked;
+      if (activeSubjectId) {
+        const stored = String(
+          readSubjectClassBaseMap(Number(activeSubjectId))[String(cls.id)] ?? ""
+        ).trim();
+        if (stored) return stored;
+      }
+      return null;
+    },
+    [subjectScoped, activeSubjectId]
+  );
+
+  const resolveBaseIdAsync = useCallback(
+    async (cls: Class): Promise<string | null> => {
+      const sync = resolveBaseId(cls);
+      if (sync) return sync;
+      const yearId = cls.year_id;
+      const label = cls.base_class_label || cls.class_name;
+      if (yearId && label) {
+        const inferred = await resolveBaseClassIdByYearAndLabel(Number(yearId), label);
+        if (inferred) {
+          if (activeSubjectId) {
+            writeSubjectClassBaseEntry(Number(activeSubjectId), String(cls.id), String(inferred));
+          }
+          return String(inferred);
+        }
+      }
+      return null;
+    },
+    [resolveBaseId, activeSubjectId]
+  );
+
+  const openShare = async (cls: Class) => {
+    const baseId = await resolveBaseIdAsync(cls);
+    if (!baseId) {
+      messageApi.warning("Could not resolve this class. Please refresh and try again.");
+      return;
+    }
+    setJoinModal({ open: true, classId: baseId, className: cls.class_name });
+  };
+
+  const openReview = async (cls: Class) => {
+    const baseId = await resolveBaseIdAsync(cls);
+    if (!baseId) {
+      messageApi.warning("Could not resolve this class. Please refresh and try again.");
+      return;
+    }
+    setReviewModal({ open: true, classId: baseId, className: cls.class_name });
+  };
 
   useEffect(() => {
     setLocalClasses(classes || []);
@@ -269,6 +350,34 @@ export default function ClassesList({
                         <TeamOutlined /> Students
                       </button>
                     ) : null}
+
+                    {canShare && !archivedView ? (
+                      <button
+                        onClick={() => void openShare(cls)}
+                        className="cursor-pointer text-slate-600 hover:text-[var(--theme-dark)]"
+                        title="Share join link"
+                      >
+                        <ShareAltOutlined /> Join link
+                      </button>
+                    ) : null}
+
+                    {canReview && !archivedView
+                      ? (() => {
+                          const baseId = resolveBaseId(cls);
+                          const pending = baseId ? pendingCounts[baseId] ?? 0 : 0;
+                          return (
+                            <Badge count={pending} size="small" offset={[-2, 2]}>
+                              <button
+                                onClick={() => void openReview(cls)}
+                                className="cursor-pointer text-slate-600 hover:text-[var(--theme-dark)]"
+                                title="Review pending signups"
+                              >
+                                <UsergroupAddOutlined /> Signups
+                              </button>
+                            </Badge>
+                          );
+                        })()
+                      : null}
                     {!subjectScoped && !archivedView ? (
                       <button
                         onClick={() => handleTerms(cls.id)}
@@ -325,6 +434,20 @@ export default function ClassesList({
         )}
       </div>
 
+      <ClassJoinLinkModal
+        open={joinModal.open}
+        onClose={() => setJoinModal({ open: false, classId: null, className: "" })}
+        classId={joinModal.classId}
+        className={joinModal.className}
+      />
+
+      <ClassEnrollmentReviewModal
+        open={reviewModal.open}
+        onClose={() => setReviewModal({ open: false, classId: null, className: "" })}
+        classId={reviewModal.classId}
+        className={reviewModal.className}
+        onChanged={() => void loadPendingCounts()}
+      />
     </div>
   );
 }
