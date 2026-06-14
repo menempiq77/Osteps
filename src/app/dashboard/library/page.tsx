@@ -574,18 +574,45 @@ export default function LibraryPage() {
       />
 
       <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-        <div className="overflow-hidden rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-600 via-emerald-600 to-teal-600 shadow-sm">
-          <div className="flex flex-col gap-5 p-5 md:flex-row md:items-center md:justify-between md:p-7">
-            <div className="text-white">
-              <div className="flex items-center gap-3">
-                <h2 className="m-0 text-2xl font-bold tracking-tight text-white md:text-[28px]">
+        <div
+          className="relative overflow-hidden rounded-3xl border shadow-sm"
+          style={{
+            borderColor: "var(--theme-border)",
+            background:
+              "radial-gradient(1100px 320px at 100% -45%, color-mix(in srgb, var(--primary) 24%, transparent), transparent 70%), linear-gradient(135deg, var(--theme-soft) 0%, #ffffff 58%)",
+          }}
+        >
+          <div
+            className="pointer-events-none absolute -right-12 -top-20 h-56 w-56 rounded-full blur-3xl"
+            style={{ background: "color-mix(in srgb, var(--primary) 28%, transparent)" }}
+          />
+          <div
+            className="pointer-events-none absolute right-40 top-8 h-24 w-24 rounded-full blur-2xl"
+            style={{ background: "color-mix(in srgb, var(--theme-scroll-end) 22%, transparent)" }}
+          />
+
+          <div className="relative flex flex-col gap-6 p-6 md:flex-row md:items-end md:justify-between md:p-8">
+            <div className="min-w-0">
+              <span
+                className="inline-flex items-center gap-2 rounded-full border bg-white/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] backdrop-blur"
+                style={{ borderColor: "var(--theme-border)", color: "var(--theme-dark)" }}
+              >
+                <span className="text-sm leading-none">📚</span> Knowledge Hub
+              </span>
+
+              <div className="mt-3 flex items-center gap-3">
+                <h2
+                  className="m-0 text-[26px] font-extrabold leading-tight tracking-tight md:text-[34px]"
+                  style={{ color: "var(--theme-dark)" }}
+                >
                   School Library
                 </h2>
                 {isSchoolAdmin && (
                   <Badge count={pendingItems.length} size="small" offset={[-2, 2]}>
                     <button
                       onClick={() => setApprovalsOpen(true)}
-                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/30 bg-white/15 text-white backdrop-blur transition-all duration-200 hover:bg-white/25 active:scale-95"
+                      className="flex h-9 w-9 items-center justify-center rounded-xl border bg-white/70 backdrop-blur transition-all duration-200 hover:bg-white active:scale-95"
+                      style={{ borderColor: "var(--theme-border)", color: "var(--theme-dark)" }}
                       title="Pending upload approvals"
                     >
                       <BellOutlined style={{ fontSize: 16 }} />
@@ -593,38 +620,48 @@ export default function LibraryPage() {
                   </Badge>
                 )}
               </div>
-              <p className="mt-1.5 max-w-md text-sm text-emerald-50/90">
-                Browse, search and open your school&apos;s resources — books, PDFs, videos and websites, all in one place.
+
+              <p className="mt-2.5 max-w-xl text-sm leading-relaxed text-slate-600 md:text-[15px]">
+                Every book, paper, recording and website your school has gathered — kept in one calm, searchable place. Open, read and explore without ever leaving the page.
               </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-white backdrop-blur">
+
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <span
+                  className="inline-flex items-center gap-1.5 rounded-full border bg-white/80 px-3 py-1 text-xs font-semibold backdrop-blur"
+                  style={{ borderColor: "var(--theme-border)", color: "var(--theme-dark)" }}
+                >
                   <FileOutlined /> {totalResourcesCount} resources
                 </span>
                 {(searchQuery ||
                   activeTypeTab !== "all" ||
                   activeCategoryTab !== "all") && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-300/95 px-3 py-1 text-xs font-semibold text-amber-900">
+                  <span
+                    className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold text-white shadow-sm"
+                    style={{ background: "var(--primary)" }}
+                  >
                     {visibleResourcesCount} shown
                   </span>
                 )}
               </div>
             </div>
+
             <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center md:w-auto">
               <Input
                 allowClear
                 size="large"
                 prefix={<SearchOutlined className="text-gray-400" />}
-                placeholder="Search resources..."
+                placeholder="Search the library..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="!rounded-xl sm:!w-72"
               />
               {canUpload && (
                 <Button
+                  type="primary"
                   size="large"
                   icon={<UploadOutlined />}
                   onClick={openUploadModal}
-                  className="flex items-center justify-center !h-11 !rounded-xl !border-0 !bg-white !px-5 !font-semibold !text-emerald-700 shadow-sm hover:!bg-emerald-50"
+                  className="premium-pill-btn flex items-center justify-center !h-11 !rounded-xl !px-5 !font-semibold"
                 >
                   {isMobile ? "Upload" : "Upload Resource"}
                 </Button>
@@ -820,7 +857,10 @@ export default function LibraryPage() {
                       </span>
                     )}
 
-                    <span className="pointer-events-none absolute bottom-3 right-3 translate-y-1 rounded-full bg-emerald-600 px-3 py-1 text-[11px] font-semibold text-white opacity-0 shadow-md transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+                    <span
+                      className="pointer-events-none absolute bottom-3 right-3 translate-y-1 rounded-full px-3 py-1 text-[11px] font-semibold text-white opacity-0 shadow-md transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100"
+                      style={{ background: "var(--primary)" }}
+                    >
                       Open
                     </span>
 
