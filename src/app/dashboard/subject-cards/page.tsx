@@ -10,6 +10,7 @@ import {
   BookOutlined,
   CalendarOutlined,
   CheckCircleFilled,
+  FileSearchOutlined,
   DeleteOutlined,
   EditOutlined,
   NotificationOutlined,
@@ -98,6 +99,7 @@ const LINK_COLORS: Record<string, LinkColor> = {
   "Teachers":      { bg: "#eef5ff", iconColor: "#3867be", border: "#bfd4ff" },
   "Students & Staff": { bg: "#ecfbf4", iconColor: "#229463", border: "#a8e4c7" },
   "Markbook":      { bg: "#eefbf1", iconColor: "#31a65c", border: "#a8e4b8" },
+  "Reports":       { bg: "#eef4ff", iconColor: "#3b5bdb", border: "#c2d2ff" },
   "Tools":         { bg: "#f3f0ff", iconColor: "#6d5bd0", border: "#d8cffd" },
 };
 const DEFAULT_LINK: LinkColor = { bg: "#effaf3", iconColor: "#38C16C", border: "#b9e2cd" };
@@ -551,6 +553,7 @@ export default function SubjectCardsPage() {
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-5">
             <QuickLinkCard name="Courses"     href="/dashboard/courses"             desc="Access subject courses including Lessons and Mind-upgrade."       Icon={ReadOutlined} />
             <QuickLinkCard name="Markbook"    href="/dashboard/students/markbook"    desc="Open student reports and performance summaries."                 Icon={BarChartOutlined} />
+            <QuickLinkCard name="Reports"     href="/dashboard/reports"             desc="Full student reports — attendance, behaviour, marks & tracker."   Icon={FileSearchOutlined} />
             <QuickLinkCard name="Library"     href="/dashboard/library"             desc="Open shared resources for the current school workspace."          Icon={BookOutlined} />
             <QuickLinkCard name="Leaderboard" href={leaderboardHref}                desc="School-wide student rankings across all subjects."               Icon={TrophyOutlined} />
 
@@ -573,6 +576,7 @@ export default function SubjectCardsPage() {
             <QuickLinkCard name="Students & Staff" href="/dashboard/students-staff"      desc="Manage all students and teachers across subjects."                  Icon={TeamOutlined} />
             <QuickLinkCard name="Courses"           href="/dashboard/courses"            desc="Access subject courses including Lessons and Mind-upgrade."         Icon={ReadOutlined} />
             <QuickLinkCard name="Markbook"          href="/dashboard/students/markbook"   desc="Open student reports and performance summaries."                    Icon={BarChartOutlined} />
+            <QuickLinkCard name="Reports"           href="/dashboard/reports"            desc="Full student reports — behaviour, marks, tracker & teacher notes." Icon={FileSearchOutlined} />
             <QuickLinkCard name="Library"       href="/dashboard/library"               desc="Shared resources available to subjects you assign."                 Icon={BookOutlined} />
             <QuickLinkCard name="Timetable"          href="/dashboard/timetable-builder"  desc="Open the builder first, then switch to the calendar when needed."    Icon={TableOutlined} />
             <QuickLinkCard name="Calendar"           href="/dashboard/time_table?view=calendar" desc="Open the calendar view by subject, class, or teacher."            Icon={CalendarOutlined} />
