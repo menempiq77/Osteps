@@ -10,6 +10,8 @@ import { repentance } from "./repentance";
 import { helperForbearing } from "./helperForbearing";
 import { ghusl } from "./ghusl";
 import { tayammum } from "./tayammum";
+import { battleAhzab } from "./battleAhzab";
+import { arRahman } from "./arRahman";
 
 // Keyed by the topic slug (topicSlugify of the English title in data.ts).
 export const grade7Year8Lessons: Record<string, CourseLesson> = {
@@ -24,4 +26,6 @@ export const grade7Year8Lessons: Record<string, CourseLesson> = {
   "the-helper-the-forbearing-glorified-is-he": helperForbearing,
   "ghusl": ghusl,
   "tayammum-and-wiping-over-the-socks": tayammum,
+  "the-battle-of-al-ahzab": battleAhzab,
+  "surat-ar-rahman-1-25": arRahman,
 };
