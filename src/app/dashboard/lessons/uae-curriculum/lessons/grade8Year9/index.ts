@@ -15,6 +15,7 @@ import { holiestMosques } from "./holiestMosques";
 import { conquestOfMakkah } from "./conquestOfMakkah";
 import { etiquetteOfTravel } from "./etiquetteOfTravel";
 import { rulesOfUmrah } from "./rulesOfUmrah";
+import { powerOfAllah } from "./powerOfAllah";
 
 // Keyed by the topic slug (topicSlugify of the English title in data.ts).
 export const grade8Year9Lessons: Record<string, CourseLesson> = {
@@ -34,4 +35,5 @@ export const grade8Year9Lessons: Record<string, CourseLesson> = {
   "the-conquest-of-makkah": conquestOfMakkah,
   "etiquette-of-travel": etiquetteOfTravel,
   "rules-of-umrah": rulesOfUmrah,
+  "the-power-of-allah-surah-ya-sin-33-54": powerOfAllah,
 };
