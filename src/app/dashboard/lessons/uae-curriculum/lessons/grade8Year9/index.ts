@@ -30,6 +30,7 @@ import { proofsOfOneness } from "./proofsOfOneness";
 import { maintainingFamilyTies } from "./maintainingFamilyTies";
 import { knowledgeIsLight } from "./knowledgeIsLight";
 import { readInNameOfLord } from "./readInNameOfLord";
+import { imamShafii } from "./imamShafii";
 
 // Keyed by the topic slug (topicSlugify of the English title in data.ts).
 export const grade8Year9Lessons: Record<string, CourseLesson> = {
@@ -64,4 +65,5 @@ export const grade8Year9Lessons: Record<string, CourseLesson> = {
   "maintaining-family-ties": maintainingFamilyTies,
   "knowledge-is-light-and-elevation": knowledgeIsLight,
   "read-in-the-name-of-my-lord": readInNameOfLord,
+  "imam-ash-shafii-may-allah-have-mercy-on-him": imamShafii,
 };
