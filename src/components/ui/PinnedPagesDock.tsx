@@ -16,16 +16,27 @@ import {
 const labelMap: Record<string, string> = {
   all_assesments: "Assessments",
   all_trackers: "Trackers",
+  announcements: "Announcements",
   assessment_document: "PDF Workspace",
   "assessment-document": "PDF Workspace",
+  attendance: "Attendance",
+  behaviour: "Behaviour",
+  behavior: "Behaviour",
+  classes: "Classes",
+  courses: "Courses",
   leaderboard: "Leaderboard",
+  lessons: "Lessons",
   library: "Library",
   markbook: "Markbook",
   materials: "Materials",
   questions: "Questions",
   reports: "Reports",
   schools: "Schools",
+  settings: "Settings",
+  staff: "Staff",
+  student: "Student Report",
   students: "Students",
+  "students-staff": "Students & Staff",
   student_assesments: "Assessment Tasks",
   "student-assesments": "Assessment Tasks",
   "subject-cards": "Subject Dashboard",
@@ -33,8 +44,22 @@ const labelMap: Record<string, string> = {
   time_table: "Timetable",
   "timetable-builder": "Timetable Builder",
   "timetable-generator": "Timetable Generator",
+  tools: "Tools",
   trackers: "Trackers",
+  transcribe: "Transcribe",
   viewtrackers: "View Trackers",
+};
+
+// Read the heading of the currently rendered page (the student name on a report,
+// the page title elsewhere). Scoped to the content area so the top-bar greeting
+// ("Welcome back, ...") is never picked up.
+const readContentHeading = (): string => {
+  if (typeof document === "undefined") return "";
+  const scope = document.querySelector(".dashboard-route-transition");
+  const heading = scope?.querySelector("h1, h2");
+  const text = (heading?.textContent || "").replace(/\s+/g, " ").trim();
+  if (!text || /^welcome back/i.test(text)) return "";
+  return text.slice(0, 48);
 };
 
 const formatSegment = (segment: string) => {
@@ -97,6 +122,7 @@ export default function PinnedPagesDock() {
     () => buildPageLabel(pathname, searchParams),
     [pathname, searchParams]
   );
+  const hasExplicitTitle = Boolean(searchParams.get("title")?.trim());
   const currentPinned = pinnedPages.some((page) => page.href === currentHref);
 
   useEffect(() => {
@@ -122,6 +148,39 @@ export default function PinnedPagesDock() {
     writePinnedPages(pages, currentUser);
   };
 
+  // Keep an already-pinned page's label in sync with the real page heading once
+  // it renders (e.g. a student report's name loads asynchronously). This also
+  // upgrades older pins with vague labels the next time the page is visited.
+  useEffect(() => {
+    if (!hydrated || hasExplicitTitle) return;
+    if (!pinnedPages.some((page) => page.href === currentHref)) return;
+
+    let cancelled = false;
+    const tryUpdate = () => {
+      if (cancelled) return;
+      const heading = readContentHeading();
+      if (!heading) return;
+      const existing = pinnedPages.find((page) => page.href === currentHref);
+      if (!existing || existing.label === heading) return;
+      persistPinnedPages(
+        pinnedPages.map((page) =>
+          page.href === currentHref
+            ? { ...page, label: heading, updatedAt: new Date().toISOString() }
+            : page
+        )
+      );
+    };
+
+    const timers = [150, 600, 1500].map((delay) =>
+      window.setTimeout(tryUpdate, delay)
+    );
+    return () => {
+      cancelled = true;
+      timers.forEach((id) => window.clearTimeout(id));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, currentHref, hasExplicitTitle, pinnedPages]);
+
   const toggleCurrentPage = () => {
     if (!currentHref.startsWith("/dashboard")) return;
 
@@ -131,9 +190,13 @@ export default function PinnedPagesDock() {
     }
 
     const timestamp = new Date().toISOString();
+    const label =
+      (!hasExplicitTitle ? readContentHeading() : "") ||
+      currentLabel ||
+      "Pinned page";
     const nextPage: PinnedPage = {
       href: currentHref,
-      label: currentLabel || "Pinned page",
+      label,
       createdAt: timestamp,
       updatedAt: timestamp,
     };
