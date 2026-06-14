@@ -11,6 +11,8 @@ import { waqfGivingAndGrowth } from "./waqfGivingAndGrowth";
 import { humanDevelopment } from "./humanDevelopment";
 import { companionOfTwoGardens } from "./companionOfTwoGardens";
 import { propheticSunnah } from "./propheticSunnah";
+import { etiquetteOfClothing } from "./etiquetteOfClothing";
+import { differencesAmongJurists } from "./differencesAmongJurists";
 
 // Keyed by the topic slug (topicSlugify of the English title in data.ts).
 export const grade10Year11Lessons: Record<string, CourseLesson> = {
@@ -26,4 +28,6 @@ export const grade10Year11Lessons: Record<string, CourseLesson> = {
   "human-development-in-islam": humanDevelopment,
   "the-companion-of-the-two-gardens": companionOfTwoGardens,
   "the-prophetic-sunnah": propheticSunnah,
+  "etiquette-of-clothing": etiquetteOfClothing,
+  "differences-among-jurists": differencesAmongJurists,
 };
