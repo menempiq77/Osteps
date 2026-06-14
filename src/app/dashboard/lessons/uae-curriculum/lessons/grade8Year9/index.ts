@@ -20,6 +20,7 @@ import { maddFari } from "./maddFari";
 import { socialUnity } from "./socialUnity";
 import { virtuesOfBeliever } from "./virtuesOfBeliever";
 import { prohibitionFrightening } from "./prohibitionFrightening";
+import { bestToFamily } from "./bestToFamily";
 
 // Keyed by the topic slug (topicSlugify of the English title in data.ts).
 export const grade8Year9Lessons: Record<string, CourseLesson> = {
@@ -44,4 +45,5 @@ export const grade8Year9Lessons: Record<string, CourseLesson> = {
   "social-unity": socialUnity,
   "virtues-of-the-believer": virtuesOfBeliever,
   "the-prohibition-of-frightening-a-person": prohibitionFrightening,
+  "i-am-the-best-of-you-to-my-family": bestToFamily,
 };
