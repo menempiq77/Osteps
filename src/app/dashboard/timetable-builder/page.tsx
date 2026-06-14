@@ -50,8 +50,11 @@ import {
   savePeriods,
   loadSchoolDays,
   saveSchoolDays,
+  loadDayPeriods,
+  saveDayPeriods,
   DAYS_OF_WEEK,
   SchoolPeriod,
+  DayPeriodOverrides,
 } from "@/lib/schoolPeriods";
 import {
   loadPattern,
@@ -142,6 +145,9 @@ export default function TimetablePage() {
   // ── Config (school days / periods / A-B pattern) ──────────────────────────
   const [periods, setPeriods] = useState<SchoolPeriod[]>(() => loadPeriods());
   const [schoolDays, setSchoolDays] = useState<string[]>(() => loadSchoolDays());
+  const [dayOverrides, setDayOverrides] = useState<DayPeriodOverrides>(() =>
+    loadDayPeriods()
+  );
   const [pattern, setPattern] = useState<TimetablePattern>(() => loadPattern());
   const [configOpen, setConfigOpen] = useState(false);
   const [patternOpen, setPatternOpen] = useState(false);
@@ -385,9 +391,23 @@ export default function TimetablePage() {
     return weekScoped; // school
   }, [view, weekScoped, classId, teacherId, room, selectedStudent, subjectFilter]);
 
+  // The version of a template period that actually applies on a given day.
+  // Returns null when that period doesn't run on that day (e.g. Friday early
+  // finish removed P6).
+  const effectivePeriod = (
+    day: string,
+    template: SchoolPeriod
+  ): SchoolPeriod | null => {
+    const ov = dayOverrides[day];
+    if (!ov) return template;
+    return ov.find((p) => p.id === template.id) ?? null;
+  };
+
   const lessonsAt = (day: string, period: SchoolPeriod): Lesson[] => {
-    const ps = toMinutes(period.startTime);
-    const pe = toMinutes(period.endTime);
+    const eff = effectivePeriod(day, period);
+    if (!eff) return [];
+    const ps = toMinutes(eff.startTime);
+    const pe = toMinutes(eff.endTime);
     return visibleLessons
       .filter((l) => l.day === day)
       .filter((l) => {
@@ -441,7 +461,8 @@ export default function TimetablePage() {
 
   const openAdd = (day: string, period: SchoolPeriod) => {
     setEditingLesson(null);
-    setEditorCell({ day, period });
+    // Use this day's own times (Friday may differ from the default).
+    setEditorCell({ day, period: effectivePeriod(day, period) ?? period });
     form.resetFields();
     setEditorOpen(true);
   };
@@ -615,6 +636,10 @@ export default function TimetablePage() {
         }
         const cells = orderedDays
           .map((d) => {
+            const eff = effectivePeriod(d, p);
+            if (!eff) return `<td class="band">—</td>`;
+            const timeDiffers =
+              eff.startTime !== p.startTime || eff.endTime !== p.endTime;
             const items = lessonsAt(d, p)
               .map((l) => {
                 const lines = [l.subject || "Lesson"];
@@ -629,7 +654,10 @@ export default function TimetablePage() {
                   .join("")}</div>`;
               })
               .join("");
-            return `<td>${items}</td>`;
+            const chip = timeDiffers
+              ? `<div class="t">${eff.startTime}–${eff.endTime}</div>`
+              : "";
+            return `<td>${chip}${items}</td>`;
           })
           .join("");
         return `<tr><td class="ph">${p.label}<br><span>${p.startTime}–${p.endTime}</span></td>${cells}</tr>`;
@@ -653,6 +681,7 @@ export default function TimetablePage() {
   .cell{margin-bottom:4px;padding:4px 6px;border-radius:6px;background:#eef2ff;display:flex;flex-direction:column}
   .s1{font-weight:700}
   .s2{color:#475569;font-size:10px}
+  .t{color:#b45309;font-weight:700;font-size:10px;text-align:center;margin-bottom:3px}
 </style></head><body>
   <h1>${title}${ab}</h1>
   <table><thead>${head}</thead><tbody>${rows}</tbody></table>
@@ -939,6 +968,22 @@ export default function TimetablePage() {
                       </div>
                     </td>
                     {orderedDays.map((d) => {
+                      const eff = effectivePeriod(d, p);
+                      if (!eff) {
+                        return (
+                          <td
+                            key={d}
+                            className="border-b border-r border-slate-100 bg-slate-50/40 p-1 align-middle"
+                            style={{ minWidth: 150 }}
+                          >
+                            <div className="py-2 text-center text-[11px] italic text-slate-300">
+                              Off
+                            </div>
+                          </td>
+                        );
+                      }
+                      const timeDiffers =
+                        eff.startTime !== p.startTime || eff.endTime !== p.endTime;
                       const items = lessonsAt(d, p);
                       return (
                         <td
@@ -946,6 +991,11 @@ export default function TimetablePage() {
                           className="border-b border-r border-slate-100 p-1 align-top"
                           style={{ minWidth: 150 }}
                         >
+                          {timeDiffers && (
+                            <div className="mb-1 text-center text-[10px] font-semibold text-amber-600">
+                              {eff.startTime}–{eff.endTime}
+                            </div>
+                          )}
                           {items.map((l) => {
                             const conflicts = conflictMap[l.id] ?? [];
                             const hard = hasHardConflict(conflicts);
@@ -1231,11 +1281,14 @@ export default function TimetablePage() {
         onClose={() => setConfigOpen(false)}
         periods={periods}
         schoolDays={schoolDays}
-        onChange={(p, d) => {
+        dayOverrides={dayOverrides}
+        onChange={(p, d, ov) => {
           setPeriods(p);
           savePeriods(p);
           setSchoolDays(d);
           saveSchoolDays(d);
+          setDayOverrides(ov);
+          saveDayPeriods(ov);
         }}
       />
     </div>
