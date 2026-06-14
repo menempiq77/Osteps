@@ -164,8 +164,9 @@ export default function LessonCourseStepper({ lesson }: Props) {
     () => EMPTY_PROGRESS
   );
 
-  const totalSections = lesson.sections.length + 1;
-  const quizIndex = totalSections - 1;
+  const hasQuiz = (lesson.quizQuestions?.length ?? 0) > 0;
+  const totalSections = lesson.sections.length + (hasQuiz ? 1 : 0);
+  const quizIndex = hasQuiz ? totalSections - 1 : -1;
   const completedSet = useMemo(() => new Set(progress.completedSectionIndices), [progress.completedSectionIndices]);
   const nextRequiredIndex = useMemo(() => {
     for (let index = 0; index < totalSections; index += 1) {
@@ -177,7 +178,7 @@ export default function LessonCourseStepper({ lesson }: Props) {
     ? Math.max(0, totalSections - 1)
     : Math.min(nextRequiredIndex, totalSections - 1);
   const activeIndex = Math.min(Math.max(progress.currentSectionIndex ?? 0, 0), highestUnlockedIndex);
-  const isOnQuizSection = activeIndex === quizIndex;
+  const isOnQuizSection = hasQuiz && activeIndex === quizIndex;
   const activeSection = lesson.sections[activeIndex];
   const lessonDone = progress.isLessonCompleted;
   const completedCount = completedSet.size;
@@ -209,7 +210,8 @@ export default function LessonCourseStepper({ lesson }: Props) {
     completed.add(activeIndex);
     const nextCompleted = Array.from(completed).sort((a, b) => a - b);
     const nextIndex = Math.min(activeIndex + 1, totalSections - 1);
-    const done = nextCompleted.length >= totalSections && hasPassedQuiz(lesson.slug);
+    const done =
+      nextCompleted.length >= totalSections && (!hasQuiz || hasPassedQuiz(lesson.slug));
 
     setLessonProgress(lesson.slug, {
       currentSectionIndex: nextIndex,
@@ -376,33 +378,35 @@ export default function LessonCourseStepper({ lesson }: Props) {
               );
             })}
 
-            <button
-              type="button"
-              disabled={quizIndex > highestUnlockedIndex}
-              onClick={() => goTo(quizIndex)}
-              className={
-                "flex items-center gap-3 rounded-lg border-2 px-4 py-3 text-left font-bold transition-all " +
-                (isOnQuizSection
-                  ? "border-teal-500 bg-teal-50 text-teal-900 shadow-sm"
-                  : quizIndex > highestUnlockedIndex
-                  ? "border-gray-200 bg-white text-gray-400 opacity-70"
-                  : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50")
-              }
-            >
-              <span
+            {hasQuiz ? (
+              <button
+                type="button"
+                disabled={quizIndex > highestUnlockedIndex}
+                onClick={() => goTo(quizIndex)}
                 className={
-                  "flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-black " +
-                  (completedSet.has(quizIndex)
-                    ? "bg-green-500 text-white"
-                    : isOnQuizSection
-                    ? "bg-teal-500 text-white"
-                    : "bg-gray-100 text-gray-600")
+                  "flex items-center gap-3 rounded-lg border-2 px-4 py-3 text-left font-bold transition-all " +
+                  (isOnQuizSection
+                    ? "border-teal-500 bg-teal-50 text-teal-900 shadow-sm"
+                    : quizIndex > highestUnlockedIndex
+                    ? "border-gray-200 bg-white text-gray-400 opacity-70"
+                    : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50")
                 }
               >
-                {completedSet.has(quizIndex) ? "✓" : totalSections}
-              </span>
-              <span className="flex-1">{language === "ar" ? "الاختبار" : "Quiz"}</span>
-            </button>
+                <span
+                  className={
+                    "flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-black " +
+                    (completedSet.has(quizIndex)
+                      ? "bg-green-500 text-white"
+                      : isOnQuizSection
+                      ? "bg-teal-500 text-white"
+                      : "bg-gray-100 text-gray-600")
+                  }
+                >
+                  {completedSet.has(quizIndex) ? "✓" : totalSections}
+                </span>
+                <span className="flex-1">{language === "ar" ? "الاختبار" : "Quiz"}</span>
+              </button>
+            ) : null}
           </div>
         </div>
 

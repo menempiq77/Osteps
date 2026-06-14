@@ -128,13 +128,15 @@ function buildSlides(lesson: CourseLesson): PresentationSlide[] {
     slides.push(...sectionSlides);
   });
 
-  slides.push({
-    id: `${lesson.slug}-quiz`,
-    sectionIndex: lesson.sections.length,
-    slideIndexWithinSection: 0,
-    title: "Final Quiz",
-    blocks: [{ type: "quiz" }],
-  });
+  if ((lesson.quizQuestions?.length ?? 0) > 0) {
+    slides.push({
+      id: `${lesson.slug}-quiz`,
+      sectionIndex: lesson.sections.length,
+      slideIndexWithinSection: 0,
+      title: "Final Quiz",
+      blocks: [{ type: "quiz" }],
+    });
+  }
 
   return slides;
 }
@@ -184,8 +186,9 @@ export default function LessonDeckClient({ lesson }: Props) {
   const [partDragOverIndex, setPartDragOverIndex] = useState<number | null>(null);
 
   const slides = useMemo(() => buildSlides(lesson), [lesson]);
-  const totalSections = lesson.sections.length + 1;
-  const quizIndex = totalSections - 1;
+  const hasQuiz = (lesson.quizQuestions?.length ?? 0) > 0;
+  const totalSections = lesson.sections.length + (hasQuiz ? 1 : 0);
+  const quizIndex = hasQuiz ? lesson.sections.length : -1;
   const defaultPartOrder = useMemo(
     () => Array.from({ length: totalSections }, (_, index) => index),
     [totalSections]
@@ -1286,7 +1289,11 @@ export default function LessonDeckClient({ lesson }: Props) {
               disabled={activeIndex === quizIndex}
               className="rounded-lg bg-gradient-to-r from-teal-500 to-emerald-500 px-5 py-2 text-sm font-bold text-white shadow transition hover:shadow-md active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {activeIndex < totalSections - 2 ? "Mark Done & Next" : activeIndex === totalSections - 2 ? "Mark Done & Open Quiz" : "Mark Done"}
+              {activeIndex >= totalSections - 1
+                ? "Mark Done"
+                : hasQuiz && activeIndex === totalSections - 2
+                ? "Mark Done & Open Quiz"
+                : "Mark Done & Next"}
             </button>
           </div>
         </div>
