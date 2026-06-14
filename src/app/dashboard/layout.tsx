@@ -5,6 +5,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { ArrowLeft, ArrowRight, Home, LogOut, Settings as SettingsIcon } from "lucide-react";
 import { RootState } from "@/store/store";
 import SubjectSwitcher from "@/components/ui/SubjectSwitcher";
+import SchoolNotificationBell from "@/components/dashboard/SchoolNotificationBell";
 import { SubjectContextProvider } from "@/contexts/SubjectContext";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -400,6 +401,7 @@ export default function DashboardLayout({
 
   const renderAccountActions = () => (
     <div className="flex shrink-0 items-center gap-2">
+      <SchoolNotificationBell />
       <button
         type="button"
         onClick={() => router.push(settingsHref)}
