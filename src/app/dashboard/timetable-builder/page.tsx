@@ -25,6 +25,8 @@ import {
   DoorOpen,
   School as SchoolIcon,
   GraduationCap,
+  User,
+  BookOpen,
   Video,
   AlertTriangle,
   Copy,
@@ -42,6 +44,7 @@ import { fetchTeachers } from "@/services/teacherApi";
 import { fetchYearsBySchool } from "@/services/yearsApi";
 import { fetchClasses } from "@/services/classesApi";
 import { fetchSubjects } from "@/services/subjectsApi";
+import { fetchStudents } from "@/services/studentsApi";
 import {
   loadPeriods,
   savePeriods,
@@ -66,7 +69,14 @@ const PeriodsConfigModal = dynamic(
 
 const { Option } = Select;
 
-type ViewMode = "class" | "teacher" | "room" | "school";
+type ViewMode = "class" | "teacher" | "room" | "school" | "student" | "subject";
+
+interface StudentOption {
+  id: number;
+  name: string;
+  classIds: number[];
+  classNames: string[];
+}
 
 interface Lesson {
   id: number;
@@ -160,6 +170,8 @@ export default function TimetablePage() {
   );
   const [teacherId, setTeacherId] = useState<string | null>(null);
   const [room, setRoom] = useState<string | null>(null);
+  const [studentId, setStudentId] = useState<string | null>(null);
+  const [subjectFilter, setSubjectFilter] = useState<string | null>(null);
 
   // ── Data ──────────────────────────────────────────────────────────────────
   const { data: rawSlots = [], isLoading } = useQuery({
@@ -205,6 +217,57 @@ export default function TimetablePage() {
     },
   });
 
+  // All students across the school (lazy — only when the By Student view is active)
+  const { data: allStudents = [] } = useQuery<StudentOption[]>({
+    queryKey: ["all-students", schoolId, allClasses.map((c) => c.id).join(",")],
+    enabled: !isStudent && view === "student" && allClasses.length > 0,
+    queryFn: async () => {
+      const arr = await Promise.all(
+        allClasses.map(async (c) => {
+          const studs = await fetchStudents(c.id).catch(() => []);
+          return ((Array.isArray(studs) ? studs : []) as Record<string, unknown>[]).map(
+            (s) => ({
+              id: Number(s.id),
+              name: String(
+                s.student_name ?? s.name ?? s.user_name ?? "Student"
+              ),
+              class_id: Number(c.id),
+              class_name: String(c.class_name ?? ""),
+            })
+          );
+        })
+      );
+      // A student can be enrolled in several (subject) classes — merge them so a
+      // student appears once and their timetable spans all their classes.
+      const map = new Map<number, StudentOption>();
+      for (const s of arr.flat()) {
+        if (!Number.isFinite(s.id)) continue;
+        const ex = map.get(s.id);
+        if (ex) {
+          if (!ex.classIds.includes(s.class_id)) {
+            ex.classIds.push(s.class_id);
+            if (s.class_name) ex.classNames.push(s.class_name);
+          }
+        } else {
+          map.set(s.id, {
+            id: s.id,
+            name: s.name,
+            classIds: [s.class_id],
+            classNames: s.class_name ? [s.class_name] : [],
+          });
+        }
+      }
+      return Array.from(map.values()).sort((a, b) =>
+        a.name.localeCompare(b.name)
+      );
+    },
+  });
+
+  const selectedStudent = useMemo(
+    () => allStudents.find((s) => String(s.id) === studentId) ?? null,
+    [allStudents, studentId]
+  );
+
   const myTeacherId = useMemo(() => {
     if (!isTeacher || !currentUser?.id) return null;
     const me = teachers.find((t) => Number(t.user_id) === Number(currentUser.id));
@@ -240,11 +303,23 @@ export default function TimetablePage() {
     if (view === "room" && !room && rooms.length > 0) setRoom(rooms[0]);
   }, [view, room, rooms]);
 
+  useEffect(() => {
+    if (view === "student" && !studentId && allStudents.length > 0) {
+      setStudentId(String(allStudents[0].id));
+    }
+  }, [view, studentId, allStudents]);
+
   // ── Helpers ─────────────────────────────────────────────────────────────
   const subjectNames = useMemo(
     () => subjects.map((s) => s.name).filter(Boolean) as string[],
     [subjects]
   );
+
+  useEffect(() => {
+    if (view === "subject" && !subjectFilter && subjectNames.length > 0) {
+      setSubjectFilter(subjectNames[0]);
+    }
+  }, [view, subjectFilter, subjectNames]);
   const teacherName = (id: number | null): string => {
     if (id == null) return "";
     const t = teachers.find((x) => Number(x.id) === id);
@@ -295,8 +370,20 @@ export default function TimetablePage() {
     if (view === "room") {
       return weekScoped.filter((l) => l.room && l.room === room);
     }
+    if (view === "student") {
+      const cids = selectedStudent ? selectedStudent.classIds : [];
+      if (cids.length === 0) return [];
+      return weekScoped.filter(
+        (l) => l.class_id != null && cids.includes(l.class_id)
+      );
+    }
+    if (view === "subject") {
+      if (!subjectFilter) return [];
+      const want = subjectFilter.toLowerCase();
+      return weekScoped.filter((l) => (l.subject || "").toLowerCase() === want);
+    }
     return weekScoped; // school
-  }, [view, weekScoped, classId, teacherId, room]);
+  }, [view, weekScoped, classId, teacherId, room, selectedStudent, subjectFilter]);
 
   const lessonsAt = (day: string, period: SchoolPeriod): Lesson[] => {
     const ps = toMinutes(period.startTime);
@@ -507,6 +594,14 @@ export default function TimetablePage() {
         ? `Timetable — ${teacherName(teacherId ? Number(teacherId) : null) || "Teacher"}`
         : view === "room"
         ? `Timetable — Room ${room ?? ""}`
+        : view === "student"
+        ? `Timetable — ${selectedStudent?.name || "Student"}${
+            selectedStudent?.classNames?.length
+              ? ` (${selectedStudent.classNames.join(", ")})`
+              : ""
+          }`
+        : view === "subject"
+        ? `Timetable — ${subjectFilter || "Subject"}`
         : "School Timetable";
 
     const teachingPeriods = periods;
@@ -575,6 +670,8 @@ export default function TimetablePage() {
     { label: "By Teacher", value: "teacher", icon: <Users size={14} /> },
     { label: "By Room", value: "room", icon: <DoorOpen size={14} /> },
     { label: "Whole school", value: "school", icon: <SchoolIcon size={14} /> },
+    { label: "By Student", value: "student", icon: <User size={14} /> },
+    { label: "By Subject", value: "subject", icon: <BookOpen size={14} /> },
   ];
 
   return (
@@ -631,7 +728,14 @@ export default function TimetablePage() {
             isStudent
               ? [viewOptions[0]]
               : isTeacher
-              ? [viewOptions[1], viewOptions[0], viewOptions[2], viewOptions[3]]
+              ? [
+                  viewOptions[1],
+                  viewOptions[0],
+                  viewOptions[2],
+                  viewOptions[3],
+                  viewOptions[4],
+                  viewOptions[5],
+                ]
               : viewOptions
           }
         />
@@ -703,6 +807,42 @@ export default function TimetablePage() {
               {rooms.map((r) => (
                 <Option key={r} value={r}>
                   Room {r}
+                </Option>
+              ))}
+            </Select>
+          )}
+
+          {showSelectors && view === "student" && (
+            <Select
+              value={studentId ?? undefined}
+              onChange={(v) => setStudentId(v)}
+              placeholder="Search student"
+              style={{ minWidth: 240 }}
+              showSearch
+              optionFilterProp="children"
+              notFoundContent="Loading students…"
+            >
+              {allStudents.map((s) => (
+                <Option key={s.id} value={String(s.id)}>
+                  {s.name}
+                  {s.classNames.length ? ` — ${s.classNames.join(", ")}` : ""}
+                </Option>
+              ))}
+            </Select>
+          )}
+
+          {showSelectors && view === "subject" && (
+            <Select
+              value={subjectFilter ?? undefined}
+              onChange={(v) => setSubjectFilter(v)}
+              placeholder="Subject"
+              style={{ minWidth: 180 }}
+              showSearch
+              optionFilterProp="children"
+            >
+              {subjectNames.map((s) => (
+                <Option key={s} value={s}>
+                  {s}
                 </Option>
               ))}
             </Select>
