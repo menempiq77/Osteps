@@ -156,6 +156,7 @@ type StatDetailItem = {
   classLabel?: string;
   subjectLabel?: string;
   gender?: string;
+  userName?: string;
 };
 
 type StudentInlineFilters = {
@@ -928,6 +929,16 @@ export default function DashboardPage() {
               ""
             );
             const gender = cleanDashboardLabel(student?.gender ?? student?.student_gender, "");
+            const userName = [
+              student?.user_name,
+              student?.username,
+              student?.user?.user_name,
+              student?.user?.username,
+              student?.student?.user_name,
+              student?.student?.username,
+            ]
+              .map((value) => String(value ?? "").trim())
+              .find(Boolean) ?? "";
 
             return {
               key: String(student?.id ?? student?.student_id ?? `${classItem.key}-${index}`),
@@ -941,6 +952,7 @@ export default function DashboardPage() {
               classLabel,
               subjectLabel,
               gender,
+              userName,
             };
           })
         );
@@ -2176,8 +2188,13 @@ export default function DashboardPage() {
 
                                     return (
                                       <tr key={item.key} className="transition hover:bg-emerald-50/30">
-                                        <td className="whitespace-nowrap px-4 py-3 font-semibold text-emerald-700">
-                                          {item.title}
+                                        <td className="whitespace-nowrap px-4 py-3">
+                                          <div className="flex flex-col">
+                                            <span className="font-semibold text-emerald-700">{item.title}</span>
+                                            {item.userName ? (
+                                              <span className="font-mono text-xs text-slate-400">@{item.userName}</span>
+                                            ) : null}
+                                          </div>
                                         </td>
                                         <td className="px-4 py-3 text-slate-600">
                                           {item.yearLabel ? (

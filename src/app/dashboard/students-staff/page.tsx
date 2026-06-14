@@ -14,57 +14,67 @@ export default function StudentsStaffPage() {
     <div className="space-y-6 pb-10">
       {/* Header */}
       <div
-        className="relative overflow-hidden rounded-3xl px-6 py-8 md:px-10 md:py-10"
+        className="relative overflow-hidden rounded-3xl border shadow-sm"
         style={{
-          background: "linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0a2318 100%)",
+          borderColor: "var(--theme-border)",
+          background:
+            "radial-gradient(1100px 320px at 100% -45%, color-mix(in srgb, var(--primary) 24%, transparent), transparent 70%), linear-gradient(135deg, var(--theme-soft) 0%, #ffffff 58%)",
         }}
       >
-        <div className="pointer-events-none absolute -top-10 -right-10 h-48 w-48 rounded-full opacity-10"
-             style={{ background: "radial-gradient(circle, #38C16C, transparent 70%)" }} />
-        <div className="pointer-events-none absolute bottom-0 left-20 h-32 w-32 rounded-full opacity-10"
-             style={{ background: "radial-gradient(circle, #38C16C, transparent 70%)" }} />
+        <div
+          className="pointer-events-none absolute -right-12 -top-20 h-56 w-56 rounded-full blur-3xl"
+          style={{ background: "color-mix(in srgb, var(--primary) 28%, transparent)" }}
+        />
+        <div
+          className="pointer-events-none absolute right-40 top-8 h-24 w-24 rounded-full blur-2xl"
+          style={{ background: "color-mix(in srgb, var(--theme-scroll-end) 22%, transparent)" }}
+        />
 
-        <div className="relative flex items-center justify-between gap-5 flex-wrap">
-          <div className="flex items-center gap-5">
-            <div
-              className="flex-shrink-0 h-14 w-14 rounded-2xl flex items-center justify-center text-2xl shadow-lg"
-              style={{
-                background: "linear-gradient(135deg, #38C16C 0%, #16a34a 100%)",
-                boxShadow: "0 0 0 3px rgba(56,193,108,0.35)",
-              }}
+        <div className="relative flex flex-col gap-6 p-6 md:flex-row md:items-end md:justify-between md:p-8">
+          <div className="min-w-0">
+            <span
+              className="inline-flex items-center gap-2 rounded-full border bg-white/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] backdrop-blur"
+              style={{ borderColor: "var(--theme-border)", color: "var(--theme-dark)" }}
             >
-              <TeamOutlined style={{ color: "#fff" }} />
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-green-400 mb-1">
-                School Management
-              </p>
-              <h1 className="text-2xl font-bold text-white leading-tight">Students &amp; Staff</h1>
-              <p className="mt-1 text-sm" style={{ color: "rgba(255,255,255,0.60)" }}>
-                Manage people across all subjects from one place.
-              </p>
-            </div>
+              <TeamOutlined /> School Management
+            </span>
+
+            <h1
+              className="mt-3 m-0 text-[26px] font-extrabold leading-tight tracking-tight md:text-[34px]"
+              style={{ color: "var(--theme-dark)" }}
+            >
+              Students &amp; Staff
+            </h1>
+
+            <p className="mt-2.5 max-w-xl text-sm leading-relaxed text-slate-600 md:text-[15px]">
+              Everyone in your school, organised in one place — search, filter and manage students and teachers across every subject without losing your spot.
+            </p>
           </div>
 
           {/* Tab switcher */}
-          <div className="flex gap-2 mt-2 sm:mt-0">
+          <div
+            className="inline-flex self-start rounded-2xl border bg-white/70 p-1 shadow-sm backdrop-blur md:self-auto"
+            style={{ borderColor: "var(--theme-border)" }}
+          >
             <button
               onClick={() => setActiveTab("students")}
-              className={`px-6 py-2 rounded-lg text-sm font-semibold border-2 transition-all ${
+              className="rounded-xl px-6 py-2 text-sm font-semibold transition-all"
+              style={
                 activeTab === "students"
-                  ? "border-green-400 bg-green-400 text-white"
-                  : "border-green-400/60 text-green-300 bg-transparent hover:bg-white/10"
-              }`}
+                  ? { background: "var(--primary)", color: "#fff", boxShadow: "0 4px 12px color-mix(in srgb, var(--primary) 35%, transparent)" }
+                  : { background: "transparent", color: "var(--theme-dark)" }
+              }
             >
               Students
             </button>
             <button
               onClick={() => setActiveTab("teachers")}
-              className={`px-6 py-2 rounded-lg text-sm font-semibold border-2 transition-all ${
+              className="rounded-xl px-6 py-2 text-sm font-semibold transition-all"
+              style={
                 activeTab === "teachers"
-                  ? "border-green-400 bg-green-400 text-white"
-                  : "border-green-400/60 text-green-300 bg-transparent hover:bg-white/10"
-              }`}
+                  ? { background: "var(--primary)", color: "#fff", boxShadow: "0 4px 12px color-mix(in srgb, var(--primary) 35%, transparent)" }
+                  : { background: "transparent", color: "var(--theme-dark)" }
+              }
             >
               Teachers
             </button>
