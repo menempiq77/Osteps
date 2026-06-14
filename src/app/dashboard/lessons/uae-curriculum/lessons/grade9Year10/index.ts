@@ -13,6 +13,7 @@ import { faithIsABlessing } from "./faithIsABlessing";
 import { societyMenAndWomen } from "./societyMenAndWomen";
 import { justiceInIslam } from "./justiceInIslam";
 import { lawfulFoodAndDrink } from "./lawfulFoodAndDrink";
+import { imamMuslim } from "./imamMuslim";
 
 // Keyed by the topic slug (topicSlugify of the English title in data.ts).
 export const grade9Year10Lessons: Record<string, CourseLesson> = {
@@ -30,4 +31,5 @@ export const grade9Year10Lessons: Record<string, CourseLesson> = {
   "society-has-both-men-and-women": societyMenAndWomen,
   "justice-in-islam": justiceInIslam,
   "what-is-lawful-and-unlawful-in-food-and-drink": lawfulFoodAndDrink,
+  "imam-muslim-may-allah-have-mercy-on-him": imamMuslim,
 };
