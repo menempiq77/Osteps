@@ -1764,6 +1764,13 @@ export default function AllStudentsPage() {
     return `/dashboard/students/all-students/profile/${record.profileId}`;
   };
 
+  const buildStudentReportHref = (record: StudentListRow) => {
+    const reportSubjectId =
+      record.subjectIds.find((id) => Number.isFinite(id) && id > 0) ?? 0;
+    const qs = reportSubjectId ? `?subject_id=${reportSubjectId}` : "";
+    return `/dashboard/reports/student/${record.profileId}${qs}`;
+  };
+
   const resetFilters = () => {
     setNameFilter("");
     setYearFilter("all");
@@ -3087,7 +3094,7 @@ export default function AllStudentsPage() {
                   render: (_: unknown, record: StudentListRow) => (
                     <Space size={8}>
                       <Link
-                        href={buildStudentProfileHref(record)}
+                        href={buildStudentReportHref(record)}
                       >
                         <Button
                           size="small"

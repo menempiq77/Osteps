@@ -40,7 +40,17 @@ const subjectInitials = (value: string) => {
   return parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "S";
 };
 
-export default function SubjectRightSidebar() {
+type SubjectRightSidebarProps = {
+  overlayState?: "pinned" | "hidden" | "revealed";
+  onPointerEnter?: () => void;
+  onPointerLeave?: () => void;
+};
+
+export default function SubjectRightSidebar({
+  overlayState = "pinned",
+  onPointerEnter,
+  onPointerLeave,
+}: SubjectRightSidebarProps = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const { currentUser } = useSelector((state: RootState) => state.auth);
@@ -164,9 +174,20 @@ export default function SubjectRightSidebar() {
     return currentUnscoped.startsWith(`${targetUnscoped}/`);
   };
 
+  const isOverlay = overlayState !== "pinned";
+  const asideClassName = isOverlay
+    ? `fixed bottom-0 right-0 top-[78px] z-[710] hidden w-[92px] flex-col overflow-hidden rounded-tl-2xl border-l border-white/10 bg-[#424253] text-white shadow-[-12px_0_28px_rgba(15,23,42,0.28)] transition-transform duration-300 ease-out md:flex ${
+        overlayState === "revealed" ? "translate-x-0" : "translate-x-full"
+      }`
+    : "fixed bottom-0 right-0 top-[78px] z-[640] hidden w-[92px] flex-col overflow-hidden rounded-tl-2xl border-l border-white/10 bg-[#424253] text-white shadow-[-12px_0_28px_rgba(15,23,42,0.18)] md:flex";
+
   return (
     <>
-      <aside className="fixed bottom-0 right-0 top-[78px] z-[640] hidden w-[92px] flex-col overflow-hidden rounded-tl-2xl border-l border-white/10 bg-[#424253] text-white shadow-[-12px_0_28px_rgba(15,23,42,0.18)] md:flex">
+      <aside
+        className={asideClassName}
+        onMouseEnter={onPointerEnter}
+        onMouseLeave={onPointerLeave}
+      >
         <div className="border-b border-white/10 px-2 py-3 text-center">
           <button
             ref={subjectButtonRef}

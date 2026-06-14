@@ -946,7 +946,9 @@ export default function DashboardPage() {
               meta: classLabel,
               badge: student?.status ? cleanDashboardLabel(student.status) : undefined,
               href: student?.id || student?.student_id
-                ? `/dashboard/students/all-students/profile/${student?.id ?? student?.student_id}`
+                ? `/dashboard/reports/student/${student?.id ?? student?.student_id}${
+                    subjectId ? `?subject_id=${subjectId}` : ""
+                  }`
                 : classItem.href,
               yearLabel,
               classLabel,

@@ -16,6 +16,7 @@ import { User } from "@/features/auth/types";
 const QuickLauncher = dynamic(() => import("@/components/ui/QuickLauncher"));
 const FavoriteSidebar = dynamic(() => import("@/components/ui/FavoriteSidebar"));
 const SubjectRightSidebar = dynamic(() => import("@/components/ui/SubjectRightSidebar"));
+const RightSidebarReveal = dynamic(() => import("@/components/ui/RightSidebarReveal"));
 const PinnedPagesDock = dynamic(() => import("@/components/ui/PinnedPagesDock"));
 
 const THEME_STORAGE_KEY = "osteps-dashboard-theme";
@@ -308,6 +309,10 @@ export default function DashboardLayout({
 
   const shouldApplyMaxWidth = !isImmersiveLessonGroupRoute && !isReportsRoute;
   const showSubjectRightSidebar = isSubjectWorkspaceRoute && !isStudentExamAssessmentRoute;
+  const showRightEdgeReveal =
+    !showSubjectRightSidebar &&
+    !isStudentExamAssessmentRoute &&
+    !isImmersiveLessonGroupRoute;
   const dashboardPaddingClass = showSubjectRightSidebar
     ? "px-3 pb-3 pt-[96px] md:pb-6 md:pl-[110px] md:pr-[112px] md:pt-[88px]"
     : "px-3 pb-3 pt-[96px] md:pb-6 md:pl-[110px] md:pr-6 md:pt-[88px]";
@@ -497,6 +502,7 @@ export default function DashboardLayout({
         )}
         <FavoriteSidebar />
         {showSubjectRightSidebar ? <SubjectRightSidebar /> : null}
+        {showRightEdgeReveal ? <RightSidebarReveal /> : null}
         <PinnedPagesDock />
         <div
           className={`dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] ${dashboardPaddingClass}`}
@@ -548,6 +554,7 @@ export default function DashboardLayout({
       )}
       {!isImmersiveLessonGroupRoute ? <FavoriteSidebar /> : null}
       {showSubjectRightSidebar ? <SubjectRightSidebar /> : null}
+      {showRightEdgeReveal ? <RightSidebarReveal /> : null}
       {!isImmersiveLessonGroupRoute ? <PinnedPagesDock /> : null}
       <div style={impersonating ? { paddingTop: 40 } : undefined}>
       {isStandaloneTeacherRoute ||
