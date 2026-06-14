@@ -505,7 +505,7 @@ export default function FavoriteSidebar() {
   };
 
   return (
-    <aside className="fixed bottom-0 left-0 top-[78px] z-[650] hidden w-[64px] flex-col overflow-hidden rounded-tr-2xl border-r border-white/10 bg-[#424253] text-white shadow-[12px_0_28px_rgba(15,23,42,0.18)] md:flex">
+    <aside className="fixed bottom-0 left-0 top-[56px] z-[650] hidden w-[64px] flex-col overflow-hidden border-r border-white/10 bg-[#424253] text-white shadow-[12px_0_28px_rgba(15,23,42,0.18)] md:flex">
       <div className="shrink-0 border-b border-white/10 px-1.5 pb-2 pt-2">
         <button
           type="button"

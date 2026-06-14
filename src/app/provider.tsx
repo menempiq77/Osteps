@@ -7,7 +7,7 @@ import { Provider } from "react-redux";
 import { PersistGate } from "redux-persist/integration/react";
 import { LanguageProvider } from "./LanguageContext";
 import { persistor, store } from "@/store/store";
-import { GlobalAiAssistant } from "@/components/GlobalAiAssistant";
+import { GlobalTimer } from "@/components/GlobalTimer";
 
 function AppBootFallback() {
   return (
@@ -70,7 +70,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
               {children}
             </Suspense>
             <Suspense fallback={null}>
-              <GlobalAiAssistant />
+              <GlobalTimer />
             </Suspense>
             {process.env.NODE_ENV === "development" && (
               <ReactQueryDevtools initialIsOpen={false} />

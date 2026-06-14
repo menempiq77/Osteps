@@ -314,14 +314,14 @@ export default function DashboardLayout({
     !isStudentExamAssessmentRoute &&
     !isImmersiveLessonGroupRoute;
   const dashboardPaddingClass = showSubjectRightSidebar
-    ? "px-3 pb-3 pt-[96px] md:pb-6 md:pl-[84px] md:pr-[84px] md:pt-[88px]"
-    : "px-3 pb-3 pt-[96px] md:pb-6 md:pl-[84px] md:pr-6 md:pt-[88px]";
+    ? "px-3 pb-3 pt-[78px] md:pb-6 md:pl-[84px] md:pr-[84px] md:pt-[66px]"
+    : "px-3 pb-3 pt-[78px] md:pb-6 md:pl-[84px] md:pr-6 md:pt-[66px]";
   const mainContentPaddingClass = showSubjectRightSidebar
-    ? "max-w-7xl px-3 pb-3 pt-[96px] md:pb-6 md:pl-[84px] md:pr-[84px] md:pt-[88px]"
-    : "max-w-7xl px-3 pb-3 pt-[96px] md:pb-6 md:pl-[84px] md:pr-6 md:pt-[88px]";
+    ? "max-w-7xl px-3 pb-3 pt-[78px] md:pb-6 md:pl-[84px] md:pr-[84px] md:pt-[66px]"
+    : "max-w-7xl px-3 pb-3 pt-[78px] md:pb-6 md:pl-[84px] md:pr-6 md:pt-[66px]";
   const fullWidthContentPaddingClass = showSubjectRightSidebar
-    ? "pt-[96px] md:pl-[72px] md:pr-[72px] md:pt-[88px]"
-    : "pt-[96px] md:pl-[72px] md:pt-[88px]";
+    ? "pt-[78px] md:pl-[72px] md:pr-[72px] md:pt-[66px]"
+    : "pt-[78px] md:pl-[72px] md:pt-[66px]";
 
   const userRoleLabel = (() => {
     const role = (currentUser?.role || "").toUpperCase().replace(/\s+/g, "_");
@@ -435,7 +435,7 @@ export default function DashboardLayout({
   }) => {
     return (
       <div
-        className="fixed left-0 right-0 top-0 z-[900] overflow-hidden border-b border-white/10 px-3 py-1.5 text-white shadow-[0_18px_42px_rgba(15,23,42,0.22)] md:px-4"
+        className="fixed left-0 right-0 top-0 z-[900] overflow-hidden border-b border-white/10 px-3 py-1.5 text-white shadow-[0_18px_42px_rgba(15,23,42,0.22)] md:h-14 md:px-4 md:py-0"
         style={{
           background:
             "linear-gradient(105deg, #242936 0%, #253742 30%, #373f61 63%, #403344 100%)",
@@ -444,20 +444,20 @@ export default function DashboardLayout({
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.28),transparent_28%),radial-gradient(circle_at_8%_18%,rgba(56,193,108,0.18),transparent_24%),radial-gradient(circle_at_92%_50%,rgba(255,255,255,0.10),transparent_25%)]" />
         <div className="pointer-events-none absolute -left-10 -top-16 h-36 w-36 rounded-full bg-[#38C16C]/18 blur-3xl" />
         <div className="pointer-events-none absolute -right-12 bottom-0 h-32 w-32 rounded-full bg-[#38C16C]/10 blur-3xl" />
-        <div className="relative flex min-h-[70px] w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 flex-1 items-center gap-3">
-            <div className="flex shrink-0 items-center gap-3">
+        <div className="relative flex min-h-[46px] w-full flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between md:h-full md:min-h-0">
+          <div className="flex min-w-0 flex-1 items-center gap-2.5">
+            <div className="flex shrink-0 items-center gap-2.5">
               <QuickLauncher />
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-[#38C16C] text-base font-black text-white shadow-[0_0_0_4px_rgba(56,193,108,0.20)] sm:h-14 sm:w-14 sm:text-lg">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-[#38C16C] text-sm font-black text-white shadow-[0_0_0_3px_rgba(56,193,108,0.20)] sm:h-10 sm:w-10 sm:text-base">
                 {userInitials}
               </div>
             </div>
             <div className="min-w-0">
-              <p className="mb-0.5 text-[10px] font-black uppercase tracking-[0.2em] text-green-300 md:text-xs">
+              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-green-300 md:text-[10px]">
                 {workspaceLabel}
               </p>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <h1 className="truncate text-lg font-black leading-tight text-white md:text-xl">
+              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
+                <h1 className="truncate text-base font-black leading-tight text-white md:text-lg">
                   Welcome back, {userFirstName}
                 </h1>
                 <span className="rounded-full border border-[#38C16C]/30 bg-[#38C16C]/15 px-2.5 py-0.5 text-[11px] font-black text-green-300">

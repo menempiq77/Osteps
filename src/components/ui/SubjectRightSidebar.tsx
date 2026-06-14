@@ -176,10 +176,10 @@ export default function SubjectRightSidebar({
 
   const isOverlay = overlayState !== "pinned";
   const asideClassName = isOverlay
-    ? `fixed bottom-0 right-0 top-[78px] z-[710] hidden w-[64px] flex-col overflow-hidden rounded-tl-2xl border-l border-white/10 bg-[#424253] text-white shadow-[-12px_0_28px_rgba(15,23,42,0.28)] transition-transform duration-300 ease-out md:flex ${
+    ? `fixed bottom-0 right-0 top-[56px] z-[710] hidden w-[64px] flex-col overflow-hidden border-l border-white/10 bg-[#424253] text-white shadow-[-12px_0_28px_rgba(15,23,42,0.28)] transition-transform duration-300 ease-out md:flex ${
         overlayState === "revealed" ? "translate-x-0" : "translate-x-full"
       }`
-    : "fixed bottom-0 right-0 top-[78px] z-[640] hidden w-[64px] flex-col overflow-hidden rounded-tl-2xl border-l border-white/10 bg-[#424253] text-white shadow-[-12px_0_28px_rgba(15,23,42,0.18)] md:flex";
+    : "fixed bottom-0 right-0 top-[56px] z-[640] hidden w-[64px] flex-col overflow-hidden border-l border-white/10 bg-[#424253] text-white shadow-[-12px_0_28px_rgba(15,23,42,0.18)] md:flex";
 
   return (
     <>
@@ -280,7 +280,7 @@ export default function SubjectRightSidebar({
       {isSubjectPickerOpen ? (
         <div
           ref={subjectPickerRef}
-          className="fixed right-[76px] top-[90px] z-[720] hidden w-[300px] overflow-hidden rounded-2xl border border-white/10 bg-[#353545] text-white shadow-[0_24px_60px_rgba(15,23,42,0.35)] md:block"
+          className="fixed right-[76px] top-[68px] z-[720] hidden w-[300px] overflow-hidden rounded-2xl border border-white/10 bg-[#353545] text-white shadow-[0_24px_60px_rgba(15,23,42,0.35)] md:block"
           role="dialog"
           aria-label="Choose subject"
         >

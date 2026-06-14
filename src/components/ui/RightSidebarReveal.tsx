@@ -40,7 +40,7 @@ export default function RightSidebarReveal() {
     <>
       {/* Invisible hover strip pinned to the right edge */}
       <div
-        className="fixed right-0 top-[78px] bottom-0 z-[700] hidden w-3.5 md:block"
+        className="fixed right-0 top-[56px] bottom-0 z-[700] hidden w-3.5 md:block"
         onMouseEnter={reveal}
       />
 
