@@ -4,6 +4,8 @@ import { reasonAndRevelation } from "./reasonAndRevelation";
 import { seekingChastity } from "./seekingChastity";
 import { financialContracts } from "./financialContracts";
 import { arabicLanguageAndCulture } from "./arabicLanguageAndCulture";
+import { battleOfAhzab } from "./battleOfAhzab";
+import { quranScientificMiracles } from "./quranScientificMiracles";
 
 // Keyed by the topic slug (topicSlugify of the English title in data.ts).
 export const grade11Year12Lessons: Record<string, CourseLesson> = {
@@ -12,4 +14,6 @@ export const grade11Year12Lessons: Record<string, CourseLesson> = {
   "seeking-chastity": seekingChastity,
   "financial-contracts-in-islam": financialContracts,
   "arabic-language-and-culture": arabicLanguageAndCulture,
+  "the-battle-of-al-ahzab-the-trench": battleOfAhzab,
+  "the-noble-quran-and-scientific-miracles": quranScientificMiracles,
 };
