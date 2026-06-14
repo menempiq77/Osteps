@@ -139,6 +139,42 @@ export const updateStudent = async (
   }
 };
 
+// update only a student's support / wellbeing (SEN) info
+export const updateStudentSupport = async (
+  id: string | number,
+  data: { is_sen: boolean; sen_details?: string | null },
+  subjectId?: number | null
+) => {
+  try {
+    const response = await api.post(
+      `/update-student-support/${id}`,
+      withSubjectPayload(data, subjectId)
+    );
+    const payload = response.data;
+    const statusCode = Number(
+      payload?.status_code ?? payload?.statusCode ?? payload?.code ?? 200
+    );
+    const isExplicitFailure =
+      payload?.success === false || payload?.status === false || payload?.ok === false;
+
+    if ((Number.isFinite(statusCode) && statusCode >= 400) || isExplicitFailure) {
+      const backendMessage =
+        payload?.msg || payload?.message || payload?.data?.message || "Failed to update support info";
+      throw new Error(String(backendMessage));
+    }
+
+    return payload?.data ?? payload;
+  } catch (error: any) {
+    const backendMessage =
+      error?.response?.data?.msg ||
+      error?.response?.data?.message ||
+      error?.response?.data?.data?.message ||
+      error?.message ||
+      "Failed to update support info";
+    throw new Error(String(Array.isArray(backendMessage) ? backendMessage[0] : backendMessage));
+  }
+};
+
 // delete Student
 export const deleteStudent = async (id: string | number) => {
   const response = await api.post(`/delete-student/${id}`);
