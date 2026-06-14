@@ -32,12 +32,13 @@ export default function TopicLessonPage({
   if (!topic) notFound();
 
   const currentLesson =
-    gradeSlug === "grade-10-year-11" && topicSlug === "tolerance"
+    getLesson(gradeSlug, topicSlug) ??
+    (gradeSlug === "grade-10-year-11" && topicSlug === "tolerance"
       ? toleranceLesson
       : gradeSlug === "grade-12-year-13" &&
           topicSlug === "tolerance-with-those-who-differ-in-belief"
         ? beliefToleranceLesson
-        : getLesson(gradeSlug, topicSlug);
+        : null);
 
   if (!currentLesson) {
     return (

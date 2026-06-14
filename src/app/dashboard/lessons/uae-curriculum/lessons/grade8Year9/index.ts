@@ -1,0 +1,69 @@
+import type { CourseLesson } from "@/components/lessons/LessonCourseStepper";
+import { truthfulnessOfMessenger } from "./truthfulnessOfMessenger";
+import { maddAsli } from "./maddAsli";
+import { actionsByIntentions } from "./actionsByIntentions";
+import { sincerity } from "./sincerity";
+import { halalEarning } from "./halalEarning";
+import { blessingSecurity } from "./blessingSecurity";
+import { peopleOfTown } from "./peopleOfTown";
+import { drawingCloser } from "./drawingCloser";
+import { divineDecree } from "./divineDecree";
+import { prayersWithCauses } from "./prayersWithCauses";
+import { ashShifa } from "./ashShifa";
+import { believerOfYaSin } from "./believerOfYaSin";
+import { holiestMosques } from "./holiestMosques";
+import { conquestOfMakkah } from "./conquestOfMakkah";
+import { etiquetteOfTravel } from "./etiquetteOfTravel";
+import { rulesOfUmrah } from "./rulesOfUmrah";
+import { powerOfAllah } from "./powerOfAllah";
+import { maddFari } from "./maddFari";
+import { socialUnity } from "./socialUnity";
+import { virtuesOfBeliever } from "./virtuesOfBeliever";
+import { prohibitionFrightening } from "./prohibitionFrightening";
+import { bestToFamily } from "./bestToFamily";
+import { pathToParadise } from "./pathToParadise";
+import { followingGoodExamples } from "./followingGoodExamples";
+import { oathsAndVows } from "./oathsAndVows";
+import { battleOfHunayn } from "./battleOfHunayn";
+import { myHealthMyResponsibility } from "./myHealthMyResponsibility";
+import { proofsOfOneness } from "./proofsOfOneness";
+import { maintainingFamilyTies } from "./maintainingFamilyTies";
+import { knowledgeIsLight } from "./knowledgeIsLight";
+import { readInNameOfLord } from "./readInNameOfLord";
+import { imamShafii } from "./imamShafii";
+
+// Keyed by the topic slug (topicSlugify of the English title in data.ts).
+export const grade8Year9Lessons: Record<string, CourseLesson> = {
+  "the-truthfulness-of-the-messenger": truthfulnessOfMessenger,
+  "rules-of-madd-the-original-madd-first": maddAsli,
+  "actions-are-by-intentions": actionsByIntentions,
+  "sincerity": sincerity,
+  "halal-earning": halalEarning,
+  "the-blessing-of-security": blessingSecurity,
+  "the-people-of-the-town-from-surah-ya-sin-13-19": peopleOfTown,
+  "drawing-closer-to-allah": drawingCloser,
+  "belief-in-divine-decree": divineDecree,
+  "prayers-with-specific-causes": prayersWithCauses,
+  "ash-shifa-bint-abdullah-al-adawiyyah": ashShifa,
+  "the-story-of-the-believer-of-ya-sin": believerOfYaSin,
+  "the-holiest-mosques": holiestMosques,
+  "the-conquest-of-makkah": conquestOfMakkah,
+  "etiquette-of-travel": etiquetteOfTravel,
+  "rules-of-umrah": rulesOfUmrah,
+  "the-power-of-allah-surah-ya-sin-33-54": powerOfAllah,
+  "secondary-madd": maddFari,
+  "social-unity": socialUnity,
+  "virtues-of-the-believer": virtuesOfBeliever,
+  "the-prohibition-of-frightening-a-person": prohibitionFrightening,
+  "i-am-the-best-of-you-to-my-family": bestToFamily,
+  "the-path-to-paradise-surah-ya-sin-55-68": pathToParadise,
+  "following-good-examples": followingGoodExamples,
+  "oaths-and-vows": oathsAndVows,
+  "the-battle-of-hunayn": battleOfHunayn,
+  "my-health-is-my-responsibility": myHealthMyResponsibility,
+  "proofs-of-the-oneness-and-power-of-allah-surah-ya-sin-69-83": proofsOfOneness,
+  "maintaining-family-ties": maintainingFamilyTies,
+  "knowledge-is-light-and-elevation": knowledgeIsLight,
+  "read-in-the-name-of-my-lord": readInNameOfLord,
+  "imam-ash-shafii-may-allah-have-mercy-on-him": imamShafii,
+};
