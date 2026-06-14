@@ -9,6 +9,7 @@ import { peopleOfTown } from "./peopleOfTown";
 import { drawingCloser } from "./drawingCloser";
 import { divineDecree } from "./divineDecree";
 import { prayersWithCauses } from "./prayersWithCauses";
+import { ashShifa } from "./ashShifa";
 
 // Keyed by the topic slug (topicSlugify of the English title in data.ts).
 export const grade8Year9Lessons: Record<string, CourseLesson> = {
@@ -22,4 +23,5 @@ export const grade8Year9Lessons: Record<string, CourseLesson> = {
   "drawing-closer-to-allah": drawingCloser,
   "belief-in-divine-decree": divineDecree,
   "prayers-with-specific-causes": prayersWithCauses,
+  "ash-shifa-bint-abdullah-al-adawiyyah": ashShifa,
 };
