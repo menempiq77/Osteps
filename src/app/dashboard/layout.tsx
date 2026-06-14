@@ -435,7 +435,7 @@ export default function DashboardLayout({
   }) => {
     return (
       <div
-        className="fixed left-0 right-0 top-0 z-[900] overflow-hidden border-b border-white/10 px-3 py-1.5 text-white shadow-[0_18px_42px_rgba(15,23,42,0.22)] md:px-4"
+        className="fixed left-0 right-0 top-0 z-[900] overflow-hidden border-b border-white/10 px-3 py-1.5 text-white shadow-[0_18px_42px_rgba(15,23,42,0.22)] md:h-14 md:px-4 md:py-0"
         style={{
           background:
             "linear-gradient(105deg, #242936 0%, #253742 30%, #373f61 63%, #403344 100%)",
@@ -444,7 +444,7 @@ export default function DashboardLayout({
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.28),transparent_28%),radial-gradient(circle_at_8%_18%,rgba(56,193,108,0.18),transparent_24%),radial-gradient(circle_at_92%_50%,rgba(255,255,255,0.10),transparent_25%)]" />
         <div className="pointer-events-none absolute -left-10 -top-16 h-36 w-36 rounded-full bg-[#38C16C]/18 blur-3xl" />
         <div className="pointer-events-none absolute -right-12 bottom-0 h-32 w-32 rounded-full bg-[#38C16C]/10 blur-3xl" />
-        <div className="relative flex min-h-[46px] w-full flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative flex min-h-[46px] w-full flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between md:h-full md:min-h-0">
           <div className="flex min-w-0 flex-1 items-center gap-2.5">
             <div className="flex shrink-0 items-center gap-2.5">
               <QuickLauncher />
