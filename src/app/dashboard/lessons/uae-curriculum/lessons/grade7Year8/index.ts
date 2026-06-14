@@ -6,6 +6,8 @@ import { oneness } from "./oneness";
 import { mindfulness } from "./mindfulness";
 import { naturalPurity } from "./naturalPurity";
 import { creatorAllKnowing } from "./creatorAllKnowing";
+import { repentance } from "./repentance";
+import { helperForbearing } from "./helperForbearing";
 
 // Keyed by the topic slug (topicSlugify of the English title in data.ts).
 export const grade7Year8Lessons: Record<string, CourseLesson> = {
@@ -16,4 +18,6 @@ export const grade7Year8Lessons: Record<string, CourseLesson> = {
   "being-mindful-of-allah": mindfulness,
   "practices-of-natural-purity": naturalPurity,
   "the-creator-the-all-knowing": creatorAllKnowing,
+  "repentance-is-the-opportunity-of-a-lifetime": repentance,
+  "the-helper-the-forbearing-glorified-is-he": helperForbearing,
 };
