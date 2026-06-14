@@ -29,6 +29,7 @@ import { myHealthMyResponsibility } from "./myHealthMyResponsibility";
 import { proofsOfOneness } from "./proofsOfOneness";
 import { maintainingFamilyTies } from "./maintainingFamilyTies";
 import { knowledgeIsLight } from "./knowledgeIsLight";
+import { readInNameOfLord } from "./readInNameOfLord";
 
 // Keyed by the topic slug (topicSlugify of the English title in data.ts).
 export const grade8Year9Lessons: Record<string, CourseLesson> = {
@@ -62,4 +63,5 @@ export const grade8Year9Lessons: Record<string, CourseLesson> = {
   "proofs-of-the-oneness-and-power-of-allah-surah-ya-sin-69-83": proofsOfOneness,
   "maintaining-family-ties": maintainingFamilyTies,
   "knowledge-is-light-and-elevation": knowledgeIsLight,
+  "read-in-the-name-of-my-lord": readInNameOfLord,
 };
