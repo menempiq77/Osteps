@@ -6,6 +6,8 @@ import { financialContracts } from "./financialContracts";
 import { arabicLanguageAndCulture } from "./arabicLanguageAndCulture";
 import { battleOfAhzab } from "./battleOfAhzab";
 import { quranScientificMiracles } from "./quranScientificMiracles";
+import { etiquetteOfDialogue } from "./etiquetteOfDialogue";
+import { sourcesOfLegislation } from "./sourcesOfLegislation";
 
 // Keyed by the topic slug (topicSlugify of the English title in data.ts).
 export const grade11Year12Lessons: Record<string, CourseLesson> = {
@@ -16,4 +18,6 @@ export const grade11Year12Lessons: Record<string, CourseLesson> = {
   "arabic-language-and-culture": arabicLanguageAndCulture,
   "the-battle-of-al-ahzab-the-trench": battleOfAhzab,
   "the-noble-quran-and-scientific-miracles": quranScientificMiracles,
+  "the-etiquette-of-dialogue": etiquetteOfDialogue,
+  "sources-of-islamic-legislation": sourcesOfLegislation,
 };
