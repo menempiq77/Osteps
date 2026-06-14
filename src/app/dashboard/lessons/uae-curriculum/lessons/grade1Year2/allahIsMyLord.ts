@@ -81,8 +81,8 @@ export const allahIsMyLord: CourseLesson = {
     {
       title: { en: "In my life", ar: "في حَياتي" },
       image: {
-        src: IMG.familyPortrait,
-        alt: { en: "Parents lovingly holding their children.", ar: "والِدانِ يَحمِلانِ أطفالَهُما بِحُبّ." },
+        src: IMG.greenValley,
+        alt: { en: "A green valley and mountains made by Allah.", ar: "وادٍ أخضَرُ وجِبالٌ مِن خَلقِ الله." },
       },
       callout: {
         label: { en: "Think with me", ar: "فَكِّرْ مَعي" },
