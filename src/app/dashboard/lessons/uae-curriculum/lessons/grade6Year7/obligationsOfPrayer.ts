@@ -124,5 +124,65 @@ export const obligationsOfPrayer: CourseLesson = {
       },
     },
   ],
-  quizQuestions: [],
+  quizQuestions: [
+    {
+      prompt: { en: "What happens if a pillar (rukn) of prayer is left without excuse?", ar: "ماذا يَحدُثُ إذا تُرِكَ رُكنٌ مِنَ الصَّلاةِ بِلا عُذر؟" },
+      options: [
+        { en: "The prayer is invalid", ar: "تَبطُلُ الصَّلاة" },
+        { en: "Nothing changes", ar: "لا يَتَغَيَّرُ شيء" },
+        { en: "Only reward decreases", ar: "يَنقُصُ الأجرُ فَقَط" },
+      ],
+      correctIndex: 0,
+      explanation: { en: "Leaving a pillar invalidates the prayer.", ar: "تَركُ الرُّكنِ يُبطِلُ الصَّلاة." },
+    },
+    {
+      prompt: { en: "Which of these is a pillar of prayer?", ar: "أيُّ هذهِ رُكنٌ مِنَ الصَّلاة؟" },
+      options: [
+        { en: "Reciting Al-Fatihah with stillness in each part", ar: "قِراءةُ الفاتِحةِ مَعَ الطُّمَأنينةِ في كُلِّ جُزء" },
+        { en: "Saying the opening du'a", ar: "دُعاءُ الاستِفتاح" },
+        { en: "Reciting a surah after Al-Fatihah", ar: "قِراءةُ سورةٍ بعدَ الفاتِحة" },
+      ],
+      correctIndex: 0,
+      explanation: { en: "Al-Fatihah and tuma'ninah are pillars; the others are sunnahs.", ar: "الفاتِحةُ والطُّمَأنينةُ رُكنان؛ والباقي سُنَن." },
+    },
+    {
+      prompt: { en: "Saying 'amin' and the opening supplication are examples of...", ar: "قَولُ «آمين» ودُعاءُ الاستِفتاحِ مِثالٌ على..." },
+      options: [
+        { en: "Sunnahs of prayer", ar: "سُنَنِ الصَّلاة" },
+        { en: "Pillars of prayer", ar: "أركانِ الصَّلاة" },
+        { en: "Disliked acts", ar: "المَكروهات" },
+      ],
+      correctIndex: 0,
+      explanation: { en: "They are recommended sunnahs that perfect the prayer.", ar: "هي سُنَنٌ مُستَحَبّةٌ تُكَمِّلُ الصَّلاة." },
+    },
+    {
+      prompt: { en: "Which is a disliked (makruh) act in prayer?", ar: "أيُّ هذا مَكروهٌ في الصَّلاة؟" },
+      options: [
+        { en: "Unnecessary fidgeting and looking around", ar: "العَبَثُ والالتِفاتُ بِلا حاجة" },
+        { en: "Bowing with stillness", ar: "الرُّكوعُ بِطُمَأنينة" },
+        { en: "Reciting Al-Fatihah", ar: "قِراءةُ الفاتِحة" },
+      ],
+      correctIndex: 0,
+      explanation: { en: "Fidgeting and looking around are disliked; they harm khushu'.", ar: "العَبَثُ والالتِفاتُ مَكروهانِ يُضعِفانِ الخُشوع." },
+    },
+    {
+      prompt: { en: "What did the Prophet ﷺ tell the man who prayed without stillness?", ar: "بِماذا أمَرَ النَّبِيُّ ﷺ المُسيءَ صَلاتَهُ بِلا طُمَأنينة؟" },
+      options: [
+        { en: "To repeat his prayer with calm and order", ar: "أن يُعيدَ صَلاتَهُ بِطُمَأنينةٍ وتَرتيب" },
+        { en: "To pray faster", ar: "أن يُصَلّيَ أسرَع" },
+        { en: "To leave the prayer", ar: "أن يَترُكَ الصَّلاة" },
+      ],
+      correctIndex: 0,
+      explanation: { en: "He ordered him to repeat it, showing tuma'ninah is a pillar.", ar: "أمَرَهُ بالإعادة، فالطُّمَأنينةُ رُكن." },
+    },
+    {
+      prompt: { en: "True or False: Leaving a sunnah of prayer makes the prayer invalid.", ar: "صَوابٌ أم خَطأ: تَركُ سُنّةٍ مِنَ الصَّلاةِ يُبطِلُها." },
+      options: [
+        { en: "False — the prayer remains valid but with less reward", ar: "خَطأ — تَبقى الصَّلاةُ صَحيحةً لكِن بِأجرٍ أقَلّ" },
+        { en: "True", ar: "صَواب" },
+      ],
+      correctIndex: 0,
+      explanation: { en: "Only leaving a pillar invalidates the prayer.", ar: "تَركُ الرُّكنِ وَحدَهُ يُبطِلُ الصَّلاة." },
+    },
+  ],
 };

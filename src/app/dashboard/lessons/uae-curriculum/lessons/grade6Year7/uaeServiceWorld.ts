@@ -116,5 +116,65 @@ export const uaeServiceWorld: CourseLesson = {
       },
     },
   ],
-  quizQuestions: [],
+  quizQuestions: [
+    {
+      prompt: { en: "How does the Qur'an describe the Prophet ﷺ in Al-Anbiya 107?", ar: "كَيفَ يَصِفُ القُرآنُ النَّبِيَّ ﷺ في الأنبياء ١٠٧؟" },
+      options: [
+        { en: "A mercy to the worlds", ar: "رَحمةً للعالَمين" },
+        { en: "A warner only to Makkah", ar: "نَذيرًا لِمَكّةَ فَقَط" },
+        { en: "A king of the Arabs", ar: "مَلِكًا للعَرَب" },
+      ],
+      correctIndex: 0,
+      explanation: { en: "'We sent you only as a mercy to the worlds.'", ar: "﴿وَمَا أَرْسَلْنَاكَ إِلَّا رَحْمَةً لِّلْعَالَمِينَ﴾." },
+    },
+    {
+      prompt: { en: "In Al-Insan 8-9, the givers feed others seeking...", ar: "في الإنسان ٨-٩، يُطعِمُ المُنفِقونَ طَلَبًا لِـ..." },
+      options: [
+        { en: "The face of Allah, with no thanks or reward from people", ar: "وَجهِ اللهِ بِلا شُكرٍ أو جَزاءٍ مِنَ النّاس" },
+        { en: "Fame and praise", ar: "الشُّهرةِ والمَديح" },
+        { en: "Money in return", ar: "مالٍ مُقابِل" },
+      ],
+      correctIndex: 0,
+      explanation: { en: "'We feed you only for the face of Allah.'", ar: "﴿إِنَّمَا نُطْعِمُكُمْ لِوَجْهِ اللَّهِ﴾." },
+    },
+    {
+      prompt: { en: "Who was among those to be fed in Al-Insan 8, showing aid crosses religion?", ar: "مَن مِنَ المَذكورينَ في الإنسان ٨ يُبَيِّنُ أنَّ العَونَ يَتَجاوَزُ الدِّين؟" },
+      options: [
+        { en: "The captive (asir), often a non-Muslim", ar: "الأسيرُ، وكانَ غالِبًا غَيرَ مُسلِم" },
+        { en: "Only wealthy Muslims", ar: "أغنياءُ المُسلِمينَ فَقَط" },
+        { en: "Only relatives", ar: "الأقارِبُ فَقَط" },
+      ],
+      correctIndex: 0,
+      explanation: { en: "Kindness to the captive shows aid is for the needy human.", ar: "الإحسانُ للأسيرِ يُبَيِّنُ أنَّ العَونَ للإنسانِ المُحتاج." },
+    },
+    {
+      prompt: { en: "The hadith of 'one body' teaches believers to...", ar: "حَديثُ «الجَسَدِ الواحِد» يُعَلِّمُ المُؤمِنينَ أن..." },
+      options: [
+        { en: "Feel and respond to one another's suffering", ar: "يَشعُروا بِألَمِ بَعضِهِم ويَستَجيبوا له" },
+        { en: "Ignore far-away people", ar: "يَتَجاهَلوا البَعيدين" },
+        { en: "Help only their own family", ar: "يُساعِدوا أهلَهُم فَقَط" },
+      ],
+      correctIndex: 0,
+      explanation: { en: "The ummah is like one body that feels each part's pain.", ar: "الأُمّةُ كَجَسَدٍ واحِدٍ يَشعُرُ بِألَمِ كُلِّ عُضو." },
+    },
+    {
+      prompt: { en: "Why is organising charity into institutions wise?", ar: "لِماذا تَنظيمُ الصَّدَقةِ في مُؤَسَّساتٍ حِكمة؟" },
+      options: [
+        { en: "It reaches more people and lasts beyond one donor", ar: "يَصِلُ أكثَرَ ويَبقى أطوَلَ مِن مُتَبَرِّعٍ واحِد" },
+        { en: "It hides the good deeds", ar: "يُخفي الأعمالَ الصّالِحة" },
+        { en: "It reduces helping people", ar: "يُقَلِّلُ مُساعَدةَ النّاس" },
+      ],
+      correctIndex: 0,
+      explanation: { en: "Well-run institutions extend the reach and life of good.", ar: "المُؤَسَّساتُ المُتقَنةُ تُوَسِّعُ الخَيرَ وتُديمُه." },
+    },
+    {
+      prompt: { en: "True or False: Islamic humanitarian aid should only go to Muslims.", ar: "صَوابٌ أم خَطأ: الإغاثةُ الإسلاميّةُ تُقَدَّمُ للمُسلِمينَ فَقَط." },
+      options: [
+        { en: "False — mercy and aid reach all of humanity", ar: "خَطأ — الرَّحمةُ والعَونُ يَصِلانِ البَشَريّةَ كُلَّها" },
+        { en: "True", ar: "صَواب" },
+      ],
+      correctIndex: 0,
+      explanation: { en: "Islam is a mercy to the worlds; aid is given to the needy human.", ar: "الإسلامُ رَحمةٌ للعالَمين، والعَونُ للإنسانِ المُحتاج." },
+    },
+  ],
 };

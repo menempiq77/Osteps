@@ -301,5 +301,70 @@ export const theTrueBook: CourseLesson = {
       },
     },
   ],
-  quizQuestions: [],
+  quizQuestions: [
+    {
+      prompt: { en: "What central claim does As-Sajdah make about the Qur'an in its opening?", ar: "ما الدَّعوى المِحوَريّةُ التي تُقَرِّرُها سورةُ السَّجدةِ في مَطلَعِها عنِ القُرآن؟" },
+      options: [
+        { en: "It is revelation (tanzil) from the Lord of the worlds, with no doubt", ar: "أنَّهُ تَنزيلٌ مِن رَبِّ العالَمين لا رَيبَ فيه" },
+        { en: "It was composed by the Prophet ﷺ from his own wisdom", ar: "أنَّ النَّبِيَّ ﷺ ألَّفَهُ مِن حِكمَتِه" },
+        { en: "It is the finest poetry of the Arabs", ar: "أنَّهُ أجوَدُ شِعرِ العَرَب" },
+        { en: "It is a book of history about earlier nations", ar: "أنَّهُ كِتابُ تاريخٍ عنِ الأُمَمِ السّابِقة" },
+      ],
+      correctIndex: 0,
+      explanation: { en: "Verse 2 states the Book is 'tanzil' from the Lord of the worlds, with no doubt about it.", ar: "الآيةُ ٢: الكِتابُ تَنزيلٌ مِن رَبِّ العالَمينَ لا رَيبَ فيه." },
+    },
+    {
+      prompt: { en: "Which evidence does the lesson use to show no human could author the Qur'an?", ar: "ما الدَّليلُ الذي استَعمَلَهُ الدَّرسُ على أنَّ بَشَرًا لا يَقدِرُ على تَأليفِ القُرآن؟" },
+      options: [
+        { en: "The challenge to produce even one like it (Al-Isra 88) went unmet", ar: "تَحَدّي الإتيانِ بِمِثلِهِ (الإسراء ٨٨) بَقِيَ بِلا جَوابٍ" },
+        { en: "It was written down very quickly", ar: "أنَّهُ كُتِبَ بِسُرعةٍ كَبيرة" },
+        { en: "No one ever read it", ar: "أنَّهُ لم يَقرَأهُ أحَد" },
+        { en: "It used difficult foreign words", ar: "أنَّهُ استَعمَلَ ألفاظًا أعجَميّةً صَعبة" },
+      ],
+      correctIndex: 0,
+      explanation: { en: "The most eloquent Arabs, with every motive, could not match a single surah (Al-Isra 88; Al-Baqarah 23).", ar: "أفصَحُ العَرَبِ ولَدَيهِم كُلُّ الدّافِعِ عَجَزوا عن سورةٍ واحِدة (الإسراء ٨٨؛ البقرة ٢٣)." },
+    },
+    {
+      prompt: { en: "How do Ahl as-Sunnah affirm Allah's istiwa' over the Throne (verse 4)?", ar: "كَيفَ يُثبِتُ أهلُ السُّنّةِ استِواءَ اللهِ على العَرشِ (الآية ٤)؟" },
+      options: [
+        { en: "As a real attribute befitting His majesty — without tahrif, ta'til, takyif or tamthil", ar: "صِفةً حَقيقيّةً تَليقُ بِجَلالِه — بِلا تَحريفٍ ولا تَعطيلٍ ولا تَكييفٍ ولا تَمثيل" },
+        { en: "By denying it has any meaning", ar: "بِنَفيِ أيِّ مَعنًى لَها" },
+        { en: "By likening it to a human sitting on a chair", ar: "بِتَشبيهِها بِجُلوسِ إنسانٍ على كُرسِيّ" },
+        { en: "By saying we know exactly how it happens", ar: "بِالقَولِ إنّا نَعلَمُ كَيفِيّتَها بِالضَّبط" },
+      ],
+      correctIndex: 0,
+      explanation: { en: "We affirm the meaning and entrust the 'how' to Allah — 'There is nothing like unto Him' (Ash-Shura 11).", ar: "نُثبِتُ المَعنى ونَكِلُ الكَيفَ إلى الله — «لَيسَ كَمِثلِهِ شَيء» (الشورى ١١)." },
+    },
+    {
+      prompt: { en: "In verses 7-9, why does Allah mention hearing, sight and hearts after creating the human?", ar: "في الآياتِ ٧-٩، لِماذا يَذكُرُ اللهُ السَّمعَ والبَصَرَ والأفئِدةَ بَعدَ خَلقِ الإنسان؟" },
+      options: [
+        { en: "They are the tools to recognise the truth and be grateful for it", ar: "لِأنَّها أدَواتُ إدراكِ الحَقِّ والشُّكرِ عليه" },
+        { en: "To prove humans are stronger than angels", ar: "لِيُثبِتَ أنَّ الإنسانَ أقوى مِنَ المَلائِكة" },
+        { en: "They have no link to the Book at all", ar: "لِأنَّها لا صِلةَ لَها بالكِتابِ أصلًا" },
+        { en: "To describe how the body grows old", ar: "لِيَصِفَ كَيفَ يَهرَمُ الجَسَد" },
+      ],
+      correctIndex: 0,
+      explanation: { en: "The verse ends 'little are you grateful' — the senses are a trust to perceive and obey the truth.", ar: "تَختِمُ الآيةُ «قَليلًا ما تَشكُرون» — فالحَواسُّ أمانةٌ لإدراكِ الحَقِّ والعَمَلِ بِه." },
+    },
+    {
+      prompt: { en: "What is the Qur'an's logical argument that resurrection is certain (verses 10-11)?", ar: "ما حُجّةُ القُرآنِ العَقليّةُ على أنَّ البَعثَ يَقينِيٌّ (الآيتان ١٠-١١)؟" },
+      options: [
+        { en: "The One who originated creation and takes souls can certainly restore it", ar: "الذي بَدَأ الخَلقَ ويَقبِضُ الأرواحَ قادِرٌ يَقينًا على إعادَتِه" },
+        { en: "People must believe with no reason at all", ar: "على النّاسِ أن يُؤمِنوا بِلا سَبَبٍ البَتّة" },
+        { en: "Because the deniers admitted it themselves", ar: "لِأنَّ المُنكِرينَ أقَرّوا بِهِ بِأنفُسِهِم" },
+        { en: "Because the earth never changes", ar: "لِأنَّ الأرضَ لا تَتَغَيَّرُ أبدًا" },
+      ],
+      correctIndex: 0,
+      explanation: { en: "Originating is harder than repeating; the Creator and Taker of life can surely raise the dead (cf. Ya-Sin 81).", ar: "الابتِداءُ أصعَبُ مِنَ الإعادة؛ وخالِقُ الحَياةِ وقابِضُها قادِرٌ على البَعثِ (انظُر يس ٨١)." },
+    },
+    {
+      prompt: { en: "True or False: As-Sajdah's opening calls only for belief, not for action.", ar: "صَوابٌ أم خَطأ: مَطلَعُ السَّجدةِ يَدعو إلى الإيمانِ فَقَط لا إلى العَمَل." },
+      options: [
+        { en: "False — it links truth to warning, gratitude, accountability and action before the day of regret", ar: "خَطأ — يَربِطُ الحَقَّ بالإنذارِ والشُّكرِ والمَسؤوليّةِ والعَمَلِ قَبلَ يَومِ النَّدَم" },
+        { en: "True", ar: "صَواب" },
+      ],
+      correctIndex: 0,
+      explanation: { en: "Verse 12's scene of regret shows belief must become action now, while action is still accepted.", ar: "مَشهَدُ النَّدَمِ في الآيةِ ١٢ يُبَيِّنُ أنَّ الإيمانَ يَجِبُ أن يَصيرَ عَمَلًا الآنَ ما دامَ يُقبَل." },
+    },
+  ],
 };

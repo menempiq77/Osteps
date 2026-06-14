@@ -117,5 +117,65 @@ export const volunteering: CourseLesson = {
       },
     },
   ],
-  quizQuestions: [],
+  quizQuestions: [
+    {
+      prompt: { en: "When does volunteering become an act of worship?", ar: "مَتى يُصبِحُ التَّطَوُّعُ عِبادة؟" },
+      options: [
+        { en: "When done sincerely to please Allah", ar: "إذا كانَ بِنِيّةٍ صادِقةٍ لِوَجهِ الله" },
+        { en: "When it is paid", ar: "إذا كانَ بِأجر" },
+        { en: "When others are watching", ar: "إذا كانَ أمامَ النّاس" },
+      ],
+      correctIndex: 0,
+      explanation: { en: "Sincere intention turns service into worship.", ar: "النِّيّةُ الصّادِقةُ تُحَوِّلُ الخِدمةَ إلى عِبادة." },
+    },
+    {
+      prompt: { en: "Which verse commands cooperation in good?", ar: "أيُّ آيةٍ تَأمُرُ بالتَّعاوُنِ على الخَير؟" },
+      options: [
+        { en: "'Cooperate in righteousness and piety' (Al-Ma'idah 2)", ar: "«وتَعاوَنوا على البِرِّ والتَّقوى» (المائدة ٢)" },
+        { en: "'Cooperate in sin'", ar: "«تَعاوَنوا على الإثم»" },
+        { en: "None", ar: "لا شيء" },
+      ],
+      correctIndex: 0,
+      explanation: { en: "Al-Ma'idah 2 commands cooperation in birr and taqwa.", ar: "المائدة ٢ تَأمُرُ بالتَّعاوُنِ على البِرِّ والتَّقوى." },
+    },
+    {
+      prompt: { en: "Whom does Allah say He loves in Al-Baqarah 195?", ar: "مَن يُحِبُّهُ اللهُ في البقرة ١٩٥؟" },
+      options: [
+        { en: "Al-muhsinin (those who do good with excellence)", ar: "المُحسِنين" },
+        { en: "The wealthy only", ar: "الأغنياءَ فَقَط" },
+        { en: "The powerful", ar: "الأقوياء" },
+      ],
+      correctIndex: 0,
+      explanation: { en: "'Indeed, Allah loves the doers of good (al-muhsinin).'", ar: "﴿إِنَّ اللَّهَ يُحِبُّ الْمُحْسِنِينَ﴾." },
+    },
+    {
+      prompt: { en: "According to the hadith, who are the best of people?", ar: "بِحَسَبِ الحَديث، مَن خَيرُ النّاس؟" },
+      options: [
+        { en: "Those most beneficial to people", ar: "أنفَعُهُم للنّاس" },
+        { en: "The richest", ar: "أغناهُم" },
+        { en: "The most famous", ar: "أشهَرُهُم" },
+      ],
+      correctIndex: 0,
+      explanation: { en: "'The best of people are those most beneficial to people.'", ar: "«خَيرُ النّاسِ أنفَعُهُم للنّاس»." },
+    },
+    {
+      prompt: { en: "What pact did the Prophet ﷺ join to support the oppressed?", ar: "ما الحِلفُ الذي شارَكَ فيهِ النَّبِيُّ ﷺ لِنُصرةِ المَظلوم؟" },
+      options: [
+        { en: "Hilf al-Fudul", ar: "حِلفُ الفُضول" },
+        { en: "The Treaty of Hudaybiyyah", ar: "صُلحُ الحُدَيبيّة" },
+        { en: "The Constitution of Madinah", ar: "صَحيفةُ المَدينة" },
+      ],
+      correctIndex: 0,
+      explanation: { en: "He joined Hilf al-Fudul, a pact to help the wronged.", ar: "شارَكَ في حِلفِ الفُضولِ لِنُصرةِ المَظلوم." },
+    },
+    {
+      prompt: { en: "True or False: We should volunteer to gain fame and followers.", ar: "صَوابٌ أم خَطأ: نَتَطَوَّعُ لِكَسبِ الشُّهرةِ والمُتابِعين." },
+      options: [
+        { en: "False — we volunteer sincerely for Allah and to benefit people", ar: "خَطأ — نَتَطَوَّعُ بِإخلاصٍ لله ولِنَفعِ النّاس" },
+        { en: "True", ar: "صَواب" },
+      ],
+      correctIndex: 0,
+      explanation: { en: "Showing off (riya') ruins the reward; sincerity is required.", ar: "الرِّياءُ يُفسِدُ الأجر، والإخلاصُ مَطلوب." },
+    },
+  ],
 };
