@@ -4,6 +4,8 @@ import { thoseShaded } from "./thoseShaded";
 import { gladTidingsPrayer } from "./gladTidingsPrayer";
 import { oneness } from "./oneness";
 import { mindfulness } from "./mindfulness";
+import { naturalPurity } from "./naturalPurity";
+import { creatorAllKnowing } from "./creatorAllKnowing";
 
 // Keyed by the topic slug (topicSlugify of the English title in data.ts).
 export const grade7Year8Lessons: Record<string, CourseLesson> = {
@@ -12,4 +14,6 @@ export const grade7Year8Lessons: Record<string, CourseLesson> = {
   "glad-tidings-for-those-who-pray": gladTidingsPrayer,
   "proofs-of-the-oneness-of-allah": oneness,
   "being-mindful-of-allah": mindfulness,
+  "practices-of-natural-purity": naturalPurity,
+  "the-creator-the-all-knowing": creatorAllKnowing,
 };
