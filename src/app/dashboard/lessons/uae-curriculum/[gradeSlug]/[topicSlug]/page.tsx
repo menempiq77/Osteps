@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Breadcrumb, Tag } from "antd";
 import LessonDeckClient from "@/components/lessons/LessonDeckClient";
 import { topicSlugify, uaeCurriculumBySlug } from "../../data";
+import { getLesson, lessonStaticParams } from "../../lessons/registry";
 import { toleranceLesson } from "./toleranceLesson";
 import { beliefToleranceLesson } from "./beliefToleranceLesson";
 
@@ -13,6 +14,7 @@ export function generateStaticParams() {
       gradeSlug: "grade-12-year-13",
       topicSlug: "tolerance-with-those-who-differ-in-belief",
     },
+    ...lessonStaticParams(),
   ];
 }
 
@@ -35,7 +37,7 @@ export default function TopicLessonPage({
       : gradeSlug === "grade-12-year-13" &&
           topicSlug === "tolerance-with-those-who-differ-in-belief"
         ? beliefToleranceLesson
-        : null;
+        : getLesson(gradeSlug, topicSlug);
 
   if (!currentLesson) {
     return (
