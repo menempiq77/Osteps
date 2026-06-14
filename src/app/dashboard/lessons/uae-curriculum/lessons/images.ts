@@ -21,11 +21,6 @@ export const IMG = {
   lantern: px(2233416), // glowing lantern at night
   elephant: px(982021), // elephant in green nature
   elephantSunset: px(1054655), // elephant at sunset
-  familySnow: px(1620653), // family playing together
-  familyHelp: px(1128318), // family helping a child ride a bike
-  familyPortrait: px(1648387), // parents holding their children
   plantBulb: px(1108572), // small green plant growing
-  planting: px(4505166), // person planting pots
-  sunflowers: px(906002), // field of sunflowers
   sea: px(2049422), // sea waves on rocks
 } as const;

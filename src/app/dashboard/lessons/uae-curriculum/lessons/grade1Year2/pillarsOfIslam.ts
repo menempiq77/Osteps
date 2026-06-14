@@ -78,8 +78,8 @@ export const pillarsOfIslam: CourseLesson = {
     {
       title: { en: "In my life", ar: "في حَياتي" },
       image: {
-        src: IMG.familyHelp,
-        alt: { en: "A family doing good together.", ar: "أُسرةٌ تَفعَلُ الخَيرَ مَعًا." },
+        src: IMG.plantBulb,
+        alt: { en: "A small green plant growing, like small good habits.", ar: "نَبتةٌ خَضراءُ صَغيرةٌ تَنمو، مِثلَ العاداتِ الطَّيِّبةِ الصَّغيرة." },
       },
       callout: {
         label: { en: "Think with me", ar: "فَكِّرْ مَعي" },

@@ -78,8 +78,8 @@ export const truthfulness: CourseLesson = {
     {
       title: { en: "In my life", ar: "في حَياتي" },
       image: {
-        src: IMG.familyHelp,
-        alt: { en: "A family helping and trusting each other.", ar: "أُسرةٌ يُساعِدُ ويَثِقُ أفرادُها بَعضُهُم بِبَعض." },
+        src: IMG.lantern,
+        alt: { en: "A glowing lantern, like the light of truthfulness.", ar: "فانوسٌ مُضيءٌ، مِثلَ نورِ الصِّدق." },
       },
       callout: {
         label: { en: "Scenario", ar: "موقِف" },
