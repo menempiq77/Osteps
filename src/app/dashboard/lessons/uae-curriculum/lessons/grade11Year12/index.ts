@@ -14,6 +14,8 @@ import { categoriesOfHadith } from "./categoriesOfHadith";
 import { buildingTheFamily } from "./buildingTheFamily";
 import { ummSalamah } from "./ummSalamah";
 import { moralAdvice } from "./moralAdvice";
+import { categoriesOfHadithTwo } from "./categoriesOfHadithTwo";
+import { consultationInIslam } from "./consultationInIslam";
 
 // Keyed by the topic slug (topicSlugify of the English title in data.ts).
 export const grade11Year12Lessons: Record<string, CourseLesson> = {
@@ -32,4 +34,6 @@ export const grade11Year12Lessons: Record<string, CourseLesson> = {
   "islams-method-in-building-the-family": buildingTheFamily,
   "umm-salamah-may-allah-be-pleased-with-her": ummSalamah,
   "moral-advice-and-guidance": moralAdvice,
+  "categories-of-hadith-2": categoriesOfHadithTwo,
+  "consultation-in-islam": consultationInIslam,
 };
