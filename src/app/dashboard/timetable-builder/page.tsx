@@ -164,6 +164,24 @@ export default function TimetablePage() {
   );
   const thisCalendarWeek = useMemo(() => weekLabelForDate(pattern), [pattern]);
 
+  // Date range of the current school week (first → last school day this week).
+  const weekRangeLabel = useMemo(() => {
+    if (orderedDays.length === 0) return "";
+    const idxOf = (name: string) =>
+      DAYS_OF_WEEK.findIndex((d) => d.value === name);
+    const firstIdx = idxOf(orderedDays[0]);
+    const lastIdx = idxOf(orderedDays[orderedDays.length - 1]);
+    if (firstIdx < 0 || lastIdx < 0) return "";
+    const today = dayjs();
+    let back = today.day() - firstIdx;
+    if (back < 0) back += 7;
+    const start = today.subtract(back, "day");
+    const end = start.add(Math.max(0, lastIdx - firstIdx), "day");
+    return start.month() === end.month()
+      ? `${start.format("D")}–${end.format("D MMM YYYY")}`
+      : `${start.format("D MMM")} – ${end.format("D MMM YYYY")}`;
+  }, [orderedDays]);
+
   // ── View state ────────────────────────────────────────────────────────────
   const [view, setView] = useState<ViewMode>(
     isTeacher ? "teacher" : "class"
@@ -723,6 +741,20 @@ export default function TimetablePage() {
               ? "Your weekly teaching schedule."
               : "Build a repeating weekly schedule for your whole school."}
           </p>
+          {weekRangeLabel && (
+            <div className="mt-2 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600">
+              <CalendarDays size={13} />
+              This week:{" "}
+              <span className="font-semibold text-slate-800">
+                {weekRangeLabel}
+              </span>
+              {pattern.mode === "ab" && (
+                <span className="ml-0.5 rounded bg-indigo-100 px-1.5 py-0.5 font-semibold text-indigo-700">
+                  Week {thisCalendarWeek}
+                </span>
+              )}
+            </div>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button icon={<Printer size={15} />} onClick={handlePrint}>

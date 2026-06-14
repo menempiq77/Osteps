@@ -515,8 +515,11 @@ export default function DashboardPage() {
 
     if (!student) return;
 
-    // Navigate with both student ID and class ID
-    router.push(`/dashboard/students/markbook?studentId=${student.id}&classId=${student.class_id}`);
+    // Open the student's full report (not the markbook).
+    const sid = Number(activeSubjectId ?? 0);
+    router.push(
+      `/dashboard/reports/student/${student.id}${sid ? `?subject_id=${sid}` : ""}`
+    );
   };
 
   const handleChange = (value: string | null) => {
