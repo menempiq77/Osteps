@@ -8,7 +8,7 @@ import {
   resetPeriodsToDefault,
   resetSchoolDaysToDefault,
 } from "@/lib/schoolPeriods";
-import type { SchoolPeriod } from "@/lib/schoolPeriods";
+import type { SchoolPeriod, DayPeriodOverrides } from "@/lib/schoolPeriods";
 
 const { Option } = Select;
 
@@ -17,37 +17,89 @@ interface PeriodsConfigModalProps {
   onClose: () => void;
   periods: SchoolPeriod[];
   schoolDays: string[];
-  onChange: (periods: SchoolPeriod[], days: string[]) => void;
+  dayOverrides: DayPeriodOverrides;
+  onChange: (
+    periods: SchoolPeriod[],
+    days: string[],
+    dayOverrides: DayPeriodOverrides
+  ) => void;
 }
+
+const ALL = "__all__";
 
 export default function PeriodsConfigModal({
   open,
   onClose,
   periods,
   schoolDays,
+  dayOverrides,
   onChange,
 }: PeriodsConfigModalProps) {
   const [local, setLocal] = useState<SchoolPeriod[]>(periods);
   const [localDays, setLocalDays] = useState<string[]>(schoolDays);
+  const [localOverrides, setLocalOverrides] =
+    useState<DayPeriodOverrides>(dayOverrides);
+  const [editDay, setEditDay] = useState<string>(ALL);
 
   useEffect(() => {
     if (open) {
       setLocal(periods);
       setLocalDays(schoolDays);
+      setLocalOverrides(dayOverrides);
+      setEditDay(ALL);
     }
-  }, [open, periods, schoolDays]);
+  }, [open, periods, schoolDays, dayOverrides]);
 
-  const update = (idx: number, field: keyof SchoolPeriod, value: string | boolean) => {
-    setLocal((prev) => prev.map((period, index) => (index === idx ? { ...period, [field]: value } : period)));
+  // The period list currently shown/edited.
+  const activeList: SchoolPeriod[] =
+    editDay === ALL ? local : localOverrides[editDay] ?? local;
+  const dayHasOverride = editDay !== ALL && !!localOverrides[editDay];
+
+  // Apply a mutation to whichever list is being edited (materialising a
+  // day override from the default the first time a specific day is edited).
+  const mutate = (updater: (list: SchoolPeriod[]) => SchoolPeriod[]) => {
+    if (editDay === ALL) {
+      setLocal((prev) => updater(prev));
+    } else {
+      setLocalOverrides((prev) => {
+        const base = prev[editDay] ?? local.map((p) => ({ ...p }));
+        return { ...prev, [editDay]: updater(base) };
+      });
+    }
   };
 
+  const update = (
+    idx: number,
+    field: keyof SchoolPeriod,
+    value: string | boolean
+  ) =>
+    mutate((list) =>
+      list.map((period, index) =>
+        index === idx ? { ...period, [field]: value } : period
+      )
+    );
+
   const add = () =>
-    setLocal((prev) => [
-      ...prev,
-      { id: `p${Date.now()}`, label: "New", startTime: "08:00", endTime: "09:00", isTeaching: true },
+    mutate((list) => [
+      ...list,
+      {
+        id: `p${Date.now()}`,
+        label: "New",
+        startTime: "08:00",
+        endTime: "09:00",
+        isTeaching: true,
+      },
     ]);
 
-  const remove = (idx: number) => setLocal((prev) => prev.filter((_, index) => index !== idx));
+  const remove = (idx: number) =>
+    mutate((list) => list.filter((_, index) => index !== idx));
+
+  const resetThisDay = () =>
+    setLocalOverrides((prev) => {
+      const next = { ...prev };
+      delete next[editDay];
+      return next;
+    });
 
   const toggleDay = (day: string) => {
     setLocalDays((prev) =>
@@ -73,7 +125,13 @@ export default function PeriodsConfigModal({
       open={open}
       onCancel={onClose}
       onOk={() => {
-        onChange(local, localDays);
+        // Drop overrides for days that are no longer school days.
+        const cleaned: DayPeriodOverrides = {};
+        for (const [day, list] of Object.entries(localOverrides)) {
+          if (localDays.includes(day) && Array.isArray(list) && list.length > 0)
+            cleaned[day] = list;
+        }
+        onChange(local, localDays, cleaned);
         onClose();
       }}
       okText="Save"
@@ -154,11 +212,48 @@ export default function PeriodsConfigModal({
 
       <div style={{ borderTop: "1px solid #e5e7eb", marginBottom: 12 }} />
 
-      <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 13, color: "#374151" }}>
-        Periods
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 8,
+          gap: 8,
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ fontWeight: 600, fontSize: 13, color: "#374151" }}>
+          Periods &amp; timings
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 12, color: "#6b7280" }}>Editing:</span>
+          <Select
+            size="small"
+            value={editDay}
+            style={{ minWidth: 170 }}
+            onChange={(v) => setEditDay(v)}
+          >
+            <Option value={ALL}>All days (default)</Option>
+            {localDays.map((d) => (
+              <Option key={d} value={d}>
+                {d}
+                {localOverrides[d] ? "  • custom" : ""}
+              </Option>
+            ))}
+          </Select>
+        </div>
       </div>
-      <div style={{ maxHeight: 320, overflowY: "auto" }}>
-        {local.map((period, idx) => (
+
+      <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 8 }}>
+        {editDay === ALL
+          ? "These timings apply to every day that isn’t customised below."
+          : dayHasOverride
+          ? `${editDay} uses its own timings. Edit times, or add/remove periods just for ${editDay}.`
+          : `${editDay} currently follows the default. Change anything below to give ${editDay} its own timings.`}
+      </div>
+
+      <div style={{ maxHeight: 300, overflowY: "auto" }}>
+        {activeList.map((period, idx) => (
           <div key={period.id} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}>
             <Input
               size="small"
@@ -194,18 +289,26 @@ export default function PeriodsConfigModal({
           </div>
         ))}
       </div>
-      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+      <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
         <Button size="small" icon={<PlusOutlined />} onClick={add}>Add Period</Button>
-        <Button
-          size="small"
-          danger
-          onClick={() => {
-            setLocal(resetPeriodsToDefault());
-            setLocalDays(resetSchoolDaysToDefault());
-          }}
-        >
-          Reset to Default
-        </Button>
+        {editDay !== ALL && dayHasOverride && (
+          <Button size="small" onClick={resetThisDay}>
+            Reset {editDay} to default
+          </Button>
+        )}
+        {editDay === ALL && (
+          <Button
+            size="small"
+            danger
+            onClick={() => {
+              setLocal(resetPeriodsToDefault());
+              setLocalDays(resetSchoolDaysToDefault());
+              setLocalOverrides({});
+            }}
+          >
+            Reset to Default
+          </Button>
+        )}
       </div>
     </Modal>
   );

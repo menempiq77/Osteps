@@ -44,6 +44,35 @@ export function resetPeriodsToDefault(): SchoolPeriod[] {
   return DEFAULT_PERIODS;
 }
 
+// ── Per-day period overrides ───────────────────────────────────────────────
+// A day present in this map has its own period list (e.g. Friday early finish).
+// Days not present fall back to the default `loadPeriods()` schedule.
+export type DayPeriodOverrides = Record<string, SchoolPeriod[]>;
+
+const DAY_OVERRIDES_KEY = "osteps_school_day_periods";
+
+export function loadDayPeriods(): DayPeriodOverrides {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = localStorage.getItem(DAY_OVERRIDES_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as DayPeriodOverrides;
+    if (!parsed || typeof parsed !== "object") return {};
+    const clean: DayPeriodOverrides = {};
+    for (const [day, list] of Object.entries(parsed)) {
+      if (Array.isArray(list) && list.length > 0) clean[day] = list;
+    }
+    return clean;
+  } catch {
+    return {};
+  }
+}
+
+export function saveDayPeriods(map: DayPeriodOverrides): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(DAY_OVERRIDES_KEY, JSON.stringify(map));
+}
+
 export const DAYS_OF_WEEK = [
   { value: "Sunday",    label: "Sun" },
   { value: "Monday",    label: "Mon" },
