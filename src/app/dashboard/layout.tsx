@@ -314,13 +314,13 @@ export default function DashboardLayout({
     !isStudentExamAssessmentRoute &&
     !isImmersiveLessonGroupRoute;
   const dashboardPaddingClass = showSubjectRightSidebar
-    ? "px-3 pb-3 pt-[96px] md:pb-6 md:pl-[84px] md:pr-[112px] md:pt-[88px]"
+    ? "px-3 pb-3 pt-[96px] md:pb-6 md:pl-[84px] md:pr-[84px] md:pt-[88px]"
     : "px-3 pb-3 pt-[96px] md:pb-6 md:pl-[84px] md:pr-6 md:pt-[88px]";
   const mainContentPaddingClass = showSubjectRightSidebar
-    ? "max-w-7xl px-3 pb-3 pt-[96px] md:pb-6 md:pl-[84px] md:pr-[112px] md:pt-[88px]"
+    ? "max-w-7xl px-3 pb-3 pt-[96px] md:pb-6 md:pl-[84px] md:pr-[84px] md:pt-[88px]"
     : "max-w-7xl px-3 pb-3 pt-[96px] md:pb-6 md:pl-[84px] md:pr-6 md:pt-[88px]";
   const fullWidthContentPaddingClass = showSubjectRightSidebar
-    ? "pt-[96px] md:pl-[72px] md:pr-[96px] md:pt-[88px]"
+    ? "pt-[96px] md:pl-[72px] md:pr-[72px] md:pt-[88px]"
     : "pt-[96px] md:pl-[72px] md:pt-[88px]";
 
   const userRoleLabel = (() => {

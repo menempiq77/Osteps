@@ -526,7 +526,7 @@ export default function FavoriteSidebar() {
       </div>
 
       {/* Fixed quick-access shortcuts */}
-      <div className="shrink-0 border-b border-white/10 py-1.5">
+      <div className="shrink-0 border-b-2 border-white/60 py-1.5">
         <div className="space-y-0.5">{fixedEntries.map(renderItem)}</div>
       </div>
 

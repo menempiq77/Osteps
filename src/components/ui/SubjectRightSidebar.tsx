@@ -176,10 +176,10 @@ export default function SubjectRightSidebar({
 
   const isOverlay = overlayState !== "pinned";
   const asideClassName = isOverlay
-    ? `fixed bottom-0 right-0 top-[78px] z-[710] hidden w-[92px] flex-col overflow-hidden rounded-tl-2xl border-l border-white/10 bg-[#424253] text-white shadow-[-12px_0_28px_rgba(15,23,42,0.28)] transition-transform duration-300 ease-out md:flex ${
+    ? `fixed bottom-0 right-0 top-[78px] z-[710] hidden w-[64px] flex-col overflow-hidden rounded-tl-2xl border-l border-white/10 bg-[#424253] text-white shadow-[-12px_0_28px_rgba(15,23,42,0.28)] transition-transform duration-300 ease-out md:flex ${
         overlayState === "revealed" ? "translate-x-0" : "translate-x-full"
       }`
-    : "fixed bottom-0 right-0 top-[78px] z-[640] hidden w-[92px] flex-col overflow-hidden rounded-tl-2xl border-l border-white/10 bg-[#424253] text-white shadow-[-12px_0_28px_rgba(15,23,42,0.18)] md:flex";
+    : "fixed bottom-0 right-0 top-[78px] z-[640] hidden w-[64px] flex-col overflow-hidden rounded-tl-2xl border-l border-white/10 bg-[#424253] text-white shadow-[-12px_0_28px_rgba(15,23,42,0.18)] md:flex";
 
   return (
     <>
@@ -188,7 +188,7 @@ export default function SubjectRightSidebar({
         onMouseEnter={onPointerEnter}
         onMouseLeave={onPointerLeave}
       >
-        <div className="border-b border-white/10 px-2 py-3 text-center">
+        <div className="border-b border-white/10 px-1.5 py-2 text-center">
           <button
             ref={subjectButtonRef}
             type="button"
@@ -226,14 +226,14 @@ export default function SubjectRightSidebar({
             ) : null}
           </button>
         </div>
-        <nav className="flex-1 overflow-y-auto py-2">
-          <div className="space-y-1.5">
+        <nav className="flex-1 overflow-y-auto py-1.5">
+          <div className="space-y-0.5">
             {isResolvingSubjectContext ? (
               <div className="space-y-4 px-3 py-3" aria-label="Loading subject sidebar">
                 {Array.from({ length: 4 }).map((_, index) => (
                   <div key={index} className="flex animate-pulse flex-col items-center gap-2">
-                    <div className="h-8 w-8 rounded-xl bg-white/10" />
-                    <div className="h-3 w-14 rounded-full bg-white/10" />
+                    <div className="h-5 w-5 rounded-lg bg-white/10" />
+                    <div className="h-2.5 w-10 rounded-full bg-white/10" />
                   </div>
                 ))}
               </div>
@@ -250,19 +250,19 @@ export default function SubjectRightSidebar({
                   key={`${item.name}-${item.href}`}
                   type="button"
                   onClick={() => router.push(item.href)}
-                  className={`group relative flex w-full flex-col items-center gap-1.5 px-2 py-3 text-center transition ${
+                  className={`group relative flex w-full flex-col items-center gap-1 px-1 py-2 text-center transition ${
                     active ? "bg-[#525264] text-white" : "text-white/85 hover:bg-white/10 hover:text-white"
                   }`}
                   title={item.name}
                 >
                   <span
-                    className={`absolute right-0 top-1/2 h-12 w-1 -translate-y-1/2 rounded-l-full transition ${
+                    className={`absolute right-0 top-1/2 h-9 w-0.5 -translate-y-1/2 rounded-l-full transition ${
                       active ? "opacity-100" : "opacity-0 group-hover:opacity-70"
                     }`}
                     style={{ backgroundColor: accent }}
                   />
-                  <Icon className="h-8 w-8" style={{ color: accent }} />
-                  <span className="line-clamp-2 max-w-[74px] text-[11px] font-semibold leading-tight drop-shadow">
+                  <Icon className="h-5 w-5" style={{ color: accent }} />
+                  <span className="line-clamp-2 max-w-[56px] text-[9px] font-semibold leading-tight drop-shadow">
                     {compactLabel(item.name)}
                   </span>
                 </button>
@@ -270,9 +270,9 @@ export default function SubjectRightSidebar({
             })}
           </div>
         </nav>
-        <div className="border-t border-white/10 p-3">
-          <div className="flex h-10 items-center justify-center rounded bg-white/10 text-white/75">
-            <MoreVertical className="h-5 w-5" />
+        <div className="border-t border-white/10 p-2">
+          <div className="flex h-8 items-center justify-center rounded bg-white/10 text-white/75">
+            <MoreVertical className="h-4 w-4" />
           </div>
         </div>
       </aside>
@@ -280,7 +280,7 @@ export default function SubjectRightSidebar({
       {isSubjectPickerOpen ? (
         <div
           ref={subjectPickerRef}
-          className="fixed right-[104px] top-[90px] z-[720] hidden w-[300px] overflow-hidden rounded-2xl border border-white/10 bg-[#353545] text-white shadow-[0_24px_60px_rgba(15,23,42,0.35)] md:block"
+          className="fixed right-[76px] top-[90px] z-[720] hidden w-[300px] overflow-hidden rounded-2xl border border-white/10 bg-[#353545] text-white shadow-[0_24px_60px_rgba(15,23,42,0.35)] md:block"
           role="dialog"
           aria-label="Choose subject"
         >
