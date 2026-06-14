@@ -4,6 +4,7 @@ import { grade6Year7Lessons } from "./grade6Year7";
 import { grade7Year8Lessons } from "./grade7Year8";
 import { grade8Year9Lessons } from "./grade8Year9";
 import { grade9Year10Lessons } from "./grade9Year10";
+import { grade10Year11Lessons } from "./grade10Year11";
 
 // Registry of authored interactive lessons, keyed by grade slug then topic slug.
 const lessonsByGrade: Record<string, Record<string, CourseLesson>> = {
@@ -12,6 +13,7 @@ const lessonsByGrade: Record<string, Record<string, CourseLesson>> = {
   "grade-7-year-8": grade7Year8Lessons,
   "grade-8-year-9": grade8Year9Lessons,
   "grade-9-year-10": grade9Year10Lessons,
+  "grade-10-year-11": grade10Year11Lessons,
 };
 
 export function getLesson(
