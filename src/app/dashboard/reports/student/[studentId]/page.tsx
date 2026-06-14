@@ -359,10 +359,13 @@ export default function StudentReportPage() {
       max: number;
       percent: number;
     }[] = [];
+    const seenAssessments = new Set<string>();
     terms.forEach((term) => {
       asArray(term?.assign_assessments).forEach((aa) => {
         const a = (aa?.assessment as AnyObj) ?? {};
         if (!a || !a.id) return;
+        const assessmentId = String(a.id);
+        if (seenAssessments.has(assessmentId)) return;
         let earned = 0;
         let max = 0;
         let hasMark = false;
@@ -380,8 +383,9 @@ export default function StudentReportPage() {
           hasMark = true;
         });
         if (!hasMark) return;
+        seenAssessments.add(assessmentId);
         assessments.push({
-          key: String(a.id),
+          key: assessmentId,
           name: normalizeSubjectName(a?.assessment_name ?? a?.name ?? "Assessment"),
           earned,
           max,
