@@ -17,6 +17,8 @@ import { prophetsMethodInDawah } from "./prophetsMethodInDawah";
 import { worldAbodeOfAction } from "./worldAbodeOfAction";
 import { recordingTheSunnah } from "./recordingTheSunnah";
 import { chastity } from "./chastity";
+import { rulesOfMarriage } from "./rulesOfMarriage";
+import { prophetsCareForHousehold } from "./prophetsCareForHousehold";
 
 // Keyed by the topic slug (topicSlugify of the English title in data.ts).
 export const grade10Year11Lessons: Record<string, CourseLesson> = {
@@ -38,4 +40,6 @@ export const grade10Year11Lessons: Record<string, CourseLesson> = {
   "this-world-is-the-abode-of-action": worldAbodeOfAction,
   "recording-the-sunnah": recordingTheSunnah,
   "chastity": chastity,
+  "rules-of-marriage": rulesOfMarriage,
+  "the-prophets-care-for-his-household": prophetsCareForHousehold,
 };
