@@ -430,68 +430,123 @@ export default function FavoriteSidebar() {
     }
   };
 
+  const isActiveHref = (href?: string) => {
+    if (!href) return false;
+    const current = pathname.replace(/\/+$/, "");
+    const base = href.split("?")[0].replace(/\/+$/, "");
+    return current === base || current.startsWith(`${base}/`);
+  };
+
+  const fixedEntries = useMemo<FavoriteEntry[]>(() => {
+    const canManageTimetable = ["SCHOOL_ADMIN", "SUPER_ADMIN", "HOD", "TEACHER"].includes(roleKey);
+    const items: FavoriteEntry[] = [
+      {
+        id: "fixed-library",
+        name: "Library",
+        section: "Resources",
+        icon: Library,
+        href: "/dashboard/library",
+        kind: "link",
+      },
+      {
+        id: "fixed-leaderboard",
+        name: "Leaderboard",
+        section: "Teaching",
+        icon: Award,
+        href: activeSubjectId ? `/dashboard/s/${activeSubjectId}/leaderboard` : "/dashboard/leaderboard",
+        kind: "link",
+      },
+      {
+        id: "fixed-timetable",
+        name: "Timetable",
+        section: "Workspace",
+        icon: CalendarDays,
+        href: canManageTimetable ? "/dashboard/timetable-builder" : "/dashboard/time_table",
+        kind: "link",
+      },
+      {
+        id: "fixed-announcements",
+        name: "Announcements",
+        section: "Communication",
+        icon: Megaphone,
+        href: "/dashboard/announcements",
+        kind: "link",
+      },
+    ];
+    return items.map((item) => ({ ...item, active: isActiveHref(item.href) }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSubjectId, roleKey, pathname]);
+
+  const renderItem = (entry: FavoriteEntry) => {
+    const Icon = entry.icon;
+    const accent = sidebarAccent[entry.section] || "#93c5fd";
+    return (
+      <button
+        key={entry.id}
+        type="button"
+        onClick={() => handleClick(entry)}
+        className={`group relative flex w-full flex-col items-center gap-1 px-1 py-2 text-center transition ${
+          entry.active ? "bg-[#525264] text-white" : "text-white/85 hover:bg-white/10 hover:text-white"
+        }`}
+        title={entry.name}
+      >
+        <span
+          className={`absolute left-0 top-1/2 h-9 w-0.5 -translate-y-1/2 rounded-r-full transition ${
+            entry.active ? "opacity-100" : "opacity-0 group-hover:opacity-70"
+          }`}
+          style={{ backgroundColor: accent }}
+        />
+        <Icon className="h-5 w-5" style={{ color: accent }} />
+        <span className="line-clamp-2 max-w-[56px] text-[9px] font-semibold leading-tight drop-shadow">
+          {itemLabel(entry.name)}
+        </span>
+      </button>
+    );
+  };
+
   return (
-    <aside className="fixed bottom-0 left-0 top-[78px] z-[650] hidden w-[88px] flex-col overflow-hidden rounded-tr-2xl border-r border-white/10 bg-[#424253] text-white shadow-[12px_0_28px_rgba(15,23,42,0.18)] md:flex">
-      <div className="shrink-0 border-b border-white/10 px-2 pb-3 pt-3">
+    <aside className="fixed bottom-0 left-0 top-[78px] z-[650] hidden w-[64px] flex-col overflow-hidden rounded-tr-2xl border-r border-white/10 bg-[#424253] text-white shadow-[12px_0_28px_rgba(15,23,42,0.18)] md:flex">
+      <div className="shrink-0 border-b border-white/10 px-1.5 pb-2 pt-2">
         <button
           type="button"
           onClick={() => router.push("/dashboard/subject-cards")}
-          className="group flex h-[72px] w-full items-center justify-center rounded-2xl border border-white/15 bg-white/[0.08] p-1.5 shadow-inner transition hover:bg-white/15 hover:shadow-[0_0_0_3px_rgba(56,193,108,0.18)]"
+          className="group flex h-[50px] w-full items-center justify-center rounded-xl border border-white/15 bg-white/[0.08] p-1 shadow-inner transition hover:bg-white/15 hover:shadow-[0_0_0_3px_rgba(56,193,108,0.18)]"
           aria-label="Go to Home"
           title="Home"
         >
           <Image
             src={OstepsLogo}
             alt="Osteps Home"
-            width={64}
-            height={64}
-            className="h-16 w-16 rounded-xl object-contain object-center transition group-hover:scale-105"
+            width={44}
+            height={44}
+            className="h-11 w-11 rounded-lg object-contain object-center transition group-hover:scale-105"
             priority
           />
         </button>
       </div>
-      <div className="flex-1 overflow-y-auto py-3">
+
+      {/* Fixed quick-access shortcuts */}
+      <div className="shrink-0 border-b border-white/10 py-1.5">
+        <div className="space-y-0.5">{fixedEntries.map(renderItem)}</div>
+      </div>
+
+      {/* User-chosen favourites */}
+      <div className="flex-1 overflow-y-auto py-1.5">
         {favoriteEntries.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-3 px-3 text-center text-white/55">
-            <Star className="h-7 w-7" />
-            <span className="text-[10px] font-semibold leading-tight">
-              Star modules in Quick Launcher
+          <div className="flex h-full flex-col items-center justify-center gap-2 px-2 text-center text-white/45">
+            <Star className="h-5 w-5" />
+            <span className="text-[9px] font-semibold leading-tight">
+              Star modules to pin favourites
             </span>
           </div>
         ) : (
-          <div className="space-y-1.5">
-            {favoriteEntries.map((entry) => {
-              const Icon = entry.icon;
-              const accent = sidebarAccent[entry.section] || "#93c5fd";
-              return (
-                <button
-                  key={entry.id}
-                  type="button"
-                  onClick={() => handleClick(entry)}
-                  className={`group relative flex w-full flex-col items-center gap-1.5 px-2 py-3 text-center transition ${
-                    entry.active ? "bg-[#525264] text-white" : "text-white/85 hover:bg-white/10 hover:text-white"
-                  }`}
-                  title={entry.name}
-                >
-                  <span
-                    className={`absolute left-0 top-1/2 h-12 w-1 -translate-y-1/2 rounded-r-full transition ${
-                      entry.active ? "opacity-100" : "opacity-0 group-hover:opacity-70"
-                    }`}
-                    style={{ backgroundColor: accent }}
-                  />
-                  <Icon className="h-8 w-8" style={{ color: accent }} />
-                  <span className="line-clamp-2 max-w-[72px] text-[11px] font-semibold leading-tight drop-shadow">
-                    {itemLabel(entry.name)}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          <div className="space-y-0.5">{favoriteEntries.map(renderItem)}</div>
         )}
       </div>
-      <div className="border-t border-white/10 p-3">
-        <div className="flex h-10 items-center justify-center rounded bg-white/10 text-white/75">
-          <MoreVertical className="h-5 w-5" />
+
+      <div className="border-t border-white/10 p-2">
+        <div className="flex h-8 items-center justify-center rounded bg-white/10 text-white/75">
+          <MoreVertical className="h-4 w-4" />
         </div>
       </div>
     </aside>
