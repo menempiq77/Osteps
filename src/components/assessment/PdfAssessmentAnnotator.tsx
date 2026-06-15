@@ -66,7 +66,8 @@ const COLOR_SWATCHS = [
 ] as const;
 const PEN_WIDTH_OPTIONS = [2, 4, 6, 8] as const;
 const HIGHLIGHTER_WIDTH_OPTIONS = [10, 16, 24] as const;
-const TEXT_SIZE_OPTIONS = [10, 12, 14, 18] as const;
+const TEXT_SIZE_OPTIONS = [14, 18, 24, 36] as const;
+const DEFAULT_TEXT_FONT_SIZE = 24;
 const TEXT_SIZE_DROPDOWN_OPTIONS = [
   { label: "Tiny", value: 10 },
   { label: "Small", value: 12 },
@@ -137,6 +138,9 @@ type EditingText = {
   fontWeight: TextFontWeight;
   underline: boolean;
   textAlign: TextAlignment;
+  // When true (a freshly placed box), the box keeps fitting itself to the typed
+  // text. A manual resize turns this off so the chosen width sticks.
+  autoWidth?: boolean;
 };
 
 type DraggingText = {
@@ -752,6 +756,35 @@ const findScrollableAncestor = (element: HTMLElement | null): HTMLElement | null
   return (document.scrollingElement || document.documentElement) as HTMLElement;
 };
 
+// Walks up from a wheel event target (stopping at the marking container) to see
+// if an inner element can still scroll in the wheel direction. This lets native
+// UI like dropdowns and the autosize text box keep their own scrolling while we
+// take over wheel/touchpad scrolling for the page everywhere else.
+const findWheelScrollableInside = (
+  target: EventTarget | null,
+  stopAt: HTMLElement | null,
+  deltaY: number
+): boolean => {
+  if (typeof window === "undefined") return false;
+  if (!(target instanceof Node)) return false;
+  let node: HTMLElement | null =
+    target instanceof HTMLElement ? target : target.parentElement;
+  while (node && node !== stopAt) {
+    const style = window.getComputedStyle(node);
+    const overflowY = style.overflowY;
+    const canScroll =
+      (overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay") &&
+      node.scrollHeight > node.clientHeight + 1;
+    if (canScroll) {
+      const atTop = node.scrollTop <= 0;
+      const atBottom = node.scrollTop + node.clientHeight >= node.scrollHeight - 1;
+      if ((deltaY < 0 && !atTop) || (deltaY > 0 && !atBottom)) return true;
+    }
+    node = node.parentElement;
+  }
+  return false;
+};
+
 const getSafePenPoints = (annotation: { points?: Array<{ x?: number; y?: number }> | null }) =>
   Array.isArray(annotation.points)
     ? annotation.points.filter(
@@ -867,6 +900,36 @@ const mergeEditingTextIntoAnnotations = (
 
 const getTextFont = (fontSize: number, fontWeight: TextFontWeight = "normal") =>
   `${fontWeight === "bold" ? "700" : "400"} ${fontSize}px Arial, sans-serif`;
+
+const clampTextBoxWidth = (value: number) =>
+  Math.min(TEXT_ANNOTATION_MAX_WIDTH, Math.max(TEXT_ANNOTATION_MIN_WIDTH, Math.round(value)));
+
+// Horizontal padding inside the editing box: the textarea's px-3 (12px each
+// side) and the box border, plus a cushion so the caret/last glyph and any
+// sub-pixel rounding never force the text to wrap early.
+const TEXT_BOX_HORIZONTAL_PADDING = 40;
+
+let textMeasureCanvas: HTMLCanvasElement | null = null;
+
+// Width that snugly fits the typed text so the box matches the writing and grows
+// as more is typed, instead of staying a fixed oversized rectangle.
+const measureTextBoxWidth = (
+  value: string,
+  fontSize: number,
+  fontWeight: TextFontWeight
+): number => {
+  if (typeof document === "undefined") return TEXT_ANNOTATION_MIN_WIDTH;
+  if (!textMeasureCanvas) textMeasureCanvas = document.createElement("canvas");
+  const context = textMeasureCanvas.getContext("2d");
+  if (!context) return TEXT_ANNOTATION_MIN_WIDTH;
+  context.font = getTextFont(fontSize, fontWeight);
+  let widest = 0;
+  for (const line of (value || "").split(/\r?\n/)) {
+    const lineWidth = context.measureText(line).width;
+    if (lineWidth > widest) widest = lineWidth;
+  }
+  return clampTextBoxWidth(widest + TEXT_BOX_HORIZONTAL_PADDING);
+};
 
 const compactAnnotationsForAiDraft = (annotations: AssessmentDocumentAnnotation[]) =>
   annotations.map((annotation) => {
@@ -1191,7 +1254,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const [color, setColor] = useState(role === "teacher" ? "#dc2626" : "#111827");
   const [penWidth, setPenWidth] = useState(3);
   const [highlighterWidth, setHighlighterWidth] = useState(16);
-  const [textFontSize, setTextFontSize] = useState(14);
+  const [textFontSize, setTextFontSize] = useState(DEFAULT_TEXT_FONT_SIZE);
   const [textFontWeight, setTextFontWeight] = useState<TextFontWeight>("normal");
   const [textUnderline, setTextUnderline] = useState(false);
   const [textAlignment, setTextAlignment] = useState<TextAlignment>("left");
@@ -1544,8 +1607,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   }, [zoomLevel]);
 
   useEffect(() => {
-    const viewport = pagesViewportRef.current;
-    if (!viewport || typeof window === "undefined") return;
+    const container = examContainerRef.current;
+    if (!container || typeof window === "undefined") return;
 
     const handleWheelPinch = (event: WheelEvent) => {
       const scrollElement = getZoomScrollElement();
@@ -1553,6 +1616,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       if (!scrollElement || !pageStack) return;
 
       if (!event.ctrlKey && !event.metaKey) {
+        // Let dropdowns, menus, and the text box scroll themselves first.
+        if (findWheelScrollableInside(event.target, container, event.deltaY)) return;
         const verticalDelta = event.deltaY;
         const horizontalDelta = event.shiftKey ? event.deltaY : event.deltaX;
         let handled = false;
@@ -1664,13 +1729,13 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       flushSync(() => setZoomLevel(nextZoomLevel));
     };
 
-    viewport.addEventListener("wheel", handleWheelPinch, {
+    container.addEventListener("wheel", handleWheelPinch, {
       capture: true,
       passive: false,
     });
 
     return () => {
-      viewport.removeEventListener("wheel", handleWheelPinch, true);
+      container.removeEventListener("wheel", handleWheelPinch, true);
     };
   }, [getZoomScrollElement]);
 
@@ -2603,7 +2668,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   }, [initialSelfAssessmentMark]);
 
   useEffect(() => {
-    setTextFontSize(14);
+    setTextFontSize(DEFAULT_TEXT_FONT_SIZE);
   }, [role]);
 
   const isExamFullscreenActive = useCallback(() => {
@@ -4323,10 +4388,11 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       y: point.y,
       value: "",
       fontSize: textFontSize,
-      width: TEXT_ANNOTATION_DEFAULT_WIDTH,
+      width: measureTextBoxWidth("", textFontSize, textFontWeight),
       fontWeight: textFontWeight,
       underline: textUnderline,
       textAlign: textAlignment,
+      autoWidth: true,
     });
   };
 
@@ -4395,6 +4461,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       fontWeight: annotation.fontWeight === "bold" ? "bold" : "normal",
       underline: Boolean(annotation.underline),
       textAlign: annotation.textAlign ?? "left",
+      autoWidth: false,
     });
   };
 
@@ -4557,6 +4624,27 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     draggingEditingTextRef.current = null;
     setTextToolbarMenu(null);
   }, [editingText]);
+
+  // Keep a freshly placed text box hugging its contents: it grows as the teacher
+  // types and tracks font-size/weight changes. A manual resize clears autoWidth.
+  useEffect(() => {
+    if (!editingText || editingText.autoWidth === false) return;
+    const nextWidth = measureTextBoxWidth(
+      editingText.value,
+      editingText.fontSize,
+      editingText.fontWeight
+    );
+    if (nextWidth === editingText.width) return;
+    setEditingText((current) =>
+      current && current.autoWidth !== false ? { ...current, width: nextWidth } : current
+    );
+  }, [
+    editingText?.value,
+    editingText?.fontSize,
+    editingText?.fontWeight,
+    editingText?.autoWidth,
+    editingText?.width,
+  ]);
 
   useEffect(() => {
     if (!resizingText) return;
@@ -6689,12 +6777,22 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                             <span
                               className="absolute left-[-8px] top-1/2 z-20 h-8 w-3 -translate-y-1/2 cursor-ew-resize rounded-full border-2 border-[#6d5efc] bg-white shadow"
                               title="Drag to make the text box wider"
-                              onPointerDown={(event) => startResizeTextAnnotation(event, editingText, "left")}
+                              onPointerDown={(event) => {
+                                setEditingText((current) =>
+                                  current ? { ...current, autoWidth: false } : current
+                                );
+                                startResizeTextAnnotation(event, editingText, "left");
+                              }}
                             />
                             <span
                               className="absolute right-[-8px] top-1/2 z-20 h-8 w-3 -translate-y-1/2 cursor-ew-resize rounded-full border-2 border-[#6d5efc] bg-white shadow"
                               title="Drag to make the text box wider"
-                              onPointerDown={(event) => startResizeTextAnnotation(event, editingText, "right")}
+                              onPointerDown={(event) => {
+                                setEditingText((current) =>
+                                  current ? { ...current, autoWidth: false } : current
+                                );
+                                startResizeTextAnnotation(event, editingText, "right");
+                              }}
                             />
                           </div>
                         </>
