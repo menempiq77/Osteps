@@ -1055,6 +1055,9 @@ export default function AssessmentDrawer() {
     if (classId) params.set("classId", String(classId));
     if (subjectClassId) params.set("subjectClassId", String(subjectClassId));
     if (options.autoDownload) params.set("autoDownload", "1");
+    if (typeof window !== "undefined") {
+      params.set("returnTo", `${window.location.pathname}${window.location.search}`);
+    }
     return `/dashboard/assessment-document?${params.toString()}`;
   };
 
