@@ -1450,7 +1450,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     role !== "student" && !savedDocumentUrl && currentDocumentUrl && studentAnnotations.length > 0
   );
   const editable = role === "teacher" || (!studentLocked && !examEditingLocked && !documentIdentityUnverified);
-  const nativeGestureTouchAction: React.CSSProperties["touchAction"] = "pan-x pan-y pinch-zoom";
+  // We handle pinch-zoom ourselves for every tool, so the browser must not claim
+  // two-finger gestures (which would zoom the whole page and fight our handler).
+  // Single-finger native panning stays enabled for the cursor/text tools.
+  const nativeGestureTouchAction: React.CSSProperties["touchAction"] = "pan-x pan-y";
   const paperTouchAction: React.CSSProperties["touchAction"] =
     tool === "pen" || tool === "highlighter" || tool === "eraser" ? "none" : nativeGestureTouchAction;
   const oppositeLayer = role === "teacher" ? "student" : "teacher";
@@ -2339,12 +2342,11 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     };
 
     const handleNativeTouchStart = (event: TouchEvent) => {
-      // Handle if target is on the paper OR we already have an active gesture
-      if (!isPaperViewportTouchTarget(event.target) && !touchGestureRef.current && !touchScrollRef.current) return;
+      const inMarkingArea = event.target instanceof Node && container.contains(event.target);
 
-      if (touchStrokeToolActive && isPaperViewportTouchTarget(event.target)) {
-        if (event.touches.length < 2) return;
-
+      // Two-finger scroll/zoom works with every tool, anywhere in the marking
+      // area (the paper, the page margins, and the surrounding gutters).
+      if (event.touches.length >= 2 && (inMarkingArea || touchGestureRef.current)) {
         event.preventDefault();
         event.stopPropagation();
         touchScrollRef.current = null;
@@ -2362,7 +2364,17 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         return;
       }
 
+      // Handle if target is on the paper OR we already have an active gesture
+      if (!isPaperViewportTouchTarget(event.target) && !touchGestureRef.current && !touchScrollRef.current) return;
+
+      if (touchStrokeToolActive && isPaperViewportTouchTarget(event.target)) {
+        // A single finger draws with the stroke tools.
+        return;
+      }
+
       if (!touchStrokeToolActive && isPaperViewportTouchTarget(event.target)) {
+        // A single finger with the cursor/text tools selects, moves, or places
+        // annotations; let the pointer handlers and native scrolling take over.
         touchPointersRef.current.clear();
         touchGestureRef.current = null;
         touchScrollRef.current = null;
@@ -2395,9 +2407,11 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     };
 
     const handleNativeTouchMove = (event: TouchEvent) => {
-      if (touchStrokeToolActive && (isPaperViewportTouchTarget(event.target) || touchGestureRef.current)) {
-        if (event.touches.length < 2) return;
+      const inMarkingArea = event.target instanceof Node && container.contains(event.target);
 
+      // Drive the two-finger scroll/zoom gesture for every tool. Once a gesture
+      // is active we keep handling it until the fingers lift.
+      if (touchGestureRef.current || (event.touches.length >= 2 && inMarkingArea)) {
         event.preventDefault();
         event.stopPropagation();
         touchScrollRef.current = null;
@@ -2405,12 +2419,13 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         activeStrokeRef.current = null;
         setActiveStroke(null);
         erasingRef.current = false;
-        syncNativeTouches(event.touches);
-
-        if (!touchGestureRef.current) {
-          startTouchGestureStableRef.current();
-        } else {
-          syncTouchGestureStableRef.current();
+        if (event.touches.length >= 2) {
+          syncNativeTouches(event.touches);
+          if (!touchGestureRef.current) {
+            startTouchGestureStableRef.current();
+          } else {
+            syncTouchGestureStableRef.current();
+          }
         }
         return;
       }
