@@ -1313,6 +1313,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const [toolbarSidebarInsets, setToolbarSidebarInsets] = useState({ left: 0, right: 0 });
   const [toolbarTopInset, setToolbarTopInset] = useState(0);
   const [toolbarHeight, setToolbarHeight] = useState(0);
+  // In teacher marking mode the viewer becomes its own scroll container (see the
+  // effect below) so the paper area scrolls reliably on touch devices instead of
+  // relying on the distant dashboard layout wrapper. This holds its pixel height.
+  const [viewerScrollHeight, setViewerScrollHeight] = useState<number | null>(null);
   const [toolbarPortalReady, setToolbarPortalReady] = useState(false);
   const [isExamFullscreen, setIsExamFullscreen] = useState(false);
   const [examFullscreenSupported, setExamFullscreenSupported] = useState(true);
@@ -1593,17 +1597,26 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     (role === "teacher" && documentLoaded && pages.length > 0 && (studentLocked || state?.status === "submitted" || state?.status === "marked"));
 
   const getZoomScrollElement = useCallback(() => {
-    if (shouldEnforceExamScreen && viewerScrollRef.current) {
-      return viewerScrollRef.current;
+    // The viewer is its own scroll container (exam mode always, teacher marking
+    // mode once its height is measured), so scroll/zoom it directly. This keeps
+    // wheel, two-finger pan and pinch-zoom all targeting the element that wraps
+    // the paper, which is what makes scrolling reliable on touch devices.
+    const viewer = viewerScrollRef.current;
+    if (
+      viewer &&
+      (shouldEnforceExamScreen || viewerScrollHeight !== null) &&
+      viewer.scrollHeight > viewer.clientHeight + 1
+    ) {
+      return viewer;
     }
     if (typeof document === "undefined") return null;
-    // The annotator is usually embedded inside a scrollable layout wrapper, so
+    // Otherwise the annotator is embedded inside a scrollable layout wrapper, so
     // resolve the element that actually scrolls instead of assuming the document.
     return (
       findScrollableAncestor(examContainerRef.current) ??
       ((document.scrollingElement || document.documentElement) as HTMLElement)
     );
-  }, [shouldEnforceExamScreen]);
+  }, [shouldEnforceExamScreen, viewerScrollHeight]);
 
   const changeZoomLevel = useCallback(
     (delta: number) => {
@@ -1982,6 +1995,44 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
     return () => resizeObserver.disconnect();
   }, [role, studentSwitcherOptions.length, tool, toolbarPortalReady, zoomPercent]);
+
+  // Teacher marking mode: turn the viewer into its own bounded scroll container
+  // so the area around the paper scrolls directly. Relying on the far-away
+  // dashboard layout scroller meant touch devices only scrolled on the outer
+  // edge (gestures over the paper never reached that distant ancestor). Sizing
+  // the viewer to the remaining viewport height makes it the element that
+  // actually scrolls, which works for mouse, touchpad and finger on every tool.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (shouldEnforceExamScreen) {
+      setViewerScrollHeight(null);
+      return;
+    }
+    const viewer = viewerScrollRef.current;
+    if (!viewer) return;
+
+    let frame = 0;
+    const measure = () => {
+      const top = viewer.getBoundingClientRect().top;
+      const next = Math.max(320, Math.round(window.innerHeight - top));
+      setViewerScrollHeight((current) => (current === next ? current : next));
+    };
+    const scheduleMeasure = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(measure);
+    };
+
+    scheduleMeasure();
+    window.addEventListener("resize", scheduleMeasure);
+    const resizeObserver = new ResizeObserver(scheduleMeasure);
+    resizeObserver.observe(document.body);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("resize", scheduleMeasure);
+      resizeObserver.disconnect();
+    };
+  }, [shouldEnforceExamScreen, toolbarHeight, documentReadyForCurrentStudent]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -6244,8 +6295,18 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
       <div
         ref={viewerScrollRef}
-        className={shouldEnforceExamScreen ? "h-[calc(100vh-85px)] overflow-auto p-4" : "w-full p-4"}
-        style={{ paddingTop: toolbarHeight ? toolbarHeight + 16 : undefined, touchAction: nativeGestureTouchAction, overflowAnchor: "none" }}
+        className={shouldEnforceExamScreen ? "h-[calc(100vh-85px)] overflow-auto p-4" : "w-full overflow-y-auto p-4"}
+        style={{
+          paddingTop: toolbarHeight ? toolbarHeight + 16 : undefined,
+          touchAction: nativeGestureTouchAction,
+          overflowAnchor: "none",
+          ...(shouldEnforceExamScreen
+            ? {}
+            : {
+                height: viewerScrollHeight ?? undefined,
+                overscrollBehavior: "contain",
+              }),
+        }}
       >
         {documentFileMismatch ? (
           <Alert
