@@ -757,35 +757,6 @@ const findScrollableAncestor = (element: HTMLElement | null): HTMLElement | null
   return (document.scrollingElement || document.documentElement) as HTMLElement;
 };
 
-// Walks up from a wheel event target (stopping at the marking container) to see
-// if an inner element can still scroll in the wheel direction. This lets native
-// UI like dropdowns and the autosize text box keep their own scrolling while we
-// take over wheel/touchpad scrolling for the page everywhere else.
-const findWheelScrollableInside = (
-  target: EventTarget | null,
-  stopAt: HTMLElement | null,
-  deltaY: number
-): boolean => {
-  if (typeof window === "undefined") return false;
-  if (!(target instanceof Node)) return false;
-  let node: HTMLElement | null =
-    target instanceof HTMLElement ? target : target.parentElement;
-  while (node && node !== stopAt) {
-    const style = window.getComputedStyle(node);
-    const overflowY = style.overflowY;
-    const canScroll =
-      (overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay") &&
-      node.scrollHeight > node.clientHeight + 1;
-    if (canScroll) {
-      const atTop = node.scrollTop <= 0;
-      const atBottom = node.scrollTop + node.clientHeight >= node.scrollHeight - 1;
-      if ((deltaY < 0 && !atTop) || (deltaY > 0 && !atBottom)) return true;
-    }
-    node = node.parentElement;
-  }
-  return false;
-};
-
 const getSafePenPoints = (annotation: { points?: Array<{ x?: number; y?: number }> | null }) =>
   Array.isArray(annotation.points)
     ? annotation.points.filter(
@@ -1624,50 +1595,15 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     if (!container || typeof window === "undefined") return;
 
     const handleWheelPinch = (event: WheelEvent) => {
+      // Plain wheel / touchpad scroll (no modifier): let the browser scroll
+      // natively. Native scrolling reliably moves whichever scroll container is
+      // under the cursor (the marking viewport, a dropdown, the text box, etc.)
+      // on every device, so we must not preventDefault here.
+      if (!event.ctrlKey && !event.metaKey) return;
+
       const scrollElement = getZoomScrollElement();
       const pageStack = pagesViewportRef.current;
       if (!scrollElement || !pageStack) return;
-
-      if (!event.ctrlKey && !event.metaKey) {
-        // Let dropdowns, menus, and the text box scroll themselves first.
-        if (findWheelScrollableInside(event.target, container, event.deltaY)) return;
-        const verticalDelta = event.deltaY;
-        const horizontalDelta = event.shiftKey ? event.deltaY : event.deltaX;
-        let handled = false;
-
-        if (Math.abs(verticalDelta) > 0.1 && !event.shiftKey) {
-          const maxScrollTop = Math.max(
-            0,
-            scrollElement.scrollHeight - scrollElement.clientHeight
-          );
-          const nextScrollTop = Math.min(
-            Math.max(scrollElement.scrollTop + verticalDelta, 0),
-            maxScrollTop
-          );
-          if (nextScrollTop !== scrollElement.scrollTop) {
-            scrollElement.scrollTop = nextScrollTop;
-            handled = true;
-          }
-        }
-
-        if (Math.abs(horizontalDelta) > 0.1) {
-          const maxScrollLeft = Math.max(0, pageStack.scrollWidth - pageStack.clientWidth);
-          const nextScrollLeft = Math.min(
-            Math.max(pageStack.scrollLeft + horizontalDelta, 0),
-            maxScrollLeft
-          );
-          if (nextScrollLeft !== pageStack.scrollLeft) {
-            pageStack.scrollLeft = nextScrollLeft;
-            handled = true;
-          }
-        }
-
-        if (handled) {
-          event.preventDefault();
-          event.stopPropagation();
-        }
-        return;
-      }
 
       event.preventDefault();
       event.stopPropagation();
@@ -4572,9 +4508,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       deleteTextAnnotation(annotation);
       return;
     }
-    const textToolEdgeDrag =
-      tool === "text" && isPointerNearElementEdge(event.currentTarget, event.clientX, event.clientY);
-    if (tool !== "cursor" && !textToolEdgeDrag) return;
+    if (tool !== "cursor" && tool !== "text") return;
     event.preventDefault();
     event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -6738,7 +6672,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                           </div>
 
                           <div
-                            className="absolute z-20 rounded-[12px] border-2 border-[#6d5efc] bg-white/95 shadow-[0_12px_28px_rgba(109,94,252,0.16)]"
+                            className="absolute z-20 rounded-[10px] border border-dashed border-[#6d5efc]/70 bg-white/90 shadow-sm"
                             style={{ left: editingText.x, top: editingText.y, width: editingText.width }}
                             onClick={(event) => {
                               event.stopPropagation();
@@ -6873,10 +6807,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                           <div
                             key={annotation.id}
                             className={[
-                              "group absolute whitespace-pre-wrap break-words rounded-xl border bg-white/65 px-2 py-1 leading-tight shadow-sm transition",
+                              "group absolute whitespace-pre-wrap break-words rounded-md px-1 leading-tight outline-dashed outline-1 outline-transparent transition",
                               isEditableText && (tool === "cursor" || tool === "text")
-                                ? "border-transparent hover:border-[#6d5efc]/60 hover:bg-white/85 hover:shadow-md"
-                                : "border-transparent",
+                                ? "hover:outline-[#6d5efc]/40"
+                                : "",
                             ].join(" ")}
                             style={{
                               left: annotation.x,
@@ -6914,7 +6848,26 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                             onPointerCancel={handleTextPointerUp}
                           >
                             {annotation.text}
-                            {isEditableText && tool === "cursor" && (
+                            {isEditableText && (tool === "cursor" || tool === "text") && (
+                              <button
+                                type="button"
+                                title="Open text tools"
+                                aria-label="Open text tools"
+                                className="absolute -top-3 left-0 z-10 flex h-5 items-center gap-[3px] rounded-full border border-[#6d5efc]/40 bg-white px-1.5 opacity-0 shadow-sm transition hover:bg-[#6d5efc]/10 group-hover:opacity-100"
+                                onPointerDown={(event) => event.stopPropagation()}
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  startEditTextAnnotation(annotation);
+                                }}
+                              >
+                                <span className="block h-[3px] w-[3px] rounded-full bg-[#6d5efc]" />
+                                <span className="block h-[3px] w-[3px] rounded-full bg-[#6d5efc]" />
+                                <span className="block h-[3px] w-[3px] rounded-full bg-[#6d5efc]" />
+                                <span className="block h-[3px] w-[3px] rounded-full bg-[#6d5efc]" />
+                              </button>
+                            )}
+                            {isEditableText && (tool === "cursor" || tool === "text") && (
                               <>
                                 <span
                                   className="absolute left-[-9px] top-1/2 h-10 w-4 -translate-y-1/2 cursor-ew-resize rounded-full border-[3px] border-[#6d5efc] bg-white opacity-0 shadow transition group-hover:opacity-100"
@@ -6927,21 +6880,6 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                                   onPointerDown={(event) => startResizeTextAnnotation(event, annotation, "right")}
                                 />
                               </>
-                            )}
-                            {isEditableText && tool === "cursor" && (
-                              <button
-                                type="button"
-                                className="absolute -top-12 right-0 flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 opacity-0 shadow transition group-hover:opacity-100"
-                                onClick={(event) => {
-                                  event.preventDefault();
-                                  event.stopPropagation();
-                                  startEditTextAnnotation(annotation);
-                                }}
-                                onPointerDown={(event) => event.stopPropagation()}
-                              >
-                                <Type className="h-4 w-4" />
-                                Edit text
-                              </button>
                             )}
                             {isEditableText && tool === "eraser" && (
                               <button
