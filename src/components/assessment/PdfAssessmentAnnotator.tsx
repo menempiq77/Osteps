@@ -730,6 +730,25 @@ const getTouchGestureDistance = (points: TrackedTouchPointer[]) =>
 
 const getNativeTouchPointerId = (touch: Touch) => -1 - touch.identifier;
 
+// The annotator can be embedded inside a scrollable layout container (e.g. the
+// dashboard shell uses an `overflow-y-auto` wrapper) rather than scrolling the
+// document itself. Walk up from the annotator to find the element that actually
+// scrolls so custom zoom/pan gestures move the right container.
+const findScrollableAncestor = (element: HTMLElement | null): HTMLElement | null => {
+  if (typeof window === "undefined") return null;
+  let node: HTMLElement | null = element?.parentElement ?? null;
+  while (node && node !== document.body && node !== document.documentElement) {
+    const style = window.getComputedStyle(node);
+    const overflowY = style.overflowY;
+    const canScroll =
+      (overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay") &&
+      node.scrollHeight > node.clientHeight + 1;
+    if (canScroll) return node;
+    node = node.parentElement;
+  }
+  return (document.scrollingElement || document.documentElement) as HTMLElement;
+};
+
 const getSafePenPoints = (annotation: { points?: Array<{ x?: number; y?: number }> | null }) =>
   Array.isArray(annotation.points)
     ? annotation.points.filter(
@@ -1462,7 +1481,12 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       return viewerScrollRef.current;
     }
     if (typeof document === "undefined") return null;
-    return (document.scrollingElement || document.documentElement) as HTMLElement;
+    // The annotator is usually embedded inside a scrollable layout wrapper, so
+    // resolve the element that actually scrolls instead of assuming the document.
+    return (
+      findScrollableAncestor(examContainerRef.current) ??
+      ((document.scrollingElement || document.documentElement) as HTMLElement)
+    );
   }, [shouldEnforceExamScreen]);
 
   const changeZoomLevel = useCallback(
@@ -1971,7 +1995,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const applyTouchGestureVerticalScroll = useCallback((delta: number) => {
     if (typeof window === "undefined" || Math.abs(delta) < 0.5) return;
 
-    const scrollHost = viewerScrollRef.current;
+    const scrollHost = getZoomScrollElement();
     if (scrollHost && scrollHost.scrollHeight > scrollHost.clientHeight + 1) {
       const maxScrollTop = Math.max(0, scrollHost.scrollHeight - scrollHost.clientHeight);
       scrollHost.scrollTop = Math.min(Math.max(scrollHost.scrollTop + delta, 0), maxScrollTop);
@@ -1981,7 +2005,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     const scrollElement = document.scrollingElement ?? document.documentElement;
     const maxScrollTop = Math.max(0, scrollElement.scrollHeight - window.innerHeight);
     scrollElement.scrollTop = Math.min(Math.max(scrollElement.scrollTop + delta, 0), maxScrollTop);
-  }, []);
+  }, [getZoomScrollElement]);
 
   const syncTouchGesture = useCallback(() => {
     if (typeof window === "undefined") return;
@@ -2143,15 +2167,23 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
   // Disable browser scroll anchoring while the annotator is mounted so that
   // zoom-induced content-height changes do not auto-adjust document.scrollTop.
+  // Also contain overscroll so a touch swipe never triggers the browser's
+  // pull-to-refresh, which reloads the page and interrupts teachers mid-marking.
   useEffect(() => {
     if (typeof document === "undefined") return;
     const prevDoc = document.documentElement.style.overflowAnchor;
     const prevBody = document.body.style.overflowAnchor;
+    const prevDocOverscroll = document.documentElement.style.overscrollBehavior;
+    const prevBodyOverscroll = document.body.style.overscrollBehavior;
     document.documentElement.style.overflowAnchor = "none";
     document.body.style.overflowAnchor = "none";
+    document.documentElement.style.overscrollBehavior = "none";
+    document.body.style.overscrollBehavior = "none";
     return () => {
       document.documentElement.style.overflowAnchor = prevDoc;
       document.body.style.overflowAnchor = prevBody;
+      document.documentElement.style.overscrollBehavior = prevDocOverscroll;
+      document.body.style.overscrollBehavior = prevBodyOverscroll;
     };
   }, []);
 
@@ -5958,7 +5990,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   );
 
   return (
-    <div ref={examContainerRef} className="min-h-screen bg-slate-100" style={{ touchAction: nativeGestureTouchAction }}>
+    <div ref={examContainerRef} className={`min-h-screen ${shouldEnforceExamScreen ? "bg-slate-100" : ""}`} style={{ touchAction: nativeGestureTouchAction }}>
       {contextHolder}
       {shouldEnforceExamScreen ? (
         <>
@@ -6264,7 +6296,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
           </div>
         )}
 
-        <div ref={pagesViewportRef} className="space-y-6 overflow-x-auto pb-10" style={{ touchAction: paperTouchAction, overflowAnchor: "none", overscrollBehaviorX: "contain", overscrollBehaviorY: "auto" }}>
+        <div ref={pagesViewportRef} className="space-y-6 overflow-x-auto pb-10" style={{ touchAction: paperTouchAction, overflowAnchor: "none", overscrollBehaviorX: "contain", overscrollBehaviorY: "contain" }}>
           {(pages.length > 0 ? pages : [{ pageNumber: 1, width: 900, height: 1200 }]).map((page) => (
             <div key={page.pageNumber} className="mx-auto w-fit rounded-lg bg-white p-3 shadow" style={{ overflowAnchor: "none" }}>
               <div className="mb-2 text-xs font-medium text-gray-500">Page {page.pageNumber}</div>
