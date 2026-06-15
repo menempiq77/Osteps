@@ -757,6 +757,68 @@ const findScrollableAncestor = (element: HTMLElement | null): HTMLElement | null
   return (document.scrollingElement || document.documentElement) as HTMLElement;
 };
 
+// Explicitly scroll the nearest scrollable ancestor of a wheel event's target.
+// Relying on the browser's native wheel scrolling proved unreliable on some
+// teacher devices (the marking layout nests several scroll containers), so we
+// move scrollTop/scrollLeft ourselves, which works regardless of how the
+// browser decides to route the wheel. Returns true when it scrolled something.
+const scrollNearestScrollableFromWheel = (
+  target: EventTarget | null,
+  deltaX: number,
+  deltaY: number,
+  deltaMode: number
+): boolean => {
+  if (typeof window === "undefined") return false;
+  const unit = deltaMode === 1 ? 16 : deltaMode === 2 ? window.innerHeight || 800 : 1;
+  const dy = deltaY * unit;
+  const dx = deltaX * unit;
+  let node: HTMLElement | null =
+    target instanceof HTMLElement
+      ? target
+      : target instanceof Node
+        ? target.parentElement
+        : null;
+  while (node) {
+    const style = window.getComputedStyle(node);
+    if (dy !== 0) {
+      const overflowY = style.overflowY;
+      const scrollableY =
+        (overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay") &&
+        node.scrollHeight > node.clientHeight + 1;
+      if (scrollableY) {
+        const atTop = node.scrollTop <= 0;
+        const atBottom = node.scrollTop + node.clientHeight >= node.scrollHeight - 1;
+        if ((dy < 0 && !atTop) || (dy > 0 && !atBottom)) {
+          node.scrollTop += dy;
+          return true;
+        }
+      }
+    }
+    if (dx !== 0) {
+      const overflowX = style.overflowX;
+      const scrollableX =
+        (overflowX === "auto" || overflowX === "scroll" || overflowX === "overlay") &&
+        node.scrollWidth > node.clientWidth + 1;
+      if (scrollableX) {
+        const atLeft = node.scrollLeft <= 0;
+        const atRight = node.scrollLeft + node.clientWidth >= node.scrollWidth - 1;
+        if ((dx < 0 && !atLeft) || (dx > 0 && !atRight)) {
+          node.scrollLeft += dx;
+          return true;
+        }
+      }
+    }
+    if (node === document.body || node === document.documentElement) break;
+    node = node.parentElement;
+  }
+  const docEl = (document.scrollingElement || document.documentElement) as HTMLElement | null;
+  if (docEl && dy !== 0 && docEl.scrollHeight > docEl.clientHeight + 1) {
+    docEl.scrollTop += dy;
+    return true;
+  }
+  return false;
+};
+
 const getSafePenPoints = (annotation: { points?: Array<{ x?: number; y?: number }> | null }) =>
   Array.isArray(annotation.points)
     ? annotation.points.filter(
@@ -1265,6 +1327,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const [teacherExamStudentInfo, setTeacherExamStudentInfo] = useState<TeacherExamStudentInfo | null>(null);
   const [activeStroke, setActiveStroke] = useState<PenAnnotation | null>(null);
   const [editingText, setEditingText] = useState<EditingText | null>(null);
+  const [showEditingToolbar, setShowEditingToolbar] = useState(false);
   const [resizingText, setResizingText] = useState(false);
   const [resizingPen, setResizingPen] = useState(false);
   const [draggingPen, setDraggingPen] = useState(false);
@@ -1590,16 +1653,35 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     zoomLevelRef.current = zoomLevel;
   }, [zoomLevel]);
 
+  // The formatting toolbar only shows when the teacher opens it via the
+  // four-dots handle; hide it again whenever the text editor closes.
+  useEffect(() => {
+    if (!editingText) setShowEditingToolbar(false);
+  }, [editingText]);
+
   useEffect(() => {
     const container = examContainerRef.current;
     if (!container || typeof window === "undefined") return;
 
     const handleWheelPinch = (event: WheelEvent) => {
-      // Plain wheel / touchpad scroll (no modifier): let the browser scroll
-      // natively. Native scrolling reliably moves whichever scroll container is
-      // under the cursor (the marking viewport, a dropdown, the text box, etc.)
-      // on every device, so we must not preventDefault here.
-      if (!event.ctrlKey && !event.metaKey) return;
+      // Plain wheel / touchpad scroll (no modifier): scroll the right container
+      // ourselves. Native wheel scrolling proved unreliable on some teacher
+      // devices because the marking layout nests several scroll containers, so
+      // we move the nearest scrollable ancestor directly.
+      if (!event.ctrlKey && !event.metaKey) {
+        const horizontal = event.shiftKey;
+        const handled = scrollNearestScrollableFromWheel(
+          event.target,
+          horizontal ? event.deltaY : event.deltaX,
+          horizontal ? 0 : event.deltaY,
+          event.deltaMode
+        );
+        if (handled) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        return;
+      }
 
       const scrollElement = getZoomScrollElement();
       const pageStack = pagesViewportRef.current;
@@ -6441,6 +6523,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
                       return (
                         <>
+                          {showEditingToolbar && (
                           <div
                             className="absolute z-30 flex items-stretch overflow-visible rounded-[14px] border border-slate-300 bg-white shadow-[0_14px_32px_rgba(15,23,42,0.14)]"
                             style={{ left: toolbarLeft, top: toolbarTop, width: toolbarWidth }}
@@ -6670,6 +6753,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                               </span>
                             </button>
                           </div>
+                          )}
 
                           <div
                             className="absolute z-20 rounded-[10px] border border-dashed border-[#6d5efc]/70 bg-white/90 shadow-sm"
@@ -6683,6 +6767,24 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                             onPointerUp={handleEditingTextPointerUp}
                             onPointerCancel={handleEditingTextPointerUp}
                           >
+                            <button
+                              type="button"
+                              title="Text tools"
+                              aria-label="Open text tools"
+                              className="absolute -top-3 left-0 z-30 flex h-5 items-center gap-[3px] rounded-full border border-[#6d5efc]/50 bg-white px-1.5 shadow-sm transition hover:bg-[#6d5efc]/10"
+                              onMouseDown={(event) => event.preventDefault()}
+                              onPointerDown={(event) => event.stopPropagation()}
+                              onClick={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                setShowEditingToolbar((current) => !current);
+                              }}
+                            >
+                              <span className="block h-[3px] w-[3px] rounded-full bg-[#6d5efc]" />
+                              <span className="block h-[3px] w-[3px] rounded-full bg-[#6d5efc]" />
+                              <span className="block h-[3px] w-[3px] rounded-full bg-[#6d5efc]" />
+                              <span className="block h-[3px] w-[3px] rounded-full bg-[#6d5efc]" />
+                            </button>
                             <span
                               className="absolute inset-x-3 top-[-7px] z-10 h-3 cursor-move rounded-full"
                               title="Hold this edge to move the text box"
@@ -6712,11 +6814,9 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                               }}
                               onBlur={commitEditingText}
                               onKeyDown={(event) => {
+                                // Enter inserts a new line; the text is saved
+                                // when the editor loses focus or on Escape.
                                 if (event.key === "Escape") {
-                                  event.preventDefault();
-                                  setEditingText(null);
-                                }
-                                if (event.key === "Enter" && !event.shiftKey) {
                                   event.preventDefault();
                                   commitEditingText();
                                 }
@@ -6859,6 +6959,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                                   event.preventDefault();
                                   event.stopPropagation();
                                   startEditTextAnnotation(annotation);
+                                  setShowEditingToolbar(true);
                                 }}
                               >
                                 <span className="block h-[3px] w-[3px] rounded-full bg-[#6d5efc]" />
