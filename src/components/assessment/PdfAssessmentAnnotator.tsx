@@ -7,6 +7,7 @@ import {
   AlignCenter,
   AlignLeft,
   AlignRight,
+  ArrowLeft,
   Bold,
   ChevronDown,
   ChevronUp,
@@ -1460,6 +1461,18 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const documentLoaded = Boolean(state);
   const documentReadyForCurrentStudent = documentLoaded && loadedDocumentKey === documentLoadKey;
   const safeReturnTo = sanitizeReturnToPath(returnTo);
+  const handleBackToClassOverview = useCallback(() => {
+    if (typeof window === "undefined") return;
+    if (safeReturnTo) {
+      window.location.assign(safeReturnTo);
+    } else if (window.history.length > 1) {
+      window.history.back();
+    } else if (assessmentId) {
+      window.location.assign(`/dashboard/student_assesments/${assessmentId}`);
+    } else {
+      window.location.assign("/dashboard");
+    }
+  }, [assessmentId, safeReturnTo]);
   const zoomPercent = Math.round(zoomLevel * 100);
   const studentExamTimerVisible = role === "student" && examWindow.examMode && examWindow.state === "open";
   const examTimerIsCritical = studentExamTimerVisible && (examWindow.remainingMs ?? 0) <= 5 * 60 * 1000;
@@ -5904,6 +5917,18 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         <div className={shouldEnforceExamScreen ? "flex flex-col gap-1.5" : "flex w-full flex-col gap-1.5"}>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex min-w-[15rem] flex-[1_1_22rem] flex-wrap items-center gap-2">
+              {role === "teacher" && (
+                <button
+                  type="button"
+                  onClick={handleBackToClassOverview}
+                  aria-label="Back to class overview"
+                  title="Back to class overview"
+                  className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  <span className="hidden sm:inline">Back</span>
+                </button>
+              )}
               <h1 className="min-w-0 truncate text-lg font-semibold text-gray-900">{title}</h1>
               {studentExamTimerVisible && (
                 <div
