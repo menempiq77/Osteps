@@ -506,7 +506,7 @@ export default function AssessmentDocumentPage() {
   };
 
   return (
-    <div className={isStudentExamRoute ? "bg-slate-100" : "min-h-screen bg-slate-100"}>
+    <div className={isStudentExamRoute ? "bg-slate-100" : "min-h-screen"}>
       {!isStudentExamRoute && (
         <div className="mx-auto max-w-7xl px-4 pt-4">
           <Breadcrumb

@@ -316,7 +316,10 @@ const EXAM_EXIT_REASON_MAX_LENGTH = 500;
 const MIN_ZOOM_LEVEL = 0.5;
 const MAX_ZOOM_LEVEL = 2;
 const ZOOM_STEP = 0.1;
-const TOUCH_PINCH_DISTANCE_THRESHOLD_PX = 0.5;
+// Minimum change in finger spread (relative to the start of the gesture) before a
+// two-finger gesture is treated as a pinch-zoom. Below this deadzone the gesture is
+// treated as a pan so a two-finger scroll is not misread as a zoom.
+const TOUCH_PINCH_ACTIVATION_DISTANCE_PX = 12;
 const MIN_TEXT_FONT_SIZE = 10;
 const MAX_TEXT_FONT_SIZE = 36;
 
@@ -2024,9 +2027,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     const nextZoomLevel = clampZoomLevel(
       touchGesture.initialZoomLevel * (distance / touchGesture.initialDistance)
     );
+    const distanceFromStart = Math.abs(distance - touchGesture.initialDistance);
     const isPinchFrame =
-      nextZoomLevel !== currentZoomLevel ||
-      Math.abs(distance - touchGesture.lastDistance) >= TOUCH_PINCH_DISTANCE_THRESHOLD_PX;
+      nextZoomLevel !== currentZoomLevel &&
+      distanceFromStart >= TOUCH_PINCH_ACTIVATION_DISTANCE_PX;
 
     let targetScrollLeft: number;
     let targetScrollTop: number;
@@ -2070,7 +2074,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     touchGesture.lastScrollLeft = targetScrollLeft;
     touchGesture.lastScrollTop = targetScrollTop;
 
-    if (nextZoomLevel === currentZoomLevel) {
+    if (!isPinchFrame) {
       const maxScrollLeft = Math.max(0, viewport.scrollWidth - viewport.clientWidth);
       const maxScrollTop = Math.max(0, scrollElement.scrollHeight - scrollElement.clientHeight);
       const clampedScrollLeft = Math.min(Math.max(targetScrollLeft, 0), maxScrollLeft);
