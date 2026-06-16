@@ -722,6 +722,13 @@ export default function DashboardLayout({
         .dashboard-theme-scope [class*="hover:bg-indigo-"]:hover {
           background-color: color-mix(in srgb, var(--primary) 20%, white) !important;
         }
+        .dashboard-theme-scope span.status-pending-pill {
+          background-color: #ffedd5 !important;
+          color: #c2410c !important;
+        }
+        .dashboard-theme-scope span.status-pending-text {
+          color: #f97316 !important;
+        }
         .dashboard-route-transition {
           animation: dashboardRouteSwap 420ms cubic-bezier(0.22, 1, 0.36, 1);
           transform-origin: top center;
