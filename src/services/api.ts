@@ -473,7 +473,26 @@ export const addStudentTaskMarks = async (studentId: number, taskData: {
   teacher_assessment_feedback: string;
 }) => {
   const response = await api.post(`/add-student-task-marks/${studentId}`, taskData);
-  return response.data;
+  const payload = response.data;
+  // The backend returns HTTP 200 even when it fails, signalling the real
+  // outcome via status_code in the body. Surface those as thrown errors so the
+  // caller never reports a false "saved".
+  const embeddedStatusCode = Number(
+    payload?.status_code ?? payload?.statusCode ?? payload?.code ?? 200
+  );
+  const isEmbeddedFailure =
+    payload?.success === false ||
+    payload?.status === false ||
+    payload?.ok === false ||
+    embeddedStatusCode >= 400;
+  if (isEmbeddedFailure) {
+    const syntheticError: any = new Error(
+      String(payload?.msg ?? payload?.message ?? "Failed to save student marks")
+    );
+    syntheticError.response = { data: payload, status: embeddedStatusCode };
+    throw syntheticError;
+  }
+  return payload;
 };
 
 // mark-url-taskAsComplete
