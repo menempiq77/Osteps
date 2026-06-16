@@ -97,6 +97,24 @@ const getStudentNameFromTask = (
   return studentId ? `Student ${studentId}` : "Student";
 };
 
+const getStudentNameFromRosterRow = (row: Record<string, any> | null | undefined): string => {
+  const direct = String(
+    row?.student_name ??
+      row?.name ??
+      row?.user_name ??
+      row?.student?.student_name ??
+      row?.student?.name ??
+      ""
+  ).trim();
+  if (!isPlaceholderStudentName(direct)) return direct;
+
+  const combined = [row?.first_name, row?.middle_name, row?.last_name]
+    .map((part) => String(part ?? "").trim())
+    .filter(Boolean)
+    .join(" ");
+  return isPlaceholderStudentName(combined) ? "" : combined;
+};
+
 const fileUrlForDocument = (path: string | null | undefined) => {
   if (!path) return "";
   if (/^https?:\/\//i.test(path)) return path;
@@ -186,6 +204,9 @@ export default function AssessmentDocumentPage() {
   const [teacherStudentTasksLoading, setTeacherStudentTasksLoading] = useState(false);
   const [teacherStudentNamesById, setTeacherStudentNamesById] = useState<Record<string, string>>({});
   const [teacherClassStudentIds, setTeacherClassStudentIds] = useState<string[] | null>(null);
+  const [teacherClassRoster, setTeacherClassRoster] = useState<
+    Array<{ id: string; name: string }> | null
+  >(null);
   const [teacherClassStudentsLoading, setTeacherClassStudentsLoading] = useState(false);
   const [resolvedFileUrl, setResolvedFileUrl] = useState(fileUrl);
   const [resolvingTeacherFileUrl, setResolvingTeacherFileUrl] = useState(false);
@@ -284,6 +305,7 @@ export default function AssessmentDocumentPage() {
   useEffect(() => {
     if (role !== "teacher" || !classId) {
       setTeacherClassStudentIds(null);
+      setTeacherClassRoster(null);
       setTeacherClassStudentsLoading(false);
       return;
     }
@@ -299,17 +321,20 @@ export default function AssessmentDocumentPage() {
         }
         if (cancelled) return;
 
-        const nextIds = Array.from(
-          new Set(
-            (Array.isArray(rows) ? rows : [])
-              .map((student: any) => String(student?.id ?? student?.student_id ?? "").trim())
-              .filter(Boolean)
-          )
-        );
-        setTeacherClassStudentIds(nextIds);
+        const rosterById = new Map<string, { id: string; name: string }>();
+        for (const student of Array.isArray(rows) ? rows : []) {
+          const id = String(student?.id ?? student?.student_id ?? "").trim();
+          if (!id || rosterById.has(id)) continue;
+          rosterById.set(id, { id, name: getStudentNameFromRosterRow(student) });
+        }
+        setTeacherClassRoster(Array.from(rosterById.values()));
+        setTeacherClassStudentIds(Array.from(rosterById.keys()));
       } catch (error) {
         console.error("Failed to load class-scoped students for assessment document:", error);
-        if (!cancelled) setTeacherClassStudentIds([]);
+        if (!cancelled) {
+          setTeacherClassStudentIds([]);
+          setTeacherClassRoster([]);
+        }
       } finally {
         if (!cancelled) setTeacherClassStudentsLoading(false);
       }
@@ -437,16 +462,41 @@ export default function AssessmentDocumentPage() {
     const byId = new Map<string, TeacherStudentOption>();
     const allowedStudentIds = teacherClassStudentIds ? new Set(teacherClassStudentIds) : null;
 
+    const taskByStudentId = new Map<string, AssessmentDocumentStudentTask>();
     for (const task of filteredTeacherStudentTasks) {
-      const optionStudentId = task.student_id;
-      if (optionStudentId == null || String(optionStudentId).trim() === "") continue;
-      const value = String(optionStudentId);
-      if (byId.has(value)) continue;
+      const sid = String(task.student_id ?? "").trim();
+      if (sid && !taskByStudentId.has(sid)) taskByStudentId.set(sid, task);
+    }
+
+    // Show every student in the class roster so teachers can navigate to any
+    // student, including those who have not submitted (or were marked offline).
+    for (const student of teacherClassRoster ?? []) {
+      const value = student.id;
+      if (!value) continue;
+      const task = taskByStudentId.get(value);
+      const label =
+        (task ? getStudentNameFromTask(task, teacherStudentNamesById) : "") ||
+        teacherStudentNamesById[value] ||
+        student.name ||
+        `Student ${value}`;
+      byId.set(value, {
+        value,
+        label,
+        status: task ? task.status || "completed" : "not_submitted",
+      });
+    }
+
+    // Include any submission rows whose student is missing from the roster.
+    for (const task of filteredTeacherStudentTasks) {
+      const value = String(task.student_id ?? "").trim();
+      if (!value || byId.has(value)) continue;
       byId.set(value, {
         value,
         label: getStudentNameFromTask(task, teacherStudentNamesById),
+        status: task.status || "completed",
       });
     }
+
     if (
       role === "teacher" &&
       studentId &&
@@ -467,6 +517,7 @@ export default function AssessmentDocumentPage() {
     requestedStudentName,
     role,
     studentId,
+    teacherClassRoster,
     teacherClassStudentIds,
     teacherStudentNamesById,
   ]);
@@ -497,21 +548,38 @@ export default function AssessmentDocumentPage() {
     const nextTask = filteredTeacherStudentTasks.find(
       (task) => String(task.student_id) === String(nextStudentId)
     );
-    if (!nextTask) return;
-
-    const sourcePath = nextTask.task?.file_path || nextTask.file_path || "";
     const params = new URLSearchParams(searchParams.toString());
-    params.set("assessmentId", String(nextTask.assessment_id || assessmentId));
-    params.set("taskId", String(nextTask.task_id || taskId));
-    params.set("studentId", String(nextTask.student_id));
-    params.set("studentName", getStudentNameFromTask(nextTask, teacherStudentNamesById));
     params.set("role", "teacher");
-    params.set("fileUrl", fileUrlForDocument(sourcePath) || effectiveFileUrl);
-    params.set("title", nextTask.task?.task_name || title || "PDF Assessment");
-    params.set("maxMarks", String(nextTask.task?.allocated_marks || maxMarks || 0));
-    params.set("teacherMarks", String(pickTeacherMarkValue(nextTask) ?? ""));
-    params.set("teacherFeedback", String(nextTask.teacher_feedback || ""));
     params.delete("autoDownload");
+
+    if (nextTask) {
+      const sourcePath = nextTask.task?.file_path || nextTask.file_path || "";
+      params.set("assessmentId", String(nextTask.assessment_id || assessmentId));
+      params.set("taskId", String(nextTask.task_id || taskId));
+      params.set("studentId", String(nextTask.student_id));
+      params.set("studentName", getStudentNameFromTask(nextTask, teacherStudentNamesById));
+      params.set("fileUrl", fileUrlForDocument(sourcePath) || effectiveFileUrl);
+      params.set("title", nextTask.task?.task_name || title || "PDF Assessment");
+      params.set("maxMarks", String(nextTask.task?.allocated_marks || maxMarks || 0));
+      params.set("teacherMarks", String(pickTeacherMarkValue(nextTask) ?? ""));
+      params.set("teacherFeedback", String(nextTask.teacher_feedback || ""));
+    } else {
+      // Student has no submission yet — mark them on the shared task paper.
+      const rosterName =
+        teacherClassRoster?.find((student) => student.id === String(nextStudentId))?.name ||
+        teacherStudentNamesById[String(nextStudentId)] ||
+        "";
+      params.set("assessmentId", String(assessmentId));
+      params.set("taskId", String(taskId));
+      params.set("studentId", String(nextStudentId));
+      params.set("studentName", rosterName);
+      params.set("fileUrl", effectiveFileUrl);
+      params.set("title", title || "PDF Assessment");
+      if (maxMarks != null) params.set("maxMarks", String(maxMarks));
+      params.set("teacherMarks", "");
+      params.set("teacherFeedback", "");
+    }
+
     router.push(`/dashboard/assessment-document?${params.toString()}`);
   };
 

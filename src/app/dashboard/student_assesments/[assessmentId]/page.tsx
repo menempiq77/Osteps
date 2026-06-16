@@ -6,6 +6,7 @@ import {
   VideoCameraOutlined,
   FilePdfOutlined,
   LinkOutlined,
+  CheckCircleFilled,
 } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
@@ -1565,6 +1566,12 @@ export default function AssessmentDrawer() {
                           {getTaskActionSummary(task)}
                         </span>
                       )}
+                      {hasTeacherAssessmentScore(task) && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-1 font-medium text-green-700">
+                          <CheckCircleFilled className="text-green-600" />
+                          Marked
+                        </span>
+                      )}
                       {task?.status && (
                         <span
                           className={`rounded-full px-2 py-1 font-medium ${
@@ -1622,6 +1629,12 @@ export default function AssessmentDrawer() {
                       </span>
                     </div>
                     <div className="ml-auto flex flex-wrap items-center gap-2 text-xs">
+                      {hasTeacherQuizMark(task) && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-1 font-medium text-green-700">
+                          <CheckCircleFilled className="text-green-600" />
+                          Marked
+                        </span>
+                      )}
                       {task?.status && (
                         <span
                           className={`rounded-full px-2 py-1 font-medium ${
