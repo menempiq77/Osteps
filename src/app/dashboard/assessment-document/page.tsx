@@ -147,15 +147,19 @@ export default function AssessmentDocumentPage() {
       ? Number(initialSelfAssessmentMarkParam)
       : null;
   const returnTo = searchParams.get("returnTo");
-  const classTasksHref = assessmentId
-    ? canUseSubjectContext && activeSubjectId
-      ? toSubjectScopedPath(
-          `/dashboard/student_assesments/${assessmentId}`,
-          activeSubjectId,
-          activeSubject?.name
-        )
-      : `/dashboard/student_assesments/${assessmentId}`
-    : null;
+  const classTasksHref = (() => {
+    if (!assessmentId) return null;
+    const classTasksQuery = new URLSearchParams();
+    if (classId) classTasksQuery.set("classId", classId);
+    if (subjectClassId) classTasksQuery.set("subjectClassId", subjectClassId);
+    const queryString = classTasksQuery.toString();
+    const pathWithQuery = `/dashboard/student_assesments/${assessmentId}${
+      queryString ? `?${queryString}` : ""
+    }`;
+    return canUseSubjectContext && activeSubjectId
+      ? toSubjectScopedPath(pathWithQuery, activeSubjectId, activeSubject?.name)
+      : pathWithQuery;
+  })();
   const teacherMarks = searchParams.get("teacherMarks") || "";
   const teacherFeedback = searchParams.get("teacherFeedback") || "";
   const autoDownloadTeacherPaper = role === "teacher" && searchParams.get("autoDownload") === "1";

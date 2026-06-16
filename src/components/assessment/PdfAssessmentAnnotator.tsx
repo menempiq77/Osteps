@@ -6081,12 +6081,12 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                 <button
                   type="button"
                   onClick={handleBackToClassOverview}
-                  aria-label="Back to class overview"
-                  title="Back to class overview"
-                  className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
+                  aria-label="Back to class tasks"
+                  title="Back to class tasks"
+                  className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-amber-500 bg-amber-400 px-2.5 py-1.5 text-sm font-semibold text-black shadow-sm transition hover:bg-amber-500"
                 >
                   <ArrowLeft className="h-4 w-4" />
-                  <span className="hidden sm:inline">Back</span>
+                  <span>TASKS</span>
                 </button>
               )}
               <h1 className="min-w-0 truncate text-lg font-semibold text-gray-900">{title}</h1>
