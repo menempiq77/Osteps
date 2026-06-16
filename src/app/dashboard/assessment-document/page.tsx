@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Alert, Breadcrumb, Spin } from "antd";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -191,6 +191,9 @@ export default function AssessmentDocumentPage() {
   const [teacherStudentNamesById, setTeacherStudentNamesById] = useState<Record<string, string>>({});
   const [teacherClassStudentIds, setTeacherClassStudentIds] = useState<string[] | null>(null);
   const [teacherClassStudentsLoading, setTeacherClassStudentsLoading] = useState(false);
+  const [locallyMarkedStudentIds, setLocallyMarkedStudentIds] = useState<Set<string>>(
+    () => new Set()
+  );
   const [resolvedFileUrl, setResolvedFileUrl] = useState(fileUrl);
   const [resolvingTeacherFileUrl, setResolvingTeacherFileUrl] = useState(false);
   const effectiveFileUrl = resolvedFileUrl || fileUrl;
@@ -447,10 +450,12 @@ export default function AssessmentDocumentPage() {
       if (optionStudentId == null || String(optionStudentId).trim() === "") continue;
       const value = String(optionStudentId);
       if (byId.has(value)) continue;
+      const isMarked =
+        locallyMarkedStudentIds.has(value) || pickTeacherMarkValue(task) != null;
       byId.set(value, {
         value,
         label: getStudentNameFromTask(task, teacherStudentNamesById),
-        status: task.status || "completed",
+        status: isMarked ? "marked" : task.status || "completed",
       });
     }
 
@@ -471,12 +476,24 @@ export default function AssessmentDocumentPage() {
     return Array.from(byId.values()).sort((left, right) => left.label.localeCompare(right.label));
   }, [
     filteredTeacherStudentTasks,
+    locallyMarkedStudentIds,
     requestedStudentName,
     role,
     studentId,
     teacherClassStudentIds,
     teacherStudentNamesById,
   ]);
+
+  const handleTeacherMarkSaved = useCallback(({ studentId: savedStudentId }: { studentId: string }) => {
+    const value = String(savedStudentId || "").trim();
+    if (!value) return;
+    setLocallyMarkedStudentIds((prev) => {
+      if (prev.has(value)) return prev;
+      const next = new Set(prev);
+      next.add(value);
+      return next;
+    });
+  }, []);
 
   const currentTeacherStudentTask = useMemo(() => {
     return (
@@ -596,6 +613,7 @@ export default function AssessmentDocumentPage() {
           studentSwitcherOptions={role === "teacher" ? teacherStudentOptions : undefined}
           studentSwitcherLoading={teacherStudentTasksLoading || teacherClassStudentsLoading}
           onStudentChange={role === "teacher" ? handleTeacherStudentChange : undefined}
+          onTeacherMarkSaved={role === "teacher" ? handleTeacherMarkSaved : undefined}
           autoDownloadTeacherPaper={autoDownloadTeacherPaper}
         />
       )}

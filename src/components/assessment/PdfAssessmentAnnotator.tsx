@@ -293,6 +293,7 @@ type PdfAssessmentAnnotatorProps = {
   studentSwitcherOptions?: StudentSwitcherOption[];
   studentSwitcherLoading?: boolean;
   onStudentChange?: (studentId: string) => void;
+  onTeacherMarkSaved?: (info: { studentId: string }) => void;
   autoDownloadTeacherPaper?: boolean;
 };
 
@@ -1276,6 +1277,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   studentSwitcherOptions = [],
   studentSwitcherLoading = false,
   onStudentChange,
+  onTeacherMarkSaved,
   autoDownloadTeacherPaper = false,
 }) => {
   const [messageApi, contextHolder] = message.useMessage();
@@ -5228,6 +5230,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         window.localStorage.setItem("osteps:assessment-mark-updated", payload);
         window.dispatchEvent(new CustomEvent("osteps:assessment-mark-updated", { detail: { assessmentId: Number(assessmentId), taskId: Number(taskId) } }));
       }
+      if (studentId) onTeacherMarkSaved?.({ studentId: String(studentId) });
       messageApi.success("Teacher annotations and markbook marks saved.");
     } catch (error) {
       console.error(error);
