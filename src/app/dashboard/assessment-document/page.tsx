@@ -10,6 +10,7 @@ import type { AssessmentDocumentLayer } from "@/services/documentAssessmentApi";
 import { fetchStudentTasks, fetchTasks } from "@/services/api";
 import { fetchStudentProfileData, fetchStudents } from "@/services/studentsApi";
 import { useSubjectContext } from "@/contexts/SubjectContext";
+import { toSubjectScopedPath } from "@/lib/subjectRouting";
 import { IMG_BASE_URL } from "@/lib/config";
 import { resolveExamWindow } from "@/lib/taskTypeMetadata";
 import dayjs from "dayjs";
@@ -146,6 +147,15 @@ export default function AssessmentDocumentPage() {
       ? Number(initialSelfAssessmentMarkParam)
       : null;
   const returnTo = searchParams.get("returnTo");
+  const classTasksHref = assessmentId
+    ? canUseSubjectContext && activeSubjectId
+      ? toSubjectScopedPath(
+          `/dashboard/student_assesments/${assessmentId}`,
+          activeSubjectId,
+          activeSubject?.name
+        )
+      : `/dashboard/student_assesments/${assessmentId}`
+    : null;
   const teacherMarks = searchParams.get("teacherMarks") || "";
   const teacherFeedback = searchParams.get("teacherFeedback") || "";
   const autoDownloadTeacherPaper = role === "teacher" && searchParams.get("autoDownload") === "1";
@@ -573,6 +583,7 @@ export default function AssessmentDocumentPage() {
           examDurationMinutes={resolvedExamConfig.exam_duration_minutes ?? undefined}
           examEndAt={resolvedExamConfig.exam_end_at || undefined}
           returnTo={returnTo}
+          backHref={classTasksHref}
           currentStudentName={role === "teacher" ? currentTeacherStudentName : undefined}
           subjectName={activeSubject?.name}
           studentSwitcherOptions={role === "teacher" ? teacherStudentOptions : undefined}

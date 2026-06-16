@@ -287,6 +287,7 @@ type PdfAssessmentAnnotatorProps = {
   examEndAt?: string;
   initialSelfAssessmentMark?: number | null;
   returnTo?: string | null;
+  backHref?: string | null;
   currentStudentName?: string;
   subjectName?: string;
   studentSwitcherOptions?: StudentSwitcherOption[];
@@ -1269,6 +1270,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   examEndAt,
   initialSelfAssessmentMark = null,
   returnTo = null,
+  backHref = null,
   currentStudentName,
   subjectName,
   studentSwitcherOptions = [],
@@ -1562,18 +1564,21 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const documentLoaded = Boolean(state);
   const documentReadyForCurrentStudent = documentLoaded && loadedDocumentKey === documentLoadKey;
   const safeReturnTo = sanitizeReturnToPath(returnTo);
+  const safeBackHref = sanitizeReturnToPath(backHref);
   const handleBackToClassOverview = useCallback(() => {
     if (typeof window === "undefined") return;
-    if (safeReturnTo) {
+    if (safeBackHref) {
+      window.location.assign(safeBackHref);
+    } else if (assessmentId) {
+      window.location.assign(`/dashboard/student_assesments/${assessmentId}`);
+    } else if (safeReturnTo) {
       window.location.assign(safeReturnTo);
     } else if (window.history.length > 1) {
       window.history.back();
-    } else if (assessmentId) {
-      window.location.assign(`/dashboard/student_assesments/${assessmentId}`);
     } else {
       window.location.assign("/dashboard");
     }
-  }, [assessmentId, safeReturnTo]);
+  }, [assessmentId, safeBackHref, safeReturnTo]);
   const zoomPercent = Math.round(zoomLevel * 100);
   const studentExamTimerVisible = role === "student" && examWindow.examMode && examWindow.state === "open";
   const examTimerIsCritical = studentExamTimerVisible && (examWindow.remainingMs ?? 0) <= 5 * 60 * 1000;
