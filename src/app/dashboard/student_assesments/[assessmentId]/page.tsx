@@ -1557,7 +1557,7 @@ export default function AssessmentDrawer() {
                         Self <span className="font-semibold text-blue-700">{getWholeMark(getSelfAssessmentMarkForTask(task))}/{getWholeMark(task?.task?.allocated_marks)}</span>
                       </span>
                       <span className="text-gray-600">
-                        Teacher <span className={`font-semibold ${hasTeacherAssessmentScore(task) ? "text-green-700" : "text-orange-500"}`}>{hasTeacherAssessmentScore(task) ? `${getWholeMark(pickTeacherMarkValue(task))}/${getWholeMark(task?.task?.allocated_marks)}` : "Pending"}</span>
+                        Teacher <span className={`font-semibold ${hasTeacherAssessmentScore(task) ? "text-green-700" : "text-orange-500 status-pending-text"}`}>{hasTeacherAssessmentScore(task) ? `${getWholeMark(pickTeacherMarkValue(task))}/${getWholeMark(task?.task?.allocated_marks)}` : "Pending"}</span>
                       </span>
                     </div>
                     <div className="ml-auto flex flex-wrap items-center gap-2 text-xs">
@@ -1578,7 +1578,7 @@ export default function AssessmentDrawer() {
                             task.status === "completed"
                               ? "bg-green-100 text-green-700"
                               : task.status === "not_submitted" || task.status === "pending"
-                                ? "bg-orange-100 text-orange-700"
+                                ? "bg-orange-100 text-orange-700 status-pending-pill"
                                 : "bg-yellow-100 text-yellow-700"
                           }`}
                         >
@@ -1625,7 +1625,7 @@ export default function AssessmentDrawer() {
                         Self <span className="font-semibold text-blue-700">{getWholeMark(getSelfAssessmentMarkForTask(task))}{getQuizTotalMarks(task) ? `/${getWholeMark(getQuizTotalMarks(task))}` : ""}</span>
                       </span>
                       <span className="text-gray-600">
-                        Teacher <span className={`font-semibold ${hasTeacherQuizMark(task) ? "text-green-700" : "text-orange-500"}`}>{hasTeacherQuizMark(task) ? `${getWholeMark(task.teacher_assessment_mark)}${getQuizTotalMarks(task) ? `/${getWholeMark(getQuizTotalMarks(task))}` : ""}` : "Pending"}</span>
+                        Teacher <span className={`font-semibold ${hasTeacherQuizMark(task) ? "text-green-700" : "text-orange-500 status-pending-text"}`}>{hasTeacherQuizMark(task) ? `${getWholeMark(task.teacher_assessment_mark)}${getQuizTotalMarks(task) ? `/${getWholeMark(getQuizTotalMarks(task))}` : ""}` : "Pending"}</span>
                       </span>
                     </div>
                     <div className="ml-auto flex flex-wrap items-center gap-2 text-xs">
@@ -1641,7 +1641,7 @@ export default function AssessmentDrawer() {
                             task.status === "completed"
                               ? "bg-green-100 text-green-700"
                               : task.status === "pending"
-                                ? "bg-orange-100 text-orange-700"
+                                ? "bg-orange-100 text-orange-700 status-pending-pill"
                                 : "bg-yellow-100 text-yellow-700"
                           }`}
                         >
