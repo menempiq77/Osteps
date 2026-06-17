@@ -386,49 +386,6 @@ export default function DashboardPage() {
 
     const scopedStudentIds = new Set<number>();
 
-    const collectScopedStudentRows = (
-      studentRows: Array<Record<string, any>>,
-      subjectClassId: string
-    ) => {
-      const inScopeRows = filterStudentsBySubjectScope(studentRows, {
-        subjectId: Number(subjectId),
-        subjectName,
-        subjectClassId,
-      });
-
-      const hintScopeKey = makeSubjectHintScopeKey(Number(subjectId), subjectClassId);
-      const hintBucket = readSubjectStudentHints(hintScopeKey);
-      const hintedRows = studentRows.filter((student: any) => {
-        if (
-          studentMatchesSubjectScope(student, {
-            subjectId: Number(subjectId),
-            subjectName,
-            subjectClassId,
-          })
-        ) {
-          return false;
-        }
-
-        const scopedIds = extractStudentSubjectClassIds(student);
-        if (scopedIds.length > 0) return false;
-        return matchesSubjectStudentHint(student, hintBucket);
-      });
-
-      const combinedRows = [...inScopeRows, ...hintedRows];
-      const safeFallbackRows =
-        combinedRows.length === 0 &&
-        studentRows.length > 0 &&
-        !studentRows.some((student: any) => hasAnySubjectMarkers(student))
-          ? studentRows
-          : [];
-
-      return combinedRows.length > 0
-        ? combinedRows
-        : safeFallbackRows.length > 0
-          ? safeFallbackRows
-          : studentRows;
-    };
-
     await Promise.all(
       scopedClasses.map(async (row: any) => {
         const subjectClassId = String(row?.id ?? "").trim();
@@ -450,7 +407,9 @@ export default function DashboardPage() {
 
           let finalRows: Array<Record<string, any>> = [];
 
-          // Pass 1: with subject_class_id
+          // The subject-class enrollment is the source of truth for subject
+          // dashboards. Avoid broad subject/base-class fallbacks because they
+          // can count students from old archived/restored class memberships.
           for (const targetClassId of requestTargets) {
             const students = await fetchStudents(
               targetClassId,
@@ -458,19 +417,7 @@ export default function DashboardPage() {
               subjectClassId
             );
             const studentRows = Array.isArray(students) ? students : [];
-            const candidateRows = collectScopedStudentRows(studentRows, subjectClassId);
-            if (candidateRows.length > 0) { finalRows = candidateRows; break; }
-          }
-
-          // Pass 2: without subject_class_id (enrollment row may not exist)
-          if (finalRows.length === 0) {
-            for (const targetClassId of requestTargets) {
-              const students = await fetchStudents(targetClassId, Number(subjectId), undefined);
-              const studentRows = Array.isArray(students) ? students : [];
-              const candidateRows = collectScopedStudentRows(studentRows, subjectClassId);
-              if (candidateRows.length > 0) { finalRows = candidateRows; break; }
-              if (finalRows.length === 0) finalRows = studentRows;
-            }
+            if (studentRows.length > 0) { finalRows = studentRows; break; }
           }
 
           finalRows.forEach((student: any) => {

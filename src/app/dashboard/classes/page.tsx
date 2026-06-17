@@ -18,12 +18,6 @@ import {
   permanentlyDeleteSubjectClass,
   restoreSubjectClass,
 } from "@/services/subjectWorkspaceApi";
-import { filterStudentsBySubjectScope, studentMatchesSubjectScope } from "@/lib/subjectStudentScope";
-import {
-  makeSubjectHintScopeKey,
-  matchesSubjectStudentHint,
-  readSubjectStudentHints,
-} from "@/lib/subjectStudentHints";
 import {
   readSubjectClassBaseMap,
   resolveSubjectClassLinkedIdWithFallback,
@@ -56,16 +50,6 @@ type SubjectClassRow = {
 };
 
 const normalizeLabel = (value: unknown) => String(value ?? "").trim().toLowerCase();
-
-const extractStudentSubjectClassIds = (student: Record<string, any>) =>
-  [
-    student?.subject_class_id,
-    student?.subjectClassId,
-    student?.pivot?.subject_class_id,
-  ]
-    .flatMap((value) => (Array.isArray(value) ? value : [value]))
-    .map((value) => String(value ?? "").trim())
-    .filter(Boolean);
 
 const mapSubjectClassToApiClass = (row: SubjectClassRow): ApiClass => ({
   id: String(row.id ?? ""),
@@ -376,47 +360,6 @@ useEffect(() => {
       return;
     }
 
-    const collectScopedStudentRows = (
-      studentRows: Array<Record<string, any>>,
-      subjectClassId: string
-    ) => {
-      const inScopeRows = filterStudentsBySubjectScope(studentRows, {
-        subjectId: Number(activeSubjectId),
-        subjectName: activeSubject?.name,
-        subjectClassId,
-      });
-
-      const hintScopeKey = makeSubjectHintScopeKey(Number(activeSubjectId), subjectClassId);
-      const hintBucket = readSubjectStudentHints(hintScopeKey);
-      const hintedRows = studentRows.filter((student: any) => {
-        if (
-          studentMatchesSubjectScope(student, {
-            subjectId: Number(activeSubjectId),
-            subjectName: activeSubject?.name,
-            subjectClassId,
-          })
-        ) {
-          return false;
-        }
-
-        const scopedIds = extractStudentSubjectClassIds(student);
-        if (scopedIds.length > 0) return false;
-        return matchesSubjectStudentHint(student, hintBucket);
-      });
-
-      const filteredRows = [...inScopeRows, ...hintedRows];
-      if (filteredRows.length > 0) return filteredRows;
-
-      if (
-        studentRows.length > 0 &&
-        !studentRows.some((student: any) => extractStudentSubjectClassIds(student).length > 0)
-      ) {
-        return studentRows;
-      }
-
-      return studentRows;
-    };
-
     const baseClassesByYear = new Map<number, any[]>();
     const getBaseClassesForYear = async (yearId: number) => {
       if (baseClassesByYear.has(yearId)) {
@@ -465,7 +408,9 @@ useEffect(() => {
 
             let finalRows: Array<Record<string, any>> = [];
 
-            // Pass 1: with subject_class_id filter
+            // The subject-class enrollment is the source of truth. Do not fall
+            // back to broad subject/base-class rosters because archive/restore
+            // can leave old subject rows that inflate class counts.
             for (const targetClassId of requestTargets) {
               const students = await fetchStudents(
                 targetClassId,
@@ -473,30 +418,9 @@ useEffect(() => {
                 subjectClassId
               );
               const studentRows = Array.isArray(students) ? students : [];
-              const candidateRows = collectScopedStudentRows(studentRows, subjectClassId);
-              if (candidateRows.length > 0) {
-                finalRows = candidateRows;
+              if (studentRows.length > 0) {
+                finalRows = studentRows;
                 break;
-              }
-            }
-
-            // Pass 2: without subject_class_id — needed when add-student didn't
-            // create an enrollment row so the backend's subject_class_id filter
-            // would otherwise hide the student.
-            if (finalRows.length === 0) {
-              for (const targetClassId of requestTargets) {
-                const students = await fetchStudents(
-                  targetClassId,
-                  Number(activeSubjectId),
-                  undefined
-                );
-                const studentRows = Array.isArray(students) ? students : [];
-                const candidateRows = collectScopedStudentRows(studentRows, subjectClassId);
-                if (candidateRows.length > 0) {
-                  finalRows = candidateRows;
-                  break;
-                }
-                if (finalRows.length === 0) finalRows = studentRows;
               }
             }
 

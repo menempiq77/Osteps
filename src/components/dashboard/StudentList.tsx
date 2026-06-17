@@ -810,14 +810,6 @@ export default function StudentList() {
         const arr = Array.isArray(rows) ? rows : [];
         if (arr.length > 0) return arr;
       }
-      // Pass 2: try WITHOUT subject_class_id — mirrors All Students page (SCHOOL_ADMIN).
-      // Needed when add-student didn't create a subject_class_id enrollment row, so the
-      // backend's subject_class_id filter would incorrectly exclude the student.
-      for (const candidateId of candidateIds) {
-        const rows = await fetchStudents(candidateId, scopedSubjectId, undefined);
-        const arr = Array.isArray(rows) ? rows : [];
-        if (arr.length > 0) return arr;
-      }
       return [];
     },
     enabled:

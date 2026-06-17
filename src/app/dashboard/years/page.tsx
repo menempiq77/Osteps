@@ -19,8 +19,6 @@ import { fetchTerm, addTerm, deleteTerm } from "@/services/termsApi";
 import { fetchStudents } from "@/services/studentsApi";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import { deactivateSubjectClassesByYear, fetchSubjectClasses, isMissingSubjectWorkspaceRoute } from "@/services/subjectWorkspaceApi";
-import { filterStudentsBySubjectScope, studentMatchesSubjectScope } from "@/lib/subjectStudentScope";
-import { makeSubjectHintScopeKey, matchesSubjectStudentHint, readSubjectStudentHints } from "@/lib/subjectStudentHints";
 import { readSubjectClassBaseMap, resolveSubjectClassLinkedIdWithFallback } from "@/lib/subjectClassResolution";
 
 interface Year {
@@ -89,22 +87,6 @@ const normalizeClassLabel = (value: unknown) =>
     .replace(/\s+/g, " ")
     .trim()
     .toLowerCase();
-
-const extractStudentSubjectClassIds = (student: Record<string, any>) =>
-  [
-    student?.subject_class_id,
-    student?.subjectClassId,
-    student?.pivot?.subject_class_id,
-  ]
-    .flatMap((value) => (Array.isArray(value) ? value : [value]))
-    .map((value) => String(value ?? "").trim())
-    .filter(Boolean);
-
-const hasAnySubjectMarkers = (student: Record<string, any>) =>
-  extractStudentSubjectClassIds(student).length > 0 ||
-  (Array.isArray(student?.subjects) && student.subjects.length > 0) ||
-  !!student?.subject_name ||
-  !!student?.subject;
 
 export default function Page() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -312,49 +294,6 @@ export default function Page() {
         years.map(async (year) => {
           try {
             if (isSubjectWorkspaceMode && activeSubjectId) {
-              const collectScopedStudentRows = (
-                studentRows: Array<Record<string, any>>,
-                subjectClassId: string
-              ) => {
-                const inScopeRows = filterStudentsBySubjectScope(studentRows, {
-                  subjectId: Number(activeSubjectId),
-                  subjectName: activeSubject?.name,
-                  subjectClassId,
-                });
-
-                const hintScopeKey = makeSubjectHintScopeKey(Number(activeSubjectId), subjectClassId);
-                const hintBucket = readSubjectStudentHints(hintScopeKey);
-                const hintedRows = studentRows.filter((student: any) => {
-                  if (
-                    studentMatchesSubjectScope(student, {
-                      subjectId: Number(activeSubjectId),
-                      subjectName: activeSubject?.name,
-                      subjectClassId,
-                    })
-                  ) {
-                    return false;
-                  }
-
-                  const scopedIds = extractStudentSubjectClassIds(student);
-                  if (scopedIds.length > 0) return false;
-                  return matchesSubjectStudentHint(student, hintBucket);
-                });
-
-                const combinedRows = [...inScopeRows, ...hintedRows];
-                const safeFallbackRows =
-                  combinedRows.length === 0 &&
-                  studentRows.length > 0 &&
-                  !studentRows.some((student: any) => hasAnySubjectMarkers(student))
-                    ? studentRows
-                    : [];
-
-                return combinedRows.length > 0
-                  ? combinedRows
-                  : safeFallbackRows.length > 0
-                    ? safeFallbackRows
-                    : studentRows;
-              };
-
               const subjectClasses = (await fetchSubjectClasses({
                 subject_id: Number(activeSubjectId),
                 year_id: Number(year.id),
@@ -385,7 +324,9 @@ export default function Page() {
 
                     let finalRows: Array<Record<string, any>> = [];
 
-                    // Pass 1: with subject_class_id
+                    // Count only the explicit active subject-class roster.
+                    // Broad subject/base-class fallbacks over-count after a
+                    // class has been archived and restored.
                     for (const targetClassId of requestTargets) {
                       const students = await fetchStudents(
                         targetClassId,
@@ -393,19 +334,7 @@ export default function Page() {
                         subjectClassId
                       );
                       const studentRows = Array.isArray(students) ? students : [];
-                      const candidateRows = collectScopedStudentRows(studentRows, subjectClassId);
-                      if (candidateRows.length > 0) { finalRows = candidateRows; break; }
-                    }
-
-                    // Pass 2: without subject_class_id (enrollment row may not exist)
-                    if (finalRows.length === 0) {
-                      for (const targetClassId of requestTargets) {
-                        const students = await fetchStudents(targetClassId, Number(activeSubjectId), undefined);
-                        const studentRows = Array.isArray(students) ? students : [];
-                        const candidateRows = collectScopedStudentRows(studentRows, subjectClassId);
-                        if (candidateRows.length > 0) { finalRows = candidateRows; break; }
-                        if (finalRows.length === 0) finalRows = studentRows;
-                      }
+                      if (studentRows.length > 0) { finalRows = studentRows; break; }
                     }
 
                     return new Set(
