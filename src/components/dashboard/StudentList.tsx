@@ -4042,14 +4042,12 @@ export default function StudentList() {
               <Button
                 onClick={() => {
                   const params = new URLSearchParams();
-                  if (queryYearId) params.set("yearId", queryYearId);
-                  if (querySubjectClassLabel) params.set("subjectClassLabel", querySubjectClassLabel);
-                  if (effectiveSubjectClassId) params.set("subjectClassId", effectiveSubjectClassId);
+                  if (scopedSubjectId) params.set("subject_id", String(scopedSubjectId));
+                  if (effectiveClassId || classIdStr) params.set("class_id", String(effectiveClassId || classIdStr));
+                  if (effectiveSubjectClassId) params.set("subject_class_id", effectiveSubjectClassId);
                   const suffix = params.toString() ? `?${params.toString()}` : "";
                   router.push(
-                    toSubjectHref(
-                      `/dashboard/students/${effectiveClassId || classIdStr}/${selectedStudentAction.id}/student_dashboard${suffix}`
-                    )
+                    `/dashboard/reports/student/${selectedStudentAction.id}${suffix}`
                   );
                 }}
                 className="col-span-2"
