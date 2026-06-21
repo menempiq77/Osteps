@@ -730,6 +730,21 @@ export function AssessmentTasksDrawer({
         );
       }
 
+      // Persist the weight to the backend via updateTask so it survives
+      // across browsers/devices (not just localStorage).
+      if (task.id != null) {
+        const weightForm = new FormData();
+        weightForm.append("assessment_id", String(assessmentId));
+        weightForm.append("percentage_weight", String(editingQuizWeight));
+        weightForm.append("task_name", editingQuizName || task.task_name || "");
+        weightForm.append("allocated_marks", String(task.allocated_marks ?? 0));
+        weightForm.append("due_date", task.due_date || "");
+        weightForm.append("task_type", task.task_type || "quiz");
+        updateTask(String(task.id), weightForm).catch(() => {
+          /* best-effort — localStorage is the fallback */
+        });
+      }
+
       setOrderedTasks(updatedTasks);
       persistTaskOrder(assessmentId, updatedTasks);
       onTasksChange(updatedTasks);
