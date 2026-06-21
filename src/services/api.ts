@@ -593,4 +593,20 @@ export const fetchSchoolLogo = async () => {
   return response.data.data ?? null;
 };
 
+// ── Student Card Markers ──
+export const fetchStudentCardMarkers = async (): Promise<Record<string, string>> => {
+  const response = await api.get("/student-card-markers");
+  return response.data?.data ?? {};
+};
+
+export const saveStudentCardMarker = async (
+  studentId: string | number,
+  markerKey: string | null
+): Promise<void> => {
+  await api.post("/student-card-markers", {
+    student_id: Number(studentId),
+    marker_key: markerKey ?? "",
+  });
+};
+
 export default api;

@@ -72,6 +72,7 @@ import {
 import {
   getStudentCardMarkerOption,
   readStudentCardMarkers,
+  syncMarkersFromBackend,
   STUDENT_CARD_MARKER_OPTIONS,
   StudentCardMarkerKey,
   writeStudentCardMarker,
@@ -1283,6 +1284,9 @@ export default function StudentList() {
 
   useEffect(() => {
     setStudentMarkers(readStudentCardMarkers(markerOwnerKey));
+    syncMarkersFromBackend(markerOwnerKey).then((merged) => {
+      if (Object.keys(merged).length > 0) setStudentMarkers(merged);
+    });
   }, [markerOwnerKey]);
 
   const setStudentCardMarker = (
