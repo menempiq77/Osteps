@@ -115,5 +115,53 @@ export const writeStudentCardMarker = (
   }
 
   writeStore(store);
+
+  // Persist to backend so markers survive across browsers/devices.
+  import("@/services/api").then(({ saveStudentCardMarker }) => {
+    saveStudentCardMarker(normalizedStudentId, markerKey).catch(() => {
+      /* best-effort — localStorage is the fallback */
+    });
+  });
+
   return bucket;
+};
+
+// Load markers from the backend and merge into localStorage cache.
+export const syncMarkersFromBackend = async (
+  ownerKey: string | null | undefined
+): Promise<Record<string, StudentCardMarkerKey>> => {
+  const normalizedOwnerKey = normalize(ownerKey);
+  if (!normalizedOwnerKey) return {};
+
+  try {
+    const { fetchStudentCardMarkers } = await import("@/services/api");
+    const backendData = await fetchStudentCardMarkers();
+
+    const store = readStore();
+    const merged: Record<string, StudentCardMarkerKey> = {};
+
+    for (const [studentId, markerKey] of Object.entries(backendData)) {
+      if (VALID_KEYS.has(markerKey as StudentCardMarkerKey)) {
+        merged[normalize(studentId)] = markerKey as StudentCardMarkerKey;
+      }
+    }
+
+    // Merge any localStorage-only entries that aren't on the backend yet,
+    // and push them to the backend.
+    const localBucket = readStudentCardMarkers(normalizedOwnerKey);
+    for (const [studentId, markerKey] of Object.entries(localBucket)) {
+      if (!(studentId in merged) && VALID_KEYS.has(markerKey)) {
+        merged[studentId] = markerKey;
+        import("@/services/api").then(({ saveStudentCardMarker }) => {
+          saveStudentCardMarker(studentId, markerKey).catch(() => {});
+        });
+      }
+    }
+
+    store[normalizedOwnerKey] = merged;
+    writeStore(store);
+    return merged;
+  } catch {
+    return readStudentCardMarkers(normalizedOwnerKey);
+  }
 };
