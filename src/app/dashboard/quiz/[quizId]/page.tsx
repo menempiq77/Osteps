@@ -50,6 +50,7 @@ interface QuizQuestion {
 interface Quiz {
   id: number;
   name: string;
+  description?: string | null;
   quiz_queston: QuizQuestion[];
 }
 
@@ -1072,6 +1073,11 @@ export default function QuranQuizPage() {
               <h1 className="text-2xl font-bold text-gray-900">
                 {quizData?.name || "Quiz"}
               </h1>
+              {quizData?.description && (
+                <p className="mt-1 text-sm text-gray-600">
+                  {quizData.description}
+                </p>
+              )}
               {canUpload && (
                 <p className="mt-1 text-sm text-gray-500">
                   Build questions inline or paste a whole question bank in one go.

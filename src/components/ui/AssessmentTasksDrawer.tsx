@@ -84,6 +84,7 @@ type Task = {
   quiz?: {
     id?: number | string;
     name?: string;
+    description?: string;
   };
 };
 
@@ -223,6 +224,7 @@ export function AssessmentTasksDrawer({
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
   const [selectedQuizId, setSelectedQuizId] = useState<number | null>(null);
   const [newQuizName, setNewQuizName] = useState("");
+  const [newQuizDescription, setNewQuizDescription] = useState("");
   const [quizPercentageWeight, setQuizPercentageWeight] = useState<number>(0);
   const [editingQuizTaskId, setEditingQuizTaskId] = useState<number | null>(null);
   const [editingQuizName, setEditingQuizName] = useState("");
@@ -508,7 +510,7 @@ export function AssessmentTasksDrawer({
       setLoading(true);
 
       const result = await addQuize(
-        { name: trimmedName, school_id: schoolId },
+        { name: trimmedName, description: newQuizDescription.trim() || undefined, school_id: schoolId },
         resolvedSubjectId ?? undefined
       );
       createdQuizId = Number(result?.data?.id ?? result?.id ?? 0);
@@ -552,7 +554,7 @@ export function AssessmentTasksDrawer({
           type: "quiz",
           quiz: createdQuizRecord,
           task_name: createdQuizRecord.name,
-          description: "",
+          description: newQuizDescription.trim() || "",
           task_type: "quiz",
           due_date: "",
           allocated_marks: 0,
@@ -564,6 +566,7 @@ export function AssessmentTasksDrawer({
       setOrderedTasks(updatedTasks);
       onTasksChange(updatedTasks);
       setNewQuizName("");
+      setNewQuizDescription("");
       setQuizPercentageWeight(0);
       setSelectedQuizId(null);
       setSelectedType(null);
@@ -678,6 +681,7 @@ export function AssessmentTasksDrawer({
     setSelectedType(null);
     setSelectedQuizId(null);
     setNewQuizName("");
+    setNewQuizDescription("");
     setQuizPercentageWeight(0);
     setEditingQuizTaskId(null);
     setEditingQuizName("");
@@ -1329,6 +1333,13 @@ export function AssessmentTasksDrawer({
                   placeholder="Quiz title"
                   disabled={loading}
                 />
+                <AntdInput.TextArea
+                  value={newQuizDescription}
+                  onChange={(event) => setNewQuizDescription(event.target.value)}
+                  placeholder="Description (optional)"
+                  disabled={loading}
+                  rows={2}
+                />
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Percentage Weight (%)</p>
                   <InputNumber
@@ -1492,7 +1503,7 @@ export function AssessmentTasksDrawer({
                                 ) : (
                                   <div className="flex items-center justify-between mb-4">
                                     <p className="text-sm text-gray-600">
-                                      {task?.description || "No description provided"}
+                                      {task?.description || task?.quiz?.description || "No description provided"}
                                     </p>
                                     {task?.type === "quiz" && typeof task?.percentage_weight === 'number' ? (
                                       <span className="text-sm font-medium text-blue-600">
