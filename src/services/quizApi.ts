@@ -26,7 +26,7 @@ export const fetchQuizes = async (schoolId: string, subjectId?: number) => {
   return response.data.data;
 };
 // add Quiz
-export const addQuize = async (quizData: { name: string }, subjectId?: number) => {
+export const addQuize = async (quizData: { name: string; description?: string; [key: string]: unknown }, subjectId?: number) => {
   const response = await api.post('/add-quiz', withSubjectPayload(quizData, subjectId));
   return response.data;
 };

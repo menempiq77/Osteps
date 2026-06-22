@@ -29,9 +29,11 @@ interface ShowDeleteConfirm {
 interface EditQuizRecord {
   id: string;
   name: string;
+  description?: string;
 }
 interface QuizFormValues {
   name: string;
+  description?: string;
 }
 
 // ── Subject-isolation helpers (localStorage) ────────────────────────────────
@@ -354,6 +356,13 @@ export default function QuizPage() {
               ]}
             >
               <Input />
+            </Form.Item>
+
+            <Form.Item
+              label="Description"
+              name="description"
+            >
+              <Input.TextArea rows={3} placeholder="Optional quiz description" />
             </Form.Item>
 
             <Form.Item name="school_id" hidden>
