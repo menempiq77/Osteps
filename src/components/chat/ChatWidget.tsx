@@ -60,8 +60,8 @@ export default function ChatWidget() {
       setLoading(true);
       const data = await fetchConversations();
       setConversations(data);
-    } catch {
-      // silently fail
+    } catch (err) {
+      console.error("[Chat] loadConversations error:", err);
     } finally {
       setLoading(false);
     }
@@ -85,8 +85,8 @@ export default function ChatWidget() {
         setMessages(res.data.reverse());
         await markConversationRead(convId);
         fetchUnreadCount().then(setUnreadTotal).catch(() => {});
-      } catch {
-        // silently fail
+      } catch (err) {
+        console.error("[Chat] loadMessages error:", err);
       }
     },
     []
@@ -101,8 +101,8 @@ export default function ChatWidget() {
           setMessages(res.data.reverse());
           await markConversationRead(activeConversation.id);
           fetchUnreadCount().then(setUnreadTotal).catch(() => {});
-        } catch {
-          // silently fail
+        } catch (err) {
+          console.error("[Chat] poll messages error:", err);
         }
       };
       activePollRef.current = setInterval(poll, POLL_INTERVAL);
@@ -186,13 +186,17 @@ export default function ChatWidget() {
       setConversations(convs);
       const conv = convs.find((c) => c.id === result.id);
       if (conv) {
-        handleOpenConversation(conv);
+        setActiveConversation(conv);
+        setView("chat");
+        await loadMessages(conv.id);
+      } else {
+        setView("list");
       }
       setSelectedUsers([]);
       setGroupName("");
       setSearchUsers("");
-    } catch {
-      // silently fail
+    } catch (err) {
+      console.error("[Chat] handleStartChat error:", err);
     } finally {
       setLoading(false);
     }
@@ -241,7 +245,7 @@ export default function ChatWidget() {
       {/* Floating Chat Button */}
       <button
         onClick={() => setOpen(!open)}
-        className="fixed bottom-6 right-6 z-[1000] flex h-14 w-14 items-center justify-center rounded-full bg-[var(--primary,#38C16C)] text-white shadow-lg transition-all hover:scale-105 active:scale-95"
+        className="fixed bottom-6 left-6 z-[1000] flex h-14 w-14 items-center justify-center rounded-full bg-[var(--primary,#38C16C)] text-white shadow-lg transition-all hover:scale-105 active:scale-95"
         title="Chat"
         style={{ boxShadow: "0 4px 20px rgba(0,0,0,0.25)" }}
       >
@@ -268,7 +272,7 @@ export default function ChatWidget() {
       {/* Chat Panel */}
       {open && (
         <div
-          className="fixed bottom-24 right-6 z-[1001] flex flex-col overflow-hidden rounded-2xl bg-white shadow-2xl border border-gray-200"
+          className="fixed bottom-24 left-6 z-[1001] flex flex-col overflow-hidden rounded-2xl bg-white shadow-2xl border border-gray-200"
           style={{ width: 380, height: 520 }}
         >
           {/* Header */}
