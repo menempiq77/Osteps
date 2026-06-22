@@ -551,6 +551,11 @@ export default function ChatWidget() {
                             <p className="text-sm font-medium text-gray-900 truncate">
                               {user.name}
                             </p>
+                            {user.email && (
+                              <p className="text-[11px] text-gray-400 truncate">
+                                {user.email}
+                              </p>
+                            )}
                             <span
                               className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-medium ${getRoleBadgeColor(
                                 user.role
