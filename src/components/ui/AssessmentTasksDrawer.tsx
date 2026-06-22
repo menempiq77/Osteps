@@ -228,6 +228,7 @@ export function AssessmentTasksDrawer({
   const [quizPercentageWeight, setQuizPercentageWeight] = useState<number>(0);
   const [editingQuizTaskId, setEditingQuizTaskId] = useState<number | null>(null);
   const [editingQuizName, setEditingQuizName] = useState("");
+  const [editingQuizDescription, setEditingQuizDescription] = useState("");
   const [editingQuizWeight, setEditingQuizWeight] = useState<number>(0);
   const [createdQuizzes, setCreatedQuizzes] = useState<any[]>([]);
   const [orderedTasks, setOrderedTasks] = useState<Task[]>([]);
@@ -693,6 +694,7 @@ export function AssessmentTasksDrawer({
   const handleEditQuiz = (task: Task) => {
     setEditingQuizTaskId(task.id);
     setEditingQuizName(task.task_name || task.quiz?.name || "");
+    setEditingQuizDescription(task.description || task.quiz?.description || "");
     setEditingQuizWeight(
       resolveWeight(task.percentage_weight, {
         assessmentId,
@@ -712,8 +714,9 @@ export function AssessmentTasksDrawer({
           return {
             ...t,
             task_name: editingQuizName,
+            description: editingQuizDescription,
             percentage_weight: editingQuizWeight,
-            quiz: t.quiz ? { ...t.quiz, name: editingQuizName } : t.quiz,
+            quiz: t.quiz ? { ...t.quiz, name: editingQuizName, description: editingQuizDescription } : t.quiz,
           };
         }
         return t;
@@ -729,7 +732,7 @@ export function AssessmentTasksDrawer({
       if (quizId != null) {
         await updateQuize(
           String(quizId),
-          { name: editingQuizName, school_id: schoolId },
+          { name: editingQuizName, description: editingQuizDescription, school_id: schoolId },
           resolvedSubjectId ?? undefined
         );
       }
@@ -741,6 +744,7 @@ export function AssessmentTasksDrawer({
         weightForm.append("assessment_id", String(assessmentId));
         weightForm.append("percentage_weight", String(editingQuizWeight));
         weightForm.append("task_name", editingQuizName || task.task_name || "");
+        weightForm.append("description", editingQuizDescription);
         weightForm.append("allocated_marks", String(task.allocated_marks ?? 0));
         weightForm.append("due_date", task.due_date || "");
         weightForm.append("task_type", task.task_type || "quiz");
@@ -1466,6 +1470,16 @@ export function AssessmentTasksDrawer({
                                       />
                                     </div>
                                     <div>
+                                      <label className="text-sm text-gray-600 mb-1 block">Description</label>
+                                      <AntdInput.TextArea
+                                        value={editingQuizDescription}
+                                        onChange={(e) => setEditingQuizDescription(e.target.value)}
+                                        placeholder="Description (optional)"
+                                        disabled={loading}
+                                        rows={2}
+                                      />
+                                    </div>
+                                    <div>
                                       <label className="text-sm text-gray-600 mb-1 block">Percentage Weight (%)</label>
                                       <InputNumber
                                         min={0}
@@ -1483,6 +1497,7 @@ export function AssessmentTasksDrawer({
                                         onClick={() => {
                                           setEditingQuizTaskId(null);
                                           setEditingQuizName("");
+                                          setEditingQuizDescription("");
                                           setEditingQuizWeight(0);
                                         }}
                                         disabled={loading}
