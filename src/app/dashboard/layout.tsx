@@ -18,6 +18,7 @@ const FavoriteSidebar = dynamic(() => import("@/components/ui/FavoriteSidebar"))
 const SubjectRightSidebar = dynamic(() => import("@/components/ui/SubjectRightSidebar"));
 const RightSidebarReveal = dynamic(() => import("@/components/ui/RightSidebarReveal"));
 const PinnedPagesDock = dynamic(() => import("@/components/ui/PinnedPagesDock"));
+const ChatWidget = dynamic(() => import("@/components/chat/ChatWidget"), { ssr: false });
 
 const THEME_STORAGE_KEY = "osteps-dashboard-theme";
 const THEMES = {
@@ -513,6 +514,7 @@ export default function DashboardLayout({
             {children}
           </div>
         </div>
+        <ChatWidget />
       </>
     );
   }
@@ -534,6 +536,7 @@ export default function DashboardLayout({
         <div className="dashboard-theme-scope min-h-screen bg-slate-100" style={impersonating ? { paddingTop: 40 } : undefined}>
           {children}
         </div>
+        <ChatWidget />
       </>
     );
   }
@@ -781,6 +784,7 @@ export default function DashboardLayout({
         }
       `}</style>
       </div>
+      <ChatWidget />
     </>
   );
 }
