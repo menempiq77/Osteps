@@ -1,0 +1,96 @@
+import api from "./api";
+
+export interface ChatUser {
+  id: number;
+  name: string;
+  email?: string;
+  role: string;
+}
+
+export interface ChatMessage {
+  id: number;
+  body: string;
+  sender_id: number;
+  sender_name: string;
+  sender_role?: string;
+  created_at: string;
+}
+
+export interface ConversationLastMessage {
+  id: number;
+  body: string;
+  sender_id: number;
+  sender_name: string;
+  created_at: string;
+}
+
+export interface Conversation {
+  id: number;
+  type: "direct" | "group";
+  name: string;
+  participants: { id: number; name: string; role: string }[];
+  last_message: ConversationLastMessage | null;
+  unread_count: number;
+  updated_at: string;
+}
+
+// Fetch all conversations for the current user
+export const fetchConversations = async (): Promise<Conversation[]> => {
+  const response = await api.get("/chat/conversations");
+  return response.data?.data ?? [];
+};
+
+// Create a new conversation
+export const createConversation = async (data: {
+  participant_ids: number[];
+  type?: "direct" | "group";
+  name?: string;
+}): Promise<{ id: number; existing: boolean }> => {
+  const response = await api.post("/chat/conversations", data);
+  return response.data?.data;
+};
+
+// Fetch messages for a conversation
+export const fetchMessages = async (
+  conversationId: number,
+  page?: number
+): Promise<{ data: ChatMessage[]; has_more: boolean; next_page: number }> => {
+  const response = await api.get(
+    `/chat/conversations/${conversationId}/messages`,
+    { params: page ? { page } : {} }
+  );
+  return response.data;
+};
+
+// Send a message
+export const sendMessage = async (
+  conversationId: number,
+  body: string
+): Promise<ChatMessage> => {
+  const response = await api.post(
+    `/chat/conversations/${conversationId}/messages`,
+    { body }
+  );
+  return response.data?.data;
+};
+
+// Mark a conversation as read
+export const markConversationRead = async (
+  conversationId: number
+): Promise<void> => {
+  await api.post(`/chat/conversations/${conversationId}/read`);
+};
+
+// Get total unread count
+export const fetchUnreadCount = async (): Promise<number> => {
+  const response = await api.get("/chat/unread-count");
+  return response.data?.data?.unread_count ?? 0;
+};
+
+// Search users to start a chat with
+export const fetchChatUsers = async (search?: string): Promise<ChatUser[]> => {
+  const response = await api.get("/chat/users", {
+    params: search ? { search } : {},
+  });
+  return response.data?.data ?? [];
+};
