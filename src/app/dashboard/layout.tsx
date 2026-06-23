@@ -18,7 +18,6 @@ const FavoriteSidebar = dynamic(() => import("@/components/ui/FavoriteSidebar"))
 const SubjectRightSidebar = dynamic(() => import("@/components/ui/SubjectRightSidebar"));
 const RightSidebarReveal = dynamic(() => import("@/components/ui/RightSidebarReveal"));
 const PinnedPagesDock = dynamic(() => import("@/components/ui/PinnedPagesDock"));
-const ChatWidget = dynamic(() => import("@/components/chat/ChatWidget"), { ssr: false });
 
 const THEME_STORAGE_KEY = "osteps-dashboard-theme";
 const THEMES = {
@@ -110,6 +109,7 @@ export default function DashboardLayout({
   const [themeName, setThemeName] = useState<ThemeName>("green");
   const [storedSubjectName, setStoredSubjectName] = useState<string | null>(null);
   const [impersonating, setImpersonating] = useState(false);
+
   const unscopedPathname = pathname.replace(
     /^\/dashboard\/s\/\d+(?:\/[^/]+)?(?=\/|$)/,
     "/dashboard"
@@ -222,6 +222,7 @@ export default function DashboardLayout({
   const isLessonsRoute = !isImmersiveLessonGroupRoute && (unscopedPathname === "/dashboard/lessons" || unscopedPathname.startsWith("/dashboard/lessons/"));
   const isMindUpgradeRoute = unscopedPathname === "/dashboard/mind-upgrade" || unscopedPathname.startsWith("/dashboard/mind-upgrade/");
   const isAnnouncementsRoute = unscopedPathname === "/dashboard/announcements";
+  const isChatRoute = unscopedPathname === "/dashboard/chat";
   const isAssessmentDocumentRoute = unscopedPathname === "/dashboard/assessment-document";
   const isStudentExamAssessmentRoute =
     isAssessmentDocumentRoute &&
@@ -514,7 +515,6 @@ export default function DashboardLayout({
             {children}
           </div>
         </div>
-        <ChatWidget />
       </>
     );
   }
@@ -533,10 +533,12 @@ export default function DashboardLayout({
             </button>
           </div>
         )}
-        <div className="dashboard-theme-scope min-h-screen bg-slate-100" style={impersonating ? { paddingTop: 40 } : undefined}>
+        <div
+          className="dashboard-theme-scope min-h-screen bg-slate-100"
+          style={impersonating ? { paddingTop: 40 } : undefined}
+        >
           {children}
         </div>
-        <ChatWidget />
       </>
     );
   }
@@ -575,6 +577,7 @@ export default function DashboardLayout({
       isLessonsRoute ||
       isMindUpgradeRoute ||
       isAnnouncementsRoute ||
+      isChatRoute ||
       isReportsRoute ||
       isSettingsRoute ? (
         <div className={`dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] ${dashboardPaddingClass}`}>
@@ -784,7 +787,6 @@ export default function DashboardLayout({
         }
       `}</style>
       </div>
-      <ChatWidget />
     </>
   );
 }

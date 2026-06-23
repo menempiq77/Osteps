@@ -48,6 +48,7 @@ const SHARED_PREFIXES = [
   "/dashboard/trackers",
   "/dashboard/assessment-document",
   "/dashboard/ai",
+  "/dashboard/chat",
 ];
 
 const SHARED_EXACT_PATHS = [
