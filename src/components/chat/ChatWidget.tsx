@@ -107,7 +107,7 @@ export default function ChatWidget() {
   const [chatError, setChatError] = useState("");
   const [sendingMsg, setSendingMsg] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
-  const [pendingImage, setPendingImage] = useState<string | null>(null);
+  const [pendingFile, setPendingFile] = useState<{ file: File; preview?: string; isImage: boolean; name: string } | null>(null);
   const [searchUsers, setSearchUsers] = useState("");
   const [availableUsers, setAvailableUsers] = useState<ChatUser[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<ChatUser[]>([]);
@@ -218,14 +218,14 @@ export default function ChatWidget() {
   };
 
   const handleSendMessage = async () => {
-    if ((!messageInput.trim() && !pendingImage) || !activeConversation || sendingMsg) return;
+    if ((!messageInput.trim() && !pendingFile) || !activeConversation || sendingMsg) return;
     const body = messageInput.trim();
-    const image = pendingImage;
+    const file = pendingFile?.file;
     setMessageInput("");
-    setPendingImage(null);
+    setPendingFile(null);
     setSendingMsg(true);
     try {
-      const msg = await sendMessage(activeConversation.id, body, image || undefined);
+      const msg = await sendMessage(activeConversation.id, body, file);
       setMessages((prev) => {
         const next = [...prev, msg];
         saveMessages(activeConversation.id, next);
@@ -236,34 +236,35 @@ export default function ChatWidget() {
     } catch (err) {
       console.error("[Chat] send error:", err);
       setMessageInput(body);
-      if (image) setPendingImage(image);
+      if (file) setPendingFile({ file, name: file.name, isImage: file.type.startsWith("image/") });
       showNotification("Failed to send message");
     } finally {
       setSendingMsg(false);
     }
   };
 
-  const processImageFile = async (file: File) => {
-    if (!file.type.startsWith("image/")) {
-      showNotification("Please choose an image file");
+  const processFile = async (file: File) => {
+    if (file.size > 10 * 1024 * 1024) {
+      showNotification("File must be smaller than 10 MB");
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      showNotification("Image must be smaller than 5 MB");
-      return;
+    const isImage = file.type.startsWith("image/");
+    let preview: string | undefined;
+    if (isImage) {
+      try {
+        preview = await resizeImage(file);
+      } catch {
+        showNotification("Failed to process image");
+        return;
+      }
     }
-    try {
-      const dataUrl = await resizeImage(file);
-      setPendingImage(dataUrl);
-    } catch {
-      showNotification("Failed to process image");
-    }
+    setPendingFile({ file, preview, isImage, name: file.name });
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    await processImageFile(file);
+    await processFile(file);
     e.target.value = "";
   };
 
@@ -271,10 +272,10 @@ export default function ChatWidget() {
     const items = e.clipboardData.items;
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
-      if (item.type.startsWith("image/")) {
+      if (item.kind === "file") {
         e.preventDefault();
         const file = item.getAsFile();
-        if (file) await processImageFile(file);
+        if (file) await processFile(file);
         break;
       }
     }
@@ -574,7 +575,7 @@ export default function ChatWidget() {
                         <div className="flex items-center justify-between mt-0.5">
                           <p className="text-xs text-gray-500 truncate">
                             {conv.last_message
-                              ? `${conv.last_message.sender_id === userId ? "You" : conv.last_message.sender_name}: ${conv.last_message.image_url ? "Sent an image" : conv.last_message.body}`
+                              ? `${conv.last_message.sender_id === userId ? "You" : conv.last_message.sender_name}: ${conv.last_message.file_url ? "Sent a file" : conv.last_message.body}`
                               : "No messages yet"}
                           </p>
                           {conv.unread_count > 0 && (
@@ -627,12 +628,28 @@ export default function ChatWidget() {
                               {msg.sender_name}
                             </p>
                           )}
-                          {msg.image_url && (
-                            <img
-                              src={msg.image_url}
-                              alt="Attachment"
-                              className="mb-1.5 max-h-40 rounded-lg border border-white/20 object-cover"
-                            />
+                          {msg.file_url && (
+                            msg.file_url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                              <img
+                                src={msg.file_url}
+                                alt="Attachment"
+                                className="mb-1.5 max-h-40 rounded-lg border border-white/20 object-cover"
+                              />
+                            ) : (
+                              <a
+                                href={msg.file_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="mb-1.5 inline-flex items-center gap-1 rounded-lg bg-white/20 px-2 py-1 text-xs font-medium hover:bg-white/30"
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                  <polyline points="7 10 12 15 17 10" />
+                                  <line x1="12" y1="15" x2="12" y2="3" />
+                                </svg>
+                                Download file
+                              </a>
+                            )
                           )}
                           {msg.body && <p className="text-sm whitespace-pre-wrap break-words">{msg.body}</p>}
                           <p
@@ -659,17 +676,21 @@ export default function ChatWidget() {
                 </div>
                 {/* Message Input */}
                 <div className="border-t border-gray-100 px-3 py-2 bg-white">
-                  {pendingImage && (
-                    <div className="relative mb-2 inline-block">
-                      <img
-                        src={pendingImage}
-                        alt="Upload preview"
-                        className="h-20 w-auto rounded-lg border border-gray-200 object-cover"
-                      />
+                  {pendingFile && (
+                    <div className="relative mb-2 inline-flex items-center gap-2 rounded-lg border border-gray-200 px-2 py-1 bg-gray-50">
+                      {pendingFile.isImage && pendingFile.preview ? (
+                        <img
+                          src={pendingFile.preview}
+                          alt="Upload preview"
+                          className="h-20 w-auto rounded-lg object-cover"
+                        />
+                      ) : (
+                        <span className="text-sm text-gray-700 truncate max-w-[200px]">{pendingFile.name}</span>
+                      )}
                       <button
-                        onClick={() => setPendingImage(null)}
-                        className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-gray-700 text-white text-xs flex items-center justify-center hover:bg-gray-800"
-                        aria-label="Remove image"
+                        onClick={() => setPendingFile(null)}
+                        className="h-5 w-5 rounded-full bg-gray-700 text-white text-xs flex items-center justify-center hover:bg-gray-800"
+                        aria-label="Remove file"
                       >
                         ✕
                       </button>
@@ -678,7 +699,6 @@ export default function ChatWidget() {
                   <div className="flex items-center gap-2">
                     <input
                       type="file"
-                      accept="image/*"
                       hidden
                       ref={fileInputRef}
                       onChange={handleFileChange}
@@ -687,10 +707,12 @@ export default function ChatWidget() {
                       onClick={() => fileInputRef.current?.click()}
                       disabled={sendingMsg}
                       className="flex h-9 w-9 items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 hover:text-[var(--primary,#38C16C)] transition disabled:opacity-40"
-                      aria-label="Attach image"
-                      title="Attach image"
+                      aria-label="Attach file"
+                      title="Attach file"
                     >
-                      🖼️
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                      </svg>
                     </button>
                     <input
                       ref={inputRef}
@@ -705,7 +727,7 @@ export default function ChatWidget() {
                     />
                     <button
                       onClick={handleSendMessage}
-                      disabled={(!messageInput.trim() && !pendingImage) || sendingMsg}
+                      disabled={(!messageInput.trim() && !pendingFile) || sendingMsg}
                       className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--primary,#38C16C)] text-white transition hover:opacity-90 disabled:opacity-40"
                     >
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

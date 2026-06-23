@@ -18,7 +18,7 @@ export interface ChatParticipant {
 export interface ChatMessage {
   id: number;
   body: string;
-  image_url?: string;
+  file_url?: string;
   sender_id: number;
   sender_name: string;
   sender_role?: string;
@@ -28,7 +28,7 @@ export interface ChatMessage {
 export interface ConversationLastMessage {
   id: number;
   body: string;
-  image_url?: string;
+  file_url?: string;
   sender_id: number;
   sender_name: string;
   created_at: string;
@@ -72,30 +72,18 @@ export const fetchMessages = async (
   return response.data;
 };
 
-const dataURLtoBlob = (dataUrl: string): Blob => {
-  const arr = dataUrl.split(",");
-  const mime = arr[0].match(/:(.*?);/)?.[1] || "image/jpeg";
-  const bstr = atob(arr[1]);
-  let n = bstr.length;
-  const u8arr = new Uint8Array(n);
-  while (n--) {
-    u8arr[n] = bstr.charCodeAt(n);
-  }
-  return new Blob([u8arr], { type: mime });
-};
-
 // Send a message
 export const sendMessage = async (
   conversationId: number,
   body: string,
-  image?: string
+  file?: File
 ): Promise<ChatMessage> => {
   const trimmed = body.trim();
-  const payload = image
+  const payload = file
     ? (() => {
         const formData = new FormData();
         if (trimmed) formData.append("body", trimmed);
-        formData.append("image", dataURLtoBlob(image), "chat-image.jpg");
+        formData.append("file", file);
         return formData;
       })()
     : { body: trimmed };
@@ -103,7 +91,7 @@ export const sendMessage = async (
   const response = await api.post(
     `/chat/conversations/${conversationId}/messages`,
     payload,
-    image
+    file
       ? { headers: { "Content-Type": "multipart/form-data" } }
       : undefined
   );
