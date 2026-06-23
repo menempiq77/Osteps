@@ -11,10 +11,12 @@ import {
   fetchUnreadCount,
   fetchChatUsers,
   createConversation,
+  fetchChatSettings,
   Conversation,
   ChatMessage,
   ChatUser,
   ChatParticipant,
+  ChatSettings,
 } from "@/services/chatApi";
 
 const POLL_INTERVAL = 10000;
@@ -108,6 +110,7 @@ export default function ChatWidget() {
   const [sendingMsg, setSendingMsg] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<{ file: File; preview?: string; isImage: boolean; name: string } | null>(null);
+  const [chatSettings, setChatSettings] = useState<ChatSettings | null>(null);
   const [searchUsers, setSearchUsers] = useState("");
   const [availableUsers, setAvailableUsers] = useState<ChatUser[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<ChatUser[]>([]);
@@ -121,6 +124,22 @@ export default function ChatWidget() {
   const activePollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const userId = currentUser?.id ? Number(currentUser.id) : 0;
+  const userRole = currentUser?.role || "";
+
+  const canChat = useMemo(() => {
+    if (!chatSettings) return true;
+    const r = userRole.toUpperCase();
+    if (r === "STUDENT") return chatSettings.students_can_chat;
+    if (r === "TEACHER") return chatSettings.teachers_can_chat;
+    if (r === "HOD") return chatSettings.hod_can_chat;
+    if (r === "ADMIN" || r === "SCHOOL_ADMIN") return chatSettings.admin_can_chat;
+    if (r === "SUPER_ADMIN") return chatSettings.super_admin_can_chat;
+    return true;
+  }, [chatSettings, userRole]);
+
+  useEffect(() => {
+    fetchChatSettings().then(setChatSettings).catch(() => {});
+  }, []);
 
   const showNotification = useCallback((text: string) => {
     setNotification(text);
@@ -415,6 +434,7 @@ export default function ChatWidget() {
   };
 
   if (!currentUser) return null;
+  if (!canChat) return null;
 
   return (
     <>

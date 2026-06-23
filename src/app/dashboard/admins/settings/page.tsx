@@ -1,11 +1,12 @@
 "use client";
 import React from "react";
-import { Tabs, Form, Input, Button, Upload, message, Select, Breadcrumb } from "antd";
+import { Tabs, Form, Input, Button, Upload, message, Select, Breadcrumb, Switch } from "antd";
 import { UploadOutlined, UserOutlined } from "@ant-design/icons";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/store/store";
 import { setCurrentUser } from "@/features/auth/authSlice";
 import { changePassword, updateSuperAdminProfile } from "@/services/settingApi";
+import { fetchChatSettings, updateChatSettings } from "@/services/chatApi";
 import Link from "next/link";
 
 const TeacherSettings = () => {
@@ -14,6 +15,14 @@ const TeacherSettings = () => {
   const [fileList, setFileList] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
   const [profileLoading, setProfileLoading] = React.useState(false);
+  const [chatSettingsLoading, setChatSettingsLoading] = React.useState(false);
+  const [chatSettings, setChatSettings] = React.useState({
+    students_can_chat: true,
+    teachers_can_chat: true,
+    hod_can_chat: true,
+    admin_can_chat: true,
+    super_admin_can_chat: true,
+  });
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const dispatch = useDispatch<AppDispatch>();
   const [messageApi, contextHolder] = message.useMessage();
@@ -31,6 +40,12 @@ const TeacherSettings = () => {
       });
     }
   }, [currentUser, profileForm]);
+
+  React.useEffect(() => {
+    fetchChatSettings()
+      .then((data) => setChatSettings(data))
+      .catch(() => messageApi.error("Failed to load chat settings"));
+  }, [messageApi]);
 
   const onProfileFinish = async (values) => {
     try {
@@ -102,6 +117,23 @@ const TeacherSettings = () => {
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleChatSetting = (key: keyof typeof chatSettings) => {
+    setChatSettings((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const saveChatSettings = async () => {
+    try {
+      setChatSettingsLoading(true);
+      await updateChatSettings(chatSettings);
+      messageApi.success("Chat settings saved");
+    } catch (error) {
+      console.error("Chat settings save failed:", error);
+      messageApi.error("Failed to save chat settings");
+    } finally {
+      setChatSettingsLoading(false);
     }
   };
 
@@ -293,6 +325,40 @@ const TeacherSettings = () => {
               </Button>
             </Form.Item>
           </Form>
+        </div>
+      ),
+    },
+    {
+      key: "3",
+      label: "Chat",
+      children: (
+        <div className="w-full max-w-2xl px-2">
+          <h2 className="text-lg font-semibold mb-4">Chat Permissions</h2>
+          <div className="space-y-4 mb-6">
+            {[
+              { key: "students_can_chat", label: "Students can chat" },
+              { key: "teachers_can_chat", label: "Teachers can chat" },
+              { key: "hod_can_chat", label: "HODs can chat" },
+              { key: "admin_can_chat", label: "Admins / School admins can chat" },
+              { key: "super_admin_can_chat", label: "Super admins can chat" },
+            ].map(({ key, label }) => (
+              <div key={key} className="flex items-center justify-between py-2 border-b border-gray-100">
+                <span className="text-sm text-gray-700">{label}</span>
+                <Switch
+                  checked={chatSettings[key as keyof typeof chatSettings]}
+                  onChange={() => toggleChatSetting(key as keyof typeof chatSettings)}
+                />
+              </div>
+            ))}
+          </div>
+          <Button
+            type="primary"
+            loading={chatSettingsLoading}
+            onClick={saveChatSettings}
+            className="!bg-primary !border-primary hover:!bg-primary hover:!border-primary"
+          >
+            Save Chat Settings
+          </Button>
         </div>
       ),
     },

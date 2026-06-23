@@ -44,6 +44,14 @@ export interface Conversation {
   updated_at: string;
 }
 
+export interface ChatSettings {
+  students_can_chat: boolean;
+  teachers_can_chat: boolean;
+  hod_can_chat: boolean;
+  admin_can_chat: boolean;
+  super_admin_can_chat: boolean;
+}
+
 // Fetch all conversations for the current user
 export const fetchConversations = async (): Promise<Conversation[]> => {
   const response = await api.get("/chat/conversations");
@@ -117,4 +125,24 @@ export const fetchChatUsers = async (search?: string): Promise<ChatUser[]> => {
     params: search ? { search } : {},
   });
   return response.data?.data ?? [];
+};
+
+export const fetchChatSettings = async (): Promise<ChatSettings> => {
+  const response = await api.get("/chat/settings");
+  return (
+    response.data?.data ?? {
+      students_can_chat: true,
+      teachers_can_chat: true,
+      hod_can_chat: true,
+      admin_can_chat: true,
+      super_admin_can_chat: true,
+    }
+  );
+};
+
+export const updateChatSettings = async (
+  data: ChatSettings
+): Promise<ChatSettings> => {
+  const response = await api.post("/chat/settings", data);
+  return response.data?.data;
 };
