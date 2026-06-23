@@ -18,6 +18,79 @@ import {
 
 const POLL_INTERVAL = 10000;
 
+const playMessageSound = (type: "send" | "receive" = "send") => {
+  if (typeof window === "undefined") return;
+  try {
+    const audioContextCtor =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof window.AudioContext }).webkitAudioContext;
+    if (!audioContextCtor) return;
+    const ctx = new audioContextCtor();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(type === "send" ? 880 : 660, ctx.currentTime);
+    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.15);
+  } catch {
+    /* ignore audio errors */
+  }
+};
+
+const resizeImage = (file: File, maxWidth = 1024, maxHeight = 1024, quality = 0.8): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      if (width > maxWidth || height > maxHeight) {
+        const ratio = Math.min(maxWidth / width, maxHeight / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("Canvas not supported"));
+        return;
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = () => reject(new Error("Failed to load image"));
+    img.src = url;
+  });
+};
+
+const messagesStorageKey = (convId: number) => `osteps-chat-messages-${convId}`;
+
+const saveMessages = (convId: number, msgs: ChatMessage[]) => {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(messagesStorageKey(convId), JSON.stringify(msgs));
+  } catch {
+    /* ignore storage errors */
+  }
+};
+
+const loadCachedMessages = (convId: number): ChatMessage[] => {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(messagesStorageKey(convId));
+    const parsed = raw ? (JSON.parse(raw) as ChatMessage[]) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
 export default function ChatWidget() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [open, setOpen] = useState(false);
@@ -31,6 +104,8 @@ export default function ChatWidget() {
   const [creatingChat, setCreatingChat] = useState(false);
   const [chatError, setChatError] = useState("");
   const [sendingMsg, setSendingMsg] = useState(false);
+  const [notification, setNotification] = useState<string | null>(null);
+  const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [searchUsers, setSearchUsers] = useState("");
   const [availableUsers, setAvailableUsers] = useState<ChatUser[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<ChatUser[]>([]);
@@ -39,10 +114,16 @@ export default function ChatWidget() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const activePollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const userId = currentUser?.id ? Number(currentUser.id) : 0;
+
+  const showNotification = useCallback((text: string) => {
+    setNotification(text);
+    setTimeout(() => setNotification(null), 2000);
+  }, []);
 
   // Fetch unread count periodically
   useEffect(() => {
@@ -82,13 +163,18 @@ export default function ChatWidget() {
   // Fetch messages when opening a conversation
   const loadMessages = useCallback(
     async (convId: number) => {
+      const cached = loadCachedMessages(convId);
+      if (cached.length > 0) setMessages(cached);
       try {
         const res = await fetchMessages(convId);
-        setMessages(res.data.reverse());
+        const loaded = res.data.reverse();
+        setMessages(loaded);
+        saveMessages(convId, loaded);
         await markConversationRead(convId);
         fetchUnreadCount().then(setUnreadTotal).catch(() => {});
       } catch (err) {
         console.error("[Chat] loadMessages error:", err);
+        if (cached.length > 0) setMessages(cached);
       }
     },
     []
@@ -100,7 +186,9 @@ export default function ChatWidget() {
       const poll = async () => {
         try {
           const res = await fetchMessages(activeConversation.id);
-          setMessages(res.data.reverse());
+          const loaded = res.data.reverse();
+          setMessages(loaded);
+          saveMessages(activeConversation.id, loaded);
           await markConversationRead(activeConversation.id);
           fetchUnreadCount().then(setUnreadTotal).catch(() => {});
         } catch (err) {
@@ -126,17 +214,47 @@ export default function ChatWidget() {
   };
 
   const handleSendMessage = async () => {
-    if (!messageInput.trim() || !activeConversation || sendingMsg) return;
+    if ((!messageInput.trim() && !pendingImage) || !activeConversation || sendingMsg) return;
     const body = messageInput.trim();
+    const image = pendingImage;
     setMessageInput("");
+    setPendingImage(null);
     setSendingMsg(true);
     try {
-      const msg = await sendMessage(activeConversation.id, body);
-      setMessages((prev) => [...prev, msg]);
+      const msg = await sendMessage(activeConversation.id, body, image || undefined);
+      setMessages((prev) => {
+        const next = [...prev, msg];
+        saveMessages(activeConversation.id, next);
+        return next;
+      });
+      playMessageSound("send");
+      showNotification("Message sent");
     } catch {
       setMessageInput(body);
+      if (image) setPendingImage(image);
     } finally {
       setSendingMsg(false);
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      showNotification("Please choose an image file");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      showNotification("Image must be smaller than 5 MB");
+      return;
+    }
+    try {
+      const dataUrl = await resizeImage(file);
+      setPendingImage(dataUrl);
+    } catch {
+      showNotification("Failed to process image");
+    } finally {
+      e.target.value = "";
     }
   };
 
@@ -333,6 +451,12 @@ export default function ChatWidget() {
             </button>
           </div>
 
+          {notification && (
+            <div className="absolute top-14 left-1/2 -translate-x-1/2 z-50 rounded-full bg-[var(--primary,#38C16C)] text-white px-3 py-1 text-xs shadow-md pointer-events-none">
+              {notification}
+            </div>
+          )}
+
           {/* Content */}
           <div className="flex-1 overflow-hidden flex flex-col">
             {/* Conversation List */}
@@ -379,7 +503,7 @@ export default function ChatWidget() {
                         <div className="flex items-center justify-between mt-0.5">
                           <p className="text-xs text-gray-500 truncate">
                             {conv.last_message
-                              ? `${conv.last_message.sender_id === userId ? "You" : conv.last_message.sender_name}: ${conv.last_message.body}`
+                              ? `${conv.last_message.sender_id === userId ? "You" : conv.last_message.sender_name}: ${conv.last_message.image_url ? "Sent an image" : conv.last_message.body}`
                               : "No messages yet"}
                           </p>
                           {conv.unread_count > 0 && (
@@ -432,7 +556,14 @@ export default function ChatWidget() {
                               {msg.sender_name}
                             </p>
                           )}
-                          <p className="text-sm whitespace-pre-wrap break-words">{msg.body}</p>
+                          {msg.image_url && (
+                            <img
+                              src={msg.image_url}
+                              alt="Attachment"
+                              className="mb-1.5 max-h-40 rounded-lg border border-white/20 object-cover"
+                            />
+                          )}
+                          {msg.body && <p className="text-sm whitespace-pre-wrap break-words">{msg.body}</p>}
                           <p
                             className={`text-[10px] mt-1 ${
                               isMe ? "text-white/60" : "text-gray-400"
@@ -448,7 +579,39 @@ export default function ChatWidget() {
                 </div>
                 {/* Message Input */}
                 <div className="border-t border-gray-100 px-3 py-2 bg-white">
+                  {pendingImage && (
+                    <div className="relative mb-2 inline-block">
+                      <img
+                        src={pendingImage}
+                        alt="Upload preview"
+                        className="h-20 w-auto rounded-lg border border-gray-200 object-cover"
+                      />
+                      <button
+                        onClick={() => setPendingImage(null)}
+                        className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-gray-700 text-white text-xs flex items-center justify-center hover:bg-gray-800"
+                        aria-label="Remove image"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
                   <div className="flex items-center gap-2">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      hidden
+                      ref={fileInputRef}
+                      onChange={handleFileChange}
+                    />
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={sendingMsg}
+                      className="flex h-9 w-9 items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 hover:text-[var(--primary,#38C16C)] transition disabled:opacity-40"
+                      aria-label="Attach image"
+                      title="Attach image"
+                    >
+                      🖼️
+                    </button>
                     <input
                       ref={inputRef}
                       type="text"
@@ -461,7 +624,7 @@ export default function ChatWidget() {
                     />
                     <button
                       onClick={handleSendMessage}
-                      disabled={!messageInput.trim() || sendingMsg}
+                      disabled={(!messageInput.trim() && !pendingImage) || sendingMsg}
                       className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--primary,#38C16C)] text-white transition hover:opacity-90 disabled:opacity-40"
                     >
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
