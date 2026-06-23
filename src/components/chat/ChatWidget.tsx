@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useSelector } from "react-redux";
+import ImageLightbox from "./ImageLightbox";
 import { RootState } from "@/store/store";
 import {
   fetchConversations,
@@ -115,6 +116,7 @@ export default function ChatWidget({ open, onToggle }: { open: boolean; onToggle
   const [selectedUsers, setSelectedUsers] = useState<ChatUser[]>([]);
   const [groupName, setGroupName] = useState("");
   const [searchingUsers, setSearchingUsers] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -666,7 +668,8 @@ export default function ChatWidget({ open, onToggle }: { open: boolean; onToggle
                               <img
                                 src={msg.file_url}
                                 alt="Attachment"
-                                className="mb-1.5 max-h-40 rounded-lg border border-white/20 object-cover"
+                                onClick={() => setLightboxImage(msg.file_url || null)}
+                                className="mb-1.5 max-h-40 rounded-lg border border-white/20 object-cover cursor-pointer hover:opacity-90"
                               />
                             ) : (
                               <a
@@ -908,6 +911,7 @@ export default function ChatWidget({ open, onToggle }: { open: boolean; onToggle
           </div>
         </div>
       )}
+      <ImageLightbox url={lightboxImage} onClose={() => setLightboxImage(null)} />
     </>
   );
 }
