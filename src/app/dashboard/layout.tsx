@@ -2,13 +2,13 @@
 
 import dynamic from "next/dynamic";
 import { useSelector, useDispatch } from "react-redux";
-import { ArrowLeft, ArrowRight, Home, LogOut, MessageCircle, Settings as SettingsIcon } from "lucide-react";
+import { ArrowLeft, ArrowRight, Home, LogOut, Settings as SettingsIcon } from "lucide-react";
 import { RootState } from "@/store/store";
 import SubjectSwitcher from "@/components/ui/SubjectSwitcher";
 import SchoolNotificationBell from "@/components/dashboard/SchoolNotificationBell";
 import { SubjectContextProvider } from "@/contexts/SubjectContext";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getStoredSubjectName } from "@/lib/subjectScope";
 import { IMPERSONATION_STORAGE_KEY, isImpersonating, logout, setCurrentUser } from "@/features/auth/authSlice";
 import { User } from "@/features/auth/types";
@@ -18,7 +18,6 @@ const FavoriteSidebar = dynamic(() => import("@/components/ui/FavoriteSidebar"))
 const SubjectRightSidebar = dynamic(() => import("@/components/ui/SubjectRightSidebar"));
 const RightSidebarReveal = dynamic(() => import("@/components/ui/RightSidebarReveal"));
 const PinnedPagesDock = dynamic(() => import("@/components/ui/PinnedPagesDock"));
-const ChatWidget = dynamic(() => import("@/components/chat/ChatWidget"), { ssr: false });
 
 const THEME_STORAGE_KEY = "osteps-dashboard-theme";
 const THEMES = {
@@ -110,14 +109,7 @@ export default function DashboardLayout({
   const [themeName, setThemeName] = useState<ThemeName>("green");
   const [storedSubjectName, setStoredSubjectName] = useState<string | null>(null);
   const [impersonating, setImpersonating] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
-  const CHAT_PANEL_WIDTH = 380;
-  const toggleChat = useCallback(() => {
-    if (typeof window !== "undefined" && Notification.permission === "default") {
-      Notification.requestPermission();
-    }
-    setChatOpen((prev) => !prev);
-  }, []);
+
   const unscopedPathname = pathname.replace(
     /^\/dashboard\/s\/\d+(?:\/[^/]+)?(?=\/|$)/,
     "/dashboard"
@@ -230,6 +222,7 @@ export default function DashboardLayout({
   const isLessonsRoute = !isImmersiveLessonGroupRoute && (unscopedPathname === "/dashboard/lessons" || unscopedPathname.startsWith("/dashboard/lessons/"));
   const isMindUpgradeRoute = unscopedPathname === "/dashboard/mind-upgrade" || unscopedPathname.startsWith("/dashboard/mind-upgrade/");
   const isAnnouncementsRoute = unscopedPathname === "/dashboard/announcements";
+  const isChatRoute = unscopedPathname === "/dashboard/chat";
   const isAssessmentDocumentRoute = unscopedPathname === "/dashboard/assessment-document";
   const isStudentExamAssessmentRoute =
     isAssessmentDocumentRoute &&
@@ -418,19 +411,6 @@ export default function DashboardLayout({
       <SchoolNotificationBell />
       <button
         type="button"
-        onClick={toggleChat}
-        className={`flex h-9 w-9 items-center justify-center rounded-xl border border-white/20 shadow-sm backdrop-blur-md transition-all duration-200 hover:scale-105 active:scale-95 ${
-          chatOpen
-            ? "bg-white/25 text-white"
-            : "bg-white/[0.08] text-white hover:bg-white/20"
-        }`}
-        aria-label="Chat"
-        title="Chat"
-      >
-        <MessageCircle className="h-4 w-4" />
-      </button>
-      <button
-        type="button"
         onClick={() => router.push(settingsHref)}
         className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/20 bg-white/[0.08] text-white shadow-sm backdrop-blur-md transition-all duration-200 hover:scale-105 hover:bg-white/20 active:scale-95"
         aria-label="Open settings"
@@ -457,9 +437,8 @@ export default function DashboardLayout({
   }) => {
     return (
       <div
-        className="fixed left-0 top-0 z-[900] overflow-hidden border-b border-white/10 px-3 py-1.5 text-white shadow-[0_18px_42px_rgba(15,23,42,0.22)] md:h-14 md:px-4 md:py-0 transition-[right] duration-300 ease-in-out"
+        className="fixed left-0 right-0 top-0 z-[900] overflow-hidden border-b border-white/10 px-3 py-1.5 text-white shadow-[0_18px_42px_rgba(15,23,42,0.22)] md:h-14 md:px-4 md:py-0"
         style={{
-          right: chatOpen ? CHAT_PANEL_WIDTH : 0,
           background:
             "linear-gradient(105deg, #242936 0%, #253742 30%, #373f61 63%, #403344 100%)",
         }}
@@ -528,15 +507,14 @@ export default function DashboardLayout({
         {showRightEdgeReveal ? <RightSidebarReveal /> : null}
         <PinnedPagesDock />
         <div
-          className={`dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] ${dashboardPaddingClass} transition-[margin-right] duration-300 ease-in-out`}
-          style={{ ...(impersonating ? { paddingTop: 136 } : {}), marginRight: chatOpen ? CHAT_PANEL_WIDTH : 0 }}
+          className={`dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] ${dashboardPaddingClass}`}
+          style={impersonating ? { paddingTop: 136 } : undefined}
         >
           <div className="mx-auto max-w-7xl">
             {renderDashboardTopBar({})}
             {children}
           </div>
         </div>
-        <ChatWidget open={chatOpen} onToggle={toggleChat} />
       </>
     );
   }
@@ -556,12 +534,11 @@ export default function DashboardLayout({
           </div>
         )}
         <div
-          className="dashboard-theme-scope min-h-screen bg-slate-100 transition-[margin-right] duration-300 ease-in-out"
-          style={{ ...(impersonating ? { paddingTop: 40 } : {}), marginRight: chatOpen ? CHAT_PANEL_WIDTH : 0 }}
+          className="dashboard-theme-scope min-h-screen bg-slate-100"
+          style={impersonating ? { paddingTop: 40 } : undefined}
         >
           {children}
         </div>
-        <ChatWidget open={chatOpen} onToggle={toggleChat} />
       </>
     );
   }
@@ -584,7 +561,7 @@ export default function DashboardLayout({
       {showSubjectRightSidebar ? <SubjectRightSidebar /> : null}
       {showRightEdgeReveal ? <RightSidebarReveal /> : null}
       {!isImmersiveLessonGroupRoute ? <PinnedPagesDock /> : null}
-      <div className="transition-[margin-right] duration-300 ease-in-out" style={{ ...(impersonating ? { paddingTop: 40 } : {}), marginRight: chatOpen ? CHAT_PANEL_WIDTH : 0 }}>
+      <div style={impersonating ? { paddingTop: 40 } : undefined}>
       {isStandaloneTeacherRoute ||
       isAllStudentsStandaloneRoute ||
       isGlobalStudentProfileRoute ||
@@ -600,6 +577,7 @@ export default function DashboardLayout({
       isLessonsRoute ||
       isMindUpgradeRoute ||
       isAnnouncementsRoute ||
+      isChatRoute ||
       isReportsRoute ||
       isSettingsRoute ? (
         <div className={`dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] ${dashboardPaddingClass}`}>
@@ -809,7 +787,6 @@ export default function DashboardLayout({
         }
       `}</style>
       </div>
-      <ChatWidget open={chatOpen} onToggle={toggleChat} />
     </>
   );
 }
