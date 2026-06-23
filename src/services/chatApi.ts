@@ -98,10 +98,7 @@ export const sendMessage = async (
 
   const response = await api.post(
     `/chat/conversations/${conversationId}/messages`,
-    payload,
-    file
-      ? { headers: { "Content-Type": "multipart/form-data" } }
-      : undefined
+    payload
   );
   return response.data?.data;
 };
