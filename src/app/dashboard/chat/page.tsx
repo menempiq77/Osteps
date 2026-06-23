@@ -7,6 +7,8 @@ import {
   fetchConversations,
   fetchMessages,
   sendMessage,
+  editMessage,
+  deleteMessage,
   markConversationRead,
   fetchUnreadCount,
   fetchChatUsers,
@@ -156,6 +158,10 @@ export default function ChatPage() {
   const [groupName, setGroupName] = useState("");
   const [searchingUsers, setSearchingUsers] = useState(false);
   const [filterUnread, setFilterUnread] = useState(false);
+  const [editingMessage, setEditingMessage] = useState<{ id: number; body: string } | null>(null);
+  const [messageMenuId, setMessageMenuId] = useState<number | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const editInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -292,6 +298,35 @@ export default function ChatPage() {
       showNotif("Failed to send message");
     } finally {
       setSendingMsg(false);
+    }
+  };
+
+  const handleEditMessage = async () => {
+    if (!editingMessage || !activeConversation) return;
+    const newBody = editingMessage.body.trim();
+    if (!newBody) return;
+    try {
+      await editMessage(activeConversation.id, editingMessage.id, newBody);
+      setMessages((prev) =>
+        prev.map((m) => (m.id === editingMessage.id ? { ...m, body: newBody } : m))
+      );
+      setEditingMessage(null);
+    } catch (err) {
+      console.error("[Chat] edit error:", err);
+      showNotif("Failed to edit message");
+    }
+  };
+
+  const handleDeleteMessage = async (msgId: number) => {
+    if (!activeConversation) return;
+    try {
+      await deleteMessage(activeConversation.id, msgId);
+      setMessages((prev) => prev.filter((m) => m.id !== msgId));
+      setDeleteConfirmId(null);
+      setMessageMenuId(null);
+    } catch (err) {
+      console.error("[Chat] delete error:", err);
+      showNotif("Failed to delete message");
     }
   };
 
@@ -843,9 +878,12 @@ export default function ChatPage() {
                     )}
 
                     {/* Message */}
-                    <div className={`flex items-start gap-3 ${showSender ? "mt-4" : "mt-0.5"} group`}>
+                    <div
+                      className={`flex items-start gap-3 ${showSender ? "mt-4" : "mt-0.5"} group relative rounded-md px-1 -mx-1 hover:bg-gray-100/60 transition`}
+                      onMouseLeave={() => { if (messageMenuId === msg.id) setMessageMenuId(null); }}
+                    >
                       {/* Avatar column */}
-                      <div className="w-8 shrink-0">
+                      <div className="w-8 shrink-0 pt-0.5">
                         {showSender && (
                           <div className={`flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-semibold text-white ${getAvatarColor(msg.sender_id)}`}>
                             {getInitials(msg.sender_name)}
@@ -893,12 +931,29 @@ export default function ChatPage() {
                           )
                         )}
 
-                        {/* Message text */}
-                        {msg.body && (
+                        {/* Message text — editable or static */}
+                        {editingMessage?.id === msg.id ? (
+                          <div className="flex items-center gap-2 py-1">
+                            <input
+                              ref={editInputRef}
+                              type="text"
+                              value={editingMessage.body}
+                              onChange={(e) => setEditingMessage({ ...editingMessage, body: e.target.value })}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") { e.preventDefault(); handleEditMessage(); }
+                                if (e.key === "Escape") setEditingMessage(null);
+                              }}
+                              className="flex-1 rounded-md border border-[#6264A7] px-2 py-1 text-[13px] text-gray-800 outline-none focus:ring-1 focus:ring-[#6264A7]"
+                              autoFocus
+                            />
+                            <button onClick={handleEditMessage} className="text-[#6264A7] hover:text-[#525499] text-xs font-medium">Save</button>
+                            <button onClick={() => setEditingMessage(null)} className="text-gray-400 hover:text-gray-600 text-xs">Cancel</button>
+                          </div>
+                        ) : msg.body ? (
                           <p className="text-[13px] text-gray-800 whitespace-pre-wrap break-words leading-relaxed">
                             {msg.body}
                           </p>
-                        )}
+                        ) : null}
 
                         {/* Timestamp for non-first messages (shown on hover) */}
                         {!showSender && (
@@ -917,7 +972,48 @@ export default function ChatPage() {
                             <span className="text-[10px] text-[#6264A7] font-medium">Seen</span>
                           </div>
                         )}
+
+                        {/* Delete confirmation */}
+                        {deleteConfirmId === msg.id && (
+                          <div className="mt-1 flex items-center gap-2 rounded-md bg-red-50 border border-red-200 px-3 py-1.5">
+                            <span className="text-xs text-red-700">Delete this message?</span>
+                            <button onClick={() => handleDeleteMessage(msg.id)} className="text-xs font-medium text-red-600 hover:text-red-800">Delete</button>
+                            <button onClick={() => setDeleteConfirmId(null)} className="text-xs text-gray-500 hover:text-gray-700">Cancel</button>
+                          </div>
+                        )}
                       </div>
+
+                      {/* Hover actions — own messages only */}
+                      {isMe && editingMessage?.id !== msg.id && deleteConfirmId !== msg.id && (
+                        <div className="absolute right-1 top-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition">
+                          <button
+                            onClick={() => {
+                              setMessageMenuId(null);
+                              setEditingMessage({ id: msg.id, body: msg.body || "" });
+                            }}
+                            className="flex h-7 w-7 items-center justify-center rounded-md text-gray-400 hover:text-[#6264A7] hover:bg-white transition"
+                            title="Edit"
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => {
+                              setMessageMenuId(null);
+                              setDeleteConfirmId(msg.id);
+                            }}
+                            className="flex h-7 w-7 items-center justify-center rounded-md text-gray-400 hover:text-red-500 hover:bg-white transition"
+                            title="Delete"
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="3 6 5 6 21 6" />
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </React.Fragment>
                 );

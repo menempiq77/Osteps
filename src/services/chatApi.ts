@@ -87,20 +87,45 @@ export const sendMessage = async (
   file?: File
 ): Promise<ChatMessage> => {
   const trimmed = body.trim();
-  const payload = file
-    ? (() => {
-        const formData = new FormData();
-        if (trimmed) formData.append("body", trimmed);
-        formData.append("file", file);
-        return formData;
-      })()
-    : { body: trimmed };
-
+  if (file) {
+    const formData = new FormData();
+    if (trimmed) formData.append("body", trimmed);
+    formData.append("file", file, file.name);
+    const response = await api.post(
+      `/chat/conversations/${conversationId}/messages`,
+      formData,
+      { headers: { "Content-Type": "multipart/form-data" } }
+    );
+    return response.data?.data;
+  }
   const response = await api.post(
     `/chat/conversations/${conversationId}/messages`,
-    payload
+    { body: trimmed }
   );
   return response.data?.data;
+};
+
+// Edit a message
+export const editMessage = async (
+  conversationId: number,
+  messageId: number,
+  body: string
+): Promise<ChatMessage> => {
+  const response = await api.put(
+    `/chat/conversations/${conversationId}/messages/${messageId}`,
+    { body }
+  );
+  return response.data?.data;
+};
+
+// Delete a message
+export const deleteMessage = async (
+  conversationId: number,
+  messageId: number
+): Promise<void> => {
+  await api.delete(
+    `/chat/conversations/${conversationId}/messages/${messageId}`
+  );
 };
 
 // Mark a conversation as read
