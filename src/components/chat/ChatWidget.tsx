@@ -138,6 +138,37 @@ export default function ChatWidget() {
     return true;
   }, [chatSettings, userRole]);
 
+  const canChatWith = useCallback(
+    (otherRole: string) => {
+      if (!chatSettings) return true;
+      const myRole = userRole.toUpperCase();
+      const other = otherRole.toUpperCase();
+      const isStudent = (r: string) => r === "STUDENT";
+      const isTeacher = (r: string) => r === "TEACHER" || r === "HOD";
+
+      if (isStudent(myRole) && isStudent(other)) return chatSettings.student_student_chat;
+      if (isTeacher(myRole) && isStudent(other)) return chatSettings.teacher_student_chat;
+      if (isStudent(myRole) && isTeacher(other)) return chatSettings.teacher_student_chat;
+      if (isTeacher(myRole) && isTeacher(other)) return chatSettings.teacher_teacher_chat;
+      return true;
+    },
+    [chatSettings, userRole]
+  );
+
+  const allowedConversations = useMemo(() => {
+    return conversations.filter((conv) => {
+      if (conv.type === "direct") {
+        const other = conv.participants.find((p) => p.id !== userId);
+        return !other || canChatWith(other.role);
+      }
+      return conv.participants.every((p) => p.id === userId || canChatWith(p.role));
+    });
+  }, [conversations, canChatWith, userId]);
+
+  const allowedUsers = useMemo(() => {
+    return availableUsers.filter((u) => u.id !== userId && canChatWith(u.role));
+  }, [availableUsers, canChatWith, userId]);
+
   useEffect(() => {
     fetchChatSettings().then(setChatSettings).catch(() => {});
   }, []);
@@ -556,11 +587,11 @@ export default function ChatWidget() {
             {/* Conversation List */}
             {view === "list" && (
               <div className="flex-1 overflow-y-auto">
-                {loading && conversations.length === 0 ? (
+                {loading && allowedConversations.length === 0 ? (
                   <div className="flex items-center justify-center h-full">
                     <div className="text-sm text-gray-400">Loading...</div>
                   </div>
-                ) : conversations.length === 0 ? (
+                ) : allowedConversations.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full px-6 text-center">
                     <div className="text-4xl mb-2">💬</div>
                     <p className="text-sm text-gray-500">No conversations yet</p>
@@ -572,7 +603,7 @@ export default function ChatWidget() {
                     </button>
                   </div>
                 ) : (
-                  conversations.map((conv) => (
+                  allowedConversations.map((conv) => (
                     <button
                       key={conv.id}
                       onClick={() => handleOpenConversation(conv)}
@@ -828,12 +859,12 @@ export default function ChatWidget() {
                     <div className="flex items-center justify-center py-8">
                       <span className="text-sm text-gray-400">Searching...</span>
                     </div>
-                  ) : availableUsers.length === 0 ? (
+                  ) : allowedUsers.length === 0 ? (
                     <div className="flex items-center justify-center py-8">
                       <span className="text-sm text-gray-400">No users found</span>
                     </div>
                   ) : (
-                    availableUsers.map((user) => {
+                    allowedUsers.map((user) => {
                       const isSelected = selectedUsers.some((u) => u.id === user.id);
                       return (
                         <button

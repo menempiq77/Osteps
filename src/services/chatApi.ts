@@ -50,6 +50,9 @@ export interface ChatSettings {
   hod_can_chat: boolean;
   admin_can_chat: boolean;
   super_admin_can_chat: boolean;
+  teacher_student_chat: boolean;
+  student_student_chat: boolean;
+  teacher_teacher_chat: boolean;
 }
 
 // Fetch all conversations for the current user
@@ -136,6 +139,9 @@ export const fetchChatSettings = async (): Promise<ChatSettings> => {
       hod_can_chat: true,
       admin_can_chat: true,
       super_admin_can_chat: true,
+      teacher_student_chat: true,
+      student_student_chat: true,
+      teacher_teacher_chat: true,
     }
   );
 };

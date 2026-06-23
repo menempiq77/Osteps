@@ -22,6 +22,9 @@ const TeacherSettings = () => {
     hod_can_chat: true,
     admin_can_chat: true,
     super_admin_can_chat: true,
+    teacher_student_chat: true,
+    student_student_chat: true,
+    teacher_teacher_chat: true,
   });
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const dispatch = useDispatch<AppDispatch>();
@@ -341,6 +344,9 @@ const TeacherSettings = () => {
               { key: "hod_can_chat", label: "HODs can chat" },
               { key: "admin_can_chat", label: "Admins / School admins can chat" },
               { key: "super_admin_can_chat", label: "Super admins can chat" },
+              { key: "teacher_student_chat", label: "Teachers can chat with students" },
+              { key: "student_student_chat", label: "Students can chat with each other" },
+              { key: "teacher_teacher_chat", label: "Teachers can chat with each other" },
             ].map(({ key, label }) => (
               <div key={key} className="flex items-center justify-between py-2 border-b border-gray-100">
                 <span className="text-sm text-gray-700">{label}</span>
