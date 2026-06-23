@@ -14,6 +14,7 @@ import {
   CalendarDays,
   Library,
   Megaphone,
+  MessageCircle,
   MoreVertical,
   Settings,
   Star,
@@ -470,6 +471,14 @@ export default function FavoriteSidebar() {
         section: "Communication",
         icon: Megaphone,
         href: "/dashboard/announcements",
+        kind: "link",
+      },
+      {
+        id: "fixed-chat",
+        name: "Chat",
+        section: "Communication",
+        icon: MessageCircle,
+        href: "/dashboard/chat",
         kind: "link",
       },
     ];
