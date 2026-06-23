@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import {
@@ -14,6 +14,7 @@ import {
   Conversation,
   ChatMessage,
   ChatUser,
+  ChatParticipant,
 } from "@/services/chatApi";
 
 const POLL_INTERVAL = 10000;
@@ -98,6 +99,7 @@ export default function ChatWidget() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [activeParticipants, setActiveParticipants] = useState<ChatParticipant[]>([]);
   const [messageInput, setMessageInput] = useState("");
   const [unreadTotal, setUnreadTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -169,6 +171,7 @@ export default function ChatWidget() {
         const res = await fetchMessages(convId);
         const loaded = res.data.reverse();
         setMessages(loaded);
+        setActiveParticipants(res.participants ?? []);
         saveMessages(convId, loaded);
         await markConversationRead(convId);
         fetchUnreadCount().then(setUnreadTotal).catch(() => {});
@@ -188,6 +191,7 @@ export default function ChatWidget() {
           const res = await fetchMessages(activeConversation.id);
           const loaded = res.data.reverse();
           setMessages(loaded);
+          setActiveParticipants(res.participants ?? []);
           saveMessages(activeConversation.id, loaded);
           await markConversationRead(activeConversation.id);
           fetchUnreadCount().then(setUnreadTotal).catch(() => {});
@@ -347,6 +351,7 @@ export default function ChatWidget() {
       setView("list");
       setActiveConversation(null);
       setMessages([]);
+      setActiveParticipants([]);
       setSelectedUsers([]);
       setGroupName("");
       setSearchUsers("");
@@ -354,6 +359,35 @@ export default function ChatWidget() {
       loadConversations();
     }
   };
+
+  const otherParticipant = useMemo(() => {
+    if (activeConversation?.type === "direct") {
+      return activeConversation.participants.find((p) => p.id !== userId) || null;
+    }
+    return null;
+  }, [activeConversation, userId]);
+
+  const onlineParticipants = useMemo(() => {
+    return activeParticipants.filter((p) => {
+      if (!p.last_seen_at) return false;
+      return Date.now() - new Date(p.last_seen_at).getTime() < 2 * 60 * 1000;
+    });
+  }, [activeParticipants]);
+
+  const lastOwnMessageSeen = useMemo(() => {
+    const lastMsg = messages[messages.length - 1];
+    if (!lastMsg || lastMsg.sender_id !== userId) return false;
+    if (activeConversation?.type === "group") {
+      const others = activeParticipants.filter((p) => p.id !== userId);
+      if (others.length === 0) return false;
+      const lastRead = Math.max(
+        ...others.map((p) => (p.last_read_at ? new Date(p.last_read_at).getTime() : 0))
+      );
+      return lastRead >= new Date(lastMsg.created_at).getTime();
+    }
+    if (!otherParticipant?.last_read_at) return false;
+    return new Date(otherParticipant.last_read_at) >= new Date(lastMsg.created_at);
+  }, [messages, userId, activeParticipants, activeConversation, otherParticipant]);
 
   const formatTime = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -447,6 +481,12 @@ export default function ChatWidget() {
                   {activeConversation.participants.map((p) => p.name).join(", ")}
                 </p>
               )}
+              {view === "chat" && activeConversation?.type === "direct" && (
+                <p className="text-[10px] text-white/60 flex items-center gap-1">
+                  <span className={`inline-block h-1.5 w-1.5 rounded-full ${onlineParticipants.length > 0 ? "bg-green-400" : "bg-gray-400"}`} />
+                  {onlineParticipants.length > 0 ? "Online" : "Offline"}
+                </p>
+              )}
             </div>
             {view === "list" && (
               <button
@@ -509,8 +549,21 @@ export default function ChatWidget() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
-                          <span className="text-sm font-semibold text-gray-900 truncate">
-                            {conv.name}
+                          <span className="flex items-center gap-1.5 min-w-0">
+                            <span className="text-sm font-semibold text-gray-900 truncate">
+                              {conv.name}
+                            </span>
+                            {conv.type === "direct" && (
+                              <span
+                                className={`inline-block h-2 w-2 rounded-full ${
+                                  conv.participants[0]?.last_seen_at &&
+                                  Date.now() - new Date(conv.participants[0].last_seen_at).getTime() < 2 * 60 * 1000
+                                    ? "bg-green-500"
+                                    : "bg-gray-300"
+                                }`}
+                                title={conv.participants[0]?.last_seen_at ? "Online" : "Offline"}
+                              />
+                            )}
                           </span>
                           {conv.last_message && (
                             <span className="text-[10px] text-gray-400 shrink-0 ml-2">
@@ -589,6 +642,15 @@ export default function ChatWidget() {
                           >
                             {formatTime(msg.created_at)}
                           </p>
+                          {isMe && msg.id === messages[messages.length - 1]?.id && lastOwnMessageSeen && (
+                            <p className="text-[10px] mt-0.5 text-right text-white/60 flex items-center justify-end gap-0.5">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                <circle cx="12" cy="12" r="3" />
+                              </svg>
+                              Seen
+                            </p>
+                          )}
                         </div>
                       </div>
                     );

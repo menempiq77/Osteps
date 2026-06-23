@@ -7,6 +7,14 @@ export interface ChatUser {
   role: string;
 }
 
+export interface ChatParticipant {
+  id: number;
+  name: string;
+  role: string;
+  last_read_at?: string;
+  last_seen_at?: string;
+}
+
 export interface ChatMessage {
   id: number;
   body: string;
@@ -30,7 +38,7 @@ export interface Conversation {
   id: number;
   type: "direct" | "group";
   name: string;
-  participants: { id: number; name: string; role: string }[];
+  participants: ChatParticipant[];
   last_message: ConversationLastMessage | null;
   unread_count: number;
   updated_at: string;
@@ -56,7 +64,7 @@ export const createConversation = async (data: {
 export const fetchMessages = async (
   conversationId: number,
   page?: number
-): Promise<{ data: ChatMessage[]; has_more: boolean; next_page: number }> => {
+): Promise<{ data: ChatMessage[]; has_more: boolean; next_page: number; participants: ChatParticipant[] }> => {
   const response = await api.get(
     `/chat/conversations/${conversationId}/messages`,
     { params: page ? { page } : {} }
