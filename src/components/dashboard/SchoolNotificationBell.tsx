@@ -172,7 +172,7 @@ export default function SchoolNotificationBell() {
         title="Notifications"
       >
         <Badge count={unread} size="small" offset={[2, -2]}>
-          <BellOutlined style={{ fontSize: 16, color: "#fff" }} />
+          <BellOutlined style={{ fontSize: 16, color: "#FBBF24" }} />
         </Badge>
       </button>
     </Popover>

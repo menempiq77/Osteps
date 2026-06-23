@@ -94,9 +94,8 @@ const loadCachedMessages = (convId: number): ChatMessage[] => {
   }
 };
 
-export default function ChatWidget() {
+export default function ChatWidget({ open, onToggle }: { open: boolean; onToggle: () => void }) {
   const { currentUser } = useSelector((state: RootState) => state.auth);
-  const [open, setOpen] = useState(true);
   const [view, setView] = useState<"list" | "chat" | "new">("list");
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
@@ -448,43 +447,11 @@ export default function ChatWidget() {
 
   return (
     <>
-      {/* Floating Chat Button */}
-      <button
-        onClick={() => {
-          if (typeof window !== "undefined" && Notification.permission === "default") {
-            Notification.requestPermission();
-          }
-          setOpen(!open);
-        }}
-        className="fixed bottom-6 left-6 z-[1000] flex h-14 w-14 items-center justify-center rounded-full bg-[var(--primary,#38C16C)] text-white shadow-lg transition-all hover:scale-105 active:scale-95"
-        title="Chat"
-        style={{ boxShadow: "0 4px 20px rgba(0,0,0,0.25)" }}
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-        </svg>
-        {unreadTotal > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-            {unreadTotal > 99 ? "99+" : unreadTotal}
-          </span>
-        )}
-      </button>
-
       {/* Chat Panel */}
       {open && (
         <div
-          className="fixed top-0 right-0 z-[1001] flex flex-col overflow-hidden bg-white shadow-2xl border-l border-gray-200"
-          style={{ width: 400, height: "100vh" }}
+          className="fixed top-0 right-0 z-[899] flex flex-col overflow-hidden bg-white shadow-2xl border-l border-gray-200"
+          style={{ width: 380, height: "100vh" }}
         >
           {/* Header */}
           <div
@@ -536,7 +503,7 @@ export default function ChatWidget() {
               </button>
             )}
             <button
-              onClick={() => setOpen(false)}
+              onClick={onToggle}
               className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 hover:bg-white/20 transition"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
