@@ -229,17 +229,17 @@ export default function ChatWidget() {
       });
       playMessageSound("send");
       showNotification("Message sent");
-    } catch {
+    } catch (err) {
+      console.error("[Chat] send error:", err);
       setMessageInput(body);
       if (image) setPendingImage(image);
+      showNotification("Failed to send message");
     } finally {
       setSendingMsg(false);
     }
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const processImageFile = async (file: File) => {
     if (!file.type.startsWith("image/")) {
       showNotification("Please choose an image file");
       return;
@@ -253,8 +253,26 @@ export default function ChatWidget() {
       setPendingImage(dataUrl);
     } catch {
       showNotification("Failed to process image");
-    } finally {
-      e.target.value = "";
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await processImageFile(file);
+    e.target.value = "";
+  };
+
+  const handlePaste = async (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const items = e.clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.startsWith("image/")) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (file) await processImageFile(file);
+        break;
+      }
     }
   };
 
@@ -618,6 +636,7 @@ export default function ChatWidget() {
                       value={messageInput}
                       onChange={(e) => setMessageInput(e.target.value)}
                       onKeyDown={handleKeyDown}
+                      onPaste={handlePaste}
                       placeholder="Type a message..."
                       className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[var(--primary,#38C16C)] transition"
                       disabled={sendingMsg}
