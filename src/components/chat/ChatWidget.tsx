@@ -96,7 +96,7 @@ const loadCachedMessages = (convId: number): ChatMessage[] => {
 
 export default function ChatWidget() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   const [view, setView] = useState<"list" | "chat" | "new">("list");
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
@@ -483,8 +483,8 @@ export default function ChatWidget() {
       {/* Chat Panel */}
       {open && (
         <div
-          className="fixed bottom-24 left-6 z-[1001] flex flex-col overflow-hidden rounded-2xl bg-white shadow-2xl border border-gray-200"
-          style={{ width: 380, height: 520 }}
+          className="fixed top-0 right-0 z-[1001] flex flex-col overflow-hidden bg-white shadow-2xl border-l border-gray-200"
+          style={{ width: 400, height: "100vh" }}
         >
           {/* Header */}
           <div
