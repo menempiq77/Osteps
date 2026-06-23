@@ -28,6 +28,8 @@ export default function ChatWidget() {
   const [messageInput, setMessageInput] = useState("");
   const [unreadTotal, setUnreadTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [creatingChat, setCreatingChat] = useState(false);
+  const [chatError, setChatError] = useState("");
   const [sendingMsg, setSendingMsg] = useState(false);
   const [searchUsers, setSearchUsers] = useState("");
   const [availableUsers, setAvailableUsers] = useState<ChatUser[]>([]);
@@ -172,7 +174,8 @@ export default function ChatWidget() {
 
   const handleStartChat = async () => {
     if (selectedUsers.length === 0) return;
-    setLoading(true);
+    setCreatingChat(true);
+    setChatError("");
     try {
       const isGroup = selectedUsers.length > 1;
       const result = await createConversation({
@@ -181,7 +184,6 @@ export default function ChatWidget() {
         name: isGroup ? groupName || "Group Chat" : undefined,
       });
 
-      // Load the conversation
       const convs = await fetchConversations();
       setConversations(convs);
       const conv = convs.find((c) => c.id === result.id);
@@ -195,10 +197,12 @@ export default function ChatWidget() {
       setSelectedUsers([]);
       setGroupName("");
       setSearchUsers("");
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("[Chat] handleStartChat error:", err);
+      const msg = err instanceof Error ? err.message : "Failed to create chat";
+      setChatError(msg);
     } finally {
-      setLoading(false);
+      setCreatingChat(false);
     }
   };
 
@@ -210,6 +214,7 @@ export default function ChatWidget() {
       setSelectedUsers([]);
       setGroupName("");
       setSearchUsers("");
+      setChatError("");
       loadConversations();
     }
   };
@@ -583,12 +588,15 @@ export default function ChatWidget() {
                 {/* Start Chat Button */}
                 {selectedUsers.length > 0 && (
                   <div className="border-t border-gray-100 px-4 py-3">
+                    {chatError && (
+                      <p className="mb-2 text-xs text-red-500 text-center">{chatError}</p>
+                    )}
                     <button
                       onClick={handleStartChat}
-                      disabled={loading}
+                      disabled={creatingChat}
                       className="w-full rounded-xl bg-[var(--primary,#38C16C)] py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
                     >
-                      {loading
+                      {creatingChat
                         ? "Creating..."
                         : selectedUsers.length > 1
                         ? `Start Group Chat (${selectedUsers.length})`
