@@ -122,6 +122,7 @@ export default function ChatWidget() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const activePollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const prevUnreadRef = useRef(0);
 
   const userId = currentUser?.id ? Number(currentUser.id) : 0;
   const userRole = currentUser?.role || "";
@@ -146,16 +147,25 @@ export default function ChatWidget() {
     setTimeout(() => setNotification(null), 2000);
   }, []);
 
-  // Fetch unread count periodically
+  // Fetch unread count periodically and notify on new messages
   useEffect(() => {
     if (!currentUser) return;
-    const poll = () => {
-      fetchUnreadCount().then(setUnreadTotal).catch(() => {});
+    const poll = async () => {
+      const count = await fetchUnreadCount().catch(() => 0);
+      if (count > prevUnreadRef.current) {
+        playMessageSound("receive");
+        showNotification("New message");
+        if (typeof window !== "undefined" && Notification.permission === "granted") {
+          new Notification("New message", { body: "You have a new chat message" });
+        }
+      }
+      prevUnreadRef.current = count;
+      setUnreadTotal(count);
     };
     poll();
     const interval = setInterval(poll, POLL_INTERVAL);
     return () => clearInterval(interval);
-  }, [currentUser]);
+  }, [currentUser, showNotification]);
 
   // Fetch conversations when widget opens
   const loadConversations = useCallback(async () => {
@@ -440,7 +450,12 @@ export default function ChatWidget() {
     <>
       {/* Floating Chat Button */}
       <button
-        onClick={() => setOpen(!open)}
+        onClick={() => {
+          if (typeof window !== "undefined" && Notification.permission === "default") {
+            Notification.requestPermission();
+          }
+          setOpen(!open);
+        }}
         className="fixed bottom-6 left-6 z-[1000] flex h-14 w-14 items-center justify-center rounded-full bg-[var(--primary,#38C16C)] text-white shadow-lg transition-all hover:scale-105 active:scale-95"
         title="Chat"
         style={{ boxShadow: "0 4px 20px rgba(0,0,0,0.25)" }}
