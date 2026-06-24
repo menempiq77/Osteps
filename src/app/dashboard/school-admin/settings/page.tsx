@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { Tabs, Form, Input, Button, Upload, message, Breadcrumb } from "antd";
+import { Tabs, Form, Input, Button, Upload, message, Breadcrumb, Switch } from "antd";
 import { UploadOutlined } from "@ant-design/icons";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/store/store";
@@ -9,6 +9,7 @@ import {
   changePassword,
   updateSchoolAdminProfile,
 } from "@/services/settingApi";
+import { fetchChatSettings, updateChatSettings } from "@/services/chatApi";
 import Link from "next/link";
 
 const SchoolAdminSettings = () => {
@@ -18,6 +19,17 @@ const SchoolAdminSettings = () => {
   const [profileImage, setProfileImage] = React.useState([]);
   const [schoolLogo, setSchoolLogo] = React.useState([]);
   const [profileLoading, setProfileLoading] = React.useState(false);
+  const [chatSettingsLoading, setChatSettingsLoading] = React.useState(false);
+  const [chatSettings, setChatSettings] = React.useState({
+    students_can_chat: true,
+    teachers_can_chat: true,
+    hod_can_chat: true,
+    admin_can_chat: true,
+    super_admin_can_chat: true,
+    teacher_student_chat: true,
+    student_student_chat: true,
+    teacher_teacher_chat: true,
+  });
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const dispatch = useDispatch<AppDispatch>();
   const [messageApi, contextHolder] = message.useMessage();
@@ -36,6 +48,29 @@ const SchoolAdminSettings = () => {
       });
     }
   }, [currentUser, profileForm]);
+
+  React.useEffect(() => {
+    fetchChatSettings()
+      .then((data) => setChatSettings(data))
+      .catch(() => messageApi.error("Failed to load chat settings"));
+  }, [messageApi]);
+
+  const toggleChatSetting = (key: keyof typeof chatSettings) => {
+    setChatSettings((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const saveChatSettings = async () => {
+    try {
+      setChatSettingsLoading(true);
+      await updateChatSettings(chatSettings);
+      messageApi.success("Chat settings saved");
+    } catch (error) {
+      console.error("Chat settings save failed:", error);
+      messageApi.error("Failed to save chat settings");
+    } finally {
+      setChatSettingsLoading(false);
+    }
+  };
 
   const onProfileFinish = async (values) => {
     try {
@@ -357,6 +392,43 @@ const SchoolAdminSettings = () => {
               </Button>
             </Form.Item>
           </Form>
+        </div>
+      ),
+    },
+    {
+      key: "4",
+      label: "Chat",
+      children: (
+        <div className="w-full max-w-2xl px-2">
+          <h2 className="text-lg font-semibold mb-4">Chat Permissions</h2>
+          <div className="space-y-4 mb-6">
+            {[
+              { key: "students_can_chat", label: "Students can chat" },
+              { key: "teachers_can_chat", label: "Teachers can chat" },
+              { key: "hod_can_chat", label: "HODs can chat" },
+              { key: "admin_can_chat", label: "Admins / School admins can chat" },
+              { key: "super_admin_can_chat", label: "Super admins can chat" },
+              { key: "teacher_student_chat", label: "Teachers can chat with students" },
+              { key: "student_student_chat", label: "Students can chat with each other" },
+              { key: "teacher_teacher_chat", label: "Teachers can chat with each other" },
+            ].map(({ key, label }) => (
+              <div key={key} className="flex items-center justify-between py-2 border-b border-gray-100">
+                <span className="text-sm text-gray-700">{label}</span>
+                <Switch
+                  checked={chatSettings[key as keyof typeof chatSettings]}
+                  onChange={() => toggleChatSetting(key as keyof typeof chatSettings)}
+                />
+              </div>
+            ))}
+          </div>
+          <Button
+            type="primary"
+            loading={chatSettingsLoading}
+            onClick={saveChatSettings}
+            className="!bg-primary !border-primary hover:!bg-primary hover:!border-primary"
+          >
+            Save Chat Settings
+          </Button>
         </div>
       ),
     },
