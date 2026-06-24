@@ -16,11 +16,14 @@ import {
   fetchChatUsers,
   createConversation,
   fetchChatSettings,
+  fetchChatStatus,
+  updateChatStatus,
   Conversation,
   ChatMessage,
   ChatUser,
   ChatParticipant,
   ChatSettings,
+  ChatStatusType,
 } from "@/services/chatApi";
 
 const POLL_INTERVAL = 10000;
@@ -108,6 +111,25 @@ const getInitials = (name: string | undefined | null): string => {
     .toUpperCase();
 };
 
+const STATUS_OPTIONS: { value: ChatStatusType; label: string; color: string; icon: string }[] = [
+  { value: "available", label: "Available", color: "bg-green-500", icon: "✓" },
+  { value: "busy", label: "Busy", color: "bg-red-500", icon: "" },
+  { value: "dnd", label: "Do not disturb", color: "bg-red-600", icon: "−" },
+  { value: "brb", label: "Be right back", color: "bg-yellow-500", icon: "" },
+  { value: "away", label: "Appear away", color: "bg-yellow-500", icon: "" },
+  { value: "offline", label: "Appear offline", color: "bg-gray-400", icon: "×" },
+];
+
+const getStatusColor = (status?: string): string => {
+  const opt = STATUS_OPTIONS.find((s) => s.value === status);
+  return opt?.color || "bg-gray-400";
+};
+
+const getStatusLabel = (status?: string): string => {
+  const opt = STATUS_OPTIONS.find((s) => s.value === status);
+  return opt?.label || "Offline";
+};
+
 const avatarColors = [
   "bg-blue-600", "bg-purple-600", "bg-teal-600", "bg-orange-500",
   "bg-pink-600", "bg-indigo-600", "bg-emerald-600", "bg-rose-500",
@@ -165,6 +187,8 @@ export default function ChatPage() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [deleteConvId, setDeleteConvId] = useState<number | null>(null);
+  const [myStatus, setMyStatus] = useState<ChatStatusType>("available");
+  const [showStatusPicker, setShowStatusPicker] = useState(false);
   const editInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -189,7 +213,18 @@ export default function ChatPage() {
 
   useEffect(() => {
     fetchChatSettings().then(setChatSettings).catch(() => {});
+    fetchChatStatus().then((data) => setMyStatus(data.status)).catch(() => {});
   }, []);
+
+  const handleStatusChange = async (status: ChatStatusType) => {
+    setMyStatus(status);
+    setShowStatusPicker(false);
+    try {
+      await updateChatStatus(status);
+    } catch {
+      console.error("[Chat] failed to update status");
+    }
+  };
 
   const showNotif = useCallback((text: string) => {
     setNotification(text);
@@ -515,9 +550,16 @@ export default function ChatPage() {
     );
   }, [conversations, searchConversations, filterUnread]);
 
-  const isOnline = (participant: { last_seen_at?: string | null }) => {
-    if (!participant?.last_seen_at) return false;
-    return Date.now() - new Date(participant.last_seen_at).getTime() < 2 * 60 * 1000;
+  const getParticipantStatus = (participant: { last_seen_at?: string | null; chat_status?: string }): string => {
+    if (participant?.chat_status && participant.chat_status !== "available") return participant.chat_status;
+    if (!participant?.last_seen_at) return "offline";
+    const isRecent = Date.now() - new Date(participant.last_seen_at).getTime() < 2 * 60 * 1000;
+    return isRecent ? (participant.chat_status || "available") : "offline";
+  };
+
+  const isOnline = (participant: { last_seen_at?: string | null; chat_status?: string }) => {
+    const status = getParticipantStatus(participant);
+    return status !== "offline";
   };
 
   if (!currentUser) return null;
@@ -535,7 +577,41 @@ export default function ChatPage() {
       <div className="flex w-[300px] shrink-0 flex-col border-r border-gray-200 bg-[#f5f5f5]">
         {/* Top bar */}
         <div className="flex items-center justify-between px-4 pt-4 pb-2">
-          <h2 className="text-xl font-bold text-gray-900">Chat</h2>
+          <div className="relative">
+            <button
+              onClick={() => setShowStatusPicker(!showStatusPicker)}
+              className="flex items-center gap-2 group"
+            >
+              <h2 className="text-xl font-bold text-gray-900">Chat</h2>
+              <span className={`h-2.5 w-2.5 rounded-full ${getStatusColor(myStatus)}`} />
+              <span className="text-xs text-gray-500 group-hover:text-gray-700">{getStatusLabel(myStatus)}</span>
+            </button>
+            {showStatusPicker && (
+              <div className="absolute top-full left-0 z-50 mt-1 w-52 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+                {STATUS_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => handleStatusChange(opt.value)}
+                    className={`flex w-full items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 ${myStatus === opt.value ? "bg-gray-50 font-medium" : ""}`}
+                  >
+                    <span className={`h-3 w-3 rounded-full ${opt.color} flex items-center justify-center`}>
+                      {opt.icon && <span className="text-[8px] text-white font-bold">{opt.icon}</span>}
+                    </span>
+                    <span className="text-gray-700">{opt.label}</span>
+                  </button>
+                ))}
+                <div className="border-t border-gray-100 mt-1 pt-1">
+                  <button
+                    onClick={() => handleStatusChange("available")}
+                    className="flex w-full items-center gap-3 px-4 py-2 text-sm text-gray-500 hover:bg-gray-50"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 4v6h6" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>
+                    <span>Reset status</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
           <div className="flex items-center gap-1">
             <button
               onClick={() => {
@@ -618,7 +694,7 @@ export default function ChatPage() {
               const isActive = activeConversation?.id === conv.id;
               const otherP = conv.type === "direct" ? conv.participants.find((p) => p.id !== userId) : null;
               const displayName = conv.name || otherP?.name || "Chat";
-              const participantOnline = otherP ? isOnline(otherP) : false;
+              const otherStatus = otherP ? getParticipantStatus(otherP) : "offline";
               const convAvatarId = otherP?.id || conv.id;
 
               return (
@@ -646,9 +722,7 @@ export default function ChatPage() {
                         )}
                       </div>
                       {conv.type === "direct" && (
-                        <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#f5f5f5] ${
-                          participantOnline ? "bg-green-500" : "bg-gray-300"
-                        }`} />
+                        <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#f5f5f5] ${getStatusColor(otherStatus)}`} title={getStatusLabel(otherStatus)} />
                       )}
                     </div>
 
@@ -848,19 +922,17 @@ export default function ChatPage() {
                     getInitials(otherParticipant?.name || activeConversation.name)
                   )}
                 </div>
-                {activeConversation.type === "direct" && (
-                  <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white ${
-                    onlineParticipants.length > 0 ? "bg-green-500" : "bg-gray-300"
-                  }`} />
+                {activeConversation.type === "direct" && otherParticipant && (
+                  <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white ${getStatusColor(getParticipantStatus(otherParticipant))}`} title={getStatusLabel(getParticipantStatus(otherParticipant))} />
                 )}
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-sm font-semibold text-gray-900 truncate">
                   {activeConversation.name || "Chat"}
                 </h3>
-                {activeConversation.type === "direct" && (
+                {activeConversation.type === "direct" && otherParticipant && (
                   <p className="text-[12px] text-gray-500">
-                    {onlineParticipants.length > 0 ? "Active now" : "Offline"}
+                    {getStatusLabel(getParticipantStatus(otherParticipant))}
                   </p>
                 )}
                 {activeConversation.type === "group" && (

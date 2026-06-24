@@ -7,12 +7,15 @@ export interface ChatUser {
   role: string;
 }
 
+export type ChatStatusType = "available" | "busy" | "dnd" | "brb" | "away" | "offline";
+
 export interface ChatParticipant {
   id: number;
   name: string;
   role: string;
   last_read_at?: string;
   last_seen_at?: string;
+  chat_status?: ChatStatusType;
 }
 
 export interface ChatMessage {
@@ -179,5 +182,17 @@ export const updateChatSettings = async (
   data: ChatSettings
 ): Promise<ChatSettings> => {
   const response = await api.post("/chat/settings", data);
+  return response.data?.data;
+};
+
+// Get current user's chat status
+export const fetchChatStatus = async (): Promise<{ status: ChatStatusType; last_seen_at?: string }> => {
+  const response = await api.get("/chat/status");
+  return response.data?.data;
+};
+
+// Update current user's chat status
+export const updateChatStatus = async (status: ChatStatusType): Promise<{ status: ChatStatusType }> => {
+  const response = await api.post("/chat/status", { status });
   return response.data?.data;
 };
