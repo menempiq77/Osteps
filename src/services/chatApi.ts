@@ -131,6 +131,13 @@ export const deleteMessage = async (
   );
 };
 
+// Delete a conversation (leave it)
+export const deleteConversation = async (
+  conversationId: number
+): Promise<void> => {
+  await api.delete(`/chat/conversations/${conversationId}`);
+};
+
 // Mark a conversation as read
 export const markConversationRead = async (
   conversationId: number
