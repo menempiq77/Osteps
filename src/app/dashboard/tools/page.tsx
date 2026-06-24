@@ -2,16 +2,17 @@ import Link from "next/link";
 
 const tools = [
   {
+    name: "Live Polls",
+    description:
+      "Create interactive polls with multiple choice, word clouds, ratings and open text. Share via QR code and see live results instantly.",
+    href: "/dashboard/tools/live-polls",
+    status: "Ready",
+  },
+  {
     name: "Transcribe",
     description: "Convert audio or video into text with upload or URL input.",
     href: "/dashboard/tools/transcribe",
     status: "Ready",
-  },
-  {
-    name: "More tools",
-    description: "Add new tools here as they become available.",
-    href: "/dashboard/tools",
-    status: "Coming soon",
   },
 ];
 
