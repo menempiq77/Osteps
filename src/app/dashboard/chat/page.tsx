@@ -111,18 +111,18 @@ const getInitials = (name: string | undefined | null): string => {
     .toUpperCase();
 };
 
-const STATUS_OPTIONS: { value: ChatStatusType; label: string; color: string; icon: string }[] = [
-  { value: "available", label: "Available", color: "bg-green-500", icon: "✓" },
-  { value: "busy", label: "Busy", color: "bg-red-500", icon: "" },
-  { value: "dnd", label: "Do not disturb", color: "bg-red-600", icon: "−" },
-  { value: "brb", label: "Be right back", color: "bg-yellow-500", icon: "" },
-  { value: "away", label: "Appear away", color: "bg-yellow-500", icon: "" },
-  { value: "offline", label: "Appear offline", color: "bg-gray-400", icon: "×" },
+const STATUS_OPTIONS: { value: ChatStatusType; label: string; hex: string; icon: string }[] = [
+  { value: "available", label: "Available", hex: "#22c55e", icon: "✓" },
+  { value: "busy", label: "Busy", hex: "#ef4444", icon: "" },
+  { value: "dnd", label: "Do not disturb", hex: "#dc2626", icon: "−" },
+  { value: "brb", label: "Be right back", hex: "#f59e0b", icon: "⏱" },
+  { value: "away", label: "Appear away", hex: "#f59e0b", icon: "⏱" },
+  { value: "offline", label: "Appear offline", hex: "#9ca3af", icon: "×" },
 ];
 
-const getStatusColor = (status?: string): string => {
+const getStatusHex = (status?: string): string => {
   const opt = STATUS_OPTIONS.find((s) => s.value === status);
-  return opt?.color || "bg-gray-400";
+  return opt?.hex || "#9ca3af";
 };
 
 const getStatusLabel = (status?: string): string => {
@@ -583,7 +583,7 @@ export default function ChatPage() {
               className="flex items-center gap-2 group"
             >
               <h2 className="text-xl font-bold text-gray-900">Chat</h2>
-              <span className={`h-2.5 w-2.5 rounded-full ${getStatusColor(myStatus)}`} />
+              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: getStatusHex(myStatus) }} />
               <span className="text-xs text-gray-500 group-hover:text-gray-700">{getStatusLabel(myStatus)}</span>
             </button>
             {showStatusPicker && (
@@ -594,8 +594,8 @@ export default function ChatPage() {
                     onClick={() => handleStatusChange(opt.value)}
                     className={`flex w-full items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 ${myStatus === opt.value ? "bg-gray-50 font-medium" : ""}`}
                   >
-                    <span className={`h-3 w-3 rounded-full ${opt.color} flex items-center justify-center`}>
-                      {opt.icon && <span className="text-[8px] text-white font-bold">{opt.icon}</span>}
+                    <span className="h-3.5 w-3.5 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: opt.hex }}>
+                      {opt.icon && <span className="text-[9px] text-white font-bold leading-none">{opt.icon}</span>}
                     </span>
                     <span className="text-gray-700">{opt.label}</span>
                   </button>
@@ -722,7 +722,7 @@ export default function ChatPage() {
                         )}
                       </div>
                       {conv.type === "direct" && (
-                        <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#f5f5f5] ${getStatusColor(otherStatus)}`} title={getStatusLabel(otherStatus)} />
+                        <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#f5f5f5]" style={{ backgroundColor: getStatusHex(otherStatus) }} title={getStatusLabel(otherStatus)} />
                       )}
                     </div>
 
@@ -923,7 +923,7 @@ export default function ChatPage() {
                   )}
                 </div>
                 {activeConversation.type === "direct" && otherParticipant && (
-                  <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white ${getStatusColor(getParticipantStatus(otherParticipant))}`} title={getStatusLabel(getParticipantStatus(otherParticipant))} />
+                  <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white" style={{ backgroundColor: getStatusHex(getParticipantStatus(otherParticipant)) }} title={getStatusLabel(getParticipantStatus(otherParticipant))} />
                 )}
               </div>
               <div className="flex-1 min-w-0">
