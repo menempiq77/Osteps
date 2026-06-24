@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { useQuery } from "@tanstack/react-query";
+import { fetchUnreadCount } from "@/services/chatApi";
 import {
   Award,
   BarChart3,
@@ -486,9 +487,27 @@ export default function FavoriteSidebar() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSubjectId, roleKey, pathname]);
 
+  const [chatUnread, setChatUnread] = useState(0);
+
+  const pollUnread = useCallback(async () => {
+    try {
+      const count = await fetchUnreadCount();
+      setChatUnread(count);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    pollUnread();
+    const interval = setInterval(pollUnread, 15000);
+    return () => clearInterval(interval);
+  }, [pollUnread]);
+
   const renderItem = (entry: FavoriteEntry) => {
     const Icon = entry.icon;
     const accent = sidebarAccent[entry.section] || "#93c5fd";
+    const isChatEntry = entry.id === "fixed-chat";
     return (
       <button
         key={entry.id}
@@ -505,7 +524,14 @@ export default function FavoriteSidebar() {
           }`}
           style={{ backgroundColor: accent }}
         />
-        <Icon className="h-5 w-5" style={{ color: accent }} />
+        <span className="relative">
+          <Icon className="h-5 w-5" style={{ color: accent }} />
+          {isChatEntry && chatUnread > 0 && (
+            <span className="absolute -top-1.5 -right-2 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white shadow">
+              {chatUnread > 99 ? "99+" : chatUnread}
+            </span>
+          )}
+        </span>
         <span className="line-clamp-2 max-w-[56px] text-[9px] font-semibold leading-tight drop-shadow">
           {itemLabel(entry.name)}
         </span>
