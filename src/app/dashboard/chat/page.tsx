@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
+import ImageLightbox from "@/components/chat/ImageLightbox";
 import {
   fetchConversations,
   fetchMessages,
@@ -161,6 +162,7 @@ export default function ChatPage() {
   const [editingMessage, setEditingMessage] = useState<{ id: number; body: string } | null>(null);
   const [messageMenuId, setMessageMenuId] = useState<number | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -910,7 +912,8 @@ export default function ChatPage() {
                             <img
                               src={msg.file_url}
                               alt="Attachment"
-                              className="max-h-56 rounded-lg border border-gray-200 object-cover mb-1"
+                              className="max-h-56 rounded-lg border border-gray-200 object-cover mb-1 cursor-pointer hover:opacity-90 transition"
+                              onClick={() => setLightboxImage(msg.file_url!)}
                             />
                           ) : (
                             <a
@@ -1096,6 +1099,7 @@ export default function ChatPage() {
           </div>
         )}
       </div>
+      <ImageLightbox url={lightboxImage} onClose={() => setLightboxImage(null)} />
     </div>
   );
 }
