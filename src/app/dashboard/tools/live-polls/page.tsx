@@ -774,11 +774,11 @@ export default function LivePollsPage() {
                 {editingQ ? "Edit Question" : "Add Question"}
               </h3>
               <div className="space-y-3">
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   {(["multiple_choice", "word_cloud", "open_text", "rating"] as const).map((t) => (
                     <button
                       key={t}
-                      onClick={() => setQType(t)}
+                      onClick={() => { setQType(t); if (t === "multiple_choice") setQOptions(["", ""]); }}
                       className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                         qType === t
                           ? "bg-[#6264A7] text-white"
@@ -788,6 +788,26 @@ export default function LivePollsPage() {
                       {t === "multiple_choice" ? "Multiple Choice" : t === "word_cloud" ? "Word Cloud" : t === "open_text" ? "Open Text" : "Rating"}
                     </button>
                   ))}
+                  <button
+                    onClick={() => { setQType("multiple_choice"); setQOptions(["True", "False"]); }}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                      qType === "multiple_choice" && qOptions.length === 2 && qOptions[0] === "True" && qOptions[1] === "False"
+                        ? "bg-[#6264A7] text-white"
+                        : "bg-white border hover:bg-gray-100"
+                    }`}
+                  >
+                    True / False
+                  </button>
+                  <button
+                    onClick={() => { setQType("multiple_choice"); setQOptions(["Yes", "No"]); }}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                      qType === "multiple_choice" && qOptions.length === 2 && qOptions[0] === "Yes" && qOptions[1] === "No"
+                        ? "bg-[#6264A7] text-white"
+                        : "bg-white border hover:bg-gray-100"
+                    }`}
+                  >
+                    Yes / No
+                  </button>
                 </div>
                 <input
                   value={qText}
