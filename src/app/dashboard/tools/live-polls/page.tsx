@@ -44,9 +44,8 @@ const allowedRoles = new Set(["SCHOOL_ADMIN", "HOD", "TEACHER"]);
 type View = "list" | "create" | "edit" | "present" | "join" | "results";
 
 export default function LivePollsPage() {
-  const user = useSelector((state: RootState) => state.auth.user);
-  const role = String(user?.role ?? user?.user_type ?? "").toUpperCase().replace(/\s+/g, "_");
-  const canCreate = allowedRoles.has(role);
+  const currentUser = useSelector((state: RootState) => state.auth.currentUser);
+  const canCreate = !!currentUser && allowedRoles.has(currentUser.role);
 
   const [view, setView] = useState<View>("list");
   const [polls, setPolls] = useState<LivePoll[]>([]);
