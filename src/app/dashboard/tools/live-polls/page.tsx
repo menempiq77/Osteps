@@ -76,6 +76,9 @@ export default function LivePollsPage() {
   const [submitted, setSubmitted] = useState<Set<number>>(new Set());
   const [joinError, setJoinError] = useState("");
 
+  // Presenter navigation
+  const [presentQIndex, setPresentQIndex] = useState(0);
+
   // Results polling
   const resultsIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -99,6 +102,26 @@ export default function LivePollsPage() {
       if (resultsIntervalRef.current) clearInterval(resultsIntervalRef.current);
     };
   }, []);
+
+  // Keyboard navigation for presenter
+  useEffect(() => {
+    if (view !== "present" || !results) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight" || e.key === " ") {
+        e.preventDefault();
+        setPresentQIndex((i) => Math.min(results.questions.length - 1, i + 1));
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        setPresentQIndex((i) => Math.max(0, i - 1));
+      } else if (e.key === "Escape") {
+        stopResultsPolling();
+        setView("list");
+        loadPolls();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [view, results, loadPolls]);
 
   const handleCreatePoll = async () => {
     if (!newTitle.trim()) return;
@@ -219,6 +242,7 @@ export default function LivePollsPage() {
       setActivePoll(poll);
       const res = await fetchResults(pollId);
       setResults({ questions: res.questions, total_participants: res.total_participants });
+      setPresentQIndex(0);
       setView("present");
       startResultsPolling(pollId);
     } catch {
@@ -567,51 +591,201 @@ export default function LivePollsPage() {
   }
 
   if (view === "present" && activePoll && results) {
-    return (
-      <div className="min-h-screen bg-gray-900 text-white p-6">
-        <div className="mx-auto max-w-5xl">
-          <div className="flex items-start justify-between mb-8">
-            <div>
-              <h1 className="text-3xl font-bold">{activePoll.title}</h1>
-              <p className="text-gray-400 mt-1">
-                {results.total_participants} participant{results.total_participants !== 1 ? "s" : ""}
-              </p>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="text-center">
-                <QRCodeSVG value={pollUrl} size={100} bgColor="#1f2937" fgColor="#ffffff" />
-                <p className="text-xs text-gray-400 mt-1">Scan to join</p>
-              </div>
-              <div className="text-center">
-                <div className="rounded-lg bg-white px-4 py-2 text-2xl font-mono font-bold text-gray-900 tracking-widest">
-                  {activePoll.join_code}
-                </div>
-                <p className="text-xs text-gray-400 mt-1">Join code</p>
-              </div>
-              <button
-                onClick={() => { stopResultsPolling(); setView("list"); loadPolls(); }}
-                className="rounded-lg bg-gray-700 px-4 py-2 text-sm hover:bg-gray-600"
-              >
-                Exit
-              </button>
-            </div>
-          </div>
-          <div className="space-y-8">
-            {results.questions.map((q, i) => (
-              <div key={q.id} className="rounded-xl bg-gray-800 p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <h2 className="text-lg font-semibold">
-                    <span className="text-gray-500 mr-2">Q{i + 1}.</span>
-                    {q.question_text}
-                  </h2>
-                  <span className="shrink-0 rounded-full bg-gray-700 px-3 py-1 text-xs">
-                    {q.total_responses} response{q.total_responses !== 1 ? "s" : ""}
+    const totalQs = results.questions.length;
+    const currentQ = results.questions[presentQIndex];
+    const hasPrev = presentQIndex > 0;
+    const hasNext = presentQIndex < totalQs - 1;
+
+    const renderPresenterChart = (q: QuestionResult) => {
+      if (q.type === "multiple_choice") {
+        const data = Object.entries(q.results as Record<string, number>).map(
+          ([name, value], i) => ({ name, value, fill: CHART_COLORS[i % CHART_COLORS.length] })
+        );
+        const total = data.reduce((s, d) => s + d.value, 0);
+        return (
+          <div className="w-full">
+            <ResponsiveContainer width="100%" height={Math.max(300, data.length * 70)}>
+              <BarChart data={data} layout="vertical" margin={{ left: 30, right: 40, top: 10, bottom: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <XAxis type="number" allowDecimals={false} tick={{ fill: "#9CA3AF", fontSize: 16 }} />
+                <YAxis type="category" dataKey="name" width={160} tick={{ fill: "#E5E7EB", fontSize: 18 }} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: "#1F2937", border: "1px solid #374151", borderRadius: 8, color: "#fff" }}
+                  formatter={(v: number) => [`${v} vote${v !== 1 ? "s" : ""} (${total > 0 ? Math.round((v / total) * 100) : 0}%)`, ""]}
+                />
+                <Bar dataKey="value" radius={[0, 8, 8, 0]} barSize={40}>
+                  {data.map((_, i) => (
+                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+            <div className="mt-6 flex flex-wrap justify-center gap-6">
+              {data.map((d, i) => (
+                <div key={i} className="flex items-center gap-2 text-lg">
+                  <span className="inline-block h-4 w-4 rounded" style={{ backgroundColor: d.fill }} />
+                  <span className="font-semibold">{d.name}</span>
+                  <span className="text-gray-400">
+                    {d.value} ({total > 0 ? Math.round((d.value / total) * 100) : 0}%)
                   </span>
                 </div>
-                {renderQuestionResults(q)}
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
+        );
+      }
+
+      if (q.type === "word_cloud") {
+        const words = Object.entries(q.results as Record<string, number>).sort(
+          ([, a], [, b]) => b - a
+        );
+        const maxCount = words[0]?.[1] ?? 1;
+        return (
+          <div className="flex flex-wrap justify-center gap-4 py-8">
+            {words.length === 0 && <p className="text-gray-500 text-xl">Waiting for responses...</p>}
+            {words.map(([word, count], i) => {
+              const size = 20 + (count / maxCount) * 44;
+              return (
+                <span
+                  key={i}
+                  className="inline-block rounded-full px-5 py-2 font-bold text-white transition-all"
+                  style={{
+                    fontSize: size,
+                    backgroundColor: CHART_COLORS[i % CHART_COLORS.length],
+                  }}
+                >
+                  {word} ({count})
+                </span>
+              );
+            })}
+          </div>
+        );
+      }
+
+      if (q.type === "rating") {
+        const r = q.results as { average: number; distribution: Record<string, number> };
+        const data = Array.from({ length: 5 }, (_, i) => ({
+          name: `★ ${i + 1}`,
+          value: r.distribution[String(i + 1)] ?? 0,
+        }));
+        return (
+          <div>
+            <div className="mb-6 text-center">
+              <span className="text-7xl font-bold text-yellow-400">{r.average}</span>
+              <span className="text-gray-400 text-3xl"> / 5</span>
+              <div className="mt-2 text-2xl text-yellow-400">
+                {"★".repeat(Math.round(r.average))}{"☆".repeat(5 - Math.round(r.average))}
+              </div>
+            </div>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <XAxis dataKey="name" tick={{ fill: "#E5E7EB", fontSize: 18 }} />
+                <YAxis allowDecimals={false} tick={{ fill: "#9CA3AF", fontSize: 16 }} />
+                <Tooltip contentStyle={{ backgroundColor: "#1F2937", border: "1px solid #374151", borderRadius: 8, color: "#fff" }} />
+                <Bar dataKey="value" fill="#FBBF24" radius={[8, 8, 0, 0]} barSize={50} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        );
+      }
+
+      // open_text
+      const answers = q.results as string[];
+      return (
+        <div className="w-full max-h-[50vh] overflow-y-auto space-y-3 py-4">
+          {answers.length === 0 && <p className="text-gray-500 text-xl text-center">Waiting for responses...</p>}
+          {answers.map((a, i) => (
+            <div key={i} className="rounded-xl bg-gray-800 border border-gray-700 px-5 py-3 text-lg">
+              {a}
+            </div>
+          ))}
+        </div>
+      );
+    };
+
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col bg-gradient-to-b from-gray-900 via-gray-900 to-gray-950 text-white">
+        {/* Top bar */}
+        <div className="flex items-center justify-between px-6 py-3 bg-black/30">
+          <div className="flex items-center gap-4">
+            <QRCodeSVG value={pollUrl} size={56} bgColor="transparent" fgColor="#ffffff" />
+            <div>
+              <p className="text-sm text-gray-400">Join at <span className="text-white font-medium">{typeof window !== "undefined" ? window.location.host : ""}/dashboard/tools/live-polls</span></p>
+              <p className="text-lg font-mono font-bold tracking-[0.3em]">{activePoll.join_code}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 rounded-full bg-gray-800 px-4 py-1.5 text-sm">
+              <span className="inline-block h-2 w-2 rounded-full bg-green-400 animate-pulse" />
+              {results.total_participants} participant{results.total_participants !== 1 ? "s" : ""}
+            </div>
+            <span className="text-sm text-gray-500">
+              {presentQIndex + 1} / {totalQs}
+            </span>
+            <button
+              onClick={() => { stopResultsPolling(); setView("list"); loadPolls(); }}
+              className="rounded-lg bg-red-600/80 px-4 py-2 text-sm font-medium hover:bg-red-600 transition"
+            >
+              Exit
+            </button>
+          </div>
+        </div>
+
+        {/* Main content — single question */}
+        <div className="flex-1 flex flex-col items-center justify-center px-8 py-6 relative">
+          {/* Left arrow */}
+          <button
+            onClick={() => setPresentQIndex((i) => Math.max(0, i - 1))}
+            disabled={!hasPrev}
+            className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white hover:bg-white/20 disabled:opacity-20 disabled:hover:bg-white/10 transition"
+          >
+            <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+          </button>
+
+          {/* Right arrow */}
+          <button
+            onClick={() => setPresentQIndex((i) => Math.min(totalQs - 1, i + 1))}
+            disabled={!hasNext}
+            className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white hover:bg-white/20 disabled:opacity-20 disabled:hover:bg-white/10 transition"
+          >
+            <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+          </button>
+
+          {currentQ ? (
+            <div className="w-full max-w-4xl flex flex-col items-center">
+              {/* Question */}
+              <div className="text-center mb-8">
+                <span className="inline-block rounded-full bg-[#6264A7] px-4 py-1 text-sm font-medium mb-4">
+                  Question {presentQIndex + 1} of {totalQs} &middot; {currentQ.type.replace("_", " ")}
+                </span>
+                <h2 className="text-3xl md:text-4xl font-bold leading-tight">{currentQ.question_text}</h2>
+                <p className="text-gray-400 mt-3 text-lg">
+                  {currentQ.total_responses} response{currentQ.total_responses !== 1 ? "s" : ""}
+                </p>
+              </div>
+
+              {/* Results chart */}
+              <div className="w-full">
+                {renderPresenterChart(currentQ)}
+              </div>
+            </div>
+          ) : (
+            <div className="text-center text-gray-500 text-xl">No questions in this poll</div>
+          )}
+        </div>
+
+        {/* Bottom dots */}
+        <div className="flex justify-center gap-2 pb-4">
+          {results.questions.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setPresentQIndex(i)}
+              className={`h-3 w-3 rounded-full transition ${
+                i === presentQIndex ? "bg-[#6264A7] scale-125" : "bg-gray-600 hover:bg-gray-500"
+              }`}
+            />
+          ))}
         </div>
       </div>
     );
