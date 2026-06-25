@@ -60,6 +60,7 @@ export default function LivePollsPage() {
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [allowAnon, setAllowAnon] = useState(false);
+  const [createError, setCreateError] = useState("");
 
   // Question form
   const [qType, setQType] = useState<PollQuestion["type"]>("multiple_choice");
@@ -103,6 +104,7 @@ export default function LivePollsPage() {
   const handleCreatePoll = async () => {
     if (!newTitle.trim()) return;
     setLoading(true);
+    setCreateError("");
     try {
       const res = await createPoll({
         title: newTitle.trim(),
@@ -112,11 +114,13 @@ export default function LivePollsPage() {
       setNewTitle("");
       setNewDesc("");
       setAllowAnon(false);
+      setCreateError("");
       const poll = await fetchPoll(res.id);
       setActivePoll(poll);
       setView("edit");
-    } catch {
-      /* ignore */
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to create poll. Please try again.";
+      setCreateError(msg);
     }
     setLoading(false);
   };
@@ -917,6 +921,9 @@ export default function LivePollsPage() {
               >
                 {loading ? "Creating..." : "Create Poll"}
               </button>
+              {createError && (
+                <p className="text-sm text-red-600 mt-2">{createError}</p>
+              )}
             </div>
           </div>
         </div>
