@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { QRCodeSVG } from "qrcode.react";
@@ -735,7 +736,7 @@ export default function LivePollsPage() {
       );
     };
 
-    return (
+    return createPortal(
       <div className="fixed inset-0 z-[9999] flex flex-col bg-[#f5f5f0]">
         {/* Top bar - Mentimeter style: light with join instructions */}
         <div className="flex items-center justify-between px-6 py-2.5 bg-white border-b border-gray-200 shadow-sm">
@@ -879,7 +880,8 @@ export default function LivePollsPage() {
             />
           ))}
         </div>
-      </div>
+      </div>,
+      document.body
     );
   }
 
