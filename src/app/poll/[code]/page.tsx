@@ -35,30 +35,8 @@ interface PollData {
 type Phase = "loading" | "error" | "name" | "answering" | "done";
 type SyncMode = "follow" | "self";
 
-const ACCENT = "#6C63FF";
-const ACCENT_DARK = "#5A52E0";
-
-const TYPE_ICONS: Record<string, string> = {
-  multiple_choice: "A",
-  open_text: "T",
-  word_cloud: "W",
-  rating: "S",
-};
-
-const TYPE_LABELS: Record<string, string> = {
-  multiple_choice: "Choose one",
-  open_text: "Type your answer",
-  word_cloud: "Enter a word or phrase",
-  rating: "Rate from 1 to 5",
-};
-
 const OPTION_COLORS = [
-  "from-violet-500 to-indigo-600",
-  "from-emerald-500 to-teal-600",
-  "from-amber-500 to-orange-600",
-  "from-rose-500 to-pink-600",
-  "from-cyan-500 to-blue-600",
-  "from-fuchsia-500 to-purple-600",
+  "#4262FF", "#FF6B8A", "#1DB954", "#FF9F43", "#A55EEA", "#2BCBBA",
 ];
 
 export default function PublicPollPage() {
@@ -76,7 +54,7 @@ export default function PublicPollPage() {
   const [submitted, setSubmitted] = useState<Set<number>>(new Set());
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const [syncMode, setSyncMode] = useState<SyncMode>("follow");
+  const [syncMode, setSyncMode] = useState<SyncMode>("self");
   const [presenterIndex, setPresenterIndex] = useState(0);
   const syncRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -105,37 +83,26 @@ export default function PublicPollPage() {
         }
       }
     })();
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [code]);
 
-  const startPollSync = useCallback(
-    (pollId: number) => {
-      if (syncRef.current) clearInterval(syncRef.current);
-      syncRef.current = setInterval(async () => {
-        try {
-          const res = await fetch(`/api/live-polls/sync?pollId=${pollId}`);
-          const data = await res.json();
-          setPresenterIndex(data.questionIndex ?? 0);
-        } catch {
-          /* ignore */
-        }
-      }, 2500);
-    },
-    []
-  );
-
-  useEffect(() => {
-    return () => {
-      if (syncRef.current) clearInterval(syncRef.current);
-    };
+  const startPollSync = useCallback((pollId: number) => {
+    if (syncRef.current) clearInterval(syncRef.current);
+    syncRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/live-polls/sync?pollId=${pollId}`);
+        const data = await res.json();
+        setPresenterIndex(data.questionIndex ?? 0);
+      } catch { /* ignore */ }
+    }, 2500);
   }, []);
 
   useEffect(() => {
-    if (syncMode === "follow" && poll) {
-      setCurrentQIndex(presenterIndex);
-    }
+    return () => { if (syncRef.current) clearInterval(syncRef.current); };
+  }, []);
+
+  useEffect(() => {
+    if (syncMode === "follow" && poll) setCurrentQIndex(presenterIndex);
   }, [presenterIndex, syncMode, poll]);
 
   const handleStart = () => {
@@ -159,9 +126,7 @@ export default function PublicPollPage() {
       if (syncMode === "self" && currentQIndex < poll.questions.length - 1) {
         setTimeout(() => setCurrentQIndex((i) => i + 1), 600);
       }
-    } catch {
-      /* ignore */
-    }
+    } catch { /* ignore */ }
     setSubmitting(false);
   };
 
@@ -174,125 +139,115 @@ export default function PublicPollPage() {
     }
   }, [allDone, phase]);
 
-  // Loading
   if (phase === "loading") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900">
+      <div className="flex min-h-screen items-center justify-center bg-[#f5f5f0]">
         <div className="flex flex-col items-center gap-4">
-          <div className="h-12 w-12 animate-spin rounded-full border-4 border-indigo-400/30 border-t-indigo-400" />
-          <p className="text-sm text-indigo-200/70">Loading poll...</p>
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#4262FF]/20 border-t-[#4262FF]" />
+          <p className="text-sm text-gray-500">Loading poll...</p>
         </div>
       </div>
     );
   }
 
-  // Error
   if (phase === "error") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 px-4">
-        <div className="w-full max-w-md rounded-3xl border border-white/10 bg-white/5 p-10 text-center backdrop-blur-xl">
-          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-red-500/10 text-3xl text-red-400">
-            !
-          </div>
-          <h1 className="text-xl font-bold text-white">Oops!</h1>
-          <p className="mt-2 text-sm text-indigo-200/70">{errorMsg}</p>
+      <div className="flex min-h-screen items-center justify-center bg-[#f5f5f0] px-4">
+        <div className="w-full max-w-sm rounded-2xl bg-white p-8 text-center shadow-sm">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-50 text-2xl text-red-500">!</div>
+          <h1 className="text-lg font-bold text-gray-900">Something went wrong</h1>
+          <p className="mt-2 text-sm text-gray-500">{errorMsg}</p>
         </div>
       </div>
     );
   }
 
-  // Name entry
   if (phase === "name" && poll) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 px-4">
-        <div className="w-full max-w-md">
-          <div className="mb-6 text-center">
-            <div
-              className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl text-2xl font-bold text-white"
-              style={{ background: `linear-gradient(135deg, ${ACCENT}, #a855f7)` }}
-            >
-              LP
-            </div>
-            <h1 className="text-2xl font-bold text-white">{poll.title}</h1>
-            {poll.description && (
-              <p className="mt-2 text-sm text-indigo-200/60">{poll.description}</p>
-            )}
-            <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs text-indigo-200/70">
-              <span className="inline-block h-2 w-2 rounded-full bg-green-400 animate-pulse" />
-              {poll.questions.length} question{poll.questions.length !== 1 ? "s" : ""}
-            </div>
-          </div>
-
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur-xl">
-            <div className="mb-6">
-              <label className="mb-2 block text-sm font-medium text-indigo-200/80">
-                Your name {poll.allow_anonymous && <span className="text-indigo-200/40">(optional)</span>}
-              </label>
-              <input
-                value={participantName}
-                onChange={(e) => setParticipantName(e.target.value)}
-                placeholder="Enter your name..."
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder-indigo-200/30 outline-none transition focus:border-indigo-400/50 focus:ring-2 focus:ring-indigo-400/20"
-              />
-            </div>
-
-            <div className="mb-6">
-              <label className="mb-3 block text-sm font-medium text-indigo-200/80">How do you want to answer?</label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => setSyncMode("follow")}
-                  className={`rounded-xl border p-4 text-left transition ${
-                    syncMode === "follow"
-                      ? "border-indigo-400 bg-indigo-500/20 text-white"
-                      : "border-white/10 bg-white/5 text-indigo-200/60 hover:border-white/20"
-                  }`}
-                >
-                  <div className="mb-1 text-lg">&#x1F4E1;</div>
-                  <div className="text-sm font-semibold">Follow presenter</div>
-                  <div className="mt-1 text-xs opacity-60">Questions change together</div>
-                </button>
-                <button
-                  onClick={() => setSyncMode("self")}
-                  className={`rounded-xl border p-4 text-left transition ${
-                    syncMode === "self"
-                      ? "border-indigo-400 bg-indigo-500/20 text-white"
-                      : "border-white/10 bg-white/5 text-indigo-200/60 hover:border-white/20"
-                  }`}
-                >
-                  <div className="mb-1 text-lg">&#x1F3C3;</div>
-                  <div className="text-sm font-semibold">My own pace</div>
-                  <div className="mt-1 text-xs opacity-60">Answer freely</div>
-                </button>
+      <div className="flex min-h-screen flex-col bg-[#f5f5f0]">
+        <div className="flex flex-1 items-center justify-center px-4 py-8">
+          <div className="w-full max-w-md">
+            <div className="mb-8 text-center">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[#4262FF] text-xl font-bold text-white">
+                O
+              </div>
+              <h1 className="text-2xl font-bold text-gray-900">{poll.title}</h1>
+              {poll.description && (
+                <p className="mt-2 text-sm text-gray-500">{poll.description}</p>
+              )}
+              <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1 text-xs font-medium text-green-700">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-green-500" />
+                {poll.questions.length} question{poll.questions.length !== 1 ? "s" : ""}
               </div>
             </div>
 
-            <button
-              onClick={handleStart}
-              disabled={!poll.allow_anonymous && !participantName.trim()}
-              className="w-full rounded-xl px-6 py-3.5 text-sm font-bold text-white shadow-lg transition hover:opacity-90 disabled:opacity-40"
-              style={{ background: `linear-gradient(135deg, ${ACCENT}, #a855f7)` }}
-            >
-              Join Poll
-            </button>
+            <div className="rounded-2xl bg-white p-6 shadow-sm">
+              <div className="mb-5">
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                  Your name {poll.allow_anonymous && <span className="text-gray-400">(optional)</span>}
+                </label>
+                <input
+                  value={participantName}
+                  onChange={(e) => setParticipantName(e.target.value)}
+                  placeholder="Enter your name..."
+                  className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none transition focus:border-[#4262FF] focus:ring-2 focus:ring-[#4262FF]/10"
+                />
+              </div>
+
+              <div className="mb-5">
+                <label className="mb-2 block text-sm font-medium text-gray-700">How do you want to answer?</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setSyncMode("follow")}
+                    className={`rounded-xl border-2 p-3.5 text-left transition ${
+                      syncMode === "follow"
+                        ? "border-[#4262FF] bg-[#4262FF]/5"
+                        : "border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    <div className="mb-1 text-base">&#x1F4E1;</div>
+                    <div className="text-sm font-semibold text-gray-900">Follow presenter</div>
+                    <div className="mt-0.5 text-xs text-gray-500">Questions sync together</div>
+                  </button>
+                  <button
+                    onClick={() => setSyncMode("self")}
+                    className={`rounded-xl border-2 p-3.5 text-left transition ${
+                      syncMode === "self"
+                        ? "border-[#4262FF] bg-[#4262FF]/5"
+                        : "border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    <div className="mb-1 text-base">&#x1F3C3;</div>
+                    <div className="text-sm font-semibold text-gray-900">My own pace</div>
+                    <div className="mt-0.5 text-xs text-gray-500">Answer freely</div>
+                  </button>
+                </div>
+              </div>
+
+              <button
+                onClick={handleStart}
+                disabled={!poll.allow_anonymous && !participantName.trim()}
+                className="w-full rounded-xl bg-[#4262FF] px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#3451E0] disabled:opacity-40"
+              >
+                Join Poll
+              </button>
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  // Done
   if (phase === "done") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 px-4">
-        <div className="w-full max-w-md rounded-3xl border border-white/10 bg-white/5 p-10 text-center backdrop-blur-xl">
-          <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-green-400 to-emerald-500 text-4xl text-white shadow-lg shadow-green-500/30">
+      <div className="flex min-h-screen items-center justify-center bg-[#f5f5f0] px-4">
+        <div className="w-full max-w-sm rounded-2xl bg-white p-8 text-center shadow-sm">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-50 text-3xl text-green-600">
             &#10003;
           </div>
-          <h1 className="text-2xl font-bold text-white">Thank you!</h1>
-          <p className="mt-2 text-sm text-indigo-200/60">
-            Your responses have been submitted successfully.
-          </p>
-          <p className="mt-1 text-xs text-indigo-200/40">
+          <h1 className="text-xl font-bold text-gray-900">Thank you!</h1>
+          <p className="mt-2 text-sm text-gray-500">Your responses have been submitted.</p>
+          <p className="mt-1 text-xs text-gray-400">
             You answered {submitted.size} of {poll?.questions.length ?? 0} questions
           </p>
         </div>
@@ -300,58 +255,52 @@ export default function PublicPollPage() {
     );
   }
 
-  // Answering
   if (phase === "answering" && poll) {
     const q = poll.questions[currentQIndex];
     const isSubmitted = q ? submitted.has(q.id) : false;
-    const progress = poll.questions.length > 0 ? ((submitted.size) / poll.questions.length) * 100 : 0;
+    const progress = poll.questions.length > 0 ? (submitted.size / poll.questions.length) * 100 : 0;
 
     return (
-      <div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900">
+      <div className="flex min-h-screen flex-col bg-[#f5f5f0]">
         {/* Top bar */}
-        <div className="border-b border-white/5 bg-black/20 backdrop-blur-md">
+        <div className="border-b border-gray-200 bg-white">
           <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
-            <div className="flex items-center gap-3">
-              <div
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-xs font-bold text-white"
-                style={{ background: `linear-gradient(135deg, ${ACCENT}, #a855f7)` }}
-              >
-                LP
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#4262FF] text-xs font-bold text-white">
+                O
               </div>
               <div>
-                <h1 className="text-sm font-semibold text-white">{poll.title}</h1>
-                <p className="text-xs text-indigo-200/40">
+                <h1 className="text-sm font-semibold text-gray-900">{poll.title}</h1>
+                <p className="text-xs text-gray-400">
                   {syncMode === "follow" ? "Following presenter" : "Self-paced"} &middot; {participantName || "Anonymous"}
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-indigo-200/60">
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
                 {submitted.size}/{poll.questions.length}
               </span>
-              {syncMode === "follow" && (
+              {syncMode === "follow" ? (
                 <button
                   onClick={() => setSyncMode("self")}
-                  className="rounded-lg border border-white/10 bg-white/5 px-3 py-1 text-xs text-indigo-200/60 hover:bg-white/10 transition"
+                  className="rounded-lg border border-gray-200 px-3 py-1 text-xs text-gray-600 hover:bg-gray-50 transition"
                 >
                   Go self-paced
                 </button>
-              )}
-              {syncMode === "self" && (
+              ) : (
                 <button
                   onClick={() => { setSyncMode("follow"); setCurrentQIndex(presenterIndex); }}
-                  className="rounded-lg border border-white/10 bg-white/5 px-3 py-1 text-xs text-indigo-200/60 hover:bg-white/10 transition"
+                  className="rounded-lg border border-gray-200 px-3 py-1 text-xs text-gray-600 hover:bg-gray-50 transition"
                 >
                   Follow presenter
                 </button>
               )}
             </div>
           </div>
-          {/* Progress bar */}
-          <div className="h-1 bg-white/5">
+          <div className="h-1 bg-gray-100">
             <div
-              className="h-full transition-all duration-500"
-              style={{ width: `${progress}%`, background: `linear-gradient(90deg, ${ACCENT}, #a855f7)` }}
+              className="h-full bg-[#4262FF] transition-all duration-500"
+              style={{ width: `${progress}%` }}
             />
           </div>
         </div>
@@ -360,64 +309,51 @@ export default function PublicPollPage() {
         <div className="flex flex-1 flex-col items-center justify-center px-4 py-8">
           {q ? (
             <div className="w-full max-w-lg">
-              {/* Question header */}
-              <div className="mb-8 text-center">
-                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs text-indigo-200/60">
-                  <span
-                    className="flex h-5 w-5 items-center justify-center rounded text-[10px] font-bold text-white"
-                    style={{ backgroundColor: ACCENT }}
-                  >
-                    {TYPE_ICONS[q.type] ?? "Q"}
-                  </span>
+              <div className="mb-6 text-center">
+                <span className="inline-block rounded-full bg-white px-3 py-1 text-xs font-medium text-gray-500 shadow-sm">
                   Question {currentQIndex + 1} of {poll.questions.length}
-                </div>
-                <h2 className="text-xl font-bold leading-relaxed text-white md:text-2xl">
+                </span>
+                <h2 className="mt-4 text-xl font-bold leading-relaxed text-gray-900 md:text-2xl">
                   {q.question_text}
                 </h2>
-                <p className="mt-2 text-xs text-indigo-200/40">
-                  {TYPE_LABELS[q.type] ?? "Answer below"}
-                </p>
               </div>
 
-              {/* Answer area */}
               {isSubmitted ? (
-                <div className="rounded-2xl border border-green-400/20 bg-green-400/5 p-8 text-center">
-                  <div className="mb-2 text-3xl text-green-400">&#10003;</div>
-                  <p className="text-sm font-semibold text-green-300">Answer submitted!</p>
+                <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
+                  <div className="mb-2 text-3xl text-green-500">&#10003;</div>
+                  <p className="text-sm font-semibold text-green-700">Answer submitted!</p>
                   {syncMode === "self" && currentQIndex < poll.questions.length - 1 && (
                     <button
                       onClick={() => { setCurrentQIndex((i) => i + 1); setAnswer(""); }}
-                      className="mt-4 rounded-xl px-6 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
-                      style={{ background: `linear-gradient(135deg, ${ACCENT}, #a855f7)` }}
+                      className="mt-4 rounded-lg bg-[#4262FF] px-6 py-2.5 text-sm font-semibold text-white hover:bg-[#3451E0] transition"
                     >
                       Next question &rarr;
                     </button>
                   )}
                 </div>
               ) : (
-                <div>
+                <div className="rounded-2xl bg-white p-6 shadow-sm">
                   {q.type === "multiple_choice" && q.options ? (
-                    <div className="space-y-3">
+                    <div className="space-y-2.5">
                       {q.options.map((opt, i) => (
                         <button
                           key={i}
                           onClick={() => setAnswer(opt)}
-                          className={`group w-full rounded-2xl border-2 p-4 text-left transition-all duration-200 ${
+                          className={`group flex w-full items-center gap-3 rounded-xl border-2 p-4 text-left transition ${
                             answer === opt
-                              ? "border-indigo-400 bg-indigo-500/20 shadow-lg shadow-indigo-500/10"
-                              : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10"
+                              ? "border-[#4262FF] bg-[#4262FF]/5"
+                              : "border-gray-100 bg-gray-50 hover:border-gray-200"
                           }`}
                         >
-                          <div className="flex items-center gap-3">
-                            <span
-                              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-sm font-bold text-white ${OPTION_COLORS[i % OPTION_COLORS.length]}`}
-                            >
-                              {String.fromCharCode(65 + i)}
-                            </span>
-                            <span className={`text-sm font-medium ${answer === opt ? "text-white" : "text-indigo-100/80"}`}>
-                              {opt}
-                            </span>
-                          </div>
+                          <span
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white"
+                            style={{ backgroundColor: OPTION_COLORS[i % OPTION_COLORS.length] }}
+                          >
+                            {String.fromCharCode(65 + i)}
+                          </span>
+                          <span className={`text-sm font-medium ${answer === opt ? "text-gray-900" : "text-gray-700"}`}>
+                            {opt}
+                          </span>
                         </button>
                       ))}
                     </div>
@@ -427,10 +363,10 @@ export default function PublicPollPage() {
                         <button
                           key={n}
                           onClick={() => setAnswer(String(n))}
-                          className={`flex h-16 w-16 items-center justify-center rounded-2xl text-2xl font-bold transition-all duration-200 ${
+                          className={`flex h-14 w-14 items-center justify-center rounded-xl text-xl font-bold transition ${
                             answer === String(n)
-                              ? "bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg shadow-amber-500/30 scale-110"
-                              : "border-2 border-white/10 bg-white/5 text-indigo-200/60 hover:border-amber-400/30 hover:bg-amber-400/5"
+                              ? "bg-[#FF9F43] text-white shadow-md scale-110"
+                              : "border-2 border-gray-200 bg-white text-gray-600 hover:border-[#FF9F43]/30"
                           }`}
                         >
                           {n}
@@ -442,7 +378,7 @@ export default function PublicPollPage() {
                       value={answer}
                       onChange={(e) => setAnswer(e.target.value)}
                       placeholder={q.type === "word_cloud" ? "Enter a word or short phrase..." : "Type your answer..."}
-                      className="w-full rounded-2xl border-2 border-white/10 bg-white/5 p-4 text-sm text-white placeholder-indigo-200/30 outline-none transition focus:border-indigo-400/50 focus:ring-2 focus:ring-indigo-400/20"
+                      className="w-full rounded-xl border-2 border-gray-100 bg-gray-50 p-4 text-sm text-gray-900 placeholder-gray-400 outline-none transition focus:border-[#4262FF] focus:bg-white focus:ring-2 focus:ring-[#4262FF]/10"
                       rows={4}
                     />
                   )}
@@ -450,28 +386,26 @@ export default function PublicPollPage() {
                   <button
                     onClick={handleSubmitAnswer}
                     disabled={!answer.trim() || submitting}
-                    className="mt-6 w-full rounded-xl px-6 py-3.5 text-sm font-bold text-white shadow-lg transition hover:opacity-90 disabled:opacity-40"
-                    style={{ background: `linear-gradient(135deg, ${ACCENT}, #a855f7)` }}
+                    className="mt-5 w-full rounded-xl bg-[#4262FF] px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#3451E0] disabled:opacity-40"
                   >
                     {submitting ? "Submitting..." : "Submit Answer"}
                   </button>
                 </div>
               )}
 
-              {/* Navigation for self-paced */}
               {syncMode === "self" && (
-                <div className="mt-6 flex items-center justify-between">
+                <div className="mt-4 flex items-center justify-between">
                   <button
                     onClick={() => { setCurrentQIndex((i) => Math.max(0, i - 1)); setAnswer(""); }}
                     disabled={currentQIndex === 0}
-                    className="rounded-lg px-4 py-2 text-sm text-indigo-200/50 transition hover:text-white disabled:opacity-30"
+                    className="rounded-lg px-4 py-2 text-sm text-gray-500 transition hover:text-gray-900 disabled:opacity-30"
                   >
                     &larr; Previous
                   </button>
                   <button
                     onClick={() => { setCurrentQIndex((i) => Math.min(poll.questions.length - 1, i + 1)); setAnswer(""); }}
                     disabled={currentQIndex === poll.questions.length - 1}
-                    className="rounded-lg px-4 py-2 text-sm text-indigo-200/50 transition hover:text-white disabled:opacity-30"
+                    className="rounded-lg px-4 py-2 text-sm text-gray-500 transition hover:text-gray-900 disabled:opacity-30"
                   >
                     Skip &rarr;
                   </button>
@@ -479,24 +413,23 @@ export default function PublicPollPage() {
               )}
             </div>
           ) : (
-            <p className="text-indigo-200/50">No questions available.</p>
+            <p className="text-gray-400">No questions available.</p>
           )}
         </div>
 
         {/* Bottom dots */}
-        <div className="flex justify-center gap-2 pb-6">
+        <div className="flex justify-center gap-1.5 pb-6">
           {poll.questions.map((qq, i) => (
             <button
               key={i}
               onClick={() => { if (syncMode === "self") { setCurrentQIndex(i); setAnswer(""); } }}
-              className={`h-2.5 w-2.5 rounded-full transition-all duration-300 ${
+              className={`h-2 rounded-full transition-all duration-300 ${
                 i === currentQIndex
-                  ? "scale-125"
+                  ? "w-6 bg-[#4262FF]"
                   : submitted.has(qq.id)
-                  ? "bg-green-400/60"
-                  : "bg-white/20 hover:bg-white/30"
+                  ? "w-2 bg-green-400"
+                  : "w-2 bg-gray-300 hover:bg-gray-400"
               }`}
-              style={i === currentQIndex ? { background: `linear-gradient(135deg, ${ACCENT}, #a855f7)` } : undefined}
               disabled={syncMode === "follow"}
             />
           ))}
