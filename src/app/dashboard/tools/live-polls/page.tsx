@@ -12,8 +12,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  PieChart,
-  Pie,
   Cell,
 } from "recharts";
 import {
@@ -34,14 +32,25 @@ import {
 } from "@/services/livePollApi";
 
 const CHART_COLORS = [
-  "#6264A7", "#4CAF50", "#FF9800", "#E91E63", "#00BCD4",
-  "#9C27B0", "#FF5722", "#3F51B5", "#009688", "#FFC107",
-  "#795548", "#607D8B",
+  "#6C63FF", "#10B981", "#F59E0B", "#EF4444", "#06B6D4",
+  "#8B5CF6", "#F97316", "#3B82F6", "#14B8A6", "#FBBF24",
+  "#A78BFA", "#64748B",
 ];
 
 const allowedRoles = new Set(["SCHOOL_ADMIN", "HOD", "TEACHER"]);
 
 type View = "list" | "create" | "edit" | "present" | "join" | "results";
+type PresentMode = "presenter_led" | "self_paced";
+
+const syncPresenter = async (pollId: number, questionIndex: number, mode: PresentMode) => {
+  try {
+    await fetch("/api/live-polls/sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pollId: String(pollId), questionIndex, mode }),
+    });
+  } catch { /* ignore */ }
+};
 
 export default function LivePollsPage() {
   const currentUser = useSelector((state: RootState) => state.auth.currentUser);
@@ -56,19 +65,16 @@ export default function LivePollsPage() {
     total_participants: number;
   } | null>(null);
 
-  // Create poll form
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [allowAnon, setAllowAnon] = useState(false);
 
-  // Question form
   const [qType, setQType] = useState<PollQuestion["type"]>("multiple_choice");
   const [qText, setQText] = useState("");
   const [qOptions, setQOptions] = useState<string[]>(["", ""]);
   const [qTimeLimit, setQTimeLimit] = useState<number | null>(null);
   const [editingQ, setEditingQ] = useState<number | null>(null);
 
-  // Join form
   const [joinCode, setJoinCode] = useState("");
   const [joinedPoll, setJoinedPoll] = useState<(LivePoll & { questions: PollQuestion[] }) | null>(null);
   const [currentQIndex, setCurrentQIndex] = useState(0);
@@ -76,10 +82,11 @@ export default function LivePollsPage() {
   const [submitted, setSubmitted] = useState<Set<number>>(new Set());
   const [joinError, setJoinError] = useState("");
 
-  // Presenter navigation
   const [presentQIndex, setPresentQIndex] = useState(0);
+  const [presentMode, setPresentMode] = useState<PresentMode>("presenter_led");
+  const [showQR, setShowQR] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
-  // Results polling
   const resultsIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadPolls = useCallback(async () => {
@@ -87,9 +94,7 @@ export default function LivePollsPage() {
     try {
       const data = await fetchPolls();
       setPolls(data);
-    } catch {
-      /* ignore */
-    }
+    } catch { /* ignore */ }
     setLoading(false);
   }, []);
 
@@ -103,7 +108,13 @@ export default function LivePollsPage() {
     };
   }, []);
 
-  // Keyboard navigation for presenter
+  // Sync presenter question index when it changes
+  useEffect(() => {
+    if (view === "present" && activePoll) {
+      syncPresenter(activePoll.id, presentQIndex, presentMode);
+    }
+  }, [view, activePoll, presentQIndex, presentMode]);
+
   useEffect(() => {
     if (view !== "present" || !results) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -117,6 +128,8 @@ export default function LivePollsPage() {
         stopResultsPolling();
         setView("list");
         loadPolls();
+      } else if (e.key === "q" || e.key === "Q") {
+        setShowQR((v) => !v);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -138,9 +151,7 @@ export default function LivePollsPage() {
       const poll = await fetchPoll(res.id);
       setActivePoll(poll);
       setView("edit");
-    } catch {
-      /* ignore */
-    }
+    } catch { /* ignore */ }
     setLoading(false);
   };
 
@@ -167,9 +178,7 @@ export default function LivePollsPage() {
       const updated = await fetchPoll(activePoll.id);
       setActivePoll(updated);
       resetQuestionForm();
-    } catch {
-      /* ignore */
-    }
+    } catch { /* ignore */ }
     setLoading(false);
   };
 
@@ -187,9 +196,7 @@ export default function LivePollsPage() {
       await deleteQuestion(activePoll.id, qId);
       const updated = await fetchPoll(activePoll.id);
       setActivePoll(updated);
-    } catch {
-      /* ignore */
-    }
+    } catch { /* ignore */ }
   };
 
   const handleEditQuestion = (q: PollQuestion) => {
@@ -206,9 +213,7 @@ export default function LivePollsPage() {
       await updatePoll(activePoll.id, { status: "active" });
       const updated = await fetchPoll(activePoll.id);
       setActivePoll(updated);
-    } catch {
-      /* ignore */
-    }
+    } catch { /* ignore */ }
   };
 
   const handleClosePoll = async () => {
@@ -217,9 +222,7 @@ export default function LivePollsPage() {
       await updatePoll(activePoll.id, { status: "closed" });
       const updated = await fetchPoll(activePoll.id);
       setActivePoll(updated);
-    } catch {
-      /* ignore */
-    }
+    } catch { /* ignore */ }
   };
 
   const handleDeletePoll = async (id: number) => {
@@ -231,9 +234,7 @@ export default function LivePollsPage() {
         setActivePoll(null);
         setView("list");
       }
-    } catch {
-      /* ignore */
-    }
+    } catch { /* ignore */ }
   };
 
   const openPresent = async (pollId: number) => {
@@ -243,11 +244,10 @@ export default function LivePollsPage() {
       const res = await fetchResults(pollId);
       setResults({ questions: res.questions, total_participants: res.total_participants });
       setPresentQIndex(0);
+      setShowQR(false);
       setView("present");
       startResultsPolling(pollId);
-    } catch {
-      /* ignore */
-    }
+    } catch { /* ignore */ }
   };
 
   const openResults = async (pollId: number) => {
@@ -257,9 +257,7 @@ export default function LivePollsPage() {
       const res = await fetchResults(pollId);
       setResults({ questions: res.questions, total_participants: res.total_participants });
       setView("results");
-    } catch {
-      /* ignore */
-    }
+    } catch { /* ignore */ }
   };
 
   const startResultsPolling = (pollId: number) => {
@@ -268,9 +266,7 @@ export default function LivePollsPage() {
       try {
         const res = await fetchResults(pollId);
         setResults({ questions: res.questions, total_participants: res.total_participants });
-      } catch {
-        /* ignore */
-      }
+      } catch { /* ignore */ }
     }, 3000);
   };
 
@@ -311,19 +307,16 @@ export default function LivePollsPage() {
       if (currentQIndex < joinedPoll.questions.length - 1) {
         setCurrentQIndex((i) => i + 1);
       }
-    } catch {
-      /* ignore */
-    }
+    } catch { /* ignore */ }
     setLoading(false);
   };
 
   const pollUrl = useMemo(() => {
     if (!activePoll) return "";
     const base = typeof window !== "undefined" ? window.location.origin : "";
-    return `${base}/dashboard/tools/live-polls?code=${activePoll.join_code}`;
+    return `${base}/poll/${activePoll.join_code}`;
   }, [activePoll]);
 
-  // Auto-join if code is in URL
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
@@ -344,7 +337,10 @@ export default function LivePollsPage() {
 
   const handleCopyLink = () => {
     if (pollUrl) {
-      navigator.clipboard.writeText(pollUrl).catch(() => {});
+      navigator.clipboard.writeText(pollUrl).then(() => {
+        setCopiedLink(true);
+        setTimeout(() => setCopiedLink(false), 2000);
+      }).catch(() => {});
     }
   };
 
@@ -464,7 +460,6 @@ export default function LivePollsPage() {
       );
     }
 
-    // open_text
     const answers = q.results as string[];
     return (
       <div className="max-h-60 overflow-y-auto space-y-2">
@@ -522,7 +517,7 @@ export default function LivePollsPage() {
                           onClick={() => setAnswer(opt)}
                           className={`w-full rounded-lg border-2 px-4 py-3 text-left text-sm font-medium transition ${
                             answer === opt
-                              ? "border-[#6264A7] bg-[#6264A7]/10 text-[#6264A7]"
+                              ? "border-[#6C63FF] bg-[#6C63FF]/10 text-[#6C63FF]"
                               : "border-gray-200 hover:border-gray-300"
                           }`}
                         >
@@ -551,14 +546,14 @@ export default function LivePollsPage() {
                       value={answer}
                       onChange={(e) => setAnswer(e.target.value)}
                       placeholder={q.type === "word_cloud" ? "Enter a word or short phrase..." : "Type your answer..."}
-                      className="w-full rounded-lg border-2 border-gray-200 p-3 text-sm focus:border-[#6264A7] focus:outline-none"
+                      className="w-full rounded-lg border-2 border-gray-200 p-3 text-sm focus:border-[#6C63FF] focus:outline-none"
                       rows={3}
                     />
                   )}
                   <button
                     onClick={handleSubmitAnswer}
                     disabled={!answer.trim() || loading}
-                    className="mt-4 w-full rounded-lg bg-[#6264A7] px-6 py-3 font-semibold text-white hover:bg-[#5254a0] disabled:opacity-50"
+                    className="mt-4 w-full rounded-lg bg-[#6C63FF] px-6 py-3 font-semibold text-white hover:bg-[#5A52E0] disabled:opacity-50"
                   >
                     {loading ? "Submitting..." : "Submit"}
                   </button>
@@ -578,7 +573,7 @@ export default function LivePollsPage() {
                     setAnswer("");
                   }}
                   disabled={currentQIndex === joinedPoll.questions.length - 1}
-                  className="text-sm text-[#6264A7] hover:underline disabled:opacity-30"
+                  className="text-sm text-[#6C63FF] hover:underline disabled:opacity-30"
                 >
                   Skip
                 </button>
@@ -590,11 +585,14 @@ export default function LivePollsPage() {
     );
   }
 
+  // ─── PRESENTER VIEW (Redesigned) ───
+
   if (view === "present" && activePoll && results) {
     const totalQs = results.questions.length;
     const currentQ = results.questions[presentQIndex];
     const hasPrev = presentQIndex > 0;
     const hasNext = presentQIndex < totalQs - 1;
+    const displayHost = typeof window !== "undefined" ? window.location.host : "osteps.com";
 
     const renderPresenterChart = (q: QuestionResult) => {
       if (q.type === "multiple_choice") {
@@ -602,35 +600,43 @@ export default function LivePollsPage() {
           ([name, value], i) => ({ name, value, fill: CHART_COLORS[i % CHART_COLORS.length] })
         );
         const total = data.reduce((s, d) => s + d.value, 0);
-        return (
-          <div className="w-full">
-            <ResponsiveContainer width="100%" height={Math.max(300, data.length * 70)}>
-              <BarChart data={data} layout="vertical" margin={{ left: 30, right: 40, top: 10, bottom: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis type="number" allowDecimals={false} tick={{ fill: "#9CA3AF", fontSize: 16 }} />
-                <YAxis type="category" dataKey="name" width={160} tick={{ fill: "#E5E7EB", fontSize: 18 }} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: "#1F2937", border: "1px solid #374151", borderRadius: 8, color: "#fff" }}
-                  formatter={(v: number) => [`${v} vote${v !== 1 ? "s" : ""} (${total > 0 ? Math.round((v / total) * 100) : 0}%)`, ""]}
-                />
-                <Bar dataKey="value" radius={[0, 8, 8, 0]} barSize={40}>
-                  {data.map((_, i) => (
-                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-            <div className="mt-6 flex flex-wrap justify-center gap-6">
-              {data.map((d, i) => (
-                <div key={i} className="flex items-center gap-2 text-lg">
-                  <span className="inline-block h-4 w-4 rounded" style={{ backgroundColor: d.fill }} />
-                  <span className="font-semibold">{d.name}</span>
-                  <span className="text-gray-400">
-                    {d.value} ({total > 0 ? Math.round((d.value / total) * 100) : 0}%)
-                  </span>
-                </div>
-              ))}
+
+        if (total === 0) {
+          return (
+            <div className="flex flex-col items-center justify-center py-16">
+              <div className="mb-4 text-6xl opacity-20">&#128202;</div>
+              <p className="text-xl text-white/40">Waiting for responses...</p>
+              <p className="mt-2 text-sm text-white/20">Results will appear here in real-time</p>
             </div>
+          );
+        }
+
+        return (
+          <div className="w-full space-y-4">
+            {data.map((d, i) => {
+              const pct = total > 0 ? Math.round((d.value / total) * 100) : 0;
+              return (
+                <div key={i} className="group">
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <span className="text-base font-semibold text-white/90">{d.name}</span>
+                    <span className="text-sm font-medium text-white/50">
+                      {d.value} vote{d.value !== 1 ? "s" : ""} &middot; {pct}%
+                    </span>
+                  </div>
+                  <div className="h-12 w-full overflow-hidden rounded-xl bg-white/5">
+                    <div
+                      className="flex h-full items-center rounded-xl px-4 transition-all duration-700 ease-out"
+                      style={{
+                        width: `${Math.max(pct, 2)}%`,
+                        backgroundColor: d.fill,
+                      }}
+                    >
+                      {pct > 8 && <span className="text-sm font-bold text-white">{pct}%</span>}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         );
       }
@@ -640,18 +646,26 @@ export default function LivePollsPage() {
           ([, a], [, b]) => b - a
         );
         const maxCount = words[0]?.[1] ?? 1;
+        if (words.length === 0) {
+          return (
+            <div className="flex flex-col items-center justify-center py-16">
+              <div className="mb-4 text-6xl opacity-20">&#9729;</div>
+              <p className="text-xl text-white/40">Waiting for responses...</p>
+            </div>
+          );
+        }
         return (
-          <div className="flex flex-wrap justify-center gap-4 py-8">
-            {words.length === 0 && <p className="text-gray-500 text-xl">Waiting for responses...</p>}
+          <div className="flex flex-wrap justify-center gap-3 py-8">
             {words.map(([word, count], i) => {
-              const size = 20 + (count / maxCount) * 44;
+              const size = 18 + (count / maxCount) * 36;
               return (
                 <span
                   key={i}
-                  className="inline-block rounded-full px-5 py-2 font-bold text-white transition-all"
+                  className="inline-block rounded-2xl px-5 py-2 font-bold text-white transition-all"
                   style={{
                     fontSize: size,
                     backgroundColor: CHART_COLORS[i % CHART_COLORS.length],
+                    boxShadow: `0 4px 20px ${CHART_COLORS[i % CHART_COLORS.length]}30`,
                   }}
                 >
                   {word} ({count})
@@ -665,24 +679,33 @@ export default function LivePollsPage() {
       if (q.type === "rating") {
         const r = q.results as { average: number; distribution: Record<string, number> };
         const data = Array.from({ length: 5 }, (_, i) => ({
-          name: `★ ${i + 1}`,
+          name: `${i + 1}`,
           value: r.distribution[String(i + 1)] ?? 0,
         }));
+        const totalVotes = data.reduce((s, d) => s + d.value, 0);
+        if (totalVotes === 0) {
+          return (
+            <div className="flex flex-col items-center justify-center py-16">
+              <div className="mb-4 text-6xl opacity-20">&#11088;</div>
+              <p className="text-xl text-white/40">Waiting for ratings...</p>
+            </div>
+          );
+        }
         return (
           <div>
-            <div className="mb-6 text-center">
-              <span className="text-7xl font-bold text-yellow-400">{r.average}</span>
-              <span className="text-gray-400 text-3xl"> / 5</span>
-              <div className="mt-2 text-2xl text-yellow-400">
-                {"★".repeat(Math.round(r.average))}{"☆".repeat(5 - Math.round(r.average))}
+            <div className="mb-8 text-center">
+              <span className="text-8xl font-bold text-amber-400">{r.average.toFixed(1)}</span>
+              <span className="text-3xl text-white/30"> / 5</span>
+              <div className="mt-3 text-3xl text-amber-400">
+                {"&#9733;".repeat(Math.round(r.average))}{"&#9734;".repeat(5 - Math.round(r.average))}
               </div>
             </div>
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={200}>
               <BarChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                 <XAxis dataKey="name" tick={{ fill: "#E5E7EB", fontSize: 18 }} />
-                <YAxis allowDecimals={false} tick={{ fill: "#9CA3AF", fontSize: 16 }} />
-                <Tooltip contentStyle={{ backgroundColor: "#1F2937", border: "1px solid #374151", borderRadius: 8, color: "#fff" }} />
+                <YAxis allowDecimals={false} tick={{ fill: "#9CA3AF" }} />
+                <Tooltip contentStyle={{ backgroundColor: "#1F2937", border: "none", borderRadius: 12, color: "#fff" }} />
                 <Bar dataKey="value" fill="#FBBF24" radius={[8, 8, 0, 0]} barSize={50} />
               </BarChart>
             </ResponsiveContainer>
@@ -690,14 +713,23 @@ export default function LivePollsPage() {
         );
       }
 
-      // open_text
       const answers = q.results as string[];
+      if (answers.length === 0) {
+        return (
+          <div className="flex flex-col items-center justify-center py-16">
+            <div className="mb-4 text-6xl opacity-20">&#128172;</div>
+            <p className="text-xl text-white/40">Waiting for responses...</p>
+          </div>
+        );
+      }
       return (
-        <div className="w-full max-h-[50vh] overflow-y-auto space-y-3 py-4">
-          {answers.length === 0 && <p className="text-gray-500 text-xl text-center">Waiting for responses...</p>}
+        <div className="w-full columns-1 gap-4 md:columns-2">
           {answers.map((a, i) => (
-            <div key={i} className="rounded-xl bg-gray-800 border border-gray-700 px-5 py-3 text-lg">
-              {a}
+            <div
+              key={i}
+              className="mb-3 break-inside-avoid rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-base text-white/80 backdrop-blur-sm"
+            >
+              &ldquo;{a}&rdquo;
             </div>
           ))}
         </div>
@@ -705,84 +737,144 @@ export default function LivePollsPage() {
     };
 
     return (
-      <div className="fixed inset-0 z-50 flex flex-col bg-gradient-to-b from-gray-900 via-gray-900 to-gray-950 text-white">
+      <div className="fixed inset-0 z-50 flex flex-col bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white">
         {/* Top bar */}
-        <div className="flex items-center justify-between px-6 py-3 bg-black/30">
+        <div className="flex items-center justify-between px-6 py-3 bg-black/20 backdrop-blur-md border-b border-white/5">
           <div className="flex items-center gap-4">
-            <QRCodeSVG value={pollUrl} size={56} bgColor="transparent" fgColor="#ffffff" />
-            <div>
-              <p className="text-sm text-gray-400">Join at <span className="text-white font-medium">{typeof window !== "undefined" ? window.location.host : ""}/dashboard/tools/live-polls</span></p>
-              <p className="text-lg font-mono font-bold tracking-[0.3em]">{activePoll.join_code}</p>
-            </div>
+            <button
+              onClick={() => setShowQR((v) => !v)}
+              className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-2 transition hover:bg-white/10"
+            >
+              <QRCodeSVG value={pollUrl} size={36} bgColor="transparent" fgColor="#ffffff" />
+              <div className="text-left">
+                <p className="text-xs text-white/40">Join at</p>
+                <p className="text-sm font-bold tracking-wide">{displayHost}/poll/{activePoll.join_code}</p>
+              </div>
+            </button>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 rounded-full bg-gray-800 px-4 py-1.5 text-sm">
-              <span className="inline-block h-2 w-2 rounded-full bg-green-400 animate-pulse" />
-              {results.total_participants} participant{results.total_participants !== 1 ? "s" : ""}
+          <div className="flex items-center gap-3">
+            {/* Mode toggle */}
+            <div className="flex items-center rounded-xl border border-white/10 bg-white/5 p-1">
+              <button
+                onClick={() => setPresentMode("presenter_led")}
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                  presentMode === "presenter_led" ? "bg-indigo-500 text-white shadow" : "text-white/50 hover:text-white/70"
+                }`}
+              >
+                Presenter-led
+              </button>
+              <button
+                onClick={() => setPresentMode("self_paced")}
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                  presentMode === "self_paced" ? "bg-indigo-500 text-white shadow" : "text-white/50 hover:text-white/70"
+                }`}
+              >
+                Self-paced
+              </button>
             </div>
-            <span className="text-sm text-gray-500">
-              {presentQIndex + 1} / {totalQs}
+            <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm">
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-green-400 animate-pulse" />
+              <span className="font-semibold">{results.total_participants}</span>
+              <span className="text-white/40">participant{results.total_participants !== 1 ? "s" : ""}</span>
+            </div>
+            <span className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-mono text-white/50">
+              {presentQIndex + 1}/{totalQs}
             </span>
             <button
               onClick={() => { stopResultsPolling(); setView("list"); loadPolls(); }}
-              className="rounded-lg bg-red-600/80 px-4 py-2 text-sm font-medium hover:bg-red-600 transition"
+              className="rounded-xl bg-red-500/20 border border-red-400/20 px-4 py-2 text-sm font-medium text-red-300 hover:bg-red-500/30 transition"
             >
               Exit
             </button>
           </div>
         </div>
 
-        {/* Main content — single question */}
-        <div className="flex-1 flex flex-col items-center justify-center px-8 py-6 relative">
-          {/* Left arrow */}
+        {/* QR overlay */}
+        {showQR && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md" onClick={() => setShowQR(false)}>
+            <div className="rounded-3xl border border-white/10 bg-slate-900/90 p-12 text-center backdrop-blur-xl" onClick={(e) => e.stopPropagation()}>
+              <div className="mb-6 rounded-2xl bg-white p-6 inline-block">
+                <QRCodeSVG value={pollUrl} size={280} bgColor="#ffffff" fgColor="#1e1b4b" />
+              </div>
+              <div>
+                <p className="text-lg text-white/60 mb-2">Scan to join or visit</p>
+                <p className="text-2xl font-bold text-white mb-2">{displayHost}/poll/{activePoll.join_code}</p>
+                <div className="mt-4 flex items-center justify-center gap-3">
+                  <div className="rounded-xl border border-white/10 bg-white/5 px-6 py-3">
+                    <p className="text-xs text-white/40 mb-1">Poll code</p>
+                    <p className="text-3xl font-mono font-bold tracking-[0.4em] text-white">{activePoll.join_code}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleCopyLink}
+                  className="mt-4 rounded-xl bg-indigo-500 px-6 py-2.5 text-sm font-semibold text-white hover:bg-indigo-600 transition"
+                >
+                  {copiedLink ? "Copied!" : "Copy link"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Main content */}
+        <div className="flex-1 flex flex-col items-center justify-center px-8 py-6 relative overflow-hidden">
+          {/* Navigation arrows */}
           <button
             onClick={() => setPresentQIndex((i) => Math.max(0, i - 1))}
             disabled={!hasPrev}
-            className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white hover:bg-white/20 disabled:opacity-20 disabled:hover:bg-white/10 transition"
+            className="absolute left-6 top-1/2 -translate-y-1/2 rounded-2xl border border-white/10 bg-white/5 p-3 text-white backdrop-blur-sm hover:bg-white/10 disabled:opacity-10 transition"
           >
             <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
           </button>
 
-          {/* Right arrow */}
           <button
             onClick={() => setPresentQIndex((i) => Math.min(totalQs - 1, i + 1))}
             disabled={!hasNext}
-            className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white hover:bg-white/20 disabled:opacity-20 disabled:hover:bg-white/10 transition"
+            className="absolute right-6 top-1/2 -translate-y-1/2 rounded-2xl border border-white/10 bg-white/5 p-3 text-white backdrop-blur-sm hover:bg-white/10 disabled:opacity-10 transition"
           >
             <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
           </button>
 
           {currentQ ? (
             <div className="w-full max-w-4xl flex flex-col items-center">
-              {/* Question */}
-              <div className="text-center mb-8">
-                <span className="inline-block rounded-full bg-[#6264A7] px-4 py-1 text-sm font-medium mb-4">
-                  Question {presentQIndex + 1} of {totalQs} &middot; {currentQ.type.replace("_", " ")}
+              {/* Question header */}
+              <div className="text-center mb-10">
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-2 text-sm font-medium text-white/60 backdrop-blur-sm mb-5">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-md bg-indigo-500 text-xs font-bold text-white">
+                    {presentQIndex + 1}
+                  </span>
+                  <span>{currentQ.type.replace("_", " ")}</span>
+                  <span className="text-white/20">|</span>
+                  <span>{currentQ.total_responses} response{currentQ.total_responses !== 1 ? "s" : ""}</span>
                 </span>
-                <h2 className="text-3xl md:text-4xl font-bold leading-tight">{currentQ.question_text}</h2>
-                <p className="text-gray-400 mt-3 text-lg">
-                  {currentQ.total_responses} response{currentQ.total_responses !== 1 ? "s" : ""}
-                </p>
+                <h2 className="text-3xl md:text-5xl font-bold leading-tight bg-gradient-to-r from-white via-white to-indigo-200 bg-clip-text text-transparent">
+                  {currentQ.question_text}
+                </h2>
               </div>
 
               {/* Results chart */}
-              <div className="w-full">
+              <div className="w-full max-w-3xl">
                 {renderPresenterChart(currentQ)}
               </div>
             </div>
           ) : (
-            <div className="text-center text-gray-500 text-xl">No questions in this poll</div>
+            <div className="text-center">
+              <div className="text-6xl mb-4 opacity-20">&#128203;</div>
+              <p className="text-xl text-white/40">No questions in this poll</p>
+            </div>
           )}
         </div>
 
-        {/* Bottom dots */}
-        <div className="flex justify-center gap-2 pb-4">
-          {results.questions.map((_, i) => (
+        {/* Bottom navigation dots */}
+        <div className="flex items-center justify-center gap-2 pb-5">
+          {results.questions.map((q, i) => (
             <button
               key={i}
               onClick={() => setPresentQIndex(i)}
-              className={`h-3 w-3 rounded-full transition ${
-                i === presentQIndex ? "bg-[#6264A7] scale-125" : "bg-gray-600 hover:bg-gray-500"
+              className={`rounded-full transition-all duration-300 ${
+                i === presentQIndex
+                  ? "h-3 w-8 bg-indigo-400"
+                  : "h-3 w-3 bg-white/20 hover:bg-white/30"
               }`}
             />
           ))}
@@ -866,7 +958,7 @@ export default function LivePollsPage() {
               )}
               {activePoll.status === "active" && (
                 <>
-                  <button onClick={() => openPresent(activePoll.id)} className="rounded-lg bg-[#6264A7] px-4 py-2 text-sm font-medium text-white hover:bg-[#5254a0]">
+                  <button onClick={() => openPresent(activePoll.id)} className="rounded-lg bg-[#6C63FF] px-4 py-2 text-sm font-medium text-white hover:bg-[#5A52E0]">
                     Present
                   </button>
                   <button onClick={handleClosePoll} className="rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-600">
@@ -875,33 +967,42 @@ export default function LivePollsPage() {
                 </>
               )}
               {activePoll.status === "closed" && (
-                <button onClick={() => openResults(activePoll.id)} className="rounded-lg bg-[#6264A7] px-4 py-2 text-sm font-medium text-white hover:bg-[#5254a0]">
+                <button onClick={() => openResults(activePoll.id)} className="rounded-lg bg-[#6C63FF] px-4 py-2 text-sm font-medium text-white hover:bg-[#5A52E0]">
                   View Results
                 </button>
               )}
             </div>
           </div>
 
-          {/* QR + Share section */}
+          {/* Share section */}
           {activePoll.status === "active" && (
-            <div className="mb-6 rounded-xl border border-[#6264A7]/20 bg-[#6264A7]/5 p-5 flex items-center gap-6">
-              <QRCodeSVG value={pollUrl} size={120} />
-              <div className="flex-1">
-                <h3 className="font-semibold text-[#6264A7]">Share with participants</h3>
-                <p className="text-sm text-gray-600 mt-1">
-                  Scan the QR code or use join code:{" "}
-                  <span className="font-mono font-bold text-lg tracking-widest">{activePoll.join_code}</span>
-                </p>
-                <div className="mt-2 flex gap-2">
-                  <input
-                    readOnly
-                    value={pollUrl}
-                    className="flex-1 rounded-lg border bg-white px-3 py-1.5 text-sm text-gray-600"
-                    onClick={(e) => (e.target as HTMLInputElement).select()}
-                  />
-                  <button onClick={handleCopyLink} className="rounded-lg bg-[#6264A7] px-4 py-1.5 text-sm font-medium text-white hover:bg-[#5254a0]">
-                    Copy
-                  </button>
+            <div className="mb-6 rounded-2xl border border-indigo-100 bg-gradient-to-r from-indigo-50 to-violet-50 p-6">
+              <div className="flex items-start gap-6">
+                <div className="shrink-0 rounded-xl bg-white p-3 shadow-sm">
+                  <QRCodeSVG value={pollUrl} size={120} bgColor="#ffffff" fgColor="#1e1b4b" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-indigo-900 text-lg">Share with participants</h3>
+                  <p className="text-sm text-indigo-600/70 mt-1">
+                    Anyone can join without an account &mdash; just scan or visit the link
+                  </p>
+                  <div className="mt-3 flex items-center gap-3">
+                    <div className="rounded-xl border border-indigo-200 bg-white px-5 py-2.5">
+                      <p className="text-[10px] font-semibold text-indigo-400 uppercase tracking-wider">Join code</p>
+                      <p className="text-2xl font-mono font-bold tracking-[0.3em] text-indigo-900">{activePoll.join_code}</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <input
+                      readOnly
+                      value={pollUrl}
+                      className="flex-1 rounded-lg border border-indigo-200 bg-white px-3 py-1.5 text-sm text-indigo-700 font-mono"
+                      onClick={(e) => (e.target as HTMLInputElement).select()}
+                    />
+                    <button onClick={handleCopyLink} className="rounded-lg bg-[#6C63FF] px-4 py-1.5 text-sm font-medium text-white hover:bg-[#5A52E0]">
+                      {copiedLink ? "Copied!" : "Copy link"}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -925,7 +1026,7 @@ export default function LivePollsPage() {
                   </div>
                   {activePoll.status === "draft" && (
                     <div className="flex gap-1 ml-2">
-                      <button onClick={() => handleEditQuestion(q)} className="rounded p-1 text-gray-400 hover:text-[#6264A7] hover:bg-gray-100" title="Edit">
+                      <button onClick={() => handleEditQuestion(q)} className="rounded p-1 text-gray-400 hover:text-[#6C63FF] hover:bg-gray-100" title="Edit">
                         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                       </button>
                       <button onClick={() => handleDeleteQuestion(q.id)} className="rounded p-1 text-gray-400 hover:text-red-500 hover:bg-red-50" title="Delete">
@@ -955,7 +1056,7 @@ export default function LivePollsPage() {
                       onClick={() => { setQType(t); if (t === "multiple_choice") setQOptions(["", ""]); }}
                       className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                         qType === t
-                          ? "bg-[#6264A7] text-white"
+                          ? "bg-[#6C63FF] text-white"
                           : "bg-white border hover:bg-gray-100"
                       }`}
                     >
@@ -966,7 +1067,7 @@ export default function LivePollsPage() {
                     onClick={() => { setQType("multiple_choice"); setQOptions(["True", "False"]); }}
                     className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                       qType === "multiple_choice" && qOptions.length === 2 && qOptions[0] === "True" && qOptions[1] === "False"
-                        ? "bg-[#6264A7] text-white"
+                        ? "bg-[#6C63FF] text-white"
                         : "bg-white border hover:bg-gray-100"
                     }`}
                   >
@@ -976,7 +1077,7 @@ export default function LivePollsPage() {
                     onClick={() => { setQType("multiple_choice"); setQOptions(["Yes", "No"]); }}
                     className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                       qType === "multiple_choice" && qOptions.length === 2 && qOptions[0] === "Yes" && qOptions[1] === "No"
-                        ? "bg-[#6264A7] text-white"
+                        ? "bg-[#6C63FF] text-white"
                         : "bg-white border hover:bg-gray-100"
                     }`}
                   >
@@ -987,7 +1088,7 @@ export default function LivePollsPage() {
                   value={qText}
                   onChange={(e) => setQText(e.target.value)}
                   placeholder="Enter your question..."
-                  className="w-full rounded-lg border px-3 py-2 text-sm focus:border-[#6264A7] focus:outline-none"
+                  className="w-full rounded-lg border px-3 py-2 text-sm focus:border-[#6C63FF] focus:outline-none"
                 />
                 {qType === "multiple_choice" && (
                   <div className="space-y-2">
@@ -1001,7 +1102,7 @@ export default function LivePollsPage() {
                             setQOptions(copy);
                           }}
                           placeholder={`Option ${i + 1}`}
-                          className="flex-1 rounded-lg border px-3 py-1.5 text-sm focus:border-[#6264A7] focus:outline-none"
+                          className="flex-1 rounded-lg border px-3 py-1.5 text-sm focus:border-[#6C63FF] focus:outline-none"
                         />
                         {qOptions.length > 2 && (
                           <button
@@ -1015,7 +1116,7 @@ export default function LivePollsPage() {
                     ))}
                     <button
                       onClick={() => setQOptions([...qOptions, ""])}
-                      className="text-sm text-[#6264A7] hover:underline"
+                      className="text-sm text-[#6C63FF] hover:underline"
                     >
                       + Add option
                     </button>
@@ -1030,7 +1131,7 @@ export default function LivePollsPage() {
                   <button
                     onClick={handleAddQuestion}
                     disabled={!qText.trim() || loading}
-                    className="rounded-lg bg-[#6264A7] px-6 py-2 text-sm font-medium text-white hover:bg-[#5254a0] disabled:opacity-50"
+                    className="rounded-lg bg-[#6C63FF] px-6 py-2 text-sm font-medium text-white hover:bg-[#5A52E0] disabled:opacity-50"
                   >
                     {loading ? "Saving..." : editingQ ? "Update Question" : "Add Question"}
                   </button>
@@ -1062,7 +1163,7 @@ export default function LivePollsPage() {
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
                   placeholder="e.g. End of Lesson Quiz"
-                  className="w-full rounded-lg border px-3 py-2 text-sm focus:border-[#6264A7] focus:outline-none"
+                  className="w-full rounded-lg border px-3 py-2 text-sm focus:border-[#6C63FF] focus:outline-none"
                 />
               </div>
               <div>
@@ -1071,7 +1172,7 @@ export default function LivePollsPage() {
                   value={newDesc}
                   onChange={(e) => setNewDesc(e.target.value)}
                   placeholder="Describe your poll..."
-                  className="w-full rounded-lg border px-3 py-2 text-sm focus:border-[#6264A7] focus:outline-none"
+                  className="w-full rounded-lg border px-3 py-2 text-sm focus:border-[#6C63FF] focus:outline-none"
                   rows={3}
                 />
               </div>
@@ -1087,7 +1188,7 @@ export default function LivePollsPage() {
               <button
                 onClick={handleCreatePoll}
                 disabled={!newTitle.trim() || loading}
-                className="w-full rounded-lg bg-[#6264A7] px-6 py-3 font-semibold text-white hover:bg-[#5254a0] disabled:opacity-50"
+                className="w-full rounded-lg bg-[#6C63FF] px-6 py-3 font-semibold text-white hover:bg-[#5A52E0] disabled:opacity-50"
               >
                 {loading ? "Creating..." : "Create Poll"}
               </button>
@@ -1112,7 +1213,7 @@ export default function LivePollsPage() {
           {canCreate && (
             <button
               onClick={() => setView("create")}
-              className="rounded-lg bg-[#6264A7] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#5254a0]"
+              className="rounded-lg bg-[#6C63FF] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#5A52E0]"
             >
               + New Poll
             </button>
@@ -1127,13 +1228,13 @@ export default function LivePollsPage() {
               value={joinCode}
               onChange={(e) => { setJoinCode(e.target.value.toUpperCase()); setJoinError(""); }}
               placeholder="Enter 6-digit code"
-              className="flex-1 rounded-lg border px-3 py-2 text-sm font-mono tracking-widest uppercase focus:border-[#6264A7] focus:outline-none"
+              className="flex-1 rounded-lg border px-3 py-2 text-sm font-mono tracking-widest uppercase focus:border-[#6C63FF] focus:outline-none"
               maxLength={6}
             />
             <button
               onClick={handleJoin}
               disabled={joinCode.length < 4}
-              className="rounded-lg bg-[#6264A7] px-6 py-2 text-sm font-medium text-white hover:bg-[#5254a0] disabled:opacity-50"
+              className="rounded-lg bg-[#6C63FF] px-6 py-2 text-sm font-medium text-white hover:bg-[#5A52E0] disabled:opacity-50"
             >
               Join
             </button>
@@ -1190,7 +1291,7 @@ export default function LivePollsPage() {
                       {poll.status === "active" && (
                         <button
                           onClick={() => openPresent(poll.id)}
-                          className="rounded-lg bg-[#6264A7] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#5254a0]"
+                          className="rounded-lg bg-[#6C63FF] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#5A52E0]"
                           title="Present live"
                         >
                           Present
