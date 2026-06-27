@@ -736,7 +736,7 @@ export default function LivePollsPage() {
     };
 
     return (
-      <div className="fixed inset-0 z-50 flex flex-col bg-[#f5f5f0]">
+      <div className="fixed inset-0 z-[9999] flex flex-col bg-[#f5f5f0]">
         {/* Top bar - Mentimeter style: light with join instructions */}
         <div className="flex items-center justify-between px-6 py-2.5 bg-white border-b border-gray-200 shadow-sm">
           <div className="flex items-center gap-4">
