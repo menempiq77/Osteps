@@ -819,12 +819,12 @@ export default function LivePollsPage() {
         )}
 
         {/* Main content */}
-        <div className="flex-1 flex flex-col items-center justify-center px-8 py-6 relative overflow-hidden">
+        <div className="flex-1 flex flex-col items-center px-8 py-4 relative overflow-y-auto">
           {/* Navigation arrows */}
           <button
             onClick={() => setPresentQIndex((i) => Math.max(0, i - 1))}
             disabled={!hasPrev}
-            className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-white border border-gray-200 p-3 text-gray-400 shadow-sm hover:text-gray-700 hover:shadow-md disabled:opacity-20 transition"
+            className="fixed left-4 top-1/2 -translate-y-1/2 z-10 rounded-full bg-white border border-gray-200 p-3 text-gray-400 shadow-sm hover:text-gray-700 hover:shadow-md disabled:opacity-20 transition"
           >
             <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
           </button>
@@ -832,15 +832,15 @@ export default function LivePollsPage() {
           <button
             onClick={() => setPresentQIndex((i) => Math.min(totalQs - 1, i + 1))}
             disabled={!hasNext}
-            className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-white border border-gray-200 p-3 text-gray-400 shadow-sm hover:text-gray-700 hover:shadow-md disabled:opacity-20 transition"
+            className="fixed right-4 top-1/2 -translate-y-1/2 z-10 rounded-full bg-white border border-gray-200 p-3 text-gray-400 shadow-sm hover:text-gray-700 hover:shadow-md disabled:opacity-20 transition"
           >
             <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
           </button>
 
           {currentQ ? (
-            <div className="w-full max-w-4xl flex flex-col items-center">
-              <div className="text-center mb-8">
-                <span className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-1.5 text-sm font-medium text-gray-500 shadow-sm border border-gray-100 mb-4">
+            <div className="w-full max-w-4xl flex flex-col items-center mt-4">
+              <div className="text-center mb-4 w-full">
+                <span className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-1.5 text-sm font-medium text-gray-500 shadow-sm border border-gray-100 mb-3">
                   <span className="flex h-6 w-6 items-center justify-center rounded-md bg-[#4262FF] text-xs font-bold text-white">
                     {presentQIndex + 1}
                   </span>
@@ -848,12 +848,12 @@ export default function LivePollsPage() {
                   <span className="text-gray-300">|</span>
                   <span>{currentQ.total_responses} response{currentQ.total_responses !== 1 ? "s" : ""}</span>
                 </span>
-                <h2 className="text-3xl md:text-5xl font-bold leading-tight text-gray-900">
+                <h2 className="text-xl md:text-2xl font-bold leading-snug text-gray-900">
                   {currentQ.question_text}
                 </h2>
               </div>
 
-              <div className="w-full max-w-3xl">
+              <div className="w-full max-w-3xl flex-1 min-h-0">
                 {renderPresenterChart(currentQ)}
               </div>
             </div>
