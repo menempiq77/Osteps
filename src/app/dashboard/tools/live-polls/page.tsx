@@ -595,6 +595,7 @@ export default function LivePollsPage() {
     const currentQ = results.questions[presentQIndex];
     const hasPrev = presentQIndex > 0;
     const hasNext = presentQIndex < totalQs - 1;
+    const displayHost = typeof window !== "undefined" ? window.location.host : "dashboard.osteps.com";
 
     const renderPresenterChart = (q: QuestionResult) => {
       if (q.type === "multiple_choice") {
@@ -602,35 +603,44 @@ export default function LivePollsPage() {
           ([name, value], i) => ({ name, value, fill: CHART_COLORS[i % CHART_COLORS.length] })
         );
         const total = data.reduce((s, d) => s + d.value, 0);
+
+        if (total === 0) {
+          return (
+            <div className="flex flex-col items-center justify-center py-12">
+              <div className="mb-3 text-5xl text-gray-300">&#128202;</div>
+              <p className="text-lg text-gray-400">Waiting for responses...</p>
+            </div>
+          );
+        }
+
         return (
           <div className="w-full">
-            <ResponsiveContainer width="100%" height={Math.max(300, data.length * 70)}>
-              <BarChart data={data} layout="vertical" margin={{ left: 30, right: 40, top: 10, bottom: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis type="number" allowDecimals={false} tick={{ fill: "#9CA3AF", fontSize: 16 }} />
-                <YAxis type="category" dataKey="name" width={160} tick={{ fill: "#E5E7EB", fontSize: 18 }} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: "#1F2937", border: "1px solid #374151", borderRadius: 8, color: "#fff" }}
-                  formatter={(v: number) => [`${v} vote${v !== 1 ? "s" : ""} (${total > 0 ? Math.round((v / total) * 100) : 0}%)`, ""]}
+            <ResponsiveContainer width="100%" height={Math.max(250, data.length * 20 + 150)}>
+              <BarChart data={data} margin={{ top: 25, right: 30, bottom: 10, left: 30 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                <XAxis
+                  dataKey="name"
+                  tick={{ fill: "#374151", fontSize: 13, fontWeight: 600 }}
+                  axisLine={{ stroke: "#e5e7eb" }}
+                  tickLine={false}
                 />
-                <Bar dataKey="value" radius={[0, 8, 8, 0]} barSize={40}>
-                  {data.map((_, i) => (
-                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                <YAxis
+                  allowDecimals={false}
+                  tick={{ fill: "#9ca3af", fontSize: 12 }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip
+                  formatter={(v: number) => [`${v} vote${v !== 1 ? "s" : ""} (${total > 0 ? Math.round((v / total) * 100) : 0}%)`, ""]}
+                  contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
+                />
+                <Bar dataKey="value" radius={[8, 8, 0, 0]} barSize={50} label={{ position: "top", fill: "#374151", fontSize: 16, fontWeight: 700 }}>
+                  {data.map((d, i) => (
+                    <Cell key={i} fill={d.fill} />
                   ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-            <div className="mt-6 flex flex-wrap justify-center gap-6">
-              {data.map((d, i) => (
-                <div key={i} className="flex items-center gap-2 text-lg">
-                  <span className="inline-block h-4 w-4 rounded" style={{ backgroundColor: d.fill }} />
-                  <span className="font-semibold">{d.name}</span>
-                  <span className="text-gray-400">
-                    {d.value} ({total > 0 ? Math.round((d.value / total) * 100) : 0}%)
-                  </span>
-                </div>
-              ))}
-            </div>
           </div>
         );
       }
@@ -640,21 +650,28 @@ export default function LivePollsPage() {
           ([, a], [, b]) => b - a
         );
         const maxCount = words[0]?.[1] ?? 1;
+        if (words.length === 0) {
+          return (
+            <div className="flex flex-col items-center justify-center py-12">
+              <div className="mb-3 text-5xl text-gray-300">&#9729;</div>
+              <p className="text-lg text-gray-400">Waiting for responses...</p>
+            </div>
+          );
+        }
         return (
-          <div className="flex flex-wrap justify-center gap-4 py-8">
-            {words.length === 0 && <p className="text-gray-500 text-xl">Waiting for responses...</p>}
+          <div className="flex flex-wrap justify-center gap-3 py-6">
             {words.map(([word, count], i) => {
-              const size = 20 + (count / maxCount) * 44;
+              const size = 16 + (count / maxCount) * 32;
               return (
                 <span
                   key={i}
-                  className="inline-block rounded-full px-5 py-2 font-bold text-white transition-all"
+                  className="inline-block rounded-2xl px-4 py-1.5 font-bold text-white"
                   style={{
                     fontSize: size,
                     backgroundColor: CHART_COLORS[i % CHART_COLORS.length],
                   }}
                 >
-                  {word} ({count})
+                  {word}
                 </span>
               );
             })}
@@ -665,25 +682,30 @@ export default function LivePollsPage() {
       if (q.type === "rating") {
         const r = q.results as { average: number; distribution: Record<string, number> };
         const data = Array.from({ length: 5 }, (_, i) => ({
-          name: `★ ${i + 1}`,
+          name: `${i + 1}`,
           value: r.distribution[String(i + 1)] ?? 0,
         }));
+        const totalVotes = data.reduce((s, d) => s + d.value, 0);
+        if (totalVotes === 0) {
+          return (
+            <div className="flex flex-col items-center justify-center py-12">
+              <div className="mb-3 text-5xl text-gray-300">&#11088;</div>
+              <p className="text-lg text-gray-400">Waiting for ratings...</p>
+            </div>
+          );
+        }
         return (
           <div>
             <div className="mb-6 text-center">
-              <span className="text-7xl font-bold text-yellow-400">{r.average}</span>
-              <span className="text-gray-400 text-3xl"> / 5</span>
-              <div className="mt-2 text-2xl text-yellow-400">
-                {"★".repeat(Math.round(r.average))}{"☆".repeat(5 - Math.round(r.average))}
-              </div>
+              <span className="text-6xl font-bold text-[#FF9F43]">{r.average.toFixed(1)}</span>
+              <span className="text-2xl text-gray-300"> / 5</span>
             </div>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={data}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis dataKey="name" tick={{ fill: "#E5E7EB", fontSize: 18 }} />
-                <YAxis allowDecimals={false} tick={{ fill: "#9CA3AF", fontSize: 16 }} />
-                <Tooltip contentStyle={{ backgroundColor: "#1F2937", border: "1px solid #374151", borderRadius: 8, color: "#fff" }} />
-                <Bar dataKey="value" fill="#FBBF24" radius={[8, 8, 0, 0]} barSize={50} />
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart data={data} margin={{ top: 15, right: 20, bottom: 10, left: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                <XAxis dataKey="name" tick={{ fill: "#374151", fontSize: 16, fontWeight: 600 }} axisLine={{ stroke: "#e5e7eb" }} tickLine={false} />
+                <YAxis allowDecimals={false} tick={{ fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+                <Bar dataKey="value" fill="#FF9F43" radius={[8, 8, 0, 0]} barSize={45} label={{ position: "top", fill: "#374151", fontSize: 14, fontWeight: 700 }} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -692,12 +714,22 @@ export default function LivePollsPage() {
 
       // open_text
       const answers = q.results as string[];
+      if (answers.length === 0) {
+        return (
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="mb-3 text-5xl text-gray-300">&#128172;</div>
+            <p className="text-lg text-gray-400">Waiting for responses...</p>
+          </div>
+        );
+      }
       return (
-        <div className="w-full max-h-[50vh] overflow-y-auto space-y-3 py-4">
-          {answers.length === 0 && <p className="text-gray-500 text-xl text-center">Waiting for responses...</p>}
+        <div className="w-full columns-1 gap-4 md:columns-2 lg:columns-3">
           {answers.map((a, i) => (
-            <div key={i} className="rounded-xl bg-gray-800 border border-gray-700 px-5 py-3 text-lg">
-              {a}
+            <div
+              key={i}
+              className="mb-3 break-inside-avoid rounded-xl bg-gray-50 border border-gray-100 px-5 py-4 text-base text-gray-700"
+            >
+              &ldquo;{a}&rdquo;
             </div>
           ))}
         </div>
@@ -705,84 +737,145 @@ export default function LivePollsPage() {
     };
 
     return (
-      <div className="fixed inset-0 z-50 flex flex-col bg-gradient-to-b from-gray-900 via-gray-900 to-gray-950 text-white">
+      <div className="fixed inset-0 z-50 flex flex-col bg-[#f5f5f0]">
         {/* Top bar */}
-        <div className="flex items-center justify-between px-6 py-3 bg-black/30">
+        <div className="flex items-center justify-between px-6 py-2.5 bg-white border-b border-gray-200 shadow-sm">
           <div className="flex items-center gap-4">
-            <QRCodeSVG value={pollUrl} size={56} bgColor="transparent" fgColor="#ffffff" />
-            <div>
-              <p className="text-sm text-gray-400">Join at <span className="text-white font-medium">{typeof window !== "undefined" ? window.location.host : ""}/dashboard/tools/live-polls</span></p>
-              <p className="text-lg font-mono font-bold tracking-[0.3em]">{activePoll.join_code}</p>
+            <button
+              onClick={() => setShowQR((v) => !v)}
+              className="flex items-center gap-3 rounded-xl bg-[#4262FF]/5 border border-[#4262FF]/20 px-4 py-2 transition hover:bg-[#4262FF]/10"
+            >
+              <QRCodeSVG value={pollUrl} size={32} bgColor="transparent" fgColor="#4262FF" />
+              <div className="text-left">
+                <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">Join at</p>
+                <p className="text-sm font-bold text-gray-900">{displayHost}/poll/{activePoll.join_code}</p>
+              </div>
+            </button>
+            <div className="hidden sm:flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-1.5">
+              <span className="text-xs text-gray-500">Code:</span>
+              <span className="text-sm font-mono font-bold tracking-widest text-gray-900">{activePoll.join_code}</span>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 rounded-full bg-gray-800 px-4 py-1.5 text-sm">
-              <span className="inline-block h-2 w-2 rounded-full bg-green-400 animate-pulse" />
-              {results.total_participants} participant{results.total_participants !== 1 ? "s" : ""}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center rounded-lg border border-gray-200 bg-white p-0.5">
+              <button
+                onClick={() => setPresentMode("presenter_led")}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${
+                  presentMode === "presenter_led" ? "bg-[#4262FF] text-white shadow-sm" : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Presenter-led
+              </button>
+              <button
+                onClick={() => setPresentMode("self_paced")}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${
+                  presentMode === "self_paced" ? "bg-[#4262FF] text-white shadow-sm" : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Self-paced
+              </button>
             </div>
-            <span className="text-sm text-gray-500">
-              {presentQIndex + 1} / {totalQs}
+            <div className="flex items-center gap-1.5 rounded-lg bg-green-50 px-3 py-1.5 text-sm">
+              <span className="inline-block h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+              <span className="font-semibold text-green-700">{results.total_participants}</span>
+            </div>
+            <span className="rounded-lg bg-gray-100 px-3 py-1.5 text-sm font-mono text-gray-600">
+              {presentQIndex + 1}/{totalQs}
             </span>
             <button
               onClick={() => { stopResultsPolling(); setView("list"); loadPolls(); }}
-              className="rounded-lg bg-red-600/80 px-4 py-2 text-sm font-medium hover:bg-red-600 transition"
+              className="rounded-lg bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-200 transition"
             >
               Exit
             </button>
           </div>
         </div>
 
-        {/* Main content — single question */}
-        <div className="flex-1 flex flex-col items-center justify-center px-8 py-6 relative">
-          {/* Left arrow */}
+        {/* QR overlay */}
+        {showQR && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/95 backdrop-blur-sm" onClick={() => setShowQR(false)}>
+            <div className="rounded-3xl bg-white p-12 text-center shadow-2xl border border-gray-200" onClick={(e) => e.stopPropagation()}>
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">Join this poll</h2>
+              <div className="mb-6 rounded-2xl bg-[#f5f5f0] p-6 inline-block">
+                <QRCodeSVG value={pollUrl} size={280} bgColor="#f5f5f0" fgColor="#1a1a2e" />
+              </div>
+              <div>
+                <p className="text-gray-500 mb-2">Go to</p>
+                <p className="text-2xl font-bold text-gray-900 mb-4">{displayHost}/poll/{activePoll.join_code}</p>
+                <div className="flex items-center justify-center gap-4">
+                  <div className="rounded-xl bg-[#f5f5f0] px-8 py-4">
+                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Use code</p>
+                    <p className="text-4xl font-mono font-bold tracking-[0.4em] text-gray-900">{activePoll.join_code}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleCopyLink}
+                  className="mt-6 rounded-xl bg-[#4262FF] px-8 py-3 text-sm font-bold text-white hover:bg-[#3451E0] transition"
+                >
+                  {copiedLink ? "Copied!" : "Copy link"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Main content */}
+        <div className="flex-1 flex flex-col items-center px-8 py-4 relative overflow-y-auto">
+          {/* Navigation arrows */}
           <button
             onClick={() => setPresentQIndex((i) => Math.max(0, i - 1))}
             disabled={!hasPrev}
-            className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white hover:bg-white/20 disabled:opacity-20 disabled:hover:bg-white/10 transition"
+            className="fixed left-4 top-1/2 -translate-y-1/2 z-10 rounded-full bg-white border border-gray-200 p-3 text-gray-400 shadow-sm hover:text-gray-700 hover:shadow-md disabled:opacity-20 transition"
           >
-            <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
           </button>
 
-          {/* Right arrow */}
           <button
             onClick={() => setPresentQIndex((i) => Math.min(totalQs - 1, i + 1))}
             disabled={!hasNext}
-            className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white hover:bg-white/20 disabled:opacity-20 disabled:hover:bg-white/10 transition"
+            className="fixed right-4 top-1/2 -translate-y-1/2 z-10 rounded-full bg-white border border-gray-200 p-3 text-gray-400 shadow-sm hover:text-gray-700 hover:shadow-md disabled:opacity-20 transition"
           >
-            <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
           </button>
 
           {currentQ ? (
             <div className="w-full max-w-4xl flex flex-col items-center">
-              {/* Question */}
-              <div className="text-center mb-8">
-                <span className="inline-block rounded-full bg-[#6264A7] px-4 py-1 text-sm font-medium mb-4">
-                  Question {presentQIndex + 1} of {totalQs} &middot; {currentQ.type.replace("_", " ")}
+              <div className="text-center mb-4 w-full">
+                <span className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-1.5 text-sm font-medium text-gray-500 shadow-sm border border-gray-100 mb-3">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-md bg-[#4262FF] text-xs font-bold text-white">
+                    {presentQIndex + 1}
+                  </span>
+                  <span className="capitalize">{currentQ.type.replace("_", " ")}</span>
+                  <span className="text-gray-300">|</span>
+                  <span>{currentQ.total_responses} response{currentQ.total_responses !== 1 ? "s" : ""}</span>
                 </span>
-                <h2 className="text-3xl md:text-4xl font-bold leading-tight">{currentQ.question_text}</h2>
-                <p className="text-gray-400 mt-3 text-lg">
-                  {currentQ.total_responses} response{currentQ.total_responses !== 1 ? "s" : ""}
-                </p>
+                <h2 className="text-xl md:text-2xl font-bold leading-snug text-gray-900">
+                  {currentQ.question_text}
+                </h2>
               </div>
 
-              {/* Results chart */}
-              <div className="w-full">
+              <div className="w-full max-w-3xl">
                 {renderPresenterChart(currentQ)}
               </div>
             </div>
           ) : (
-            <div className="text-center text-gray-500 text-xl">No questions in this poll</div>
+            <div className="text-center mt-20">
+              <div className="text-5xl mb-4 text-gray-300">&#128203;</div>
+              <p className="text-lg text-gray-400">No questions in this poll</p>
+            </div>
           )}
         </div>
 
-        {/* Bottom dots */}
-        <div className="flex justify-center gap-2 pb-4">
+        {/* Bottom navigation dots */}
+        <div className="flex items-center justify-center gap-1.5 pb-4">
           {results.questions.map((_, i) => (
             <button
               key={i}
               onClick={() => setPresentQIndex(i)}
-              className={`h-3 w-3 rounded-full transition ${
-                i === presentQIndex ? "bg-[#6264A7] scale-125" : "bg-gray-600 hover:bg-gray-500"
+              className={`rounded-full transition-all duration-300 ${
+                i === presentQIndex
+                  ? "h-2.5 w-7 bg-[#4262FF]"
+                  : "h-2.5 w-2.5 bg-gray-300 hover:bg-gray-400"
               }`}
             />
           ))}
