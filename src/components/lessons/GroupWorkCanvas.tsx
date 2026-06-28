@@ -676,6 +676,7 @@ export default function GroupWorkCanvas({ disabled, onChange, dataRef }: GroupWo
           style={{
             touchAction: "none",
             cursor: getCursorStyle(),
+            pointerEvents: editingTextBox ? "none" : "auto",
           }}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
@@ -685,32 +686,44 @@ export default function GroupWorkCanvas({ disabled, onChange, dataRef }: GroupWo
 
         {/* Text input overlay */}
         {editingTextBox && (
-          <textarea
-            ref={textInputRef}
-            value={textInputValue}
-            onChange={(e) => setTextInputValue(e.target.value)}
-            onBlur={commitTextBox}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") {
-                setEditingTextBox(null);
-                setTextInputValue("");
-              }
-            }}
-            className="absolute border-2 border-blue-400 bg-white/90 rounded px-1 py-0.5 outline-none resize"
-            style={{
-              left: editingTextBox.x,
-              top: editingTextBox.y,
-              color: editingTextBox.color,
-              fontSize: editingTextBox.fontSize,
-              fontFamily: "'Georgia', 'Times New Roman', serif",
-              lineHeight: `${editingTextBox.fontSize * 1.3}px`,
-              minWidth: 120,
-              minHeight: editingTextBox.fontSize * 1.5,
-              zIndex: 10,
-            }}
-            placeholder="Type here..."
-            autoFocus
-          />
+          <>
+            {/* Backdrop — click outside textarea to commit */}
+            <div
+              className="absolute inset-0"
+              style={{ zIndex: 9 }}
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                commitTextBox();
+              }}
+            />
+            <textarea
+              ref={textInputRef}
+              value={textInputValue}
+              onChange={(e) => setTextInputValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  setEditingTextBox(null);
+                  setTextInputValue("");
+                }
+              }}
+              className="absolute border-2 border-blue-400 bg-white/90 rounded px-2 py-1 outline-none shadow-lg"
+              style={{
+                left: editingTextBox.x,
+                top: editingTextBox.y,
+                color: editingTextBox.color,
+                fontSize: editingTextBox.fontSize,
+                fontFamily: "'Georgia', 'Times New Roman', serif",
+                lineHeight: `${editingTextBox.fontSize * 1.3}px`,
+                minWidth: 200,
+                minHeight: editingTextBox.fontSize * 2.5,
+                width: 300,
+                zIndex: 20,
+                resize: "both",
+              }}
+              placeholder="Type here..."
+              autoFocus
+            />
+          </>
         )}
 
         {/* Spacer to give the container actual height for scrolling */}
