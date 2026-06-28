@@ -43,45 +43,22 @@ export const theTrueBook: CourseLesson = {
       },
     },
     {
-      title: { en: "Retrieval & the central claim", ar: "استِرجاعٌ والدَّعوى المِحوَريّة" },
-      learningObjectives: [
-        { en: "Define wahy (revelation) precisely and distinguish three of its forms mentioned in the Qur'an.", ar: "أُعَرِّفُ الوَحيَ بِدِقّةٍ وأُمَيِّزُ ثَلاثًا مِن صُوَرِهِ المَذكورةِ في القُرآن." },
-        { en: "State the central claim of As-Sajdah 1-3 and the objection it answers.", ar: "أُحَدِّدُ الدَّعوى المِحوَريّةَ في السجدة ١-٣ والاعتِراضَ الذي تَرُدُّ عليه." },
-      ],
-      successCriteria: [
-        { en: "I can explain why 'the Prophet ﷺ authored it' is logically and historically weak.", ar: "أُعَلِّلُ ضَعفَ دَعوى «أنَّ النَّبِيَّ ﷺ ألَّفَه» مَنطِقِيًّا وتاريخِيًّا." },
-        { en: "I can use one cross-reference (Al-Isra 88) to support the claim.", ar: "أستَدِلُّ بِشاهِدٍ (الإسراء ٨٨) على تَأييدِ الدَّعوى." },
-      ],
-      image: {
-        src: IMG.childQuran,
-        alt: { en: "An open copy of the Qur'an.", ar: "مُصحَفٌ مَفتوح." },
-        caption: { en: "Surat As-Sajdah opens by affirming the source of the Qur'an and challenging its deniers.", ar: "تَفتَتِحُ سورةُ السَّجدةِ بِتَأكيدِ مَصدَرِ القُرآنِ وتَحَدّي مُنكِريه." },
+      title: { en: "Retrieval practise", ar: "مُمارَسةُ الاستِرجاع" },
+      imageMatchingActivity: {
+        title: { en: "Match each image to its Islamic keyword", ar: "طابِقْ كُلَّ صورةٍ بِكَلِمَتِها الإسلامِيّة" },
+        instruction: { en: "Drag the keyword to the correct image. These concepts connect to Surat As-Sajdah 1-12.", ar: "اسحَبِ الكَلِمةَ إلى الصّورةِ الصَّحيحة. هذه المَفاهيمُ تَرتَبِطُ بِسورةِ السجدة ١-١٢." },
+        pairs: [
+          { image: IMG.childQuran, keyword: { en: "Tanzil (Revelation)", ar: "تَنزيل (وَحي)" } },
+          { image: IMG.grandMosque, keyword: { en: "Sajdah (Prostration)", ar: "سَجدة (خُشوع)" } },
+          { image: IMG.skyBlue, keyword: { en: "The Heavens (As-Samawat)", ar: "السَّماوات" } },
+          { image: IMG.sea, keyword: { en: "Allah's Creation", ar: "خَلقُ الله" } },
+          { image: IMG.plantBulb, keyword: { en: "Resurrection (Ba'th)", ar: "البَعث" } },
+        ],
+        coinsReward: 10,
       },
-      callout: {
-        label: { en: "High-order question", ar: "سُؤالٌ عالي المُستوى" },
-        title: { en: "Could any human have produced this Book?", ar: "هل كانَ بِمَقدورِ بَشَرٍ أن يُنتِجَ هذا الكِتاب؟" },
-        body: {
-          en: "The Makkans were the most eloquent Arabs of their age, yet the Qur'an challenged them to produce even a single surah like it (Al-Baqarah 23) and they failed across twenty-three years. Build an argument: if the most skilled rivals, with every motive to refute it, could not imitate it, what does that tell us about its author?",
-          ar: "كانَ أهلُ مَكّةَ أفصَحَ العَرَبِ في زَمانِهِم، ومَعَ ذلك تَحَدّاهُمُ القُرآنُ أن يَأتوا بِسورةٍ واحِدةٍ مِثلِهِ (البقرة ٢٣) فَعَجَزوا ثَلاثًا وعِشرينَ سَنة. ابنِ حُجّةً: إذا عَجَزَ أمهَرُ الخُصومِ، ولَدَيهِم كُلُّ الدّافِعِ لِلرَّدّ، عن مُحاكاتِه، فَماذا يَدُلُّ ذلك على مُؤَلِّفِه؟",
-        },
-      },
-      infoBoxes: [
-        {
-          label: { en: "Key term", ar: "مُصطَلَحٌ مِفتاحِيّ" },
-          lines: [
-            { en: "Wahy (revelation): Allah's conveying of guidance to His prophets. Forms include direct inspiration, speech from behind a veil, and an angel (Jibril) bringing the message — see Ash-Shura 51.", ar: "الوَحي: إيصالُ اللهِ هُداهُ إلى أنبيائِه. ومِن صُوَرِه: الإلهامُ المُباشَر، والكَلامُ مِن وَراءِ حِجاب، وإرسالُ مَلَكٍ (جِبريل) يَحمِلُ الرِّسالة — انظُر الشورى ٥١." },
-          ],
-        },
-        {
-          label: { en: "Cross-reference", ar: "شاهِدٌ قُرآنِيّ" },
-          lines: [
-            { en: "\"Say: If mankind and the jinn gathered to produce the like of this Qur'an, they could not produce the like of it, even if they were helpers of one another.\" — Al-Isra 88", ar: "﴿قُل لَّئِنِ اجْتَمَعَتِ الْإِنسُ وَالْجِنُّ عَلَىٰ أَن يَأْتُوا بِمِثْلِ هَٰذَا الْقُرْآنِ لَا يَأْتُونَ بِمِثْلِهِ وَلَوْ كَانَ بَعْضُهُمْ لِبَعْضٍ ظَهِيرًا﴾ — الإسراء ٨٨" },
-          ],
-        },
-      ],
       body: {
-        en: "Surat As-Sajdah is a Makkan surah revealed when the young Muslim community was under pressure and the Qur'an's very origin was being attacked. The disbelievers of Makkah could not deny the beauty and power of its language, so they shifted their attack: they claimed Muhammad ﷺ had simply invented it. The opening twelve verses answer this charge directly and then build a larger case — that the Author of this Book is the Creator and Sustainer of the entire universe, and that the One who created from nothing will certainly raise the dead for judgement.\n\nBefore we read, fix the key term in your mind. 'Wahy' (revelation) is not poetry, intuition, or a person's clever ideas; it is Allah's deliberate conveying of guidance to a prophet. The Qur'an itself describes how this happens (Ash-Shura 51): sometimes by inspiration, sometimes from behind a veil, and most often through the angel Jibril carrying the words. So when the Qur'an calls itself 'tanzil' — something sent down — it is making a precise claim about its source, not a vague boast.\n\nWeigh the rival explanation honestly, because a strong student tests the opposing view. If a human authored the Qur'an, that human would be either truthful or a liar. He could not be a liar, because he forbade lying, endured persecution rather than profit, and the Book repeatedly corrected and even rebuked him (as in 'Abasa 1-10) — no forger writes verses against himself. And he could not have produced it from his own genius, because the most eloquent Arabs, challenged to match a single surah, never could (Al-Isra 88, Al-Baqarah 23). When every human explanation collapses, only one remains.",
-        ar: "سورةُ السَّجدةِ مَكِّيّةٌ نَزَلَت والمُجتَمَعُ المُسلِمُ النّاشِئُ تَحتَ الضَّغط، وأصلُ القُرآنِ نَفسُهُ مَوضِعُ هُجوم. لم يَستَطِعْ كُفّارُ مَكّةَ إنكارَ جَمالِ لُغَتِهِ وقُوَّتِها، فَحَوَّلوا هُجومَهُم: زَعَموا أنَّ مُحَمَّدًا ﷺ افتَراه. فَتَرُدُّ الآياتُ الاثنَتا عَشْرةَ الأولى على هذه التُّهمةِ مُباشَرةً، ثُمَّ تَبني حُجّةً أكبَر: أنَّ مُؤَلِّفَ هذا الكِتابِ هو خالِقُ الكَونِ ومُدَبِّرُه، وأنَّ مَن خَلَقَ مِنَ العَدَمِ قادِرٌ على بَعثِ المَوتى لِلحِساب.\n\nقَبلَ القِراءةِ ثَبِّتِ المُصطَلَحَ المِفتاحِيّ. الوَحيُ لَيسَ شِعرًا ولا حَدسًا ولا أفكارًا ذَكِيّةً مِن إنسان؛ بل هو إيصالُ اللهِ هُداهُ إلى نَبِيّ. وقد بَيَّنَ القُرآنُ كَيفِيّةَ ذلك (الشورى ٥١): تارةً إلهامًا، وتارةً مِن وَراءِ حِجاب، وأكثَرُهُ بِجِبريلَ يَحمِلُ الكَلِمات. فَحينَ يُسَمّي القُرآنُ نَفسَهُ «تَنزيلًا» فَهو يُطلِقُ دَعوى دَقيقةً عن مَصدَرِه، لا فَخرًا غامِضًا.\n\nزِنِ التَّفسيرَ المُنافِسَ بِإنصاف، فالطّالِبُ القَوِيُّ يَختَبِرُ الرَّأيَ المُخالِف. لَو ألَّفَ القُرآنَ بَشَرٌ لَكانَ إمّا صادِقًا وإمّا كاذِبًا. ولا يُمكِنُ أن يَكونَ كاذِبًا، فقد نَهى عنِ الكَذِب، وصَبَرَ على الأذى دونَ مَكسَب، والكِتابُ يُصَحِّحُ لَهُ بل يُعاتِبُهُ (كما في عَبَسَ ١-١٠) — ولا مُفتَرٍ يَكتُبُ آياتٍ ضِدَّ نَفسِه. ولا يُمكِنُ أن يَكونَ مِن نَبوغِه، فأفصَحُ العَرَبِ حينَ تُحُدّوا بِسورةٍ واحِدةٍ عَجَزوا (الإسراء ٨٨، البقرة ٢٣). وحينَ تَنهارُ كُلُّ التَّفسيراتِ البَشَريّةِ لا يَبقى إلّا واحِد.",
+        en: "\"The revelation of the Book \u2014 there is no doubt about it \u2014 is from the Lord of the worlds.\" (As-Sajdah 2). The Prophet \uFDFA said: \"Whoever recites Surat As-Sajdah and Surat Al-Mulk every night, Allah will protect him\" (Tirmidhi). Refresh these key concepts before we begin \u2014 they are the foundation of today's lesson.",
+        ar: "\uFD3Fتَنزيلُ الكِتابِ لا رَيبَ فيهِ مِن رَبِّ العالَمين\uFD3E (السجدة ٢). قالَ النَّبِيُّ \uFDFA: \u00ABمَن قَرَأَ سورةَ السَّجدةِ وسورةَ المُلكِ كُلَّ لَيلةٍ حَفِظَهُ الله\u00BB (الترمذي). راجِعْ هذهِ المَفاهيمَ قَبلَ أن نَبدَأ \u2014 فَهِيَ أساسُ دَرسِ اليَوم.",
       },
     },
     {

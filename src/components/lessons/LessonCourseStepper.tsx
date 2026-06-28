@@ -36,6 +36,15 @@ export type LessonSection = {
       answer: string | { en: string; ar: string };
     }>;
   };
+  imageMatchingActivity?: {
+    title: string | { en: string; ar: string };
+    instruction?: string | { en: string; ar: string };
+    pairs: Array<{
+      image: string;
+      keyword: string | { en: string; ar: string };
+    }>;
+    coinsReward?: number;
+  };
   image?: {
     src: string;
     alt: string | { en: string; ar: string };

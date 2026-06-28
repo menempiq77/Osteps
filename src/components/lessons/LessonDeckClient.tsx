@@ -20,6 +20,7 @@ type SlideBlock =
   | { type: "infoBoxes"; value: NonNullable<LessonSection["infoBoxes"]> }
   | { type: "groupTasks"; value: NonNullable<LessonSection["groupTasks"]> }
   | { type: "matchingActivity"; value: NonNullable<LessonSection["matchingActivity"]> }
+  | { type: "imageMatchingActivity"; value: NonNullable<LessonSection["imageMatchingActivity"]> }
   | { type: "image"; value: NonNullable<LessonSection["image"]> }
   | { type: "callout"; value: NonNullable<LessonSection["callout"]> }
   | { type: "body"; paragraphs: string[] }
@@ -92,6 +93,9 @@ function buildSlides(lesson: CourseLesson): PresentationSlide[] {
       if (section.groupTasks) intro.push({ type: "groupTasks", value: section.groupTasks });
       if (section.matchingActivity) {
         intro.push({ type: "matchingActivity", value: section.matchingActivity });
+      }
+      if (section.imageMatchingActivity) {
+        intro.push({ type: "imageMatchingActivity", value: section.imageMatchingActivity });
       }
       if (section.callout) intro.push({ type: "callout", value: section.callout });
       if (intro.length) {
@@ -187,6 +191,8 @@ export default function LessonDeckClient({ lesson }: Props) {
   const [earnedCoins, setEarnedCoins] = useState<Record<string, number>>({});
   const [coinAnimating, setCoinAnimating] = useState<string | null>(null);
   const totalCoins = Object.values(earnedCoins).reduce((sum, v) => sum + v, 0);
+  const [imageMatchAnswers, setImageMatchAnswers] = useState<Record<string, Record<number, string>>>({});
+  const [imageMatchChecked, setImageMatchChecked] = useState<Record<string, boolean>>({});
 
   const slides = useMemo(() => buildSlides(lesson), [lesson]);
   const hasQuiz = (lesson.quizQuestions?.length ?? 0) > 0;
@@ -790,6 +796,211 @@ export default function LessonDeckClient({ lesson }: Props) {
     );
   }
 
+  function renderImageMatchingActivity(
+    value: NonNullable<LessonSection["imageMatchingActivity"]>,
+    sectionIndex: number,
+  ) {
+    const actKey = `${lesson.slug}:imgmatch:${sectionIndex}`;
+    const answers = imageMatchAnswers[actKey] ?? {};
+    const isChecked = !!imageMatchChecked[actKey];
+    const allFilled = value.pairs.every((_, i) => answers[i] !== undefined);
+    const correctCount = isChecked
+      ? value.pairs.reduce((n, pair, i) => n + (answers[i] === getText(pair.keyword, "en") ? 1 : 0), 0)
+      : 0;
+
+    const shuffledKeywords = (() => {
+      const kws = value.pairs.map((p) => getText(p.keyword, "en"));
+      const seed = actKey.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+      return [...kws].sort((a, b) => {
+        const ha = (a.charCodeAt(0) * 31 + seed) % 997;
+        const hb = (b.charCodeAt(0) * 31 + seed) % 997;
+        return ha - hb;
+      });
+    })();
+
+    const usedKeywords = new Set(Object.values(answers));
+    const availableKeywords = shuffledKeywords.filter((k) => !usedKeywords.has(k));
+
+    function handleDrop(imageIndex: number, keyword: string) {
+      if (isChecked) return;
+      setImageMatchAnswers((prev) => {
+        const current = prev[actKey] ?? {};
+        const cleaned: Record<number, string> = {};
+        for (const [k, v] of Object.entries(current)) {
+          if (v !== keyword) cleaned[Number(k)] = v;
+        }
+        cleaned[imageIndex] = keyword;
+        return { ...prev, [actKey]: cleaned };
+      });
+    }
+
+    function removeAnswer(imageIndex: number) {
+      if (isChecked) return;
+      setImageMatchAnswers((prev) => {
+        const current = { ...(prev[actKey] ?? {}) };
+        delete current[imageIndex];
+        return { ...prev, [actKey]: current };
+      });
+    }
+
+    function checkAnswers() {
+      setImageMatchChecked((prev) => ({ ...prev, [actKey]: true }));
+      const coins = value.coinsReward;
+      if (coins && !earnedCoins[actKey]) {
+        const score = value.pairs.reduce(
+          (n, pair, i) => n + (answers[i] === getText(pair.keyword, "en") ? 1 : 0),
+          0
+        );
+        if (score === value.pairs.length) {
+          setEarnedCoins((c) => ({ ...c, [actKey]: coins }));
+          setCoinAnimating(actKey);
+          window.setTimeout(() => setCoinAnimating(null), 2200);
+        }
+      }
+    }
+
+    const animating = coinAnimating === actKey;
+    const earned = !!earnedCoins[actKey];
+
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <div>
+            <div className="text-sm font-bold text-slate-900">{getText(value.title, "en")}</div>
+            {value.instruction ? (
+              <div className="text-xs text-slate-500">{getText(value.instruction, "en")}</div>
+            ) : null}
+          </div>
+          {value.coinsReward ? (
+            <div className="relative flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-1">
+              <span className="text-base">🪣</span>
+              <span className={"text-sm font-black tabular-nums " + (animating ? "text-amber-600" : "text-amber-500")}>
+                {totalCoins}
+              </span>
+              <span className="text-[10px] font-bold text-amber-400">coins</span>
+              {animating ? (
+                <>
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <span
+                      key={i}
+                      className="pointer-events-none absolute text-lg"
+                      style={{
+                        left: `${30 + (i % 3) * 15}%`,
+                        animation: `coinDrop 0.8s ease-in ${i * 0.12}s forwards`,
+                        opacity: 0,
+                      }}
+                    >
+                      🪙
+                    </span>
+                  ))}
+                  <style>{`
+                    @keyframes coinDrop {
+                      0% { transform: translateY(-30px) scale(1.3); opacity: 1; }
+                      60% { transform: translateY(0px) scale(1); opacity: 1; }
+                      80% { transform: translateY(-6px) scale(1); opacity: 1; }
+                      100% { transform: translateY(0px) scale(0.7); opacity: 0; }
+                    }
+                  `}</style>
+                </>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+
+        {/* Keyword pills to drag */}
+        {!isChecked ? (
+          <div className="mb-4 flex flex-wrap gap-2">
+            {availableKeywords.map((kw) => (
+              <span
+                key={kw}
+                draggable
+                onDragStart={(e) => { e.dataTransfer.setData("text/plain", kw); e.dataTransfer.effectAllowed = "move"; }}
+                className="cursor-grab rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700 select-none active:cursor-grabbing hover:bg-blue-100"
+              >
+                {kw}
+              </span>
+            ))}
+          </div>
+        ) : null}
+
+        {/* Image grid */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+          {value.pairs.map((pair, index) => {
+            const assigned = answers[index];
+            const correct = isChecked && assigned === getText(pair.keyword, "en");
+            const wrong = isChecked && assigned && !correct;
+            return (
+              <div
+                key={index}
+                className="flex flex-col items-center gap-1.5"
+                onDragOver={(e) => { if (!isChecked) e.preventDefault(); }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const kw = e.dataTransfer.getData("text/plain");
+                  if (kw) handleDrop(index, kw);
+                }}
+              >
+                <div className="relative w-full overflow-hidden rounded-lg border-2 border-slate-200 aspect-square">
+                  <img
+                    src={pair.image}
+                    alt={`Image ${index + 1}`}
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                  />
+                </div>
+                <div
+                  className={
+                    "flex min-h-[32px] w-full items-center justify-center rounded-lg border-2 border-dashed px-2 py-1 text-center text-xs font-bold transition " +
+                    (assigned
+                      ? isChecked
+                        ? correct
+                          ? "border-emerald-400 bg-emerald-50 text-emerald-800"
+                          : "border-rose-400 bg-rose-50 text-rose-800"
+                        : "border-blue-300 bg-blue-50 text-blue-700 cursor-pointer"
+                      : "border-slate-300 bg-slate-50 text-slate-400")
+                  }
+                  onClick={() => { if (assigned && !isChecked) removeAnswer(index); }}
+                >
+                  {assigned ?? "Drop here"}
+                  {isChecked && correct ? " ✓" : ""}
+                  {isChecked && wrong ? " ✗" : ""}
+                </div>
+                {isChecked && wrong ? (
+                  <div className="text-[10px] font-semibold text-emerald-600">
+                    ✓ {getText(pair.keyword, "en")}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-3 flex items-center justify-between gap-2">
+          <div className="text-xs text-slate-500">
+            {isChecked ? (
+              <span className={correctCount === value.pairs.length ? "font-bold text-emerald-600" : "font-bold text-amber-600"}>
+                Score: {correctCount}/{value.pairs.length}
+                {correctCount === value.pairs.length && earned ? " — coins earned!" : ""}
+              </span>
+            ) : value.coinsReward && !earned ? (
+              <span className="text-amber-500 font-semibold">🪙 Get all correct to earn {value.coinsReward} coins!</span>
+            ) : (
+              "Drag each keyword to the matching image."
+            )}
+          </div>
+          <button
+            type="button"
+            disabled={isChecked || !allFilled}
+            onClick={checkAnswers}
+            className="rounded-full bg-blue-600 px-4 py-1.5 text-xs font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+          >
+            Check answers
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   function renderCallout(value: NonNullable<LessonSection["callout"]>, compact = false) {
     return (
       <div className={"rounded-xl border border-amber-200 bg-amber-50 " + (compact ? "p-3" : "p-3")}>
@@ -957,6 +1168,8 @@ export default function LessonDeckClient({ lesson }: Props) {
         return renderGroupTasks(block.value, presentationMode);
       case "matchingActivity":
         return renderMatchingActivity(block.value, sectionIndex, presentationMode);
+      case "imageMatchingActivity":
+        return renderImageMatchingActivity(block.value, sectionIndex);
       case "image":
         return renderImage(block.value, presentationMode);
       case "callout":
@@ -986,6 +1199,7 @@ export default function LessonDeckClient({ lesson }: Props) {
         {activeSection.infoBoxes ? renderInfoBoxes(activeSection.infoBoxes) : null}
         {activeSection.groupTasks ? renderGroupTasks(activeSection.groupTasks) : null}
         {activeSection.matchingActivity ? renderMatchingActivity(activeSection.matchingActivity, activeIndex) : null}
+        {activeSection.imageMatchingActivity ? renderImageMatchingActivity(activeSection.imageMatchingActivity, activeIndex) : null}
         {activeSection.callout ? renderCallout(activeSection.callout) : null}
         {paragraphs.length ? renderBodyParagraphs(paragraphs) : null}
         {activeSection.responsePrompt ? renderResponsePrompt(activeSection.responsePrompt, activeIndex) : null}
