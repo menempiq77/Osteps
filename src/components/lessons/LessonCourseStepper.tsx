@@ -98,6 +98,11 @@ export type LessonSection = {
     url: string;
     description?: string | { en: string; ar: string };
   };
+  plenary?: {
+    title: string | { en: string; ar: string };
+    instruction?: string | { en: string; ar: string };
+    code: string;
+  };
   groupWorkCards?: {
     title: string | { en: string; ar: string };
     instruction?: string | { en: string; ar: string };

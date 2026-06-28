@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CourseLesson, LessonSection } from "./LessonCourseStepper";
 import LessonQuizClient from "./LessonQuizClient";
 import GroupWorkCanvas from "./GroupWorkCanvas";
+import { QRCodeSVG } from "qrcode.react";
 
 type Props = { lesson: CourseLesson };
 
@@ -30,6 +31,7 @@ type SlideBlock =
   | { type: "groupWorkCards"; value: NonNullable<LessonSection["groupWorkCards"]> }
   | { type: "hingeQuestions"; value: NonNullable<LessonSection["hingeQuestions"]> }
   | { type: "youtubeVideo"; value: NonNullable<LessonSection["youtubeVideo"]> }
+  | { type: "plenary"; value: NonNullable<LessonSection["plenary"]> }
   | { type: "body"; paragraphs: string[] }
   | { type: "responsePrompt"; value: NonNullable<LessonSection["responsePrompt"]> }
   | { type: "quiz" };
@@ -111,6 +113,7 @@ function buildSlides(lesson: CourseLesson): PresentationSlide[] {
       if (section.groupWorkCards) intro.push({ type: "groupWorkCards", value: section.groupWorkCards });
       if (section.hingeQuestions) intro.push({ type: "hingeQuestions", value: section.hingeQuestions });
       if (section.youtubeVideo) intro.push({ type: "youtubeVideo", value: section.youtubeVideo });
+      if (section.plenary) intro.push({ type: "plenary", value: section.plenary });
       if (intro.length) {
         sectionSlides.push({
           id: `${lesson.slug}-${sectionIndex}-0`,
@@ -219,6 +222,10 @@ export default function LessonDeckClient({ lesson }: Props) {
   const [gwSubmitted, setGwSubmitted] = useState<Record<string, Record<string, boolean>>>({});
   const [ytCustomUrl, setYtCustomUrl] = useState<string>("");
   const [ytEditMode, setYtEditMode] = useState(false);
+  const [plenaryComment, setPlenaryComment] = useState("");
+  const [plenarySubmitted, setPlenarySubmitted] = useState(false);
+  const [plenaryComments, setPlenaryComments] = useState<Array<{id:string;name:string;comment:string;createdAt:number}>>([]);
+  const plenaryPollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const slides = useMemo(() => buildSlides(lesson), [lesson]);
   const hasQuiz = (lesson.quizQuestions?.length ?? 0) > 0;
@@ -313,6 +320,11 @@ export default function LessonDeckClient({ lesson }: Props) {
       // ignore
     }
   }, [lesson.slug, orderedParts]);
+
+  useEffect(() => {
+    return () => { stopPlenaryPolling(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const nextSlideIndex = firstSlideIndexForSection(slides, activeIndex);
@@ -1439,6 +1451,136 @@ export default function LessonDeckClient({ lesson }: Props) {
     );
   }
 
+  function startPlenaryPolling(code: string) {
+    if (plenaryPollingRef.current) return;
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/plenary/${code}`);
+        const data = await res.json();
+        setPlenaryComments(data.comments ?? []);
+      } catch { /* ignore */ }
+    };
+    poll();
+    plenaryPollingRef.current = setInterval(poll, 3000);
+  }
+
+  function stopPlenaryPolling() {
+    if (plenaryPollingRef.current) {
+      clearInterval(plenaryPollingRef.current);
+      plenaryPollingRef.current = null;
+    }
+  }
+
+  function renderPlenary(
+    value: NonNullable<LessonSection["plenary"]>,
+    sectionIndex: number,
+  ) {
+    const title = getText(value.title, "en");
+    const instruction = value.instruction ? getText(value.instruction, "en") : null;
+    const code = value.code;
+    const origin = typeof window !== "undefined" ? window.location.origin : "https://osteps.com";
+    const plenaryUrl = `${origin}/plenary/${code}`;
+    const responseKey = `${lesson.slug}:plenary:${sectionIndex}`;
+    const alreadySaved = !!savedStates[responseKey];
+
+    if (!plenaryPollingRef.current) {
+      startPlenaryPolling(code);
+    }
+
+    const handleSubmitComment = async () => {
+      if (!plenaryComment.trim()) return;
+      try {
+        await fetch(`/api/plenary/${code}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: "Student", comment: plenaryComment.trim() }),
+        });
+        setPlenarySubmitted(true);
+        setResponses((prev) => ({ ...prev, [responseKey]: plenaryComment.trim() }));
+        setSavedStates((prev) => ({ ...prev, [responseKey]: true }));
+        try {
+          const raw = window.localStorage.getItem(`${progressKey(lesson.slug)}:responses`);
+          const existing = raw ? JSON.parse(raw) : {};
+          existing[responseKey] = plenaryComment.trim();
+          window.localStorage.setItem(`${progressKey(lesson.slug)}:responses`, JSON.stringify(existing));
+        } catch { /* ignore */ }
+        const res = await fetch(`/api/plenary/${code}`);
+        const data = await res.json();
+        setPlenaryComments(data.comments ?? []);
+      } catch { /* ignore */ }
+    };
+
+    return (
+      <div key="plenary" className="my-4">
+        <h4 className="text-lg font-bold text-gray-800 mb-2">{title}</h4>
+        {instruction && <p className="text-gray-600 mb-4">{instruction}</p>}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div className="flex flex-col items-center rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-3">Scan to join</p>
+            <QRCodeSVG value={plenaryUrl} size={160} level="M" />
+            <p className="mt-3 text-xs text-slate-400 break-all text-center">{plenaryUrl}</p>
+          </div>
+          <div className="flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Or enter this code</p>
+            <div className="rounded-lg bg-teal-50 border-2 border-teal-200 px-6 py-3">
+              <span className="font-mono text-3xl font-black tracking-widest text-teal-700">{code}</span>
+            </div>
+            <p className="mt-3 text-sm text-slate-500">
+              Go to <span className="font-semibold text-teal-600">{origin}/plenary</span> and enter the code
+            </p>
+          </div>
+        </div>
+
+        {!alreadySaved && !plenarySubmitted ? (
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm mb-4">
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Share what you learned today</label>
+            <textarea
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+              placeholder="Write one thing you learned from this lesson..."
+              value={plenaryComment}
+              onChange={(e) => setPlenaryComment(e.target.value)}
+              rows={3}
+              maxLength={500}
+            />
+            <button
+              type="button"
+              className="mt-2 w-full rounded-lg bg-teal-600 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
+              onClick={handleSubmitComment}
+              disabled={!plenaryComment.trim()}
+            >
+              Share My Learning
+            </button>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-center shadow-sm mb-4">
+            <span className="text-2xl">&#x2705;</span>
+            <p className="mt-1 text-sm font-semibold text-green-700">Your response has been shared!</p>
+          </div>
+        )}
+
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <h5 className="text-sm font-bold text-slate-600 mb-3">
+            Live Responses ({plenaryComments.length})
+            <span className="ml-2 inline-block h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+          </h5>
+          {plenaryComments.length === 0 ? (
+            <p className="text-sm text-slate-400 text-center py-4">Waiting for responses...</p>
+          ) : (
+            <div className="space-y-2 max-h-80 overflow-y-auto">
+              {[...plenaryComments].reverse().map((c) => (
+                <div key={c.id} className="rounded-lg border border-white bg-white p-3 shadow-sm">
+                  <div className="text-xs font-bold text-teal-600">{c.name}</div>
+                  <div className="mt-1 text-sm text-gray-700">{c.comment}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   function renderHingeQuestions(
     value: NonNullable<LessonSection["hingeQuestions"]>,
     sectionIndex: number,
@@ -2027,6 +2169,8 @@ export default function LessonDeckClient({ lesson }: Props) {
         return renderHingeQuestions(block.value, sectionIndex);
       case "youtubeVideo":
         return renderYoutubeVideo(block.value);
+      case "plenary":
+        return renderPlenary(block.value, sectionIndex);
       case "body":
         return renderBodyParagraphs(block.paragraphs, presentationMode);
       case "responsePrompt":
@@ -2060,6 +2204,7 @@ export default function LessonDeckClient({ lesson }: Props) {
         {activeSection.groupWorkCards ? renderGroupWorkCards(activeSection.groupWorkCards, activeIndex) : null}
         {activeSection.hingeQuestions ? renderHingeQuestions(activeSection.hingeQuestions, activeIndex) : null}
         {activeSection.youtubeVideo ? renderYoutubeVideo(activeSection.youtubeVideo) : null}
+        {activeSection.plenary ? renderPlenary(activeSection.plenary, activeIndex) : null}
         {paragraphs.length ? renderBodyParagraphs(paragraphs) : null}
         {activeSection.responsePrompt ? renderResponsePrompt(activeSection.responsePrompt, activeIndex) : null}
       </div>

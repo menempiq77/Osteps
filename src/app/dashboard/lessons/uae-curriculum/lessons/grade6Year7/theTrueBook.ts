@@ -466,82 +466,20 @@ export const theTrueBook: CourseLesson = {
       body: { en: "", ar: "" },
     },
     {
-      title: { en: "Synthesis & collaborative analysis", ar: "تَركيبٌ وتَحليلٌ جَماعِيّ" },
+      title: { en: "Plenary", ar: "خِتام الدَّرس" },
       learningObjectives: [
-        { en: "Synthesise the argument of As-Sajdah 1-12 into a single connected case.", ar: "أُرَكِّبُ حُجّةَ السجدة ١-١٢ في بُرهانٍ واحِدٍ مُتَّصِل." },
-        { en: "Apply the surah's logic to a contemporary doubt.", ar: "أُطَبِّقُ مَنطِقَ السّورةِ على شُبهةٍ مُعاصِرة." },
+        { en: "Reflect on and share what you learned from As-Sajdah 1-12.", ar: "تَأمَّلْ وشارِكْ ما تَعَلَّمتَهُ مِن سورةِ السجدة ١-١٢." },
       ],
       image: {
         src: IMG.grandMosque,
-        alt: { en: "A mosque, where the Qur'an is recited and lived.", ar: "مَسجِدٌ، يُتلى فيهِ القُرآنُ ويُعاشُ بِه." },
+        alt: { en: "Students sharing their learning.", ar: "طُلّابٌ يُشارِكونَ ما تَعَلَّموه." },
       },
-      matchingActivity: {
-        title: { en: "Match the verse to the proof it provides", ar: "طابِقِ الآيةَ بالبُرهانِ الذي تُقَدِّمُه" },
-        instruction: { en: "Each verse contributes one link in the surah's argument. Match each to what it establishes.", ar: "كُلُّ آيةٍ تُسهِمُ بِحَلقةٍ في حُجّةِ السّورة. طابِقْ كُلًّا بِما تُقَرِّرُه." },
-        prompts: [
-          { prompt: { en: "As-Sajdah 2 ('no doubt... from the Lord of the worlds')", ar: "السجدة ٢ («لا رَيب... مِن رَبِّ العالَمين»)" }, answer: { en: "The Book is certain revelation, not human invention.", ar: "الكِتابُ وَحيٌ يَقينِيٌّ لا اختِلاقَ بَشَر." } },
-          { prompt: { en: "As-Sajdah 4 (creation + istiwa' over the Throne)", ar: "السجدة ٤ (الخَلقُ والاستِواءُ على العَرش)" }, answer: { en: "The Author is the absolute Owner and Ruler of all.", ar: "المُؤَلِّفُ هو المالِكُ المُدَبِّرُ المُطلَقُ لِكُلِّ شَيء." } },
-          { prompt: { en: "As-Sajdah 7-9 (clay, then soul, then senses)", ar: "السجدة ٧-٩ (طينٌ ثُمَّ روحٌ ثُمَّ حَواسّ)" }, answer: { en: "Humans were equipped to recognise the truth and be grateful.", ar: "زُوِّدَ الإنسانُ لِيُدرِكَ الحَقَّ ويَشكُر." } },
-          { prompt: { en: "As-Sajdah 10-11 (the Angel of Death returns souls)", ar: "السجدة ١٠-١١ (مَلَكُ المَوتِ يَرُدُّ الأرواح)" }, answer: { en: "The One who originates and takes life can certainly resurrect.", ar: "مَن بَدَأ الخَلقَ وقَبَضَ الرّوحَ قادِرٌ على البَعث." } },
-        ],
+      plenary: {
+        title: { en: "Share Your Learning", ar: "شارِكْ ما تَعَلَّمتَه" },
+        instruction: { en: "Scan the QR code or enter the code below to share one thing you learned from this lesson. Your response will appear live for the whole class to see.", ar: "امسَحِ رَمزَ QR أو أدخِلِ الرَّمزَ أدناهُ لِمُشارَكةِ شَيءٍ تَعَلَّمتَهُ مِن هذا الدَّرس. ستَظهَرُ إجابَتُكَ مُباشَرةً لِلصَّفِّ كُلِّه." },
+        code: "SAJDAH12",
       },
-      groupTasks: {
-        title: { en: "Group inquiry: build the case", ar: "تَحَرٍّ جَماعِيّ: ابنِ الحُجّة" },
-        instruction: { en: "In groups, produce a one-page argument. Use the verses as evidence and write in your own words.", ar: "في مَجموعاتٍ، أنتِجوا حُجّةً مِن صَفحةٍ واحِدة. استَعمِلوا الآياتِ دَليلًا واكتُبوا بِأسلوبِكُم." },
-        groups: [
-          {
-            slug: "authenticity",
-            name: { en: "Team A: Origin of the Book", ar: "الفَريقُ أ: مَصدَرُ الكِتاب" },
-            learningObjective: { en: "Argue that the Qur'an is divine revelation.", ar: "البَرهَنةُ على أنَّ القُرآنَ وَحيٌ إلهِيّ." },
-            task: { en: "Present three reasons (verses 2-3, the failed challenge of Al-Isra 88, and the Prophet's ﷺ character) that the Qur'an cannot be human-authored.", ar: "اعرِضوا ثَلاثةَ أسبابٍ (الآيتان ٢-٣، وعَجزُ التَّحَدّي في الإسراء ٨٨، وخُلُقُ النَّبِيِّ ﷺ) على أنَّ القُرآنَ لا يُمكِنُ أن يَكونَ مِن تَأليفِ بَشَر." },
-            evidence: [
-              { en: "As-Sajdah 2-3", ar: "السجدة ٢-٣" },
-              { en: "Al-Isra 88; Al-Baqarah 23", ar: "الإسراء ٨٨؛ البقرة ٢٣" },
-            ],
-            sourceNotes: [
-              { en: "Tafsir Ibn Kathir on As-Sajdah 1-3.", ar: "تَفسيرُ ابنِ كثيرٍ لِلسجدة ١-٣." },
-            ],
-            memberRoles: [
-              { en: "Lead writer", ar: "الكاتِبُ الرَّئيس" },
-              { en: "Evidence checker", ar: "مُدَقِّقُ الأدِلّة" },
-              { en: "Presenter", ar: "العارِض" },
-            ],
-            finalProduct: { en: "A three-point spoken argument with verse references.", ar: "حُجّةٌ شَفَهيّةٌ مِن ثَلاثِ نِقاطٍ مَعَ الإحالاتِ القُرآنيّة." },
-          },
-          {
-            slug: "resurrection",
-            name: { en: "Team B: Reality of resurrection", ar: "الفَريقُ ب: حَقيقةُ البَعث" },
-            learningObjective: { en: "Argue that resurrection is rationally certain.", ar: "البَرهَنةُ على أنَّ البَعثَ يَقينِيٌّ عَقلًا." },
-            task: { en: "Using verses 4-11, answer a modern sceptic who says resurrection is impossible because bodies decay.", ar: "بِالآياتِ ٤-١١، أجيبوا مُشَكِّكًا مُعاصِرًا يَقولُ إنَّ البَعثَ مُستَحيلٌ لِأنَّ الأجسادَ تَبلى." },
-            evidence: [
-              { en: "As-Sajdah 4-5, 10-11", ar: "السجدة ٤-٥، ١٠-١١" },
-              { en: "Ya-Sin 78-81", ar: "يس ٧٨-٨١" },
-            ],
-            sourceNotes: [
-              { en: "Tafsir as-Sa'di on resurrection arguments.", ar: "تَفسيرُ السعديِّ في أدِلّةِ البَعث." },
-            ],
-            memberRoles: [
-              { en: "Lead writer", ar: "الكاتِبُ الرَّئيس" },
-              { en: "Counter-argument analyst", ar: "مُحَلِّلُ الاعتِراض" },
-              { en: "Presenter", ar: "العارِض" },
-            ],
-            finalProduct: { en: "A short rebuttal that turns the sceptic's point into proof of Allah's power.", ar: "رَدٌّ مُختَصَرٌ يُحَوِّلُ نُقطةَ المُشَكِّكِ إلى دَليلٍ على قُدرةِ الله." },
-          },
-        ],
-      },
-      responsePrompt: {
-        title: { en: "Final reflection", ar: "التَّأمُّلُ الخِتامِيّ" },
-        prompt: {
-          en: "Surat As-Sajdah moves from 'the Book is true' to 'so live by it.' Write a personal, evidence-based reflection: which single verse from 1-12 most changes how you will treat the Qur'an this week, and what specific action will you take?",
-          ar: "تَنتَقِلُ سورةُ السَّجدةِ مِن «الكِتابُ حَقّ» إلى «فَعِشْ بِه». اكتُبْ تَأمُّلًا شَخصِيًّا مُؤَسَّسًا على الدَّليل: أيُّ آيةٍ مِن ١-١٢ تُغَيِّرُ أكثَرَ مِن غَيرِها طَريقةَ تَعامُلِكَ مَعَ القُرآنِ هذا الأُسبوع، وما الفِعلُ المُحَدَّدُ الذي ستَقومُ بِه؟",
-        },
-        placeholder: { en: "The verse that changes me most is... and this week I will...", ar: "أكثَرُ آيةٍ تُغَيِّرُني هي... وهذا الأُسبوعَ سَوفَ..." },
-        buttonLabel: { en: "Save reflection", ar: "احفَظِ التَّأمُّل" },
-      },
-      body: {
-        en: "Bring the twelve verses together as one connected argument, because seeing the structure is itself a proof. As-Sajdah does not throw separate ideas at us; it builds a chain: (1) the Book is certain truth from the Lord of the worlds; (2) its Author created and governs the entire universe; (3) the same Author designed you in stages and gave you hearing, sight and a reasoning heart so you could recognise that truth; (4) therefore the One who originated you can and will raise you again; (5) and on that Day, regret will come to those who ignored the warning. Belief and action are two halves of one response.\n\nA strong student does not just admire this argument — they can use it. The matching task asks you to pin each verse to the precise link it provides in the chain. The group inquiry asks you to defend two of the surah's claims against real objections, exactly as the surah defends itself against the Makkans. And the final reflection turns the lesson back on you: the Qur'an was revealed 'that you may warn' and be warned, so the proper end of studying As-Sajdah is not a mark but a changed life.\n\nThis is the standard expected of you in this course: read the words precisely, understand the scholars' explanations, weigh objections honestly, and let authentic knowledge shape action. The True Book asks nothing less.",
-        ar: "اجمَعِ الآياتِ الاثنَتَي عَشْرةَ في حُجّةٍ واحِدةٍ مُتَّصِلة، فَرُؤيةُ البِناءِ نَفسِها بُرهان. لا تُلقي السَّجدةُ علينا أفكارًا مُتَفَرِّقة؛ بل تَبني سِلسِلة: (١) الكِتابُ حَقٌّ يَقينِيٌّ مِن رَبِّ العالَمين؛ (٢) ومُؤَلِّفُهُ خَلَقَ الكَونَ كُلَّهُ ويُدَبِّرُه؛ (٣) والمُؤَلِّفُ نَفسُهُ صَمَّمَكَ أطوارًا ووَهَبَكَ السَّمعَ والبَصَرَ وقَلبًا يَعقِلُ لِتُدرِكَ ذلك الحَقّ؛ (٤) فالذي بَدَأكَ يَقدِرُ على بَعثِكَ وسَيَبعَثُك؛ (٥) ويَومَئذٍ يَأتي النَّدَمُ لِمَن أهمَلَ الإنذار. فالإيمانُ والعَمَلُ نِصفا استِجابةٍ واحِدة.\n\nوالطّالِبُ القَوِيُّ لا يُعجَبُ بالحُجّةِ فَحَسب — بل يُحسِنُ استِعمالَها. تَطلُبُ مِنكَ المُطابَقةُ أن تُثَبِّتَ كُلَّ آيةٍ بالحَلقةِ الدَّقيقةِ التي تُقَدِّمُها في السِّلسِلة. ويَطلُبُ التَّحَرّي الجَماعِيُّ أن تُدافِعَ عن دَعوَيَينِ مِنَ السّورةِ أمامَ اعتِراضاتٍ حَقيقيّة، كما دافَعَتِ السّورةُ عن نَفسِها أمامَ أهلِ مَكّة. ويَرُدُّ التَّأمُّلُ الخِتامِيُّ الدَّرسَ إليك: أُنزِلَ القُرآنُ «لِتُنذِرَ» وتُنذَر، فَغايةُ دِراسةِ السَّجدةِ لَيسَت دَرَجةً بل حَياةً تَتَغَيَّر.\n\nهذا هو المُستوى المُتَوَقَّعُ مِنكَ في هذا المِنهاج: اقرَأِ الكَلِماتِ بِدِقّة، وافهَمْ شَرحَ العُلَماء، وزِنِ الاعتِراضاتِ بِإنصاف، ودَعِ العِلمَ الصَّحيحَ يَصوغُ العَمَل. الكِتابُ الحَقُّ لا يَطلُبُ أقَلَّ مِن ذلك.",
-      },
+      body: { en: "", ar: "" },
     },
   ],
   quizQuestions: [
