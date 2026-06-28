@@ -481,6 +481,124 @@ export const theTrueBook: CourseLesson = {
       },
       body: { en: "", ar: "" },
     },
+    {
+      title: { en: "Worksheet — As-Sajdah 1-12", ar: "ورقة عمل — السجدة ١-١٢" },
+      learningObjectives: [
+        { en: "Demonstrate understanding of Surah As-Sajdah 1-12 through a comprehensive worksheet.", ar: "أظهِرْ فَهمَكَ لِسورةِ السجدة ١-١٢ مِن خِلالِ ورقةِ عملٍ شاملة." },
+      ],
+      image: {
+        src: IMG.childQuran,
+        alt: { en: "A student completing a worksheet.", ar: "طالبٌ يُنجِزُ ورقةَ عمل." },
+      },
+      worksheet: {
+        title: { en: "Worksheet — As-Sajdah 1-12", ar: "ورقة عمل — السجدة ١-١٢" },
+        instruction: { en: "Answer all questions below. Once you submit, your answers will be auto-marked and you will receive your score. You cannot re-answer after submission.", ar: "أجِبْ عن جَميعِ الأسئِلةِ أدناه. بَعدَ التَّسليمِ ستُصَحَّحُ إجاباتُكَ تِلقائيًّا ولن تَستَطيعَ الإجابةَ مرّةً أخرى." },
+        sections: [
+          {
+            type: "mcq",
+            title: { en: "Multiple Choice", ar: "اختيار مِن مُتعدِّد" },
+            questions: [
+              {
+                question: { en: "What does 'Tanzil' (تنزيل) mean in verse 2 of Surah As-Sajdah?", ar: "ما معنى «تنزيل» في الآية ٢ من سورة السجدة؟" },
+                options: [
+                  { en: "Revelation sent down from Allah", ar: "وحيٌ أُنزِلَ مِنَ الله" },
+                  { en: "A human-written book", ar: "كتابٌ مِن تأليفِ البشر" },
+                  { en: "An ancient poem", ar: "قصيدةٌ قديمة" },
+                  { en: "A scientific theory", ar: "نظريّةٌ عِلمِيّة" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "In how many days did Allah create the heavens and earth according to As-Sajdah 4?", ar: "في كم يومٍ خلقَ اللهُ السماواتِ والأرض حسبَ السجدة ٤؟" },
+                options: [
+                  { en: "Six days", ar: "ستّة أيّام" },
+                  { en: "Seven days", ar: "سبعة أيّام" },
+                  { en: "Three days", ar: "ثلاثة أيّام" },
+                  { en: "One day", ar: "يوم واحد" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "What did Allah breathe into the human according to As-Sajdah 9?", ar: "ماذا نفخَ اللهُ في الإنسانِ حسبَ السجدة ٩؟" },
+                options: [
+                  { en: "His spirit (ruh)", ar: "من روحِهِ" },
+                  { en: "Air", ar: "هواء" },
+                  { en: "Knowledge", ar: "عِلم" },
+                  { en: "Water", ar: "ماء" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "Who takes souls at the time of death according to As-Sajdah 11?", ar: "من يتوفّى الأنفسَ عندَ الموتِ حسبَ السجدة ١١؟" },
+                options: [
+                  { en: "The Angel of Death", ar: "مَلَكُ الموت" },
+                  { en: "Jibril", ar: "جبريل" },
+                  { en: "Mikail", ar: "ميكائيل" },
+                  { en: "Israfil", ar: "إسرافيل" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "What will the criminals wish for on the Day of Judgement according to As-Sajdah 12?", ar: "ماذا يتمنّى المُجرِمونَ يومَ القيامةِ حسبَ السجدة ١٢؟" },
+                options: [
+                  { en: "To be returned to the world to do good deeds", ar: "أن يُرَدّوا إلى الدنيا ليعملوا صالحًا" },
+                  { en: "To have more wealth", ar: "أن يكونَ لهم مالٌ أكثر" },
+                  { en: "To live forever", ar: "أن يعيشوا إلى الأبد" },
+                  { en: "To argue with the angels", ar: "أن يجادِلوا الملائكة" },
+                ],
+                correctIndex: 0,
+              },
+            ],
+          },
+          {
+            type: "trueFalse",
+            title: { en: "True or False", ar: "صواب أم خطأ" },
+            questions: [
+              { statement: { en: "As-Sajdah states that the Qur'an was authored by Prophet Muhammad ﷺ.", ar: "تَذكُرُ السجدةُ أنَّ القرآنَ مِن تأليفِ النبيِّ ﷺ." }, answer: false },
+              { statement: { en: "Allah created the human being from clay (As-Sajdah 7).", ar: "خلقَ اللهُ الإنسانَ مِن طين (السجدة ٧)." }, answer: true },
+              { statement: { en: "The surah says Allah has no power to resurrect the dead.", ar: "تقولُ السورةُ إنَّ اللهَ لا يقدِرُ على بعثِ الموتى." }, answer: false },
+              { statement: { en: "Allah gave humans hearing, sight, and hearts to recognise the truth (As-Sajdah 9).", ar: "وهبَ اللهُ الإنسانَ السمعَ والبصرَ والأفئدةَ ليُدرِكَ الحقّ (السجدة ٩)." }, answer: true },
+              { statement: { en: "Istiwa' (استواء) over the Throne means Allah sits like a human.", ar: "الاستواءُ على العرشِ يعني أنَّ اللهَ يجلِسُ كالبشر." }, answer: false },
+            ],
+          },
+          {
+            type: "matchUp",
+            title: { en: "Match Up", ar: "وصِّل" },
+            prompts: [
+              { prompt: { en: "As-Sajdah 2", ar: "السجدة ٢" }, answer: { en: "The Qur'an is a revelation from the Lord of the worlds", ar: "القرآنُ تنزيلٌ مِن ربِّ العالمين" } },
+              { prompt: { en: "As-Sajdah 4", ar: "السجدة ٤" }, answer: { en: "Allah created the heavens and earth in six days", ar: "خلقَ اللهُ السماواتِ والأرضَ في ستّةِ أيّام" } },
+              { prompt: { en: "As-Sajdah 7-9", ar: "السجدة ٧-٩" }, answer: { en: "Human creation from clay, then spirit and senses", ar: "خلقُ الإنسانِ مِن طينٍ ثمّ الروحُ والحواسّ" } },
+              { prompt: { en: "As-Sajdah 10-11", ar: "السجدة ١٠-١١" }, answer: { en: "Resurrection is certain — the Angel of Death takes souls", ar: "البعثُ حقٌّ — ملكُ الموتِ يتوفّى الأنفس" } },
+              { prompt: { en: "As-Sajdah 12", ar: "السجدة ١٢" }, answer: { en: "The criminals will bow their heads in regret", ar: "المجرمونَ يَنكِسونَ رؤوسَهم نادمين" } },
+            ],
+          },
+          {
+            type: "fillBlanks",
+            title: { en: "Fill in the Blanks", ar: "املأ الفراغات" },
+            questions: [
+              { sentence: { en: "The Qur'an is described as a _______ from the Lord of the worlds (As-Sajdah 2).", ar: "يُوصَفُ القرآنُ بأنّه _______ مِن ربِّ العالمين (السجدة ٢)." }, blankAnswer: { en: "revelation", ar: "تنزيل" } },
+              { sentence: { en: "Allah began the creation of the human from _______ (As-Sajdah 7).", ar: "بدأَ اللهُ خلقَ الإنسانِ مِن _______ (السجدة ٧)." }, blankAnswer: { en: "clay", ar: "طين" } },
+              { sentence: { en: "After creation, Allah breathed into the human His _______ (As-Sajdah 9).", ar: "بعدَ الخلقِ نفخَ اللهُ في الإنسانِ مِن _______ (السجدة ٩)." }, blankAnswer: { en: "spirit", ar: "روح" } },
+              { sentence: { en: "The _______ of Death takes souls and returns them to their Lord (As-Sajdah 11).", ar: "_______ الموتِ يتوفّى الأنفسَ ويردُّها إلى ربِّها (السجدة ١١)." }, blankAnswer: { en: "Angel", ar: "ملك" } },
+            ],
+          },
+          {
+            type: "ordering",
+            title: { en: "Put in Correct Order", ar: "رتِّبْ ترتيبًا صحيحًا" },
+            items: [
+              { en: "1. The Qur'an is revealed from the Lord of the worlds (v.2)", ar: "١. القرآنُ تنزيلٌ مِن ربِّ العالمين (آ.٢)" },
+              { en: "2. Allah created the heavens and earth in six days (v.4)", ar: "٢. خلقَ اللهُ السماواتِ والأرضَ في ستّةِ أيّام (آ.٤)" },
+              { en: "3. Human creation began from clay (v.7)", ar: "٣. بدأ خلقُ الإنسانِ مِن طين (آ.٧)" },
+              { en: "4. Allah gave humans hearing, sight, and hearts (v.9)", ar: "٤. وهبَ اللهُ الإنسانَ السمعَ والبصرَ والأفئدة (آ.٩)" },
+              { en: "5. The Angel of Death takes souls (v.11)", ar: "٥. ملكُ الموتِ يتوفّى الأنفس (آ.١١)" },
+              { en: "6. The criminals bow their heads in regret (v.12)", ar: "٦. المجرمونَ يَنكِسونَ رؤوسَهم نادمين (آ.١٢)" },
+            ],
+          },
+        ],
+        coinsReward: 25,
+      },
+      body: { en: "", ar: "" },
+    },
   ],
   quizQuestions: [
     {
