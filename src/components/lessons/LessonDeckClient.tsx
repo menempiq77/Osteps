@@ -32,6 +32,7 @@ type SlideBlock =
   | { type: "hingeQuestions"; value: NonNullable<LessonSection["hingeQuestions"]> }
   | { type: "youtubeVideo"; value: NonNullable<LessonSection["youtubeVideo"]> }
   | { type: "plenary"; value: NonNullable<LessonSection["plenary"]> }
+  | { type: "worksheet"; value: NonNullable<LessonSection["worksheet"]> }
   | { type: "body"; paragraphs: string[] }
   | { type: "responsePrompt"; value: NonNullable<LessonSection["responsePrompt"]> }
   | { type: "quiz" };
@@ -114,6 +115,7 @@ function buildSlides(lesson: CourseLesson): PresentationSlide[] {
       if (section.hingeQuestions) intro.push({ type: "hingeQuestions", value: section.hingeQuestions });
       if (section.youtubeVideo) intro.push({ type: "youtubeVideo", value: section.youtubeVideo });
       if (section.plenary) intro.push({ type: "plenary", value: section.plenary });
+      if (section.worksheet) intro.push({ type: "worksheet", value: section.worksheet });
       if (intro.length) {
         sectionSlides.push({
           id: `${lesson.slug}-${sectionIndex}-0`,
@@ -226,6 +228,10 @@ export default function LessonDeckClient({ lesson }: Props) {
   const [plenarySubmitted, setPlenarySubmitted] = useState(false);
   const [plenaryComments, setPlenaryComments] = useState<Array<{id:string;name:string;comment:string;createdAt:number}>>([]);
   const plenaryPollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [wsAnswers, setWsAnswers] = useState<Record<string, Record<string, string | number | boolean | null>>>({});
+  const [wsMatchAnswers, setWsMatchAnswers] = useState<Record<string, Record<number, string>>>({});
+  const [wsOrderAnswers, setWsOrderAnswers] = useState<Record<string, number[]>>({});
+  const [wsSubmitted, setWsSubmitted] = useState<Record<string, boolean>>({});
 
   const slides = useMemo(() => buildSlides(lesson), [lesson]);
   const hasQuiz = (lesson.quizQuestions?.length ?? 0) > 0;
@@ -1581,6 +1587,295 @@ export default function LessonDeckClient({ lesson }: Props) {
     );
   }
 
+  function renderWorksheet(
+    value: NonNullable<LessonSection["worksheet"]>,
+    sectionIndex: number,
+  ) {
+    const wsKey = `ws-${sectionIndex}`;
+    const title = getText(value.title, "en");
+    const instruction = value.instruction ? getText(value.instruction, "en") : null;
+    const submitted = !!wsSubmitted[wsKey];
+    const answers = wsAnswers[wsKey] ?? {};
+    const matchAns = wsMatchAnswers[wsKey] ?? {};
+    const orderAns = wsOrderAnswers[wsKey] ?? [];
+
+    let totalQuestions = 0;
+    let totalCorrect = 0;
+
+    const setAnswer = (qKey: string, val: string | number | boolean | null) => {
+      if (submitted) return;
+      setWsAnswers((prev) => ({ ...prev, [wsKey]: { ...(prev[wsKey] ?? {}), [qKey]: val } }));
+    };
+    const setMatch = (idx: number, val: string) => {
+      if (submitted) return;
+      setWsMatchAnswers((prev) => ({ ...prev, [wsKey]: { ...(prev[wsKey] ?? {}), [idx]: val } }));
+    };
+    const setOrder = (newOrder: number[]) => {
+      if (submitted) return;
+      setWsOrderAnswers((prev) => ({ ...prev, [wsKey]: newOrder }));
+    };
+
+    const sectionElements = value.sections.map((sec, si) => {
+      const secTitle = getText(sec.title, "en");
+      const secType = sec.type;
+
+      if (secType === "mcq" && sec.questions) {
+        return (
+          <div key={si} className="mb-6">
+            <h5 className="text-base font-bold text-indigo-700 mb-3">Section {si + 1}: {secTitle}</h5>
+            {sec.questions.map((q, qi) => {
+              const qKey = `${si}-mcq-${qi}`;
+              totalQuestions++;
+              const selected = answers[qKey] as number | undefined;
+              const isCorrect = submitted && selected === q.correctIndex;
+              if (submitted && isCorrect) totalCorrect++;
+              return (
+                <div key={qi} className={`mb-4 rounded-lg border p-3 ${submitted ? (isCorrect ? "border-green-300 bg-green-50" : selected != null ? "border-red-300 bg-red-50" : "border-gray-200") : "border-gray-200"}`}>
+                  <p className="text-sm font-semibold text-gray-800 mb-2">{qi + 1}. {getText(q.question!, "en")}</p>
+                  <div className="space-y-1">
+                    {(q.options ?? []).map((opt, oi) => {
+                      const optText = getText(opt, "en");
+                      const isSelected = selected === oi;
+                      const isCorrectOpt = submitted && oi === q.correctIndex;
+                      return (
+                        <button
+                          key={oi}
+                          type="button"
+                          disabled={submitted}
+                          className={`w-full text-left rounded-md border px-3 py-2 text-sm transition ${
+                            isSelected
+                              ? submitted
+                                ? isCorrect ? "border-green-500 bg-green-100 font-semibold" : "border-red-500 bg-red-100"
+                                : "border-indigo-500 bg-indigo-50 font-semibold"
+                              : isCorrectOpt ? "border-green-500 bg-green-50" : "border-gray-200 hover:bg-gray-50"
+                          } disabled:cursor-default`}
+                          onClick={() => setAnswer(qKey, oi)}
+                        >
+                          <span className="font-semibold mr-2">{String.fromCharCode(65 + oi)}.</span>{optText}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      }
+
+      if (secType === "trueFalse" && sec.questions) {
+        return (
+          <div key={si} className="mb-6">
+            <h5 className="text-base font-bold text-emerald-700 mb-3">Section {si + 1}: {secTitle}</h5>
+            {sec.questions.map((q, qi) => {
+              const qKey = `${si}-tf-${qi}`;
+              totalQuestions++;
+              const selected = answers[qKey] as boolean | undefined;
+              const isCorrect = submitted && selected === q.answer;
+              if (submitted && isCorrect) totalCorrect++;
+              return (
+                <div key={qi} className={`mb-3 rounded-lg border p-3 ${submitted ? (isCorrect ? "border-green-300 bg-green-50" : selected != null ? "border-red-300 bg-red-50" : "border-gray-200") : "border-gray-200"}`}>
+                  <p className="text-sm font-semibold text-gray-800 mb-2">{qi + 1}. {getText(q.statement!, "en")}</p>
+                  <div className="flex gap-2">
+                    {[true, false].map((val) => {
+                      const isSelected = selected === val;
+                      const isCorrectVal = submitted && val === q.answer;
+                      return (
+                        <button
+                          key={String(val)}
+                          type="button"
+                          disabled={submitted}
+                          className={`flex-1 rounded-md border px-3 py-2 text-sm font-medium transition ${
+                            isSelected
+                              ? submitted
+                                ? isCorrect ? "border-green-500 bg-green-100" : "border-red-500 bg-red-100"
+                                : "border-emerald-500 bg-emerald-50"
+                              : isCorrectVal ? "border-green-500 bg-green-50" : "border-gray-200 hover:bg-gray-50"
+                          } disabled:cursor-default`}
+                          onClick={() => setAnswer(qKey, val)}
+                        >
+                          {val ? "True" : "False"}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      }
+
+      if (secType === "matchUp" && sec.prompts) {
+        const shuffledAnswers = [...sec.prompts.map((p) => getText(p.answer, "en"))].sort();
+        return (
+          <div key={si} className="mb-6">
+            <h5 className="text-base font-bold text-amber-700 mb-3">Section {si + 1}: {secTitle}</h5>
+            {sec.prompts.map((p, pi) => {
+              const correctAnswer = getText(p.answer, "en");
+              totalQuestions++;
+              const selected = matchAns[pi] ?? "";
+              const isCorrect = submitted && selected === correctAnswer;
+              if (submitted && isCorrect) totalCorrect++;
+              return (
+                <div key={pi} className={`mb-3 rounded-lg border p-3 ${submitted ? (isCorrect ? "border-green-300 bg-green-50" : selected ? "border-red-300 bg-red-50" : "border-gray-200") : "border-gray-200"}`}>
+                  <p className="text-sm font-semibold text-gray-800 mb-2">{pi + 1}. {getText(p.prompt, "en")}</p>
+                  <select
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none disabled:bg-gray-100"
+                    value={selected}
+                    onChange={(e) => setMatch(pi, e.target.value)}
+                    disabled={submitted}
+                  >
+                    <option value="">— Select —</option>
+                    {shuffledAnswers.map((a) => (
+                      <option key={a} value={a}>{a}</option>
+                    ))}
+                  </select>
+                  {submitted && !isCorrect && (
+                    <p className="mt-1 text-xs text-green-700">Correct: {correctAnswer}</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        );
+      }
+
+      if (secType === "fillBlanks" && sec.questions) {
+        return (
+          <div key={si} className="mb-6">
+            <h5 className="text-base font-bold text-purple-700 mb-3">Section {si + 1}: {secTitle}</h5>
+            {sec.questions.map((q, qi) => {
+              const qKey = `${si}-fb-${qi}`;
+              totalQuestions++;
+              const userAnswer = (answers[qKey] as string) ?? "";
+              const correctAnswer = getText(q.blankAnswer!, "en").toLowerCase().trim();
+              const isCorrect = submitted && userAnswer.toLowerCase().trim() === correctAnswer;
+              if (submitted && isCorrect) totalCorrect++;
+              return (
+                <div key={qi} className={`mb-3 rounded-lg border p-3 ${submitted ? (isCorrect ? "border-green-300 bg-green-50" : userAnswer ? "border-red-300 bg-red-50" : "border-gray-200") : "border-gray-200"}`}>
+                  <p className="text-sm font-semibold text-gray-800 mb-2">{qi + 1}. {getText(q.sentence!, "en")}</p>
+                  <input
+                    type="text"
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none disabled:bg-gray-100"
+                    placeholder="Type your answer..."
+                    value={userAnswer}
+                    onChange={(e) => setAnswer(qKey, e.target.value)}
+                    disabled={submitted}
+                  />
+                  {submitted && !isCorrect && (
+                    <p className="mt-1 text-xs text-green-700">Correct: {getText(q.blankAnswer!, "en")}</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        );
+      }
+
+      if (secType === "ordering" && sec.items) {
+        const correctOrder = sec.items.map((_, i) => i);
+        const currentOrder = orderAns.length === sec.items.length ? orderAns : sec.items.map((_, i) => i).sort(() => 0.5 - Math.random());
+        if (orderAns.length !== sec.items.length && !submitted) {
+          setTimeout(() => setOrder(currentOrder), 0);
+        }
+        totalQuestions++;
+        const isCorrect = submitted && JSON.stringify(currentOrder) === JSON.stringify(correctOrder);
+        if (submitted && isCorrect) totalCorrect++;
+        return (
+          <div key={si} className="mb-6">
+            <h5 className="text-base font-bold text-rose-700 mb-3">Section {si + 1}: {secTitle}</h5>
+            <p className="text-xs text-gray-500 mb-2">Drag or use arrows to reorder:</p>
+            <div className={`rounded-lg border p-3 ${submitted ? (isCorrect ? "border-green-300 bg-green-50" : "border-red-300 bg-red-50") : "border-gray-200"}`}>
+              {currentOrder.map((itemIdx, pos) => (
+                <div key={pos} className="flex items-center gap-2 mb-1">
+                  <span className="text-xs font-bold text-gray-400 w-5">{pos + 1}.</span>
+                  <div className="flex-1 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm">
+                    {getText(sec.items![itemIdx], "en")}
+                  </div>
+                  {!submitted && (
+                    <div className="flex flex-col">
+                      <button type="button" className="text-xs text-gray-400 hover:text-gray-700 disabled:opacity-30" disabled={pos === 0} onClick={() => {
+                        const newOrder = [...currentOrder];
+                        [newOrder[pos - 1], newOrder[pos]] = [newOrder[pos], newOrder[pos - 1]];
+                        setOrder(newOrder);
+                      }}>&#9650;</button>
+                      <button type="button" className="text-xs text-gray-400 hover:text-gray-700 disabled:opacity-30" disabled={pos === currentOrder.length - 1} onClick={() => {
+                        const newOrder = [...currentOrder];
+                        [newOrder[pos + 1], newOrder[pos]] = [newOrder[pos], newOrder[pos + 1]];
+                        setOrder(newOrder);
+                      }}>&#9660;</button>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {submitted && !isCorrect && (
+                <div className="mt-2 pt-2 border-t border-green-200">
+                  <p className="text-xs font-semibold text-green-700 mb-1">Correct order:</p>
+                  {correctOrder.map((itemIdx, pos) => (
+                    <p key={pos} className="text-xs text-green-600">{pos + 1}. {getText(sec.items![itemIdx], "en")}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }
+
+      return null;
+    });
+
+    const coinsReward = value.coinsReward ?? 20;
+    const scorePercent = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
+    const coinsEarned = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * coinsReward) : 0;
+
+    const handleSubmit = () => {
+      setWsSubmitted((prev) => ({ ...prev, [wsKey]: true }));
+      if (coinsEarned > 0) {
+        const coinKey = `ws-${sectionIndex}`;
+        setEarnedCoins((prev) => ({ ...prev, [coinKey]: coinsEarned }));
+        setCoinAnimating(coinKey);
+        setTimeout(() => setCoinAnimating(null), 1200);
+      }
+      try {
+        const storageKey = `${progressKey(lesson.slug)}:worksheet:${sectionIndex}`;
+        window.localStorage.setItem(storageKey, JSON.stringify({ submitted: true, score: totalCorrect, total: totalQuestions }));
+      } catch { /* ignore */ }
+    };
+
+    return (
+      <div key="worksheet" className="my-4">
+        <div className="rounded-xl border-2 border-indigo-200 bg-gradient-to-b from-indigo-50 to-white p-5">
+          <h4 className="text-xl font-bold text-indigo-800 mb-1">{title}</h4>
+          {instruction && <p className="text-sm text-gray-600 mb-4">{instruction}</p>}
+
+          {sectionElements}
+
+          {!submitted ? (
+            <button
+              type="button"
+              className="mt-4 w-full rounded-lg bg-indigo-600 py-3 text-base font-bold text-white hover:bg-indigo-700 disabled:opacity-50"
+              onClick={handleSubmit}
+            >
+              Submit Worksheet
+            </button>
+          ) : (
+            <div className="mt-4 rounded-xl border-2 border-indigo-300 bg-indigo-50 p-5 text-center">
+              <p className="text-3xl font-black text-indigo-800">{totalCorrect} / {totalQuestions}</p>
+              <p className="text-sm text-indigo-600 mt-1">
+                {scorePercent >= 90 ? "Excellent work!" : scorePercent >= 70 ? "Great job!" : scorePercent >= 50 ? "Good effort — review the red areas." : "Keep studying — review your mistakes above."}
+              </p>
+              <p className="text-lg font-bold text-amber-600 mt-2">+{coinsEarned} coins earned!</p>
+              {coinAnimating === `ws-${sectionIndex}` && (
+                <span className="inline-block animate-bounce text-2xl">&#x1FA99;</span>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   function renderHingeQuestions(
     value: NonNullable<LessonSection["hingeQuestions"]>,
     sectionIndex: number,
@@ -2171,6 +2466,8 @@ export default function LessonDeckClient({ lesson }: Props) {
         return renderYoutubeVideo(block.value);
       case "plenary":
         return renderPlenary(block.value, sectionIndex);
+      case "worksheet":
+        return renderWorksheet(block.value, sectionIndex);
       case "body":
         return renderBodyParagraphs(block.paragraphs, presentationMode);
       case "responsePrompt":
@@ -2205,6 +2502,7 @@ export default function LessonDeckClient({ lesson }: Props) {
         {activeSection.hingeQuestions ? renderHingeQuestions(activeSection.hingeQuestions, activeIndex) : null}
         {activeSection.youtubeVideo ? renderYoutubeVideo(activeSection.youtubeVideo) : null}
         {activeSection.plenary ? renderPlenary(activeSection.plenary, activeIndex) : null}
+        {activeSection.worksheet ? renderWorksheet(activeSection.worksheet, activeIndex) : null}
         {paragraphs.length ? renderBodyParagraphs(paragraphs) : null}
         {activeSection.responsePrompt ? renderResponsePrompt(activeSection.responsePrompt, activeIndex) : null}
       </div>

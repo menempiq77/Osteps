@@ -103,6 +103,29 @@ export type LessonSection = {
     instruction?: string | { en: string; ar: string };
     code: string;
   };
+  worksheet?: {
+    title: string | { en: string; ar: string };
+    instruction?: string | { en: string; ar: string };
+    sections: Array<{
+      type: "mcq" | "trueFalse" | "matchUp" | "fillBlanks" | "ordering";
+      title: string | { en: string; ar: string };
+      questions?: Array<{
+        question?: string | { en: string; ar: string };
+        options?: Array<string | { en: string; ar: string }>;
+        correctIndex?: number;
+        statement?: string | { en: string; ar: string };
+        answer?: boolean;
+        sentence?: string | { en: string; ar: string };
+        blankAnswer?: string | { en: string; ar: string };
+      }>;
+      prompts?: Array<{
+        prompt: string | { en: string; ar: string };
+        answer: string | { en: string; ar: string };
+      }>;
+      items?: Array<string | { en: string; ar: string }>;
+    }>;
+    coinsReward?: number;
+  };
   groupWorkCards?: {
     title: string | { en: string; ar: string };
     instruction?: string | { en: string; ar: string };
