@@ -23,4 +23,5 @@ export const IMG = {
   elephantSunset: px(1054655), // elephant at sunset
   plantBulb: px(1108572), // small green plant growing
   sea: px(2049422), // sea waves on rocks
+  hijabStudent: px(18788705), // female student in hijab holding a notebook
 } as const;
