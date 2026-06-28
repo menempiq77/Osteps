@@ -1972,6 +1972,7 @@ export default function LessonDeckClient({ lesson }: Props) {
         {activeSection.trueFalseActivity ? renderTrueFalseActivity(activeSection.trueFalseActivity, activeIndex) : null}
         {activeSection.fillBlanksActivity ? renderFillBlanksActivity(activeSection.fillBlanksActivity, activeIndex) : null}
         {activeSection.groupWorkCards ? renderGroupWorkCards(activeSection.groupWorkCards, activeIndex) : null}
+        {activeSection.hingeQuestions ? renderHingeQuestions(activeSection.hingeQuestions, activeIndex) : null}
         {paragraphs.length ? renderBodyParagraphs(paragraphs) : null}
         {activeSection.responsePrompt ? renderResponsePrompt(activeSection.responsePrompt, activeIndex) : null}
       </div>
