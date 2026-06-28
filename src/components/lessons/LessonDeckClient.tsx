@@ -1387,13 +1387,14 @@ export default function LessonDeckClient({ lesson }: Props) {
 
       return (
         <div className="space-y-4">
-          {/* Back button */}
+          {/* Back button — large, prominent */}
           <button
             type="button"
             onClick={() => setGwSelectedCard((prev) => ({ ...prev, [actKey]: null }))}
-            className="flex items-center gap-1 text-sm font-bold text-slate-500 hover:text-slate-700 transition-colors"
+            className="flex items-center gap-2 rounded-xl border-2 border-slate-300 bg-white px-4 py-2.5 text-sm font-black text-slate-700 shadow-sm hover:bg-slate-50 hover:border-slate-400 hover:shadow-md transition-all active:scale-[0.97]"
           >
-            <span>←</span> Back to all tasks
+            <span className="text-lg">⬅️</span>
+            <span>Back to all tasks</span>
           </button>
 
           {/* Card header */}
@@ -1431,36 +1432,64 @@ export default function LessonDeckClient({ lesson }: Props) {
               <p className="text-xs text-slate-500 italic mb-3">💡 {getText(selectedCard.task.hint, "en")}</p>
             ) : null}
 
-            {/* Workspace */}
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-200">
-                <span className="text-xs font-bold text-slate-500">📝 Your workspace</span>
-                <div className="flex-1" />
-                <span className="text-[10px] text-slate-400">✏️ Pencil</span>
-                <span className="text-[10px] text-slate-400">📐 Ruler</span>
-                <span className="text-[10px] text-slate-400">🖍️ Colours</span>
+            {/* Workspace — notebook-style with assessment toolbar */}
+            <div className="rounded-xl border-2 border-slate-300 bg-white shadow-lg overflow-hidden">
+              {/* Toolbar — styled like assessment annotation tools */}
+              <div className="flex flex-wrap items-center gap-2 border-b-2 border-slate-200 bg-slate-50 px-3 py-2">
+                {/* Tool buttons */}
+                <div className="flex h-9 items-center gap-0.5 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+                  {[
+                    { icon: "✏️", label: "Pen" },
+                    { icon: "🖍️", label: "Highlighter" },
+                    { icon: "🔤", label: "Text" },
+                    { icon: "🧹", label: "Eraser" },
+                  ].map((t) => (
+                    <span key={t.label} title={t.label} className="flex h-7 w-8 items-center justify-center rounded-lg border border-transparent text-sm hover:border-slate-200 hover:bg-slate-100 cursor-default">{t.icon}</span>
+                  ))}
+                </div>
+                {/* Color swatches */}
+                <div className="flex h-9 items-center gap-1 rounded-xl border border-slate-200 bg-white px-1.5 shadow-sm">
+                  {["#111827","#dc2626","#2563eb","#16a34a","#f59e0b","#8b5cf6","#ec4899","#67e8f9"].map((c) => (
+                    <span key={c} className="h-[20px] w-[20px] rounded-full border border-white/80 cursor-default" style={{ backgroundColor: c }} />
+                  ))}
+                </div>
+                {/* Stroke sizes */}
+                <div className="flex h-9 items-center gap-1 rounded-xl border border-slate-200 bg-white px-1.5 shadow-sm">
+                  {[2, 4, 6].map((w) => (
+                    <span key={w} className="flex h-7 w-7 items-center justify-center rounded-lg border border-transparent hover:border-slate-200 hover:bg-slate-100 cursor-default">
+                      <span className="rounded-full bg-slate-800" style={{ width: 14, height: w }} />
+                    </span>
+                  ))}
+                </div>
+                {/* Undo / Redo */}
+                <div className="flex h-9 items-center gap-1 rounded-xl border border-slate-200 bg-white px-1 shadow-sm">
+                  <span title="Undo" className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-500 cursor-default">↩️</span>
+                  <span title="Redo" className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-500 cursor-default">↪️</span>
+                </div>
               </div>
-              <textarea
-                disabled={isSubmitted}
-                value={workText}
-                onChange={(e) =>
-                  setGwWork((prev) => ({
-                    ...prev,
-                    [actKey]: { ...prev[actKey], [selectedCard!.id]: e.target.value },
-                  }))
-                }
-                placeholder="Write your work here... Use headings, bullet points, or any format you like. Be creative and use evidence from the reference material above."
-                className={
-                  "w-full min-h-[200px] rounded-lg border px-3 py-2 text-sm leading-relaxed resize-y " +
-                  (isSubmitted
-                    ? "border-emerald-300 bg-emerald-50 text-slate-700"
-                    : "border-slate-300 bg-white focus:border-teal-400 focus:ring-1 focus:ring-teal-200")
-                }
-                style={{
-                  backgroundImage: "repeating-linear-gradient(transparent, transparent 27px, #e2e8f0 27px, #e2e8f0 28px)",
-                  lineHeight: "28px",
-                }}
-              />
+              {/* Notebook paper */}
+              <div className="p-4 bg-white" style={{ backgroundImage: "linear-gradient(#fef3c7 1px, transparent 1px), linear-gradient(90deg, #fde68a 1px, transparent 1px)", backgroundSize: "100% 32px, 40px 32px", backgroundPosition: "0 0, 40px 0" }}>
+                <textarea
+                  disabled={isSubmitted}
+                  value={workText}
+                  onChange={(e) =>
+                    setGwWork((prev) => ({
+                      ...prev,
+                      [actKey]: { ...prev[actKey], [selectedCard!.id]: e.target.value },
+                    }))
+                  }
+                  placeholder="Write your work here... Use headings, bullet points, or any format you like. Be creative and use evidence from the reference material above."
+                  className={
+                    "w-full rounded-none border-0 bg-transparent px-4 py-1 text-base resize-none focus:outline-none focus:ring-0 " +
+                    (isSubmitted ? "text-slate-700" : "text-slate-800 placeholder:text-slate-400")
+                  }
+                  style={{
+                    minHeight: "640px",
+                    lineHeight: "32px",
+                    fontFamily: "'Georgia', 'Times New Roman', serif",
+                  }}
+                />
+              </div>
             </div>
 
             {/* Submit */}
