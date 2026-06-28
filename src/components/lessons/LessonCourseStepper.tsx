@@ -82,6 +82,28 @@ export type LessonSection = {
     buttonLabel?: string | { en: string; ar: string };
     coinsReward?: number;
   };
+  groupWorkCards?: {
+    title: string | { en: string; ar: string };
+    instruction?: string | { en: string; ar: string };
+    presentationNote?: string | { en: string; ar: string };
+    cards: Array<{
+      id: string;
+      title: string | { en: string; ar: string };
+      image: string;
+      color: string;
+      topic: string | { en: string; ar: string };
+      infoSections: Array<{
+        label: string | { en: string; ar: string };
+        content: string | { en: string; ar: string };
+      }>;
+      task: {
+        title: string | { en: string; ar: string };
+        description: string | { en: string; ar: string };
+        hint?: string | { en: string; ar: string };
+      };
+    }>;
+    coinsReward?: number;
+  };
 };
 
 export type CourseLesson = {
