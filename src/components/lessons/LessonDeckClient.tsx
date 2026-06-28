@@ -184,6 +184,9 @@ export default function LessonDeckClient({ lesson }: Props) {
   const [dragOver, setDragOver] = useState<Record<string, number | null>>({});
   const [partOrder, setPartOrder] = useState<number[]>([]);
   const [partDragOverIndex, setPartDragOverIndex] = useState<number | null>(null);
+  const [earnedCoins, setEarnedCoins] = useState<Record<string, number>>({});
+  const [coinAnimating, setCoinAnimating] = useState<string | null>(null);
+  const totalCoins = Object.values(earnedCoins).reduce((sum, v) => sum + v, 0);
 
   const slides = useMemo(() => buildSlides(lesson), [lesson]);
   const hasQuiz = (lesson.quizQuestions?.length ?? 0) > 0;
@@ -440,9 +443,16 @@ export default function LessonDeckClient({ lesson }: Props) {
 
   function saveResponse(sectionIndex: number) {
     const key = `${lesson.slug}:${sectionIndex}`;
+    const section = lesson.sections[sectionIndex];
+    const coins = section?.responsePrompt?.coinsReward;
     try {
       window.localStorage.setItem(`${progressKey(lesson.slug)}:responses`, JSON.stringify(responses));
       setSavedStates((current) => ({ ...current, [key]: true }));
+      if (coins && !earnedCoins[key]) {
+        setEarnedCoins((current) => ({ ...current, [key]: coins }));
+        setCoinAnimating(key);
+        window.setTimeout(() => setCoinAnimating(null), 2200);
+      }
       window.setTimeout(() => {
         setSavedStates((current) => ({ ...current, [key]: false }));
       }, 1800);
@@ -801,6 +811,10 @@ export default function LessonDeckClient({ lesson }: Props) {
     sectionIndex: number,
     compact = false
   ) {
+    const key = `${lesson.slug}:${sectionIndex}`;
+    const coins = value.coinsReward;
+    const alreadyEarned = !!earnedCoins[key];
+    const animating = coinAnimating === key;
     return (
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className={"flex items-center gap-2.5 border-b border-slate-100 " + (compact ? "px-3 py-2" : "px-4 py-2.5")}>
@@ -809,10 +823,44 @@ export default function LessonDeckClient({ lesson }: Props) {
           >
             You
           </div>
-          <div>
+          <div className="flex-1">
             <div className="text-xs font-bold text-slate-900">{getText(value.title, "en")}</div>
             <div className="text-[10px] font-medium text-slate-400">Share your evidence-based response</div>
           </div>
+          {coins ? (
+            <div className="relative flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-1">
+              <span className="text-base">🪣</span>
+              <span className={"text-sm font-black tabular-nums " + (animating ? "text-amber-600" : "text-amber-500")}>
+                {totalCoins}
+              </span>
+              <span className="text-[10px] font-bold text-amber-400">coins</span>
+              {animating ? (
+                <>
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <span
+                      key={i}
+                      className="pointer-events-none absolute text-lg"
+                      style={{
+                        left: `${30 + (i % 3) * 15}%`,
+                        animation: `coinDrop 0.8s ease-in ${i * 0.12}s forwards`,
+                        opacity: 0,
+                      }}
+                    >
+                      🪙
+                    </span>
+                  ))}
+                  <style>{`
+                    @keyframes coinDrop {
+                      0% { transform: translateY(-30px) scale(1.3); opacity: 1; }
+                      60% { transform: translateY(0px) scale(1); opacity: 1; }
+                      80% { transform: translateY(-6px) scale(1); opacity: 1; }
+                      100% { transform: translateY(0px) scale(0.7); opacity: 0; }
+                    }
+                  `}</style>
+                </>
+              ) : null}
+            </div>
+          ) : null}
         </div>
         <div className={compact ? "px-3 py-2" : "px-4 py-3"}>
           <div className={"mb-2 whitespace-pre-line font-medium text-slate-600 " + (compact ? "text-xs leading-5" : "text-xs leading-6")}>
@@ -834,7 +882,11 @@ export default function LessonDeckClient({ lesson }: Props) {
           />
           <div className={"flex items-center justify-between gap-2 " + (compact ? "mt-2" : "mt-2")}>
             <div className="text-[10px] font-medium text-slate-400">
-              Use evidence from the Qur&apos;an, Hadith, life, Islamic stories, or science.
+              {coins && !alreadyEarned ? (
+                <span className="text-amber-500 font-semibold">🪙 Earn {coins} coins!</span>
+              ) : (
+                <>Use evidence from the Qur&apos;an, Hadith, life, Islamic stories, or science.</>
+              )}
             </div>
             <button
               type="button"
@@ -844,8 +896,13 @@ export default function LessonDeckClient({ lesson }: Props) {
               {getText(value.buttonLabel ?? "Post comment", "en")}
             </button>
           </div>
-          {savedStates[`${lesson.slug}:${sectionIndex}`] ? (
-            <div className="mt-2 text-xs font-semibold text-green-600">Comment saved.</div>
+          {savedStates[key] ? (
+            <div className={"mt-2 text-xs font-semibold " + (animating ? "text-amber-600" : "text-green-600")}>
+              {animating ? `+${coins} coins earned! 🪙` : "Comment saved."}
+            </div>
+          ) : null}
+          {alreadyEarned && !animating ? (
+            <div className="mt-1 text-[10px] font-medium text-amber-400">🪙 {earnedCoins[key]} coins earned</div>
           ) : null}
         </div>
       </div>

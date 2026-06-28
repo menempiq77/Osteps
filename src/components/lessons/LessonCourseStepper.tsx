@@ -51,6 +51,7 @@ export type LessonSection = {
     prompt: string | { en: string; ar: string };
     placeholder?: string | { en: string; ar: string };
     buttonLabel?: string | { en: string; ar: string };
+    coinsReward?: number;
   };
 };
 
