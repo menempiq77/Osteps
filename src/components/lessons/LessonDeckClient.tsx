@@ -217,6 +217,8 @@ export default function LessonDeckClient({ lesson }: Props) {
   const [gwHasCanvas, setGwHasCanvas] = useState<Record<string, Record<string, boolean>>>({});
   const gwCanvasDataRefs = useRef<Record<string, Record<string, () => string>>>({});
   const [gwSubmitted, setGwSubmitted] = useState<Record<string, Record<string, boolean>>>({});
+  const [ytCustomUrl, setYtCustomUrl] = useState<string>("");
+  const [ytEditMode, setYtEditMode] = useState(false);
 
   const slides = useMemo(() => buildSlides(lesson), [lesson]);
   const hasQuiz = (lesson.quizQuestions?.length ?? 0) > 0;
@@ -1362,18 +1364,68 @@ export default function LessonDeckClient({ lesson }: Props) {
   ) {
     const title = getText(value.title, "en");
     const description = value.description ? getText(value.description, "en") : null;
-    // Extract YouTube video ID from various URL formats
     const getEmbedUrl = (url: string) => {
       const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{11})/);
       const videoId = match ? match[1] : null;
       return videoId ? `https://www.youtube.com/embed/${videoId}` : url;
     };
-    const embedUrl = getEmbedUrl(value.url);
+    const activeUrl = ytCustomUrl || value.url;
+    const embedUrl = getEmbedUrl(activeUrl);
 
     return (
       <div key="youtube-video" className="my-4">
         <h4 className="text-lg font-bold text-gray-800 mb-3">{title}</h4>
         {description && <p className="text-gray-600 mb-4">{description}</p>}
+        <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+          {ytEditMode ? (
+            <div className="flex gap-2 items-center">
+              <input
+                type="text"
+                className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                placeholder="Paste YouTube link here..."
+                defaultValue={activeUrl}
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    setYtCustomUrl((e.target as HTMLInputElement).value.trim());
+                    setYtEditMode(false);
+                  }
+                }}
+                ref={(el) => { if (el) el.value = activeUrl; }}
+                id="yt-url-input"
+              />
+              <button
+                type="button"
+                className="rounded-md bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700"
+                onClick={() => {
+                  const input = document.getElementById("yt-url-input") as HTMLInputElement | null;
+                  if (input) setYtCustomUrl(input.value.trim());
+                  setYtEditMode(false);
+                }}
+              >
+                Save
+              </button>
+              <button
+                type="button"
+                className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
+                onClick={() => setYtEditMode(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-2 items-center">
+              <span className="flex-1 truncate text-sm text-slate-500">{activeUrl}</span>
+              <button
+                type="button"
+                className="rounded-md border border-teal-500 px-4 py-2 text-sm font-medium text-teal-600 hover:bg-teal-50"
+                onClick={() => setYtEditMode(true)}
+              >
+                Change Video
+              </button>
+            </div>
+          )}
+        </div>
         <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
           <iframe
             className="absolute inset-0 w-full h-full rounded-lg shadow-md"
