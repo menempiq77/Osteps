@@ -62,41 +62,25 @@ export const theTrueBook: CourseLesson = {
       },
     },
     {
-      title: { en: "\"No doubt\" — the language of certainty", ar: "«لا رَيب» — لُغةُ اليَقين" },
+      title: { en: "The True Book \u2014 As-Sajdah 1-12", ar: "الكِتابُ الحَقُّ \u2014 السجدة ١-١٢" },
       learningObjectives: [
-        { en: "Analyse the rhetorical force of 'la rayba fih' and 'bal huwa al-haqq'.", ar: "أُحَلِّلُ القُوّةَ البَلاغِيّةَ لِـ«لا رَيبَ فيه» و«بَل هو الحَقّ»." },
+        { en: "Explain how Surat As-Sajdah 1-3 proves the Qur'an is from Allah and not invented by any human.", ar: "أُوَضِّحُ كَيفَ تُثبِتُ السجدة ١-٣ أنَّ القُرآنَ مِنَ اللهِ ولَيسَ مِن صُنعِ بَشَر." },
+        { en: "Identify how As-Sajdah 4-12 links Allah's creation of the heavens, earth, and mankind to the reality of resurrection.", ar: "أُحَدِّدُ كَيفَ تَربِطُ السجدة ٤-١٢ خَلقَ اللهِ لِلسَّماواتِ والأرضِ والإنسانِ بِحَقيقةِ البَعث." },
+      ],
+      successCriteria: [
+        { en: "I can state the meaning of 'Tanzil' and explain why the Qur'an calls itself 'the truth from your Lord' (As-Sajdah 2-3).", ar: "أستَطيعُ بَيانَ مَعنى «تَنزيل» وتَفسيرَ لِماذا يُسَمّي القُرآنُ نَفسَهُ «الحَقَّ مِن رَبِّك» (السجدة ٢-٣)." },
+        { en: "I can describe at least three signs of Allah's creation mentioned in As-Sajdah 4-9.", ar: "أستَطيعُ وَصفَ ثَلاثِ آياتٍ مِن آياتِ خَلقِ اللهِ الوارِدةِ في السجدة ٤-٩." },
+        { en: "I can explain how the disbelievers deny resurrection and how Allah responds in As-Sajdah 10-12.", ar: "أستَطيعُ شَرحَ إنكارِ الكافِرينَ لِلبَعثِ ورَدِّ اللهِ عَلَيهِم في السجدة ١٠-١٢." },
       ],
       image: {
-        src: IMG.skyBlue,
-        alt: { en: "A vast sky, sign of the Lord of the worlds.", ar: "سَماءٌ واسِعةٌ، آيةٌ على رَبِّ العالَمين." },
+        src: IMG.childQuran,
+        alt: { en: "A child reading the Qur'an.", ar: "طِفلٌ يَقرَأُ القُرآن." },
       },
-      infoBoxes: [
-        {
-          label: { en: "Qur'an", ar: "القُرآن" },
-          lines: [
-            { en: "\"The revelation of the Book — about which there is no doubt — is from the Lord of the worlds.\" — As-Sajdah 2", ar: "﴿تَنزِيلُ الْكِتَابِ لَا رَيْبَ فِيهِ مِن رَّبِّ الْعَالَمِينَ﴾ — السجدة ٢" },
-            { en: "\"Or do they say, 'He invented it'? Rather, it is the truth from your Lord, that you may warn a people to whom no warner had come before you...\" — As-Sajdah 3", ar: "﴿أَمْ يَقُولُونَ افْتَرَاهُ ۚ بَلْ هُوَ الْحَقُّ مِن رَّبِّكَ لِتُنذِرَ قَوْمًا مَّا أَتَاهُم مِّن نَّذِيرٍ مِّن قَبْلِكَ...﴾ — السجدة ٣" },
-          ],
-        },
-        {
-          label: { en: "Tafsir note (As-Sa'di / Ibn Kathir)", ar: "فائدةٌ تَفسيريّة (السعدي / ابن كثير)" },
-          lines: [
-            { en: "Mufassirun note the order: first the Book is named and doubt is removed, then its source (Rabb al-'alamin) is given. Establishing the message's certainty before naming its sender makes the proof rest on the content itself, not merely on the messenger.", ar: "يُنَبِّهُ المُفَسِّرونَ على التَّرتيب: يُسَمّى الكِتابُ ويُنفى الرَّيبُ أوّلًا، ثُمَّ يُذكَرُ مَصدَرُه (رَبُّ العالَمين). وتَقريرُ يَقينِ الرِّسالةِ قَبلَ ذِكرِ مُرسِلِها يَجعَلُ البُرهانَ قائِمًا على المَضمونِ نَفسِه لا على المُبَلِّغِ وَحدَه." },
-          ],
-        },
-      ],
-      callout: {
-        label: { en: "Balaghah (rhetoric)", ar: "بَلاغة" },
-        title: { en: "Why 'Rather' (bal) is a hinge", ar: "لِماذا «بَل» مِفصَلٌ في الآية" },
-        body: {
-          en: "Arabic 'bal' is an 'idrab' particle: it cancels what came before and asserts the opposite. By placing the deniers' words 'He invented it' beside 'Rather, it is the truth', the verse lets their accusation be heard and then demolished in a single breath. Discuss: how is quoting an objection before answering it a sign of confidence?",
-          ar: "«بَل» حَرفُ إضرابٍ: يُبطِلُ ما قَبلَهُ ويُثبِتُ نَقيضَه. فَبِوَضعِ قَولِهِم «افتَراه» بِجِوارِ «بَل هو الحَقّ» تُسمِعُ الآيةُ تُهمَتَهُم ثُمَّ تَهدِمُها في نَفَسٍ واحِد. ناقِشْ: كَيفَ يَكونُ نَقلُ الاعتِراضِ قَبلَ الرَّدِّ عَلامةَ ثِقةٍ بالحُجّة؟",
-        },
+      readyButton: {
+        label: { en: "I'm ready to learn!", ar: "أنا مُستَعِدٌّ لِلتَّعَلُّم!" },
+        coinsReward: 5,
       },
-      body: {
-        en: "Read the wording closely, because the Qur'an's precision is part of its proof. Verse 2 does not say 'there should be no doubt'; it states as a fact, 'there is no doubt in it' — the Book is itself the standard against which doubt is measured. The phrase 'min Rabb al-'alamin' (from the Lord of the worlds) ties the Book to the One who owns, creates and nurtures every world, so its authority is total.\n\nVerse 3 then performs a brilliant move. It voices the enemy's claim — 'He invented it' — and immediately overturns it with 'bal' ('Rather'): it is 'the truth from your Lord'. Notice the pastoral shift from 'Lord of the worlds' to 'your Lord', addressed to the Prophet ﷺ; the same Majesty that rules all creation is personally caring for the one carrying His message under persecution.\n\nFinally the purpose is stated: 'that you may warn a people to whom no warner had come before'. Revelation is not given to satisfy curiosity but to rescue people who had been left without guidance. This reframes the whole debate: the question is no longer merely 'Is the Qur'an authentic?' but 'What will I do, now that an authentic warning has reached me?'",
-        ar: "تَأمَّلِ الصِّياغةَ بِدِقّة، فَدِقّةُ القُرآنِ جُزءٌ مِن بُرهانِه. لم تَقُلِ الآيةُ الثّانيةُ «يَنبَغي ألّا يَكونَ رَيب»، بل قَرَّرَت حَقيقةً: «لا رَيبَ فيه» — فالكِتابُ نَفسُهُ مِعيارٌ يُقاسُ بِهِ الشَّكّ. وقَولُهُ «مِن رَبِّ العالَمين» يَربِطُ الكِتابَ بِمَن يَملِكُ ويَخلُقُ ويُرَبّي كُلَّ عالَم، فَسُلطانُهُ تامّ.\n\nثُمَّ تُؤَدّي الآيةُ الثّالِثةُ حَرَكةً بارِعة. تَنطِقُ بِدَعوى العَدُوِّ «افتَراه» ثُمَّ تَقلِبُها فَورًا بِـ«بَل»: هو «الحَقُّ مِن رَبِّك». ولاحِظِ الانتِقالَ الحانِيَ مِن «رَبِّ العالَمين» إلى «رَبِّك» خِطابًا لِلنَّبِيِّ ﷺ؛ فالعَظَمةُ التي تُدَبِّرُ الخَلقَ كُلَّهُ تَرعى شَخصِيًّا حامِلَ رِسالَتِهِ تَحتَ الأذى.\n\nوأخيرًا يُذكَرُ المَقصِد: «لِتُنذِرَ قَومًا ما أتاهُم مِن نَذيرٍ مِن قَبلِك». فالوَحيُ لم يُعطَ لإشباعِ فُضولٍ بل لإنقاذِ قَومٍ تُرِكوا بِلا هُدى. وهذا يُعيدُ صِياغةَ الجَدَلِ كُلِّه: لم يَعُدِ السُّؤالُ «هل القُرآنُ صَحيح؟» فَحَسب، بل «ماذا سأفعَلُ وقَد بَلَغَني إنذارٌ صَحيح؟».",
-      },
+      body: { en: "", ar: "" },
     },
     {
       title: { en: "Creation, then istiwa' over the Throne", ar: "الخَلقُ ثُمَّ الاستِواءُ على العَرش" },
