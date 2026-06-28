@@ -29,6 +29,7 @@ type SlideBlock =
   | { type: "fillBlanksActivity"; value: NonNullable<LessonSection["fillBlanksActivity"]> }
   | { type: "groupWorkCards"; value: NonNullable<LessonSection["groupWorkCards"]> }
   | { type: "hingeQuestions"; value: NonNullable<LessonSection["hingeQuestions"]> }
+  | { type: "youtubeVideo"; value: NonNullable<LessonSection["youtubeVideo"]> }
   | { type: "body"; paragraphs: string[] }
   | { type: "responsePrompt"; value: NonNullable<LessonSection["responsePrompt"]> }
   | { type: "quiz" };
@@ -109,6 +110,7 @@ function buildSlides(lesson: CourseLesson): PresentationSlide[] {
       if (section.fillBlanksActivity) intro.push({ type: "fillBlanksActivity", value: section.fillBlanksActivity });
       if (section.groupWorkCards) intro.push({ type: "groupWorkCards", value: section.groupWorkCards });
       if (section.hingeQuestions) intro.push({ type: "hingeQuestions", value: section.hingeQuestions });
+      if (section.youtubeVideo) intro.push({ type: "youtubeVideo", value: section.youtubeVideo });
       if (intro.length) {
         sectionSlides.push({
           id: `${lesson.slug}-${sectionIndex}-0`,
@@ -1355,6 +1357,36 @@ export default function LessonDeckClient({ lesson }: Props) {
     );
   }
 
+  function renderYoutubeVideo(
+    value: NonNullable<LessonSection["youtubeVideo"]>,
+  ) {
+    const title = getText(value.title, "en");
+    const description = value.description ? getText(value.description, "en") : null;
+    // Extract YouTube video ID from various URL formats
+    const getEmbedUrl = (url: string) => {
+      const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{11})/);
+      const videoId = match ? match[1] : null;
+      return videoId ? `https://www.youtube.com/embed/${videoId}` : url;
+    };
+    const embedUrl = getEmbedUrl(value.url);
+
+    return (
+      <div key="youtube-video" className="my-4">
+        <h4 className="text-lg font-bold text-gray-800 mb-3">{title}</h4>
+        {description && <p className="text-gray-600 mb-4">{description}</p>}
+        <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
+          <iframe
+            className="absolute inset-0 w-full h-full rounded-lg shadow-md"
+            src={embedUrl}
+            title={title}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
+      </div>
+    );
+  }
+
   function renderHingeQuestions(
     value: NonNullable<LessonSection["hingeQuestions"]>,
     sectionIndex: number,
@@ -1941,6 +1973,8 @@ export default function LessonDeckClient({ lesson }: Props) {
         return renderGroupWorkCards(block.value, sectionIndex);
       case "hingeQuestions":
         return renderHingeQuestions(block.value, sectionIndex);
+      case "youtubeVideo":
+        return renderYoutubeVideo(block.value);
       case "body":
         return renderBodyParagraphs(block.paragraphs, presentationMode);
       case "responsePrompt":
@@ -1973,6 +2007,7 @@ export default function LessonDeckClient({ lesson }: Props) {
         {activeSection.fillBlanksActivity ? renderFillBlanksActivity(activeSection.fillBlanksActivity, activeIndex) : null}
         {activeSection.groupWorkCards ? renderGroupWorkCards(activeSection.groupWorkCards, activeIndex) : null}
         {activeSection.hingeQuestions ? renderHingeQuestions(activeSection.hingeQuestions, activeIndex) : null}
+        {activeSection.youtubeVideo ? renderYoutubeVideo(activeSection.youtubeVideo) : null}
         {paragraphs.length ? renderBodyParagraphs(paragraphs) : null}
         {activeSection.responsePrompt ? renderResponsePrompt(activeSection.responsePrompt, activeIndex) : null}
       </div>

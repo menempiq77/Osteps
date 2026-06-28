@@ -449,40 +449,21 @@ export const theTrueBook: CourseLesson = {
       body: { en: "", ar: "" },
     },
     {
-      title: { en: "The scene of regret (verse 12)", ar: "مَشهَدُ النَّدَم (الآية ١٢)" },
+      title: { en: "Video — Surah As-Sajdah", ar: "فيديو — سورة السجدة" },
       learningObjectives: [
-        { en: "Interpret the Judgement scene in verse 12 and draw out its warning.", ar: "أُفَسِّرُ مَشهَدَ القِيامةِ في الآيةِ ١٢ وأستَخرِجُ تَحذيرَه." },
+        { en: "Watch and reflect on a visual explanation of Surah As-Sajdah 1-12.", ar: "شاهِدْ وتَأمَّلْ في شَرحٍ مَرئِيٍّ لِسورةِ السجدة ١-١٢." },
       ],
       image: {
-        src: IMG.lantern,
-        alt: { en: "A single lantern in darkness, like a final plea for light.", ar: "فانوسٌ وَحيدٌ في الظَّلام، كَتَوَسُّلٍ أخيرٍ لِلنّور." },
+        src: IMG.childQuran,
+        alt: { en: "A student watching an Islamic video.", ar: "طالِبٌ يُشاهِدُ فيديو إسلامِيًّا." },
       },
-      infoBoxes: [
-        {
-          label: { en: "Qur'an", ar: "القُرآن" },
-          lines: [
-            { en: "\"If you could but see when the criminals are bowing their heads before their Lord, [saying], 'Our Lord, we have seen and heard, so return us; we will do righteousness. Indeed, we are now certain.'\" — As-Sajdah 12", ar: "﴿وَلَوْ تَرَىٰ إِذِ الْمُجْرِمُونَ نَاكِسُو رُءُوسِهِمْ عِندَ رَبِّهِمْ رَبَّنَا أَبْصَرْنَا وَسَمِعْنَا فَارْجِعْنَا نَعْمَلْ صَالِحًا إِنَّا مُوقِنُونَ﴾ — السجدة ١٢" },
-          ],
-        },
-        {
-          label: { en: "Tafsir note", ar: "فائدةٌ تَفسيريّة" },
-          lines: [
-            { en: "Mufassirun observe the bitter irony: in the world they refused to 'see and hear' the signs; on that Day they cry 'we have seen and heard'. The very faculties of verses 9 finally work — but too late, when action is no longer accepted.", ar: "يُلاحِظُ المُفَسِّرونَ المُفارَقةَ المُرّة: في الدُّنيا رَفَضوا أن «يُبصِروا ويَسمَعوا» الآيات؛ ويَومَئذٍ يَصيحون «أبصَرنا وسَمِعنا». فَحَواسُّ الآيةِ التّاسِعةِ تَعمَلُ أخيرًا — لكِن بَعدَ فَواتِ الأوان، حينَ لا يُقبَلُ العَمَل." },
-          ],
-        },
-      ],
-      callout: {
-        label: { en: "Critical thinking", ar: "تَفكيرٌ ناقِد" },
-        title: { en: "Why is their plea rejected?", ar: "لِماذا تُرَدُّ مَناشَدَتُهُم؟" },
-        body: {
-          en: "On that Day the deniers finally say 'we are now certain' and beg to return. Yet faith forced by seeing the unseen is not the faith Allah asked for. Discuss: what is the moral value of believing and obeying now, on the basis of evidence, rather than later, on the basis of sight?",
-          ar: "يَومَئذٍ يَقولُ المُنكِرون أخيرًا «إنّا موقِنون» ويَتَوَسَّلونَ الرُّجوع. لكِنَّ إيمانًا تَفرِضُهُ مُعايَنةُ الغَيبِ لَيسَ هو الإيمانَ الذي طَلَبَهُ الله. ناقِشْ: ما القيمةُ الأخلاقيّةُ لِلإيمانِ والطّاعةِ الآنَ على أساسِ الدَّليل، لا لاحِقًا على أساسِ العِيان؟",
-        },
+      youtubeVideo: {
+        title: { en: "Watch: Surah As-Sajdah Explained", ar: "شاهِدْ: شرح سورة السجدة" },
+        // ← Change this URL to any YouTube video you want
+        url: "https://www.youtube.com/watch?v=YfHSMPjOpE8",
+        description: { en: "Watch this video about Surah As-Sajdah and reflect on the meanings of the verses you have studied.", ar: "شاهِدْ هذا الفيديو عن سورةِ السجدة وتَأمَّلْ في مَعاني الآياتِ التي دَرَستَها." },
       },
-      body: {
-        en: "The opening of As-Sajdah closes with a scene designed to move the heart. Imagine the criminals on the Day of Judgement, heads bowed in humiliation before their Lord, pleading: 'Our Lord, we have seen and heard, so return us; we will do righteousness. Indeed, we are now certain.' Everything they denied is now undeniable to them — but the door of action has shut.\n\nThe tragedy is precise. In the world they were given hearing, sight and hearts (verse 9) and a clear, doubt-free Book (verse 2), yet they would not truly see or hear. Now their certainty is complete and useless, because the test of this life was to believe in the unseen on the strength of evidence, not to be compelled by seeing the unseen itself. Their request to 'return and do righteousness' is exactly the chance they are squandering right now, while alive.\n\nThis is why the passage is not abstract theology but an urgent appeal to you, the reader. The Book is true (v.2-3); its Author created and controls everything (v.4-5); He fashioned you and gave you the means to recognise the truth (v.7-9); He will certainly raise you (v.10-11); and there will be a moment of final regret for those who delayed (v.12). The only wise response is to read the Qur'an with understanding, believe its reports, obey its commands, and turn to Allah today — before the day when 'return us' is answered with silence.",
-        ar: "يُختَمُ مَطلَعُ السَّجدةِ بِمَشهَدٍ يُحَرِّكُ القَلب. تَخَيَّلِ المُجرِمينَ يَومَ القِيامةِ ناكِسي رُؤوسِهِم ذِلّةً عِندَ رَبِّهِم يَتَوَسَّلون: «رَبَّنا أبصَرنا وسَمِعنا فارجِعنا نَعمَلْ صالِحًا إنّا موقِنون». فَكُلُّ ما أنكَروهُ صارَ لا يُنكَر — لكِنَّ بابَ العَمَلِ أُغلِق.\n\nوالمَأساةُ دَقيقة. في الدُّنيا أُعطوا السَّمعَ والبَصَرَ والأفئِدةَ (الآية ٩) وكِتابًا بَيِّنًا لا رَيبَ فيه (الآية ٢)، فأبَوا أن يُبصِروا أو يَسمَعوا حَقًّا. والآنَ يَقينُهُم تامٌّ لا يَنفَع، لأنَّ امتِحانَ الحَياةِ كانَ الإيمانَ بالغَيبِ بِقُوّةِ الدَّليل، لا الإكراهَ بِمُعايَنةِ الغَيب. وطَلَبُهُمُ «الرُّجوعَ لِيَعمَلوا صالِحًا» هو بِعَينِهِ الفُرصةُ التي يُضَيِّعونَها الآنَ وهُم أحياء.\n\nلِذا فالمَقطَعُ لَيسَ لاهوتًا مُجَرَّدًا بل نِداءٌ عاجِلٌ لَكَ أنتَ القارِئ. الكِتابُ حَقٌّ (٢-٣)؛ ومُؤَلِّفُهُ خَلَقَ كُلَّ شَيءٍ ويُدَبِّرُه (٤-٥)؛ وصَوَّرَكَ ووَهَبَكَ أدَواتِ إدراكِ الحَقّ (٧-٩)؛ وسَيَبعَثُكَ يَقينًا (١٠-١١)؛ وهُناكَ لَحظةُ نَدَمٍ أخيرةٍ لِمَن سَوَّف (١٢). فالمَوقِفُ الحَكيمُ الوَحيدُ أن تَقرَأ القُرآنَ بِفَهم، وتُصَدِّقَ خَبَرَه، وتَمتَثِلَ أمرَه، وتُقبِلَ على اللهِ اليَوم — قَبلَ يَومٍ يُقابَلُ فيهِ «فارجِعنا» بالصَّمت.",
-      },
+      body: { en: "", ar: "" },
     },
     {
       title: { en: "Synthesis & collaborative analysis", ar: "تَركيبٌ وتَحليلٌ جَماعِيّ" },

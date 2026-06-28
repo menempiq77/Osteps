@@ -93,6 +93,11 @@ export type LessonSection = {
     }>;
     coinsReward?: number;
   };
+  youtubeVideo?: {
+    title: string | { en: string; ar: string };
+    url: string;
+    description?: string | { en: string; ar: string };
+  };
   groupWorkCards?: {
     title: string | { en: string; ar: string };
     instruction?: string | { en: string; ar: string };
