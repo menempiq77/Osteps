@@ -59,6 +59,22 @@ export type LessonSection = {
     label: string | { en: string; ar: string };
     coinsReward?: number;
   };
+  trueFalseActivity?: {
+    title: string | { en: string; ar: string };
+    questions: Array<{
+      statement: string | { en: string; ar: string };
+      answer: boolean;
+    }>;
+    coinsReward?: number;
+  };
+  fillBlanksActivity?: {
+    title: string | { en: string; ar: string };
+    questions: Array<{
+      sentence: string | { en: string; ar: string };
+      answer: string | { en: string; ar: string };
+    }>;
+    coinsReward?: number;
+  };
   responsePrompt?: {
     title: string | { en: string; ar: string };
     prompt: string | { en: string; ar: string };

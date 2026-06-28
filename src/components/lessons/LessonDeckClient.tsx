@@ -24,6 +24,8 @@ type SlideBlock =
   | { type: "image"; value: NonNullable<LessonSection["image"]> }
   | { type: "callout"; value: NonNullable<LessonSection["callout"]> }
   | { type: "readyButton"; value: NonNullable<LessonSection["readyButton"]> }
+  | { type: "trueFalseActivity"; value: NonNullable<LessonSection["trueFalseActivity"]> }
+  | { type: "fillBlanksActivity"; value: NonNullable<LessonSection["fillBlanksActivity"]> }
   | { type: "body"; paragraphs: string[] }
   | { type: "responsePrompt"; value: NonNullable<LessonSection["responsePrompt"]> }
   | { type: "quiz" };
@@ -100,6 +102,8 @@ function buildSlides(lesson: CourseLesson): PresentationSlide[] {
       }
       if (section.callout) intro.push({ type: "callout", value: section.callout });
       if (section.readyButton) intro.push({ type: "readyButton", value: section.readyButton });
+      if (section.trueFalseActivity) intro.push({ type: "trueFalseActivity", value: section.trueFalseActivity });
+      if (section.fillBlanksActivity) intro.push({ type: "fillBlanksActivity", value: section.fillBlanksActivity });
       if (intro.length) {
         sectionSlides.push({
           id: `${lesson.slug}-${sectionIndex}-0`,
@@ -195,6 +199,10 @@ export default function LessonDeckClient({ lesson }: Props) {
   const totalCoins = Object.values(earnedCoins).reduce((sum, v) => sum + v, 0);
   const [imageMatchAnswers, setImageMatchAnswers] = useState<Record<string, Record<number, string>>>({});
   const [imageMatchChecked, setImageMatchChecked] = useState<Record<string, boolean>>({});
+  const [tfAnswers, setTfAnswers] = useState<Record<string, Record<number, boolean | null>>>({});
+  const [tfChecked, setTfChecked] = useState<Record<string, boolean>>({});
+  const [fbAnswers, setFbAnswers] = useState<Record<string, Record<number, string>>>({});
+  const [fbChecked, setFbChecked] = useState<Record<string, boolean>>({});
 
   const slides = useMemo(() => buildSlides(lesson), [lesson]);
   const hasQuiz = (lesson.quizQuestions?.length ?? 0) > 0;
@@ -1075,6 +1083,266 @@ export default function LessonDeckClient({ lesson }: Props) {
     );
   }
 
+  function renderTrueFalseActivity(
+    value: NonNullable<LessonSection["trueFalseActivity"]>,
+    sectionIndex: number,
+  ) {
+    const actKey = `${lesson.slug}:tf:${sectionIndex}`;
+    const answers = tfAnswers[actKey] ?? {};
+    const isChecked = !!tfChecked[actKey];
+    const allAnswered = value.questions.every((_, i) => answers[i] !== undefined && answers[i] !== null);
+    const correctCount = isChecked
+      ? value.questions.reduce((n, q, i) => n + (answers[i] === q.answer ? 1 : 0), 0)
+      : 0;
+
+    function handleCheck() {
+      setTfChecked((c) => ({ ...c, [actKey]: true }));
+      const score = value.questions.reduce((n, q, i) => n + (answers[i] === q.answer ? 1 : 0), 0);
+      if (score === value.questions.length && value.coinsReward && !earnedCoins[actKey]) {
+        setEarnedCoins((c) => ({ ...c, [actKey]: value.coinsReward! }));
+        setCoinAnimating(actKey);
+        window.setTimeout(() => setCoinAnimating(null), 2200);
+      }
+    }
+
+    function handleSelect(idx: number, val: boolean) {
+      if (isChecked) return;
+      setTfAnswers((prev) => ({
+        ...prev,
+        [actKey]: { ...prev[actKey], [idx]: val },
+      }));
+    }
+
+    const animating = coinAnimating === actKey;
+
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <h4 className="text-base font-black text-slate-800 mb-3">{getText(value.title, "en")}</h4>
+        <div className="space-y-3">
+          {value.questions.map((q, i) => {
+            const selected = answers[i];
+            const correct = isChecked && selected === q.answer;
+            const wrong = isChecked && selected !== undefined && selected !== null && selected !== q.answer;
+            return (
+              <div
+                key={i}
+                className={
+                  "rounded-lg border p-3 transition-colors " +
+                  (correct ? "border-emerald-300 bg-emerald-50" : wrong ? "border-red-300 bg-red-50" : "border-slate-200 bg-slate-50")
+                }
+              >
+                <p className="text-sm font-semibold text-slate-700 mb-2">{getText(q.statement, "en")}</p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={isChecked}
+                    onClick={() => handleSelect(i, true)}
+                    className={
+                      "rounded-full px-4 py-1 text-xs font-bold transition-all " +
+                      (selected === true
+                        ? "bg-teal-500 text-white shadow"
+                        : "bg-white border border-slate-300 text-slate-600 hover:border-teal-400")
+                    }
+                  >
+                    True
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isChecked}
+                    onClick={() => handleSelect(i, false)}
+                    className={
+                      "rounded-full px-4 py-1 text-xs font-bold transition-all " +
+                      (selected === false
+                        ? "bg-teal-500 text-white shadow"
+                        : "bg-white border border-slate-300 text-slate-600 hover:border-teal-400")
+                    }
+                  >
+                    False
+                  </button>
+                  {isChecked ? (
+                    <span className={"ml-2 text-xs font-bold " + (correct ? "text-emerald-600" : "text-red-500")}>
+                      {correct ? "Correct!" : `Answer: ${q.answer ? "True" : "False"}`}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {!isChecked ? (
+          <button
+            type="button"
+            disabled={!allAnswered}
+            onClick={handleCheck}
+            className={
+              "mt-4 w-full rounded-full py-2 text-sm font-black shadow transition-all " +
+              (allAnswered
+                ? "bg-gradient-to-r from-teal-500 to-emerald-500 text-white hover:shadow-lg active:scale-[0.98]"
+                : "bg-slate-100 text-slate-400 cursor-not-allowed")
+            }
+          >
+            Check answers
+          </button>
+        ) : (
+          <div className="mt-3 text-center">
+            <span className="text-sm font-bold text-slate-700">
+              Score: {correctCount}/{value.questions.length}
+            </span>
+            {correctCount === value.questions.length && value.coinsReward ? (
+              <span className="ml-2 text-sm font-black text-amber-500">+{value.coinsReward} coins! 🪙</span>
+            ) : null}
+          </div>
+        )}
+        {value.coinsReward ? (
+          <div className="mt-2 flex justify-center">
+            <div className="relative flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200 px-3 py-1.5">
+              <span className="text-base">🪣</span>
+              <span className={"text-sm font-black tabular-nums " + (animating ? "text-amber-600" : "text-amber-500")}>
+                {totalCoins}
+              </span>
+              <span className="text-[10px] font-bold text-amber-400">coins</span>
+              {animating ? (
+                <>
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <span key={i} className="pointer-events-none absolute text-lg" style={{ left: `${30 + (i % 3) * 15}%`, animation: `coinDrop 0.8s ease-in ${i * 0.12}s forwards`, opacity: 0 }}>🪙</span>
+                  ))}
+                </>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  function renderFillBlanksActivity(
+    value: NonNullable<LessonSection["fillBlanksActivity"]>,
+    sectionIndex: number,
+  ) {
+    const actKey = `${lesson.slug}:fb:${sectionIndex}`;
+    const answers = fbAnswers[actKey] ?? {};
+    const isChecked = !!fbChecked[actKey];
+    const allFilled = value.questions.every((_, i) => (answers[i] ?? "").trim().length > 0);
+    const correctCount = isChecked
+      ? value.questions.reduce((n, q, i) => {
+          const userAns = (answers[i] ?? "").trim().toLowerCase();
+          const correctAns = getText(q.answer, "en").trim().toLowerCase();
+          return n + (userAns === correctAns ? 1 : 0);
+        }, 0)
+      : 0;
+
+    function handleCheck() {
+      setFbChecked((c) => ({ ...c, [actKey]: true }));
+      const score = value.questions.reduce((n, q, i) => {
+        const userAns = (answers[i] ?? "").trim().toLowerCase();
+        const correctAns = getText(q.answer, "en").trim().toLowerCase();
+        return n + (userAns === correctAns ? 1 : 0);
+      }, 0);
+      if (score === value.questions.length && value.coinsReward && !earnedCoins[actKey]) {
+        setEarnedCoins((c) => ({ ...c, [actKey]: value.coinsReward! }));
+        setCoinAnimating(actKey);
+        window.setTimeout(() => setCoinAnimating(null), 2200);
+      }
+    }
+
+    function handleInput(idx: number, val: string) {
+      if (isChecked) return;
+      setFbAnswers((prev) => ({
+        ...prev,
+        [actKey]: { ...prev[actKey], [idx]: val },
+      }));
+    }
+
+    const animating = coinAnimating === actKey;
+
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <h4 className="text-base font-black text-slate-800 mb-3">{getText(value.title, "en")}</h4>
+        <div className="space-y-3">
+          {value.questions.map((q, i) => {
+            const userAns = (answers[i] ?? "").trim().toLowerCase();
+            const correctAns = getText(q.answer, "en").trim().toLowerCase();
+            const correct = isChecked && userAns === correctAns;
+            const wrong = isChecked && userAns !== correctAns;
+            return (
+              <div
+                key={i}
+                className={
+                  "rounded-lg border p-3 transition-colors " +
+                  (correct ? "border-emerald-300 bg-emerald-50" : wrong ? "border-red-300 bg-red-50" : "border-slate-200 bg-slate-50")
+                }
+              >
+                <p className="text-sm font-semibold text-slate-700 mb-2">{getText(q.sentence, "en")}</p>
+                <input
+                  type="text"
+                  disabled={isChecked}
+                  value={answers[i] ?? ""}
+                  onChange={(e) => handleInput(i, e.target.value)}
+                  placeholder="Type your answer..."
+                  className={
+                    "w-full rounded-lg border px-3 py-1.5 text-sm " +
+                    (isChecked
+                      ? correct ? "border-emerald-300 bg-emerald-50" : "border-red-300 bg-red-50"
+                      : "border-slate-300 bg-white focus:border-teal-400 focus:ring-1 focus:ring-teal-200")
+                  }
+                />
+                {isChecked && wrong ? (
+                  <p className="mt-1 text-xs font-bold text-red-500">
+                    Correct answer: {getText(q.answer, "en")}
+                  </p>
+                ) : isChecked && correct ? (
+                  <p className="mt-1 text-xs font-bold text-emerald-600">Correct!</p>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+        {!isChecked ? (
+          <button
+            type="button"
+            disabled={!allFilled}
+            onClick={handleCheck}
+            className={
+              "mt-4 w-full rounded-full py-2 text-sm font-black shadow transition-all " +
+              (allFilled
+                ? "bg-gradient-to-r from-teal-500 to-emerald-500 text-white hover:shadow-lg active:scale-[0.98]"
+                : "bg-slate-100 text-slate-400 cursor-not-allowed")
+            }
+          >
+            Check answers
+          </button>
+        ) : (
+          <div className="mt-3 text-center">
+            <span className="text-sm font-bold text-slate-700">
+              Score: {correctCount}/{value.questions.length}
+            </span>
+            {correctCount === value.questions.length && value.coinsReward ? (
+              <span className="ml-2 text-sm font-black text-amber-500">+{value.coinsReward} coins! 🪙</span>
+            ) : null}
+          </div>
+        )}
+        {value.coinsReward ? (
+          <div className="mt-2 flex justify-center">
+            <div className="relative flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200 px-3 py-1.5">
+              <span className="text-base">🪣</span>
+              <span className={"text-sm font-black tabular-nums " + (animating ? "text-amber-600" : "text-amber-500")}>
+                {totalCoins}
+              </span>
+              <span className="text-[10px] font-bold text-amber-400">coins</span>
+              {animating ? (
+                <>
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <span key={i} className="pointer-events-none absolute text-lg" style={{ left: `${30 + (i % 3) * 15}%`, animation: `coinDrop 0.8s ease-in ${i * 0.12}s forwards`, opacity: 0 }}>🪙</span>
+                  ))}
+                </>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
   function renderCallout(value: NonNullable<LessonSection["callout"]>, compact = false) {
     return (
       <div className={"rounded-xl border border-amber-200 bg-amber-50 " + (compact ? "p-3" : "p-3")}>
@@ -1250,6 +1518,10 @@ export default function LessonDeckClient({ lesson }: Props) {
         return renderCallout(block.value, presentationMode);
       case "readyButton":
         return renderReadyButton(block.value, sectionIndex);
+      case "trueFalseActivity":
+        return renderTrueFalseActivity(block.value, sectionIndex);
+      case "fillBlanksActivity":
+        return renderFillBlanksActivity(block.value, sectionIndex);
       case "body":
         return renderBodyParagraphs(block.paragraphs, presentationMode);
       case "responsePrompt":
@@ -1278,6 +1550,8 @@ export default function LessonDeckClient({ lesson }: Props) {
         {activeSection.imageMatchingActivity ? renderImageMatchingActivity(activeSection.imageMatchingActivity, activeIndex) : null}
         {activeSection.callout ? renderCallout(activeSection.callout) : null}
         {activeSection.readyButton ? renderReadyButton(activeSection.readyButton, activeIndex) : null}
+        {activeSection.trueFalseActivity ? renderTrueFalseActivity(activeSection.trueFalseActivity, activeIndex) : null}
+        {activeSection.fillBlanksActivity ? renderFillBlanksActivity(activeSection.fillBlanksActivity, activeIndex) : null}
         {paragraphs.length ? renderBodyParagraphs(paragraphs) : null}
         {activeSection.responsePrompt ? renderResponsePrompt(activeSection.responsePrompt, activeIndex) : null}
       </div>

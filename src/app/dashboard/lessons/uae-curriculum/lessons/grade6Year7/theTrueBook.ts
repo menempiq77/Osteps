@@ -83,33 +83,58 @@ export const theTrueBook: CourseLesson = {
       body: { en: "", ar: "" },
     },
     {
-      title: { en: "Creation, then istiwa' over the Throne", ar: "الخَلقُ ثُمَّ الاستِواءُ على العَرش" },
+      title: { en: "As-Sajdah 4-9: Creation, Perfection & the Human Being", ar: "السجدة ٤-٩: الخَلقُ والإتقانُ والإنسان" },
       learningObjectives: [
-        { en: "Connect Allah's creation and dominion to the authority of His Book.", ar: "أربِطُ بَينَ خَلقِ اللهِ ومُلكِهِ وبَينَ سُلطانِ كِتابِه." },
-        { en: "State the Ahl as-Sunnah position on the divine attributes precisely.", ar: "أُحَرِّرُ مَذهَبَ أهلِ السُّنّةِ في الصِّفاتِ بِدِقّة." },
+        { en: "Explain how As-Sajdah 4-9 describes Allah's creation of the universe and mankind as evidence of His absolute power.", ar: "أُوَضِّحُ كَيفَ تَصِفُ السجدة ٤-٩ خَلقَ اللهِ لِلكَونِ والإنسانِ دَليلًا على قُدرَتِهِ المُطلَقة." },
       ],
       image: {
-        src: IMG.mountainSnow,
-        alt: { en: "Mountains and sky, signs of creation.", ar: "جِبالٌ وسَماء، آياتٌ على الخَلق." },
+        src: IMG.skyBlue,
+        alt: { en: "The heavens, a sign of Allah's creation.", ar: "السَّماء، آيةٌ مِن آياتِ خَلقِ الله." },
       },
       infoBoxes: [
         {
-          label: { en: "Qur'an", ar: "القُرآن" },
+          label: { en: "Qur'an — As-Sajdah 4", ar: "القُرآن — السجدة ٤" },
           lines: [
-            { en: "\"Allah is the One who created the heavens and the earth and what is between them in six days; then He rose over the Throne. You have not besides Him any protector or any intercessor; so will you not be reminded?\" — As-Sajdah 4", ar: "﴿اللَّهُ الَّذِي خَلَقَ السَّمَاوَاتِ وَالْأَرْضَ وَمَا بَيْنَهُمَا فِي سِتَّةِ أَيَّامٍ ثُمَّ اسْتَوَىٰ عَلَى الْعَرْشِ ۖ مَا لَكُم مِّن دُونِهِ مِن وَلِيٍّ وَلَا شَفِيعٍ ۚ أَفَلَا تَتَذَكَّرُونَ﴾ — السجدة ٤" },
-            { en: "\"He arranges [each] matter from the heaven to the earth; then it will ascend to Him in a Day...\" — As-Sajdah 5", ar: "﴿يُدَبِّرُ الْأَمْرَ مِنَ السَّمَاءِ إِلَى الْأَرْضِ ثُمَّ يَعْرُجُ إِلَيْهِ فِي يَوْمٍ...﴾ — السجدة ٥" },
+            { en: "﴾ Allah is the One who created the heavens and the earth and what is between them in six days; then He rose over the Throne. You have not besides Him any protector or any intercessor; so will you not be reminded? ﴿", ar: "﴿اللَّهُ الَّذِي خَلَقَ السَّمَاوَاتِ وَالْأَرْضَ وَمَا بَيْنَهُمَا فِي سِتَّةِ أَيَّامٍ ثُمَّ اسْتَوَىٰ عَلَى الْعَرْشِ ۖ مَا لَكُم مِّن دُونِهِ مِن وَلِيٍّ وَلَا شَفِيعٍ ۚ أَفَلَا تَتَذَكَّرُونَ﴾" },
           ],
         },
         {
-          label: { en: "Aqidah (Ahl as-Sunnah)", ar: "عَقيدة (أهلُ السُّنّة)" },
+          label: { en: "Qur'an — As-Sajdah 7-9", ar: "القُرآن — السجدة ٧-٩" },
           lines: [
-            { en: "We affirm istiwa' (Allah's rising over the Throne) as a real attribute in a manner that befits His majesty — without tahrif (distortion), ta'til (denial), takyif (asking 'how'), or tamthil (likening Him to creation). Imam Malik's principle: 'The istiwa' is known, the 'how' is unknown, belief in it is obligatory, and asking about it is an innovation.'", ar: "نُثبِتُ الاستِواءَ صِفةً حَقيقيّةً على ما يَليقُ بِجَلالِه — بِلا تَحريفٍ ولا تَعطيلٍ ولا تَكييفٍ ولا تَمثيل. وقاعِدةُ الإمامِ مالك: «الاستِواءُ مَعلوم، والكَيفُ مَجهول، والإيمانُ بِهِ واجِب، والسُّؤالُ عنهُ بِدعة»." },
+            { en: "﴾ [He] who perfected everything which He created and began the creation of man from clay. Then He made his posterity out of the extract of a liquid disdained. Then He proportioned him and breathed into him from His [created] soul and made for you hearing and vision and hearts; little are you grateful. ﴿", ar: "﴿الَّذِي أَحْسَنَ كُلَّ شَيْءٍ خَلَقَهُ ۖ وَبَدَأَ خَلْقَ الْإِنسَانِ مِن طِينٍ ۝ ثُمَّ جَعَلَ نَسْلَهُ مِن سُلَالَةٍ مِّن مَّاءٍ مَّهِينٍ ۝ ثُمَّ سَوَّاهُ وَنَفَخَ فِيهِ مِن رُّوحِهِ ۖ وَجَعَلَ لَكُمُ السَّمْعَ وَالْأَبْصَارَ وَالْأَفْئِدَةَ ۚ قَلِيلًا مَّا تَشْكُرُونَ﴾" },
+          ],
+        },
+        {
+          label: { en: "Hadith", ar: "حَديث" },
+          lines: [
+            { en: "The Prophet \uFDFA said: \"Indeed, Allah is Beautiful and He loves beauty.\" (Muslim). His creation reflects His perfection — every detail in the heavens and in man is by design.", ar: "قالَ النَّبِيُّ \uFDFA: «إنَّ اللهَ جَميلٌ يُحِبُّ الجَمال» (مسلم). فَخَلقُهُ يَعكِسُ إتقانَهُ — كُلُّ تَفصيلٍ في السَّماواتِ وفي الإنسانِ بِتَقدير." },
           ],
         },
       ],
       body: {
-        en: "Having settled that the Book is true, the surah lifts our eyes to its Author. Allah created the heavens, the earth and all between them, then 'rose over the Throne' and 'arranges every matter' descending and ascending. The argument is structural: a Book this authoritative could only come from the One whose authority is absolute. If He owns and runs the cosmos, then we 'have no protector or intercessor besides Him' — so to ignore His Book is to abandon our only real refuge.\n\nVerse 4 is also a classic proof-text for creed, so handle it with care. Ahl as-Sunnah wal-Jama'ah affirm what Allah affirmed for Himself: He genuinely rose over the Throne. But we do not picture it, compare it to a human sitting, or ask 'how', because 'there is nothing like unto Him, and He is the Hearing, the Seeing' (Ash-Shura 11). Two errors are avoided at once: those who deny the attribute empty the words of meaning, and those who liken it to creation fall into anthropomorphism. The balanced path affirms the meaning and entrusts the 'how' to Allah.\n\nNotice 'six days' too. The Creator who could have said 'Be' and it is, instead created in stages — teaching that even the All-Powerful establishes order, wisdom and gradualness in His work, a pattern we will see again in how He creates the human being.",
-        ar: "بَعدَ تَقريرِ صِدقِ الكِتابِ تَرفَعُ السّورةُ أبصارَنا إلى مُؤَلِّفِه. خَلَقَ اللهُ السَّماواتِ والأرضَ وما بَينَهُما، ثُمَّ «استَوى على العَرش» وهو «يُدَبِّرُ الأمرَ» نُزولًا وعُروجًا. والحُجّةُ بِنائيّة: كِتابٌ بِهذا السُّلطانِ لا يَصدُرُ إلّا عَمَّن سُلطانُهُ مُطلَق. فإن كانَ يَملِكُ الكَونَ ويُدَبِّرُه، فَلا «وَلِيَّ ولا شَفيعَ لَنا مِن دونِه» — وإهمالُ كِتابِهِ تَخَلٍّ عن مَلجَئِنا الوَحيد.\n\nوالآيةُ الرّابِعةُ أصلٌ عَقَدِيٌّ، فَتَعامَلْ مَعَها بِعِناية. يُثبِتُ أهلُ السُّنّةِ والجَماعةِ ما أثبَتَهُ اللهُ لِنَفسِه: استَوى على العَرشِ حَقيقةً. لكِنّا لا نُكَيِّفُهُ ولا نُشَبِّهُهُ بِجُلوسِ بَشَرٍ ولا نَسألُ «كَيف»، لأنَّهُ «لَيسَ كَمِثلِهِ شَيءٌ وهو السَّميعُ البَصير» (الشورى ١١). فَنَتَجَنَّبُ خَطَأَينِ مَعًا: مَن نَفى الصِّفةَ أفرَغَ اللَّفظَ مِن مَعناه، ومَن شَبَّهَها بالخَلقِ وَقَعَ في التَّجسيم. والطَّريقُ الوَسَطُ يُثبِتُ المَعنى ويَكِلُ الكَيفَ إلى الله.\n\nولاحِظ «سِتّةِ أيّام» أيضًا. الخالِقُ الذي يَقولُ لِلشَّيءِ «كُن فَيَكون» خَلَقَ مُتَدَرِّجًا — تَعليمًا أنَّ القادِرَ المُطلَقَ يُقيمُ في صُنعِهِ نِظامًا وحِكمةً وتَدَرُّجًا، وهو نَمَطٌ سَنَراهُ ثانيةً في خَلقِ الإنسان.",
+        en: "These verses establish Allah's authority through creation. He made the heavens, earth, and everything between them in six days, then rose over the Throne — the ultimate Sovereign. He perfected everything He created, from the vast cosmos to the human body formed from clay, then given a soul, hearing, sight, and a heart to reason. Yet \u2018little are you grateful\u2019 — a reminder that these gifts demand thankfulness through faith and obedience.",
+        ar: "تُؤَسِّسُ هذهِ الآياتُ سُلطانَ اللهِ بِالخَلق. خَلَقَ السَّماواتِ والأرضَ وما بَينَهُما في سِتّةِ أيّامٍ ثُمَّ استَوى على العَرش — السَّيِّدُ المُطلَق. أتقَنَ كُلَّ شَيءٍ خَلَقَه، مِنَ الكَونِ الواسِعِ إلى جَسَدِ الإنسانِ المَصنوعِ مِن طين، ثُمَّ مُنِحَ روحًا وسَمعًا وبَصَرًا وفُؤادًا لِلتَّعَقُّل. ومَعَ ذلِك «قَليلًا ما تَشكُرون» — تَذكيرٌ بِأنَّ هذهِ النِّعَمَ تَستَوجِبُ الشُّكرَ بالإيمانِ والطّاعة.",
+      },
+      trueFalseActivity: {
+        title: { en: "True or False — Test your understanding", ar: "صَحيح أم خَطَأ — اختَبِرْ فَهمَك" },
+        questions: [
+          { statement: { en: "Allah created the heavens and earth in seven days.", ar: "خَلَقَ اللهُ السَّماواتِ والأرضَ في سَبعةِ أيّام." }, answer: false },
+          { statement: { en: "Allah began the creation of man from clay.", ar: "بَدَأَ اللهُ خَلقَ الإنسانِ مِن طين." }, answer: true },
+          { statement: { en: "The senses (hearing, sight, hearts) are gifts from Allah mentioned in verse 9.", ar: "الحَواسُّ (السَّمع والبَصَر والأفئِدة) نِعَمٌ مِنَ اللهِ ذُكِرَت في الآيةِ ٩." }, answer: true },
+          { statement: { en: "The verse says people are very grateful for these gifts.", ar: "تَقولُ الآيةُ إنَّ النّاسَ شاكِرونَ جِدًّا لِهذهِ النِّعَم." }, answer: false },
+          { statement: { en: "Allah arranges every matter from the heaven to the earth (As-Sajdah 5).", ar: "يُدَبِّرُ اللهُ الأمرَ مِنَ السَّماءِ إلى الأرضِ (السجدة ٥)." }, answer: true },
+        ],
+        coinsReward: 10,
+      },
+      fillBlanksActivity: {
+        title: { en: "Fill in the blanks", ar: "املأ الفَراغات" },
+        questions: [
+          { sentence: { en: "Allah created the heavens and earth in ___ days. (As-Sajdah 4)", ar: "خَلَقَ اللهُ السَّماواتِ والأرضَ في ___ أيّام. (السجدة ٤)" }, answer: { en: "six", ar: "سِتّة" } },
+          { sentence: { en: "He began the creation of man from ___. (As-Sajdah 7)", ar: "بَدَأَ خَلقَ الإنسانِ مِن ___. (السجدة ٧)" }, answer: { en: "clay", ar: "طين" } },
+          { sentence: { en: "Then He ___ him and breathed into him from His soul. (As-Sajdah 9)", ar: "ثُمَّ ___ ونَفَخَ فيهِ مِن روحِه. (السجدة ٩)" }, answer: { en: "proportioned", ar: "سَوّاه" } },
+          { sentence: { en: "And made for you hearing, vision, and ___. (As-Sajdah 9)", ar: "وجَعَلَ لَكُمُ السَّمعَ والأبصارَ و___. (السجدة ٩)" }, answer: { en: "hearts", ar: "الأفئِدة" } },
+        ],
+        coinsReward: 10,
       },
     },
     {
