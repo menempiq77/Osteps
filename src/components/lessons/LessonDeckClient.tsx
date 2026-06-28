@@ -28,6 +28,7 @@ type SlideBlock =
   | { type: "trueFalseActivity"; value: NonNullable<LessonSection["trueFalseActivity"]> }
   | { type: "fillBlanksActivity"; value: NonNullable<LessonSection["fillBlanksActivity"]> }
   | { type: "groupWorkCards"; value: NonNullable<LessonSection["groupWorkCards"]> }
+  | { type: "hingeQuestions"; value: NonNullable<LessonSection["hingeQuestions"]> }
   | { type: "body"; paragraphs: string[] }
   | { type: "responsePrompt"; value: NonNullable<LessonSection["responsePrompt"]> }
   | { type: "quiz" };
@@ -107,6 +108,7 @@ function buildSlides(lesson: CourseLesson): PresentationSlide[] {
       if (section.trueFalseActivity) intro.push({ type: "trueFalseActivity", value: section.trueFalseActivity });
       if (section.fillBlanksActivity) intro.push({ type: "fillBlanksActivity", value: section.fillBlanksActivity });
       if (section.groupWorkCards) intro.push({ type: "groupWorkCards", value: section.groupWorkCards });
+      if (section.hingeQuestions) intro.push({ type: "hingeQuestions", value: section.hingeQuestions });
       if (intro.length) {
         sectionSlides.push({
           id: `${lesson.slug}-${sectionIndex}-0`,
@@ -206,6 +208,8 @@ export default function LessonDeckClient({ lesson }: Props) {
   const [tfChecked, setTfChecked] = useState<Record<string, boolean>>({});
   const [fbAnswers, setFbAnswers] = useState<Record<string, Record<number, string>>>({});
   const [fbChecked, setFbChecked] = useState<Record<string, boolean>>({});
+  const [hqAnswers, setHqAnswers] = useState<Record<string, Record<number, number | null>>>({});
+  const [hqChecked, setHqChecked] = useState<Record<string, boolean>>({});
   const [gwSelectedCard, setGwSelectedCard] = useState<Record<string, string | null>>({});
   const [gwWork, setGwWork] = useState<Record<string, Record<string, string>>>({});
   const [gwHasCanvas, setGwHasCanvas] = useState<Record<string, Record<string, boolean>>>({});
@@ -1351,6 +1355,182 @@ export default function LessonDeckClient({ lesson }: Props) {
     );
   }
 
+  function renderHingeQuestions(
+    value: NonNullable<LessonSection["hingeQuestions"]>,
+    sectionIndex: number,
+  ) {
+    const actKey = `${lesson.slug}:hq:${sectionIndex}`;
+    const answers = hqAnswers[actKey] ?? {};
+    const isChecked = !!hqChecked[actKey];
+    const allAnswered = value.questions.every((_, i) => answers[i] !== undefined && answers[i] !== null);
+    const correctCount = isChecked
+      ? value.questions.reduce((n, q, i) => n + (answers[i] === q.correctIndex ? 1 : 0), 0)
+      : 0;
+    const totalQ = value.questions.length;
+
+    function handleCheck() {
+      setHqChecked((c) => ({ ...c, [actKey]: true }));
+      const score = value.questions.reduce((n, q, i) => n + (answers[i] === q.correctIndex ? 1 : 0), 0);
+      if (value.coinsReward && !earnedCoins[actKey]) {
+        const earned = Math.round((score / totalQ) * value.coinsReward);
+        if (earned > 0) {
+          setEarnedCoins((c) => ({ ...c, [actKey]: earned }));
+          setCoinAnimating(actKey);
+          window.setTimeout(() => setCoinAnimating(null), 2200);
+        }
+      }
+    }
+
+    function handleSelect(qIdx: number, optIdx: number) {
+      if (isChecked) return;
+      setHqAnswers((prev) => ({
+        ...prev,
+        [actKey]: { ...prev[actKey], [qIdx]: optIdx },
+      }));
+    }
+
+    const animating = coinAnimating === actKey;
+    const optionLabels = ["A", "B", "C", "D", "E", "F"];
+
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <h4 className="text-lg font-black text-slate-800 mb-1">{getText(value.title, "en")}</h4>
+        {value.instruction ? (
+          <p className="text-sm text-slate-500 mb-4">{getText(value.instruction, "en")}</p>
+        ) : null}
+        <div className="space-y-4">
+          {value.questions.map((q, qi) => {
+            const selected = answers[qi];
+            const isCorrect = isChecked && selected === q.correctIndex;
+            const isWrong = isChecked && selected !== undefined && selected !== null && selected !== q.correctIndex;
+            return (
+              <div
+                key={qi}
+                className={
+                  "rounded-lg border p-4 transition-colors " +
+                  (isCorrect ? "border-emerald-300 bg-emerald-50" : isWrong ? "border-red-300 bg-red-50" : "border-slate-200 bg-slate-50")
+                }
+              >
+                <p className="text-sm font-bold text-slate-800 mb-3">
+                  <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-xs font-black mr-2">{qi + 1}</span>
+                  {getText(q.question, "en")}
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {q.options.map((opt, oi) => {
+                    const isSelected = selected === oi;
+                    const optCorrect = isChecked && oi === q.correctIndex;
+                    const optWrong = isChecked && isSelected && oi !== q.correctIndex;
+                    return (
+                      <button
+                        key={oi}
+                        type="button"
+                        disabled={isChecked}
+                        onClick={() => handleSelect(qi, oi)}
+                        className={
+                          "flex items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm font-medium transition-all " +
+                          (optCorrect
+                            ? "border-emerald-400 bg-emerald-100 text-emerald-800"
+                            : optWrong
+                              ? "border-red-400 bg-red-100 text-red-800"
+                              : isSelected
+                                ? "border-indigo-400 bg-indigo-100 text-indigo-800 shadow-sm"
+                                : "border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:bg-indigo-50")
+                        }
+                      >
+                        <span className={
+                          "flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-black " +
+                          (optCorrect
+                            ? "bg-emerald-500 text-white"
+                            : optWrong
+                              ? "bg-red-500 text-white"
+                              : isSelected
+                                ? "bg-indigo-500 text-white"
+                                : "bg-slate-200 text-slate-600")
+                        }>
+                          {optionLabels[oi] ?? oi + 1}
+                        </span>
+                        <span>{getText(opt, "en")}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {isChecked && q.explanation ? (
+                  <p className={"mt-2 text-xs font-medium " + (isCorrect ? "text-emerald-700" : "text-red-600")}>
+                    {isCorrect ? "Correct! " : `Wrong — the answer is ${optionLabels[q.correctIndex]}. `}
+                    {getText(q.explanation, "en")}
+                  </p>
+                ) : isChecked && !q.explanation ? (
+                  <p className={"mt-2 text-xs font-bold " + (isCorrect ? "text-emerald-600" : "text-red-500")}>
+                    {isCorrect ? "Correct!" : `Answer: ${optionLabels[q.correctIndex]}`}
+                  </p>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+        {!isChecked ? (
+          <button
+            type="button"
+            disabled={!allAnswered}
+            onClick={handleCheck}
+            className={
+              "mt-4 w-full rounded-full py-2.5 text-sm font-black shadow transition-all " +
+              (allAnswered
+                ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white hover:shadow-lg active:scale-[0.98]"
+                : "bg-slate-100 text-slate-400 cursor-not-allowed")
+            }
+          >
+            Check my answers
+          </button>
+        ) : (
+          <div className="mt-4 rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 to-white p-4">
+            <div className="text-center mb-3">
+              <span className="text-2xl font-black text-slate-800">{correctCount}/{totalQ}</span>
+              <p className="text-sm font-bold text-slate-500 mt-1">
+                {correctCount === totalQ ? "Perfect score!" : correctCount >= totalQ * 0.7 ? "Great job!" : correctCount >= totalQ * 0.5 ? "Good effort — review the topics below." : "Keep studying — review the explanations above."}
+              </p>
+            </div>
+            {correctCount < totalQ ? (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 mt-2">
+                <p className="text-xs font-bold text-amber-700 mb-1">Areas to review:</p>
+                <ul className="text-xs text-amber-800 space-y-1">
+                  {value.questions.map((q, qi) =>
+                    answers[qi] !== q.correctIndex ? (
+                      <li key={qi}>• Q{qi + 1}: {getText(q.question, "en")}</li>
+                    ) : null,
+                  )}
+                </ul>
+              </div>
+            ) : null}
+            {value.coinsReward ? (
+              <p className="text-center text-sm font-black text-amber-500 mt-2">
+                +{Math.round((correctCount / totalQ) * value.coinsReward)} coins earned! 🪙
+              </p>
+            ) : null}
+          </div>
+        )}
+        {value.coinsReward ? (
+          <div className="mt-2 flex justify-center">
+            <div className="relative flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200 px-3 py-1.5">
+              <span className="text-base">🪣</span>
+              <span className={"text-sm font-black tabular-nums " + (animating ? "text-amber-600" : "text-amber-500")}>
+                {totalCoins}
+              </span>
+              <span className="text-[10px] font-bold text-amber-400">coins</span>
+              {animating ? (
+                <>
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <span key={i} className="pointer-events-none absolute text-lg" style={{ left: `${30 + (i % 3) * 15}%`, animation: `coinDrop 0.8s ease-in ${i * 0.12}s forwards`, opacity: 0 }}>🪙</span>
+                  ))}
+                </>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
   function renderGroupWorkCards(
     value: NonNullable<LessonSection["groupWorkCards"]>,
     sectionIndex: number,
@@ -1759,6 +1939,8 @@ export default function LessonDeckClient({ lesson }: Props) {
         return renderFillBlanksActivity(block.value, sectionIndex);
       case "groupWorkCards":
         return renderGroupWorkCards(block.value, sectionIndex);
+      case "hingeQuestions":
+        return renderHingeQuestions(block.value, sectionIndex);
       case "body":
         return renderBodyParagraphs(block.paragraphs, presentationMode);
       case "responsePrompt":
@@ -1790,6 +1972,7 @@ export default function LessonDeckClient({ lesson }: Props) {
         {activeSection.trueFalseActivity ? renderTrueFalseActivity(activeSection.trueFalseActivity, activeIndex) : null}
         {activeSection.fillBlanksActivity ? renderFillBlanksActivity(activeSection.fillBlanksActivity, activeIndex) : null}
         {activeSection.groupWorkCards ? renderGroupWorkCards(activeSection.groupWorkCards, activeIndex) : null}
+        {activeSection.hingeQuestions ? renderHingeQuestions(activeSection.hingeQuestions, activeIndex) : null}
         {paragraphs.length ? renderBodyParagraphs(paragraphs) : null}
         {activeSection.responsePrompt ? renderResponsePrompt(activeSection.responsePrompt, activeIndex) : null}
       </div>

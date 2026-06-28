@@ -321,35 +321,132 @@ export const theTrueBook: CourseLesson = {
       },
     },
     {
-      title: { en: "Resurrection: answering the deniers", ar: "البَعث: الرَّدُّ على المُنكِرين" },
+      title: { en: "Hinge Questions", ar: "أسئلة مِحوَريّة" },
       learningObjectives: [
-        { en: "Reconstruct the Qur'an's logical argument for resurrection from verses 10-11.", ar: "أُعيدُ بِناءَ حُجّةِ القُرآنِ العَقليّةِ على البَعثِ مِنَ الآيتَينِ ١٠-١١." },
+        { en: "Assess your understanding of As-Sajdah 1-12 and all previous slides.", ar: "قَيِّمْ فَهمَكَ لِسورةِ السجدة ١-١٢ وجَميعِ الشَّرائحِ السّابِقة." },
       ],
       image: {
-        src: IMG.lantern,
-        alt: { en: "A lantern, symbol of certainty over doubt.", ar: "فانوسٌ، رَمزُ اليَقينِ على الشَّكّ." },
+        src: IMG.childQuran,
+        alt: { en: "A student reviewing the Qur'an.", ar: "طالِبٌ يُراجِعُ القُرآن." },
       },
-      infoBoxes: [
-        {
-          label: { en: "Qur'an", ar: "القُرآن" },
-          lines: [
-            { en: "\"And they say, 'When we are lost within the earth, will we indeed be in a new creation?' Rather, they are, in the meeting with their Lord, disbelievers. Say: The Angel of Death will take you, the one entrusted with you; then to your Lord you will be returned.\" — As-Sajdah 10-11", ar: "﴿وَقَالُوا أَإِذَا ضَلَلْنَا فِي الْأَرْضِ أَإِنَّا لَفِي خَلْقٍ جَدِيدٍ ۚ بَلْ هُم بِلِقَاءِ رَبِّهِمْ كَافِرُونَ ۝ قُلْ يَتَوَفَّاكُم مَّلَكُ الْمَوْتِ الَّذِي وُكِّلَ بِكُمْ ثُمَّ إِلَىٰ رَبِّكُمْ تُرْجَعُونَ﴾ — السجدة ١٠-١١" },
-          ],
-        },
-      ],
-      responsePrompt: {
-        title: { en: "Construct the argument", ar: "ابنِ الحُجّة" },
-        prompt: {
-          en: "In a full paragraph, use verses 4-11 to argue why the One who originated creation can certainly restore it. Name at least two divine acts the surah mentions (e.g. creating the heavens, forming the human, taking souls) and show how each one already proves the power to resurrect.",
-          ar: "في فِقرةٍ كامِلة، استَعمِلِ الآياتِ ٤-١١ لِتُبَرهِنَ أنَّ مَن بَدَأ الخَلقَ قادِرٌ على إعادَتِه. اذكُرْ فِعلَينِ إلهِيَّينِ على الأقَلِّ تَذكُرُهُما السّورةُ (مِثلَ خَلقِ السَّماواتِ، تَسويةِ الإنسان، قَبضِ الأرواح) وبَيِّنْ كَيفَ يُثبِتُ كُلٌّ مِنها القُدرةَ على البَعث.",
-        },
-        placeholder: { en: "The One who created the heavens and the earth without prior example...", ar: "الذي خَلَقَ السَّماواتِ والأرضَ بِلا مِثالٍ سابِق..." },
-        buttonLabel: { en: "Save response", ar: "احفَظِ الإجابة" },
+      hingeQuestions: {
+        title: { en: "Hinge Questions — Test Your Understanding", ar: "أسئلة مِحوَريّة — اختَبِرْ فَهمَك" },
+        instruction: { en: "Answer all 10 questions based on what you studied in the previous slides and group work. Choose the best answer for each question.", ar: "أجِبْ عن جَميعِ الأسئلةِ العَشرِ بِناءً على ما دَرَستَهُ في الشَّرائحِ السّابِقةِ والعَمَلِ الجَماعِيّ." },
+        questions: [
+          {
+            question: { en: "What does 'Tanzil' (تَنزيل) mean in the context of As-Sajdah verse 2?", ar: "ماذا تَعني «تَنزيل» في سِياقِ الآيةِ ٢ مِنَ السجدة؟" },
+            options: [
+              { en: "A human composition", ar: "تَأليفٌ بَشَرِيّ" },
+              { en: "A divine revelation sent down from Allah", ar: "وَحيٌ إلهِيٌّ أُنزِلَ مِنَ الله" },
+              { en: "A historical document", ar: "وَثيقةٌ تاريخيّة" },
+              { en: "A collection of poetry", ar: "مَجموعةُ شِعر" },
+            ],
+            correctIndex: 1,
+            explanation: { en: "Tanzil means 'sent down' — the Qur'an is a revelation from the Lord of the worlds, not a human work (As-Sajdah 2).", ar: "تَنزيل تَعني «مُنزَل» — القُرآنُ وَحيٌ مِن رَبِّ العالَمينَ ولَيسَ عَمَلًا بَشَرِيًّا (السجدة ٢)." },
+          },
+          {
+            question: { en: "According to As-Sajdah verse 4, how many days did Allah create the heavens and the earth in?", ar: "وَفقًا لِلآيةِ ٤ مِنَ السجدة، في كَم يَومًا خَلَقَ اللهُ السَّماواتِ والأرض؟" },
+            options: [
+              { en: "Three days", ar: "ثَلاثةُ أيّام" },
+              { en: "Seven days", ar: "سَبعةُ أيّام" },
+              { en: "Six days", ar: "سِتَّةُ أيّام" },
+              { en: "Ten days", ar: "عَشَرةُ أيّام" },
+            ],
+            correctIndex: 2,
+            explanation: { en: "Allah created the heavens and the earth in six days, then rose over the Throne (As-Sajdah 4).", ar: "خَلَقَ اللهُ السَّماواتِ والأرضَ في سِتَّةِ أيّامٍ ثُمَّ استَوى على العَرش (السجدة ٤)." },
+          },
+          {
+            question: { en: "In verse 7, from what did Allah begin the creation of man?", ar: "في الآيةِ ٧، مِمّ بَدَأَ اللهُ خَلقَ الإنسان؟" },
+            options: [
+              { en: "Light (Nur)", ar: "نور" },
+              { en: "Water", ar: "ماء" },
+              { en: "Fire", ar: "نار" },
+              { en: "Clay (Tin)", ar: "طين" },
+            ],
+            correctIndex: 3,
+            explanation: { en: "'He began the creation of man from clay' (As-Sajdah 7). Adam was created from clay, showing Allah's power over all materials.", ar: "«بَدَأَ خَلقَ الإنسانِ مِن طين» (السجدة ٧). خُلِقَ آدَمُ مِن طينٍ دَليلًا على قُدرةِ اللهِ على كُلِّ شَيء." },
+          },
+          {
+            question: { en: "What three faculties did Allah give humans according to verse 9?", ar: "ما الحَواسُّ الثَّلاثُ التي وَهَبَها اللهُ لِلإنسانِ بِحَسَبِ الآيةِ ٩؟" },
+            options: [
+              { en: "Strength, speed, and intelligence", ar: "القُوّة والسُّرعة والذَّكاء" },
+              { en: "Hearing, vision, and hearts", ar: "السَّمع والأبصار والأفئِدة" },
+              { en: "Touch, taste, and smell", ar: "اللَّمس والتَّذَوُّق والشَّمّ" },
+              { en: "Memory, imagination, and speech", ar: "الذّاكِرة والخَيال والكَلام" },
+            ],
+            correctIndex: 1,
+            explanation: { en: "'And made for you hearing, vision, and hearts (af'idah); little are you grateful' (As-Sajdah 9).", ar: "«وجَعَلَ لَكُمُ السَّمعَ والأبصارَ والأفئِدةَ قَليلًا ما تَشكُرون» (السجدة ٩)." },
+          },
+          {
+            question: { en: "Who is described in verse 11 as the one who takes our souls at death?", ar: "مَن هُوَ المَذكورُ في الآيةِ ١١ الذي يَقبِضُ أرواحَنا عِندَ المَوت؟" },
+            options: [
+              { en: "The Prophet Muhammad ﷺ", ar: "النَّبِيُّ مُحَمَّدٌ ﷺ" },
+              { en: "Jibril (Gabriel)", ar: "جِبريل" },
+              { en: "The Angel of Death (Malak al-Mawt)", ar: "مَلَكُ المَوت" },
+              { en: "Israfil", ar: "إسرافيل" },
+            ],
+            correctIndex: 2,
+            explanation: { en: "'Say: The Angel of Death who has been entrusted with you will take you; then to your Lord you will be returned' (As-Sajdah 11).", ar: "«قُلْ يَتَوَفّاكُم مَلَكُ المَوتِ الذي وُكِّلَ بِكُم ثُمَّ إلى رَبِّكُم تُرجَعون» (السجدة ١١)." },
+          },
+          {
+            question: { en: "In the critical thinking scenario (Slide 1), the factory owner denied divine guidance. Which verse directly refutes his claim that 'nobody is held accountable after death'?", ar: "في سِيناريو التَّفكيرِ النّاقِدِ (الشَّريحة ١)، أنكَرَ صاحِبُ المَصنَعِ الهِدايةَ الإلهيّة. أيُّ آيةٍ تَرُدُّ مُباشَرةً على ادِّعائِهِ أنَّه «لن يُحاسَبَ أحَدٌ بَعدَ المَوت»؟" },
+            options: [
+              { en: "As-Sajdah 2 — 'The revelation of the Book'", ar: "السجدة ٢ — «تَنزيلُ الكِتاب»" },
+              { en: "As-Sajdah 7 — 'He began creation from clay'", ar: "السجدة ٧ — «بَدَأَ خَلقَ الإنسانِ مِن طين»" },
+              { en: "As-Sajdah 10-11 — 'Then to your Lord you will be returned'", ar: "السجدة ١٠-١١ — «ثُمَّ إلى رَبِّكُم تُرجَعون»" },
+              { en: "As-Sajdah 5 — 'He arranges each matter'", ar: "السجدة ٥ — «يُدَبِّرُ الأمر»" },
+            ],
+            correctIndex: 2,
+            explanation: { en: "Verses 10-11 directly state that the Angel of Death will take every soul and all will be returned to Allah for judgement — refuting the claim of no accountability.", ar: "الآيتان ١٠-١١ تُصَرِّحانِ بِأنَّ مَلَكَ المَوتِ يَقبِضُ كُلَّ روحٍ ويُرجَعُ الجَميعُ إلى اللهِ لِلحِساب." },
+          },
+          {
+            question: { en: "The Hadith 'The best of you are those who learn the Qur'an and teach it' was narrated by which companion collection?", ar: "حَديثُ «خَيرُكُم مَن تَعَلَّمَ القُرآنَ وعَلَّمَه» رَواهُ أيُّ كِتابٍ مِنَ الكُتُبِ السِّتَّة؟" },
+            options: [
+              { en: "Muslim", ar: "مُسلِم" },
+              { en: "Tirmidhi", ar: "التِّرمِذي" },
+              { en: "Bukhari", ar: "البُخاري" },
+              { en: "Abu Dawud", ar: "أبو داوُد" },
+            ],
+            correctIndex: 2,
+            explanation: { en: "This hadith is narrated by Bukhari — it emphasises the value of learning and teaching the Qur'an.", ar: "هذا الحَديثُ رَواهُ البُخاري — ويُؤَكِّدُ قيمةَ تَعَلُّمِ القُرآنِ وتَعليمِه." },
+          },
+          {
+            question: { en: "In verse 12, what do the criminals say on the Day of Judgement when they bow their heads before Allah?", ar: "في الآيةِ ١٢، ماذا يَقولُ المُجرِمونَ يَومَ القِيامةِ وهُم ناكِسو رُؤوسِهِم عِندَ رَبِّهِم؟" },
+            options: [
+              { en: "'We were never warned'", ar: "«لَم نُنذَرْ قَطّ»" },
+              { en: "'Our Lord, we have seen and heard, so return us; we will do righteousness'", ar: "«رَبَّنا أبصَرنا وسَمِعنا فارجِعنا نَعمَلْ صالِحًا»" },
+              { en: "'We had no choice'", ar: "«لَم يَكُنْ لَنا خِيار»" },
+              { en: "'Forgive us and let us enter Paradise'", ar: "«اغفِرْ لَنا وأدخِلنا الجَنّة»" },
+            ],
+            correctIndex: 1,
+            explanation: { en: "The criminals plead: 'Our Lord, we have seen and heard, so return us; we will do righteousness. Indeed, we are now certain' (As-Sajdah 12) — but it is too late.", ar: "يَتَوَسَّلُ المُجرِمون: «رَبَّنا أبصَرنا وسَمِعنا فارجِعنا نَعمَلْ صالِحًا إنّا موقِنون» (السجدة ١٢) — لكِنَّ الأوانَ قَد فات." },
+          },
+          {
+            question: { en: "In the Retrieval practise (Slide 2), which keyword was matched to the image of the sky?", ar: "في مُمارَسةِ الاستِرجاعِ (الشَّريحة ٢)، أيُّ كَلِمةٍ طوبِقَت مَعَ صورةِ السَّماء؟" },
+            options: [
+              { en: "Tanzil (Revelation)", ar: "تَنزيل (وَحي)" },
+              { en: "Sajdah (Prostration)", ar: "سَجدة (خُشوع)" },
+              { en: "The Heavens (As-Samawat)", ar: "السَّماوات" },
+              { en: "Resurrection (Ba'th)", ar: "البَعث" },
+            ],
+            correctIndex: 2,
+            explanation: { en: "The sky image was matched with 'The Heavens (As-Samawat)' — a key sign of Allah's creation mentioned in verse 4.", ar: "طوبِقَت صورةُ السَّماءِ مَعَ «السَّماوات» — وهِيَ آيةٌ مِن آياتِ خَلقِ اللهِ المَذكورةِ في الآيةِ ٤." },
+          },
+          {
+            question: { en: "Why does the Qur'an say 'little are you grateful' after listing the gifts of hearing, sight, and hearts (verse 9)?", ar: "لِماذا يَقولُ القُرآنُ «قَليلًا ما تَشكُرون» بَعدَ ذِكرِ نِعَمِ السَّمعِ والبَصَرِ والأفئِدةِ (الآية ٩)؟" },
+            options: [
+              { en: "Because humans use their senses for harmful things only", ar: "لِأنَّ الإنسانَ يَستَعمِلُ حَواسَّهُ في الأشياءِ الضّارّةِ فَقَط" },
+              { en: "Because humans often fail to use these gifts to recognise Allah's signs and be thankful", ar: "لِأنَّ الإنسانَ غالِبًا ما يُقَصِّرُ في استِعمالِ هذهِ النِّعَمِ لِمَعرِفةِ آياتِ اللهِ والشُّكر" },
+              { en: "Because humans cannot hear or see properly", ar: "لِأنَّ الإنسانَ لا يَسمَعُ أو يَرى بِشَكلٍ صَحيح" },
+              { en: "Because only prophets are grateful", ar: "لِأنَّ الأنبياءَ فَقَط يَشكُرون" },
+            ],
+            correctIndex: 1,
+            explanation: { en: "Allah gave us hearing, sight, and hearts to recognise the truth and be grateful — but most people fail to use these gifts properly and forget to thank their Creator.", ar: "وَهَبَنا اللهُ السَّمعَ والبَصَرَ والأفئِدةَ لِمَعرِفةِ الحَقِّ والشُّكر — لكِنَّ أكثَرَ النّاسِ يُقَصِّرونَ في استِعمالِها ويَنسَونَ شُكرَ خالِقِهِم." },
+          },
+        ],
+        coinsReward: 20,
       },
-      body: {
-        en: "Now the surah confronts the objection the disbelievers really cared about: life after death. They sneer, 'When we are lost within the earth' — once our bodies have decayed and scattered into the soil — 'will we indeed be in a new creation?' To them, resurrection sounded impossible. The Qur'an answers on two levels.\n\nFirst it diagnoses the real problem: 'Rather, they are, in the meeting with their Lord, disbelievers.' Their issue is not a lack of evidence but a refusal to accept accountability; doubting resurrection is a way of escaping judgement. Then it answers the logic directly: 'The Angel of Death will take you... then to your Lord you will be returned.' The same Power that assigned an angel to take your soul will return you — death is not annihilation but a transfer.\n\nString the surah's argument together and its force appears. The One who created the heavens and earth from nothing, who formed you in stages from clay, who controls every matter and takes every soul — is He then unable to reassemble what He Himself designed? 'Is not the One who created the heavens and earth able to create the like of them? Yes!' (Ya-Sin 81). Originating is harder than repeating; the One who did the harder thing can certainly do the easier. Denial of resurrection is therefore not clever scepticism but a flight from responsibility.",
-        ar: "الآنَ تُواجِهُ السّورةُ الاعتِراضَ الذي يَهُمُّ الكُفّارَ حَقًّا: الحَياةَ بَعدَ المَوت. يَسخَرون: «أَإِذا ضَلَلنا في الأرض» — إذا بَلِيَت أجسادُنا وتَناثَرَت في التُّراب — «أَإِنّا لَفي خَلقٍ جَديد؟». بَدا لَهُمُ البَعثُ مُستَحيلًا. فَيُجيبُ القُرآنُ على مُستَوَيَين.\n\nأوّلًا يُشَخِّصُ المُشكِلةَ الحَقيقيّة: «بَل هُم بِلِقاءِ رَبِّهِم كافِرون». فَمُشكِلَتُهُم لَيسَت قِلّةَ دَليلٍ بل رَفضَ المُساءَلة؛ والشَّكُّ في البَعثِ وَسيلةٌ لِلهُروبِ مِنَ الحِساب. ثُمَّ يَرُدُّ على المَنطِقِ مُباشَرةً: «يَتَوَفّاكُم مَلَكُ المَوت... ثُمَّ إلى رَبِّكُم تُرجَعون». فالقُوّةُ التي وَكَّلَت مَلَكًا بِقَبضِ روحِكَ تُرجِعُك — فالمَوتُ لَيسَ فَناءً بل انتِقال.\n\nاجمَعْ حُجّةَ السّورةِ تَظهَرْ قُوَّتُها. الذي خَلَقَ السَّماواتِ والأرضَ مِنَ العَدَم، وسَوّاكَ أطوارًا مِن طين، ويُدَبِّرُ كُلَّ أمرٍ ويَقبِضُ كُلَّ روح — أيَعجِزُ عن إعادةِ ما صَمَّمَهُ بِنَفسِه؟ «أَوَلَيسَ الذي خَلَقَ السَّماواتِ والأرضَ بِقادِرٍ على أن يَخلُقَ مِثلَهُم؟ بَلى!» (يس ٨١). والابتِداءُ أصعَبُ مِنَ الإعادة؛ ومَن فَعَلَ الأصعَبَ يَقدِرُ على الأيسَرِ يَقينًا. فإنكارُ البَعثِ لَيسَ شَكًّا ذَكِيًّا بل فِرارٌ مِنَ المَسؤوليّة.",
-      },
+      body: { en: "", ar: "" },
     },
     {
       title: { en: "The scene of regret (verse 12)", ar: "مَشهَدُ النَّدَم (الآية ١٢)" },
