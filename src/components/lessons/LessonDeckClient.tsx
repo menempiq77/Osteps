@@ -23,6 +23,7 @@ type SlideBlock =
   | { type: "imageMatchingActivity"; value: NonNullable<LessonSection["imageMatchingActivity"]> }
   | { type: "image"; value: NonNullable<LessonSection["image"]> }
   | { type: "callout"; value: NonNullable<LessonSection["callout"]> }
+  | { type: "readyButton"; value: NonNullable<LessonSection["readyButton"]> }
   | { type: "body"; paragraphs: string[] }
   | { type: "responsePrompt"; value: NonNullable<LessonSection["responsePrompt"]> }
   | { type: "quiz" };
@@ -98,6 +99,7 @@ function buildSlides(lesson: CourseLesson): PresentationSlide[] {
         intro.push({ type: "imageMatchingActivity", value: section.imageMatchingActivity });
       }
       if (section.callout) intro.push({ type: "callout", value: section.callout });
+      if (section.readyButton) intro.push({ type: "readyButton", value: section.readyButton });
       if (intro.length) {
         sectionSlides.push({
           id: `${lesson.slug}-${sectionIndex}-0`,
@@ -1001,6 +1003,78 @@ export default function LessonDeckClient({ lesson }: Props) {
     );
   }
 
+  function renderReadyButton(
+    value: NonNullable<LessonSection["readyButton"]>,
+    sectionIndex: number,
+  ) {
+    const btnKey = `${lesson.slug}:ready:${sectionIndex}`;
+    const coins = value.coinsReward;
+    const alreadyEarned = !!earnedCoins[btnKey];
+    const animating = coinAnimating === btnKey;
+
+    function handleClick() {
+      if (alreadyEarned) return;
+      if (coins) {
+        setEarnedCoins((c) => ({ ...c, [btnKey]: coins }));
+        setCoinAnimating(btnKey);
+        window.setTimeout(() => setCoinAnimating(null), 2200);
+      }
+    }
+
+    return (
+      <div className="mt-4 flex flex-col items-center gap-3">
+        <div className="relative flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200 px-3 py-1.5">
+          <span className="text-base">🪣</span>
+          <span className={"text-sm font-black tabular-nums " + (animating ? "text-amber-600" : "text-amber-500")}>
+            {totalCoins}
+          </span>
+          <span className="text-[10px] font-bold text-amber-400">coins</span>
+          {animating ? (
+            <>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <span
+                  key={i}
+                  className="pointer-events-none absolute text-lg"
+                  style={{
+                    left: `${30 + (i % 3) * 15}%`,
+                    animation: `coinDrop 0.8s ease-in ${i * 0.12}s forwards`,
+                    opacity: 0,
+                  }}
+                >
+                  🪙
+                </span>
+              ))}
+              <style>{`
+                @keyframes coinDrop {
+                  0% { transform: translateY(-30px) scale(1.3); opacity: 1; }
+                  60% { transform: translateY(0px) scale(1); opacity: 1; }
+                  80% { transform: translateY(-6px) scale(1); opacity: 1; }
+                  100% { transform: translateY(0px) scale(0.7); opacity: 0; }
+                }
+              `}</style>
+            </>
+          ) : null}
+        </div>
+        <button
+          type="button"
+          disabled={alreadyEarned}
+          onClick={handleClick}
+          className={
+            "rounded-full px-6 py-2.5 text-sm font-black shadow-md transition-all active:scale-95 " +
+            (alreadyEarned
+              ? "bg-emerald-100 text-emerald-700 cursor-default border border-emerald-200"
+              : "bg-gradient-to-r from-teal-500 to-emerald-500 text-white hover:shadow-lg")
+          }
+        >
+          {alreadyEarned ? (coins ? `+${coins} coins earned! 🪙` : getText(value.label, "en")) : getText(value.label, "en")}
+        </button>
+        {!alreadyEarned && coins ? (
+          <span className="text-xs font-semibold text-amber-500">🪙 Earn {coins} coins!</span>
+        ) : null}
+      </div>
+    );
+  }
+
   function renderCallout(value: NonNullable<LessonSection["callout"]>, compact = false) {
     return (
       <div className={"rounded-xl border border-amber-200 bg-amber-50 " + (compact ? "p-3" : "p-3")}>
@@ -1174,6 +1248,8 @@ export default function LessonDeckClient({ lesson }: Props) {
         return renderImage(block.value, presentationMode);
       case "callout":
         return renderCallout(block.value, presentationMode);
+      case "readyButton":
+        return renderReadyButton(block.value, sectionIndex);
       case "body":
         return renderBodyParagraphs(block.paragraphs, presentationMode);
       case "responsePrompt":
@@ -1201,6 +1277,7 @@ export default function LessonDeckClient({ lesson }: Props) {
         {activeSection.matchingActivity ? renderMatchingActivity(activeSection.matchingActivity, activeIndex) : null}
         {activeSection.imageMatchingActivity ? renderImageMatchingActivity(activeSection.imageMatchingActivity, activeIndex) : null}
         {activeSection.callout ? renderCallout(activeSection.callout) : null}
+        {activeSection.readyButton ? renderReadyButton(activeSection.readyButton, activeIndex) : null}
         {paragraphs.length ? renderBodyParagraphs(paragraphs) : null}
         {activeSection.responsePrompt ? renderResponsePrompt(activeSection.responsePrompt, activeIndex) : null}
       </div>

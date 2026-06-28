@@ -55,6 +55,10 @@ export type LessonSection = {
     title: string | { en: string; ar: string };
     body: string | { en: string; ar: string };
   };
+  readyButton?: {
+    label: string | { en: string; ar: string };
+    coinsReward?: number;
+  };
   responsePrompt?: {
     title: string | { en: string; ar: string };
     prompt: string | { en: string; ar: string };
