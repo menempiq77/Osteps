@@ -82,6 +82,17 @@ export type LessonSection = {
     buttonLabel?: string | { en: string; ar: string };
     coinsReward?: number;
   };
+  hingeQuestions?: {
+    title: string | { en: string; ar: string };
+    instruction?: string | { en: string; ar: string };
+    questions: Array<{
+      question: string | { en: string; ar: string };
+      options: Array<string | { en: string; ar: string }>;
+      correctIndex: number;
+      explanation?: string | { en: string; ar: string };
+    }>;
+    coinsReward?: number;
+  };
   groupWorkCards?: {
     title: string | { en: string; ar: string };
     instruction?: string | { en: string; ar: string };
