@@ -26,6 +26,7 @@ type SlideBlock =
   | { type: "readyButton"; value: NonNullable<LessonSection["readyButton"]> }
   | { type: "trueFalseActivity"; value: NonNullable<LessonSection["trueFalseActivity"]> }
   | { type: "fillBlanksActivity"; value: NonNullable<LessonSection["fillBlanksActivity"]> }
+  | { type: "groupWorkCards"; value: NonNullable<LessonSection["groupWorkCards"]> }
   | { type: "body"; paragraphs: string[] }
   | { type: "responsePrompt"; value: NonNullable<LessonSection["responsePrompt"]> }
   | { type: "quiz" };
@@ -104,6 +105,7 @@ function buildSlides(lesson: CourseLesson): PresentationSlide[] {
       if (section.readyButton) intro.push({ type: "readyButton", value: section.readyButton });
       if (section.trueFalseActivity) intro.push({ type: "trueFalseActivity", value: section.trueFalseActivity });
       if (section.fillBlanksActivity) intro.push({ type: "fillBlanksActivity", value: section.fillBlanksActivity });
+      if (section.groupWorkCards) intro.push({ type: "groupWorkCards", value: section.groupWorkCards });
       if (intro.length) {
         sectionSlides.push({
           id: `${lesson.slug}-${sectionIndex}-0`,
@@ -203,6 +205,9 @@ export default function LessonDeckClient({ lesson }: Props) {
   const [tfChecked, setTfChecked] = useState<Record<string, boolean>>({});
   const [fbAnswers, setFbAnswers] = useState<Record<string, Record<number, string>>>({});
   const [fbChecked, setFbChecked] = useState<Record<string, boolean>>({});
+  const [gwSelectedCard, setGwSelectedCard] = useState<Record<string, string | null>>({});
+  const [gwWork, setGwWork] = useState<Record<string, Record<string, string>>>({});
+  const [gwSubmitted, setGwSubmitted] = useState<Record<string, Record<string, boolean>>>({});
 
   const slides = useMemo(() => buildSlides(lesson), [lesson]);
   const hasQuiz = (lesson.quizQuestions?.length ?? 0) > 0;
@@ -1343,6 +1348,247 @@ export default function LessonDeckClient({ lesson }: Props) {
     );
   }
 
+  function renderGroupWorkCards(
+    value: NonNullable<LessonSection["groupWorkCards"]>,
+    sectionIndex: number,
+  ) {
+    const actKey = `${lesson.slug}:gw:${sectionIndex}`;
+    const selectedId = gwSelectedCard[actKey] ?? null;
+    const selectedCard = selectedId ? value.cards.find((c) => c.id === selectedId) : null;
+    const workTexts = gwWork[actKey] ?? {};
+    const submitted = gwSubmitted[actKey] ?? {};
+    const animating = coinAnimating === actKey;
+
+    const cardColors: Record<string, { bg: string; border: string; text: string; lightBg: string }> = {
+      teal: { bg: "bg-teal-500", border: "border-teal-300", text: "text-teal-700", lightBg: "bg-teal-50" },
+      blue: { bg: "bg-blue-500", border: "border-blue-300", text: "text-blue-700", lightBg: "bg-blue-50" },
+      purple: { bg: "bg-purple-500", border: "border-purple-300", text: "text-purple-700", lightBg: "bg-purple-50" },
+      amber: { bg: "bg-amber-500", border: "border-amber-300", text: "text-amber-700", lightBg: "bg-amber-50" },
+      rose: { bg: "bg-rose-500", border: "border-rose-300", text: "text-rose-700", lightBg: "bg-rose-50" },
+    };
+
+    function handleSubmit(cardId: string) {
+      setGwSubmitted((prev) => ({
+        ...prev,
+        [actKey]: { ...prev[actKey], [cardId]: true },
+      }));
+      if (value.coinsReward && !earnedCoins[`${actKey}:${cardId}`]) {
+        setEarnedCoins((c) => ({ ...c, [`${actKey}:${cardId}`]: value.coinsReward! }));
+        setCoinAnimating(actKey);
+        window.setTimeout(() => setCoinAnimating(null), 2200);
+      }
+    }
+
+    // Expanded card workspace view
+    if (selectedCard) {
+      const colors = cardColors[selectedCard.color] ?? cardColors.teal;
+      const isSubmitted = !!submitted[selectedCard.id];
+      const workText = workTexts[selectedCard.id] ?? "";
+
+      return (
+        <div className="space-y-4">
+          {/* Back button */}
+          <button
+            type="button"
+            onClick={() => setGwSelectedCard((prev) => ({ ...prev, [actKey]: null }))}
+            className="flex items-center gap-1 text-sm font-bold text-slate-500 hover:text-slate-700 transition-colors"
+          >
+            <span>←</span> Back to all tasks
+          </button>
+
+          {/* Card header */}
+          <div className={`rounded-xl ${colors.lightBg} border ${colors.border} p-4`}>
+            <div className="flex items-start gap-4">
+              <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 shadow-sm">
+                <img src={selectedCard.image} alt="" className="w-full h-full object-cover" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className={`text-lg font-black ${colors.text}`}>{getText(selectedCard.title, "en")}</h3>
+                <p className="text-sm text-slate-600 mt-1">{getText(selectedCard.topic, "en")}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Information sections */}
+          <div className="space-y-3">
+            <h4 className="text-sm font-black text-slate-700 uppercase tracking-wide">Reference Material</h4>
+            {selectedCard.infoSections.map((info, i) => (
+              <div key={i} className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+                <p className={`text-xs font-black uppercase tracking-wide ${colors.text} mb-1.5`}>{getText(info.label, "en")}</p>
+                <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{getText(info.content, "en")}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Task section */}
+          <div className={`rounded-xl border-2 ${colors.border} bg-white p-4 shadow-md`}>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-lg">📋</span>
+              <h4 className="text-base font-black text-slate-800">{getText(selectedCard.task.title, "en")}</h4>
+            </div>
+            <p className="text-sm text-slate-700 mb-3 leading-relaxed">{getText(selectedCard.task.description, "en")}</p>
+            {selectedCard.task.hint ? (
+              <p className="text-xs text-slate-500 italic mb-3">💡 {getText(selectedCard.task.hint, "en")}</p>
+            ) : null}
+
+            {/* Workspace */}
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-200">
+                <span className="text-xs font-bold text-slate-500">📝 Your workspace</span>
+                <div className="flex-1" />
+                <span className="text-[10px] text-slate-400">✏️ Pencil</span>
+                <span className="text-[10px] text-slate-400">📐 Ruler</span>
+                <span className="text-[10px] text-slate-400">🖍️ Colours</span>
+              </div>
+              <textarea
+                disabled={isSubmitted}
+                value={workText}
+                onChange={(e) =>
+                  setGwWork((prev) => ({
+                    ...prev,
+                    [actKey]: { ...prev[actKey], [selectedCard!.id]: e.target.value },
+                  }))
+                }
+                placeholder="Write your work here... Use headings, bullet points, or any format you like. Be creative and use evidence from the reference material above."
+                className={
+                  "w-full min-h-[200px] rounded-lg border px-3 py-2 text-sm leading-relaxed resize-y " +
+                  (isSubmitted
+                    ? "border-emerald-300 bg-emerald-50 text-slate-700"
+                    : "border-slate-300 bg-white focus:border-teal-400 focus:ring-1 focus:ring-teal-200")
+                }
+                style={{
+                  backgroundImage: "repeating-linear-gradient(transparent, transparent 27px, #e2e8f0 27px, #e2e8f0 28px)",
+                  lineHeight: "28px",
+                }}
+              />
+            </div>
+
+            {/* Submit */}
+            {!isSubmitted ? (
+              <button
+                type="button"
+                disabled={workText.trim().length < 20}
+                onClick={() => handleSubmit(selectedCard!.id)}
+                className={
+                  "mt-3 w-full rounded-full py-2.5 text-sm font-black shadow transition-all " +
+                  (workText.trim().length >= 20
+                    ? "bg-gradient-to-r from-teal-500 to-emerald-500 text-white hover:shadow-lg active:scale-[0.98]"
+                    : "bg-slate-100 text-slate-400 cursor-not-allowed")
+                }
+              >
+                Submit my work
+              </button>
+            ) : (
+              <div className="mt-3 rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-center">
+                <p className="text-sm font-black text-emerald-700">Work submitted! Get ready to present to the class.</p>
+                {value.coinsReward ? (
+                  <span className="text-sm font-black text-amber-500">+{value.coinsReward} coins earned! 🪙</span>
+                ) : null}
+              </div>
+            )}
+          </div>
+
+          {/* Coin bucket */}
+          {value.coinsReward ? (
+            <div className="flex justify-center">
+              <div className="relative flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200 px-3 py-1.5">
+                <span className="text-base">🪣</span>
+                <span className={"text-sm font-black tabular-nums " + (animating ? "text-amber-600" : "text-amber-500")}>
+                  {totalCoins}
+                </span>
+                <span className="text-[10px] font-bold text-amber-400">coins</span>
+                {animating ? (
+                  <>
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <span key={i} className="pointer-events-none absolute text-lg" style={{ left: `${30 + (i % 3) * 15}%`, animation: `coinDrop 0.8s ease-in ${i * 0.12}s forwards`, opacity: 0 }}>🪙</span>
+                    ))}
+                  </>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
+          {/* Presentation reminder */}
+          {value.presentationNote && isSubmitted ? (
+            <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-center">
+              <p className="text-sm font-semibold text-blue-700">🎤 {getText(value.presentationNote, "en")}</p>
+            </div>
+          ) : null}
+        </div>
+      );
+    }
+
+    // Card grid view
+    return (
+      <div className="space-y-4">
+        <h3 className="text-base font-black text-slate-800">{getText(value.title, "en")}</h3>
+        {value.instruction ? (
+          <p className="text-sm text-slate-600">{getText(value.instruction, "en")}</p>
+        ) : null}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {value.cards.map((card) => {
+            const colors = cardColors[card.color] ?? cardColors.teal;
+            const isDone = !!submitted[card.id];
+            return (
+              <button
+                key={card.id}
+                type="button"
+                onClick={() => setGwSelectedCard((prev) => ({ ...prev, [actKey]: card.id }))}
+                className={
+                  "group relative rounded-xl border-2 overflow-hidden text-left transition-all hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] " +
+                  (isDone ? "border-emerald-300 bg-emerald-50" : `${colors.border} bg-white`)
+                }
+              >
+                <div className="h-28 overflow-hidden">
+                  <img src={card.image} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                  <div className={`absolute top-2 right-2 rounded-full ${colors.bg} px-2 py-0.5`}>
+                    <span className="text-[10px] font-black text-white uppercase">{card.id}</span>
+                  </div>
+                  {isDone ? (
+                    <div className="absolute top-2 left-2 rounded-full bg-emerald-500 px-2 py-0.5">
+                      <span className="text-[10px] font-black text-white">Done</span>
+                    </div>
+                  ) : null}
+                </div>
+                <div className="p-3">
+                  <h4 className={`text-sm font-black ${colors.text} mb-1`}>{getText(card.title, "en")}</h4>
+                  <p className="text-xs text-slate-500 line-clamp-2">{getText(card.topic, "en")}</p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {value.presentationNote ? (
+          <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-center">
+            <p className="text-sm font-semibold text-blue-700">🎤 {getText(value.presentationNote, "en")}</p>
+          </div>
+        ) : null}
+
+        {/* Coin bucket */}
+        {value.coinsReward ? (
+          <div className="flex justify-center">
+            <div className="relative flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200 px-3 py-1.5">
+              <span className="text-base">🪣</span>
+              <span className={"text-sm font-black tabular-nums " + (animating ? "text-amber-600" : "text-amber-500")}>
+                {totalCoins}
+              </span>
+              <span className="text-[10px] font-bold text-amber-400">coins</span>
+              {animating ? (
+                <>
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <span key={i} className="pointer-events-none absolute text-lg" style={{ left: `${30 + (i % 3) * 15}%`, animation: `coinDrop 0.8s ease-in ${i * 0.12}s forwards`, opacity: 0 }}>🪙</span>
+                  ))}
+                </>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
   function renderCallout(value: NonNullable<LessonSection["callout"]>, compact = false) {
     return (
       <div className={"rounded-xl border border-amber-200 bg-amber-50 " + (compact ? "p-3" : "p-3")}>
@@ -1522,6 +1768,8 @@ export default function LessonDeckClient({ lesson }: Props) {
         return renderTrueFalseActivity(block.value, sectionIndex);
       case "fillBlanksActivity":
         return renderFillBlanksActivity(block.value, sectionIndex);
+      case "groupWorkCards":
+        return renderGroupWorkCards(block.value, sectionIndex);
       case "body":
         return renderBodyParagraphs(block.paragraphs, presentationMode);
       case "responsePrompt":
@@ -1552,6 +1800,7 @@ export default function LessonDeckClient({ lesson }: Props) {
         {activeSection.readyButton ? renderReadyButton(activeSection.readyButton, activeIndex) : null}
         {activeSection.trueFalseActivity ? renderTrueFalseActivity(activeSection.trueFalseActivity, activeIndex) : null}
         {activeSection.fillBlanksActivity ? renderFillBlanksActivity(activeSection.fillBlanksActivity, activeIndex) : null}
+        {activeSection.groupWorkCards ? renderGroupWorkCards(activeSection.groupWorkCards, activeIndex) : null}
         {paragraphs.length ? renderBodyParagraphs(paragraphs) : null}
         {activeSection.responsePrompt ? renderResponsePrompt(activeSection.responsePrompt, activeIndex) : null}
       </div>
