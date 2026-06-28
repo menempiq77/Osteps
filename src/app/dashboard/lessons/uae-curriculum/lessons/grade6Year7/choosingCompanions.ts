@@ -5,176 +5,519 @@ export const choosingCompanions: CourseLesson = {
   slug: "g6y7-choosing-companions",
   name: { en: "Choosing Companions", ar: "اختِيارُ الجَليس" },
   shortIntro: {
-    en: "'A person follows the way of his close friend.' A deep study of why choosing companions wisely shapes our faith and future — the parable of the musk-seller and the blacksmith, the dangers of bad company, and how to be a good companion ourselves.",
+    en: "\'A person follows the way of his close friend.\' A deep study of why choosing companions wisely shapes our faith and future — the parable of the musk-seller and the blacksmith, the dangers of bad company, and how to be a good companion ourselves.",
     ar: "«المَرءُ على دينِ خَليلِه». دِراسةٌ عَميقةٌ لِماذا يُشَكِّلُ حُسنُ اختيارِ الأصحابِ إيمانَنا ومُستَقبَلَنا — مَثَلُ بائِعِ المِسكِ ونافِخِ الكير، وأخطارُ الرُّفقةِ السَّيِّئة، وكَيفَ نَكونُ نَحنُ الجَليسَ الصّالِح.",
   },
   quranSurahs: ["Al-Furqan 27-29", "Az-Zukhruf 67", "Al-Kahf 28"],
   sections: [
     {
-      title: { en: "Why companions matter", ar: "لِماذا يَهُمُّ الأصحاب" },
+      title: { en: "Critical thinking (Warm up)", ar: "تفكير ناقد (تهيئة)" },
       learningObjectives: [
-        { en: "Explain the influence of companions on a person's religion.", ar: "أُبَيِّنُ أثَرَ الأصحابِ في دينِ المَرء." },
-        { en: "Analyse the parable of the musk-seller and the blacksmith.", ar: "أُحَلِّلُ مَثَلَ بائِعِ المِسكِ ونافِخِ الكير." },
-      ],
-      successCriteria: [
-        { en: "I can quote the hadith 'A person follows the way of his close friend.'", ar: "أستَشهِدُ بِحَديثِ «المَرءُ على دينِ خَليلِه»." },
-        { en: "I can explain how friends shape behaviour.", ar: "أشرَحُ كَيفَ يُشَكِّلُ الأصحابُ السُّلوك." },
+        { en: "Evaluate a real-world scenario using evidence from Quran, Sunnah, and Islamic values.", ar: "أُقيّم سيناريو واقعيًّا بأدلّة من القرآن والسنّة والقيم الإسلاميّة." },
       ],
       image: {
-        src: IMG.lantern,
-        alt: { en: "A shared light — good company illuminates the path.", ar: "نورٌ مُشتَرَك — الرُّفقةُ الصّالِحةُ تُنيرُ الطَّريق." },
-        caption: { en: "'A person follows the way of his close friend.'", ar: "«المَرءُ على دينِ خَليلِه»." },
+        src: IMG.hijabStudent,
+        alt: { en: "Student thinking critically.", ar: "طالب يفكّر بشكل ناقد." },
       },
       callout: {
-        label: { en: "High-order question", ar: "سُؤالٌ عالي المُستوى" },
-        title: { en: "Do friends really change who we are?", ar: "هل يُغَيِّرُنا الأصحابُ حَقًّا؟" },
+        label: { en: "Critical thinking scenario", ar: "سيناريو للتفكير الناقد" },
+        title: { en: "Does it matter who your friends are?", ar: "هل يهمّ من هم أصدقاؤك؟" },
         body: {
-          en: "Some teenagers say, 'I can be friends with anyone and not be affected — I am my own person.' Using the hadith and the Qur'an, argue why our closest companions, over time, powerfully shape our character, habits, and even our faith — often without us noticing.",
-          ar: "يَقولُ بَعضُ المُراهِقين: «أستَطيعُ مُصاحَبةَ أيِّ أحَدٍ دونَ أن أتَأثَّر — أنا صاحِبُ شَخصيَّتي». بِالحَديثِ والقُرآن، حاجِجْ لِماذا يُشَكِّلُ أقرَبُ أصحابِنا، معَ الوَقت، أخلاقَنا وعاداتِنا بل وإيمانَنا تَشكيلًا قَوِيًّا — كَثيرًا دونَ أن نَشعُر.",
+          en: "A student says: \'My friends do not affect me. I can be friends with anyone — even if they lie, cheat, or skip prayers. I am strong enough to not be influenced.\'",
+          ar: "طالب يقول: «أصدقائي لا يؤثّرون عليّ. أصادق أيّ شخص — حتّى لو كذب أو غشّ أو ترك الصلاة. أنا قويّ بما يكفي.»",
         },
+      },
+      responsePrompt: {
+        title: { en: "Write your critical response", ar: "اكتب ردّك الناقد" },
+        prompt: {
+          en: "Criticise using Hadith on the effect of companions.",
+          ar: "انتقد بالحديث عن تأثير الأصحاب.",
+        },
+        placeholder: { en: "This is wrong because...", ar: "هذا خطأ لأنّ..." },
+        buttonLabel: { en: "Save response", ar: "احفظ الإجابة" },
+        coinsReward: 10,
+      },
+      body: {
+        en: "\'A person is upon the religion of his friend, so let each of you look whom he befriends.\' (Tirmidhi)",
+        ar: "«المرء على دين خليله فلينظر أحدكم من يخالل.» (الترمذي)",
+      },
+    },
+    {
+      title: { en: "Retrieval practise", ar: "ممارسة الاسترجاع" },
+      imageMatchingActivity: {
+        title: { en: "Match each image to its Islamic keyword", ar: "طابق كلّ صورة بكلمتها الإسلاميّة" },
+        instruction: { en: "Drag the keyword to the correct image.", ar: "اسحب الكلمة إلى الصورة الصحيحة." },
+        pairs: [
+          { image: IMG.childQuran, keyword: { en: "Sahib (Companion)", ar: "صاحب" } },
+          { image: IMG.grandMosque, keyword: { en: "Ukhuwwah (Brotherhood)", ar: "أخوّة" } },
+          { image: IMG.bookshelf, keyword: { en: "Ta\'thir (Influence)", ar: "تأثير" } },
+          { image: IMG.lantern, keyword: { en: "Nasiha (Advice)", ar: "نصيحة" } },
+          { image: IMG.skyBlue, keyword: { en: "Qudwah (Role model)", ar: "قدوة" } },
+        ],
+        coinsReward: 10,
+      },
+      body: {
+        en: "\'The example of a good and bad companion is like a perfume seller and a blacksmith...\' (Bukhari)",
+        ar: "«مثل الجليس الصالح والسوء كحامل المسك ونافخ الكير...» (البخاري)",
+      },
+    },
+    {
+      title: { en: "Choosing Companions", ar: "اختِيارُ الجَليس" },
+      learningObjectives: [
+        { en: "Explain the Islamic guidance on choosing companions.", ar: "أشرح التوجيه الإسلامي لاختيار الأصحاب." },
+        { en: "Describe how friends influence behaviour and faith.", ar: "أصف كيف يؤثّر الأصدقاء على السلوك والإيمان." },
+      ],
+      successCriteria: [
+        { en: "I can explain the perfume/blacksmith hadith.", ar: "أشرح حديث المسك والكير." },
+        { en: "I can list 5 qualities of good companions.", ar: "أذكر ٥ صفات للصاحب الصالح." },
+        { en: "I can identify how friends affect my choices.", ar: "أحدّد كيف يؤثّر الأصدقاء على خياراتي." },
+      ],
+      image: {
+        src: IMG.grandMosque,
+        alt: { en: "Topic image.", ar: "صورة الموضوع." },
+      },
+      readyButton: {
+        label: { en: "I\'m ready to learn!", ar: "أنا مستعدّ للتعلّم!" },
+        coinsReward: 5,
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Choosing Companions — Friends in Islam", ar: "اختيار الأصحاب — الصداقة في الإسلام" },
+      learningObjectives: [
+        { en: "Understand how friends shape character, faith, and behaviour.", ar: "أفهم كيف يُشكّل الأصدقاء الشخصيّة والإيمان والسلوك." },
+      ],
+      image: {
+        src: IMG.grandMosque,
+        alt: { en: "Lesson content image.", ar: "صورة محتوى الدرس." },
       },
       infoBoxes: [
         {
-          label: { en: "Hadith", ar: "الحَديث" },
+          label: { en: "The Hadith on Companions", ar: "حديث الأصحاب" },
           lines: [
-            { en: "'A person is upon the religion of his close friend, so let one of you look at whom he befriends.' — Abu Dawud & at-Tirmidhi", ar: "«المَرءُ على دينِ خَليلِهِ، فَليَنظُرْ أحَدُكُم مَن يُخالِل» — أبو داود والتِّرمِذِيّ" },
+            { en: "Like a perfume seller: you get fragrance. Like a blacksmith: you get smoke. Good friends pull you to good, bad friends pull you to bad. You absorb what surrounds you.", ar: "كحامل المسك: تحصل على عطر. كنافخ الكير: تحصل على دخان. الأصدقاء الصالحون يجذبونك للخير والسوء يجذبونك للشرّ." },
           ],
         },
         {
-          label: { en: "Qur'an", ar: "القُرآن" },
+          label: { en: "Qualities of Good Friends", ar: "صفات الأصدقاء الصالحين" },
           lines: [
-            { en: "\"Close friends, that Day, will be enemies to each other, except the righteous.\" — Az-Zukhruf 67", ar: "﴿الأخِلّاءُ يَومَئِذٍ بَعضُهُم لِبَعضٍ عَدُوٌّ إلّا المُتَّقين﴾ — الزُّخرُف ٦٧" },
+            { en: "Truthful, prayerful, respectful, encouraging, remind you of Allah. They help you grow, correct you kindly, and never lead you to sin.", ar: "صادقون مصلّون محترمون مشجّعون يذكّرونك بالله. يساعدونك على النموّ ويصحّحونك بلطف ولا يقودونك للذنب." },
+          ],
+        },
+        {
+          label: { en: "Bad Influence", ar: "التأثير السيّئ" },
+          lines: [
+            { en: "\'On that Day the wrongdoer will bite his hands, saying: I wish I had not taken so-and-so as a friend!\' (Al-Furqan 27-28). Bad friends can destroy your faith and reputation.", ar: "﴿ويوم يعضّ الظالم على يديه يقول يا ليتني لم أتّخذ فلانًا خليلًا﴾ (الفرقان ٢٧-٢٨). الأصدقاء السوء يدمّرون إيمانك وسمعتك." },
           ],
         },
       ],
+      trueFalseActivity: {
+        title: { en: "True or False", ar: "صواب أم خطأ" },
+        questions: [
+        { statement: { en: "A person is on the religion of his friend.", ar: "المرء على دين خليله." }, answer: true },
+        { statement: { en: "Friends do not affect you.", ar: "الأصدقاء لا يؤثّرون عليك." }, answer: false },
+        { statement: { en: "Good friends are like perfume sellers.", ar: "الأصدقاء الصالحون كحامل المسك." }, answer: true },
+        { statement: { en: "Bad friends have no consequence.", ar: "الأصدقاء السوء بلا نتيجة." }, answer: false },
+        { statement: { en: "Al-Furqan warns about bad friends.", ar: "الفرقان تحذّر من أصدقاء السوء." }, answer: true },
+        ],
+        coinsReward: 10,
+      },
+      fillBlanksActivity: {
+        title: { en: "Fill in the Blanks", ar: "املأ الفراغات" },
+        questions: [
+        { sentence: { en: "\'A person is upon the _______ of his friend.\'", ar: "«المرء على _______ خليله.»" }, answer: { en: "religion", ar: "دين" } },
+        { sentence: { en: "Good companion is like _______ seller.", ar: "الجليس الصالح كحامل _______." }, answer: { en: "perfume", ar: "المسك" } },
+        { sentence: { en: "Bad companion is like a _______.", ar: "الجليس السوء كنافخ _______." }, answer: { en: "blacksmith", ar: "الكير" } },
+        { sentence: { en: "\'I wish I had not taken _______ as a friend!\'", ar: "﴿يا ليتني لم أتّخذ _______ خليلًا﴾" }, answer: { en: "so-and-so", ar: "فلانًا" } },
+        ],
+        coinsReward: 10,
+      },
       body: {
-        en: "Human beings are social by nature; we are deeply influenced by the people we spend our time with, especially our closest friends. Islam recognises this reality clearly and gives it great importance, because the friends a person chooses can lift him toward Paradise or drag him toward the Fire. The Prophet ﷺ stated this principle directly: 'A person is upon the religion of his close friend, so let one of you look carefully at whom he takes as a friend.' This is a profound teaching. It means that, over time, we tend to adopt the values, habits, language, priorities, and even the level of religious commitment of those we are closest to. A person who keeps company with the prayerful and the honest will likely become more prayerful and honest; a person who keeps company with the careless and the disobedient will likely drift in that direction — often slowly and without realising it.\n\nThe Prophet ﷺ gave one of the most memorable parables in all of his teachings to illustrate this. He said: 'The example of a good companion and a bad companion is like that of the seller of musk and the one who blows the blacksmith's bellows. As for the seller of musk, either he will give you some of the perfume, or you will buy some from him, or at the very least you will smell its pleasant fragrance. And as for the one who blows the bellows, either he will burn your clothes, or at the very least you will smell its foul smoke.' This parable is rich with meaning. The good companion benefits you in at least three ways: directly (he teaches or gives you good), through exchange (you grow together), or simply through his pleasant influence rubbing off on you. The bad companion harms you either severely (leading you into real sin and ruin) or at the very least by his bad atmosphere clinging to you and damaging your reputation and heart. There is no neutral outcome from close companionship — it always leaves a mark.\n\nThe stakes are not only worldly but eternal. The Qur'an paints a frightening scene of the Day of Judgement, when friendships built on sin and heedlessness turn into bitter regret and enmity: 'Close friends, on that Day, will be enemies to one another, except for the righteous.' Allah describes the wrongdoer biting his hands in remorse: 'Woe to me! I wish I had not taken that one as a friend. He led me away from the Reminder after it had come to me.' By contrast, friendships built on faith and the love of Allah are among the few relationships that survive death and continue into the Hereafter, where the righteous will be reunited and rewarded together. A demanding student must therefore take the choice of friends with utmost seriousness. This is not a trivial matter of personal taste; it is a decision that shapes character in this life and determines companionship in the next. In the sections that follow, we will examine the qualities to seek in a friend, the dangers of bad company, and how to be a good companion ourselves.",
-        ar: "الإنسانُ اجتِماعيٌّ بِطَبعِه؛ نَتَأثَّرُ تَأثُّرًا عَميقًا بِمَن نُمضي مَعَهُمُ الوَقت، وبِخاصّةٍ أقرَبُ أصدِقائِنا. ويُدرِكُ الإسلامُ هذه الحَقيقةَ بِوُضوحٍ ويُعطيها أهَمِّيّةً كَبيرة، لِأنَّ الأصحابَ الذينَ يَختارُهُمُ المَرءُ قد يَرفَعونَهُ نَحوَ الجَنّةِ أو يَجُرّونَهُ نَحوَ النّار. وقد قَرَّرَ النَّبِيُّ ﷺ هذا المَبدأَ مُباشَرةً: «المَرءُ على دينِ خَليلِه، فَليَنظُرْ أحَدُكُم مَن يُخالِل». وهذا تَعليمٌ عَميق. مَعناهُ أنَّنا، معَ الوَقت، نَميلُ إلى تَبَنّي قِيَمِ مَن نَقرُبُ مِنهُم وعاداتِهِم ولُغَتِهِم وأولَوِيّاتِهِم بل ودَرَجةِ التِزامِهِمِ الدّينيّ. فَمَن صاحَبَ المُصَلّينَ الصّادِقينَ صارَ غالِبًا أكثَرَ صَلاةً وصِدقًا؛ ومَن صاحَبَ المُتَهاوِنينَ العاصينَ انجَرَفَ غالِبًا في ذلك الاتِّجاه — كَثيرًا بِبُطءٍ ودونَ أن يَشعُر.\n\nوقد ضَرَبَ النَّبِيُّ ﷺ مِن أبلَغِ الأمثالِ في تَعاليمِهِ كُلِّها لِيُبَيِّنَ هذا. قال: «مَثَلُ الجَليسِ الصّالِحِ والجَليسِ السَّوءِ كَمَثَلِ صاحِبِ المِسكِ وكيرِ الحَدّاد؛ لا يَعدَمُكَ مِن صاحِبِ المِسكِ إمّا أن تَشتَرِيَهُ أو تَجِدَ ريحَه، وكيرُ الحَدّادِ يُحرِقُ بَدَنَكَ أو ثَوبَكَ أو تَجِدُ مِنهُ ريحًا خَبيثة». وهذا المَثَلُ غَنِيٌّ بِالمَعاني. فالجَليسُ الصّالِحُ يَنفَعُكَ بِثَلاثٍ على الأقَلّ: مُباشَرةً (يُعَلِّمُكَ أو يُعطيكَ خَيرًا)، أو بِالتَّبادُل (تَنمُوانِ مَعًا)، أو بِمُجَرَّدِ أثَرِهِ الطَّيِّبِ يَنتَقِلُ إلَيك. والجَليسُ السَّوءُ يَضُرُّكَ إمّا بِشِدّةٍ (يَقودُكَ إلى مَعصيةٍ حَقيقيّةٍ وهَلاك)، أو على الأقَلِّ بِجَوِّهِ الخَبيثِ يَعلَقُ بِكَ فَيُفسِدُ سُمعَتَكَ وقَلبَك. فلا نَتيجةَ مُحايِدةً مِنَ الصُّحبةِ القَريبة — إنَّها تَترُكُ أثَرًا دائِمًا.\n\nوالأمرُ لا يَتَعَلَّقُ بِالدُّنيا فَحَسب بل بِالأبَد. يَرسُمُ القُرآنُ مَشهَدًا مُخيفًا لِيَومِ القِيامة، حينَ تَنقَلِبُ الصَّداقاتُ المَبنيّةُ على الإثمِ والغَفلةِ نَدَمًا مُرًّا وعَداوة: ﴿الأخِلّاءُ يَومَئِذٍ بَعضُهُم لِبَعضٍ عَدُوٌّ إلّا المُتَّقين﴾. ويَصِفُ اللهُ الظّالِمَ يَعَضُّ على يَدَيهِ نَدَمًا: ﴿يا وَيلَتى لَيتَني لم أتَّخِذْ فُلانًا خَليلًا ۝ لَقَد أضَلَّني عنِ الذِّكرِ بَعدَ إذ جاءَني﴾. وفي المُقابِل، الصَّداقاتُ المَبنيّةُ على الإيمانِ ومَحَبّةِ اللهِ مِنَ العَلاقاتِ القَليلةِ التي تَنجو مِنَ المَوتِ وتَستَمِرُّ إلى الآخِرة، حَيثُ يَلتَقي المُتَّقونَ ويُؤجَرونَ مَعًا. وعلى الطّالِبِ المُطالِبِ أن يَأخُذَ اختيارَ الأصحابِ بِأقصى الجِدّيّة. فلَيسَ هذا أمرًا تافِهًا مِن أمرِ الذَّوقِ الشَّخصيّ؛ بل قَرارٌ يُشَكِّلُ الخُلُقَ في هذه الحَياةِ ويُحَدِّدُ الصُّحبةَ في الآخِرة. وفي ما يَلي، سَنَنظُرُ في صِفاتِ الجَليسِ الذي نَطلُبُه، وأخطارِ الرُّفقةِ السَّيِّئة، وكَيفَ نَكونُ نَحنُ الجَليسَ الصّالِح.",
+        en: "Choose friends wisely — they shape your faith and character like perfume or smoke.",
+        ar: "اختر أصدقاءك بحكمة — يُشكّلون إيمانك وأخلاقك كالمسك أو الدخان.",
       },
     },
     {
-      title: { en: "The good friend and the bad friend", ar: "الجَليسُ الصّالِحُ والجَليسُ السَّوء" },
+      title: { en: "Group Work", ar: "عمل جماعي" },
       learningObjectives: [
-        { en: "Identify qualities of a good companion.", ar: "أُحَدِّدُ صِفاتِ الجَليسِ الصّالِح." },
+        { en: "Explore friendship from different perspectives.", ar: "استكشف الصداقة من زوايا مختلفة." },
+      ],
+      image: {
+        src: IMG.grandMosque,
+        alt: { en: "Students collaborating.", ar: "طلاب يتعاونون." },
+      },
+      groupWorkCards: {
+        title: { en: "Choose Your Task", ar: "اختر مهمّتك" },
+        instruction: { en: "Each group picks one card. Study the information, complete the task, and present to the class.", ar: "تختار كلّ مجموعة بطاقة. ادرسوا المعلومات وأنجزوا المهمّة وقدّموا للصفّ." },
+        presentationNote: { en: "All Quran and Hadith must be authentic with references.", ar: "يجب أن يكون كلّ قرآن وحديث صحيحًا بمصادره." },
+        cards: [
+          {
+            id: "A",
+            title: { en: "The Perfume and Blacksmith", ar: "المسك والكير" },
+            image: IMG.childQuran,
+            color: "teal",
+            topic: { en: "The famous hadith", ar: "الحديث الشهير" },
+            infoSections: [
+              { label: { en: "Hadith", ar: "حديث" }, content: { en: "\'Like perfume seller (good) and blacksmith (bad).\' (Bukhari)", ar: "«كحامل المسك (خير) ونافخ الكير (شرّ).» (البخاري)" } },
+              { label: { en: "Explanation", ar: "شرح" }, content: { en: "Perfume: fragrance clings to you. Smoke: burns and stains.", ar: "المسك: العطر يلتصق بك. الدخان: يحرق ويلوّث." } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "You become like those you spend time with.", ar: "تصبح مثل من تقضي وقتك معه." } },
+            ],
+            task: {
+              title: { en: "Analyse the Hadith", ar: "حلّل الحديث" },
+              description: { en: "Draw the perfume/blacksmith comparison.", ar: "ارسم مقارنة المسك/الكير." },
+              hint: { en: "Include: what each represents, examples, modern scenarios.", ar: "ضمّن: ما يمثّله كلّ منهما والأمثلة والمواقف." },
+            },
+          },
+          {
+            id: "B",
+            title: { en: "Qualities of Good Friends", ar: "صفات الصديق الصالح" },
+            image: IMG.grandMosque,
+            color: "blue",
+            topic: { en: "What to look for", ar: "ماذا تبحث عنه" },
+            infoSections: [
+              { label: { en: "Qualities", ar: "صفات" }, content: { en: "Truthful, prayerful, kind, encouraging, reminds you of Allah.", ar: "صادق مصلٍّ لطيف مشجّع يذكّرك بالله." } },
+              { label: { en: "Hadith", ar: "حديث" }, content: { en: "\'A believer is a mirror to his brother.\' (Abu Dawud)", ar: "«المؤمن مرآة أخيه.» (أبو داود)" } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Good friends reflect your best self.", ar: "الأصدقاء الصالحون يعكسون أفضل ما فيك." } },
+            ],
+            task: {
+              title: { en: "Create Friend Criteria", ar: "أنشئ معايير صداقة" },
+              description: { en: "Write 10 qualities you want in a friend.", ar: "اكتب ١٠ صفات تريدها في صديقك." },
+              hint: { en: "Include: Islamic evidence for each quality.", ar: "ضمّن: الدليل الإسلامي لكلّ صفة." },
+            },
+          },
+          {
+            id: "C",
+            title: { en: "Bad Influence Warning", ar: "تحذير التأثير السيّئ" },
+            image: IMG.bookshelf,
+            color: "purple",
+            topic: { en: "Al-Furqan\'s warning", ar: "تحذير الفرقان" },
+            infoSections: [
+              { label: { en: "Quran", ar: "القرآن" }, content: { en: "Al-Furqan 27-28: Regret over bad friends on Judgement Day.", ar: "الفرقان ٢٧-٢٨: ندم على أصدقاء السوء يوم القيامة." } },
+              { label: { en: "Example", ar: "مثال" }, content: { en: "A friend who encourages cheating, lying, or missing prayer.", ar: "صديق يشجّع على الغشّ والكذب وترك الصلاة." } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Choose now, or regret later.", ar: "اختر الآن أو اندم لاحقًا." } },
+            ],
+            task: {
+              title: { en: "Write Warning Scenarios", ar: "اكتب مواقف تحذيريّة" },
+              description: { en: "Write 3 scenarios of bad friendship influence.", ar: "اكتب ٣ مواقف تأثير صداقة سيّئة." },
+              hint: { en: "Include: the bad influence, the consequence, the Islamic response.", ar: "ضمّن: التأثير والنتيجة والاستجابة الإسلاميّة." },
+            },
+          },
+          {
+            id: "D",
+            title: { en: "Friendship Stories", ar: "قصص صداقة" },
+            image: IMG.lantern,
+            color: "amber",
+            topic: { en: "From the Seerah", ar: "من السيرة" },
+            infoSections: [
+              { label: { en: "Story", ar: "قصّة" }, content: { en: "Abu Bakr and the Prophet — the best friendship in Islam. They supported, trusted, and sacrificed for each other.", ar: "أبو بكر والنبيّ — أعظم صداقة في الإسلام. تدعّما وتوثّقا وضحّيا." } },
+              { label: { en: "Hadith", ar: "حديث" }, content: { en: "\'If I were to take a khalil, it would be Abu Bakr.\' (Bukhari)", ar: "«لو كنت متّخذًا خليلًا لاتّخذت أبا بكر.» (البخاري)" } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "The best friendships are built on faith.", ar: "أفضل الصداقات مبنيّة على الإيمان." } },
+            ],
+            task: {
+              title: { en: "Research Seerah Friendships", ar: "ابحث عن صداقات السيرة" },
+              description: { en: "Write about 2 great friendships from Islamic history.", ar: "اكتب عن صداقتين عظيمتين من التاريخ الإسلامي." },
+              hint: { en: "Include: who, what bonded them, evidence.", ar: "ضمّن: من وما وثّقهم والدليل." },
+            },
+          },
+          {
+            id: "E",
+            title: { en: "My Friendship Plan", ar: "خطّة صداقتي" },
+            image: IMG.skyBlue,
+            color: "rose",
+            topic: { en: "Practical steps", ar: "خطوات عمليّة" },
+            infoSections: [
+              { label: { en: "Action", ar: "عمل" }, content: { en: "Evaluate current friends. Seek friends at the mosque, Quran circles, and study groups.", ar: "قيّم أصدقاءك الحاليّين. ابحث عن أصدقاء في المسجد وحلقات القرآن ومجموعات الدراسة." } },
+              { label: { en: "Tip", ar: "نصيحة" }, content: { en: "Be the good friend you want to have.", ar: "كن الصديق الصالح الذي تريده." } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "You choose your friends — make it a conscious choice.", ar: "أنت تختار أصدقاءك — اجعله اختيارًا واعيًا." } },
+            ],
+            task: {
+              title: { en: "Write Your Friendship Plan", ar: "اكتب خطّة صداقتك" },
+              description: { en: "Write 5 action steps for choosing better friends.", ar: "اكتب ٥ خطوات لاختيار أصدقاء أفضل." },
+              hint: { en: "Include: current assessment, criteria, where to find, how to maintain.", ar: "ضمّن: التقييم والمعايير وأين تجد وكيف تحافظ." },
+            },
+          },
+        ],
+        coinsReward: 15,
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Hinge Questions", ar: "أسئلة محوريّة" },
+      learningObjectives: [
+        { en: "Test your understanding of everything studied.", ar: "اختبر فهمك لكلّ ما درسته." },
       ],
       image: {
         src: IMG.bookshelf,
-        alt: { en: "Companions studying together.", ar: "أصحابٌ يَدرُسونَ مَعًا." },
-        caption: { en: "Choose friends who help you obey Allah and grow in goodness.", ar: "اختَرْ أصحابًا يُعينونَكَ على طاعةِ اللهِ والنُّمُوِّ في الخَير." },
+        alt: { en: "Assessment.", ar: "تقييم." },
       },
-      groupTasks: {
-        title: { en: "What makes a good companion?", ar: "ما الذي يَصنَعُ الجَليسَ الصّالِح؟" },
-        instruction: { en: "Each group studies one aspect.", ar: "تَدرُسُ كُلُّ مَجموعةٍ جانِبًا." },
-        groups: [
+      hingeQuestions: {
+        title: { en: "Hinge Questions — Test Your Understanding", ar: "أسئلة محوريّة — اختبر فهمك" },
+        instruction: { en: "Answer all 10 questions.", ar: "أجب عن الأسئلة العشرة." },
+        questions: [
           {
-            slug: "good-friend-qualities",
-            name: { en: "Team A — Qualities to seek", ar: "الفَريقُ أ — صِفاتٌ نَطلُبُها" },
-            learningObjective: { en: "List qualities of a righteous friend.", ar: "نُعَدِّدُ صِفاتِ الصَّديقِ الصّالِح." },
-            task: { en: "Allah told the Prophet ﷺ to keep close to 'those who call upon their Lord morning and evening, seeking His face' (Al-Kahf 28). List the qualities of a good friend: faith, honesty, good character, helping you toward good, advising you sincerely. Explain why each matters.", ar: "أمَرَ اللهُ النَّبِيَّ ﷺ أن يَصبِرَ مَعَ ﴿الذينَ يَدعونَ رَبَّهُم بِالغَداةِ والعَشِيِّ يُريدونَ وَجهَه﴾ (الكهف ٢٨). عَدِّدوا صِفاتِ الصَّديقِ الصّالِح: الإيمان، الصِّدق، حُسنُ الخُلُق، الإعانةُ على الخَير، النَّصيحةُ الصّادِقة. وبَيِّنوا أهَمِّيّةَ كُلٍّ." },
-            evidence: [
-              { en: "Al-Kahf 28; 'The best of companions to Allah is the best to his companion.'", ar: "الكهف ٢٨؛ «خَيرُ الأصحابِ عِندَ اللهِ خَيرُهُم لِصاحِبِه»." },
+            question: { en: "A person is on religion of?", ar: "المرء على دين؟" },
+            options: [
+            { en: "His friend", ar: "خليله" },
+            { en: "His teacher", ar: "معلّمه" },
+            { en: "His country", ar: "بلده" },
+            { en: "His hobby", ar: "هوايته" },
             ],
-            sourceNotes: [
-              { en: "Seek a friend who brings you closer to Allah.", ar: "اطلُبْ صَديقًا يُقَرِّبُكَ إلى الله." },
-            ],
-            memberRoles: [
-              { en: "Researcher, Lister, Presenter.", ar: "الباحِث، المُعَدِّد، العارِض." },
-            ],
-            finalProduct: { en: "A list of a good friend's qualities.", ar: "قائِمةٌ بِصِفاتِ الصَّديقِ الصّالِح." },
+            correctIndex: 0,
+            explanation: { en: "His friend.", ar: "خليله." },
           },
           {
-            slug: "bad-friend-dangers",
-            name: { en: "Team B — Dangers of bad company", ar: "الفَريقُ ب — أخطارُ الرُّفقةِ السَّيِّئة" },
-            learningObjective: { en: "Explain how bad company harms.", ar: "نُبَيِّنُ كَيفَ تَضُرُّ الرُّفقةُ السَّيِّئة." },
-            task: { en: "Study Al-Furqan 27-29, where a person on Judgement Day regrets a friend who led him astray. Explain the dangers of friends who encourage sin, laziness, mocking religion, or wasting time, and how to deal with such pressure.", ar: "ادرُسوا الفُرقان ٢٧-٢٩ حَيثُ يَندَمُ مَرءٌ يَومَ القِيامةِ على خَليلٍ أضَلَّه. بَيِّنوا أخطارَ الأصحابِ الذينَ يُشَجِّعونَ على المَعصيةِ أوِ الكَسَلِ أوِ السُّخريةِ مِنَ الدّينِ أو إضاعةِ الوَقت، وكَيفَ نُواجِهُ هذا الضَّغط." },
-            evidence: [
-              { en: "Al-Furqan 27-29: 'Woe to me! I wish I had not taken that one as a friend.'", ar: "الفُرقان ٢٧-٢٩: ﴿يا وَيلَتى لَيتَني لم أتَّخِذْ فُلانًا خَليلًا﴾." },
+            question: { en: "Good companion like?", ar: "الجليس الصالح ك؟" },
+            options: [
+            { en: "Perfume seller", ar: "حامل المسك" },
+            { en: "Blacksmith", ar: "نافخ الكير" },
+            { en: "Farmer", ar: "مزارع" },
+            { en: "Cook", ar: "طبّاخ" },
             ],
-            sourceNotes: [
-              { en: "Bad friends can ruin both deen and dunya.", ar: "الأصحابُ السَّوءُ يُفسِدونَ الدّينَ والدُّنيا." },
+            correctIndex: 0,
+            explanation: { en: "Perfume seller.", ar: "حامل المسك." },
+          },
+          {
+            question: { en: "Bad companion like?", ar: "الجليس السوء ك؟" },
+            options: [
+            { en: "Blacksmith", ar: "نافخ الكير" },
+            { en: "Perfume seller", ar: "حامل المسك" },
+            { en: "Doctor", ar: "طبيب" },
+            { en: "Teacher", ar: "معلّم" },
             ],
-            memberRoles: [
-              { en: "Researcher, Summariser, Presenter.", ar: "الباحِث، المُلَخِّص، العارِض." },
+            correctIndex: 0,
+            explanation: { en: "Blacksmith.", ar: "نافخ الكير." },
+          },
+          {
+            question: { en: "Al-Furqan warns about?", ar: "الفرقان تحذّر من؟" },
+            options: [
+            { en: "Bad friends", ar: "أصدقاء السوء" },
+            { en: "Good friends", ar: "أصدقاء الخير" },
+            { en: "Teachers", ar: "المعلّمين" },
+            { en: "Parents", ar: "الوالدين" },
             ],
-            finalProduct: { en: "A warning poster on bad company.", ar: "مُلصَقُ تَحذيرٍ مِنَ الرُّفقةِ السَّيِّئة." },
+            correctIndex: 0,
+            explanation: { en: "Bad friends.", ar: "أصدقاء السوء." },
+          },
+          {
+            question: { en: "If I took a khalil?", ar: "لو اتّخذت خليلًا؟" },
+            options: [
+            { en: "Abu Bakr", ar: "أبو بكر" },
+            { en: "Umar", ar: "عمر" },
+            { en: "Ali", ar: "عليّ" },
+            { en: "Uthman", ar: "عثمان" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Abu Bakr.", ar: "أبو بكر." },
+          },
+          {
+            question: { en: "Good friends remind of?", ar: "الأصدقاء الصالحون يذكّرون ب؟" },
+            options: [
+            { en: "Allah", ar: "الله" },
+            { en: "Money", ar: "المال" },
+            { en: "Games", ar: "الألعاب" },
+            { en: "Nothing", ar: "لا شيء" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Allah.", ar: "الله." },
+          },
+          {
+            question: { en: "Believer is mirror to?", ar: "المؤمن مرآة ل؟" },
+            options: [
+            { en: "His brother", ar: "أخيه" },
+            { en: "Himself", ar: "نفسه" },
+            { en: "Strangers", ar: "الغرباء" },
+            { en: "No one", ar: "لا أحد" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "His brother.", ar: "أخيه." },
+          },
+          {
+            question: { en: "Bad friends lead to?", ar: "أصدقاء السوء يقودون إلى؟" },
+            options: [
+            { en: "Sin and regret", ar: "الذنب والندم" },
+            { en: "Success", ar: "النجاح" },
+            { en: "Happiness", ar: "السعادة" },
+            { en: "Wealth", ar: "الثروة" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Sin and regret.", ar: "الذنب والندم." },
+          },
+          {
+            question: { en: "Best friendships built on?", ar: "أفضل الصداقات مبنيّة على؟" },
+            options: [
+            { en: "Faith", ar: "الإيمان" },
+            { en: "Money", ar: "المال" },
+            { en: "Games", ar: "الألعاب" },
+            { en: "Food", ar: "الطعام" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Faith.", ar: "الإيمان." },
+          },
+          {
+            question: { en: "You become like?", ar: "تصبح مثل؟" },
+            options: [
+            { en: "Those you spend time with", ar: "من تقضي وقتك معه" },
+            { en: "No one", ar: "لا أحد" },
+            { en: "Yourself only", ar: "نفسك فقط" },
+            { en: "Your teacher", ar: "معلّمك" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Those you spend time with.", ar: "من تقضي وقتك معه." },
           },
         ],
+        coinsReward: 20,
       },
-      responsePrompt: {
-        title: { en: "Written response", ar: "إجابةٌ مَكتوبة" },
-        prompt: { en: "List four qualities you should look for in a close friend, with a reason for each. Then explain, using the parable of the musk-seller and the blacksmith, how you would respond if a friend repeatedly pressured you to do something wrong.", ar: "عَدِّدْ أربَعَ صِفاتٍ تَطلُبُها في الصَّديقِ القَريب، معَ سَبَبٍ لِكُلٍّ. ثُمَّ بَيِّنْ، بِمَثَلِ بائِعِ المِسكِ ونافِخِ الكير، كَيفَ تَتَصَرَّفُ لَو ضَغَطَ علَيكَ صَديقٌ مِرارًا لِتَفعَلَ خَطأً." },
-        placeholder: { en: "Qualities: (1)... because... If a friend pressured me to do wrong, I would...", ar: "الصِّفات: (١)... لِأنَّ... ولَو ضَغَطَ صَديقٌ لِأفعَلَ خَطأً، فَإنّي..." },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Watch & Reflect", ar: "شاهد وتأمّل" },
+      learningObjectives: [
+        { en: "Watch a video related to the topic and reflect.", ar: "شاهد مقطعًا متعلّقًا بالموضوع وتأمّل." },
+      ],
+      image: {
+        src: IMG.childQuran,
+        alt: { en: "Video lesson.", ar: "درس مرئي." },
       },
-      body: {
-        en: "Since companionship has such power over us, Islam teaches us carefully what qualities to seek in a friend and which kinds of company to avoid. The most important quality in a close friend is faith and good character. Allah Himself instructed His Prophet ﷺ: 'And keep yourself patient with those who call upon their Lord in the morning and the evening, seeking His face, and do not turn your eyes away from them desiring the adornment of worldly life.' This verse teaches that we should bind ourselves to the company of the sincere worshippers of Allah, even if they are poor and simple, rather than chasing the company of the wealthy and impressive who are heedless of their Lord. A good friend is one who reminds you of Allah when you forget, encourages you toward prayer and goodness, advises you sincerely and privately when you err, keeps your secrets, is honest and trustworthy, and whose company leaves you better, calmer, and closer to your faith. The Prophet ﷺ said, 'The best of companions in the sight of Allah is the one who is best to his companion.'\n\nOn the other hand, Islam strongly warns against bad company. A bad friend is not necessarily someone openly evil; often he is simply someone who normalises sin, wastes time, mocks religious practice, encourages laziness or dishonesty, or pressures you to follow the crowd in wrongdoing. The Qur'an gives a chilling warning of where such friendships lead. On the Day of Judgement, the regretful sinner cries out: 'Woe to me! I wish I had not taken that one as a friend. He led me away from the Reminder after it had come to me, and Satan is ever, to man, a deserter.' Notice that the man does not blame himself first — he blames the friend who pulled him down. This is why a believer must be especially careful during the teenage years, when the desire to fit in and be accepted is strongest and the influence of peers is most powerful. Many a young person has been led, step by step, away from prayer, honesty, and good character not by a sudden decision, but by the slow, constant pull of the wrong friends.\n\nThis does not mean a Muslim should be arrogant, unkind, or unwilling to mix with others; we have already learned about tolerance and good treatment of all people. The believer can be kind and courteous to everyone, and he should especially try to be a good influence — calling others to good rather than being pulled toward evil. But there is a clear difference between being kind to people in general and choosing your innermost circle of close friends, the ones whose values you will absorb. Those closest companions should be chosen with care, for their faith and character. If a person finds that his close friends are constantly dragging him away from Allah and he is unable to influence them for the better, the believer must have the strength to step back and seek better company, even if this is difficult and lonely at first. A demanding student should resolve to choose friends who help him toward Paradise, to be patient and brave in resisting bad influence, and — most importantly — to strive to be himself the kind of good companion, the 'seller of musk,' whose friendship is a source of goodness, encouragement, and blessing for everyone around him, in this life and the next.",
-        ar: "لَمّا كانَ لِلصُّحبةِ هذا السُّلطانُ علَينا، عَلَّمَنا الإسلامُ بِعِنايةٍ أيَّ صِفاتٍ نَطلُبُ في الصَّديقِ وأيَّ رُفقةٍ نَتَجَنَّب. وأهَمُّ صِفةٍ في الصَّديقِ القَريبِ الإيمانُ وحُسنُ الخُلُق. وقد أمَرَ اللهُ نَبِيَّهُ ﷺ: ﴿واصبِرْ نَفسَكَ معَ الذينَ يَدعونَ رَبَّهُم بِالغَداةِ والعَشِيِّ يُريدونَ وَجهَه، ولا تَعدُ عَيناكَ عنهُم تُريدُ زينةَ الحَياةِ الدُّنيا﴾. تُعَلِّمُ هذه الآيةُ أن نَلزَمَ صُحبةَ عُبّادِ اللهِ الصّادِقين، وإن كانوا فُقَراءَ بُسَطاء، لا أن نَلهَثَ خَلفَ صُحبةِ الأغنياءِ المُبهِرينَ الغافِلينَ عن رَبِّهِم. فالصَّديقُ الصّالِحُ مَن يُذَكِّرُكَ بِاللهِ إذا نَسيت، ويُشَجِّعُكَ على الصَّلاةِ والخَير، ويَنصَحُكَ صادِقًا سِرًّا إذا أخطَأت، ويَحفَظُ سِرَّك، صادِقٌ أمين، وصُحبَتُهُ تَترُكُكَ أفضَلَ وأهدَأَ وأقرَبَ إلى دينِك. قالَ النَّبِيُّ ﷺ: «خَيرُ الأصحابِ عِندَ اللهِ خَيرُهُم لِصاحِبِه».\n\nوفي المُقابِل، يُحَذِّرُ الإسلامُ بِشِدّةٍ مِنَ الرُّفقةِ السَّيِّئة. والصَّديقُ السَّوءُ لَيسَ بِالضَّرورةِ شِرّيرًا ظاهِرًا؛ بل كَثيرًا ما يَكونُ مَن يُهَوِّنُ المَعصية، ويُضيعُ الوَقت، ويَسخَرُ مِنَ التَّدَيُّن، ويُشَجِّعُ على الكَسَلِ أوِ الكَذِب، أو يَضغَطُ علَيكَ لِتَتبَعَ الجَمعَ في الخَطأ. ويُعطي القُرآنُ تَحذيرًا مُرعِبًا أينَ تَقودُ هذه الصَّداقات. فَيَومَ القِيامةِ يَصرُخُ النّادِمُ: ﴿يا وَيلَتى لَيتَني لم أتَّخِذْ فُلانًا خَليلًا ۝ لَقَد أضَلَّني عنِ الذِّكرِ بَعدَ إذ جاءَني، وكانَ الشَّيطانُ لِلإنسانِ خَذولًا﴾. ولاحِظْ أنَّ الرَّجُلَ لا يَلومُ نَفسَهُ أوَّلًا — بل يَلومُ الخَليلَ الذي جَرَّهُ إلى أسفَل. ولِهذا على المُؤمِنِ أن يَحذَرَ خاصّةً في سِنِّ المُراهَقة، حينَ تَكونُ الرَّغبةُ في الانتِماءِ والقَبولِ أقوى، وتَأثيرُ الأقرانِ أشَدّ. فَكَم مِن شابٍّ قيدَ خُطوةً خُطوةً بَعيدًا عنِ الصَّلاةِ والصِّدقِ وحُسنِ الخُلُق، لا بِقَرارٍ مُفاجِئ، بل بِالجَذبِ البَطيءِ الدّائِمِ مِنَ الأصحابِ السَّوء.\n\nولا يَعني هذا أن يَكونَ المُسلِمُ مُتَكَبِّرًا أو فَظًّا أو رافِضًا لِمُخالَطةِ النّاس؛ فقد تَعَلَّمنا التَّسامُحَ وحُسنَ مُعامَلةِ الجَميع. فالمُؤمِنُ يَكونُ لَطيفًا مُؤَدَّبًا معَ كُلِّ أحَد، وعليهِ خاصّةً أن يَجتَهِدَ ليَكونَ أثَرًا طَيِّبًا — يَدعو غَيرَهُ إلى الخَيرِ لا أن يُجَرَّ إلى الشَّرّ. لكِنَّ هُناكَ فَرقًا واضِحًا بَينَ الإحسانِ إلى النّاسِ عُمومًا واختيارِ دائِرتِكَ الأقرَبِ مِنَ الأصحاب، الذينَ ستَمتَصُّ قِيَمَهُم. فَأولئكَ أقرَبُ الأصحابِ يُختارونَ بِعِنايةٍ، لِإيمانِهِم وخُلُقِهِم. فإن وَجَدَ المَرءُ أنَّ أقرَبَ أصحابِهِ يَجُرّونَهُ دائِمًا بَعيدًا عنِ اللهِ ولا يَقدِرُ على إصلاحِهِم، فَعلى المُؤمِنِ أن يَملِكَ القُوّةَ لِيَنسَحِبَ ويَطلُبَ صُحبةً أفضَل، وإن كانَ ذلك صَعبًا ووَحيدًا في البِداية. وعلى الطّالِبِ المُطالِبِ أن يَعزِمَ على اختيارِ أصحابٍ يُعينونَهُ نَحوَ الجَنّة، وأن يَصبِرَ ويَشجُعَ في مُقاوَمةِ الأثَرِ السَّيِّئ، والأهَمُّ — أن يَجتَهِدَ ليَكونَ هو نَفسُهُ ذلك الجَليسَ الصّالِح، «بائِعَ المِسك»، الذي صَداقَتُهُ مَصدَرُ خَيرٍ وتَشجيعٍ وبَرَكةٍ لِكُلِّ مَن حَولَه، في الدُّنيا والآخِرة.",
+      youtubeVideo: {
+        title: { en: "Choosing Companions", ar: "اختيار الأصحاب" },
+        url: "https://www.youtube.com/watch?v=kYnGEQoGhUE",
       },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Plenary", ar: "ختام الدرس" },
+      learningObjectives: [
+        { en: "Reflect on and share what you learned.", ar: "تأمّل وشارك ما تعلّمته." },
+      ],
+      image: {
+        src: IMG.grandMosque,
+        alt: { en: "Students sharing.", ar: "طلاب يشاركون." },
+      },
+      plenary: {
+        title: { en: "Share Your Learning", ar: "شارك ما تعلّمته" },
+        instruction: { en: "Scan QR or enter the code to share what you learned.", ar: "امسح QR أو أدخل الرمز لمشاركة ما تعلّمته." },
+        code: "COMPN001",
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Worksheet — Choosing Companions", ar: "ورقة عمل — اختِيارُ الجَليس" },
+      learningObjectives: [
+        { en: "Demonstrate understanding through an auto-marked worksheet.", ar: "أظهر فهمي من خلال ورقة عمل تُصحّح تلقائيًّا." },
+      ],
+      image: {
+        src: IMG.bookshelf,
+        alt: { en: "Worksheet.", ar: "ورقة عمل." },
+      },
+      worksheet: {
+        title: { en: "Worksheet — Choosing Companions", ar: "ورقة عمل — اختِيارُ الجَليس" },
+        instruction: { en: "Answer all questions. Auto-marked. Cannot re-answer after submission.", ar: "أجب عن جميع الأسئلة. تُصحّح تلقائيًّا. لن تستطيع الإجابة مجدّدًا." },
+        sections: [
+          {
+            type: "mcq" as const,
+            title: { en: "Multiple Choice", ar: "اختيار من متعدّد" },
+            questions: [
+              {
+                question: { en: "Friend is on religion of?", ar: "المرء على دين؟" },
+                options: [
+                { en: "His friend", ar: "خليله" },
+                { en: "Teacher", ar: "معلّمه" },
+                { en: "City", ar: "مدينته" },
+                { en: "Book", ar: "كتابه" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "Good friend like?", ar: "الصديق الصالح ك؟" },
+                options: [
+                { en: "Perfume seller", ar: "حامل المسك" },
+                { en: "Blacksmith", ar: "الكير" },
+                { en: "Farmer", ar: "مزارع" },
+                { en: "Baker", ar: "خبّاز" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "Bad friend like?", ar: "الصديق السوء ك؟" },
+                options: [
+                { en: "Blacksmith", ar: "نافخ الكير" },
+                { en: "Perfume", ar: "المسك" },
+                { en: "Doctor", ar: "طبيب" },
+                { en: "Chef", ar: "طاهٍ" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "Al-Furqan warns?", ar: "الفرقان تحذّر؟" },
+                options: [
+                { en: "Bad friends", ar: "أصدقاء السوء" },
+                { en: "Teachers", ar: "المعلّمين" },
+                { en: "Parents", ar: "الوالدين" },
+                { en: "Books", ar: "الكتب" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "Best khalil?", ar: "أفضل خليل؟" },
+                options: [
+                { en: "Abu Bakr", ar: "أبو بكر" },
+                { en: "Umar", ar: "عمر" },
+                { en: "Ali", ar: "عليّ" },
+                { en: "Uthman", ar: "عثمان" },
+                ],
+                correctIndex: 0,
+              },
+            ],
+          },
+          {
+            type: "trueFalse" as const,
+            title: { en: "True or False", ar: "صواب أم خطأ" },
+            questions: [
+              { statement: { en: "A person follows his friend\'s religion.", ar: "المرء على دين خليله." }, answer: true },
+              { statement: { en: "Friends have no influence.", ar: "الأصدقاء بلا تأثير." }, answer: false },
+              { statement: { en: "Good friends are like perfume.", ar: "الأصدقاء الصالحون كالمسك." }, answer: true },
+              { statement: { en: "Bad friends are harmless.", ar: "أصدقاء السوء بلا ضرر." }, answer: false },
+              { statement: { en: "Abu Bakr was the Prophet\'s best friend.", ar: "أبو بكر أفضل أصدقاء النبيّ." }, answer: true },
+            ],
+          },
+          {
+            type: "matchUp" as const,
+            title: { en: "Match Up", ar: "وصّل" },
+            prompts: [
+              { prompt: { en: "Sahib", ar: "صاحب" }, answer: { en: "Companion", ar: "الصاحب" } },
+              { prompt: { en: "Khalil", ar: "خليل" }, answer: { en: "Close friend", ar: "الخليل" } },
+              { prompt: { en: "Misk", ar: "مسك" }, answer: { en: "Perfume", ar: "العطر" } },
+              { prompt: { en: "Kir", ar: "كير" }, answer: { en: "Blacksmith\'s bellows", ar: "منفاخ الحداد" } },
+              { prompt: { en: "Ukhuwwah", ar: "أخوّة" }, answer: { en: "Brotherhood", ar: "الأخوّة" } },
+            ],
+          },
+          {
+            type: "fillBlanks" as const,
+            title: { en: "Fill in the Blanks", ar: "املأ الفراغات" },
+            questions: [
+              { sentence: { en: "\'A person is on the _______ of his friend.\'", ar: "«المرء على _______ خليله.»" }, blankAnswer: { en: "religion", ar: "دين" } },
+              { sentence: { en: "Good friend like _______ seller.", ar: "الجليس الصالح كحامل _______." }, blankAnswer: { en: "perfume", ar: "المسك" } },
+              { sentence: { en: "Bad friend like a _______.", ar: "الجليس السوء كنافخ _______." }, blankAnswer: { en: "blacksmith", ar: "الكير" } },
+              { sentence: { en: "\'I wish I had not taken _______ as friend.\'", ar: "﴿يا ليتني لم أتّخذ _______ خليلًا﴾" }, blankAnswer: { en: "so-and-so", ar: "فلانًا" } },
+            ],
+          },
+          {
+            type: "ordering" as const,
+            title: { en: "Put in Correct Order", ar: "رتّب ترتيبًا صحيحًا" },
+            items: [
+              { en: "Meet different types of people", ar: "قابل أنواعًا مختلفة من الناس" },
+              { en: "Evaluate their character and values", ar: "قيّم شخصيّتهم وقيمهم" },
+              { en: "Choose those who remind you of Allah", ar: "اختر من يذكّرك بالله" },
+              { en: "Build friendships on faith and honesty", ar: "ابنِ صداقات على الإيمان والصدق" },
+              { en: "Distance from bad influence", ar: "ابتعد عن التأثير السيّئ" },
+              { en: "Be the good friend you wish to have", ar: "كن الصديق الصالح الذي تتمنّاه" },
+            ],
+          },
+        ],
+        coinsReward: 25,
+      },
+      body: { en: "", ar: "" },
     },
   ],
-  quizQuestions: [
-    {
-      prompt: { en: "Complete the hadith: 'A person is upon the religion of his...'", ar: "أكمِلِ الحَديث: «المَرءُ على دينِ...»" },
-      options: [
-        { en: "close friend, so look at whom he befriends", ar: "خَليلِه، فَليَنظُرْ مَن يُخالِل" },
-        { en: "neighbour only", ar: "جارِهِ فَقَط" },
-        { en: "teacher only", ar: "مُعَلِّمِهِ فَقَط" },
-        { en: "wealth", ar: "مالِه" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "We absorb the values and ways of our closest friends.", ar: "نَمتَصُّ قِيَمَ أقرَبِ أصحابِنا وطَرائِقَهُم." },
-    },
-    {
-      prompt: { en: "In the parable, who represents the good companion?", ar: "في المَثَل، مَن يُمَثِّلُ الجَليسَ الصّالِح؟" },
-      options: [
-        { en: "The seller of musk", ar: "بائِعُ المِسك" },
-        { en: "The blacksmith's bellows", ar: "كيرُ الحَدّاد" },
-        { en: "A thief", ar: "اللِّصّ" },
-        { en: "A liar", ar: "الكَذّاب" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "From the musk-seller you gain perfume or at least its pleasant scent.", ar: "مِن بائِعِ المِسكِ تَنالُ العِطرَ أو على الأقَلِّ ريحَهُ الطَّيِّبة." },
-    },
-    {
-      prompt: { en: "What does Az-Zukhruf 67 say about friendships on Judgement Day?", ar: "ماذا تَقولُ الزُّخرُف ٦٧ عنِ الصَّداقاتِ يَومَ القِيامة؟" },
-      options: [
-        { en: "Friends become enemies, except the righteous", ar: "الأخِلّاءُ يَصيرونَ أعداءً إلّا المُتَّقين" },
-        { en: "All friendships continue happily", ar: "كُلُّ الصَّداقاتِ تَستَمِرُّ بِسَعادة" },
-        { en: "There are no friends in the Hereafter", ar: "لا أصدِقاءَ في الآخِرة" },
-        { en: "Only wealth matters", ar: "المالُ وَحدَهُ يَهُمّ" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "Only friendships built on taqwa survive into the Hereafter.", ar: "الصَّداقاتُ المَبنيّةُ على التَّقوى وَحدَها تَبقى في الآخِرة." },
-    },
-    {
-      prompt: { en: "What is the most important quality to seek in a close friend?", ar: "ما أهَمُّ صِفةٍ نَطلُبُها في الصَّديقِ القَريب؟" },
-      options: [
-        { en: "Faith and good character", ar: "الإيمانُ وحُسنُ الخُلُق" },
-        { en: "Wealth and fame", ar: "المالُ والشُّهرة" },
-        { en: "Being popular", ar: "الشَّعبيّة" },
-        { en: "Being good at games", ar: "البَراعةُ في الألعاب" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "Al-Kahf 28 tells us to keep company with the sincere worshippers of Allah.", ar: "تَأمُرُنا الكهف ٢٨ بِمُلازَمةِ عُبّادِ اللهِ الصّادِقين." },
-    },
-    {
-      prompt: { en: "In Al-Furqan 27-29, what does the regretful person say?", ar: "في الفُرقان ٢٧-٢٩، ماذا يَقولُ النّادِم؟" },
-      options: [
-        { en: "'I wish I had not taken that one as a friend'", ar: "«لَيتَني لم أتَّخِذْ فُلانًا خَليلًا»" },
-        { en: "'My friend was the best'", ar: "«كانَ خَليلي خَيرَ النّاس»" },
-        { en: "'I have no regrets'", ar: "«لا نَدَمَ عِندي»" },
-        { en: "'Wealth saved me'", ar: "«أنقَذَني المال»" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "A bad friend who led him from the Reminder becomes his deepest regret.", ar: "الخَليلُ السَّوءُ الذي أضَلَّهُ عنِ الذِّكرِ يَصيرُ أعظَمَ نَدَمِه." },
-    },
-    {
-      prompt: { en: "True or False: We can be kind to everyone, but should choose our closest friends carefully.", ar: "صَوابٌ أم خَطأ: نُحسِنُ إلى الجَميع، لكِن نَختارُ أقرَبَ أصحابِنا بِعِناية." },
-      options: [
-        { en: "True", ar: "صَواب" },
-        { en: "False", ar: "خَطأ" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "Courtesy to all is good manners; the inner circle whose values we absorb needs care.", ar: "اللُّطفُ لِلجَميعِ حُسنُ خُلُق؛ أمّا الدّائِرةُ الأقرَبُ التي نَمتَصُّ قِيَمَها فَتَحتاجُ عِناية." },
-    },
-  ],
+  quizQuestions: [],
 };

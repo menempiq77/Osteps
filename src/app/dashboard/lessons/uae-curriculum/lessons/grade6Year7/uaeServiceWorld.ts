@@ -3,178 +3,521 @@ import { IMG } from "../images";
 
 export const uaeServiceWorld: CourseLesson = {
   slug: "g6y7-the-uae-in-service-of-the-world",
-  name: { en: "The UAE in Service of the World", ar: "الإِماراتُ في خِدْمَةِ العالَمِ" },
+  name: { en: "The UAE in Service of the World", ar: "الإمارات في خدمة العالم" },
   shortIntro: {
-    en: "How the UAE turns Islamic values of mercy and giving into global humanitarian action, and our role in it.",
-    ar: "كَيفَ تُحَوِّلُ الإماراتُ قِيَمَ الرَّحمةِ والعَطاءِ الإسلاميّةَ إلى عَمَلٍ إنسانيٍّ عالَمِيّ، ودَورُنا في ذلِك.",
+    en: "How the UAE embodies Islamic values of charity, aid, and global humanitarianism inspired by its founding vision.",
+    ar: "كيف تجسّد الإمارات القيم الإسلاميّة في الإحسان والمساعدة والعمل الإنساني العالمي المستلهَم من رؤية المؤسّس.",
   },
-  quranSurahs: ["Al-Anbiya 107", "Al-Insan 8-9"],
+  quranSurahs: ["Al-Maidah 2","Al-Anbiya 107"],
   sections: [
     {
-      title: { en: "Mercy to the worlds", ar: "رَحمةٌ للعالَمين" },
+      title: { en: "Critical thinking (Warm up)", ar: "تفكير ناقد (تهيئة)" },
       learningObjectives: [
-        { en: "Link the UAE's humanitarian work to Islamic values.", ar: "أربِطُ العَمَلَ الإنسانِيَّ الإماراتِيَّ بالقِيَمِ الإسلاميّة." },
-        { en: "Explain that Islam's mercy reaches all people, not only Muslims.", ar: "أُبَيِّنُ أنَّ رَحمةَ الإسلامِ تَصِلُ كُلَّ النّاسِ لا المُسلِمينَ فَقَط." },
-      ],
-      successCriteria: [
-        { en: "I can quote a verse about mercy and universal good.", ar: "أستَشهِدُ بِآيةٍ عنِ الرَّحمةِ والخَيرِ للجَميع." },
-        { en: "I can name a UAE humanitarian effort.", ar: "أُسَمّي عَمَلًا إنسانيًّا إماراتيًّا." },
+        { en: "Evaluate a real-world scenario using evidence from Quran, Sunnah, and Islamic values.", ar: "أُقيّم سيناريو واقعيًّا بأدلّة من القرآن والسنّة والقيم الإسلاميّة." },
       ],
       image: {
-        src: IMG.greenValley,
-        alt: { en: "A flourishing land symbolising giving.", ar: "أرضٌ مُزدَهِرةٌ تَرمُزُ للعَطاء." },
-        caption: { en: "Islam sent the Prophet ﷺ as a mercy to all the worlds.", ar: "أرسَلَ اللهُ النَّبِيَّ ﷺ رَحمةً للعالَمين." },
+        src: IMG.hijabStudent,
+        alt: { en: "Student thinking critically.", ar: "طالب يفكّر بشكل ناقد." },
       },
       callout: {
-        label: { en: "Reflect", ar: "تأمَّل" },
-        title: { en: "Mercy without borders", ar: "رَحمةٌ بِلا حُدود" },
+        label: { en: "Critical thinking scenario", ar: "سيناريو للتفكير الناقد" },
+        title: { en: "Is the UAE only about wealth?", ar: "هل الإمارات عن الثروة فقط؟" },
         body: {
-          en: "When disaster strikes a far country, why should a Muslim — and a Muslim nation — care and respond, even if the people there follow a different religion?",
-          ar: "حينَ تَضرِبُ كارِثةٌ بَلَدًا بَعيدًا، لِماذا يَنبَغي للمُسلِمِ — ولِدَولةٍ مُسلِمة — أن يَهتَمَّ ويَستَجيب، ولَو كانَ أهلُهُ على دينٍ آخَر؟",
-        },
-      },
-      body: {
-        en: "Allah described His Messenger ﷺ as 'a mercy to the worlds' — to all people. Islam teaches that doing good and relieving suffering are owed to humanity, not just to one's own group. The UAE has made this a national mission, becoming one of the world's leading humanitarian donors. In this lesson we connect that work to its Islamic roots and our personal responsibility.",
-        ar: "وَصَفَ اللهُ رَسولَهُ ﷺ بِأنَّهُ «رَحمةٌ للعالَمين» — لِكُلِّ النّاس. ويُعَلِّمُ الإسلامُ أنَّ فِعلَ الخَيرِ وتَفريجَ الكَربِ حَقٌّ للبَشَريّةِ كُلِّها لا لِفِئةٍ واحِدة. وقد جَعَلَتِ الإماراتُ ذلِكَ رِسالةً وطَنيّة، فَصارَت مِن كُبرى الدُّوَلِ المانِحةِ إنسانيًّا. وفي هذا الدَّرسِ نَربِطُ هذا العَمَلَ بِجُذورِهِ الإسلاميّةِ ومَسؤوليَّتِنا الشَّخصيّة.",
-      },
-    },
-    {
-      title: { en: "Feeding others for love of Allah", ar: "الإطعامُ حُبًّا لله" },
-      image: {
-        src: IMG.childQuran,
-        alt: { en: "The verses on selfless giving.", ar: "آياتُ العَطاءِ الخالِص." },
-      },
-      infoBoxes: [
-        {
-          label: { en: "Qur'an", ar: "القُرآن" },
-          lines: [
-            { en: "\"And they give food, despite their love for it, to the needy, the orphan, and the captive, [saying]: We feed you only for the face of Allah...\" — Al-Insan 8-9", ar: "﴿وَيُطْعِمُونَ الطَّعَامَ عَلَىٰ حُبِّهِ مِسْكِينًا وَيَتِيمًا وَأَسِيرًا ۝ إِنَّمَا نُطْعِمُكُمْ لِوَجْهِ اللَّهِ...﴾ — الإنسان ٨-٩" },
-          ],
-        },
-      ],
-      body: {
-        en: "These verses praise those who give to the needy, the orphan, and even the captive — purely for Allah's pleasure, seeking no thanks or reward from people. Notice that the captive (asir) was often a non-Muslim; yet Islam still commands kindness to him. This sets the standard: humanitarian aid is given to the human being because he is in need, sincerely for Allah, without discrimination or expectation of return.",
-        ar: "تَمدَحُ هذهِ الآياتُ مَن يُطعِمُ المِسكينَ واليَتيمَ وحتّى الأسيرَ — خالِصًا لِوَجهِ اللهِ لا يَطلُبُ شُكرًا ولا جَزاءً مِنَ النّاس. ولاحِظْ أنَّ الأسيرَ كانَ غالِبًا غَيرَ مُسلِم، ومَعَ ذلِكَ يَأمُرُ الإسلامُ بالإحسانِ إلَيه. وهذا يُرسي المِعيار: تُقَدَّمُ الإغاثةُ للإنسانِ لأنَّهُ مُحتاج، خالِصةً لله، بِلا تَمييزٍ ولا انتِظارِ مُقابِل.",
-      },
-    },
-    {
-      title: { en: "The Prophet's example in relief", ar: "هَديُ النَّبِيِّ ﷺ في الإغاثة" },
-      image: {
-        src: IMG.lantern,
-        alt: { en: "A lantern of compassion.", ar: "فانوسُ الرَّحمة." },
-      },
-      infoBoxes: [
-        {
-          label: { en: "Hadith", ar: "حَديث" },
-          lines: [
-            { en: "\"The believers in their mutual mercy, love, and compassion are like one body; when one part suffers, the whole body responds with sleeplessness and fever.\" (Bukhari & Muslim)", ar: "«مَثَلُ المُؤمِنينَ في تَوادِّهِم وتَراحُمِهِم وتَعاطُفِهِم كَمَثَلِ الجَسَدِ الواحِد، إذا اشتَكى مِنهُ عُضوٌ تَداعى لَهُ سائِرُ الجَسَدِ بالسَّهَرِ والحُمّى». (متفق عليه)" },
-          ],
-        },
-      ],
-      body: {
-        en: "The Prophet ﷺ organised relief in famine, freed captives, and protected the rights of non-Muslims under the Islamic state. He taught that the believers are like one body, feeling each other's pain. When a community internalises this, helping the suffering — anywhere — becomes natural. The UAE's rapid responses to earthquakes, floods, and refugees flow from exactly this prophetic spirit of shared humanity.",
-        ar: "نَظَّمَ النَّبِيُّ ﷺ الإغاثةَ في المَجاعات، وفَكَّ الأسرى، وحَفِظَ حُقوقَ غَيرِ المُسلِمينَ في الدَّولةِ الإسلاميّة. وعَلَّمَ أنَّ المُؤمِنينَ كالجَسَدِ الواحِدِ يَشعُرُ بَعضُهُم بِألَمِ بَعض. وحينَ يَستَوعِبُ مُجتَمَعٌ هذا، تُصبِحُ إغاثةُ المُتَألِّمينَ — في أيِّ مَكان — أمرًا طَبيعيًّا. واستِجاباتُ الإماراتِ السَّريعةُ للزَّلازِلِ والفَيَضاناتِ واللّاجِئينَ تَنبَعُ مِن هذهِ الرّوحِ النَّبَويّةِ في الإنسانيّةِ المُشتَرَكة.",
-      },
-    },
-    {
-      title: { en: "The UAE's giving in action", ar: "عَطاءُ الإماراتِ في الواقِع" },
-      image: {
-        src: IMG.grandMosque,
-        alt: { en: "A symbol of a generous nation.", ar: "رَمزُ أُمّةٍ كَريمة." },
-      },
-      callout: {
-        label: { en: "Connect", ar: "اربِط" },
-        title: { en: "Values into institutions", ar: "تَحويلُ القِيَمِ إلى مُؤَسَّسات" },
-        body: {
-          en: "The UAE runs charities, relief campaigns, and aid programmes worldwide — building schools and hospitals and sending emergency relief. How does turning generosity into well-run institutions make the good last longer and reach further?",
-          ar: "تُديرُ الإماراتُ جَمعيّاتٍ وحَملاتِ إغاثةٍ وبَرامِجَ مُساعَدةٍ حَولَ العالَم — تَبني المَدارِسَ والمُستَشفياتِ وتُرسِلُ الإغاثةَ الطّارِئة. كَيفَ يَجعَلُ تَحويلُ الكَرَمِ إلى مُؤَسَّساتٍ مُتقَنةٍ الخَيرَ أبقى وأوسَعَ وُصولًا؟",
+          en: "A student says: \'The UAE is just rich from oil. They don\'t do anything for the world. They only care about buildings and luxury. Humanitarian work is for NGOs, not countries.\'",
+          ar: "طالب يقول: «الإمارات غنيّة من النفط فقط. لا تفعل شيئًا للعالم. تهتمّ بالمباني والرفاهية فقط. العمل الإنساني للمنظّمات لا الدول.»",
         },
       },
       responsePrompt: {
-        title: { en: "My contribution", ar: "إسهامي" },
+        title: { en: "Write your critical response", ar: "اكتب ردّك الناقد" },
         prompt: {
-          en: "Describe one way you, as a student, can join the spirit of giving in your school or community this year.",
-          ar: "صِفْ طَريقةً واحِدةً تَنضَمُّ بِها — كَطالِب — إلى رُوحِ العَطاءِ في مَدرَسَتِكَ أو مُجتَمَعِكَ هذا العام.",
+          en: "Criticise using evidence of UAE global humanitarian leadership.",
+          ar: "انتقد بأدلّة على قيادة الإمارات الإنسانيّة العالميّة.",
         },
-        placeholder: { en: "I can help by...", ar: "أستَطيعُ المُساعَدةَ بِـ..." },
-        buttonLabel: { en: "Save response", ar: "احفَظِ الإجابة" },
+        placeholder: { en: "This is wrong because...", ar: "هذا خطأ لأنّ..." },
+        buttonLabel: { en: "Save response", ar: "احفظ الإجابة" },
+        coinsReward: 10,
       },
       body: {
-        en: "The UAE has built lasting institutions for giving: charitable foundations, emergency relief bodies, and global development projects that build schools, hospitals, clean water, and housing for people of all backgrounds. It has hosted refugees and supported education for millions. This shows wisdom: charity organised into trustworthy institutions reaches more people and lasts beyond a single donor — a modern fulfilment of the Islamic command to do lasting good (sadaqah jariyah).",
-        ar: "بَنَتِ الإماراتُ مُؤَسَّساتٍ راسِخةً للعَطاء: مُؤَسَّساتٍ خَيريّة، وهَيئاتِ إغاثةٍ طارِئة، ومَشاريعَ تَنميةٍ عالَميّةً تَبني المَدارِسَ والمُستَشفياتِ والمياهَ النَّظيفةَ والمَساكِنَ للنّاسِ مِن كُلِّ الخَلفيّات. واستَضافَتِ اللّاجِئينَ ودَعَمَت تَعليمَ المَلايين. وهذا حِكمة: فالصَّدَقةُ المُنَظَّمةُ في مُؤَسَّساتٍ مَوثوقةٍ تَصِلُ أكثَرَ وتَبقى أطوَلَ مِن مُتَبَرِّعٍ واحِد — تَحقيقٌ عَصرِيٌّ للأمرِ الإسلامِيِّ بالخَيرِ الباقي (الصَّدَقةِ الجارِية).",
+        en: "\'Cooperate in righteousness and piety.\' (Al-Ma\'idah 2)",
+        ar: "﴿وتعاونوا على البرّ والتقوى﴾ (المائدة ٢)",
       },
     },
     {
-      title: { en: "Carrying the message of giving", ar: "حَملُ رِسالةِ العَطاء" },
+      title: { en: "Retrieval practise", ar: "ممارسة الاسترجاع" },
+      imageMatchingActivity: {
+        title: { en: "Match each image to its Islamic keyword", ar: "طابق كلّ صورة بكلمتها الإسلاميّة" },
+        instruction: { en: "Drag the keyword to the correct image.", ar: "اسحب الكلمة إلى الصورة الصحيحة." },
+        pairs: [
+          { image: IMG.grandMosque, keyword: { en: "Khidmah (Service)", ar: "خدمة" } },
+          { image: IMG.skyBlue, keyword: { en: "Ta\'awun (Cooperation)", ar: "تعاون" } },
+          { image: IMG.childQuran, keyword: { en: "Ihsan (Excellence)", ar: "إحسان" } },
+          { image: IMG.lantern, keyword: { en: "Zakat (Giving)", ar: "زكاة" } },
+          { image: IMG.bookshelf, keyword: { en: "Ummah (Community)", ar: "أمّة" } },
+        ],
+        coinsReward: 10,
+      },
+      body: {
+        en: "\'The best of people are those most beneficial to others.\' (Tabarani)",
+        ar: "«خير الناس أنفعهم للناس.» (الطبراني)",
+      },
+    },
+    {
+      title: { en: "The UAE in Service of the World", ar: "الإمارات في خدمة العالم" },
+      learningObjectives: [
+        { en: "Explain UAE\'s role in global humanitarian service.", ar: "أشرح دور الإمارات في الخدمة الإنسانيّة العالميّة." },
+        { en: "Connect UAE service values to Islamic principles.", ar: "أربط قيم خدمة الإمارات بالمبادئ الإسلاميّة." },
+      ],
+      successCriteria: [
+        { en: "I can list 5 UAE humanitarian initiatives.", ar: "أذكر ٥ مبادرات إنسانيّة إماراتيّة." },
+        { en: "I can connect UAE service to Islamic values.", ar: "أربط خدمة الإمارات بالقيم الإسلاميّة." },
+        { en: "I can explain Sheikh Zayed\'s vision of giving.", ar: "أشرح رؤية الشيخ زايد في العطاء." },
+      ],
       image: {
-        src: IMG.skyBlue,
-        alt: { en: "An open sky of hope.", ar: "سَماءُ أمَلٍ مَفتوحة." },
+        src: IMG.grandMosque,
+        alt: { en: "Topic image.", ar: "صورة الموضوع." },
+      },
+      readyButton: {
+        label: { en: "I\'m ready to learn!", ar: "أنا مستعدّ للتعلّم!" },
+        coinsReward: 5,
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "UAE — Service to the World", ar: "الإمارات — خدمة العالم" },
+      learningObjectives: [
+        { en: "Understand UAE\'s global humanitarian role and its Islamic foundation.", ar: "أفهم دور الإمارات الإنساني العالمي وأساسه الإسلامي." },
+      ],
+      image: {
+        src: IMG.grandMosque,
+        alt: { en: "Lesson content image.", ar: "صورة محتوى الدرس." },
+      },
+      infoBoxes: [
+        {
+          label: { en: "Sheikh Zayed\'s Vision", ar: "رؤية الشيخ زايد" },
+          lines: [
+            { en: "\'Money is worthless if not used for the benefit of the people.\' He built hospitals, schools, mosques worldwide. Established Zayed Charitable Foundation, supported education and health across developing nations.", ar: "«المال بلا قيمة إن لم يُنفق لخدمة الناس.» بنى مستشفيات ومدارس ومساجد في العالم. أسّس مؤسّسة زايد الخيريّة ودعم التعليم والصحّة في الدول النامية." },
+          ],
+        },
+        {
+          label: { en: "UAE Humanitarian Record", ar: "السجلّ الإنساني الإماراتي" },
+          lines: [
+            { en: "#1 per capita in humanitarian aid multiple years. Emirates Red Crescent in 150+ countries. Dubai Cares educating millions. UAE aided earthquake, flood, pandemic relief globally. Over $50 billion in aid since founding.", ar: "#١ في المساعدات للفرد سنوات عديدة. الهلال الأحمر في ١٥٠+ دولة. دبي العطاء تعلّم الملايين. الإمارات أغاثت في الزلازل والفيضانات والجوائح. أكثر من ٥٠ مليار دولار منذ التأسيس." },
+          ],
+        },
+        {
+          label: { en: "Islamic Foundation", ar: "الأساس الإسلامي" },
+          lines: [
+            { en: "Al-Ma\'idah 2: Cooperate in righteousness. The Prophet said: \'Allah helps the servant as long as the servant helps his brother.\' (Muslim). UAE service = ta\'awun in action.", ar: "المائدة ٢: ﴿وتعاونوا على البرّ والتقوى﴾. قال النبيّ: «الله في عون العبد ما كان العبد في عون أخيه.» (مسلم). خدمة الإمارات = تعاون عملي." },
+          ],
+        },
+      ],
+      trueFalseActivity: {
+        title: { en: "True or False", ar: "صواب أم خطأ" },
+        questions: [
+        { statement: { en: "UAE leads in humanitarian aid per capita.", ar: "الإمارات تقود في المساعدات للفرد." }, answer: true },
+        { statement: { en: "UAE only cares about luxury.", ar: "الإمارات تهتمّ بالرفاهية فقط." }, answer: false },
+        { statement: { en: "Sheikh Zayed built schools worldwide.", ar: "الشيخ زايد بنى مدارس في العالم." }, answer: true },
+        { statement: { en: "Emirates Red Crescent works in 5 countries only.", ar: "الهلال الأحمر يعمل في ٥ دول فقط." }, answer: false },
+        { statement: { en: "Cooperation in righteousness is from Al-Ma\'idah.", ar: "التعاون على البرّ من المائدة." }, answer: true },
+        ],
+        coinsReward: 10,
+      },
+      fillBlanksActivity: {
+        title: { en: "Fill in the Blanks", ar: "املأ الفراغات" },
+        questions: [
+        { sentence: { en: "\'Money is worthless if not for the _______ of people.\'", ar: "«المال بلا قيمة إن لم يكن ل_______ الناس.»" }, answer: { en: "benefit", ar: "خدمة" } },
+        { sentence: { en: "UAE is #1 in _______ aid per capita.", ar: "الإمارات #١ في المساعدات _______ للفرد." }, answer: { en: "humanitarian", ar: "الإنسانيّة" } },
+        { sentence: { en: "\'Cooperate in _______ and piety.\'", ar: "﴿وتعاونوا على _______ والتقوى﴾" }, answer: { en: "righteousness", ar: "البرّ" } },
+        { sentence: { en: "Red Crescent works in _______+ countries.", ar: "الهلال الأحمر في _______+ دولة." }, answer: { en: "150", ar: "١٥٠" } },
+        ],
+        coinsReward: 10,
       },
       body: {
-        en: "The UAE's humanitarian role shows the world the true face of Islam: mercy, generosity, and respect for every human being. As young Muslims and citizens, we continue this legacy by being generous with our time and wealth, by treating people of all backgrounds with kindness, and by being proud ambassadors of a faith and a nation that serve humanity. Giving is not a season — it is a way of life.",
-        ar: "يُظهِرُ دَورُ الإماراتِ الإنسانِيُّ للعالَمِ الوَجهَ الحَقيقيَّ للإسلام: الرَّحمةَ والكَرَمَ واحتِرامَ كُلِّ إنسان. ونَحنُ — شَبابًا مُسلِمينَ ومُواطِنين — نُواصِلُ هذا الإرثَ بِالجودِ بِوَقتِنا ومالِنا، ومُعامَلةِ النّاسِ مِن كُلِّ الخَلفيّاتِ بِلُطف، وبِأن نَكونَ سُفَراءَ فَخورينَ لِدينٍ ووَطَنٍ يَخدُمانِ البَشَريّة. فالعَطاءُ ليسَ مَوسِمًا، بل أُسلوبُ حَياة.",
+        en: "UAE leads globally in humanitarian aid — inspired by Sheikh Zayed\'s vision and Islamic values of service.",
+        ar: "الإمارات تقود العالم في المساعدات الإنسانيّة — مستلهمة من رؤية الشيخ زايد وقيم الخدمة الإسلاميّة.",
       },
     },
+    {
+      title: { en: "Group Work", ar: "عمل جماعي" },
+      learningObjectives: [
+        { en: "Explore UAE global service from different perspectives.", ar: "استكشف خدمة الإمارات العالميّة من منظورات مختلفة." },
+      ],
+      image: {
+        src: IMG.grandMosque,
+        alt: { en: "Students collaborating.", ar: "طلاب يتعاونون." },
+      },
+      groupWorkCards: {
+        title: { en: "Choose Your Task", ar: "اختر مهمّتك" },
+        instruction: { en: "Each group picks one card. Study the information, complete the task, and present to the class.", ar: "تختار كلّ مجموعة بطاقة. ادرسوا المعلومات وأنجزوا المهمّة وقدّموا للصفّ." },
+        presentationNote: { en: "All Quran and Hadith must be authentic with references.", ar: "يجب أن يكون كلّ قرآن وحديث صحيحًا بمصادره." },
+        cards: [
+          {
+            id: "A",
+            title: { en: "Zayed\'s Legacy", ar: "إرث زايد" },
+            image: IMG.grandMosque,
+            color: "teal",
+            topic: { en: "Vision of giving", ar: "رؤية العطاء" },
+            infoSections: [
+              { label: { en: "Quote", ar: "اقتباس" }, content: { en: "\'Money is worthless if not used for the benefit of the people.\'", ar: "«المال بلا قيمة إن لم يُنفق لخدمة الناس.»" } },
+              { label: { en: "Legacy", ar: "إرث" }, content: { en: "Hospitals, schools, mosques worldwide. Zayed Charitable Foundation.", ar: "مستشفيات ومدارس ومساجد في العالم. مؤسّسة زايد الخيريّة." } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "True leadership is service to humanity.", ar: "القيادة الحقيقيّة خدمة للبشريّة." } },
+            ],
+            task: {
+              title: { en: "Research Zayed\'s Projects", ar: "ابحث عن مشاريع زايد" },
+              description: { en: "List 5 of Zayed\'s global projects.", ar: "اذكر ٥ من مشاريع زايد العالميّة." },
+              hint: { en: "Include: project, country, impact, Islamic value.", ar: "ضمّن: المشروع والدولة والأثر والقيمة الإسلاميّة." },
+            },
+          },
+          {
+            id: "B",
+            title: { en: "Emirates Red Crescent", ar: "الهلال الأحمر" },
+            image: IMG.childQuran,
+            color: "blue",
+            topic: { en: "150+ countries", ar: "١٥٠+ دولة" },
+            infoSections: [
+              { label: { en: "Fact", ar: "حقيقة" }, content: { en: "Present in 150+ countries. Disaster relief, education, health, poverty alleviation.", ar: "موجود في ١٥٠+ دولة. إغاثة كوارث وتعليم وصحّة وتخفيف فقر." } },
+              { label: { en: "Islamic Root", ar: "جذر إسلامي" }, content: { en: "\'Whoever saves a life, it is as if he saved all of humanity.\' (Al-Ma\'idah 32)", ar: "﴿من أحياها فكأنّما أحيا الناس جميعًا﴾ (المائدة ٣٢)" } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Saving lives is the highest form of service.", ar: "إنقاذ الأرواح أعلى أشكال الخدمة." } },
+            ],
+            task: {
+              title: { en: "Map Red Crescent Work", ar: "ارسم خريطة عمل الهلال" },
+              description: { en: "Create a map of Red Crescent projects worldwide.", ar: "أنشئ خريطة لمشاريع الهلال الأحمر." },
+              hint: { en: "Include: region, project type, people helped.", ar: "ضمّن: المنطقة ونوع المشروع والمستفيدين." },
+            },
+          },
+          {
+            id: "C",
+            title: { en: "Dubai Cares", ar: "دبي العطاء" },
+            image: IMG.lantern,
+            color: "purple",
+            topic: { en: "Education for all", ar: "التعليم للجميع" },
+            infoSections: [
+              { label: { en: "Mission", ar: "رسالة" }, content: { en: "Educating millions of children in developing countries.", ar: "تعليم ملايين الأطفال في الدول النامية." } },
+              { label: { en: "Hadith", ar: "حديث" }, content: { en: "\'Seeking knowledge is an obligation upon every Muslim.\' (Ibn Majah)", ar: "«طلب العلم فريضة على كلّ مسلم.» (ابن ماجه)" } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Education breaks cycles of poverty.", ar: "التعليم يكسر دوائر الفقر." } },
+            ],
+            task: {
+              title: { en: "Design Education Campaign", ar: "صمّم حملة تعليم" },
+              description: { en: "Create a campaign to support education globally.", ar: "أنشئ حملة لدعم التعليم عالميًّا." },
+              hint: { en: "Include: goal, plan, Islamic motivation, impact.", ar: "ضمّن: الهدف والخطّة والدافع الإسلامي والأثر." },
+            },
+          },
+          {
+            id: "D",
+            title: { en: "Islamic Service Values", ar: "قيم الخدمة الإسلاميّة" },
+            image: IMG.skyBlue,
+            color: "amber",
+            topic: { en: "Quran and Hadith", ar: "القرآن والحديث" },
+            infoSections: [
+              { label: { en: "Quran", ar: "القرآن" }, content: { en: "Al-Ma\'idah 2: Cooperate in righteousness and piety.", ar: "المائدة ٢: ﴿وتعاونوا على البرّ والتقوى﴾" } },
+              { label: { en: "Hadith", ar: "حديث" }, content: { en: "\'Allah helps the servant as long as the servant helps his brother.\' (Muslim)", ar: "«الله في عون العبد ما كان العبد في عون أخيه.» (مسلم)" } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Service to humanity = service to Allah.", ar: "خدمة البشريّة = خدمة الله." } },
+            ],
+            task: {
+              title: { en: "Connect Quran to Service", ar: "اربط القرآن بالخدمة" },
+              description: { en: "Write how Quran motivates humanitarian work.", ar: "اكتب كيف يحفّز القرآن العمل الإنساني." },
+              hint: { en: "Include: 5 verses, explanation, UAE examples.", ar: "ضمّن: ٥ آيات وشرح وأمثلة إماراتيّة." },
+            },
+          },
+          {
+            id: "E",
+            title: { en: "My Service Plan", ar: "خطّة خدمتي" },
+            image: IMG.bookshelf,
+            color: "rose",
+            topic: { en: "Personal contribution", ar: "مساهمة شخصيّة" },
+            infoSections: [
+              { label: { en: "Goal", ar: "هدف" }, content: { en: "Every student can contribute to UAE\'s service vision.", ar: "كلّ طالب يستطيع المساهمة في رؤية خدمة الإمارات." } },
+              { label: { en: "Ideas", ar: "أفكار" }, content: { en: "School projects, community clean-ups, charity drives, tutoring.", ar: "مشاريع مدرسيّة وتنظيف مجتمعي وحملات خير وتدريس." } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Small actions create big change.", ar: "الأعمال الصغيرة تصنع تغييرًا كبيرًا." } },
+            ],
+            task: {
+              title: { en: "Write Your Contribution Plan", ar: "اكتب خطّة مساهمتك" },
+              description: { en: "Create a plan for your personal service project.", ar: "أنشئ خطّة لمشروع خدمتك الشخصي." },
+              hint: { en: "Include: what, who, how, Islamic motivation.", ar: "ضمّن: ماذا ومن وكيف والدافع الإسلامي." },
+            },
+          },
+        ],
+        coinsReward: 15,
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Hinge Questions", ar: "أسئلة محوريّة" },
+      learningObjectives: [
+        { en: "Test your understanding of everything studied.", ar: "اختبر فهمك لكلّ ما درسته." },
+      ],
+      image: {
+        src: IMG.bookshelf,
+        alt: { en: "Assessment.", ar: "تقييم." },
+      },
+      hingeQuestions: {
+        title: { en: "Hinge Questions — Test Your Understanding", ar: "أسئلة محوريّة — اختبر فهمك" },
+        instruction: { en: "Answer all 10 questions.", ar: "أجب عن الأسئلة العشرة." },
+        questions: [
+          {
+            question: { en: "UAE #1 in?", ar: "الإمارات #١ في؟" },
+            options: [
+            { en: "Humanitarian aid per capita", ar: "المساعدات للفرد" },
+            { en: "Nothing", ar: "لا شيء" },
+            { en: "Pollution", ar: "التلوّث" },
+            { en: "War", ar: "الحرب" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Humanitarian aid.", ar: "المساعدات الإنسانيّة." },
+          },
+          {
+            question: { en: "Zayed said money is for?", ar: "زايد قال المال ل؟" },
+            options: [
+            { en: "People\'s benefit", ar: "خدمة الناس" },
+            { en: "Himself", ar: "نفسه" },
+            { en: "Nothing", ar: "لا شيء" },
+            { en: "Waste", ar: "الإسراف" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "People\'s benefit.", ar: "خدمة الناس." },
+          },
+          {
+            question: { en: "Red Crescent in how many countries?", ar: "الهلال في كم دولة؟" },
+            options: [
+            { en: "150+", ar: "١٥٠+" },
+            { en: "5", ar: "٥" },
+            { en: "1", ar: "١" },
+            { en: "0", ar: "٠" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "150+.", ar: "١٥٠+." },
+          },
+          {
+            question: { en: "Cooperate in?", ar: "تعاونوا على؟" },
+            options: [
+            { en: "Righteousness", ar: "البرّ" },
+            { en: "Sin", ar: "الإثم" },
+            { en: "Nothing", ar: "لا شيء" },
+            { en: "Harm", ar: "الضرر" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Righteousness and piety.", ar: "البرّ والتقوى." },
+          },
+          {
+            question: { en: "Dubai Cares focuses on?", ar: "دبي العطاء تركّز على؟" },
+            options: [
+            { en: "Education", ar: "التعليم" },
+            { en: "Nothing", ar: "لا شيء" },
+            { en: "War", ar: "الحرب" },
+            { en: "Luxury", ar: "الرفاهية" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Education.", ar: "التعليم." },
+          },
+          {
+            question: { en: "Saving a life equals?", ar: "إنقاذ نفس يساوي؟" },
+            options: [
+            { en: "Saving all humanity", ar: "إنقاذ الناس جميعًا" },
+            { en: "Nothing", ar: "لا شيء" },
+            { en: "One person", ar: "شخص واحد" },
+            { en: "Harm", ar: "ضرر" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Saving all of humanity.", ar: "إنقاذ الناس جميعًا." },
+          },
+          {
+            question: { en: "Service is?", ar: "الخدمة؟" },
+            options: [
+            { en: "Worship", ar: "عبادة" },
+            { en: "Waste", ar: "إسراف" },
+            { en: "Nothing", ar: "لا شيء" },
+            { en: "Boring", ar: "ممل" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Worship.", ar: "عبادة." },
+          },
+          {
+            question: { en: "Allah helps who?", ar: "الله يعين من؟" },
+            options: [
+            { en: "Helps his brother", ar: "يعين أخاه" },
+            { en: "Sleeps", ar: "ينام" },
+            { en: "Nothing", ar: "لا شيء" },
+            { en: "Is lazy", ar: "كسول" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Helps his brother.", ar: "يعين أخاه." },
+          },
+          {
+            question: { en: "UAE aid since founding?", ar: "مساعدات الإمارات منذ التأسيس؟" },
+            options: [
+            { en: "50B+ dollars", ar: "٥٠+ مليار دولار" },
+            { en: "0", ar: "٠" },
+            { en: "100", ar: "١٠٠" },
+            { en: "Nothing", ar: "لا شيء" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Over 50 billion dollars.", ar: "أكثر من ٥٠ مليار دولار." },
+          },
+          {
+            question: { en: "Seeking knowledge is?", ar: "طلب العلم؟" },
+            options: [
+            { en: "Obligation", ar: "فريضة" },
+            { en: "Optional", ar: "اختياري" },
+            { en: "Haram", ar: "حرام" },
+            { en: "Nothing", ar: "لا شيء" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "An obligation upon every Muslim.", ar: "فريضة على كلّ مسلم." },
+          },
+        ],
+        coinsReward: 20,
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Watch & Reflect", ar: "شاهد وتأمّل" },
+      learningObjectives: [
+        { en: "Watch a video related to the topic and reflect.", ar: "شاهد مقطعًا متعلّقًا بالموضوع وتأمّل." },
+      ],
+      image: {
+        src: IMG.childQuran,
+        alt: { en: "Video lesson.", ar: "درس مرئي." },
+      },
+      youtubeVideo: {
+        title: { en: "UAE Service to the World", ar: "الإمارات خدمة العالم" },
+        url: "https://www.youtube.com/watch?v=kYnGEQoGhUE",
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Plenary", ar: "ختام الدرس" },
+      learningObjectives: [
+        { en: "Reflect on and share what you learned.", ar: "تأمّل وشارك ما تعلّمته." },
+      ],
+      image: {
+        src: IMG.grandMosque,
+        alt: { en: "Students sharing.", ar: "طلاب يشاركون." },
+      },
+      plenary: {
+        title: { en: "Share Your Learning", ar: "شارك ما تعلّمته" },
+        instruction: { en: "Scan QR or enter the code to share what you learned.", ar: "امسح QR أو أدخل الرمز لمشاركة ما تعلّمته." },
+        code: "UAESW001",
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Worksheet — The UAE in Service of the World", ar: "ورقة عمل — الإمارات في خدمة العالم" },
+      learningObjectives: [
+        { en: "Demonstrate understanding through an auto-marked worksheet.", ar: "أظهر فهمي من خلال ورقة عمل تُصحّح تلقائيًّا." },
+      ],
+      image: {
+        src: IMG.bookshelf,
+        alt: { en: "Worksheet.", ar: "ورقة عمل." },
+      },
+      worksheet: {
+        title: { en: "Worksheet — The UAE in Service of the World", ar: "ورقة عمل — الإمارات في خدمة العالم" },
+        instruction: { en: "Answer all questions. Auto-marked. Cannot re-answer after submission.", ar: "أجب عن جميع الأسئلة. تُصحّح تلقائيًّا. لن تستطيع الإجابة مجدّدًا." },
+        sections: [
+          {
+            type: "mcq" as const,
+            title: { en: "Multiple Choice", ar: "اختيار من متعدّد" },
+            questions: [
+              {
+                question: { en: "UAE #1?", ar: "الإمارات #١؟" },
+                options: [
+                { en: "Aid per capita", ar: "المساعدات للفرد" },
+                { en: "Nothing", ar: "لا شيء" },
+                { en: "War", ar: "الحرب" },
+                { en: "Pollution", ar: "التلوّث" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "Zayed\'s vision?", ar: "رؤية زايد؟" },
+                options: [
+                { en: "Serve people", ar: "خدمة الناس" },
+                { en: "Nothing", ar: "لا شيء" },
+                { en: "Self", ar: "نفسه" },
+                { en: "War", ar: "الحرب" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "Red Crescent?", ar: "الهلال الأحمر؟" },
+                options: [
+                { en: "150+ countries", ar: "١٥٠+ دولة" },
+                { en: "1", ar: "١" },
+                { en: "0", ar: "٠" },
+                { en: "5", ar: "٥" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "Cooperate in?", ar: "تعاونوا في؟" },
+                options: [
+                { en: "Righteousness", ar: "البرّ" },
+                { en: "Sin", ar: "الإثم" },
+                { en: "Nothing", ar: "لا شيء" },
+                { en: "Harm", ar: "ضرر" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "Service is?", ar: "الخدمة؟" },
+                options: [
+                { en: "Worship", ar: "عبادة" },
+                { en: "Waste", ar: "إسراف" },
+                { en: "Nothing", ar: "لا شيء" },
+                { en: "Boring", ar: "ممل" },
+                ],
+                correctIndex: 0,
+              },
+            ],
+          },
+          {
+            type: "trueFalse" as const,
+            title: { en: "True or False", ar: "صواب أم خطأ" },
+            questions: [
+              { statement: { en: "UAE leads in aid.", ar: "الإمارات تقود في المساعدات." }, answer: true },
+              { statement: { en: "UAE only cares about luxury.", ar: "الإمارات تهتمّ بالرفاهية فقط." }, answer: false },
+              { statement: { en: "Zayed built worldwide.", ar: "زايد بنى في العالم." }, answer: true },
+              { statement: { en: "Red Crescent in 5 countries.", ar: "الهلال في ٥ دول." }, answer: false },
+              { statement: { en: "Service is worship.", ar: "الخدمة عبادة." }, answer: true },
+            ],
+          },
+          {
+            type: "matchUp" as const,
+            title: { en: "Match Up", ar: "وصّل" },
+            prompts: [
+              { prompt: { en: "Khidmah", ar: "خدمة" }, answer: { en: "Service", ar: "الخدمة" } },
+              { prompt: { en: "Ta\'awun", ar: "تعاون" }, answer: { en: "Cooperation", ar: "التعاون" } },
+              { prompt: { en: "Ihsan", ar: "إحسان" }, answer: { en: "Excellence", ar: "الإحسان" } },
+              { prompt: { en: "Ummah", ar: "أمّة" }, answer: { en: "Community", ar: "الأمّة" } },
+              { prompt: { en: "Birr", ar: "برّ" }, answer: { en: "Righteousness", ar: "البرّ" } },
+            ],
+          },
+          {
+            type: "fillBlanks" as const,
+            title: { en: "Fill in the Blanks", ar: "املأ الفراغات" },
+            questions: [
+              { sentence: { en: "Money for the _______ of people.", ar: "المال ل_______ الناس." }, blankAnswer: { en: "benefit", ar: "خدمة" } },
+              { sentence: { en: "UAE #1 in _______ aid.", ar: "الإمارات #١ في المساعدات _______." }, blankAnswer: { en: "humanitarian", ar: "الإنسانيّة" } },
+              { sentence: { en: "Cooperate in _______ and piety.", ar: "تعاونوا على _______ والتقوى." }, blankAnswer: { en: "righteousness", ar: "البرّ" } },
+              { sentence: { en: "Saving a life = saving _______.", ar: "إنقاذ نفس = إنقاذ _______." }, blankAnswer: { en: "all humanity", ar: "الناس جميعًا" } },
+            ],
+          },
+          {
+            type: "ordering" as const,
+            title: { en: "Put in Correct Order", ar: "رتّب ترتيبًا صحيحًا" },
+            items: [
+              { en: "Learn Zayed\'s vision of giving", ar: "تعلّم رؤية زايد في العطاء" },
+              { en: "Explore Red Crescent\'s global work", ar: "استكشف عمل الهلال العالمي" },
+              { en: "Understand Dubai Cares mission", ar: "افهم رسالة دبي العطاء" },
+              { en: "Connect service to Islamic values", ar: "اربط الخدمة بالقيم الإسلاميّة" },
+              { en: "Plan your personal service project", ar: "خطّط مشروع خدمتك الشخصي" },
+              { en: "Start making a difference today", ar: "ابدأ في إحداث فرق اليوم" },
+            ],
+          },
+        ],
+        coinsReward: 25,
+      },
+      body: { en: "", ar: "" },
+    },
   ],
-  quizQuestions: [
-    {
-      prompt: { en: "How does the Qur'an describe the Prophet ﷺ in Al-Anbiya 107?", ar: "كَيفَ يَصِفُ القُرآنُ النَّبِيَّ ﷺ في الأنبياء ١٠٧؟" },
-      options: [
-        { en: "A mercy to the worlds", ar: "رَحمةً للعالَمين" },
-        { en: "A warner only to Makkah", ar: "نَذيرًا لِمَكّةَ فَقَط" },
-        { en: "A king of the Arabs", ar: "مَلِكًا للعَرَب" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "'We sent you only as a mercy to the worlds.'", ar: "﴿وَمَا أَرْسَلْنَاكَ إِلَّا رَحْمَةً لِّلْعَالَمِينَ﴾." },
-    },
-    {
-      prompt: { en: "In Al-Insan 8-9, the givers feed others seeking...", ar: "في الإنسان ٨-٩، يُطعِمُ المُنفِقونَ طَلَبًا لِـ..." },
-      options: [
-        { en: "The face of Allah, with no thanks or reward from people", ar: "وَجهِ اللهِ بِلا شُكرٍ أو جَزاءٍ مِنَ النّاس" },
-        { en: "Fame and praise", ar: "الشُّهرةِ والمَديح" },
-        { en: "Money in return", ar: "مالٍ مُقابِل" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "'We feed you only for the face of Allah.'", ar: "﴿إِنَّمَا نُطْعِمُكُمْ لِوَجْهِ اللَّهِ﴾." },
-    },
-    {
-      prompt: { en: "Who was among those to be fed in Al-Insan 8, showing aid crosses religion?", ar: "مَن مِنَ المَذكورينَ في الإنسان ٨ يُبَيِّنُ أنَّ العَونَ يَتَجاوَزُ الدِّين؟" },
-      options: [
-        { en: "The captive (asir), often a non-Muslim", ar: "الأسيرُ، وكانَ غالِبًا غَيرَ مُسلِم" },
-        { en: "Only wealthy Muslims", ar: "أغنياءُ المُسلِمينَ فَقَط" },
-        { en: "Only relatives", ar: "الأقارِبُ فَقَط" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "Kindness to the captive shows aid is for the needy human.", ar: "الإحسانُ للأسيرِ يُبَيِّنُ أنَّ العَونَ للإنسانِ المُحتاج." },
-    },
-    {
-      prompt: { en: "The hadith of 'one body' teaches believers to...", ar: "حَديثُ «الجَسَدِ الواحِد» يُعَلِّمُ المُؤمِنينَ أن..." },
-      options: [
-        { en: "Feel and respond to one another's suffering", ar: "يَشعُروا بِألَمِ بَعضِهِم ويَستَجيبوا له" },
-        { en: "Ignore far-away people", ar: "يَتَجاهَلوا البَعيدين" },
-        { en: "Help only their own family", ar: "يُساعِدوا أهلَهُم فَقَط" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "The ummah is like one body that feels each part's pain.", ar: "الأُمّةُ كَجَسَدٍ واحِدٍ يَشعُرُ بِألَمِ كُلِّ عُضو." },
-    },
-    {
-      prompt: { en: "Why is organising charity into institutions wise?", ar: "لِماذا تَنظيمُ الصَّدَقةِ في مُؤَسَّساتٍ حِكمة؟" },
-      options: [
-        { en: "It reaches more people and lasts beyond one donor", ar: "يَصِلُ أكثَرَ ويَبقى أطوَلَ مِن مُتَبَرِّعٍ واحِد" },
-        { en: "It hides the good deeds", ar: "يُخفي الأعمالَ الصّالِحة" },
-        { en: "It reduces helping people", ar: "يُقَلِّلُ مُساعَدةَ النّاس" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "Well-run institutions extend the reach and life of good.", ar: "المُؤَسَّساتُ المُتقَنةُ تُوَسِّعُ الخَيرَ وتُديمُه." },
-    },
-    {
-      prompt: { en: "True or False: Islamic humanitarian aid should only go to Muslims.", ar: "صَوابٌ أم خَطأ: الإغاثةُ الإسلاميّةُ تُقَدَّمُ للمُسلِمينَ فَقَط." },
-      options: [
-        { en: "False — mercy and aid reach all of humanity", ar: "خَطأ — الرَّحمةُ والعَونُ يَصِلانِ البَشَريّةَ كُلَّها" },
-        { en: "True", ar: "صَواب" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "Islam is a mercy to the worlds; aid is given to the needy human.", ar: "الإسلامُ رَحمةٌ للعالَمين، والعَونُ للإنسانِ المُحتاج." },
-    },
-  ],
+  quizQuestions: [],
 };

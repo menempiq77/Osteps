@@ -11,212 +11,513 @@ export const powerOfAllah: CourseLesson = {
   quranSurahs: ["Al-Mulk 15", "Al-Mulk 19", "Al-Mulk 21", "Al-Mulk 23"],
   sections: [
     {
-      title: { en: "The earth made subservient (v.15)", ar: "الأرضُ ذَلولًا (الآية ١٥)" },
+      title: { en: "Critical thinking (Warm up)", ar: "تفكير ناقد (تهيئة)" },
       learningObjectives: [
-        { en: "Explain how Allah made the earth easy for human life.", ar: "أُبَيِّنُ كَيفَ ذَلَّلَ اللهُ الأرضَ لِحَياةِ الإنسان." },
-        { en: "Connect Allah's blessings to gratitude and action.", ar: "أربِطُ نِعَمَ اللهِ بِالشُّكرِ والعَمَل." },
+        { en: "Evaluate a real-world scenario using evidence from Quran, Sunnah, and Islamic values.", ar: "أُقيّم سيناريو واقعيًّا بأدلّة من القرآن والسنّة والقيم الإسلاميّة." },
+      ],
+      image: {
+        src: IMG.hijabStudent,
+        alt: { en: "Student thinking critically.", ar: "طالب يفكّر بشكل ناقد." },
+      },
+      callout: {
+        label: { en: "Critical thinking scenario", ar: "سيناريو للتفكير الناقد" },
+        title: { en: "Can nature explain everything without a Creator?", ar: "هل الطبيعة تفسّر كلّ شيء بلا خالق؟" },
+        body: {
+          en: "A student says: \'Science explains how the universe works. We do not need the idea of God. Nature created itself — everything is just atoms and energy.\'",
+          ar: "طالب يقول: «العلم يفسّر كيف يعمل الكون. لا نحتاج فكرة الإله. الطبيعة خلقت نفسها.»",
+        },
+      },
+      responsePrompt: {
+        title: { en: "Write your critical response", ar: "اكتب ردّك الناقد" },
+        prompt: {
+          en: "Criticise using Quran on the signs of Allah\'s power in creation.",
+          ar: "انتقد بالقرآن عن آيات قدرة الله في الخلق.",
+        },
+        placeholder: { en: "This is wrong because...", ar: "هذا خطأ لأنّ..." },
+        buttonLabel: { en: "Save response", ar: "احفظ الإجابة" },
+        coinsReward: 10,
+      },
+      body: {
+        en: "\'Indeed, in the creation of the heavens and the earth and the alternation of night and day are signs for those of understanding.\' (Aal-Imran 190)",
+        ar: "﴿إنّ في خلق السماوات والأرض واختلاف الليل والنهار لآيات لأولي الألباب﴾ (آل عمران ١٩٠)",
+      },
+    },
+    {
+      title: { en: "Retrieval practise", ar: "ممارسة الاسترجاع" },
+      imageMatchingActivity: {
+        title: { en: "Match each image to its Islamic keyword", ar: "طابق كلّ صورة بكلمتها الإسلاميّة" },
+        instruction: { en: "Drag the keyword to the correct image.", ar: "اسحب الكلمة إلى الصورة الصحيحة." },
+        pairs: [
+          { image: IMG.skyBlue, keyword: { en: "Qudrah (Power)", ar: "قدرة" } },
+          { image: IMG.mountainSnow, keyword: { en: "Khalq (Creation)", ar: "خلق" } },
+          { image: IMG.waterfall, keyword: { en: "Ayat (Signs)", ar: "آيات" } },
+          { image: IMG.childQuran, keyword: { en: "Tafakkur (Reflection)", ar: "تفكّر" } },
+          { image: IMG.grandMosque, keyword: { en: "Tawhid (Oneness)", ar: "توحيد" } },
+        ],
+        coinsReward: 10,
+      },
+      body: {
+        en: "\'He created the heavens and the earth in truth.\' (An-Nahl 3)",
+        ar: "﴿خلق السماوات والأرض بالحقّ﴾ (النحل ٣)",
+      },
+    },
+    {
+      title: { en: "The Power of Allah (Al-Mulk 15-24)", ar: "قُدرةُ اللهِ تَعالى (المُلك ١٥-٢٤)" },
+      learningObjectives: [
+        { en: "Explain how creation reflects Allah\'s power and wisdom.", ar: "أشرح كيف يعكس الخلق قدرة الله وحكمته." },
+        { en: "Identify signs of Allah\'s power in nature and the universe.", ar: "أحدّد آيات قدرة الله في الطبيعة والكون." },
       ],
       successCriteria: [
-        { en: "I can explain 'dhalulan' (made subservient/tame).", ar: "أشرَحُ مَعنى «ذَلولًا»." },
-        { en: "I can give examples of using the earth gratefully.", ar: "أضرِبُ أمثِلةً لِلانتِفاعِ بِالأرضِ شاكِرًا." },
+        { en: "I can list 5 signs of Allah\'s power in creation.", ar: "أذكر ٥ آيات لقدرة الله في الخلق." },
+        { en: "I can explain how the Quran encourages reflection on nature.", ar: "أشرح كيف يشجّع القرآن التفكّر في الطبيعة." },
+        { en: "I can connect scientific facts to Quranic descriptions.", ar: "أربط الحقائق العلميّة بالوصف القرآني." },
       ],
       image: {
-        src: IMG.greenValley,
-        alt: { en: "A fertile green valley ready for cultivation.", ar: "وادٍ أخضَرُ خَصيبٌ مُهَيَّأٌ لِلزِّراعة." },
-        caption: { en: "'It is He who made the earth subservient to you, so walk its paths and eat of His provision.'", ar: "﴿هو الذي جَعَلَ لَكُمُ الأرضَ ذَلولًا فامشوا في مَناكِبِها وكُلوا مِن رِزقِه﴾." },
+        src: IMG.skyBlue,
+        alt: { en: "Topic image.", ar: "صورة الموضوع." },
       },
-      callout: {
-        label: { en: "High-order question", ar: "سُؤالٌ عالي المُستوى" },
-        title: { en: "Why call the earth 'tamed'?", ar: "لِماذا وُصِفَتِ الأرضُ بِأنَّها «ذَلول»؟" },
-        body: {
-          en: "Allah describes the vast earth as 'dhalul' — like a tamed animal made gentle and obedient for its rider. Argue how this single word captures a profound truth: a planet of fire, storms, and oceans has been made stable, walkable, and fruitful for the weak human being. What is the proper response to such a gift?",
-          ar: "يَصِفُ اللهُ الأرضَ الواسِعةَ بِأنَّها «ذَلول» — كَالدّابّةِ المُذَلَّلةِ التي لانَت وأطاعَت راكِبَها. حاجِجْ كَيفَ تَلتَقِطُ هذه الكَلِمةُ الواحِدةُ حَقيقةً عَميقة: كَوكَبٌ مِن نارٍ وعَواصِفَ ومُحيطاتٍ جُعِلَ مُستَقِرًّا يُمشى عليهِ ويُثمِرُ لِلإنسانِ الضَّعيف. فما الرَّدُّ اللّائِقُ بِهذه النِّعمة؟",
-        },
+      readyButton: {
+        label: { en: "I\'m ready to learn!", ar: "أنا مستعدّ للتعلّم!" },
+        coinsReward: 5,
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "The Power of Allah in Creation", ar: "قدرة الله في الخلق" },
+      learningObjectives: [
+        { en: "Understand how creation is evidence of Allah\'s infinite power and wisdom.", ar: "أفهم كيف يكون الخلق دليلًا على قدرة الله وحكمته اللانهائية." },
+      ],
+      image: {
+        src: IMG.skyBlue,
+        alt: { en: "Lesson content image.", ar: "صورة محتوى الدرس." },
       },
       infoBoxes: [
         {
-          label: { en: "Tafsir note", ar: "فائِدةٌ تَفسيريّة" },
+          label: { en: "The Heavens and Earth", ar: "السماوات والأرض" },
           lines: [
-            { en: "'Manakib' (مناكب) literally means the 'shoulders' of the earth — its sides, paths, and mountain tracks. As-Sa'di: Allah made it stable, not shaking, so we could live, build, farm, and travel.", ar: "«مَناكِب» تَعني حَرفيًّا أكتافَ الأرض — جَوانِبَها وطُرُقَها ومَسالِكَ جِبالِها. قالَ السَّعدِيّ: جَعَلَها مُستَقِرّةً غَيرَ مائِدةٍ لِنَعيشَ ونَبنيَ ونَزرَعَ ونُسافِر." },
+            { en: "\'Do they not look at the sky above them — how We structured it and adorned it?\' (Qaf 6). The universe\'s vastness, order, and precision point to a Creator.", ar: "﴿أفلم ينظروا إلى السماء فوقهم كيف بنيناها وزيّنّاها﴾ (ق ٦). اتّساع الكون ونظامه ودقّته تدلّ على خالق." },
           ],
         },
         {
-          label: { en: "Key term", ar: "مُصطَلَحٌ مِفتاحِيّ" },
+          label: { en: "Human Creation", ar: "خلق الإنسان" },
           lines: [
-            { en: "Resurrection: 'and to Him is the resurrection (an-nushur)' — the verse ends by reminding us the same earth we walk will be where we are raised.", ar: "النُّشور: ﴿وإليهِ النُّشور﴾ — تَختِمُ الآيةُ بِتَذكيرِنا أنَّ الأرضَ التي نَمشي عليها هي حَيثُ نُبعَث." },
+            { en: "\'We have certainly created man in the best of stature.\' (At-Tin 4). The human body — 206 bones, 600 muscles, 60,000 miles of blood vessels — all in perfect harmony.", ar: "﴿لقد خلقنا الإنسان في أحسن تقويم﴾ (التين ٤). جسم الإنسان — ٢٠٦ عظام و٦٠٠ عضلة و٦٠,٠٠٠ ميل أوعية دمويّة — في تناسق تامّ." },
+          ],
+        },
+        {
+          label: { en: "Nature and Balance", ar: "الطبيعة والتوازن" },
+          lines: [
+            { en: "\'And the earth — We spread it out and placed therein firmly set mountains, and We caused to grow therein every well-balanced thing.\' (Al-Hijr 19). Ecosystems, water cycle, seasons — all balanced.", ar: "﴿والأرض مددناها وألقينا فيها رواسي وأنبتنا فيها من كلّ شيء موزون﴾ (الحجر ١٩). النُّظم البيئيّة ودورة المياه والفصول — كلّها متوازنة." },
           ],
         },
       ],
+      trueFalseActivity: {
+        title: { en: "True or False", ar: "صواب أم خطأ" },
+        questions: [
+        { statement: { en: "The Quran encourages reflection on creation.", ar: "القرآن يشجّع التفكّر في الخلق." }, answer: true },
+        { statement: { en: "Nature created itself without a Creator.", ar: "الطبيعة خلقت نفسها بلا خالق." }, answer: false },
+        { statement: { en: "The human body is created in the best stature.", ar: "الإنسان خُلق في أحسن تقويم." }, answer: true },
+        { statement: { en: "Creation has no order or balance.", ar: "الخلق بلا نظام أو توازن." }, answer: false },
+        { statement: { en: "Aal-Imran 190 mentions signs in creation.", ar: "آل عمران ١٩٠ تذكر آيات في الخلق." }, answer: true },
+        ],
+        coinsReward: 10,
+      },
+      fillBlanksActivity: {
+        title: { en: "Fill in the Blanks", ar: "املأ الفراغات" },
+        questions: [
+        { sentence: { en: "\'Created man in the best of _______.", ar: "﴿خلقنا الإنسان في أحسن _______.﴾" }, answer: { en: "stature", ar: "تقويم" } },
+        { sentence: { en: "The alternation of _______ and day are signs.", ar: "اختلاف _______ والنهار آيات." }, answer: { en: "night", ar: "الليل" } },
+        { sentence: { en: "Signs are for those of _______.", ar: "الآيات لأولي _______." }, answer: { en: "understanding", ar: "الألباب" } },
+        { sentence: { en: "\'We caused to grow every well-_______ thing.\'", ar: "﴿أنبتنا فيها من كلّ شيء _______.﴾" }, answer: { en: "balanced", ar: "موزون" } },
+        ],
+        coinsReward: 10,
+      },
       body: {
-        en: "Surat Al-Mulk continues its great theme of pointing to the signs of Allah's power and mercy in the world around us, calling the human being to reflect, to be grateful, and to prepare for the Hereafter. In verse 15, Allah reminds us of one of the most fundamental blessings, so vast that we usually forget it: 'It is He who made the earth subservient (dhalul) to you, so walk through its regions and eat of His provision; and to Him is the resurrection.' The word dhalul is striking. It is used for a camel that has been tamed and made gentle, easy for its rider to mount and direct. Allah uses it for the entire earth: this enormous planet, with its molten core, its vast oceans, its storms and forces that could destroy us in an instant, has been made calm, stable, and obedient to human life. We walk on it, build on it, farm it, and travel across it with ease, taking its gentleness completely for granted.\n\nThe classical commentators draw out the depth of this. As-Sa'di explains that Allah made the earth firm and settled, not constantly shaking or shifting, so that human beings could establish their lives upon it. He spread it out, placed mountains to anchor it, and filled it with paths and provisions. The expression 'walk through its manakib' — literally its 'shoulders' — paints a vivid picture of the human being moving freely across the broad back of a tamed creature, finding everywhere the sustenance Allah has placed for us in the soil, the plants, the animals, and the seas. Every meal we eat, every road we travel, every house we build rests upon this single, immense favour.\n\nBut Allah does not let us stop at the blessing; He immediately attaches its purpose and its end. The command 'so walk through its regions and eat of His provision' is a permission and an encouragement to work, to seek lawful sustenance, and to benefit from the earth — Islam is not a religion of idleness. Yet the verse closes with the words 'and to Him is the resurrection,' pulling our gaze from the earth beneath our feet to the Day we will be raised from it. The very ground that carries us now will one day split open to return us to our Lord. A demanding student should grasp the complete message of the verse: enjoy and use the earth, work and eat with gratitude, but never forget that this is a temporary journey across a tamed land, and that the One who made it gentle for you will gather you back to Himself. Gratitude for the blessing and readiness for the return are meant to live together in the believer's heart.",
-        ar: "تُواصِلُ سورةُ المُلك مَوضوعَها العَظيمَ في الإشارةِ إلى آياتِ قُدرةِ اللهِ ورَحمَتِهِ في العالَمِ مِن حَولِنا، تَدعو الإنسانَ إلى التَّفَكُّرِ والشُّكرِ والاستِعدادِ لِلآخِرة. وفي الآيةِ ١٥ يُذَكِّرُنا اللهُ بِواحِدةٍ مِن أعظَمِ النِّعَمِ، وهي مِنَ الكِبَرِ بِحَيثُ نَنساها عادةً: ﴿هو الذي جَعَلَ لَكُمُ الأرضَ ذَلولًا فامشوا في مَناكِبِها وكُلوا مِن رِزقِهِ ۖ وإليهِ النُّشور﴾. وكَلِمةُ «ذَلول» لافِتة. فهي تُستَعمَلُ لِلنّاقةِ التي ذُلِّلَت ولانَت، سَهُلَ على راكِبِها رُكوبُها وتَوجيهُها. ويَستَعمِلُها اللهُ لِلأرضِ كُلِّها: هذا الكَوكَبُ الهائِلُ، بِلُبِّهِ المُنصَهِرِ ومُحيطاتِهِ الواسِعةِ وعَواصِفِهِ وقُواهُ التي قد تُهلِكُنا في لَحظة، جُعِلَ هادِئًا مُستَقِرًّا مُطيعًا لِحَياةِ الإنسان. نَمشي عليهِ، ونَبني، ونَزرَع، ونُسافِرُ بِيُسر، نَأخُذُ لينَهُ مَأخَذَ المُسَلَّماتِ تَمامًا.\n\nويَستَخرِجُ المُفَسِّرونَ عُمقَ هذا. يُبَيِّنُ السَّعدِيُّ أنَّ اللهَ جَعَلَ الأرضَ ثابِتةً مُستَقِرّةً لا تَضطَرِبُ ولا تَميد، لِيُقيمَ الإنسانُ علَيها حَياتَه. بَسَطَها، وأرسى الجِبالَ تُثَبِّتُها، ومَلأها بِالمَسالِكِ والأرزاق. وتَعبيرُ ﴿فامشوا في مَناكِبِها﴾ — أي أكتافِها — يَرسُمُ صورةً حَيّةً لِلإنسانِ يَتَنَقَّلُ حُرًّا على ظَهرِ هذه الدّابّةِ المُذَلَّلةِ الواسِع، يَجِدُ في كُلِّ مَكانٍ ما وَضَعَهُ اللهُ مِن رِزقٍ في التُّربةِ والنَّباتِ والحَيَوانِ والبِحار. فَكُلُّ طَعامٍ نَأكُلُه، وكُلُّ طَريقٍ نَسلُكُه، وكُلُّ بَيتٍ نَبنيهِ يَقومُ على هذه النِّعمةِ الواحِدةِ الهائِلة.\n\nلكِنَّ اللهَ لا يَدَعُنا نَقِفُ عِندَ النِّعمة؛ بل يُلحِقُ بِها مَقصِدَها ومُنتَهاها فَورًا. فالأمرُ ﴿فامشوا في مَناكِبِها وكُلوا مِن رِزقِه﴾ إذنٌ وتَشجيعٌ على العَمَلِ وطَلَبِ الرِّزقِ الحَلالِ والانتِفاعِ بِالأرض — فالإسلامُ لَيسَ دينَ كَسَل. ومَعَ ذلك تَختِمُ الآيةُ بِـ﴿وإليهِ النُّشور﴾، تَصرِفُ نَظَرَنا مِنَ الأرضِ تَحتَ أقدامِنا إلى اليَومِ الذي نُبعَثُ فيهِ مِنها. فالأرضُ التي تَحمِلُنا الآنَ سَتَنشَقُّ يَومًا لِتَرُدَّنا إلى رَبِّنا. وعلى الطّالِبِ المُطالِبِ أن يُدرِكَ رِسالةَ الآيةِ كامِلة: تَمَتَّعْ بِالأرضِ وانتَفِعْ بِها، واعمَلْ وكُلْ شاكِرًا، لكِنْ لا تَنسَ أنَّها رِحلةٌ مُؤَقَّتةٌ على أرضٍ مُذَلَّلة، وأنَّ الذي ذَلَّلَها لَكَ سَيَجمَعُكَ إليه. فالشُّكرُ لِلنِّعمةِ والاستِعدادُ لِلرُّجوعِ يَنبَغي أن يَعيشا مَعًا في قَلبِ المُؤمِن.",
+        en: "Creation — heavens, earth, human body, nature — all reflect Allah\'s infinite power, wisdom, and mercy.",
+        ar: "الخلق — السماوات والأرض والإنسان والطبيعة — كلّها تعكس قدرة الله وحكمته ورحمته.",
       },
     },
     {
-      title: { en: "Who holds the heavens and the birds? (v.16-21)", ar: "مَن يُمسِكُ السَّماءَ والطَّير؟ (الآيات ١٦-٢١)" },
+      title: { en: "Group Work", ar: "عمل جماعي" },
       learningObjectives: [
-        { en: "Explain how these verses prove Allah's power and sole provision.", ar: "أُبَيِّنُ كَيفَ تُثبِتُ هذه الآياتُ قُدرةَ اللهِ وانفِرادَهُ بِالرِّزق." },
+        { en: "Explore signs of Allah\'s power in different aspects of creation.", ar: "استكشف آيات قدرة الله في جوانب الخلق المختلفة." },
       ],
       image: {
-        src: IMG.butterflies,
-        alt: { en: "Creatures held aloft — held only by Allah's power.", ar: "مَخلوقاتٌ تَحلِّقُ — يُمسِكُها اللهُ بِقُدرَتِه." },
-        caption: { en: "'Have they not seen the birds above them... none holds them but the Most Merciful.'", ar: "﴿أوَلَم يَرَوا إلى الطَّيرِ فَوقَهُم... ما يُمسِكُهُنَّ إلّا الرَّحمٰن﴾." },
+        src: IMG.grandMosque,
+        alt: { en: "Students collaborating.", ar: "طلاب يتعاونون." },
       },
-      infoBoxes: [
-        {
-          label: { en: "Qur'an", ar: "القُرآن" },
-          lines: [
-            { en: "\"Have they not seen the birds above them, spreading and folding their wings? None holds them up except the Most Merciful. Indeed He is, of all things, Seeing.\" — Al-Mulk 19", ar: "﴿أوَلَم يَرَوا إلى الطَّيرِ فَوقَهُم صافّاتٍ ويَقبِضنَ ۚ ما يُمسِكُهُنَّ إلّا الرَّحمٰنُ ۚ إنَّهُ بِكُلِّ شَيءٍ بَصير﴾ — المُلك ١٩" },
-          ],
-        },
-        {
-          label: { en: "Tafsir note", ar: "فائِدةٌ تَفسيريّة" },
-          lines: [
-            { en: "Ibn Kathir: the verses challenge the deniers with rhetorical questions — Who can bring you water if it sinks away? (v.30) Who is the army that helps you besides the Most Merciful? (v.20) — to show their utter dependence on Allah.", ar: "قالَ ابنُ كَثير: تُحاجُّ الآياتُ المُنكِرينَ بِأسئِلةٍ تَقريريّة — مَن يَأتيكُم بِماءٍ إن غارَ؟ (الآية ٣٠) مَنِ الجُندُ الذي يَنصُرُكُم دونَ الرَّحمٰن؟ (الآية ٢٠) — لِتُظهِرَ افتِقارَهُمُ المُطلَقَ إلى الله." },
-          ],
-        },
-      ],
-      callout: {
-        label: { en: "Reflect deeply", ar: "تأمَّلْ بِعُمق" },
-        title: { en: "A bird in the sky is a daily miracle", ar: "الطّائِرُ في السَّماءِ مُعجِزةٌ يَوميّة" },
-        body: {
-          en: "Allah points to something we see every day: a bird hanging in the open sky, spreading and folding its wings, with nothing beneath it. 'None holds them up except the Most Merciful.' Argue how this familiar sight, truly contemplated, is overwhelming proof of a wise, powerful, ever-watching Creator.",
-          ar: "يُشيرُ اللهُ إلى ما نَراهُ كُلَّ يَوم: طائِرٌ مُعَلَّقٌ في السَّماءِ المَفتوحة، يَبسُطُ جَناحَيهِ ويَقبِضُهُما، ولا شَيءَ تَحتَه. ﴿ما يُمسِكُهُنَّ إلّا الرَّحمٰن﴾. حاجِجْ كَيفَ يَكونُ هذا المَشهَدُ المَألوف، إذا تُؤُمِّلَ حَقًّا، بُرهانًا ساحِقًا على خالِقٍ حَكيمٍ قَديرٍ بَصيرٍ دائِمًا.",
-        },
-      },
-      responsePrompt: {
-        title: { en: "Written response", ar: "إجابةٌ مَكتوبة" },
-        prompt: { en: "These verses argue: if Allah withheld His provision, who could provide for you? If He sent punishment, who could protect you? Explain how reflecting on our total dependence on Allah should produce both humility and security in the believer's heart.", ar: "تُحاجُّ هذه الآيات: لَو أمسَكَ اللهُ رِزقَهُ فَمَن يَرزُقُكُم؟ ولَو أرسَلَ عَذابَهُ فَمَن يَحميكُم؟ بَيِّنْ كَيفَ يُثمِرُ التَّفَكُّرُ في افتِقارِنا التّامِّ إلى اللهِ تَواضُعًا وطُمَأنينةً في قَلبِ المُؤمِنِ مَعًا." },
-        placeholder: { en: "Because everything depends on Allah, I should feel humble because... and secure because...", ar: "لِأنَّ كُلَّ شَيءٍ مُفتَقِرٌ إلى الله، أشعُرُ بِالتَّواضُعِ لِأنَّ... وبِالطُّمَأنينةِ لِأنَّ..." },
-      },
-      body: {
-        en: "Having reminded us of the blessing of the earth, the surah turns to confront the human being — especially the one who denies Allah — with a series of powerful, undeniable signs of His sole power. In verses 16 and 17 Allah asks whether we feel secure that the One in the heaven will not cause the earth to swallow us when it quakes, or send against us a storm of stones. These are not idle threats; they are reminders that the very stability we enjoy is held in place only by Allah's will, and could be withdrawn in a moment. The deniers who lived before, the surah notes, also rejected the warners — 'and how terrible was My disapproval' — so let the listener take heed.\n\nThen comes one of the most beautiful and accessible signs in the whole Qur'an, in verse 19: 'Have they not seen the birds above them, spreading and folding their wings? None holds them up except the Most Merciful. Indeed He is, of all things, Seeing.' Allah directs our attention to something we witness constantly yet rarely contemplate: a bird suspended in the open air, with nothing above or below it, alternately stretching out its wings and drawing them in, gliding and soaring as if held by an invisible hand. And that, the verse declares, is exactly the truth — it is held by no one but ar-Rahman, the Most Merciful. The laws that allow flight, the design of the wing, the air itself, and the very life in the creature are all His creation and under His constant care. To truly look at a flying bird is to see the fingerprints of the Creator.\n\nThe surah then presses the argument home with piercing questions. In verse 20 Allah asks: 'Who is it that could be an army for you to help you other than the Most Merciful?' and in verse 21: 'Who is it that could provide for you if He withheld His provision?' The answer is obvious and crushing: no one. Every drop of rain, every grain of food, every breath of air comes from Him alone. If He held back His sustenance, no power on earth could supply it; if He sent His punishment, no army could repel it. Ibn Kathir notes that these rhetorical questions are designed to strip away the deniers' false confidence and expose their complete and utter dependence on the very God they reject. A demanding student should draw two fruits from this passage together. The first is humility: I own nothing and control nothing; I am entirely sustained by Allah's mercy at every instant. The second, paradoxically, is security and peace: the same Lord who holds the birds in the sky and pours down my provision is the Most Merciful, ever-Seeing, ever-aware of me. To live with this awareness is to walk through life both deeply humbled before Allah and deeply reassured by Him.",
-        ar: "بَعدَ أن ذَكَّرَنا بِنِعمةِ الأرض، تَلتَفِتُ السورةُ لِتُواجِهَ الإنسانَ — وبِخاصّةٍ المُنكِرَ — بِسِلسِلةٍ مِنَ الآياتِ القَوِيّةِ التي لا تُدفَعُ على انفِرادِ اللهِ بِالقُدرة. ففي الآيَتَينِ ١٦ و١٧ يَسألُ اللهُ: أأمِنتُم أنَّ الذي في السَّماءِ لا يَخسِفُ بِكُمُ الأرضَ إذا مادَت، أو يُرسِلُ علَيكُم حاصِبًا مِن حِجارة؟ ولَيسَت هذه تَهديداتٍ عابِثة؛ بل تَذكيرٌ بِأنَّ الاستِقرارَ الذي نَنعَمُ بِهِ مُمسَكٌ بِمَشيئةِ اللهِ وَحدَها، وقد يُنزَعُ في لَحظة. والمُنكِرونَ مِن قَبلُ، كَما تُشيرُ السورة، كَذَّبوا المُنذِرينَ — ﴿فَكَيفَ كانَ نَكير﴾ — فَليَعتَبِرِ السّامِع.\n\nثُمَّ تأتي واحِدةٌ مِن أجمَلِ الآياتِ وأقرَبِها في القُرآنِ كُلِّه، في الآيةِ ١٩: ﴿أوَلَم يَرَوا إلى الطَّيرِ فَوقَهُم صافّاتٍ ويَقبِضنَ ۚ ما يُمسِكُهُنَّ إلّا الرَّحمٰنُ ۚ إنَّهُ بِكُلِّ شَيءٍ بَصير﴾. يُوَجِّهُ اللهُ نَظَرَنا إلى ما نُشاهِدُهُ دائِمًا ونادِرًا ما نَتَأمَّلُه: طائِرٌ مُعَلَّقٌ في الهَواءِ المَفتوح، لا شَيءَ فَوقَهُ ولا تَحتَه، يَبسُطُ جَناحَيهِ مَرّةً ويَقبِضُهُما مَرّة، يَنسابُ ويُحَلِّقُ كَأنَّ يَدًا خَفِيّةً تُمسِكُه. وهذا — تُعلِنُ الآيةُ — هو الحَقُّ بِعَينِه: لا يُمسِكُهُ إلّا الرَّحمٰن. فالقَوانينُ التي تُتيحُ الطَّيَران، وتَصميمُ الجَناح، والهَواءُ نَفسُه، بل الحَياةُ في المَخلوقِ، كُلُّها خَلقُهُ وتَحتَ رِعايَتِهِ الدّائِمة. فالنَّظَرُ الحَقُّ إلى طائِرٍ يُحَلِّقُ رُؤيةٌ لِآثارِ الخالِق.\n\nثُمَّ تُحكِمُ السورةُ الحُجّةَ بِأسئِلةٍ نافِذة. ففي الآيةِ ٢٠ يَسألُ اللهُ: ﴿مَن هذا الذي هو جُندٌ لَكُم يَنصُرُكُم مِن دونِ الرَّحمٰن﴾، وفي ٢١: ﴿مَن هذا الذي يَرزُقُكُم إن أمسَكَ رِزقَه﴾. والجَوابُ بَيِّنٌ ساحِق: لا أحَد. فَكُلُّ قَطرةِ مَطَر، وكُلُّ حَبّةِ طَعام، وكُلُّ نَفَسٍ مِنَ الهَواءِ مِنهُ وَحدَه. لَو أمسَكَ رِزقَهُ ما أمَدَّ بِهِ أحَدٌ في الأرض؛ ولَو أرسَلَ عَذابَهُ ما رَدَّهُ جُند. ويُنَبِّهُ ابنُ كَثيرٍ أنَّ هذه الأسئِلةَ التَّقريريّةَ مَصوغةٌ لِنَزعِ ثِقةِ المُنكِرينَ الزّائِفةِ وكَشفِ افتِقارِهِمُ التّامِّ المُطلَقِ إلى الإلهِ الذي يَجحَدونَه. وعلى الطّالِبِ المُطالِبِ أن يَجنيَ مِن هذا المَقطَعِ ثَمَرَتَينِ مَعًا. الأولى التَّواضُع: لا أملِكُ شَيئًا ولا أُسَيطِرُ على شَيء؛ بل أنا مَرزوقٌ بِرَحمةِ اللهِ في كُلِّ لَحظة. والثّانيةُ، على عَكسِ المُتَوَقَّع، الأمنُ والطُّمَأنينة: فالرَّبُّ الذي يُمسِكُ الطَّيرَ في السَّماءِ ويَصُبُّ رِزقي هو الرَّحمٰنُ البَصيرُ، العَليمُ بي دائِمًا. والحَياةُ بِهذا الوَعيِ سَيرٌ في الدُّنيا بِتَواضُعٍ عَميقٍ بَينَ يَدَيِ اللهِ وطُمَأنينةٍ عَميقةٍ بِه.",
-      },
-    },
-    {
-      title: { en: "Two ways of walking; the warning (v.22-24)", ar: "طَريقانِ في المَشي؛ والتَّحذير (٢٢-٢٤)" },
-      learningObjectives: [
-        { en: "Contrast the guided and the misguided in their journey.", ar: "أُقارِنُ بَينَ المُهتَدي والضّالِّ في مَسيرِهِما." },
-      ],
-      image: {
-        src: IMG.lantern,
-        alt: { en: "A straight, lit path versus stumbling in the dark.", ar: "طَريقٌ مُستَقيمٌ مُضيءٌ مُقابِلَ تَعَثُّرٍ في الظَّلام." },
-        caption: { en: "'Is one who walks fallen on his face better guided, or one who walks upright on a straight path?'", ar: "﴿أفَمَن يَمشي مُكِبًّا على وَجهِهِ أهدى أمَّن يَمشي سَوِيًّا على صِراطٍ مُستَقيم﴾." },
-      },
-      groupTasks: {
-        title: { en: "The image of the two walkers", ar: "صورةُ الماشِيَين" },
-        instruction: { en: "Each group studies one side of the comparison.", ar: "تَدرُسُ كُلُّ مَجموعةٍ جانِبًا مِنَ المُقارَنة." },
-        groups: [
+      groupWorkCards: {
+        title: { en: "Choose Your Task", ar: "اختر مهمّتك" },
+        instruction: { en: "Each group picks one card. Study the information, complete the task, and present to the class.", ar: "تختار كلّ مجموعة بطاقة. ادرسوا المعلومات وأنجزوا المهمّة وقدّموا للصفّ." },
+        presentationNote: { en: "All Quran and Hadith must be authentic with references.", ar: "يجب أن يكون كلّ قرآن وحديث صحيحًا بمصادره." },
+        cards: [
           {
-            slug: "the-upright-walker",
-            name: { en: "Team A — Upright on a straight path", ar: "الفَريقُ أ — سَوِيٌّ على صِراطٍ مُستَقيم" },
-            learningObjective: { en: "Describe the believer guided by revelation.", ar: "نَصِفُ المُؤمِنَ المُهتَدِيَ بِالوَحي." },
-            task: { en: "Explain the image of the person walking upright, able to see the road ahead, on a clear straight path. How does revelation (the Qur'an and Sunnah) make a believer's life clear-sighted and steady?", ar: "اشرَحوا صورةَ مَن يَمشي سَوِيًّا، يَرى الطَّريقَ أمامَه، على صِراطٍ واضِحٍ مُستَقيم. كَيفَ يَجعَلُ الوَحيُ (القُرآنُ والسُّنّة) حَياةَ المُؤمِنِ واضِحةَ الرُّؤيةِ ثابِتة؟" },
-            evidence: [
-              { en: "Al-Mulk 22; 'a straight path' = guidance.", ar: "المُلك ٢٢؛ «صِراطٌ مُستَقيم» = الهِداية." },
+            id: "A",
+            title: { en: "The Universe", ar: "الكون" },
+            image: IMG.skyBlue,
+            color: "teal",
+            topic: { en: "Vastness and precision", ar: "الاتّساع والدقّة" },
+            infoSections: [
+              { label: { en: "Quran", ar: "القرآن" }, content: { en: "\'And the heaven We constructed with strength, and indeed, We are [its] expander.\' (Adh-Dhariyat 47)", ar: "﴿والسماء بنيناها بأيد وإنّا لموسعون﴾ (الذاريات ٤٧)" } },
+              { label: { en: "Science", ar: "علم" }, content: { en: "The universe contains 2 trillion galaxies, each with billions of stars.", ar: "الكون يحتوي ٢ تريليون مجرّة كلّ واحدة بمليارات النجوم." } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "The scale of creation humbles us before Allah.", ar: "عظمة الخلق تذلّنا أمام الله." } },
             ],
-            sourceNotes: [
-              { en: "Guidance gives clarity and steadiness.", ar: "الهِدايةُ تُعطي وُضوحًا وثَباتًا." },
-            ],
-            memberRoles: [
-              { en: "Evidence-finder, Explainer, Presenter.", ar: "باحِثُ الدَّليل، الشّارِح، العارِض." },
-            ],
-            finalProduct: { en: "A description of the guided walker.", ar: "وَصفٌ لِلماشي المُهتَدي." },
+            task: {
+              title: { en: "Research the Universe", ar: "ابحث عن الكون" },
+              description: { en: "Write about 3 signs of Allah\'s power in the universe.", ar: "اكتب عن ٣ آيات لقدرة الله في الكون." },
+              hint: { en: "Include: Quran verse, scientific fact, reflection.", ar: "ضمّن: آية وحقيقة علميّة وتأمّل." },
+            },
           },
           {
-            slug: "the-stumbling-walker",
-            name: { en: "Team B — Fallen on his face", ar: "الفَريقُ ب — مُكِبٌّ على وَجهِه" },
-            learningObjective: { en: "Describe the one without guidance.", ar: "نَصِفُ مَن لا هِدايةَ لَه." },
-            task: { en: "Explain the image of a person stumbling along bent over, face down, unable to see where he steps. How does this picture the confusion and danger of a life without faith and guidance?", ar: "اشرَحوا صورةَ مَن يَتَعَثَّرُ مُنحَنِيًا، وَجهُهُ إلى الأرض، لا يُبصِرُ مَوضِعَ قَدَمِه. كَيفَ تُصَوِّرُ هذه الصورةُ حَيرةَ الحَياةِ بِلا إيمانٍ وهِدايةٍ وخَطَرَها؟" },
-            evidence: [
-              { en: "Al-Mulk 22; 'mukibban ala wajhihi'.", ar: "المُلك ٢٢؛ «مُكِبًّا على وَجهِه»." },
+            id: "B",
+            title: { en: "The Human Body", ar: "جسم الإنسان" },
+            image: IMG.childQuran,
+            color: "blue",
+            topic: { en: "Perfect design", ar: "تصميم متقن" },
+            infoSections: [
+              { label: { en: "Quran", ar: "القرآن" }, content: { en: "At-Tin 4: \'Created in the best stature.\'", ar: "التين ٤: ﴿في أحسن تقويم﴾" } },
+              { label: { en: "Science", ar: "علم" }, content: { en: "The brain has 86 billion neurons. The heart beats 100,000 times daily.", ar: "الدماغ يحتوي ٨٦ مليار خليّة عصبيّة. القلب ينبض ١٠٠,٠٠٠ مرّة يوميًّا." } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Our own bodies are the greatest proof of a Creator.", ar: "أجسادنا أعظم دليل على الخالق." } },
             ],
-            sourceNotes: [
-              { en: "Misguidance is blindness and stumbling.", ar: "الضَّلالُ عَمًى وتَعَثُّر." },
+            task: {
+              title: { en: "Map the Human Body", ar: "ارسم خريطة الجسم" },
+              description: { en: "Highlight 5 amazing facts about the human body with Quran evidence.", ar: "أبرز ٥ حقائق مذهلة عن الجسم بأدلّة قرآنيّة." },
+              hint: { en: "Include: organ, fact, verse, reflection.", ar: "ضمّن: العضو والحقيقة والآية والتأمّل." },
+            },
+          },
+          {
+            id: "C",
+            title: { en: "Water and Life", ar: "الماء والحياة" },
+            image: IMG.waterfall,
+            color: "purple",
+            topic: { en: "The source of all living things", ar: "مصدر كلّ حيّ" },
+            infoSections: [
+              { label: { en: "Quran", ar: "القرآن" }, content: { en: "\'We made from water every living thing.\' (Al-Anbiya 30)", ar: "﴿وجعلنا من الماء كلّ شيء حيّ﴾ (الأنبياء ٣٠)" } },
+              { label: { en: "Science", ar: "علم" }, content: { en: "Water covers 71% of Earth. The human body is 60% water. No life without water.", ar: "الماء يغطّي ٧١٪ من الأرض. الإنسان ٦٠٪ ماء. لا حياة بلا ماء." } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Water is Allah\'s gift — we must be grateful and protect it.", ar: "الماء نعمة الله — نحن ممتنّون ونحافظ عليه." } },
             ],
-            memberRoles: [
-              { en: "Researcher, Summariser, Presenter.", ar: "الباحِث، المُلَخِّص، العارِض." },
+            task: {
+              title: { en: "Write About Water", ar: "اكتب عن الماء" },
+              description: { en: "Explain the miracle of water in Islam and science.", ar: "اشرح معجزة الماء في الإسلام والعلم." },
+              hint: { en: "Include: Quran, science facts, gratitude, conservation.", ar: "ضمّن: القرآن والحقائق العلميّة والامتنان والحفاظ." },
+            },
+          },
+          {
+            id: "D",
+            title: { en: "Night and Day", ar: "الليل والنهار" },
+            image: IMG.lantern,
+            color: "amber",
+            topic: { en: "The alternation as a sign", ar: "التعاقب كآية" },
+            infoSections: [
+              { label: { en: "Quran", ar: "القرآن" }, content: { en: "Aal-Imran 190: \'The alternation of night and day are signs.\'", ar: "آل عمران ١٩٠: ﴿اختلاف الليل والنهار لآيات﴾" } },
+              { label: { en: "Science", ar: "علم" }, content: { en: "Earth rotates at 1,670 km/h creating perfect day-night cycles.", ar: "الأرض تدور بسرعة ١,٦٧٠ كم/ساعة لتعاقب مثالي." } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Every sunrise and sunset is a reminder of Allah\'s power.", ar: "كلّ شروق وغروب تذكير بقدرة الله." } },
             ],
-            finalProduct: { en: "A description of the misguided walker.", ar: "وَصفٌ لِلماشي الضّالّ." },
+            task: {
+              title: { en: "Reflect on Day and Night", ar: "تأمّل في الليل والنهار" },
+              description: { en: "Write about how day/night cycles point to Allah.", ar: "اكتب كيف يدلّ تعاقب الليل والنهار على الله." },
+              hint: { en: "Include: Quran, science, personal reflection.", ar: "ضمّن: القرآن والعلم والتأمّل الشخصي." },
+            },
+          },
+          {
+            id: "E",
+            title: { en: "Reflection (Tafakkur)", ar: "التفكّر" },
+            image: IMG.grandMosque,
+            color: "rose",
+            topic: { en: "Thinking about creation", ar: "التفكّر في الخلق" },
+            infoSections: [
+              { label: { en: "Quran", ar: "القرآن" }, content: { en: "\'And they reflect on the creation of the heavens and earth.\' (Aal-Imran 191)", ar: "﴿ويتفكّرون في خلق السماوات والأرض﴾ (آل عمران ١٩١)" } },
+              { label: { en: "Hadith", ar: "حديث" }, content: { en: "\'An hour of reflection is better than a year of worship.\' (attributed)", ar: "«تفكّر ساعة خير من عبادة سنة.» (منسوب)" } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Thinking about creation strengthens faith.", ar: "التفكّر في الخلق يقوّي الإيمان." } },
+            ],
+            task: {
+              title: { en: "Write a Tafakkur Journal", ar: "اكتب يوميّات تفكّر" },
+              description: { en: "Spend 10 minutes reflecting on creation and write what you noticed.", ar: "اقضِ ١٠ دقائق تتفكّر في الخلق واكتب ما لاحظت." },
+              hint: { en: "Include: what you observed, Quran connection, how it makes you feel.", ar: "ضمّن: ما لاحظت والصلة القرآنيّة وشعورك." },
+            },
           },
         ],
+        coinsReward: 15,
       },
-      responsePrompt: {
-        title: { en: "Final synthesis", ar: "التَّركيبُ الخِتامِيّ" },
-        prompt: { en: "Verse 23 reminds the deniers that Allah gave them hearing, sight, and hearts (intellect) — yet 'little do you give thanks.' Explain how these three gifts are meant to lead us to faith, and how a person 'wastes' them. Then state one practical way you will use your hearing, sight, and mind in gratitude to Allah.", ar: "تُذَكِّرُ الآيةُ ٢٣ المُنكِرينَ أنَّ اللهَ أعطاهُمُ السَّمعَ والبَصَرَ والأفئِدةَ (العَقل) — ومَعَ ذلك ﴿قَليلًا ما تَشكُرون﴾. بَيِّنْ كَيفَ يَنبَغي أن تَقودَنا هذه النِّعَمُ الثَّلاثُ إلى الإيمان، وكَيفَ «يُضَيِّعُها» المَرء. ثُمَّ اذكُرْ طَريقةً عَمَليّةً واحِدةً سَتَستَعمِلُ بِها سَمعَكَ وبَصَرَكَ وعَقلَكَ شُكرًا لِله." },
-        placeholder: { en: "Hearing, sight, and intellect should lead to faith by... A person wastes them when... I will use mine by...", ar: "السَّمعُ والبَصَرُ والعَقلُ تَقودُ إلى الإيمانِ بِـ... ويُضَيِّعُها المَرءُ حينَ... وسأستَعمِلُها بِـ..." },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Hinge Questions", ar: "أسئلة محوريّة" },
+      learningObjectives: [
+        { en: "Test your understanding of everything studied.", ar: "اختبر فهمك لكلّ ما درسته." },
+      ],
+      image: {
+        src: IMG.bookshelf,
+        alt: { en: "Assessment.", ar: "تقييم." },
       },
-      body: {
-        en: "After establishing Allah's sole power and provision, the surah presents one of the most vivid comparisons in the Qur'an to describe the difference between the believer and the disbeliever in their journey through life. In verse 22 Allah asks: 'Is one who walks fallen on his face better guided, or one who walks upright on a straight path?' The picture is unforgettable. The misguided person is depicted as someone stumbling along bent over, his face pointed down toward the ground, unable to see where he is going, tripping over every obstacle, lost and humiliated. The believer, by contrast, walks upright and balanced, his vision clear, his eyes on the road, advancing steadily along a level, well-lit, straight path. The question answers itself: of course the upright walker is more rightly guided.\n\nThe commentators explain that this is a parable of the two lives. The one 'fallen on his face' is the one who turned away from revelation; without the light of guidance he wanders through life confused about its purpose, stumbling from one desire to the next, unable to see the consequences of his steps or where the road finally leads. The one 'walking upright on a straight path' is the believer whom Allah has guided by the Qur'an and the Sunnah; he sees his purpose clearly, knows where he is going, and walks with dignity and confidence toward his Lord. The same world is before both of them, but one moves through it blind and the other with open eyes.\n\nThe surah then reinforces this by reminding the deniers of the very faculties that should have led them to guidance. In verse 23 Allah says: 'Say, It is He who produced you and made for you hearing, vision, and hearts (intellect); little is it that you are grateful.' Hearing to receive the truth, sight to observe the signs of creation, and a heart and mind to reflect and believe — these are precisely the tools needed to walk upright on the straight path. Yet most people fail to use them for their true purpose and so remain ungrateful, stumbling face-down despite possessing every means of seeing. Verse 24 adds that it is Allah who 'multiplied you throughout the earth, and to Him you will be gathered' — again ending on the certainty of the return. A demanding student should take the central, searching lesson of this passage to heart: every human being is walking somewhere, and the only question that matters is whether you are walking upright on Allah's straight path, using your hearing, sight, and intellect to follow His guidance in gratitude — or stumbling blindly through a life you were given every gift to see clearly. The choice, and the responsibility, is ours.",
-        ar: "بَعدَ تَقريرِ انفِرادِ اللهِ بِالقُدرةِ والرِّزق، تُقَدِّمُ السورةُ واحِدةً مِن أوضَحِ المُقارَناتِ في القُرآنِ لِتَصِفَ الفَرقَ بَينَ المُؤمِنِ والكافِرِ في مَسيرِهِما في الحَياة. ففي الآيةِ ٢٢ يَسألُ اللهُ: ﴿أفَمَن يَمشي مُكِبًّا على وَجهِهِ أهدى أمَّن يَمشي سَوِيًّا على صِراطٍ مُستَقيم﴾. والصورةُ لا تُنسى. فالضّالُّ مُصَوَّرٌ كَمَن يَتَعَثَّرُ مُنحَنِيًا، وَجهُهُ إلى الأرض، لا يُبصِرُ إلى أينَ يَمضي، يَكبو على كُلِّ عَقَبة، تائِهًا ذَليلًا. أمّا المُؤمِنُ فَيَمشي سَوِيًّا مُعتَدِلًا، رُؤيَتُهُ واضِحة، عَيناهُ على الطَّريق، يَتَقَدَّمُ بِثَباتٍ على صِراطٍ مُستَوٍ مُنيرٍ مُستَقيم. والسُّؤالُ يُجيبُ نَفسَه: بِالطَّبعِ الماشي سَوِيًّا أهدى.\n\nيُبَيِّنُ المُفَسِّرونَ أنَّ هذا مَثَلٌ لِلحَياتَين. فَالمُكِبُّ على وَجهِهِ هو المُعرِضُ عنِ الوَحي؛ بِلا نورِ الهِدايةِ يَتيهُ في الحَياةِ حائِرًا في غايَتِها، يَتَعَثَّرُ مِن شَهوةٍ إلى شَهوة، لا يَرى عَواقِبَ خُطاهُ ولا إلى أينَ يَنتَهي الطَّريق. والماشي سَوِيًّا على صِراطٍ مُستَقيمٍ هو المُؤمِنُ الذي هَداهُ اللهُ بِالقُرآنِ والسُّنّة؛ يَرى غايَتَهُ بِوُضوح، ويَعلَمُ إلى أينَ يَمضي، ويَسيرُ بِكَرامةٍ وثِقةٍ نَحوَ رَبِّه. فالدُّنيا نَفسُها أمامَهُما، لكِنَّ أحَدَهُما يَسيرُ فيها أعمى والآخَرَ بِعَينَينِ مَفتوحَتَين.\n\nثُمَّ تُعَزِّزُ السورةُ هذا بِتَذكيرِ المُنكِرينَ بِالحَواسِّ التي كانَ يَنبَغي أن تَقودَهُم إلى الهِداية. ففي الآيةِ ٢٣ يَقولُ اللهُ: ﴿قُل هو الذي أنشَأكُم وجَعَلَ لَكُمُ السَّمعَ والأبصارَ والأفئِدةَ ۖ قَليلًا ما تَشكُرون﴾. سَمعٌ لِتَلَقّي الحَقّ، وبَصَرٌ لِمُشاهَدةِ آياتِ الخَلق، وقَلبٌ وعَقلٌ لِلتَّفَكُّرِ والإيمان — وهذه بِعَينِها الأدَواتُ اللّازِمةُ لِلمَشيِ سَوِيًّا على الصِّراطِ المُستَقيم. ومَعَ ذلك يَعجِزُ أكثَرُ النّاسِ عنِ استِعمالِها لِغايَتِها الحَقّ، فَيَبقَونَ غَيرَ شاكِرين، يَكبونَ على وُجوهِهِم رَغمَ امتِلاكِهِم كُلَّ وَسائِلِ الإبصار. وتَزيدُ الآيةُ ٢٤ أنَّ اللهَ ﴿ذَرَأكُم في الأرضِ وإليهِ تُحشَرون﴾ — خاتِمةً مَرّةً أُخرى بِيَقينِ الرُّجوع. وعلى الطّالِبِ المُطالِبِ أن يَعِيَ الدَّرسَ المِحوَريَّ الفاحِصَ لِهذا المَقطَع: كُلُّ إنسانٍ يَمشي إلى مَكان، والسُّؤالُ الوَحيدُ المُهِمُّ هو: أتَمشي سَوِيًّا على صِراطِ اللهِ المُستَقيم، تَستَعمِلُ سَمعَكَ وبَصَرَكَ وعَقلَكَ لِتَتبَعَ هِدايَتَهُ شاكِرًا — أم تَتَعَثَّرُ أعمى في حَياةٍ أُعطيتَ كُلَّ نِعمةٍ لِتُبصِرَها بِوُضوح؟ والاختيارُ، والمَسؤوليّةُ، لَنا.",
+      hingeQuestions: {
+        title: { en: "Hinge Questions — Test Your Understanding", ar: "أسئلة محوريّة — اختبر فهمك" },
+        instruction: { en: "Answer all 10 questions.", ar: "أجب عن الأسئلة العشرة." },
+        questions: [
+          {
+            question: { en: "Aal-Imran 190 mentions signs in?", ar: "آل عمران ١٩٠ تذكر آيات في؟" },
+            options: [
+            { en: "Creation of heavens and earth", ar: "خلق السماوات والأرض" },
+            { en: "Money", ar: "المال" },
+            { en: "Food", ar: "الطعام" },
+            { en: "Sports", ar: "الرياضة" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Creation and alternation of night/day.", ar: "الخلق وتعاقب الليل والنهار." },
+          },
+          {
+            question: { en: "Man was created in?", ar: "خُلق الإنسان في؟" },
+            options: [
+            { en: "Best stature", ar: "أحسن تقويم" },
+            { en: "Weakness", ar: "ضعف" },
+            { en: "Nothing", ar: "لا شيء" },
+            { en: "Stone", ar: "حجر" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Best stature (At-Tin 4).", ar: "أحسن تقويم (التين ٤)." },
+          },
+          {
+            question: { en: "All living things made from?", ar: "كلّ حيّ خُلق من؟" },
+            options: [
+            { en: "Water", ar: "الماء" },
+            { en: "Fire", ar: "النار" },
+            { en: "Air", ar: "الهواء" },
+            { en: "Stone", ar: "الحجر" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Water (Al-Anbiya 30).", ar: "الماء (الأنبياء ٣٠)." },
+          },
+          {
+            question: { en: "What does tafakkur mean?", ar: "ما التفكّر؟" },
+            options: [
+            { en: "Reflecting on creation", ar: "التأمّل في الخلق" },
+            { en: "Sleeping", ar: "النوم" },
+            { en: "Eating", ar: "الأكل" },
+            { en: "Running", ar: "الركض" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Reflecting on Allah\'s creation.", ar: "التأمّل في خلق الله." },
+          },
+          {
+            question: { en: "How many galaxies in universe?", ar: "كم مجرّة في الكون؟" },
+            options: [
+            { en: "~2 trillion", ar: "~٢ تريليون" },
+            { en: "10", ar: "١٠" },
+            { en: "1", ar: "١" },
+            { en: "100", ar: "١٠٠" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "About 2 trillion.", ar: "نحو ٢ تريليون." },
+          },
+          {
+            question: { en: "The earth rotates creating?", ar: "دوران الأرض يخلق؟" },
+            options: [
+            { en: "Day and night", ar: "الليل والنهار" },
+            { en: "Seasons only", ar: "الفصول فقط" },
+            { en: "Nothing", ar: "لا شيء" },
+            { en: "Earthquakes", ar: "زلازل" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Day and night cycles.", ar: "تعاقب الليل والنهار." },
+          },
+          {
+            question: { en: "Water covers what % of Earth?", ar: "الماء يغطّي كم٪ من الأرض؟" },
+            options: [
+            { en: "71%", ar: "٧١٪" },
+            { en: "10%", ar: "١٠٪" },
+            { en: "99%", ar: "٩٩٪" },
+            { en: "1%", ar: "١٪" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "About 71%.", ar: "نحو ٧١٪." },
+          },
+          {
+            question: { en: "Human heart beats daily?", ar: "القلب ينبض يوميًّا؟" },
+            options: [
+            { en: "100,000 times", ar: "١٠٠,٠٠٠ مرّة" },
+            { en: "10 times", ar: "١٠ مرّات" },
+            { en: "1 time", ar: "مرّة" },
+            { en: "50 times", ar: "٥٠ مرّة" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "About 100,000 times.", ar: "نحو ١٠٠,٠٠٠ مرّة." },
+          },
+          {
+            question: { en: "Brain has how many neurons?", ar: "كم خليّة عصبيّة في الدماغ؟" },
+            options: [
+            { en: "86 billion", ar: "٨٦ مليار" },
+            { en: "100", ar: "١٠٠" },
+            { en: "1000", ar: "١٠٠٠" },
+            { en: "10", ar: "١٠" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "About 86 billion.", ar: "نحو ٨٦ مليار." },
+          },
+          {
+            question: { en: "Signs are for those of?", ar: "الآيات لأولي؟" },
+            options: [
+            { en: "Understanding (al-Albab)", ar: "الألباب" },
+            { en: "Wealth", ar: "الثروة" },
+            { en: "Power", ar: "القوّة" },
+            { en: "Fame", ar: "الشهرة" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Understanding (Aal-Imran 190).", ar: "الألباب (آل عمران ١٩٠)." },
+          },
+        ],
+        coinsReward: 20,
       },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Watch & Reflect", ar: "شاهد وتأمّل" },
+      learningObjectives: [
+        { en: "Watch a video related to the topic and reflect.", ar: "شاهد مقطعًا متعلّقًا بالموضوع وتأمّل." },
+      ],
+      image: {
+        src: IMG.childQuran,
+        alt: { en: "Video lesson.", ar: "درس مرئي." },
+      },
+      youtubeVideo: {
+        title: { en: "Power of Allah in Creation", ar: "قدرة الله في الخلق" },
+        url: "https://www.youtube.com/watch?v=kYnGEQoGhUE",
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Plenary", ar: "ختام الدرس" },
+      learningObjectives: [
+        { en: "Reflect on and share what you learned.", ar: "تأمّل وشارك ما تعلّمته." },
+      ],
+      image: {
+        src: IMG.grandMosque,
+        alt: { en: "Students sharing.", ar: "طلاب يشاركون." },
+      },
+      plenary: {
+        title: { en: "Share Your Learning", ar: "شارك ما تعلّمته" },
+        instruction: { en: "Scan QR or enter the code to share what you learned.", ar: "امسح QR أو أدخل الرمز لمشاركة ما تعلّمته." },
+        code: "POWER001",
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Worksheet — The Power of Allah (Al-Mulk 15-24)", ar: "ورقة عمل — قُدرةُ اللهِ تَعالى (المُلك ١٥-٢٤)" },
+      learningObjectives: [
+        { en: "Demonstrate understanding through an auto-marked worksheet.", ar: "أظهر فهمي من خلال ورقة عمل تُصحّح تلقائيًّا." },
+      ],
+      image: {
+        src: IMG.bookshelf,
+        alt: { en: "Worksheet.", ar: "ورقة عمل." },
+      },
+      worksheet: {
+        title: { en: "Worksheet — The Power of Allah (Al-Mulk 15-24)", ar: "ورقة عمل — قُدرةُ اللهِ تَعالى (المُلك ١٥-٢٤)" },
+        instruction: { en: "Answer all questions. Auto-marked. Cannot re-answer after submission.", ar: "أجب عن جميع الأسئلة. تُصحّح تلقائيًّا. لن تستطيع الإجابة مجدّدًا." },
+        sections: [
+          {
+            type: "mcq" as const,
+            title: { en: "Multiple Choice", ar: "اختيار من متعدّد" },
+            questions: [
+              {
+                question: { en: "Signs in creation for?", ar: "آيات في الخلق ل؟" },
+                options: [
+                { en: "Those of understanding", ar: "أولي الألباب" },
+                { en: "No one", ar: "لا أحد" },
+                { en: "Only scholars", ar: "العلماء فقط" },
+                { en: "Animals", ar: "الحيوانات" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "All living from?", ar: "كلّ حيّ من؟" },
+                options: [
+                { en: "Water", ar: "الماء" },
+                { en: "Fire", ar: "النار" },
+                { en: "Stone", ar: "الحجر" },
+                { en: "Air", ar: "الهواء" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "Man in best?", ar: "الإنسان في أحسن؟" },
+                options: [
+                { en: "Stature", ar: "تقويم" },
+                { en: "Nothing", ar: "لا شيء" },
+                { en: "Weakness", ar: "ضعف" },
+                { en: "Poverty", ar: "فقر" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "Tafakkur means?", ar: "التفكّر يعني؟" },
+                options: [
+                { en: "Reflection", ar: "التأمّل" },
+                { en: "Sleep", ar: "النوم" },
+                { en: "Eating", ar: "الأكل" },
+                { en: "Running", ar: "الركض" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "Quran encourages?", ar: "القرآن يشجّع؟" },
+                options: [
+                { en: "Reflection on creation", ar: "التفكّر في الخلق" },
+                { en: "Ignoring nature", ar: "تجاهل الطبيعة" },
+                { en: "Sleeping", ar: "النوم" },
+                { en: "Nothing", ar: "لا شيء" },
+                ],
+                correctIndex: 0,
+              },
+            ],
+          },
+          {
+            type: "trueFalse" as const,
+            title: { en: "True or False", ar: "صواب أم خطأ" },
+            questions: [
+              { statement: { en: "The Quran encourages tafakkur.", ar: "القرآن يشجّع التفكّر." }, answer: true },
+              { statement: { en: "Nature has no order.", ar: "الطبيعة بلا نظام." }, answer: false },
+              { statement: { en: "Man was created in best stature.", ar: "الإنسان في أحسن تقويم." }, answer: true },
+              { statement: { en: "All living things from fire.", ar: "كلّ حيّ من النار." }, answer: false },
+              { statement: { en: "Day/night alternation is a sign.", ar: "تعاقب الليل والنهار آية." }, answer: true },
+            ],
+          },
+          {
+            type: "matchUp" as const,
+            title: { en: "Match Up", ar: "وصّل" },
+            prompts: [
+              { prompt: { en: "Qudrah", ar: "قدرة" }, answer: { en: "Power of Allah", ar: "قدرة الله" } },
+              { prompt: { en: "Khalq", ar: "خلق" }, answer: { en: "Creation", ar: "الخلق" } },
+              { prompt: { en: "Tafakkur", ar: "تفكّر" }, answer: { en: "Reflection", ar: "التأمّل" } },
+              { prompt: { en: "Ayat", ar: "آيات" }, answer: { en: "Signs in creation", ar: "آيات في الخلق" } },
+              { prompt: { en: "Tawhid", ar: "توحيد" }, answer: { en: "Oneness of Allah", ar: "وحدانيّة الله" } },
+            ],
+          },
+          {
+            type: "fillBlanks" as const,
+            title: { en: "Fill in the Blanks", ar: "املأ الفراغات" },
+            questions: [
+              { sentence: { en: "Signs in creation for those of _______.", ar: "الآيات لأولي _______." }, blankAnswer: { en: "understanding", ar: "الألباب" } },
+              { sentence: { en: "Man created in best _______.", ar: "الإنسان في أحسن _______." }, blankAnswer: { en: "stature", ar: "تقويم" } },
+              { sentence: { en: "All living from _______.", ar: "كلّ حيّ من _______." }, blankAnswer: { en: "water", ar: "الماء" } },
+              { sentence: { en: "Night and _______ alternation is a sign.", ar: "تعاقب الليل و_______ آية." }, blankAnswer: { en: "day", ar: "النهار" } },
+            ],
+          },
+          {
+            type: "ordering" as const,
+            title: { en: "Put in Correct Order", ar: "رتّب ترتيبًا صحيحًا" },
+            items: [
+              { en: "Observe the sky, earth, and nature", ar: "تأمّل السماء والأرض والطبيعة" },
+              { en: "Reflect on the human body\'s design", ar: "تفكّر في تصميم جسم الإنسان" },
+              { en: "Recognise order and balance in creation", ar: "أدرك النظام والتوازن في الخلق" },
+              { en: "Connect observations to Quranic verses", ar: "اربط الملاحظات بالآيات القرآنيّة" },
+              { en: "Feel gratitude and humility", ar: "اشعر بالامتنان والتواضع" },
+              { en: "Strengthen faith through reflection", ar: "قوِّ الإيمان بالتفكّر" },
+            ],
+          },
+        ],
+        coinsReward: 25,
+      },
+      body: { en: "", ar: "" },
     },
   ],
-  quizQuestions: [
-    {
-      prompt: { en: "What does it mean that Allah made the earth 'dhalul' (subservient)?", ar: "ماذا يَعني أنَّ اللهَ جَعَلَ الأرضَ «ذَلولًا»؟" },
-      options: [
-        { en: "He made it stable, gentle, and easy for human life — like a tamed mount", ar: "جَعَلَها مُستَقِرّةً لَيِّنةً سَهلةً لِحَياةِ الإنسان — كَالدّابّةِ المُذَلَّلة" },
-        { en: "He made it impossible to live on", ar: "جَعَلَها يَستَحيلُ العَيشُ علَيها" },
-        { en: "He made it constantly shaking", ar: "جَعَلَها تَهتَزُّ دائِمًا" },
-        { en: "He made it invisible", ar: "جَعَلَها غَيرَ مَرئيّة" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "Like a tamed animal, the vast earth was made calm and obedient for us to live, farm, and travel.", ar: "كَالدّابّةِ المُذَلَّلة، جُعِلَتِ الأرضُ الواسِعةُ هادِئةً مُطيعةً لِنَعيشَ ونَزرَعَ ونُسافِر." },
-    },
-    {
-      prompt: { en: "According to verse 19, who holds the birds up in the sky?", ar: "بِحَسَبِ الآيةِ ١٩، مَن يُمسِكُ الطَّيرَ في السَّماء؟" },
-      options: [
-        { en: "None but the Most Merciful (ar-Rahman)", ar: "لا أحَدَ إلّا الرَّحمٰن" },
-        { en: "The wind alone", ar: "الرّيحُ وَحدَها" },
-        { en: "The birds themselves with no help", ar: "الطَّيرُ نَفسُها بِلا مُعين" },
-        { en: "Nothing holds them", ar: "لا شَيءَ يُمسِكُها" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "'None holds them up except the Most Merciful' — a daily sign of Allah's power.", ar: "﴿ما يُمسِكُهُنَّ إلّا الرَّحمٰن﴾ — آيةٌ يَوميّةٌ على قُدرةِ الله." },
-    },
-    {
-      prompt: { en: "What is the point of asking 'Who could provide for you if He withheld His provision?' (v.21)", ar: "ما مَغزى السُّؤال ﴿مَن هذا الذي يَرزُقُكُم إن أمسَكَ رِزقَه﴾ (٢١)؟" },
-      options: [
-        { en: "To show our total dependence on Allah alone", ar: "لِيُظهِرَ افتِقارَنا التّامَّ إلى اللهِ وَحدَه" },
-        { en: "That we provide for ourselves", ar: "أنَّنا نَرزُقُ أنفُسَنا" },
-        { en: "That provision comes from idols", ar: "أنَّ الرِّزقَ مِنَ الأصنام" },
-        { en: "Nothing in particular", ar: "لا شَيءَ بِعَينِه" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "No one can provide or protect besides Allah — a call to humility and reliance on Him.", ar: "لا أحَدَ يَرزُقُ أو يَحمي سِوى الله — دَعوةٌ لِلتَّواضُعِ والتَّوَكُّلِ عليه." },
-    },
-    {
-      prompt: { en: "What do the two walkers in verse 22 represent?", ar: "ماذا يُمَثِّلُ الماشِيانِ في الآيةِ ٢٢؟" },
-      options: [
-        { en: "The guided believer (upright) vs the misguided denier (stumbling face-down)", ar: "المُؤمِنُ المُهتَدي (سَوِيٌّ) مُقابِلَ الكافِرِ الضّالِّ (مُكِبٌّ على وَجهِه)" },
-        { en: "Two kinds of animals", ar: "نَوعانِ مِنَ الحَيَوان" },
-        { en: "Rich and poor people", ar: "الأغنياءُ والفُقَراء" },
-        { en: "Day and night", ar: "اللَّيلُ والنَّهار" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "Guidance lets the believer walk upright and clear-sighted; misguidance is blind stumbling.", ar: "الهِدايةُ تَجعَلُ المُؤمِنَ يَمشي سَوِيًّا واضِحَ الرُّؤية؛ والضَّلالُ تَعَثُّرٌ أعمى." },
-    },
-    {
-      prompt: { en: "Which three gifts does verse 23 mention that should lead us to faith?", ar: "أيَّ ثَلاثِ نِعَمٍ تَذكُرُها الآيةُ ٢٣ تَقودُنا إلى الإيمان؟" },
-      options: [
-        { en: "Hearing, sight, and hearts (intellect)", ar: "السَّمعُ والبَصَرُ والأفئِدةُ (العَقل)" },
-        { en: "Wealth, power, and fame", ar: "المالُ والسُّلطةُ والشُّهرة" },
-        { en: "Food, drink, and sleep", ar: "الطَّعامُ والشَّرابُ والنَّوم" },
-        { en: "Gold, silver, and land", ar: "الذَّهَبُ والفِضّةُ والأرض" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "'made for you hearing, vision, and hearts; little is it that you are grateful.'", ar: "﴿وجَعَلَ لَكُمُ السَّمعَ والأبصارَ والأفئِدةَ ۖ قَليلًا ما تَشكُرون﴾." },
-    },
-    {
-      prompt: { en: "True or False: Verses 15 and 24 both end by reminding us of the resurrection and return to Allah.", ar: "صَوابٌ أم خَطأ: تَختِمُ الآيَتانِ ١٥ و٢٤ بِتَذكيرِنا بِالبَعثِ والرُّجوعِ إلى الله." },
-      options: [
-        { en: "True — 'to Him is the resurrection' and 'to Him you will be gathered'", ar: "صَواب — ﴿وإليهِ النُّشور﴾ و﴿وإليهِ تُحشَرون﴾" },
-        { en: "False", ar: "خَطأ" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "The blessings of this world are tied to the certainty of the Hereafter.", ar: "نِعَمُ الدُّنيا مَربوطةٌ بِيَقينِ الآخِرة." },
-    },
-  ],
+  quizQuestions: [],
 };

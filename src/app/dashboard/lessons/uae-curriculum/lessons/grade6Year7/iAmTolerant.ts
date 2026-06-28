@@ -11,190 +11,513 @@ export const iAmTolerant: CourseLesson = {
   quranSurahs: ["Al-Mumtahanah 8", "Al-Baqarah 256", "Fussilat 34"],
   sections: [
     {
-      title: { en: "What is Islamic tolerance?", ar: "ما التَّسامُحُ الإسلاميّ؟" },
+      title: { en: "Critical thinking (Warm up)", ar: "تفكير ناقد (تهيئة)" },
       learningObjectives: [
-        { en: "Define tolerance (tasamuh) in Islam.", ar: "أُعَرِّفُ التَّسامُحَ في الإسلام." },
-        { en: "Distinguish tolerance from compromising the truth.", ar: "أُمَيِّزُ التَّسامُحَ عنِ التَّفريطِ في الحَقّ." },
+        { en: "Evaluate a real-world scenario using evidence from Quran, Sunnah, and Islamic values.", ar: "أُقيّم سيناريو واقعيًّا بأدلّة من القرآن والسنّة والقيم الإسلاميّة." },
+      ],
+      image: {
+        src: IMG.hijabStudent,
+        alt: { en: "Student thinking critically.", ar: "طالب يفكّر بشكل ناقد." },
+      },
+      callout: {
+        label: { en: "Critical thinking scenario", ar: "سيناريو للتفكير الناقد" },
+        title: { en: "Does tolerance mean accepting everything?", ar: "هل التسامح يعني قبول كلّ شيء؟" },
+        body: {
+          en: "A student says: \'Tolerance is weakness. If someone insults me, I should fight back. Islam teaches us to be strong, not soft. Tolerating others means I agree with their mistakes.\'",
+          ar: "طالب يقول: «التسامح ضعف. لو أهانني أحد يجب أن أردّ. الإسلام يعلّمنا القوّة لا اللين. التسامح يعني الموافقة على أخطائهم.»",
+        },
+      },
+      responsePrompt: {
+        title: { en: "Write your critical response", ar: "اكتب ردّك الناقد" },
+        prompt: {
+          en: "Criticise using Quran and Hadith on tolerance and coexistence.",
+          ar: "انتقد بالقرآن والحديث عن التسامح والتعايش.",
+        },
+        placeholder: { en: "This is wrong because...", ar: "هذا خطأ لأنّ..." },
+        buttonLabel: { en: "Save response", ar: "احفظ الإجابة" },
+        coinsReward: 10,
+      },
+      body: {
+        en: "\'Repel evil with that which is better.\' (Fussilat 34)",
+        ar: "﴿ادفع بالتي هي أحسن﴾ (فصّلت ٣٤)",
+      },
+    },
+    {
+      title: { en: "Retrieval practise", ar: "ممارسة الاسترجاع" },
+      imageMatchingActivity: {
+        title: { en: "Match each image to its Islamic keyword", ar: "طابق كلّ صورة بكلمتها الإسلاميّة" },
+        instruction: { en: "Drag the keyword to the correct image.", ar: "اسحب الكلمة إلى الصورة الصحيحة." },
+        pairs: [
+          { image: IMG.childQuran, keyword: { en: "Tasamuh (Tolerance)", ar: "تسامح" } },
+          { image: IMG.grandMosque, keyword: { en: "Ta\'ayush (Coexistence)", ar: "تعايش" } },
+          { image: IMG.lantern, keyword: { en: "Rahma (Mercy)", ar: "رحمة" } },
+          { image: IMG.bookshelf, keyword: { en: "Afw (Pardon)", ar: "عفو" } },
+          { image: IMG.skyBlue, keyword: { en: "Ikhtiram (Respect)", ar: "احترام" } },
+        ],
+        coinsReward: 10,
+      },
+      body: {
+        en: "\'O mankind, We created you from male and female and made you peoples and tribes that you may know one another.\' (Al-Hujurat 13)",
+        ar: "﴿يا أيّها الناس إنّا خلقناكم من ذكر وأنثى وجعلناكم شعوبًا وقبائل لتعارفوا﴾ (الحجرات ١٣)",
+      },
+    },
+    {
+      title: { en: "I Am Tolerant", ar: "أنا مُتَسامِح" },
+      learningObjectives: [
+        { en: "Explain the Islamic concept of tolerance and coexistence.", ar: "أشرح مفهوم التسامح والتعايش في الإسلام." },
+        { en: "Describe how the UAE embodies Islamic tolerance.", ar: "أصف كيف تجسّد الإمارات التسامح الإسلامي." },
       ],
       successCriteria: [
-        { en: "I can explain what tolerance does and does not mean.", ar: "أشرَحُ ما يَعنيهِ التَّسامُحُ وما لا يَعنيه." },
-        { en: "I can give evidence that Islam values gentleness.", ar: "أُقَدِّمُ دَليلًا أنَّ الإسلامَ يُقَدِّرُ اللِّين." },
+        { en: "I can define tolerance in Islam.", ar: "أعرّف التسامح في الإسلام." },
+        { en: "I can give 3 examples of Prophet\'s tolerance.", ar: "أعطي ٣ أمثلة لتسامح النبيّ." },
+        { en: "I can explain how the UAE promotes tolerance.", ar: "أشرح كيف تروّج الإمارات للتسامح." },
       ],
       image: {
         src: IMG.grandMosque,
-        alt: { en: "A mosque in a diverse, peaceful city.", ar: "مَسجِدٌ في مَدينةٍ مُتَنَوِّعةٍ آمِنة." },
-        caption: { en: "Islam builds just societies where people of many backgrounds live in peace.", ar: "يَبني الإسلامُ مُجتَمَعاتٍ عادِلةً يَعيشُ فيها النّاسُ على اختِلافِهِم بِسَلام." },
+        alt: { en: "Topic image.", ar: "صورة الموضوع." },
       },
-      callout: {
-        label: { en: "High-order question", ar: "سُؤالٌ عالي المُستوى" },
-        title: { en: "Does tolerance mean 'anything goes'?", ar: "هل التَّسامُحُ يَعني «كُلُّ شَيءٍ مَقبول»؟" },
-        body: {
-          en: "Some think tolerance means having no firm beliefs and agreeing that all paths are equally true. Argue why genuine Islamic tolerance is different: a believer holds firmly to the truth of his faith while treating others with justice, gentleness, and respect. How can conviction and tolerance live together?",
-          ar: "يَظُنُّ بَعضُهُم أنَّ التَّسامُحَ يَعني ألّا تَكونَ لَكَ عَقائِدُ ثابِتة، وأن تُوافِقَ على أنَّ الطُّرُقَ كُلَّها حَقٌّ سَواء. حاجِجْ لِماذا التَّسامُحُ الإسلاميُّ الحَقُّ مُختَلِف: فالمُؤمِنُ يَتَمَسَّكُ بِحَقِّ دينِهِ ويُعامِلُ الآخَرينَ بِعَدلٍ ولينٍ واحتِرام. كَيفَ يَجتَمِعُ اليَقينُ والتَّسامُح؟",
-        },
+      readyButton: {
+        label: { en: "I\'m ready to learn!", ar: "أنا مستعدّ للتعلّم!" },
+        coinsReward: 5,
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "I Am Tolerant — Islamic Tolerance and Coexistence", ar: "أنا متسامح — التسامح والتعايش في الإسلام" },
+      learningObjectives: [
+        { en: "Understand tolerance as a core Islamic value and UAE national identity.", ar: "أفهم التسامح كقيمة إسلاميّة أساسيّة وهويّة وطنيّة إماراتيّة." },
+      ],
+      image: {
+        src: IMG.grandMosque,
+        alt: { en: "Lesson content image.", ar: "صورة محتوى الدرس." },
       },
       infoBoxes: [
         {
-          label: { en: "Qur'an", ar: "القُرآن" },
+          label: { en: "Tolerance in Quran", ar: "التسامح في القرآن" },
           lines: [
-            { en: "\"Allah does not forbid you from those who do not fight you over religion... from being righteous toward them and acting justly toward them. Indeed, Allah loves those who act justly.\" — Al-Mumtahanah 8", ar: "﴿لا يَنهاكُمُ اللهُ عنِ الذينَ لم يُقاتِلوكُم في الدّين... أن تَبَرّوهُم وتُقسِطوا إلَيهِم ۚ إنَّ اللهَ يُحِبُّ المُقسِطين﴾ — المُمتَحَنة ٨" },
+            { en: "Al-Hujurat 13: Made nations to know each other. Fussilat 34: Repel evil with good. Al-Kafirun 6: \'For you is your religion, for me is mine.\' Tolerance = strength, not weakness.", ar: "الحجرات ١٣: لتعارفوا. فصّلت ٣٤: ادفع بالتي هي أحسن. الكافرون ٦: «لكم دينكم ولي دين.» التسامح = قوّة لا ضعف." },
           ],
         },
         {
-          label: { en: "Key term", ar: "مُصطَلَحٌ مِفتاحِيّ" },
+          label: { en: "Prophet\'s Tolerance", ar: "تسامح النبيّ" },
           lines: [
-            { en: "Tasamuh / Samahah (تسامح / سماحة): ease, gentleness, and generosity in dealings; treating others — including those who differ — with fairness, mercy, and good manners.", ar: "التَّسامُح / السَّماحة: اليُسرُ واللِّينُ والكَرَمُ في المُعامَلة؛ مُعامَلةُ الآخَرين — ومِنهُمُ المُخالِفُ — بِعَدلٍ ورَحمةٍ وحُسنِ خُلُق." },
+            { en: "He forgave Quraysh at the Conquest. He was kind to the Jewish neighbour who threw rubbish at him. He welcomed the delegation from Najran (Christians) in his mosque.", ar: "عفا عن قريش عند الفتح. أحسن لجاره اليهودي. رحّب بوفد نجران (المسيحيّين) في مسجده." },
+          ],
+        },
+        {
+          label: { en: "UAE and Tolerance", ar: "الإمارات والتسامح" },
+          lines: [
+            { en: "The UAE has a Minister of Tolerance, Year of Tolerance (2019), houses of worship for many religions, and 200+ nationalities living peacefully together.", ar: "الإمارات لديها وزير تسامح وعام التسامح (٢٠١٩) ودور عبادة لأديان متعدّدة و٢٠٠ جنسيّة تعيش بسلام." },
           ],
         },
       ],
+      trueFalseActivity: {
+        title: { en: "True or False", ar: "صواب أم خطأ" },
+        questions: [
+        { statement: { en: "Islam teaches tolerance.", ar: "الإسلام يعلّم التسامح." }, answer: true },
+        { statement: { en: "Tolerance means weakness.", ar: "التسامح يعني الضعف." }, answer: false },
+        { statement: { en: "The Prophet forgave Quraysh.", ar: "النبيّ عفا عن قريش." }, answer: true },
+        { statement: { en: "UAE promotes intolerance.", ar: "الإمارات تروّج لعدم التسامح." }, answer: false },
+        { statement: { en: "Al-Hujurat 13 is about coexistence.", ar: "الحجرات ١٣ عن التعايش." }, answer: true },
+        ],
+        coinsReward: 10,
+      },
+      fillBlanksActivity: {
+        title: { en: "Fill in the Blanks", ar: "املأ الفراغات" },
+        questions: [
+        { sentence: { en: "\'Repel evil with that which is _______.", ar: "﴿ادفع بالتي هي _______.﴾" }, answer: { en: "better", ar: "أحسن" } },
+        { sentence: { en: "Made peoples and tribes to _______ one another.", ar: "جعلناكم شعوبًا وقبائل ل_______." }, answer: { en: "know", ar: "تعارفوا" } },
+        { sentence: { en: "UAE had Year of _______ in 2019.", ar: "الإمارات أعلنت عام _______ ٢٠١٩." }, answer: { en: "Tolerance", ar: "التسامح" } },
+        { sentence: { en: "\'For you is your religion, for me is _______.", ar: "﴿لكم دينكم ولي _______.﴾" }, answer: { en: "mine", ar: "دين" } },
+        ],
+        coinsReward: 10,
+      },
       body: {
-        en: "Tolerance, in Arabic tasamuh or samahah, is one of the defining characteristics of Islam. The word carries the meanings of ease, gentleness, leniency, and generosity. The Prophet ﷺ described the religion itself with this quality, saying: 'Religion is ease,' and he prayed that Allah would have mercy on 'a man who is easy-going (samh) when he sells, when he buys, and when he asks for repayment.' Islamic tolerance is, at its heart, the practice of treating people — in our speech, our business, our disagreements, and our daily lives — with gentleness, fairness, patience, and good manners, rather than with harshness, cruelty, or injustice. It is the opposite of bigotry, oppression, and a hard, unforgiving heart.\n\nIt is essential, however, to understand what Islamic tolerance does and does not mean, because the word is often misused today. Genuine tolerance does not mean abandoning your beliefs, pretending that truth and falsehood are equal, or accepting that every religion and lifestyle is equally correct. A Muslim believes firmly that Islam is the true religion revealed by Allah, and tolerance does not require him to water down or apologise for that conviction. Allah states clearly: 'There is no compulsion in religion; the right course has become distinct from the wrong.' This very verse is a foundation of tolerance — no one is to be forced to become a Muslim — but it also affirms that truth and error are real and distinct. So the believer combines two things that the modern world often thinks are opposites: a firm, confident commitment to the truth of his own faith, and a gentle, just, respectful treatment of those who believe differently.\n\nThe basis of this tolerance is found throughout the Qur'an and Sunnah. Allah commands justice and kindness even toward non-Muslims who are peaceful: 'Allah does not forbid you from being righteous and just toward those who do not fight you because of religion nor drive you out of your homes. Indeed, Allah loves those who act justly.' The Prophet ﷺ honoured agreements with non-Muslims, was kind to his Jewish neighbour, accepted gifts from non-Muslims, and dealt fairly with everyone. Islamic tolerance therefore rests on deep principles: that all human beings are honoured by Allah as children of Adam, that justice must be given to everyone regardless of their faith, that guidance is in Allah's hands and cannot be forced, and that good character is owed to all of creation. A demanding student should grasp this balanced picture from the start: Islam is a religion of strong conviction and gentle conduct at the same time. In the sections that follow, we will see how this tolerance applies in our dealings with others and within a diverse society like the UAE.",
-        ar: "التَّسامُح، أوِ السَّماحةُ بِالعَرَبيّة، مِنَ السِّماتِ المُمَيِّزةِ لِلإسلام. والكَلِمةُ تَحمِلُ مَعانيَ اليُسرِ واللِّينِ والسُّهولةِ والكَرَم. وقد وَصَفَ النَّبِيُّ ﷺ الدّينَ نَفسَهُ بِهذه الصِّفة، فَقال: «الدّينُ يُسر»، ودَعا أن يَرحَمَ اللهُ «رَجُلًا سَمحًا إذا باعَ، وإذا اشتَرى، وإذا اقتَضى». فالتَّسامُحُ الإسلاميُّ في جَوهَرِهِ مُعامَلةُ النّاسِ — في كَلامِنا وتِجارَتِنا وخِلافاتِنا وحَياتِنا اليَوميّة — بِلينٍ وعَدلٍ وصَبرٍ وحُسنِ خُلُق، لا بِغِلظةٍ أو قَسوةٍ أو ظُلم. وهو نَقيضُ التَّعَصُّبِ والاضطِهادِ والقَلبِ القاسي الذي لا يَعفو.\n\nلكِنْ مِنَ الجَوهَريِّ أن نَفهَمَ ما يَعنيهِ التَّسامُحُ الإسلاميُّ وما لا يَعنيه، لِأنَّ الكَلِمةَ كَثيرًا ما تُساءُ اليَوم. فالتَّسامُحُ الحَقُّ لا يَعني التَّخَلّيَ عن عَقيدَتِك، ولا التَّظاهُرَ بِأنَّ الحَقَّ والباطِلَ سَواء، ولا قَبولَ أنَّ كُلَّ دينٍ ونَمَطٍ حَياتيٍّ صَحيحٌ بِالتَّساوي. فالمُسلِمُ يُؤمِنُ يَقينًا أنَّ الإسلامَ هو الدّينُ الحَقُّ الذي أنزَلَهُ الله، والتَّسامُحُ لا يُلزِمُهُ أن يُمَيِّعَ هذا اليَقينَ أو يَعتَذِرَ عنه. يَقولُ اللهُ بِوُضوح: ﴿لا إكراهَ في الدّينِ ۖ قَد تَبَيَّنَ الرُّشدُ مِنَ الغَيّ﴾. وهذه الآيةُ نَفسُها أساسٌ لِلتَّسامُح — فلا يُكرَهُ أحَدٌ على الإسلام — لكِنَّها تُؤَكِّدُ أيضًا أنَّ الحَقَّ والباطِلَ حَقيقيّانِ مُتَمَيِّزان. فَالمُؤمِنُ يَجمَعُ بَينَ ما يَظُنُّهُ العالَمُ الحَديثُ مُتَناقِضَين: الالتِزامَ الثّابِتَ الواثِقَ بِحَقِّ دينِه، والمُعامَلةَ اللَّيِّنةَ العادِلةَ المُحتَرِمةَ لِمَن يُخالِفُهُ في الاعتِقاد.\n\nوأساسُ هذا التَّسامُحِ في القُرآنِ والسُّنّةِ كُلِّها. يَأمُرُ اللهُ بِالعَدلِ والإحسانِ حَتّى مَعَ غَيرِ المُسلِمينَ المُسالِمين: ﴿لا يَنهاكُمُ اللهُ عنِ الذينَ لم يُقاتِلوكُم في الدّينِ ولم يُخرِجوكُم مِن دِيارِكُم أن تَبَرّوهُم وتُقسِطوا إلَيهِم ۚ إنَّ اللهَ يُحِبُّ المُقسِطين﴾. وقد وَفّى النَّبِيُّ ﷺ بِالعُهودِ مَعَ غَيرِ المُسلِمين، وأحسَنَ إلى جارِهِ اليَهوديّ، وقَبِلَ الهَدِيّةَ مِن غَيرِ المُسلِم، وعامَلَ الجَميعَ بِعَدل. فالتَّسامُحُ الإسلاميُّ يَقومُ على مَبادِئَ عَميقة: أنَّ البَشَرَ كُلَّهُم كَرَّمَهُمُ اللهُ بَني آدَم، وأنَّ العَدلَ حَقٌّ لِلجَميعِ مَهما كانَ دينُهُم، وأنَّ الهِدايةَ بِيَدِ اللهِ لا تُفرَض، وأنَّ حُسنَ الخُلُقِ مَبذولٌ لِلخَلقِ أجمَعين. وعلى الطّالِبِ المُطالِبِ أن يُدرِكَ هذه الصورةَ المُتَوازِنةَ مِنَ البِداية: الإسلامُ دينُ يَقينٍ قَوِيٍّ وسُلوكٍ لَيِّنٍ في آنٍ مَعًا. وفي ما يَلي، سَنَرى كَيفَ يَنطَبِقُ هذا التَّسامُحُ في مُعامَلَتِنا لِلآخَرينَ وداخِلَ مُجتَمَعٍ مُتَنَوِّعٍ كَالإمارات.",
+        en: "Tolerance is Islamic strength — repelling evil with good, knowing one another, and coexisting peacefully.",
+        ar: "التسامح قوّة إسلاميّة — دفع السوء بالحُسنى والتعارف والتعايش بسلام.",
       },
     },
     {
-      title: { en: "Tolerance in action", ar: "التَّسامُحُ في العَمَل" },
+      title: { en: "Group Work", ar: "عمل جماعي" },
       learningObjectives: [
-        { en: "Give examples of tolerance from the Prophet's life.", ar: "أضرِبُ أمثِلةً لِلتَّسامُحِ مِن سيرةِ النَّبِيِّ ﷺ." },
+        { en: "Explore tolerance from different angles.", ar: "استكشف التسامح من زوايا مختلفة." },
       ],
       image: {
-        src: IMG.lantern,
-        alt: { en: "A welcoming light — repelling evil with good.", ar: "نورٌ مُرَحِّب — دَفعُ السَّيِّئةِ بِالحَسَنة." },
-        caption: { en: "'Repel [evil] with that which is better.' (Fussilat 34)", ar: "﴿ادفَعْ بِالتي هي أحسَن﴾ (فُصِّلَت ٣٤)." },
+        src: IMG.grandMosque,
+        alt: { en: "Students collaborating.", ar: "طلاب يتعاونون." },
       },
-      groupTasks: {
-        title: { en: "How the Prophet ﷺ showed tolerance", ar: "كَيفَ أظهَرَ النَّبِيُّ ﷺ التَّسامُح" },
-        instruction: { en: "Each group studies one example.", ar: "تَدرُسُ كُلُّ مَجموعةٍ مِثالًا." },
-        groups: [
+      groupWorkCards: {
+        title: { en: "Choose Your Task", ar: "اختر مهمّتك" },
+        instruction: { en: "Each group picks one card. Study the information, complete the task, and present to the class.", ar: "تختار كلّ مجموعة بطاقة. ادرسوا المعلومات وأنجزوا المهمّة وقدّموا للصفّ." },
+        presentationNote: { en: "All Quran and Hadith must be authentic with references.", ar: "يجب أن يكون كلّ قرآن وحديث صحيحًا بمصادره." },
+        cards: [
           {
-            slug: "tolerance-forgiveness",
-            name: { en: "Team A — Forgiving the harshest enemies", ar: "الفَريقُ أ — العَفوُ عن أشَدِّ الأعداء" },
-            learningObjective: { en: "Show forgiveness over revenge.", ar: "نُبَيِّنُ العَفوَ على الانتِقام." },
-            task: { en: "At the Conquest of Makkah, the Prophet ﷺ forgave those who had persecuted him. After Ta'if, where he was stoned, he refused to call for their destruction. Explain how repelling evil with good wins hearts.", ar: "يَومَ فَتحِ مَكّةَ عَفا النَّبِيُّ ﷺ عَمَّن اضطَهَدوه. وبَعدَ الطّائِفِ حَيثُ رُجِم، أبى أن يَدعُوَ بِهَلاكِهِم. بَيِّنوا كَيفَ يَكسِبُ دَفعُ السَّيِّئةِ بِالحَسَنةِ القُلوب." },
-            evidence: [
-              { en: "Fussilat 34: 'Repel with that which is better, and the enemy will become a devoted friend.'", ar: "فُصِّلَت ٣٤: ﴿ادفَعْ بِالتي هي أحسَن فإذا الذي بَينَكَ وبَينَهُ عَداوةٌ كأنَّهُ وَلِيٌّ حَميم﴾." },
+            id: "A",
+            title: { en: "Quranic Tolerance", ar: "التسامح القرآني" },
+            image: IMG.childQuran,
+            color: "teal",
+            topic: { en: "Verses on coexistence", ar: "آيات التعايش" },
+            infoSections: [
+              { label: { en: "Quran", ar: "القرآن" }, content: { en: "Al-Hujurat 13, Fussilat 34, Al-Kafirun 6.", ar: "الحجرات ١٣ وفصّلت ٣٤ والكافرون ٦." } },
+              { label: { en: "Principle", ar: "مبدأ" }, content: { en: "Diversity is by Allah\'s design — for mutual learning.", ar: "التنوّع بتصميم الله — للتعلّم المتبادل." } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Tolerance is commanded, not optional.", ar: "التسامح مأمور به لا اختياري." } },
             ],
-            sourceNotes: [
-              { en: "Forgiveness can turn enemies into friends.", ar: "العَفوُ قد يُحَوِّلُ العَدُوَّ صَديقًا." },
-            ],
-            memberRoles: [
-              { en: "Evidence-finder, Explainer, Presenter.", ar: "باحِثُ الدَّليل، الشّارِح، العارِض." },
-            ],
-            finalProduct: { en: "A talk on forgiveness as strength.", ar: "كَلِمةٌ عنِ العَفوِ قُوّةً." },
+            task: {
+              title: { en: "Analyse Tolerance Verses", ar: "حلّل آيات التسامح" },
+              description: { en: "Pick 3 verses on tolerance and explain their relevance today.", ar: "اختر ٣ آيات عن التسامح واشرح أهمّيّتها." },
+              hint: { en: "Include: verse, context, modern application.", ar: "ضمّن: الآية والسياق والتطبيق المعاصر." },
+            },
           },
           {
-            slug: "tolerance-coexistence",
-            name: { en: "Team B — Justice & good neighbourliness", ar: "الفَريقُ ب — العَدلُ وحُسنُ الجِوار" },
-            learningObjective: { en: "Show fairness and kindness to non-Muslims.", ar: "نُبَيِّنُ العَدلَ والإحسانَ لِغَيرِ المُسلِمين." },
-            task: { en: "The Prophet ﷺ had non-Muslim neighbours and dealt with them kindly, honoured treaties, and the Charter of Madinah protected the rights of Jews. Explain how Muslims are commanded to be just and good neighbours to people of other faiths.", ar: "كانَ لِلنَّبِيِّ ﷺ جيرانٌ غَيرُ مُسلِمين فَأحسَنَ إلَيهِم، ووَفّى بِالمَواثيق، وحَمى صَحيفةُ المَدينةِ حُقوقَ اليَهود. بَيِّنوا كَيفَ أُمِرَ المُسلِمونَ بِالعَدلِ وحُسنِ الجِوارِ مَعَ أهلِ الأديان." },
-            evidence: [
-              { en: "Al-Mumtahanah 8; hadith on honouring the neighbour.", ar: "المُمتَحَنة ٨؛ حَديثُ الإحسانِ إلى الجار." },
+            id: "B",
+            title: { en: "Prophet\'s Examples", ar: "أمثلة النبيّ" },
+            image: IMG.grandMosque,
+            color: "blue",
+            topic: { en: "Tolerance in action", ar: "التسامح عمليًّا" },
+            infoSections: [
+              { label: { en: "Example", ar: "مثال" }, content: { en: "Forgave Quraysh, was kind to the Jewish neighbour, hosted Christians in mosque.", ar: "عفا عن قريش وأحسن لجاره اليهودي واستضاف المسيحيّين." } },
+              { label: { en: "Hadith", ar: "حديث" }, content: { en: "\'Be merciful to those on earth, and the One in heaven will be merciful to you.\' (Tirmidhi)", ar: "«ارحموا من في الأرض يرحمكم من في السماء.» (الترمذي)" } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "The Prophet was the most tolerant human.", ar: "النبيّ كان أكثر الناس تسامحًا." } },
             ],
-            sourceNotes: [
-              { en: "Justice to all is commanded, even to opponents.", ar: "العَدلُ لِلجَميعِ مَأمورٌ بِه، حَتّى لِلمُخالِف." },
+            task: {
+              title: { en: "Write 3 Prophet Examples", ar: "اكتب ٣ أمثلة نبويّة" },
+              description: { en: "Describe 3 instances of the Prophet\'s tolerance.", ar: "صف ٣ مواقف لتسامح النبيّ." },
+              hint: { en: "Include: the situation, his response, the lesson.", ar: "ضمّن: الموقف واستجابته والدرس." },
+            },
+          },
+          {
+            id: "C",
+            title: { en: "UAE Tolerance Model", ar: "نموذج التسامح الإماراتي" },
+            image: IMG.skyBlue,
+            color: "purple",
+            topic: { en: "A modern example", ar: "مثال معاصر" },
+            infoSections: [
+              { label: { en: "Fact", ar: "حقيقة" }, content: { en: "200+ nationalities, houses of worship, Minister of Tolerance, interfaith dialogue.", ar: "أكثر من ٢٠٠ جنسيّة ودور عبادة ووزير تسامح وحوار أديان." } },
+              { label: { en: "Values", ar: "قيم" }, content: { en: "UAE promotes coexistence as a national priority.", ar: "الإمارات تروّج للتعايش كأولويّة وطنيّة." } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Modern tolerance builds on Islamic foundations.", ar: "التسامح الحديث يُبنى على أُسس إسلاميّة." } },
             ],
-            memberRoles: [
-              { en: "Researcher, Summariser, Presenter.", ar: "الباحِث، المُلَخِّص، العارِض." },
+            task: {
+              title: { en: "Research UAE Tolerance", ar: "ابحث عن التسامح الإماراتي" },
+              description: { en: "Write about 3 UAE tolerance initiatives.", ar: "اكتب عن ٣ مبادرات تسامح إماراتيّة." },
+              hint: { en: "Include: name, purpose, impact.", ar: "ضمّن: الاسم والهدف والأثر." },
+            },
+          },
+          {
+            id: "D",
+            title: { en: "Tolerance at School", ar: "التسامح في المدرسة" },
+            image: IMG.bookshelf,
+            color: "amber",
+            topic: { en: "Practical tolerance", ar: "التسامح العملي" },
+            infoSections: [
+              { label: { en: "Application", ar: "تطبيق" }, content: { en: "Respecting different cultures, helping new students, resolving conflicts peacefully.", ar: "احترام الثقافات ومساعدة الطلّاب الجدد وحلّ النزاعات بسلام." } },
+              { label: { en: "Hadith", ar: "حديث" }, content: { en: "\'None of you truly believes until he wishes for his brother what he wishes for himself.\' (Bukhari)", ar: "«لا يؤمن أحدكم حتّى يحبّ لأخيه ما يحبّ لنفسه.» (البخاري)" } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Tolerance starts in the classroom.", ar: "التسامح يبدأ في الفصل." } },
             ],
-            finalProduct: { en: "A summary on justice and neighbourliness.", ar: "مُلَخَّصٌ عنِ العَدلِ وحُسنِ الجِوار." },
+            task: {
+              title: { en: "Create Tolerance Actions", ar: "أنشئ أعمال تسامح" },
+              description: { en: "Write 5 ways to show tolerance at school.", ar: "اكتب ٥ طرق لإظهار التسامح في المدرسة." },
+              hint: { en: "Include: situation, action, impact on others.", ar: "ضمّن: الموقف والعمل والأثر." },
+            },
+          },
+          {
+            id: "E",
+            title: { en: "Tolerance vs Agreeing", ar: "التسامح مقابل الموافقة" },
+            image: IMG.lantern,
+            color: "rose",
+            topic: { en: "They are not the same", ar: "ليسا نفس الشيء" },
+            infoSections: [
+              { label: { en: "Clarification", ar: "توضيح" }, content: { en: "Tolerance = respecting differences while holding your beliefs. It does NOT mean approving everything.", ar: "التسامح = احترام الاختلاف مع التمسّك بمعتقداتك. لا يعني الموافقة على كلّ شيء." } },
+              { label: { en: "Quran", ar: "القرآن" }, content: { en: "\'For you is your religion, for me is mine.\' (Al-Kafirun 6)", ar: "﴿لكم دينكم ولي دين﴾ (الكافرون ٦)" } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "You can disagree respectfully.", ar: "يمكنك أن تختلف باحترام." } },
+            ],
+            task: {
+              title: { en: "Define Tolerance Correctly", ar: "عرّف التسامح صحيحًا" },
+              description: { en: "Explain the difference between tolerance and agreement.", ar: "اشرح الفرق بين التسامح والموافقة." },
+              hint: { en: "Include: definition, examples, boundaries.", ar: "ضمّن: التعريف والأمثلة والحدود." },
+            },
           },
         ],
+        coinsReward: 15,
       },
-      responsePrompt: {
-        title: { en: "Written response", ar: "إجابةٌ مَكتوبة" },
-        prompt: { en: "Describe two examples of the Prophet's tolerance, and explain the principle each teaches. Then describe a real situation at school where you could 'repel evil with good' — for example, responding to an insult or rudeness with patience and kindness rather than anger.", ar: "صِفْ مِثالَينِ لِتَسامُحِ النَّبِيِّ ﷺ، وبَيِّنِ المَبدأَ الذي يُعَلِّمُهُ كُلٌّ. ثُمَّ صِفْ مَوقِفًا واقِعيًّا في المَدرَسةِ تَستَطيعُ فيهِ أن «تَدفَعَ السَّيِّئةَ بِالحَسَنة» — كَالرَّدِّ على إساءةٍ أو سوءِ أدَبٍ بِالصَّبرِ واللُّطفِ لا بِالغَضَب." },
-        placeholder: { en: "Example 1: ... teaches... Example 2: ... teaches... At school I could repel evil with good by...", ar: "المِثالُ ١: ... يُعَلِّمُ... المِثالُ ٢: ... يُعَلِّمُ... وفي المَدرَسةِ أدفَعُ السَّيِّئةَ بِالحَسَنةِ بِـ..." },
-      },
-      body: {
-        en: "The life of the Prophet ﷺ is full of powerful examples of tolerance in practice, demonstrating that these are not abstract ideals but a lived reality. Perhaps the most famous is the Conquest of Makkah. For thirteen years the Prophet ﷺ and his Companions had been mocked, boycotted, tortured, and finally driven from their homes by the people of Makkah; many believers had been killed. Yet when the Prophet ﷺ entered Makkah victorious, with complete power over his former persecutors, he did not take revenge. Instead he asked them, 'What do you think I will do with you?' and when they hoped for mercy, he declared, 'Go, for you are free.' This single act of mass forgiveness won over the hearts of an entire city and is one of the greatest examples of magnanimity in human history. Similarly, after the people of Ta'if had stoned him until his feet bled, and the angel of the mountains offered to destroy them, the Prophet ﷺ refused, saying he hoped their descendants would one day worship Allah.\n\nIn his daily life too, the Prophet ﷺ embodied gentle, just dealings with everyone, including non-Muslims. He had a Jewish neighbour and treated him with such kindness that the man eventually embraced Islam. He accepted gifts from non-Muslims, traded with them, took part in fair agreements, and even passed away while his shield was pledged as security to a Jewish merchant for a loan. When the Charter of Madinah was drawn up, it guaranteed the Jewish tribes their religion, their property, and their security as part of one community. The Prophet ﷺ warned sternly: 'Whoever wrongs a non-Muslim under covenant, or diminishes his right, or burdens him beyond his capacity, or takes from him without his consent, I will be his opponent on the Day of Judgement.' This is tolerance backed by the full weight of divine accountability.\n\nThe principle that ties these examples together is captured in Allah's command: 'Repel [evil] with that which is better; then the one between whom and you there was enmity will become as though he were a devoted friend.' Islam teaches the believer not merely to endure those who wrong him, but actively to respond to bad treatment with good, knowing that gentleness and forgiveness can transform an enemy into a friend. At the same time, this tolerance is built on justice, not weakness: the believer does not abandon his rights to oppression, but chooses forgiveness from a position of strength and principle, and he never commits injustice himself. A demanding student should learn from these examples how to carry tolerance into his own life — to be the one who controls his anger, who responds to rudeness with patience, who forgives a friend's mistake, who is fair even to those he dislikes, and who treats every person, Muslim or not, with the dignity and justice that Allah has commanded. This is how the noble character of the Prophet ﷺ becomes real in the conduct of an ordinary student today.",
-        ar: "سيرةُ النَّبِيِّ ﷺ مَملوءةٌ بِأمثِلةٍ قَوِيّةٍ لِلتَّسامُحِ في العَمَل، تُثبِتُ أنَّها لَيسَت مُثُلًا مُجَرَّدةً بل واقِعًا مَعيشًا. ولَعَلَّ أشهَرَها فَتحُ مَكّة. فَثَلاثَ عَشرةَ سَنةً ظَلَّ النَّبِيُّ ﷺ وأصحابُهُ يُسخَرُ مِنهُم ويُحاصَرونَ ويُعَذَّبونَ ثُمَّ أُخرِجوا مِن دِيارِهِم على يَدِ أهلِ مَكّة؛ وقُتِلَ كَثيرٌ مِنَ المُؤمِنين. ومَعَ ذلك حينَ دَخَلَ النَّبِيُّ ﷺ مَكّةَ مُنتَصِرًا، بِكامِلِ القُدرةِ على مَن عَذَّبوه، لم يَنتَقِم. بل سَألَهُم: «ما تَظُنّونَ أنّي فاعِلٌ بِكُم؟» فَلَمّا رَجَوا الرَّحمةَ قال: «اذهَبوا فَأنتُمُ الطُّلَقاء». وهذا العَفوُ الجَماعيُّ الواحِدُ كَسَبَ قُلوبَ مَدينةٍ بِأكمَلِها، وهو مِن أعظَمِ أمثِلةِ النُّبلِ في تاريخِ البَشَر. وكَذلك بَعدَ أن رَجَمَهُ أهلُ الطّائِفِ حَتّى أدمَوا قَدَمَيه، وعَرَضَ مَلَكُ الجِبالِ أن يُهلِكَهُم، أبى النَّبِيُّ ﷺ، قائِلًا إنَّهُ يَرجو أن يَعبُدَ اللهَ مِن ذُرِّيّاتِهِم.\n\nوفي حَياتِهِ اليَوميّةِ كَذلك جَسَّدَ النَّبِيُّ ﷺ المُعامَلةَ اللَّيِّنةَ العادِلةَ مَعَ الجَميع، ومِنهُم غَيرُ المُسلِمين. كانَ لَهُ جارٌ يَهوديٌّ فَأحسَنَ إليهِ حَتّى أسلَم. وقَبِلَ الهَدِيّةَ مِن غَيرِ المُسلِمين، وتاجَرَ مَعَهُم، ودَخَلَ في عُهودٍ عادِلة، بل تُوُفِّيَ ودِرعُهُ مَرهونةٌ عِندَ تاجِرٍ يَهوديٍّ في دَين. ولَمّا كُتِبَت صَحيفةُ المَدينة، ضَمِنَت لِقَبائِلِ اليَهودِ دينَهُم ومالَهُم وأمنَهُم جُزءًا مِن أُمّةٍ واحِدة. وحَذَّرَ النَّبِيُّ ﷺ شَديدًا: «مَن ظَلَمَ مُعاهَدًا أوِ انتَقَصَهُ حَقَّهُ أو كَلَّفَهُ فَوقَ طاقَتِهِ أو أخَذَ مِنهُ شَيئًا بِغَيرِ طيبِ نَفسٍ فَأنا حَجيجُهُ يَومَ القِيامة». فهذا تَسامُحٌ مَسنودٌ بِكُلِّ ثِقَلِ المُحاسَبةِ الإلهيّة.\n\nوالمَبدأُ الذي يَجمَعُ هذه الأمثِلةَ مُلَخَّصٌ في أمرِ الله: ﴿ادفَعْ بِالتي هي أحسَن فإذا الذي بَينَكَ وبَينَهُ عَداوةٌ كأنَّهُ وَلِيٌّ حَميم﴾. يُعَلِّمُ الإسلامُ المُؤمِنَ لا أن يَحتَمِلَ مَن أساءَ إليهِ فَحَسب، بل أن يَرُدَّ فِعلًا على الإساءةِ بِالإحسان، عِلمًا أنَّ اللِّينَ والعَفوَ قد يُحَوِّلانِ العَدُوَّ صَديقًا. وفي الوَقتِ نَفسِه، هذا التَّسامُحُ مَبنيٌّ على العَدلِ لا على الضَّعف: فالمُؤمِنُ لا يَترُكُ حُقوقَهُ لِلظُّلم، بل يَختارُ العَفوَ مِن مَوضِعِ قُوّةٍ ومَبدأ، ولا يَظلِمُ هو أبَدًا. وعلى الطّالِبِ المُطالِبِ أن يَتَعَلَّمَ مِن هذه الأمثِلةِ كَيفَ يَحمِلُ التَّسامُحَ إلى حَياتِه — أن يَكونَ مَن يَملِكُ غَضَبَه، ويَرُدُّ على سوءِ الأدَبِ بِالصَّبر، ويَعفو عن خَطأِ صَديق، ويَعدِلُ حَتّى مَعَ مَن يَكرَه، ويُعامِلُ كُلَّ إنسان، مُسلِمًا كانَ أو غَيرَ مُسلِم، بِالكَرامةِ والعَدلِ الذي أمَرَ بِهِ الله. وهكذا يَصيرُ خُلُقُ النَّبِيِّ ﷺ الكَريمُ واقِعًا في سُلوكِ طالِبٍ عاديٍّ اليَوم.",
-      },
+      body: { en: "", ar: "" },
     },
     {
-      title: { en: "Tolerance in the UAE and our lives", ar: "التَّسامُحُ في الإماراتِ وحَياتِنا" },
+      title: { en: "Hinge Questions", ar: "أسئلة محوريّة" },
       learningObjectives: [
-        { en: "Connect Islamic tolerance to life in a diverse society.", ar: "أربِطُ التَّسامُحَ الإسلاميَّ بِالحَياةِ في مُجتَمَعٍ مُتَنَوِّع." },
+        { en: "Test your understanding of everything studied.", ar: "اختبر فهمك لكلّ ما درسته." },
       ],
       image: {
-        src: IMG.skyBlue,
-        alt: { en: "An open sky over a diverse nation.", ar: "سَماءٌ مَفتوحةٌ فَوقَ وَطَنٍ مُتَنَوِّع." },
-        caption: { en: "The UAE is home to people of many nationalities and faiths living in peace.", ar: "الإماراتُ مَوطِنٌ لِأهلِ جِنسيّاتٍ وأديانٍ كَثيرةٍ يَعيشونَ بِسَلام." },
+        src: IMG.bookshelf,
+        alt: { en: "Assessment.", ar: "تقييم." },
       },
-      responsePrompt: {
-        title: { en: "Final synthesis", ar: "التَّركيبُ الخِتامِيّ" },
-        prompt: { en: "The UAE is home to people from around 200 nationalities. Explain how Islamic tolerance (justice, gentleness, good neighbourliness, respecting others' rights) helps such a diverse society live in peace. Then write three things YOU will do to be a tolerant person at school and in your community.", ar: "الإماراتُ مَوطِنٌ لِأهلِ نَحوِ ٢٠٠ جِنسيّة. بَيِّنْ كَيفَ يُعينُ التَّسامُحُ الإسلاميُّ (العَدلُ واللِّينُ وحُسنُ الجِوارِ واحتِرامُ حُقوقِ الآخَرين) مُجتَمَعًا مُتَنَوِّعًا كَهذا على العَيشِ بِسَلام. ثُمَّ اكتُبْ ثَلاثةَ أشياءَ ستَفعَلُها لِتَكونَ مُتَسامِحًا في مَدرَسَتِكَ ومُجتَمَعِك." },
-        placeholder: { en: "Islamic tolerance helps a diverse society by... I will: (1)... (2)... (3)...", ar: "يُعينُ التَّسامُحُ الإسلاميُّ المُجتَمَعَ المُتَنَوِّعَ بِـ... وسأفعَلُ: (١)... (٢)... (٣)..." },
+      hingeQuestions: {
+        title: { en: "Hinge Questions — Test Your Understanding", ar: "أسئلة محوريّة — اختبر فهمك" },
+        instruction: { en: "Answer all 10 questions.", ar: "أجب عن الأسئلة العشرة." },
+        questions: [
+          {
+            question: { en: "Islam teaches?", ar: "الإسلام يعلّم؟" },
+            options: [
+            { en: "Tolerance", ar: "التسامح" },
+            { en: "Intolerance", ar: "عدم التسامح" },
+            { en: "Isolation", ar: "العزلة" },
+            { en: "Fighting", ar: "القتال" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Tolerance.", ar: "التسامح." },
+          },
+          {
+            question: { en: "Tolerance is?", ar: "التسامح؟" },
+            options: [
+            { en: "Strength", ar: "قوّة" },
+            { en: "Weakness", ar: "ضعف" },
+            { en: "Stupidity", ar: "غباء" },
+            { en: "Laziness", ar: "كسل" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Strength.", ar: "قوّة." },
+          },
+          {
+            question: { en: "Al-Hujurat 13 says?", ar: "الحجرات ١٣ تقول؟" },
+            options: [
+            { en: "Made you to know each other", ar: "لتعارفوا" },
+            { en: "To fight", ar: "لتقاتلوا" },
+            { en: "To ignore", ar: "لتتجاهلوا" },
+            { en: "To compete", ar: "لتتنافسوا" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Made you to know each other.", ar: "لتعارفوا." },
+          },
+          {
+            question: { en: "Prophet forgave?", ar: "النبيّ عفا عن؟" },
+            options: [
+            { en: "Quraysh", ar: "قريش" },
+            { en: "No one", ar: "لا أحد" },
+            { en: "Only friends", ar: "الأصدقاء فقط" },
+            { en: "Only family", ar: "العائلة فقط" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Quraysh at the Conquest.", ar: "قريش عند الفتح." },
+          },
+          {
+            question: { en: "UAE Year of Tolerance?", ar: "عام التسامح الإماراتي؟" },
+            options: [
+            { en: "2019", ar: "٢٠١٩" },
+            { en: "2000", ar: "٢٠٠٠" },
+            { en: "1990", ar: "١٩٩٠" },
+            { en: "2025", ar: "٢٠٢٥" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "2019.", ar: "٢٠١٩." },
+          },
+          {
+            question: { en: "Repel evil with?", ar: "ادفع السوء ب؟" },
+            options: [
+            { en: "What is better", ar: "التي هي أحسن" },
+            { en: "More evil", ar: "سوء أكثر" },
+            { en: "Violence", ar: "العنف" },
+            { en: "Silence", ar: "الصمت" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "What is better.", ar: "التي هي أحسن." },
+          },
+          {
+            question: { en: "How many nationalities in UAE?", ar: "كم جنسيّة في الإمارات؟" },
+            options: [
+            { en: "200+", ar: "أكثر من ٢٠٠" },
+            { en: "10", ar: "١٠" },
+            { en: "5", ar: "٥" },
+            { en: "50", ar: "٥٠" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Over 200.", ar: "أكثر من ٢٠٠." },
+          },
+          {
+            question: { en: "Does tolerance = agreeing?", ar: "هل التسامح = الموافقة؟" },
+            options: [
+            { en: "No", ar: "لا" },
+            { en: "Yes", ar: "نعم" },
+            { en: "Always", ar: "دائمًا" },
+            { en: "Only sometimes", ar: "أحيانًا" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "No — respect, not agreement.", ar: "لا — احترام لا موافقة." },
+          },
+          {
+            question: { en: "Be merciful to those on?", ar: "ارحموا من في؟" },
+            options: [
+            { en: "Earth", ar: "الأرض" },
+            { en: "Space", ar: "الفضاء" },
+            { en: "Water", ar: "الماء" },
+            { en: "Air", ar: "الهواء" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Those on earth (Tirmidhi).", ar: "من في الأرض (الترمذي)." },
+          },
+          {
+            question: { en: "Al-Kafirun 6?", ar: "الكافرون ٦؟" },
+            options: [
+            { en: "For you your religion, for me mine", ar: "لكم دينكم ولي دين" },
+            { en: "Only my religion", ar: "ديني فقط" },
+            { en: "No religion", ar: "لا دين" },
+            { en: "All the same", ar: "الكلّ سواء" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "For you is your religion, for me mine.", ar: "لكم دينكم ولي دين." },
+          },
+        ],
+        coinsReward: 20,
       },
-      body: {
-        en: "The principles of Islamic tolerance are especially relevant in a diverse and modern society such as the United Arab Emirates, which is home to people of around two hundred nationalities and many different religions living and working side by side. The UAE has made tolerance and coexistence a national value, establishing initiatives, a national programme, and even a Ministry dedicated to tolerance, and welcoming places of worship for different faith communities. For a Muslim, supporting this kind of peaceful, respectful society is not a betrayal of his religion but an expression of it, because, as we have seen, justice, kindness, honouring agreements, good neighbourliness, and respecting the rights of non-Muslims who live peacefully among us are all commands rooted in the Qur'an and the example of the Prophet ﷺ. A society where people of different backgrounds are treated with fairness and dignity is a society built on values that Islam itself upholds.\n\nIt is important, however, to keep the balance we discussed earlier. Tolerance in a diverse society does not require a Muslim to give up his own beliefs, his religious practices, or his identity. He continues to pray, fast, dress modestly, hold to his values, and believe firmly that Islam is the truth. Likewise, respecting another person's right to follow their own religion does not mean believing that their religion is equally true or participating in acts of worship that contradict Islam. The believer holds to his faith with conviction while extending good character, justice, and respect to everyone. This is exactly the prophetic balance: firm in belief, gentle in conduct. Indeed, the best way a Muslim can call others toward the beauty of Islam is precisely through this excellent character — being the most honest, reliable, kind, and tolerant person in any community.\n\nFor a student, all of this comes down to everyday behaviour. Tolerance means treating classmates of different nationalities, languages, and religions with respect and fairness; not mocking anyone for being different; standing against bullying and prejudice; being patient when others annoy or wrong you; forgiving mistakes; cooperating with all kinds of people in school and society; and showing the beautiful manners of Islam to everyone you meet. It also means controlling your tongue and your temper, assuming the best of others, and being a source of peace rather than conflict. A demanding student should leave this lesson understanding that being 'tolerant' is not a sign of weak faith but the mark of a strong, mature believer who reflects the character of the Prophet ﷺ. By practising genuine Islamic tolerance — firm in truth, gentle and just toward all — the student becomes a better Muslim, a better member of his diverse society, and a living example of why Islam is described as a religion of ease, mercy, and noble character.",
-        ar: "مَبادِئُ التَّسامُحِ الإسلاميِّ وَثيقةُ الصِّلةِ خاصّةً بِمُجتَمَعٍ مُتَنَوِّعٍ حَديثٍ كَدَولةِ الإماراتِ العَرَبيّةِ المُتَّحِدة، التي هي مَوطِنٌ لِأهلِ نَحوِ مِئَتَي جِنسيّةٍ وأديانٍ شَتّى يَعيشونَ ويَعمَلونَ جَنبًا إلى جَنب. وقد جَعَلَتِ الإماراتُ التَّسامُحَ والتَّعايُشَ قيمةً وَطَنيّة، فَأنشَأَت مُبادَراتٍ وبَرنامَجًا وَطَنيًّا بل وَزارةً لِلتَّسامُح، ورَحَّبَت بِدورِ العِبادةِ لِمُختَلِفِ الجَماعاتِ الدّينيّة. والمُسلِمُ، إذ يَدعَمُ هذا النَّوعَ مِنَ المُجتَمَعِ المُسالِمِ المُحتَرِم، لا يَخونُ دينَهُ بل يُعَبِّرُ عنه، لِأنَّ — كَما رَأينا — العَدلَ والإحسانَ والوَفاءَ بِالعُهودِ وحُسنَ الجِوارِ واحتِرامَ حُقوقِ غَيرِ المُسلِمينَ المُسالِمينَ بَينَنا، كُلَّها أوامِرُ مُؤَصَّلةٌ في القُرآنِ وسيرةِ النَّبِيِّ ﷺ. فالمُجتَمَعُ الذي يُعامَلُ فيهِ أهلُ الخَلفيّاتِ المُختَلِفةِ بِعَدلٍ وكَرامةٍ مُجتَمَعٌ قائِمٌ على قِيَمٍ يَدعَمُها الإسلامُ نَفسُه.\n\nلكِنْ مِنَ المُهِمِّ أن نُبقيَ التَّوازُنَ الذي ذَكَرناهُ سابِقًا. فالتَّسامُحُ في مُجتَمَعٍ مُتَنَوِّعٍ لا يُلزِمُ المُسلِمَ بِالتَّخَلّي عن عَقائِدِهِ أو شَعائِرِهِ أو هُوِيَّتِه. فهو يَستَمِرُّ في صَلاتِهِ وصِيامِهِ وحِشمةِ لِباسِهِ وتَمَسُّكِهِ بِقِيَمِهِ وإيمانِهِ اليَقينيِّ أنَّ الإسلامَ هو الحَقّ. كَذلك احتِرامُ حَقِّ غَيرِهِ في اتِّباعِ دينِهِ لا يَعني الاعتِقادَ أنَّ دينَهُ حَقٌّ مُساوٍ أوِ المُشارَكةَ في عِباداتٍ تُناقِضُ الإسلام. فالمُؤمِنُ يَتَمَسَّكُ بِدينِهِ يَقينًا ويَبذُلُ حُسنَ الخُلُقِ والعَدلَ والاحتِرامَ لِلجَميع. وهذا عَينُ التَّوازُنِ النَّبَويّ: ثَباتٌ في الاعتِقاد، لينٌ في السُّلوك. بل إنَّ خَيرَ ما يَدعو بِهِ المُسلِمُ غَيرَهُ إلى جَمالِ الإسلامِ هو هذا الخُلُقُ الرّفيعُ نَفسُه — أن يَكونَ أصدَقَ النّاسِ وأوثَقَهُم وأرحَمَهُم وأكثَرَهُم تَسامُحًا في أيِّ مُجتَمَع.\n\nوبِالنِّسبةِ لِلطّالِب، يَنزِلُ هذا كُلُّهُ إلى السُّلوكِ اليَوميّ. فالتَّسامُحُ مُعامَلةُ زُمَلاءِ المُختَلِفينَ في الجِنسيّةِ واللُّغةِ والدّينِ بِاحتِرامٍ وعَدل؛ وعَدَمُ السُّخريةِ مِن أحَدٍ لِاختِلافِه؛ والوُقوفُ ضِدَّ التَّنَمُّرِ والتَّعَصُّب؛ والصَّبرُ حينَ يُؤذيكَ غَيرُكَ أو يُسيءُ؛ والعَفوُ عنِ الأخطاء؛ والتَّعاوُنُ مَعَ كُلِّ النّاسِ في المَدرَسةِ والمُجتَمَع؛ وإظهارُ أخلاقِ الإسلامِ الجَميلةِ لِكُلِّ مَن تَلقاه. ويَعني أيضًا ضَبطَ لِسانِكَ وغَضَبِك، وحُسنَ الظَّنِّ بِالنّاس، وأن تَكونَ مَصدَرَ سَلامٍ لا نِزاع. وعلى الطّالِبِ المُطالِبِ أن يَخرُجَ مِن هذا الدَّرسِ فاهِمًا أنَّ كَونَهُ «مُتَسامِحًا» لَيسَ عَلامةَ ضَعفِ إيمانٍ بل سِمةُ مُؤمِنٍ قَوِيٍّ ناضِجٍ يَعكِسُ خُلُقَ النَّبِيِّ ﷺ. فَبِمُمارَسةِ التَّسامُحِ الإسلاميِّ الحَقّ — ثَباتٍ في الحَقّ، ولينٍ وعَدلٍ مَعَ الجَميع — يَصيرُ الطّالِبُ مُسلِمًا أفضَل، وعُضوًا أفضَلَ في مُجتَمَعِهِ المُتَنَوِّع، ومِثالًا حَيًّا لِماذا يُوصَفُ الإسلامُ بِأنَّهُ دينُ يُسرٍ ورَحمةٍ وخُلُقٍ كَريم.",
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Watch & Reflect", ar: "شاهد وتأمّل" },
+      learningObjectives: [
+        { en: "Watch a video related to the topic and reflect.", ar: "شاهد مقطعًا متعلّقًا بالموضوع وتأمّل." },
+      ],
+      image: {
+        src: IMG.childQuran,
+        alt: { en: "Video lesson.", ar: "درس مرئي." },
       },
+      youtubeVideo: {
+        title: { en: "I Am Tolerant", ar: "أنا متسامح" },
+        url: "https://www.youtube.com/watch?v=kYnGEQoGhUE",
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Plenary", ar: "ختام الدرس" },
+      learningObjectives: [
+        { en: "Reflect on and share what you learned.", ar: "تأمّل وشارك ما تعلّمته." },
+      ],
+      image: {
+        src: IMG.grandMosque,
+        alt: { en: "Students sharing.", ar: "طلاب يشاركون." },
+      },
+      plenary: {
+        title: { en: "Share Your Learning", ar: "شارك ما تعلّمته" },
+        instruction: { en: "Scan QR or enter the code to share what you learned.", ar: "امسح QR أو أدخل الرمز لمشاركة ما تعلّمته." },
+        code: "TOLER001",
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Worksheet — I Am Tolerant", ar: "ورقة عمل — أنا مُتَسامِح" },
+      learningObjectives: [
+        { en: "Demonstrate understanding through an auto-marked worksheet.", ar: "أظهر فهمي من خلال ورقة عمل تُصحّح تلقائيًّا." },
+      ],
+      image: {
+        src: IMG.bookshelf,
+        alt: { en: "Worksheet.", ar: "ورقة عمل." },
+      },
+      worksheet: {
+        title: { en: "Worksheet — I Am Tolerant", ar: "ورقة عمل — أنا مُتَسامِح" },
+        instruction: { en: "Answer all questions. Auto-marked. Cannot re-answer after submission.", ar: "أجب عن جميع الأسئلة. تُصحّح تلقائيًّا. لن تستطيع الإجابة مجدّدًا." },
+        sections: [
+          {
+            type: "mcq" as const,
+            title: { en: "Multiple Choice", ar: "اختيار من متعدّد" },
+            questions: [
+              {
+                question: { en: "Tolerance is?", ar: "التسامح؟" },
+                options: [
+                { en: "Strength", ar: "قوّة" },
+                { en: "Weakness", ar: "ضعف" },
+                { en: "Anger", ar: "غضب" },
+                { en: "Fear", ar: "خوف" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "Al-Hujurat 13?", ar: "الحجرات ١٣؟" },
+                options: [
+                { en: "Know each other", ar: "لتعارفوا" },
+                { en: "Fight", ar: "لتقاتلوا" },
+                { en: "Ignore", ar: "لتتجاهلوا" },
+                { en: "Compete", ar: "لتتنافسوا" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "Prophet forgave?", ar: "النبيّ عفا؟" },
+                options: [
+                { en: "Quraysh", ar: "قريش" },
+                { en: "No one", ar: "لا أحد" },
+                { en: "Himself", ar: "نفسه" },
+                { en: "Only family", ar: "العائلة" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "UAE tolerance year?", ar: "عام التسامح؟" },
+                options: [
+                { en: "2019", ar: "٢٠١٩" },
+                { en: "2000", ar: "٢٠٠٠" },
+                { en: "1990", ar: "١٩٩٠" },
+                { en: "2030", ar: "٢٠٣٠" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "Tolerance = agreeing?", ar: "التسامح = الموافقة؟" },
+                options: [
+                { en: "No", ar: "لا" },
+                { en: "Yes", ar: "نعم" },
+                { en: "Always", ar: "دائمًا" },
+                { en: "Sometimes", ar: "أحيانًا" },
+                ],
+                correctIndex: 0,
+              },
+            ],
+          },
+          {
+            type: "trueFalse" as const,
+            title: { en: "True or False", ar: "صواب أم خطأ" },
+            questions: [
+              { statement: { en: "Islam teaches tolerance.", ar: "الإسلام يعلّم التسامح." }, answer: true },
+              { statement: { en: "Tolerance means weakness.", ar: "التسامح ضعف." }, answer: false },
+              { statement: { en: "The Prophet forgave Quraysh.", ar: "النبيّ عفا عن قريش." }, answer: true },
+              { statement: { en: "UAE opposes tolerance.", ar: "الإمارات تعارض التسامح." }, answer: false },
+              { statement: { en: "Diversity is by Allah\'s design.", ar: "التنوّع بتصميم الله." }, answer: true },
+            ],
+          },
+          {
+            type: "matchUp" as const,
+            title: { en: "Match Up", ar: "وصّل" },
+            prompts: [
+              { prompt: { en: "Tasamuh", ar: "تسامح" }, answer: { en: "Tolerance", ar: "التسامح" } },
+              { prompt: { en: "Ta\'ayush", ar: "تعايش" }, answer: { en: "Coexistence", ar: "التعايش" } },
+              { prompt: { en: "Afw", ar: "عفو" }, answer: { en: "Pardon", ar: "المسامحة" } },
+              { prompt: { en: "Rahma", ar: "رحمة" }, answer: { en: "Mercy", ar: "الرحمة" } },
+              { prompt: { en: "Ikhtiram", ar: "احترام" }, answer: { en: "Respect", ar: "الاحترام" } },
+            ],
+          },
+          {
+            type: "fillBlanks" as const,
+            title: { en: "Fill in the Blanks", ar: "املأ الفراغات" },
+            questions: [
+              { sentence: { en: "\'Repel evil with what is _______.", ar: "﴿ادفع بالتي هي _______.﴾" }, blankAnswer: { en: "better", ar: "أحسن" } },
+              { sentence: { en: "Made peoples to _______ each other.", ar: "جعلناكم شعوبًا ل_______." }, blankAnswer: { en: "know", ar: "تعارفوا" } },
+              { sentence: { en: "\'For you your religion, for me _______.", ar: "﴿لكم دينكم ولي _______.﴾" }, blankAnswer: { en: "mine", ar: "دين" } },
+              { sentence: { en: "UAE had Year of _______ 2019.", ar: "عام _______ ٢٠١٩." }, blankAnswer: { en: "Tolerance", ar: "التسامح" } },
+            ],
+          },
+          {
+            type: "ordering" as const,
+            title: { en: "Put in Correct Order", ar: "رتّب ترتيبًا صحيحًا" },
+            items: [
+              { en: "Learn the meaning of tolerance in Islam", ar: "تعلّم معنى التسامح في الإسلام" },
+              { en: "Study the Prophet\'s tolerance examples", ar: "ادرس أمثلة تسامح النبيّ" },
+              { en: "Practise tolerance at school and home", ar: "تدرّب على التسامح في المدرسة والبيت" },
+              { en: "Respect diversity as Allah\'s design", ar: "احترم التنوّع كتصميم الله" },
+              { en: "Differentiate tolerance from agreement", ar: "فرّق بين التسامح والموافقة" },
+              { en: "Promote coexistence in your community", ar: "روّج التعايش في مجتمعك" },
+            ],
+          },
+        ],
+        coinsReward: 25,
+      },
+      body: { en: "", ar: "" },
     },
   ],
-  quizQuestions: [
-    {
-      prompt: { en: "What does tolerance (tasamuh) mean in Islam?", ar: "ماذا يَعني التَّسامُحُ في الإسلام؟" },
-      options: [
-        { en: "Gentleness, fairness, and good manners toward others", ar: "اللِّينُ والعَدلُ وحُسنُ الخُلُقِ مَعَ الآخَرين" },
-        { en: "Believing all religions are equally true", ar: "الاعتِقادُ أنَّ كُلَّ الأديانِ حَقٌّ سَواء" },
-        { en: "Abandoning your own beliefs", ar: "التَّخَلّي عن عَقائِدِك" },
-        { en: "Never disagreeing with anyone", ar: "ألّا تُخالِفَ أحَدًا أبَدًا" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "Tolerance is treating others with ease, justice, and kindness — not giving up the truth.", ar: "التَّسامُحُ مُعامَلةُ النّاسِ بِيُسرٍ وعَدلٍ ولُطف — لا التَّخَلّي عنِ الحَقّ." },
-    },
-    {
-      prompt: { en: "What does 'There is no compulsion in religion' (Al-Baqarah 256) establish?", ar: "ماذا تُقَرِّرُ ﴿لا إكراهَ في الدّين﴾ (البَقَرة ٢٥٦)؟" },
-      options: [
-        { en: "No one is forced to become Muslim; guidance is in Allah's hands", ar: "لا يُكرَهُ أحَدٌ على الإسلام؛ والهِدايةُ بِيَدِ الله" },
-        { en: "All religions are the same", ar: "الأديانُ كُلُّها سَواء" },
-        { en: "Muslims must abandon their faith", ar: "على المُسلِمينَ تَركُ دينِهِم" },
-        { en: "Religion does not matter", ar: "الدّينُ لا يَهُمّ" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "Faith cannot be forced — yet truth and error remain real and distinct.", ar: "الإيمانُ لا يُفرَض — ومَعَ ذلك يَبقى الحَقُّ والباطِلُ حَقيقيَّينِ مُتَمَيِّزَين." },
-    },
-    {
-      prompt: { en: "How did the Prophet ﷺ treat the people of Makkah when he conquered it?", ar: "كَيفَ عامَلَ النَّبِيُّ ﷺ أهلَ مَكّةَ حينَ فَتَحَها؟" },
-      options: [
-        { en: "He forgave them: 'Go, for you are free'", ar: "عَفا عنهُم: «اذهَبوا فَأنتُمُ الطُّلَقاء»" },
-        { en: "He took revenge on them all", ar: "انتَقَمَ مِنهُم جَميعًا" },
-        { en: "He expelled them", ar: "طَرَدَهُم" },
-        { en: "He enslaved them", ar: "استَعبَدَهُم" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "Despite all their persecution, he forgave them — a supreme example of tolerance.", ar: "رَغمَ كُلِّ اضطِهادِهِم، عَفا عنهُم — مِثالٌ أسمى لِلتَّسامُح." },
-    },
-    {
-      prompt: { en: "What does 'Repel evil with that which is better' (Fussilat 34) teach?", ar: "ماذا تُعَلِّمُ ﴿ادفَعْ بِالتي هي أحسَن﴾ (فُصِّلَت ٣٤)؟" },
-      options: [
-        { en: "Respond to bad treatment with good — it can turn enemies into friends", ar: "رُدَّ على الإساءةِ بِالإحسان — فَقد يُحَوِّلُ العَدُوَّ صَديقًا" },
-        { en: "Always seek revenge", ar: "اطلُبِ الانتِقامَ دائِمًا" },
-        { en: "Ignore everyone", ar: "تَجاهَلِ الجَميع" },
-        { en: "Never speak to others", ar: "لا تُكَلِّمِ النّاسَ أبَدًا" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "Gentleness and forgiveness can transform enmity into friendship.", ar: "اللِّينُ والعَفوُ قد يُحَوِّلانِ العَداوةَ صَداقة." },
-    },
-    {
-      prompt: { en: "Does Islamic tolerance require a Muslim to give up his beliefs and practices?", ar: "هل يُلزِمُ التَّسامُحُ الإسلاميُّ المُسلِمَ بِتَركِ عَقائِدِهِ وشَعائِرِه؟" },
-      options: [
-        { en: "No — he stays firm in faith while being just and kind to all", ar: "لا — يَثبُتُ على إيمانِهِ ويَعدِلُ ويُحسِنُ لِلجَميع" },
-        { en: "Yes — he must abandon his religion", ar: "نَعَم — عليهِ تَركُ دينِه" },
-        { en: "Yes — he must stop praying", ar: "نَعَم — عليهِ تَركُ الصَّلاة" },
-        { en: "He must believe all religions are equal", ar: "عليهِ اعتِقادُ تَساوي الأديان" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "The prophetic balance is firm belief with gentle, just conduct toward everyone.", ar: "التَّوازُنُ النَّبَوِيُّ ثَباتٌ في الاعتِقادِ مَعَ لينٍ وعَدلٍ لِلجَميع." },
-    },
-    {
-      prompt: { en: "True or False: Being just and kind to peaceful non-Muslim neighbours is commanded in Islam.", ar: "صَوابٌ أم خَطأ: العَدلُ والإحسانُ لِلجيرانِ غَيرِ المُسلِمينَ المُسالِمينَ مَأمورٌ بِهِ في الإسلام." },
-      options: [
-        { en: "True — 'Allah loves those who act justly' (Al-Mumtahanah 8)", ar: "صَواب — ﴿إنَّ اللهَ يُحِبُّ المُقسِطين﴾ (المُمتَحَنة ٨)" },
-        { en: "False", ar: "خَطأ" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "Justice and good treatment are owed to all peaceful people regardless of religion.", ar: "العَدلُ وحُسنُ المُعامَلةِ حَقٌّ لِكُلِّ مُسالِمٍ مَهما كانَ دينُه." },
-    },
-  ],
+  quizQuestions: [],
 };
