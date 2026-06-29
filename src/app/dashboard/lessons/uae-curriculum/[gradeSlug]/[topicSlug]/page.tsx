@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumb, Tag } from "antd";
 import LessonDeckClient from "@/components/lessons/LessonDeckClient";
+import TextbookButton from "@/components/lessons/TextbookButton";
 import { topicSlugify, uaeCurriculumBySlug } from "../../data";
 import { getLesson, lessonStaticParams } from "../../lessons/registry";
 import { toleranceLesson } from "./toleranceLesson";
@@ -82,6 +83,7 @@ export default function TopicLessonPage({
             <Tag color="processing">{grade.title}</Tag>
             <Tag color="green">50 mins</Tag>
             <Tag color="gold">Bilingual</Tag>
+            <TextbookButton gradeSlug={gradeSlug} />
           </div>
           <h1 className="mt-1.5 text-lg font-semibold text-[var(--theme-dark)]">
             {topic.en} / {topic.ar}

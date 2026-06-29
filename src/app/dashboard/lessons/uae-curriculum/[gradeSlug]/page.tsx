@@ -4,6 +4,7 @@ import { Breadcrumb } from "antd";
 import { BookOpen, Sparkles } from "lucide-react";
 import { topicSlugify, uaeCurriculumBySlug, uaeCurriculumGrades } from "../data";
 import { hasLesson } from "../lessons/registry";
+import TextbookUpload from "@/components/lessons/TextbookUpload";
 
 export function generateStaticParams() {
   return uaeCurriculumGrades.map((grade) => ({ gradeSlug: grade.slug }));
@@ -48,6 +49,8 @@ export default function GradeLessonsPage({
             {readyCount} of {grade.topics.length} lessons ready
           </div>
         </div>
+
+        <TextbookUpload gradeSlug={grade.slug} />
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {grade.topics.map((topic, index) => {

@@ -45,3 +45,6 @@ next-env.d.ts
 # local helper launchers
 start-local-dev.cmd
 scripts/run-dev-local.ps1
+
+# uploaded textbook PDFs (keep directory via .gitkeep)
+/textbooks/*.pdf
