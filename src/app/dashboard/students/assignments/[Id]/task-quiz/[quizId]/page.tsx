@@ -22,6 +22,7 @@ import {
   submitTaskQuizByStudent,
   updateQuizSubmissionTeacherMark,
 } from "@/services/quizApi";
+import { fetchStudentTasks } from "@/services/api";
 import QuizMediaAnswerInput from "@/components/quiz/QuizMediaAnswerInput";
 import {
   exitDocumentFullscreenIfActive,
@@ -444,12 +445,22 @@ export default function QuranQuizPage() {
               if (answer) autoTotal += qMarks;
             }
           }
-          const submissionId =
+          let submissionId =
             res?.data?.id ??
             res?.data?.submission_id ??
             res?.submission?.id ??
             res?.submission_id ??
             res?.id;
+          if (!submissionId) {
+            const tasks = await fetchStudentTasks(Number(Id)).catch(() => []);
+            const match = (tasks || []).find(
+              (t: any) =>
+                (t.task?.quiz_id === quizData.id ||
+                  t.quiz_id === quizData.id) &&
+                String(t.student_id ?? "") === String(currentUser.student)
+            );
+            submissionId = match?.id;
+          }
           if (submissionId) {
             await updateQuizSubmissionTeacherMark(
               Number(submissionId),
