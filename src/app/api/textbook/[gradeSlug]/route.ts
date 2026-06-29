@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readFile, stat } from "fs/promises";
+import { readdir, stat } from "fs/promises";
 import path from "path";
 
 const TEXTBOOK_DIR = path.join(process.cwd(), "textbooks");
@@ -9,20 +9,25 @@ export async function GET(
   { params }: { params: { gradeSlug: string } },
 ) {
   const { gradeSlug } = params;
-  const filePath = path.join(TEXTBOOK_DIR, `${gradeSlug}.pdf`);
+  const gradeDir = path.join(TEXTBOOK_DIR, gradeSlug);
 
   try {
-    await stat(filePath);
-    const buffer = await readFile(filePath);
-    return new NextResponse(buffer, {
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": `inline; filename="${gradeSlug}-textbook.pdf"`,
-        "Cache-Control": "public, max-age=3600",
-      },
-    });
+    const entries = await readdir(gradeDir);
+    const files = [];
+    for (const name of entries) {
+      if (!name.toLowerCase().endsWith(".pdf")) continue;
+      const info = await stat(path.join(gradeDir, name));
+      files.push({
+        name,
+        size: info.size,
+        url: `/api/textbook/${gradeSlug}/${encodeURIComponent(name)}`,
+        updatedAt: info.mtime.toISOString(),
+      });
+    }
+    files.sort((a, b) => a.name.localeCompare(b.name));
+    return NextResponse.json({ files });
   } catch {
-    return NextResponse.json({ exists: false }, { status: 404 });
+    return NextResponse.json({ files: [] });
   }
 }
 
@@ -31,16 +36,15 @@ export async function HEAD(
   { params }: { params: { gradeSlug: string } },
 ) {
   const { gradeSlug } = params;
-  const filePath = path.join(TEXTBOOK_DIR, `${gradeSlug}.pdf`);
+  const gradeDir = path.join(TEXTBOOK_DIR, gradeSlug);
 
   try {
-    const info = await stat(filePath);
+    const entries = await readdir(gradeDir);
+    const pdfCount = entries.filter((e) => e.toLowerCase().endsWith(".pdf")).length;
+    if (pdfCount === 0) return new NextResponse(null, { status: 404 });
     return new NextResponse(null, {
       status: 200,
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Length": String(info.size),
-      },
+      headers: { "X-Textbook-Count": String(pdfCount) },
     });
   } catch {
     return new NextResponse(null, { status: 404 });
