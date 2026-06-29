@@ -20,7 +20,9 @@ import { RootState } from "@/store/store";
 import {
   fetchQuizQuestions,
   submitTaskQuizByStudent,
+  updateQuizSubmissionTeacherMark,
 } from "@/services/quizApi";
+import { fetchStudentTasks } from "@/services/api";
 import QuizMediaAnswerInput from "@/components/quiz/QuizMediaAnswerInput";
 import {
   exitDocumentFullscreenIfActive,
@@ -401,6 +403,75 @@ export default function QuranQuizPage() {
       quizFinishedRef.current = true;
       setFullscreenPromptOpen(false);
       await exitDocumentFullscreenIfActive();
+
+      // Auto-push marks to markbook for fully auto-gradable quizzes
+      const autoGradableTypes = new Set([
+        "multiple_choice", "drop_down", "check_boxes", "true_false",
+        "recording", "image_upload", "reading",
+      ]);
+      const allAutoGradable = quizData.quiz_queston.every(
+        (q) => autoGradableTypes.has(q.type)
+      );
+      if (allAutoGradable) {
+        try {
+          let autoTotal = 0;
+          for (const question of quizData.quiz_queston) {
+            const answer = answers[question.id];
+            const qMarks = parseFloat(String(question.marks ?? 0)) || 0;
+            if (
+              question.type === "multiple_choice" ||
+              question.type === "drop_down"
+            ) {
+              const correct = question.options.find(
+                (o) => o.is_correct === 1
+              );
+              if (correct && correct.id === answer) autoTotal += qMarks;
+            } else if (question.type === "check_boxes") {
+              const correctIds = question.options
+                .filter((o) => o.is_correct === 1)
+                .map((o) => o.id);
+              if (
+                Array.isArray(answer) &&
+                correctIds.length === answer.length &&
+                correctIds.every((id) => (answer as number[]).includes(id))
+              ) {
+                autoTotal += qMarks;
+              }
+            } else if (question.type === "true_false") {
+              if (answer === (question.correct_answer === 1)) autoTotal += qMarks;
+            } else if (
+              ["recording", "image_upload", "reading"].includes(question.type)
+            ) {
+              if (answer) autoTotal += qMarks;
+            }
+          }
+          let submissionId =
+            res?.data?.id ??
+            res?.data?.submission_id ??
+            res?.submission?.id ??
+            res?.submission_id ??
+            res?.id;
+          if (!submissionId) {
+            const tasks = await fetchStudentTasks(Number(Id)).catch(() => []);
+            const match = (tasks || []).find(
+              (t: any) =>
+                (t.task?.quiz_id === quizData.id ||
+                  t.quiz_id === quizData.id) &&
+                String(t.student_id ?? "") === String(currentUser.student)
+            );
+            submissionId = match?.id;
+          }
+          if (submissionId) {
+            await updateQuizSubmissionTeacherMark(
+              Number(submissionId),
+              Math.round(autoTotal)
+            ).catch(() => {});
+          }
+        } catch {
+          // best-effort; don't block the student flow
+        }
+      }
+
       router.push(`${quizId}/quiz-result`);
     } catch (error: any) {
       if (error?.response?.status === 409) {
