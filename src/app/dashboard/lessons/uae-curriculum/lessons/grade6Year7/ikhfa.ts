@@ -11,225 +11,513 @@ export const ikhfa: CourseLesson = {
   quranSurahs: ["An-Naba 1-2", "Al-Fatihah 7", "Quraysh 4"],
   sections: [
     {
-      title: { en: "Completing the map: the meaning of Ikhfa", ar: "إكمالُ الخَريطة: مَعنى الإخفاء" },
+      title: { en: "Critical thinking (Warm up)", ar: "تفكير ناقد (تهيئة)" },
       learningObjectives: [
-        { en: "Define Ikhfa as a state between Izhar and Idgham.", ar: "أُعَرِّفُ الإخفاءَ حالًا بَينَ الإظهارِ والإدغام." },
-        { en: "Complete the map of the four rules.", ar: "أُكمِلُ خَريطةَ الأحكامِ الأربَعة." },
+        { en: "Evaluate a real-world scenario using evidence from Quran, Sunnah, and Islamic values.", ar: "أُقيّم سيناريو واقعيًّا بأدلّة من القرآن والسنّة والقيم الإسلاميّة." },
+      ],
+      image: {
+        src: IMG.hijabStudent,
+        alt: { en: "Student thinking critically.", ar: "طالب يفكّر بشكل ناقد." },
+      },
+      callout: {
+        label: { en: "Critical thinking scenario", ar: "سيناريو للتفكير الناقد" },
+        title: { en: "Does pronunciation really matter in Quran?", ar: "هل النطق مهمّ فعلًا في القرآن؟" },
+        body: {
+          en: "A student reads Quran quickly without tajweed. He says: \'Allah knows what I mean. The meaning is what counts, not how I say the letters.\'",
+          ar: "طالب يقرأ القرآن بسرعة بلا تجويد. يقول: «الله يعلم ما أعنيه. المعنى هو المهمّ وليس نطق الحروف.»",
+        },
+      },
+      responsePrompt: {
+        title: { en: "Write your critical response", ar: "اكتب ردّك الناقد" },
+        prompt: {
+          en: "Criticise using evidence on tajweed importance and Ikhfa.",
+          ar: "انتقد بأدلّة عن أهمّيّة التجويد والإخفاء.",
+        },
+        placeholder: { en: "This is wrong because...", ar: "هذا خطأ لأنّ..." },
+        buttonLabel: { en: "Save response", ar: "احفظ الإجابة" },
+        coinsReward: 10,
+      },
+      body: {
+        en: "\'Recite the Quran with tarteel.\' (Al-Muzzammil 4)",
+        ar: "﴿ورتّل القرآن ترتيلًا﴾ (المزّمّل ٤)",
+      },
+    },
+    {
+      title: { en: "Retrieval practise", ar: "ممارسة الاسترجاع" },
+      imageMatchingActivity: {
+        title: { en: "Match each image to its Islamic keyword", ar: "طابق كلّ صورة بكلمتها الإسلاميّة" },
+        instruction: { en: "Drag the keyword to the correct image.", ar: "اسحب الكلمة إلى الصورة الصحيحة." },
+        pairs: [
+          { image: IMG.childQuran, keyword: { en: "Tajweed", ar: "تجويد" } },
+          { image: IMG.grandMosque, keyword: { en: "Ikhfa", ar: "الإخفاء" } },
+          { image: IMG.lantern, keyword: { en: "Noon Sakinah", ar: "نون ساكنة" } },
+          { image: IMG.bookshelf, keyword: { en: "Tanween", ar: "تنوين" } },
+          { image: IMG.skyBlue, keyword: { en: "Tarteel", ar: "ترتيل" } },
+        ],
+        coinsReward: 10,
+      },
+      body: {
+        en: "\'Those to whom We gave the Book recite it with its true recital.\' (Al-Baqarah 121)",
+        ar: "﴿الذين آتيناهم الكتاب يتلونه حقّ تلاوته﴾ (البقرة ١٢١)",
+      },
+    },
+    {
+      title: { en: "The Rule of Ikhfa", ar: "حُكمُ الإخفاء" },
+      learningObjectives: [
+        { en: "Define Ikhfa and identify its letters.", ar: "أعرّف الإخفاء وأحدّد حروفه." },
+        { en: "Apply Ikhfa correctly in Quran recitation.", ar: "أطبّق الإخفاء بشكل صحيح في التلاوة." },
       ],
       successCriteria: [
-        { en: "I can define Ikhfa precisely.", ar: "أُعَرِّفُ الإخفاءَ بِدِقّة." },
-        { en: "I can place all four rules in one system.", ar: "أضَعُ الأحكامَ الأربَعةَ في نِظامٍ واحِد." },
+        { en: "I can define Ikhfa.", ar: "أعرّف الإخفاء." },
+        { en: "I can list the letters of Ikhfa.", ar: "أذكر حروف الإخفاء." },
+        { en: "I can identify Ikhfa in Quranic verses.", ar: "أحدّد الإخفاء في الآيات القرآنيّة." },
       ],
       image: {
-        src: IMG.bookshelf,
-        alt: { en: "A dimmer between bright and dark — like Ikhfa between clarity and merging.", ar: "مُعَتِّمٌ بَينَ الضَّوءِ والظُّلمة — كَالإخفاءِ بَينَ الإظهارِ والإدغام." },
-        caption: { en: "Ikhfa = the noon is concealed: neither fully clear nor fully merged.", ar: "الإخفاء = النّونُ مُخفاة: لا واضِحةٌ تَمامًا ولا مُدغَمةٌ تَمامًا." },
+        src: IMG.childQuran,
+        alt: { en: "Topic image.", ar: "صورة الموضوع." },
       },
-      callout: {
-        label: { en: "High-order question", ar: "سُؤالٌ عالي المُستوى" },
-        title: { en: "Why a 'middle state' between two rules?", ar: "لِماذا «حالٌ وُسطى» بَينَ حُكمَين؟" },
-        body: {
-          en: "Ikhfa is described as being between Izhar (clear) and Idgham (merged). Argue why fifteen letters — which are neither far from the noon (like throat letters) nor very close to it (like lam/ra) — require a balanced middle treatment rather than either extreme.",
-          ar: "يوصَفُ الإخفاءُ بِأنَّهُ بَينَ الإظهارِ (الواضِح) والإدغامِ (المُدغَم). حاجِجْ لِماذا تَستَدعي خَمسةَ عَشَرَ حَرفًا — لَيسَت بَعيدةً عنِ النّونِ (كَالحَلقيّة) ولا قَريبةً جِدًّا (كَاللّامِ والرّاء) — مُعالَجةً وُسطى مُتَوازِنةً بَدَلَ أحَدِ الطَّرَفَين.",
-        },
+      readyButton: {
+        label: { en: "I\'m ready to learn!", ar: "أنا مستعدّ للتعلّم!" },
+        coinsReward: 5,
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Noon Sakinah and Tanween — Ikhfa", ar: "النون الساكنة والتنوين — الإخفاء" },
+      learningObjectives: [
+        { en: "Master Ikhfa: Hiding Noon Sakinah/Tanween with nasal sound before 15 letters.", ar: "أتقن الإخفاء: إخفاء النون الساكنة/التنوين بغنّة قبل ١٥ حرفًا." },
+      ],
+      image: {
+        src: IMG.childQuran,
+        alt: { en: "Lesson content image.", ar: "صورة محتوى الدرس." },
       },
       infoBoxes: [
         {
-          label: { en: "Definition", ar: "تَعريف" },
+          label: { en: "What is Ikhfa?", ar: "ما الإخفاء؟" },
           lines: [
-            { en: "Ikhfa (إخفاء) literally means 'to conceal/hide'. In tajweed: pronouncing the noon in a state between Izhar and Idgham — without a full clear noon and without a stress (shaddah) — while holding a ghunnah, with the tongue prepared for the next letter.", ar: "الإخفاءُ لُغةً: السَّتر. واصطِلاحًا: النُّطقُ بِالنّونِ على حالٍ بَينَ الإظهارِ والإدغام — بِلا نونٍ واضِحةٍ كامِلةٍ وبِلا تَشديد — مَعَ إمساكِ الغُنّةِ واستِعدادِ اللِّسانِ لِلحَرفِ التّالي." },
+            { en: "Hiding Noon Sakinah/Tanween with nasal sound before 15 letters. It applies when Noon Sakinah or Tanween is followed by: ت ث ج د ذ ز س ش ص ض ط ظ ف ق ك.", ar: "إخفاء النون الساكنة/التنوين بغنّة قبل ١٥ حرفًا. ينطبق عندما تأتي النون الساكنة أو التنوين قبل: ت ث ج د ذ ز س ش ص ض ط ظ ف ق ك." },
           ],
         },
         {
-          label: { en: "How many letters", ar: "كَم حَرفًا" },
+          label: { en: "Letters of Ikhfa", ar: "حروف الإخفاء" },
           lines: [
-            { en: "Ikhfa has FIFTEEN letters — the remainder of the alphabet after the throat letters (Izhar), yarmaloon (Idgham), and ba (Iqlab) are removed. It is the most common rule.", ar: "لِلإخفاءِ خَمسةَ عَشَرَ حَرفًا — وهي بَقيّةُ الحُروفِ بَعدَ استِبعادِ الحَلقيّة (الإظهار) ويَرمَلون (الإدغام) والباء (الإقلاب). وهو أكثَرُ الأحكامِ وُقوعًا." },
+            { en: "The letters are: ت ث ج د ذ ز س ش ص ض ط ظ ف ق ك. Remember: The remaining 15 letters not in Izhar, Idgham, or Iqlab.", ar: "الحروف هي: ت ث ج د ذ ز س ش ص ض ط ظ ف ق ك. تذكّر: The remaining 15 letters not in Izhar, Idgham, or Iqlab." },
+          ],
+        },
+        {
+          label: { en: "Examples from Quran", ar: "أمثلة من القرآن" },
+          lines: [
+            { en: "مِنْ تَحْتِهَا — Ikhfa before ت. أَنْزَلَ — Ikhfa before ز. مِنْ قَبْلُ — Ikhfa before ق.", ar: "مِنْ تَحْتِهَا — الإخفاء قبل تاء. أَنْزَلَ — الإخفاء قبل زاي. مِنْ قَبْلُ — الإخفاء قبل قاف." },
           ],
         },
       ],
+      trueFalseActivity: {
+        title: { en: "True or False", ar: "صواب أم خطأ" },
+        questions: [
+        { statement: { en: "Ikhfa means hiding noon sakinah/tanween with nasal sound before 15 letters.", ar: "الإخفاء يعني إخفاء النون الساكنة/التنوين بغنّة قبل ١٥ حرفًا." }, answer: true },
+        { statement: { en: "There are 3 letters of Ikhfa.", ar: "هناك ٣ حروف الإخفاء." }, answer: false },
+        { statement: { en: "Ikhfa applies to Noon Sakinah and Tanween.", ar: "الإخفاء ينطبق على النون الساكنة والتنوين." }, answer: true },
+        { statement: { en: "Ikhfa means clear pronunciation.", ar: "الإخفاء يعني النطق الواضح." }, answer: false },
+        { statement: { en: "Tajweed is obligatory when reciting Quran.", ar: "التجويد واجب عند قراءة القرآن." }, answer: true },
+        ],
+        coinsReward: 10,
+      },
+      fillBlanksActivity: {
+        title: { en: "Fill in the Blanks", ar: "املأ الفراغات" },
+        questions: [
+        { sentence: { en: "Ikhfa means _______.", ar: "الإخفاء يعني _______." }, answer: { en: "ikhfa", ar: "الإخفاء" } },
+        { sentence: { en: "There are _______ letters of Ikhfa.", ar: "هناك _______ حرفًا في الإخفاء." }, answer: { en: "15", ar: "15" } },
+        { sentence: { en: "Ikhfa applies to Noon _______ and Tanween.", ar: "الإخفاء ينطبق على النون _______ والتنوين." }, answer: { en: "Sakinah", ar: "الساكنة" } },
+        { sentence: { en: "\'Recite the Quran with _______.\' (Al-Muzzammil 4)", ar: "﴿ورتّل القرآن _______.﴾ (المزّمّل ٤)" }, answer: { en: "tarteel", ar: "ترتيلًا" } },
+        ],
+        coinsReward: 10,
+      },
       body: {
-        en: "We arrive now at the fourth and final rule of the noon sakinah and tanwin, the one that completes the entire system: Ikhfa, which means concealment. To understand it, recall the three rules we have already studied. Izhar is full clarity: the noon is pronounced completely clearly, with no ghunnah, because the throat letters are far from it. Idgham is full merging: the noon disappears entirely into the next letter. Iqlab is conversion: before the ba, the noon becomes a hidden meem. Ikhfa is the rule for everything that remains — and it sits, beautifully, in the middle between Izhar and Idgham.\n\nIkhfa literally means to hide or conceal something. In tajweed, it describes a noon that is neither fully pronounced nor fully merged, but concealed in a middle state. When you apply Ikhfa, you do not articulate a clear, distinct noon (that would be Izhar), and you do not drop it entirely into the next letter with a shaddah (that would be Idgham). Instead, you produce a light, hidden nasal sound — holding a ghunnah for about two counts — while your tongue moves into position for the following letter. The noon is 'there' as a nasal hum, but it is veiled, hidden, not clearly spoken.\n\nIkhfa has fifteen letters, which makes it by far the most common of the four rules — more than half the Arabic alphabet. There is an elegant way to know them: take the whole alphabet, then remove the six throat letters (which belong to Izhar), the six letters of yarmaloon (which belong to Idgham), and the single ba (which belongs to Iqlab). Everything left over — fifteen letters — belongs to Ikhfa. This shows that the scholars did not invent a random list; rather, Ikhfa is the natural 'default' for the large group of letters that are neither far from the noon nor extremely close to it. With this rule, the map of the noon sakinah and tanwin is complete: every single letter of the Arabic alphabet now has a known ruling when it follows the noon. A demanding student should feel the satisfaction of a complete, logical system — and the next sections will show exactly why Ikhfa takes this middle path and how to recite it.",
-        ar: "نَصِلُ الآنَ إلى الحُكمِ الرّابِعِ الأخيرِ لِلنّونِ السّاكِنةِ والتَّنوين، الذي يُكمِلُ النِّظامَ كُلَّه: الإخفاء، ومَعناهُ السَّتر. ولِفَهمِهِ تَذَكَّرِ الأحكامَ الثَّلاثةَ التي دَرَسناها. الإظهارُ وُضوحٌ تامّ: تُنطَقُ النّونُ واضِحةً تَمامًا بِلا غُنّة، لِبُعدِ الحُروفِ الحَلقيّةِ عَنها. والإدغامُ اندِماجٌ تامّ: تَختَفي النّونُ كُلِّيًّا في الحَرفِ التّالي. والإقلابُ قَلب: قَبلَ الباءِ تَصيرُ النّونُ ميمًا مُخفاة. والإخفاءُ حُكمُ كُلِّ ما بَقِيَ — ويَقَعُ، بِجَمالٍ، في الوَسَطِ بَينَ الإظهارِ والإدغام.\n\nالإخفاءُ لُغةً سَترُ الشَّيءِ وإخفاؤُه. وفي التَّجويدِ يَصِفُ نونًا لا مَنطوقةً تَمامًا ولا مُدغَمةً تَمامًا، بل مَستورةً في حالٍ وُسطى. فحينَ تُطَبِّقُ الإخفاءَ لا تَنطِقُ نونًا واضِحةً مُتَمَيِّزة (فَذاكَ الإظهار)، ولا تُسقِطُها كُلِّيًّا في الحَرفِ التّالي بِشَدّة (فَذاكَ الإدغام). بل تُنتِجُ صَوتًا أنفِيًّا خَفيفًا مَستورًا — مُمسِكًا غُنّةً نَحوَ حَرَكَتَين — بَينَما يَتَحَرَّكُ لِسانُكَ إلى مَوضِعِ الحَرفِ التّالي. فالنّونُ «مَوجودةٌ» غُنّةً أنفِيّة، لكِنَّها مَحجوبةٌ مَستورةٌ غَيرُ واضِحةِ النُّطق.\n\nولِلإخفاءِ خَمسةَ عَشَرَ حَرفًا، وهذا يَجعَلُهُ أكثَرَ الأحكامِ الأربَعةِ وُقوعًا بِفارِقٍ كَبير — أكثَرَ مِن نِصفِ حُروفِ العَرَبيّة. وثَمّةَ طَريقةٌ أنيقةٌ لِمَعرِفَتِها: خُذِ الحُروفَ كُلَّها، ثُمَّ احذِفِ الحُروفَ الحَلقيّةَ السِّتّةَ (لِلإظهار)، وحُروفَ يَرمَلونَ السِّتّةَ (لِلإدغام)، والباءَ الواحِدةَ (لِلإقلاب). وكُلُّ ما يَبقى — خَمسةَ عَشَرَ حَرفًا — لِلإخفاء. وهذا يُبَيِّنُ أنَّ العُلَماءَ لم يَختَرِعوا قائِمةً عَشوائيّة؛ بل الإخفاءُ هو «الأصلُ» الطَّبيعيُّ لِلمَجموعةِ الكَبيرةِ مِنَ الحُروفِ التي لَيسَت بَعيدةً عنِ النّونِ ولا قَريبةً جِدًّا مِنها. وبِهذا الحُكمِ تَكتَمِلُ خَريطةُ النّونِ السّاكِنةِ والتَّنوين: فَكُلُّ حَرفٍ مِن حُروفِ العَرَبيّةِ صارَ لَهُ حُكمٌ مَعروفٌ حينَ يَتلو النّون. وعلى الطّالِبِ المُطالِبِ أن يَستَشعِرَ لَذّةَ النِّظامِ الكامِلِ المَنطِقيّ — وسَتُبَيِّنُ الأقسامُ التّاليةُ بِالضَّبطِ لِماذا يَسلُكُ الإخفاءُ هذا الطَّريقَ الوَسَطَ وكَيفَ يُتلى.",
+        en: "Ikhfa is a key tajweed rule for Noon Sakinah and Tanween. Hiding Noon Sakinah/Tanween with nasal sound before 15 letters.",
+        ar: "الإخفاء حكم أساسي من أحكام النون الساكنة والتنوين. إخفاء النون الساكنة/التنوين بغنّة قبل ١٥ حرفًا.",
       },
     },
     {
-      title: { en: "The fifteen letters and how to recite", ar: "الحُروفُ الخَمسةَ عَشَرَ وكَيفيّةُ التِّلاوة" },
+      title: { en: "Group Work", ar: "عمل جماعي" },
       learningObjectives: [
-        { en: "Recall the fifteen Ikhfa letters and apply the rule with ghunnah.", ar: "أستَرجِعُ حُروفَ الإخفاءِ الخَمسةَ عَشَرَ وأُطَبِّقُ الحُكمَ بِغُنّة." },
-      ],
-      image: {
-        src: IMG.lantern,
-        alt: { en: "A veiled light — the hidden noon with ghunnah.", ar: "ضَوءٌ مَحجوب — النّونُ المُخفاةُ بِغُنّة." },
-        caption: { en: "Hold the ghunnah, ready the tongue for the next letter, conceal the noon.", ar: "أمسِكِ الغُنّة، هَيِّئِ اللِّسانَ لِلحَرفِ التّالي، اسْتُرِ النّون." },
-      },
-      infoBoxes: [
-        {
-          label: { en: "The fifteen letters", ar: "الحُروفُ الخَمسةَ عَشَر" },
-          lines: [
-            { en: "ت ث ج د ذ ز س ش ص ض ط ظ ف ق ك. They are gathered in a famous poem whose first letters spell them: 'صِفْ ذا ثَنا كَمْ جادَ شَخصٌ قد سَما ... دُمْ طَيِّبًا زِدْ في تُقًى ضَعْ ظالِمًا'.", ar: "ت ث ج د ذ ز س ش ص ض ط ظ ف ق ك. جُمِعَت في أوائِلِ بَيتٍ مَشهور: «صِفْ ذا ثَنا كَمْ جادَ شَخصٌ قد سَما ... دُمْ طَيِّبًا زِدْ في تُقًى ضَعْ ظالِمًا»." },
-          ],
-        },
-        {
-          label: { en: "How to perform", ar: "كَيفيّةُ الأداء" },
-          lines: [
-            { en: "Do not touch the tongue to the noon's spot. Make a light nasal ghunnah (~2 counts) while shaping the mouth for the coming letter. The ghunnah takes on the 'colour' of the next letter (heavier with heavy letters like ص ق ط).", ar: "لا تُلصِقِ اللِّسانَ بِمَخرَجِ النّون. اجعَلْ غُنّةً أنفِيّةً خَفيفةً (نَحوَ حَرَكَتَين) مَعَ تَهيئةِ الفَمِ لِلحَرفِ القادِم. وتَتَلَوَّنُ الغُنّةُ بِالحَرفِ التّالي (أثقَلُ مَعَ المُفَخَّمةِ كَـ ص ق ط)." },
-          ],
-        },
-      ],
-      callout: {
-        label: { en: "Feel the difference", ar: "اِلمَسِ الفَرق" },
-        title: { en: "Light Ikhfa vs heavy Ikhfa", ar: "إخفاءٌ مُرَقَّقٌ وإخفاءٌ مُفَخَّم" },
-        body: {
-          en: "The ghunnah of Ikhfa is not identical every time — it is 'coloured' by the next letter. Recite 'مِنْ تَحتِها' (light) and 'مَنْصورًا'/'أنْقَذكُم' (heavier, with ص/ق). Explain why the ghunnah adapts to whatever letter follows.",
-          ar: "غُنّةُ الإخفاءِ لَيسَت واحِدةً كُلَّ مَرّة — بل تَتَلَوَّنُ بِالحَرفِ التّالي. اتلُ «مِنْ تَحتِها» (مُرَقَّق) و«مَنصورًا»/«أنقَذَكُم» (أثقَل، مَعَ ص/ق). بَيِّنْ لِماذا تَتَكَيَّفُ الغُنّةُ مَعَ الحَرفِ الذي يَتلوها.",
-        },
-      },
-      matchingActivity: {
-        title: { en: "Match the example to its Ikhfa letter", ar: "طابِقِ المِثالَ بِحَرفِ إخفائِه" },
-        instruction: { en: "Each conceals the noon before an Ikhfa letter. Match to the letter.", ar: "كُلٌّ يُخفي النّونَ قَبلَ حَرفِ إخفاء. طابِقهُ بِالحَرف." },
-        prompts: [
-          { en: "مِنْ تَحتِها (min tahtiha)", ar: "مِنْ تَحتِها" },
-          { en: "أَنْفُسَكُم (anfusakum)", ar: "أَنْفُسَكُم" },
-          { en: "مَنْصورًا (mansuran)", ar: "مَنْصورًا" },
-          { en: "مِنْ قَبلِ (min qabli)", ar: "مِنْ قَبلِ" },
-        ].map((p, i) => ({
-          prompt: p,
-          answer: [
-            { en: "ت (ta) — light Ikhfa with ghunnah", ar: "ت — إخفاءٌ مُرَقَّقٌ بِغُنّة" },
-            { en: "ف (fa) — Ikhfa with ghunnah", ar: "ف — إخفاءٌ بِغُنّة" },
-            { en: "ص (sad) — heavier Ikhfa with ghunnah", ar: "ص — إخفاءٌ مُفَخَّمٌ بِغُنّة" },
-            { en: "ق (qaf) — heavier Ikhfa with ghunnah", ar: "ق — إخفاءٌ مُفَخَّمٌ بِغُنّة" },
-          ][i],
-        })),
-      },
-      body: {
-        en: "The fifteen letters of Ikhfa are: ت ث ج د ذ ز س ش ص ض ط ظ ف ق ك. Because there are so many, the scholars composed a memorable line of poetry to hold them; the first letter of each word of the verse 'Sif dha thana kam jada shakhsun qad sama, dum tayyiban zid fi tuqan da' zaliman' gives, in order, the fifteen Ikhfa letters. Whenever a noon sakinah or tanwin is followed by any one of these, you apply Ikhfa.\n\nHow is it recited? The key is what your tongue does — or rather, does not do. In Izhar you fully pronounce the noon by touching your tongue to its articulation point; in Ikhfa you do not let the tongue make full contact for the noon at all. Instead, you produce a light nasal hum (ghunnah) lasting about two counts, while your mouth is already moving into the shape of the letter that follows. The result is a 'concealed' noon: you hear the nasal sound, but not a clear noon and not a doubled letter — it is genuinely in between. The mushaf signals Ikhfa by leaving the noon without a sukoon and without a shaddah, and the following letter is usually written without a shaddah too.\n\nThere is a subtle beauty here that distinguishes a skilled reciter. The ghunnah of Ikhfa is not pronounced identically every time; it takes on the 'colour' of the letter that comes after it. When the next letter is a light (muraqqaq) letter — like ta in 'مِنْ تَحتِها' — the ghunnah is light and thin. When the next letter is a heavy, emphatic (mufakhkham) letter — like sad in 'مَنْصورًا' or qaf in 'مِنْ قَبلِ' — the ghunnah becomes correspondingly heavier and fuller, because the tongue is already rising and the mouth is rounding for the heavy letter to come. This adaptation happens naturally once you prepare your mouth correctly for the following letter, which is exactly what Ikhfa requires. A demanding student should practise both kinds aloud and listen for the difference: the same rule, the same held ghunnah, but a sound that gracefully shifts to suit each of its fifteen letters. This sensitivity is part of what makes recitation beautiful, and it is the fruit of understanding the rule rather than merely memorising it.",
-        ar: "حُروفُ الإخفاءِ الخَمسةَ عَشَرَ هي: ت ث ج د ذ ز س ش ص ض ط ظ ف ق ك. ولِكَثرَتِها نَظَمَ العُلَماءُ بَيتًا يُحفَظُ؛ فَأوائِلُ كَلِماتِ البَيت: «صِفْ ذا ثَنا كَمْ جادَ شَخصٌ قد سَما، دُمْ طَيِّبًا زِدْ في تُقًى ضَعْ ظالِمًا» تُعطي، بِالتَّرتيب، حُروفَ الإخفاءِ الخَمسةَ عَشَر. فَكُلَّما تَلا النّونَ السّاكِنةَ أوِ التَّنوينَ واحِدٌ مِنها، طَبَّقتَ الإخفاء.\n\nكَيفَ يُتلى؟ المِفتاحُ ما يَفعَلُهُ لِسانُك — أو بِالأحرى ما لا يَفعَلُه. ففي الإظهارِ تَنطِقُ النّونَ كامِلةً بِإلصاقِ اللِّسانِ بِمَخرَجِها؛ وفي الإخفاءِ لا تَدَعُ اللِّسانَ يُلامِسُ مَخرَجَ النّونِ تَمامًا أصلًا. بل تُنتِجُ غُنّةً أنفِيّةً خَفيفةً نَحوَ حَرَكَتَين، بَينَما فَمُكَ يَتَحَرَّكُ سَلَفًا إلى شَكلِ الحَرفِ التّالي. والنَّتيجةُ نونٌ «مَستورة»: تَسمَعُ الصَّوتَ الأنفِيّ، لا نونًا واضِحةً ولا حَرفًا مُشَدَّدًا — إنَّهُ بَينَ بَين حَقًّا. ويُشيرُ المُصحَفُ لِلإخفاءِ بِتَركِ النّونِ بِلا سُكونٍ وبِلا شَدّة، والحَرفُ التّالي غالِبًا بِلا شَدّةٍ كَذلك.\n\nوثَمّةَ جَمالٌ دَقيقٌ هُنا يُمَيِّزُ القارِئَ الماهِر. غُنّةُ الإخفاءِ لا تُنطَقُ سَواءً كُلَّ مَرّة؛ بل تَأخُذُ «لَونَ» الحَرفِ بَعدَها. فإذا كانَ التّالي حَرفًا مُرَقَّقًا — كَالتّاءِ في «مِنْ تَحتِها» — كانَتِ الغُنّةُ خَفيفةً رَقيقة. وإذا كانَ حَرفًا مُفَخَّمًا — كَالصّادِ في «مَنصورًا» أوِ القافِ في «مِنْ قَبلِ» — صارَتِ الغُنّةُ أثقَلَ وأمَلأَ تَبَعًا لَه، لِأنَّ اللِّسانَ يَرتَفِعُ والفَمَ يَستَديرُ سَلَفًا لِلحَرفِ المُفَخَّمِ القادِم. ويَحدُثُ هذا التَّكَيُّفُ طَبعًا مَتى هَيَّأتَ فَمَكَ صَحيحًا لِلحَرفِ التّالي، وهو بِالضَّبطِ ما يَطلُبُهُ الإخفاء. وعلى الطّالِبِ المُطالِبِ أن يَتَدَرَّبَ على النَّوعَينِ جَهرًا وأن يُنصِتَ لِلفَرق: الحُكمُ نَفسُه، والغُنّةُ المُمسَكةُ نَفسُها، لكِن صَوتٌ يَنزاحُ بِرَشاقةٍ لِيُناسِبَ كُلًّا مِن حُروفِهِ الخَمسةَ عَشَر. وهذه الحَساسيّةُ جُزءٌ مِمّا يُجَمِّلُ التِّلاوة، وهي ثَمَرةُ فَهمِ الحُكمِ لا مُجَرَّدِ حِفظِه.",
-      },
-    },
-    {
-      title: { en: "Mastery and the honour of recitation", ar: "إتقانٌ وشَرَفُ التِّلاوة" },
-      learningObjectives: [
-        { en: "Synthesise all four rules and reflect on tajweed as devotion.", ar: "أُرَكِّبُ الأحكامَ الأربَعةَ وأتَأمَّلُ التَّجويدَ عِبادة." },
+        { en: "Practise identifying and applying Ikhfa in Quran.", ar: "تدرّب على تحديد وتطبيق الإخفاء في القرآن." },
       ],
       image: {
         src: IMG.grandMosque,
-        alt: { en: "A reciter completing the science of the noon.", ar: "قارِئٌ يُتِمُّ عِلمَ النّون." },
-        caption: { en: "Four rules complete: every letter now has its due.", ar: "أربَعةُ أحكامٍ اكتَمَلَت: لِكُلِّ حَرفٍ حَقُّهُ الآن." },
+        alt: { en: "Students collaborating.", ar: "طلاب يتعاونون." },
       },
-      groupTasks: {
-        title: { en: "The grand review", ar: "المُراجَعةُ الكُبرى" },
-        instruction: { en: "In groups, build the full system of the four rules.", ar: "في مَجموعاتٍ، ابنوا النِّظامَ الكامِلَ لِلأحكامِ الأربَعة." },
-        groups: [
+      groupWorkCards: {
+        title: { en: "Choose Your Task", ar: "اختر مهمّتك" },
+        instruction: { en: "Each group picks one card. Study the information, complete the task, and present to the class.", ar: "تختار كلّ مجموعة بطاقة. ادرسوا المعلومات وأنجزوا المهمّة وقدّموا للصفّ." },
+        presentationNote: { en: "All Quran and Hadith must be authentic with references.", ar: "يجب أن يكون كلّ قرآن وحديث صحيحًا بمصادره." },
+        cards: [
           {
-            slug: "ikhfa-hunt",
-            name: { en: "Team A — Ikhfa in the Qur'an", ar: "الفَريقُ أ — الإخفاءُ في القُرآن" },
-            learningObjective: { en: "Find and recite light and heavy Ikhfa.", ar: "نَجِدُ ونَتلو إخفاءً مُرَقَّقًا ومُفَخَّمًا." },
-            task: { en: "Find five Ikhfa examples, including at least one heavy (ص/ض/ط/ظ/ق) and one light, and recite each with the right ghunnah.", ar: "جِدوا خَمسةَ أمثِلةِ إخفاء، فيها مُفَخَّمٌ واحِد على الأقَلّ (ص/ض/ط/ظ/ق) ومُرَقَّق، واتلوا كُلًّا بِالغُنّةِ الصَّحيحة." },
-            evidence: [
-              { en: "15 letters; ghunnah ~2 counts; tongue not touching noon's spot.", ar: "١٥ حَرفًا؛ غُنّةٌ نَحوَ حَرَكَتَين؛ اللِّسانُ لا يَمَسُّ مَخرَجَ النّون." },
+            id: "A",
+            title: { en: "Definition and Letters", ar: "التعريف والحروف" },
+            image: IMG.childQuran,
+            color: "teal",
+            topic: { en: "Master Ikhfa", ar: "أتقن الإخفاء" },
+            infoSections: [
+              { label: { en: "Rule", ar: "قاعدة" }, content: { en: "Hiding Noon Sakinah/Tanween with nasal sound before 15 letters. Letters: ت ث ج د ذ ز س ش ص ض ط ظ ف ق ك.", ar: "إخفاء النون الساكنة/التنوين بغنّة قبل ١٥ حرفًا. الحروف: ت ث ج د ذ ز س ش ص ض ط ظ ف ق ك." } },
+              { label: { en: "Mnemonic", ar: "طريقة حفظ" }, content: { en: "Remember: The remaining 15 letters not in Izhar, Idgham, or Iqlab.", ar: "تذكّر: The remaining 15 letters not in Izhar, Idgham, or Iqlab." } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Mastering each rule perfects your recitation.", ar: "إتقان كلّ قاعدة يتقن تلاوتك." } },
             ],
-            sourceNotes: [
-              { en: "Ghunnah colours to the next letter.", ar: "الغُنّةُ تَتَلَوَّنُ بِالحَرفِ التّالي." },
-            ],
-            memberRoles: [
-              { en: "Searcher, Reciter, Checker.", ar: "الباحِث، القارِئ، المُدَقِّق." },
-            ],
-            finalProduct: { en: "Five recited Ikhfa examples.", ar: "خَمسةُ أمثِلةِ إخفاءٍ مَتلُوّة." },
+            task: {
+              title: { en: "Create a Rule Chart", ar: "أنشئ جدول قواعد" },
+              description: { en: "Design a chart showing Ikhfa with letters and examples.", ar: "صمّم جدولًا يُظهر الإخفاء مع الحروف والأمثلة." },
+              hint: { en: "Include: definition, letters, Quran examples, pronunciation.", ar: "ضمّن: التعريف والحروف والأمثلة والنطق." },
+            },
           },
           {
-            slug: "full-map",
-            name: { en: "Team B — The complete map", ar: "الفَريقُ ب — الخَريطةُ الكامِلة" },
-            learningObjective: { en: "Organise all four rules into one chart.", ar: "نُنَظِّمُ الأحكامَ الأربَعةَ في مُخَطَّطٍ واحِد." },
-            task: { en: "Build one chart of the four rules: name, letters, what happens to the noon, ghunnah (yes/no), one example each. Present it to the class.", ar: "ابنوا مُخَطَّطًا واحِدًا لِلأحكامِ الأربَعة: الاسم، الحُروف، ما يَحدُثُ لِلنّون، الغُنّة (نَعَم/لا)، ومِثالًا لِكُلٍّ. واعرِضوهُ على الصَّفّ." },
-            evidence: [
-              { en: "Izhar (6 throat, clear, no ghunnah); Idgham (6 yarmaloon, merge, ±ghunnah); Iqlab (ba, →meem, ghunnah); Ikhfa (15, conceal, ghunnah).", ar: "الإظهار (٦ حَلقيّة، واضِح، بِلا غُنّة)؛ الإدغام (٦ يَرمَلون، إدغام، ±غُنّة)؛ الإقلاب (الباء، ←ميم، غُنّة)؛ الإخفاء (١٥، سَتر، غُنّة)." },
+            id: "B",
+            title: { en: "Finding Examples", ar: "إيجاد الأمثلة" },
+            image: IMG.bookshelf,
+            color: "blue",
+            topic: { en: "Spot the rule in Quran", ar: "حدّد القاعدة في القرآن" },
+            infoSections: [
+              { label: { en: "Method", ar: "طريقة" }, content: { en: "Look for noon sakinah/tanween before the specific letters.", ar: "ابحث عن نون ساكنة/تنوين قبل الحروف المحدّدة." } },
+              { label: { en: "Tip", ar: "نصيحة" }, content: { en: "Read slowly and mark each instance.", ar: "اقرأ ببطء وحدّد كلّ حالة." } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Practice makes perfect.", ar: "التدريب يصنع الإتقان." } },
             ],
-            sourceNotes: [
-              { en: "6 + 6 + 1 + 15 = 28 letters, the whole alphabet.", ar: "٦ + ٦ + ١ + ١٥ = ٢٨ حَرفًا، كُلُّ الحُروف." },
+            task: {
+              title: { en: "Find 10 Examples", ar: "أوجد ١٠ أمثلة" },
+              description: { en: "Find 10 examples of Ikhfa from Juz Amma.", ar: "أوجد ١٠ أمثلة الإخفاء من جزء عمّ." },
+              hint: { en: "Write: surah, ayah, word, letter.", ar: "اكتب: السورة والآية والكلمة والحرف." },
+            },
+          },
+          {
+            id: "C",
+            title: { en: "Comparing Rules", ar: "مقارنة القواعد" },
+            image: IMG.lantern,
+            color: "purple",
+            topic: { en: "How rules differ", ar: "كيف تختلف القواعد" },
+            infoSections: [
+              { label: { en: "Comparison", ar: "مقارنة" }, content: { en: "Izhar = clear. Idgham = merge. Ikhfa = hide. Iqlab = change.", ar: "إظهار = واضح. إدغام = دمج. إخفاء = إخفاء. إقلاب = تحويل." } },
+              { label: { en: "Key", ar: "مفتاح" }, content: { en: "The letter after noon sakinah determines the rule.", ar: "الحرف بعد النون يحدّد القاعدة." } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Each rule has a unique sound.", ar: "لكلّ قاعدة صوت مميّز." } },
             ],
-            memberRoles: [
-              { en: "Organiser, Designer, Presenter.", ar: "المُنَظِّم، المُصَمِّم، العارِض." },
+            task: {
+              title: { en: "Compare All Four Rules", ar: "قارن القواعد الأربع" },
+              description: { en: "Create a table comparing Izhar, Idgham, Ikhfa, Iqlab.", ar: "أنشئ جدولًا يقارن الإظهار والإدغام والإخفاء والإقلاب." },
+              hint: { en: "Include: definition, letters, sound, examples.", ar: "ضمّن: التعريف والحروف والصوت والأمثلة." },
+            },
+          },
+          {
+            id: "D",
+            title: { en: "Practice Recitation", ar: "تدرّب على التلاوة" },
+            image: IMG.grandMosque,
+            color: "amber",
+            topic: { en: "Apply in reading", ar: "طبّق في القراءة" },
+            infoSections: [
+              { label: { en: "Tip", ar: "نصيحة" }, content: { en: "Identify the rule before reading each word.", ar: "حدّد القاعدة قبل قراءة كلّ كلمة." } },
+              { label: { en: "Hadith", ar: "حديث" }, content: { en: "\'The skilled reciter is with noble angels.\' (Bukhari)", ar: "«الماهر مع السفرة الكرام.» (البخاري)" } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Beautiful recitation is worship.", ar: "التلاوة الجميلة عبادة." } },
             ],
-            finalProduct: { en: "A complete four-rule chart.", ar: "مُخَطَّطٌ كامِلٌ لِلأحكامِ الأربَعة." },
+            task: {
+              title: { en: "Practise Reading", ar: "تدرّب على القراءة" },
+              description: { en: "Read 5 ayahs applying Ikhfa correctly.", ar: "اقرأ ٥ آيات بتطبيق الإخفاء بشكل صحيح." },
+              hint: { en: "Mark each Ikhfa instance.", ar: "حدّد كلّ حالة." },
+            },
+          },
+          {
+            id: "E",
+            title: { en: "Teaching Tajweed", ar: "تعليم التجويد" },
+            image: IMG.skyBlue,
+            color: "rose",
+            topic: { en: "Share your knowledge", ar: "شارك علمك" },
+            infoSections: [
+              { label: { en: "Hadith", ar: "حديث" }, content: { en: "\'The best of you learn Quran and teach it.\' (Bukhari)", ar: "«خيركم من تعلّم القرآن وعلّمه.» (البخاري)" } },
+              { label: { en: "Tip", ar: "نصيحة" }, content: { en: "Use simple language and examples.", ar: "استخدم لغة بسيطة وأمثلة." } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Teaching reinforces your own learning.", ar: "التعليم يعزّز تعلّمك." } },
+            ],
+            task: {
+              title: { en: "Create a Teaching Poster", ar: "أنشئ ملصقًا تعليميًّا" },
+              description: { en: "Design a poster teaching Ikhfa to beginners.", ar: "صمّم ملصقًا لتعليم الإخفاء للمبتدئين." },
+              hint: { en: "Include: definition, letters, mnemonic, examples.", ar: "ضمّن: التعريف والحروف وطريقة الحفظ والأمثلة." },
+            },
           },
         ],
+        coinsReward: 15,
       },
-      responsePrompt: {
-        title: { en: "Final synthesis", ar: "التَّركيبُ الخِتامِيّ" },
-        prompt: { en: "Summarise the complete system of the noon sakinah and tanwin: all four rules, their letters, and how each treats the noon. Show how 6 + 6 + 1 + 15 covers the whole alphabet. Then reflect: how does this precise, complete science deepen your reverence for the Qur'an and your sense of being part of the chain that preserved it?", ar: "لَخِّصِ النِّظامَ الكامِلَ لِلنّونِ السّاكِنةِ والتَّنوين: الأحكامَ الأربَعةَ، وحُروفَها، وكَيفَ يُعالِجُ كُلٌّ النّون. وبَيِّنْ كَيفَ يُغَطّي ٦ + ٦ + ١ + ١٥ كُلَّ الحُروف. ثُمَّ تَأمَّلْ: كَيفَ يُعَمِّقُ هذا العِلمُ الدَّقيقُ الكامِلُ تَعظيمَكَ لِلقُرآنِ وشُعورَكَ بِالانتِماءِ لِسِلسِلةِ مَن حَفِظَه؟" },
-        placeholder: { en: "The four rules are... Together their letters (6+6+1+15) cover all 28... This complete science deepens my reverence because...", ar: "الأحكامُ الأربَعةُ هي... ومَجموعُ حُروفِها (٦+٦+١+١٥) يُغَطّي الـ٢٨... وهذا العِلمُ الكامِلُ يُعَمِّقُ تَعظيمي لِأنَّ..." },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Hinge Questions", ar: "أسئلة محوريّة" },
+      learningObjectives: [
+        { en: "Test your understanding of everything studied.", ar: "اختبر فهمك لكلّ ما درسته." },
+      ],
+      image: {
+        src: IMG.bookshelf,
+        alt: { en: "Assessment.", ar: "تقييم." },
       },
-      body: {
-        en: "With Ikhfa, the science of the noon sakinah and tanwin is complete, and it is worth pausing to admire the whole structure you have now learned. The Arabic alphabet has twenty-eight letters. When a noon sakinah or tanwin meets each of them, exactly one of four things happens, and the four rules between them account for every single letter: six letters give Izhar (clear pronunciation), six give Idgham (merging), one gives Iqlab (conversion to meem), and the remaining fifteen give Ikhfa (concealment). Six plus six plus one plus fifteen is twenty-eight — the entire alphabet, with nothing left out and nothing overlapping. This is not a haphazard collection of rules but a complete, elegant, and exhaustive system, and to know it is to be able to give the noon its proper due wherever it appears in the Qur'an.\n\nTo recite Ikhfa well, practise aloud and listen carefully: hold a light nasal ghunnah without touching your tongue to the noon's spot, while preparing your mouth for the coming letter, and let the ghunnah take on the colour of that letter — lighter before light letters, heavier before emphatic ones. As with every rule, mastery comes from repetition under guidance, not from theory alone. A teacher's ear, or a good recording, will help you refine the sound until it is neither a clear noon nor a doubled letter, but that beautiful, hidden middle state.\n\nStep back now and consider what you have truly achieved. You have not merely memorised four rules; you have understood a complete science whose entire purpose is to recite the words of Allah exactly as they were revealed. Every rule — the clarity of Izhar, the merging of Idgham, the conversion of Iqlab, the concealment of Ikhfa — was observed, studied, and preserved by the scholars of recitation across fourteen centuries, going back to the way the Prophet ﷺ himself recited and taught. When you apply these rules, you are not performing an empty technicality; you are handling the speech of your Creator with the precision and reverence it deserves, and you are taking your place in the long, unbroken chain of those who have guarded the Qur'an's recitation generation after generation. The Prophet ﷺ said, 'The best of you are those who learn the Qur'an and teach it.' To learn its recitation with this care, and one day to teach it, is among the noblest things a Muslim can do. A demanding student leaves this lesson not only able to apply all four rules of the noon, but understanding that every detail of tajweed is a small act of love and reverence for the Book of Allah — and that mastering it is both an honour and a trust.",
-        ar: "بِالإخفاءِ يَكتَمِلُ عِلمُ النّونِ السّاكِنةِ والتَّنوين، ويَحسُنُ أن نَقِفَ نُعجَبُ بِالبِناءِ كُلِّهِ الذي تَعَلَّمتَهُ الآن. لِحُروفِ العَرَبيّةِ ثَمانيةٌ وعِشرونَ حَرفًا. وحينَ تَلقى النّونُ السّاكِنةُ أوِ التَّنوينُ كُلًّا مِنها، يَحدُثُ واحِدٌ مِن أربَعةٍ بِالضَّبط، والأحكامُ الأربَعةُ بَينَها تَستَوعِبُ كُلَّ حَرف: سِتّةٌ تُعطي الإظهار، وسِتّةٌ تُعطي الإدغام، وواحِدٌ يُعطي الإقلاب، والباقي خَمسةَ عَشَرَ تُعطي الإخفاء. وسِتّةٌ وسِتّةٌ وواحِدٌ وخَمسةَ عَشَرَ ثَمانيةٌ وعِشرون — كُلُّ الحُروف، لا مَتروكَ ولا مُتَداخِل. وهذا لَيسَ تَجميعًا عَشوائيًّا بل نِظامٌ كامِلٌ أنيقٌ جامِعٌ مانِع، ومَعرِفَتُهُ تُمَكِّنُكَ مِن إعطاءِ النّونِ حَقَّها حَيثُما ظَهَرَت في القُرآن.\n\nولِتُحسِنَ الإخفاءَ تَدَرَّبْ جَهرًا وأنصِتْ بِعِناية: أمسِكْ غُنّةً أنفِيّةً خَفيفةً دونَ إلصاقِ لِسانِكَ بِمَخرَجِ النّون، مَعَ تَهيئةِ فَمِكَ لِلحَرفِ القادِم، ودَعِ الغُنّةَ تَأخُذُ لَونَ ذلك الحَرف — أخَفَّ قَبلَ المُرَقَّقِ وأثقَلَ قَبلَ المُفَخَّم. وكَكُلِّ حُكمٍ، الإتقانُ بِالتَّكرارِ تَحتَ إشرافٍ لا بِالنَّظَريّةِ وَحدَها. فَأُذُنُ مُعَلِّمٍ أو تَسجيلٌ جَيِّدٌ يُعينُكَ على صَقلِ الصَّوتِ حَتّى لا يَكونَ نونًا واضِحةً ولا حَرفًا مُشَدَّدًا، بل تِلكَ الحالَ الوُسطى المَستورةَ البَديعة.\n\nوارجِعِ الآنَ وتَأمَّلْ ما حَقَّقتَهُ حَقًّا. فأنتَ لم تَحفَظْ أربَعةَ أحكامٍ فَحَسب؛ بل فَهِمتَ عِلمًا كامِلًا غايَتُهُ كُلُّها تِلاوةُ كَلامِ اللهِ تَمامًا كَما أُنزِل. فَكُلُّ حُكمٍ — وُضوحُ الإظهار، واندِماجُ الإدغام، وقَلبُ الإقلاب، وسَترُ الإخفاء — رَصَدَهُ ودَرَسَهُ وحَفِظَهُ عُلَماءُ القِراءةِ عَبرَ أربَعةَ عَشَرَ قَرنًا، رُجوعًا إلى ما كانَ عليهِ تِلاوةُ النَّبِيِّ ﷺ نَفسِهِ وتَعليمُه. فحينَ تُطَبِّقُ هذه الأحكامَ لا تُؤَدّي شَكلِيّةً فارِغة؛ بل تُعامِلُ كَلامَ خالِقِكَ بِالدِّقّةِ والإجلالِ الذي يَستَحِقّ، وتَأخُذُ مَكانَكَ في السِّلسِلةِ الطَّويلةِ المُتَّصِلةِ مِمَّن حَرَسوا تِلاوةَ القُرآنِ جيلًا بَعدَ جيل. قالَ النَّبِيُّ ﷺ: «خَيرُكُم مَن تَعَلَّمَ القُرآنَ وعَلَّمَه». وتَعَلُّمُ تِلاوَتِهِ بِهذه العِنايةِ، وتَعليمُهُ يَومًا، مِن أنبَلِ ما يَصنَعُ المُسلِم. والطّالِبُ المُطالِبُ يُغادِرُ هذا الدَّرسَ لا قادِرًا على تَطبيقِ أحكامِ النّونِ الأربَعةِ فَحَسب، بل فاهِمًا أنَّ كُلَّ تَفصيلٍ في التَّجويدِ عَمَلُ حُبٍّ وتَعظيمٍ لِكِتابِ الله — وأنَّ إتقانَهُ شَرَفٌ وأمانة.",
+      hingeQuestions: {
+        title: { en: "Hinge Questions — Test Your Understanding", ar: "أسئلة محوريّة — اختبر فهمك" },
+        instruction: { en: "Answer all 10 questions.", ar: "أجب عن الأسئلة العشرة." },
+        questions: [
+          {
+            question: { en: "What does Ikhfa mean?", ar: "ما معنى الإخفاء؟" },
+            options: [
+            { en: "Hiding Noon Sakinah/Tanween with nasal sound before 15 letters", ar: "إخفاء النون الساكنة/التنوين بغنّة قبل ١٥ حرفًا" },
+            { en: "Silence", ar: "صمت" },
+            { en: "Shouting", ar: "صراخ" },
+            { en: "Skipping", ar: "تخطّي" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Hiding Noon Sakinah/Tanween with nasal sound before 15 letters.", ar: "إخفاء النون الساكنة/التنوين بغنّة قبل ١٥ حرفًا." },
+          },
+          {
+            question: { en: "How many letters of Ikhfa?", ar: "كم حرفًا في الإخفاء؟" },
+            options: [
+            { en: "15", ar: "15" },
+            { en: "2", ar: "٢" },
+            { en: "10", ar: "١٠" },
+            { en: "1", ar: "١" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "15 letters.", ar: "15 حرفًا." },
+          },
+          {
+            question: { en: "Ikhfa applies to?", ar: "الإخفاء ينطبق على؟" },
+            options: [
+            { en: "Noon Sakinah and Tanween", ar: "النون الساكنة والتنوين" },
+            { en: "Meem only", ar: "الميم فقط" },
+            { en: "Lam only", ar: "اللام فقط" },
+            { en: "All letters", ar: "كلّ الحروف" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Noon Sakinah and Tanween.", ar: "النون الساكنة والتنوين." },
+          },
+          {
+            question: { en: "Which is a letter of Ikhfa?", ar: "أيّ حرف من حروف الإخفاء؟" },
+            options: [
+            { en: "ت", ar: "تاء" },
+            { en: "ب", ar: "ب" },
+            { en: "ت", ar: "ت" },
+            { en: "ل", ar: "ل" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "ت is a letter of Ikhfa.", ar: "تاء حرف الإخفاء." },
+          },
+          {
+            question: { en: "مِنْ تَحْتِهَا — what rule?", ar: "مِنْ تَحْتِهَا — أيّ حكم؟" },
+            options: [
+            { en: "Ikhfa", ar: "الإخفاء" },
+            { en: "Izhar", ar: "إظهار" },
+            { en: "Waqf", ar: "وقف" },
+            { en: "Madd", ar: "مدّ" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Ikhfa.", ar: "الإخفاء." },
+          },
+          {
+            question: { en: "Is tajweed obligatory?", ar: "هل التجويد واجب؟" },
+            options: [
+            { en: "Yes", ar: "نعم" },
+            { en: "No", ar: "لا" },
+            { en: "Optional", ar: "اختياري" },
+            { en: "Only for scholars", ar: "للعلماء فقط" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Yes, obligatory when reciting Quran.", ar: "نعم واجب عند قراءة القرآن." },
+          },
+          {
+            question: { en: "What verse commands tajweed?", ar: "أيّ آية تأمر بالتجويد؟" },
+            options: [
+            { en: "Al-Muzzammil 4", ar: "المزّمّل ٤" },
+            { en: "Al-Fatiha 1", ar: "الفاتحة ١" },
+            { en: "Al-Nas 1", ar: "الناس ١" },
+            { en: "Al-Ikhlas 1", ar: "الإخلاص ١" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Al-Muzzammil 4.", ar: "المزّمّل ٤." },
+          },
+          {
+            question: { en: "What is Noon Sakinah?", ar: "ما النون الساكنة؟" },
+            options: [
+            { en: "Noon with sukun", ar: "نون عليها سكون" },
+            { en: "Noon with fathah", ar: "نون بفتحة" },
+            { en: "Any noon", ar: "أيّ نون" },
+            { en: "Letter ba", ar: "حرف باء" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Noon with sukun (no vowel).", ar: "نون عليها سكون." },
+          },
+          {
+            question: { en: "Skilled Quran reciter is with?", ar: "الماهر في القرآن مع؟" },
+            options: [
+            { en: "Noble angels", ar: "السفرة الكرام" },
+            { en: "Kings", ar: "الملوك" },
+            { en: "Scholars", ar: "العلماء" },
+            { en: "No one", ar: "لا أحد" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Noble angels (Bukhari).", ar: "السفرة الكرام (البخاري)." },
+          },
+          {
+            question: { en: "Best people regarding Quran?", ar: "خير الناس في القرآن؟" },
+            options: [
+            { en: "Learn and teach it", ar: "تعلّمه وعلّمه" },
+            { en: "Just memorise", ar: "الحفظ فقط" },
+            { en: "Read quickly", ar: "القراءة السريعة" },
+            { en: "Skip tajweed", ar: "تخطّي التجويد" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Those who learn and teach (Bukhari).", ar: "من تعلّمه وعلّمه (البخاري)." },
+          },
+        ],
+        coinsReward: 20,
       },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Watch & Reflect", ar: "شاهد وتأمّل" },
+      learningObjectives: [
+        { en: "Watch a video related to the topic and reflect.", ar: "شاهد مقطعًا متعلّقًا بالموضوع وتأمّل." },
+      ],
+      image: {
+        src: IMG.childQuran,
+        alt: { en: "Video lesson.", ar: "درس مرئي." },
+      },
+      youtubeVideo: {
+        title: { en: "Noon Sakinah — Ikhfa", ar: "النون الساكنة — الإخفاء" },
+        url: "https://www.youtube.com/watch?v=T4auGhmeBlw",
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Plenary", ar: "ختام الدرس" },
+      learningObjectives: [
+        { en: "Reflect on and share what you learned.", ar: "تأمّل وشارك ما تعلّمته." },
+      ],
+      image: {
+        src: IMG.grandMosque,
+        alt: { en: "Students sharing.", ar: "طلاب يشاركون." },
+      },
+      plenary: {
+        title: { en: "Share Your Learning", ar: "شارك ما تعلّمته" },
+        instruction: { en: "Scan QR or enter the code to share what you learned.", ar: "امسح QR أو أدخل الرمز لمشاركة ما تعلّمته." },
+        code: "IKHFA001",
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Worksheet — The Rule of Ikhfa", ar: "ورقة عمل — حُكمُ الإخفاء" },
+      learningObjectives: [
+        { en: "Demonstrate understanding through an auto-marked worksheet.", ar: "أظهر فهمي من خلال ورقة عمل تُصحّح تلقائيًّا." },
+      ],
+      image: {
+        src: IMG.bookshelf,
+        alt: { en: "Worksheet.", ar: "ورقة عمل." },
+      },
+      worksheet: {
+        title: { en: "Worksheet — The Rule of Ikhfa", ar: "ورقة عمل — حُكمُ الإخفاء" },
+        instruction: { en: "Answer all questions. Auto-marked. Cannot re-answer after submission.", ar: "أجب عن جميع الأسئلة. تُصحّح تلقائيًّا. لن تستطيع الإجابة مجدّدًا." },
+        sections: [
+          {
+            type: "mcq" as const,
+            title: { en: "Multiple Choice", ar: "اختيار من متعدّد" },
+            questions: [
+              {
+                question: { en: "What is Ikhfa?", ar: "ما الإخفاء؟" },
+                options: [
+                { en: "Hiding Noon Sakinah/Tanween with nasal sound before 15 letters", ar: "إخفاء النون الساكنة/التنوين بغنّة قبل ١٥ حرفًا" },
+                { en: "Silence", ar: "صمت" },
+                { en: "Shouting", ar: "صراخ" },
+                { en: "Skipping", ar: "تخطّي" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "How many letters?", ar: "كم حرفًا؟" },
+                options: [
+                { en: "15", ar: "15" },
+                { en: "2", ar: "٢" },
+                { en: "10", ar: "١٠" },
+                { en: "1", ar: "١" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "Applies to?", ar: "ينطبق على؟" },
+                options: [
+                { en: "Noon Sakinah/Tanween", ar: "النون الساكنة/التنوين" },
+                { en: "Meem", ar: "الميم" },
+                { en: "Lam", ar: "اللام" },
+                { en: "All", ar: "الكلّ" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "Tajweed is?", ar: "التجويد؟" },
+                options: [
+                { en: "Obligatory", ar: "واجب" },
+                { en: "Optional", ar: "اختياري" },
+                { en: "Forbidden", ar: "محرّم" },
+                { en: "Disliked", ar: "مكروه" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "أَنْزَلَ — rule?", ar: "أَنْزَلَ — حكم؟" },
+                options: [
+                { en: "Ikhfa", ar: "الإخفاء" },
+                { en: "Waqf", ar: "وقف" },
+                { en: "Madd", ar: "مدّ" },
+                { en: "Ghunnah", ar: "غنّة" },
+                ],
+                correctIndex: 0,
+              },
+            ],
+          },
+          {
+            type: "trueFalse" as const,
+            title: { en: "True or False", ar: "صواب أم خطأ" },
+            questions: [
+              { statement: { en: "Ikhfa is a tajweed rule.", ar: "الإخفاء حكم تجويدي." }, answer: true },
+              { statement: { en: "There are 10 letters of Ikhfa.", ar: "هناك ١٠ حروف الإخفاء." }, answer: false },
+              { statement: { en: "Tajweed is obligatory.", ar: "التجويد واجب." }, answer: true },
+              { statement: { en: "Ikhfa applies to Meem Sakinah.", ar: "الإخفاء ينطبق على الميم الساكنة." }, answer: false },
+              { statement: { en: "Noon Sakinah and Tanween both use Ikhfa.", ar: "النون الساكنة والتنوين كلاهما يستخدم الإخفاء." }, answer: true },
+            ],
+          },
+          {
+            type: "matchUp" as const,
+            title: { en: "Match Up", ar: "وصّل" },
+            prompts: [
+              { prompt: { en: "Ikhfa", ar: "الإخفاء" }, answer: { en: "Hiding Noon Sakinah/Tanween with nasal sound before 15 letters", ar: "إخفاء النون الساكنة/التنوين بغنّة قبل ١٥ حرفًا" } },
+              { prompt: { en: "Noon Sakinah", ar: "نون ساكنة" }, answer: { en: "Noon with sukun", ar: "نون بسكون" } },
+              { prompt: { en: "Tanween", ar: "تنوين" }, answer: { en: "Double vowel mark", ar: "حركة مزدوجة" } },
+              { prompt: { en: "Tarteel", ar: "ترتيل" }, answer: { en: "Measured recitation", ar: "القراءة المرتّلة" } },
+              { prompt: { en: "Makhraj", ar: "مخرج" }, answer: { en: "Articulation point", ar: "نقطة النطق" } },
+            ],
+          },
+          {
+            type: "fillBlanks" as const,
+            title: { en: "Fill in the Blanks", ar: "املأ الفراغات" },
+            questions: [
+              { sentence: { en: "Ikhfa means _______.", ar: "الإخفاء يعني _______." }, blankAnswer: { en: "ikhfa", ar: "إخفاء النون الساكنة/التنوين بغنّة قبل ١٥ حرفًا" } },
+              { sentence: { en: "There are _______ letters of Ikhfa.", ar: "هناك _______ حرفًا." }, blankAnswer: { en: "15", ar: "15" } },
+              { sentence: { en: "Ikhfa applies to Noon _______ and Tanween.", ar: "ينطبق على النون _______ والتنوين." }, blankAnswer: { en: "Sakinah", ar: "الساكنة" } },
+              { sentence: { en: "Recite the Quran with _______. (Al-Muzzammil 4)", ar: "رتّل القرآن _______. (المزّمّل ٤)" }, blankAnswer: { en: "tarteel", ar: "ترتيلًا" } },
+            ],
+          },
+          {
+            type: "ordering" as const,
+            title: { en: "Put in Correct Order", ar: "رتّب ترتيبًا صحيحًا" },
+            items: [
+              { en: "Learn Noon Sakinah and Tanween", ar: "تعلّم النون الساكنة والتنوين" },
+              { en: "Learn the definition of Ikhfa", ar: "تعلّم تعريف الإخفاء" },
+              { en: "Memorise the letters of Ikhfa", ar: "احفظ حروف الإخفاء" },
+              { en: "Identify Ikhfa in Quran", ar: "حدّد الإخفاء في القرآن" },
+              { en: "Practise correct pronunciation", ar: "تدرّب على النطق الصحيح" },
+              { en: "Apply Ikhfa in full recitation", ar: "طبّق الإخفاء في التلاوة" },
+            ],
+          },
+        ],
+        coinsReward: 25,
+      },
+      body: { en: "", ar: "" },
     },
   ],
-  quizQuestions: [
-    {
-      prompt: { en: "What does Ikhfa mean?", ar: "ما مَعنى الإخفاء؟" },
-      options: [
-        { en: "Concealing the noon in a state between Izhar and Idgham, with ghunnah", ar: "سَترُ النّونِ على حالٍ بَينَ الإظهارِ والإدغام، بِغُنّة" },
-        { en: "Pronouncing a fully clear noon", ar: "نُطقُ نونٍ واضِحةٍ كامِلة" },
-        { en: "Converting the noon into a meem", ar: "قَلبُ النّونِ ميمًا" },
-        { en: "Doubling the next letter completely", ar: "تَشديدُ الحَرفِ التّالي كُلِّيًّا" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "Ikhfa is the middle state: no clear noon, no shaddah, but a held ghunnah.", ar: "الإخفاءُ حالٌ وُسطى: لا نونٌ واضِحة، ولا شَدّة، بل غُنّةٌ مُمسَكة." },
-    },
-    {
-      prompt: { en: "How many letters does Ikhfa have?", ar: "كَم حَرفًا لِلإخفاء؟" },
-      options: [
-        { en: "Fifteen — the rest of the alphabet after Izhar, Idgham, and Iqlab letters", ar: "خَمسةَ عَشَر — بَقيّةُ الحُروفِ بَعدَ الإظهارِ والإدغامِ والإقلاب" },
-        { en: "Six", ar: "سِتّة" },
-        { en: "One", ar: "واحِد" },
-        { en: "Twenty-eight", ar: "ثَمانيةٌ وعِشرون" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "6 (Izhar) + 6 (Idgham) + 1 (Iqlab) + 15 (Ikhfa) = 28 letters.", ar: "٦ (إظهار) + ٦ (إدغام) + ١ (إقلاب) + ١٥ (إخفاء) = ٢٨ حَرفًا." },
-    },
-    {
-      prompt: { en: "What should the tongue do during Ikhfa?", ar: "ماذا يَفعَلُ اللِّسانُ في الإخفاء؟" },
-      options: [
-        { en: "NOT touch the noon's spot; make a light ghunnah while shaping for the next letter", ar: "لا يَمَسُّ مَخرَجَ النّون؛ يَصنَعُ غُنّةً خَفيفةً مَعَ التَّهَيُّؤِ لِلحَرفِ التّالي" },
-        { en: "Press firmly on the noon's spot", ar: "يَضغَطُ بِقُوّةٍ على مَخرَجِ النّون" },
-        { en: "Touch the lips together", ar: "يَضُمُّ الشَّفَتَين" },
-        { en: "Stop completely", ar: "يَتَوَقَّفُ تَمامًا" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "The noon is concealed — the tongue prepares for the next letter while the ghunnah hums.", ar: "النّونُ مَستورة — يَتَهَيَّأُ اللِّسانُ لِلحَرفِ التّالي مَعَ غُنّة." },
-    },
-    {
-      prompt: { en: "Why does the ghunnah of Ikhfa sometimes sound heavier?", ar: "لِماذا تَبدو غُنّةُ الإخفاءِ أثقَلَ أحيانًا؟" },
-      options: [
-        { en: "It takes the 'colour' of the next letter — heavier before emphatic letters (ص ق ط)", ar: "تَأخُذُ «لَونَ» الحَرفِ التّالي — أثقَلَ قَبلَ المُفَخَّمةِ (ص ق ط)" },
-        { en: "It is always the same", ar: "هي واحِدةٌ دائِمًا" },
-        { en: "Because of the time of day", ar: "بِحَسَبِ وَقتِ النَّهار" },
-        { en: "Because the noon is deleted", ar: "لِأنَّ النّونَ تُحذَف" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "The mouth prepares for the coming letter, so the ghunnah adapts to it.", ar: "يَتَهَيَّأُ الفَمُ لِلحَرفِ القادِم، فَتَتَكَيَّفُ الغُنّةُ مَعَه." },
-    },
-    {
-      prompt: { en: "Under Ikhfa, how is 'مِنْ قَبلِ' recited?", ar: "بِالإخفاء، كَيفَ تُتلى «مِنْ قَبلِ»؟" },
-      options: [
-        { en: "With a concealed noon and a heavier ghunnah before the qaf", ar: "بِنونٍ مَستورةٍ وغُنّةٍ أثقَلَ قَبلَ القاف" },
-        { en: "With a fully clear noon", ar: "بِنونٍ واضِحةٍ كامِلة" },
-        { en: "By converting to meem", ar: "بِالقَلبِ ميمًا" },
-        { en: "By merging into qaf with shaddah", ar: "بِالإدغامِ في القافِ بِشَدّة" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "Qaf is an emphatic Ikhfa letter, so the concealed noon's ghunnah is heavier.", ar: "القافُ حَرفُ إخفاءٍ مُفَخَّم، فَغُنّةُ النّونِ المَستورةِ أثقَل." },
-    },
-    {
-      prompt: { en: "True or False: The four rules of the noon sakinah cover every letter of the Arabic alphabet.", ar: "صَوابٌ أم خَطأ: أحكامُ النّونِ السّاكِنةِ الأربَعةُ تَستَوعِبُ كُلَّ حُروفِ العَرَبيّة." },
-      options: [
-        { en: "True — 6 + 6 + 1 + 15 = 28 letters, the entire alphabet", ar: "صَواب — ٦ + ٦ + ١ + ١٥ = ٢٨ حَرفًا، كُلُّ الحُروف" },
-        { en: "False", ar: "خَطأ" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "Every letter has exactly one ruling when it follows the noon — a complete system.", ar: "لِكُلِّ حَرفٍ حُكمٌ واحِدٌ حينَ يَتلو النّون — نِظامٌ كامِل." },
-    },
-  ],
+  quizQuestions: [],
 };

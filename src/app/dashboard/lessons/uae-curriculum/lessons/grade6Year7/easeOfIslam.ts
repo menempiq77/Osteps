@@ -5,177 +5,519 @@ export const easeOfIslam: CourseLesson = {
   slug: "g6y7-the-ease-of-islam",
   name: { en: "The Ease of Islam", ar: "يُسرُ الإسلام" },
   shortIntro: {
-    en: "'Allah intends ease for you, not hardship.' A deep study of the principle of yusr (ease) in Islam — the concessions (rukhas) in worship, the removal of hardship, and the balance between ease and discipline, without distorting the religion.",
+    en: "\'Allah intends ease for you, not hardship.\' A deep study of the principle of yusr (ease) in Islam — the concessions (rukhas) in worship, the removal of hardship, and the balance between ease and discipline, without distorting the religion.",
     ar: "﴿يُريدُ اللهُ بِكُمُ اليُسرَ ولا يُريدُ بِكُمُ العُسرَ﴾. دِراسةٌ عَميقةٌ لِمَبدأِ اليُسرِ في الإسلام — الرُّخَصِ في العِبادة، ورَفعِ الحَرَج، والتَّوازُنِ بَينَ اليُسرِ والانضِباط، دونَ تَحريفِ الدّين.",
   },
   quranSurahs: ["Al-Baqarah 185", "Al-Hajj 78", "Al-Baqarah 286"],
   sections: [
     {
-      title: { en: "A religion of ease", ar: "دينُ اليُسر" },
+      title: { en: "Critical thinking (Warm up)", ar: "تفكير ناقد (تهيئة)" },
       learningObjectives: [
-        { en: "Explain the principle of yusr (ease) in Islam.", ar: "أُبَيِّنُ مَبدأَ اليُسرِ في الإسلام." },
-        { en: "Give evidence that Allah does not burden us beyond capacity.", ar: "أُقَدِّمُ دَليلًا أنَّ اللهَ لا يُكَلِّفُنا فَوقَ الطّاقة." },
-      ],
-      successCriteria: [
-        { en: "I can quote verses showing Islam's ease.", ar: "أستَشهِدُ بِآياتٍ تُبَيِّنُ يُسرَ الإسلام." },
-        { en: "I can explain why ease does not mean laziness.", ar: "أشرَحُ لِماذا لا يَعني اليُسرُ الكَسَل." },
+        { en: "Evaluate a real-world scenario using evidence from Quran, Sunnah, and Islamic values.", ar: "أُقيّم سيناريو واقعيًّا بأدلّة من القرآن والسنّة والقيم الإسلاميّة." },
       ],
       image: {
-        src: IMG.skyBlue,
-        alt: { en: "An open sky — Islam removes burdens and opens the way.", ar: "سَماءٌ مَفتوحة — الإسلامُ يَرفَعُ الأثقالَ ويَفتَحُ الطَّريق." },
-        caption: { en: "'Allah intends ease for you, not hardship.' (Al-Baqarah 185)", ar: "﴿يُريدُ اللهُ بِكُمُ اليُسرَ ولا يُريدُ بِكُمُ العُسر﴾ (البَقَرة ١٨٥)." },
+        src: IMG.hijabStudent,
+        alt: { en: "Student thinking critically.", ar: "طالب يفكّر بشكل ناقد." },
       },
       callout: {
-        label: { en: "High-order question", ar: "سُؤالٌ عالي المُستوى" },
-        title: { en: "Does 'ease' mean we can pick and choose?", ar: "هل «اليُسرُ» يَعني أن نَختارَ ما يَحلو لَنا؟" },
+        label: { en: "Critical thinking scenario", ar: "سيناريو للتفكير الناقد" },
+        title: { en: "Is Islam too strict?", ar: "هل الإسلام صارم جدًّا؟" },
         body: {
-          en: "Some people misuse the idea that 'Islam is easy' to drop obligations they find inconvenient, like prayer or fasting. Argue, using the Qur'an and Sunnah, what the ease of Islam truly means — and why it is not an excuse for laziness or abandoning what Allah has commanded.",
-          ar: "يُسيءُ بَعضُهُم استِعمالَ فِكرةِ «الإسلامُ يُسر» لِيُسقِطوا واجِباتٍ يَجِدونَها ثَقيلةً كَالصَّلاةِ أوِ الصِّيام. حاجِجْ، بِالقُرآنِ والسُّنّة، ما مَعنى يُسرِ الإسلامِ حَقًّا — ولِماذا لَيسَ عُذرًا لِلكَسَلِ أو تَركِ ما أمَرَ بِهِ الله.",
+          en: "A student says: \'Islam has too many rules. Pray 5 times, fast a month, no music, no fun. It is designed to make life hard. Other ways of life are much easier and freer.\'",
+          ar: "طالب يقول: «الإسلام فيه قواعد كثيرة. صلّ ٥ مرّات وصُم شهرًا ولا موسيقى ولا مرح. صُمّم ليصعّب الحياة. طرق أخرى أسهل وأحرّ.»",
         },
+      },
+      responsePrompt: {
+        title: { en: "Write your critical response", ar: "اكتب ردّك الناقد" },
+        prompt: {
+          en: "Criticise using Quran on the ease built into Islam.",
+          ar: "انتقد بالقرآن عن اليُسر في الإسلام.",
+        },
+        placeholder: { en: "This is wrong because...", ar: "هذا خطأ لأنّ..." },
+        buttonLabel: { en: "Save response", ar: "احفظ الإجابة" },
+        coinsReward: 10,
+      },
+      body: {
+        en: "\'Allah intends for you ease and does not intend for you hardship.\' (Al-Baqara 185)",
+        ar: "﴿يريد الله بكم اليُسر ولا يريد بكم العُسر﴾ (البقرة ١٨٥)",
+      },
+    },
+    {
+      title: { en: "Retrieval practise", ar: "ممارسة الاسترجاع" },
+      imageMatchingActivity: {
+        title: { en: "Match each image to its Islamic keyword", ar: "طابق كلّ صورة بكلمتها الإسلاميّة" },
+        instruction: { en: "Drag the keyword to the correct image.", ar: "اسحب الكلمة إلى الصورة الصحيحة." },
+        pairs: [
+          { image: IMG.childQuran, keyword: { en: "Yusr (Ease)", ar: "يُسر" } },
+          { image: IMG.grandMosque, keyword: { en: "Rukhsah (Concession)", ar: "رخصة" } },
+          { image: IMG.lantern, keyword: { en: "Taysir (Facilitation)", ar: "تيسير" } },
+          { image: IMG.skyBlue, keyword: { en: "Rahma (Mercy)", ar: "رحمة" } },
+          { image: IMG.bookshelf, keyword: { en: "Wasatiyyah (Moderation)", ar: "وسطيّة" } },
+        ],
+        coinsReward: 10,
+      },
+      body: {
+        en: "\'Allah does not burden a soul beyond that it can bear.\' (Al-Baqara 286)",
+        ar: "﴿لا يكلّف الله نفسًا إلّا وسعها﴾ (البقرة ٢٨٦)",
+      },
+    },
+    {
+      title: { en: "The Ease of Islam", ar: "يُسرُ الإسلام" },
+      learningObjectives: [
+        { en: "Explain the principle of ease (yusr) in Islamic law.", ar: "أشرح مبدأ اليُسر في الشريعة الإسلاميّة." },
+        { en: "Identify examples of rukhsah (concessions) in worship.", ar: "أحدّد أمثلة الرُخص في العبادة." },
+      ],
+      successCriteria: [
+        { en: "I can explain yusr in Islam.", ar: "أشرح اليُسر في الإسلام." },
+        { en: "I can list 5 Islamic concessions.", ar: "أذكر ٥ رخص إسلاميّة." },
+        { en: "I can demonstrate how Islam balances obligations with ease.", ar: "أبيّن كيف يوازن الإسلام بين الواجبات واليُسر." },
+      ],
+      image: {
+        src: IMG.grandMosque,
+        alt: { en: "Topic image.", ar: "صورة الموضوع." },
+      },
+      readyButton: {
+        label: { en: "I\'m ready to learn!", ar: "أنا مستعدّ للتعلّم!" },
+        coinsReward: 5,
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "The Ease of Islam — Yusr and Rukhsah", ar: "يُسر الإسلام — اليُسر والرُخص" },
+      learningObjectives: [
+        { en: "Understand that ease is a core principle of Islamic legislation.", ar: "أفهم أنّ اليُسر مبدأ أساسي في التشريع الإسلامي." },
+      ],
+      image: {
+        src: IMG.grandMosque,
+        alt: { en: "Lesson content image.", ar: "صورة محتوى الدرس." },
       },
       infoBoxes: [
         {
-          label: { en: "Qur'an", ar: "القُرآن" },
+          label: { en: "The Principle of Ease", ar: "مبدأ اليُسر" },
           lines: [
-            { en: "\"Allah intends for you ease and does not intend for you hardship.\" — Al-Baqarah 185", ar: "﴿يُريدُ اللهُ بِكُمُ اليُسرَ ولا يُريدُ بِكُمُ العُسر﴾ — البَقَرة ١٨٥" },
+            { en: "Al-Baqara 185: \'Allah intends ease.\' Al-Baqara 286: \'No soul burdened beyond capacity.\' Ash-Sharh 5-6: \'With hardship comes ease.\' Islam is designed for all people, all times, all places.", ar: "البقرة ١٨٥: ﴿يريد الله بكم اليُسر﴾. البقرة ٢٨٦: ﴿لا يكلّف الله نفسًا إلّا وسعها﴾. الشرح ٥-٦: ﴿إنّ مع العُسر يسرًا﴾. الإسلام مصمّم لكلّ الناس والأزمنة والأماكن." },
           ],
         },
         {
-          label: { en: "Hadith", ar: "الحَديث" },
+          label: { en: "Concessions (Rukhsah)", ar: "الرُخص" },
           lines: [
-            { en: "'Religion is ease, and none makes the religion hard except that it overwhelms him.' — Bukhari", ar: "«إنَّ الدّينَ يُسر، ولَن يُشادَّ الدّينَ أحَدٌ إلّا غَلَبَه» — البخاري" },
+            { en: "Sick? Pray sitting. Travelling? Shorten/combine prayers. Ill during Ramadan? Fast later. Cannot find water? Do tayammum. Cannot stand? Pray lying down. Every hardship has a concession.", ar: "مريض؟ صلِّ جالسًا. مسافر؟ اقصر/اجمع. مريض في رمضان؟ أفطر وصم لاحقًا. لا ماء؟ تيمّم. لكلّ مشقّة رخصة." },
+          ],
+        },
+        {
+          label: { en: "Moderation (Wasatiyyah)", ar: "الوسطيّة" },
+          lines: [
+            { en: "\'We have made you a moderate nation.\' (Al-Baqara 143). Islam avoids extremes — neither too strict nor too lax. Balance between worship and life.", ar: "﴿جعلناكم أمّة وسطًا﴾ (البقرة ١٤٣). الإسلام يتجنّب التطرّف — لا إفراط ولا تفريط. توازن بين العبادة والحياة." },
           ],
         },
       ],
+      trueFalseActivity: {
+        title: { en: "True or False", ar: "صواب أم خطأ" },
+        questions: [
+        { statement: { en: "Allah intends ease for us.", ar: "الله يريد بنا اليُسر." }, answer: true },
+        { statement: { en: "Islam is designed to be hard.", ar: "الإسلام مصمّم ليكون صعبًا." }, answer: false },
+        { statement: { en: "Sick people can pray sitting.", ar: "المريض يصلّي جالسًا." }, answer: true },
+        { statement: { en: "There are no concessions in Islam.", ar: "لا رخص في الإسلام." }, answer: false },
+        { statement: { en: "Islam is a moderate religion.", ar: "الإسلام دين وسط." }, answer: true },
+        ],
+        coinsReward: 10,
+      },
+      fillBlanksActivity: {
+        title: { en: "Fill in the Blanks", ar: "املأ الفراغات" },
+        questions: [
+        { sentence: { en: "\'Allah intends for you _______.", ar: "﴿يريد الله بكم _______.﴾" }, answer: { en: "ease", ar: "اليُسر" } },
+        { sentence: { en: "\'No soul burdened beyond its _______.", ar: "﴿لا يكلّف الله نفسًا إلّا _______.﴾" }, answer: { en: "capacity", ar: "وسعها" } },
+        { sentence: { en: "\'With hardship comes _______.", ar: "﴿إنّ مع العُسر _______.﴾" }, answer: { en: "ease", ar: "يسرًا" } },
+        { sentence: { en: "\'We made you a _______ nation.\'", ar: "﴿جعلناكم أمّة _______.﴾" }, answer: { en: "moderate", ar: "وسطًا" } },
+        ],
+        coinsReward: 10,
+      },
       body: {
-        en: "One of the most beautiful and important characteristics of Islam is that it is a religion of ease (yusr). This is not a minor side-point but a foundational principle that runs throughout the Qur'an and the Sunnah. Allah states it directly when discussing the rules of fasting: 'Allah intends for you ease and does not intend for you hardship.' He describes the mission of the Prophet ﷺ as one who 'relieves them of their burden and the shackles which were upon them,' and He declares: 'He has not placed upon you in the religion any difficulty.' The Prophet ﷺ summarised this principle in his famous words: 'The religion is ease,' and he warned that 'none makes the religion hard upon himself except that it overwhelms him.' When he sent his companions to teach Islam, he instructed them: 'Make things easy and do not make them difficult; give glad tidings and do not drive people away.' Allah's commands, therefore, are never beyond what a person can bear: 'Allah does not burden a soul beyond its capacity.'\n\nThis principle of ease is woven into the very fabric of Islamic worship and law through what scholars call rukhas — concessions or allowances that lighten the religious duties under particular circumstances. Islam is realistic about human weakness, illness, travel, and difficulty, and it adjusts its rulings accordingly without ever abolishing the duty itself. For example, a sick person or a traveller is permitted to break the fast in Ramadan and make up the missed days later; a traveller may shorten and combine certain prayers; a person who cannot find water, or for whom water would be harmful, may perform tayammum (dry purification) with clean earth; one who cannot stand in prayer due to illness may pray sitting, and if unable to sit, lying down; and the obligation of Hajj falls only upon those who have the physical and financial ability to undertake it. In cases of genuine necessity, even normally forbidden things may become permissible to preserve life. All of these are mercies from Allah, showing that He wants His servants to worship Him steadily and sustainably, not to be crushed under impossible demands.\n\nIt is absolutely essential, however, to understand the ease of Islam correctly, because it is one of the most commonly misused concepts today. The ease of Islam does not mean that a Muslim may abandon his clear obligations — prayer, fasting, honesty, modesty — simply because he finds them inconvenient or because his desires pull him elsewhere. It does not mean 'follow only the parts of the religion you like.' The concessions of Islam are defined by Allah and His Messenger ﷺ for genuine reasons such as illness, travel, and hardship; they are not invitations for each person to invent his own exemptions according to his mood. The same Qur'an that says 'Allah intends ease for you' also commands the five daily prayers, the fast of Ramadan, and a whole way of life. True ease lies in following the balanced, moderate path that Allah has laid down — a path that is achievable for every person — rather than in either of two extremes: making the religion harsh and burdensome beyond what Allah intended, or making it so 'easy' that nothing is left of it. A demanding student must grasp this balance clearly: Islam is genuinely easy, but it is still a serious commitment that calls for discipline, effort, and obedience. In the next section we will explore how the believer lives out this beautiful balance between ease and devotion.",
-        ar: "مِن أجمَلِ سِماتِ الإسلامِ وأهَمِّها أنَّهُ دينُ يُسر. ولَيسَ هذا نُقطةً جانِبيّةً بل مَبدأٌ أصيلٌ يَسري في القُرآنِ والسُّنّةِ كُلِّها. يُقَرِّرُهُ اللهُ مُباشَرةً عِندَ ذِكرِ أحكامِ الصِّيام: ﴿يُريدُ اللهُ بِكُمُ اليُسرَ ولا يُريدُ بِكُمُ العُسر﴾. ويَصِفُ بِعثةَ النَّبِيِّ ﷺ بِأنَّهُ ﴿يَضَعُ عنهُم إصرَهُم والأغلالَ التي كانَت علَيهِم﴾، ويُعلِنُ: ﴿وما جَعَلَ علَيكُم في الدّينِ مِن حَرَج﴾. ولَخَّصَ النَّبِيُّ ﷺ هذا المَبدأَ في قَولِهِ المَشهور: «إنَّ الدّينَ يُسر»، وحَذَّرَ أنَّهُ «لَن يُشادَّ الدّينَ أحَدٌ إلّا غَلَبَه». ولَمّا بَعَثَ أصحابَهُ يُعَلِّمونَ الإسلامَ أوصاهُم: «يَسِّروا ولا تُعَسِّروا، وبَشِّروا ولا تُنَفِّروا». فَأوامِرُ اللهِ إذًا لا تَتَجاوَزُ أبَدًا ما يُطيقُهُ المَرء: ﴿لا يُكَلِّفُ اللهُ نَفسًا إلّا وُسعَها﴾.\n\nوهذا المَبدأُ مَنسوجٌ في صَميمِ العِبادةِ والشَّريعةِ عَبرَ ما يُسَمّيهِ العُلَماءُ الرُّخَص — التَّخفيفاتِ التي تُهَوِّنُ الواجِباتِ في ظُروفٍ مُعَيَّنة. فالإسلامُ واقِعيٌّ تِجاهَ ضَعفِ الإنسانِ ومَرَضِهِ وسَفَرِهِ ومَشَقَّتِه، فَيُعَدِّلُ أحكامَهُ تَبَعًا لِذلك دونَ أن يُلغيَ أصلَ الواجِب. فَمِثلًا، يُباحُ لِلمَريضِ أوِ المُسافِرِ الفِطرُ في رَمَضانَ ويَقضي الأيّامَ بَعدُ؛ ولِلمُسافِرِ قَصرُ بَعضِ الصَّلَواتِ وجَمعُها؛ ومَن لم يَجِدِ الماءَ أو يَضُرُّهُ تَيَمَّمَ بِالصَّعيدِ الطَّيِّب؛ ومَن عَجَزَ عنِ القيامِ لِمَرَضٍ صَلّى قاعِدًا، فإن عَجَزَ فَمُضطَجِعًا؛ ولا يَجِبُ الحَجُّ إلّا على المُستَطيعِ بَدَنيًّا ومالِيًّا. وفي الضَّرورةِ الحَقيقيّةِ قد يُباحُ المُحَرَّمُ حِفظًا لِلنَّفس. وكُلُّ هذه رَحَماتٌ مِنَ اللهِ تُبَيِّنُ أنَّهُ يُريدُ لِعِبادِهِ عِبادةً ثابِتةً مُستَدامةً، لا أن يَنوؤوا تَحتَ مَطالِبَ مُستَحيلة.\n\nلكِنْ مِنَ الجَوهَريِّ جِدًّا أن نَفهَمَ يُسرَ الإسلامِ فَهمًا صَحيحًا، فهو مِن أكثَرِ المَفاهيمِ إساءةً اليَوم. فَيُسرُ الإسلامِ لا يَعني أن يَترُكَ المُسلِمُ واجِباتِهِ الواضِحةَ — الصَّلاةَ والصِّيامَ والصِّدقَ والحِشمةَ — لِمُجَرَّدِ أنَّهُ يَجِدُها ثَقيلةً أو لِأنَّ هَواهُ يَجُرُّهُ غَيرَها. ولا يَعني «خُذْ ما يَحلو لَكَ مِنَ الدّينِ فَقَط». فَرُخَصُ الإسلامِ مُحَدَّدةٌ مِنَ اللهِ ورَسولِهِ ﷺ لِأسبابٍ حَقيقيّةٍ كَالمَرَضِ والسَّفَرِ والمَشَقّة؛ ولَيسَت دَعوةً لِكُلِّ أحَدٍ أن يَختَرِعَ إعفاءاتِهِ على هَواه. فَالقُرآنُ نَفسُهُ الذي يَقولُ ﴿يُريدُ اللهُ بِكُمُ اليُسر﴾ هو الذي يَأمُرُ بِالصَّلَواتِ الخَمسِ وصَومِ رَمَضانَ ومَنهَجِ حَياةٍ كامِل. واليُسرُ الحَقُّ في اتِّباعِ الصِّراطِ المُتَوازِنِ المُعتَدِلِ الذي شَرَعَهُ اللهُ — صِراطٍ يَستَطيعُهُ كُلُّ أحَد — لا في أحَدِ طَرَفَين: تَشديدِ الدّينِ فَوقَ ما أرادَ الله، أو تَمييعِهِ حَتّى لا يَبقى مِنهُ شَيء. وعلى الطّالِبِ المُطالِبِ أن يُدرِكَ هذا التَّوازُنَ بِوُضوح: الإسلامُ يَسيرٌ حَقًّا، لكِنَّهُ يَبقى التِزامًا جادًّا يَستَدعي انضِباطًا وجُهدًا وطاعة. وفي القِسمِ التّالي سَنَستَكشِفُ كَيفَ يَعيشُ المُؤمِنُ هذا التَّوازُنَ البَديعَ بَينَ اليُسرِ والعِبادة.",
+        en: "Ease is Islam\'s core — concessions for the sick, traveller, elderly. No soul is burdened beyond capacity.",
+        ar: "اليُسر جوهر الإسلام — رخص للمريض والمسافر والكبير. لا يُكلّف الله نفسًا إلّا وسعها.",
       },
     },
     {
-      title: { en: "Ease with balance", ar: "اليُسرُ معَ التَّوازُن" },
+      title: { en: "Group Work", ar: "عمل جماعي" },
       learningObjectives: [
-        { en: "Apply concessions (rukhas) correctly.", ar: "أُطَبِّقُ الرُّخَصَ بِصَوابٍ." },
-        { en: "Avoid both extremism and laxity.", ar: "أتَجَنَّبُ الغُلُوَّ والتَّفريط." },
+        { en: "Explore the ease of Islam from different angles.", ar: "استكشف يُسر الإسلام من زوايا مختلفة." },
       ],
       image: {
-        src: IMG.greenValley,
-        alt: { en: "A balanced, moderate path through green hills.", ar: "طَريقٌ مُعتَدِلٌ مُتَوازِنٌ بَينَ تِلالٍ خَضراء." },
-        caption: { en: "The best of matters are the balanced, middle ones.", ar: "خَيرُ الأمورِ أوسَطُها." },
+        src: IMG.grandMosque,
+        alt: { en: "Students collaborating.", ar: "طلاب يتعاونون." },
       },
-      groupTasks: {
-        title: { en: "Living the ease of Islam", ar: "العَيشُ بِيُسرِ الإسلام" },
-        instruction: { en: "Each group studies one aspect.", ar: "تَدرُسُ كُلُّ مَجموعةٍ جانِبًا." },
-        groups: [
+      groupWorkCards: {
+        title: { en: "Choose Your Task", ar: "اختر مهمّتك" },
+        instruction: { en: "Each group picks one card. Study the information, complete the task, and present to the class.", ar: "تختار كلّ مجموعة بطاقة. ادرسوا المعلومات وأنجزوا المهمّة وقدّموا للصفّ." },
+        presentationNote: { en: "All Quran and Hadith must be authentic with references.", ar: "يجب أن يكون كلّ قرآن وحديث صحيحًا بمصادره." },
+        cards: [
           {
-            slug: "rukhas-concessions",
-            name: { en: "Team A — The mercy of concessions", ar: "الفَريقُ أ — رَحمةُ الرُّخَص" },
-            learningObjective: { en: "Explain concessions in worship.", ar: "نُبَيِّنُ الرُّخَصَ في العِبادة." },
-            task: { en: "List the concessions Islam gives for the sick and traveller (breaking fast, shortening/combining prayer, tayammum, praying seated). Explain why accepting Allah's concessions is itself loved by Him: 'Allah loves that His concessions be taken.'", ar: "عَدِّدوا الرُّخَصَ التي يُعطيها الإسلامُ لِلمَريضِ والمُسافِر (الفِطر، قَصرُ/جَمعُ الصَّلاة، التَّيَمُّم، الصَّلاةُ قاعِدًا). بَيِّنوا لِماذا قَبولُ رُخَصِ اللهِ نَفسُهُ مَحبوبٌ لَه: «إنَّ اللهَ يُحِبُّ أن تُؤتى رُخَصُه»." },
-            evidence: [
-              { en: "'Allah loves that His concessions be taken, as He dislikes that His commands be disobeyed.' — Ahmad", ar: "«إنَّ اللهَ يُحِبُّ أن تُؤتى رُخَصُهُ كَما يَكرَهُ أن تُؤتى مَعصِيَتُه» — أحمد" },
+            id: "A",
+            title: { en: "Ease in the Quran", ar: "اليُسر في القرآن" },
+            image: IMG.childQuran,
+            color: "teal",
+            topic: { en: "Verses on ease", ar: "آيات اليُسر" },
+            infoSections: [
+              { label: { en: "Quran", ar: "القرآن" }, content: { en: "Al-Baqara 185, 286. Ash-Sharh 5-6. Al-Hajj 78: \'He has not placed upon you any hardship.\'", ar: "البقرة ١٨٥ و٢٨٦. الشرح ٥-٦. الحجّ ٧٨: ﴿وما جعل عليكم في الدين من حرج﴾" } },
+              { label: { en: "Principle", ar: "مبدأ" }, content: { en: "Ease is repeated throughout the Quran — not just once.", ar: "اليُسر يتكرّر في القرآن — ليس مرّة واحدة." } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Allah designed Islam to be livable and joyful.", ar: "الله صمّم الإسلام ليكون قابلًا للعيش ومفرحًا." } },
             ],
-            sourceNotes: [
-              { en: "Taking concessions is following the religion correctly.", ar: "الأخذُ بِالرُّخَصِ اتِّباعٌ صَحيحٌ لِلدّين." },
-            ],
-            memberRoles: [
-              { en: "Researcher, Lister, Presenter.", ar: "الباحِث، المُعَدِّد، العارِض." },
-            ],
-            finalProduct: { en: "A chart of Islamic concessions.", ar: "جَدوَلٌ بِرُخَصِ الإسلام." },
+            task: {
+              title: { en: "Collect Ease Verses", ar: "اجمع آيات اليُسر" },
+              description: { en: "Find 5 Quran verses about ease in Islam.", ar: "أوجد ٥ آيات عن اليُسر في الإسلام." },
+              hint: { en: "Include: verse, context, modern relevance.", ar: "ضمّن: الآية والسياق والصلة المعاصرة." },
+            },
           },
           {
-            slug: "avoiding-extremes",
-            name: { en: "Team B — Between harshness and laxity", ar: "الفَريقُ ب — بَينَ التَّشديدِ والتَّفريط" },
-            learningObjective: { en: "Show the middle, balanced way.", ar: "نُبَيِّنُ الطَّريقَ الوَسَطَ المُتَوازِن." },
-            task: { en: "The Prophet ﷺ corrected those who wanted to fast every day, pray all night, and never marry, saying 'I fast and break fast, I pray and sleep, and I marry women; whoever turns away from my way is not of me.' Explain why both extremism and neglect are wrong, and the middle path is best.", ar: "صَحَّحَ النَّبِيُّ ﷺ مَن أرادوا صَومَ الدَّهرِ وقيامَ اللَّيلِ كُلِّهِ وتَركَ الزَّواج، فَقال: «أصومُ وأُفطِر، وأُصَلّي وأرقُد، وأتَزَوَّجُ النِّساء، فَمَن رَغِبَ عن سُنَّتي فَلَيسَ مِنّي». بَيِّنوا لِماذا الغُلُوُّ والتَّفريطُ كِلاهُما خَطأ، والوَسَطُ خَير." },
-            evidence: [
-              { en: "Hadith of the three men; 'the best of matters are the middle ones.'", ar: "حَديثُ الرَّهطِ الثَّلاثة؛ «خَيرُ الأمورِ أوسَطُها»." },
+            id: "B",
+            title: { en: "Concessions in Worship", ar: "رُخص العبادة" },
+            image: IMG.grandMosque,
+            color: "blue",
+            topic: { en: "Prayer, fasting, wudu", ar: "الصلاة والصيام والوضوء" },
+            infoSections: [
+              { label: { en: "Examples", ar: "أمثلة" }, content: { en: "Sick: pray sitting/lying. Travel: shorten prayers. Ramadan: fast later. No water: tayammum. Cold: wipe over socks.", ar: "مريض: صلِّ جالسًا. سفر: اقصر. رمضان: صم لاحقًا. لا ماء: تيمّم. برد: امسح على الخفّ." } },
+              { label: { en: "Hadith", ar: "حديث" }, content: { en: "\'Make things easy, do not make them hard.\' (Bukhari)", ar: "«يسّروا ولا تعسّروا.» (البخاري)" } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Every rule has built-in flexibility.", ar: "كلّ حكم فيه مرونة." } },
             ],
-            sourceNotes: [
-              { en: "Islam is the balanced middle path.", ar: "الإسلامُ صِراطُ الوَسَطِ المُتَوازِن." },
+            task: {
+              title: { en: "List All Concessions", ar: "اذكر كلّ الرخص" },
+              description: { en: "Create a table of Islamic concessions.", ar: "أنشئ جدولًا للرُخص الإسلاميّة." },
+              hint: { en: "Include: situation, normal rule, concession, evidence.", ar: "ضمّن: الموقف والحكم العادي والرخصة والدليل." },
+            },
+          },
+          {
+            id: "C",
+            title: { en: "Moderation", ar: "الوسطيّة" },
+            image: IMG.bookshelf,
+            color: "purple",
+            topic: { en: "No extremes", ar: "لا تطرّف" },
+            infoSections: [
+              { label: { en: "Quran", ar: "القرآن" }, content: { en: "Al-Baqara 143: \'A moderate nation.\'", ar: "البقرة ١٤٣: ﴿أمّة وسطًا﴾" } },
+              { label: { en: "Hadith", ar: "حديث" }, content: { en: "\'Beware of extremism — those before you were destroyed by it.\' (Ahmad)", ar: "«إيّاكم والغلوّ فإنّما هلك من قبلكم بالغلوّ.» (أحمد)" } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Balance is the key to sustainable worship.", ar: "التوازن مفتاح العبادة المستدامة." } },
             ],
-            memberRoles: [
-              { en: "Researcher, Explainer, Presenter.", ar: "الباحِث، الشّارِح، العارِض." },
+            task: {
+              title: { en: "Define Moderation", ar: "عرّف الوسطيّة" },
+              description: { en: "Explain wasatiyyah with examples from daily life.", ar: "اشرح الوسطيّة بأمثلة من الحياة اليوميّة." },
+              hint: { en: "Include: worship, study, rest, socialising.", ar: "ضمّن: العبادة والدراسة والراحة والاجتماع." },
+            },
+          },
+          {
+            id: "D",
+            title: { en: "Ease in the Prophet\'s Life", ar: "اليُسر في حياة النبيّ" },
+            image: IMG.lantern,
+            color: "amber",
+            topic: { en: "He chose the easier option", ar: "اختار الأيسر" },
+            infoSections: [
+              { label: { en: "Hadith", ar: "حديث" }, content: { en: "\'Whenever the Prophet was given a choice between two matters, he chose the easier one — as long as it was not sinful.\' (Bukhari)", ar: "«ما خُيّر النبيّ بين أمرين إلّا اختار أيسرهما ما لم يكن إثمًا.» (البخاري)" } },
+              { label: { en: "Example", ar: "مثال" }, content: { en: "He allowed sitting prayer, short sermons, gentle corrections.", ar: "أجاز الصلاة جالسًا والخطب القصيرة والتصحيح اللطيف." } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "The Prophet modelled ease, not severity.", ar: "النبيّ نمذج اليُسر لا الشدّة." } },
             ],
-            finalProduct: { en: "An explanation of the middle way.", ar: "شَرحُ الطَّريقِ الوَسَط." },
+            task: {
+              title: { en: "List Prophet\'s Easy Choices", ar: "اذكر اختيارات النبيّ الميسّرة" },
+              description: { en: "Find 5 examples where the Prophet chose ease.", ar: "أوجد ٥ أمثلة اختار فيها النبيّ اليُسر." },
+              hint: { en: "Include: the situation, the choice, the hadith.", ar: "ضمّن: الموقف والاختيار والحديث." },
+            },
+          },
+          {
+            id: "E",
+            title: { en: "Islam vs Other Systems", ar: "الإسلام مقارنة بالأنظمة" },
+            image: IMG.skyBlue,
+            color: "rose",
+            topic: { en: "Why Islam is balanced", ar: "لماذا الإسلام متوازن" },
+            infoSections: [
+              { label: { en: "Comparison", ar: "مقارنة" }, content: { en: "Islam balances spiritual and material life. Prayer takes 5 minutes. Fasting is one month. Zakat is 2.5%. Hajj is once. All manageable.", ar: "الإسلام يوازن بين الروحي والمادّي. الصلاة ٥ دقائق. الصيام شهر. الزكاة ٢.٥٪. الحجّ مرّة. كلّها ممكنة." } },
+              { label: { en: "Logic", ar: "منطق" }, content: { en: "Rules protect, not restrict. Like traffic lights keep everyone safe.", ar: "القواعد تحمي لا تقيّد. كإشارات المرور تحفظ الجميع." } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Islam\'s rules are for your benefit.", ar: "قواعد الإسلام لمصلحتك." } },
+            ],
+            task: {
+              title: { en: "Compare Islam\'s Balance", ar: "قارن توازن الإسلام" },
+              description: { en: "Show how Islam balances obligations and ease.", ar: "بيّن كيف يوازن الإسلام بين الواجبات واليُسر." },
+              hint: { en: "Include: obligation, time/effort, concession, purpose.", ar: "ضمّن: الواجب والوقت والرخصة والهدف." },
+            },
           },
         ],
+        coinsReward: 15,
       },
-      responsePrompt: {
-        title: { en: "Written response", ar: "إجابةٌ مَكتوبة" },
-        prompt: { en: "Explain the true meaning of 'Islam is easy' in your own words, with evidence. Give one example of a concession (rukhsah) Allah has allowed and why. Then explain the difference between this real ease and the false idea of abandoning obligations whenever they feel hard.", ar: "اشرَحْ بِكَلِماتِكَ المَعنى الحَقَّ لِـ«الإسلامُ يُسر»، معَ الدَّليل. اذكُرْ مِثالًا لِرُخصةٍ أباحَها اللهُ ولِماذا. ثُمَّ بَيِّنِ الفَرقَ بَينَ هذا اليُسرِ الحَقيقيِّ والفِكرةِ الباطِلةِ في تَركِ الواجِباتِ كُلَّما ثَقُلَت." },
-        placeholder: { en: "'Islam is easy' truly means... A concession is... The difference is...", ar: "«الإسلامُ يُسر» يَعني حَقًّا... ومِنَ الرُّخَصِ... والفَرقُ هو..." },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Hinge Questions", ar: "أسئلة محوريّة" },
+      learningObjectives: [
+        { en: "Test your understanding of everything studied.", ar: "اختبر فهمك لكلّ ما درسته." },
+      ],
+      image: {
+        src: IMG.bookshelf,
+        alt: { en: "Assessment.", ar: "تقييم." },
       },
-      body: {
-        en: "Understanding that Islam is easy is one thing; living it with the correct balance is another, and it is here that the believer's wisdom is tested. On one side, Islam actively encourages us to accept the concessions that Allah has granted, rather than burdening ourselves unnecessarily. The Prophet ﷺ taught: 'Allah loves that His concessions be acted upon, just as He dislikes that acts of disobedience be committed.' This means that a sick person who breaks his fast on the advice of his condition, or a traveller who shortens his prayer, is not falling short — he is actually doing what Allah loves by accepting the mercy offered to him. The Prophet ﷺ himself always chose the easier of two permissible options as long as it involved no sin, and he forbade his companions from pushing themselves into harshness that the religion never asked of them. He once saw a man who had vowed to stand in the sun and not speak while fasting, and he ordered him to seek the shade, speak, and complete his fast — rejecting self-imposed, pointless hardship.\n\nOn the other side, the believer must avoid turning ease into laxity and neglect. The same Prophet ﷺ who taught that the religion is easy also prayed until his feet swelled, fasted regularly, and lived a life of deep devotion. The ease of Islam was never meant to produce lazy, half-hearted Muslims who do the bare minimum or less. The correct path is the balanced middle way (wasatiyyah), which avoids two opposite errors. The first error is ghuluww — excessive harshness and extremism, making the religion heavier than Allah intended, declaring permissible things forbidden, exhausting oneself to the point of burnout, or being harsh and judgemental with others. The Prophet ﷺ warned sharply: 'Beware of extremism in religion, for those before you were destroyed by extremism.' The second error is tafrit — negligence and laxity, abandoning obligations, treating the religion casually, and using 'ease' as a cover for following one's desires. The famous incident of the three men who wanted to fast forever, pray all night without sleep, and never marry shows the prophetic correction of the first extreme: he affirmed that he, the best of creation, fasted yet also ate, prayed yet also slept, and married — and that whoever rejects his balanced way 'is not of me.'\n\nThe beautiful result of this teaching is a religion that every kind of person can practise and sustain throughout their life: the young and the old, the healthy and the sick, the resident and the traveller, the strong and the weak. Islam asks for steady, consistent worship within each person's capacity rather than dramatic bursts followed by collapse; the Prophet ﷺ said, 'The most beloved deeds to Allah are the most consistent, even if small.' For a student, living the ease of Islam means performing his obligations — especially the five daily prayers — regularly and properly, taking the lawful concessions when he genuinely needs them without guilt, not inventing excuses to escape his duties, not making the religion harsh and joyless for himself or others, and building a sustainable routine of worship and good character that he can maintain for the rest of his life. A demanding student should therefore leave this lesson grateful that Allah has made the path to His pleasure achievable and merciful, and determined to walk that path with the balance the Prophet ﷺ taught: serious but not severe, easy but not empty, steady, moderate, and full of hope in the mercy of a Lord who 'intends ease for you, and does not intend hardship.'",
-        ar: "فَهمُ أنَّ الإسلامَ يَسيرٌ شَيء، وعَيشُهُ بِالتَّوازُنِ الصَّحيحِ شَيءٌ آخَر، وهُنا تُختَبَرُ حِكمةُ المُؤمِن. فَمِن جِهةٍ، يَحُثُّنا الإسلامُ فِعلًا على قَبولِ الرُّخَصِ التي مَنَحَها اللهُ، لا أن نُثقِلَ على أنفُسِنا بِلا حاجة. عَلَّمَ النَّبِيُّ ﷺ: «إنَّ اللهَ يُحِبُّ أن تُؤتى رُخَصُهُ كَما يَكرَهُ أن تُؤتى مَعصِيَتُه». ومَعناهُ أنَّ المَريضَ الذي يُفطِرُ بِمُقتَضى حالِهِ، أوِ المُسافِرَ الذي يَقصُرُ صَلاتَه، لا يُقَصِّر — بل يَفعَلُ ما يُحِبُّهُ اللهُ بِقَبولِ الرَّحمةِ المَبذولةِ له. وكانَ النَّبِيُّ ﷺ نَفسُهُ يَختارُ أيسَرَ الأمرَينِ المُباحَينِ ما لم يَكُنْ إثمًا، ونَهى أصحابَهُ عنِ التَّشديدِ الذي لم يَطلُبهُ الدّين. ورأى مَرّةً رَجُلًا نَذَرَ أن يَقومَ في الشَّمسِ ولا يَتَكَلَّمَ صائِمًا، فَأمَرَهُ أن يَستَظِلَّ ويَتَكَلَّمَ ويُتِمَّ صَومَه — رافِضًا المَشَقّةَ المُتَكَلَّفةَ التي لا مَعنى لَها.\n\nومِنَ الجِهةِ الأُخرى، على المُؤمِنِ أن يَتَجَنَّبَ تَحويلَ اليُسرِ إلى تَفريطٍ وإهمال. فالنَّبِيُّ ﷺ نَفسُهُ الذي عَلَّمَ أنَّ الدّينَ يُسر، قامَ حَتّى تَوَرَّمَت قَدَماه، وصامَ، وعاشَ حَياةَ عِبادةٍ عَميقة. فَيُسرُ الإسلامِ لم يُقصَدْ بِهِ أبَدًا أن يُنتِجَ مُسلِمينَ كُسالى فاتِرينَ يَفعَلونَ الحَدَّ الأدنى أو أقَلّ. والطَّريقُ الصَّحيحُ هو الوَسَطيّةُ المُتَوازِنة، التي تَتَجَنَّبُ خَطَأينِ مُتَضادَّين. الأوَّلُ الغُلُوُّ — التَّشديدُ والتَّطَرُّف، وجَعلُ الدّينِ أثقَلَ مِمّا أرادَ الله، وتَحريمُ الحَلال، وإرهاقُ النَّفسِ حَتّى الانقِطاع، والقَسوةُ على النّاس. وحَذَّرَ النَّبِيُّ ﷺ شَديدًا: «إيّاكُم والغُلُوَّ في الدّين، فإنَّما أهلَكَ مَن كانَ قَبلَكُمُ الغُلُوُّ في الدّين». والخَطَأُ الثّاني التَّفريطُ — الإهمالُ وتَركُ الواجِبات، والاستِهانةُ بِالدّين، واتِّخاذُ «اليُسرِ» سِتارًا لِاتِّباعِ الهَوى. وقِصّةُ الرَّهطِ الثَّلاثةِ الذينَ أرادوا صَومَ الدَّهرِ وقيامَ اللَّيلِ بِلا نَومٍ وتَركَ الزَّواجِ تُبَيِّنُ تَصحيحَ النَّبِيِّ لِلطَّرَفِ الأوَّل: أكَّدَ أنَّهُ، خَيرُ الخَلق، يَصومُ ويَأكُل، ويُصَلّي ويَنام، ويَتَزَوَّج — ومَن رَغِبَ عن سُنَّتِهِ المُتَوازِنةِ «فَلَيسَ مِنّي».\n\nوالثَّمَرةُ البَديعةُ لِهذا التَّعليمِ دينٌ يَستَطيعُ كُلُّ صِنفٍ مِنَ النّاسِ أن يُمارِسَهُ ويَستَديمَهُ طَوالَ عُمرِه: الصَّغيرُ والكَبير، الصَّحيحُ والمَريض، المُقيمُ والمُسافِر، القَوِيُّ والضَّعيف. فالإسلامُ يَطلُبُ عِبادةً ثابِتةً مُتَّصِلةً في حُدودِ طاقةِ كُلِّ أحَد، لا انفِجاراتٍ تَتبَعُها انتِكاسات؛ قالَ النَّبِيُّ ﷺ: «أحَبُّ الأعمالِ إلى اللهِ أدوَمُها وإن قَلّ». وبِالنِّسبةِ لِلطّالِب، عَيشُ يُسرِ الإسلامِ أداءُ واجِباتِه — خاصّةً الصَّلَواتِ الخَمسِ — بِانتِظامٍ وإتقان، والأخذُ بِالرُّخَصِ المَشروعةِ عِندَ الحاجةِ الحَقيقيّةِ بِلا حَرَج، وعَدَمُ اختِراعِ الأعذارِ لِلهُروبِ مِن واجِباتِه، وعَدَمُ تَنغيصِ الدّينِ على نَفسِهِ أوِ النّاس، وبِناءُ رُوتينٍ مُستَدامٍ مِنَ العِبادةِ وحُسنِ الخُلُقِ يَقدِرُ على حِفظِهِ بَقيّةَ حَياتِه. وعلى الطّالِبِ المُطالِبِ أن يَخرُجَ مِن هذا الدَّرسِ شاكِرًا أنَّ اللهَ جَعَلَ طَريقَ رِضاهُ مُمكِنًا رَحيمًا، عازِمًا على سُلوكِهِ بِالتَّوازُنِ الذي عَلَّمَهُ النَّبِيُّ ﷺ: جِدّيّةٌ بِلا قَسوة، ويُسرٌ بِلا فَراغ، ثَباتٌ واعتِدالٌ ومَلءُ القَلبِ رَجاءً في رَحمةِ رَبٍّ ﴿يُريدُ بِكُمُ اليُسرَ ولا يُريدُ بِكُمُ العُسر﴾.",
+      hingeQuestions: {
+        title: { en: "Hinge Questions — Test Your Understanding", ar: "أسئلة محوريّة — اختبر فهمك" },
+        instruction: { en: "Answer all 10 questions.", ar: "أجب عن الأسئلة العشرة." },
+        questions: [
+          {
+            question: { en: "Allah intends?", ar: "الله يريد؟" },
+            options: [
+            { en: "Ease", ar: "اليُسر" },
+            { en: "Hardship", ar: "العُسر" },
+            { en: "Punishment", ar: "العقاب" },
+            { en: "Nothing", ar: "لا شيء" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Ease.", ar: "اليُسر." },
+          },
+          {
+            question: { en: "No soul burdened beyond?", ar: "لا يكلّف الله نفسًا إلّا؟" },
+            options: [
+            { en: "Its capacity", ar: "وسعها" },
+            { en: "Nothing", ar: "لا شيء" },
+            { en: "Everything", ar: "كلّ شيء" },
+            { en: "Twice", ar: "الضعف" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Its capacity.", ar: "وسعها." },
+          },
+          {
+            question: { en: "With hardship comes?", ar: "مع العُسر يأتي؟" },
+            options: [
+            { en: "Ease", ar: "يُسر" },
+            { en: "More hardship", ar: "مزيد عُسر" },
+            { en: "Nothing", ar: "لا شيء" },
+            { en: "Confusion", ar: "حيرة" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Ease.", ar: "يُسر." },
+          },
+          {
+            question: { en: "Sick person can?", ar: "المريض يمكنه؟" },
+            options: [
+            { en: "Pray sitting", ar: "الصلاة جالسًا" },
+            { en: "Skip everything", ar: "ترك كلّ شيء" },
+            { en: "Give up", ar: "الاستسلام" },
+            { en: "Nothing", ar: "لا شيء" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Pray sitting.", ar: "الصلاة جالسًا." },
+          },
+          {
+            question: { en: "Prophet chose?", ar: "النبيّ اختار؟" },
+            options: [
+            { en: "The easier option", ar: "الأيسر" },
+            { en: "The hardest", ar: "الأصعب" },
+            { en: "Nothing", ar: "لا شيء" },
+            { en: "Random", ar: "عشوائيًّا" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "The easier (non-sinful) option.", ar: "الأيسر (ما لم يكن إثمًا)." },
+          },
+          {
+            question: { en: "Islam is?", ar: "الإسلام؟" },
+            options: [
+            { en: "Moderate", ar: "وسط" },
+            { en: "Extreme", ar: "متطرّف" },
+            { en: "Easy to abuse", ar: "سهل الاستغلال" },
+            { en: "Hard", ar: "صعب" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Moderate.", ar: "وسط." },
+          },
+          {
+            question: { en: "Tayammum is for?", ar: "التيمّم ل؟" },
+            options: [
+            { en: "No water available", ar: "عدم توفّر الماء" },
+            { en: "Fun", ar: "المرح" },
+            { en: "Exercise", ar: "التمرين" },
+            { en: "Nothing", ar: "لا شيء" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "When water is not available.", ar: "عند عدم توفّر الماء." },
+          },
+          {
+            question: { en: "\'Make things?\'", ar: "«يسّروا ولا؟»" },
+            options: [
+            { en: "Easy, not hard", ar: "تعسّروا" },
+            { en: "Hard", ar: "سهّلوا" },
+            { en: "Complex", ar: "عقّدوا" },
+            { en: "Boring", ar: "مملّوا" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Easy, not hard.", ar: "ولا تعسّروا." },
+          },
+          {
+            question: { en: "Zakat percentage?", ar: "نسبة الزكاة؟" },
+            options: [
+            { en: "2.5%", ar: "٢.٥٪" },
+            { en: "50%", ar: "٥٠٪" },
+            { en: "100%", ar: "١٠٠٪" },
+            { en: "0%", ar: "٠٪" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "2.5%.", ar: "٢.٥٪." },
+          },
+          {
+            question: { en: "Rules are like?", ar: "القواعد مثل؟" },
+            options: [
+            { en: "Traffic lights — protect", ar: "إشارات المرور — تحمي" },
+            { en: "Chains", ar: "قيود" },
+            { en: "Punishments", ar: "عقوبات" },
+            { en: "Nothing", ar: "لا شيء" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Traffic lights — they protect.", ar: "إشارات المرور — تحمي." },
+          },
+        ],
+        coinsReward: 20,
       },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Watch & Reflect", ar: "شاهد وتأمّل" },
+      learningObjectives: [
+        { en: "Watch a video related to the topic and reflect.", ar: "شاهد مقطعًا متعلّقًا بالموضوع وتأمّل." },
+      ],
+      image: {
+        src: IMG.childQuran,
+        alt: { en: "Video lesson.", ar: "درس مرئي." },
+      },
+      youtubeVideo: {
+        title: { en: "Ease of Islam", ar: "يُسر الإسلام" },
+        url: "https://www.youtube.com/watch?v=kYnGEQoGhUE",
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Plenary", ar: "ختام الدرس" },
+      learningObjectives: [
+        { en: "Reflect on and share what you learned.", ar: "تأمّل وشارك ما تعلّمته." },
+      ],
+      image: {
+        src: IMG.grandMosque,
+        alt: { en: "Students sharing.", ar: "طلاب يشاركون." },
+      },
+      plenary: {
+        title: { en: "Share Your Learning", ar: "شارك ما تعلّمته" },
+        instruction: { en: "Scan QR or enter the code to share what you learned.", ar: "امسح QR أو أدخل الرمز لمشاركة ما تعلّمته." },
+        code: "EASEI001",
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Worksheet — The Ease of Islam", ar: "ورقة عمل — يُسرُ الإسلام" },
+      learningObjectives: [
+        { en: "Demonstrate understanding through an auto-marked worksheet.", ar: "أظهر فهمي من خلال ورقة عمل تُصحّح تلقائيًّا." },
+      ],
+      image: {
+        src: IMG.bookshelf,
+        alt: { en: "Worksheet.", ar: "ورقة عمل." },
+      },
+      worksheet: {
+        title: { en: "Worksheet — The Ease of Islam", ar: "ورقة عمل — يُسرُ الإسلام" },
+        instruction: { en: "Answer all questions. Auto-marked. Cannot re-answer after submission.", ar: "أجب عن جميع الأسئلة. تُصحّح تلقائيًّا. لن تستطيع الإجابة مجدّدًا." },
+        sections: [
+          {
+            type: "mcq" as const,
+            title: { en: "Multiple Choice", ar: "اختيار من متعدّد" },
+            questions: [
+              {
+                question: { en: "Allah intends?", ar: "الله يريد؟" },
+                options: [
+                { en: "Ease", ar: "اليُسر" },
+                { en: "Hardship", ar: "العُسر" },
+                { en: "Pain", ar: "الألم" },
+                { en: "Nothing", ar: "لا شيء" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "Soul burdened beyond?", ar: "نفسًا إلّا؟" },
+                options: [
+                { en: "Capacity", ar: "وسعها" },
+                { en: "Nothing", ar: "لا شيء" },
+                { en: "Everything", ar: "كلّ شيء" },
+                { en: "Twice", ar: "الضعف" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "Sick pray?", ar: "المريض يصلّي؟" },
+                options: [
+                { en: "Sitting", ar: "جالسًا" },
+                { en: "Cannot pray", ar: "لا يصلّي" },
+                { en: "Running", ar: "راكضًا" },
+                { en: "Dancing", ar: "راقصًا" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "Islam is?", ar: "الإسلام؟" },
+                options: [
+                { en: "Moderate", ar: "وسط" },
+                { en: "Extreme", ar: "متطرّف" },
+                { en: "Harsh", ar: "قاسٍ" },
+                { en: "Impossible", ar: "مستحيل" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "With hardship?", ar: "مع العُسر؟" },
+                options: [
+                { en: "Ease", ar: "يُسر" },
+                { en: "More hardship", ar: "عُسر" },
+                { en: "Nothing", ar: "لا شيء" },
+                { en: "Pain", ar: "ألم" },
+                ],
+                correctIndex: 0,
+              },
+            ],
+          },
+          {
+            type: "trueFalse" as const,
+            title: { en: "True or False", ar: "صواب أم خطأ" },
+            questions: [
+              { statement: { en: "Allah intends ease.", ar: "الله يريد اليُسر." }, answer: true },
+              { statement: { en: "Islam is too hard.", ar: "الإسلام صعب جدًّا." }, answer: false },
+              { statement: { en: "Concessions exist for hardship.", ar: "الرُخص موجودة للمشقّة." }, answer: true },
+              { statement: { en: "No flexibility in worship.", ar: "لا مرونة في العبادة." }, answer: false },
+              { statement: { en: "Islam is moderate.", ar: "الإسلام وسط." }, answer: true },
+            ],
+          },
+          {
+            type: "matchUp" as const,
+            title: { en: "Match Up", ar: "وصّل" },
+            prompts: [
+              { prompt: { en: "Yusr", ar: "يُسر" }, answer: { en: "Ease", ar: "السهولة" } },
+              { prompt: { en: "Rukhsah", ar: "رخصة" }, answer: { en: "Concession", ar: "الرخصة" } },
+              { prompt: { en: "Wasatiyyah", ar: "وسطيّة" }, answer: { en: "Moderation", ar: "الاعتدال" } },
+              { prompt: { en: "Taysir", ar: "تيسير" }, answer: { en: "Facilitation", ar: "التسهيل" } },
+              { prompt: { en: "Tayammum", ar: "تيمّم" }, answer: { en: "Dry ablution", ar: "التيمّم" } },
+            ],
+          },
+          {
+            type: "fillBlanks" as const,
+            title: { en: "Fill in the Blanks", ar: "املأ الفراغات" },
+            questions: [
+              { sentence: { en: "\'Allah intends _______ for you.\'", ar: "﴿يريد الله بكم _______.﴾" }, blankAnswer: { en: "ease", ar: "اليُسر" } },
+              { sentence: { en: "\'No soul burdened beyond _______.", ar: "﴿لا يكلّف الله نفسًا إلّا _______.﴾" }, blankAnswer: { en: "capacity", ar: "وسعها" } },
+              { sentence: { en: "\'With hardship comes _______.", ar: "﴿إنّ مع العُسر _______.﴾" }, blankAnswer: { en: "ease", ar: "يسرًا" } },
+              { sentence: { en: "Islam is a _______ religion.", ar: "الإسلام دين _______." }, blankAnswer: { en: "moderate", ar: "وسط" } },
+            ],
+          },
+          {
+            type: "ordering" as const,
+            title: { en: "Put in Correct Order", ar: "رتّب ترتيبًا صحيحًا" },
+            items: [
+              { en: "Receive Islamic obligations", ar: "تلقّ الواجبات الإسلاميّة" },
+              { en: "Discover built-in concessions", ar: "اكتشف الرُخص المدمجة" },
+              { en: "Understand moderation (wasatiyyah)", ar: "افهم الوسطيّة" },
+              { en: "Apply concessions when needed", ar: "طبّق الرُخص عند الحاجة" },
+              { en: "Balance worship with daily life", ar: "وازن بين العبادة والحياة" },
+              { en: "Appreciate Islam\'s wisdom and mercy", ar: "قدّر حكمة الإسلام ورحمته" },
+            ],
+          },
+        ],
+        coinsReward: 25,
+      },
+      body: { en: "", ar: "" },
     },
   ],
-  quizQuestions: [
-    {
-      prompt: { en: "What does Al-Baqarah 185 say about Allah's intention for us?", ar: "ماذا تَقولُ البَقَرة ١٨٥ عن إرادةِ اللهِ بِنا؟" },
-      options: [
-        { en: "He intends ease for us, not hardship", ar: "يُريدُ بِنا اليُسرَ لا العُسر" },
-        { en: "He intends hardship", ar: "يُريدُ بِنا العُسر" },
-        { en: "He intends confusion", ar: "يُريدُ بِنا الحَيرة" },
-        { en: "He intends nothing", ar: "لا يُريدُ شَيئًا" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "Ease (yusr) is a foundational principle of Islam.", ar: "اليُسرُ مَبدأٌ أصيلٌ في الإسلام." },
-    },
-    {
-      prompt: { en: "What is a rukhsah (concession)?", ar: "ما الرُّخصة؟" },
-      options: [
-        { en: "An allowance lightening a duty for reasons like illness or travel", ar: "تَخفيفٌ لِلواجِبِ لِأسبابٍ كَالمَرَضِ والسَّفَر" },
-        { en: "Permission to abandon religion", ar: "إذنٌ بِتَركِ الدّين" },
-        { en: "Doing whatever you want", ar: "فِعلُ ما تَشاء" },
-        { en: "An extra hardship", ar: "مَشَقّةٌ زائِدة" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "Concessions like breaking fast when sick are mercies defined by Allah.", ar: "الرُّخَصُ كَالفِطرِ لِلمَريضِ رَحَماتٌ حَدَّدَها الله." },
-    },
-    {
-      prompt: { en: "What did the Prophet ﷺ say about making religion hard?", ar: "ماذا قالَ النَّبِيُّ ﷺ عن تَشديدِ الدّين؟" },
-      options: [
-        { en: "None makes the religion hard except that it overwhelms him", ar: "لَن يُشادَّ الدّينَ أحَدٌ إلّا غَلَبَه" },
-        { en: "Always make it as hard as possible", ar: "شَدِّدْهُ ما استَطَعت" },
-        { en: "Religion should be impossible", ar: "الدّينُ يَجِبُ أن يَكونَ مُستَحيلًا" },
-        { en: "Hardship is the goal", ar: "المَشَقّةُ هي الهَدَف" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "Self-imposed harshness leads to burnout; Islam is ease.", ar: "التَّشديدُ المُتَكَلَّفُ يُؤَدّي لِلانقِطاع؛ والإسلامُ يُسر." },
-    },
-    {
-      prompt: { en: "Does 'Islam is easy' mean we can drop prayer or fasting when we feel like it?", ar: "هل «الإسلامُ يُسر» يَعني تَركَ الصَّلاةِ أوِ الصِّيامِ متى شِئنا؟" },
-      options: [
-        { en: "No — obligations remain; concessions are for real reasons", ar: "لا — الواجِباتُ باقِية؛ والرُّخَصُ لِأسبابٍ حَقيقيّة" },
-        { en: "Yes — drop anything inconvenient", ar: "نَعَم — اترُكْ كُلَّ ثَقيل" },
-        { en: "Yes — Islam has no obligations", ar: "نَعَم — لا واجِباتِ في الإسلام" },
-        { en: "Only the rich must pray", ar: "الأغنياءُ وَحدَهُم يُصَلّون" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "Ease does not abolish clear duties; it provides defined concessions.", ar: "اليُسرُ لا يُلغي الواجِباتِ الواضِحة؛ بل يُعطي رُخَصًا مُحَدَّدة." },
-    },
-    {
-      prompt: { en: "What is the balanced middle way (wasatiyyah) between?", ar: "الوَسَطيّةُ المُتَوازِنةُ بَينَ ماذا؟" },
-      options: [
-        { en: "Between extremism (ghuluww) and negligence (tafrit)", ar: "بَينَ الغُلُوِّ والتَّفريط" },
-        { en: "Between two prayers only", ar: "بَينَ صَلاتَينِ فَقَط" },
-        { en: "Between wealth and poverty only", ar: "بَينَ الغِنى والفَقرِ فَقَط" },
-        { en: "There is no middle way", ar: "لا طَريقَ وَسَط" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "Avoid both harsh extremism and lazy neglect.", ar: "تَجَنَّبِ الغُلُوَّ القاسي والتَّفريطَ الكَسول." },
-    },
-    {
-      prompt: { en: "True or False: Allah loves that His concessions be taken when genuinely needed.", ar: "صَوابٌ أم خَطأ: يُحِبُّ اللهُ أن تُؤخَذَ رُخَصُهُ عِندَ الحاجةِ الحَقيقيّة." },
-      options: [
-        { en: "True — 'Allah loves that His concessions be acted upon'", ar: "صَواب — «إنَّ اللهَ يُحِبُّ أن تُؤتى رُخَصُه»" },
-        { en: "False", ar: "خَطأ" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "Accepting Allah's mercy correctly is beloved to Him.", ar: "قَبولُ رَحمةِ اللهِ بِصَوابٍ مَحبوبٌ لَه." },
-    },
-  ],
+  quizQuestions: [],
 };

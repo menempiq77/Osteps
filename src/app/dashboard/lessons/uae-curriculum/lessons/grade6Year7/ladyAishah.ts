@@ -11,212 +11,513 @@ export const ladyAishah: CourseLesson = {
   quranSurahs: ["An-Nur 11", "Al-Ahzab 6", "Al-Ahzab 34"],
   sections: [
     {
-      title: { en: "Who was Aishah (may Allah be pleased with her)?", ar: "مَن عائِشةُ رَضِيَ اللهُ عنها؟" },
+      title: { en: "Critical thinking (Warm up)", ar: "تفكير ناقد (تهيئة)" },
       learningObjectives: [
-        { en: "Identify Aishah and her place among the Mothers of the Believers.", ar: "أُعَرِّفُ عائِشةَ ومَكانَتَها بَينَ أُمَّهاتِ المُؤمِنين." },
-        { en: "Explain the meaning of 'Mother of the Believers'.", ar: "أُبَيِّنُ مَعنى «أُمِّ المُؤمِنين»." },
+        { en: "Evaluate a real-world scenario using evidence from Quran, Sunnah, and Islamic values.", ar: "أُقيّم سيناريو واقعيًّا بأدلّة من القرآن والسنّة والقيم الإسلاميّة." },
+      ],
+      image: {
+        src: IMG.hijabStudent,
+        alt: { en: "Student thinking critically.", ar: "طالب يفكّر بشكل ناقد." },
+      },
+      callout: {
+        label: { en: "Critical thinking scenario", ar: "سيناريو للتفكير الناقد" },
+        title: { en: "Can women be scholars in Islam?", ar: "هل يمكن للمرأة أن تكون عالمة في الإسلام؟" },
+        body: {
+          en: "A student says: \'Women in Islam were only at home. They had no role in knowledge or scholarship. Islam limited women.\'",
+          ar: "طالب يقول: «النساء في الإسلام كنّ في البيت فقط. لم يكن لهنّ دور في العلم. الإسلام قيّد المرأة.»",
+        },
+      },
+      responsePrompt: {
+        title: { en: "Write your critical response", ar: "اكتب ردّك الناقد" },
+        prompt: {
+          en: "Criticise using Lady Aishah\'s scholarship and role in Islamic knowledge.",
+          ar: "انتقد بعلم السيّدة عائشة ودورها في المعرفة الإسلاميّة.",
+        },
+        placeholder: { en: "This is wrong because...", ar: "هذا خطأ لأنّ..." },
+        buttonLabel: { en: "Save response", ar: "احفظ الإجابة" },
+        coinsReward: 10,
+      },
+      body: {
+        en: "The Prophet ﷺ said: \'Take half your religion from this woman (Aishah).\' (Narrated by scholars)",
+        ar: "قال النبيّ ﷺ: «خذوا نصف دينكم من هذه المرأة (عائشة).» (رواه العلماء)",
+      },
+    },
+    {
+      title: { en: "Retrieval practise", ar: "ممارسة الاسترجاع" },
+      imageMatchingActivity: {
+        title: { en: "Match each image to its Islamic keyword", ar: "طابق كلّ صورة بكلمتها الإسلاميّة" },
+        instruction: { en: "Drag the keyword to the correct image.", ar: "اسحب الكلمة إلى الصورة الصحيحة." },
+        pairs: [
+          { image: IMG.childQuran, keyword: { en: "Ilm (Knowledge)", ar: "علم" } },
+          { image: IMG.bookshelf, keyword: { en: "Hadith (Narration)", ar: "رواية الحديث" } },
+          { image: IMG.grandMosque, keyword: { en: "Fiqh (Jurisprudence)", ar: "فقه" } },
+          { image: IMG.lantern, keyword: { en: "Tafsir (Interpretation)", ar: "تفسير" } },
+          { image: IMG.skyBlue, keyword: { en: "Siddiqah (Truthful)", ar: "صدّيقة" } },
+        ],
+        coinsReward: 10,
+      },
+      body: {
+        en: "\'Take half your religion from this woman.\' — about Aishah, emphasizing her vast knowledge.",
+        ar: "«خذوا نصف دينكم من هذه المرأة.» — عن عائشة مؤكّدًا علمها الواسع.",
+      },
+    },
+    {
+      title: { en: "Lady Aishah, Mother of the Believers", ar: "السَّيِّدةُ عائِشةُ أُمُّ المُؤمِنين" },
+      learningObjectives: [
+        { en: "Learn about Lady Aishah\'s life and her role as a scholar.", ar: "تعرّف على حياة السيّدة عائشة ودورها كعالمة." },
+        { en: "Explain her contributions to Hadith and Islamic knowledge.", ar: "أشرح إسهاماتها في الحديث والمعرفة الإسلاميّة." },
       ],
       successCriteria: [
-        { en: "I can describe her family and standing.", ar: "أصِفُ أسرَتَها ومَكانَتَها." },
-        { en: "I can explain the honour of the Prophet's wives.", ar: "أشرَحُ شَرَفَ أزواجِ النَّبِيِّ ﷺ." },
+        { en: "I can describe Aishah\'s early life and character.", ar: "أصف حياة عائشة وشخصيّتها." },
+        { en: "I can explain how many hadiths she narrated.", ar: "أشرح كم حديثًا روت." },
+        { en: "I can list 3 areas of her scholarly contribution.", ar: "أذكر ٣ مجالات لإسهاماتها العلميّة." },
+      ],
+      image: {
+        src: IMG.grandMosque,
+        alt: { en: "Topic image.", ar: "صورة الموضوع." },
+      },
+      readyButton: {
+        label: { en: "I\'m ready to learn!", ar: "أنا مستعدّ للتعلّم!" },
+        coinsReward: 5,
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Lady Aishah bint Abu Bakr — Mother of the Believers", ar: "السيّدة عائشة بنت أبي بكر — أمّ المؤمنين" },
+      learningObjectives: [
+        { en: "Understand Lady Aishah\'s life and her immense contribution to Islam.", ar: "أفهم حياة السيّدة عائشة وإسهاماتها العظيمة في الإسلام." },
+      ],
+      image: {
+        src: IMG.grandMosque,
+        alt: { en: "Lesson content image.", ar: "صورة محتوى الدرس." },
+      },
+      infoBoxes: [
+        {
+          label: { en: "Her Life", ar: "حياتها" },
+          lines: [
+            { en: "Daughter of Abu Bakr, wife of the Prophet ﷺ. Known for intelligence, memory, and eloquence. Called \'Mother of the Believers\' (Al-Ahzab 6). One of the most knowledgeable Sahabah.", ar: "بنت أبي بكر وزوج النبيّ ﷺ. عُرفت بالذكاء والحفظ والبلاغة. لُقّبت بـ«أمّ المؤمنين» (الأحزاب ٦). من أعلم الصحابة." },
+          ],
+        },
+        {
+          label: { en: "Her Scholarship", ar: "علمها" },
+          lines: [
+            { en: "Narrated 2,210 hadiths — among the top narrators. Senior Sahabah consulted her on fiqh. She corrected mistakes of other narrators. Taught hundreds of students.", ar: "روت ٢,٢١٠ أحاديث — من أكثر الرواة. استشارها كبار الصحابة في الفقه. صحّحت أخطاء رواة آخرين. علّمت مئات الطلّاب." },
+          ],
+        },
+        {
+          label: { en: "Her Legacy", ar: "إرثها" },
+          lines: [
+            { en: "She contributed to Hadith, Tafsir, Fiqh, Medicine, and Arabic poetry. Her example proves women\'s central role in Islamic scholarship.", ar: "أسهمت في الحديث والتفسير والفقه والطبّ والشعر العربي. مثالها يثبت دور المرأة المركزي في العلم." },
+          ],
+        },
+      ],
+      trueFalseActivity: {
+        title: { en: "True or False", ar: "صواب أم خطأ" },
+        questions: [
+        { statement: { en: "Aishah narrated 2,210 hadiths.", ar: "روت عائشة ٢,٢١٠ أحاديث." }, answer: true },
+        { statement: { en: "Aishah had no role in scholarship.", ar: "لم يكن لعائشة دور في العلم." }, answer: false },
+        { statement: { en: "She was called Mother of the Believers.", ar: "لُقّبت بأمّ المؤمنين." }, answer: true },
+        { statement: { en: "Aishah was the daughter of Umar.", ar: "عائشة بنت عمر." }, answer: false },
+        { statement: { en: "Senior Sahabah consulted her.", ar: "استشارها كبار الصحابة." }, answer: true },
+        ],
+        coinsReward: 10,
+      },
+      fillBlanksActivity: {
+        title: { en: "Fill in the Blanks", ar: "املأ الفراغات" },
+        questions: [
+        { sentence: { en: "Aishah narrated _______ hadiths.", ar: "روت عائشة _______ حديثًا." }, answer: { en: "2210", ar: "٢٢١٠" } },
+        { sentence: { en: "She was the daughter of _______.", ar: "كانت بنت _______." }, answer: { en: "Abu Bakr", ar: "أبي بكر" } },
+        { sentence: { en: "She was called _______ of the Believers.", ar: "لُقّبت بـ_______ المؤمنين." }, answer: { en: "Mother", ar: "أمّ" } },
+        { sentence: { en: "She contributed to Hadith, Tafsir, and _______.", ar: "أسهمت في الحديث والتفسير و_______." }, answer: { en: "Fiqh", ar: "الفقه" } },
+        ],
+        coinsReward: 10,
+      },
+      body: {
+        en: "Lady Aishah — daughter of Abu Bakr, wife of the Prophet, narrated 2,210 hadiths, and was one of the greatest scholars in Islam.",
+        ar: "السيّدة عائشة — بنت أبي بكر وزوج النبيّ وروت ٢,٢١٠ حديثًا ومن أعظم العلماء في الإسلام.",
+      },
+    },
+    {
+      title: { en: "Group Work", ar: "عمل جماعي" },
+      learningObjectives: [
+        { en: "Explore Lady Aishah\'s contributions from different angles.", ar: "استكشف إسهامات السيّدة عائشة من زوايا مختلفة." },
+      ],
+      image: {
+        src: IMG.grandMosque,
+        alt: { en: "Students collaborating.", ar: "طلاب يتعاونون." },
+      },
+      groupWorkCards: {
+        title: { en: "Choose Your Task", ar: "اختر مهمّتك" },
+        instruction: { en: "Each group picks one card. Study the information, complete the task, and present to the class.", ar: "تختار كلّ مجموعة بطاقة. ادرسوا المعلومات وأنجزوا المهمّة وقدّموا للصفّ." },
+        presentationNote: { en: "All Quran and Hadith must be authentic with references.", ar: "يجب أن يكون كلّ قرآن وحديث صحيحًا بمصادره." },
+        cards: [
+          {
+            id: "A",
+            title: { en: "Her Knowledge", ar: "علمها" },
+            image: IMG.childQuran,
+            color: "teal",
+            topic: { en: "A leading scholar", ar: "عالمة بارزة" },
+            infoSections: [
+              { label: { en: "Fact", ar: "حقيقة" }, content: { en: "She narrated 2,210 hadiths — fourth highest narrator overall.", ar: "روت ٢,٢١٠ حديثًا — رابع أكثر الرواة." } },
+              { label: { en: "Hadith", ar: "حديث" }, content: { en: "\'Take half your religion from this woman.\'", ar: "«خذوا نصف دينكم من هذه المرأة.»" } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Knowledge has no gender barrier in Islam.", ar: "العلم لا حاجز جنسي في الإسلام." } },
+            ],
+            task: {
+              title: { en: "Create a Knowledge Map", ar: "أنشئ خريطة معرفة" },
+              description: { en: "Map Aishah\'s areas of expertise.", ar: "ارسم خريطة لمجالات خبرة عائشة." },
+              hint: { en: "Include: Hadith, Fiqh, Tafsir, Medicine, Poetry.", ar: "ضمّن: الحديث والفقه والتفسير والطبّ والشعر." },
+            },
+          },
+          {
+            id: "B",
+            title: { en: "Her Character", ar: "شخصيّتها" },
+            image: IMG.bookshelf,
+            color: "blue",
+            topic: { en: "Intelligence, courage, and piety", ar: "الذكاء والشجاعة والتقوى" },
+            infoSections: [
+              { label: { en: "Quality", ar: "صفة" }, content: { en: "She questioned, debated, and corrected errors fearlessly.", ar: "ناقشت وجادلت وصحّحت الأخطاء بلا خوف." } },
+              { label: { en: "Quality", ar: "صفة" }, content: { en: "Known for generosity — gave away everything in charity.", ar: "عُرفت بالكرم — تصدّقت بكلّ شيء." } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Strong character + knowledge = lasting impact.", ar: "شخصيّة قويّة + علم = أثر دائم." } },
+            ],
+            task: {
+              title: { en: "Write a Character Profile", ar: "اكتب ملفّ شخصيّة" },
+              description: { en: "Create a detailed profile of Aishah\'s character.", ar: "أنشئ ملفًّا مفصّلًا لشخصيّة عائشة." },
+              hint: { en: "Include: qualities, examples, evidence.", ar: "ضمّن: الصفات والأمثلة والأدلّة." },
+            },
+          },
+          {
+            id: "C",
+            title: { en: "Correcting Narrators", ar: "تصحيح الرواة" },
+            image: IMG.grandMosque,
+            color: "purple",
+            topic: { en: "Accuracy in Hadith", ar: "الدقّة في الحديث" },
+            infoSections: [
+              { label: { en: "Fact", ar: "حقيقة" }, content: { en: "She corrected 25+ mistakes made by prominent Sahabah.", ar: "صحّحت أكثر من ٢٥ خطأ لصحابة بارزين." } },
+              { label: { en: "Example", ar: "مثال" }, content: { en: "She corrected the hadith about the dead being punished by crying — clarifying the true meaning.", ar: "صحّحت حديث تعذيب الميّت ببكاء أهله — موضّحة المعنى الصحيح." } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Accuracy matters more than status.", ar: "الدقّة أهمّ من المكانة." } },
+            ],
+            task: {
+              title: { en: "Analyse Her Corrections", ar: "حلّل تصحيحاتها" },
+              description: { en: "Research 3 hadiths she corrected and why.", ar: "ابحث عن ٣ أحاديث صحّحتها ولماذا." },
+              hint: { en: "Include: the original narration, her correction, the evidence.", ar: "ضمّن: الرواية الأصليّة وتصحيحها والدليل." },
+            },
+          },
+          {
+            id: "D",
+            title: { en: "Women in Islamic Scholarship", ar: "المرأة في العلم الإسلامي" },
+            image: IMG.lantern,
+            color: "amber",
+            topic: { en: "Aishah as a model", ar: "عائشة نموذجًا" },
+            infoSections: [
+              { label: { en: "Fact", ar: "حقيقة" }, content: { en: "Aishah opened the door for women scholars throughout history.", ar: "فتحت عائشة الباب لعالمات على مرّ التاريخ." } },
+              { label: { en: "Example", ar: "مثال" }, content: { en: "Hundreds of women became hadith scholars in later centuries.", ar: "مئات النساء أصبحن محدّثات في القرون التالية." } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Islam encourages women\'s education and scholarship.", ar: "الإسلام يشجّع تعليم المرأة وعلمها." } },
+            ],
+            task: {
+              title: { en: "Research Women Scholars", ar: "ابحث عن عالمات" },
+              description: { en: "Find 3 women scholars inspired by Aishah.", ar: "أوجد ٣ عالمات تأثّرن بعائشة." },
+              hint: { en: "Include: name, era, contribution.", ar: "ضمّن: الاسم والعصر والإسهام." },
+            },
+          },
+          {
+            id: "E",
+            title: { en: "Lessons for Students", ar: "دروس للطلّاب" },
+            image: IMG.skyBlue,
+            color: "rose",
+            topic: { en: "What we learn from Aishah", ar: "ما نتعلّمه من عائشة" },
+            infoSections: [
+              { label: { en: "Lesson", ar: "درس" }, content: { en: "Ask questions — never accept ignorance.", ar: "اسأل — لا تقبل الجهل." } },
+              { label: { en: "Lesson", ar: "درس" }, content: { en: "Accuracy and truth matter more than popularity.", ar: "الدقّة والصدق أهمّ من الشعبيّة." } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Knowledge is for everyone — seek it without limits.", ar: "العلم للجميع — اطلبه بلا حدود." } },
+            ],
+            task: {
+              title: { en: "Write Personal Reflections", ar: "اكتب تأمّلات" },
+              description: { en: "What can you learn from Aishah for your studies?", ar: "ماذا تتعلّم من عائشة لدراستك؟." },
+              hint: { en: "Include: specific habits, study methods, character traits.", ar: "ضمّن: عادات محدّدة وأساليب دراسة وصفات." },
+            },
+          },
+        ],
+        coinsReward: 15,
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Hinge Questions", ar: "أسئلة محوريّة" },
+      learningObjectives: [
+        { en: "Test your understanding of everything studied.", ar: "اختبر فهمك لكلّ ما درسته." },
       ],
       image: {
         src: IMG.bookshelf,
-        alt: { en: "Shelves of books — a house of knowledge.", ar: "رُفوفُ كُتُبٍ — بَيتُ عِلم." },
-        caption: { en: "Aishah's home became a school where Companions learned the Sunnah.", ar: "صارَ بَيتُ عائِشةَ مَدرَسةً تَعَلَّمَ فيها الصَّحابةُ السُّنّة." },
+        alt: { en: "Assessment.", ar: "تقييم." },
       },
-      callout: {
-        label: { en: "High-order question", ar: "سُؤالٌ عالي المُستوى" },
-        title: { en: "Why are the Prophet's wives our 'mothers'?", ar: "لِماذا أزواجُ النَّبِيِّ ﷺ «أُمَّهاتُنا»؟" },
-        body: {
-          en: "Allah says: 'The Prophet is closer to the believers than their own selves, and his wives are their mothers' (Al-Ahzab 6). Explain what kind of 'motherhood' this is — in honour and respect, not in lineage — and why this gives the wives of the Prophet ﷺ a unique status in the Ummah.",
-          ar: "يَقولُ اللهُ: ﴿النَّبِيُّ أولى بِالمُؤمِنينَ مِن أنفُسِهِم وأزواجُهُ أُمَّهاتُهُم﴾ (الأحزاب ٦). بَيِّنْ أيَّ «أُمومةٍ» هذه — في التَّكريمِ والاحتِرامِ لا في النَّسَب — ولِماذا تَمنَحُ أزواجَ النَّبِيِّ ﷺ مَكانةً فَريدةً في الأُمّة.",
-        },
+      hingeQuestions: {
+        title: { en: "Hinge Questions — Test Your Understanding", ar: "أسئلة محوريّة — اختبر فهمك" },
+        instruction: { en: "Answer all 10 questions.", ar: "أجب عن الأسئلة العشرة." },
+        questions: [
+          {
+            question: { en: "How many hadiths did Aishah narrate?", ar: "كم حديثًا روت عائشة؟" },
+            options: [
+            { en: "2210", ar: "٢٢١٠" },
+            { en: "100", ar: "١٠٠" },
+            { en: "10", ar: "١٠" },
+            { en: "5", ar: "٥" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "2,210 hadiths.", ar: "٢,٢١٠ حديثًا." },
+          },
+          {
+            question: { en: "Who was her father?", ar: "من كان أبوها؟" },
+            options: [
+            { en: "Abu Bakr", ar: "أبو بكر" },
+            { en: "Umar", ar: "عمر" },
+            { en: "Ali", ar: "عليّ" },
+            { en: "Uthman", ar: "عثمان" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Abu Bakr as-Siddiq.", ar: "أبو بكر الصدّيق." },
+          },
+          {
+            question: { en: "What was her title?", ar: "ما كان لقبها؟" },
+            options: [
+            { en: "Mother of the Believers", ar: "أمّ المؤمنين" },
+            { en: "Queen", ar: "ملكة" },
+            { en: "Scholar", ar: "عالمة" },
+            { en: "Leader", ar: "قائدة" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Mother of the Believers.", ar: "أمّ المؤمنين." },
+          },
+          {
+            question: { en: "What fields did she contribute to?", ar: "في أيّ مجالات أسهمت؟" },
+            options: [
+            { en: "Hadith, Fiqh, Tafsir", ar: "الحديث والفقه والتفسير" },
+            { en: "Only cooking", ar: "الطبخ فقط" },
+            { en: "Only poetry", ar: "الشعر فقط" },
+            { en: "Nothing", ar: "لا شيء" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Hadith, Fiqh, Tafsir, Medicine, Poetry.", ar: "الحديث والفقه والتفسير والطبّ والشعر." },
+          },
+          {
+            question: { en: "Did senior Sahabah consult her?", ar: "هل استشارها كبار الصحابة؟" },
+            options: [
+            { en: "Yes", ar: "نعم" },
+            { en: "No", ar: "لا" },
+            { en: "Sometimes", ar: "أحيانًا" },
+            { en: "Only women", ar: "النساء فقط" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Yes — on matters of fiqh.", ar: "نعم — في الفقه." },
+          },
+          {
+            question: { en: "What quote is said about her?", ar: "ما المقولة عنها؟" },
+            options: [
+            { en: "Take half your religion from her", ar: "خذوا نصف دينكم منها" },
+            { en: "She knows nothing", ar: "لا تعلم شيئًا" },
+            { en: "Ignore her", ar: "تجاهلوها" },
+            { en: "She is average", ar: "عاديّة" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Take half your religion from this woman.", ar: "خذوا نصف دينكم من هذه المرأة." },
+          },
+          {
+            question: { en: "How many narrators did she correct?", ar: "كم راويًا صحّحت؟" },
+            options: [
+            { en: "25+", ar: "أكثر من ٢٥" },
+            { en: "0", ar: "٠" },
+            { en: "1", ar: "١" },
+            { en: "2", ar: "٢" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "More than 25.", ar: "أكثر من ٢٥." },
+          },
+          {
+            question: { en: "What does her example prove?", ar: "ماذا يثبت مثالها؟" },
+            options: [
+            { en: "Women can be leading scholars", ar: "المرأة يمكن أن تكون عالمة بارزة" },
+            { en: "Women cannot learn", ar: "المرأة لا تتعلّم" },
+            { en: "Only men teach", ar: "الرجال فقط يعلّمون" },
+            { en: "Knowledge is limited", ar: "العلم محدود" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Women have a central role in scholarship.", ar: "للمرأة دور مركزي في العلم." },
+          },
+          {
+            question: { en: "She was known for?", ar: "عُرفت ب؟" },
+            options: [
+            { en: "Intelligence and memory", ar: "الذكاء والحفظ" },
+            { en: "Cooking", ar: "الطبخ" },
+            { en: "Fighting", ar: "القتال" },
+            { en: "Trading", ar: "التجارة" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Intelligence, memory, and eloquence.", ar: "الذكاء والحفظ والبلاغة." },
+          },
+          {
+            question: { en: "Aishah\'s knowledge included?", ar: "علم عائشة شمل؟" },
+            options: [
+            { en: "Medicine and poetry too", ar: "الطبّ والشعر أيضًا" },
+            { en: "Only Quran", ar: "القرآن فقط" },
+            { en: "Only hadith", ar: "الحديث فقط" },
+            { en: "Nothing extra", ar: "لا شيء إضافي" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Also medicine and Arabic poetry.", ar: "أيضًا الطبّ والشعر العربي." },
+          },
+        ],
+        coinsReward: 20,
       },
-      infoBoxes: [
-        {
-          label: { en: "Qur'an", ar: "القُرآن" },
-          lines: [
-            { en: "\"The Prophet is closer to the believers than their own selves, and his wives are their mothers.\" — Al-Ahzab 6", ar: "﴿النَّبِيُّ أولى بِالمُؤمِنينَ مِن أنفُسِهِم وأزواجُهُ أُمَّهاتُهُم﴾ — الأحزاب ٦" },
-          ],
-        },
-        {
-          label: { en: "Her lineage", ar: "نَسَبُها" },
-          lines: [
-            { en: "Aishah bint Abi Bakr as-Siddiq — daughter of the Prophet's closest friend and first male adult to believe. She grew up in a household of faith from birth.", ar: "عائِشةُ بِنتُ أبي بَكرٍ الصِّدّيق — ابنةُ أقرَبِ أصحابِ النَّبِيِّ ﷺ وأوَّلِ مَن آمَنَ مِنَ الرِّجال. نَشَأَت في بَيتِ إيمانٍ مُنذُ مَولِدِها." },
-          ],
-        },
-      ],
-      body: {
-        en: "Aishah bint Abi Bakr, may Allah be pleased with her and her father, holds a place of the highest honour in Islam. She was the daughter of Abu Bakr as-Siddiq, the Prophet's dearest companion, the first adult man to accept Islam, and the first Khalifah after him. She was therefore raised from birth in a home filled with faith, truthfulness, and devotion to the Prophet ﷺ. Allah honoured her to become the wife of the Messenger of Allah ﷺ in Madinah, and she was the wife he loved most dearly after Khadijah, may Allah be pleased with her.\n\nLike all the wives of the Prophet ﷺ, Aishah carries the noble title 'Mother of the Believers' (Umm al-Mu'minin). Allah Himself gave them this title in the Qur'an: 'and his wives are their mothers.' This is a motherhood of honour, respect, and reverence — every believer must love and respect the Prophet's wives as one would honour a mother — but it does not mean lineage or that they are literally our parents. Because of this status, it was forbidden for anyone to marry them after the Prophet ﷺ, in recognition of their unique and sacred position in the community.\n\nWhat sets Aishah apart, even among these honoured women, is the extraordinary role she played in preserving and teaching the religion. She was young, exceptionally intelligent, and blessed with a remarkable memory. She spent years in the closest possible company of the Prophet ﷺ, observing his worship, his manners, his rulings, and the details of his daily life that no one outside his home could witness. After his death ﷺ, she lived for many decades as one of the greatest teachers and authorities of the Ummah, with the leading Companions themselves coming to her to learn and to settle questions. A demanding student should see from the outset that Aishah is not honoured merely as a wife of the Prophet ﷺ, but as one of the foundational scholars of Islam — a living proof of the high status that knowledge gives to a person, and of the central role of women in carrying and transmitting this religion.",
-        ar: "عائِشةُ بِنتُ أبي بَكرٍ، رَضِيَ اللهُ عنها وعن أبيها، لَها مَكانةُ الشَّرَفِ الأعلى في الإسلام. كانَت ابنةَ أبي بَكرٍ الصِّدّيق، أعَزِّ أصحابِ النَّبِيِّ ﷺ، وأوَّلِ رَجُلٍ بالِغٍ أسلَم، وأوَّلِ خَليفةٍ بَعدَه. فَنَشَأَت مُنذُ مَولِدِها في بَيتٍ مَملوءٍ بِالإيمانِ والصِّدقِ ومَحَبّةِ النَّبِيِّ ﷺ. وأكرَمَها اللهُ أن صارَت زَوجَ رَسولِ اللهِ ﷺ في المَدينة، وكانَت أحَبَّ زَوجاتِهِ إليهِ بَعدَ خَديجةَ رَضِيَ اللهُ عنها.\n\nوكَسائِرِ أزواجِ النَّبِيِّ ﷺ، تَحمِلُ عائِشةُ اللَّقَبَ الشَّريفَ «أُمَّ المُؤمِنين». وقد مَنَحَهُنَّ اللهُ هذا اللَّقَبَ في القُرآن: ﴿وأزواجُهُ أُمَّهاتُهُم﴾. وهي أُمومةُ تَكريمٍ واحتِرامٍ وتَوقير — فَعلى كُلِّ مُؤمِنٍ أن يُحِبَّ أزواجَ النَّبِيِّ ﷺ ويَحتَرِمَهُنَّ كَما يُكرِمُ أُمَّه — لكِنَّها لا تَعني النَّسَبَ ولا أنَّهُنَّ والِداتُنا حَقيقةً. ولِأجلِ هذه المَكانةِ حُرِّمَ على أحَدٍ أن يَتَزَوَّجَهُنَّ بَعدَ النَّبِيِّ ﷺ، اعتِرافًا بِمَوضِعِهِنَّ الفَريدِ المُقَدَّسِ في الأُمّة.\n\nوالذي يُمَيِّزُ عائِشةَ، حَتّى بَينَ هؤُلاءِ النِّسوةِ المُكَرَّمات، هو الدَّورُ العَظيمُ الذي أدَّتهُ في حِفظِ الدّينِ وتَعليمِه. كانَت صَغيرةً ذَكيّةً بِامتِياز، مَوهوبةً بِذاكِرةٍ عَجيبة. وقَضَت سَنَواتٍ في أقرَبِ صُحبةٍ مُمكِنةٍ لِلنَّبِيِّ ﷺ، تُراقِبُ عِبادَتَهُ وأخلاقَهُ وأحكامَهُ وتَفاصيلَ حَياتِهِ اليَومِيّةِ التي لا يَطَّلِعُ عليها أحَدٌ مِن خارِجِ بَيتِه. وبَعدَ وَفاتِهِ ﷺ عاشَت عُقودًا طَويلةً إحدى أعظَمِ مُعَلِّمي الأُمّةِ ومَراجِعِها، يَأتيها كِبارُ الصَّحابةِ أنفُسُهُم يَتَعَلَّمونَ ويَستَفتون. وعلى الطّالِبِ المُطالِبِ أن يَرى مِنَ البِدايةِ أنَّ عائِشةَ لا تُكَرَّمُ لِكَونِها زَوجَ النَّبِيِّ ﷺ فَحَسب، بل لِكَونِها مِن مُؤَسِّسي عُلَماءِ الإسلام — دَليلًا حَيًّا على عُلُوِّ مَنزِلةِ العِلمِ لِصاحِبِه، وعلى الدَّورِ المِحوَرِيِّ لِلمَرأةِ في حَملِ هذا الدّينِ ونَقلِه.",
-      },
+      body: { en: "", ar: "" },
     },
     {
-      title: { en: "The scholar and teacher", ar: "العالِمةُ المُعَلِّمة" },
+      title: { en: "Watch & Reflect", ar: "شاهد وتأمّل" },
       learningObjectives: [
-        { en: "Describe Aishah's role in preserving and teaching Islam.", ar: "أصِفُ دَورَ عائِشةَ في حِفظِ الإسلامِ وتَعليمِه." },
+        { en: "Watch a video related to the topic and reflect.", ar: "شاهد مقطعًا متعلّقًا بالموضوع وتأمّل." },
       ],
       image: {
         src: IMG.childQuran,
-        alt: { en: "A learner with the Qur'an — knowledge passed on.", ar: "مُتَعَلِّمٌ مَعَ القُرآن — عِلمٌ يُنقَل." },
-        caption: { en: "Aishah narrated over 2,000 hadith and taught generations.", ar: "رَوَت عائِشةُ أكثَرَ مِن ألفَينِ مِنَ الحَديثِ وعَلَّمَتِ الأجيال." },
+        alt: { en: "Video lesson.", ar: "درس مرئي." },
       },
-      infoBoxes: [
-        {
-          label: { en: "Her knowledge", ar: "عِلمُها" },
-          lines: [
-            { en: "She narrated over 2,000 hadith and was an authority in tafsir, fiqh, the rulings of inheritance, Arabic poetry, and the history of the Arabs. Az-Zuhri said: if the knowledge of Aishah were gathered against all the other women, hers would be greater.", ar: "رَوَت أكثَرَ مِن ألفَي حَديث، وكانَت مَرجِعًا في التَّفسيرِ والفِقهِ وأحكامِ الفَرائِضِ والشِّعرِ العَرَبِيِّ وأيّامِ العَرَب. قالَ الزُّهرِيُّ: لَو جُمِعَ عِلمُ عائِشةَ إلى عِلمِ جَميعِ النِّساءِ لَكانَ عِلمُ عائِشةَ أفضَل." },
-          ],
-        },
-        {
-          label: { en: "Hadith", ar: "الحَديث" },
-          lines: [
-            { en: "The Companions said: 'Whenever a matter was difficult for us, we asked Aishah and found knowledge of it with her.' — at-Tirmidhi", ar: "قالَ الصَّحابة: «ما أشكَلَ علَينا أمرٌ فَسَألنا عنهُ عائِشةَ إلّا وَجَدنا عِندَها مِنهُ عِلمًا» — التِّرمِذِيّ" },
-          ],
-        },
-      ],
-      callout: {
-        label: { en: "Reflect", ar: "تأمَّلْ" },
-        title: { en: "Knowledge raises a person's rank", ar: "العِلمُ يَرفَعُ مَنزِلةَ صاحِبِه" },
-        body: {
-          en: "Senior Companions — men who had fought at Badr — came to a young woman to learn the religion. What does this teach about how Islam values knowledge over age, gender, or status, and about the duty of every Muslim, male and female, to seek knowledge?",
-          ar: "كِبارُ الصَّحابة — رِجالٌ شَهِدوا بَدرًا — كانوا يَأتونَ امرأةً صَغيرةً يَتَعَلَّمونَ الدّين. ماذا يُعَلِّمُ هذا عن تَقديمِ الإسلامِ العِلمَ على السِّنِّ والجِنسِ والمَكانة، وعن واجِبِ كُلِّ مُسلِمٍ، ذَكَرًا وأُنثى، في طَلَبِ العِلم؟",
-        },
+      youtubeVideo: {
+        title: { en: "Lady Aishah", ar: "السيّدة عائشة" },
+        url: "https://www.youtube.com/watch?v=kYnGEQoGhUE",
       },
-      responsePrompt: {
-        title: { en: "Written response", ar: "إجابةٌ مَكتوبة" },
-        prompt: { en: "Aishah is proof that women have always been central scholars and teachers of Islam. Using her example, explain why seeking knowledge is a duty for both men and women, and describe two qualities (e.g. excellent memory, asking questions, reviewing carefully) that made her a great scholar — and how you can develop them.", ar: "عائِشةُ دَليلٌ على أنَّ النِّساءَ كُنَّ دائِمًا مِن عُلَماءِ الإسلامِ ومُعَلِّميهِ المِحوَرِيّين. بِقُدوَتِها، بَيِّنْ لِماذا طَلَبُ العِلمِ واجِبٌ على الرِّجالِ والنِّساء، وصِفْ خَصلَتَينِ (كَالحِفظِ المُتقَن، وكَثرةِ السُّؤال، والمُراجَعةِ الدَّقيقة) جَعَلَتاها عالِمةً عَظيمة — وكَيفَ تُنَمّيهِما." },
-        placeholder: { en: "Seeking knowledge is a duty for all because... Two qualities of Aishah were... I can develop them by...", ar: "طَلَبُ العِلمِ واجِبٌ على الجَميعِ لِأنَّ... ومِن خِصالِ عائِشةَ... وأُنَمّيهِما بِـ..." },
-      },
-      body: {
-        en: "Aishah's greatest legacy is her role as a scholar and teacher of the Ummah. Allah granted her a brilliant mind and a powerful memory, and she used the years of her closeness to the Prophet ﷺ to absorb and preserve an enormous treasure of knowledge. She narrated more than two thousand hadith — making her one of the most prolific narrators in all of Islam — and these reports cover the most intimate and important details of the Prophet's worship, character, and family life, things that could only be known by someone in his household. Without her, a vast portion of the Sunnah, especially regarding the home, purity, prayer, and the Prophet's noble manners, would have been lost to us.\n\nHer expertise went far beyond simply remembering hadith. She was a leading authority in the understanding of the Qur'an (tafsir), in Islamic law (fiqh), in the laws of inheritance, and even in Arabic poetry and the history of the Arabs. The Companions recognised her as one of the foremost references of the religion. They reported: 'Whenever a matter was difficult for us, we asked Aishah and found that she had knowledge of it.' Senior Companions, including men who had fought at Badr and Uhud, would come to her with their questions. The great scholar az-Zuhri declared that if the knowledge of Aishah were weighed against the combined knowledge of all the other women of the Ummah, hers would still be greater.\n\nAishah did not keep her knowledge to herself; she taught openly for decades after the Prophet's death, and a whole generation of major scholars — including her nephew Urwah ibn az-Zubayr — learned from her. In this she is a shining model of several things at once. First, she shows that seeking knowledge is a duty and an honour for every Muslim, woman and man alike; Islam never confined learning to one gender. Second, she shows that the qualities that build a scholar — attentiveness, an excellent memory, asking probing questions, reviewing and verifying carefully, and acting on what one learns — are within the reach of any sincere student. Third, she demonstrates that a person's true rank in Islam is measured by their faith and knowledge, not their age or worldly position. A demanding student should take Aishah as a direct, personal example: to listen carefully, to ask good questions, to memorise and review, to verify before speaking, and then to share beneficial knowledge with others. In doing so, the student walks, in a small way, in the footsteps of the Mother of the Believers.",
-        ar: "أعظَمُ إرثِ عائِشةَ دَورُها عالِمةً ومُعَلِّمةً لِلأُمّة. وَهَبَها اللهُ عَقلًا نَيِّرًا وذاكِرةً قَوِيّة، فاستَثمَرَت سَنَواتِ قُربِها مِنَ النَّبِيِّ ﷺ في استيعابِ كَنزٍ هائِلٍ مِنَ العِلمِ وحِفظِه. رَوَت أكثَرَ مِن ألفَي حَديث — فَصارَت مِن أكثَرِ الرُّواةِ في الإسلامِ كُلِّه — وتُغَطّي هذه الأحاديثُ أدَقَّ تَفاصيلِ عِبادةِ النَّبِيِّ ﷺ وأخلاقِهِ وحَياتِهِ البَيتِيّةِ وأهَمَّها، مِمّا لا يَعرِفُهُ إلّا مَن كانَ في بَيتِه. ولَولاها لَضاعَ علَينا جُزءٌ كَبيرٌ مِنَ السُّنّة، وبِخاصّةٍ ما يَتَعَلَّقُ بِالبَيتِ والطَّهارةِ والصَّلاةِ وأخلاقِ النَّبِيِّ ﷺ الكَريمة.\n\nولم تَقتَصِرْ خِبرَتُها على حِفظِ الحَديث. بل كانَت مَرجِعًا كَبيرًا في فَهمِ القُرآنِ (التَّفسير)، وفي الفِقه، وفي أحكامِ الفَرائِض، بل وفي الشِّعرِ العَرَبِيِّ وأيّامِ العَرَب. وعَدَّها الصَّحابةُ مِن أبرَزِ مَراجِعِ الدّين. ورَوَوا: «ما أشكَلَ علَينا أمرٌ فَسَألنا عنهُ عائِشةَ إلّا وَجَدنا عِندَها مِنهُ عِلمًا». وكانَ كِبارُ الصَّحابة، فيهِم مَن شَهِدَ بَدرًا وأُحُدًا، يَأتونَها بِأسئِلَتِهِم. وأعلَنَ العالِمُ الكَبيرُ الزُّهرِيُّ أنَّ عِلمَ عائِشةَ لَو وُزِنَ بِعِلمِ نِساءِ الأُمّةِ مُجتَمِعاتٍ لَكانَ عِلمُها أرجَح.\n\nولم تَحبِسْ عائِشةُ عِلمَها لِنَفسِها؛ بل عَلَّمَت جِهارًا عُقودًا بَعدَ وَفاةِ النَّبِيِّ ﷺ، وتَعَلَّمَ مِنها جيلٌ كامِلٌ مِن كِبارِ العُلَماء — مِنهُم ابنُ أُختِها عُروةُ بنُ الزُّبَير. وهي في هذا قُدوةٌ ساطِعةٌ في أمورٍ عِدّةٍ مَعًا. أوَّلًا: تُبَيِّنُ أنَّ طَلَبَ العِلمِ واجِبٌ وشَرَفٌ لِكُلِّ مُسلِم، أُنثى ورَجُلًا سَواء؛ فالإسلامُ لم يَحصُرِ العِلمَ في جِنسٍ قَطّ. ثانيًا: تُبَيِّنُ أنَّ الخِصالَ التي تَبني العالِم — الإصغاءَ، والحِفظَ المُتقَن، وكَثرةَ السُّؤالِ النّافِذ، والمُراجَعةَ والتَّثَبُّتَ، والعَمَلَ بِما يُتَعَلَّم — في مُتَناوَلِ كُلِّ طالِبٍ صادِق. ثالِثًا: تُثبِتُ أنَّ مَنزِلةَ المَرءِ الحَقيقيّةَ في الإسلامِ تُقاسُ بِإيمانِهِ وعِلمِهِ لا بِسِنِّهِ أو مَكانَتِهِ الدُّنيَوِيّة. وعلى الطّالِبِ المُطالِبِ أن يَتَّخِذَ عائِشةَ قُدوةً مُباشِرةً شَخصيّة: يُصغي بِعِنايةٍ، ويَسألُ سُؤالًا حَسَنًا، ويَحفَظُ ويُراجِع، ويَتَثَبَّتُ قَبلَ أن يَتَكَلَّم، ثُمَّ يَنشُرُ العِلمَ النّافِعَ لِغَيرِه. وبِذلك يَسيرُ، بِقَدرٍ يَسير، على خُطى أُمِّ المُؤمِنين.",
-      },
+      body: { en: "", ar: "" },
     },
     {
-      title: { en: "Her virtues and our duty toward her", ar: "فَضائِلُها وواجِبُنا نَحوَها" },
+      title: { en: "Plenary", ar: "ختام الدرس" },
       learningObjectives: [
-        { en: "List Aishah's virtues and the believer's duty to honour her.", ar: "أُعَدِّدُ فَضائِلَ عائِشةَ وواجِبَ المُؤمِنِ في تَوقيرِها." },
+        { en: "Reflect on and share what you learned.", ar: "تأمّل وشارك ما تعلّمته." },
       ],
       image: {
-        src: IMG.lantern,
-        alt: { en: "A pure light — innocence declared from above.", ar: "نورٌ طاهِرٌ — بَراءةٌ مِن فَوقِ سَبعِ سَماوات." },
-        caption: { en: "Allah declared her innocence from above the seven heavens.", ar: "أنزَلَ اللهُ بَراءَتَها مِن فَوقِ سَبعِ سَماوات." },
+        src: IMG.grandMosque,
+        alt: { en: "Students sharing.", ar: "طلاب يشاركون." },
       },
-      groupTasks: {
-        title: { en: "Honouring the Mother of the Believers", ar: "تَوقيرُ أُمِّ المُؤمِنين" },
-        instruction: { en: "Each group studies one of her virtues.", ar: "تَدرُسُ كُلُّ مَجموعةٍ فَضيلةً مِن فَضائِلِها." },
-        groups: [
+      plenary: {
+        title: { en: "Share Your Learning", ar: "شارك ما تعلّمته" },
+        instruction: { en: "Scan QR or enter the code to share what you learned.", ar: "امسح QR أو أدخل الرمز لمشاركة ما تعلّمته." },
+        code: "AISHA001",
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Worksheet — Lady Aishah, Mother of the Believers", ar: "ورقة عمل — السَّيِّدةُ عائِشةُ أُمُّ المُؤمِنين" },
+      learningObjectives: [
+        { en: "Demonstrate understanding through an auto-marked worksheet.", ar: "أظهر فهمي من خلال ورقة عمل تُصحّح تلقائيًّا." },
+      ],
+      image: {
+        src: IMG.bookshelf,
+        alt: { en: "Worksheet.", ar: "ورقة عمل." },
+      },
+      worksheet: {
+        title: { en: "Worksheet — Lady Aishah, Mother of the Believers", ar: "ورقة عمل — السَّيِّدةُ عائِشةُ أُمُّ المُؤمِنين" },
+        instruction: { en: "Answer all questions. Auto-marked. Cannot re-answer after submission.", ar: "أجب عن جميع الأسئلة. تُصحّح تلقائيًّا. لن تستطيع الإجابة مجدّدًا." },
+        sections: [
           {
-            slug: "declared-innocent",
-            name: { en: "Team A — Innocence from above the heavens", ar: "الفَريقُ أ — البَراءةُ مِن فَوقِ السَّماوات" },
-            learningObjective: { en: "Explain the event of al-Ifk and Allah's defence of her.", ar: "نُبَيِّنُ حادِثةَ الإفكِ ودِفاعَ اللهِ عنها." },
-            task: { en: "When slanderers spread a lie about Aishah, Allah revealed verses in Surat An-Nur declaring her innocence. Explain what this teaches about her purity and about the sin of slander and gossip.", ar: "حينَ نَشَرَ المُفتَرونَ كَذِبًا عن عائِشة، أنزَلَ اللهُ آياتٍ في سورةِ النّورِ تُعلِنُ بَراءَتَها. بَيِّنوا ما يُعَلِّمُهُ هذا عن طَهارَتِها وعن إثمِ الإفكِ والغيبة." },
-            evidence: [
-              { en: "Surat An-Nur 11-20 (the event of al-Ifk).", ar: "سورةُ النّورِ ١١-٢٠ (حادِثةُ الإفك)." },
+            type: "mcq" as const,
+            title: { en: "Multiple Choice", ar: "اختيار من متعدّد" },
+            questions: [
+              {
+                question: { en: "How many hadiths?", ar: "كم حديثًا؟" },
+                options: [
+                { en: "2210", ar: "٢٢١٠" },
+                { en: "100", ar: "١٠٠" },
+                { en: "50", ar: "٥٠" },
+                { en: "10", ar: "١٠" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "Her father?", ar: "أبوها؟" },
+                options: [
+                { en: "Abu Bakr", ar: "أبو بكر" },
+                { en: "Umar", ar: "عمر" },
+                { en: "Ali", ar: "عليّ" },
+                { en: "Uthman", ar: "عثمان" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "Her title?", ar: "لقبها؟" },
+                options: [
+                { en: "Mother of the Believers", ar: "أمّ المؤمنين" },
+                { en: "Queen", ar: "ملكة" },
+                { en: "Leader", ar: "قائدة" },
+                { en: "Scholar", ar: "عالمة" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "She contributed to?", ar: "أسهمت في؟" },
+                options: [
+                { en: "Hadith, Fiqh, Tafsir", ar: "الحديث والفقه والتفسير" },
+                { en: "Cooking", ar: "الطبخ" },
+                { en: "Farming", ar: "الزراعة" },
+                { en: "Trading", ar: "التجارة" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "Corrected how many?", ar: "صحّحت كم؟" },
+                options: [
+                { en: "25+", ar: "أكثر من ٢٥" },
+                { en: "0", ar: "٠" },
+                { en: "1", ar: "١" },
+                { en: "2", ar: "٢" },
+                ],
+                correctIndex: 0,
+              },
             ],
-            sourceNotes: [
-              { en: "Allah cleared her by revelation — a lasting honour.", ar: "بَرَّأها اللهُ بِوَحيٍ — شَرَفٌ باقٍ." },
-            ],
-            memberRoles: [
-              { en: "Evidence-finder, Explainer, Presenter.", ar: "باحِثُ الدَّليل، الشّارِح، العارِض." },
-            ],
-            finalProduct: { en: "A short talk on her innocence and avoiding slander.", ar: "كَلِمةٌ عن بَراءَتِها واجتِنابِ الإفك." },
           },
           {
-            slug: "love-and-respect",
-            name: { en: "Team B — Loving and respecting her", ar: "الفَريقُ ب — مَحَبَّتُها واحتِرامُها" },
-            learningObjective: { en: "Explain the believer's duty toward the Prophet's family and Companions.", ar: "نُبَيِّنُ واجِبَ المُؤمِنِ نَحوَ آلِ النَّبِيِّ ﷺ وصَحابَتِه." },
-            task: { en: "Explain why Ahl as-Sunnah love and honour all the wives and Companions of the Prophet ﷺ, speak well of them, and never insult them. Why is respecting them part of respecting the Prophet ﷺ himself?", ar: "بَيِّنوا لِماذا يُحِبُّ أهلُ السُّنّةِ ويُوَقِّرونَ جَميعَ أزواجِ النَّبِيِّ ﷺ وصَحابَتِه، ويَذكُرونَهُم بِخَير، ولا يَسُبّونَهُم. ولِماذا احتِرامُهُم جُزءٌ مِن احتِرامِ النَّبِيِّ ﷺ نَفسِه؟" },
-            evidence: [
-              { en: "'his wives are their mothers' (Al-Ahzab 6); the honour of the Companions.", ar: "﴿وأزواجُهُ أُمَّهاتُهُم﴾ (الأحزاب ٦)؛ شَرَفُ الصَّحابة." },
+            type: "trueFalse" as const,
+            title: { en: "True or False", ar: "صواب أم خطأ" },
+            questions: [
+              { statement: { en: "Aishah narrated 2210 hadiths.", ar: "عائشة روت ٢٢١٠ حديثًا." }, answer: true },
+              { statement: { en: "She had no scholarly role.", ar: "لم يكن لها دور علمي." }, answer: false },
+              { statement: { en: "She was Abu Bakr\'s daughter.", ar: "كانت بنت أبي بكر." }, answer: true },
+              { statement: { en: "She was called Mother of the Believers.", ar: "لُقّبت بأمّ المؤمنين." }, answer: true },
+              { statement: { en: "She never corrected anyone.", ar: "لم تصحّح أحدًا أبدًا." }, answer: false },
             ],
-            sourceNotes: [
-              { en: "Loving the Prophet's household is part of faith.", ar: "حُبُّ آلِ بَيتِ النَّبِيِّ ﷺ مِنَ الإيمان." },
+          },
+          {
+            type: "matchUp" as const,
+            title: { en: "Match Up", ar: "وصّل" },
+            prompts: [
+              { prompt: { en: "Aishah", ar: "عائشة" }, answer: { en: "Mother of the Believers", ar: "أمّ المؤمنين" } },
+              { prompt: { en: "Abu Bakr", ar: "أبو بكر" }, answer: { en: "Her father", ar: "والدها" } },
+              { prompt: { en: "Hadith", ar: "حديث" }, answer: { en: "Prophetic narration", ar: "رواية نبويّة" } },
+              { prompt: { en: "Fiqh", ar: "فقه" }, answer: { en: "Jurisprudence", ar: "الفقه" } },
+              { prompt: { en: "Tafsir", ar: "تفسير" }, answer: { en: "Quran interpretation", ar: "تفسير القرآن" } },
             ],
-            memberRoles: [
-              { en: "Researcher, Summariser, Presenter.", ar: "الباحِث، المُلَخِّص، العارِض." },
+          },
+          {
+            type: "fillBlanks" as const,
+            title: { en: "Fill in the Blanks", ar: "املأ الفراغات" },
+            questions: [
+              { sentence: { en: "Aishah narrated _______ hadiths.", ar: "عائشة روت _______ حديثًا." }, blankAnswer: { en: "2210", ar: "٢٢١٠" } },
+              { sentence: { en: "She was daughter of _______.", ar: "كانت بنت _______." }, blankAnswer: { en: "Abu Bakr", ar: "أبي بكر" } },
+              { sentence: { en: "Called _______ of the Believers.", ar: "لُقّبت بـ_______ المؤمنين." }, blankAnswer: { en: "Mother", ar: "أمّ" } },
+              { sentence: { en: "She corrected _______ narrators.", ar: "صحّحت _______ راويًا." }, blankAnswer: { en: "25+", ar: "أكثر من ٢٥" } },
             ],
-            finalProduct: { en: "A summary of our duty to honour her.", ar: "مُلَخَّصٌ لِواجِبِ تَوقيرِها." },
+          },
+          {
+            type: "ordering" as const,
+            title: { en: "Put in Correct Order", ar: "رتّب ترتيبًا صحيحًا" },
+            items: [
+              { en: "Aishah grows up in Abu Bakr\'s household", ar: "عائشة تنشأ في بيت أبي بكر" },
+              { en: "Marries the Prophet ﷺ", ar: "تتزوّج النبيّ ﷺ" },
+              { en: "Learns directly from the Prophet", ar: "تتعلّم من النبيّ مباشرة" },
+              { en: "Becomes a leading hadith narrator", ar: "تصبح من أبرز رواة الحديث" },
+              { en: "Teaches hundreds of students", ar: "تعلّم مئات الطلّاب" },
+              { en: "Leaves legacy as greatest woman scholar", ar: "تترك إرثًا كأعظم عالمة" },
+            ],
           },
         ],
+        coinsReward: 25,
       },
-      responsePrompt: {
-        title: { en: "Final synthesis", ar: "التَّركيبُ الخِتامِيّ" },
-        prompt: { en: "Write a short tribute to Aishah (may Allah be pleased with her), mentioning: (1) one of her virtues, (2) one thing she preserved for the Ummah, and (3) one lesson from her life you will apply. End by stating the believer's duty to love and respect all the Prophet's wives and Companions.", ar: "اكتُبْ كَلِمةَ ثَناءٍ قَصيرةً في عائِشةَ (رَضِيَ اللهُ عنها)، تَذكُرُ فيها: (١) فَضيلةً مِن فَضائِلِها، (٢) شَيئًا حَفِظَتهُ لِلأُمّة، (٣) دَرسًا مِن حَياتِها سَتُطَبِّقُه. واختِمْ بِبَيانِ واجِبِ المُؤمِنِ في مَحَبّةِ أزواجِ النَّبِيِّ ﷺ وصَحابَتِهِ واحتِرامِهِم." },
-        placeholder: { en: "Aishah, may Allah be pleased with her, was... She preserved... A lesson I will apply is... We must love and respect...", ar: "عائِشةُ رَضِيَ اللهُ عنها كانَت... وحَفِظَت... والدَّرسُ الذي سأُطَبِّقُهُ... وعلَينا أن نُحِبَّ ونَحتَرِمَ..." },
-      },
-      body: {
-        en: "Aishah, may Allah be pleased with her, was adorned with many virtues beyond her vast knowledge. Among the greatest is the honour Allah gave her when wicked people spread a slanderous lie about her — the event known as al-Ifk. For a month the false rumour caused her and her family deep distress, until Allah Himself revealed her complete innocence in clear verses of Surat An-Nur, recited until the Day of Judgement: a vindication from above the seven heavens that no other woman in history has received. These verses not only cleared her name forever but also taught the Ummah severe warnings against spreading rumours, gossip, and accusations without proof. Her patience and trust in Allah throughout that trial are themselves a model for every believer wronged by false words.\n\nAmong her other virtues, the Prophet ﷺ openly expressed his deep love for her; when asked who was the most beloved person to him, he named her father Abu Bakr, and he passed away ﷺ in her house, on her day, resting against her chest, and was buried in her chamber. The Angel Jibril once conveyed greetings of peace to her. She was known for her generosity, giving away large sums in charity while she herself lived simply, and for her devotion in worship and fasting. All of this confirms her lofty rank in the sight of Allah and His Messenger ﷺ.\n\nBecause of all this, the believers have a clear duty toward Aishah and toward all the wives and Companions of the Prophet ﷺ: to love them, to honour and respect them, to speak of them only with good, to seek to follow their example, and never to insult or disparage them. This is a firm principle of Ahl as-Sunnah wal-Jama'ah. Loving the household and Companions of the Prophet ﷺ is part of loving him ﷺ, and disrespecting those whom Allah honoured and whom the Prophet ﷺ loved is a grave error. A demanding student should conclude this lesson with two commitments: first, to follow Aishah's example in seeking knowledge, guarding the tongue, and trusting Allah in hardship; and second, to hold the Mothers of the Believers and all the Companions in the highest honour, defending their reputation and learning from their lives. In honouring Aishah, the believer honours the very fabric of the religion that she, by Allah's grace, helped to preserve and pass on to us.",
-        ar: "عائِشةُ، رَضِيَ اللهُ عنها، تَزَيَّنَت بِفَضائِلَ كَثيرةٍ وَراءَ عِلمِها الواسِع. ومِن أعظَمِها الشَّرَفُ الذي مَنَحَها اللهُ حينَ نَشَرَ أهلُ السّوءِ عنها إفكًا — الحادِثةُ المَعروفةُ بِالإفك. فَشَهرًا كامِلًا سَبَّبَتِ الإشاعةُ الكاذِبةُ لَها ولِأهلِها كَربًا عَميقًا، حَتّى أنزَلَ اللهُ نَفسُهُ بَراءَتَها التّامّةَ في آياتٍ بَيِّناتٍ مِن سورةِ النّور، تُتلى إلى يَومِ القِيامة: تَزكيةٌ مِن فَوقِ سَبعِ سَماواتٍ لم تَنَلها امرأةٌ في التّاريخِ سِواها. ولم تُبَرِّئْ هذه الآياتُ اسمَها لِلأبَدِ فَحَسب، بل عَلَّمَتِ الأُمّةَ تَحذيراتٍ شَديدةً مِن نَشرِ الإشاعاتِ والغيبةِ والاتِّهامِ بِلا بَيِّنة. وصَبرُها وثِقَتُها بِاللهِ طَوالَ تِلكَ المِحنةِ قُدوةٌ لِكُلِّ مُؤمِنٍ ظُلِمَ بِكَلامِ زُور.\n\nومِن فَضائِلِها أنَّ النَّبِيَّ ﷺ أعلَنَ صَريحًا شِدّةَ حُبِّهِ لَها؛ ولَمّا سُئِلَ مَن أحَبُّ النّاسِ إليه ذَكَرَ أباها أبا بَكر، وتُوُفِّيَ ﷺ في بَيتِها، في يَومِها، مُستَنِدًا إلى صَدرِها، ودُفِنَ في حُجرَتِها. وأبلَغَها جِبريلُ السَّلامَ مَرّةً. وعُرِفَت بِجودِها، تَتَصَدَّقُ بِالمَبالِغِ الكَبيرةِ وهي تَعيشُ في زُهد، وبِاجتِهادِها في العِبادةِ والصِّيام. وكُلُّ ذلك يُؤَكِّدُ عُلُوَّ مَنزِلَتِها عِندَ اللهِ ورَسولِهِ ﷺ.\n\nولِأجلِ هذا كُلِّهِ، على المُؤمِنينَ واجِبٌ بَيِّنٌ نَحوَ عائِشةَ ونَحوَ جَميعِ أزواجِ النَّبِيِّ ﷺ وصَحابَتِه: أن يُحِبّوهُم، ويُوَقِّروهُم ويَحتَرِموهُم، ولا يَذكُروهُم إلّا بِخَير، ويَسعَوا لِلاقتِداءِ بِهِم، ولا يَسُبّوهُم أو يَنتَقِصوهُم أبَدًا. وهذا أصلٌ ثابِتٌ مِن أصولِ أهلِ السُّنّةِ والجَماعة. فَحُبُّ آلِ بَيتِ النَّبِيِّ ﷺ وصَحابَتِهِ مِن حُبِّهِ ﷺ، والإساءةُ إلى مَن أكرَمَهُمُ اللهُ وأحَبَّهُمُ النَّبِيُّ ﷺ خَطأٌ جَسيم. وعلى الطّالِبِ المُطالِبِ أن يَختِمَ هذا الدَّرسَ بِالتِزامَين: أوَّلًا أن يَقتَدِيَ بِعائِشةَ في طَلَبِ العِلمِ وحِفظِ اللِّسانِ والثِّقةِ بِاللهِ في الشِّدّة؛ وثانيًا أن يُجِلَّ أُمَّهاتِ المُؤمِنينَ وجَميعَ الصَّحابةِ غايةَ الإجلال، يَذُبُّ عن أعراضِهِم ويَتَعَلَّمُ مِن سِيَرِهِم. والمُؤمِنُ إذ يُكرِمُ عائِشةَ يُكرِمُ نَسيجَ الدّينِ الذي أعانَت، بِفَضلِ اللهِ، على حِفظِهِ ونَقلِهِ إلَينا.",
-      },
+      body: { en: "", ar: "" },
     },
   ],
-  quizQuestions: [
-    {
-      prompt: { en: "Who was Aishah's father?", ar: "مَن أبو عائِشة؟" },
-      options: [
-        { en: "Abu Bakr as-Siddiq, the Prophet's closest friend and first Khalifah", ar: "أبو بَكرٍ الصِّدّيق، أقرَبُ أصحابِ النَّبِيِّ ﷺ وأوَّلُ خَليفة" },
-        { en: "Umar ibn al-Khattab", ar: "عُمَرُ بنُ الخَطّاب" },
-        { en: "Uthman ibn Affan", ar: "عُثمانُ بنُ عَفّان" },
-        { en: "Ali ibn Abi Talib", ar: "عَلِيُّ بنُ أبي طالِب" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "She was the daughter of Abu Bakr, raised in a home of faith from birth.", ar: "هي ابنةُ أبي بَكر، نَشَأَت في بَيتِ إيمانٍ مُنذُ مَولِدِها." },
-    },
-    {
-      prompt: { en: "What title do the wives of the Prophet ﷺ carry?", ar: "أيَّ لَقَبٍ تَحمِلُ أزواجُ النَّبِيِّ ﷺ؟" },
-      options: [
-        { en: "Mothers of the Believers (in honour, not lineage)", ar: "أُمَّهاتُ المُؤمِنين (تَكريمًا لا نَسَبًا)" },
-        { en: "Leaders of the army", ar: "قائِداتُ الجَيش" },
-        { en: "Judges of the city", ar: "قاضِياتُ المَدينة" },
-        { en: "They had no special title", ar: "لا لَقَبَ خاصَّ لَهُنّ" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "'and his wives are their mothers' (Al-Ahzab 6) — a motherhood of honour and respect.", ar: "﴿وأزواجُهُ أُمَّهاتُهُم﴾ (الأحزاب ٦) — أُمومةُ تَكريمٍ واحتِرام." },
-    },
-    {
-      prompt: { en: "What was Aishah's greatest contribution to Islam?", ar: "ما أعظَمُ إسهامِ عائِشةَ في الإسلام؟" },
-      options: [
-        { en: "Preserving and teaching knowledge — over 2,000 hadith and authority in tafsir & fiqh", ar: "حِفظُ العِلمِ وتَعليمُه — أكثَرُ مِن ألفَي حَديثٍ ومَرجِعِيّةٌ في التَّفسيرِ والفِقه" },
-        { en: "Leading armies into battle", ar: "قِيادةُ الجُيوشِ في الحَرب" },
-        { en: "Building mosques", ar: "بِناءُ المَساجِد" },
-        { en: "Collecting taxes", ar: "جَمعُ الضَّرائِب" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "She is one of the foundational scholars of Islam; Companions came to her to learn.", ar: "هي مِن مُؤَسِّسي عُلَماءِ الإسلام؛ كانَ الصَّحابةُ يَأتونَها يَتَعَلَّمون." },
-    },
-    {
-      prompt: { en: "How did Allah respond to the slander (al-Ifk) against Aishah?", ar: "كَيفَ رَدَّ اللهُ على الإفكِ ضِدَّ عائِشة؟" },
-      options: [
-        { en: "He revealed verses in Surat An-Nur declaring her innocence", ar: "أنزَلَ آياتٍ في سورةِ النّورِ تُعلِنُ بَراءَتَها" },
-        { en: "He stayed silent", ar: "سَكَتَ" },
-        { en: "He punished her", ar: "عاقَبَها" },
-        { en: "Nothing happened", ar: "لم يَحدُثْ شَيء" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "Allah cleared her from above the seven heavens — verses recited until the Day of Judgement.", ar: "بَرَّأها اللهُ مِن فَوقِ سَبعِ سَماوات — آياتٌ تُتلى إلى يَومِ القِيامة." },
-    },
-    {
-      prompt: { en: "What does Aishah's role as a scholar teach us?", ar: "ماذا يُعَلِّمُنا دَورُ عائِشةَ عالِمة؟" },
-      options: [
-        { en: "Seeking knowledge is a duty and honour for both women and men", ar: "طَلَبُ العِلمِ واجِبٌ وشَرَفٌ لِلنِّساءِ والرِّجالِ سَواء" },
-        { en: "Only men may learn the religion", ar: "لا يَتَعَلَّمُ الدّينَ إلّا الرِّجال" },
-        { en: "Knowledge is not important", ar: "العِلمُ غَيرُ مُهِمّ" },
-        { en: "Age decides one's rank", ar: "السِّنُّ يُقَرِّرُ المَنزِلة" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "Islam honours knowledge over gender, age, or status; learning is for all believers.", ar: "يُكرِمُ الإسلامُ العِلمَ فَوقَ الجِنسِ والسِّنِّ والمَكانة؛ والتَّعَلُّمُ لِكُلِّ المُؤمِنين." },
-    },
-    {
-      prompt: { en: "True or False: A believer must love and respect all the wives and Companions of the Prophet ﷺ.", ar: "صَوابٌ أم خَطأ: على المُؤمِنِ أن يُحِبَّ ويَحتَرِمَ جَميعَ أزواجِ النَّبِيِّ ﷺ وصَحابَتِه." },
-      options: [
-        { en: "True — this is a firm principle of Ahl as-Sunnah", ar: "صَواب — وهذا أصلٌ ثابِتٌ لِأهلِ السُّنّة" },
-        { en: "False", ar: "خَطأ" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "Loving the Prophet's household and Companions is part of loving him ﷺ.", ar: "حُبُّ آلِ بَيتِ النَّبِيِّ ﷺ وصَحابَتِهِ مِن حُبِّهِ ﷺ." },
-    },
-  ],
+  quizQuestions: [],
 };

@@ -11,223 +11,513 @@ export const iqlab: CourseLesson = {
   quranSurahs: ["Al-Humazah 4", "Al-'Alaq 15", "Al-Baqarah 33"],
   sections: [
     {
-      title: { en: "Recap and the meaning of Iqlab", ar: "مُراجَعةٌ ومَعنى الإقلاب" },
+      title: { en: "Critical thinking (Warm up)", ar: "تفكير ناقد (تهيئة)" },
       learningObjectives: [
-        { en: "Place Iqlab among the four rules and define it.", ar: "أُحَدِّدُ مَوقِعَ الإقلابِ بَينَ الأحكامِ الأربَعةِ وأُعَرِّفُه." },
+        { en: "Evaluate a real-world scenario using evidence from Quran, Sunnah, and Islamic values.", ar: "أُقيّم سيناريو واقعيًّا بأدلّة من القرآن والسنّة والقيم الإسلاميّة." },
+      ],
+      image: {
+        src: IMG.hijabStudent,
+        alt: { en: "Student thinking critically.", ar: "طالب يفكّر بشكل ناقد." },
+      },
+      callout: {
+        label: { en: "Critical thinking scenario", ar: "سيناريو للتفكير الناقد" },
+        title: { en: "Does pronunciation really matter in Quran?", ar: "هل النطق مهمّ فعلًا في القرآن؟" },
+        body: {
+          en: "A student reads Quran quickly without tajweed. He says: \'Allah knows what I mean. The meaning is what counts, not how I say the letters.\'",
+          ar: "طالب يقرأ القرآن بسرعة بلا تجويد. يقول: «الله يعلم ما أعنيه. المعنى هو المهمّ وليس نطق الحروف.»",
+        },
+      },
+      responsePrompt: {
+        title: { en: "Write your critical response", ar: "اكتب ردّك الناقد" },
+        prompt: {
+          en: "Criticise using evidence on tajweed importance and Iqlab.",
+          ar: "انتقد بأدلّة عن أهمّيّة التجويد والإقلاب.",
+        },
+        placeholder: { en: "This is wrong because...", ar: "هذا خطأ لأنّ..." },
+        buttonLabel: { en: "Save response", ar: "احفظ الإجابة" },
+        coinsReward: 10,
+      },
+      body: {
+        en: "\'Recite the Quran with tarteel.\' (Al-Muzzammil 4)",
+        ar: "﴿ورتّل القرآن ترتيلًا﴾ (المزّمّل ٤)",
+      },
+    },
+    {
+      title: { en: "Retrieval practise", ar: "ممارسة الاسترجاع" },
+      imageMatchingActivity: {
+        title: { en: "Match each image to its Islamic keyword", ar: "طابق كلّ صورة بكلمتها الإسلاميّة" },
+        instruction: { en: "Drag the keyword to the correct image.", ar: "اسحب الكلمة إلى الصورة الصحيحة." },
+        pairs: [
+          { image: IMG.childQuran, keyword: { en: "Tajweed", ar: "تجويد" } },
+          { image: IMG.grandMosque, keyword: { en: "Iqlab", ar: "الإقلاب" } },
+          { image: IMG.lantern, keyword: { en: "Noon Sakinah", ar: "نون ساكنة" } },
+          { image: IMG.bookshelf, keyword: { en: "Tanween", ar: "تنوين" } },
+          { image: IMG.skyBlue, keyword: { en: "Tarteel", ar: "ترتيل" } },
+        ],
+        coinsReward: 10,
+      },
+      body: {
+        en: "\'Those to whom We gave the Book recite it with its true recital.\' (Al-Baqarah 121)",
+        ar: "﴿الذين آتيناهم الكتاب يتلونه حقّ تلاوته﴾ (البقرة ١٢١)",
+      },
+    },
+    {
+      title: { en: "Iqlab", ar: "الإقلاب" },
+      learningObjectives: [
+        { en: "Define Iqlab and identify its letters.", ar: "أعرّف الإقلاب وأحدّد حروفه." },
+        { en: "Apply Iqlab correctly in Quran recitation.", ar: "أطبّق الإقلاب بشكل صحيح في التلاوة." },
       ],
       successCriteria: [
-        { en: "I can define Iqlab and name its single letter.", ar: "أُعَرِّفُ الإقلابَ وأذكُرُ حَرفَهُ الوَحيد." },
-      ],
-      image: {
-        src: IMG.bookshelf,
-        alt: { en: "An arrow turning one shape into another.", ar: "سَهمٌ يُحَوِّلُ شَكلًا إلى آخَر." },
-        caption: { en: "Iqlab = the noon is converted into a hidden meem before ba.", ar: "الإقلاب = تُقلَبُ النّونُ ميمًا مُخفاةً قَبلَ الباء." },
-      },
-      callout: {
-        label: { en: "High-order question", ar: "سُؤالٌ عالي المُستوى" },
-        title: { en: "Why convert the noon rather than merge or pronounce it?", ar: "لِماذا تُقلَبُ النّونُ بَدَلَ إدغامِها أو إظهارِها؟" },
-        body: {
-          en: "Iqlab is neither full clarity (Izhar) nor full merging (Idgham); it is a third response. Argue why the relationship between the noon and the ba calls for a unique solution — converting the noon into a meem — rather than the rules used for other letters.",
-          ar: "الإقلابُ لَيسَ وُضوحًا تامًّا (إظهارًا) ولا إدغامًا تامًّا؛ بل جَوابٌ ثالِث. حاجِجْ لِماذا تَستَدعي العَلاقةُ بَينَ النّونِ والباءِ حَلًّا فَريدًا — قَلبَ النّونِ ميمًا — بَدَلَ أحكامِ سائِرِ الحُروف.",
-        },
-      },
-      infoBoxes: [
-        {
-          label: { en: "Definition", ar: "تَعريف" },
-          lines: [
-            { en: "Iqlab (إقلاب) literally means 'to turn/convert'. In tajweed: converting the noon sakinah or tanwin into a hidden meem (م), pronounced with ghunnah, when followed by the letter ba (ب).", ar: "الإقلابُ لُغةً: التَّحويلُ والقَلب. واصطِلاحًا: قَلبُ النّونِ السّاكِنةِ أوِ التَّنوينِ ميمًا مُخفاةً تُنطَقُ بِغُنّة، إذا تَلاها حَرفُ الباء (ب)." },
-          ],
-        },
-        {
-          label: { en: "Its one letter", ar: "حَرفُهُ الوَحيد" },
-          lines: [
-            { en: "Iqlab has only ONE letter: the ba (ب). It is the simplest rule to remember in this respect.", ar: "لِلإقلابِ حَرفٌ واحِدٌ فَقَط: الباء (ب). وهو بِهذا أيسَرُ الأحكامِ تَذَكُّرًا." },
-          ],
-        },
-      ],
-      body: {
-        en: "We have now studied two of the four rules of the noon sakinah and tanwin. Izhar (clear pronunciation) occurs with the six throat letters, because they are far from the noon. Idgham (merging) occurs with six letters that are close to or share qualities with the noon. Now we come to the third rule, Iqlab, which is unique and beautifully simple in one respect: it has only a single letter that triggers it.\n\nIqlab literally means to turn something over or to convert it from one state to another. In tajweed, it means that when a noon sakinah or a tanwin is followed by the letter ba (ب), the noon is not pronounced clearly (as in Izhar) and is not merged (as in Idgham); instead, it is converted into a meem (م). This converted meem is not a strong, clear meem — it is a hidden, gentle meem pronounced with a ghunnah (the nasal hum held about two counts). So the noon sound, in effect, transforms into a soft 'm' sound before the ba.\n\nThe key fact to fix in your mind is that Iqlab has exactly one letter: the ba. Whenever — and only when — a noon sakinah or tanwin is followed by a ba, this rule applies. This makes Iqlab the easiest of the four rules to identify. The deeper question, which the next section answers, is why the meeting of the noon and the ba produces this particular result. As always in tajweed, the answer lies in the physical nature of these two sounds and in the principle that the rules of recitation are not arbitrary commands but reflections of how the human mouth naturally and beautifully produces the words of Allah. A demanding student should already be building a complete map of the four rules in their mind, with each rule occupying its place according to the relationship between the noon and the letter that follows.",
-        ar: "دَرَسنا الآنَ اثنَينِ مِن أحكامِ النّونِ السّاكِنةِ والتَّنوينِ الأربَعة. الإظهارُ (النُّطقُ الواضِح) يَقَعُ مَعَ حُروفِ الحَلقِ السِّتّة، لِبُعدِها عنِ النّون. والإدغامُ يَقَعُ مَعَ سِتّةِ حُروفٍ قَريبةٍ مِنَ النّونِ أو مُشارِكةٍ لَها في صِفات. والآنَ نَأتي إلى الحُكمِ الثّالِث، الإقلاب، وهو فَريدٌ بَسيطٌ بَديعٌ مِن وَجه: لَهُ حَرفٌ واحِدٌ فَقَط يوجِبُه.\n\nالإقلابُ لُغةً تَحويلُ الشَّيءِ وقَلبُهُ مِن حالٍ إلى حال. وفي التَّجويدِ يَعني أنَّهُ إذا تَلا النّونَ السّاكِنةَ أوِ التَّنوينَ حَرفُ الباء (ب)، فَلا تُنطَقُ النّونُ واضِحةً (كَالإظهار) ولا تُدغَمُ (كَالإدغام)؛ بل تُقلَبُ ميمًا (م). وهذه الميمُ المَقلوبةُ لَيسَت ميمًا قَوِيّةً واضِحة — بل ميمٌ مُخفاةٌ لَطيفةٌ تُنطَقُ بِغُنّةٍ (الصَّوتِ الأنفِيِّ المُمسَكِ نَحوَ حَرَكَتَين). فَصَوتُ النّون، عَمَلِيًّا، يَتَحَوَّلُ إلى صَوتِ ميمٍ لَيِّنٍ قَبلَ الباء.\n\nوالحَقيقةُ المِفتاحُ التي تُثَبِّتُها في ذِهنِكَ أنَّ لِلإقلابِ حَرفًا واحِدًا بِالضَّبط: الباء. فَكُلَّما — وفَقَط حينَ — تَلا النّونَ السّاكِنةَ أوِ التَّنوينَ باءٌ، انطَبَقَ هذا الحُكم. وهذا يَجعَلُ الإقلابَ أيسَرَ الأحكامِ الأربَعةِ تَمييزًا. والسُّؤالُ الأعمَق، الذي يُجيبُهُ القِسمُ التّالي، لِماذا يُنتِجُ لِقاءُ النّونِ والباءِ هذه النَّتيجةَ بِالذّات. وكَما دائِمًا في التَّجويد، الجَوابُ في الطَّبيعةِ الماديّةِ لِهذَينِ الصَّوتَين، وفي مَبدَأِ أنَّ قَواعِدَ التِّلاوةِ لَيسَت أوامِرَ اعتِباطيّةً بل انعِكاساتٌ لِكَيفِ يُنتِجُ فَمُ الإنسانِ كَلامَ اللهِ طَبعًا وجَمالًا. وعلى الطّالِبِ المُطالِبِ أن يَكونَ قد بَنى في ذِهنِهِ خَريطةً كامِلةً لِلأحكامِ الأربَعة، كُلُّ حُكمٍ في مَوضِعِهِ بِحَسَبِ العَلاقةِ بَينَ النّونِ والحَرفِ التّالي.",
-      },
-    },
-    {
-      title: { en: "Why the noon becomes a meem", ar: "لِماذا تَصيرُ النّونُ ميمًا" },
-      learningObjectives: [
-        { en: "Explain the articulation reason Iqlab converts noon to meem.", ar: "أُبَيِّنُ سَبَبَ قَلبِ النّونِ ميمًا في الإقلابِ مِنَ المَخرَج." },
-      ],
-      image: {
-        src: IMG.lantern,
-        alt: { en: "Two lips meeting, like the makhraj of meem and ba.", ar: "شَفَتانِ تَلتَقِيان، كَمَخرَجِ الميمِ والباء." },
-        caption: { en: "Meem and ba both come from the lips — the bridge that makes Iqlab natural.", ar: "الميمُ والباءُ مِنَ الشَّفَتَين — الجِسرُ الذي يَجعَلُ الإقلابَ طَبيعِيًّا." },
-      },
-      infoBoxes: [
-        {
-          label: { en: "The logic", ar: "العِلّة" },
-          lines: [
-            { en: "Pronouncing a clear noon directly before ba is heavy on the tongue. The ba and the meem both come from the lips (shafatan), and the meem shares the noon's ghunnah. So the noon is converted to meem — easy to flow into ba — while keeping the ghunnah.", ar: "نُطقُ نونٍ واضِحةٍ مُباشَرةً قَبلَ الباءِ ثَقيلٌ على اللِّسان. والباءُ والميمُ كِلاهُما مِنَ الشَّفَتَين، والميمُ تُشارِكُ النّونَ في الغُنّة. فَتُقلَبُ النّونُ ميمًا — يَسهُلُ الانتِقالُ مِنها إلى الباء — مَعَ بَقاءِ الغُنّة." },
-          ],
-        },
-        {
-          label: { en: "The small meem", ar: "الميمُ الصَّغيرة" },
-          lines: [
-            { en: "In the mushaf, Iqlab is marked by a small meem (ﻤ) placed above the noon or tanwin instead of a sukoon — a sign telling the reciter to say a meem here, not a noon.", ar: "في المُصحَفِ يُعَلَّمُ الإقلابُ بِميمٍ صَغيرةٍ توضَعُ فَوقَ النّونِ أوِ التَّنوينِ بَدَلَ السُّكون — عَلامةٌ تُخبِرُ القارِئَ أن يَنطِقَ ميمًا هُنا لا نونًا." },
-          ],
-        },
-      ],
-      callout: {
-        label: { en: "Connect makharij", ar: "اربِطِ المَخارِج" },
-        title: { en: "A bridge between the tongue and the lips", ar: "جِسرٌ بَينَ اللِّسانِ والشَّفَتَين" },
-        body: {
-          en: "The noon is from the tongue-tip; the ba is from the lips. The meem is from the lips but shares the noon's nasal quality. Argue how the meem acts as the perfect 'bridge' allowing a smooth, beautiful transition from the noon's nasal sound to the lip-letter ba.",
-          ar: "النّونُ مِن طَرَفِ اللِّسان؛ والباءُ مِنَ الشَّفَتَين. والميمُ مِنَ الشَّفَتَينِ لكِنَّها تُشارِكُ النّونَ في الصِّفةِ الأنفِيّة. حاجِجْ كَيفَ تَعمَلُ الميمُ «جِسرًا» مِثاليًّا يُتيحُ انتِقالًا سَلِسًا جَميلًا مِن صَوتِ النّونِ الأنفِيِّ إلى الباءِ الشَّفَوِيّة.",
-        },
-      },
-      matchingActivity: {
-        title: { en: "Match the example to its reading", ar: "طابِقِ المِثالَ بِقِراءَتِه" },
-        instruction: { en: "Each has noon/tanwin before ba (Iqlab). Match to its converted reading.", ar: "كُلٌّ فيهِ نونٌ/تَنوينٌ قَبلَ الباء (إقلاب). طابِقهُ بِقِراءَتِهِ المَقلوبة." },
-        prompts: [
-          { en: "مِنْ بَعْدِ (min ba'di)", ar: "مِنْ بَعْدِ" },
-          { en: "أَنْبِئْهُمْ (anbi'hum)", ar: "أَنْبِئْهُمْ" },
-          { en: "سَميعٌ بَصيرٌ (sami'un basir)", ar: "سَميعٌ بَصيرٌ" },
-          { en: "لَيُنْبَذَنَّ (la-yunbadhanna)", ar: "لَيُنْبَذَنَّ" },
-        ].map((p, i) => ({
-          prompt: p,
-          answer: [
-            { en: "'mim-ba'di' — noon → hidden meem + ghunnah", ar: "«مِمْ بَعْدِ» — نون ← ميمٌ مُخفاةٌ + غُنّة" },
-            { en: "'am-bi'hum' — noon → hidden meem + ghunnah", ar: "«أَمْبِئْهُم» — نون ← ميمٌ مُخفاة + غُنّة" },
-            { en: "'sami'um-basir' — tanwin → hidden meem + ghunnah", ar: "«سَميعُمْ بَصير» — تَنوين ← ميمٌ مُخفاة + غُنّة" },
-            { en: "'la-yumbadhanna' — noon → hidden meem + ghunnah", ar: "«لَيُمْبَذَنَّ» — نون ← ميمٌ مُخفاة + غُنّة" },
-          ][i],
-        })),
-      },
-      body: {
-        en: "Why does the noon turn specifically into a meem before the ba, and not into some other sound? The answer is, once again, a matter of the natural ease and beauty of pronunciation, rooted in the articulation points (makharij). Consider the two letters involved. The noon is pronounced from the tip of the tongue at the front of the mouth. The ba is pronounced from the two lips (it is a labial letter). Try to say a sharp, clear noon and then immediately a ba — 'an-ba' — and you will feel that it is slightly awkward and heavy; the tongue must do one thing for the noon and the lips must abruptly do another for the ba.\n\nNow consider the meem. The meem, like the ba, is pronounced from the two lips — so it sits in exactly the right place to flow smoothly into the ba. But the meem also shares an important quality with the noon: both the meem and the noon are nasal letters that carry a ghunnah. So the meem is the perfect 'bridge' between the noon and the ba: it preserves the nasal ghunnah of the noon, while moving the point of articulation to the lips where the ba is waiting. Converting the noon into a meem therefore gives the smoothest, most beautiful transition — keeping the nasal quality but easing the journey to the lips. This is the wisdom of Iqlab.\n\nThe scholars of recitation marked this rule clearly in the written mushaf. Where Iqlab occurs, you will not see a sukoon over the noon; instead you will see a small meem (ﻤ) written above the noon or the tanwin. This little sign is an instruction to the reciter: 'here, do not say a noon — convert it to a hidden meem with ghunnah.' So when you reach words like 'مِنْ بَعْدِ' (read mim-ba'di), 'أَنْبِئْهُمْ' (read am-bi'hum), or the tanwin in 'سَميعٌ بَصيرٌ' (read sami'um-basir), you bring your lips gently together for a soft meem, hold the ghunnah, and glide into the ba. A demanding student should appreciate the precision and the mercy in this: the rules of tajweed shape recitation to be both faithful to the original sound and naturally beautiful on the tongue — a perfect harmony between accuracy and ease that befits the recitation of the words of Allah.",
-        ar: "لِماذا تَنقَلِبُ النّونُ ميمًا تَحديدًا قَبلَ الباء، لا صَوتًا آخَر؟ الجَوابُ، مَرّةً أُخرى، مَسألةُ يُسرِ النُّطقِ وجَمالِهِ الطَّبيعِيّ، أصلُها في المَخارِج. تَأمَّلِ الحَرفَين. النّونُ تُنطَقُ مِن طَرَفِ اللِّسانِ في مُقَدِّمةِ الفَم. والباءُ تُنطَقُ مِنَ الشَّفَتَين (حَرفٌ شَفَوِيّ). حاوِلْ أن تَقولَ نونًا واضِحةً حادّةً ثُمَّ باءً فَورًا — «أنْبَ» — تَجِدْهُ ثَقيلًا قَليلًا؛ فَاللِّسانُ يَفعَلُ شَيئًا لِلنّونِ والشَّفَتانِ تَفعَلانِ فَجأةً شَيئًا آخَرَ لِلباء.\n\nوالآنَ تَأمَّلِ الميم. الميمُ، كَالباء، تُنطَقُ مِنَ الشَّفَتَين — فَتَقَعُ في المَوضِعِ الصَّحيحِ تَمامًا لِتَنسابَ إلى الباء. لكِنَّ الميمَ تُشارِكُ النّونَ أيضًا في صِفةٍ مُهِمّة: كِلتاهُما حَرفٌ أنفِيٌّ يَحمِلُ غُنّة. فالميمُ الجِسرُ المِثاليُّ بَينَ النّونِ والباء: تَحفَظُ غُنّةَ النّونِ الأنفِيّة، وتَنقُلُ مَوضِعَ النُّطقِ إلى الشَّفَتَينِ حَيثُ تَنتَظِرُ الباء. فَقَلبُ النّونِ ميمًا يُعطي أسلَسَ انتِقالٍ وأجمَلَه — يَحفَظُ الصِّفةَ الأنفِيّةَ ويُيَسِّرُ الرِّحلةَ إلى الشَّفَتَين. وهذه حِكمةُ الإقلاب.\n\nوقد عَلَّمَ عُلَماءُ القِراءةِ هذا الحُكمَ بِوُضوحٍ في المُصحَفِ المَكتوب. فحَيثُ يَقَعُ الإقلابُ لَن تَرى سُكونًا فَوقَ النّون؛ بل تَرى ميمًا صَغيرةً (ﻤ) فَوقَ النّونِ أوِ التَّنوين. وهذه العَلامةُ الصَّغيرةُ أمرٌ لِلقارِئ: «هُنا لا تَقُلْ نونًا — اقلِبها ميمًا مُخفاةً بِغُنّة». فحينَ تَبلُغُ كَلِماتٍ مِثلَ «مِنْ بَعْدِ» (تُقرَأُ مِمْ بَعْدِ)، و«أَنْبِئْهُمْ» (تُقرَأُ أَمْبِئْهُم)، أوِ التَّنوينَ في «سَميعٌ بَصيرٌ» (تُقرَأُ سَميعُمْ بَصير)، تَضُمُّ شَفَتَيكَ بِلُطفٍ لِميمٍ لَيِّنة، وتُمسِكُ الغُنّة، وتَنسابُ إلى الباء. وعلى الطّالِبِ المُطالِبِ أن يُقَدِّرَ الدِّقّةَ والرَّحمةَ في هذا: فَقَواعِدُ التَّجويدِ تُشَكِّلُ التِّلاوةَ لِتَكونَ أمينةً لِلصَّوتِ الأصليِّ وجَميلةً طَبعًا على اللِّسان — تَناغُمٌ تامٌّ بَينَ الدِّقّةِ واليُسرِ يَليقُ بِتِلاوةِ كَلامِ الله.",
-      },
-    },
-    {
-      title: { en: "Practice and the spirit of tajweed", ar: "تَطبيقٌ وروحُ التَّجويد" },
-      learningObjectives: [
-        { en: "Apply Iqlab correctly and connect tajweed to reverence for the Qur'an.", ar: "أُطَبِّقُ الإقلابَ صَحيحًا وأربِطُ التَّجويدَ بِتَعظيمِ القُرآن." },
+        { en: "I can define Iqlab.", ar: "أعرّف الإقلاب." },
+        { en: "I can list the letters of Iqlab.", ar: "أذكر حروف الإقلاب." },
+        { en: "I can identify Iqlab in Quranic verses.", ar: "أحدّد الإقلاب في الآيات القرآنيّة." },
       ],
       image: {
         src: IMG.childQuran,
-        alt: { en: "A student carefully reciting with the mushaf.", ar: "طالِبٌ يَتلو بِعِنايةٍ مِنَ المُصحَف." },
-        caption: { en: "Three rules down — the map of noon sakinah is nearly complete.", ar: "ثَلاثةُ أحكامٍ — وخَريطةُ النّونِ السّاكِنةِ تَكادُ تَكتَمِل." },
+        alt: { en: "Topic image.", ar: "صورة الموضوع." },
       },
-      groupTasks: {
-        title: { en: "Recitation workshop", ar: "وَرشةُ تِلاوة" },
-        instruction: { en: "In groups, find and recite Iqlab, and review the three rules so far.", ar: "في مَجموعاتٍ، جِدوا واتلوا الإقلاب، وراجِعوا الأحكامَ الثَّلاثة." },
-        groups: [
-          {
-            slug: "find-iqlab",
-            name: { en: "Team A — Hunt for the small meem", ar: "الفَريقُ أ — اصطِيادُ الميمِ الصَّغيرة" },
-            learningObjective: { en: "Spot Iqlab by the small meem in the mushaf.", ar: "نَرصُدُ الإقلابَ بِالميمِ الصَّغيرةِ في المُصحَف." },
-            task: { en: "Find four examples of Iqlab in the Qur'an (noon or tanwin before ba) and recite each with a hidden meem and ghunnah.", ar: "جِدوا أربَعةَ أمثِلةٍ لِلإقلابِ (نونٌ أو تَنوينٌ قَبلَ الباء) واتلوا كُلًّا بِميمٍ مُخفاةٍ وغُنّة." },
-            evidence: [
-              { en: "One letter: ba (ب); marked by a small meem (ﻤ).", ar: "حَرفٌ واحِد: الباء (ب)؛ يُعَلَّمُ بِميمٍ صَغيرة (ﻤ)." },
-            ],
-            sourceNotes: [
-              { en: "Lips together softly for the meem; hold the ghunnah.", ar: "ضُمُّوا الشَّفَتَينِ بِلُطفٍ لِلميم؛ وأمسِكوا الغُنّة." },
-            ],
-            memberRoles: [
-              { en: "Searcher, Reciter, Checker.", ar: "الباحِث، القارِئ، المُدَقِّق." },
-            ],
-            finalProduct: { en: "Four recited Iqlab examples.", ar: "أربَعةُ أمثِلةِ إقلابٍ مَتلُوّة." },
-          },
-          {
-            slug: "review-three",
-            name: { en: "Team B — Map the three rules", ar: "الفَريقُ ب — خَريطةُ الأحكامِ الثَّلاثة" },
-            learningObjective: { en: "Compare Izhar, Idgham, and Iqlab.", ar: "نُقارِنُ الإظهارَ والإدغامَ والإقلاب." },
-            task: { en: "Make a table comparing Izhar, Idgham, and Iqlab: their letters, what happens to the noon, and whether there is ghunnah.", ar: "اصنَعوا جَدوَلًا يُقارِنُ الإظهارَ والإدغامَ والإقلاب: حُروفَها، وما يَحدُثُ لِلنّون، ووُجودَ الغُنّة." },
-            evidence: [
-              { en: "Izhar (throat, clear, no ghunnah); Idgham (yarmaloon ± ghunnah); Iqlab (ba → meem + ghunnah).", ar: "الإظهار (الحَلق، واضِح، بِلا غُنّة)؛ الإدغام (يَرمَلون ± غُنّة)؛ الإقلاب (الباء ← ميم + غُنّة)." },
-            ],
-            sourceNotes: [
-              { en: "One rule remains: Ikhfa.", ar: "بَقِيَ حُكمٌ واحِد: الإخفاء." },
-            ],
-            memberRoles: [
-              { en: "Organiser, Writer, Presenter.", ar: "المُنَظِّم، الكاتِب، العارِض." },
-            ],
-            finalProduct: { en: "A comparison table of the three rules.", ar: "جَدوَلُ مُقارَنةٍ لِلأحكامِ الثَّلاثة." },
-          },
+      readyButton: {
+        label: { en: "I\'m ready to learn!", ar: "أنا مستعدّ للتعلّم!" },
+        coinsReward: 5,
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Noon Sakinah and Tanween — Iqlab", ar: "النون الساكنة والتنوين — الإقلاب" },
+      learningObjectives: [
+        { en: "Master Iqlab: Changing Noon Sakinah/Tanween to a hidden Meem before the letter Ba.", ar: "أتقن الإقلاب: تحويل النون الساكنة/التنوين إلى ميم مخفاة قبل حرف الباء." },
+      ],
+      image: {
+        src: IMG.childQuran,
+        alt: { en: "Lesson content image.", ar: "صورة محتوى الدرس." },
+      },
+      infoBoxes: [
+        {
+          label: { en: "What is Iqlab?", ar: "ما الإقلاب؟" },
+          lines: [
+            { en: "Changing Noon Sakinah/Tanween to a hidden Meem before the letter Ba. It applies when Noon Sakinah or Tanween is followed by: ب.", ar: "تحويل النون الساكنة/التنوين إلى ميم مخفاة قبل حرف الباء. ينطبق عندما تأتي النون الساكنة أو التنوين قبل: ب." },
+          ],
+        },
+        {
+          label: { en: "Letters of Iqlab", ar: "حروف الإقلاب" },
+          lines: [
+            { en: "The letters are: ب. Remember: Only the letter Ba (ب).", ar: "الحروف هي: ب. تذكّر: Only the letter Ba (ب)." },
+          ],
+        },
+        {
+          label: { en: "Examples from Quran", ar: "أمثلة من القرآن" },
+          lines: [
+            { en: "مِنْ بَعْدِ — Iqlab before ب. أَنْبِئْهُمْ — Iqlab before ب. سَمِيعٌۢ بَصِيرٌ — Iqlab before ب.", ar: "مِنْ بَعْدِ — الإقلاب قبل باء. أَنْبِئْهُمْ — الإقلاب قبل باء. سَمِيعٌۢ بَصِيرٌ — الإقلاب قبل باء." },
+          ],
+        },
+      ],
+      trueFalseActivity: {
+        title: { en: "True or False", ar: "صواب أم خطأ" },
+        questions: [
+        { statement: { en: "Iqlab means changing noon sakinah/tanween to a hidden meem before the letter ba.", ar: "الإقلاب يعني تحويل النون الساكنة/التنوين إلى ميم مخفاة قبل حرف الباء." }, answer: true },
+        { statement: { en: "There are 3 letters of Iqlab.", ar: "هناك ٣ حروف الإقلاب." }, answer: false },
+        { statement: { en: "Iqlab applies to Noon Sakinah and Tanween.", ar: "الإقلاب ينطبق على النون الساكنة والتنوين." }, answer: true },
+        { statement: { en: "Iqlab means clear pronunciation.", ar: "الإقلاب يعني النطق الواضح." }, answer: false },
+        { statement: { en: "Tajweed is obligatory when reciting Quran.", ar: "التجويد واجب عند قراءة القرآن." }, answer: true },
         ],
+        coinsReward: 10,
       },
-      responsePrompt: {
-        title: { en: "Final synthesis", ar: "التَّركيبُ الخِتامِيّ" },
-        prompt: { en: "Explain Iqlab fully: its meaning, its one letter, what happens to the noon, the role of ghunnah, and the small meem sign. Then explain — using makharij — why the meem is the ideal conversion. End by reflecting on how learning tajweed honours the Qur'an.", ar: "اشرَحِ الإقلابَ كامِلًا: مَعناه، وحَرفَهُ الوَحيد، وما يَحدُثُ لِلنّون، ودَورَ الغُنّة، وعَلامةَ الميمِ الصَّغيرة. ثُمَّ بَيِّنْ — بِالمَخارِج — لِماذا الميمُ القَلبُ الأمثَل. واختِمْ بِتَأمُّلِ كَيفَ يُعَظِّمُ تَعَلُّمُ التَّجويدِ القُرآن." },
-        placeholder: { en: "Iqlab means... Its letter is... The noon becomes... because the meem... Learning tajweed honours the Qur'an by...", ar: "الإقلابُ مَعناه... وحَرفُه... وتَصيرُ النّونُ... لِأنَّ الميمَ... وتَعَلُّمُ التَّجويدِ يُعَظِّمُ القُرآنَ بِـ..." },
+      fillBlanksActivity: {
+        title: { en: "Fill in the Blanks", ar: "املأ الفراغات" },
+        questions: [
+        { sentence: { en: "Iqlab means _______.", ar: "الإقلاب يعني _______." }, answer: { en: "iqlab", ar: "الإقلاب" } },
+        { sentence: { en: "There are _______ letters of Iqlab.", ar: "هناك _______ حرفًا في الإقلاب." }, answer: { en: "1", ar: "1" } },
+        { sentence: { en: "Iqlab applies to Noon _______ and Tanween.", ar: "الإقلاب ينطبق على النون _______ والتنوين." }, answer: { en: "Sakinah", ar: "الساكنة" } },
+        { sentence: { en: "\'Recite the Quran with _______.\' (Al-Muzzammil 4)", ar: "﴿ورتّل القرآن _______.﴾ (المزّمّل ٤)" }, answer: { en: "tarteel", ar: "ترتيلًا" } },
+        ],
+        coinsReward: 10,
       },
       body: {
-        en: "Iqlab is the simplest of the four rules to recognise, because it has only one letter — the ba. So as you recite, the rule is easy to apply: whenever a noon sakinah or a tanwin is immediately followed by a ba, you convert the noon into a soft, hidden meem, bringing your lips gently together and holding a ghunnah of about two counts, before completing the ba. The mushaf helps you by placing a small meem above the noon or tanwin wherever Iqlab occurs. Practise on clear examples: 'مِنْ بَعْدِ' → mim-ba'di; 'أَنْبِئْهُمْ' → am-bi'hum; 'لَيُنْبَذَنَّ' → la-yumbadhanna; and with tanwin 'سَميعٌ بَصيرٌ' → sami'um-basir, 'كِرامٍ بَرَرةٍ' → kiramim-bararatin. Recite each aloud until the soft meem and the held ghunnah come naturally.\n\nWith Iqlab, you have now mastered three of the four rules of the noon sakinah and tanwin — Izhar, Idgham, and Iqlab — and only one remains (Ikhfa). Take a moment to see the whole picture: the noon, when it meets the next letter, does one of four things, and which one depends entirely on the relationship between the two sounds. It stays clear when the letter is far away (the throat letters); it merges when the letter is very close or similar (yarmaloon, lam, ra); and it converts to a meem when it meets the ba, because the meem bridges the gap between the tongue and the lips. Every rule is a logical, beautiful response to a physical reality.\n\nAnd this is the deeper lesson that should stay with a demanding student. Tajweed is not a burden of dry rules imposed for their own sake; it is the science by which we preserve and beautify the recitation of the Qur'an, exactly as it was revealed to the Prophet ﷺ and passed down to us through an unbroken chain. Each rule reflects the wisdom and care woven into the very sounds of revelation. When you take the effort to convert a noon to a hidden meem before a ba — a tiny detail that most people never notice — you are showing reverence for the words of Allah down to their smallest sound. The Companions and the great reciters after them devoted their lives to preserving these details so that the Qur'an would reach every generation precisely. By learning and applying them, you join that noble tradition, and you honour the Book of Allah not only with your heart and your actions, but with the careful, loving precision of your tongue.",
-        ar: "الإقلابُ أيسَرُ الأحكامِ الأربَعةِ تَمييزًا، لِأنَّ لَهُ حَرفًا واحِدًا — الباء. فحينَ تَتلو، القاعِدةُ سَهلةُ التَّطبيق: كُلَّما تَلا النّونَ السّاكِنةَ أوِ التَّنوينَ باءٌ مُباشَرةً، قَلَبتَ النّونَ ميمًا لَيِّنةً مُخفاة، ضامًّا شَفَتَيكَ بِلُطفٍ مُمسِكًا غُنّةً نَحوَ حَرَكَتَين، قَبلَ إتمامِ الباء. والمُصحَفُ يُعينُكَ بِوَضعِ ميمٍ صَغيرةٍ فَوقَ النّونِ أوِ التَّنوينِ حَيثُ يَقَعُ الإقلاب. تَدَرَّبْ على أمثِلةٍ واضِحة: «مِنْ بَعْدِ» ← مِمْ بَعْدِ؛ «أَنْبِئْهُمْ» ← أَمْبِئْهُم؛ «لَيُنْبَذَنَّ» ← لَيُمْبَذَنَّ؛ ومَعَ التَّنوين «سَميعٌ بَصيرٌ» ← سَميعُمْ بَصير، «كِرامٍ بَرَرةٍ» ← كِرامِمْ بَرَرة. اتلُ كُلًّا جَهرًا حَتّى تَأتِيَ الميمُ اللَّيِّنةُ والغُنّةُ المُمسَكةُ طَبعًا.\n\nوبِالإقلابِ أتقَنتَ الآنَ ثَلاثةً مِن أحكامِ النّونِ السّاكِنةِ والتَّنوينِ الأربَعة — الإظهارَ والإدغامَ والإقلاب — وبَقِيَ واحِدٌ (الإخفاء). تَوَقَّفْ لِتَرى الصّورةَ كامِلة: النّونُ، حينَ تَلقى الحَرفَ التّالي، تَفعَلُ واحِدًا مِن أربَعة، وأيُّها يَتَوَقَّفُ كُلِّيًّا على العَلاقةِ بَينَ الصَّوتَين. تَبقى واضِحةً حينَ يَبعُدُ الحَرفُ (حُروفُ الحَلق)؛ وتَندَمِجُ حينَ يَقرُبُ أو يُشابِه (يَرمَلون، اللّام، الرّاء)؛ وتَنقَلِبُ ميمًا حينَ تَلقى الباء، لِأنَّ الميمَ تَجسُرُ الفَجوةَ بَينَ اللِّسانِ والشَّفَتَين. فَكُلُّ حُكمٍ جَوابٌ مَنطِقِيٌّ بَديعٌ لِواقِعٍ مادّيّ.\n\nوهذا الدَّرسُ الأعمَقُ الذي يَنبَغي أن يَبقى مَعَ الطّالِبِ المُطالِب. فالتَّجويدُ لَيسَ عِبئًا مِن قَواعِدَ جافّةٍ فُرِضَت لِذاتِها؛ بل العِلمُ الذي بِهِ نَحفَظُ ونُجَمِّلُ تِلاوةَ القُرآنِ تَمامًا كَما أُنزِلَ على النَّبِيِّ ﷺ ونُقِلَ إلينا بِسَنَدٍ مُتَّصِل. وكُلُّ قاعِدةٍ تَعكِسُ الحِكمةَ والعِنايةَ المَنسوجَتَينِ في أصواتِ الوَحيِ نَفسِها. فحينَ تَتَكَلَّفُ قَلبَ نونٍ ميمًا مُخفاةً قَبلَ باء — تَفصيلٌ دَقيقٌ لا يَنتَبِهُ إليهِ أكثَرُ النّاس — فأنتَ تُعَظِّمُ كَلامَ اللهِ إلى أصغَرِ صَوتٍ فيه. لقد أفنى الصَّحابةُ وكِبارُ القُرّاءِ بَعدَهُم أعمارَهُم في حِفظِ هذه التَّفاصيلِ لِيَصِلَ القُرآنُ إلى كُلِّ جيلٍ بِدِقّة. وبِتَعَلُّمِها وتَطبيقِها تَنضَمُّ إلى تِلكَ السِّلسِلةِ الشَّريفة، وتُعَظِّمُ كِتابَ اللهِ لا بِقَلبِكَ وعَمَلِكَ فَحَسب، بل بِدِقّةِ لِسانِكَ المُحِبّةِ الحَريصة.",
+        en: "Iqlab is a key tajweed rule for Noon Sakinah and Tanween. Changing Noon Sakinah/Tanween to a hidden Meem before the letter Ba.",
+        ar: "الإقلاب حكم أساسي من أحكام النون الساكنة والتنوين. تحويل النون الساكنة/التنوين إلى ميم مخفاة قبل حرف الباء.",
       },
     },
+    {
+      title: { en: "Group Work", ar: "عمل جماعي" },
+      learningObjectives: [
+        { en: "Practise identifying and applying Iqlab in Quran.", ar: "تدرّب على تحديد وتطبيق الإقلاب في القرآن." },
+      ],
+      image: {
+        src: IMG.grandMosque,
+        alt: { en: "Students collaborating.", ar: "طلاب يتعاونون." },
+      },
+      groupWorkCards: {
+        title: { en: "Choose Your Task", ar: "اختر مهمّتك" },
+        instruction: { en: "Each group picks one card. Study the information, complete the task, and present to the class.", ar: "تختار كلّ مجموعة بطاقة. ادرسوا المعلومات وأنجزوا المهمّة وقدّموا للصفّ." },
+        presentationNote: { en: "All Quran and Hadith must be authentic with references.", ar: "يجب أن يكون كلّ قرآن وحديث صحيحًا بمصادره." },
+        cards: [
+          {
+            id: "A",
+            title: { en: "Definition and Letters", ar: "التعريف والحروف" },
+            image: IMG.childQuran,
+            color: "teal",
+            topic: { en: "Master Iqlab", ar: "أتقن الإقلاب" },
+            infoSections: [
+              { label: { en: "Rule", ar: "قاعدة" }, content: { en: "Changing Noon Sakinah/Tanween to a hidden Meem before the letter Ba. Letters: ب.", ar: "تحويل النون الساكنة/التنوين إلى ميم مخفاة قبل حرف الباء. الحروف: ب." } },
+              { label: { en: "Mnemonic", ar: "طريقة حفظ" }, content: { en: "Remember: Only the letter Ba (ب).", ar: "تذكّر: Only the letter Ba (ب)." } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Mastering each rule perfects your recitation.", ar: "إتقان كلّ قاعدة يتقن تلاوتك." } },
+            ],
+            task: {
+              title: { en: "Create a Rule Chart", ar: "أنشئ جدول قواعد" },
+              description: { en: "Design a chart showing Iqlab with letters and examples.", ar: "صمّم جدولًا يُظهر الإقلاب مع الحروف والأمثلة." },
+              hint: { en: "Include: definition, letters, Quran examples, pronunciation.", ar: "ضمّن: التعريف والحروف والأمثلة والنطق." },
+            },
+          },
+          {
+            id: "B",
+            title: { en: "Finding Examples", ar: "إيجاد الأمثلة" },
+            image: IMG.bookshelf,
+            color: "blue",
+            topic: { en: "Spot the rule in Quran", ar: "حدّد القاعدة في القرآن" },
+            infoSections: [
+              { label: { en: "Method", ar: "طريقة" }, content: { en: "Look for noon sakinah/tanween before the specific letters.", ar: "ابحث عن نون ساكنة/تنوين قبل الحروف المحدّدة." } },
+              { label: { en: "Tip", ar: "نصيحة" }, content: { en: "Read slowly and mark each instance.", ar: "اقرأ ببطء وحدّد كلّ حالة." } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Practice makes perfect.", ar: "التدريب يصنع الإتقان." } },
+            ],
+            task: {
+              title: { en: "Find 10 Examples", ar: "أوجد ١٠ أمثلة" },
+              description: { en: "Find 10 examples of Iqlab from Juz Amma.", ar: "أوجد ١٠ أمثلة الإقلاب من جزء عمّ." },
+              hint: { en: "Write: surah, ayah, word, letter.", ar: "اكتب: السورة والآية والكلمة والحرف." },
+            },
+          },
+          {
+            id: "C",
+            title: { en: "Comparing Rules", ar: "مقارنة القواعد" },
+            image: IMG.lantern,
+            color: "purple",
+            topic: { en: "How rules differ", ar: "كيف تختلف القواعد" },
+            infoSections: [
+              { label: { en: "Comparison", ar: "مقارنة" }, content: { en: "Izhar = clear. Idgham = merge. Ikhfa = hide. Iqlab = change.", ar: "إظهار = واضح. إدغام = دمج. إخفاء = إخفاء. إقلاب = تحويل." } },
+              { label: { en: "Key", ar: "مفتاح" }, content: { en: "The letter after noon sakinah determines the rule.", ar: "الحرف بعد النون يحدّد القاعدة." } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Each rule has a unique sound.", ar: "لكلّ قاعدة صوت مميّز." } },
+            ],
+            task: {
+              title: { en: "Compare All Four Rules", ar: "قارن القواعد الأربع" },
+              description: { en: "Create a table comparing Izhar, Idgham, Ikhfa, Iqlab.", ar: "أنشئ جدولًا يقارن الإظهار والإدغام والإخفاء والإقلاب." },
+              hint: { en: "Include: definition, letters, sound, examples.", ar: "ضمّن: التعريف والحروف والصوت والأمثلة." },
+            },
+          },
+          {
+            id: "D",
+            title: { en: "Practice Recitation", ar: "تدرّب على التلاوة" },
+            image: IMG.grandMosque,
+            color: "amber",
+            topic: { en: "Apply in reading", ar: "طبّق في القراءة" },
+            infoSections: [
+              { label: { en: "Tip", ar: "نصيحة" }, content: { en: "Identify the rule before reading each word.", ar: "حدّد القاعدة قبل قراءة كلّ كلمة." } },
+              { label: { en: "Hadith", ar: "حديث" }, content: { en: "\'The skilled reciter is with noble angels.\' (Bukhari)", ar: "«الماهر مع السفرة الكرام.» (البخاري)" } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Beautiful recitation is worship.", ar: "التلاوة الجميلة عبادة." } },
+            ],
+            task: {
+              title: { en: "Practise Reading", ar: "تدرّب على القراءة" },
+              description: { en: "Read 5 ayahs applying Iqlab correctly.", ar: "اقرأ ٥ آيات بتطبيق الإقلاب بشكل صحيح." },
+              hint: { en: "Mark each Iqlab instance.", ar: "حدّد كلّ حالة." },
+            },
+          },
+          {
+            id: "E",
+            title: { en: "Teaching Tajweed", ar: "تعليم التجويد" },
+            image: IMG.skyBlue,
+            color: "rose",
+            topic: { en: "Share your knowledge", ar: "شارك علمك" },
+            infoSections: [
+              { label: { en: "Hadith", ar: "حديث" }, content: { en: "\'The best of you learn Quran and teach it.\' (Bukhari)", ar: "«خيركم من تعلّم القرآن وعلّمه.» (البخاري)" } },
+              { label: { en: "Tip", ar: "نصيحة" }, content: { en: "Use simple language and examples.", ar: "استخدم لغة بسيطة وأمثلة." } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Teaching reinforces your own learning.", ar: "التعليم يعزّز تعلّمك." } },
+            ],
+            task: {
+              title: { en: "Create a Teaching Poster", ar: "أنشئ ملصقًا تعليميًّا" },
+              description: { en: "Design a poster teaching Iqlab to beginners.", ar: "صمّم ملصقًا لتعليم الإقلاب للمبتدئين." },
+              hint: { en: "Include: definition, letters, mnemonic, examples.", ar: "ضمّن: التعريف والحروف وطريقة الحفظ والأمثلة." },
+            },
+          },
+        ],
+        coinsReward: 15,
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Hinge Questions", ar: "أسئلة محوريّة" },
+      learningObjectives: [
+        { en: "Test your understanding of everything studied.", ar: "اختبر فهمك لكلّ ما درسته." },
+      ],
+      image: {
+        src: IMG.bookshelf,
+        alt: { en: "Assessment.", ar: "تقييم." },
+      },
+      hingeQuestions: {
+        title: { en: "Hinge Questions — Test Your Understanding", ar: "أسئلة محوريّة — اختبر فهمك" },
+        instruction: { en: "Answer all 10 questions.", ar: "أجب عن الأسئلة العشرة." },
+        questions: [
+          {
+            question: { en: "What does Iqlab mean?", ar: "ما معنى الإقلاب؟" },
+            options: [
+            { en: "Changing Noon Sakinah/Tanween to a hidden Meem before the letter Ba", ar: "تحويل النون الساكنة/التنوين إلى ميم مخفاة قبل حرف الباء" },
+            { en: "Silence", ar: "صمت" },
+            { en: "Shouting", ar: "صراخ" },
+            { en: "Skipping", ar: "تخطّي" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Changing Noon Sakinah/Tanween to a hidden Meem before the letter Ba.", ar: "تحويل النون الساكنة/التنوين إلى ميم مخفاة قبل حرف الباء." },
+          },
+          {
+            question: { en: "How many letters of Iqlab?", ar: "كم حرفًا في الإقلاب؟" },
+            options: [
+            { en: "1", ar: "1" },
+            { en: "2", ar: "٢" },
+            { en: "10", ar: "١٠" },
+            { en: "1", ar: "١" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "1 letters.", ar: "1 حرفًا." },
+          },
+          {
+            question: { en: "Iqlab applies to?", ar: "الإقلاب ينطبق على؟" },
+            options: [
+            { en: "Noon Sakinah and Tanween", ar: "النون الساكنة والتنوين" },
+            { en: "Meem only", ar: "الميم فقط" },
+            { en: "Lam only", ar: "اللام فقط" },
+            { en: "All letters", ar: "كلّ الحروف" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Noon Sakinah and Tanween.", ar: "النون الساكنة والتنوين." },
+          },
+          {
+            question: { en: "Which is a letter of Iqlab?", ar: "أيّ حرف من حروف الإقلاب؟" },
+            options: [
+            { en: "ب", ar: "باء" },
+            { en: "ب", ar: "ب" },
+            { en: "ت", ar: "ت" },
+            { en: "ل", ar: "ل" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "ب is a letter of Iqlab.", ar: "باء حرف الإقلاب." },
+          },
+          {
+            question: { en: "مِنْ بَعْدِ — what rule?", ar: "مِنْ بَعْدِ — أيّ حكم؟" },
+            options: [
+            { en: "Iqlab", ar: "الإقلاب" },
+            { en: "Izhar", ar: "إظهار" },
+            { en: "Waqf", ar: "وقف" },
+            { en: "Madd", ar: "مدّ" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Iqlab.", ar: "الإقلاب." },
+          },
+          {
+            question: { en: "Is tajweed obligatory?", ar: "هل التجويد واجب؟" },
+            options: [
+            { en: "Yes", ar: "نعم" },
+            { en: "No", ar: "لا" },
+            { en: "Optional", ar: "اختياري" },
+            { en: "Only for scholars", ar: "للعلماء فقط" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Yes, obligatory when reciting Quran.", ar: "نعم واجب عند قراءة القرآن." },
+          },
+          {
+            question: { en: "What verse commands tajweed?", ar: "أيّ آية تأمر بالتجويد؟" },
+            options: [
+            { en: "Al-Muzzammil 4", ar: "المزّمّل ٤" },
+            { en: "Al-Fatiha 1", ar: "الفاتحة ١" },
+            { en: "Al-Nas 1", ar: "الناس ١" },
+            { en: "Al-Ikhlas 1", ar: "الإخلاص ١" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Al-Muzzammil 4.", ar: "المزّمّل ٤." },
+          },
+          {
+            question: { en: "What is Noon Sakinah?", ar: "ما النون الساكنة؟" },
+            options: [
+            { en: "Noon with sukun", ar: "نون عليها سكون" },
+            { en: "Noon with fathah", ar: "نون بفتحة" },
+            { en: "Any noon", ar: "أيّ نون" },
+            { en: "Letter ba", ar: "حرف باء" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Noon with sukun (no vowel).", ar: "نون عليها سكون." },
+          },
+          {
+            question: { en: "Skilled Quran reciter is with?", ar: "الماهر في القرآن مع؟" },
+            options: [
+            { en: "Noble angels", ar: "السفرة الكرام" },
+            { en: "Kings", ar: "الملوك" },
+            { en: "Scholars", ar: "العلماء" },
+            { en: "No one", ar: "لا أحد" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Noble angels (Bukhari).", ar: "السفرة الكرام (البخاري)." },
+          },
+          {
+            question: { en: "Best people regarding Quran?", ar: "خير الناس في القرآن؟" },
+            options: [
+            { en: "Learn and teach it", ar: "تعلّمه وعلّمه" },
+            { en: "Just memorise", ar: "الحفظ فقط" },
+            { en: "Read quickly", ar: "القراءة السريعة" },
+            { en: "Skip tajweed", ar: "تخطّي التجويد" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Those who learn and teach (Bukhari).", ar: "من تعلّمه وعلّمه (البخاري)." },
+          },
+        ],
+        coinsReward: 20,
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Watch & Reflect", ar: "شاهد وتأمّل" },
+      learningObjectives: [
+        { en: "Watch a video related to the topic and reflect.", ar: "شاهد مقطعًا متعلّقًا بالموضوع وتأمّل." },
+      ],
+      image: {
+        src: IMG.childQuran,
+        alt: { en: "Video lesson.", ar: "درس مرئي." },
+      },
+      youtubeVideo: {
+        title: { en: "Noon Sakinah — Iqlab", ar: "النون الساكنة — الإقلاب" },
+        url: "https://www.youtube.com/watch?v=T4auGhmeBlw",
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Plenary", ar: "ختام الدرس" },
+      learningObjectives: [
+        { en: "Reflect on and share what you learned.", ar: "تأمّل وشارك ما تعلّمته." },
+      ],
+      image: {
+        src: IMG.grandMosque,
+        alt: { en: "Students sharing.", ar: "طلاب يشاركون." },
+      },
+      plenary: {
+        title: { en: "Share Your Learning", ar: "شارك ما تعلّمته" },
+        instruction: { en: "Scan QR or enter the code to share what you learned.", ar: "امسح QR أو أدخل الرمز لمشاركة ما تعلّمته." },
+        code: "IQLAB001",
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Worksheet — Iqlab", ar: "ورقة عمل — الإقلاب" },
+      learningObjectives: [
+        { en: "Demonstrate understanding through an auto-marked worksheet.", ar: "أظهر فهمي من خلال ورقة عمل تُصحّح تلقائيًّا." },
+      ],
+      image: {
+        src: IMG.bookshelf,
+        alt: { en: "Worksheet.", ar: "ورقة عمل." },
+      },
+      worksheet: {
+        title: { en: "Worksheet — Iqlab", ar: "ورقة عمل — الإقلاب" },
+        instruction: { en: "Answer all questions. Auto-marked. Cannot re-answer after submission.", ar: "أجب عن جميع الأسئلة. تُصحّح تلقائيًّا. لن تستطيع الإجابة مجدّدًا." },
+        sections: [
+          {
+            type: "mcq" as const,
+            title: { en: "Multiple Choice", ar: "اختيار من متعدّد" },
+            questions: [
+              {
+                question: { en: "What is Iqlab?", ar: "ما الإقلاب؟" },
+                options: [
+                { en: "Changing Noon Sakinah/Tanween to a hidden Meem before the letter Ba", ar: "تحويل النون الساكنة/التنوين إلى ميم مخفاة قبل حرف الباء" },
+                { en: "Silence", ar: "صمت" },
+                { en: "Shouting", ar: "صراخ" },
+                { en: "Skipping", ar: "تخطّي" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "How many letters?", ar: "كم حرفًا؟" },
+                options: [
+                { en: "1", ar: "1" },
+                { en: "2", ar: "٢" },
+                { en: "10", ar: "١٠" },
+                { en: "1", ar: "١" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "Applies to?", ar: "ينطبق على؟" },
+                options: [
+                { en: "Noon Sakinah/Tanween", ar: "النون الساكنة/التنوين" },
+                { en: "Meem", ar: "الميم" },
+                { en: "Lam", ar: "اللام" },
+                { en: "All", ar: "الكلّ" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "Tajweed is?", ar: "التجويد؟" },
+                options: [
+                { en: "Obligatory", ar: "واجب" },
+                { en: "Optional", ar: "اختياري" },
+                { en: "Forbidden", ar: "محرّم" },
+                { en: "Disliked", ar: "مكروه" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "أَنْبِئْهُمْ — rule?", ar: "أَنْبِئْهُمْ — حكم؟" },
+                options: [
+                { en: "Iqlab", ar: "الإقلاب" },
+                { en: "Waqf", ar: "وقف" },
+                { en: "Madd", ar: "مدّ" },
+                { en: "Ghunnah", ar: "غنّة" },
+                ],
+                correctIndex: 0,
+              },
+            ],
+          },
+          {
+            type: "trueFalse" as const,
+            title: { en: "True or False", ar: "صواب أم خطأ" },
+            questions: [
+              { statement: { en: "Iqlab is a tajweed rule.", ar: "الإقلاب حكم تجويدي." }, answer: true },
+              { statement: { en: "There are 10 letters of Iqlab.", ar: "هناك ١٠ حروف الإقلاب." }, answer: false },
+              { statement: { en: "Tajweed is obligatory.", ar: "التجويد واجب." }, answer: true },
+              { statement: { en: "Iqlab applies to Meem Sakinah.", ar: "الإقلاب ينطبق على الميم الساكنة." }, answer: false },
+              { statement: { en: "Noon Sakinah and Tanween both use Iqlab.", ar: "النون الساكنة والتنوين كلاهما يستخدم الإقلاب." }, answer: true },
+            ],
+          },
+          {
+            type: "matchUp" as const,
+            title: { en: "Match Up", ar: "وصّل" },
+            prompts: [
+              { prompt: { en: "Iqlab", ar: "الإقلاب" }, answer: { en: "Changing Noon Sakinah/Tanween to a hidden Meem before the letter Ba", ar: "تحويل النون الساكنة/التنوين إلى ميم مخفاة قبل حرف الباء" } },
+              { prompt: { en: "Noon Sakinah", ar: "نون ساكنة" }, answer: { en: "Noon with sukun", ar: "نون بسكون" } },
+              { prompt: { en: "Tanween", ar: "تنوين" }, answer: { en: "Double vowel mark", ar: "حركة مزدوجة" } },
+              { prompt: { en: "Tarteel", ar: "ترتيل" }, answer: { en: "Measured recitation", ar: "القراءة المرتّلة" } },
+              { prompt: { en: "Makhraj", ar: "مخرج" }, answer: { en: "Articulation point", ar: "نقطة النطق" } },
+            ],
+          },
+          {
+            type: "fillBlanks" as const,
+            title: { en: "Fill in the Blanks", ar: "املأ الفراغات" },
+            questions: [
+              { sentence: { en: "Iqlab means _______.", ar: "الإقلاب يعني _______." }, blankAnswer: { en: "iqlab", ar: "تحويل النون الساكنة/التنوين إلى ميم مخفاة قبل حرف الباء" } },
+              { sentence: { en: "There are _______ letters of Iqlab.", ar: "هناك _______ حرفًا." }, blankAnswer: { en: "1", ar: "1" } },
+              { sentence: { en: "Iqlab applies to Noon _______ and Tanween.", ar: "ينطبق على النون _______ والتنوين." }, blankAnswer: { en: "Sakinah", ar: "الساكنة" } },
+              { sentence: { en: "Recite the Quran with _______. (Al-Muzzammil 4)", ar: "رتّل القرآن _______. (المزّمّل ٤)" }, blankAnswer: { en: "tarteel", ar: "ترتيلًا" } },
+            ],
+          },
+          {
+            type: "ordering" as const,
+            title: { en: "Put in Correct Order", ar: "رتّب ترتيبًا صحيحًا" },
+            items: [
+              { en: "Learn Noon Sakinah and Tanween", ar: "تعلّم النون الساكنة والتنوين" },
+              { en: "Learn the definition of Iqlab", ar: "تعلّم تعريف الإقلاب" },
+              { en: "Memorise the letters of Iqlab", ar: "احفظ حروف الإقلاب" },
+              { en: "Identify Iqlab in Quran", ar: "حدّد الإقلاب في القرآن" },
+              { en: "Practise correct pronunciation", ar: "تدرّب على النطق الصحيح" },
+              { en: "Apply Iqlab in full recitation", ar: "طبّق الإقلاب في التلاوة" },
+            ],
+          },
+        ],
+        coinsReward: 25,
+      },
+      body: { en: "", ar: "" },
+    },
   ],
-  quizQuestions: [
-    {
-      prompt: { en: "What does Iqlab mean?", ar: "ما مَعنى الإقلاب؟" },
-      options: [
-        { en: "Converting the noon into a hidden meem with ghunnah before ba", ar: "قَلبُ النّونِ ميمًا مُخفاةً بِغُنّةٍ قَبلَ الباء" },
-        { en: "Pronouncing the noon clearly", ar: "نُطقُ النّونِ واضِحة" },
-        { en: "Merging the noon into ya", ar: "إدغامُ النّونِ في الياء" },
-        { en: "Deleting the noon", ar: "حَذفُ النّون" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "The noon turns into a soft, hidden meem pronounced with ghunnah.", ar: "تَتَحَوَّلُ النّونُ ميمًا لَيِّنةً مُخفاةً تُنطَقُ بِغُنّة." },
-    },
-    {
-      prompt: { en: "How many letters cause Iqlab, and which?", ar: "كَم حَرفًا يوجِبُ الإقلاب، وما هو؟" },
-      options: [
-        { en: "One letter: the ba (ب)", ar: "حَرفٌ واحِد: الباء (ب)" },
-        { en: "Six throat letters", ar: "سِتّةُ حُروفٍ حَلقيّة" },
-        { en: "Two letters: lam and ra", ar: "حَرفان: اللّام والرّاء" },
-        { en: "Four letters: yarmaloon", ar: "أربَعة: يَرمَلون" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "Iqlab has exactly one letter — the ba — making it the easiest to spot.", ar: "لِلإقلابِ حَرفٌ واحِدٌ بِالضَّبط — الباء — فهو أسهَلُها رَصدًا." },
-    },
-    {
-      prompt: { en: "Why is the noon converted to a meem specifically?", ar: "لِماذا تُقلَبُ النّونُ ميمًا تَحديدًا؟" },
-      options: [
-        { en: "The meem comes from the lips (like ba) and shares the noon's ghunnah — a perfect bridge", ar: "الميمُ مِنَ الشَّفَتَين (كَالباء) وتُشارِكُ النّونَ في الغُنّة — جِسرٌ مِثاليّ" },
-        { en: "Because meem is the first letter of the alphabet", ar: "لِأنَّ الميمَ أوَّلُ الحُروف" },
-        { en: "By random choice", ar: "اختِيارًا عَشوائيًّا" },
-        { en: "Because meem has no sound", ar: "لِأنَّ الميمَ بِلا صَوت" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "Meem bridges the tongue-noon and the lip-ba while keeping the nasal ghunnah.", ar: "الميمُ تَجسُرُ بَينَ نونِ اللِّسانِ وباءِ الشَّفَةِ مَعَ بَقاءِ الغُنّة." },
-    },
-    {
-      prompt: { en: "How is Iqlab marked in the mushaf?", ar: "كَيفَ يُعَلَّمُ الإقلابُ في المُصحَف؟" },
-      options: [
-        { en: "By a small meem (ﻤ) placed above the noon or tanwin", ar: "بِميمٍ صَغيرة (ﻤ) فَوقَ النّونِ أوِ التَّنوين" },
-        { en: "By a red line", ar: "بِخَطٍّ أحمَر" },
-        { en: "By a shaddah", ar: "بِشَدّة" },
-        { en: "It is never marked", ar: "لا يُعَلَّمُ أبَدًا" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "The small meem tells the reciter to say a hidden meem here, not a noon.", ar: "الميمُ الصَّغيرةُ تُخبِرُ القارِئَ أن يَنطِقَ ميمًا مُخفاةً لا نونًا." },
-    },
-    {
-      prompt: { en: "How is 'سَميعٌ بَصيرٌ' recited under Iqlab?", ar: "كَيفَ تُتلى «سَميعٌ بَصيرٌ» بِالإقلاب؟" },
-      options: [
-        { en: "'sami'um-basir' — tanwin becomes a hidden meem with ghunnah", ar: "«سَميعُمْ بَصير» — التَّنوينُ يَصيرُ ميمًا مُخفاةً بِغُنّة" },
-        { en: "'sami'un-basir' with a clear noon", ar: "«سَميعُنْ بَصير» بِنونٍ واضِحة" },
-        { en: "with no ghunnah at all", ar: "بِلا غُنّةٍ البَتّة" },
-        { en: "by merging into the ba", ar: "بِالإدغامِ في الباء" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "Tanwin before ba = Iqlab: a hidden meem with ghunnah, then ba.", ar: "تَنوينٌ قَبلَ الباء = إقلاب: ميمٌ مُخفاةٌ بِغُنّةٍ ثُمَّ الباء." },
-    },
-    {
-      prompt: { en: "True or False: In Iqlab there is no ghunnah.", ar: "صَوابٌ أم خَطأ: لا غُنّةَ في الإقلاب." },
-      options: [
-        { en: "False — the converted meem is pronounced WITH a ghunnah (~2 counts)", ar: "خَطأ — الميمُ المَقلوبةُ تُنطَقُ بِغُنّةٍ (نَحوَ حَرَكَتَين)" },
-        { en: "True", ar: "صَواب" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "Iqlab keeps a ghunnah; only Izhar is the ghunnah-free rule.", ar: "الإقلابُ يُبقي الغُنّة؛ والإظهارُ وَحدَهُ بِلا غُنّة." },
-    },
-  ],
+  quizQuestions: [],
 };

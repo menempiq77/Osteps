@@ -11,212 +11,513 @@ export const battleOfUhud: CourseLesson = {
   quranSurahs: ["Aal 'Imran 152", "Aal 'Imran 159", "Aal 'Imran 139"],
   sections: [
     {
-      title: { en: "Revenge at Uhud: the setting", ar: "الثَّأرُ عِندَ أُحُد: السِّياق" },
+      title: { en: "Critical thinking (Warm up)", ar: "تفكير ناقد (تهيئة)" },
       learningObjectives: [
-        { en: "Explain why and when Uhud took place.", ar: "أُبَيِّنُ لِماذا ومَتى وَقَعَت أُحُد." },
-        { en: "Describe the Prophet's plan and the archers' orders.", ar: "أصِفُ خُطّةَ النَّبِيِّ ﷺ وأمرَ الرُّماة." },
+        { en: "Evaluate a real-world scenario using evidence from Quran, Sunnah, and Islamic values.", ar: "أُقيّم سيناريو واقعيًّا بأدلّة من القرآن والسنّة والقيم الإسلاميّة." },
+      ],
+      image: {
+        src: IMG.hijabStudent,
+        alt: { en: "Student thinking critically.", ar: "طالب يفكّر بشكل ناقد." },
+      },
+      callout: {
+        label: { en: "Critical thinking scenario", ar: "سيناريو للتفكير الناقد" },
+        title: { en: "Does one mistake erase all success?", ar: "هل خطأ واحد يمحو كلّ النجاح؟" },
+        body: {
+          en: "A student says: \'The Muslims lost at Uhud, so clearly Allah was not helping them. If they were right, they would always win.\'",
+          ar: "طالب يقول: «المسلمون خسروا في أحد إذن الله لم يساعدهم. لو كانوا على حقّ لفازوا دائمًا.»",
+        },
+      },
+      responsePrompt: {
+        title: { en: "Write your critical response", ar: "اكتب ردّك الناقد" },
+        prompt: {
+          en: "Criticise using lessons from Uhud about obedience and trials.",
+          ar: "انتقد بدروس أحد عن الطاعة والابتلاء.",
+        },
+        placeholder: { en: "This is wrong because...", ar: "هذا خطأ لأنّ..." },
+        buttonLabel: { en: "Save response", ar: "احفظ الإجابة" },
+        coinsReward: 10,
+      },
+      body: {
+        en: "\'Do not lose heart, do not grieve, for you will have the upper hand if you are believers.\' (Aal-Imran 139)",
+        ar: "﴿ولا تهنوا ولا تحزنوا وأنتم الأعلون إن كنتم مؤمنين﴾ (آل عمران ١٣٩)",
+      },
+    },
+    {
+      title: { en: "Retrieval practise", ar: "ممارسة الاسترجاع" },
+      imageMatchingActivity: {
+        title: { en: "Match each image to its Islamic keyword", ar: "طابق كلّ صورة بكلمتها الإسلاميّة" },
+        instruction: { en: "Drag the keyword to the correct image.", ar: "اسحب الكلمة إلى الصورة الصحيحة." },
+        pairs: [
+          { image: IMG.mountainSnow, keyword: { en: "Uhud (The battle)", ar: "أحد" } },
+          { image: IMG.grandMosque, keyword: { en: "Ta\'ah (Obedience)", ar: "طاعة" } },
+          { image: IMG.childQuran, keyword: { en: "Ibtila (Trial)", ar: "ابتلاء" } },
+          { image: IMG.lantern, keyword: { en: "Hamzah", ar: "حمزة" } },
+          { image: IMG.bookshelf, keyword: { en: "Sabr (Patience)", ar: "صبر" } },
+        ],
+        coinsReward: 10,
+      },
+      body: {
+        en: "\'And Allah had certainly fulfilled His promise to you when you were killing them by His permission.\' (Aal-Imran 152)",
+        ar: "﴿ولقد صدقكم الله وعده إذ تحسّونهم بإذنه﴾ (آل عمران ١٥٢)",
+      },
+    },
+    {
+      title: { en: "The Battle of Uhud", ar: "غَزوةُ أُحُد" },
+      learningObjectives: [
+        { en: "Describe the causes and events of the Battle of Uhud.", ar: "أصف أسباب وأحداث غزوة أحد." },
+        { en: "Explain the key lessons from the Muslim setback.", ar: "أشرح الدروس الرئيسيّة من تراجع المسلمين." },
       ],
       successCriteria: [
-        { en: "I can state the cause of the battle.", ar: "أذكُرُ سَبَبَ المَعرَكة." },
-        { en: "I can explain the order given to the archers.", ar: "أشرَحُ الأمرَ الذي أُعطِيَ لِلرُّماة." },
+        { en: "I can describe why Uhud happened.", ar: "أصف لماذا وقعت أحد." },
+        { en: "I can explain what the archers did wrong.", ar: "أشرح خطأ الرماة." },
+        { en: "I can list 3 lessons from Uhud.", ar: "أذكر ٣ دروس من أحد." },
       ],
       image: {
         src: IMG.mountainSnow,
-        alt: { en: "A great mountain, like Mount Uhud.", ar: "جَبَلٌ عَظيمٌ كَجَبَلِ أُحُد." },
-        caption: { en: "Mount Uhud near Madinah — 3 AH, the year after Badr.", ar: "جَبَلُ أُحُدٍ قُربَ المَدينة — ٣ هـ، العامُ التّالي لِبَدر." },
+        alt: { en: "Topic image.", ar: "صورة الموضوع." },
       },
-      callout: {
-        label: { en: "High-order question", ar: "سُؤالٌ عالي المُستوى" },
-        title: { en: "Why place archers on the hill?", ar: "لِماذا وَضَعَ الرُّماةَ على التَّلّ؟" },
-        body: {
-          en: "The Prophet ﷺ placed fifty archers on a hill (later called Jabal ar-Rumah) with a strict order never to leave, whether the Muslims won or lost. Argue why this single instruction was the hinge of the whole battle.",
-          ar: "وَضَعَ النَّبِيُّ ﷺ خَمسينَ رامِيًا على تَلٍّ (سُمِّيَ لاحِقًا جَبَلَ الرُّماة) بِأمرٍ صارِمٍ ألّا يَترُكوهُ، انتَصَرَ المُسلِمونَ أم هُزِموا. حاجِجْ لِماذا كانَ هذا الأمرُ الواحِدُ مِفصَلَ المَعرَكةِ كُلِّها.",
-        },
+      readyButton: {
+        label: { en: "I\'m ready to learn!", ar: "أنا مستعدّ للتعلّم!" },
+        coinsReward: 5,
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "The Battle of Uhud — Lessons from a Setback", ar: "غزوة أحد — دروس من نكسة" },
+      learningObjectives: [
+        { en: "Understand the Battle of Uhud and the importance of obedience.", ar: "أفهم غزوة أحد وأهمّيّة الطاعة." },
+      ],
+      image: {
+        src: IMG.mountainSnow,
+        alt: { en: "Lesson content image.", ar: "صورة محتوى الدرس." },
       },
       infoBoxes: [
         {
-          label: { en: "Key facts", ar: "حَقائِقُ مِفتاحيّة" },
+          label: { en: "Background", ar: "الخلفيّة" },
           lines: [
-            { en: "Date: Shawwal, 3 AH. Muslims: ~700 (after ~300 hypocrites withdrew). Quraysh: ~3000, seeking revenge for Badr. Place: foot of Mount Uhud.", ar: "التّاريخ: شَوّال ٣ هـ. المُسلِمون: نَحوُ ٧٠٠ (بَعدَ انسِحابِ نَحوِ ٣٠٠ مِنَ المُنافِقين). قُرَيش: نَحوُ ٣٠٠٠، طَلَبًا لِثَأرِ بَدر. المَكان: سَفحُ جَبَلِ أُحُد." },
+            { en: "3 AH, Shawwal. Quraysh (3000) sought revenge for Badr. Muslims (700) met them at Mount Uhud. The Prophet placed 50 archers on the hill with orders: \'Do not leave your positions.\'", ar: "٣ هـ شوّال. قريش (٣٠٠٠) أرادت الثأر لبدر. المسلمون (٧٠٠) لاقوهم عند جبل أحد. وضع النبيّ ٥٠ راميًا على الجبل: «لا تبرحوا.»" },
           ],
         },
         {
-          label: { en: "The order", ar: "الأمر" },
+          label: { en: "The Turning Point", ar: "نقطة التحوّل" },
           lines: [
-            { en: "To the archers: 'If you see us being snatched away by birds, do not leave your position until I send for you; and if you see us defeating the enemy, do not leave.' — al-Bukhari", ar: "لِلرُّماة: «إن رَأيتُمونا تَخطَفُنا الطَّيرُ فلا تَبرَحوا مَكانَكُم حَتّى أُرسِلَ إلَيكُم، وإن رَأيتُمونا هَزَمنا القَومَ فلا تَبرَحوا» — البخاري" },
+            { en: "Initially Muslims won. The archers saw victory and left their posts to collect spoils, disobeying the Prophet. Khalid ibn al-Walid (then with Quraysh) attacked from behind.", ar: "في البداية انتصر المسلمون. الرماة رأوا النصر وتركوا مواقعهم للغنائم عصيانًا للنبيّ. خالد بن الوليد (مع قريش آنذاك) هاجم من الخلف." },
+          ],
+        },
+        {
+          label: { en: "Aftermath and Lessons", ar: "ما بعد المعركة والدروس" },
+          lines: [
+            { en: "70 Muslims martyred including Hamzah. Key lessons: obey the leader, do not love dunya over command, trials test faith, setbacks are not failures.", ar: "٧٠ شهيدًا منهم حمزة. الدروس: أطع القائد ولا تحبّ الدنيا فوق الأمر والابتلاء اختبار والنكسات ليست فشلًا." },
           ],
         },
       ],
+      trueFalseActivity: {
+        title: { en: "True or False", ar: "صواب أم خطأ" },
+        questions: [
+        { statement: { en: "Uhud was in 3 AH.", ar: "أحد كانت في ٣ هـ." }, answer: true },
+        { statement: { en: "Muslims won completely at Uhud.", ar: "المسلمون انتصروا كلّيًّا في أحد." }, answer: false },
+        { statement: { en: "The archers disobeyed the Prophet.", ar: "الرماة عصوا النبيّ." }, answer: true },
+        { statement: { en: "Hamzah survived Uhud.", ar: "حمزة نجا في أحد." }, answer: false },
+        { statement: { en: "Uhud teaches the importance of obedience.", ar: "أحد تعلّم أهمّيّة الطاعة." }, answer: true },
+        ],
+        coinsReward: 10,
+      },
+      fillBlanksActivity: {
+        title: { en: "Fill in the Blanks", ar: "املأ الفراغات" },
+        questions: [
+        { sentence: { en: "The Prophet placed _______ archers on the hill.", ar: "وضع النبيّ _______ راميًا على الجبل." }, answer: { en: "50", ar: "٥٠" } },
+        { sentence: { en: "Quraysh numbered about _______.", ar: "عدد قريش نحو _______." }, answer: { en: "3000", ar: "٣٠٠٠" } },
+        { sentence: { en: "The archers left to collect _______.", ar: "ترك الرماة مواقعهم لجمع _______." }, answer: { en: "spoils", ar: "الغنائم" } },
+        { sentence: { en: "_______ Muslims were martyred.", ar: "استُشهد _______ مسلمًا." }, answer: { en: "70", ar: "٧٠" } },
+        ],
+        coinsReward: 10,
+      },
       body: {
-        en: "The Battle of Uhud took place in the month of Shawwal in the third year after the Hijrah, just one year after the great victory at Badr. Its cause was direct: the Quraysh had been humiliated at Badr, where seventy of their leaders were killed and seventy captured. Burning with grief and a thirst for revenge, they spent the year preparing a far larger army and marched on Madinah with around three thousand fighters, including cavalry and even women who came to urge the men on. Their stated goal was to wipe out the shame of Badr and destroy the Muslims.\n\nThe Prophet ﷺ consulted his Companions about whether to defend Madinah from within the city or to march out and meet the enemy. He himself inclined toward staying in the city, but the eager young men, many of whom had missed Badr, wished to go out and meet the enemy in the open. The Prophet ﷺ followed the majority view — an important lesson in itself about honouring consultation. He set out with about a thousand men, but on the way the leader of the hypocrites, Abdullah ibn Ubayy, withdrew with about three hundred, leaving only around seven hundred believers to face an army more than four times their size.\n\nThe Prophet ﷺ arranged his forces brilliantly at the foot of Mount Uhud, placing the mountain at the Muslims' backs to protect them from behind. Then he made one crucial decision: he positioned fifty skilled archers on a hill commanding the one open flank, through which enemy cavalry could circle around. He gave them an order of absolute clarity and firmness: they were not to leave their post under any circumstances — not if they saw the Muslims winning and gathering spoils, and not even if they saw birds snatching away the Muslims' bodies in defeat. Their single task was to hold that hill. A demanding student should pause here and recognise that the entire outcome of Uhud would turn on whether this one order was obeyed. The Prophet ﷺ had, with the wisdom Allah gave him, identified the exact point of danger. What happened next is one of the most instructive episodes in the entire Seerah.",
-        ar: "وَقَعَت غَزوةُ أُحُدٍ في شَهرِ شَوّالٍ مِنَ السَّنةِ الثّالِثةِ لِلهِجرة، بَعدَ نَصرِ بَدرٍ العَظيمِ بِعامٍ واحِد. وكانَ سَبَبُها مُباشِرًا: فقد ذُلَّت قُرَيشٌ في بَدرٍ حَيثُ قُتِلَ سَبعونَ مِن ساداتِها وأُسِرَ سَبعون. فَلَمّا اشتَعَلوا حُزنًا وعَطَشًا لِلثَّأر، قَضوا العامَ يُعِدّونَ جَيشًا أكبَرَ بِكَثيرٍ وزَحَفوا على المَدينةِ بِنَحوِ ثَلاثةِ آلافِ مُقاتِل، فيهِم خَيّالةٌ وحَتّى نِساءٌ خَرَجنَ يُحَرِّضنَ الرِّجال. وكانَ هَدَفُهُمُ المُعلَنَ مَحوَ عارِ بَدرٍ وإبادةَ المُسلِمين.\n\nشاوَرَ النَّبِيُّ ﷺ أصحابَهُ: أيُدافِعونَ عنِ المَدينةِ مِن داخِلِها أم يَخرُجونَ لِلِقاءِ العَدُوّ؟ وكانَ ﷺ يَميلُ إلى البَقاءِ في المَدينة، لكِنَّ الشَّبابَ المُتَحَمِّسينَ، وكَثيرٌ مِنهُم فاتَتهُم بَدر، رَغِبوا في الخُروجِ ولِقاءِ العَدُوِّ في العَراء. فاتَّبَعَ النَّبِيُّ ﷺ رَأيَ الأكثَريّة — وهذا دَرسٌ في احتِرامِ الشّورى. فَخَرَجَ بِنَحوِ ألفِ رَجُل، لكِنْ في الطَّريقِ انسَحَبَ رَأسُ المُنافِقينَ عَبدُ اللهِ بنُ أُبَيٍّ بِنَحوِ ثَلاثِمِئة، فَلَم يَبقَ إلّا نَحوُ سَبعِمِئةِ مُؤمِنٍ لِمُواجَهةِ جَيشٍ يَفوقُهُم أربَعةَ أضعاف.\n\nرَتَّبَ النَّبِيُّ ﷺ قُوّاتِهِ بِبَراعةٍ عِندَ سَفحِ جَبَلِ أُحُد، فَجَعَلَ الجَبَلَ خَلفَ المُسلِمينَ يَحميهِم مِنَ الوَراء. ثُمَّ اتَّخَذَ قَرارًا حاسِمًا: وَضَعَ خَمسينَ رامِيًا ماهِرًا على تَلٍّ يُسَيطِرُ على الجَناحِ المَفتوحِ الوَحيدِ الذي قد تَلتَفُّ مِنهُ خَيّالةُ العَدُوّ. وأعطاهُم أمرًا في غايةِ الوُضوحِ والحَزم: ألّا يَترُكوا مَوقِعَهُم بِحالٍ — لا إن رَأوا المُسلِمينَ يَنتَصِرونَ ويَجمَعونَ الغَنائِم، ولا إن رَأوا الطَّيرَ تَخطَفُ أجسادَ المُسلِمينَ في الهَزيمة. مُهِمَّتُهُمُ الوَحيدةُ حِفظُ ذلك التَّلّ. وعلى الطّالِبِ المُطالِبِ أن يَقِفَ هُنا ويُدرِكَ أنَّ نَتيجةَ أُحُدٍ كُلَّها سَتَدورُ على طاعةِ هذا الأمرِ الواحِد. فقد عَيَّنَ النَّبِيُّ ﷺ، بِحِكمةِ اللهِ، مَوضِعَ الخَطَرِ بِالضَّبط. وما حَدَثَ بَعدُ مِن أعظَمِ الدُّروسِ في السّيرةِ كُلِّها.",
+        en: "Uhud was 3 AH — Muslims initially won but archers disobeyed, leading to a setback. It teaches obedience and patience.",
+        ar: "أحد ٣ هـ — انتصر المسلمون أوّلًا لكنّ الرماة عصوا فحدثت النكسة. تعلّم الطاعة والصبر.",
       },
     },
     {
-      title: { en: "Victory slipping away: the test", ar: "النَّصرُ يَنزَلِق: الاختِبار" },
+      title: { en: "Group Work", ar: "عمل جماعي" },
       learningObjectives: [
-        { en: "Explain how disobeying one order changed the battle.", ar: "أُبَيِّنُ كَيفَ غَيَّرَت مَعصيةُ أمرٍ واحِدٍ المَعرَكة." },
+        { en: "Explore the Battle of Uhud from multiple angles.", ar: "استكشف غزوة أحد من زوايا متعدّدة." },
       ],
       image: {
-        src: IMG.waterfall,
-        alt: { en: "A turning point — water rushing over rocks.", ar: "نُقطةُ تَحَوُّل — ماءٌ يَندَفِعُ فَوقَ الصَّخر." },
-        caption: { en: "When most archers left the hill, the tide turned.", ar: "حينَ تَرَكَ أكثَرُ الرُّماةِ التَّلَّ، انقَلَبَ الحال." },
+        src: IMG.grandMosque,
+        alt: { en: "Students collaborating.", ar: "طلاب يتعاونون." },
       },
-      infoBoxes: [
-        {
-          label: { en: "Qur'an", ar: "القُرآن" },
-          lines: [
-            { en: "\"...until, when you lost courage and disputed about the order and disobeyed after He had shown you what you love. Among you are some who desire this world, and among you are some who desire the Hereafter...\" — Aal 'Imran 152", ar: "﴿...حَتّى إذا فَشِلتُم وتَنازَعتُم في الأمرِ وعَصَيتُم مِن بَعدِ ما أراكُم ما تُحِبّون ۚ مِنكُم مَن يُريدُ الدُّنيا ومِنكُم مَن يُريدُ الآخِرة...﴾ — آل عمران ١٥٢" },
-          ],
-        },
-        {
-          label: { en: "What happened", ar: "ما الذي حَدَث" },
-          lines: [
-            { en: "Seeing the enemy flee and spoils on the field, most archers left the hill to collect booty. Khalid ibn al-Walid (still a disbeliever then) saw the gap, circled the cavalry behind, and attacked the Muslims from the rear.", ar: "لَمّا رَأى الرُّماةُ العَدُوَّ يَفِرُّ والغَنائِمَ في المَيدان، تَرَكَ أكثَرُهُمُ التَّلَّ لِجَمعِ الغَنائِم. فَرَأى خالِدُ بنُ الوَليد (وكانَ كافِرًا حينَئِذٍ) الثَّغرة، فالتَفَّ بِالخَيّالةِ مِنَ الخَلفِ وهاجَمَ المُسلِمينَ مِنَ الوَراء." },
-          ],
-        },
-      ],
-      callout: {
-        label: { en: "Reflect", ar: "تأمَّلْ" },
-        title: { en: "A rumour that the Prophet ﷺ was killed", ar: "إشاعةُ مَقتَلِ النَّبِيِّ ﷺ" },
-        body: {
-          en: "In the chaos, the Prophet ﷺ was injured — his tooth broken and face cut — and a false rumour spread that he had been killed. Some Muslims lost heart. Allah rebuked this: faith must rest on Allah, not on any one person, even the Messenger ﷺ.",
-          ar: "في الفَوضى أُصيبَ النَّبِيُّ ﷺ — كُسِرَت رَباعِيَتُهُ وشُجَّ وَجهُهُ — وانتَشَرَت إشاعةٌ كاذِبةٌ بِأنَّهُ قُتِل. فَوَهَنَ بَعضُ المُسلِمين. فَعاتَبَ اللهُ ذلك: الإيمانُ يَقومُ على اللهِ لا على أيِّ شَخصٍ، ولَو كانَ الرَّسولَ ﷺ.",
-        },
-      },
-      responsePrompt: {
-        title: { en: "Written response", ar: "إجابةٌ مَكتوبة" },
-        prompt: { en: "The archers who left the hill were not bad people — they were eager believers who misjudged. Explain how a good intention can still lead to harm when an order is disobeyed, and what this teaches about the importance of discipline and obeying the Prophet ﷺ.", ar: "الرُّماةُ الذينَ تَرَكوا التَّلَّ لم يَكونوا أشرارًا — بل مُؤمِنينَ مُتَحَمِّسينَ أخطَأوا التَّقدير. بَيِّنْ كَيفَ تُؤَدّي النِّيّةُ الحَسَنةُ إلى ضَرَرٍ حينَ يُعصى الأمر، وما يُعَلِّمُهُ هذا عن أهَمّيّةِ الانضِباطِ وطاعةِ النَّبِيِّ ﷺ." },
-        placeholder: { en: "The archers intended... but by leaving their post... This teaches that obedience...", ar: "أرادَ الرُّماةُ... لكِنْ بِتَركِهِم مَوقِعَهُم... ويُعَلِّمُ هذا أنَّ الطّاعةَ..." },
-      },
-      body: {
-        en: "When the battle began, the Muslims fought with extraordinary courage. Allah granted them the upper hand, and the Quraysh army began to break and flee, abandoning their camp and belongings on the battlefield. Victory seemed certain — exactly the situation the Prophet ﷺ had warned the archers about. Seeing the enemy running and the spoils scattered before them, most of the fifty archers concluded that the battle was over and rushed down from the hill to collect booty, despite their commander Abdullah ibn Jubayr reminding them of the Prophet's explicit order. Only about ten remained at their post. This was the decisive moment.\n\nKhalid ibn al-Walid, who at that time was still fighting on the side of the disbelievers and was one of the most brilliant military commanders of the age, immediately saw the undefended hill. He wheeled the Quraysh cavalry around the now-open flank, overwhelmed the few remaining archers, and struck the Muslims from behind. Caught between the enemy in front and the cavalry now charging from the rear, the Muslim ranks fell into confusion. The fleeing Quraysh, seeing the tide turn, rallied and returned to the fight. What had been a clear victory dissolved into chaos and hardship.\n\nIn the turmoil, the Prophet ﷺ himself was wounded: his blessed tooth was broken, his face was struck and cut, and he fell into a pit. A cry went up — falsely — that Muhammad ﷺ had been killed. This rumour shook many of the believers; some sat down in despair, and a few even thought of giving up. It was at this moment that the Companions' true character was tested. The greatest among them, like Abu Bakr, Umar, Ali, Talhah, and Abu Dujanah, rallied to defend the Prophet ﷺ with their own bodies. Allah later revealed verses rebuking those who had wavered, reminding them that Muhammad ﷺ was only a Messenger, and that the religion of Allah does not die with any man: 'Muhammad is no more than a Messenger; messengers have passed away before him. So if he dies or is killed, will you turn back on your heels?' A demanding student must grasp the precise cause of the disaster: it was not weakness of numbers or lack of bravery, but the abandonment of one clear command. Allah's verdict was exact — 'until you disputed about the order and disobeyed' — and it divided the believers into 'some who desire this world' (the spoils) and 'some who desire the Hereafter.' This is the heart of the lesson Uhud teaches.",
-        ar: "لَمّا بَدَأتِ المَعرَكةُ قاتَلَ المُسلِمونَ بِشَجاعةٍ فائِقة. فَمَنَحَهُمُ اللهُ الغَلَبة، وبَدَأ جَيشُ قُرَيشٍ يَنكَسِرُ ويَفِرُّ، تارِكًا مُعَسكَرَهُ ومَتاعَهُ في المَيدان. وبَدا النَّصرُ مُؤَكَّدًا — وهو عَينُ ما حَذَّرَ النَّبِيُّ ﷺ مِنهُ الرُّماة. فَلَمّا رَأى أكثَرُ الخَمسينَ العَدُوَّ يَفِرُّ والغَنائِمَ مُتَناثِرةً أمامَهُم، ظَنّوا أنَّ المَعرَكةَ انتَهَت ونَزَلوا مُسرِعينَ مِنَ التَّلِّ لِجَمعِ الغَنائِم، رَغمَ تَذكيرِ أميرِهِم عَبدِ اللهِ بنِ جُبَيرٍ لَهُم بِأمرِ النَّبِيِّ ﷺ الصَّريح. ولم يَبقَ إلّا نَحوُ عَشَرة. وكانَت تِلكَ اللَّحظةَ الحاسِمة.\n\nأمّا خالِدُ بنُ الوَليد، وكانَ حينَئِذٍ ما يَزالُ يُقاتِلُ في صَفِّ الكُفّارِ وهو مِن أبرَعِ قادةِ العَصر، فَرَأى التَّلَّ الخالي فَورًا. فالتَفَّ بِخَيّالةِ قُرَيشٍ حَولَ الجَناحِ المَفتوح، واكتَسَحَ الرُّماةَ القَليلينَ الباقينَ، وضَرَبَ المُسلِمينَ مِنَ الخَلف. فَلَمّا حوصِرَ المُسلِمونَ بَينَ عَدُوٍّ أمامَهُم وخَيّالةٍ تَكُرُّ مِنَ الوَراء، وَقَعَتِ الفَوضى في صُفوفِهِم. وعادَت قُرَيشٌ الفارّةُ، لَمّا رَأتِ الحالَ يَنقَلِب، إلى القِتال. فانحَلَّ ما كانَ نَصرًا بَيِّنًا إلى فَوضى وشِدّة.\n\nوفي الاضطِرابِ أُصيبَ النَّبِيُّ ﷺ نَفسُه: كُسِرَت رَباعِيَتُهُ الشَّريفة، وضُرِبَ وَجهُهُ فَشُجّ، ووَقَعَ في حُفرة. وارتَفَعَ صَوتٌ — كاذِبًا — أنَّ مُحَمَّدًا ﷺ قُتِل. فَزَلزَلَت هذه الإشاعةُ كَثيرًا مِنَ المُؤمِنين؛ فَقَعَدَ بَعضُهُم يائِسًا، وفَكَّرَ قَليلٌ في الاستِسلام. وعِندَ تِلكَ اللَّحظةِ امتُحِنَت حَقيقةُ أخلاقِ الصَّحابة. فالتَفَّ أعظَمُهُم، كَأبي بَكرٍ وعُمَرَ وعَلِيٍّ وطَلحةَ وأبي دُجانةَ، يَدفَعونَ عنِ النَّبِيِّ ﷺ بِأجسادِهِم. وأنزَلَ اللهُ لاحِقًا آياتٍ تُعاتِبُ مَن وَهَن، تُذَكِّرُهُم أنَّ مُحَمَّدًا ﷺ رَسولٌ، وأنَّ دينَ اللهِ لا يَموتُ بِمَوتِ أحَد: ﴿وما مُحَمَّدٌ إلّا رَسولٌ قد خَلَت مِن قَبلِهِ الرُّسُلُ ۚ أفإن ماتَ أو قُتِلَ انقَلَبتُم على أعقابِكُم﴾. وعلى الطّالِبِ المُطالِبِ أن يُدرِكَ السَّبَبَ الدَّقيقَ لِلنَّكبة: لم يَكُنْ قِلّةَ عَدَدٍ ولا نَقصَ شَجاعة، بل تَركَ أمرٍ واحِدٍ واضِح. وكانَ حُكمُ اللهِ دَقيقًا — ﴿وعَصَيتُم مِن بَعدِ ما أراكُم ما تُحِبّون﴾ — وقَسَمَ المُؤمِنينَ إلى ﴿مَن يُريدُ الدُّنيا﴾ (الغَنائِم) و﴿مَن يُريدُ الآخِرة﴾. وهذا لُبُّ ما تُعَلِّمُهُ أُحُد.",
-      },
-    },
-    {
-      title: { en: "The lessons and wisdom of Uhud", ar: "دُروسُ أُحُدٍ وحِكمَتُها" },
-      learningObjectives: [
-        { en: "Derive the lasting lessons Allah taught through Uhud.", ar: "أستَخرِجُ الدُّروسَ الباقيةَ التي عَلَّمَها اللهُ بِأُحُد." },
-      ],
-      image: {
-        src: IMG.lantern,
-        alt: { en: "Light after darkness — lessons that guide.", ar: "نورٌ بَعدَ ظَلام — دُروسٌ تَهدي." },
-        caption: { en: "Allah turns a setback into a school for the believers.", ar: "يُحَوِّلُ اللهُ الكَبوةَ مَدرَسةً لِلمُؤمِنين." },
-      },
-      groupTasks: {
-        title: { en: "Why did Allah allow this?", ar: "لِماذا أذِنَ اللهُ بِهذا؟" },
-        instruction: { en: "Each group studies one wisdom behind the hardship of Uhud.", ar: "تَدرُسُ كُلُّ مَجموعةٍ حِكمةً مِن حِكَمِ شِدّةِ أُحُد." },
-        groups: [
+      groupWorkCards: {
+        title: { en: "Choose Your Task", ar: "اختر مهمّتك" },
+        instruction: { en: "Each group picks one card. Study the information, complete the task, and present to the class.", ar: "تختار كلّ مجموعة بطاقة. ادرسوا المعلومات وأنجزوا المهمّة وقدّموا للصفّ." },
+        presentationNote: { en: "All Quran and Hadith must be authentic with references.", ar: "يجب أن يكون كلّ قرآن وحديث صحيحًا بمصادره." },
+        cards: [
           {
-            slug: "obedience-and-discipline",
-            name: { en: "Team A — Obedience and discipline", ar: "الفَريقُ أ — الطّاعةُ والانضِباط" },
-            learningObjective: { en: "Show that obeying leadership and command is vital.", ar: "نُبَيِّنُ أنَّ طاعةَ القِيادةِ والأمرِ أمرٌ حَيَوِيّ." },
-            task: { en: "Explain how leaving the hill caused the reversal, and how Aal 'Imran 152 names disobedience as the cause. Give a modern example where breaking discipline ruined a team's success.", ar: "بَيِّنوا كَيفَ سَبَّبَ تَركُ التَّلِّ الانقِلاب، وكَيفَ سَمَّت آلُ عمران ١٥٢ المَعصيةَ سَبَبًا. واضرِبوا مِثالًا مُعاصِرًا أفسَدَ فيهِ كَسرُ الانضِباطِ نَجاحَ فَريق." },
-            evidence: [
-              { en: "'until you disputed about the order and disobeyed' (152).", ar: "﴿وتَنازَعتُم في الأمرِ وعَصَيتُم﴾ (١٥٢)." },
+            id: "A",
+            title: { en: "The Archers\' Mistake", ar: "خطأ الرماة" },
+            image: IMG.mountainSnow,
+            color: "teal",
+            topic: { en: "Disobedience changes outcomes", ar: "العصيان يغيّر النتائج" },
+            infoSections: [
+              { label: { en: "Fact", ar: "حقيقة" }, content: { en: "50 archers ordered to stay; most left for spoils.", ar: "٥٠ راميًا أُمروا بالبقاء؛ معظمهم تركوا للغنائم." } },
+              { label: { en: "Quran", ar: "القرآن" }, content: { en: "\'Among you are those who desire this world.\' (Aal-Imran 152)", ar: "﴿منكم من يريد الدنيا﴾ (آل عمران ١٥٢)" } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "One act of disobedience can undo success.", ar: "عصيان واحد قد يمحو النجاح." } },
             ],
-            sourceNotes: [
-              { en: "One disobeyed order can undo many sacrifices.", ar: "أمرٌ واحِدٌ يُعصى قد يُبطِلُ تَضحياتٍ كَثيرة." },
-            ],
-            memberRoles: [
-              { en: "Evidence-finder, Explainer, Presenter.", ar: "باحِثُ الدَّليل، الشّارِح، العارِض." },
-            ],
-            finalProduct: { en: "A short talk on obedience.", ar: "كَلِمةٌ قَصيرةٌ عنِ الطّاعة." },
+            task: {
+              title: { en: "Analyse the Mistake", ar: "حلّل الخطأ" },
+              description: { en: "Write what the archers should have done differently.", ar: "اكتب ما كان ينبغي للرماة فعله." },
+              hint: { en: "Include: the order, what happened, the consequence, the lesson.", ar: "ضمّن: الأمر وما حدث والنتيجة والدرس." },
+            },
           },
           {
-            slug: "rising-after-setback",
-            name: { en: "Team B — Rising after a setback", ar: "الفَريقُ ب — النُّهوضُ بَعدَ الكَبوة" },
-            learningObjective: { en: "Show how the believers recovered and were comforted.", ar: "نُبَيِّنُ كَيفَ نَهَضَ المُؤمِنونَ وكَيفَ سُلّوا." },
-            task: { en: "Using Aal 'Imran 139 ('Do not lose heart nor grieve, for you will be superior if you are believers'), explain how a believer responds to failure. How did the Prophet ﷺ go out again the very next day (Hamra al-Asad)?", ar: "بِآل عمران ١٣٩ (﴿ولا تَهِنوا ولا تَحزَنوا وأنتُمُ الأعلَونَ إن كُنتُم مُؤمِنين﴾)، بَيِّنوا كَيفَ يُواجِهُ المُؤمِنُ الفَشَل. وكَيفَ خَرَجَ النَّبِيُّ ﷺ في اليَومِ التّالي (حَمراءِ الأسَد)؟" },
-            evidence: [
-              { en: "Aal 'Imran 139; the march to Hamra al-Asad.", ar: "آل عمران ١٣٩؛ الخُروجُ إلى حَمراءِ الأسَد." },
+            id: "B",
+            title: { en: "Hamzah — The Lion", ar: "حمزة — أسد الله" },
+            image: IMG.grandMosque,
+            color: "blue",
+            topic: { en: "Martyrdom at Uhud", ar: "الاستشهاد في أحد" },
+            infoSections: [
+              { label: { en: "Fact", ar: "حقيقة" }, content: { en: "Hamzah ibn Abdul-Muttalib, the Prophet\'s uncle, was killed by Wahshi.", ar: "حمزة بن عبد المطّلب عمّ النبيّ قتله وحشي." } },
+              { label: { en: "Title", ar: "لقب" }, content: { en: "Called \'Lion of Allah and His Messenger.\'", ar: "لُقّب بـ«أسد الله ورسوله.»" } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "The greatest heroes give their lives for truth.", ar: "أعظم الأبطال يضحّون بحياتهم للحقّ." } },
             ],
-            sourceNotes: [
-              { en: "Faith means rising again, not despairing.", ar: "الإيمانُ نُهوضٌ لا يَأس." },
+            task: {
+              title: { en: "Write Hamzah\'s Story", ar: "اكتب قصّة حمزة" },
+              description: { en: "Write a biography of Hamzah\'s role at Uhud.", ar: "اكتب سيرة حمزة في أحد." },
+              hint: { en: "Include: his character, his fighting, his martyrdom.", ar: "ضمّن: شخصيّته وقتاله واستشهاده." },
+            },
+          },
+          {
+            id: "C",
+            title: { en: "The Prophet\'s Resilience", ar: "صمود النبيّ" },
+            image: IMG.childQuran,
+            color: "purple",
+            topic: { en: "Injured but steadfast", ar: "جُرح لكن ثبت" },
+            infoSections: [
+              { label: { en: "Fact", ar: "حقيقة" }, content: { en: "The Prophet was wounded — his tooth broken, face cut. Yet he said: \'O Allah, forgive my people, they do not know.\'", ar: "جُرح النبيّ — كُسرت رباعيته وشُجّ وجهه. قال: «اللهمّ اغفر لقومي فإنّهم لا يعلمون.»" } },
+              { label: { en: "Quran", ar: "القرآن" }, content: { en: "\'Muhammad is only a messenger.\' (Aal-Imran 144)", ar: "﴿وما محمّد إلّا رسول﴾ (آل عمران ١٤٤)" } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "True leadership means forgiveness even when hurt.", ar: "القيادة الحقيقيّة: المسامحة حتّى عند الأذى." } },
             ],
-            memberRoles: [
-              { en: "Researcher, Summariser, Presenter.", ar: "الباحِث، المُلَخِّص، العارِض." },
+            task: {
+              title: { en: "Reflect on the Prophet\'s Response", ar: "تأمّل في ردّ النبيّ" },
+              description: { en: "Write how the Prophet\'s response to injury is a model for us.", ar: "اكتب كيف يكون ردّ النبيّ على الجرح نموذجًا لنا." },
+              hint: { en: "Include: the injury, his words, the lesson for today.", ar: "ضمّن: الإصابة وكلماته ودرس اليوم." },
+            },
+          },
+          {
+            id: "D",
+            title: { en: "Aal-Imran Lessons", ar: "دروس آل عمران" },
+            image: IMG.bookshelf,
+            color: "amber",
+            topic: { en: "Quranic commentary on Uhud", ar: "التفسير القرآني لأحد" },
+            infoSections: [
+              { label: { en: "Quran", ar: "القرآن" }, content: { en: "Aal-Imran 139-152 discusses Uhud in detail.", ar: "آل عمران ١٣٩-١٥٢ تتناول أحد بالتفصيل." } },
+              { label: { en: "Key Verse", ar: "آية مفتاحيّة" }, content: { en: "\'Do not lose heart, do not grieve, for you will have the upper hand.\' (139)", ar: "﴿ولا تهنوا ولا تحزنوا وأنتم الأعلون﴾ (١٣٩)" } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Allah\'s words console and guide after setbacks.", ar: "كلمات الله تعزّي وتهدي بعد النكسات." } },
             ],
-            finalProduct: { en: "A summary of resilience after Uhud.", ar: "مُلَخَّصٌ لِلصُّمودِ بَعدَ أُحُد." },
+            task: {
+              title: { en: "Analyse the Verses", ar: "حلّل الآيات" },
+              description: { en: "Pick 3 verses from Aal-Imran about Uhud and explain them.", ar: "اختر ٣ آيات من آل عمران عن أحد واشرحها." },
+              hint: { en: "Include: verse, meaning, lesson, application.", ar: "ضمّن: الآية والمعنى والدرس والتطبيق." },
+            },
+          },
+          {
+            id: "E",
+            title: { en: "Uhud Lessons for Students", ar: "دروس أحد للطلّاب" },
+            image: IMG.skyBlue,
+            color: "rose",
+            topic: { en: "Applying Uhud at school", ar: "تطبيق أحد في المدرسة" },
+            infoSections: [
+              { label: { en: "Lesson", ar: "درس" }, content: { en: "Obey teachers and parents like the archers should have.", ar: "أطع المعلّمين والأهل كما كان ينبغي للرماة." } },
+              { label: { en: "Lesson", ar: "درس" }, content: { en: "Setbacks are learning opportunities, not failures.", ar: "النكسات فرص تعلّم لا فشل." } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Patience and obedience lead to long-term success.", ar: "الصبر والطاعة يؤدّيان للنجاح." } },
+            ],
+            task: {
+              title: { en: "Write Personal Lessons", ar: "اكتب دروسًا شخصيّة" },
+              description: { en: "Apply 5 Uhud lessons to your school life.", ar: "طبّق ٥ دروس من أحد في حياتك المدرسيّة." },
+              hint: { en: "Include: obedience, patience, teamwork, resilience, trust.", ar: "ضمّن: الطاعة والصبر والعمل الجماعي والمرونة والتوكّل." },
+            },
           },
         ],
+        coinsReward: 15,
       },
-      responsePrompt: {
-        title: { en: "Final synthesis", ar: "التَّركيبُ الخِتامِيّ" },
-        prompt: { en: "Allah could have given the Muslims an easy victory but allowed this hardship instead. Explain at least three wisdoms behind it (e.g. teaching obedience, distinguishing true believers from the weak, removing reliance on persons, training the community). How can a setback in your own life be a hidden mercy?", ar: "كانَ اللهُ قادِرًا أن يَمنَحَ المُسلِمينَ نَصرًا سَهلًا لكِنَّهُ أذِنَ بِهذه الشِّدّةِ بَدَلًا مِن ذلك. بَيِّنْ ثَلاثَ حِكَمٍ على الأقَلِّ مِن وَراءِ ذلك (كَتَعليمِ الطّاعة، وتَمييزِ المُؤمِنِ الصّادِقِ مِنَ الضَّعيف، ورَفعِ التَّعَلُّقِ بِالأشخاص، وتَدريبِ الأُمّة). وكَيفَ تَكونُ الكَبوةُ في حَياتِكَ رَحمةً خَفِيّة؟" },
-        placeholder: { en: "Wisdom 1: ... Wisdom 2: ... Wisdom 3: ... In my life, a setback can be a mercy because...", ar: "الحِكمةُ ١: ... الحِكمةُ ٢: ... الحِكمةُ ٣: ... وفي حَياتي، تَكونُ الكَبوةُ رَحمةً لِأنَّ..." },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Hinge Questions", ar: "أسئلة محوريّة" },
+      learningObjectives: [
+        { en: "Test your understanding of everything studied.", ar: "اختبر فهمك لكلّ ما درسته." },
+      ],
+      image: {
+        src: IMG.bookshelf,
+        alt: { en: "Assessment.", ar: "تقييم." },
       },
-      body: {
-        en: "Though Uhud brought grief — around seventy Companions were martyred, including the Prophet's beloved uncle Hamzah ibn Abd al-Muttalib — Allah turned this hardship into one of the richest lessons of the Seerah. Allah devoted a long passage of Surat Aal 'Imran to it, drawing out its wisdoms, which shows that the believers were meant to learn from it for all time. Let us gather the greatest of these lessons.\n\nThe first lesson is the supreme importance of obedience and discipline, especially to the Prophet ﷺ and to leadership. The Muslims did not lose because of weakness, but because some left their post for the spoils of this world. The Qur'an names the cause exactly: dispute and disobedience after victory was within reach. The second lesson is the danger of letting the love of worldly gain override duty: 'among you are some who desire this world.' The desire for booty at the wrong moment cost the army dearly. The third lesson is that faith must rest on Allah, not on any person. When the rumour of the Prophet's death spread and some faltered, Allah taught that the religion does not die with the Messenger ﷺ — a lesson that would steady the Companions years later when he ﷺ truly passed away, and Abu Bakr recited this very verse. The fourth lesson is that hardship distinguishes the sincere from the weak and purifies the believers; Allah does not leave the believers untested.\n\nFinally, Uhud teaches resilience: the believer rises again after a fall. The day after the battle, despite their wounds, the Prophet ﷺ called the Companions to march out again toward the retreating enemy (the expedition of Hamra al-Asad), showing strength and resolve so the enemy would not dare return. Allah comforted the believers with words every Muslim should memorise: 'Do not lose heart nor grieve, for you will be superior if you are true believers.' A demanding student should leave this lesson understanding that Uhud is not a story of defeat but of education. Allah, in His wisdom, allowed a painful setback to teach His servants obedience, sincerity, detachment from the world, reliance on Him alone, and the courage to rise again. Every believer who faces a failure — a poor result, a broken plan, a mistake — should read Uhud and learn to ask not only 'what went wrong?' but 'what is Allah teaching me, and how do I rise again stronger?'",
-        ar: "مَعَ أنَّ أُحُدًا جَلَبَت حُزنًا — استُشهِدَ نَحوُ سَبعينَ مِنَ الصَّحابة، فيهِم عَمُّ النَّبِيِّ ﷺ الحَبيبُ حَمزةُ بنُ عَبدِ المُطَّلِب — فقد حَوَّلَ اللهُ هذه الشِّدّةَ إلى أغنى دُروسِ السّيرة. فقد أفرَدَ اللهُ لَها مَقطَعًا طَويلًا مِن سورةِ آلِ عمران، يَستَخرِجُ حِكَمَها، وهذا يُبَيِّنُ أنَّ المُؤمِنينَ أُريدَ لَهُم أن يَتَعَلَّموا مِنها على الدَّوام. فَلنَجمَعْ أعظَمَ هذه الدُّروس.\n\nالدَّرسُ الأوَّلُ أهَمّيّةُ الطّاعةِ والانضِباطِ القُصوى، وبِخاصّةٍ لِلنَّبِيِّ ﷺ ولِلقِيادة. فلم يَخسَرِ المُسلِمونَ ضَعفًا، بل لِأنَّ بَعضَهُم تَرَكَ مَوقِعَهُ لِغَنائِمِ الدُّنيا. وقد سَمّى القُرآنُ السَّبَبَ بِدِقّة: تَنازُعٌ ومَعصيةٌ بَعدَ أن صارَ النَّصرُ في المُتَناوَل. والدَّرسُ الثّاني خَطَرُ تَغليبِ حُبِّ المَكسَبِ الدُّنيَوِيِّ على الواجِب: ﴿مِنكُم مَن يُريدُ الدُّنيا﴾. فقد كَلَّفَتِ الرَّغبةُ في الغَنيمةِ في غَيرِ وَقتِها الجَيشَ غاليًا. والدَّرسُ الثّالِثُ أنَّ الإيمانَ يَقومُ على اللهِ لا على شَخص. فَلَمّا انتَشَرَت إشاعةُ مَوتِ النَّبِيِّ ﷺ ووَهَنَ بَعضُهُم، عَلَّمَ اللهُ أنَّ الدّينَ لا يَموتُ بِمَوتِ الرَّسولِ ﷺ — دَرسٌ ثَبَّتَ الصَّحابةَ بَعدَ سَنَواتٍ حينَ تُوُفِّيَ ﷺ حَقًّا، فَتَلا أبو بَكرٍ هذه الآيةَ بِعَينِها. والدَّرسُ الرّابِعُ أنَّ الشِّدّةَ تُمَيِّزُ الصّادِقَ مِنَ الضَّعيفِ وتُمَحِّصُ المُؤمِنين؛ فاللهُ لا يَترُكُ المُؤمِنينَ بِلا ابتِلاء.\n\nوأخيرًا تُعَلِّمُ أُحُدٌ الصُّمود: فالمُؤمِنُ يَنهَضُ بَعدَ الكَبوة. ففي اليَومِ التّالي لِلمَعرَكة، رَغمَ الجِراح، دَعا النَّبِيُّ ﷺ الصَّحابةَ لِلخُروجِ ثانيةً نَحوَ العَدُوِّ المُنسَحِب (غَزوةُ حَمراءِ الأسَد)، إظهارًا لِلقُوّةِ والعَزمِ لِئلّا يَجرُؤَ العَدُوُّ على العَودة. وسَلّى اللهُ المُؤمِنينَ بِكَلِماتٍ يَنبَغي لِكُلِّ مُسلِمٍ حِفظُها: ﴿ولا تَهِنوا ولا تَحزَنوا وأنتُمُ الأعلَونَ إن كُنتُم مُؤمِنين﴾. وعلى الطّالِبِ المُطالِبِ أن يُغادِرَ هذا الدَّرسَ وهو يَفهَمُ أنَّ أُحُدًا لَيسَت قِصّةَ هَزيمةٍ بل تَربية. أذِنَ اللهُ بِحِكمَتِهِ بِكَبوةٍ مُؤلِمةٍ لِيُعَلِّمَ عِبادَهُ الطّاعةَ والإخلاصَ والتَّجَرُّدَ مِنَ الدُّنيا والتَّوَكُّلَ عليهِ وَحدَهُ والشَّجاعةَ على النُّهوضِ مِن جَديد. وكُلُّ مُؤمِنٍ يُواجِهُ فَشَلًا — نَتيجةً ضَعيفةً، أو خُطّةً مُنهارة، أو خَطأً — فَليَقرَأْ أُحُدًا، وليَتَعَلَّمْ أن يَسألَ لا «ما الذي أخطَأ؟» فَحَسب، بل «ماذا يُعَلِّمُني الله، وكَيفَ أنهَضُ أقوى؟».",
+      hingeQuestions: {
+        title: { en: "Hinge Questions — Test Your Understanding", ar: "أسئلة محوريّة — اختبر فهمك" },
+        instruction: { en: "Answer all 10 questions.", ar: "أجب عن الأسئلة العشرة." },
+        questions: [
+          {
+            question: { en: "When was Uhud?", ar: "متى كانت أحد؟" },
+            options: [
+            { en: "3 AH", ar: "٣ هـ" },
+            { en: "2 AH", ar: "٢ هـ" },
+            { en: "5 AH", ar: "٥ هـ" },
+            { en: "8 AH", ar: "٨ هـ" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "3 AH, Shawwal.", ar: "٣ هـ شوّال." },
+          },
+          {
+            question: { en: "How many archers?", ar: "كم عدد الرماة؟" },
+            options: [
+            { en: "50", ar: "٥٠" },
+            { en: "100", ar: "١٠٠" },
+            { en: "10", ar: "١٠" },
+            { en: "200", ar: "٢٠٠" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "50 archers.", ar: "٥٠ راميًا." },
+          },
+          {
+            question: { en: "Why did archers leave?", ar: "لماذا ترك الرماة؟" },
+            options: [
+            { en: "To collect spoils", ar: "لجمع الغنائم" },
+            { en: "To pray", ar: "للصلاة" },
+            { en: "To eat", ar: "للأكل" },
+            { en: "To sleep", ar: "للنوم" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "To collect spoils.", ar: "لجمع الغنائم." },
+          },
+          {
+            question: { en: "Who was martyred?", ar: "من استُشهد؟" },
+            options: [
+            { en: "Hamzah", ar: "حمزة" },
+            { en: "Abu Bakr", ar: "أبو بكر" },
+            { en: "Umar", ar: "عمر" },
+            { en: "Ali", ar: "عليّ" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Hamzah, Lion of Allah.", ar: "حمزة أسد الله." },
+          },
+          {
+            question: { en: "How many martyred?", ar: "كم شهيدًا؟" },
+            options: [
+            { en: "70", ar: "٧٠" },
+            { en: "10", ar: "١٠" },
+            { en: "300", ar: "٣٠٠" },
+            { en: "5", ar: "٥" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "70 Muslims.", ar: "٧٠ مسلمًا." },
+          },
+          {
+            question: { en: "Main lesson of Uhud?", ar: "الدرس الرئيسي من أحد؟" },
+            options: [
+            { en: "Obedience to the leader", ar: "طاعة القائد" },
+            { en: "Speed", ar: "السرعة" },
+            { en: "Money", ar: "المال" },
+            { en: "Retreat", ar: "الانسحاب" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Obey the leader.", ar: "أطع القائد." },
+          },
+          {
+            question: { en: "The Prophet was?", ar: "النبيّ كان؟" },
+            options: [
+            { en: "Wounded but steadfast", ar: "جُرح لكن ثبت" },
+            { en: "Unharmed", ar: "لم يُصب" },
+            { en: "Absent", ar: "غائبًا" },
+            { en: "Retreated", ar: "انسحب" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Wounded but steadfast.", ar: "جُرح لكن ثبت." },
+          },
+          {
+            question: { en: "What did the Prophet say about his people?", ar: "ماذا قال النبيّ عن قومه؟" },
+            options: [
+            { en: "Forgive them, they do not know", ar: "اغفر لهم لا يعلمون" },
+            { en: "Punish them", ar: "عاقبهم" },
+            { en: "Leave them", ar: "اتركهم" },
+            { en: "Fight them", ar: "حاربهم" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "O Allah forgive them.", ar: "اللهمّ اغفر لهم." },
+          },
+          {
+            question: { en: "Quraysh numbered?", ar: "عدد قريش؟" },
+            options: [
+            { en: "3000", ar: "٣٠٠٠" },
+            { en: "313", ar: "٣١٣" },
+            { en: "100", ar: "١٠٠" },
+            { en: "10000", ar: "١٠٠٠٠" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "About 3000.", ar: "نحو ٣٠٠٠." },
+          },
+          {
+            question: { en: "Aal-Imran 139 says?", ar: "آل عمران ١٣٩ تقول؟" },
+            options: [
+            { en: "Do not lose heart", ar: "لا تهنوا" },
+            { en: "Give up", ar: "استسلموا" },
+            { en: "Run away", ar: "اهربوا" },
+            { en: "Stay silent", ar: "اصمتوا" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Do not lose heart or grieve.", ar: "لا تهنوا ولا تحزنوا." },
+          },
+        ],
+        coinsReward: 20,
       },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Watch & Reflect", ar: "شاهد وتأمّل" },
+      learningObjectives: [
+        { en: "Watch a video related to the topic and reflect.", ar: "شاهد مقطعًا متعلّقًا بالموضوع وتأمّل." },
+      ],
+      image: {
+        src: IMG.childQuran,
+        alt: { en: "Video lesson.", ar: "درس مرئي." },
+      },
+      youtubeVideo: {
+        title: { en: "Battle of Uhud", ar: "غزوة أحد" },
+        url: "https://www.youtube.com/watch?v=kYnGEQoGhUE",
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Plenary", ar: "ختام الدرس" },
+      learningObjectives: [
+        { en: "Reflect on and share what you learned.", ar: "تأمّل وشارك ما تعلّمته." },
+      ],
+      image: {
+        src: IMG.grandMosque,
+        alt: { en: "Students sharing.", ar: "طلاب يشاركون." },
+      },
+      plenary: {
+        title: { en: "Share Your Learning", ar: "شارك ما تعلّمته" },
+        instruction: { en: "Scan QR or enter the code to share what you learned.", ar: "امسح QR أو أدخل الرمز لمشاركة ما تعلّمته." },
+        code: "UHUD0001",
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Worksheet — The Battle of Uhud", ar: "ورقة عمل — غَزوةُ أُحُد" },
+      learningObjectives: [
+        { en: "Demonstrate understanding through an auto-marked worksheet.", ar: "أظهر فهمي من خلال ورقة عمل تُصحّح تلقائيًّا." },
+      ],
+      image: {
+        src: IMG.bookshelf,
+        alt: { en: "Worksheet.", ar: "ورقة عمل." },
+      },
+      worksheet: {
+        title: { en: "Worksheet — The Battle of Uhud", ar: "ورقة عمل — غَزوةُ أُحُد" },
+        instruction: { en: "Answer all questions. Auto-marked. Cannot re-answer after submission.", ar: "أجب عن جميع الأسئلة. تُصحّح تلقائيًّا. لن تستطيع الإجابة مجدّدًا." },
+        sections: [
+          {
+            type: "mcq" as const,
+            title: { en: "Multiple Choice", ar: "اختيار من متعدّد" },
+            questions: [
+              {
+                question: { en: "When was Uhud?", ar: "متى أحد؟" },
+                options: [
+                { en: "3 AH", ar: "٣ هـ" },
+                { en: "2 AH", ar: "٢ هـ" },
+                { en: "5 AH", ar: "٥ هـ" },
+                { en: "1 AH", ar: "١ هـ" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "Archers left for?", ar: "الرماة تركوا ل؟" },
+                options: [
+                { en: "Spoils", ar: "الغنائم" },
+                { en: "Prayer", ar: "الصلاة" },
+                { en: "Food", ar: "الطعام" },
+                { en: "Sleep", ar: "النوم" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "How many martyred?", ar: "كم شهيدًا؟" },
+                options: [
+                { en: "70", ar: "٧٠" },
+                { en: "10", ar: "١٠" },
+                { en: "300", ar: "٣٠٠" },
+                { en: "5", ar: "٥" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "Who was martyred?", ar: "من استُشهد؟" },
+                options: [
+                { en: "Hamzah", ar: "حمزة" },
+                { en: "Umar", ar: "عمر" },
+                { en: "Ali", ar: "عليّ" },
+                { en: "Abu Bakr", ar: "أبو بكر" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "Main lesson?", ar: "الدرس الرئيسي؟" },
+                options: [
+                { en: "Obedience", ar: "الطاعة" },
+                { en: "Speed", ar: "السرعة" },
+                { en: "Wealth", ar: "الثروة" },
+                { en: "Fame", ar: "الشهرة" },
+                ],
+                correctIndex: 0,
+              },
+            ],
+          },
+          {
+            type: "trueFalse" as const,
+            title: { en: "True or False", ar: "صواب أم خطأ" },
+            questions: [
+              { statement: { en: "Uhud was in 3 AH.", ar: "أحد في ٣ هـ." }, answer: true },
+              { statement: { en: "Muslims won completely.", ar: "المسلمون انتصروا كلّيًّا." }, answer: false },
+              { statement: { en: "Archers disobeyed the Prophet.", ar: "الرماة عصوا النبيّ." }, answer: true },
+              { statement: { en: "Hamzah survived.", ar: "حمزة نجا." }, answer: false },
+              { statement: { en: "Obedience is a key lesson.", ar: "الطاعة درس رئيسي." }, answer: true },
+            ],
+          },
+          {
+            type: "matchUp" as const,
+            title: { en: "Match Up", ar: "وصّل" },
+            prompts: [
+              { prompt: { en: "Uhud", ar: "أحد" }, answer: { en: "Second major battle", ar: "ثاني معركة كبرى" } },
+              { prompt: { en: "Shuhada", ar: "شهداء" }, answer: { en: "Martyrs", ar: "الشهداء" } },
+              { prompt: { en: "Ta\'ah", ar: "طاعة" }, answer: { en: "Obedience", ar: "الطاعة" } },
+              { prompt: { en: "Ghanima", ar: "غنيمة" }, answer: { en: "War spoils", ar: "الغنائم" } },
+              { prompt: { en: "Sabr", ar: "صبر" }, answer: { en: "Patience in adversity", ar: "الصبر في الشدّة" } },
+            ],
+          },
+          {
+            type: "fillBlanks" as const,
+            title: { en: "Fill in the Blanks", ar: "املأ الفراغات" },
+            questions: [
+              { sentence: { en: "Archers numbered _______.", ar: "عدد الرماة _______." }, blankAnswer: { en: "50", ar: "٥٠" } },
+              { sentence: { en: "Quraysh numbered _______.", ar: "عدد قريش _______." }, blankAnswer: { en: "3000", ar: "٣٠٠٠" } },
+              { sentence: { en: "_______ Muslims were martyred.", ar: "استُشهد _______ مسلمًا." }, blankAnswer: { en: "70", ar: "٧٠" } },
+              { sentence: { en: "The archers left for _______.", ar: "الرماة تركوا لل_______." }, blankAnswer: { en: "spoils", ar: "غنائم" } },
+            ],
+          },
+          {
+            type: "ordering" as const,
+            title: { en: "Put in Correct Order", ar: "رتّب ترتيبًا صحيحًا" },
+            items: [
+              { en: "Quraysh gathers 3000 for revenge", ar: "قريش تجمع ٣٠٠٠ للثأر" },
+              { en: "Prophet positions army at Mount Uhud", ar: "النبيّ يرتّب الجيش عند جبل أحد" },
+              { en: "50 archers placed on the hill", ar: "٥٠ راميًا على الجبل" },
+              { en: "Muslims initially win", ar: "المسلمون ينتصرون أوّلًا" },
+              { en: "Archers leave their posts for spoils", ar: "الرماة يتركون مواقعهم للغنائم" },
+              { en: "Khalid attacks from behind; 70 martyred", ar: "خالد يهاجم من الخلف؛ ٧٠ شهيدًا" },
+            ],
+          },
+        ],
+        coinsReward: 25,
+      },
+      body: { en: "", ar: "" },
     },
   ],
-  quizQuestions: [
-    {
-      prompt: { en: "Why did the Quraysh come to fight at Uhud?", ar: "لِماذا جاءَت قُرَيشٌ لِلقِتالِ في أُحُد؟" },
-      options: [
-        { en: "To take revenge for their defeat at Badr", ar: "لِلثَّأرِ لِهَزيمَتِهِم في بَدر" },
-        { en: "To accept Islam", ar: "لِيُسلِموا" },
-        { en: "To trade peacefully", ar: "لِلتِّجارةِ بِسَلام" },
-        { en: "By accident", ar: "بِالصُّدفة" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "Uhud (3 AH) came one year after Badr, driven by Quraysh's desire for revenge.", ar: "أُحُد (٣ هـ) جاءَت بَعدَ بَدرٍ بِعامٍ، بِدافِعِ ثَأرِ قُرَيش." },
-    },
-    {
-      prompt: { en: "What order did the Prophet ﷺ give the archers on the hill?", ar: "ما الأمرُ الذي أعطاهُ النَّبِيُّ ﷺ لِلرُّماةِ على التَّلّ؟" },
-      options: [
-        { en: "Never leave your post, whether we win or lose", ar: "لا تَترُكوا مَوقِعَكُم، انتَصَرنا أم هُزِمنا" },
-        { en: "Leave as soon as the battle starts", ar: "اترُكوهُ فَورَ بَدءِ المَعرَكة" },
-        { en: "Collect the spoils first", ar: "اجمَعوا الغَنائِمَ أوَّلًا" },
-        { en: "Go home before sunset", ar: "ارجِعوا قَبلَ الغُروب" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "They were ordered to hold the hill no matter what — the hinge of the battle.", ar: "أُمِروا بِحِفظِ التَّلِّ مَهما حَدَث — وهو مِفصَلُ المَعرَكة." },
-    },
-    {
-      prompt: { en: "What caused the Muslims' near-victory to turn into hardship?", ar: "ما الذي حَوَّلَ نَصرَ المُسلِمينَ الوَشيكَ إلى شِدّة؟" },
-      options: [
-        { en: "Most archers left the hill to collect spoils, opening the flank", ar: "تَرَكَ أكثَرُ الرُّماةِ التَّلَّ لِجَمعِ الغَنائِم، فانفَتَحَ الجَناح" },
-        { en: "The Muslims ran out of food", ar: "نَفِدَ طَعامُ المُسلِمين" },
-        { en: "It started to rain heavily", ar: "هَطَلَ مَطَرٌ غَزير" },
-        { en: "The Prophet ﷺ told them to retreat", ar: "أمَرَهُمُ النَّبِيُّ ﷺ بِالانسِحاب" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "Khalid ibn al-Walid (then a disbeliever) exploited the open flank and attacked from behind.", ar: "استَغَلَّ خالِدُ بنُ الوَليد (وكانَ كافِرًا) الجَناحَ المَفتوحَ وهاجَمَ مِنَ الخَلف." },
-    },
-    {
-      prompt: { en: "According to Aal 'Imran 152, what was the exact cause of the setback?", ar: "بِحَسَبِ آل عمران ١٥٢، ما السَّبَبُ الدَّقيقُ لِلكَبوة؟" },
-      options: [
-        { en: "Disputing about the order and disobeying after victory was near", ar: "التَّنازُعُ في الأمرِ والمَعصيةُ بَعدَ أن قَرُبَ النَّصر" },
-        { en: "Too few Muslims believed", ar: "قِلّةُ المُؤمِنين" },
-        { en: "Bad weather", ar: "سوءُ الطَّقس" },
-        { en: "The Prophet's plan was weak", ar: "ضَعفُ خُطّةِ النَّبِيِّ ﷺ" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "'until you disputed about the order and disobeyed after He showed you what you love.'", ar: "﴿وتَنازَعتُم في الأمرِ وعَصَيتُم مِن بَعدِ ما أراكُم ما تُحِبّون﴾." },
-    },
-    {
-      prompt: { en: "What did Allah teach when the false rumour of the Prophet's death spread?", ar: "ماذا عَلَّمَ اللهُ حينَ انتَشَرَت إشاعةُ مَوتِ النَّبِيِّ ﷺ الكاذِبة؟" },
-      options: [
-        { en: "Faith rests on Allah; the religion does not die with the Messenger ﷺ", ar: "الإيمانُ على اللهِ؛ والدّينُ لا يَموتُ بِمَوتِ الرَّسولِ ﷺ" },
-        { en: "That the Muslims should surrender", ar: "أنَّ على المُسلِمينَ الاستِسلام" },
-        { en: "That fighting is forbidden", ar: "أنَّ القِتالَ حَرام" },
-        { en: "Nothing important", ar: "لا شَيءَ مُهِمّ" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "'Muhammad is no more than a Messenger...' — faith must be tied to Allah, not any person.", ar: "﴿وما مُحَمَّدٌ إلّا رَسولٌ...﴾ — الإيمانُ يُرتَبَطُ بِاللهِ لا بِأحَد." },
-    },
-    {
-      prompt: { en: "True or False: Uhud teaches the believer to rise again after a setback, not to despair.", ar: "صَوابٌ أم خَطأ: تُعَلِّمُ أُحُدٌ المُؤمِنَ النُّهوضَ بَعدَ الكَبوةِ لا اليَأس." },
-      options: [
-        { en: "True — 'Do not lose heart nor grieve' (Aal 'Imran 139)", ar: "صَواب — ﴿ولا تَهِنوا ولا تَحزَنوا﴾ (آل عمران ١٣٩)" },
-        { en: "False", ar: "خَطأ" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "The next day the Prophet ﷺ marched to Hamra al-Asad, modelling resilience.", ar: "في الغَدِ خَرَجَ النَّبِيُّ ﷺ إلى حَمراءِ الأسَد، قُدوةً في الصُّمود." },
-    },
-  ],
+  quizQuestions: [],
 };

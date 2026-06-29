@@ -5,177 +5,519 @@ export const scientificThinking: CourseLesson = {
   slug: "g6y7-scientific-thinking",
   name: { en: "Scientific Thinking", ar: "التَّفكيرُ العِلميّ" },
   shortIntro: {
-    en: "Islam honours the mind and commands us to observe, reflect, and seek knowledge. A deep study of how the Qur'an invites scientific thinking — looking into creation as a path to faith — and how the Muslim balances reason and revelation.",
+    en: "Islam honours the mind and commands us to observe, reflect, and seek knowledge. A deep study of how the Qur\'an invites scientific thinking — looking into creation as a path to faith — and how the Muslim balances reason and revelation.",
     ar: "يُكَرِّمُ الإسلامُ العَقلَ ويَأمُرُنا بِالمُلاحَظةِ والتَّأمُّلِ وطَلَبِ العِلم. دِراسةٌ عَميقةٌ لِكَيفَ يَدعو القُرآنُ إلى التَّفكيرِ العِلميِّ — النَّظَرِ في الخَلقِ طَريقًا إلى الإيمان — وكَيفَ يُوازِنُ المُسلِمُ بَينَ العَقلِ والوَحي.",
   },
   quranSurahs: ["Aal Imran 190-191", "Al-Ghashiyah 17-20", "Az-Zumar 9"],
   sections: [
     {
-      title: { en: "The Qur'an calls to thought", ar: "القُرآنُ يَدعو إلى التَّفكير" },
+      title: { en: "Critical thinking (Warm up)", ar: "تفكير ناقد (تهيئة)" },
       learningObjectives: [
-        { en: "Explain how the Qur'an commands observation and reflection.", ar: "أُبَيِّنُ كَيفَ يَأمُرُ القُرآنُ بِالمُلاحَظةِ والتَّأمُّل." },
-        { en: "Link reflection on creation to belief in the Creator.", ar: "أربِطُ التَّأمُّلَ في الخَلقِ بِالإيمانِ بِالخالِق." },
-      ],
-      successCriteria: [
-        { en: "I can quote verses calling to reflect on creation.", ar: "أستَشهِدُ بِآياتٍ تَدعو لِلتَّأمُّلِ في الخَلق." },
-        { en: "I can explain why Islam honours the mind.", ar: "أشرَحُ لِماذا يُكَرِّمُ الإسلامُ العَقل." },
+        { en: "Evaluate a real-world scenario using evidence from Quran, Sunnah, and Islamic values.", ar: "أُقيّم سيناريو واقعيًّا بأدلّة من القرآن والسنّة والقيم الإسلاميّة." },
       ],
       image: {
-        src: IMG.skyBlue,
-        alt: { en: "The vast sky — a sign for those who reflect.", ar: "السَّماءُ الواسِعة — آيةٌ لِلمُتَأمِّلين." },
-        caption: { en: "'In the creation of the heavens and the earth... are signs for people of understanding.'", ar: "﴿إنَّ في خَلقِ السَّماواتِ والأرضِ... لَآياتٍ لِأولي الألباب﴾." },
+        src: IMG.hijabStudent,
+        alt: { en: "Student thinking critically.", ar: "طالب يفكّر بشكل ناقد." },
       },
       callout: {
-        label: { en: "High-order question", ar: "سُؤالٌ عالي المُستوى" },
-        title: { en: "Are faith and science enemies?", ar: "هل الإيمانُ والعِلمُ عَدُوّان؟" },
+        label: { en: "Critical thinking scenario", ar: "سيناريو للتفكير الناقد" },
+        title: { en: "Does Islam oppose science?", ar: "هل الإسلام يعارض العلم؟" },
         body: {
-          en: "Some people claim that religion and science are opposites — that the more you study science, the less you believe. Argue, using the Qur'an, why Islam sees correct scientific thinking not as a threat to faith but as one of the strongest paths toward it. What kind of thinking does the Qur'an actually command?",
-          ar: "يَزعُمُ بَعضُهُم أنَّ الدّينَ والعِلمَ ضِدّان — كُلَّما زادَ عِلمُكَ نَقَصَ إيمانُك. حاجِجْ، بِالقُرآن، لِماذا يَرى الإسلامُ التَّفكيرَ العِلميَّ الصَّحيحَ لا تَهديدًا لِلإيمانِ بل مِن أقوى الطُّرُقِ إليه. أيُّ تَفكيرٍ يَأمُرُ بِهِ القُرآنُ حَقًّا؟",
+          en: "A student says: \'Islam and science are enemies. Religion tells you to believe blindly. Science requires evidence. You cannot be a Muslim and a scientist.\'",
+          ar: "طالب يقول: «الإسلام والعلم أعداء. الدين يأمرك بالإيمان الأعمى. العلم يحتاج أدلّة. لا يمكنك أن تكون مسلمًا وعالمًا.»",
         },
+      },
+      responsePrompt: {
+        title: { en: "Write your critical response", ar: "اكتب ردّك الناقد" },
+        prompt: {
+          en: "Criticise using Quran and history of Muslim scientists.",
+          ar: "انتقد بالقرآن وتاريخ العلماء المسلمين.",
+        },
+        placeholder: { en: "This is wrong because...", ar: "هذا خطأ لأنّ..." },
+        buttonLabel: { en: "Save response", ar: "احفظ الإجابة" },
+        coinsReward: 10,
+      },
+      body: {
+        en: "\'Read in the name of your Lord who created.\' (Al-Alaq 1)",
+        ar: "﴿اقرأ باسم ربّك الذي خلق﴾ (العلق ١)",
+      },
+    },
+    {
+      title: { en: "Retrieval practise", ar: "ممارسة الاسترجاع" },
+      imageMatchingActivity: {
+        title: { en: "Match each image to its Islamic keyword", ar: "طابق كلّ صورة بكلمتها الإسلاميّة" },
+        instruction: { en: "Drag the keyword to the correct image.", ar: "اسحب الكلمة إلى الصورة الصحيحة." },
+        pairs: [
+          { image: IMG.childQuran, keyword: { en: "Ilm (Knowledge)", ar: "علم" } },
+          { image: IMG.bookshelf, keyword: { en: "Tajribah (Experiment)", ar: "تجربة" } },
+          { image: IMG.skyBlue, keyword: { en: "Ikhtira (Invention)", ar: "اختراع" } },
+          { image: IMG.lantern, keyword: { en: "Burhan (Evidence)", ar: "برهان" } },
+          { image: IMG.grandMosque, keyword: { en: "Tafakkur (Reflection)", ar: "تفكّر" } },
+        ],
+        coinsReward: 10,
+      },
+      body: {
+        en: "\'Say: Are those who know equal to those who do not know?\' (Az-Zumar 9)",
+        ar: "﴿قل هل يستوي الذين يعلمون والذين لا يعلمون﴾ (الزمر ٩)",
+      },
+    },
+    {
+      title: { en: "Scientific Thinking", ar: "التَّفكيرُ العِلميّ" },
+      learningObjectives: [
+        { en: "Explain Islam\'s encouragement of scientific thinking.", ar: "أشرح تشجيع الإسلام للتفكير العلمي." },
+        { en: "Identify Muslim contributions to science through history.", ar: "أحدّد إسهامات المسلمين في العلم عبر التاريخ." },
+      ],
+      successCriteria: [
+        { en: "I can explain how Islam encourages knowledge.", ar: "أشرح كيف يشجّع الإسلام العلم." },
+        { en: "I can name 3 Muslim scientists and their contributions.", ar: "أسمّي ٣ علماء مسلمين وإسهاماتهم." },
+        { en: "I can connect Quranic verses to scientific discovery.", ar: "أربط آيات قرآنيّة بالاكتشاف العلمي." },
+      ],
+      image: {
+        src: IMG.grandMosque,
+        alt: { en: "Topic image.", ar: "صورة الموضوع." },
+      },
+      readyButton: {
+        label: { en: "I\'m ready to learn!", ar: "أنا مستعدّ للتعلّم!" },
+        coinsReward: 5,
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Scientific Thinking in Islam", ar: "التفكير العلمي في الإسلام" },
+      learningObjectives: [
+        { en: "Understand how Islam pioneered and encouraged scientific thinking.", ar: "أفهم كيف ريادة الإسلام وتشجيعه للتفكير العلمي." },
+      ],
+      image: {
+        src: IMG.grandMosque,
+        alt: { en: "Lesson content image.", ar: "صورة محتوى الدرس." },
       },
       infoBoxes: [
         {
-          label: { en: "Qur'an", ar: "القُرآن" },
+          label: { en: "Quran and Science", ar: "القرآن والعلم" },
           lines: [
-            { en: "\"...Then do they not look at the camels — how they are created? And at the sky — how it is raised? And at the mountains — how they are set up? And at the earth — how it is spread out?\" — Al-Ghashiyah 17-20", ar: "﴿أفَلا يَنظُرونَ إلى الإبِلِ كَيفَ خُلِقَت ۝ وإلى السَّماءِ كَيفَ رُفِعَت ۝ وإلى الجِبالِ كَيفَ نُصِبَت ۝ وإلى الأرضِ كَيفَ سُطِحَت﴾ — الغاشِية ١٧-٢٠" },
+            { en: "First word revealed: \'Read.\' The Quran mentions embryology (Al-Muminun 12-14), water cycle (An-Nur 43), mountains as pegs (An-Naba 7), expanding universe (Adh-Dhariyat 47). Islam\'s first command is to seek knowledge.", ar: "أوّل كلمة نزلت: «اقرأ.» القرآن يذكر علم الأجنّة (المؤمنون ١٢-١٤) ودورة المياه (النور ٤٣) والجبال أوتادًا (النبأ ٧) والكون المتّسع (الذاريات ٤٧). أوّل أمر إسلامي طلب العلم." },
           ],
         },
         {
-          label: { en: "Qur'an", ar: "القُرآن" },
+          label: { en: "Golden Age Scientists", ar: "علماء العصر الذهبي" },
           lines: [
-            { en: "\"Say: Are those who know equal to those who do not know?\" — Az-Zumar 9", ar: "﴿قُلْ هل يَستَوي الذينَ يَعلَمونَ والذينَ لا يَعلَمون﴾ — الزُّمَر ٩" },
+            { en: "Ibn al-Haytham (optics), Al-Khwarizmi (algebra), Ibn Sina (medicine), Al-Zahrawi (surgery), Jabir ibn Hayyan (chemistry). The Islamic Golden Age (8th-14th century) advanced all sciences.", ar: "ابن الهيثم (البصريّات) والخوارزمي (الجبر) وابن سينا (الطبّ) والزهراوي (الجراحة) وجابر بن حيّان (الكيمياء). العصر الذهبي الإسلامي (القرن ٨-١٤) تقدّم في كلّ العلوم." },
+          ],
+        },
+        {
+          label: { en: "Islam\'s Scientific Method", ar: "المنهج العلمي الإسلامي" },
+          lines: [
+            { en: "The Quran encourages: observe, think, question, and conclude. This IS the scientific method. \'Travel through the earth and observe.\' (Al-Ankabut 20)", ar: "القرآن يشجّع: لاحظ وفكّر واسأل واستنتج. هذا هو المنهج العلمي. ﴿سيروا في الأرض فانظروا﴾ (العنكبوت ٢٠)" },
           ],
         },
       ],
+      trueFalseActivity: {
+        title: { en: "True or False", ar: "صواب أم خطأ" },
+        questions: [
+        { statement: { en: "Islam encourages scientific thinking.", ar: "الإسلام يشجّع التفكير العلمي." }, answer: true },
+        { statement: { en: "Islam opposes science.", ar: "الإسلام يعارض العلم." }, answer: false },
+        { statement: { en: "\'Read\' was the first Quranic word.", ar: "«اقرأ» أوّل كلمة قرآنيّة." }, answer: true },
+        { statement: { en: "Muslim scientists contributed nothing.", ar: "العلماء المسلمون لم يسهموا.." }, answer: false },
+        { statement: { en: "The Quran mentions embryology.", ar: "القرآن يذكر علم الأجنّة." }, answer: true },
+        ],
+        coinsReward: 10,
+      },
+      fillBlanksActivity: {
+        title: { en: "Fill in the Blanks", ar: "املأ الفراغات" },
+        questions: [
+        { sentence: { en: "First word revealed: \'_______.", ar: "أوّل كلمة نزلت: «_______.»" }, answer: { en: "Read", ar: "اقرأ" } },
+        { sentence: { en: "Al-Khwarizmi founded _______.", ar: "الخوارزمي أسّس _______." }, answer: { en: "algebra", ar: "الجبر" } },
+        { sentence: { en: "Ibn al-Haytham studied _______.", ar: "ابن الهيثم درس _______." }, answer: { en: "optics", ar: "البصريّات" } },
+        { sentence: { en: "\'Are those who know _______ to those who do not?\'", ar: "﴿هل يستوي الذين _______ والذين لا يعلمون﴾" }, answer: { en: "know", ar: "يعلمون" } },
+        ],
+        coinsReward: 10,
+      },
       body: {
-        en: "One of the most remarkable features of the Qur'an is how often and how forcefully it commands human beings to think, observe, reflect, and use their minds. Hundreds of verses end with phrases like 'will they not reflect?', 'so that you may understand', 'for people who use reason', and 'for people who think'. The very first word revealed to the Prophet ﷺ was 'Iqra' — 'Read!' — and the Qur'an repeatedly praises knowledge and those who possess it, asking: 'Say: Are those who know equal to those who do not know?' Far from discouraging curiosity or investigation, Islam came to awaken the human mind from the superstition, blind imitation, and ignorance of the age of jahiliyyah and to direct it toward careful observation of the world and clear, evidence-based reasoning. The mind (al-'aql) is treated in Islam as a precious gift and a trust, and using it well is itself an act of obedience to Allah.\n\nThe Qur'an's method of building faith is, in large part, an invitation to a kind of scientific thinking: it points us to observe the natural world closely and to reason from what we see to the One who made it. Allah says: 'Do they not look at the camels — how they are created? And at the sky — how it is raised? And at the mountains — how they are set up? And at the earth — how it is spread out?' Here the Qur'an directs our attention to biology (the camel), astronomy (the sky), geology (the mountains), and geography (the earth), and asks us to examine them carefully. Elsewhere it draws our attention to the alternation of night and day, the movement of the sun and moon in precise orbits, the sending down of rain and the revival of dead land, the stages of the human embryo in the womb, the variety of fruits and colours, and the flight of birds held up in the sky. In each case, the deeper and more carefully we study these phenomena, the more we are meant to be struck by their astonishing order, precision, and design — and to conclude that such order cannot be the product of blind chance but points to a wise, powerful Creator.\n\nThis is captured beautifully in one of the greatest verses on reflection: 'Indeed, in the creation of the heavens and the earth and the alternation of the night and the day are signs for people of understanding — those who remember Allah while standing, sitting, and lying on their sides, and who reflect upon the creation of the heavens and the earth, saying: Our Lord, You did not create this in vain; exalted are You.' Notice the two stages: first they observe and reflect deeply on creation (the work of the thinking mind), and then this reflection leads them to remembrance of Allah and humble worship (the response of the believing heart). This is the Islamic model of scientific thinking: it is not cold or empty, nor does it end in arrogance or denial; rather, genuine reflection on the wonders of the universe should increase a person's awe of Allah, deepen his faith, and move him to gratitude and worship. A demanding student should therefore reject the false idea that he must choose between his mind and his religion. In Islam, the two work together: revelation tells us the great truths we could never discover on our own, and the observing, reasoning mind confirms and deepens those truths by reading the signs Allah has placed throughout His creation.",
-        ar: "مِن أبرَزِ سِماتِ القُرآنِ كَثرةُ أمرِهِ وقُوّةُ حَثِّهِ البَشَرَ على التَّفكيرِ والمُلاحَظةِ والتَّأمُّلِ واستِعمالِ العَقل. فَمِئاتُ الآياتِ تَختِمُ بِعِباراتٍ مِثل: ﴿أفَلا يَتَذَكَّرون﴾، ﴿لَعَلَّكُم تَعقِلون﴾، ﴿لِقَومٍ يَعقِلون﴾، ﴿لِقَومٍ يَتَفَكَّرون﴾. وكانَت أوَّلَ كَلِمةٍ نَزَلَت على النَّبِيِّ ﷺ «اقرَأ»، ويَمدَحُ القُرآنُ مِرارًا العِلمَ وأهلَه، سائِلًا: ﴿قُلْ هل يَستَوي الذينَ يَعلَمونَ والذينَ لا يَعلَمون﴾. فالإسلامُ، بَعيدًا عن كَبتِ الفُضولِ أوِ البَحث، جاءَ ليُوقِظَ العَقلَ البَشَريَّ مِن خُرافةِ الجاهِليّةِ وتَقليدِها الأعمى وجَهلِها، وليُوَجِّهَهُ إلى مُلاحَظةِ العالَمِ بِدِقّةٍ والاستِدلالِ الواضِحِ المَبنيِّ على البُرهان. والعَقلُ في الإسلامِ نِعمةٌ ثَمينةٌ وأمانة، وحُسنُ استِعمالِهِ نَفسُهُ طاعةٌ لِله.\n\nومَنهَجُ القُرآنِ في بِناءِ الإيمانِ هو، في كَثيرٍ مِنه، دَعوةٌ إلى نَوعٍ مِنَ التَّفكيرِ العِلميّ: يُوَجِّهُنا إلى مُلاحَظةِ العالَمِ الطَّبيعيِّ عن قُربٍ والاستِدلالِ مِمّا نَرى على مَن صَنَعَه. يَقولُ اللهُ: ﴿أفَلا يَنظُرونَ إلى الإبِلِ كَيفَ خُلِقَت ۝ وإلى السَّماءِ كَيفَ رُفِعَت ۝ وإلى الجِبالِ كَيفَ نُصِبَت ۝ وإلى الأرضِ كَيفَ سُطِحَت﴾. فَهُنا يُوَجِّهُ القُرآنُ نَظَرَنا إلى الأحياءِ (الإبِل)، والفَلَكِ (السَّماء)، والجيولوجيا (الجِبال)، والجُغرافيا (الأرض)، ويَأمُرُنا بِالنَّظَرِ فيها بِعِناية. ويَلفِتُ في مَواضِعَ أُخرى انتِباهَنا إلى تَعاقُبِ اللَّيلِ والنَّهار، وجَريِ الشَّمسِ والقَمَرِ في مَداراتٍ دَقيقة، وإنزالِ المَطَرِ وإحياءِ الأرضِ المَيتة، وأطوارِ الجَنينِ في الرَّحِم، وتَنَوُّعِ الثِّمارِ والألوان، وطَيَرانِ الطَّيرِ مَحبوسًا في السَّماء. وفي كُلِّ ذلك، كُلَّما دَرَسنا هذه الظَّواهِرَ أعمَقَ وأدَقّ، أدهَشَنا نِظامُها الباهِرُ ودِقَّتُها وإحكامُها — لِنَستَنتِجَ أنَّ هذا النِّظامَ لا يُمكِنُ أن يَكونَ وَليدَ صُدفةٍ عَمياء، بل يَدُلُّ على خالِقٍ حَكيمٍ قَدير.\n\nويَتَجَلّى هذا في أعظَمِ آياتِ التَّأمُّل: ﴿إنَّ في خَلقِ السَّماواتِ والأرضِ واختِلافِ اللَّيلِ والنَّهارِ لَآياتٍ لِأولي الألباب ۝ الذينَ يَذكُرونَ اللهَ قِيامًا وقُعودًا وعلى جُنوبِهِم ويَتَفَكَّرونَ في خَلقِ السَّماواتِ والأرضِ، رَبَّنا ما خَلَقتَ هذا باطِلًا سُبحانَك﴾. لاحِظِ المَرحَلَتَين: أوَّلًا يُلاحِظونَ ويَتَأمَّلونَ في الخَلقِ عَميقًا (عَمَلُ العَقلِ المُفَكِّر)، ثُمَّ يَقودُهُم هذا التَّأمُّلُ إلى ذِكرِ اللهِ والعِبادةِ الخاشِعة (استِجابةُ القَلبِ المُؤمِن). هذا هو النَّموذَجُ الإسلاميُّ لِلتَّفكيرِ العِلميّ: لَيسَ بارِدًا ولا فارِغًا، ولا يَنتَهي إلى الكِبرِ أوِ الجُحود؛ بل التَّأمُّلُ الصّادِقُ في عَجائِبِ الكَونِ يَزيدُ المَرءَ هَيبةً لِلهِ، ويُعَمِّقُ إيمانَه، ويَدفَعُهُ إلى الشُّكرِ والعِبادة. وعلى الطّالِبِ المُطالِبِ أن يَرفُضَ الفِكرةَ الخاطِئةَ أنَّهُ مُضطَرٌّ لِلاختيارِ بَينَ عَقلِهِ ودينِه. ففي الإسلامِ يَعمَلانِ مَعًا: الوَحيُ يُخبِرُنا بِالحَقائِقِ الكُبرى التي لا نَبلُغُها وَحدَنا، والعَقلُ المُلاحِظُ المُستَدِلُّ يُؤَكِّدُ هذه الحَقائِقَ ويُعَمِّقُها بِقِراءةِ الآياتِ التي بَثَّها اللهُ في خَلقِه.",
+        en: "Islam pioneered scientific thinking — first word was \'Read\', the Quran encourages observation, and Muslim scientists built the foundations of modern science.",
+        ar: "الإسلام ريادة التفكير العلمي — أوّل كلمة «اقرأ» والقرآن يشجّع الملاحظة والعلماء المسلمون بنوا أسس العلم الحديث.",
       },
     },
     {
-      title: { en: "Muslims and the pursuit of knowledge", ar: "المُسلِمونَ وطَلَبُ العِلم" },
+      title: { en: "Group Work", ar: "عمل جماعي" },
       learningObjectives: [
-        { en: "Describe the Muslim contribution to science.", ar: "أصِفُ إسهامَ المُسلِمينَ في العِلم." },
-        { en: "Balance reason and revelation correctly.", ar: "أُوازِنُ بَينَ العَقلِ والوَحيِ بِصَوابٍ." },
+        { en: "Explore Islamic contributions to science.", ar: "استكشف إسهامات الإسلام في العلم." },
+      ],
+      image: {
+        src: IMG.grandMosque,
+        alt: { en: "Students collaborating.", ar: "طلاب يتعاونون." },
+      },
+      groupWorkCards: {
+        title: { en: "Choose Your Task", ar: "اختر مهمّتك" },
+        instruction: { en: "Each group picks one card. Study the information, complete the task, and present to the class.", ar: "تختار كلّ مجموعة بطاقة. ادرسوا المعلومات وأنجزوا المهمّة وقدّموا للصفّ." },
+        presentationNote: { en: "All Quran and Hadith must be authentic with references.", ar: "يجب أن يكون كلّ قرآن وحديث صحيحًا بمصادره." },
+        cards: [
+          {
+            id: "A",
+            title: { en: "Quran and Modern Science", ar: "القرآن والعلم الحديث" },
+            image: IMG.childQuran,
+            color: "teal",
+            topic: { en: "Scientific miracles", ar: "إعجاز علمي" },
+            infoSections: [
+              { label: { en: "Quran", ar: "القرآن" }, content: { en: "Embryology (Al-Muminun 12-14), expanding universe (Adh-Dhariyat 47), water cycle (An-Nur 43).", ar: "علم الأجنّة (المؤمنون ١٢-١٤) والكون المتّسع (الذاريات ٤٧) ودورة المياه (النور ٤٣)." } },
+              { label: { en: "Fact", ar: "حقيقة" }, content: { en: "These were described 1400 years before modern science confirmed them.", ar: "وُصفت قبل ١٤٠٠ سنة من تأكيد العلم الحديث." } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Quran and science agree — both come from Allah.", ar: "القرآن والعلم يتّفقان — كلاهما من الله." } },
+            ],
+            task: {
+              title: { en: "Research Quran and Science", ar: "ابحث عن القرآن والعلم" },
+              description: { en: "Find 3 scientific facts in the Quran.", ar: "أوجد ٣ حقائق علميّة في القرآن." },
+              hint: { en: "Include: verse, scientific discovery, when confirmed.", ar: "ضمّن: الآية والاكتشاف ومتى تأكّد." },
+            },
+          },
+          {
+            id: "B",
+            title: { en: "Muslim Scientists", ar: "العلماء المسلمون" },
+            image: IMG.bookshelf,
+            color: "blue",
+            topic: { en: "Pioneers of knowledge", ar: "روّاد المعرفة" },
+            infoSections: [
+              { label: { en: "Ibn al-Haytham", ar: "ابن الهيثم" }, content: { en: "Father of optics; invented the camera obscura.", ar: "أبو البصريّات؛ اخترع الغرفة المظلمة." } },
+              { label: { en: "Al-Khwarizmi", ar: "الخوارزمي" }, content: { en: "Father of algebra; gave us the word \'algorithm\'.", ar: "أبو الجبر؛ أعطانا كلمة «خوارزميّة»." } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Faith and science work together.", ar: "الإيمان والعلم يعملان معًا." } },
+            ],
+            task: {
+              title: { en: "Create Scientist Profiles", ar: "أنشئ ملفّات علماء" },
+              description: { en: "Write profiles of 3 Muslim scientists.", ar: "اكتب ملفّات ل٣ علماء مسلمين." },
+              hint: { en: "Include: name, field, key contribution, impact.", ar: "ضمّن: الاسم والمجال والإسهام والأثر." },
+            },
+          },
+          {
+            id: "C",
+            title: { en: "The Scientific Method in Islam", ar: "المنهج العلمي في الإسلام" },
+            image: IMG.skyBlue,
+            color: "purple",
+            topic: { en: "Observe, think, conclude", ar: "لاحظ وفكّر واستنتج" },
+            infoSections: [
+              { label: { en: "Quran", ar: "القرآن" }, content: { en: "\'Travel through the earth and observe.\' (Al-Ankabut 20)", ar: "﴿سيروا في الأرض فانظروا﴾ (العنكبوت ٢٠)" } },
+              { label: { en: "Method", ar: "منهج" }, content: { en: "Observe → Hypothesise → Experiment → Conclude. This is embedded in the Quran.", ar: "لاحظ ← افترض ← جرّب ← استنتج. هذا مدمج في القرآن." } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Islam gave the world the scientific method.", ar: "الإسلام أعطى العالم المنهج العلمي." } },
+            ],
+            task: {
+              title: { en: "Apply the Method", ar: "طبّق المنهج" },
+              description: { en: "Use the scientific method on a Quranic observation.", ar: "طبّق المنهج العلمي على ملاحظة قرآنيّة." },
+              hint: { en: "Include: observation, hypothesis, evidence, conclusion.", ar: "ضمّن: الملاحظة والفرضيّة والدليل والاستنتاج." },
+            },
+          },
+          {
+            id: "D",
+            title: { en: "Knowledge in Hadith", ar: "العلم في الحديث" },
+            image: IMG.lantern,
+            color: "amber",
+            topic: { en: "Hadith on seeking knowledge", ar: "أحاديث طلب العلم" },
+            infoSections: [
+              { label: { en: "Hadith", ar: "حديث" }, content: { en: "\'Seeking knowledge is an obligation upon every Muslim.\' (Ibn Majah)", ar: "«طلب العلم فريضة على كلّ مسلم.» (ابن ماجه)" } },
+              { label: { en: "Hadith", ar: "حديث" }, content: { en: "\'Allah makes the path to Paradise easy for whoever seeks knowledge.\' (Muslim)", ar: "«من سلك طريقًا يلتمس فيه علمًا سهّل الله له طريقًا إلى الجنّة.» (مسلم)" } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Knowledge is worship in Islam.", ar: "العلم عبادة في الإسلام." } },
+            ],
+            task: {
+              title: { en: "Collect Knowledge Hadiths", ar: "اجمع أحاديث العلم" },
+              description: { en: "Find 5 hadiths about the importance of knowledge.", ar: "أوجد ٥ أحاديث عن أهمّيّة العلم." },
+              hint: { en: "Include: hadith text, source, application.", ar: "ضمّن: نصّ الحديث والمصدر والتطبيق." },
+            },
+          },
+          {
+            id: "E",
+            title: { en: "Being a Muslim Scientist", ar: "أن تكون عالمًا مسلمًا" },
+            image: IMG.grandMosque,
+            color: "rose",
+            topic: { en: "Faith inspires discovery", ar: "الإيمان يلهم الاكتشاف" },
+            infoSections: [
+              { label: { en: "Vision", ar: "رؤية" }, content: { en: "Science helps us appreciate Allah\'s creation. Every discovery is a form of worship.", ar: "العلم يساعدنا على تقدير خلق الله. كلّ اكتشاف عبادة." } },
+              { label: { en: "Goal", ar: "هدف" }, content: { en: "Be like Ibn al-Haytham — curious, methodical, faithful.", ar: "كن مثل ابن الهيثم — فضولي ومنهجي ومؤمن." } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Your education is an act of worship.", ar: "تعليمك عبادة." } },
+            ],
+            task: {
+              title: { en: "Write Your Science Plan", ar: "اكتب خطّتك العلميّة" },
+              description: { en: "Plan how to combine faith and science in your studies.", ar: "خطّط لدمج الإيمان والعلم في دراستك." },
+              hint: { en: "Include: your interest, Islamic motivation, study plan.", ar: "ضمّن: اهتمامك والدافع الإسلامي وخطّة الدراسة." },
+            },
+          },
+        ],
+        coinsReward: 15,
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Hinge Questions", ar: "أسئلة محوريّة" },
+      learningObjectives: [
+        { en: "Test your understanding of everything studied.", ar: "اختبر فهمك لكلّ ما درسته." },
       ],
       image: {
         src: IMG.bookshelf,
-        alt: { en: "Books of knowledge — the legacy of Muslim scholars.", ar: "كُتُبُ العِلم — إرثُ عُلَماءِ المُسلِمين." },
-        caption: { en: "Muslim scholars advanced medicine, mathematics, astronomy, and more.", ar: "تَقَدَّمَ عُلَماءُ المُسلِمينَ في الطِّبِّ والرِّياضِيّاتِ والفَلَكِ وغَيرِها." },
+        alt: { en: "Assessment.", ar: "تقييم." },
       },
-      groupTasks: {
-        title: { en: "Knowledge in the Islamic tradition", ar: "العِلمُ في التُّراثِ الإسلاميّ" },
-        instruction: { en: "Each group studies one theme.", ar: "تَدرُسُ كُلُّ مَجموعةٍ مِحوَرًا." },
-        groups: [
+      hingeQuestions: {
+        title: { en: "Hinge Questions — Test Your Understanding", ar: "أسئلة محوريّة — اختبر فهمك" },
+        instruction: { en: "Answer all 10 questions.", ar: "أجب عن الأسئلة العشرة." },
+        questions: [
           {
-            slug: "muslim-scientists",
-            name: { en: "Team A — A golden age of learning", ar: "الفَريقُ أ — عَصرٌ ذَهَبيٌّ لِلعِلم" },
-            learningObjective: { en: "Show how faith inspired Muslim science.", ar: "نُبَيِّنُ كَيفَ ألهَمَ الإيمانُ عِلمَ المُسلِمين." },
-            task: { en: "Inspired by the Qur'an's call to knowledge, Muslim scholars like Ibn al-Haytham (optics), al-Khwarizmi (algebra), Ibn Sina (medicine), and al-Biruni (astronomy) advanced science greatly. Explain how seeking knowledge was seen as worship and service to humanity.", ar: "بِوَحيٍ مِن دَعوةِ القُرآنِ لِلعِلم، قَدَّمَ عُلَماءُ مُسلِمونَ كَابنِ الهَيثَم (البَصَريّات) والخَوارِزميّ (الجَبر) وابنِ سينا (الطِّبّ) والبيرونيّ (الفَلَك) عِلمًا عَظيمًا. بَيِّنوا كَيفَ كانَ طَلَبُ العِلمِ يُرى عِبادةً وخِدمةً لِلبَشَريّة." },
-            evidence: [
-              { en: "'Seeking knowledge is an obligation upon every Muslim.' — Ibn Majah", ar: "«طَلَبُ العِلمِ فَريضةٌ على كُلِّ مُسلِم» — ابن ماجه" },
+            question: { en: "First Quranic word?", ar: "أوّل كلمة قرآنيّة؟" },
+            options: [
+            { en: "Read", ar: "اقرأ" },
+            { en: "Pray", ar: "صلِّ" },
+            { en: "Fast", ar: "صُم" },
+            { en: "Fight", ar: "قاتل" },
             ],
-            sourceNotes: [
-              { en: "Islamic faith fuelled centuries of scientific discovery.", ar: "أشعَلَ الإيمانُ الإسلاميُّ قُرونًا مِنَ الاكتِشافِ العِلميّ." },
-            ],
-            memberRoles: [
-              { en: "Researcher, Summariser, Presenter.", ar: "الباحِث، المُلَخِّص، العارِض." },
-            ],
-            finalProduct: { en: "A profile of a Muslim scholar.", ar: "تَعريفٌ بِعالِمٍ مُسلِم." },
+            correctIndex: 0,
+            explanation: { en: "Read (Al-Alaq 1).", ar: "اقرأ (العلق ١)." },
           },
           {
-            slug: "reason-revelation",
-            name: { en: "Team B — Reason and revelation", ar: "الفَريقُ ب — العَقلُ والوَحي" },
-            learningObjective: { en: "Explain how the two work together.", ar: "نُبَيِّنُ كَيفَ يَعمَلانِ مَعًا." },
-            task: { en: "Explain the correct balance: the mind is honoured and used, but it has limits — it cannot, by itself, know matters of the unseen (Allah's names, the angels, the Hereafter). Revelation guides reason. Show why neither blind imitation nor rejecting revelation in the name of 'reason' is the Islamic way.", ar: "بَيِّنوا التَّوازُنَ الصَّحيح: العَقلُ مُكَرَّمٌ مُستَعمَل، لكِنَّ لَهُ حُدودًا — فلا يَعلَمُ وَحدَهُ أمورَ الغَيب (أسماءَ اللهِ والمَلائِكةَ والآخِرة). والوَحيُ يَهدي العَقل. بَيِّنوا لِماذا لا التَّقليدُ الأعمى ولا رَدُّ الوَحيِ بِاسمِ «العَقل» هو طَريقُ الإسلام." },
-            evidence: [
-              { en: "Al-Isra 36: 'Do not pursue that of which you have no knowledge.'", ar: "الإسراء ٣٦: ﴿ولا تَقفُ ما لَيسَ لَكَ بِهِ عِلم﴾." },
+            question: { en: "Ibn al-Haytham studied?", ar: "ابن الهيثم درس؟" },
+            options: [
+            { en: "Optics", ar: "البصريّات" },
+            { en: "Cooking", ar: "الطبخ" },
+            { en: "Music", ar: "الموسيقى" },
+            { en: "Sports", ar: "الرياضة" },
             ],
-            sourceNotes: [
-              { en: "Revelation guides reason; reason confirms revelation.", ar: "الوَحيُ يَهدي العَقل؛ والعَقلُ يُؤَكِّدُ الوَحي." },
+            correctIndex: 0,
+            explanation: { en: "Optics.", ar: "البصريّات." },
+          },
+          {
+            question: { en: "Al-Khwarizmi founded?", ar: "الخوارزمي أسّس؟" },
+            options: [
+            { en: "Algebra", ar: "الجبر" },
+            { en: "Poetry", ar: "الشعر" },
+            { en: "Cooking", ar: "الطبخ" },
+            { en: "Art", ar: "الفنّ" },
             ],
-            memberRoles: [
-              { en: "Researcher, Explainer, Presenter.", ar: "الباحِث، الشّارِح، العارِض." },
+            correctIndex: 0,
+            explanation: { en: "Algebra.", ar: "الجبر." },
+          },
+          {
+            question: { en: "Islam and science?", ar: "الإسلام والعلم؟" },
+            options: [
+            { en: "Work together", ar: "يعملان معًا" },
+            { en: "Are enemies", ar: "أعداء" },
+            { en: "No relation", ar: "لا علاقة" },
+            { en: "Opposite", ar: "متعاكسان" },
             ],
-            finalProduct: { en: "An explanation of reason and revelation.", ar: "شَرحُ العَقلِ والوَحي." },
+            correctIndex: 0,
+            explanation: { en: "Work together.", ar: "يعملان معًا." },
+          },
+          {
+            question: { en: "Seeking knowledge is?", ar: "طلب العلم؟" },
+            options: [
+            { en: "Obligation", ar: "فريضة" },
+            { en: "Optional", ar: "اختياري" },
+            { en: "Forbidden", ar: "محرّم" },
+            { en: "Unimportant", ar: "غير مهمّ" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Obligation upon every Muslim.", ar: "فريضة على كلّ مسلم." },
+          },
+          {
+            question: { en: "Golden Age was?", ar: "العصر الذهبي كان؟" },
+            options: [
+            { en: "8th-14th century", ar: "القرن ٨-١٤" },
+            { en: "1st century", ar: "القرن الأوّل" },
+            { en: "20th century", ar: "القرن ٢٠" },
+            { en: "Never", ar: "لم يكن" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "8th-14th century.", ar: "القرن ٨-١٤." },
+          },
+          {
+            question: { en: "Quran mentions embryology in?", ar: "القرآن يذكر الأجنّة في؟" },
+            options: [
+            { en: "Al-Muminun 12-14", ar: "المؤمنون ١٢-١٤" },
+            { en: "Al-Fatiha", ar: "الفاتحة" },
+            { en: "An-Nas", ar: "الناس" },
+            { en: "Al-Ikhlas", ar: "الإخلاص" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Al-Muminun 12-14.", ar: "المؤمنون ١٢-١٤." },
+          },
+          {
+            question: { en: "Travel and observe is from?", ar: "سيروا فانظروا من؟" },
+            options: [
+            { en: "Al-Ankabut 20", ar: "العنكبوت ٢٠" },
+            { en: "Al-Fatiha", ar: "الفاتحة" },
+            { en: "Al-Baqara 1", ar: "البقرة ١" },
+            { en: "An-Nas", ar: "الناس" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Al-Ankabut 20.", ar: "العنكبوت ٢٠." },
+          },
+          {
+            question: { en: "Knowledge leads to?", ar: "العلم يؤدّي إلى؟" },
+            options: [
+            { en: "Paradise", ar: "الجنّة" },
+            { en: "Nothing", ar: "لا شيء" },
+            { en: "Confusion", ar: "الحيرة" },
+            { en: "Poverty", ar: "الفقر" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Paradise (Muslim).", ar: "الجنّة (مسلم)." },
+          },
+          {
+            question: { en: "Science is form of?", ar: "العلم شكل من؟" },
+            options: [
+            { en: "Worship", ar: "العبادة" },
+            { en: "Play", ar: "اللعب" },
+            { en: "Waste", ar: "الإسراف" },
+            { en: "Fun", ar: "المرح" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Worship.", ar: "العبادة." },
           },
         ],
+        coinsReward: 20,
       },
-      responsePrompt: {
-        title: { en: "Written response", ar: "إجابةٌ مَكتوبة" },
-        prompt: { en: "Explain why seeking knowledge is considered worship in Islam, giving evidence. Then explain the limits of the human mind: name one thing reason can discover by studying the world, and one thing it can only know through revelation.", ar: "بَيِّنْ لِماذا يُعَدُّ طَلَبُ العِلمِ عِبادةً في الإسلام، معَ الدَّليل. ثُمَّ بَيِّنْ حُدودَ العَقلِ البَشَريّ: اذكُرْ شَيئًا يَكتَشِفُهُ العَقلُ بِدِراسةِ العالَم، وشَيئًا لا يُعرَفُ إلّا بِالوَحي." },
-        placeholder: { en: "Seeking knowledge is worship because... Reason can discover... but only revelation tells us...", ar: "طَلَبُ العِلمِ عِبادةٌ لِأنَّ... يَكتَشِفُ العَقلُ... لكِنَّ الوَحيَ وَحدَهُ يُخبِرُنا..." },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Watch & Reflect", ar: "شاهد وتأمّل" },
+      learningObjectives: [
+        { en: "Watch a video related to the topic and reflect.", ar: "شاهد مقطعًا متعلّقًا بالموضوع وتأمّل." },
+      ],
+      image: {
+        src: IMG.childQuran,
+        alt: { en: "Video lesson.", ar: "درس مرئي." },
       },
-      body: {
-        en: "The Qur'an's powerful encouragement of knowledge and reflection bore extraordinary fruit in history. Inspired by verses praising knowledge and by the Prophet's teaching that 'seeking knowledge is an obligation upon every Muslim,' the early Muslim civilisation became, for many centuries, the leading centre of learning in the world. Muslim scholars did not see a conflict between their faith and the study of the natural world; on the contrary, they understood that investigating Allah's creation was a way of appreciating His wisdom and serving His creation. They made pioneering advances across countless fields: Ibn al-Haytham revolutionised the science of optics and is regarded by many as an early father of the scientific method through his insistence on experiment and observation; al-Khwarizmi developed algebra (the very word comes from Arabic, al-jabr) and gave us the word 'algorithm' from his name; Ibn Sina (Avicenna) wrote medical encyclopaedias studied in Europe for centuries; and scholars like al-Biruni and al-Battani advanced astronomy, while others led in chemistry, geography, and engineering. These achievements show that, at its best, the Muslim mind has always combined deep faith with rigorous, careful investigation of the world.\n\nAt the same time, Islam teaches a crucial balance regarding the role of the human mind, which protects scientific thinking from two opposite errors. The first error is blind imitation (taqlid) and superstition — accepting claims without evidence, following the crowd or inherited customs without thought, or believing in baseless myths and 'luck'. The Qur'an firmly condemns this, criticising those who said 'we found our fathers upon a way' as their only reason for belief, and commanding: 'Do not pursue that of which you have no knowledge; indeed, the hearing, the sight, and the heart — about all of these one will be questioned.' A believer is required to seek evidence and to think, not to follow blindly. The second, opposite error is arrogance of the intellect — imagining that the human mind is the measure of all truth, and rejecting whatever it cannot fully grasp, including matters of the unseen revealed by Allah. This too the Qur'an corrects, reminding us: 'And you have not been given of knowledge except a little.'\n\nThe correct Islamic position holds these together: the mind is a magnificent gift to be used to its fullest, but it also has real limits and must be guided by revelation. Reason, observing the world, can take us a very long way — it can discover the laws of physics, cure diseases, and read the signs of design in creation that point to a Creator. But reason alone, however brilliant, can never discover the details of the unseen: the names and attributes of Allah, the reality of the angels, the precise nature of the Hereafter, or exactly how Allah wishes to be worshipped. These can only be known through revelation. So the Muslim uses his mind to understand the world and to recognise the truth of the Qur'an's message, and then he humbly accepts the guidance of revelation in those matters that lie beyond the reach of the senses and pure reason. A demanding student should therefore aspire to be a true 'person of understanding' (uli al-albab): someone who studies hard, observes carefully, thinks critically, rejects superstition and blind imitation, excels in worldly knowledge as an act of worship and service — and whose growing knowledge of the universe only increases his certainty, humility, and love for the One who created it all.",
-        ar: "أثمَرَ تَشجيعُ القُرآنِ القَوِيُّ لِلعِلمِ والتَّأمُّلِ ثَمَرًا عَظيمًا في التّاريخ. فَبِوَحيٍ مِن آياتٍ تَمدَحُ العِلمَ ومِن قَولِ النَّبِيِّ ﷺ «طَلَبُ العِلمِ فَريضةٌ على كُلِّ مُسلِم»، صارَتِ الحَضارةُ الإسلاميّةُ المُبَكِّرة، قُرونًا طَويلة، مَركَزَ العِلمِ الأوَّلَ في العالَم. ولم يَرَ عُلَماءُ المُسلِمينَ تَعارُضًا بَينَ إيمانِهِم ودِراسةِ العالَمِ الطَّبيعيّ؛ بل فَهِموا أنَّ بَحثَ خَلقِ اللهِ سَبيلٌ لِتَقديرِ حِكمَتِهِ وخِدمةِ خَلقِه. فَقَدَّموا فُتوحاتٍ رائِدةً في مَيادينَ لا تُحصى: ثَوَّرَ ابنُ الهَيثَمِ عِلمَ البَصَريّاتِ ويُعَدُّ عِندَ كَثيرينَ أبًا مُبَكِّرًا لِلمَنهَجِ العِلميِّ بِإصرارِهِ على التَّجرِبةِ والمُلاحَظة؛ وطَوَّرَ الخَوارِزميُّ الجَبرَ (والكَلِمةُ عَرَبيّة) وأعطَتنا «الخَوارِزميّة» اسمَه؛ وكَتَبَ ابنُ سينا مَوسوعاتٍ طِبِّيّةً دُرِسَت في أوروبّا قُرونًا؛ وتَقَدَّمَ البيرونيُّ والبَتّانيُّ في الفَلَك، وبَرَعَ غَيرُهُم في الكيمياءِ والجُغرافيا والهَندَسة. وتُبَيِّنُ هذه الإنجازاتُ أنَّ العَقلَ المُسلِمَ، في أبهى حالاتِه، جَمَعَ دائِمًا بَينَ الإيمانِ العَميقِ والبَحثِ الدَّقيقِ المُتَأنّي في العالَم.\n\nوفي الوَقتِ نَفسِه، يُعَلِّمُ الإسلامُ تَوازُنًا جَوهَريًّا في دَورِ العَقلِ البَشَريّ، يَحمي التَّفكيرَ العِلميَّ مِن خَطَأينِ مُتَضادَّين. الأوَّلُ التَّقليدُ الأعمى والخُرافة — قَبولُ الدَّعاوى بِلا دَليل، واتِّباعُ الجَمعِ أوِ العاداتِ المَوروثةِ بِلا تَفكير، والإيمانُ بِالأساطيرِ والحَظِّ الباطِل. وقد أدانَ القُرآنُ هذا بِشِدّة، ناقِدًا مَن قالوا ﴿إنّا وَجَدنا آباءَنا على أُمّةٍ﴾ حُجّةً وَحيدةً، وآمِرًا: ﴿ولا تَقفُ ما لَيسَ لَكَ بِهِ عِلم، إنَّ السَّمعَ والبَصَرَ والفُؤادَ كُلُّ أولئكَ كانَ عنهُ مَسؤولًا﴾. فالمُؤمِنُ مَأمورٌ بِطَلَبِ الدَّليلِ والتَّفكير، لا بِالتَّقليدِ الأعمى. والخَطَأُ الثّاني المُضادُّ كِبرُ العَقل — أن يَظُنَّ أنَّ عَقلَ الإنسانِ مِقياسُ كُلِّ حَقّ، فَيَرُدَّ ما عَجِزَ عن إدراكِه، ومِنهُ غَيبٌ أنزَلَهُ الله. وهذا أيضًا يُصَحِّحُهُ القُرآنُ مُذَكِّرًا: ﴿وما أوتيتُم مِنَ العِلمِ إلّا قَليلًا﴾.\n\nوالمَوقِفُ الإسلاميُّ الصَّحيحُ يَجمَعُ بَينَهُما: العَقلُ نِعمةٌ عَظيمةٌ تُستَعمَلُ إلى أقصاها، لكِنَّ لَهُ حُدودًا حَقيقيّةً ولا بُدَّ أن يَهديَهُ الوَحي. فالعَقلُ، بِمُلاحَظةِ العالَم، يَبلُغُ بِنا شَأوًا بَعيدًا — يَكتَشِفُ قَوانينَ الفيزياء، ويُداوي الأمراض، ويَقرَأُ آياتِ الإحكامِ في الخَلقِ الدّالّةِ على خالِق. لكِنَّ العَقلَ وَحدَهُ، مَهما بَرَع، لا يَكتَشِفُ تَفاصيلَ الغَيبِ أبَدًا: أسماءَ اللهِ وصِفاتِه، وحَقيقةَ المَلائِكة، وطَبيعةَ الآخِرةِ بِدِقّة، أو كَيفَ يُريدُ اللهُ أن يُعبَدَ تَمامًا. فهذه لا تُعرَفُ إلّا بِالوَحي. فالمُسلِمُ يَستَعمِلُ عَقلَهُ لِفَهمِ العالَمِ وإدراكِ صِدقِ رِسالةِ القُرآن، ثُمَّ يَقبَلُ بِتَواضُعٍ هَديَ الوَحيِ في ما يَتَجاوَزُ الحَوّاسَّ والعَقلَ المُجَرَّد. وعلى الطّالِبِ المُطالِبِ أن يَطمَحَ ليَكونَ مِن «أولي الألباب» حَقًّا: يَدرُسُ بِجِدّ، ويُلاحِظُ بِدِقّة، ويُفَكِّرُ نَقديًّا، ويَرفُضُ الخُرافةَ والتَّقليدَ الأعمى، ويَبرَعُ في العِلمِ الدُّنيَويِّ عِبادةً وخِدمةً — ولا يَزيدُهُ عِلمُهُ المُتَنامي بِالكَونِ إلّا يَقينًا وتَواضُعًا وحُبًّا لِمَن خَلَقَهُ كُلَّه.",
+      youtubeVideo: {
+        title: { en: "Scientific Thinking in Islam", ar: "التفكير العلمي" },
+        url: "https://www.youtube.com/watch?v=kYnGEQoGhUE",
       },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Plenary", ar: "ختام الدرس" },
+      learningObjectives: [
+        { en: "Reflect on and share what you learned.", ar: "تأمّل وشارك ما تعلّمته." },
+      ],
+      image: {
+        src: IMG.grandMosque,
+        alt: { en: "Students sharing.", ar: "طلاب يشاركون." },
+      },
+      plenary: {
+        title: { en: "Share Your Learning", ar: "شارك ما تعلّمته" },
+        instruction: { en: "Scan QR or enter the code to share what you learned.", ar: "امسح QR أو أدخل الرمز لمشاركة ما تعلّمته." },
+        code: "SCIEN001",
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Worksheet — Scientific Thinking", ar: "ورقة عمل — التَّفكيرُ العِلميّ" },
+      learningObjectives: [
+        { en: "Demonstrate understanding through an auto-marked worksheet.", ar: "أظهر فهمي من خلال ورقة عمل تُصحّح تلقائيًّا." },
+      ],
+      image: {
+        src: IMG.bookshelf,
+        alt: { en: "Worksheet.", ar: "ورقة عمل." },
+      },
+      worksheet: {
+        title: { en: "Worksheet — Scientific Thinking", ar: "ورقة عمل — التَّفكيرُ العِلميّ" },
+        instruction: { en: "Answer all questions. Auto-marked. Cannot re-answer after submission.", ar: "أجب عن جميع الأسئلة. تُصحّح تلقائيًّا. لن تستطيع الإجابة مجدّدًا." },
+        sections: [
+          {
+            type: "mcq" as const,
+            title: { en: "Multiple Choice", ar: "اختيار من متعدّد" },
+            questions: [
+              {
+                question: { en: "First word?", ar: "أوّل كلمة؟" },
+                options: [
+                { en: "Read", ar: "اقرأ" },
+                { en: "Pray", ar: "صلِّ" },
+                { en: "Fast", ar: "صُم" },
+                { en: "Fight", ar: "قاتل" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "Ibn al-Haytham?", ar: "ابن الهيثم؟" },
+                options: [
+                { en: "Optics", ar: "البصريّات" },
+                { en: "Cooking", ar: "الطبخ" },
+                { en: "Music", ar: "الموسيقى" },
+                { en: "Art", ar: "الفنّ" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "Seeking knowledge?", ar: "طلب العلم؟" },
+                options: [
+                { en: "Obligatory", ar: "فريضة" },
+                { en: "Optional", ar: "اختياري" },
+                { en: "Forbidden", ar: "محرّم" },
+                { en: "Useless", ar: "عديم الفائدة" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "Islam & science?", ar: "الإسلام والعلم؟" },
+                options: [
+                { en: "Together", ar: "معًا" },
+                { en: "Enemies", ar: "أعداء" },
+                { en: "Unrelated", ar: "لا صلة" },
+                { en: "Opposite", ar: "عكس" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "Knowledge path to?", ar: "طريق العلم إلى؟" },
+                options: [
+                { en: "Paradise", ar: "الجنّة" },
+                { en: "Nothing", ar: "لا شيء" },
+                { en: "Loss", ar: "الخسارة" },
+                { en: "Confusion", ar: "الحيرة" },
+                ],
+                correctIndex: 0,
+              },
+            ],
+          },
+          {
+            type: "trueFalse" as const,
+            title: { en: "True or False", ar: "صواب أم خطأ" },
+            questions: [
+              { statement: { en: "Islam encourages science.", ar: "الإسلام يشجّع العلم." }, answer: true },
+              { statement: { en: "Islam opposes science.", ar: "الإسلام يعارض العلم." }, answer: false },
+              { statement: { en: "\'Read\' was the first command.", ar: "«اقرأ» أوّل أمر." }, answer: true },
+              { statement: { en: "Muslim scientists contributed nothing.", ar: "العلماء المسلمون لم يسهموا." }, answer: false },
+              { statement: { en: "Seeking knowledge is obligatory.", ar: "طلب العلم فريضة." }, answer: true },
+            ],
+          },
+          {
+            type: "matchUp" as const,
+            title: { en: "Match Up", ar: "وصّل" },
+            prompts: [
+              { prompt: { en: "Ilm", ar: "علم" }, answer: { en: "Knowledge", ar: "المعرفة" } },
+              { prompt: { en: "Tajribah", ar: "تجربة" }, answer: { en: "Experiment", ar: "التجربة" } },
+              { prompt: { en: "Burhan", ar: "برهان" }, answer: { en: "Evidence", ar: "الدليل" } },
+              { prompt: { en: "Tafakkur", ar: "تفكّر" }, answer: { en: "Reflection", ar: "التأمّل" } },
+              { prompt: { en: "Ikhtira", ar: "اختراع" }, answer: { en: "Invention", ar: "الاختراع" } },
+            ],
+          },
+          {
+            type: "fillBlanks" as const,
+            title: { en: "Fill in the Blanks", ar: "املأ الفراغات" },
+            questions: [
+              { sentence: { en: "First revealed: \'_______.", ar: "أوّل ما نزل: «_______.»" }, blankAnswer: { en: "Read", ar: "اقرأ" } },
+              { sentence: { en: "Al-Khwarizmi founded _______.", ar: "الخوارزمي أسّس _______." }, blankAnswer: { en: "algebra", ar: "الجبر" } },
+              { sentence: { en: "Seeking knowledge is an _______.", ar: "طلب العلم _______." }, blankAnswer: { en: "obligation", ar: "فريضة" } },
+              { sentence: { en: "\'Travel and _______ how creation began.\'", ar: "﴿سيروا و_______ كيف بدأ الخلق﴾" }, blankAnswer: { en: "observe", ar: "انظروا" } },
+            ],
+          },
+          {
+            type: "ordering" as const,
+            title: { en: "Put in Correct Order", ar: "رتّب ترتيبًا صحيحًا" },
+            items: [
+              { en: "Receive the command to \'Read\'", ar: "تلقّ أمر «اقرأ»" },
+              { en: "Observe the world around you", ar: "لاحظ العالم من حولك" },
+              { en: "Ask questions and hypothesise", ar: "اسأل وافترض" },
+              { en: "Test through experiment and evidence", ar: "اختبر بالتجربة والدليل" },
+              { en: "Conclude and apply findings", ar: "استنتج وطبّق" },
+              { en: "Use knowledge to serve humanity and worship Allah", ar: "استخدم العلم لخدمة البشريّة وعبادة الله" },
+            ],
+          },
+        ],
+        coinsReward: 25,
+      },
+      body: { en: "", ar: "" },
     },
   ],
-  quizQuestions: [
-    {
-      prompt: { en: "What was the first word revealed to the Prophet ﷺ?", ar: "ما أوَّلُ كَلِمةٍ نَزَلَت على النَّبِيِّ ﷺ؟" },
-      options: [
-        { en: "'Iqra' — Read!", ar: "«اقرَأ»" },
-        { en: "'Sleep'", ar: "«نَمْ»" },
-        { en: "'Fight'", ar: "«قاتِلْ»" },
-        { en: "'Be silent'", ar: "«اسكُتْ»" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "Islam began with a command to read and learn.", ar: "بَدَأ الإسلامُ بِأمرٍ بِالقِراءةِ والتَّعَلُّم." },
-    },
-    {
-      prompt: { en: "In Al-Ghashiyah 17-20, what are we told to look at?", ar: "في الغاشِية ١٧-٢٠، إلى ماذا أُمِرنا بِالنَّظَر؟" },
-      options: [
-        { en: "The camels, sky, mountains, and earth", ar: "الإبِلِ والسَّماءِ والجِبالِ والأرض" },
-        { en: "Only money", ar: "المالِ فَقَط" },
-        { en: "Nothing at all", ar: "لا شَيءَ أبَدًا" },
-        { en: "Only the past", ar: "الماضي فَقَط" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "The Qur'an directs us to observe creation as signs of the Creator.", ar: "يُوَجِّهُنا القُرآنُ لِمُلاحَظةِ الخَلقِ آياتٍ على الخالِق." },
-    },
-    {
-      prompt: { en: "According to Aal Imran 190-191, where does reflection on creation lead?", ar: "بِحَسَبِ آل عِمران ١٩٠-١٩١، إلى أينَ يَقودُ التَّأمُّلُ في الخَلق؟" },
-      options: [
-        { en: "To remembering and worshipping Allah", ar: "إلى ذِكرِ اللهِ وعِبادَتِه" },
-        { en: "To arrogance", ar: "إلى الكِبر" },
-        { en: "To denying God", ar: "إلى إنكارِ الله" },
-        { en: "To despair", ar: "إلى اليَأس" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "True reflection moves the heart to remembrance and humble worship.", ar: "التَّأمُّلُ الصّادِقُ يَدفَعُ القَلبَ إلى الذِّكرِ والعِبادةِ الخاشِعة." },
-    },
-    {
-      prompt: { en: "How did Muslim scholars view the study of the natural world?", ar: "كَيفَ نَظَرَ عُلَماءُ المُسلِمينَ إلى دِراسةِ العالَمِ الطَّبيعيّ؟" },
-      options: [
-        { en: "As a way to appreciate Allah's wisdom and serve people", ar: "سَبيلًا لِتَقديرِ حِكمةِ اللهِ وخِدمةِ النّاس" },
-        { en: "As forbidden", ar: "أمرًا مُحَرَّمًا" },
-        { en: "As useless", ar: "أمرًا عَبَثيًّا" },
-        { en: "As opposed to faith", ar: "مُناقِضًا لِلإيمان" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "Faith inspired their pioneering work in science and medicine.", ar: "ألهَمَ الإيمانُ أعمالَهُمُ الرّائِدةَ في العِلمِ والطِّبّ." },
-    },
-    {
-      prompt: { en: "What is the correct balance between reason and revelation?", ar: "ما التَّوازُنُ الصَّحيحُ بَينَ العَقلِ والوَحي؟" },
-      options: [
-        { en: "Use the mind fully, but let revelation guide it in unseen matters", ar: "استِعمالُ العَقلِ كامِلًا، ويَهديهِ الوَحيُ في الغَيب" },
-        { en: "Reject revelation and follow only reason", ar: "رَدُّ الوَحيِ واتِّباعُ العَقلِ وَحدَه" },
-        { en: "Reject reason completely", ar: "رَدُّ العَقلِ كُلِّيًّا" },
-        { en: "Follow the crowd blindly", ar: "اتِّباعُ الجَمعِ أعمى" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "Reason reads the signs in creation; revelation reveals the unseen reason cannot reach.", ar: "العَقلُ يَقرَأُ آياتِ الخَلق؛ والوَحيُ يَكشِفُ غَيبًا لا يَبلُغُهُ العَقل." },
-    },
-    {
-      prompt: { en: "True or False: Islam requires us to accept claims without evidence and follow customs blindly.", ar: "صَوابٌ أم خَطأ: يُلزِمُنا الإسلامُ بِقَبولِ الدَّعاوى بِلا دَليلٍ واتِّباعِ العاداتِ أعمى." },
-      options: [
-        { en: "False — the Qur'an condemns blind imitation and commands seeking evidence", ar: "خَطأ — يُدينُ القُرآنُ التَّقليدَ الأعمى ويَأمُرُ بِطَلَبِ الدَّليل" },
-        { en: "True", ar: "صَواب" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "'Do not pursue that of which you have no knowledge' — Islam commands thinking, not blind following.", ar: "﴿ولا تَقفُ ما لَيسَ لَكَ بِهِ عِلم﴾ — يَأمُرُ الإسلامُ بِالتَّفكيرِ لا بِالتَّقليد." },
-    },
-  ],
+  quizQuestions: [],
 };

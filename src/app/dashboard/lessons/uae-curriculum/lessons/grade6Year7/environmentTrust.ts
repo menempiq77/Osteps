@@ -5,177 +5,519 @@ export const environmentTrust: CourseLesson = {
   slug: "g6y7-my-environment-is-a-trust",
   name: { en: "My Environment Is a Trust", ar: "بيئَتي أمانة" },
   shortIntro: {
-    en: "The earth is an amanah (trust) Allah placed in our care. A deep study of the Muslim's duty to protect the environment — as a khalifah (steward), avoiding waste and corruption, and earning reward through every act of conservation, as taught in the Qur'an and Sunnah.",
+    en: "The earth is an amanah (trust) Allah placed in our care. A deep study of the Muslim\'s duty to protect the environment — as a khalifah (steward), avoiding waste and corruption, and earning reward through every act of conservation, as taught in the Qur\'an and Sunnah.",
     ar: "الأرضُ أمانةٌ ائتَمَنَنا اللهُ علَيها. دِراسةٌ عَميقةٌ لِواجِبِ المُسلِمِ في حِفظِ البيئة — خَليفةً في الأرض، يَتَجَنَّبُ الإسرافَ والفَساد، ويَنالُ الأجرَ بِكُلِّ عَمَلٍ لِحِفظِها، كَما عَلَّمَ القُرآنُ والسُّنّة.",
   },
   quranSurahs: ["Al-A'raf 56", "Ar-Rum 41", "Al-A'raf 31"],
   sections: [
     {
-      title: { en: "Stewards of the earth", ar: "خُلَفاءُ في الأرض" },
+      title: { en: "Critical thinking (Warm up)", ar: "تفكير ناقد (تهيئة)" },
       learningObjectives: [
-        { en: "Explain the concept of khilafah (stewardship) of the earth.", ar: "أُبَيِّنُ مَفهومَ الخِلافةِ في الأرض." },
-        { en: "Show that protecting the environment is a religious duty.", ar: "أُبَيِّنُ أنَّ حِفظَ البيئةِ واجِبٌ دينيّ." },
-      ],
-      successCriteria: [
-        { en: "I can explain what amanah means for the environment.", ar: "أشرَحُ مَعنى الأمانةِ في البيئة." },
-        { en: "I can give Qur'anic evidence against corruption of the earth.", ar: "أُقَدِّمُ دَليلًا قُرآنيًّا ضِدَّ الإفسادِ في الأرض." },
+        { en: "Evaluate a real-world scenario using evidence from Quran, Sunnah, and Islamic values.", ar: "أُقيّم سيناريو واقعيًّا بأدلّة من القرآن والسنّة والقيم الإسلاميّة." },
       ],
       image: {
-        src: IMG.greenValley,
-        alt: { en: "A green, thriving valley entrusted to our care.", ar: "وادٍ أخضَرُ مُزدَهِرٌ ائتُمِنّا علَيه." },
-        caption: { en: "The earth and all it contains is a trust from Allah.", ar: "الأرضُ وما فيها أمانةٌ مِنَ الله." },
+        src: IMG.hijabStudent,
+        alt: { en: "Student thinking critically.", ar: "طالب يفكّر بشكل ناقد." },
       },
       callout: {
-        label: { en: "High-order question", ar: "سُؤالٌ عالي المُستوى" },
-        title: { en: "Is caring for the planet part of religion?", ar: "هل العِنايةُ بِالكَوكَبِ جُزءٌ مِنَ الدّين؟" },
+        label: { en: "Critical thinking scenario", ar: "سيناريو للتفكير الناقد" },
+        title: { en: "Is the environment our responsibility?", ar: "هل البيئة مسؤوليّتنا؟" },
         body: {
-          en: "Some think protecting the environment is just a modern political cause, separate from faith. Argue, using the Qur'an and Sunnah, why caring for the earth, its water, animals, plants, and resources is in fact a religious responsibility for which the Muslim will be rewarded or held to account.",
-          ar: "يَظُنُّ بَعضُهُم أنَّ حِفظَ البيئةِ مُجَرَّدُ قَضيّةٍ سياسيّةٍ حَديثةٍ مُنفَصِلةٍ عنِ الدّين. حاجِجْ، بِالقُرآنِ والسُّنّة، لِماذا العِنايةُ بِالأرضِ ومائِها وحَيَوانِها ونَباتِها ومَواردِها مَسؤوليّةٌ دينيّةٌ يُؤجَرُ علَيها المُسلِمُ أو يُحاسَب.",
+          en: "A student says: \'The environment is not my problem. I can throw rubbish anywhere, waste water, and pollute. Humans are more important than trees. Nature will fix itself.\'",
+          ar: "طالب يقول: «البيئة ليست مشكلتي. أرمي القمامة وأبذّر الماء وألوّث. الإنسان أهمّ من الأشجار. الطبيعة ستصلح نفسها.»",
         },
       },
-      infoBoxes: [
-        {
-          label: { en: "Qur'an", ar: "القُرآن" },
-          lines: [
-            { en: "\"And do not cause corruption upon the earth after its reformation...\" — Al-A'raf 56", ar: "﴿ولا تُفسِدوا في الأرضِ بَعدَ إصلاحِها﴾ — الأعراف ٥٦" },
-          ],
+      responsePrompt: {
+        title: { en: "Write your critical response", ar: "اكتب ردّك الناقد" },
+        prompt: {
+          en: "Criticise using Quran and Hadith on stewardship of the earth.",
+          ar: "انتقد بالقرآن والحديث عن رعاية الأرض.",
         },
-        {
-          label: { en: "Hadith", ar: "الحَديث" },
-          lines: [
-            { en: "'If the Hour is about to be established and one of you has a seedling in his hand, let him plant it.' — Ahmad", ar: "«إن قامَتِ السّاعةُ وفي يَدِ أحَدِكُم فَسيلةٌ فإنِ استَطاعَ ألّا تَقومَ حَتّى يَغرِسَها فَليَغرِسها» — أحمد" },
-          ],
-        },
-      ],
+        placeholder: { en: "This is wrong because...", ar: "هذا خطأ لأنّ..." },
+        buttonLabel: { en: "Save response", ar: "احفظ الإجابة" },
+        coinsReward: 10,
+      },
       body: {
-        en: "Islam gives the human being a noble and weighty position in relation to the earth: that of khalifah, a steward or trustee placed in charge of the world on behalf of its true Owner, Allah. Allah declares in the Qur'an: 'It is He who has made you successors (khala'if) upon the earth.' This does not mean that human beings own the earth to do with it as they please; rather, it means we have been entrusted with it as a trust (amanah), to use it wisely, care for it, and pass it on in good condition. Everything in the natural world — the air, the water, the soil, the plants, the animals, the seas, and the mountains — belongs ultimately to Allah, who created it all in perfect balance and placed it at the service of mankind as a sign of His mercy and generosity. To accept this honour of stewardship is also to accept its responsibility: a trustee will be questioned about how he managed what was placed in his care.\n\nBecause the environment is a trust, protecting it is not an optional good deed but a genuine religious duty, and harming it is a real sin. The Qur'an repeatedly forbids fasad fi al-ard — corruption or destruction in the land. Allah commands: 'And do not cause corruption upon the earth after its reformation,' and He warns of the consequences of human greed and abuse: 'Corruption has appeared on land and sea because of what the hands of people have earned, so that He may let them taste part of what they have done, that perhaps they will return.' This is a striking verse: it links the spoiling of the natural world directly to human wrongdoing and warns that environmental damage is both a result of sin and a cause of suffering. Pollution, the cruel destruction of animals and habitats, the poisoning of water, and the wasteful ruin of resources are therefore not merely practical problems; from an Islamic viewpoint they are forms of corruption on the earth that displease Allah.\n\nThe Sunnah of the Prophet ﷺ fills out this vision with beautiful, practical teachings that show how seriously Islam takes care of the environment, long before modern environmental movements existed. The Prophet ﷺ encouraged the planting of trees and crops as an ongoing charity, saying: 'There is no Muslim who plants a tree or sows a crop, and then a bird, or a human, or an animal eats from it, except that it is counted as a charity for him.' He even taught that this reward is so valuable that 'if the Hour is about to be established and one of you has a seedling in his hand, let him plant it' — that is, do good for the earth even in the final moment. He forbade the wasting and pollution of water even when performing wudu by a flowing river, prohibited relieving oneself in water sources or shaded resting-places, established protected conservation zones (hima) where plants and animals were safe, and constantly commanded mercy to animals. A demanding student should therefore understand from the outset that, in Islam, the believer's relationship with nature is one of responsible care, gratitude, and accountability — and in the next section we will see exactly how this translates into daily action.",
-        ar: "يُعطي الإسلامُ الإنسانَ مَنزِلةً نَبيلةً ثَقيلةً تِجاهَ الأرض: مَنزِلةَ الخَليفة، المُستَخلَفِ المُؤتَمَنِ على العالَمِ نِيابةً عن مالِكِهِ الحَقيقيِّ الله. يَقولُ اللهُ في القُرآن: ﴿هو الذي جَعَلَكُم خَلائِفَ في الأرض﴾. ولا يَعني هذا أنَّ البَشَرَ يَملِكونَ الأرضَ يَصنَعونَ بِها ما شاؤوا؛ بل يَعني أنّا ائتُمِنّا علَيها أمانةً، لِنَستَعمِلَها بِحِكمة، ونَعتَنيَ بِها، ونُسَلِّمَها بِحالٍ حَسَن. فَكُلُّ ما في العالَمِ الطَّبيعيّ — الهَواءُ والماءُ والتُّربةُ والنَّباتُ والحَيَوانُ والبِحارُ والجِبال — مِلكٌ في النِّهايةِ لِله، الذي خَلَقَهُ كُلَّهُ في ميزانٍ بَديع، وسَخَّرَهُ لِخِدمةِ الإنسانِ آيةً على رَحمَتِهِ وكَرَمِه. وقَبولُ شَرَفِ الاستِخلافِ قَبولٌ لِمَسؤوليَّتِهِ أيضًا: فالمُؤتَمَنُ يُسألُ كَيفَ أدارَ ما اؤتُمِنَ علَيه.\n\nولِأنَّ البيئةَ أمانة، فإنَّ حِفظَها لَيسَ عَمَلًا صالِحًا اختياريًّا بل واجِبٌ دينيٌّ حَقيقيّ، وإيذاءَها إثمٌ حَقيقيّ. ويُحَرِّمُ القُرآنُ مِرارًا الفَسادَ في الأرض. يَأمُرُ اللهُ: ﴿ولا تُفسِدوا في الأرضِ بَعدَ إصلاحِها﴾، ويُحَذِّرُ مِن عَواقِبِ جَشَعِ الإنسانِ وإساءَتِه: ﴿ظَهَرَ الفَسادُ في البَرِّ والبَحرِ بِما كَسَبَت أيدي النّاسِ لِيُذيقَهُم بَعضَ الذي عَمِلوا لَعَلَّهُم يَرجِعون﴾. وهي آيةٌ لافِتة: تَربِطُ إفسادَ العالَمِ الطَّبيعيِّ مُباشَرةً بِسوءِ فِعلِ الإنسان، وتُحَذِّرُ أنَّ الضَّرَرَ البيئيَّ نَتيجةُ إثمٍ وسَبَبُ مُعاناة. فالتَّلَوُّثُ، والقَتلُ القاسي لِلحَيَوانِ وتَدميرُ مَواطِنِه، وتَسميمُ الماء، والإسرافُ المُهلِكُ لِلمَواردِ، لَيسَت مُجَرَّدَ مَشاكِلَ عَمَليّة؛ بل هي مِن مَنظورِ الإسلامِ صُوَرُ فَسادٍ في الأرضِ يَسخَطُها الله.\n\nوتُكمِلُ سُنّةُ النَّبِيِّ ﷺ هذه الرُّؤيةَ بِتَعاليمَ جَميلةٍ عَمَليّةٍ تُظهِرُ كَم يَأخُذُ الإسلامُ العِنايةَ بِالبيئةِ بِجِدّيّة، قَبلَ الحَرَكاتِ البيئيّةِ الحَديثةِ بِقُرون. شَجَّعَ النَّبِيُّ ﷺ على غَرسِ الأشجارِ وزَرعِ الزُّروعِ صَدَقةً جاريةً، فَقال: «ما مِن مُسلِمٍ يَغرِسُ غَرسًا أو يَزرَعُ زَرعًا فَيَأكُلُ مِنهُ طَيرٌ أو إنسانٌ أو بَهيمةٌ إلّا كانَ لَهُ بِهِ صَدَقة». بل عَلَّمَ أنَّ هذا الأجرَ مِن نَفاسَتِهِ «إن قامَتِ السّاعةُ وفي يَدِ أحَدِكُم فَسيلةٌ فإنِ استَطاعَ ألّا تَقومَ حَتّى يَغرِسَها فَليَغرِسها» — أي افعَلِ الخَيرَ لِلأرضِ ولَو في اللَّحظةِ الأخيرة. ونَهى عن إسرافِ الماءِ وتَلويثِهِ حَتّى في الوُضوءِ على نَهرٍ جارٍ، وحَرَّمَ التَّبَوُّلَ في مَواردِ الماءِ أوِ الظِّلِّ الذي يَستَريحُ فيهِ النّاس، وأنشَأَ مَحمِيّاتٍ (حِمًى) تَأمَنُ فيها النَّباتاتُ والحَيَوانات، وأمَرَ دائِمًا بِالرَّحمةِ بِالحَيَوان. وعلى الطّالِبِ المُطالِبِ أن يَفهَمَ مِنَ البِدايةِ أنَّ عَلاقةَ المُؤمِنِ بِالطَّبيعةِ في الإسلامِ عَلاقةُ عِنايةٍ مَسؤولةٍ وشُكرٍ ومُحاسَبة — وفي القِسمِ التّالي سَنَرى كَيفَ يَتَرجَمُ هذا إلى عَمَلٍ يَوميّ.",
+        en: "\'Do not cause corruption on the earth after it has been set in order.\' (Al-A\'raf 56)",
+        ar: "﴿ولا تفسدوا في الأرض بعد إصلاحها﴾ (الأعراف ٥٦)",
       },
     },
     {
-      title: { en: "Conservation, waste, and mercy", ar: "الحِفظُ والإسرافُ والرَّحمة" },
+      title: { en: "Retrieval practise", ar: "ممارسة الاسترجاع" },
+      imageMatchingActivity: {
+        title: { en: "Match each image to its Islamic keyword", ar: "طابق كلّ صورة بكلمتها الإسلاميّة" },
+        instruction: { en: "Drag the keyword to the correct image.", ar: "اسحب الكلمة إلى الصورة الصحيحة." },
+        pairs: [
+          { image: IMG.waterfall, keyword: { en: "Bi\'ah (Environment)", ar: "بيئة" } },
+          { image: IMG.mountainSnow, keyword: { en: "Amanah (Trust)", ar: "أمانة" } },
+          { image: IMG.skyBlue, keyword: { en: "Khalifah (Steward)", ar: "خليفة" } },
+          { image: IMG.childQuran, keyword: { en: "Mizan (Balance)", ar: "ميزان" } },
+          { image: IMG.grandMosque, keyword: { en: "Ni\'mah (Blessing)", ar: "نعمة" } },
+        ],
+        coinsReward: 10,
+      },
+      body: {
+        en: "\'He is the One who made you successors (stewards) on the earth.\' (Al-An\'am 165)",
+        ar: "﴿هو الذي جعلكم خلائف الأرض﴾ (الأنعام ١٦٥)",
+      },
+    },
+    {
+      title: { en: "My Environment Is a Trust", ar: "بيئَتي أمانة" },
       learningObjectives: [
-        { en: "Apply Islamic teachings on avoiding waste (israf).", ar: "أُطَبِّقُ تَعاليمَ الإسلامِ في تَجَنُّبِ الإسراف." },
-        { en: "Show mercy to animals as part of faith.", ar: "أُبَيِّنُ الرَّحمةَ بِالحَيَوانِ مِنَ الإيمان." },
+        { en: "Explain the Islamic concept of environmental stewardship.", ar: "أشرح مفهوم رعاية البيئة في الإسلام." },
+        { en: "Identify Quran and Hadith on protecting the environment.", ar: "أحدّد آيات وأحاديث عن حماية البيئة." },
+      ],
+      successCriteria: [
+        { en: "I can define khalifah (stewardship).", ar: "أعرّف الخلافة (الرعاية)." },
+        { en: "I can list 5 Islamic environmental principles.", ar: "أذكر ٥ مبادئ بيئيّة إسلاميّة." },
+        { en: "I can connect UAE green initiatives to Islamic values.", ar: "أربط مبادرات الإمارات الخضراء بالقيم الإسلاميّة." },
       ],
       image: {
         src: IMG.waterfall,
-        alt: { en: "Fresh flowing water — a blessing not to be wasted.", ar: "ماءٌ عَذبٌ جارٍ — نِعمةٌ لا تُهدَر." },
-        caption: { en: "Even by a flowing river, the Prophet ﷺ forbade wasting water.", ar: "حَتّى على نَهرٍ جارٍ، نَهى النَّبِيُّ ﷺ عن إسرافِ الماء." },
+        alt: { en: "Topic image.", ar: "صورة الموضوع." },
       },
-      groupTasks: {
-        title: { en: "Caring for Allah's creation", ar: "العِنايةُ بِخَلقِ الله" },
-        instruction: { en: "Each group studies one duty.", ar: "تَدرُسُ كُلُّ مَجموعةٍ واجِبًا." },
-        groups: [
-          {
-            slug: "avoiding-waste",
-            name: { en: "Team A — Avoiding waste (israf)", ar: "الفَريقُ أ — تَجَنُّبُ الإسراف" },
-            learningObjective: { en: "Explain the prohibition of waste.", ar: "نُبَيِّنُ النَّهيَ عنِ الإسراف." },
-            task: { en: "Allah says 'eat and drink, but do not be excessive; indeed He does not love the wasteful' (Al-A'raf 31). Explain how wasting water, food, electricity, and resources is against Islam, and list practical ways to reduce waste at home and school.", ar: "يَقولُ اللهُ ﴿وكُلوا واشرَبوا ولا تُسرِفوا، إنَّهُ لا يُحِبُّ المُسرِفين﴾ (الأعراف ٣١). بَيِّنوا كَيفَ يُخالِفُ إسرافُ الماءِ والطَّعامِ والكَهرَباءِ والمَواردِ الإسلام، وعَدِّدوا طُرُقًا عَمَليّةً لِتَقليلِ الهَدرِ في البَيتِ والمَدرَسة." },
-            evidence: [
-              { en: "Al-A'raf 31; the Prophet forbade wasting water even at a river.", ar: "الأعراف ٣١؛ نَهى النَّبِيُّ عن إسرافِ الماءِ ولَو على نَهر." },
-            ],
-            sourceNotes: [
-              { en: "Avoiding waste is an act of gratitude and worship.", ar: "تَجَنُّبُ الإسرافِ شُكرٌ وعِبادة." },
-            ],
-            memberRoles: [
-              { en: "Researcher, Lister, Presenter.", ar: "الباحِث، المُعَدِّد، العارِض." },
-            ],
-            finalProduct: { en: "An anti-waste action plan.", ar: "خُطّةُ عَمَلٍ ضِدَّ الهَدر." },
-          },
-          {
-            slug: "mercy-to-creation",
-            name: { en: "Team B — Mercy to animals & nature", ar: "الفَريقُ ب — الرَّحمةُ بِالحَيَوانِ والطَّبيعة" },
-            learningObjective: { en: "Show kindness to creatures.", ar: "نُبَيِّنُ الرِّفقَ بِالمَخلوقات." },
-            task: { en: "The Prophet ﷺ taught that a man was forgiven for giving water to a thirsty dog, and a woman punished for starving a cat. Explain the Muslim's duty of mercy to animals and care for trees, plants, and clean surroundings.", ar: "عَلَّمَ النَّبِيُّ ﷺ أنَّ رَجُلًا غُفِرَ لَهُ لِسَقيِ كَلبٍ عَطشان، وامرأةً عُذِّبَت لِتَجويعِ هِرّة. بَيِّنوا واجِبَ المُسلِمِ في الرَّحمةِ بِالحَيَوانِ والعِنايةِ بِالشَّجَرِ والنَّباتِ ونَظافةِ المُحيط." },
-            evidence: [
-              { en: "Hadith of the dog and of the cat (Bukhari & Muslim).", ar: "حَديثُ الكَلبِ والهِرّة (البخاري ومسلم)." },
-            ],
-            sourceNotes: [
-              { en: "Mercy to creatures brings Allah's mercy and reward.", ar: "الرَّحمةُ بِالمَخلوقاتِ تَجلِبُ رَحمةَ اللهِ وأجرَه." },
-            ],
-            memberRoles: [
-              { en: "Researcher, Summariser, Presenter.", ar: "الباحِث، المُلَخِّص، العارِض." },
-            ],
-            finalProduct: { en: "A poster on mercy to creation.", ar: "مُلصَقٌ عنِ الرَّحمةِ بِالخَلق." },
-          },
+      readyButton: {
+        label: { en: "I\'m ready to learn!", ar: "أنا مستعدّ للتعلّم!" },
+        coinsReward: 5,
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "The Environment as a Trust (Amanah)", ar: "البيئة أمانة" },
+      learningObjectives: [
+        { en: "Understand that protecting the environment is an Islamic obligation.", ar: "أفهم أنّ حماية البيئة واجب إسلامي." },
+      ],
+      image: {
+        src: IMG.waterfall,
+        alt: { en: "Lesson content image.", ar: "صورة محتوى الدرس." },
+      },
+      infoBoxes: [
+        {
+          label: { en: "Khilafah — Stewardship", ar: "الخلافة — الرعاية" },
+          lines: [
+            { en: "Humans are khalifah (stewards) on earth — responsible for its care. We will be asked about how we treated creation. Al-Baqara 30: \'I will make upon the earth a khalifah.\'", ar: "البشر خلفاء في الأرض — مسؤولون عن رعايتها. سنُسأل عن معاملتنا للخلق. البقرة ٣٠: ﴿إنّي جاعل في الأرض خليفة﴾" },
+          ],
+        },
+        {
+          label: { en: "Islamic Environmental Principles", ar: "المبادئ البيئيّة الإسلاميّة" },
+          lines: [
+            { en: "No corruption: Al-A\'raf 56. No waste: Al-A\'raf 31 \'eat and drink but do not waste.\' Balance: Ar-Rahman 7-9 \'He raised the heaven and established the balance.\' Kindness to animals: \'A woman entered Hell for a cat she imprisoned.\' (Bukhari)", ar: "لا إفساد: الأعراف ٥٦. لا إسراف: الأعراف ٣١ ﴿كلوا واشربوا ولا تسرفوا﴾. التوازن: الرحمن ٧-٩ ﴿والسماء رفعها ووضع الميزان﴾. الرفق بالحيوان: «دخلت النار امرأة في هرّة حبستها.» (البخاري)" },
+          ],
+        },
+        {
+          label: { en: "UAE Green Initiatives", ar: "مبادرات الإمارات الخضراء" },
+          lines: [
+            { en: "UAE Green Agenda 2030, clean energy, sustainability, mangrove planting, wildlife protection — all aligned with Islamic stewardship values.", ar: "أجندة الإمارات الخضراء ٢٠٣٠ والطاقة النظيفة والاستدامة وزراعة الشوريّات وحماية الحياة البرّيّة — كلّها تتوافق مع قيم الرعاية الإسلاميّة." },
+          ],
+        },
+      ],
+      trueFalseActivity: {
+        title: { en: "True or False", ar: "صواب أم خطأ" },
+        questions: [
+        { statement: { en: "Humans are stewards of the earth.", ar: "البشر خلفاء في الأرض." }, answer: true },
+        { statement: { en: "The environment is not our responsibility.", ar: "البيئة ليست مسؤوليّتنا." }, answer: false },
+        { statement: { en: "Wasting water is forbidden.", ar: "إسراف الماء محرّم." }, answer: true },
+        { statement: { en: "Nature can fix itself without care.", ar: "الطبيعة تصلح نفسها بلا رعاية." }, answer: false },
+        { statement: { en: "A woman entered Hell for harming a cat.", ar: "دخلت النار امرأة لأذية هرّة." }, answer: true },
         ],
+        coinsReward: 10,
       },
-      responsePrompt: {
-        title: { en: "Written response", ar: "إجابةٌ مَكتوبة" },
-        prompt: { en: "Explain why wasting water and food is against Islam, with evidence. Then list five practical things you can do this month to protect the environment as an act of worship (e.g. saving water, planting, reducing litter, kindness to animals), explaining the reward in each.", ar: "بَيِّنْ لِماذا إسرافُ الماءِ والطَّعامِ يُخالِفُ الإسلام، معَ الدَّليل. ثُمَّ عَدِّدْ خَمسةَ أشياءَ عَمَليّةٍ تَفعَلُها هذا الشَّهرَ لِحِفظِ البيئةِ عِبادةً (كَتَوفيرِ الماء، والغَرس، وتَقليلِ النِّفايات، والرِّفقِ بِالحَيَوان)، مُبَيِّنًا الأجرَ في كُلٍّ." },
-        placeholder: { en: "Wasting is against Islam because... My five actions: (1)... reward:... (2)...", ar: "الإسرافُ يُخالِفُ الإسلامَ لِأنَّ... وأعمالي الخَمسة: (١)... الأجر:... (٢)..." },
+      fillBlanksActivity: {
+        title: { en: "Fill in the Blanks", ar: "املأ الفراغات" },
+        questions: [
+        { sentence: { en: "\'Do not cause _______ on the earth.\'", ar: "﴿ولا _______ في الأرض﴾" }, answer: { en: "corruption", ar: "تفسدوا" } },
+        { sentence: { en: "\'Eat and drink but do not _______.", ar: "﴿كلوا واشربوا ولا _______.﴾" }, answer: { en: "waste", ar: "تسرفوا" } },
+        { sentence: { en: "Humans are _______ (stewards) on earth.", ar: "البشر _______ في الأرض." }, answer: { en: "khalifah", ar: "خلفاء" } },
+        { sentence: { en: "Allah raised the heaven and set the _______.", ar: "الله رفع السماء ووضع _______." }, answer: { en: "balance", ar: "الميزان" } },
+        ],
+        coinsReward: 10,
       },
       body: {
-        en: "Having understood that the environment is a trust, the believer must translate this into concrete daily behaviour, and Islam gives clear guidance on how. A central principle is the prohibition of israf — wastefulness and extravagance. Allah commands: 'O children of Adam... eat and drink, but be not excessive. Indeed, He does not love those who commit excess.' Wastefulness in Islam is not a small matter; the Qur'an even describes the wasteful as 'brothers of the devils.' This applies directly to how we use the resources of the earth: wasting water, throwing away good food, leaving lights and devices running needlessly, and consuming far beyond our needs are all forms of israf that displease Allah and damage the world we have been entrusted with. The Prophet ﷺ taught the principle of moderation so strictly that when he passed by his companion Sa'd performing wudu, he said, 'What is this extravagance?' Sa'd asked, 'Is there extravagance even in wudu?' The Prophet ﷺ replied, 'Yes, even if you are at a flowing river.' If wasting water is discouraged even when it seems endlessly available, how much more careful must we be with the limited resources of our planet.\n\nA second great principle is mercy and care toward all of Allah's creatures. Islam does not view animals and nature merely as objects for human use; they are communities created by Allah, each glorifying Him in its own way, and they have rights upon us. The Prophet ﷺ taught the most beautiful lessons in this regard. He told of a man, otherwise sinful, whose sins Allah forgave entirely because he climbed down a well to bring water to a dog that was dying of thirst — and the Companions asked, 'O Messenger of Allah, is there reward for us in serving animals?' He replied, 'In every living being there is a reward.' Conversely, he warned of a woman who was punished in the Fire because of a cat she imprisoned without food or water until it died. He forbade killing any creature without just cause, condemned using living animals as targets, commanded that animals be slaughtered for food only in the kindest manner, and even instructed that a beast of burden should not be overloaded. This profound mercy extends to trees and plants too, which he forbade cutting down wastefully, and to keeping public spaces and pathways clean, teaching that 'removing a harmful thing from the road is charity.'\n\nWhen we bring these principles together, a complete Islamic vision of environmental responsibility emerges, one that is remarkably relevant to the challenges of our own time. The believer is a grateful, careful steward who recognises the natural world as a blessing and a trust from Allah; who avoids all forms of waste and pollution; who shows mercy to animals and protects living things; who plants and builds rather than destroys; and who keeps his surroundings clean, knowing that 'cleanliness is half of faith.' Crucially, the Muslim does all this not merely for practical or political reasons, but as an act of worship and obedience: every drop of water saved, every tree planted, every animal treated kindly, and every piece of litter removed is a good deed recorded with Allah and a fulfilment of the trust placed upon us. A demanding student should leave this lesson seeing himself as a true khalifah of the earth — and resolving, through small consistent actions in his own home, school, and community, to leave the world he was entrusted with better, cleaner, and greener than he found it, seeking thereby the pleasure and reward of the One who created it all.",
-        ar: "إذ فَهِمَ المُؤمِنُ أنَّ البيئةَ أمانة، عليهِ أن يُتَرجِمَ ذلك إلى سُلوكٍ يَوميٍّ مَلموس، والإسلامُ يُرشِدُ بِوُضوحٍ كَيف. ومِنَ المَبادِئِ المِحوَريّةِ تَحريمُ الإسراف. يَأمُرُ اللهُ: ﴿يا بَني آدَمَ... وكُلوا واشرَبوا ولا تُسرِفوا، إنَّهُ لا يُحِبُّ المُسرِفين﴾. والإسرافُ في الإسلامِ لَيسَ هَيِّنًا؛ بل يَصِفُ القُرآنُ المُبَذِّرينَ بِأنَّهُم ﴿إخوانَ الشَّياطين﴾. وهذا يَنطَبِقُ مُباشَرةً على استِعمالِنا مَواردَ الأرض: فَإسرافُ الماء، ورَميُ الطَّعامِ الطَّيِّب، وتَركُ الأنوارِ والأجهِزةِ تَعمَلُ بِلا حاجة، والاستِهلاكُ فَوقَ الحاجةِ بِكَثير، كُلُّها صُوَرُ إسرافٍ تَسخَطُ اللهَ وتُؤذي العالَمَ الذي اؤتُمِنّا علَيه. وعَلَّمَ النَّبِيُّ ﷺ الاعتِدالَ بِشِدّةٍ حَتّى إنَّهُ مَرَّ بِصاحِبِهِ سَعدٍ يَتَوَضَّأُ فَقال: «ما هذا السَّرَف؟» فَقال: أفي الوُضوءِ سَرَف؟ قال: «نَعَم، وإن كُنتَ على نَهرٍ جارٍ». فإن كانَ إسرافُ الماءِ مَكروهًا حَتّى حينَ يَبدو لا يَنفَد، فَكَم يَنبَغي أن نَحذَرَ في مَواردِ كَوكَبِنا المَحدودة.\n\nوالمَبدأُ الثّاني العَظيمُ الرَّحمةُ والعِنايةُ بِكُلِّ مَخلوقاتِ الله. فالإسلامُ لا يَرى الحَيَوانَ والطَّبيعةَ مُجَرَّدَ أشياءَ لِاستِعمالِ الإنسان؛ بل أُمَمٌ خَلَقَها اللهُ، كُلٌّ يُسَبِّحُهُ بِطَريقَتِه، ولَها علَينا حُقوق. وعَلَّمَ النَّبِيُّ ﷺ أجمَلَ الدُّروسِ في هذا. حَدَّثَ عن رَجُلٍ مُذنِبٍ غَفَرَ اللهُ ذُنوبَهُ كُلَّها لِأنَّهُ نَزَلَ بِئرًا فَسَقى كَلبًا كادَ يَموتُ عَطَشًا — فَسَألَ الصَّحابة: يا رَسولَ الله، وإنَّ لَنا في البَهائِمِ أجرًا؟ فَقال: «في كُلِّ كَبِدٍ رَطبةٍ أجر». وفي المُقابِلِ حَذَّرَ مِنِ امرأةٍ عُذِّبَت في النّارِ في هِرّةٍ حَبَسَتها لا تُطعِمُها ولا تَسقيها حَتّى ماتَت. ونَهى عن قَتلِ أيِّ مَخلوقٍ بِلا حَقّ، وذَمَّ اتِّخاذَ الحَيِّ هَدَفًا، وأمَرَ أن يُذبَحَ ما يُؤكَلُ بِأرفَقِ وَجه، بل أمَرَ ألّا تُحَمَّلَ الدّابّةُ فَوقَ طاقَتِها. وتَمتَدُّ هذه الرَّحمةُ إلى الشَّجَرِ والنَّباتِ فَنَهى عن قَطعِهِ عَبَثًا، وإلى نَظافةِ الأماكِنِ والطُّرُق، فَعَلَّمَ أنَّ «إماطةَ الأذى عنِ الطَّريقِ صَدَقة».\n\nوحينَ نَجمَعُ هذه المَبادِئ، تَظهَرُ رُؤيةٌ إسلاميّةٌ مُتَكامِلةٌ لِلمَسؤوليّةِ البيئيّة، وَثيقةُ الصِّلةِ بِتَحَدّياتِ زَمانِنا. فالمُؤمِنُ مُستَخلَفٌ شاكِرٌ حَريص، يَرى العالَمَ الطَّبيعيَّ نِعمةً وأمانةً مِنَ الله؛ يَتَجَنَّبُ كُلَّ صُوَرِ الإسرافِ والتَّلَوُّث؛ ويَرحَمُ الحَيَوانَ ويَحمي الأحياء؛ ويَغرِسُ ويَبني لا يُدَمِّر؛ ويُبقي مُحيطَهُ نَظيفًا، عالِمًا أنَّ «الطُّهورَ شَطرُ الإيمان». والأهَمُّ أنَّ المُسلِمَ يَفعَلُ هذا كُلَّهُ لا لِأسبابٍ عَمَليّةٍ أو سياسيّةٍ فَحَسب، بل عِبادةً وطاعة: فَكُلُّ قَطرةِ ماءٍ تُوَفَّر، وكُلُّ شَجَرةٍ تُغرَس، وكُلُّ حَيَوانٍ يُرحَم، وكُلُّ أذًى يُماطُ، حَسَنةٌ تُكتَبُ عِندَ اللهِ ووَفاءٌ بِالأمانةِ التي حُمِّلناها. وعلى الطّالِبِ المُطالِبِ أن يَخرُجَ مِن هذا الدَّرسِ يَرى نَفسَهُ خَليفةً حَقًّا في الأرض — عازِمًا، بِأعمالٍ صَغيرةٍ مُتَّصِلةٍ في بَيتِهِ ومَدرَسَتِهِ ومُجتَمَعِه، أن يَترُكَ العالَمَ الذي اؤتُمِنَ علَيهِ أفضَلَ وأنظَفَ وأخضَرَ مِمّا وَجَدَه، يَبتَغي بِذلك رِضا ومَثوبةَ مَن خَلَقَهُ كُلَّه.",
+        en: "The environment is an amanah — humans are stewards, not owners. Islam forbids waste, corruption, and harming creation.",
+        ar: "البيئة أمانة — البشر خلفاء لا ملّاك. الإسلام يحرّم الإسراف والإفساد وأذية الخلق.",
       },
     },
+    {
+      title: { en: "Group Work", ar: "عمل جماعي" },
+      learningObjectives: [
+        { en: "Explore environmental stewardship in Islam.", ar: "استكشف رعاية البيئة في الإسلام." },
+      ],
+      image: {
+        src: IMG.grandMosque,
+        alt: { en: "Students collaborating.", ar: "طلاب يتعاونون." },
+      },
+      groupWorkCards: {
+        title: { en: "Choose Your Task", ar: "اختر مهمّتك" },
+        instruction: { en: "Each group picks one card. Study the information, complete the task, and present to the class.", ar: "تختار كلّ مجموعة بطاقة. ادرسوا المعلومات وأنجزوا المهمّة وقدّموا للصفّ." },
+        presentationNote: { en: "All Quran and Hadith must be authentic with references.", ar: "يجب أن يكون كلّ قرآن وحديث صحيحًا بمصادره." },
+        cards: [
+          {
+            id: "A",
+            title: { en: "Stewardship (Khilafah)", ar: "الخلافة" },
+            image: IMG.waterfall,
+            color: "teal",
+            topic: { en: "Our role on earth", ar: "دورنا في الأرض" },
+            infoSections: [
+              { label: { en: "Quran", ar: "القرآن" }, content: { en: "Al-Baqara 30: \'I will make on earth a khalifah.\'", ar: "البقرة ٣٠: ﴿إنّي جاعل في الأرض خليفة﴾" } },
+              { label: { en: "Meaning", ar: "معنى" }, content: { en: "We are caretakers, not owners — accountable for the earth.", ar: "نحن رعاة لا ملّاك — مسؤولون عن الأرض." } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Stewardship is a divine responsibility.", ar: "الرعاية مسؤوليّة إلهيّة." } },
+            ],
+            task: {
+              title: { en: "Define Stewardship", ar: "عرّف الرعاية" },
+              description: { en: "Explain what khalifah means for the environment.", ar: "اشرح ما تعني الخلافة للبيئة." },
+              hint: { en: "Include: Quran, meaning, examples, personal actions.", ar: "ضمّن: القرآن والمعنى والأمثلة والأعمال." },
+            },
+          },
+          {
+            id: "B",
+            title: { en: "No Waste (Israf)", ar: "لا إسراف" },
+            image: IMG.skyBlue,
+            color: "blue",
+            topic: { en: "Water, food, energy", ar: "الماء والطعام والطاقة" },
+            infoSections: [
+              { label: { en: "Quran", ar: "القرآن" }, content: { en: "Al-A\'raf 31: \'Eat and drink but do not waste.\'", ar: "الأعراف ٣١: ﴿كلوا واشربوا ولا تسرفوا﴾" } },
+              { label: { en: "Hadith", ar: "حديث" }, content: { en: "\'Do not waste water even at a flowing river.\' (Ahmad)", ar: "«لا تسرف في الماء ولو كنت على نهر جارٍ.» (أحمد)" } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Moderation is worship.", ar: "الاعتدال عبادة." } },
+            ],
+            task: {
+              title: { en: "Create a No-Waste Plan", ar: "أنشئ خطّة لا إسراف" },
+              description: { en: "Write 5 ways to reduce waste at school.", ar: "اكتب ٥ طرق لتقليل الإسراف في المدرسة." },
+              hint: { en: "Include: water, food, paper, energy, plastic.", ar: "ضمّن: الماء والطعام والورق والطاقة والبلاستيك." },
+            },
+          },
+          {
+            id: "C",
+            title: { en: "Animal Rights", ar: "حقوق الحيوان" },
+            image: IMG.mountainSnow,
+            color: "purple",
+            topic: { en: "Mercy to all creatures", ar: "الرحمة بكلّ المخلوقات" },
+            infoSections: [
+              { label: { en: "Hadith", ar: "حديث" }, content: { en: "\'A man was forgiven for giving water to a thirsty dog.\' (Bukhari)", ar: "«غُفر لرجل سقى كلبًا عطشان.» (البخاري)" } },
+              { label: { en: "Hadith", ar: "حديث" }, content: { en: "\'A woman entered Hell for starving a cat.\' (Bukhari)", ar: "«دخلت النار امرأة في هرّة حبستها.» (البخاري)" } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Animals have rights in Islam.", ar: "للحيوانات حقوق في الإسلام." } },
+            ],
+            task: {
+              title: { en: "Research Animal Rights", ar: "ابحث عن حقوق الحيوان" },
+              description: { en: "List 5 Islamic rules about treating animals.", ar: "اذكر ٥ قواعد إسلاميّة لمعاملة الحيوانات." },
+              hint: { en: "Include: hadith evidence, the rule, modern application.", ar: "ضمّن: الحديث والقاعدة والتطبيق." },
+            },
+          },
+          {
+            id: "D",
+            title: { en: "UAE Green Initiatives", ar: "مبادرات الإمارات" },
+            image: IMG.grandMosque,
+            color: "amber",
+            topic: { en: "A model country", ar: "دولة نموذجيّة" },
+            infoSections: [
+              { label: { en: "Fact", ar: "حقيقة" }, content: { en: "UAE leads in clean energy (Masdar City, solar farms), mangrove planting, wildlife protection.", ar: "الإمارات تقود في الطاقة النظيفة (مدينة مصدر) وزراعة الشوريّات وحماية البرّيّة." } },
+              { label: { en: "Values", ar: "قيم" }, content: { en: "These align with Islamic environmental stewardship.", ar: "هذه تتوافق مع الرعاية البيئيّة الإسلاميّة." } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Modern sustainability = Islamic values in action.", ar: "الاستدامة الحديثة = قيم إسلاميّة عمليّة." } },
+            ],
+            task: {
+              title: { en: "Explore UAE Green Projects", ar: "استكشف مشاريع الإمارات" },
+              description: { en: "Research 3 UAE environmental projects.", ar: "ابحث عن ٣ مشاريع بيئيّة إماراتيّة." },
+              hint: { en: "Include: project name, goal, Islamic connection.", ar: "ضمّن: اسم المشروع والهدف والصلة الإسلاميّة." },
+            },
+          },
+          {
+            id: "E",
+            title: { en: "My Green Actions", ar: "أعمالي الخضراء" },
+            image: IMG.childQuran,
+            color: "rose",
+            topic: { en: "What can I do?", ar: "ماذا أفعل؟" },
+            infoSections: [
+              { label: { en: "Actions", ar: "أعمال" }, content: { en: "Plant a tree, save water, reduce waste, recycle, walk instead of drive.", ar: "ازرع شجرة ووفّر الماء وقلّل الإسراف وأعد التدوير وامشِ." } },
+              { label: { en: "Hadith", ar: "حديث" }, content: { en: "\'If the Hour comes and you have a seedling, plant it.\' (Ahmad)", ar: "«إن قامت الساعة وبيد أحدكم فسيلة فليغرسها.» (أحمد)" } },
+              { label: { en: "Moral", ar: "درس" }, content: { en: "Every small action counts.", ar: "كلّ عمل صغير يُحسب." } },
+            ],
+            task: {
+              title: { en: "Write Your Green Plan", ar: "اكتب خطّتك الخضراء" },
+              description: { en: "Create a personal environmental action plan.", ar: "أنشئ خطّة عمل بيئيّة شخصيّة." },
+              hint: { en: "Include: daily actions, weekly goals, Islamic motivation.", ar: "ضمّن: أعمال يوميّة وأهداف أسبوعيّة ودافع إسلامي." },
+            },
+          },
+        ],
+        coinsReward: 15,
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Hinge Questions", ar: "أسئلة محوريّة" },
+      learningObjectives: [
+        { en: "Test your understanding of everything studied.", ar: "اختبر فهمك لكلّ ما درسته." },
+      ],
+      image: {
+        src: IMG.bookshelf,
+        alt: { en: "Assessment.", ar: "تقييم." },
+      },
+      hingeQuestions: {
+        title: { en: "Hinge Questions — Test Your Understanding", ar: "أسئلة محوريّة — اختبر فهمك" },
+        instruction: { en: "Answer all 10 questions.", ar: "أجب عن الأسئلة العشرة." },
+        questions: [
+          {
+            question: { en: "Humans are on earth as?", ar: "البشر في الأرض ك؟" },
+            options: [
+            { en: "Stewards (khalifah)", ar: "خلفاء" },
+            { en: "Owners", ar: "ملّاك" },
+            { en: "Visitors", ar: "زوّار" },
+            { en: "Destroyers", ar: "مدمّرين" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Stewards.", ar: "خلفاء." },
+          },
+          {
+            question: { en: "Al-A\'raf 56 says?", ar: "الأعراف ٥٦ تقول؟" },
+            options: [
+            { en: "Do not corrupt the earth", ar: "لا تفسدوا في الأرض" },
+            { en: "Destroy freely", ar: "دمّروا بحرّيّة" },
+            { en: "Ignore nature", ar: "تجاهلوا الطبيعة" },
+            { en: "Waste water", ar: "أسرفوا الماء" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Do not corrupt.", ar: "لا تفسدوا." },
+          },
+          {
+            question: { en: "Wasting water is?", ar: "إسراف الماء؟" },
+            options: [
+            { en: "Forbidden", ar: "محرّم" },
+            { en: "Encouraged", ar: "مشجّع" },
+            { en: "Allowed", ar: "مباح" },
+            { en: "Required", ar: "واجب" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Forbidden — even at a flowing river.", ar: "محرّم — حتّى عند نهر جارٍ." },
+          },
+          {
+            question: { en: "Woman entered Hell for?", ar: "دخلت النار لأجل؟" },
+            options: [
+            { en: "Starving a cat", ar: "حبس هرّة" },
+            { en: "Prayer", ar: "الصلاة" },
+            { en: "Charity", ar: "الصدقة" },
+            { en: "Fasting", ar: "الصيام" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Starving a cat.", ar: "حبس هرّة." },
+          },
+          {
+            question: { en: "Man forgiven for?", ar: "غُفر لرجل ل؟" },
+            options: [
+            { en: "Giving water to a dog", ar: "سقى كلبًا" },
+            { en: "Sleeping", ar: "النوم" },
+            { en: "Eating", ar: "الأكل" },
+            { en: "Running", ar: "الركض" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Giving water to a thirsty dog.", ar: "سقى كلبًا عطشان." },
+          },
+          {
+            question: { en: "\'Eat and drink but?\'", ar: "﴿كلوا واشربوا ولا؟﴾" },
+            options: [
+            { en: "Do not waste", ar: "تسرفوا" },
+            { en: "Eat more", ar: "كلوا أكثر" },
+            { en: "Drink more", ar: "اشربوا أكثر" },
+            { en: "Do nothing", ar: "لا تفعلوا" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Do not waste.", ar: "لا تسرفوا." },
+          },
+          {
+            question: { en: "Balance (mizan) is in?", ar: "الميزان في؟" },
+            options: [
+            { en: "Ar-Rahman 7-9", ar: "الرحمن ٧-٩" },
+            { en: "Al-Fatiha", ar: "الفاتحة" },
+            { en: "An-Nas", ar: "الناس" },
+            { en: "Al-Ikhlas", ar: "الإخلاص" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Ar-Rahman 7-9.", ar: "الرحمن ٧-٩." },
+          },
+          {
+            question: { en: "UAE Green Agenda?", ar: "أجندة الإمارات الخضراء؟" },
+            options: [
+            { en: "2030", ar: "٢٠٣٠" },
+            { en: "2000", ar: "٢٠٠٠" },
+            { en: "1990", ar: "١٩٩٠" },
+            { en: "None", ar: "لا يوجد" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "UAE Green Agenda 2030.", ar: "أجندة ٢٠٣٠." },
+          },
+          {
+            question: { en: "If Hour comes and you have seedling?", ar: "إن قامت الساعة وبيدك فسيلة؟" },
+            options: [
+            { en: "Plant it", ar: "ازرعها" },
+            { en: "Drop it", ar: "ألقها" },
+            { en: "Ignore it", ar: "تجاهلها" },
+            { en: "Eat it", ar: "كلها" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Plant it (Ahmad).", ar: "ازرعها (أحمد)." },
+          },
+          {
+            question: { en: "Islamic view of animals?", ar: "نظرة الإسلام للحيوانات؟" },
+            options: [
+            { en: "Have rights and deserve mercy", ar: "لها حقوق وتستحقّ الرحمة" },
+            { en: "No rights", ar: "بلا حقوق" },
+            { en: "Only for food", ar: "للأكل فقط" },
+            { en: "Not important", ar: "غير مهمّة" },
+            ],
+            correctIndex: 0,
+            explanation: { en: "Have rights — mercy to all.", ar: "لها حقوق — رحمة بالجميع." },
+          },
+        ],
+        coinsReward: 20,
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Watch & Reflect", ar: "شاهد وتأمّل" },
+      learningObjectives: [
+        { en: "Watch a video related to the topic and reflect.", ar: "شاهد مقطعًا متعلّقًا بالموضوع وتأمّل." },
+      ],
+      image: {
+        src: IMG.childQuran,
+        alt: { en: "Video lesson.", ar: "درس مرئي." },
+      },
+      youtubeVideo: {
+        title: { en: "Environment as Trust", ar: "البيئة أمانة" },
+        url: "https://www.youtube.com/watch?v=kYnGEQoGhUE",
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Plenary", ar: "ختام الدرس" },
+      learningObjectives: [
+        { en: "Reflect on and share what you learned.", ar: "تأمّل وشارك ما تعلّمته." },
+      ],
+      image: {
+        src: IMG.grandMosque,
+        alt: { en: "Students sharing.", ar: "طلاب يشاركون." },
+      },
+      plenary: {
+        title: { en: "Share Your Learning", ar: "شارك ما تعلّمته" },
+        instruction: { en: "Scan QR or enter the code to share what you learned.", ar: "امسح QR أو أدخل الرمز لمشاركة ما تعلّمته." },
+        code: "ENVIR001",
+      },
+      body: { en: "", ar: "" },
+    },
+    {
+      title: { en: "Worksheet — My Environment Is a Trust", ar: "ورقة عمل — بيئَتي أمانة" },
+      learningObjectives: [
+        { en: "Demonstrate understanding through an auto-marked worksheet.", ar: "أظهر فهمي من خلال ورقة عمل تُصحّح تلقائيًّا." },
+      ],
+      image: {
+        src: IMG.bookshelf,
+        alt: { en: "Worksheet.", ar: "ورقة عمل." },
+      },
+      worksheet: {
+        title: { en: "Worksheet — My Environment Is a Trust", ar: "ورقة عمل — بيئَتي أمانة" },
+        instruction: { en: "Answer all questions. Auto-marked. Cannot re-answer after submission.", ar: "أجب عن جميع الأسئلة. تُصحّح تلقائيًّا. لن تستطيع الإجابة مجدّدًا." },
+        sections: [
+          {
+            type: "mcq" as const,
+            title: { en: "Multiple Choice", ar: "اختيار من متعدّد" },
+            questions: [
+              {
+                question: { en: "Humans on earth as?", ar: "البشر في الأرض ك؟" },
+                options: [
+                { en: "Stewards", ar: "خلفاء" },
+                { en: "Owners", ar: "ملّاك" },
+                { en: "Visitors", ar: "زوّار" },
+                { en: "Kings", ar: "ملوك" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "Wasting water?", ar: "إسراف الماء؟" },
+                options: [
+                { en: "Forbidden", ar: "محرّم" },
+                { en: "Allowed", ar: "مباح" },
+                { en: "Encouraged", ar: "مشجّع" },
+                { en: "Required", ar: "واجب" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "Woman + cat?", ar: "المرأة والهرّة؟" },
+                options: [
+                { en: "Entered Hell", ar: "دخلت النار" },
+                { en: "Entered Paradise", ar: "دخلت الجنّة" },
+                { en: "Nothing", ar: "لا شيء" },
+                { en: "Reward", ar: "ثواب" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "Man + dog?", ar: "الرجل والكلب؟" },
+                options: [
+                { en: "Forgiven", ar: "غُفر له" },
+                { en: "Punished", ar: "عوقب" },
+                { en: "Nothing", ar: "لا شيء" },
+                { en: "Ignored", ar: "تُجوهل" },
+                ],
+                correctIndex: 0,
+              },
+              {
+                question: { en: "Do not cause ___?", ar: "لا ___ في الأرض؟" },
+                options: [
+                { en: "Corruption", ar: "تفسدوا" },
+                { en: "Goodness", ar: "تحسنوا" },
+                { en: "Prayer", ar: "تصلّوا" },
+                { en: "Charity", ar: "تتصدّقوا" },
+                ],
+                correctIndex: 0,
+              },
+            ],
+          },
+          {
+            type: "trueFalse" as const,
+            title: { en: "True or False", ar: "صواب أم خطأ" },
+            questions: [
+              { statement: { en: "Humans are stewards.", ar: "البشر خلفاء." }, answer: true },
+              { statement: { en: "Wasting is allowed.", ar: "الإسراف مباح." }, answer: false },
+              { statement: { en: "Animals have rights.", ar: "للحيوانات حقوق." }, answer: true },
+              { statement: { en: "Environment is not our concern.", ar: "البيئة ليست شأننا." }, answer: false },
+              { statement: { en: "Planting trees is rewarded.", ar: "زراعة الأشجار مُثاب." }, answer: true },
+            ],
+          },
+          {
+            type: "matchUp" as const,
+            title: { en: "Match Up", ar: "وصّل" },
+            prompts: [
+              { prompt: { en: "Bi\'ah", ar: "بيئة" }, answer: { en: "Environment", ar: "البيئة" } },
+              { prompt: { en: "Khalifah", ar: "خليفة" }, answer: { en: "Steward", ar: "الوصيّ" } },
+              { prompt: { en: "Israf", ar: "إسراف" }, answer: { en: "Waste", ar: "الإسراف" } },
+              { prompt: { en: "Mizan", ar: "ميزان" }, answer: { en: "Balance", ar: "التوازن" } },
+              { prompt: { en: "Amanah", ar: "أمانة" }, answer: { en: "Trust", ar: "الأمانة" } },
+            ],
+          },
+          {
+            type: "fillBlanks" as const,
+            title: { en: "Fill in the Blanks", ar: "املأ الفراغات" },
+            questions: [
+              { sentence: { en: "\'Do not cause _______ on earth.\'", ar: "﴿ولا _______ في الأرض﴾" }, blankAnswer: { en: "corruption", ar: "تفسدوا" } },
+              { sentence: { en: "\'Eat and drink but do not _______.", ar: "﴿كلوا واشربوا ولا _______.﴾" }, blankAnswer: { en: "waste", ar: "تسرفوا" } },
+              { sentence: { en: "Humans are _______ on earth.", ar: "البشر _______ في الأرض." }, blankAnswer: { en: "stewards", ar: "خلفاء" } },
+              { sentence: { en: "\'If you have a _______, plant it.\'", ar: "«إن بيدك _______ فازرعها.»" }, blankAnswer: { en: "seedling", ar: "فسيلة" } },
+            ],
+          },
+          {
+            type: "ordering" as const,
+            title: { en: "Put in Correct Order", ar: "رتّب ترتيبًا صحيحًا" },
+            items: [
+              { en: "Receive the earth as an amanah (trust)", ar: "تلقّ الأرض كأمانة" },
+              { en: "Learn Islamic environmental principles", ar: "تعلّم المبادئ البيئيّة الإسلاميّة" },
+              { en: "Practise no-waste (no israf)", ar: "تدرّب على عدم الإسراف" },
+              { en: "Show mercy to animals", ar: "ارحم الحيوانات" },
+              { en: "Support green initiatives", ar: "ادعم المبادرات الخضراء" },
+              { en: "Be a responsible khalifah", ar: "كن خليفة مسؤولًا" },
+            ],
+          },
+        ],
+        coinsReward: 25,
+      },
+      body: { en: "", ar: "" },
+    },
   ],
-  quizQuestions: [
-    {
-      prompt: { en: "What does it mean that humans are khala'if (stewards) of the earth?", ar: "ما مَعنى أنَّ البَشَرَ خَلائِفُ في الأرض؟" },
-      options: [
-        { en: "We are entrusted to care for it, not to own and abuse it", ar: "اؤتُمِنّا على العِنايةِ بِها، لا على مِلكِها وإساءَتِها" },
-        { en: "We can destroy it as we wish", ar: "نُدَمِّرُها كَما نَشاء" },
-        { en: "It belongs to no one", ar: "لا تَخُصُّ أحَدًا" },
-        { en: "It has no value", ar: "لا قيمةَ لَها" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "The earth is a trust (amanah) we will be questioned about.", ar: "الأرضُ أمانةٌ سَنُسألُ عنها." },
-    },
-    {
-      prompt: { en: "What does Ar-Rum 41 link the appearance of corruption to?", ar: "بِماذا تَربِطُ الرّوم ٤١ ظُهورَ الفَساد؟" },
-      options: [
-        { en: "What people's own hands have earned", ar: "ما كَسَبَت أيدي النّاس" },
-        { en: "The actions of animals", ar: "أفعالَ الحَيَوان" },
-        { en: "Pure chance", ar: "الصُّدفةَ المَحضة" },
-        { en: "Nothing", ar: "لا شَيء" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "Environmental damage is linked to human wrongdoing.", ar: "الضَّرَرُ البيئيُّ مَربوطٌ بِسوءِ فِعلِ الإنسان." },
-    },
-    {
-      prompt: { en: "What did the Prophet ﷺ say about planting even at the end of time?", ar: "ماذا قالَ النَّبِيُّ ﷺ عنِ الغَرسِ ولَو في آخِرِ الزَّمان؟" },
-      options: [
-        { en: "Plant the seedling even if the Hour is about to begin", ar: "اغرِسِ الفَسيلةَ ولَو قامَتِ السّاعة" },
-        { en: "Stop all work before the Hour", ar: "أوقِفِ العَمَلَ قَبلَ السّاعة" },
-        { en: "Cut down all trees", ar: "اقطَعِ الأشجارَ كُلَّها" },
-        { en: "Waste everything", ar: "أهدِرْ كُلَّ شَيء" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "Doing good for the earth is rewarded right up to the final moment.", ar: "الإحسانُ لِلأرضِ مَأجورٌ حَتّى اللَّحظةِ الأخيرة." },
-    },
-    {
-      prompt: { en: "What did the Prophet ﷺ say about wasting water during wudu at a river?", ar: "ماذا قالَ النَّبِيُّ ﷺ عن إسرافِ الماءِ في الوُضوءِ على نَهر؟" },
-      options: [
-        { en: "It is still extravagance, even at a flowing river", ar: "هو سَرَفٌ، ولَو على نَهرٍ جارٍ" },
-        { en: "Waste as much as you like", ar: "أسرِفْ كَما تَشاء" },
-        { en: "Water can never be wasted", ar: "الماءُ لا يُهدَرُ أبَدًا" },
-        { en: "Wudu requires waste", ar: "الوُضوءُ يَحتاجُ إسرافًا" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "Moderation applies even when a resource seems unlimited.", ar: "الاعتِدالُ مَطلوبٌ ولَو بَدا المَوردُ لا يَنفَد." },
-    },
-    {
-      prompt: { en: "Why was a man's sins forgiven in the hadith of the well?", ar: "لِماذا غُفِرَت ذُنوبُ رَجُلٍ في حَديثِ البِئر؟" },
-      options: [
-        { en: "He gave water to a dog dying of thirst", ar: "سَقى كَلبًا كادَ يَموتُ عَطَشًا" },
-        { en: "He owned much wealth", ar: "مَلَكَ مالًا كَثيرًا" },
-        { en: "He hunted many animals", ar: "اصطادَ حَيَواناتٍ كَثيرة" },
-        { en: "He cut many trees", ar: "قَطَعَ أشجارًا كَثيرة" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "'In every living being there is a reward' — mercy to animals is rewarded.", ar: "«في كُلِّ كَبِدٍ رَطبةٍ أجر» — الرَّحمةُ بِالحَيَوانِ مَأجورة." },
-    },
-    {
-      prompt: { en: "True or False: Protecting the environment can be an act of worship in Islam.", ar: "صَوابٌ أم خَطأ: حِفظُ البيئةِ قد يَكونُ عِبادةً في الإسلام." },
-      options: [
-        { en: "True — every act of conservation and mercy is recorded as a good deed", ar: "صَواب — كُلُّ حِفظٍ ورَحمةٍ تُكتَبُ حَسَنة" },
-        { en: "False", ar: "خَطأ" },
-      ],
-      correctIndex: 0,
-      explanation: { en: "The believer cares for the earth seeking Allah's reward and pleasure.", ar: "يَعتَني المُؤمِنُ بِالأرضِ يَبتَغي أجرَ اللهِ ورِضاه." },
-    },
-  ],
+  quizQuestions: [],
 };

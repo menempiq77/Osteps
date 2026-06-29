@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumb } from "antd";
-import { BookOpen, Presentation, Sparkles } from "lucide-react";
+import { BookOpen, Sparkles } from "lucide-react";
 import { topicSlugify, uaeCurriculumBySlug, uaeCurriculumGrades } from "../data";
 import { hasLesson } from "../lessons/registry";
 
@@ -92,13 +92,7 @@ export default function GradeLessonsPage({
                     <BookOpen size={14} />
                     Start the learning journey
                   </Link>
-                  <Link
-                    href={`${base}?mode=class`}
-                    className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-[var(--primary)] px-3 py-1.5 text-xs font-semibold text-[var(--primary)] transition-colors hover:bg-[var(--primary)]/5"
-                  >
-                    <Presentation size={14} />
-                    Lesson in the class
-                  </Link>
+
                 </div>
               </div>
             );
