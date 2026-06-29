@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
+import { DATA_DIR } from "@/lib/server/dataDir";
 import { StoryReaction, StoryReactionType } from "@/types/classStory";
 
 export const runtime = "nodejs";
@@ -15,7 +16,7 @@ type ReactionPayload = {
   reaction?: StoryReactionType;
 };
 
-const STORE_DIR = path.join(process.cwd(), ".data", "class-story", "reactions");
+const STORE_DIR = path.join(DATA_DIR, "class-story", "reactions");
 
 const safeSegment = (value: string | number | null | undefined) =>
   String(value ?? "")

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { writeFile, mkdir, unlink, readdir } from "fs/promises";
 import path from "path";
+import { DATA_DIR } from "@/lib/server/dataDir";
 
-const TEXTBOOK_DIR = path.join(process.cwd(), "textbooks");
+const TEXTBOOK_DIR = path.join(DATA_DIR, "textbooks");
 
 const sanitizeFilename = (name: string) =>
   name
