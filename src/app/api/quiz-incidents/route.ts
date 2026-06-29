@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
+import { DATA_DIR } from "@/lib/server/dataDir";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,7 +25,7 @@ type QuizIncidentState = {
   updatedAt: string;
 };
 
-const STORE_DIR = path.join(process.cwd(), ".data", "quiz-incidents");
+const STORE_DIR = path.join(DATA_DIR, "quiz-incidents");
 
 const safeSegment = (value: string | null | undefined) =>
   String(value || "")

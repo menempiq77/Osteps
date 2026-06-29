@@ -1,9 +1,9 @@
 import fs from "fs/promises";
 import path from "path";
+import { DATA_DIR } from "./dataDir";
 
 type NotesMap = Record<string, string>;
 
-const DATA_DIR = path.join(process.cwd(), ".data");
 const NOTES_FILE = path.join(DATA_DIR, "student-notes.json");
 
 async function ensureStoreFile(): Promise<void> {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
+import { DATA_DIR } from "@/lib/server/dataDir";
 import { StoryPostInput, StoryPostRecord } from "@/types/classStory";
 
 export const runtime = "nodejs";
@@ -22,7 +23,7 @@ type UpdatePostPayload = {
   input?: StoryPostInput;
 };
 
-const STORE_DIR = path.join(process.cwd(), ".data", "class-story", "posts");
+const STORE_DIR = path.join(DATA_DIR, "class-story", "posts");
 
 const safeSegment = (value: string | number | null | undefined) =>
   String(value ?? "")

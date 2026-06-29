@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
+import { DATA_DIR } from "@/lib/server/dataDir";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,7 +24,7 @@ type DocumentState = {
   updatedAt?: string;
 };
 
-const STORE_DIR = path.join(process.cwd(), ".data", "assessment-documents");
+const STORE_DIR = path.join(DATA_DIR, "assessment-documents");
 
 const safeSegment = (value: string | null) =>
   String(value || "")
