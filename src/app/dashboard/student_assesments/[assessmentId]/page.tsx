@@ -7,6 +7,7 @@ import {
   FilePdfOutlined,
   LinkOutlined,
   CheckCircleFilled,
+  UnlockOutlined,
 } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
@@ -266,6 +267,7 @@ export default function AssessmentDrawer() {
   const [quizTeacherMark, setQuizTeacherMark] = useState<string>("");
   const [selectedDownloadTaskIds, setSelectedDownloadTaskIds] = useState<number[]>([]);
   const [bulkDownloading, setBulkDownloading] = useState(false);
+  const [bulkOpeningEdits, setBulkOpeningEdits] = useState(false);
   const [documentSelfAssessmentMarks, setDocumentSelfAssessmentMarks] = useState<Record<string, number>>({});
   const [examActionTask, setExamActionTask] = useState<StudentAssessmentTask | null>(null);
   const [examActionValues, setExamActionValues] = useState({
@@ -1198,6 +1200,40 @@ export default function AssessmentDrawer() {
     link.remove();
   };
 
+  const handleBulkOpenEdits = async () => {
+    const pdfTasks = selectedDownloadTasks.filter((task) => isPdfTask(task));
+    if (pdfTasks.length === 0) {
+      message.warning("Select at least one PDF exam task first.");
+      return;
+    }
+
+    setBulkOpeningEdits(true);
+    let openedCount = 0;
+    let failedCount = 0;
+
+    for (const task of pdfTasks) {
+      try {
+        await openStudentEditsForTask(task);
+        openedCount++;
+      } catch (err) {
+        console.error(`Failed to open edits for student ${task.student_id}:`, err);
+        failedCount++;
+      }
+    }
+
+    if (openedCount > 0) {
+      message.success(
+        `Opened editing for ${openedCount} student${openedCount === 1 ? "" : "s"}.`
+      );
+    }
+    if (failedCount > 0) {
+      message.warning(
+        `Failed to open editing for ${failedCount} student${failedCount === 1 ? "" : "s"}.`
+      );
+    }
+    setBulkOpeningEdits(false);
+  };
+
   const handleBulkDownload = () => {
     if (selectedDownloadTasks.length === 0) {
       message.warning("Tick at least one visible task first.");
@@ -1415,6 +1451,17 @@ export default function AssessmentDrawer() {
             >
               Download selected ({selectedDownloadTasks.length})
             </Button>
+            {activeTaskGroup?.taskType?.toLowerCase() === "pdf" && (
+              <Button
+                icon={<UnlockOutlined />}
+                loading={bulkOpeningEdits}
+                disabled={selectedDownloadTasks.length === 0}
+                onClick={handleBulkOpenEdits}
+                className="!border-blue-300 !text-blue-700 hover:!border-blue-500 hover:!text-blue-800"
+              >
+                Open student edits ({selectedDownloadTasks.filter((t) => isPdfTask(t)).length})
+              </Button>
+            )}
             <Button
               disabled={selectedDownloadTaskIds.length === 0}
               onClick={() => setSelectedDownloadTaskIds([])}
