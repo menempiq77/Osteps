@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { BookOpen, Upload, Trash2, FileText, X } from "lucide-react";
 
 interface TextbookUploadProps {
@@ -141,29 +142,31 @@ export default function TextbookUpload({ gradeSlug }: TextbookUploadProps) {
         )}
       </div>
 
-      {showViewer && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4">
-          <div className="relative flex h-[90vh] w-full max-w-5xl flex-col rounded-xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b px-4 py-2.5">
-              <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <BookOpen size={16} />
-                Textbook PDF
+      {showViewer &&
+        createPortal(
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4">
+            <div className="relative flex h-[90vh] w-full max-w-5xl flex-col rounded-xl bg-white shadow-2xl">
+              <div className="flex items-center justify-between border-b px-4 py-2.5">
+                <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                  <BookOpen size={16} />
+                  Textbook PDF
+                </div>
+                <button
+                  onClick={() => setShowViewer(false)}
+                  className="rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+                >
+                  <X size={20} />
+                </button>
               </div>
-              <button
-                onClick={() => setShowViewer(false)}
-                className="rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
-              >
-                <X size={20} />
-              </button>
+              <iframe
+                src={`/api/textbook/${gradeSlug}`}
+                className="flex-1 rounded-b-xl"
+                title="Textbook PDF"
+              />
             </div>
-            <iframe
-              src={`/api/textbook/${gradeSlug}`}
-              className="flex-1 rounded-b-xl"
-              title="Textbook PDF"
-            />
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </>
   );
 }
