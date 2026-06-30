@@ -93,6 +93,7 @@ const LINK_COLORS: Record<string, LinkColor> = {
   "Announcements": { bg: "#fff1f8", iconColor: "#c0266f", border: "#f5c6dc" },
   "Ask a Question":{ bg: "#f3f0ff", iconColor: "#6d5bd0", border: "#d8cffd" },
   "Behavior":      { bg: "#fff9df", iconColor: "#a16207", border: "#efd676" },
+  "My Report":     { bg: "#eef4ff", iconColor: "#3b5bdb", border: "#c2d2ff" },
   "Leaderboard":   { bg: "#fff8df", iconColor: "#a16207", border: "#efd676" },
   "Settings":      { bg: "#f5f7fb", iconColor: "#424253", border: "#d9dfeb" },
   "All Students":  { bg: "#ecfbf4", iconColor: "#229463", border: "#a8e4c7" },
@@ -338,7 +339,7 @@ export default function SubjectCardsPage() {
     { name: "Timetable",      href: "/dashboard/time_table?view=calendar",      desc: "Check your schedule for classes and activities.",                  Icon: CalendarOutlined },
     { name: "Announcements",  href: "/dashboard/announcements",                 desc: "Read the latest updates sent to students.",                        Icon: NotificationOutlined },
     { name: "Ask a Question", href: "/dashboard/questions",                     desc: "Send questions and view replies from teachers.",                   Icon: QuestionCircleOutlined },
-    { name: "Behavior",       href: `/dashboard/behavior/${currentUser?.student}`, desc: "Review your behaviour notes and updates.",                     Icon: SolutionOutlined },
+    { name: "My Report",      href: "/dashboard/students/my-report",              desc: "View your full report: behavior, assessments & progress.",    Icon: SolutionOutlined },
     { name: "Leaderboard",    href: leaderboardHref,                            desc: "See how you rank against your classmates and the whole school.",   Icon: TrophyOutlined },
   ];
 
