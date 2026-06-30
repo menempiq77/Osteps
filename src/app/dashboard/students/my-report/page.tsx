@@ -1,485 +1,778 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
-import { Avatar, Breadcrumb, Card, List, Select, Spin, Statistic, Tabs, Tag } from "antd";
-import { ArrowUpOutlined, ArrowDownOutlined } from "@ant-design/icons";
+import { useMemo } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
+import { useQuery } from "@tanstack/react-query";
+import { Alert, Empty, Spin, Tag } from "antd";
+import {
+  Bar,
+  BarChart,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip as ReTooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { RootState } from "@/store/store";
 import { useSubjectContext } from "@/contexts/SubjectContext";
-import { fetchBehaviour, fetchBehaviourType } from "@/services/behaviorApi";
-import { fetchAssessmentByStudent, fetchTasks, fetchStudentTasks } from "@/services/api";
 import { fetchStudentProfileData } from "@/services/studentsApi";
-import { fetchTerm } from "@/services/termsApi";
-import { isSubmittedStatus } from "@/lib/studentSubmissionStatus";
-import { normalizeTaskRecord } from "@/lib/taskTypeMetadata";
+import { fetchGrades } from "@/services/gradesApi";
 
-interface CurrentUser {
-  student?: string;
-  studentClass?: string | number;
-  avatar?: string;
-  name?: string;
-  class?: string;
-  role?: string;
-  studentClassName?: string;
+type AnyObj = Record<string, unknown>;
+
+const asArray = <T = AnyObj,>(value: unknown): T[] =>
+  Array.isArray(value) ? (value as T[]) : [];
+
+const num = (value: unknown): number => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+};
+
+const normalizeSubjectName = (value: unknown) =>
+  String(value ?? "").replace(/islamiat/gi, "Islamic").trim();
+
+const initialsOf = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() ?? "")
+    .join("") || "?";
+
+const pct = (earned: number, max: number) =>
+  max > 0 ? Math.round((earned / max) * 100) : 0;
+
+const isAttendanceBehaviour = (name: string) => /attendance/i.test(name);
+
+function SectionCard({
+  title,
+  subtitle,
+  extra,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  extra?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <h2 className="m-0 text-base font-bold text-slate-800">{title}</h2>
+          {subtitle ? (
+            <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>
+          ) : null}
+        </div>
+        {extra}
+      </div>
+      {children}
+    </section>
+  );
 }
 
-type BehaviorType = {
-  id: string;
-  name: string;
-  points: number;
-  color: string;
-};
-
-type Behavior = {
-  id: string;
-  behaviour_id: string;
-  description: string;
-  date: string;
-  teacher?: { teacher_name?: string } | string;
-  points: number;
-  teacher_name: string;
-  subject_name?: string;
-  subject?: { name?: string; subject_name?: string };
-  behaviour?: {
-    id?: string;
-    name?: string;
-    points?: number;
-    color?: string;
+function StatTile({
+  label,
+  value,
+  hint,
+  tone = "slate",
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  tone?: "slate" | "green" | "amber" | "red" | "blue";
+}) {
+  const tones: Record<string, string> = {
+    slate: "from-slate-50 to-white text-slate-800 border-slate-200",
+    green: "from-emerald-50 to-white text-emerald-700 border-emerald-200",
+    amber: "from-amber-50 to-white text-amber-700 border-amber-200",
+    red: "from-rose-50 to-white text-rose-700 border-rose-200",
+    blue: "from-blue-50 to-white text-blue-700 border-blue-200",
   };
-};
+  return (
+    <div className={`rounded-xl border bg-gradient-to-b p-3.5 ${tones[tone]}`}>
+      <p className="m-0 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+        {label}
+      </p>
+      <p className="mt-1 mb-0 text-2xl font-extrabold leading-none">{value}</p>
+      {hint ? (
+        <p className="mt-1 mb-0 text-[11px] text-slate-400">{hint}</p>
+      ) : null}
+    </div>
+  );
+}
 
-const resolveBehaviorMeta = (behavior: Behavior, types: BehaviorType[]) => {
-  const matchId = String(behavior?.behaviour_id ?? behavior?.behaviour?.id ?? "");
-  const matched = types.find((t) => String(t.id) === matchId);
-  if (matched) return matched;
-  if (behavior?.behaviour?.name) {
-    return {
-      name: behavior.behaviour.name,
-      points: behavior.behaviour.points ?? behavior.points ?? 0,
-      color: behavior.behaviour.color ?? "default",
-    };
-  }
-  return { name: "Unknown", points: behavior?.points ?? 0, color: "default" };
-};
+function Donut({
+  percent,
+  color,
+  label,
+}: {
+  percent: number;
+  color: string;
+  label: string;
+}) {
+  const data = [
+    { name: "v", value: Math.max(0, Math.min(100, percent)) },
+    { name: "r", value: Math.max(0, 100 - percent) },
+  ];
+  return (
+    <div className="relative h-[140px] w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie
+            data={data}
+            dataKey="value"
+            innerRadius={48}
+            outerRadius={62}
+            startAngle={90}
+            endAngle={-270}
+            stroke="none"
+          >
+            <Cell fill={color} />
+            <Cell fill="#eef2f7" />
+          </Pie>
+        </PieChart>
+      </ResponsiveContainer>
+      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-2xl font-extrabold text-slate-800">
+          {percent}%
+        </span>
+        <span className="text-[11px] font-medium text-slate-500">{label}</span>
+      </div>
+    </div>
+  );
+}
 
 export default function StudentMyReportPage() {
-  const router = useRouter();
-  const { currentUser } = useSelector((state: RootState) => state.auth) as {
-    currentUser: CurrentUser;
-  };
+  const { currentUser } = useSelector((state: RootState) => state.auth);
   const { activeSubjectId, canUseSubjectContext } = useSubjectContext();
-  const studentId = currentUser?.student;
+  const studentId = String(currentUser?.student ?? "").trim();
+  const schoolId = currentUser?.school as number | undefined;
+  const scopedSubjectId = canUseSubjectContext
+    ? activeSubjectId ?? undefined
+    : undefined;
 
-  const [loading, setLoading] = useState(true);
-  const [profileData, setProfileData] = useState<Record<string, any> | null>(null);
+  const {
+    data: student,
+    isLoading,
+    isError,
+    error,
+  } = useQuery({
+    queryKey: ["student-my-report", studentId, scopedSubjectId ?? 0],
+    queryFn: () =>
+      fetchStudentProfileData(studentId, scopedSubjectId),
+    enabled: Boolean(studentId),
+  });
 
-  // Behavior
-  const [behaviors, setBehaviors] = useState<Behavior[]>([]);
-  const [behaviorTypes, setBehaviorTypes] = useState<BehaviorType[]>([]);
-  const [behaviorFilter, setBehaviorFilter] = useState<string>("all");
+  const { data: grades = [] } = useQuery({
+    queryKey: ["student-my-report-grades", schoolId ?? 0],
+    queryFn: () => fetchGrades(String(schoolId)),
+    enabled: Boolean(schoolId),
+  });
 
-  // Assessments
-  const [terms, setTerms] = useState<any[]>([]);
-  const [assessments, setAssessments] = useState<any[]>([]);
-  const [enrichedAssessments, setEnrichedAssessments] = useState<
-    { id: number; title: string; totalTasks: number; completedTasks: number; totalMarks: number; earnedMarks: number }[]
-  >([]);
-  const [selectedTermId, setSelectedTermId] = useState<number | null>(null);
-  const [assessmentsLoading, setAssessmentsLoading] = useState(false);
+  const s = (student ?? {}) as AnyObj;
+  const subjectContext = (s?.subject_context ?? {}) as AnyObj;
 
-  const scopedSubjectId = canUseSubjectContext ? activeSubjectId ?? undefined : undefined;
-
-  useEffect(() => {
-    if (!studentId) return;
-    let cancelled = false;
-
-    const load = async () => {
-      setLoading(true);
-      try {
-        const [profile, behaviorData, behaviorTypeData] = await Promise.allSettled([
-          fetchStudentProfileData(Number(studentId), scopedSubjectId),
-          fetchBehaviour(Number(studentId), scopedSubjectId),
-          fetchBehaviourType(scopedSubjectId),
-        ]);
-
-        if (!cancelled) {
-          if (profile.status === "fulfilled") setProfileData(profile.value);
-          if (behaviorData.status === "fulfilled") {
-            const data = Array.isArray(behaviorData.value) ? behaviorData.value : [];
-            setBehaviors(data);
-          }
-          if (behaviorTypeData.status === "fulfilled") {
-            setBehaviorTypes(Array.isArray(behaviorTypeData.value) ? behaviorTypeData.value : []);
-          }
-        }
-      } catch (err) {
-        console.error("Failed to load report data:", err);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    load();
-    return () => { cancelled = true; };
-  }, [studentId, scopedSubjectId]);
-
-  useEffect(() => {
-    const classId = Number(
-      profileData?.class_id ?? profileData?.class?.id ?? currentUser?.studentClass ?? 0
-    );
-    if (!classId || classId <= 0) return;
-    let cancelled = false;
-
-    const loadTerms = async () => {
-      try {
-        const termData = await fetchTerm(classId);
-        if (!cancelled && Array.isArray(termData) && termData.length > 0) {
-          setTerms(termData);
-          setSelectedTermId(termData[0].id);
-        }
-      } catch (err) {
-        console.error("Failed to load terms:", err);
-      }
-    };
-
-    loadTerms();
-    return () => { cancelled = true; };
-  }, [profileData, currentUser?.studentClass]);
-
-  useEffect(() => {
-    if (selectedTermId == null || !studentId) return;
-    let cancelled = false;
-
-    const loadAssessments = async () => {
-      setAssessmentsLoading(true);
-      try {
-        const data = await fetchAssessmentByStudent(selectedTermId, scopedSubjectId);
-        const list = Array.isArray(data) ? data : [];
-        if (!cancelled) {
-          setAssessments(list);
-          const enriched = await Promise.all(
-            list
-              .filter((a: any) => a.type === "assessment")
-              .map(async (assessment: any) => {
-                try {
-                  const [allTasks, studentTasks] = await Promise.all([
-                    fetchTasks(assessment.id),
-                    fetchStudentTasks(assessment.id),
-                  ]);
-                  const taskArray = Array.isArray(allTasks?.data) ? allTasks.data : [];
-                  const studentTaskArray = Array.isArray(studentTasks?.data) ? studentTasks.data : [];
-
-                  let completedTasks = 0;
-                  let totalMarks = 0;
-                  let earnedMarks = 0;
-
-                  for (const task of taskArray) {
-                    const normalized = normalizeTaskRecord(task);
-                    const matchingStudentTask = studentTaskArray.find(
-                      (st: any) =>
-                        String(st.task_id ?? st.id) === String(normalized.id) &&
-                        String(st.student_id) === String(studentId)
-                    );
-                    const hasSubmission = Boolean(matchingStudentTask);
-                    if (hasSubmission) completedTasks++;
-
-                    if (normalized.type === "quiz") {
-                      totalMarks += Number(normalized.total_marks) || 0;
-                      earnedMarks += Number(matchingStudentTask?.teacher_assessment_mark ?? matchingStudentTask?.teacher_assessment_score ?? 0);
-                    } else {
-                      totalMarks += Number(normalized.allocated_marks) || 0;
-                      earnedMarks += Number(matchingStudentTask?.teacher_assessment_score ?? matchingStudentTask?.teacher_assessment_marks ?? 0);
-                    }
-                  }
-
-                  return {
-                    id: assessment.id,
-                    title: assessment.name || assessment.title || `Assessment ${assessment.id}`,
-                    totalTasks: taskArray.length,
-                    completedTasks,
-                    totalMarks,
-                    earnedMarks,
-                  };
-                } catch {
-                  return {
-                    id: assessment.id,
-                    title: assessment.name || assessment.title || `Assessment ${assessment.id}`,
-                    totalTasks: 0,
-                    completedTasks: 0,
-                    totalMarks: 0,
-                    earnedMarks: 0,
-                  };
-                }
-              })
-          );
-          if (!cancelled) setEnrichedAssessments(enriched);
-        }
-      } catch (err) {
-        console.error("Failed to load assessments:", err);
-      } finally {
-        if (!cancelled) setAssessmentsLoading(false);
-      }
-    };
-
-    loadAssessments();
-    return () => { cancelled = true; };
-  }, [selectedTermId, studentId, scopedSubjectId]);
-
-  const behaviorStats = useMemo(() => {
-    let totalPositive = 0;
-    let totalNegative = 0;
-
-    behaviors.forEach((b) => {
-      const meta = resolveBehaviorMeta(b, behaviorTypes);
-      const points = Number(meta.points ?? b.points ?? 0) || 0;
-      if (points > 0) totalPositive += points;
-      else if (points < 0) totalNegative += points;
-    });
-
+  const profile = useMemo(() => {
     return {
-      total: totalPositive + totalNegative,
-      positive: totalPositive,
-      negative: totalNegative,
+      name: String(
+        s?.student_name ?? currentUser?.name ?? "Student"
+      ),
+      userName: String(s?.user_name ?? "").trim(),
+      className: String(
+        subjectContext?.subject_class_name ??
+          subjectContext?.class_name ??
+          (s?.class as AnyObj)?.class_name ??
+          currentUser?.studentClassName ??
+          ""
+      ),
+      gender: String(s?.gender ?? s?.student_gender ?? "").trim(),
+      status: String(s?.status ?? "").trim(),
     };
-  }, [behaviors, behaviorTypes]);
+  }, [s, subjectContext, currentUser]);
 
-  const filteredBehaviors = useMemo(() => {
-    if (behaviorFilter === "all") return behaviors;
-    return behaviors.filter((b) => {
-      const meta = resolveBehaviorMeta(b, behaviorTypes);
-      const points = meta.points ?? b.points ?? 0;
-      if (behaviorFilter === "positive") return points > 0;
-      if (behaviorFilter === "negative") return points < 0;
-      return points === 0;
+  const behaviourRows = useMemo(() => asArray(s?.behaviour), [s]);
+
+  const attendance = useMemo(() => {
+    let present = 0;
+    let absent = 0;
+    let other = 0;
+    behaviourRows.forEach((row) => {
+      const name = String((row?.behaviour as AnyObj)?.name ?? "");
+      if (!isAttendanceBehaviour(name)) return;
+      if (/present/i.test(name)) present += 1;
+      else if (/absent/i.test(name)) absent += 1;
+      else other += 1;
     });
-  }, [behaviors, behaviorTypes, behaviorFilter]);
+    const total = present + absent + other;
+    return { present, absent, other, total, percent: pct(present, total) };
+  }, [behaviourRows]);
 
-  const assessmentSummary = useMemo(() => {
-    const totalTasks = enrichedAssessments.reduce((s, a) => s + a.totalTasks, 0);
-    const completedTasks = enrichedAssessments.reduce((s, a) => s + a.completedTasks, 0);
-    const totalMarks = enrichedAssessments.reduce((s, a) => s + a.totalMarks, 0);
-    const earnedMarks = enrichedAssessments.reduce((s, a) => s + a.earnedMarks, 0);
-    return { totalTasks, completedTasks, totalMarks, earnedMarks };
-  }, [enrichedAssessments]);
+  const conduct = useMemo(() => {
+    const rows = behaviourRows.filter(
+      (row) =>
+        !isAttendanceBehaviour(
+          String((row?.behaviour as AnyObj)?.name ?? "")
+        )
+    );
+    let positive = 0;
+    let negative = 0;
+    let posCount = 0;
+    let negCount = 0;
+    rows.forEach((row) => {
+      const b = (row?.behaviour as AnyObj) ?? {};
+      const points = num(b?.points);
+      if (points > 0) {
+        positive += points;
+        posCount += 1;
+      } else if (points < 0) {
+        negative += points;
+        negCount += 1;
+      }
+    });
+    return { positive, negative, net: positive + negative, posCount, negCount };
+  }, [behaviourRows]);
 
-  if (loading) {
+  const academic = useMemo(() => {
+    const sid = num(s?.id ?? studentId);
+    const terms = asArray((s?.class as AnyObj)?.term);
+    const assessments: {
+      key: string;
+      name: string;
+      earned: number;
+      max: number;
+      percent: number;
+    }[] = [];
+    const seenAssessments = new Set<string>();
+    terms.forEach((term) => {
+      asArray(term?.assign_assessments).forEach((aa) => {
+        const a = (aa?.assessment as AnyObj) ?? {};
+        if (!a || !a.id) return;
+        const assessmentId = String(a.id);
+        if (seenAssessments.has(assessmentId)) return;
+        let earned = 0;
+        let max = 0;
+        let hasMark = false;
+        asArray(a?.tasks).forEach((task) => {
+          const allocated = num(task?.allocated_marks);
+          const sats = asArray(task?.student_assessment_tasks).filter(
+            (r) => num(r?.student_id) === sid
+          );
+          if (sats.length === 0) return;
+          const score = num(
+            sats[0]?.teacher_assessment_score ??
+              sats[0]?.teacher_assessment_marks
+          );
+          earned += score;
+          max += allocated;
+          hasMark = true;
+        });
+        if (!hasMark) return;
+        seenAssessments.add(assessmentId);
+        assessments.push({
+          key: assessmentId,
+          name: normalizeSubjectName(
+            a?.assessment_name ?? a?.name ?? "Assessment"
+          ),
+          earned,
+          max,
+          percent: pct(earned, max),
+        });
+      });
+    });
+    const totalEarned = assessments.reduce((acc, a) => acc + a.earned, 0);
+    const totalMax = assessments.reduce((acc, a) => acc + a.max, 0);
+    return {
+      assessments,
+      totalEarned,
+      totalMax,
+      overall: pct(totalEarned, totalMax),
+      count: assessments.length,
+    };
+  }, [s, studentId]);
+
+  const overallGrade = useMemo(() => {
+    const p = academic.overall;
+    const row = asArray(grades).find(
+      (g) => p >= num(g?.min_percentage) && p <= num(g?.max_percentage)
+    );
+    return row ? String(row?.grade ?? "") : "";
+  }, [grades, academic.overall]);
+
+  const tracker = useMemo(() => {
+    const sid = num(s?.id ?? studentId);
+    const sources = [
+      ...asArray(s?.assign_trackers),
+      ...asArray((s?.class as AnyObj)?.assign_trackers),
+    ];
+    const seen = new Set<string>();
+    const trackers = sources
+      .map((at) => {
+        const t = (at?.tracker as AnyObj) ?? {};
+        if (!t || !t.id) return null;
+        const id = String(t.id);
+        if (seen.has(id)) return null;
+        seen.add(id);
+        let earned = 0;
+        let max = 0;
+        let done = 0;
+        const topics = asArray(t?.topics);
+        topics.forEach((tp) => {
+          const tmax = num(tp?.marks);
+          const mark = asArray(tp?.topic_mark).find(
+            (m) => num(m?.student_id) === sid
+          );
+          max += tmax;
+          if (mark) {
+            earned += num(mark?.marks);
+            done += 1;
+          }
+        });
+        return {
+          key: id,
+          name: normalizeSubjectName(t?.name ?? "Tracker"),
+          topicsTotal: topics.length,
+          topicsDone: done,
+          earned,
+          max,
+          percent: pct(earned, max),
+        };
+      })
+      .filter(Boolean) as {
+      key: string;
+      name: string;
+      topicsTotal: number;
+      topicsDone: number;
+      earned: number;
+      max: number;
+      percent: number;
+    }[];
+    const totalEarned = trackers.reduce((a, t) => a + t.earned, 0);
+    const totalMax = trackers.reduce((a, t) => a + t.max, 0);
+    return { trackers, overall: pct(totalEarned, totalMax) };
+  }, [s, studentId]);
+
+  if (isLoading) {
     return (
-      <div className="flex min-h-[400px] items-center justify-center">
+      <div className="flex min-h-[360px] items-center justify-center">
         <Spin size="large" />
       </div>
     );
   }
 
-  const studentName = currentUser?.name || "Student";
-  const className = currentUser?.studentClassName || currentUser?.class || "";
+  if (isError) {
+    return (
+      <Alert
+        type="error"
+        showIcon
+        message="Could not load report"
+        description={
+          error instanceof Error ? error.message : "Unknown error"
+        }
+      />
+    );
+  }
+
+  if (!student) {
+    return <Alert type="warning" showIcon message="No report data found." />;
+  }
+
+  const behaviourPieData = [
+    { name: "Positive", value: conduct.posCount, color: "#22c55e" },
+    { name: "Negative", value: conduct.negCount, color: "#ef4444" },
+  ].filter((d) => d.value > 0);
 
   return (
-    <div className="p-3 md:p-6 max-w-5xl mx-auto space-y-6">
-      <Breadcrumb
-        items={[
-          { title: <Link href="/dashboard">Dashboard</Link> },
-          { title: <span>My Report</span> },
-        ]}
-        className="!mb-2"
-      />
+    <div className="space-y-4">
+      {/* Breadcrumb */}
+      <nav>
+        <ol className="flex items-center gap-1.5 text-sm text-slate-500">
+          <li>
+            <Link href="/dashboard" className="hover:text-slate-800">
+              Dashboard
+            </Link>
+          </li>
+          <li>/</li>
+          <li className="font-medium text-slate-800">My Report</li>
+        </ol>
+      </nav>
 
-      {/* Profile Header */}
-      <div className="flex items-center gap-4 rounded-xl border bg-white p-4 shadow-sm">
-        <Avatar src={currentUser?.avatar || null} size={64} className="shrink-0">
-          {studentName.charAt(0)}
-        </Avatar>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">{studentName}</h1>
-          {className && <p className="text-sm text-gray-500">{className}</p>}
-        </div>
-      </div>
-
-      <Tabs
-        defaultActiveKey="behavior"
-        size="large"
-        items={[
-          {
-            key: "behavior",
-            label: "Behavior",
-            children: (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Card>
-                    <Statistic
-                      title="Total Points"
-                      value={behaviorStats.total}
-                      valueStyle={{ color: behaviorStats.total >= 0 ? "#3f8600" : "#cf1322" }}
-                      prefix={behaviorStats.total >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
-                    />
-                  </Card>
-                  <Card>
-                    <Statistic
-                      title="Positive Points"
-                      value={behaviorStats.positive}
-                      valueStyle={{ color: "#3f8600" }}
-                      prefix={<ArrowUpOutlined />}
-                    />
-                  </Card>
-                  <Card>
-                    <Statistic
-                      title="Negative Points"
-                      value={behaviorStats.negative}
-                      valueStyle={{ color: "#cf1322" }}
-                      prefix={<ArrowDownOutlined />}
-                    />
-                  </Card>
-                </div>
-
-                <Card
-                  title="Behavior History"
-                  extra={
-                    <Select
-                      value={behaviorFilter}
-                      style={{ width: 140 }}
-                      onChange={setBehaviorFilter}
-                      options={[
-                        { value: "all", label: "All" },
-                        { value: "positive", label: "Positive" },
-                        { value: "negative", label: "Negative" },
-                        { value: "neutral", label: "Neutral" },
-                      ]}
-                    />
+      {/* Profile header */}
+      <header
+        className="overflow-hidden rounded-3xl border p-5 shadow-sm md:p-6"
+        style={{
+          borderColor: "var(--theme-border)",
+          background:
+            "radial-gradient(900px 280px at 100% -50%, color-mix(in srgb, var(--primary) 20%, transparent), transparent 70%), linear-gradient(135deg, var(--theme-soft) 0%, #ffffff 60%)",
+        }}
+      >
+        <div className="flex flex-wrap items-center gap-4">
+          <div
+            className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-2xl text-xl font-extrabold text-white shadow"
+            style={{ background: "var(--primary)" }}
+          >
+            {initialsOf(profile.name)}
+          </div>
+          <div className="min-w-0 flex-1">
+            <h1
+              className="m-0 text-2xl font-extrabold leading-tight"
+              style={{ color: "var(--theme-dark)" }}
+            >
+              {profile.name}
+            </h1>
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-600">
+              {profile.userName ? (
+                <span className="font-mono text-slate-500">
+                  @{profile.userName}
+                </span>
+              ) : null}
+              {profile.className ? (
+                <span>· {profile.className}</span>
+              ) : null}
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              {profile.gender ? (
+                <Tag
+                  color={
+                    profile.gender.toLowerCase().startsWith("f")
+                      ? "magenta"
+                      : "blue"
                   }
                 >
-                  <List
-                    dataSource={filteredBehaviors}
-                    renderItem={(item) => {
-                      const meta = resolveBehaviorMeta(item, behaviorTypes);
-                      return (
-                        <List.Item>
-                          <div className="w-full">
-                            <Tag color={meta.color}>
-                              {meta.name} ({meta.points > 0 ? "+" : ""}{meta.points})
-                            </Tag>
-                            {item.subject?.name && (
-                              <Tag color="blue">{item.subject.name}</Tag>
-                            )}
-                            <p className="mt-1 font-medium">{item.description}</p>
-                            <p className="text-xs text-gray-500">
-                              {typeof item.teacher === "object"
-                                ? item.teacher?.teacher_name || "Teacher"
-                                : item.teacher_name || "Teacher"}{" "}
-                              &middot; {item.date}
-                            </p>
-                          </div>
-                        </List.Item>
-                      );
-                    }}
-                    locale={{ emptyText: "No behavior records found." }}
-                  />
-                </Card>
-              </div>
-            ),
-          },
-          {
-            key: "assessments",
-            label: "Assessments",
-            children: (
-              <div className="space-y-4">
-                {terms.length > 1 && (
-                  <Select
-                    value={selectedTermId ?? undefined}
-                    style={{ width: 200 }}
-                    onChange={(v) => setSelectedTermId(v)}
-                    options={terms.map((t) => ({ value: t.id, label: t.name }))}
-                  />
-                )}
+                  {profile.gender}
+                </Tag>
+              ) : null}
+              {profile.status ? (
+                <Tag
+                  color={
+                    profile.status.toLowerCase() === "active"
+                      ? "green"
+                      : "default"
+                  }
+                >
+                  {profile.status.toUpperCase()}
+                </Tag>
+              ) : null}
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="m-0 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              Overall attainment
+            </p>
+            <p
+              className="m-0 text-3xl font-extrabold"
+              style={{ color: "var(--theme-dark)" }}
+            >
+              {academic.overall}%
+            </p>
+            {overallGrade ? (
+              <Tag color="blue" className="!mt-1">
+                Grade {overallGrade}
+              </Tag>
+            ) : null}
+          </div>
+        </div>
+      </header>
 
-                {assessmentsLoading ? (
-                  <div className="flex min-h-[200px] items-center justify-center">
-                    <Spin />
+      {/* KPI tiles */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatTile
+          label="Attendance"
+          value={attendance.total ? `${attendance.percent}%` : "N/A"}
+          hint={
+            attendance.total
+              ? `${attendance.present}/${attendance.total} present`
+              : "Not recorded"
+          }
+          tone={
+            attendance.percent >= 90
+              ? "green"
+              : attendance.percent >= 75
+                ? "amber"
+                : "red"
+          }
+        />
+        <StatTile
+          label="Behaviour (net)"
+          value={`${conduct.net > 0 ? "+" : ""}${conduct.net}`}
+          hint={`${conduct.posCount} positive · ${conduct.negCount} incidents`}
+          tone={conduct.net >= 0 ? "green" : "red"}
+        />
+        <StatTile
+          label="Assessments"
+          value={`${academic.overall}%`}
+          hint={`${academic.count} marked`}
+          tone={
+            academic.overall >= 70
+              ? "green"
+              : academic.overall >= 50
+                ? "amber"
+                : "red"
+          }
+        />
+        <StatTile
+          label="Tracker progress"
+          value={
+            tracker.trackers.length ? `${tracker.overall}%` : "N/A"
+          }
+          hint={
+            tracker.trackers.length
+              ? `${tracker.trackers.length} tracker(s)`
+              : "None assigned"
+          }
+          tone="blue"
+        />
+      </div>
+
+      {/* Attendance + Behaviour charts */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <SectionCard
+          title="Attendance"
+          subtitle={
+            attendance.total
+              ? "Derived from recorded attendance entries"
+              : "No attendance has been recorded yet"
+          }
+        >
+          {attendance.total ? (
+            <div className="flex items-center gap-4">
+              <div className="w-1/2">
+                <Donut
+                  percent={attendance.percent}
+                  color="#22c55e"
+                  label="Present"
+                />
+              </div>
+              <div className="w-1/2 space-y-2 text-sm">
+                <div className="flex items-center justify-between rounded-lg bg-emerald-50 px-3 py-2">
+                  <span className="font-medium text-emerald-700">
+                    Present
+                  </span>
+                  <span className="font-bold text-emerald-700">
+                    {attendance.present}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between rounded-lg bg-rose-50 px-3 py-2">
+                  <span className="font-medium text-rose-700">Absent</span>
+                  <span className="font-bold text-rose-700">
+                    {attendance.absent}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
+                  <span className="font-medium text-slate-600">
+                    Total sessions
+                  </span>
+                  <span className="font-bold text-slate-700">
+                    {attendance.total}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <Empty
+              description="No attendance records."
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+            />
+          )}
+        </SectionCard>
+
+        <SectionCard
+          title="Behaviour"
+          subtitle={`${conduct.posCount + conduct.negCount} logged events`}
+        >
+          {behaviourPieData.length ? (
+            <div className="flex items-center gap-4">
+              <div className="h-[140px] w-1/2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={behaviourPieData}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={42}
+                      outerRadius={62}
+                      stroke="none"
+                    >
+                      {behaviourPieData.map((d) => (
+                        <Cell key={d.name} fill={d.color} />
+                      ))}
+                    </Pie>
+                    <ReTooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="w-1/2 space-y-2 text-sm">
+                <div className="flex items-center justify-between rounded-lg bg-emerald-50 px-3 py-2">
+                  <span className="font-medium text-emerald-700">
+                    Positive points
+                  </span>
+                  <span className="font-bold text-emerald-700">
+                    +{conduct.positive}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between rounded-lg bg-rose-50 px-3 py-2">
+                  <span className="font-medium text-rose-700">
+                    Negative points
+                  </span>
+                  <span className="font-bold text-rose-700">
+                    {conduct.negative}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
+                  <span className="font-medium text-slate-600">Net</span>
+                  <span className="font-bold text-slate-700">
+                    {conduct.net > 0 ? "+" : ""}
+                    {conduct.net}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <Empty
+              description="No behaviour events."
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+            />
+          )}
+        </SectionCard>
+      </div>
+
+      {/* Academic performance */}
+      <SectionCard
+        title="Academic performance"
+        subtitle="Assessment results and marks"
+        extra={
+          academic.count ? (
+            <Tag color="blue">
+              {academic.totalEarned}/{academic.totalMax} marks
+            </Tag>
+          ) : null
+        }
+      >
+        {academic.count ? (
+          <>
+            <div className="mb-4 h-[220px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={academic.assessments.map((a) => ({
+                    name:
+                      a.name.length > 16
+                        ? `${a.name.slice(0, 16)}...`
+                        : a.name,
+                    percent: a.percent,
+                  }))}
+                  margin={{ top: 8, right: 8, bottom: 8, left: -16 }}
+                >
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fontSize: 11 }}
+                    interval={0}
+                    angle={-12}
+                    textAnchor="end"
+                    height={48}
+                  />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
+                  <ReTooltip
+                    formatter={(v) => [`${v}%`, "Score"]}
+                  />
+                  <Bar dataKey="percent" radius={[6, 6, 0, 0]}>
+                    {academic.assessments.map((a) => (
+                      <Cell
+                        key={a.key}
+                        fill={
+                          a.percent >= 70
+                            ? "#22c55e"
+                            : a.percent >= 50
+                              ? "#f59e0b"
+                              : "#ef4444"
+                        }
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="space-y-2">
+              {academic.assessments.map((a) => (
+                <div
+                  key={a.key}
+                  className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50/50 px-3 py-2 text-sm"
+                >
+                  <span className="font-medium text-slate-700">
+                    {a.name}
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-slate-500">
+                      {a.earned}/{a.max}
+                    </span>
+                    <Tag
+                      color={
+                        a.percent >= 70
+                          ? "green"
+                          : a.percent >= 50
+                            ? "orange"
+                            : "red"
+                      }
+                    >
+                      {a.percent}%
+                    </Tag>
                   </div>
-                ) : (
-                  <>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                      <Card>
-                        <Statistic title="Tasks Completed" value={assessmentSummary.completedTasks} suffix={`/ ${assessmentSummary.totalTasks}`} />
-                      </Card>
-                      <Card>
-                        <Statistic
-                          title="Completion Rate"
-                          value={assessmentSummary.totalTasks > 0 ? Math.round((assessmentSummary.completedTasks / assessmentSummary.totalTasks) * 100) : 0}
-                          suffix="%"
-                        />
-                      </Card>
-                      <Card>
-                        <Statistic title="Marks Earned" value={assessmentSummary.earnedMarks} suffix={`/ ${assessmentSummary.totalMarks}`} />
-                      </Card>
-                      <Card>
-                        <Statistic
-                          title="Average Score"
-                          value={assessmentSummary.totalMarks > 0 ? Math.round((assessmentSummary.earnedMarks / assessmentSummary.totalMarks) * 100) : 0}
-                          suffix="%"
-                        />
-                      </Card>
-                    </div>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <Empty
+            description="No marked assessments yet."
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+          />
+        )}
+      </SectionCard>
 
-                    <div className="space-y-3">
-                      {enrichedAssessments.map((assessment) => {
-                        const taskPercent = assessment.totalTasks > 0
-                          ? Math.round((assessment.completedTasks / assessment.totalTasks) * 100)
-                          : 0;
-                        const markPercent = assessment.totalMarks > 0
-                          ? Math.round((assessment.earnedMarks / assessment.totalMarks) * 100)
-                          : 0;
-
-                        return (
-                          <Link
-                            key={assessment.id}
-                            href={`/dashboard/students/assignments/${assessment.id}`}
-                            className="block rounded-lg border bg-white p-4 shadow-sm transition hover:shadow-md"
-                          >
-                            <h3 className="font-semibold text-gray-800">{assessment.title}</h3>
-                            <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                              <div>
-                                <div className="mb-1 flex justify-between text-xs text-gray-500">
-                                  <span>Tasks</span>
-                                  <span>{assessment.completedTasks}/{assessment.totalTasks}</span>
-                                </div>
-                                <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
-                                  <div
-                                    className="h-full rounded-full bg-emerald-500 transition-all"
-                                    style={{ width: `${taskPercent}%` }}
-                                  />
-                                </div>
-                              </div>
-                              <div>
-                                <div className="mb-1 flex justify-between text-xs text-gray-500">
-                                  <span>Marks</span>
-                                  <span>{assessment.earnedMarks}/{assessment.totalMarks}</span>
-                                </div>
-                                <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
-                                  <div
-                                    className="h-full rounded-full bg-blue-500 transition-all"
-                                    style={{ width: `${markPercent}%` }}
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          </Link>
-                        );
-                      })}
-
-                      {enrichedAssessments.length === 0 && (
-                        <Card>
-                          <p className="text-center text-gray-500">No assessments found for this term.</p>
-                        </Card>
-                      )}
-                    </div>
-                  </>
-                )}
+      {/* Tracker progress */}
+      <SectionCard
+        title="Tracker progress"
+        subtitle="Memorisation / curriculum trackers"
+      >
+        {tracker.trackers.length ? (
+          <div className="space-y-3">
+            {tracker.trackers.map((t) => (
+              <div key={t.key}>
+                <div className="mb-1 flex items-center justify-between text-sm">
+                  <span className="font-medium text-slate-700">
+                    {t.name}
+                  </span>
+                  <span className="text-slate-500">
+                    {t.topicsDone}/{t.topicsTotal} topics · {t.earned}/
+                    {t.max} marks
+                  </span>
+                </div>
+                <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${t.percent}%`,
+                      background:
+                        t.percent >= 70
+                          ? "#22c55e"
+                          : t.percent >= 40
+                            ? "#f59e0b"
+                            : "#ef4444",
+                    }}
+                  />
+                </div>
               </div>
-            ),
-          },
-        ]}
-      />
+            ))}
+          </div>
+        ) : (
+          <Empty
+            description="No trackers assigned."
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+          />
+        )}
+      </SectionCard>
     </div>
   );
 }
