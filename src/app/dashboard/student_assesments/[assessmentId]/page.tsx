@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Input, Button, Modal, Select, message, Breadcrumb, Checkbox, Tabs, Spin, DatePicker, InputNumber } from "antd";
 import {
   AudioOutlined,
@@ -240,6 +240,7 @@ export default function AssessmentDrawer() {
   const assessmentId = params.assessmentId;
   const classId = searchParams.get("classId");
   const subjectClassId = searchParams.get("subjectClassId");
+  const tabFromUrl = searchParams.get("tab");
   const { activeSubjectId, canUseSubjectContext, toSubjectHref } =
     useSubjectContext();
 
@@ -257,7 +258,7 @@ export default function AssessmentDrawer() {
   const [taskDefinitionsLoaded, setTaskDefinitionsLoaded] = useState(false);
   const [studentsLoaded, setStudentsLoaded] = useState(false);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
-  const [activeTaskGroupKey, setActiveTaskGroupKey] = useState<string | null>(null);
+  const [activeTaskGroupKey, setActiveTaskGroupKey] = useState<string | null>(tabFromUrl);
   const [assementTasks, setAssesmentTasks] = useState<StudentAssessmentTask[]>(
     []
   );
@@ -976,15 +977,23 @@ export default function AssessmentDrawer() {
     return Array.from(byKey.values());
   }, [displayTasks]);
 
+  const updateUrlTab = useCallback((tabKey: string | null) => {
+    if (typeof window === "undefined" || !tabKey) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", tabKey);
+    window.history.replaceState(window.history.state, "", url.toString());
+  }, []);
+
   useEffect(() => {
-    if (taskGroups.length === 0) {
-      setActiveTaskGroupKey(null);
-      return;
-    }
+    if (taskGroups.length === 0) return;
     if (!activeTaskGroupKey || !taskGroups.some((group) => group.key === activeTaskGroupKey)) {
-      setActiveTaskGroupKey(taskGroups[0].key);
+      const initialKey = tabFromUrl && taskGroups.some((g) => g.key === tabFromUrl)
+        ? tabFromUrl
+        : taskGroups[0].key;
+      setActiveTaskGroupKey(initialKey);
+      updateUrlTab(initialKey);
     }
-  }, [activeTaskGroupKey, taskGroups]);
+  }, [activeTaskGroupKey, taskGroups, tabFromUrl, updateUrlTab]);
 
   const activeTaskGroup =
     taskGroups.find((group) => group.key === activeTaskGroupKey) || taskGroups[0];
@@ -1004,6 +1013,9 @@ export default function AssessmentDrawer() {
     const params = new URLSearchParams();
     if (classId) params.set("classId", String(classId));
     if (subjectClassId) params.set("subjectClassId", String(subjectClassId));
+    if (typeof window !== "undefined") {
+      params.set("returnTo", `${window.location.pathname}${window.location.search}`);
+    }
     const nextHref = `/dashboard/student_assesments/quiz/${task.quiz.id}?${params.toString()}`;
     router.push(
       canUseSubjectContext && activeSubjectId
@@ -1361,7 +1373,7 @@ export default function AssessmentDrawer() {
               title: <Link href="/dashboard/student_assesments">Assessments</Link>,
             },
             {
-              title: <span>Tasks</span>,
+              title: <span>{activeTaskGroup?.title || "Tasks"}</span>,
             },
           ]}
           className="!mb-6"
@@ -1383,6 +1395,7 @@ export default function AssessmentDrawer() {
             activeKey={activeTaskGroup?.key}
             onChange={(key) => {
               setActiveTaskGroupKey(key);
+              updateUrlTab(key);
               setSelectedDownloadTaskIds([]);
               setAssessmentOpenTaskId(null);
               setQuizTeacherMarkOpenId(null);

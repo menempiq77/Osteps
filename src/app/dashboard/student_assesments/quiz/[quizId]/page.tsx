@@ -80,6 +80,7 @@ export default function QuranQuizPage() {
   const quizId = params.quizId;
   const classId = searchParams.get("classId");
   const subjectClassId = searchParams.get("subjectClassId");
+  const returnTo = searchParams.get("returnTo");
   
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const { activeSubjectId, canUseSubjectContext } = useSubjectContext();
@@ -308,7 +309,13 @@ export default function QuranQuizPage() {
       
       <div className="mb-8 flex justify-between items-center">
         <Button
-          onClick={() => router.back()}
+          onClick={() => {
+            if (returnTo && /^\/dashboard\//.test(returnTo)) {
+              router.push(returnTo);
+            } else {
+              router.back();
+            }
+          }}
           className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
         >
           <ArrowLeft size={18} />
