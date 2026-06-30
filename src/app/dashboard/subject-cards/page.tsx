@@ -215,11 +215,13 @@ function SubjectCardsSkeleton({ includeCreateCard }: { includeCreateCard: boolea
   );
 }
 
-function ProgressRing({ percent, size = 36 }: { percent: number; size?: number }) {
-  const stroke = 3;
+function ProgressRing({ percent, size = 48 }: { percent: number; size?: number }) {
+  const stroke = 4;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (Math.min(100, Math.max(0, percent)) / 100) * circumference;
+  const clamped = Math.min(100, Math.max(0, percent));
+  const offset = circumference - (clamped / 100) * circumference;
+  const arcColor = clamped >= 70 ? "#22c55e" : clamped >= 40 ? "#f59e0b" : "#ef4444";
 
   return (
     <div className="relative" style={{ width: size, height: size }}>
@@ -228,8 +230,8 @@ function ProgressRing({ percent, size = 36 }: { percent: number; size?: number }
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          fill="none"
-          stroke="rgba(255,255,255,0.2)"
+          fill="rgba(255,255,255,0.85)"
+          stroke="rgba(255,255,255,0.35)"
           strokeWidth={stroke}
         />
         <circle
@@ -237,7 +239,7 @@ function ProgressRing({ percent, size = 36 }: { percent: number; size?: number }
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="#fff"
+          stroke={arcColor}
           strokeWidth={stroke}
           strokeDasharray={circumference}
           strokeDashoffset={offset}
@@ -246,10 +248,10 @@ function ProgressRing({ percent, size = 36 }: { percent: number; size?: number }
         />
       </svg>
       <span
-        className="absolute inset-0 flex items-center justify-center text-white font-black"
-        style={{ fontSize: size * 0.28 }}
+        className="absolute inset-0 flex items-center justify-center font-black"
+        style={{ fontSize: size * 0.26, color: arcColor }}
       >
-        {Math.round(percent)}%
+        {Math.round(clamped)}%
       </span>
     </div>
   );
@@ -304,8 +306,8 @@ function useStudentSubjectProgress(
               ? assessments.filter((a: any) => a.type === "assessment")
               : [];
 
-            let totalTasks = 0;
-            let completedTasks = 0;
+            let totalMarks = 0;
+            let earnedMarks = 0;
 
             await Promise.allSettled(
               assessmentList.map(async (assessment: any) => {
@@ -316,20 +318,30 @@ function useStudentSubjectProgress(
                 const taskArray = Array.isArray(allTasks?.data) ? allTasks.data : [];
                 const studentTaskArray = Array.isArray(studentTasks?.data) ? studentTasks.data : [];
 
-                totalTasks += taskArray.length;
                 for (const task of taskArray) {
-                  const hasSubmission = studentTaskArray.some(
+                  const isQuiz = String(task.type).toLowerCase() === "quiz";
+                  const allocated = Number(isQuiz ? task.total_marks : task.allocated_marks) || 0;
+                  totalMarks += allocated;
+
+                  const studentTask = studentTaskArray.find(
                     (st: any) =>
                       String(st.task_id ?? st.id) === String(task.id) &&
                       String(st.student_id) === String(studentId)
                   );
-                  if (hasSubmission) completedTasks++;
+                  if (studentTask) {
+                    earnedMarks += Number(
+                      studentTask.teacher_assessment_score ??
+                      studentTask.teacher_assessment_marks ??
+                      studentTask.teacher_assessment_mark ??
+                      0
+                    ) || 0;
+                  }
                 }
               })
             );
 
-            results[subject.id] = totalTasks > 0
-              ? Math.round((completedTasks / totalTasks) * 100)
+            results[subject.id] = totalMarks > 0
+              ? Math.round((earnedMarks / totalMarks) * 100)
               : 0;
           } catch { /* ignore */ }
         })
