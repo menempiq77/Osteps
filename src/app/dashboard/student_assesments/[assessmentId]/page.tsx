@@ -19,6 +19,7 @@ import Link from "next/link";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import { IMG_BASE_URL } from "@/lib/config";
 import { fetchAssessmentDocument, saveAssessmentDocumentAnnotations } from "@/services/documentAssessmentApi";
+import { downloadAnnotatedPdf, downloadFileAsBlob } from "@/lib/bulkPdfDownload";
 import { buildTaskTypeValue, resolveExamWindow } from "@/lib/taskTypeMetadata";
 import { parseSubmissionAttachments } from "@/lib/submissionAttachments";
 import dayjs from "dayjs";
@@ -1247,86 +1248,93 @@ export default function AssessmentDrawer() {
     setBulkOpeningEdits(false);
   };
 
-  const handleBulkDownload = () => {
+  const handleBulkDownload = async () => {
     if (selectedDownloadTasks.length === 0) {
       message.warning("Tick at least one visible task first.");
       return;
     }
 
     setBulkDownloading(true);
-    let answeredPdfCount = 0;
-    let directDownloadCount = 0;
+    let downloadedCount = 0;
     let skippedCount = 0;
+    const total = selectedDownloadTasks.length;
 
-    selectedDownloadTasks.forEach((task) => {
+    for (const task of selectedDownloadTasks) {
       const taskType = String(task.task?.task_type || "").toLowerCase();
       const studentName = sanitizeDownloadName(getStudentNameForTask(task));
       const taskName = sanitizeDownloadName(
         task.task?.task_name || task.quiz?.name || "Assessment Task"
       );
 
-      if (task?.submission_type === "quiz") {
-        if (task.quiz?.id) {
-          const params = new URLSearchParams();
-          if (classId) params.set("classId", String(classId));
-          if (subjectClassId) {
-            params.set("subjectClassId", String(subjectClassId));
+      try {
+        if (task?.submission_type === "quiz") {
+          if (task.quiz?.id) {
+            const params = new URLSearchParams();
+            if (classId) params.set("classId", String(classId));
+            if (subjectClassId) {
+              params.set("subjectClassId", String(subjectClassId));
+            }
+            const quizHref = `/dashboard/student_assesments/quiz/${task.quiz.id}?${params.toString()}`;
+            triggerBrowserDownload(
+              canUseSubjectContext && activeSubjectId
+                ? toSubjectHref(quizHref)
+                : quizHref,
+              `${studentName} - ${taskName}`,
+              true
+            );
+            downloadedCount += 1;
+          } else {
+            skippedCount += 1;
           }
-          const quizHref = `/dashboard/student_assesments/quiz/${task.quiz.id}?${params.toString()}`;
-          triggerBrowserDownload(
-            canUseSubjectContext && activeSubjectId
-              ? toSubjectHref(quizHref)
-              : quizHref,
-            `${studentName} - ${taskName}`,
-            true
-          );
-          directDownloadCount += 1;
+          continue;
+        }
+
+        if (taskType === "pdf") {
+          const pdfUrl = getOriginalPdfUrlForTask(task);
+          if (!pdfUrl) {
+            skippedCount += 1;
+            continue;
+          }
+          message.loading({
+            content: `Downloading ${downloadedCount + 1} of ${total}: ${studentName}...`,
+            key: "bulk-download-progress",
+            duration: 0,
+          });
+          await downloadAnnotatedPdf({
+            assessmentId: String(task.assessment_id),
+            taskId: String(task.task_id),
+            studentId: String(task.student_id),
+            studentName,
+            taskName,
+            pdfUrl,
+          });
+          downloadedCount += 1;
+          continue;
+        }
+
+        const fileUrl = getSubmittedFileUrl(task);
+        if (fileUrl) {
+          await downloadFileAsBlob(fileUrl, `${studentName} - ${taskName}`);
+          downloadedCount += 1;
         } else {
           skippedCount += 1;
         }
-        return;
-      }
-
-      if (taskType === "pdf") {
-        triggerBrowserDownload(
-          buildTeacherDocumentWorkspaceUrl(task, {
-            autoDownload: task.status !== "not_submitted",
-          }),
-          `${studentName} - ${taskName}.pdf`,
-          true
-        );
-        answeredPdfCount += 1;
-        return;
-      }
-
-      const fileUrl = getSubmittedFileUrl(task);
-      if (fileUrl) {
-        triggerBrowserDownload(fileUrl, `${studentName} - ${taskName}`);
-        directDownloadCount += 1;
-      } else {
+      } catch (err) {
+        console.error(`Download failed for ${studentName}:`, err);
         skippedCount += 1;
       }
-    });
-
-    if (answeredPdfCount > 0) {
-      message.info(
-        `Opening ${answeredPdfCount} answered PDF paper${
-          answeredPdfCount === 1 ? "" : "s"
-        } to download. Allow pop-ups if the browser asks.`
-      );
     }
-    if (directDownloadCount > 0) {
+
+    message.destroy("bulk-download-progress");
+
+    if (downloadedCount > 0) {
       message.success(
-        `Started ${directDownloadCount} direct download${
-          directDownloadCount === 1 ? "" : "s"
-        }.`
+        `Downloaded ${downloadedCount} paper${downloadedCount === 1 ? "" : "s"}.`
       );
     }
     if (skippedCount > 0) {
       message.warning(
-        `${skippedCount} selected task${
-          skippedCount === 1 ? "" : "s"
-        } had no downloadable file.`
+        `${skippedCount} selected task${skippedCount === 1 ? "" : "s"} could not be downloaded.`
       );
     }
     setBulkDownloading(false);
