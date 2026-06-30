@@ -1569,12 +1569,12 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const safeBackHref = sanitizeReturnToPath(backHref);
   const handleBackToClassOverview = useCallback(() => {
     if (typeof window === "undefined") return;
-    if (safeBackHref) {
+    if (safeReturnTo) {
+      window.location.assign(safeReturnTo);
+    } else if (safeBackHref) {
       window.location.assign(safeBackHref);
     } else if (assessmentId) {
       window.location.assign(`/dashboard/student_assesments/${assessmentId}`);
-    } else if (safeReturnTo) {
-      window.location.assign(safeReturnTo);
     } else if (window.history.length > 1) {
       window.history.back();
     } else {
