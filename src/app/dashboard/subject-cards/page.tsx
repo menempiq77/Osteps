@@ -296,7 +296,6 @@ function useStudentSubjectProgress(
       } catch { return; }
 
       if (!Array.isArray(terms) || terms.length === 0) return;
-      const termId = Number(terms[0].id);
 
       const results: Record<number, number> = {};
 
@@ -304,43 +303,68 @@ function useStudentSubjectProgress(
         subjects.map(async (subject) => {
           try {
             const subjectId = canUseSubjectContext ? Number(subject.id) : undefined;
-            const assessments = await fetchAssessmentByStudent(termId, subjectId);
-            const assessmentList = Array.isArray(assessments)
-              ? assessments.filter((a: any) => a.type === "assessment")
-              : [];
-
             let totalMarks = 0;
             let earnedMarks = 0;
 
             await Promise.allSettled(
-              assessmentList.map(async (assessment: any) => {
-                const [allTasks, studentTasks] = await Promise.all([
-                  fetchTasks(assessment.id),
-                  fetchStudentTasks(assessment.id),
-                ]);
-                const taskArray = Array.isArray(allTasks) ? allTasks : [];
-                const studentTaskArray = Array.isArray(studentTasks) ? studentTasks : [];
+              terms.map(async (term: any) => {
+                const termId = Number(term.id);
+                if (!termId) return;
 
-                for (const task of taskArray) {
-                  const isQuiz = String(task.type).toLowerCase() === "quiz";
-                  const allocated = Number(isQuiz ? task.total_marks : task.allocated_marks) || 0;
-                  totalMarks += allocated;
+                const assessments = await fetchAssessmentByStudent(termId, subjectId);
+                const assessmentList = Array.isArray(assessments)
+                  ? assessments.filter((a: any) => a.type === "assessment")
+                  : [];
 
-                  const taskIdStr = String(task.id);
-                  const studentTask = studentTaskArray.find(
-                    (st: any) =>
-                      (String(st.task_id ?? st.task?.id ?? st.id) === taskIdStr) &&
-                      String(st.student_id) === String(studentId)
-                  );
-                  if (studentTask) {
-                    earnedMarks += Number(
-                      studentTask.teacher_assessment_score ??
-                      studentTask.teacher_assessment_marks ??
-                      studentTask.teacher_assessment_mark ??
-                      0
-                    ) || 0;
-                  }
-                }
+                await Promise.allSettled(
+                  assessmentList.map(async (assessment: any) => {
+                    const [allTasks, studentTasks] = await Promise.all([
+                      fetchTasks(assessment.id),
+                      fetchStudentTasks(assessment.id),
+                    ]);
+                    const taskArray = Array.isArray(allTasks) ? allTasks : [];
+                    const studentTaskArray = Array.isArray(studentTasks) ? studentTasks : [];
+                    const sid = String(studentId);
+
+                    for (const task of taskArray) {
+                      const isQuiz = String(task.type).toLowerCase() === "quiz";
+
+                      if (isQuiz) {
+                        const questions: any[] = task.quiz?.quiz_queston || [];
+                        const qTotal = questions.reduce(
+                          (s: number, q: any) => s + (parseFloat(String(q.marks ?? 0)) || 0), 0
+                        );
+                        totalMarks += qTotal;
+
+                        const quizId = String(task.quiz?.id ?? "");
+                        if (quizId) {
+                          const sub = studentTaskArray.find(
+                            (st: any) => String(st.quiz_id) === quizId && String(st.student_id) === sid
+                          );
+                          if (sub) {
+                            earnedMarks += Number(
+                              sub.teacher_assessment_mark ?? sub.teacher_assessment_score ?? sub.teacher_assessment_marks ?? 0
+                            ) || 0;
+                          }
+                        }
+                      } else {
+                        totalMarks += Number(task.allocated_marks) || 0;
+
+                        const taskIdStr = String(task.id);
+                        const sub = studentTaskArray.find(
+                          (st: any) =>
+                            String(st.task_id ?? st.task?.id ?? st.id) === taskIdStr &&
+                            String(st.student_id) === sid
+                        );
+                        if (sub) {
+                          earnedMarks += Number(
+                            sub.teacher_assessment_score ?? sub.teacher_assessment_marks ?? sub.teacher_assessment_mark ?? 0
+                          ) || 0;
+                        }
+                      }
+                    }
+                  })
+                );
               })
             );
 
