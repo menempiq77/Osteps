@@ -1,7 +1,7 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Calendar } from "lucide-react";
+import { Calendar, CheckCircle2, Circle } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import AssignmentDrawer from "@/components/ui/AssignmentDrawer";
 import { Breadcrumb, Button, Spin, Tooltip } from "antd";
@@ -42,6 +42,11 @@ interface Task {
   has_submission?: boolean;
   submitted_file_path?: string | null;
   submitted_file_paths?: unknown;
+  total_marks?: number;
+  obtained_marks?: number;
+  additional_notes?: string;
+  quiz_comments?: { question_id: number; question_text: string; comment: string }[];
+  quiz?: any;
 }
 interface CurrentUser {
   student?: string;
@@ -91,6 +96,84 @@ const buildStudentSubmissionByTaskId = (submissions: any[], studentId: unknown) 
 
   return byTaskId;
 };
+
+function StudentProgressSummary({ tasks }: { tasks: Task[] }) {
+  const stats = useMemo(() => {
+    let totalTasks = tasks.length;
+    let finishedTasks = 0;
+    let totalMarks = 0;
+    let earnedMarks = 0;
+
+    for (const task of tasks) {
+      const submitted = isSubmittedStatus(task.status, task.has_submission);
+      if (submitted) finishedTasks++;
+
+      if (task.type === "quiz") {
+        totalMarks += Number(task.total_marks) || 0;
+        earnedMarks += Number(task.teacher_assessment_marks) || 0;
+      } else {
+        totalMarks += Number(task.allocated_marks) || 0;
+        earnedMarks += Number(task.teacher_assessment_marks) || 0;
+      }
+    }
+
+    const taskPercent = totalTasks > 0 ? Math.round((finishedTasks / totalTasks) * 100) : 0;
+    const markPercent = totalMarks > 0 ? Math.round((earnedMarks / totalMarks) * 100) : 0;
+    return { totalTasks, finishedTasks, totalMarks, earnedMarks, taskPercent, markPercent };
+  }, [tasks]);
+
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+      <div className="grid gap-4 sm:grid-cols-2">
+        {/* Tasks progress */}
+        <div>
+          <div className="mb-1.5 flex items-center justify-between text-sm">
+            <span className="flex items-center gap-1.5 font-medium text-gray-700">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              Tasks Completed
+            </span>
+            <span className="font-semibold text-gray-900">
+              {stats.finishedTasks} / {stats.totalTasks}
+            </span>
+          </div>
+          <div className="h-3 w-full overflow-hidden rounded-full bg-gray-100">
+            <div
+              className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+              style={{ width: `${stats.taskPercent}%` }}
+            />
+          </div>
+          <p className="mt-1 text-xs text-gray-500">
+            {stats.totalTasks - stats.finishedTasks === 0
+              ? "All tasks completed!"
+              : `${stats.totalTasks - stats.finishedTasks} task${stats.totalTasks - stats.finishedTasks !== 1 ? "s" : ""} remaining`}
+          </p>
+        </div>
+
+        {/* Marks progress */}
+        <div>
+          <div className="mb-1.5 flex items-center justify-between text-sm">
+            <span className="flex items-center gap-1.5 font-medium text-gray-700">
+              <Circle className="h-4 w-4 text-blue-500" />
+              Marks Collected
+            </span>
+            <span className="font-semibold text-gray-900">
+              {stats.earnedMarks} / {stats.totalMarks}
+            </span>
+          </div>
+          <div className="h-3 w-full overflow-hidden rounded-full bg-gray-100">
+            <div
+              className="h-full rounded-full bg-blue-500 transition-all duration-500"
+              style={{ width: `${stats.markPercent}%` }}
+            />
+          </div>
+          <p className="mt-1 text-xs text-gray-500">
+            {stats.markPercent}% of total marks
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function AssignmentDetailPage() {
   const params = useParams();
@@ -406,6 +489,8 @@ export default function AssignmentDetailPage() {
             assessment
           </p>
         </div>
+
+        {tasks.length > 0 && <StudentProgressSummary tasks={tasks} />}
 
         {tasks?.length === 0 ? (
           <div className="bg-white rounded-lg border p-8 text-center shadow-sm">
