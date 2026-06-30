@@ -233,7 +233,7 @@ export default function StudentMyReportPage() {
 
     behaviors.forEach((b) => {
       const meta = resolveBehaviorMeta(b, behaviorTypes);
-      const points = meta.points ?? b.points ?? 0;
+      const points = Number(meta.points ?? b.points ?? 0) || 0;
       if (points > 0) totalPositive += points;
       else if (points < 0) totalNegative += points;
     });
