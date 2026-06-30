@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useSelector } from "react-redux";
@@ -28,6 +28,9 @@ import {
 import { RootState } from "@/store/store";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import { addSubject, updateSubject, deleteSubject } from "@/services/subjectsApi";
+import { fetchAssessmentByStudent, fetchTasks, fetchStudentTasks } from "@/services/api";
+import { fetchTerm } from "@/services/termsApi";
+import { fetchStudentProfileData } from "@/services/studentsApi";
 
 const MyScheduleWidget = dynamic(() => import("@/components/dashboard/MyScheduleWidget"), {
   loading: () => <ScheduleWidgetSkeleton />,
@@ -93,6 +96,7 @@ const LINK_COLORS: Record<string, LinkColor> = {
   "Announcements": { bg: "#fff1f8", iconColor: "#c0266f", border: "#f5c6dc" },
   "Ask a Question":{ bg: "#f3f0ff", iconColor: "#6d5bd0", border: "#d8cffd" },
   "Behavior":      { bg: "#fff9df", iconColor: "#a16207", border: "#efd676" },
+  "My Report":     { bg: "#eef4ff", iconColor: "#3b5bdb", border: "#c2d2ff" },
   "Leaderboard":   { bg: "#fff8df", iconColor: "#a16207", border: "#efd676" },
   "Settings":      { bg: "#f5f7fb", iconColor: "#424253", border: "#d9dfeb" },
   "All Students":  { bg: "#ecfbf4", iconColor: "#229463", border: "#a8e4c7" },
@@ -211,6 +215,135 @@ function SubjectCardsSkeleton({ includeCreateCard }: { includeCreateCard: boolea
   );
 }
 
+function ProgressRing({ percent, size = 36 }: { percent: number; size?: number }) {
+  const stroke = 3;
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (Math.min(100, Math.max(0, percent)) / 100) * circumference;
+
+  return (
+    <div className="relative" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="rgba(255,255,255,0.2)"
+          strokeWidth={stroke}
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="#fff"
+          strokeWidth={stroke}
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          className="transition-all duration-700"
+        />
+      </svg>
+      <span
+        className="absolute inset-0 flex items-center justify-center text-white font-black"
+        style={{ fontSize: size * 0.28 }}
+      >
+        {Math.round(percent)}%
+      </span>
+    </div>
+  );
+}
+
+function useStudentSubjectProgress(
+  isStudent: boolean,
+  studentId: string | undefined,
+  studentClass: string | number | undefined,
+  subjects: Array<{ id: number; name?: string }>,
+  canUseSubjectContext: boolean,
+) {
+  const [progress, setProgress] = useState<Record<number, number>>({});
+  const fetchedRef = useRef(false);
+
+  useEffect(() => {
+    if (!isStudent || !studentId || !studentClass || subjects.length === 0 || fetchedRef.current) return;
+    fetchedRef.current = true;
+
+    const loadProgress = async () => {
+      const classId = Number(studentClass);
+      if (!classId || classId <= 0) {
+        try {
+          const profile = await fetchStudentProfileData(Number(studentId));
+          const resolvedClassId = Number(
+            profile?.class_id ?? profile?.class?.id ?? 0
+          );
+          if (resolvedClassId > 0) await computeForClass(resolvedClassId);
+        } catch { /* ignore */ }
+        return;
+      }
+      await computeForClass(classId);
+    };
+
+    const computeForClass = async (classId: number) => {
+      let terms: any[] = [];
+      try {
+        terms = await fetchTerm(classId);
+      } catch { return; }
+
+      if (!Array.isArray(terms) || terms.length === 0) return;
+      const termId = Number(terms[0].id);
+
+      const results: Record<number, number> = {};
+
+      await Promise.allSettled(
+        subjects.map(async (subject) => {
+          try {
+            const subjectId = canUseSubjectContext ? Number(subject.id) : undefined;
+            const assessments = await fetchAssessmentByStudent(termId, subjectId);
+            const assessmentList = Array.isArray(assessments)
+              ? assessments.filter((a: any) => a.type === "assessment")
+              : [];
+
+            let totalTasks = 0;
+            let completedTasks = 0;
+
+            await Promise.allSettled(
+              assessmentList.map(async (assessment: any) => {
+                const [allTasks, studentTasks] = await Promise.all([
+                  fetchTasks(assessment.id),
+                  fetchStudentTasks(assessment.id),
+                ]);
+                const taskArray = Array.isArray(allTasks?.data) ? allTasks.data : [];
+                const studentTaskArray = Array.isArray(studentTasks?.data) ? studentTasks.data : [];
+
+                totalTasks += taskArray.length;
+                for (const task of taskArray) {
+                  const hasSubmission = studentTaskArray.some(
+                    (st: any) =>
+                      String(st.task_id ?? st.id) === String(task.id) &&
+                      String(st.student_id) === String(studentId)
+                  );
+                  if (hasSubmission) completedTasks++;
+                }
+              })
+            );
+
+            results[subject.id] = totalTasks > 0
+              ? Math.round((completedTasks / totalTasks) * 100)
+              : 0;
+          } catch { /* ignore */ }
+        })
+      );
+
+      setProgress(results);
+    };
+
+    loadProgress();
+  }, [isStudent, studentId, studentClass, subjects, canUseSubjectContext]);
+
+  return progress;
+}
+
 export default function SubjectCardsPage() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const { subjects, loading, canUseSubjectContext, activeSubjectId, setActiveSubjectId, refreshSubjects } =
@@ -234,6 +367,13 @@ export default function SubjectCardsPage() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const deleteNameMatches = deleteTyped.trim().toLowerCase() === (deleteConfirmSubject?.name ?? "").trim().toLowerCase();
   const isStaffWorkspaceRole = ["ADMIN", "HOD", "TEACHER"].includes(role);
+  const subjectProgress = useStudentSubjectProgress(
+    isStudent,
+    currentUser?.student as string | undefined,
+    currentUser?.studentClass,
+    subjects,
+    canUseSubjectContext,
+  );
   const leaderboardHref = activeSubjectId
     ? `/dashboard/s/${activeSubjectId}/leaderboard`
     : "/dashboard/leaderboard";
@@ -338,7 +478,7 @@ export default function SubjectCardsPage() {
     { name: "Timetable",      href: "/dashboard/time_table?view=calendar",      desc: "Check your schedule for classes and activities.",                  Icon: CalendarOutlined },
     { name: "Announcements",  href: "/dashboard/announcements",                 desc: "Read the latest updates sent to students.",                        Icon: NotificationOutlined },
     { name: "Ask a Question", href: "/dashboard/questions",                     desc: "Send questions and view replies from teachers.",                   Icon: QuestionCircleOutlined },
-    { name: "Behavior",       href: `/dashboard/behavior/${currentUser?.student}`, desc: "Review your behaviour notes and updates.",                     Icon: SolutionOutlined },
+    { name: "My Report",      href: "/dashboard/students/my-report",              desc: "View your full report: behavior, assessments & progress.",    Icon: SolutionOutlined },
     { name: "Leaderboard",    href: leaderboardHref,                            desc: "See how you rank against your classmates and the whole school.",   Icon: TrophyOutlined },
   ];
 
@@ -459,6 +599,13 @@ export default function SubjectCardsPage() {
                       >
                         <CheckCircleFilled style={{ fontSize: 10 }} />
                         Active
+                      </div>
+                    )}
+
+                    {/* student progress ring */}
+                    {isStudent && subjectProgress[subject.id] != null && (
+                      <div className="absolute right-2 top-2">
+                        <ProgressRing percent={subjectProgress[subject.id]} size={34} />
                       </div>
                     )}
 
