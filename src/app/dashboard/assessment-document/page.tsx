@@ -2,10 +2,10 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { Alert, Breadcrumb, Spin } from "antd";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSelector } from "react-redux";
-import PdfAssessmentAnnotator from "@/components/assessment/PdfAssessmentAnnotator";
 import type { AssessmentDocumentLayer } from "@/services/documentAssessmentApi";
 import { fetchStudentTasks, fetchTasks } from "@/services/api";
 import { fetchStudentProfileData, fetchStudents } from "@/services/studentsApi";
@@ -15,6 +15,18 @@ import { IMG_BASE_URL } from "@/lib/config";
 import { resolveExamWindow } from "@/lib/taskTypeMetadata";
 import dayjs from "dayjs";
 import type { RootState } from "@/store/store";
+
+const PdfAssessmentAnnotator = dynamic(
+  () => import("@/components/assessment/PdfAssessmentAnnotator"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-[60vh] items-center justify-center">
+        <Spin size="large" tip="Loading marking workspace..." />
+      </div>
+    ),
+  }
+);
 
 const asRole = (value: string | null): AssessmentDocumentLayer =>
   value === "teacher" ? "teacher" : "student";
@@ -147,11 +159,13 @@ export default function AssessmentDocumentPage() {
       ? Number(initialSelfAssessmentMarkParam)
       : null;
   const returnTo = searchParams.get("returnTo");
+  const activeTab = searchParams.get("activeTab");
   const classTasksHref = (() => {
     if (!assessmentId) return null;
     const classTasksQuery = new URLSearchParams();
     if (classId) classTasksQuery.set("classId", classId);
     if (subjectClassId) classTasksQuery.set("subjectClassId", subjectClassId);
+    if (activeTab) classTasksQuery.set("tab", activeTab);
     const queryString = classTasksQuery.toString();
     const pathWithQuery = `/dashboard/student_assesments/${assessmentId}${
       queryString ? `?${queryString}` : ""

@@ -1070,6 +1070,7 @@ export default function AssessmentDrawer() {
     if (classId) params.set("classId", String(classId));
     if (subjectClassId) params.set("subjectClassId", String(subjectClassId));
     if (options.autoDownload) params.set("autoDownload", "1");
+    if (activeTaskGroupKey) params.set("activeTab", activeTaskGroupKey);
     if (typeof window !== "undefined") {
       params.set("returnTo", `${window.location.pathname}${window.location.search}`);
     }
