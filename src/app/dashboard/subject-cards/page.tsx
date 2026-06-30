@@ -266,7 +266,7 @@ function useStudentSubjectProgress(
   const fetchedRef = useRef(false);
 
   useEffect(() => {
-    if (!isStudent || !studentId || !studentClass || subjects.length === 0 || fetchedRef.current) return;
+    if (!isStudent || !studentId || subjects.length === 0 || fetchedRef.current) return;
     fetchedRef.current = true;
 
     const loadProgress = async () => {
