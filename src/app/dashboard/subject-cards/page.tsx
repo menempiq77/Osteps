@@ -215,8 +215,8 @@ function SubjectCardsSkeleton({ includeCreateCard }: { includeCreateCard: boolea
   );
 }
 
-function ProgressRing({ percent, size = 48 }: { percent: number; size?: number }) {
-  const stroke = 4;
+function ProgressRing({ percent, size = 52 }: { percent: number; size?: number }) {
+  const stroke = 5;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
   const clamped = Math.min(100, Math.max(0, percent));
@@ -224,14 +224,17 @@ function ProgressRing({ percent, size = 48 }: { percent: number; size?: number }
   const arcColor = clamped >= 70 ? "#22c55e" : clamped >= 40 ? "#f59e0b" : "#ef4444";
 
   return (
-    <div className="relative" style={{ width: size, height: size }}>
+    <div
+      className="relative rounded-full shadow-lg"
+      style={{ width: size, height: size, background: "#fff" }}
+    >
       <svg width={size} height={size} className="-rotate-90">
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          fill="rgba(255,255,255,0.85)"
-          stroke="rgba(255,255,255,0.35)"
+          fill="none"
+          stroke="#e5e7eb"
           strokeWidth={stroke}
         />
         <circle
@@ -249,7 +252,7 @@ function ProgressRing({ percent, size = 48 }: { percent: number; size?: number }
       </svg>
       <span
         className="absolute inset-0 flex items-center justify-center font-black"
-        style={{ fontSize: size * 0.26, color: arcColor }}
+        style={{ fontSize: size * 0.25, color: arcColor }}
       >
         {Math.round(clamped)}%
       </span>
@@ -315,17 +318,18 @@ function useStudentSubjectProgress(
                   fetchTasks(assessment.id),
                   fetchStudentTasks(assessment.id),
                 ]);
-                const taskArray = Array.isArray(allTasks?.data) ? allTasks.data : [];
-                const studentTaskArray = Array.isArray(studentTasks?.data) ? studentTasks.data : [];
+                const taskArray = Array.isArray(allTasks) ? allTasks : [];
+                const studentTaskArray = Array.isArray(studentTasks) ? studentTasks : [];
 
                 for (const task of taskArray) {
                   const isQuiz = String(task.type).toLowerCase() === "quiz";
                   const allocated = Number(isQuiz ? task.total_marks : task.allocated_marks) || 0;
                   totalMarks += allocated;
 
+                  const taskIdStr = String(task.id);
                   const studentTask = studentTaskArray.find(
                     (st: any) =>
-                      String(st.task_id ?? st.id) === String(task.id) &&
+                      (String(st.task_id ?? st.task?.id ?? st.id) === taskIdStr) &&
                       String(st.student_id) === String(studentId)
                   );
                   if (studentTask) {
