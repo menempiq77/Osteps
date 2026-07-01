@@ -150,6 +150,9 @@ export const downloadAnnotatedPdf = async (
 
   const fileName = `${sanitize(studentName)} - ${sanitize(taskName)}.pdf`;
   pdf?.save(fileName);
+
+  // Small delay to prevent browser from throttling multiple rapid downloads
+  await new Promise((resolve) => setTimeout(resolve, 1500));
 };
 
 export const downloadFileAsBlob = async (url: string, fileName: string): Promise<void> => {
@@ -164,4 +167,7 @@ export const downloadFileAsBlob = async (url: string, fileName: string): Promise
   link.click();
   link.remove();
   URL.revokeObjectURL(objectUrl);
+
+  // Small delay to prevent browser from throttling multiple rapid downloads
+  await new Promise((resolve) => setTimeout(resolve, 1500));
 };
