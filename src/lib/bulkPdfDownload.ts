@@ -73,13 +73,13 @@ export interface BulkPdfDownloadTask {
   pdfUrl: string;
 }
 
-export const downloadAnnotatedPdf = async (
-  task: BulkPdfDownloadTask,
-  onProgress?: (status: string) => void,
-): Promise<void> => {
-  const { assessmentId, taskId, studentId, studentName, taskName, pdfUrl } = task;
+const sanitizeFileName = (s: string) =>
+  s.replace(/[^\w\s\-.()]/g, "").replace(/\s+/g, " ").trim().slice(0, 80) || "document";
 
-  onProgress?.("Loading PDF...");
+const renderAnnotatedPdfToBlob = async (
+  task: BulkPdfDownloadTask,
+): Promise<{ fileName: string; blob: Blob }> => {
+  const { assessmentId, taskId, studentId, studentName, taskName, pdfUrl } = task;
 
   const pdfjs = await import("pdfjs-dist");
   if (!pdfjs.GlobalWorkerOptions.workerSrc) {
@@ -106,8 +106,6 @@ export const downloadAnnotatedPdf = async (
     // No annotations found; download plain PDF
   }
 
-  onProgress?.("Rendering pages...");
-
   const pages: PageInfo[] = [];
   const canvases: HTMLCanvasElement[] = [];
 
@@ -121,14 +119,11 @@ export const downloadAnnotatedPdf = async (
     if (!ctx) throw new Error("Canvas context unavailable");
 
     await page.render({ canvasContext: ctx, viewport }).promise;
-
     drawAnnotationsOnCanvas(ctx, annotations, i);
 
     pages.push({ pageNumber: i, width: viewport.width, height: viewport.height, previewUrl: "" });
     canvases.push(canvas);
   }
-
-  onProgress?.("Creating PDF...");
 
   const { jsPDF } = await import("jspdf");
   let pdf: InstanceType<typeof jsPDF> | null = null;
@@ -145,20 +140,17 @@ export const downloadAnnotatedPdf = async (
     pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, pageInfo.width, pageInfo.height);
   }
 
-  const sanitize = (s: string) =>
-    s.replace(/[^\w\s\-.()]/g, "").replace(/\s+/g, " ").trim().slice(0, 80) || "document";
-
-  const fileName = `${sanitize(studentName)} - ${sanitize(taskName)}.pdf`;
-  pdf?.save(fileName);
-
-  // Small delay to prevent browser from throttling multiple rapid downloads
-  await new Promise((resolve) => setTimeout(resolve, 1500));
+  const fileName = `${sanitizeFileName(studentName)} - ${sanitizeFileName(taskName)}.pdf`;
+  const blob = pdf!.output("blob");
+  return { fileName, blob };
 };
 
-export const downloadFileAsBlob = async (url: string, fileName: string): Promise<void> => {
-  const response = await fetch(url, { credentials: "include" });
-  if (!response.ok) throw new Error(`Download failed: ${response.status}`);
-  const blob = await response.blob();
+export const downloadAnnotatedPdf = async (
+  task: BulkPdfDownloadTask,
+  onProgress?: (status: string) => void,
+): Promise<void> => {
+  onProgress?.("Loading PDF...");
+  const { fileName, blob } = await renderAnnotatedPdfToBlob(task);
   const objectUrl = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = objectUrl;
@@ -167,7 +159,55 @@ export const downloadFileAsBlob = async (url: string, fileName: string): Promise
   link.click();
   link.remove();
   URL.revokeObjectURL(objectUrl);
+};
 
-  // Small delay to prevent browser from throttling multiple rapid downloads
-  await new Promise((resolve) => setTimeout(resolve, 1500));
+export const downloadBulkAsZip = async (
+  tasks: BulkPdfDownloadTask[],
+  zipName: string,
+  onProgress?: (current: number, total: number) => void,
+): Promise<void> => {
+  const JSZip = (await import("jszip")).default;
+  const zip = new JSZip();
+
+  const results = await Promise.allSettled(
+    tasks.map(async (task, index) => {
+      const result = await renderAnnotatedPdfToBlob(task);
+      onProgress?.(index + 1, tasks.length);
+      return result;
+    })
+  );
+
+  for (const result of results) {
+    if (result.status === "fulfilled") {
+      zip.file(result.value.fileName, result.value.blob);
+    }
+  }
+
+  const zipBlob = await zip.generateAsync({ type: "blob" });
+  const objectUrl = URL.createObjectURL(zipBlob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = zipName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(objectUrl);
+};
+
+export const downloadFileAsBlob = async (url: string, fileName: string): Promise<Blob> => {
+  const response = await fetch(url, { credentials: "include" });
+  if (!response.ok) throw new Error(`Download failed: ${response.status}`);
+  return response.blob();
+};
+
+export const downloadFileAsBlobAndSave = async (url: string, fileName: string): Promise<void> => {
+  const blob = await downloadFileAsBlob(url, fileName);
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(objectUrl);
 };

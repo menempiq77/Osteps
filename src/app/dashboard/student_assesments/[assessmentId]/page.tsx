@@ -19,7 +19,7 @@ import Link from "next/link";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import { IMG_BASE_URL } from "@/lib/config";
 import { fetchAssessmentDocument, saveAssessmentDocumentAnnotations } from "@/services/documentAssessmentApi";
-import { downloadAnnotatedPdf, downloadFileAsBlob } from "@/lib/bulkPdfDownload";
+import { downloadAnnotatedPdf, downloadBulkAsZip, downloadFileAsBlob, downloadFileAsBlobAndSave, type BulkPdfDownloadTask } from "@/lib/bulkPdfDownload";
 import { buildTaskTypeValue, resolveExamWindow } from "@/lib/taskTypeMetadata";
 import { parseSubmissionAttachments } from "@/lib/submissionAttachments";
 import dayjs from "dayjs";
@@ -1255,9 +1255,10 @@ export default function AssessmentDrawer() {
     }
 
     setBulkDownloading(true);
-    let downloadedCount = 0;
     let skippedCount = 0;
-    const total = selectedDownloadTasks.length;
+
+    const pdfTasks: BulkPdfDownloadTask[] = [];
+    const fileTasks: { url: string; fileName: string }[] = [];
 
     for (const task of selectedDownloadTasks) {
       const taskType = String(task.task?.task_type || "").toLowerCase();
@@ -1266,70 +1267,96 @@ export default function AssessmentDrawer() {
         task.task?.task_name || task.quiz?.name || "Assessment Task"
       );
 
-      try {
-        if (task?.submission_type === "quiz") {
-          if (task.quiz?.id) {
-            const params = new URLSearchParams();
-            if (classId) params.set("classId", String(classId));
-            if (subjectClassId) {
-              params.set("subjectClassId", String(subjectClassId));
-            }
-            const quizHref = `/dashboard/student_assesments/quiz/${task.quiz.id}?${params.toString()}`;
-            triggerBrowserDownload(
-              canUseSubjectContext && activeSubjectId
-                ? toSubjectHref(quizHref)
-                : quizHref,
-              `${studentName} - ${taskName}`,
-              true
-            );
-            downloadedCount += 1;
-          } else {
-            skippedCount += 1;
+      if (task?.submission_type === "quiz") {
+        if (task.quiz?.id) {
+          const params = new URLSearchParams();
+          if (classId) params.set("classId", String(classId));
+          if (subjectClassId) {
+            params.set("subjectClassId", String(subjectClassId));
           }
-          continue;
-        }
-
-        if (taskType === "pdf") {
-          const pdfUrl = getOriginalPdfUrlForTask(task);
-          if (!pdfUrl) {
-            skippedCount += 1;
-            continue;
-          }
-          message.loading({
-            content: `Downloading ${downloadedCount + 1} of ${total}: ${studentName}...`,
-            key: "bulk-download-progress",
-            duration: 0,
-          });
-          await downloadAnnotatedPdf({
-            assessmentId: String(task.assessment_id),
-            taskId: String(task.task_id),
-            studentId: String(task.student_id),
-            studentName,
-            taskName,
-            pdfUrl,
-          });
-          downloadedCount += 1;
-          continue;
-        }
-
-        const fileUrl = getSubmittedFileUrl(task);
-        if (fileUrl) {
-          await downloadFileAsBlob(fileUrl, `${studentName} - ${taskName}`);
-          downloadedCount += 1;
+          const quizHref = `/dashboard/student_assesments/quiz/${task.quiz.id}?${params.toString()}`;
+          triggerBrowserDownload(
+            canUseSubjectContext && activeSubjectId
+              ? toSubjectHref(quizHref)
+              : quizHref,
+            `${studentName} - ${taskName}`,
+            true
+          );
         } else {
           skippedCount += 1;
         }
-      } catch (err) {
-        console.error(`Download failed for ${studentName}:`, err);
+        continue;
+      }
+
+      if (taskType === "pdf") {
+        const pdfUrl = getOriginalPdfUrlForTask(task);
+        if (!pdfUrl) {
+          skippedCount += 1;
+          continue;
+        }
+        pdfTasks.push({
+          assessmentId: String(task.assessment_id),
+          taskId: String(task.task_id),
+          studentId: String(task.student_id),
+          studentName,
+          taskName,
+          pdfUrl,
+        });
+        continue;
+      }
+
+      const fileUrl = getSubmittedFileUrl(task);
+      if (fileUrl) {
+        fileTasks.push({ url: fileUrl, fileName: `${studentName} - ${taskName}` });
+      } else {
         skippedCount += 1;
       }
     }
 
+    try {
+      if (pdfTasks.length > 0) {
+        message.loading({
+          content: `Preparing ${pdfTasks.length} PDF${pdfTasks.length === 1 ? "" : "s"}...`,
+          key: "bulk-download-progress",
+          duration: 0,
+        });
+
+        if (pdfTasks.length === 1) {
+          await downloadAnnotatedPdf(pdfTasks[0]);
+        } else {
+          const assessmentName = sanitizeDownloadName(
+            pdfTasks[0]?.taskName || "Assessment"
+          );
+          await downloadBulkAsZip(
+            pdfTasks,
+            `${assessmentName} - ${pdfTasks.length} papers.zip`,
+            (current, zipTotal) => {
+              message.loading({
+                content: `Rendering PDF ${current} of ${zipTotal}...`,
+                key: "bulk-download-progress",
+                duration: 0,
+              });
+            }
+          );
+        }
+      }
+
+      for (const file of fileTasks) {
+        await downloadFileAsBlobAndSave(file.url, file.fileName);
+      }
+    } catch (err) {
+      console.error("Bulk download error:", err);
+      skippedCount += pdfTasks.length + fileTasks.length;
+    }
+
     message.destroy("bulk-download-progress");
 
+    const downloadedCount = pdfTasks.length + fileTasks.length - skippedCount;
     if (downloadedCount > 0) {
       message.success(
-        `Downloaded ${downloadedCount} paper${downloadedCount === 1 ? "" : "s"}.`
+        pdfTasks.length > 1
+          ? `Downloaded ${pdfTasks.length} papers as ZIP.`
+          : `Downloaded ${downloadedCount} paper${downloadedCount === 1 ? "" : "s"}.`
       );
     }
     if (skippedCount > 0) {
