@@ -772,14 +772,7 @@ export default function QuickLauncher() {
 
             <div className="flex min-h-0 flex-1 overflow-hidden">
             <aside className="hidden w-80 shrink-0 border-r border-white/10 bg-[#3b3b49] p-6 md:block">
-              <div className="mb-5 flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-sm bg-[#4d4d5a] text-white shadow-inner">
-                  <span className="grid grid-cols-3 gap-[3px]">
-                    {triggerSquares.map((_, index) => (
-                      <span key={index} className="h-1.5 w-1.5 rounded-[1px] bg-white/90" />
-                    ))}
-                  </span>
-                </div>
+              <div className="mb-5">
                 <div className="min-w-0">
                   <p className="text-xs font-bold uppercase tracking-wide text-white">Quick Launcher</p>
                   <p className="truncate text-[11px] text-white/55">
