@@ -83,7 +83,8 @@ export const downloadAnnotatedPdf = async (
 
   const pdfjs = await import("pdfjs-dist");
   if (!pdfjs.GlobalWorkerOptions.workerSrc) {
-    pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+    pdfjs.GlobalWorkerOptions.workerSrc =
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
   }
 
   const proxyUrl = `/api/assessment-document/pdf?url=${encodeURIComponent(pdfUrl)}`;
