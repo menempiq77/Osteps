@@ -11,6 +11,7 @@ import {
   FolderOpenOutlined,
   TeamOutlined,
   AppstoreOutlined,
+  InboxOutlined,
 } from "@ant-design/icons";
 
 interface Year {
@@ -23,6 +24,7 @@ interface YearsListProps {
   years: Year[];
   onDeleteYear: (id: number) => void;
   onEditYear: (id: number) => void;
+  onArchiveYear?: (id: number) => void;
   onReorderYears?: (years: Year[]) => void;
   yearStats?: Record<number, { classes: number; students: number }>;
 }
@@ -31,6 +33,7 @@ export default function YearsList({
   years,
   onDeleteYear,
   onEditYear,
+  onArchiveYear,
   onReorderYears,
   yearStats = {},
 }: YearsListProps) {
@@ -232,6 +235,16 @@ export default function YearsList({
                     <EditOutlined />
                     <span className="hidden sm:inline">Edit</span>
                   </button>
+                  {onArchiveYear && activeSubjectId && stats.classes > 0 && (
+                    <button
+                      onClick={() => onArchiveYear(year.id)}
+                      className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-amber-500 transition-colors hover:bg-amber-50 hover:text-amber-600"
+                      title="Archive this year group and all its classes"
+                    >
+                      <InboxOutlined />
+                      <span className="hidden sm:inline">Archive</span>
+                    </button>
+                  )}
                   <button
                     onClick={() => onDeleteYear(year.id)}
                     className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-rose-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
