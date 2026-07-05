@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useSelector } from "react-redux";
 import { Empty, Input, Select, Spin, Tag } from "antd";
 import {
@@ -29,6 +30,7 @@ type ClassOption = {
   label: string;
   yearId: number;
   yearName: string;
+  archived: boolean;
 };
 
 type StudentRow = {
@@ -70,8 +72,16 @@ export default function ReportsLandingPage() {
   const schoolId = currentUser?.school as number | undefined;
   const { subjects, activeSubjectId, loading: subjectsLoading } =
     useSubjectContext();
+  const searchParams = useSearchParams();
 
-  const [subjectId, setSubjectId] = useState<number | null>(null);
+  const querySubjectId = searchParams.get("subject_id");
+  const queryYear = searchParams.get("year");
+  const queryClass = searchParams.get("class");
+  const isArchivedView = searchParams.get("archived") === "1";
+
+  const [subjectId, setSubjectId] = useState<number | null>(
+    querySubjectId ? Number(querySubjectId) : null
+  );
   const [classes, setClasses] = useState<ClassOption[]>([]);
   const [classesLoading, setClassesLoading] = useState(false);
   const [yearId, setYearId] = useState<number | null>(null);
@@ -80,12 +90,16 @@ export default function ReportsLandingPage() {
   const [studentsLoading, setStudentsLoading] = useState(false);
   const [search, setSearch] = useState("");
 
-  // default subject = active subject or first available
+  // default subject = query param, active subject or first available
   useEffect(() => {
     if (subjectId != null) return;
-    const fallback = activeSubjectId ?? subjects[0]?.id ?? null;
+    const fallback =
+      (querySubjectId ? Number(querySubjectId) : null) ??
+      activeSubjectId ??
+      subjects[0]?.id ??
+      null;
     if (fallback != null) setSubjectId(Number(fallback));
-  }, [activeSubjectId, subjects, subjectId]);
+  }, [activeSubjectId, subjects, subjectId, querySubjectId]);
 
   // load classes for the selected subject
   useEffect(() => {
@@ -100,7 +114,10 @@ export default function ReportsLandingPage() {
       try {
         const [years, rows] = await Promise.all([
           fetchYearsBySchool(Number(schoolId)),
-          fetchSubjectClasses({ subject_id: Number(subjectId) }),
+          fetchSubjectClasses({
+            subject_id: Number(subjectId),
+            include_inactive: true,
+          }),
         ]);
         const yearMap = new Map(
           asArray(years).map((y: AnyObj) => [Number(y?.id), String(y?.name ?? "")])
@@ -115,12 +132,15 @@ export default function ReportsLandingPage() {
               linkedId || row?.class_id || row?.base_class_id || row?.id || 0
             );
             const yId = Number(resolveSubjectClassYearId(row as never) || 0);
+            const active =
+              row?.is_active === undefined ? true : Number(row?.is_active) === 1;
             return {
               classId,
               subjectClassId: Number(row?.id ?? 0),
               label: normalizeSubjectName(resolveSubjectClassLabel(row as never)),
               yearId: yId,
               yearName: yearMap.get(yId) ?? "",
+              archived: !active,
             } as ClassOption;
           })
         );
@@ -144,27 +164,53 @@ export default function ReportsLandingPage() {
     };
   }, [subjectId, schoolId]);
 
+  // Active view lists active classes; archived view lists archived classes.
+  const visibleClasses = useMemo(
+    () => classes.filter((c) => c.archived === isArchivedView),
+    [classes, isArchivedView]
+  );
+
+  // Preselect year + class from deep-link query params once classes load.
+  useEffect(() => {
+    if (!visibleClasses.length) return;
+    const match = queryClass
+      ? visibleClasses.find(
+          (c) => String(c.subjectClassId || c.classId) === String(queryClass)
+        )
+      : undefined;
+    if (match) {
+      setYearId((prev) => prev ?? (match.yearId || null));
+      setClassKey((prev) => prev ?? String(match.subjectClassId || match.classId));
+    } else if (queryYear) {
+      setYearId((prev) => prev ?? Number(queryYear));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleClasses]);
+
   const yearOptions = useMemo(() => {
     const map = new Map<number, string>();
-    classes.forEach((c) => {
+    visibleClasses.forEach((c) => {
       if (c.yearId) map.set(c.yearId, c.yearName || `Year ${c.yearId}`);
     });
     return Array.from(map.entries()).map(([id, name]) => ({ value: id, label: name }));
-  }, [classes]);
+  }, [visibleClasses]);
 
   const classOptions = useMemo(() => {
-    const filtered = yearId ? classes.filter((c) => c.yearId === yearId) : classes;
+    const filtered = yearId
+      ? visibleClasses.filter((c) => c.yearId === yearId)
+      : visibleClasses;
     return filtered.map((c) => ({
       value: String(c.subjectClassId || c.classId),
-      label: c.label || `Class ${c.classId}`,
+      label: `${c.label || `Class ${c.classId}`}${c.archived ? " (archived)" : ""}`,
     }));
-  }, [classes, yearId]);
+  }, [visibleClasses, yearId]);
 
   const selectedClass = useMemo(
     () =>
-      classes.find((c) => String(c.subjectClassId || c.classId) === classKey) ??
-      null,
-    [classes, classKey]
+      visibleClasses.find(
+        (c) => String(c.subjectClassId || c.classId) === classKey
+      ) ?? null,
+    [visibleClasses, classKey]
   );
 
   // load students when class selected
@@ -226,6 +272,7 @@ export default function ReportsLandingPage() {
     if (selectedClass?.classId) params.set("class_id", String(selectedClass.classId));
     if (selectedClass?.subjectClassId)
       params.set("subject_class_id", String(selectedClass.subjectClassId));
+    if (isArchivedView) params.set("archived", "1");
     const qs = params.toString();
     return `/dashboard/reports/student/${id}${qs ? `?${qs}` : ""}`;
   };
@@ -251,16 +298,21 @@ export default function ReportsLandingPage() {
         >
           <FileSearchOutlined /> Student Reports
         </span>
+        {isArchivedView ? (
+          <span className="ml-2 inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700">
+            Archived — read-only
+          </span>
+        ) : null}
         <h1
           className="mt-3 m-0 text-[26px] font-extrabold leading-tight tracking-tight md:text-[34px]"
           style={{ color: "var(--theme-dark)" }}
         >
-          Reports
+          {isArchivedView ? "Archived class reports" : "Reports"}
         </h1>
         <p className="mt-2.5 max-w-2xl text-sm leading-relaxed text-slate-600 md:text-[15px]">
-          Pick a subject, year group and class, then open any student to see a full,
-          inspection-ready report — attainment, behaviour, tracker progress, support
-          needs and teacher comments, all in one place.
+          {isArchivedView
+            ? "View the students who were in an archived class and open any of them to see their full history — attainment, behaviour, tracker progress, assessments and teacher comments. Read-only."
+            : "Pick a subject, year group and class, then open any student to see a full, inspection-ready report — attainment, behaviour, tracker progress, support needs and teacher comments, all in one place."}
         </p>
       </div>
 

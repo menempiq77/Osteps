@@ -181,6 +181,7 @@ export default function StudentReportPage() {
   const subjectId = subjectIdParam ? Number(subjectIdParam) : undefined;
   const classIdParam = searchParams.get("class_id");
   const subjectClassIdParam = searchParams.get("subject_class_id");
+  const isArchivedView = searchParams.get("archived") === "1";
   const queryString = searchParams.toString();
 
   const { currentUser } = useSelector((state: RootState) => state.auth);
@@ -203,10 +204,11 @@ export default function StudentReportPage() {
     .toUpperCase()
     .replace(/\s+/g, "_");
   const canEditSupport =
-    normalizedRole === "SCHOOL_ADMIN" ||
-    normalizedRole === "SUPER_ADMIN" ||
-    normalizedRole === "HOD" ||
-    normalizedRole === "TEACHER";
+    !isArchivedView &&
+    (normalizedRole === "SCHOOL_ADMIN" ||
+      normalizedRole === "SUPER_ADMIN" ||
+      normalizedRole === "HOD" ||
+      normalizedRole === "TEACHER");
 
   const { data: grades = [] } = useQuery({
     queryKey: ["student-report-grades", schoolId ?? 0],
@@ -500,11 +502,16 @@ export default function StudentReportPage() {
       <div className="no-print flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
           <Link
-            href="/dashboard/reports"
+            href={`/dashboard/reports${queryString ? `?${queryString}` : ""}`}
             className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-slate-900"
           >
             <ArrowLeftOutlined /> Back to Reports
           </Link>
+          {isArchivedView ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
+              Archived class — read-only
+            </span>
+          ) : null}
           {studentOptions.length > 1 ? (
             <Select
               showSearch
