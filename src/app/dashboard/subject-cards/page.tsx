@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useSelector } from "react-redux";
 import { Empty, Modal, Input, Form, message } from "antd";
@@ -13,8 +14,10 @@ import {
   FileSearchOutlined,
   DeleteOutlined,
   EditOutlined,
+  InboxOutlined,
   NotificationOutlined,
   PlusOutlined,
+  RollbackOutlined,
   QuestionCircleOutlined,
   ReadOutlined,
   RocketOutlined,
@@ -28,6 +31,11 @@ import {
 import { RootState } from "@/store/store";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import { addSubject, updateSubject, deleteSubject } from "@/services/subjectsApi";
+import {
+  fetchSubjectClasses,
+  archiveSubjectClass,
+  restoreSubjectClass,
+} from "@/services/subjectWorkspaceApi";
 import { fetchAssessmentByStudent, fetchTasks, fetchStudentTasks } from "@/services/api";
 import { fetchTerm } from "@/services/termsApi";
 import { fetchStudentProfileData } from "@/services/studentsApi";
@@ -389,9 +397,23 @@ export default function SubjectCardsPage() {
   const { subjects, loading, canUseSubjectContext, activeSubjectId, setActiveSubjectId, refreshSubjects } =
     useSubjectContext();
 
+  const router = useRouter();
   const role = String(currentUser?.role || "").trim().toUpperCase();
   const isStudent = role === "STUDENT";
   const isSchoolAdmin = isSchoolAdminRole(currentUser?.role ?? null);
+
+  // ── Subject archive state ────────────────────────────────────────────
+  // Per subject: how many of its subject-classes are active vs archived.
+  // A subject is treated as "archived" when it has no active classes but at
+  // least one archived class (mirrors how an archived year group is derived).
+  const [subjectClassState, setSubjectClassState] = useState<
+    Record<number, { active: number; archived: number }>
+  >({});
+  const [subjectTab, setSubjectTab] = useState<"active" | "archived">("active");
+  const [archiveTarget, setArchiveTarget] = useState<{ id: number; name: string } | null>(null);
+  const [archiveLoading, setArchiveLoading] = useState(false);
+  const [restoreLoadingId, setRestoreLoadingId] = useState<number | null>(null);
+  const [classStateVersion, setClassStateVersion] = useState(0);
 
   // ── Create / Edit subject modal state ───────────────────────────────
   const [modalOpen, setModalOpen] = useState(false);
@@ -421,6 +443,51 @@ export default function SubjectCardsPage() {
   useEffect(() => {
     setSubjectColorMap(readSubjectColorMap());
   }, []);
+
+  // Load each subject's active/archived class counts (School Admin only) so we
+  // can split subjects into the Active and Archived tabs.
+  useEffect(() => {
+    if (!isSchoolAdmin || !canUseSubjectContext || subjects.length === 0) {
+      setSubjectClassState({});
+      return;
+    }
+    let cancelled = false;
+    const load = async () => {
+      const entries = await Promise.all(
+        subjects.map(async (subject) => {
+          try {
+            const rows = await fetchSubjectClasses({
+              subject_id: Number(subject.id),
+              include_inactive: true,
+            });
+            const list = Array.isArray(rows) ? rows : [];
+            // undefined is_active => treat as active (backend has no column);
+            // null/0 => archived; 1 => active. Mirrors the Classes/Years pages.
+            const isActive = (row: any) =>
+              row?.is_active === undefined ? true : Number(row.is_active) === 1;
+            const active = list.filter((row) => isActive(row)).length;
+            const archived = list.filter((row) => !isActive(row)).length;
+            return [Number(subject.id), { active, archived }] as const;
+          } catch {
+            return [Number(subject.id), { active: 0, archived: 0 }] as const;
+          }
+        })
+      );
+      if (!cancelled) setSubjectClassState(Object.fromEntries(entries));
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [isSchoolAdmin, canUseSubjectContext, subjects, classStateVersion]);
+
+  const isSubjectArchived = useCallback(
+    (subjectId: number) => {
+      const state = subjectClassState[Number(subjectId)];
+      return !!state && state.active === 0 && state.archived > 0;
+    },
+    [subjectClassState]
+  );
 
   const applySubjectColor = (subjectId: number, palIdx: number) => {
     setSubjectColorMap((current) => {
@@ -491,6 +558,98 @@ export default function SubjectCardsPage() {
     setDeleteConfirmSubject(subject);
   };
 
+  // ── Archive / Restore a whole subject (archives/restores all its classes) ──
+  const handleArchiveSubject = async () => {
+    if (!archiveTarget) return;
+    setArchiveLoading(true);
+    try {
+      const rows = await fetchSubjectClasses({
+        subject_id: Number(archiveTarget.id),
+        include_inactive: true,
+      });
+      const isActive = (row: any) =>
+        row?.is_active === undefined ? true : Number(row.is_active) === 1;
+      const activeIds = (Array.isArray(rows) ? rows : [])
+        .filter((row) => isActive(row))
+        .map((row: any) => Number(row?.id))
+        .filter((id) => Number.isFinite(id) && id > 0);
+
+      if (activeIds.length === 0) {
+        message.info("This subject has no active classes to archive.");
+        setArchiveTarget(null);
+        return;
+      }
+
+      const results = await Promise.allSettled(
+        activeIds.map((id) => archiveSubjectClass(id))
+      );
+      const failed = results.filter((r) => r.status === "rejected").length;
+      const archived = activeIds.length - failed;
+      if (archived > 0) {
+        message.success(
+          `Archived ${archived} class${archived === 1 ? "" : "es"} in ${archiveTarget.name}. Open it under the Archived tab.`
+        );
+      }
+      if (failed > 0) {
+        message.error(
+          `${failed} class${failed === 1 ? "" : "es"} could not be archived. Please try again.`
+        );
+      }
+      setArchiveTarget(null);
+      setClassStateVersion((v) => v + 1);
+    } catch {
+      message.error("Failed to archive subject.");
+    } finally {
+      setArchiveLoading(false);
+    }
+  };
+
+  const handleRestoreSubject = async (subject: { id: number; name: string }) => {
+    setRestoreLoadingId(subject.id);
+    try {
+      const rows = await fetchSubjectClasses({
+        subject_id: Number(subject.id),
+        include_inactive: true,
+      });
+      const isActive = (row: any) =>
+        row?.is_active === undefined ? true : Number(row.is_active) === 1;
+      const archivedIds = (Array.isArray(rows) ? rows : [])
+        .filter((row) => !isActive(row))
+        .map((row: any) => Number(row?.id))
+        .filter((id) => Number.isFinite(id) && id > 0);
+
+      if (archivedIds.length === 0) {
+        message.info("This subject has no archived classes to restore.");
+        return;
+      }
+
+      const results = await Promise.allSettled(
+        archivedIds.map((id) => restoreSubjectClass(id))
+      );
+      const failed = results.filter((r) => r.status === "rejected").length;
+      const restored = archivedIds.length - failed;
+      if (restored > 0) {
+        message.success(
+          `Restored ${restored} class${restored === 1 ? "" : "es"} to ${subject.name}.`
+        );
+      }
+      if (failed > 0) {
+        message.error(
+          `${failed} class${failed === 1 ? "" : "es"} could not be restored. Please try again.`
+        );
+      }
+      setClassStateVersion((v) => v + 1);
+    } catch {
+      message.error("Failed to restore subject.");
+    } finally {
+      setRestoreLoadingId(null);
+    }
+  };
+
+  const openArchivedSubjectReports = (subjectId: number) => {
+    router.push(`/dashboard/reports?subject_id=${subjectId}&archived=1`);
+  };
+
   const canEnterSubjectWorkspace = useMemo(
     () => ["SCHOOL_ADMIN", "ADMIN", "HOD", "TEACHER", "STUDENT"].includes(role),
     [role]
@@ -505,6 +664,25 @@ export default function SubjectCardsPage() {
       return name.includes(normalizedSubjectSearch) || code.includes(normalizedSubjectSearch);
     });
   }, [normalizedSubjectSearch, subjects]);
+
+  // Split subjects between the Active and Archived tabs (School Admin only).
+  const archivedSubjectsAll = useMemo(
+    () => (isSchoolAdmin ? subjects.filter((s) => isSubjectArchived(s.id)) : []),
+    [isSchoolAdmin, subjects, isSubjectArchived]
+  );
+  const activeFilteredSubjects = useMemo(
+    () => filteredSubjects.filter((s) => !isSubjectArchived(s.id)),
+    [filteredSubjects, isSubjectArchived]
+  );
+  const archivedFilteredSubjects = useMemo(
+    () => filteredSubjects.filter((s) => isSubjectArchived(s.id)),
+    [filteredSubjects, isSubjectArchived]
+  );
+  const showSubjectTabs = isSchoolAdmin && archivedSubjectsAll.length > 0;
+  const displayedSubjects =
+    showSubjectTabs && subjectTab === "archived"
+      ? archivedFilteredSubjects
+      : activeFilteredSubjects;
   if (!loading && (!canUseSubjectContext || !canEnterSubjectWorkspace)) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-8">
@@ -545,8 +723,35 @@ export default function SubjectCardsPage() {
             accent="#38C16C"
             title={isStudent ? "Choose a Subject" : "Choose a Subject Dashboard"}
             subtitle="Open the subject workspace quickly"
-            count={!loading && subjects.length > 0 ? `${filteredSubjects.length}/${subjects.length}` : undefined}
+            count={!loading && subjects.length > 0 ? `${displayedSubjects.length}/${subjects.length}` : undefined}
           />
+
+          {!loading && showSubjectTabs && (
+            <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white/90 p-0.5">
+              <button
+                type="button"
+                onClick={() => setSubjectTab("active")}
+                className={`rounded-lg px-3 py-1 text-xs font-bold transition-colors ${
+                  subjectTab === "active"
+                    ? "bg-[#38C16C] text-white"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                Active
+              </button>
+              <button
+                type="button"
+                onClick={() => setSubjectTab("archived")}
+                className={`rounded-lg px-3 py-1 text-xs font-bold transition-colors ${
+                  subjectTab === "archived"
+                    ? "bg-amber-500 text-white"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                Archived ({archivedSubjectsAll.length})
+              </button>
+            </div>
+          )}
 
           {!loading && subjects.length > 0 && (
             <Input
@@ -567,13 +772,20 @@ export default function SubjectCardsPage() {
           <div className="rounded-2xl border border-slate-200 bg-white p-10">
             <Empty description="No assigned subjects found." />
           </div>
-        ) : filteredSubjects.length === 0 ? (
+        ) : displayedSubjects.length === 0 ? (
           <div className="rounded-2xl border border-slate-200 bg-white p-10">
-            <Empty description="No subjects match that search." />
+            <Empty
+              description={
+                subjectTab === "archived"
+                  ? "No archived subjects. Archive a subject from the Active tab to see it here."
+                  : "No subjects match that search."
+              }
+            />
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 2xl:grid-cols-8">
-            {filteredSubjects.map((subject, idx) => {
+            {displayedSubjects.map((subject, idx) => {
+              const archivedCard = isSubjectArchived(subject.id);
               const isActive = Number(activeSubjectId) === Number(subject.id);
               const displayName = typeof subject.name === "string"
                 ? subject.name.replace(/islamiat/gi, "Islamic")
@@ -594,7 +806,11 @@ export default function SubjectCardsPage() {
                       ? `0 0 0 2px rgba(56,193,108,0.85), 0 10px 22px ${pal.glow}`
                       : `0 7px 18px ${pal.glow}`,
                   }}
-                  onClick={() => setActiveSubjectId(Number(subject.id), { navigate: true })}
+                  onClick={() =>
+                    archivedCard
+                      ? openArchivedSubjectReports(Number(subject.id))
+                      : setActiveSubjectId(Number(subject.id), { navigate: true })
+                  }
                 >
                   {/* decorative circle */}
                   <div
@@ -610,29 +826,64 @@ export default function SubjectCardsPage() {
                     {/* admin actions row */}
                     {isSchoolAdmin && (
                       <div className="absolute right-2 top-2 flex items-center gap-1">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); openEditModal({ id: subject.id, name: subject.name }); }}
-                          className="flex h-[18px] w-[18px] items-center justify-center rounded-full
-                                     transition-all duration-200 hover:scale-110"
-                          style={{ background: "rgba(255,255,255,0.25)", color: "#fff" }}
-                          title="Edit subject"
-                        >
-                          <EditOutlined style={{ fontSize: 11 }} />
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleDeleteSubject({ id: subject.id, name: subject.name }); }}
-                          className="flex h-[18px] w-[18px] items-center justify-center rounded-full
-                                     transition-all duration-200 hover:scale-110"
-                          style={{ background: "rgba(255,255,255,0.25)", color: "#fff" }}
-                          title="Delete subject"
-                        >
-                          <DeleteOutlined style={{ fontSize: 11 }} />
-                        </button>
+                        {archivedCard ? (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); void handleRestoreSubject({ id: subject.id, name: subject.name }); }}
+                            disabled={restoreLoadingId === subject.id}
+                            className="flex h-[18px] w-[18px] items-center justify-center rounded-full
+                                       transition-all duration-200 hover:scale-110 disabled:opacity-50"
+                            style={{ background: "rgba(255,255,255,0.25)", color: "#fff" }}
+                            title="Restore subject"
+                          >
+                            <RollbackOutlined style={{ fontSize: 11 }} />
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); openEditModal({ id: subject.id, name: subject.name }); }}
+                              className="flex h-[18px] w-[18px] items-center justify-center rounded-full
+                                         transition-all duration-200 hover:scale-110"
+                              style={{ background: "rgba(255,255,255,0.25)", color: "#fff" }}
+                              title="Edit subject"
+                            >
+                              <EditOutlined style={{ fontSize: 11 }} />
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setArchiveTarget({ id: subject.id, name: String(displayName) }); }}
+                              className="flex h-[18px] w-[18px] items-center justify-center rounded-full
+                                         transition-all duration-200 hover:scale-110"
+                              style={{ background: "rgba(255,255,255,0.25)", color: "#fff" }}
+                              title="Archive subject (archives all its classes)"
+                            >
+                              <InboxOutlined style={{ fontSize: 11 }} />
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleDeleteSubject({ id: subject.id, name: subject.name }); }}
+                              className="flex h-[18px] w-[18px] items-center justify-center rounded-full
+                                         transition-all duration-200 hover:scale-110"
+                              style={{ background: "rgba(255,255,255,0.25)", color: "#fff" }}
+                              title="Delete subject"
+                            >
+                              <DeleteOutlined style={{ fontSize: 11 }} />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {/* archived badge */}
+                    {archivedCard && (
+                      <div
+                        className="absolute left-2 top-2 flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-black"
+                        style={{ background: "rgba(0,0,0,0.28)", color: "#fff" }}
+                      >
+                        <InboxOutlined style={{ fontSize: 10 }} />
+                        Archived
                       </div>
                     )}
 
                     {/* active badge */}
-                    {isActive && (
+                    {!archivedCard && isActive && (
                       <div
                         className="absolute left-2 top-2 flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-black"
                         style={{ background: "rgba(255,255,255,0.25)", color: "#fff" }}
@@ -677,8 +928,17 @@ export default function SubjectCardsPage() {
                         color: "#fff",
                       }}
                     >
-                      <RocketOutlined style={{ fontSize: 11 }} />
-                      Open
+                      {archivedCard ? (
+                        <>
+                          <FileSearchOutlined style={{ fontSize: 11 }} />
+                          View reports
+                        </>
+                      ) : (
+                        <>
+                          <RocketOutlined style={{ fontSize: 11 }} />
+                          Open
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>
@@ -686,7 +946,7 @@ export default function SubjectCardsPage() {
             })}
 
             {/* ── Create Subject card (SCHOOL_ADMIN only) ──────────────── */}
-            {isSchoolAdmin && (
+            {isSchoolAdmin && subjectTab !== "archived" && (
               <div
                 onClick={openCreateModal}
                 className="relative flex min-h-[94px] cursor-pointer flex-col items-center justify-center overflow-hidden rounded-xl
@@ -906,6 +1166,29 @@ export default function SubjectCardsPage() {
             )}
           </div>
         </div>
+      </Modal>
+
+      {/* ── Archive subject confirmation modal ────────────────────────── */}
+      <Modal
+        title={
+          <div className="flex items-center gap-2 text-amber-600">
+            <InboxOutlined />
+            <span>Archive subject</span>
+          </div>
+        }
+        open={!!archiveTarget}
+        onOk={handleArchiveSubject}
+        okText="Archive subject"
+        okButtonProps={{ loading: archiveLoading, danger: false }}
+        confirmLoading={archiveLoading}
+        onCancel={() => setArchiveTarget(null)}
+      >
+        <p className="text-slate-600">
+          This archives <strong>{archiveTarget?.name}</strong> and all of its classes. Nothing is
+          deleted — students, assessments, tasks, trackers and reports are preserved and stay
+          viewable read-only under the <strong>Archived</strong> tab. You can restore the subject
+          anytime.
+        </p>
       </Modal>
     </div>
   );

@@ -56,6 +56,7 @@ export default function YearsList({
   const roleKey = String(currentUser?.role ?? "").trim().toUpperCase().replace(/\s+/g, "_");
   const isStudent = roleKey === "STUDENT";
   const canManageOrder = roleKey === "SCHOOL_ADMIN" || roleKey === "HOD" || roleKey === "TEACHER";
+  const isSchoolAdmin = roleKey === "SCHOOL_ADMIN";
 
   useEffect(() => {
     setLocalYears(years || []);
@@ -259,7 +260,7 @@ export default function YearsList({
                       <span className="hidden sm:inline">Edit</span>
                     </button>
                   )}
-                  {!archivedView && onArchiveYear && activeSubjectId && stats.classes > 0 && (
+                  {!archivedView && isSchoolAdmin && onArchiveYear && activeSubjectId && stats.classes > 0 && (
                     <button
                       onClick={() => onArchiveYear(year.id)}
                       className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-amber-500 transition-colors hover:bg-amber-50 hover:text-amber-600"
@@ -269,7 +270,7 @@ export default function YearsList({
                       <span className="hidden sm:inline">Archive</span>
                     </button>
                   )}
-                  {archivedView && onRestoreYear && activeSubjectId && (
+                  {archivedView && isSchoolAdmin && onRestoreYear && activeSubjectId && (
                     <button
                       onClick={() => onRestoreYear(year.id)}
                       disabled={restoreLoading}

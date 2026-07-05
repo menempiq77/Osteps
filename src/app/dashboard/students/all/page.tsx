@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSelector, useDispatch } from "react-redux";
@@ -231,6 +231,9 @@ const getRowClassFilterOptions = (
   const fallbackLabel = String(row.className ?? "").trim();
   return fallbackValue && fallbackLabel ? [{ value: fallbackValue, label: fallbackLabel }] : [];
 };
+
+// Sentinel filter value for "students not assigned to any active subject".
+const UNASSIGNED_SUBJECT_VALUE = -1;
 
 const normalizeSubjectIdList = (ids: Array<number | string>): number[] =>
   Array.from(
@@ -1377,6 +1380,26 @@ export default function AllStudentsPage() {
     }
   }, [yearFilter, yearOptions]);
 
+  // Set of subject IDs that currently have at least one active (unarchived)
+  // subject class. Used to detect students left with no active subject.
+  const activeSubjectIdSet = useMemo(
+    () =>
+      new Set(
+        subjectFilterClassRows
+          .map((row) => Number(row.subjectId))
+          .filter((id) => Number.isFinite(id) && id > 0)
+      ),
+    [subjectFilterClassRows]
+  );
+
+  const isRowUnassignedToActiveSubject = useCallback(
+    (row: StudentListRow) => {
+      const ids = getRowEditSubjectIds(row);
+      return !ids.some((id) => activeSubjectIdSet.has(Number(id)));
+    },
+    [activeSubjectIdSet]
+  );
+
   const filteredStudents = useMemo(() => {
     const q = nameFilter.trim().toLowerCase();
     const wantedSubjectClassLabel = preselectedSubjectClassLabel.trim().toLowerCase();
@@ -1406,9 +1429,12 @@ export default function AllStudentsPage() {
         );
       const genderMatch =
         genderFilters.length === 0 || genderFilters.includes(row.gender);
+      const wantsUnassigned = subjectFilter.includes(UNASSIGNED_SUBJECT_VALUE);
+      const selectedRealSubjectIds = normalizeSubjectIdList(subjectFilter);
       const subjectMatch =
         subjectFilter.length === 0 ||
-        normalizeSubjectIdList(subjectFilter).some((id) => getRowEditSubjectIds(row).includes(id));
+        (wantsUnassigned && isRowUnassignedToActiveSubject(row)) ||
+        selectedRealSubjectIds.some((id) => getRowEditSubjectIds(row).includes(id));
       return (
         nameMatch &&
         yearMatch &&
@@ -1428,6 +1454,7 @@ export default function AllStudentsPage() {
     genderFilters,
     subjectFilter,
     preselectedSubjectClassLabel,
+    isRowUnassignedToActiveSubject,
   ]);
 
   const subjectFilterOptions = useMemo(() => {
@@ -1442,10 +1469,14 @@ export default function AllStudentsPage() {
         if (!map.has(id)) map.set(id, row.subjectNames[idx] ?? "");
       });
     });
-    return Array.from(map.entries())
+    const options = Array.from(map.entries())
       .map(([value, label]) => ({ value, label }))
       .filter((item) => item.label)
       .sort((a, b) => a.label.localeCompare(b.label));
+    return [
+      { value: UNASSIGNED_SUBJECT_VALUE, label: "Unassigned to any subject" },
+      ...options,
+    ];
   }, [students]);
 
   const classOptions = useMemo(() => {
