@@ -18,7 +18,7 @@ import { fetchClasses, updateClass } from "@/services/classesApi";
 import { fetchTerm, addTerm, deleteTerm } from "@/services/termsApi";
 import { fetchStudents } from "@/services/studentsApi";
 import { useSubjectContext } from "@/contexts/SubjectContext";
-import { deactivateSubjectClassesByYear, fetchSubjectClasses, isMissingSubjectWorkspaceRoute } from "@/services/subjectWorkspaceApi";
+import { archiveSubjectClass, deactivateSubjectClassesByYear, fetchSubjectClasses, isMissingSubjectWorkspaceRoute } from "@/services/subjectWorkspaceApi";
 import { readSubjectClassBaseMap, resolveSubjectClassLinkedIdWithFallback } from "@/lib/subjectClassResolution";
 
 interface Year {
@@ -35,6 +35,7 @@ interface Year {
 type SubjectClassRow = {
   id?: number | string | null;
   year_id?: number | string | null;
+  is_active?: number | boolean | null;
   name?: string | null;
   base_class_label?: string | null;
   class_id?: number | string | null;
@@ -94,6 +95,10 @@ export default function Page() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [yearToDelete, setYearToDelete] = useState<number | null>(null);
   const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
+  const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
+  const [yearToArchive, setYearToArchive] = useState<number | null>(null);
+  const [archivingYear, setArchivingYear] = useState(false);
+  const [statsVersion, setStatsVersion] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentYear, setCurrentYear] = useState<Year | null>(null);
@@ -365,7 +370,7 @@ export default function Page() {
     };
 
     loadYearStats();
-  }, [years, isSubjectWorkspaceMode, activeSubjectId, activeSubject?.name]);
+  }, [years, isSubjectWorkspaceMode, activeSubjectId, activeSubject?.name, statsVersion]);
 
   const persistYearOrder = (orderedYears: Year[]) => {
     if (typeof window === "undefined") return;
@@ -540,6 +545,70 @@ export default function Page() {
     }
   };
 
+  const confirmArchive = (id: number) => {
+    if (!hasAccess && !isTeacher) {
+      messageApi.warning("You do not have permission to archive year groups.");
+      return;
+    }
+    if (!isSubjectWorkspaceMode || !activeSubjectId) {
+      messageApi.warning("Archiving is available inside a subject workspace.");
+      return;
+    }
+    setYearToArchive(id);
+    setIsArchiveModalOpen(true);
+  };
+
+  const handleArchiveYear = async () => {
+    if (!yearToArchive || !isSubjectWorkspaceMode || !activeSubjectId) return;
+    setArchivingYear(true);
+    try {
+      const subjectClasses = (await fetchSubjectClasses({
+        subject_id: Number(activeSubjectId),
+        year_id: Number(yearToArchive),
+        include_inactive: true,
+      })) as SubjectClassRow[];
+
+      const activeClassesForYear = (Array.isArray(subjectClasses) ? subjectClasses : [])
+        .filter((row) => resolveSubjectClassYearId(row) === Number(yearToArchive))
+        .filter((row) => Boolean(row.is_active))
+        .map((row) => Number(row.id))
+        .filter((id) => Number.isFinite(id) && id > 0);
+
+      if (activeClassesForYear.length === 0) {
+        messageApi.info("This year group has no active classes to archive.");
+        setIsArchiveModalOpen(false);
+        setYearToArchive(null);
+        return;
+      }
+
+      const results = await Promise.allSettled(
+        activeClassesForYear.map((id) => archiveSubjectClass(id))
+      );
+      const failed = results.filter((r) => r.status === "rejected").length;
+      const archived = activeClassesForYear.length - failed;
+
+      if (archived > 0) {
+        messageApi.success(
+          `Archived ${archived} class${archived === 1 ? "" : "es"} in this year group. View them under Classes \u2192 Archived.`
+        );
+      }
+      if (failed > 0) {
+        messageApi.error(
+          `${failed} class${failed === 1 ? "" : "es"} could not be archived. Please try again.`
+        );
+      }
+
+      setIsArchiveModalOpen(false);
+      setYearToArchive(null);
+      setStatsVersion((v) => v + 1);
+    } catch (err) {
+      console.error(err);
+      messageApi.error("Failed to archive year group.");
+    } finally {
+      setArchivingYear(false);
+    }
+  };
+
   const confirmDelete = (id: number) => {
     if (!hasAccess) {
       messageApi.warning("Only School Admin can delete year groups.");
@@ -692,6 +761,7 @@ export default function Page() {
           color: year.color,
         }))}
         onDeleteYear={confirmDelete}
+        onArchiveYear={confirmArchive}
         onEditYear={(id) => {
           const year = years.find((y) => y.id === id);
           if (year) handleEditClick(year);
@@ -772,6 +842,48 @@ export default function Page() {
                 />
               </div>
             )}
+          </div>
+        )}
+      </Modal>
+
+      {/* Archive Year Confirmation Modal */}
+      <Modal
+        title="Archive year group"
+        open={isArchiveModalOpen}
+        onOk={handleArchiveYear}
+        onCancel={() => {
+          setIsArchiveModalOpen(false);
+          setYearToArchive(null);
+        }}
+        okText="Archive year group"
+        okButtonProps={{ danger: true, loading: archivingYear }}
+        cancelText="Cancel"
+        centered
+      >
+        {yearToArchive && (
+          <div className="space-y-4 text-sm text-slate-700">
+            <div>
+              <p className="font-semibold text-slate-900">
+                {years.find((year) => year.id === yearToArchive)?.name}
+              </p>
+              <p className="mt-1">
+                Classes:{" "}
+                <span className="font-medium">
+                  {(yearStats[yearToArchive] ?? { classes: 0 }).classes}
+                </span>
+                {"  "}Students:{" "}
+                <span className="font-medium">
+                  {(yearStats[yearToArchive] ?? { students: 0 }).students}
+                </span>
+              </p>
+            </div>
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-amber-900">
+              This archives every active class in this year group for the current
+              subject. No data is deleted &mdash; students, reports, markbooks,
+              assessments and trackers are preserved and become read-only. You can
+              view them under Classes &rarr; Archived, and restore any class from
+              there.
+            </div>
           </div>
         )}
       </Modal>
