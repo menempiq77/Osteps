@@ -75,11 +75,18 @@ export default function YearsList({
 
   const handleViewClasses = (yearId: number) => {
     localStorage.setItem("selectedYearId", yearId.toString());
-    router.push(
-      toSubjectHref(
-        `/dashboard/classes?year=${yearId}${archivedView ? "&archived=1" : ""}`
-      )
-    );
+    if (archivedView) {
+      // Archived years go straight to the read-only reports hub scoped to the
+      // year, so the user lands on the student roster (names) and can open any
+      // student's full history — assessments, reports, trackers and behaviour.
+      const params = new URLSearchParams();
+      if (activeSubjectId) params.set("subject_id", String(activeSubjectId));
+      params.set("year", String(yearId));
+      params.set("archived", "1");
+      router.push(`/dashboard/reports?${params.toString()}`);
+      return;
+    }
+    router.push(toSubjectHref(`/dashboard/classes?year=${yearId}`));
   };
 
   const getPaletteColor = (palette?: string) => {
@@ -216,13 +223,15 @@ export default function YearsList({
                   <button
                     type="button"
                     onClick={() =>
-                      router.push(
-                        toSubjectHref(
-                          `/dashboard/students/all?yearId=${year.id}${
-                            activeSubjectId ? `&subjectId=${activeSubjectId}` : ""
-                          }`
-                        )
-                      )
+                      archivedView
+                        ? handleViewClasses(year.id)
+                        : router.push(
+                            toSubjectHref(
+                              `/dashboard/students/all?yearId=${year.id}${
+                                activeSubjectId ? `&subjectId=${activeSubjectId}` : ""
+                              }`
+                            )
+                          )
                     }
                     className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors hover:brightness-95"
                     style={{

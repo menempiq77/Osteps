@@ -39,6 +39,8 @@ type StudentRow = {
   name: string;
   userName: string;
   gender: string;
+  classId: number;
+  subjectClassId: number;
 };
 
 const asArray = <T = AnyObj,>(value: unknown): T[] =>
@@ -214,9 +216,20 @@ export default function ReportsLandingPage() {
     [visibleClasses, classKey]
   );
 
-  // load students when class selected
+  // The classes whose students we list: the selected class, or — for an
+  // archived year with no specific class chosen — every archived class in that
+  // year, so the user sees the whole year's students by name in one place.
+  const targetClasses = useMemo<ClassOption[]>(() => {
+    if (selectedClass) return [selectedClass];
+    if (isArchivedView && yearId) {
+      return visibleClasses.filter((c) => c.yearId === yearId);
+    }
+    return [];
+  }, [selectedClass, isArchivedView, yearId, visibleClasses]);
+
+  // load students for the target class(es)
   useEffect(() => {
-    if (!selectedClass) {
+    if (targetClasses.length === 0) {
       setStudents([]);
       return;
     }
@@ -224,23 +237,26 @@ export default function ReportsLandingPage() {
     const run = async () => {
       setStudentsLoading(true);
       try {
+        const byId = new Map<number, StudentRow>();
+
         // The roster endpoint inner-joins on active enrolments, so it returns
         // nothing for an archived class. Assessment history is preserved
         // though, so for archived classes we derive the roster from the whole
-        // assessments report (students who have marks in that class).
-        let mapped: StudentRow[] = [];
+        // assessments report (students who have marks in those classes).
         if (isArchivedView && schoolId) {
           const report = await fetchWholeAssessmentsReport(
             String(schoolId),
             subjectId ?? undefined
           );
-          const byId = new Map<number, StudentRow>();
+          const classByLinkedId = new Map(
+            targetClasses.map((c) => [c.classId, c])
+          );
           asArray(report)
-            .filter(
-              (assessment) =>
-                Number(assessment?.class_id) === selectedClass.classId
+            .filter((assessment) =>
+              classByLinkedId.has(Number(assessment?.class_id))
             )
             .forEach((assessment) => {
+              const cls = classByLinkedId.get(Number(assessment?.class_id))!;
               asArray(assessment?.tasks).forEach((task) => {
                 asArray(task?.submitted).forEach((row: AnyObj) => {
                   const id = Number(row?.student_id ?? 0);
@@ -250,29 +266,39 @@ export default function ReportsLandingPage() {
                     name: String(row?.student_name ?? "Student"),
                     userName: resolveUserName(row),
                     gender: String(row?.gender ?? "").trim(),
+                    classId: cls.classId,
+                    subjectClassId: cls.subjectClassId,
                   });
                 });
               });
             });
-          mapped = Array.from(byId.values());
         }
 
-        if (!isArchivedView || mapped.length === 0) {
-          const rows = await fetchStudents(
-            selectedClass.classId,
-            subjectId ?? undefined,
-            selectedClass.subjectClassId || undefined
-          );
-          const fromRoster = asArray(rows).map((row: AnyObj) => ({
-            id: Number(row?.id ?? row?.student_id ?? 0),
-            name: String(row?.student_name ?? row?.name ?? "Student"),
-            userName: resolveUserName(row),
-            gender: String(row?.gender ?? row?.student_gender ?? "").trim(),
-          }));
-          if (fromRoster.length > 0) mapped = fromRoster;
+        // Active classes (or archived ones with no assessment history) fall
+        // back to the live roster endpoint per class.
+        if (!isArchivedView || byId.size === 0) {
+          for (const cls of targetClasses) {
+            const rows = await fetchStudents(
+              cls.classId,
+              subjectId ?? undefined,
+              cls.subjectClassId || undefined
+            );
+            asArray(rows).forEach((row: AnyObj) => {
+              const id = Number(row?.id ?? row?.student_id ?? 0);
+              if (id <= 0 || byId.has(id)) return;
+              byId.set(id, {
+                id,
+                name: String(row?.student_name ?? row?.name ?? "Student"),
+                userName: resolveUserName(row),
+                gender: String(row?.gender ?? row?.student_gender ?? "").trim(),
+                classId: cls.classId,
+                subjectClassId: cls.subjectClassId,
+              });
+            });
+          }
         }
 
-        if (!cancelled) setStudents(mapped);
+        if (!cancelled) setStudents(Array.from(byId.values()));
       } catch {
         if (!cancelled) setStudents([]);
       } finally {
@@ -283,7 +309,7 @@ export default function ReportsLandingPage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedClass, subjectId, isArchivedView, schoolId]);
+  }, [targetClasses, subjectId, isArchivedView, schoolId]);
 
   const subjectOptions = useMemo(
     () =>
@@ -304,16 +330,27 @@ export default function ReportsLandingPage() {
     );
   }, [students, search]);
 
-  const studentHref = (id: number) => {
+  const studentHref = (student: StudentRow) => {
     const params = new URLSearchParams();
     if (subjectId) params.set("subject_id", String(subjectId));
-    if (selectedClass?.classId) params.set("class_id", String(selectedClass.classId));
-    if (selectedClass?.subjectClassId)
-      params.set("subject_class_id", String(selectedClass.subjectClassId));
+    if (student.classId) params.set("class_id", String(student.classId));
+    if (student.subjectClassId)
+      params.set("subject_class_id", String(student.subjectClassId));
     if (isArchivedView) params.set("archived", "1");
     const qs = params.toString();
-    return `/dashboard/reports/student/${id}${qs ? `?${qs}` : ""}`;
+    return `/dashboard/reports/student/${student.id}${qs ? `?${qs}` : ""}`;
   };
+
+  const selectedYearName = useMemo(
+    () => yearOptions.find((o) => o.value === yearId)?.label ?? "",
+    [yearOptions, yearId]
+  );
+  const hasRosterTarget = targetClasses.length > 0;
+  const rosterTitle = selectedClass
+    ? `Students in ${selectedClass.label}`
+    : isArchivedView && yearId
+    ? `Students in ${selectedYearName || "this year group"}`
+    : "Students";
 
   return (
     <div className="space-y-4">
@@ -416,17 +453,15 @@ export default function ReportsLandingPage() {
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
           <TeamOutlined />
-          {selectedClass
-            ? `Students in ${selectedClass.label}`
-            : "Students"}
-          {selectedClass ? (
+          {rosterTitle}
+          {hasRosterTarget ? (
             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-500">
               {filteredStudents.length}
             </span>
           ) : null}
         </div>
 
-        {!selectedClass ? (
+        {!hasRosterTarget ? (
           <div className="py-10">
             <Empty description="Choose a subject and class to list students." />
           </div>
@@ -443,7 +478,7 @@ export default function ReportsLandingPage() {
             {filteredStudents.map((s) => (
               <Link
                 key={s.id}
-                href={studentHref(s.id)}
+                href={studentHref(s)}
                 className="group flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 transition-all hover:-translate-y-0.5 hover:border-[color:var(--theme-border)] hover:shadow-md"
               >
                 <div
