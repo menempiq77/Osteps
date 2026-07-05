@@ -21,6 +21,7 @@ import {
 } from "@/lib/subjectClassResolution";
 import { fetchYearsBySchool } from "@/services/yearsApi";
 import { fetchStudents } from "@/services/studentsApi";
+import { fetchWholeAssessmentsReport } from "@/services/reportApi";
 
 type AnyObj = Record<string, unknown>;
 
@@ -223,17 +224,54 @@ export default function ReportsLandingPage() {
     const run = async () => {
       setStudentsLoading(true);
       try {
-        const rows = await fetchStudents(
-          selectedClass.classId,
-          subjectId ?? undefined,
-          selectedClass.subjectClassId || undefined
-        );
-        const mapped = asArray(rows).map((row: AnyObj) => ({
-          id: Number(row?.id ?? row?.student_id ?? 0),
-          name: String(row?.student_name ?? row?.name ?? "Student"),
-          userName: resolveUserName(row),
-          gender: String(row?.gender ?? row?.student_gender ?? "").trim(),
-        }));
+        // The roster endpoint inner-joins on active enrolments, so it returns
+        // nothing for an archived class. Assessment history is preserved
+        // though, so for archived classes we derive the roster from the whole
+        // assessments report (students who have marks in that class).
+        let mapped: StudentRow[] = [];
+        if (isArchivedView && schoolId) {
+          const report = await fetchWholeAssessmentsReport(
+            String(schoolId),
+            subjectId ?? undefined
+          );
+          const byId = new Map<number, StudentRow>();
+          asArray(report)
+            .filter(
+              (assessment) =>
+                Number(assessment?.class_id) === selectedClass.classId
+            )
+            .forEach((assessment) => {
+              asArray(assessment?.tasks).forEach((task) => {
+                asArray(task?.submitted).forEach((row: AnyObj) => {
+                  const id = Number(row?.student_id ?? 0);
+                  if (id <= 0 || byId.has(id)) return;
+                  byId.set(id, {
+                    id,
+                    name: String(row?.student_name ?? "Student"),
+                    userName: resolveUserName(row),
+                    gender: String(row?.gender ?? "").trim(),
+                  });
+                });
+              });
+            });
+          mapped = Array.from(byId.values());
+        }
+
+        if (!isArchivedView || mapped.length === 0) {
+          const rows = await fetchStudents(
+            selectedClass.classId,
+            subjectId ?? undefined,
+            selectedClass.subjectClassId || undefined
+          );
+          const fromRoster = asArray(rows).map((row: AnyObj) => ({
+            id: Number(row?.id ?? row?.student_id ?? 0),
+            name: String(row?.student_name ?? row?.name ?? "Student"),
+            userName: resolveUserName(row),
+            gender: String(row?.gender ?? row?.student_gender ?? "").trim(),
+          }));
+          if (fromRoster.length > 0) mapped = fromRoster;
+        }
+
         if (!cancelled) setStudents(mapped);
       } catch {
         if (!cancelled) setStudents([]);
@@ -245,7 +283,7 @@ export default function ReportsLandingPage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedClass, subjectId]);
+  }, [selectedClass, subjectId, isArchivedView, schoolId]);
 
   const subjectOptions = useMemo(
     () =>
