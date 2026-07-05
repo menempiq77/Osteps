@@ -247,7 +247,10 @@ export default function Page() {
       } else if (isSubjectWorkspaceMode && activeSubjectId) {
         const [schoolYears, subjectClasses] = await Promise.all([
           fetchYearsBySchool(Number(schoolId)),
-          fetchSubjectClasses({ subject_id: Number(activeSubjectId) }) as Promise<SubjectClassRow[]>,
+          fetchSubjectClasses({
+            subject_id: Number(activeSubjectId),
+            include_inactive: true,
+          }) as Promise<SubjectClassRow[]>,
         ]);
 
         const subjectClassYearIds = (Array.isArray(subjectClasses) ? subjectClasses : [])
@@ -258,8 +261,9 @@ export default function Page() {
           ...subjectClassYearIds,
           ...readAddedYears(),
         ]);
+        const hiddenIds = new Set(readHiddenYears());
         yearsData = (Array.isArray(schoolYears) ? schoolYears : []).filter((year: any) =>
-          allowedIds.has(Number(year?.id))
+          allowedIds.has(Number(year?.id)) && !hiddenIds.has(Number(year?.id))
         );
       } else if (isTeacher) {
         const res = await fetchAssignYears();
@@ -507,6 +511,7 @@ export default function Page() {
         }
         const subjectClasses = (await fetchSubjectClasses({
           subject_id: Number(activeSubjectId),
+          include_inactive: true,
         })) as SubjectClassRow[];
         const allowedIds = new Set(
           [
