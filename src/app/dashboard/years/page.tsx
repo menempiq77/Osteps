@@ -18,7 +18,7 @@ import { fetchClasses, updateClass } from "@/services/classesApi";
 import { fetchTerm, addTerm, deleteTerm } from "@/services/termsApi";
 import { fetchStudents } from "@/services/studentsApi";
 import { useSubjectContext } from "@/contexts/SubjectContext";
-import { archiveSubjectClass, deactivateSubjectClassesByYear, fetchSubjectClasses, isMissingSubjectWorkspaceRoute } from "@/services/subjectWorkspaceApi";
+import { archiveSubjectClass, restoreSubjectClass, deactivateSubjectClassesByYear, fetchSubjectClasses, isMissingSubjectWorkspaceRoute } from "@/services/subjectWorkspaceApi";
 import { readSubjectClassBaseMap, resolveSubjectClassLinkedIdWithFallback } from "@/lib/subjectClassResolution";
 
 interface Year {
@@ -99,6 +99,9 @@ export default function Page() {
   const [yearToArchive, setYearToArchive] = useState<number | null>(null);
   const [archivingYear, setArchivingYear] = useState(false);
   const [statsVersion, setStatsVersion] = useState(0);
+  const [archivedYears, setArchivedYears] = useState<Year[]>([]);
+  const [activeTab, setActiveTab] = useState<"active" | "archived">("active");
+  const [restoringYear, setRestoringYear] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentYear, setCurrentYear] = useState<Year | null>(null);
@@ -213,6 +216,7 @@ export default function Page() {
     const loadYears = async () => {
     try {
       let yearsData = [];
+      setArchivedYears([]);
 
       if (isSubjectWorkspaceMode && activeSubjectId && isTeacher) {
         // Teacher + subject workspace: intersect by base_class_label + year_id
@@ -253,17 +257,43 @@ export default function Page() {
           }) as Promise<SubjectClassRow[]>,
         ]);
 
-        const subjectClassYearIds = (Array.isArray(subjectClasses) ? subjectClasses : [])
-          .map((item) => resolveSubjectClassYearId(item))
-          .filter((id) => Number.isFinite(id) && id > 0);
+        const rows = Array.isArray(subjectClasses) ? subjectClasses : [];
+        // Match the Classes page: undefined is_active => treat as active (backend
+        // has no column); null/0 => inactive; 1 => active.
+        const isRowActive = (item: SubjectClassRow) =>
+          item?.is_active === undefined ? true : Number(item.is_active) === 1;
+        const activeYearIds = new Set(
+          rows
+            .filter((item) => isRowActive(item))
+            .map((item) => resolveSubjectClassYearId(item))
+            .filter((id) => Number.isFinite(id) && id > 0)
+        );
+        const archivedYearIds = new Set(
+          rows
+            .filter((item) => !isRowActive(item))
+            .map((item) => resolveSubjectClassYearId(item))
+            .filter((id) => Number.isFinite(id) && id > 0)
+        );
 
-        const allowedIds = new Set([
-          ...subjectClassYearIds,
-          ...readAddedYears(),
-        ]);
         const hiddenIds = new Set(readHiddenYears());
-        yearsData = (Array.isArray(schoolYears) ? schoolYears : []).filter((year: any) =>
-          allowedIds.has(Number(year?.id)) && !hiddenIds.has(Number(year?.id))
+        const addedIds = new Set(readAddedYears());
+        const schoolYearList = Array.isArray(schoolYears) ? schoolYears : [];
+
+        // Active tab: years with at least one active class (or explicitly added, empty years).
+        yearsData = schoolYearList.filter((year: any) => {
+          const id = Number(year?.id);
+          if (hiddenIds.has(id)) return false;
+          return activeYearIds.has(id) || addedIds.has(id);
+        });
+
+        // Archived tab: years whose classes are all archived (no active class remains).
+        const archivedYearsData = schoolYearList.filter((year: any) => {
+          const id = Number(year?.id);
+          if (hiddenIds.has(id)) return false;
+          return archivedYearIds.has(id) && !activeYearIds.has(id) && !addedIds.has(id);
+        });
+        setArchivedYears(
+          applySavedOrder(applySavedYearColors(archivedYearsData as Year[]))
         );
       } else if (isTeacher) {
         const res = await fetchAssignYears();
@@ -290,26 +320,33 @@ export default function Page() {
   };
 
   loadYears();
-}, [schoolId, isTeacher, isSubjectWorkspaceMode, activeSubjectId, subjectContextLoading]);
+}, [schoolId, isTeacher, isSubjectWorkspaceMode, activeSubjectId, subjectContextLoading, statsVersion]);
 
   useEffect(() => {
     const loadYearStats = async () => {
-      if (!years.length) {
+      if (!years.length && !archivedYears.length) {
         setYearStats({});
         return;
       }
 
+      const archivedYearIdSet = new Set(archivedYears.map((year) => Number(year.id)));
+      const allYears = [...years, ...archivedYears];
+
       const statsEntries = await Promise.all(
-        years.map(async (year) => {
+        allYears.map(async (year) => {
+          const countArchived = archivedYearIdSet.has(Number(year.id));
           try {
             if (isSubjectWorkspaceMode && activeSubjectId) {
               const subjectClasses = (await fetchSubjectClasses({
                 subject_id: Number(activeSubjectId),
                 year_id: Number(year.id),
+                include_inactive: true,
               })) as SubjectClassRow[];
-              const classesForYear = (Array.isArray(subjectClasses) ? subjectClasses : []).filter(
-                (row) => resolveSubjectClassYearId(row) === Number(year.id)
-              );
+              const isRowActive = (row: SubjectClassRow) =>
+                row?.is_active === undefined ? true : Number(row.is_active) === 1;
+              const classesForYear = (Array.isArray(subjectClasses) ? subjectClasses : [])
+                .filter((row) => resolveSubjectClassYearId(row) === Number(year.id))
+                .filter((row) => isRowActive(row) !== countArchived);
               const studentCounts = await Promise.all(
                 classesForYear.map(async (row) => {
                   const subjectClassId = String(row?.id ?? "").trim();
@@ -374,7 +411,7 @@ export default function Page() {
     };
 
     loadYearStats();
-  }, [years, isSubjectWorkspaceMode, activeSubjectId, activeSubject?.name, statsVersion]);
+  }, [years, archivedYears, isSubjectWorkspaceMode, activeSubjectId, activeSubject?.name, statsVersion]);
 
   const persistYearOrder = (orderedYears: Year[]) => {
     if (typeof window === "undefined") return;
@@ -511,7 +548,6 @@ export default function Page() {
         }
         const subjectClasses = (await fetchSubjectClasses({
           subject_id: Number(activeSubjectId),
-          include_inactive: true,
         })) as SubjectClassRow[];
         const allowedIds = new Set(
           [
@@ -531,6 +567,8 @@ export default function Page() {
             )
           )
         );
+        // Re-run the full loader so the active/archived split stays consistent.
+        setStatsVersion((v) => v + 1);
       } else {
         const updatedYears = await fetchYearsBySchool(Number(schoolId));
         setYears(applySavedYearColors(updatedYears));
@@ -611,6 +649,56 @@ export default function Page() {
       messageApi.error("Failed to archive year group.");
     } finally {
       setArchivingYear(false);
+    }
+  };
+
+  const handleRestoreYear = async (yearId: number) => {
+    if (!isSubjectWorkspaceMode || !activeSubjectId) return;
+    if (!hasAccess && !isTeacher) {
+      messageApi.warning("You do not have permission to restore year groups.");
+      return;
+    }
+    setRestoringYear(true);
+    try {
+      const subjectClasses = (await fetchSubjectClasses({
+        subject_id: Number(activeSubjectId),
+        year_id: Number(yearId),
+        include_inactive: true,
+      })) as SubjectClassRow[];
+
+      const archivedClassesForYear = (Array.isArray(subjectClasses) ? subjectClasses : [])
+        .filter((row) => resolveSubjectClassYearId(row) === Number(yearId))
+        .filter((row) => !(row?.is_active === undefined ? true : Number(row.is_active) === 1))
+        .map((row) => Number(row.id))
+        .filter((id) => Number.isFinite(id) && id > 0);
+
+      if (archivedClassesForYear.length === 0) {
+        messageApi.info("This year group has no archived classes to restore.");
+        return;
+      }
+
+      const results = await Promise.allSettled(
+        archivedClassesForYear.map((id) => restoreSubjectClass(id))
+      );
+      const failed = results.filter((r) => r.status === "rejected").length;
+      const restored = archivedClassesForYear.length - failed;
+
+      if (restored > 0) {
+        messageApi.success(
+          `Restored ${restored} class${restored === 1 ? "" : "es"} to this year group.`
+        );
+      }
+      if (failed > 0) {
+        messageApi.error(
+          `${failed} class${failed === 1 ? "" : "es"} could not be restored. Please try again.`
+        );
+      }
+      setStatsVersion((v) => v + 1);
+    } catch (err) {
+      console.error(err);
+      messageApi.error("Failed to restore year group.");
+    } finally {
+      setRestoringYear(false);
     }
   };
 
@@ -756,24 +844,74 @@ export default function Page() {
           </Button>
         )}
       </div>
-      <YearsList
-        key={years?.length}
-        years={years?.map((year) => ({
-          id: year.id,
-          name: year.name,
-          school_id: year.school_id,
-          terms: year.terms,
-          color: year.color,
-        }))}
-        onDeleteYear={confirmDelete}
-        onArchiveYear={confirmArchive}
-        onEditYear={(id) => {
-          const year = years.find((y) => y.id === id);
-          if (year) handleEditClick(year);
-        }}
-        onReorderYears={handleReorderYears}
-        yearStats={yearStats}
-      />
+      {isSubjectWorkspaceMode && (
+        <div className="mb-4 inline-flex rounded-full border border-emerald-200 bg-white p-1">
+          <button
+            onClick={() => setActiveTab("active")}
+            className={`px-4 py-1.5 rounded-full text-xs md:text-sm transition ${
+              activeTab === "active"
+                ? "bg-emerald-100 text-emerald-700"
+                : "text-gray-600 hover:text-emerald-700"
+            }`}
+          >
+            Active
+          </button>
+          <button
+            onClick={() => setActiveTab("archived")}
+            className={`px-4 py-1.5 rounded-full text-xs md:text-sm transition ${
+              activeTab === "archived"
+                ? "bg-amber-100 text-amber-700"
+                : "text-gray-600 hover:text-amber-700"
+            }`}
+          >
+            Archived{archivedYears.length > 0 ? ` (${archivedYears.length})` : ""}
+          </button>
+        </div>
+      )}
+
+      {(!isSubjectWorkspaceMode || activeTab === "active") && (
+        <YearsList
+          key={`active-${years?.length}`}
+          years={years?.map((year) => ({
+            id: year.id,
+            name: year.name,
+            school_id: year.school_id,
+            terms: year.terms,
+            color: year.color,
+          }))}
+          onDeleteYear={confirmDelete}
+          onArchiveYear={confirmArchive}
+          onEditYear={(id) => {
+            const year = years.find((y) => y.id === id);
+            if (year) handleEditClick(year);
+          }}
+          onReorderYears={handleReorderYears}
+          yearStats={yearStats}
+        />
+      )}
+
+      {isSubjectWorkspaceMode && activeTab === "archived" && (
+        <YearsList
+          key={`archived-${archivedYears?.length}`}
+          archivedView
+          years={archivedYears?.map((year) => ({
+            id: year.id,
+            name: year.name,
+            school_id: year.school_id,
+            terms: year.terms,
+            color: year.color,
+          }))}
+          onDeleteYear={confirmDelete}
+          onEditYear={(id) => {
+            const year = archivedYears.find((y) => y.id === id);
+            if (year) handleEditClick(year);
+          }}
+          onRestoreYear={handleRestoreYear}
+          restoreLoading={restoringYear}
+          yearStats={yearStats}
+          emptyMessage="No archived year groups. Archive a year from the Active tab to see it here."
+        />
+      )}
 
       {/* Add/Edit Year Modal */}
       <Modal
