@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSelector } from "react-redux";
 import { useQuery } from "@tanstack/react-query";
-import { Alert, Empty, Spin, Tag } from "antd";
+import { Alert, Empty, Select, Spin, Tag } from "antd";
 import {
   Bar,
   BarChart,
@@ -20,6 +20,7 @@ import { RootState } from "@/store/store";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import { fetchStudentProfileData } from "@/services/studentsApi";
 import { fetchGrades } from "@/services/gradesApi";
+import { fetchWholeAssessmentsReport } from "@/services/reportApi";
 
 type AnyObj = Record<string, unknown>;
 
@@ -173,8 +174,71 @@ export default function StudentMyReportPage() {
     enabled: Boolean(schoolId),
   });
 
+  // Assessment results across every class the student has been in (including
+  // previous / archived classes). The student profile endpoint only returns
+  // the current class, so this report is what powers the archived-class view.
+  const { data: reportRows = [] } = useQuery({
+    queryKey: ["student-my-report-assessments", schoolId ?? 0, scopedSubjectId ?? 0],
+    queryFn: () => fetchWholeAssessmentsReport(String(schoolId), scopedSubjectId),
+    enabled: Boolean(schoolId),
+  });
+
   const s = (student ?? {}) as AnyObj;
   const subjectContext = (s?.subject_context ?? {}) as AnyObj;
+
+  const currentClassId = num(
+    (s?.class as AnyObj)?.id ?? s?.class_id ?? currentUser?.studentClass
+  );
+  const studentIdNum = num(s?.id ?? studentId);
+
+  // Classes the student has assessment data for, derived from the report.
+  const classOptions = useMemo(() => {
+    const map = new Map<number, string>();
+    if (currentClassId > 0) {
+      map.set(
+        currentClassId,
+        String(
+          (s?.class as AnyObj)?.class_name ??
+            subjectContext?.subject_class_name ??
+            "Current class"
+        )
+      );
+    }
+    asArray(reportRows).forEach((assessment) => {
+      const cid = num(assessment?.class_id);
+      if (cid <= 0) return;
+      const hasMark = asArray(assessment?.tasks).some((task) =>
+        asArray(task?.submitted).some(
+          (row) => num(row?.student_id) === studentIdNum
+        )
+      );
+      if (!hasMark) return;
+      if (!map.has(cid)) {
+        map.set(
+          cid,
+          normalizeSubjectName(assessment?.class_name ?? `Class ${cid}`)
+        );
+      }
+    });
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+  }, [reportRows, currentClassId, studentIdNum, s, subjectContext]);
+
+  const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (selectedClassId != null) return;
+    if (currentClassId > 0) {
+      setSelectedClassId(currentClassId);
+    } else if (classOptions.length > 0) {
+      setSelectedClassId(classOptions[0].id);
+    }
+  }, [selectedClassId, currentClassId, classOptions]);
+
+  const effectiveClassId = selectedClassId ?? currentClassId;
+  const isPreviousView =
+    effectiveClassId > 0 && effectiveClassId !== currentClassId;
+  const selectedClassName =
+    classOptions.find((c) => c.id === effectiveClassId)?.name ?? "";
 
   const profile = useMemo(() => {
     return {
@@ -236,9 +300,11 @@ export default function StudentMyReportPage() {
     return { positive, negative, net: positive + negative, posCount, negCount };
   }, [behaviourRows]);
 
+  // Assessment results for the selected class, derived from the whole
+  // assessments report so previous / archived classes work the same way as the
+  // student's current class.
   const academic = useMemo(() => {
-    const sid = num(s?.id ?? studentId);
-    const terms = asArray((s?.class as AnyObj)?.term);
+    const sid = studentIdNum;
     const assessments: {
       key: string;
       name: string;
@@ -247,26 +313,29 @@ export default function StudentMyReportPage() {
       percent: number;
     }[] = [];
     const seenAssessments = new Set<string>();
-    terms.forEach((term) => {
-      asArray(term?.assign_assessments).forEach((aa) => {
-        const a = (aa?.assessment as AnyObj) ?? {};
-        if (!a || !a.id) return;
-        const assessmentId = String(a.id);
-        if (seenAssessments.has(assessmentId)) return;
+    asArray(reportRows)
+      .filter((assessment) =>
+        effectiveClassId > 0
+          ? num(assessment?.class_id) === effectiveClassId
+          : true
+      )
+      .forEach((assessment) => {
+        const assessmentId = String(
+          assessment?.assessment_id ?? assessment?.id ?? ""
+        );
+        if (!assessmentId || seenAssessments.has(assessmentId)) return;
         let earned = 0;
         let max = 0;
         let hasMark = false;
-        asArray(a?.tasks).forEach((task) => {
+        asArray(assessment?.tasks).forEach((task) => {
           const allocated = num(task?.allocated_marks);
-          const sats = asArray(task?.student_assessment_tasks).filter(
+          const row = asArray(task?.submitted).find(
             (r) => num(r?.student_id) === sid
           );
-          if (sats.length === 0) return;
-          const score = num(
-            sats[0]?.teacher_assessment_score ??
-              sats[0]?.teacher_assessment_marks
+          if (!row) return;
+          earned += num(
+            row?.teacher_assessment_score ?? row?.teacher_assessment_marks
           );
-          earned += score;
           max += allocated;
           hasMark = true;
         });
@@ -275,14 +344,13 @@ export default function StudentMyReportPage() {
         assessments.push({
           key: assessmentId,
           name: normalizeSubjectName(
-            a?.assessment_name ?? a?.name ?? "Assessment"
+            assessment?.assessment_name ?? assessment?.name ?? "Assessment"
           ),
           earned,
           max,
           percent: pct(earned, max),
         });
       });
-    });
     const totalEarned = assessments.reduce((acc, a) => acc + a.earned, 0);
     const totalMax = assessments.reduce((acc, a) => acc + a.max, 0);
     return {
@@ -292,7 +360,7 @@ export default function StudentMyReportPage() {
       overall: pct(totalEarned, totalMax),
       count: assessments.length,
     };
-  }, [s, studentId]);
+  }, [reportRows, effectiveClassId, studentIdNum]);
 
   const overallGrade = useMemo(() => {
     const p = academic.overall;
@@ -400,6 +468,40 @@ export default function StudentMyReportPage() {
         </ol>
       </nav>
 
+      {/* Class / year switcher — lets a student view a previous (archived)
+          class read-only. */}
+      {classOptions.length > 1 ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+          <span className="text-sm font-semibold text-slate-700">
+            Report for
+          </span>
+          <Select
+            value={effectiveClassId > 0 ? effectiveClassId : undefined}
+            onChange={(value) => setSelectedClassId(Number(value))}
+            style={{ minWidth: 200 }}
+            options={classOptions.map((c) => ({
+              value: c.id,
+              label:
+                c.id === currentClassId ? `${c.name} (current)` : c.name,
+            }))}
+          />
+          {isPreviousView ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
+              Previous class — read-only
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
+      {isPreviousView ? (
+        <Alert
+          type="warning"
+          showIcon
+          message={`Viewing your archived class "${selectedClassName}" (read-only)`}
+          description="These are your saved assessment results for a previous class. Attendance, behaviour and tracker progress are only shown for your current class."
+        />
+      ) : null}
+
       {/* Profile header */}
       <header
         className="overflow-hidden rounded-3xl border p-5 shadow-sm md:p-6"
@@ -429,7 +531,9 @@ export default function StudentMyReportPage() {
                   @{profile.userName}
                 </span>
               ) : null}
-              {profile.className ? (
+              {isPreviousView && selectedClassName ? (
+                <span>· {selectedClassName}</span>
+              ) : profile.className ? (
                 <span>· {profile.className}</span>
               ) : null}
             </div>
@@ -477,7 +581,9 @@ export default function StudentMyReportPage() {
         </div>
       </header>
 
-      {/* KPI tiles */}
+      {/* KPI tiles — current-class only (attendance/behaviour/tracker come
+          from the profile, which reflects the current class). */}
+      {!isPreviousView ? (
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile
           label="Attendance"
@@ -526,8 +632,10 @@ export default function StudentMyReportPage() {
           tone="blue"
         />
       </div>
+      ) : null}
 
-      {/* Attendance + Behaviour charts */}
+      {/* Attendance + Behaviour charts — current-class only */}
+      {!isPreviousView ? (
       <div className="grid gap-4 lg:grid-cols-2">
         <SectionCard
           title="Attendance"
@@ -638,6 +746,7 @@ export default function StudentMyReportPage() {
           )}
         </SectionCard>
       </div>
+      ) : null}
 
       {/* Academic performance */}
       <SectionCard
@@ -731,7 +840,8 @@ export default function StudentMyReportPage() {
         )}
       </SectionCard>
 
-      {/* Tracker progress */}
+      {/* Tracker progress — current-class only */}
+      {!isPreviousView ? (
       <SectionCard
         title="Tracker progress"
         subtitle="Memorisation / curriculum trackers"
@@ -773,6 +883,7 @@ export default function StudentMyReportPage() {
           />
         )}
       </SectionCard>
+      ) : null}
     </div>
   );
 }

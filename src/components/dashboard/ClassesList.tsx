@@ -14,6 +14,7 @@ import {
   DeleteOutlined,
   BookOutlined,
   FolderOpenOutlined,
+  FileSearchOutlined,
   MenuOutlined,
   RollbackOutlined,
   TeamOutlined,
@@ -211,6 +212,15 @@ export default function ClassesList({
     router.push(toSubjectHref(`/dashboard/students/${classId}`));
   };
 
+  const handleViewArchivedReports = (cls: Class) => {
+    const params = new URLSearchParams();
+    if (activeSubjectId) params.set("subject_id", String(activeSubjectId));
+    if (cls.year_id) params.set("year", String(cls.year_id));
+    params.set("class", String(cls.id));
+    params.set("archived", "1");
+    router.push(`/dashboard/reports?${params.toString()}`);
+  };
+
   const handleStory = (classId: string) => {
     if (subjectScoped && activeSubjectId) {
       router.push(toSubjectHref(`/dashboard/classes/${classId}/story`));
@@ -406,6 +416,16 @@ export default function ClassesList({
                         <EditOutlined /> Edit
                       </button>
                     )}
+
+                    {subjectScoped && archivedView ? (
+                      <button
+                        onClick={() => handleViewArchivedReports(cls)}
+                        className="cursor-pointer text-slate-600 hover:text-[var(--theme-dark)]"
+                        title="View students' reports (read-only)"
+                      >
+                        <FileSearchOutlined /> View reports
+                      </button>
+                    ) : null}
 
                     {hasAccess && subjectScoped && archivedView && onRestoreClass ? (
                       <button
