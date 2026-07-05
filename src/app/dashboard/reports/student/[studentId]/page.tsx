@@ -357,12 +357,25 @@ export default function StudentReportPage() {
     const assessments: {
       key: string;
       name: string;
+      termName: string;
       earned: number;
       max: number;
       percent: number;
+      tasks: {
+        key: string;
+        name: string;
+        earned: number;
+        max: number;
+        percent: number;
+        marked: boolean;
+        feedback: string;
+      }[];
     }[] = [];
     const seenAssessments = new Set<string>();
     terms.forEach((term) => {
+      const termName = normalizeSubjectName(
+        term?.term_name ?? term?.name ?? ""
+      );
       asArray(term?.assign_assessments).forEach((aa) => {
         const a = (aa?.assessment as AnyObj) ?? {};
         if (!a || !a.id) return;
@@ -371,27 +384,62 @@ export default function StudentReportPage() {
         let earned = 0;
         let max = 0;
         let hasMark = false;
-        asArray(a?.tasks).forEach((task) => {
+        const tasks: {
+          key: string;
+          name: string;
+          earned: number;
+          max: number;
+          percent: number;
+          marked: boolean;
+          feedback: string;
+        }[] = [];
+        asArray(a?.tasks).forEach((task, idx) => {
           const allocated = num(task?.allocated_marks);
           const sats = asArray(task?.student_assessment_tasks).filter(
             (r) => num(r?.student_id) === sid
           );
-          if (sats.length === 0) return;
-          const score = num(
-            sats[0]?.teacher_assessment_score ?? sats[0]?.teacher_assessment_marks
-          );
-          earned += score;
-          max += allocated;
-          hasMark = true;
+          const marked = sats.length > 0;
+          const score = marked
+            ? num(
+                sats[0]?.teacher_assessment_score ??
+                  sats[0]?.teacher_assessment_marks
+              )
+            : 0;
+          const feedback = marked
+            ? String(
+                sats[0]?.teacher_feedback ??
+                  sats[0]?.feedback ??
+                  sats[0]?.teacher_comment ??
+                  ""
+              ).trim()
+            : "";
+          tasks.push({
+            key: String(task?.id ?? `${assessmentId}-${idx}`),
+            name: normalizeSubjectName(
+              task?.task_name ?? task?.name ?? task?.title ?? `Task ${idx + 1}`
+            ),
+            earned: score,
+            max: allocated,
+            percent: pct(score, allocated),
+            marked,
+            feedback,
+          });
+          if (marked) {
+            earned += score;
+            max += allocated;
+            hasMark = true;
+          }
         });
         if (!hasMark) return;
         seenAssessments.add(assessmentId);
         assessments.push({
           key: assessmentId,
           name: normalizeSubjectName(a?.assessment_name ?? a?.name ?? "Assessment"),
+          termName,
           earned,
           max,
           percent: pct(earned, max),
+          tasks,
         });
       });
     });
@@ -758,8 +806,73 @@ export default function StudentReportPage() {
               rowKey="key"
               pagination={false}
               dataSource={academic.assessments}
+              expandable={{
+                defaultExpandAllRows: true,
+                rowExpandable: (r) => r.tasks.length > 0,
+                expandedRowRender: (r) => (
+                  <div className="rounded-lg bg-slate-50 p-2">
+                    <p className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                      Tasks in this assessment
+                    </p>
+                    <Table
+                      size="small"
+                      rowKey="key"
+                      pagination={false}
+                      dataSource={r.tasks}
+                      columns={[
+                        { title: "Task", dataIndex: "name", key: "name" },
+                        {
+                          title: "Marks",
+                          key: "marks",
+                          render: (_: unknown, t) =>
+                            t.marked ? `${t.earned}/${t.max}` : `—/${t.max}`,
+                        },
+                        {
+                          title: "Score",
+                          dataIndex: "percent",
+                          key: "percent",
+                          render: (v: number, t) =>
+                            t.marked ? (
+                              <Tag color={v >= 70 ? "green" : v >= 50 ? "orange" : "red"}>
+                                {v}%
+                              </Tag>
+                            ) : (
+                              <Tag>Not marked</Tag>
+                            ),
+                        },
+                        {
+                          title: "Feedback",
+                          dataIndex: "feedback",
+                          key: "feedback",
+                          render: (v: string) =>
+                            v ? (
+                              <span className="text-slate-600">{v}</span>
+                            ) : (
+                              <span className="text-slate-400">—</span>
+                            ),
+                        },
+                      ]}
+                    />
+                  </div>
+                ),
+              }}
               columns={[
-                { title: "Assessment", dataIndex: "name", key: "name" },
+                {
+                  title: "Assessment",
+                  dataIndex: "name",
+                  key: "name",
+                  render: (v: string, r) => (
+                    <div>
+                      <span className="font-medium text-slate-800">{v}</span>
+                      {r.termName ? (
+                        <span className="ml-1.5 text-xs text-slate-400">· {r.termName}</span>
+                      ) : null}
+                      <span className="ml-1.5 text-xs text-slate-400">
+                        ({r.tasks.length} task{r.tasks.length === 1 ? "" : "s"})
+                      </span>
+                    </div>
+                  ),
+                },
                 {
                   title: "Marks",
                   key: "marks",
