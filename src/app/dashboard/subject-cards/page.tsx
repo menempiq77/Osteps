@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useSelector } from "react-redux";
 import { Empty, Modal, Input, Form, message } from "antd";
@@ -397,7 +396,6 @@ export default function SubjectCardsPage() {
   const { subjects, loading, canUseSubjectContext, activeSubjectId, setActiveSubjectId, refreshSubjects } =
     useSubjectContext();
 
-  const router = useRouter();
   const role = String(currentUser?.role || "").trim().toUpperCase();
   const isStudent = role === "STUDENT";
   const isSchoolAdmin = isSchoolAdminRole(currentUser?.role ?? null);
@@ -414,6 +412,8 @@ export default function SubjectCardsPage() {
   const [archiveLoading, setArchiveLoading] = useState(false);
   const [restoreLoadingId, setRestoreLoadingId] = useState<number | null>(null);
   const [classStateVersion, setClassStateVersion] = useState(0);
+  // Archived subject opened in the embedded, read-only workspace popup.
+  const [workspaceTarget, setWorkspaceTarget] = useState<{ id: number; name: string } | null>(null);
 
   // ── Create / Edit subject modal state ───────────────────────────────
   const [modalOpen, setModalOpen] = useState(false);
@@ -646,8 +646,10 @@ export default function SubjectCardsPage() {
     }
   };
 
-  const openArchivedSubjectReports = (subjectId: number) => {
-    router.push(`/dashboard/reports?subject_id=${subjectId}&archived=1`);
+  // Open an archived subject as its real workspace (with the subject side bar)
+  // inside a smaller, read-only popup overlaying the dashboard.
+  const openArchivedSubjectWorkspace = (subject: { id: number; name: string }) => {
+    setWorkspaceTarget({ id: Number(subject.id), name: String(subject.name) });
   };
 
   const canEnterSubjectWorkspace = useMemo(
@@ -808,7 +810,7 @@ export default function SubjectCardsPage() {
                   }}
                   onClick={() =>
                     archivedCard
-                      ? openArchivedSubjectReports(Number(subject.id))
+                      ? openArchivedSubjectWorkspace({ id: Number(subject.id), name: String(displayName) })
                       : setActiveSubjectId(Number(subject.id), { navigate: true })
                   }
                 >
@@ -931,7 +933,7 @@ export default function SubjectCardsPage() {
                       {archivedCard ? (
                         <>
                           <FileSearchOutlined style={{ fontSize: 11 }} />
-                          View reports
+                          Open (read-only)
                         </>
                       ) : (
                         <>
@@ -1189,6 +1191,40 @@ export default function SubjectCardsPage() {
           viewable read-only under the <strong>Archived</strong> tab. You can restore the subject
           anytime.
         </p>
+      </Modal>
+
+      {/* ── Archived subject read-only workspace popup ─────────────────────
+          Loads the subject's real workspace (with its side bar) inside a
+          smaller framed window. `readonly=1` makes the embedded dashboard
+          block every mutating request, so everything is viewable but locked. */}
+      <Modal
+        title={
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-700">
+              <InboxOutlined style={{ fontSize: 12 }} />
+              Archived — read-only
+            </span>
+            <span className="truncate font-bold text-slate-700">
+              {workspaceTarget?.name}
+            </span>
+          </div>
+        }
+        open={!!workspaceTarget}
+        onCancel={() => setWorkspaceTarget(null)}
+        footer={null}
+        width="92vw"
+        style={{ top: 24, maxWidth: 1400 }}
+        styles={{ body: { padding: 0 } }}
+        destroyOnClose
+      >
+        {workspaceTarget ? (
+          <iframe
+            key={workspaceTarget.id}
+            src={`/dashboard/s/${workspaceTarget.id}?readonly=1`}
+            title={`${workspaceTarget.name} (archived, read-only)`}
+            className="h-[80vh] w-full rounded-b-lg border-0 bg-white"
+          />
+        ) : null}
       </Modal>
     </div>
   );

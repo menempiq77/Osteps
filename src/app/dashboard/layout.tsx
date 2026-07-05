@@ -15,6 +15,7 @@ import { User } from "@/features/auth/types";
 
 const QuickLauncher = dynamic(() => import("@/components/ui/QuickLauncher"));
 const FavoriteSidebar = dynamic(() => import("@/components/ui/FavoriteSidebar"));
+const ReadOnlyGuard = dynamic(() => import("@/components/ui/ReadOnlyGuard"));
 const SubjectRightSidebar = dynamic(() => import("@/components/ui/SubjectRightSidebar"));
 const RightSidebarReveal = dynamic(() => import("@/components/ui/RightSidebarReveal"));
 const PinnedPagesDock = dynamic(() => import("@/components/ui/PinnedPagesDock"));
@@ -484,7 +485,10 @@ export default function DashboardLayout({
   };
 
   const withSubjectContext = (content: React.ReactNode) => (
-    <SubjectContextProvider>{content}</SubjectContextProvider>
+    <SubjectContextProvider>
+      <ReadOnlyGuard />
+      {content}
+    </SubjectContextProvider>
   );
 
   if (isSubjectCardsEntryRoute) {
