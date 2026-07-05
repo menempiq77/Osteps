@@ -142,10 +142,12 @@ function ReportCard({
   report,
   onEdited,
   subjectId,
+  canEdit = true,
 }: {
   report: StudentNarrativeReport;
   onEdited: () => void;
   subjectId: number | null;
+  canEdit?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -192,14 +194,16 @@ function ReportCard({
             <Tag color="purple">Attainment: {report.attainment}</Tag>
           ) : null}
         </div>
-        <Button
-          size="small"
-          icon={<EditOutlined />}
-          onClick={() => setEditing(true)}
-          className="no-print"
-        >
-          Edit
-        </Button>
+        {canEdit ? (
+          <Button
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => setEditing(true)}
+            className="no-print"
+          >
+            Edit
+          </Button>
+        ) : null}
       </div>
       {report.strengths ? (
         <p className="m-0 mb-2 text-sm text-slate-700">
@@ -229,11 +233,13 @@ export default function TeacherReportEditor({
   subjectId,
   reports,
   onChanged,
+  canEdit = true,
 }: {
   studentId: number;
   subjectId: number | null;
   reports: StudentNarrativeReport[];
   onChanged: () => void;
+  canEdit?: boolean;
 }) {
   const [adding, setAdding] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -267,7 +273,7 @@ export default function TeacherReportEditor({
 
   return (
     <div className="space-y-3">
-      {!adding ? (
+      {!canEdit ? null : !adding ? (
         <div className="no-print flex justify-end">
           <Button
             type="primary"
@@ -302,6 +308,7 @@ export default function TeacherReportEditor({
               report={r}
               subjectId={subjectId}
               onEdited={onChanged}
+              canEdit={canEdit}
             />
           ))}
         </div>

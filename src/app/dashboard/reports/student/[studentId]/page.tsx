@@ -854,6 +854,7 @@ export default function StudentReportPage() {
           subjectId={subjectId ?? null}
           reports={narrativeReports}
           onChanged={() => refetchReports()}
+          canEdit={canEditSupport}
         />
       </SectionCard>
 
