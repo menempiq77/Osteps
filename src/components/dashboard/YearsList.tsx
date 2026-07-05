@@ -12,6 +12,7 @@ import {
   TeamOutlined,
   AppstoreOutlined,
   InboxOutlined,
+  UndoOutlined,
 } from "@ant-design/icons";
 
 interface Year {
@@ -25,8 +26,12 @@ interface YearsListProps {
   onDeleteYear: (id: number) => void;
   onEditYear: (id: number) => void;
   onArchiveYear?: (id: number) => void;
+  onRestoreYear?: (id: number) => void;
   onReorderYears?: (years: Year[]) => void;
   yearStats?: Record<number, { classes: number; students: number }>;
+  archivedView?: boolean;
+  restoreLoading?: boolean;
+  emptyMessage?: string;
 }
 
 export default function YearsList({
@@ -34,8 +39,12 @@ export default function YearsList({
   onDeleteYear,
   onEditYear,
   onArchiveYear,
+  onRestoreYear,
   onReorderYears,
   yearStats = {},
+  archivedView = false,
+  restoreLoading = false,
+  emptyMessage = "No year groups found.",
 }: YearsListProps) {
   const router = useRouter();
   const { activeSubjectId, toSubjectHref } = useSubjectContext();
@@ -66,7 +75,11 @@ export default function YearsList({
 
   const handleViewClasses = (yearId: number) => {
     localStorage.setItem("selectedYearId", yearId.toString());
-    router.push(toSubjectHref(`/dashboard/classes?year=${yearId}`));
+    router.push(
+      toSubjectHref(
+        `/dashboard/classes?year=${yearId}${archivedView ? "&archived=1" : ""}`
+      )
+    );
   };
 
   const getPaletteColor = (palette?: string) => {
@@ -227,15 +240,17 @@ export default function YearsList({
               {/* Actions */}
               {canManageOrder && (
                 <div className="flex shrink-0 items-center gap-1 pr-3">
-                  <button
-                    onClick={() => onEditYear(year.id)}
-                    className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
-                    title="Edit year"
-                  >
-                    <EditOutlined />
-                    <span className="hidden sm:inline">Edit</span>
-                  </button>
-                  {onArchiveYear && activeSubjectId && stats.classes > 0 && (
+                  {!archivedView && (
+                    <button
+                      onClick={() => onEditYear(year.id)}
+                      className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                      title="Edit year"
+                    >
+                      <EditOutlined />
+                      <span className="hidden sm:inline">Edit</span>
+                    </button>
+                  )}
+                  {!archivedView && onArchiveYear && activeSubjectId && stats.classes > 0 && (
                     <button
                       onClick={() => onArchiveYear(year.id)}
                       className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-amber-500 transition-colors hover:bg-amber-50 hover:text-amber-600"
@@ -245,14 +260,27 @@ export default function YearsList({
                       <span className="hidden sm:inline">Archive</span>
                     </button>
                   )}
-                  <button
-                    onClick={() => onDeleteYear(year.id)}
-                    className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-rose-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
-                    title={activeSubjectId ? "Remove from subject" : "Delete year"}
-                  >
-                    <DeleteOutlined />
-                    <span className="hidden sm:inline">{activeSubjectId ? "Remove" : "Delete"}</span>
-                  </button>
+                  {archivedView && onRestoreYear && activeSubjectId && (
+                    <button
+                      onClick={() => onRestoreYear(year.id)}
+                      disabled={restoreLoading}
+                      className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-emerald-600 transition-colors hover:bg-emerald-50 hover:text-emerald-700 disabled:opacity-50"
+                      title="Restore this year group and all its archived classes"
+                    >
+                      <UndoOutlined />
+                      <span className="hidden sm:inline">Restore</span>
+                    </button>
+                  )}
+                  {!archivedView && (
+                    <button
+                      onClick={() => onDeleteYear(year.id)}
+                      className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-rose-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
+                      title={activeSubjectId ? "Remove from subject" : "Delete year"}
+                    >
+                      <DeleteOutlined />
+                      <span className="hidden sm:inline">{activeSubjectId ? "Remove" : "Delete"}</span>
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -263,7 +291,7 @@ export default function YearsList({
           className="rounded-xl border border-dashed bg-white py-12 text-center text-sm text-slate-400"
           style={{ borderColor: "color-mix(in srgb, var(--primary) 30%, white)" }}
         >
-          No year groups found.
+          {emptyMessage}
         </div>
       )}
     </div>

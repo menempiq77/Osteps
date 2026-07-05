@@ -75,6 +75,7 @@ const mapSubjectClassToApiClass = (row: SubjectClassRow): ApiClass => ({
 export default function Page() {
   const searchParams = useSearchParams();
   const year_id = searchParams.get("year");
+  const archivedParam = searchParams.get("archived") === "1";
 
   const [modalOpen, setModalOpen] = useState(false);
   const [classes, setClasses] = useState<ApiClass[]>([]);
@@ -84,7 +85,7 @@ export default function Page() {
   const [classStats, setClassStats] = useState<Record<string, { students: number }>>({});
   const [isDeleteClassModalOpen, setIsDeleteClassModalOpen] = useState(false);
   const [classToDelete, setClassToDelete] = useState<string | null>(null);
-  const [showArchived, setShowArchived] = useState(false);
+  const [showArchived, setShowArchived] = useState(archivedParam);
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [messageApi, contextHolder] = message.useMessage();
   const { activeSubjectId, activeSubject, canUseSubjectContext, loading: subjectContextLoading } = useSubjectContext();
