@@ -20,6 +20,7 @@ import { fetchStudents } from "@/services/studentsApi";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import { archiveSubjectClass, restoreSubjectClass, deactivateSubjectClassesByYear, fetchSubjectClasses, isMissingSubjectWorkspaceRoute } from "@/services/subjectWorkspaceApi";
 import { readSubjectClassBaseMap, resolveSubjectClassLinkedIdWithFallback } from "@/lib/subjectClassResolution";
+import { useReadOnlyWorkspace } from "@/lib/readOnlyWorkspace";
 
 interface Year {
   id: number;
@@ -100,7 +101,12 @@ export default function Page() {
   const [archivingYear, setArchivingYear] = useState(false);
   const [statsVersion, setStatsVersion] = useState(0);
   const [archivedYears, setArchivedYears] = useState<Year[]>([]);
-  const [activeTab, setActiveTab] = useState<"active" | "archived">("active");
+  const isReadOnlyArchivedWorkspace = useReadOnlyWorkspace();
+  // In the archived read-only popup, open on the Archived tab so the subject's
+  // archived year groups are shown by default instead of an empty Active list.
+  const [activeTab, setActiveTab] = useState<"active" | "archived">(
+    isReadOnlyArchivedWorkspace ? "archived" : "active"
+  );
   const [restoringYear, setRestoringYear] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

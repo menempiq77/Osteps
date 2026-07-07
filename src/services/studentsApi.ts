@@ -40,6 +40,19 @@ export const fetchStudents = async (
 ) => {
   return getRawStudents(classId, subjectId, subjectClassId);
 };
+
+/**
+ * Fetch the full base-class roster with NO subject scoping at all.
+ *
+ * `fetchStudents`/`withSubjectQuery` silently fall back to the stored active
+ * subject id when none is passed, which returns 0 rows for an archived
+ * subject-class. The archived read-only workspace uses this to list the class's
+ * students as they were, bypassing the (inactive) subject-class enrollment.
+ */
+export const fetchBaseClassStudents = async (classId: string | number) => {
+  const response = await api.get(`/get-student/${classId}`);
+  return response?.data?.data ?? [];
+};
 // add Student
 export const addStudent = async (studentData: {
   student_name: string;
