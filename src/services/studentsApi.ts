@@ -18,6 +18,14 @@ const getRawStudents = async (
   if (subjectClassId != null && String(subjectClassId).trim() !== "") {
     scopedParams.subject_class_id = Number(subjectClassId);
   }
+  // In the archived read-only workspace the subject-class enrollment is inactive,
+  // so the subject-scoped roster returns nothing. Ask the API to include inactive
+  // subject-classes so we get the students actually enrolled in the subject
+  // (rather than falling back to the whole physical base-class roster, which can
+  // include students who were never enrolled in this subject).
+  if (isReadOnlyWorkspace()) {
+    scopedParams.include_inactive = 1;
+  }
   const response = await api.get(`/get-student/${classId}`, {
     params: scopedParams,
   });
