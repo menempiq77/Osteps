@@ -161,11 +161,22 @@ const filterToSubjectsWithActiveClasses = async (
   subjects: SubjectBrief[]
 ): Promise<SubjectBrief[]> => {
   if (subjects.length === 0) return [];
+  // undefined is_active => backend has no column, treat as active (don't hide);
+  // null/0 => archived; 1 => active. Mirrors the Classes/Years/subject-cards pages.
+  const isActive = (row: any) =>
+    row?.is_active === undefined ? true : Number(row?.is_active) === 1;
   const results = await Promise.all(
     subjects.map(async (subject) => {
       try {
-        const activeClasses = await fetchSubjectClasses({ subject_id: Number(subject.id) });
-        return Array.isArray(activeClasses) && activeClasses.length > 0 ? subject : null;
+        // Ask for every class (incl. inactive) so we can decide by is_active,
+        // because the list endpoint returns archived classes too.
+        const classes = await fetchSubjectClasses({
+          subject_id: Number(subject.id),
+          include_inactive: true,
+        });
+        const hasActiveClass =
+          Array.isArray(classes) && classes.some((row) => isActive(row));
+        return hasActiveClass ? subject : null;
       } catch {
         return subject;
       }
@@ -381,6 +392,7 @@ export const fetchMySubjectContext = async (options?: {
   const isAdminImpersonating =
     typeof window !== "undefined" && !!localStorage.getItem("osteps_impersonating_admin");
   let apiContext: SubjectContextResponse | null = null;
+  let myContextSucceeded = false;
 
   // Non-staff: try backend API first, then knownSubjects (skip when impersonating)
   if (!isAdminImpersonating) {
@@ -388,8 +400,13 @@ export const fetchMySubjectContext = async (options?: {
       const res = await api.get("/subjects/my-context");
       const normalized = extractContext(res.data);
       apiContext = normalized;
+      myContextSucceeded = true;
       console.log("[SubjectContext] /subjects/my-context returned", normalized.assigned_subjects.length, "subjects:", normalized.assigned_subjects.map(s => s.name));
-      if (normalized.assigned_subjects.length > 0 && !isStudent) return normalized;
+      // my-context is authoritative for both staff and students: the backend
+      // returns only ACTIVE subjects, so archived subjects are already excluded.
+      // Students can't query /subject-classes (403) to filter a broader list, so
+      // this is the only reliable active-subject signal for them.
+      if (normalized.assigned_subjects.length > 0) return normalized;
     } catch (err: any) {
       console.warn("[SubjectContext] /subjects/my-context failed:", err?.response?.status, err?.message);
     }
@@ -406,6 +423,15 @@ export const fetchMySubjectContext = async (options?: {
 
   // For students: fetch their enrolled subjects from class student list.
   if (isStudent) {
+    // my-context is authoritative when it succeeds: a non-empty result already
+    // returned above, so reaching here after a successful call means the student
+    // has NO active subjects (all archived) — return empty rather than deriving
+    // from class links (which can't be filtered for archived state; students 403
+    // on /subject-classes). The derivation/last-resort paths below only run when
+    // my-context actually errored, to avoid stranding the student.
+    if (myContextSucceeded) {
+      return { assigned_subjects: [], default_subject_id: null, subject_roles: [] };
+    }
     const sid = Number(options?.studentId ?? 0);
     const classId = Number(options?.studentClassId ?? 0);
     const collectedSubjects: SubjectBrief[] = [
@@ -465,7 +491,9 @@ export const fetchMySubjectContext = async (options?: {
       };
     }
 
-    // Last resort: fetch all school subjects so student isn't stuck.
+    // Last resort (only reached when my-context errored — a successful my-context
+    // returns above): fetch all school subjects so the student isn't stranded with
+    // nothing due to a transient backend failure.
     // When impersonating, don't fall back to all subjects — return empty so we see only what the student sees.
     if (isAdminImpersonating) {
       return { assigned_subjects: [], default_subject_id: null, subject_roles: [] };

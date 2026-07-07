@@ -429,7 +429,7 @@ export default function ClassesList({
                       </button>
                     ) : null}
 
-                    {hasAccess && subjectScoped && archivedView && onRestoreClass ? (
+                    {hasAccess && !isReadOnly && subjectScoped && archivedView && onRestoreClass ? (
                       <button
                         onClick={() => onRestoreClass(cls.id)}
                         className="cursor-pointer text-emerald-600 hover:text-emerald-700"
@@ -439,7 +439,7 @@ export default function ClassesList({
                       </button>
                     ) : null}
 
-                    {hasAccess && (
+                    {hasAccess && !isReadOnly && (
                       <button
                         onClick={() => handleDeleteClick(cls)}
                         className="cursor-pointer text-rose-600 hover:text-rose-700"
