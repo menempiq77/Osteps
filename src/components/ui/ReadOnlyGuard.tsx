@@ -3,6 +3,10 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { message } from "antd";
+import {
+  activateReadOnlyWorkspace,
+  isReadOnlyWorkspace,
+} from "@/lib/readOnlyWorkspace";
 
 /**
  * Enforces a read-only view of the dashboard when it is loaded with `?readonly=1`
@@ -20,10 +24,10 @@ import { message } from "antd";
  * main dashboard window is never affected.
  */
 
-// Sticky per-document: once activated we keep it on for the life of this
+// Sticky per-document read-only state lives in @/lib/readOnlyWorkspace so data
+// queries can also key on it. Once activated we keep it on for the life of this
 // browsing context, so client-side navigations that drop the query param (e.g.
 // clicking the subject side bar) can't silently re-enable editing.
-let READONLY_ACTIVATED = false;
 let PATCHED = false;
 
 const BLOCKED_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
@@ -100,13 +104,13 @@ const installNetworkGuards = () => {
 
 export default function ReadOnlyGuard() {
   const searchParams = useSearchParams();
-  const [active, setActive] = useState(READONLY_ACTIVATED);
+  const [active, setActive] = useState(isReadOnlyWorkspace());
 
   useEffect(() => {
     if (searchParams.get("readonly") === "1") {
-      READONLY_ACTIVATED = true;
+      activateReadOnlyWorkspace();
     }
-    if (READONLY_ACTIVATED) {
+    if (isReadOnlyWorkspace()) {
       installNetworkGuards();
       setActive(true);
     }

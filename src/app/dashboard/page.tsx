@@ -28,7 +28,7 @@ import {
 import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
 import { fetchClasses } from "@/services/classesApi";
 import { fetchTeachers } from "@/services/teacherApi";
-import { fetchStudentProfileData, fetchStudents } from "@/services/studentsApi";
+import { fetchStudentProfileData, fetchStudents, fetchBaseClassStudents } from "@/services/studentsApi";
 import { fetchAssessmentByStudent, fetchSchoolLogo } from "@/services/api";
 import { fetchTrackers } from "@/services/trackersApi";
 import { IMG_BASE_URL } from "@/lib/config";
@@ -48,6 +48,7 @@ import {
 import { fetchTerm } from "@/services/termsApi";
 import { IMPERSONATION_STORAGE_KEY } from "@/features/auth/authSlice";
 import ClassStoryPanel from "@/components/dashboard/ClassStoryPanel";
+import { useReadOnlyWorkspace } from "@/lib/readOnlyWorkspace";
 
 const DashboardCharts = dynamic(() => import("@/components/dashboard/DashboardCharts"), {
   ssr: false,
@@ -296,6 +297,7 @@ export default function DashboardPage() {
   } = useSubjectContext();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const isReadOnlyArchivedWorkspace = useReadOnlyWorkspace();
   const isSUPER_ADMIN = currentUser?.role === "SUPER_ADMIN";
   const isSCHOOL_ADMIN = currentUser?.role === "SCHOOL_ADMIN";
   const isTEACHER = currentUser?.role === "TEACHER";
@@ -370,9 +372,13 @@ export default function DashboardPage() {
 
   const getSubjectScopedSummary = async (
     subjectId: number,
-    subjectName?: string | null
+    subjectName?: string | null,
+    includeInactive = false
   ): Promise<{ yearCount: number; classCount: number; studentCount: number }> => {
-    const subjectClasses = await fetchSubjectClasses({ subject_id: Number(subjectId) });
+    const subjectClasses = await fetchSubjectClasses({
+      subject_id: Number(subjectId),
+      include_inactive: includeInactive || undefined,
+    });
     const scopedClasses = (Array.isArray(subjectClasses) ? subjectClasses : []).filter((row: any) => {
       const parsedYearId = resolveSubjectClassYearId(row);
       return Number.isFinite(parsedYearId) && parsedYearId > 0;
@@ -418,6 +424,14 @@ export default function DashboardPage() {
             );
             const studentRows = Array.isArray(students) ? students : [];
             if (studentRows.length > 0) { finalRows = studentRows; break; }
+          }
+
+          // In the archived read-only workspace the subject-class enrollment is
+          // inactive, so the subject-scoped roster returns 0. Fall back to the
+          // base class roster so the archived students still show up.
+          if (finalRows.length === 0 && includeInactive && linkedClassId) {
+            const baseStudents = await fetchBaseClassStudents(String(linkedClassId));
+            finalRows = Array.isArray(baseStudents) ? baseStudents : [];
           }
 
           finalRows.forEach((student: any) => {
@@ -532,12 +546,17 @@ export default function DashboardPage() {
       activeSubjectId,
       schoolId,
       currentUser?.role,
+      isReadOnlyArchivedWorkspace,
     ],
     queryFn: async () => {
       if (!activeSubjectId) return null;
 
       const [subjectSummary, staffAssignments] = await Promise.all([
-        getSubjectScopedSummary(Number(activeSubjectId), activeSubject?.name),
+        getSubjectScopedSummary(
+          Number(activeSubjectId),
+          activeSubject?.name,
+          isReadOnlyArchivedWorkspace
+        ),
         fetchStaffSubjectAssignments().catch(() => []),
       ]);
 

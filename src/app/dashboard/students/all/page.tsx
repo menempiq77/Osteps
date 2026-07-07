@@ -29,7 +29,7 @@ import { RootState } from "@/store/store";
 import { IMPERSONATION_STORAGE_KEY, setCurrentUser } from "@/features/auth/authSlice";
 import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
 import { fetchClasses } from "@/services/classesApi";
-import { addStudent, deleteStudent, fetchStudentProfileData, fetchStudents, updateStudent } from "@/services/studentsApi";
+import { addStudent, deleteStudent, fetchStudentProfileData, fetchStudents, fetchBaseClassStudents, updateStudent } from "@/services/studentsApi";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import {
   filterStudentsBySubjectScope,
@@ -43,6 +43,7 @@ import {
 } from "@/lib/subjectStudentHints";
 import { resolveSubjectClassLinkedIdWithFallback } from "@/lib/subjectClassResolution";
 import { extractSubjectIdFromPath, toSubjectScopedPath } from "@/lib/subjectRouting";
+import { useReadOnlyWorkspace } from "@/lib/readOnlyWorkspace";
 import { readStudentProfileOverride, writeStudentProfileOverride } from "@/lib/studentProfileOverrides";
 import {
   assignStudentsToSubjects,
@@ -519,6 +520,7 @@ export default function AllStudentsPage() {
   const scopedSubjectName = scopedSubject?.name ?? "";
   const isPathSubjectScoped = Number.isFinite(pathSubjectId) && pathSubjectId > 0;
   const isSubjectWorkspaceMode = canUseSubjectContext && isPathSubjectScoped && scopedSubjectId > 0;
+  const isReadOnlyArchivedWorkspace = useReadOnlyWorkspace();
   const isWaitingForSubjectScopedStudents =
     canView &&
     isPathSubjectScoped &&
@@ -567,6 +569,7 @@ export default function AllStudentsPage() {
       schoolId,
       isSubjectWorkspaceMode ? scopedSubjectId : "school",
       subjectContextLoading ? "subject-context-loading" : "subject-context-ready",
+      isReadOnlyArchivedWorkspace ? "archived-readonly" : "active",
       String(scopedSubjectName),
       subjects
         .map((subject) => `${Number(subject.id)}:${displaySubjectName(subject.name)}`)
@@ -813,6 +816,7 @@ export default function AllStudentsPage() {
       if (isSubjectWorkspaceMode && scopedSubjectId) {
         const subjectClasses = (await fetchSubjectClasses({
           subject_id: Number(scopedSubjectId),
+          include_inactive: isReadOnlyArchivedWorkspace || undefined,
         })) as SubjectClassRow[];
 
         classList = (
@@ -910,7 +914,22 @@ export default function AllStudentsPage() {
                 : undefined
             )) as Array<Record<string, unknown>>;
 
-            const studentRows = Array.isArray(classStudents) ? classStudents : [];
+            let studentRows = Array.isArray(classStudents) ? classStudents : [];
+
+            // In the archived read-only workspace the subject-class enrollment
+            // is inactive, so the subject-scoped roster returns nothing. Fall
+            // back to the base class roster so the archived students still show
+            // up (read-only). These rows bypass the subject-scope filter below.
+            let usedArchivedBaseRoster = false;
+            if (isReadOnlyArchivedWorkspace && studentRows.length === 0) {
+              const baseStudents = (await fetchBaseClassStudents(
+                linkedClassId
+              )) as Array<Record<string, unknown>>;
+              if (Array.isArray(baseStudents) && baseStudents.length > 0) {
+                studentRows = baseStudents;
+                usedArchivedBaseRoster = true;
+              }
+            }
 
             const subjectScope = {
               subjectId: Number(scopedSubjectId),
@@ -950,7 +969,9 @@ export default function AllStudentsPage() {
               !studentRows.some((student) => hasAnySubjectMarkers(student))
                 ? studentRows
                 : [];
-            const scopedStudents = isSubjectWorkspaceMode
+            const scopedStudents = usedArchivedBaseRoster
+              ? studentRows
+              : isSubjectWorkspaceMode
               ? dedupeStudentRows([
                   ...combinedRows,
                   ...((combinedRows.length === 0 ? safeFallbackRows : []) as Array<Record<string, unknown>>),

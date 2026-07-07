@@ -5,6 +5,7 @@ import ClassesList from "@/components/dashboard/ClassesList";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { useSearchParams } from "next/navigation";
+import { useReadOnlyWorkspace } from "@/lib/readOnlyWorkspace";
 import { Breadcrumb, Spin, Modal, Button, message } from "antd";
 import Link from "next/link";
 import { addClass, deleteClass, fetchClasses, updateClass } from "@/services/classesApi";
@@ -75,7 +76,11 @@ const mapSubjectClassToApiClass = (row: SubjectClassRow): ApiClass => ({
 export default function Page() {
   const searchParams = useSearchParams();
   const year_id = searchParams.get("year");
-  const archivedParam = searchParams.get("archived") === "1";
+  const isReadOnlyArchivedWorkspace = useReadOnlyWorkspace();
+  // In the archived read-only popup, default to the Archived tab so the
+  // subject's (now inactive) classes are shown instead of an empty Active list.
+  const archivedParam =
+    searchParams.get("archived") === "1" || isReadOnlyArchivedWorkspace;
 
   const [modalOpen, setModalOpen] = useState(false);
   const [classes, setClasses] = useState<ApiClass[]>([]);

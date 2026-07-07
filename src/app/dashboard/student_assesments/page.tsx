@@ -14,6 +14,7 @@ import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
 import { fetchClasses } from "@/services/classesApi";
 import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
 import { resolveSubjectClassLinkedIdWithFallback } from "@/lib/subjectClassResolution";
+import { useReadOnlyWorkspace } from "@/lib/readOnlyWorkspace";
 import {
   buildTeacherAssignedClassOptions,
   buildYearOptionsFromTeacherClasses,
@@ -90,10 +91,11 @@ export default function StudentAssessmentPage() {
   const roleKey = String(currentUser?.role ?? "").trim().toUpperCase().replace(/\s+/g, "_");
   const isTeacher = roleKey === "TEACHER";
   const schoolId = currentUser?.school;
+  const isReadOnlyArchivedWorkspace = useReadOnlyWorkspace();
 
   /** ------------------ LOAD YEARS (via React Query to prevent double-fetch flicker) -- */
   const yearsQueryKey = canUseSubjectContext
-    ? ["student-assessment-years", "subject", activeSubjectId, schoolId]
+    ? ["student-assessment-years", "subject", activeSubjectId, schoolId, isReadOnlyArchivedWorkspace]
     : isTeacher
     ? ["student-assessment-years", "teacher", schoolId]
     : ["student-assessment-years", "school", schoolId];
@@ -103,7 +105,10 @@ export default function StudentAssessmentPage() {
     queryFn: async () => {
       if (canUseSubjectContext && activeSubjectId) {
         const [subjectClasses, assignedYears] = await Promise.all([
-          fetchSubjectClasses({ subject_id: Number(activeSubjectId) }).catch(() => []),
+          fetchSubjectClasses({
+            subject_id: Number(activeSubjectId),
+            include_inactive: isReadOnlyArchivedWorkspace || undefined,
+          }).catch(() => []),
           isTeacher ? fetchAssignYears().catch(() => []) : Promise.resolve([]),
         ]);
         if (isTeacher) {
@@ -143,7 +148,7 @@ export default function StudentAssessmentPage() {
 
   /** ------------------ FETCH CLASSES ------------------ */
   const { data: classes = [], isLoading: classesLoading } = useQuery({
-    queryKey: ["classes", selectedYear, isTeacher, activeSubjectId, canUseSubjectContext],
+    queryKey: ["classes", selectedYear, isTeacher, activeSubjectId, canUseSubjectContext, isReadOnlyArchivedWorkspace],
     queryFn: async () => {
       if (!selectedYear) return [];
       if (canUseSubjectContext && activeSubjectId) {
@@ -151,6 +156,7 @@ export default function StudentAssessmentPage() {
           fetchSubjectClasses({
             subject_id: Number(activeSubjectId),
             year_id: Number(selectedYear),
+            include_inactive: isReadOnlyArchivedWorkspace || undefined,
           }).catch(() => []),
           isTeacher ? fetchAssignYears().catch(() => []) : Promise.resolve([]),
         ]);
