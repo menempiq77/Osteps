@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { useQuery } from "@tanstack/react-query";
-import { MoreVertical } from "lucide-react";
+import { MoreVertical, FileText, BookMarked } from "lucide-react";
 import { RootState } from "@/store/store";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import {
@@ -15,6 +15,31 @@ import {
 } from "@/lib/dashboardNavigation";
 import { isSharedPath, stripSubjectScope } from "@/lib/subjectRouting";
 import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
+import { useReadOnlyWorkspace } from "@/lib/readOnlyWorkspace";
+
+// Inside the archived read-only workspace only these view-only sections are
+// reachable. Everything that can change data (Manager, Content Approvals, etc.)
+// is removed from the side bar. Matched against the unscoped href.
+const READ_ONLY_ALLOWED_UNSCOPED_HREFS = new Set([
+  "/dashboard",
+  "/dashboard/view",
+]);
+const READ_ONLY_EXTRA_ITEMS: DashboardNavItem[] = [
+  {
+    name: "Reports",
+    href: "/dashboard/reports",
+    icon: FileText,
+    description: "View students' read-only reports.",
+    section: "Teaching",
+  },
+  {
+    name: "Markbook",
+    href: "/dashboard/students/markbook",
+    icon: BookMarked,
+    description: "View the subject markbook (read-only).",
+    section: "Teaching",
+  },
+];
 
 const sectionAccent: Record<DashboardNavItem["section"], string> = {
   Subjects: "#60a5fa",
@@ -70,6 +95,7 @@ export default function SubjectRightSidebar({
   const shouldSuppressUnscopedSubjectNav = canUseSubjectContext && !activeSubjectId;
   const isResolvingSubjectContext = shouldSuppressUnscopedSubjectNav && subjectContextLoading;
 
+  const isReadOnly = useReadOnlyWorkspace();
   const roleKey = normalizeDashboardRole(currentUser?.role);
   const isStudent = roleKey === "STUDENT";
   const isIslamicContext =
@@ -151,7 +177,21 @@ export default function SubjectRightSidebar({
       studentTrackerHref,
     });
 
-    return items.map((item) => {
+    // Archived read-only workspace: keep only the view-only sections and add
+    // direct Reports + Markbook shortcuts. No Manager, no Approvals, no editing.
+    const scopedItems =
+      isReadOnly && !isStudent
+        ? [
+            ...items.filter((item) =>
+              READ_ONLY_ALLOWED_UNSCOPED_HREFS.has(
+                normalizePath(stripSubjectScope(item.href))
+              )
+            ),
+            ...READ_ONLY_EXTRA_ITEMS,
+          ]
+        : items;
+
+    return scopedItems.map((item) => {
       const href =
         canUseSubjectContext && activeSubjectId && !isSharedPath(item.href)
           ? toSubjectHref(item.href)
@@ -161,7 +201,7 @@ export default function SubjectRightSidebar({
         href,
       };
     });
-  }, [activeSubject?.name, activeSubjectId, canUseSubjectContext, isIslamicContext, roleKey, shouldSuppressUnscopedSubjectNav, studentTrackerHref, toSubjectHref]);
+  }, [activeSubject?.name, activeSubjectId, canUseSubjectContext, isIslamicContext, isReadOnly, isStudent, roleKey, shouldSuppressUnscopedSubjectNav, studentTrackerHref, toSubjectHref]);
 
   const currentPath = normalizePath(pathname);
   const currentUnscoped = normalizePath(stripSubjectScope(pathname));

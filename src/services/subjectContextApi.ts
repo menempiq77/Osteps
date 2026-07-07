@@ -153,6 +153,27 @@ const extractContext = (payload: any): SubjectContextResponse => {
   };
 };
 
+// A subject is "archived" when ALL of its subject-classes are inactive, so the
+// active-only subject-classes call returns nothing. Students must never see an
+// archived subject in their workspace, so drop any subject with no active class.
+// On a transient error we keep the subject to avoid hiding it by mistake.
+const filterToSubjectsWithActiveClasses = async (
+  subjects: SubjectBrief[]
+): Promise<SubjectBrief[]> => {
+  if (subjects.length === 0) return [];
+  const results = await Promise.all(
+    subjects.map(async (subject) => {
+      try {
+        const activeClasses = await fetchSubjectClasses({ subject_id: Number(subject.id) });
+        return Array.isArray(activeClasses) && activeClasses.length > 0 ? subject : null;
+      } catch {
+        return subject;
+      }
+    })
+  );
+  return results.filter((subject): subject is SubjectBrief => Boolean(subject));
+};
+
 // Derive which subjects are linked to a specific base class (for student impersonation).
 const fetchStudentSubjectsFromBaseClass = async (studentClassId: number): Promise<SubjectBrief[]> => {
   const allSubjects = normalizeSubjects(await fetchSubjects());
@@ -431,10 +452,15 @@ export const fetchMySubjectContext = async (options?: {
 
     const mergedStudentSubjects = dedupeSubjects(collectedSubjects);
     if (mergedStudentSubjects.length > 0) {
+      // Hide archived subjects (no active class) from the student workspace.
+      const activeStudentSubjects = await filterToSubjectsWithActiveClasses(mergedStudentSubjects);
+      const resolvedDefaultId =
+        [apiContext?.default_subject_id ?? null, activeStudentSubjects[0]?.id ?? null]
+          .filter((value): value is number => Number.isFinite(value as number) && Number(value) > 0)
+          .find((value) => activeStudentSubjects.some((subject) => subject.id === value)) ?? null;
       return {
-        assigned_subjects: mergedStudentSubjects,
-        default_subject_id:
-          apiContext?.default_subject_id ?? mergedStudentSubjects[0]?.id ?? null,
+        assigned_subjects: activeStudentSubjects,
+        default_subject_id: resolvedDefaultId,
         subject_roles: apiContext?.subject_roles ?? [],
       };
     }
@@ -445,7 +471,9 @@ export const fetchMySubjectContext = async (options?: {
       return { assigned_subjects: [], default_subject_id: null, subject_roles: [] };
     }
     try {
-      const subjects = normalizeSubjects(await fetchSubjects());
+      const subjects = await filterToSubjectsWithActiveClasses(
+        normalizeSubjects(await fetchSubjects())
+      );
       return {
         assigned_subjects: subjects,
         default_subject_id: subjects[0]?.id ?? null,

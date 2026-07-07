@@ -1,6 +1,7 @@
 "use client";
 import { RootState } from "@/store/store";
 import { useSubjectContext } from "@/contexts/SubjectContext";
+import { useReadOnlyWorkspace } from "@/lib/readOnlyWorkspace";
 import { useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { useCallback, useEffect, useState } from "react";
@@ -69,10 +70,11 @@ export default function ClassesList({
   const hasAccess = currentUser?.role === "SCHOOL_ADMIN";
 
   const isStudent = currentUser?.role === "STUDENT";
-  const canManageOrder = hasAccess;
+  const isReadOnly = useReadOnlyWorkspace();
+  const canManageOrder = hasAccess && !isReadOnly;
 
   const role = currentUser?.role;
-  const canShare = role === "SCHOOL_ADMIN" || role === "HOD" || role === "TEACHER";
+  const canShare = (role === "SCHOOL_ADMIN" || role === "HOD" || role === "TEACHER") && !isReadOnly;
   const canReview = role === "SCHOOL_ADMIN" || role === "HOD";
 
   const [pendingCounts, setPendingCounts] = useState<Record<string, number>>({});

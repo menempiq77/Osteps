@@ -1,6 +1,7 @@
 "use client";
 import { RootState } from "@/store/store";
 import { useSubjectContext } from "@/contexts/SubjectContext";
+import { useReadOnlyWorkspace } from "@/lib/readOnlyWorkspace";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
@@ -55,7 +56,9 @@ export default function YearsList({
 
   const roleKey = String(currentUser?.role ?? "").trim().toUpperCase().replace(/\s+/g, "_");
   const isStudent = roleKey === "STUDENT";
-  const canManageOrder = roleKey === "SCHOOL_ADMIN" || roleKey === "HOD" || roleKey === "TEACHER";
+  const isReadOnly = useReadOnlyWorkspace();
+  const canManageOrder =
+    !isReadOnly && (roleKey === "SCHOOL_ADMIN" || roleKey === "HOD" || roleKey === "TEACHER");
   const isSchoolAdmin = roleKey === "SCHOOL_ADMIN";
 
   useEffect(() => {

@@ -835,7 +835,8 @@ export default function Page() {
               : "Academic year folders — drag rows to reorder."}
           </p>
         </div>
-        {currentUser?.role !== "STUDENT" &&
+        {!isReadOnlyArchivedWorkspace &&
+          currentUser?.role !== "STUDENT" &&
           currentUser?.role !== "HOD" &&
           currentUser?.role !== "TEACHER" && (
           <Button

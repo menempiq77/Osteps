@@ -22,6 +22,7 @@ import { fetchAssessmentDocument, saveAssessmentDocumentAnnotations } from "@/se
 import { downloadAnnotatedPdf, downloadBulkAsZip, downloadFileAsBlob, downloadFileAsBlobAndSave, type BulkPdfDownloadTask } from "@/lib/bulkPdfDownload";
 import { buildTaskTypeValue, resolveExamWindow } from "@/lib/taskTypeMetadata";
 import { parseSubmissionAttachments } from "@/lib/submissionAttachments";
+import { useReadOnlyWorkspace } from "@/lib/readOnlyWorkspace";
 import dayjs from "dayjs";
 
 interface Student {
@@ -252,6 +253,8 @@ export default function AssessmentDrawer() {
     null
   );
   const { currentUser } = useSelector((state: RootState) => state.auth);
+  const isReadOnly = useReadOnlyWorkspace();
+  const canEdit = currentUser?.role !== "STUDENT" && !isReadOnly;
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1500,7 +1503,7 @@ export default function AssessmentDrawer() {
             >
               Download selected ({selectedDownloadTasks.length})
             </Button>
-            {activeTaskGroup?.taskType?.toLowerCase() === "pdf" && (
+            {!isReadOnly && activeTaskGroup?.taskType?.toLowerCase() === "pdf" && (
               <Button
                 icon={<UnlockOutlined />}
                 loading={bulkOpeningEdits}
@@ -1615,7 +1618,7 @@ export default function AssessmentDrawer() {
                         ? getWholeMark(getQuizTotalMarks(task))
                         : getWholeMark(task?.task?.allocated_marks)}
                     </span>
-                    {currentUser?.role !== "STUDENT" && task?.submission_type !== "quiz" && (
+                    {canEdit && task?.submission_type !== "quiz" && (
                       <Button
                         size="small"
                         onClick={() => openExamActionModal(task)}
@@ -1683,7 +1686,7 @@ export default function AssessmentDrawer() {
                             : task.status.charAt(0).toUpperCase() + task.status.slice(1)}
                         </span>
                       )}
-                      {currentUser?.role !== "STUDENT" && (
+                      {canEdit && (
                         <Button
                           type="text"
                           size="small"
@@ -1744,7 +1747,7 @@ export default function AssessmentDrawer() {
                           {task.status.charAt(0).toUpperCase() + task.status.slice(1)}
                         </span>
                       )}
-                      {currentUser?.role !== "STUDENT" && (
+                      {canEdit && (
                         <Button
                           type="text"
                           size="small"
