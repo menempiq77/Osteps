@@ -3,6 +3,7 @@ import axios from 'axios';
 import { store } from '@/store/store';
 import { API_BASE_URL } from '@/lib/config';
 import { withSubjectPayload, withSubjectQuery } from '@/lib/subjectScope';
+import { isReadOnlyWorkspace } from '@/lib/readOnlyWorkspace';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -38,7 +39,19 @@ export const fetchStudents = async (
   subjectId?: number | null,
   subjectClassId?: string | number | null
 ) => {
-  return getRawStudents(classId, subjectId, subjectClassId);
+  const rows = await getRawStudents(classId, subjectId, subjectClassId);
+  // In the archived read-only workspace the subject-class enrollment is
+  // inactive, so the subject-scoped roster returns nothing. Fall back to the
+  // base class roster so the archived class's students still show up.
+  if (
+    (!Array.isArray(rows) || rows.length === 0) &&
+    isReadOnlyWorkspace() &&
+    classId != null &&
+    String(classId).trim() !== ""
+  ) {
+    return fetchBaseClassStudents(classId);
+  }
+  return rows;
 };
 
 /**

@@ -1,4 +1,5 @@
 import api from "@/services/api";
+import { isReadOnlyWorkspace } from "@/lib/readOnlyWorkspace";
 
 export type SubjectClassPayload = {
   subject_id: number;
@@ -44,7 +45,13 @@ export const fetchSubjectClasses = async (params: {
   year_id?: number;
   include_inactive?: boolean;
 }) => {
-  const res = await api.get("/subject-classes", { params });
+  // In the archived read-only workspace all subject-classes are inactive, so
+  // always include them; every workspace page then loads the archived data.
+  const mergedParams =
+    params.include_inactive === undefined && isReadOnlyWorkspace()
+      ? { ...params, include_inactive: true }
+      : params;
+  const res = await api.get("/subject-classes", { params: mergedParams });
   return res?.data?.data ?? [];
 };
 
