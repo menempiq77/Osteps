@@ -38,6 +38,7 @@ import {
 import { fetchAssessmentByStudent, fetchTasks, fetchStudentTasks } from "@/services/api";
 import { fetchTerm } from "@/services/termsApi";
 import { fetchStudentProfileData } from "@/services/studentsApi";
+import { READONLY_WINDOW_NAME } from "@/lib/readOnlyWorkspace";
 
 const MyScheduleWidget = dynamic(() => import("@/components/dashboard/MyScheduleWidget"), {
   loading: () => <ScheduleWidgetSkeleton />,
@@ -1220,6 +1221,7 @@ export default function SubjectCardsPage() {
         {workspaceTarget ? (
           <iframe
             key={workspaceTarget.id}
+            name={READONLY_WINDOW_NAME}
             src={`/dashboard/s/${workspaceTarget.id}?readonly=1`}
             title={`${workspaceTarget.name} (archived, read-only)`}
             className="h-[80vh] w-full rounded-b-lg border-0 bg-white"

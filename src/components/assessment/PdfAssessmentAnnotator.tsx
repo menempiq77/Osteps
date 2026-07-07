@@ -46,6 +46,7 @@ import type {
 import { addStudentTaskMarks, uploadTaskByStudent } from "@/services/api";
 import { fetchStudentProfileData } from "@/services/studentsApi";
 import { resolveExamWindow } from "@/lib/taskTypeMetadata";
+import { useReadOnlyWorkspace } from "@/lib/readOnlyWorkspace";
 
 type Tool = "cursor" | "pen" | "highlighter" | "text" | "eraser";
 type DocumentKind = "pdf" | "docx" | "image";
@@ -1281,6 +1282,9 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   autoDownloadTeacherPaper = false,
 }) => {
   const [messageApi, contextHolder] = message.useMessage();
+  // Archived read-only workspace: everything is view-only. No annotating, no
+  // marking, no lock toggling — only viewing and switching between students.
+  const isReadOnly = useReadOnlyWorkspace();
   const [state, setState] = useState<AssessmentDocumentState | null>(null);
   const [loading, setLoading] = useState(true);
   const [rendering, setRendering] = useState(true);
@@ -1555,7 +1559,9 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const documentIdentityUnverified = Boolean(
     role !== "student" && !savedDocumentUrl && currentDocumentUrl && studentAnnotations.length > 0
   );
-  const editable = role === "teacher" || (!studentLocked && !examEditingLocked && !documentIdentityUnverified);
+  const editable =
+    !isReadOnly &&
+    (role === "teacher" || (!studentLocked && !examEditingLocked && !documentIdentityUnverified));
   // We handle pinch-zoom ourselves for every tool, so the browser must not claim
   // two-finger gestures (which would zoom the whole page and fight our handler).
   // Single-finger native panning stays enabled for the cursor/text tools.
@@ -3859,7 +3865,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   }, [activeDocumentIdentityUrl, assessmentId, getCurrentLayerSnapshot, maxMarks, persistLocalDraft, role, selfAssessmentMark, studentId, taskId, title]);
 
   useEffect(() => {
-    if (role !== "student" || !documentLoaded) return;
+    if (isReadOnly || role !== "student" || !documentLoaded) return;
 
     const normalizedSelfAssessmentMark = normalizeSelfAssessmentValue(selfAssessmentMark);
     if (normalizedSelfAssessmentMark === lastSavedSelfAssessmentRef.current) return;
@@ -3885,10 +3891,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         selfAssessmentSaveTimerRef.current = null;
       }
     };
-  }, [documentLoaded, getCurrentLayerSnapshot, messageApi, role, saveAnnotations, selfAssessmentMark]);
+  }, [documentLoaded, getCurrentLayerSnapshot, isReadOnly, messageApi, role, saveAnnotations, selfAssessmentMark]);
 
   useEffect(() => {
-    if (role !== "teacher" || !documentLoaded) return;
+    if (isReadOnly || role !== "teacher" || !documentLoaded) return;
 
     const teacherDraftSignature = JSON.stringify({
       teacherMarks: teacherMarks.trim(),
@@ -3933,6 +3939,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     aiDraftPreview,
     documentLoaded,
     getCurrentLayerSnapshot,
+    isReadOnly,
     messageApi,
     persistLocalDraft,
     role,
@@ -3943,7 +3950,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   ]);
 
   useEffect(() => {
-    if (!assessmentId || !taskId || !studentId || !state) return;
+    if (isReadOnly || !assessmentId || !taskId || !studentId || !state) return;
 
     const interval = window.setInterval(() => {
       if (role === "student" && studentLocked) return;
@@ -3977,6 +3984,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     assessmentId,
     taskId,
     studentId,
+    isReadOnly,
     role,
     studentLocked,
     getCurrentLayerSnapshot,
@@ -6155,15 +6163,17 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
             </div>
           <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/80 px-2 py-1.5">
             <>
-                <Button
-                  size="small"
-                  onClick={toggleStudentEditingLock}
-                  loading={changingStudentLock}
-                  type={studentLocked ? "default" : "primary"}
-                  danger={!studentLocked}
-                >
-                  {studentLocked ? "Open for student edits" : "Lock student editing"}
-                </Button>
+                {!isReadOnly && (
+                  <Button
+                    size="small"
+                    onClick={toggleStudentEditingLock}
+                    loading={changingStudentLock}
+                    type={studentLocked ? "default" : "primary"}
+                    danger={!studentLocked}
+                  >
+                    {studentLocked ? "Open for student edits" : "Lock student editing"}
+                  </Button>
+                )}
                 <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-xs text-blue-700">
                   <span className="font-medium">{examWindow.examMode ? "Predicted" : "Self"}</span>
                   <span className="font-semibold">
@@ -6171,10 +6181,14 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                     {maxMarks != null ? `/${maxMarks}` : ""}
                   </span>
                 </div>
-                <Input size="small" className="w-20" placeholder="Marks" value={teacherMarks} onChange={(event) => setTeacherMarks(event.target.value)} />
-                <Button size="small" onClick={requestAiDraftMark} loading={aiDrafting} disabled={!documentReadyForCurrentStudent || rendering}>
-                  Ask AI to Mark
-                </Button>
+                {!isReadOnly && (
+                  <Input size="small" className="w-20" placeholder="Marks" value={teacherMarks} onChange={(event) => setTeacherMarks(event.target.value)} />
+                )}
+                {!isReadOnly && (
+                  <Button size="small" onClick={requestAiDraftMark} loading={aiDrafting} disabled={!documentReadyForCurrentStudent || rendering}>
+                    Ask AI to Mark
+                  </Button>
+                )}
                 <Button
                   size="small"
                   onClick={() => void downloadSubmittedPaper()}
@@ -6185,7 +6199,9 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                 >
                   Download paper
                 </Button>
-                <Button size="small" type="primary" onClick={finalizeTeacherMark} loading={finishing}>Save markbook mark</Button>
+                {!isReadOnly && (
+                  <Button size="small" type="primary" onClick={finalizeTeacherMark} loading={finishing}>Save markbook mark</Button>
+                )}
             </>
           </div>
           </div>
@@ -6334,7 +6350,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
             description="Student writing is protected and temporarily read-only. An admin must verify which PDF belongs to this answer before students continue, so answers are not mixed with another year or class paper."
           />
         ) : null}
-        {role === "teacher" ? (
+        {role === "teacher" && !isReadOnly ? (
           <Alert
             className="mb-4"
             type="info"
@@ -6484,10 +6500,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         {role === "student" && !studentLocked && state?.status !== "draft" && state?.status !== "submitted" && (
           <Alert className="mb-4" type="info" showIcon message="Your teacher reopened this document. You can edit it again and submit again when you are done." />
         )}
-        {role === "teacher" && !studentLocked && (
+        {role === "teacher" && !isReadOnly && !studentLocked && (
           <Alert className="mb-4" type="warning" showIcon message={state?.status === "draft" ? "The student can currently write and edit this document. You can still view their autosaved draft while they work." : state?.status === "submitted" ? "The student has submitted work, but it remains open for edits until you mark it." : "The student can currently write and edit this document. Lock it again when you want to stop further changes."} />
         )}
-        {role === "teacher" && studentLocked && state?.status === "draft" && (
+        {role === "teacher" && !isReadOnly && studentLocked && state?.status === "draft" && (
           <Alert className="mb-4" type="warning" showIcon message="The student has not pressed Finish yet, but editing is currently locked by the teacher." />
         )}
         {renderError && (
