@@ -3865,7 +3865,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   }, [activeDocumentIdentityUrl, assessmentId, getCurrentLayerSnapshot, maxMarks, persistLocalDraft, role, selfAssessmentMark, studentId, taskId, title]);
 
   useEffect(() => {
-    if (role !== "student" || !documentLoaded) return;
+    if (isReadOnly || role !== "student" || !documentLoaded) return;
 
     const normalizedSelfAssessmentMark = normalizeSelfAssessmentValue(selfAssessmentMark);
     if (normalizedSelfAssessmentMark === lastSavedSelfAssessmentRef.current) return;
@@ -3891,10 +3891,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         selfAssessmentSaveTimerRef.current = null;
       }
     };
-  }, [documentLoaded, getCurrentLayerSnapshot, messageApi, role, saveAnnotations, selfAssessmentMark]);
+  }, [documentLoaded, getCurrentLayerSnapshot, isReadOnly, messageApi, role, saveAnnotations, selfAssessmentMark]);
 
   useEffect(() => {
-    if (role !== "teacher" || !documentLoaded) return;
+    if (isReadOnly || role !== "teacher" || !documentLoaded) return;
 
     const teacherDraftSignature = JSON.stringify({
       teacherMarks: teacherMarks.trim(),
@@ -3939,6 +3939,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     aiDraftPreview,
     documentLoaded,
     getCurrentLayerSnapshot,
+    isReadOnly,
     messageApi,
     persistLocalDraft,
     role,
@@ -3949,7 +3950,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   ]);
 
   useEffect(() => {
-    if (!assessmentId || !taskId || !studentId || !state) return;
+    if (isReadOnly || !assessmentId || !taskId || !studentId || !state) return;
 
     const interval = window.setInterval(() => {
       if (role === "student" && studentLocked) return;
@@ -3983,6 +3984,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     assessmentId,
     taskId,
     studentId,
+    isReadOnly,
     role,
     studentLocked,
     getCurrentLayerSnapshot,
@@ -6348,7 +6350,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
             description="Student writing is protected and temporarily read-only. An admin must verify which PDF belongs to this answer before students continue, so answers are not mixed with another year or class paper."
           />
         ) : null}
-        {role === "teacher" ? (
+        {role === "teacher" && !isReadOnly ? (
           <Alert
             className="mb-4"
             type="info"
@@ -6498,10 +6500,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         {role === "student" && !studentLocked && state?.status !== "draft" && state?.status !== "submitted" && (
           <Alert className="mb-4" type="info" showIcon message="Your teacher reopened this document. You can edit it again and submit again when you are done." />
         )}
-        {role === "teacher" && !studentLocked && (
+        {role === "teacher" && !isReadOnly && !studentLocked && (
           <Alert className="mb-4" type="warning" showIcon message={state?.status === "draft" ? "The student can currently write and edit this document. You can still view their autosaved draft while they work." : state?.status === "submitted" ? "The student has submitted work, but it remains open for edits until you mark it." : "The student can currently write and edit this document. Lock it again when you want to stop further changes."} />
         )}
-        {role === "teacher" && studentLocked && state?.status === "draft" && (
+        {role === "teacher" && !isReadOnly && studentLocked && state?.status === "draft" && (
           <Alert className="mb-4" type="warning" showIcon message="The student has not pressed Finish yet, but editing is currently locked by the teacher." />
         )}
         {renderError && (
