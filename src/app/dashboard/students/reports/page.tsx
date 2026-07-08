@@ -20,6 +20,7 @@ import { useSubjectContext } from "@/contexts/SubjectContext";
 import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
 import { resolveSubjectClassLinkedIdWithFallback } from "@/lib/subjectClassResolution";
 import { resolveWeight } from "@/lib/assessmentWeights";
+import { useReadOnlyWorkspace } from "@/lib/readOnlyWorkspace";
 interface Task {
   student_id: number;
   student_name: string;
@@ -216,6 +217,8 @@ export default function ReportsPage() {
   const [grades, setGrades] = useState<Grade[]>([]);
   const [error, setError] = useState<string | null>(null);
   
+  const isReadOnly = useReadOnlyWorkspace();
+
   // Add state to track if we should apply URL filter
   const [applyUrlFilter, setApplyUrlFilter] = useState(true);
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>("all");
@@ -839,13 +842,24 @@ export default function ReportsPage() {
                   }}
                   style={{ width: 220 }}
                   placeholder="Select Subject"
+                  disabled={isReadOnly}
                 >
-                  <Select.Option value="all">All Subjects</Select.Option>
-                  {subjects.map((subject) => (
-                    <Select.Option key={subject.id} value={String(subject.id)}>
-                      {subject.name}
-                    </Select.Option>
-                  ))}
+                  {/* Archived read-only popup: lock the filter to the archived
+                      subject only — no "All Subjects" and no other subjects. */}
+                  {!isReadOnly && (
+                    <Select.Option value="all">All Subjects</Select.Option>
+                  )}
+                  {subjects
+                    .filter(
+                      (subject) =>
+                        !isReadOnly ||
+                        Number(subject.id) === Number(activeSubjectId)
+                    )
+                    .map((subject) => (
+                      <Select.Option key={subject.id} value={String(subject.id)}>
+                        {subject.name}
+                      </Select.Option>
+                    ))}
                 </Select>
               )}
 

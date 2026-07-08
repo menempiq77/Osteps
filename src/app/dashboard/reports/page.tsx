@@ -22,6 +22,7 @@ import {
 import { fetchYearsBySchool } from "@/services/yearsApi";
 import { fetchStudents } from "@/services/studentsApi";
 import { fetchWholeAssessmentsReport } from "@/services/reportApi";
+import { useReadOnlyWorkspace } from "@/lib/readOnlyWorkspace";
 
 type AnyObj = Record<string, unknown>;
 
@@ -77,10 +78,14 @@ export default function ReportsLandingPage() {
     useSubjectContext();
   const searchParams = useSearchParams();
 
+  const isReadOnly = useReadOnlyWorkspace();
   const querySubjectId = searchParams.get("subject_id");
   const queryYear = searchParams.get("year");
   const queryClass = searchParams.get("class");
-  const isArchivedView = searchParams.get("archived") === "1";
+  // Inside the archived read-only popup this page is reached without the
+  // ?archived=1 flag, so treat the read-only workspace as an archived view too
+  // (loads the archived years/classes/roster instead of showing "No data").
+  const isArchivedView = searchParams.get("archived") === "1" || isReadOnly;
 
   const [subjectId, setSubjectId] = useState<number | null>(
     querySubjectId ? Number(querySubjectId) : null
@@ -313,11 +318,15 @@ export default function ReportsLandingPage() {
 
   const subjectOptions = useMemo(
     () =>
-      subjects.map((s) => ({
-        value: Number(s.id),
-        label: normalizeSubjectName(s.name),
-      })),
-    [subjects]
+      subjects
+        // In the archived read-only popup the filter is locked to the archived
+        // subject only — never list the school's other subjects.
+        .filter((s) => !isReadOnly || Number(s.id) === Number(subjectId))
+        .map((s) => ({
+          value: Number(s.id),
+          label: normalizeSubjectName(s.name),
+        })),
+    [subjects, isReadOnly, subjectId]
   );
 
   const filteredStudents = useMemo(() => {
@@ -403,6 +412,7 @@ export default function ReportsLandingPage() {
               value={subjectId ?? undefined}
               onChange={(v) => setSubjectId(Number(v))}
               options={subjectOptions}
+              disabled={isReadOnly}
               showSearch
               optionFilterProp="label"
             />

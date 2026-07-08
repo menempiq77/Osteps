@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Clock, Pause, Play, RotateCcw, X } from "lucide-react";
+import { useReadOnlyWorkspace } from "@/lib/readOnlyWorkspace";
 
 type Mode = "stopwatch" | "countdown";
 
@@ -18,6 +19,7 @@ const formatMs = (ms: number) => {
 };
 
 export function GlobalTimer() {
+  const isReadOnlyView = useReadOnlyWorkspace();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<Mode>("countdown");
   const [running, setRunning] = useState(false);
@@ -153,6 +155,9 @@ export function GlobalTimer() {
     mode === "stopwatch" ? formatMs(elapsedMs) : formatMs(remainingMs);
 
   const isActive = running || (mode === "stopwatch" ? elapsedMs > 0 : finished);
+
+  // No timer inside the archived read-only workspace popup.
+  if (isReadOnlyView) return null;
 
   return (
     <>
