@@ -120,6 +120,37 @@ export default function SubjectRightSidebar({
     ? `/dashboard/trackers/${studentSubjectClassId}`
     : "/dashboard/subject-cards";
 
+  // In the archived read-only workspace the "Choose subject" switcher must list
+  // only archived subjects (every class inactive) — never active ones. Work out
+  // which of the school's subjects are archived so we can filter the picker.
+  const subjectIdsKey = subjects.map((subject) => subject.id).join(",");
+  const { data: archivedSubjectIds } = useQuery({
+    queryKey: ["subject-right-sidebar-archived-subject-ids", subjectIdsKey],
+    queryFn: async () => {
+      const isActive = (row: any) =>
+        row?.is_active === undefined ? true : Number(row?.is_active) === 1;
+      const ids = new Set<number>();
+      await Promise.all(
+        subjects.map(async (subject) => {
+          try {
+            const classes = await fetchSubjectClasses({
+              subject_id: Number(subject.id),
+              include_inactive: true,
+            });
+            const hasActiveClass =
+              Array.isArray(classes) && classes.some((row) => isActive(row));
+            if (!hasActiveClass) ids.add(Number(subject.id));
+          } catch {
+            // On a transient error, don't mark it archived (avoid hiding wrongly).
+          }
+        })
+      );
+      return ids;
+    },
+    enabled: isReadOnly && subjects.length > 0,
+    staleTime: 5 * 60 * 1000,
+  });
+
   useEffect(() => {
     if (!isSubjectPickerOpen) return;
 
@@ -149,10 +180,25 @@ export default function SubjectRightSidebar({
     [subjects]
   );
 
+  // In read-only (archived) mode, restrict the switcher to archived subjects.
+  // Until the archived lookup resolves, show only the currently open subject so
+  // active subjects never flash in the list.
+  const switchableSubjects = useMemo(() => {
+    if (!isReadOnly) return sortedSubjects;
+    if (!archivedSubjectIds) {
+      return sortedSubjects.filter(
+        (subject) => Number(subject.id) === Number(activeSubjectId)
+      );
+    }
+    return sortedSubjects.filter((subject) =>
+      archivedSubjectIds.has(Number(subject.id))
+    );
+  }, [isReadOnly, sortedSubjects, archivedSubjectIds, activeSubjectId]);
+
   const visibleSubjects = useMemo(() => {
     const query = subjectSearch.trim().toLowerCase();
-    if (!query) return sortedSubjects;
-    return sortedSubjects.filter((subject) =>
+    if (!query) return switchableSubjects;
+    return switchableSubjects.filter((subject) =>
       [subject.name, formatDashboardSubjectName(subject.name), subject.code, subject.class_label]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(query))
@@ -329,7 +375,13 @@ export default function SubjectRightSidebar({
               <div>
                 <div className="text-sm font-black">Choose subject</div>
                 <div className="text-xs text-white/55">
-                  {subjects.length} {subjects.length === 1 ? "subject" : "subjects"} available
+                  {isReadOnly
+                    ? `${switchableSubjects.length} archived ${
+                        switchableSubjects.length === 1 ? "subject" : "subjects"
+                      }`
+                    : `${switchableSubjects.length} ${
+                        switchableSubjects.length === 1 ? "subject" : "subjects"
+                      } available`}
                 </div>
               </div>
               <button
@@ -391,7 +443,7 @@ export default function SubjectRightSidebar({
                       </span>
                       {active ? (
                         <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide">
-                          Active
+                          {isReadOnly ? "Viewing" : "Active"}
                         </span>
                       ) : null}
                     </button>
