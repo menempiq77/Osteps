@@ -10,6 +10,7 @@ import { SubjectContextProvider } from "@/contexts/SubjectContext";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { getStoredSubjectName } from "@/lib/subjectScope";
+import { useReadOnlyWorkspace } from "@/lib/readOnlyWorkspace";
 import { IMPERSONATION_STORAGE_KEY, isImpersonating, logout, setCurrentUser } from "@/features/auth/authSlice";
 import { User } from "@/features/auth/types";
 
@@ -110,6 +111,7 @@ export default function DashboardLayout({
   const [themeName, setThemeName] = useState<ThemeName>("green");
   const [storedSubjectName, setStoredSubjectName] = useState<string | null>(null);
   const [impersonating, setImpersonating] = useState(false);
+  const isReadOnlyView = useReadOnlyWorkspace();
 
   const unscopedPathname = pathname.replace(
     /^\/dashboard\/s\/\d+(?:\/[^/]+)?(?=\/|$)/,
@@ -316,13 +318,22 @@ export default function DashboardLayout({
     !showSubjectRightSidebar &&
     !isStudentExamAssessmentRoute &&
     !isImmersiveLessonGroupRoute;
-  const dashboardPaddingClass = showSubjectRightSidebar
+  // In the archived read-only popup there is no left sidebar and no top bar,
+  // so drop the padding that reserved space for them (keep the right padding
+  // for the right sidebar which stays).
+  const dashboardPaddingClass = isReadOnlyView
+    ? "px-3 pb-3 pt-4 md:pb-6 md:pl-4 md:pr-[84px] md:pt-4"
+    : showSubjectRightSidebar
     ? "px-3 pb-3 pt-[78px] md:pb-6 md:pl-[84px] md:pr-[84px] md:pt-[66px]"
     : "px-3 pb-3 pt-[78px] md:pb-6 md:pl-[84px] md:pr-6 md:pt-[66px]";
-  const mainContentPaddingClass = showSubjectRightSidebar
+  const mainContentPaddingClass = isReadOnlyView
+    ? "max-w-7xl px-3 pb-3 pt-4 md:pb-6 md:pl-4 md:pr-[84px] md:pt-4"
+    : showSubjectRightSidebar
     ? "max-w-7xl px-3 pb-3 pt-[78px] md:pb-6 md:pl-[84px] md:pr-[84px] md:pt-[66px]"
     : "max-w-7xl px-3 pb-3 pt-[78px] md:pb-6 md:pl-[84px] md:pr-6 md:pt-[66px]";
-  const fullWidthContentPaddingClass = showSubjectRightSidebar
+  const fullWidthContentPaddingClass = isReadOnlyView
+    ? "pt-4 md:pl-4 md:pr-[72px] md:pt-4"
+    : showSubjectRightSidebar
     ? "pt-[78px] md:pl-[72px] md:pr-[72px] md:pt-[66px]"
     : "pt-[78px] md:pl-[72px] md:pt-[66px]";
 
@@ -561,10 +572,10 @@ export default function DashboardLayout({
           </button>
         </div>
       )}
-      {!isImmersiveLessonGroupRoute ? <FavoriteSidebar /> : null}
+      {!isImmersiveLessonGroupRoute && !isReadOnlyView ? <FavoriteSidebar /> : null}
       {showSubjectRightSidebar ? <SubjectRightSidebar /> : null}
       {showRightEdgeReveal ? <RightSidebarReveal /> : null}
-      {!isImmersiveLessonGroupRoute ? <PinnedPagesDock /> : null}
+      {!isImmersiveLessonGroupRoute && !isReadOnlyView ? <PinnedPagesDock /> : null}
       <div style={impersonating ? { paddingTop: 40 } : undefined}>
       {isStandaloneTeacherRoute ||
       isAllStudentsStandaloneRoute ||
@@ -586,7 +597,7 @@ export default function DashboardLayout({
       isSettingsRoute ? (
         <div className={`dashboard-theme-scope min-h-screen bg-[var(--theme-soft)] ${dashboardPaddingClass}`}>
           <div className="mx-auto max-w-7xl">
-            {renderDashboardTopBar({})}
+            {!isReadOnlyView ? renderDashboardTopBar({}) : null}
             <div
               key={pathname}
               className={`dashboard-route-transition ${
@@ -619,7 +630,7 @@ export default function DashboardLayout({
                 : `mx-auto ${shouldApplyMaxWidth ? mainContentPaddingClass : fullWidthContentPaddingClass}`
             }
           >
-            {!isImmersiveLessonGroupRoute ? (
+            {!isImmersiveLessonGroupRoute && !isReadOnlyView ? (
               renderDashboardTopBar({
                 showSubjectSwitcher: !isLibraryRoute,
               })
