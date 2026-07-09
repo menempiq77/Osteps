@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button, Card, Input, Select, Spin } from "antd";
 import { ChevronLeft } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -198,6 +198,7 @@ export default function ReportsPage() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const {
     activeSubjectId,
+    activeSubject,
     canUseSubjectContext,
     subjects,
     loading: subjectContextLoading,
@@ -236,20 +237,33 @@ export default function ReportsPage() {
   const [savingRename, setSavingRename] = useState(false);
   // Tracks whether the combined classes+assessments fetch is still in-flight
   const [classesReady, setClassesReady] = useState(false);
+  // Monotonic id so a slow, stale fetch (e.g. an earlier school-wide load) can
+  // never overwrite the results of the latest subject-scoped fetch.
+  const fetchSeqRef = useRef(0);
   
   const isSchoolAdmin = currentUser?.role === "SCHOOL_ADMIN";
   const isHOD = currentUser?.role === "HOD";
   const isTeacher = currentUser?.role === "TEACHER";
   const isStudent = currentUser?.role === "STUDENT";
   const schoolId = currentUser?.school;
-  const scopedSubjectId = selectedSubjectFilter === "all" ? undefined : Number(selectedSubjectFilter);
-  const selectedSubjectName =
+  // In the archived read-only workspace we must never fall back to the
+  // school-wide class list (getall-assigned-year-classes ignores subject_id and
+  // returns every base class, leaking other subjects' year groups). Always scope
+  // to the archived subject, even before the subject filter has been set.
+  const readOnlySubjectId =
+    isReadOnly && activeSubjectId ? Number(activeSubjectId) : undefined;
+  const scopedSubjectId =
     selectedSubjectFilter === "all"
-      ? "All Subjects"
-      : String(
-          subjects.find((subject) => String(subject.id) === String(selectedSubjectFilter))?.name ||
+      ? readOnlySubjectId
+      : Number(selectedSubjectFilter);
+  const selectedSubjectName =
+    scopedSubjectId
+      ? String(
+          subjects.find((subject) => String(subject.id) === String(scopedSubjectId))?.name ||
+            activeSubject?.name ||
             "Subject"
-        ).trim();
+        ).trim()
+      : "All Subjects";
 
   // Clear URL filter when component mounts with URL params
   useEffect(() => {
@@ -284,6 +298,9 @@ export default function ReportsPage() {
   useEffect(() => {
     if (!schoolId) return;
     if (subjectContextLoading) return;
+
+    const fetchSeq = ++fetchSeqRef.current;
+    const isStale = () => fetchSeq !== fetchSeqRef.current;
 
     const fetchData = async () => {
       try {
@@ -390,6 +407,10 @@ export default function ReportsPage() {
           fetchReportAssessments(schoolId, scopedSubjectId),
         ]);
 
+        // A newer fetch started while this one was in flight — discard these
+        // (possibly school-wide) results so they can't clobber the latest ones.
+        if (isStale()) return;
+
         setAssignedClasses(response);
         setWholeAssesmentData(assessmentResponse);
         setAssesmentData(reportData);
@@ -419,6 +440,7 @@ export default function ReportsPage() {
           setSelectedClass(null);
         }
       } catch (error) {
+        if (isStale()) return;
         console.error("Error fetching data:", error);
         setError("Failed to load class data");
         // Keep the filters empty rather than falling back to stale data from a
@@ -428,6 +450,7 @@ export default function ReportsPage() {
         setSelectedYear(null);
         setSelectedClass(null);
       } finally {
+        if (isStale()) return;
         setLoading(false);
         setClassesReady(true);
       }
