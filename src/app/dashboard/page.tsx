@@ -801,9 +801,66 @@ export default function DashboardPage() {
       };
 
       const loadTeachers = async () => {
-        const teachers = await fetchTeachers(isSubjectWorkspaceMode && subjectId > 0 ? subjectId : "all");
+        const teachers = await fetchTeachers("all");
+        const teacherList = Array.isArray(teachers) ? teachers : [];
+
+        // In a subject workspace, the /get-teacher list is NOT subject-scoped
+        // (the backend returns every school teacher). Scope it to the subject's
+        // actual staff via the same source the "Total Teachers" count uses
+        // (user_subject_assignments), so only assigned Teachers/HODs are shown.
+        if (isSubjectWorkspaceMode && subjectId > 0) {
+          const assignments = await fetchStaffSubjectAssignments().catch(() => []);
+          const scoped = (Array.isArray(assignments) ? assignments : []).filter(
+            (item: any) => Number(item?.subject_id) === subjectId
+          );
+          const teacherByUserId = new Map<number, any>();
+          const teacherById = new Map<number, any>();
+          teacherList.forEach((teacher: any) => {
+            const uid = Number(teacher?.user_id);
+            const tid = Number(teacher?.id);
+            if (Number.isFinite(uid) && uid > 0) teacherByUserId.set(uid, teacher);
+            if (Number.isFinite(tid) && tid > 0) teacherById.set(tid, teacher);
+          });
+
+          const seen = new Set<number>();
+          const items = scoped
+            .map((assignment: any) => {
+              const userId = Number(assignment?.user_id);
+              const teacherId = Number(assignment?.teacher_id);
+              const dedupeKey = Number.isFinite(userId) && userId > 0 ? userId : teacherId;
+              if (!Number.isFinite(dedupeKey) || dedupeKey <= 0 || seen.has(dedupeKey)) return null;
+              seen.add(dedupeKey);
+              const teacher =
+                (Number.isFinite(userId) && teacherByUserId.get(userId)) ||
+                (Number.isFinite(teacherId) && teacherById.get(teacherId)) ||
+                null;
+              const linkId = teacher?.id ?? teacherId ?? userId;
+              return {
+                key: String(dedupeKey),
+                title: cleanDashboardLabel(
+                  teacher?.name ?? teacher?.teacher_name ?? assignment?.user_name,
+                  "Teacher"
+                ),
+                meta: cleanDashboardLabel(
+                  teacher?.email ?? teacher?.user?.email ?? "Teacher account",
+                  "Teacher account"
+                ),
+                badge: assignment?.role_scope
+                  ? cleanDashboardLabel(String(assignment.role_scope))
+                  : teacher?.status
+                    ? cleanDashboardLabel(teacher.status)
+                    : undefined,
+                href: linkId
+                  ? `/dashboard/teachers/${linkId}/assignedClasses`
+                  : "/dashboard/teachers",
+              };
+            })
+            .filter((item): item is NonNullable<typeof item> => item !== null);
+          return uniqueDetailItems(items);
+        }
+
         return uniqueDetailItems(
-          (Array.isArray(teachers) ? teachers : []).map((teacher: any, index: number) => ({
+          teacherList.map((teacher: any, index: number) => ({
             key: String(teacher?.id ?? teacher?.user_id ?? index),
             title: cleanDashboardLabel(teacher?.name ?? teacher?.teacher_name ?? teacher?.user?.name, `Teacher ${index + 1}`),
             meta: cleanDashboardLabel(teacher?.email ?? teacher?.user?.email ?? teacher?.subject_name ?? "Teacher account", "Teacher account"),
