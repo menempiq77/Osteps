@@ -408,6 +408,10 @@ export default function SubjectCardsPage() {
   const [subjectClassState, setSubjectClassState] = useState<
     Record<number, { active: number; archived: number }>
   >({});
+  // True until each subject's active/archived class counts have loaded. Guards
+  // against briefly showing an archived subject on the Active tab (it would
+  // otherwise flash there before the async class-count lookup resolves).
+  const [subjectClassLoading, setSubjectClassLoading] = useState(true);
   const [subjectTab, setSubjectTab] = useState<"active" | "archived">("active");
   const [archiveTarget, setArchiveTarget] = useState<{ id: number; name: string } | null>(null);
   const [archiveLoading, setArchiveLoading] = useState(false);
@@ -450,9 +454,11 @@ export default function SubjectCardsPage() {
   useEffect(() => {
     if (!isSchoolAdmin || !canUseSubjectContext || subjects.length === 0) {
       setSubjectClassState({});
+      setSubjectClassLoading(false);
       return;
     }
     let cancelled = false;
+    setSubjectClassLoading(true);
     const load = async () => {
       const entries = await Promise.all(
         subjects.map(async (subject) => {
@@ -474,7 +480,10 @@ export default function SubjectCardsPage() {
           }
         })
       );
-      if (!cancelled) setSubjectClassState(Object.fromEntries(entries));
+      if (!cancelled) {
+        setSubjectClassState(Object.fromEntries(entries));
+        setSubjectClassLoading(false);
+      }
     };
     void load();
     return () => {
@@ -681,6 +690,11 @@ export default function SubjectCardsPage() {
     () => filteredSubjects.filter((s) => isSubjectArchived(s.id)),
     [filteredSubjects, isSubjectArchived]
   );
+  // While a School Admin's per-subject class counts are still loading, treat the
+  // subject grid as loading so archived subjects can't flash on the Active tab.
+  const subjectsResolving =
+    isSchoolAdmin && canUseSubjectContext && subjects.length > 0 && subjectClassLoading;
+  const subjectsLoading = loading || subjectsResolving;
   const showSubjectTabs = isSchoolAdmin && archivedSubjectsAll.length > 0;
   const displayedSubjects =
     showSubjectTabs && subjectTab === "archived"
@@ -726,10 +740,10 @@ export default function SubjectCardsPage() {
             accent="#38C16C"
             title={isStudent ? "Choose a Subject" : "Choose a Subject Dashboard"}
             subtitle="Open the subject workspace quickly"
-            count={!loading && subjects.length > 0 ? `${displayedSubjects.length}/${subjects.length}` : undefined}
+            count={!subjectsLoading && subjects.length > 0 ? `${displayedSubjects.length}/${subjects.length}` : undefined}
           />
 
-          {!loading && showSubjectTabs && (
+          {!subjectsLoading && showSubjectTabs && (
             <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white/90 p-0.5">
               <button
                 type="button"
@@ -756,7 +770,7 @@ export default function SubjectCardsPage() {
             </div>
           )}
 
-          {!loading && subjects.length > 0 && (
+          {!subjectsLoading && subjects.length > 0 && (
             <Input
               value={subjectSearch}
               onChange={(event) => setSubjectSearch(event.target.value)}
@@ -769,7 +783,7 @@ export default function SubjectCardsPage() {
           )}
         </div>
 
-        {loading ? (
+        {subjectsLoading ? (
           <SubjectCardsSkeleton includeCreateCard={isSchoolAdmin} />
         ) : subjects.length === 0 ? (
           <div className="rounded-2xl border border-slate-200 bg-white p-10">
