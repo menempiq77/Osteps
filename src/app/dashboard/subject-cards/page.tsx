@@ -400,6 +400,11 @@ export default function SubjectCardsPage() {
   const role = String(currentUser?.role || "").trim().toUpperCase();
   const isStudent = role === "STUDENT";
   const isSchoolAdmin = isSchoolAdminRole(currentUser?.role ?? null);
+  // Staff (assigned teachers, HODs, admins) can also view an archived subject
+  // read-only — not just the School Admin. Only the School Admin can
+  // archive/restore/edit/delete, so those controls stay gated on isSchoolAdmin.
+  const canViewArchivedSubjects =
+    isSchoolAdmin || ["ADMIN", "HOD", "TEACHER"].includes(role);
 
   // ── Subject archive state ────────────────────────────────────────────
   // Per subject: how many of its subject-classes are active vs archived.
@@ -452,7 +457,7 @@ export default function SubjectCardsPage() {
   // Load each subject's active/archived class counts (School Admin only) so we
   // can split subjects into the Active and Archived tabs.
   useEffect(() => {
-    if (!isSchoolAdmin || !canUseSubjectContext || subjects.length === 0) {
+    if (!canViewArchivedSubjects || !canUseSubjectContext || subjects.length === 0) {
       setSubjectClassState({});
       setSubjectClassLoading(false);
       return;
@@ -489,7 +494,7 @@ export default function SubjectCardsPage() {
     return () => {
       cancelled = true;
     };
-  }, [isSchoolAdmin, canUseSubjectContext, subjects, classStateVersion]);
+  }, [canViewArchivedSubjects, canUseSubjectContext, subjects, classStateVersion]);
 
   const isSubjectArchived = useCallback(
     (subjectId: number) => {
@@ -677,10 +682,10 @@ export default function SubjectCardsPage() {
     });
   }, [normalizedSubjectSearch, subjects]);
 
-  // Split subjects between the Active and Archived tabs (School Admin only).
+  // Split subjects between the Active and Archived tabs (any staff role).
   const archivedSubjectsAll = useMemo(
-    () => (isSchoolAdmin ? subjects.filter((s) => isSubjectArchived(s.id)) : []),
-    [isSchoolAdmin, subjects, isSubjectArchived]
+    () => (canViewArchivedSubjects ? subjects.filter((s) => isSubjectArchived(s.id)) : []),
+    [canViewArchivedSubjects, subjects, isSubjectArchived]
   );
   const activeFilteredSubjects = useMemo(
     () => filteredSubjects.filter((s) => !isSubjectArchived(s.id)),
@@ -690,12 +695,12 @@ export default function SubjectCardsPage() {
     () => filteredSubjects.filter((s) => isSubjectArchived(s.id)),
     [filteredSubjects, isSubjectArchived]
   );
-  // While a School Admin's per-subject class counts are still loading, treat the
+  // While a staff member's per-subject class counts are still loading, treat the
   // subject grid as loading so archived subjects can't flash on the Active tab.
   const subjectsResolving =
-    isSchoolAdmin && canUseSubjectContext && subjects.length > 0 && subjectClassLoading;
+    canViewArchivedSubjects && canUseSubjectContext && subjects.length > 0 && subjectClassLoading;
   const subjectsLoading = loading || subjectsResolving;
-  const showSubjectTabs = isSchoolAdmin && archivedSubjectsAll.length > 0;
+  const showSubjectTabs = canViewArchivedSubjects && archivedSubjectsAll.length > 0;
   const displayedSubjects =
     showSubjectTabs && subjectTab === "archived"
       ? archivedFilteredSubjects
