@@ -87,6 +87,11 @@ type StudentListRow = {
   }>;
   isSen: boolean;
   senDetails: string;
+  archivedMemberships: Array<{
+    subjectName: string;
+    yearLabel: string;
+    classLabel: string;
+  }>;
 };
 
 type YearItem = {
@@ -113,6 +118,7 @@ type SubjectClassRow = {
   year_id?: number | string | null;
   name?: string | null;
   base_class_label?: string | null;
+  is_active?: number | string | boolean | null;
   class?: { id?: number | string | null; class_name?: string | null; year_id?: number | string | null } | null;
   classes?: { id?: number | string | null; class_name?: string | null; year_id?: number | string | null } | null;
   base_class?: { id?: number | string | null; class_name?: string | null; year_id?: number | string | null } | null;
@@ -700,6 +706,14 @@ export default function AllStudentsPage() {
       >();
       const linkedClassToSubjects = new Map<string, Set<string>>();
       const linkedClassToSubjectAssignments = new Map<string, InferredSubjectAssignment[]>();
+      // Archived (is_active = 0) subject classes are kept out of the active maps
+      // above so they never show as a live subject/year/class. They are tracked
+      // separately so the All Students list can surface where a student is
+      // archived (in the "Archived Class/Year" column) and blank the live
+      // Year Group / Class columns for students whose only membership is archived.
+      const archivedSubjectClassIdToSubject = new Map<string, InferredSubjectAssignment>();
+      const archivedLinkedClassToSubjectAssignments = new Map<string, InferredSubjectAssignment[]>();
+      const archivedLinkedClassIds = new Set<string>();
 
       const hintEntriesBySubject = new Map<string, { subjectId: number; subjectName: string; bucket: StudentHintBucket }>();
       if (typeof window !== "undefined") {
@@ -746,7 +760,10 @@ export default function AllStudentsPage() {
               }>;
             }
             try {
-              const rows = (await fetchSubjectClasses({ subject_id: subjectId })) as SubjectClassRow[];
+              const rows = (await fetchSubjectClasses({
+                subject_id: subjectId,
+                include_inactive: true,
+              })) as SubjectClassRow[];
               return (Array.isArray(rows) ? rows : []).map((row) => ({
                 row,
                 subjectId,
@@ -789,11 +806,39 @@ export default function AllStudentsPage() {
             linkedClassId: resolvedLinkedClassId,
           };
 
+          // is_active is absent on old backends → treat as active (backward compat).
+          const isArchived =
+            row.is_active !== undefined &&
+            row.is_active !== null &&
+            Number(row.is_active) === 0;
+
+          const linkedId = resolveSubjectClassLinkedId(row);
+
+          if (isArchived) {
+            extractSubjectClassCandidateIds(row).forEach((candidateId) => {
+              archivedSubjectClassIdToSubject.set(candidateId, subjectAssignment);
+            });
+            if (linkedId) {
+              archivedLinkedClassIds.add(linkedId);
+              const archivedAssignments =
+                archivedLinkedClassToSubjectAssignments.get(linkedId) ?? [];
+              const key = `${subjectAssignment.id}-${subjectAssignment.subjectClassId || subjectAssignment.subjectClassName}`;
+              if (
+                !archivedAssignments.some(
+                  (entry) => `${entry.id}-${entry.subjectClassId || entry.subjectClassName}` === key
+                )
+              ) {
+                archivedAssignments.push(subjectAssignment);
+              }
+              archivedLinkedClassToSubjectAssignments.set(linkedId, archivedAssignments);
+            }
+            return;
+          }
+
           extractSubjectClassCandidateIds(row).forEach((candidateId) => {
             subjectClassIdToSubject.set(candidateId, subjectAssignment);
           });
 
-          const linkedId = resolveSubjectClassLinkedId(row);
           if (!linkedId) return;
           const bucket = linkedClassToSubjects.get(linkedId) ?? new Set<string>();
           bucket.add(subjectName);
@@ -1233,6 +1278,47 @@ export default function AllStudentsPage() {
                   ).values()
                 );
 
+                // Where is this student archived? Map their enrolled subject
+                // classes (and their base class) to archived subject classes.
+                const archivedAssignmentMap = new Map<string, InferredSubjectAssignment>();
+                studentSubjectClassCandidates.forEach((candidateId) => {
+                  const archivedEntry = archivedSubjectClassIdToSubject.get(candidateId);
+                  if (archivedEntry) {
+                    archivedAssignmentMap.set(
+                      `${archivedEntry.id}-${archivedEntry.subjectClassId || archivedEntry.subjectClassName}`,
+                      archivedEntry
+                    );
+                  }
+                });
+                (archivedLinkedClassToSubjectAssignments.get(String(actualStudentClassId)) ?? []).forEach(
+                  (archivedEntry) => {
+                    archivedAssignmentMap.set(
+                      `${archivedEntry.id}-${archivedEntry.subjectClassId || archivedEntry.subjectClassName}`,
+                      archivedEntry
+                    );
+                  }
+                );
+                const archivedMemberships = Array.from(archivedAssignmentMap.values()).map(
+                  (entry) => ({
+                    subjectName: entry.name,
+                    yearLabel: entry.yearLabel,
+                    classLabel: entry.baseClassLabel || entry.subjectClassName,
+                  })
+                );
+
+                // A student whose base class belongs only to archived subject
+                // class(es) — and who has no active subject — should read as
+                // "not linked" in the live Year Group / Class columns.
+                const baseClassArchivedOnly =
+                  actualStudentClassId > 0 &&
+                  archivedLinkedClassIds.has(String(actualStudentClassId)) &&
+                  !linkedClassToSubjects.has(String(actualStudentClassId));
+                const shouldBlankActive =
+                  baseClassArchivedOnly &&
+                  subjectNames.length === 0 &&
+                  !isSubjectWorkspaceMode &&
+                  !isReadOnlyArchivedWorkspace;
+
                 return [{
                   key: `${cls.id}-${student.id ?? student.student_id ?? Math.random()}`,
                   enrollmentStudentId: primaryId || fallbackId || "",
@@ -1248,14 +1334,15 @@ export default function AllStudentsPage() {
                   currentAssignments,
                   isSen,
                   senDetails,
-                  yearId: actualYearId,
-                  yearGroup: actualYearName,
-                  yearGroups,
-                  yearIds,
-                  className: actualClassName,
-                  classNames,
+                  archivedMemberships,
+                  yearId: shouldBlankActive ? 0 : actualYearId,
+                  yearGroup: shouldBlankActive ? "" : actualYearName,
+                  yearGroups: shouldBlankActive ? [] : yearGroups,
+                  yearIds: shouldBlankActive ? [] : yearIds,
+                  className: shouldBlankActive ? "" : actualClassName,
+                  classNames: shouldBlankActive ? [] : classNames,
                   classId: actualStudentClassId,
-                  classFilterOptions,
+                  classFilterOptions: shouldBlankActive ? [] : classFilterOptions,
                   subjectClassId: Number(cls.subject_class_id ?? 0) || undefined,
                   status: String(student.status ?? "active").toLowerCase() as
                     | "active"
@@ -1340,6 +1427,7 @@ export default function AllStudentsPage() {
                   typeof override?.senDetails === "string"
                     ? override.senDetails
                     : String(student.sen_details ?? student.senDetails ?? ""),
+                archivedMemberships: [],
                 yearId: 0,
                 yearGroup: "",
                 yearGroups: [],
@@ -3216,6 +3304,28 @@ export default function AllStudentsPage() {
                       <Space size={[4, 4]} wrap>
                         {value.map((name) => (
                           <Tag key={name}>{name}</Tag>
+                        ))}
+                      </Space>
+                    );
+                  },
+                },
+                {
+                  title: "Archived Class/Year",
+                  dataIndex: "archivedMemberships",
+                  key: "archivedMemberships",
+                  render: (_: unknown, record: StudentListRow) => {
+                    const memberships = Array.isArray(record.archivedMemberships)
+                      ? record.archivedMemberships
+                      : [];
+                    if (memberships.length === 0) return <span className="text-gray-300">—</span>;
+                    return (
+                      <Space size={[4, 4]} wrap>
+                        {memberships.map((m, index) => (
+                          <Tag key={`${m.subjectName}-${m.classLabel}-${index}`} color="orange">
+                            {[m.subjectName, m.yearLabel, m.classLabel]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </Tag>
                         ))}
                       </Space>
                     );
