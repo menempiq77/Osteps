@@ -5,6 +5,9 @@ export type LeaderboardRawEntry = {
   total_marks?: number | null;
   tracker_points?: number | string | null;
   mind_points?: number | string | null;
+  coin_balance?: number | string | null;
+  coins?: number | string | null;
+  wallet_balance?: number | string | null;
   points?: number | string | null;
   score?: number | string | null;
   marks?: number | string | null;
@@ -37,6 +40,7 @@ export type LeaderboardRow = {
   points: number;
   trackerPoints?: number;
   mindPoints?: number;
+  coinBalance?: number;
   badge: "gold" | "silver" | "bronze" | null;
   className?: string;
   class_id?: string;
@@ -50,6 +54,18 @@ const toNumber = (value: unknown): number => {
   }
   return 0;
 };
+
+export const resolveCoinBalance = (
+  entry: LeaderboardRawEntry | null | undefined,
+  fallback = 0
+): number =>
+  toNumber(
+    entry?.coin_balance ??
+      entry?.coins ??
+      entry?.wallet_balance ??
+      entry?.tracker_points ??
+      fallback
+  );
 
 const toKey = (value: unknown): string => {
   if (value === null || value === undefined) return "";
@@ -84,7 +100,15 @@ export const resolveStudentName = (entry: LeaderboardRawEntry): string => {
 export const mergeAndRankLeaderboards = (leaderboards: LeaderboardRawEntry[][]): LeaderboardRow[] => {
   const map = new Map<
     string,
-    { name: string; points: number; trackerPoints?: number; mindPoints?: number; className?: string; class_id?: string }
+    {
+      name: string;
+      points: number;
+      trackerPoints?: number;
+      mindPoints?: number;
+      coinBalance?: number;
+      className?: string;
+      class_id?: string;
+    }
   >();
 
   for (const entries of leaderboards) {
@@ -99,13 +123,22 @@ export const mergeAndRankLeaderboards = (leaderboards: LeaderboardRawEntry[][]):
       );
       const trackerPoints = toNumber(entry?.tracker_points);
       const mindPoints = toNumber(entry?.mind_points);
+      const coinBalance = resolveCoinBalance(entry);
 
       const className = entry?.class_name ?? entry?.className ?? undefined;
       const class_id = entry?.class_id ? String(entry.class_id) : undefined;
 
       const existing = map.get(resolvedKey);
       if (!existing) {
-        map.set(resolvedKey, { name, points, trackerPoints, mindPoints, className, class_id });
+        map.set(resolvedKey, {
+          name,
+          points,
+          trackerPoints,
+          mindPoints,
+          coinBalance,
+          className,
+          class_id,
+        });
         continue;
       }
 
@@ -116,6 +149,7 @@ export const mergeAndRankLeaderboards = (leaderboards: LeaderboardRawEntry[][]):
           points,
           trackerPoints,
           mindPoints,
+          coinBalance,
           className: className || existing.className,
           class_id: class_id || existing.class_id
         });
@@ -135,6 +169,7 @@ export const mergeAndRankLeaderboards = (leaderboards: LeaderboardRawEntry[][]):
     points: student.points || 0,
     trackerPoints: student.trackerPoints,
     mindPoints: student.mindPoints,
+    coinBalance: student.coinBalance,
     badge: index === 0 ? "gold" : index === 1 ? "silver" : index === 2 ? "bronze" : null,
     className: student.className,
     class_id: student.class_id,

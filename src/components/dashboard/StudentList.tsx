@@ -52,6 +52,7 @@ import {
   fetchBehaviourType,
 } from "@/services/behaviorApi";
 import { fetchClassStudentsBehaviorSummary } from "@/services/studentBehaviorSummaryApi";
+import { fetchSchoolSelfLeaderBoardData } from "@/services/leaderboardApi";
 import {
   fetchClassSeatingLayout,
   saveClassSeatingLayout,
@@ -77,6 +78,10 @@ import {
   StudentCardMarkerKey,
   writeStudentCardMarker,
 } from "@/lib/studentCardMarkers";
+import {
+  resolveCoinBalance,
+  type LeaderboardRawEntry,
+} from "@/lib/leaderboard";
 
 type Student = {
   id: string;
@@ -99,6 +104,8 @@ type Student = {
   profile_path?: string | null;
   profile_photo?: string | null;
   avatar?: string | null;
+  coin_balance?: number;
+  leaderboard_points?: number;
 };
 
 type EditSubjectOption = {
@@ -829,6 +836,31 @@ export default function StudentList() {
       isSubjectWorkspaceMode,
     ]
   );
+
+  const { data: studentRewardRows = [] } = useQuery({
+    queryKey: ["student-card-reward-balances"],
+    queryFn: async () => {
+      const response = await fetchSchoolSelfLeaderBoardData();
+      return (response?.data ?? []) as LeaderboardRawEntry[];
+    },
+    enabled: hasAccess,
+    staleTime: 60 * 1000,
+  });
+
+  const rewardsByStudentId = useMemo(() => {
+    const map: Record<string, { coins: number; points: number }> = {};
+    studentRewardRows.forEach((row) => {
+      const id = String(row?.student_id ?? "");
+      if (!id) return;
+      map[id] = {
+        coins: resolveCoinBalance(row),
+        points: safeNumber(
+          row?.total_marks ?? row?.points ?? row?.score ?? row?.marks
+        ),
+      };
+    });
+    return map;
+  }, [studentRewardRows]);
 
   const {
     data: relatedExistingStudentClassMeta = [],
@@ -1697,6 +1729,7 @@ export default function StudentList() {
       return (students as Student[]).map((s) => {
         const fp = fallbackPointsByStudent[toStudentId(s.id)];
         const sid = toStudentId(s.id);
+        const rewards = rewardsByStudentId[sid];
         const fromApiGender = normalizeGenderRaw(
           s.gender ?? s.student_gender ?? s.sex ?? s.student_sex
         );
@@ -1723,6 +1756,8 @@ export default function StudentList() {
         positive_points: fp?.positive ?? 0,
         negative_points: fp?.negative ?? 0,
         total_points: fp?.total ?? 0,
+        coin_balance: rewards?.coins ?? 0,
+        leaderboard_points: rewards?.points ?? 0,
       };
       });
     }
@@ -1730,6 +1765,7 @@ export default function StudentList() {
     const byId = new Map((students as Student[]).map((s) => [toStudentId(s.id), s]));
     return behaviorSummary.map((item) => {
       const id = toStudentId(item.student_id);
+      const rewards = rewardsByStudentId[id];
       const fromStudents = byId.get(id);
       const fromApiGender = normalizeGenderRaw(
         (item as any)?.gender ??
@@ -1789,6 +1825,8 @@ export default function StudentList() {
           0,
         total_points:
           safeNumber(item.total_points) || fallbackPointsByStudent[id]?.total || 0,
+        coin_balance: rewards?.coins ?? 0,
+        leaderboard_points: rewards?.points ?? 0,
       };
     });
   }, [
@@ -1799,6 +1837,7 @@ export default function StudentList() {
     fallbackPointsByStudent,
     scopedSubjectId,
     effectiveSubjectClassId,
+    rewardsByStudentId,
   ]);
 
   const openEditStudent = (student: Student | null) => {
@@ -3536,12 +3575,24 @@ export default function StudentList() {
                       </div>
                     )}
                     <div className="text-right">
-                      <div className={`text-3xl font-bold ${scoreColorClass(safeNumber(student.total_points))}`}>
-                        {safeNumber(student.total_points) > 0
-                          ? `+${safeNumber(student.total_points)}`
-                          : safeNumber(student.total_points)}
+                      <div className="space-y-1.5">
+                        <div className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1">
+                          <div className="text-sm font-extrabold leading-none text-amber-700">
+                            {safeNumber(student.coin_balance).toLocaleString()}
+                          </div>
+                          <div className="mt-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-600">
+                            Coins
+                          </div>
+                        </div>
+                        <div className="rounded-lg border border-teal-200 bg-teal-50 px-2 py-1">
+                          <div className="text-sm font-extrabold leading-none text-teal-700">
+                            {safeNumber(student.leaderboard_points).toLocaleString()}
+                          </div>
+                          <div className="mt-0.5 text-[9px] font-bold uppercase tracking-wide text-teal-600">
+                            Points
+                          </div>
+                        </div>
                       </div>
-                      <div className="text-xs text-slate-400">points</div>
                       <Popover
                         trigger="click"
                         placement="bottomRight"
@@ -3582,6 +3633,15 @@ export default function StudentList() {
                     <div className={`text-xs truncate ${isPresent ? "text-slate-500" : "text-slate-300"}`}>
                       @{student.user_name || "N/A"}
                     </div>
+                  </div>
+
+                  <div
+                    className={`mt-2 text-xs font-semibold ${
+                      isPresent ? scoreColorClass(safeNumber(student.total_points)) : "text-slate-300"
+                    }`}
+                  >
+                    Behaviour: {safeNumber(student.total_points) > 0 ? "+" : ""}
+                    {safeNumber(student.total_points)} pts
                   </div>
 
                   <div className="mt-3 flex items-center justify-between">
