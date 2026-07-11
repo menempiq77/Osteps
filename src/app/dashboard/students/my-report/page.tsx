@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSelector } from "react-redux";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Empty, Select, Spin, Tag } from "antd";
+import { FilePdfOutlined, TrophyOutlined } from "@ant-design/icons";
 import {
   Bar,
   BarChart,
@@ -21,6 +22,8 @@ import { useSubjectContext } from "@/contexts/SubjectContext";
 import { fetchStudentProfileData } from "@/services/studentsApi";
 import { fetchGrades } from "@/services/gradesApi";
 import { fetchWholeAssessmentsReport } from "@/services/reportApi";
+import { fetchMyClaimedCertificates } from "@/services/trackersApi";
+import { IMG_BASE_URL } from "@/lib/config";
 
 type AnyObj = Record<string, unknown>;
 
@@ -181,6 +184,12 @@ export default function StudentMyReportPage() {
     queryKey: ["student-my-report-assessments", schoolId ?? 0, scopedSubjectId ?? 0],
     queryFn: () => fetchWholeAssessmentsReport(String(schoolId), scopedSubjectId),
     enabled: Boolean(schoolId),
+  });
+
+  const { data: claimedCertificates = [] } = useQuery({
+    queryKey: ["student-report-achievements", studentId],
+    queryFn: fetchMyClaimedCertificates,
+    enabled: Boolean(studentId),
   });
 
   const s = (student ?? {}) as AnyObj;
@@ -422,6 +431,23 @@ export default function StudentMyReportPage() {
     const totalMax = trackers.reduce((a, t) => a + t.max, 0);
     return { trackers, overall: pct(totalEarned, totalMax) };
   }, [s, studentId]);
+
+  const achievements = useMemo(
+    () =>
+      asArray(claimedCertificates)
+        .filter((certificate) => certificate?.certificate_path)
+        .map((certificate) => ({
+          key: String(certificate?.id ?? certificate?.tracker_id),
+          trackerId: String(certificate?.tracker_id ?? ""),
+          name:
+            tracker.trackers.find(
+              (item) =>
+                String(item.key) === String(certificate?.tracker_id ?? "")
+            )?.name ?? "Tracker achievement",
+          certificatePath: String(certificate?.certificate_path ?? ""),
+        })),
+    [claimedCertificates, tracker.trackers]
+  );
 
   if (isLoading) {
     return (
@@ -883,6 +909,52 @@ export default function StudentMyReportPage() {
           />
         )}
       </SectionCard>
+      ) : null}
+
+      {!isPreviousView ? (
+        <SectionCard
+          title="Achievements"
+          subtitle="Certificates awarded after completed tracker tests"
+          extra={
+            achievements.length ? (
+              <Tag color="gold" icon={<TrophyOutlined />}>
+                {achievements.length} earned
+              </Tag>
+            ) : null
+          }
+        >
+          {achievements.length ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {achievements.map((achievement) => (
+                <a
+                  key={achievement.key}
+                  href={`${IMG_BASE_URL}/storage/${achievement.certificatePath}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="group flex items-center gap-3 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-4 transition hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-md"
+                >
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-400 text-xl text-amber-950 shadow-sm">
+                    <TrophyOutlined />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-amber-600">
+                      Certificate earned
+                    </span>
+                    <span className="mt-1 block truncate font-bold text-slate-800">
+                      {achievement.name}
+                    </span>
+                  </span>
+                  <FilePdfOutlined className="text-xl text-rose-600 transition group-hover:scale-110" />
+                </a>
+              ))}
+            </div>
+          ) : (
+            <Empty
+              description="Complete a tracker and its teacher test to earn your first certificate."
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+            />
+          )}
+        </SectionCard>
       ) : null}
     </div>
   );
