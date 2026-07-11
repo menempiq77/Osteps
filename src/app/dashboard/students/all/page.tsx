@@ -29,7 +29,7 @@ import { RootState } from "@/store/store";
 import { IMPERSONATION_STORAGE_KEY, setCurrentUser } from "@/features/auth/authSlice";
 import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
 import { fetchClasses } from "@/services/classesApi";
-import { addStudent, deleteStudent, fetchStudentProfileData, fetchStudents, fetchBaseClassStudents, updateStudent } from "@/services/studentsApi";
+import { addStudent, deleteStudent, fetchStudentProfileData, fetchStudents, fetchBaseClassStudents, fetchUnassignedStudents, updateStudent } from "@/services/studentsApi";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import {
   filterStudentsBySubjectScope,
@@ -1277,9 +1277,100 @@ export default function AllStudentsPage() {
       );
 
       const flattenedRows = byClass.flat() as StudentListRow[];
+
+      // Students that belong to no class at all (e.g. their only class was a
+      // deleted subject's class) aren't returned by any per-class roster
+      // fetch. Surface them so a School Admin / HOD can still find them via the
+      // "Unassigned to any subject" filter and reassign them. Skip in the
+      // subject-workspace and archived read-only views (which are scoped to one
+      // subject's roster).
+      let unassignedRows: StudentListRow[] = [];
+      if (
+        !isSubjectWorkspaceMode &&
+        !isReadOnlyArchivedWorkspace &&
+        (role === "SCHOOL_ADMIN" || role === "HOD")
+      ) {
+        try {
+          const rawUnassigned = (await fetchUnassignedStudents()) as Array<Record<string, any>>;
+          const seenIds = new Set(flattenedRows.map((row) => String(row.studentId)));
+          unassignedRows = (Array.isArray(rawUnassigned) ? rawUnassigned : [])
+            .flatMap((student): StudentListRow[] => {
+              const studentSchoolId = Number(student.school_id ?? student.schoolId ?? 0);
+              if (schoolId > 0 && studentSchoolId > 0 && studentSchoolId !== schoolId) {
+                return [];
+              }
+              const primaryId = String(student.id ?? "").trim();
+              const fallbackId = String(student.student_id ?? "").trim();
+              const canonicalStudentId = fallbackId || primaryId;
+              const updateIds = Array.from(
+                new Set([canonicalStudentId, fallbackId, primaryId].filter(Boolean))
+              );
+              const sid = canonicalStudentId || updateIds[0] || "";
+              if (!sid || seenIds.has(String(sid))) {
+                return [];
+              }
+              seenIds.add(String(sid));
+              const override = readStudentProfileOverride([primaryId, fallbackId]);
+              const rawGender = normalizeGenderRaw(
+                student.gender ??
+                  student.student_gender ??
+                  student.sex ??
+                  student.student_sex ??
+                  student.studentGender ??
+                  student.studentSex
+              );
+              return [{
+                key: `unassigned-${sid}`,
+                enrollmentStudentId: primaryId || fallbackId || "",
+                studentId: sid,
+                profileId: primaryId || fallbackId || sid,
+                updateIds,
+                name: resolveStudentDisplayName(student),
+                userName: resolveStudentUserName(student),
+                email: String(student.email ?? ""),
+                nationality: String(student.nationality ?? "").trim(),
+                subjectIds: [],
+                subjectNames: [],
+                currentAssignments: [],
+                isSen:
+                  typeof override?.isSen === "boolean"
+                    ? override.isSen
+                    : Boolean(student.is_sen ?? student.isSen ?? false),
+                senDetails:
+                  typeof override?.senDetails === "string"
+                    ? override.senDetails
+                    : String(student.sen_details ?? student.senDetails ?? ""),
+                yearId: 0,
+                yearGroup: "",
+                yearGroups: [],
+                yearIds: [],
+                className: "",
+                classNames: [],
+                classId: 0,
+                classFilterOptions: [],
+                subjectClassId: undefined,
+                status: String(student.status ?? "active").toLowerCase() as
+                  | "active"
+                  | "inactive"
+                  | "suspended",
+                gender:
+                  rawGender === "male"
+                    ? "Male"
+                    : rawGender === "female"
+                      ? "Female"
+                      : "Unknown",
+                genderRaw: rawGender,
+              }];
+            });
+        } catch {
+          unassignedRows = [];
+        }
+      }
+
+      const flattenedWithUnassigned = [...flattenedRows, ...unassignedRows];
       return Array.from(
         new Map<string, StudentListRow>(
-          flattenedRows.map((row) => [
+          flattenedWithUnassigned.map((row) => [
             `${row.enrollmentStudentId || row.studentId || row.profileId}-${row.classId}`,
             row,
           ])

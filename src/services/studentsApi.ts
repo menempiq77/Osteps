@@ -74,6 +74,17 @@ export const fetchBaseClassStudents = async (classId: string | number) => {
   const response = await api.get(`/get-student/${classId}`);
   return response?.data?.data ?? [];
 };
+
+/**
+ * Students that belong to no class at all (e.g. their only class was a
+ * deleted subject's class). The per-class roster fetch can't surface these,
+ * so they are fetched separately and merged into the "All Students" list so a
+ * School Admin can still find and reassign them.
+ */
+export const fetchUnassignedStudents = async () => {
+  const response = await api.get(`/get-unassigned-students`);
+  return response?.data?.data ?? [];
+};
 // add Student
 export const addStudent = async (studentData: {
   student_name: string;
