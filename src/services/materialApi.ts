@@ -1,11 +1,7 @@
 // src/services/materialApi.ts
 import { API_BASE_URL } from '@/lib/config';
-import { store } from '@/store/store';
+import { getAuthHeader } from "@/lib/apiClient";
 
-const getAuthHeader = (): Record<string, string> => {
-  const token = store.getState().auth.token;
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
 
 // Fetch all materials
 export const fetchMaterials = async (subjectId?: number | null) => {

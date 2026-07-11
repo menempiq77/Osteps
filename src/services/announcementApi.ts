@@ -1,12 +1,8 @@
 // src/services/announcementApi.ts
 import { API_BASE_URL } from '@/lib/config';
-import { store } from '@/store/store';
+import { getAuthHeader } from "@/lib/apiClient";
 import { withSubjectPayload, withSubjectQuery } from '@/lib/subjectScope';
 
-const getAuthHeader = (): Record<string, string> => {
-  const token = store.getState().auth.token;
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
 
 export const fetchAnnouncements = async () => {
   const params = new URLSearchParams();

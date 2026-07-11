@@ -1,21 +1,8 @@
 // src/services/libraryApi.ts
-import axios from 'axios';
-import { store } from '@/store/store';
-import { API_BASE_URL } from '@/lib/config';
+import { createApiClient } from "@/lib/apiClient";
 import { resolveScopedSubjectId, withSubjectQuery } from '@/lib/subjectScope';
 
-const api = axios.create({
-  baseURL: API_BASE_URL,
-});
-
-// Request interceptor to add auth token
-api.interceptors.request.use((config) => {
-  const token = store.getState().auth.token;
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+const api = createApiClient();
 
 //Library Categories apis Started
 // fetch Categories

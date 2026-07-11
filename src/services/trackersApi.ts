@@ -1,21 +1,8 @@
 // src/services/trackersApi.ts
-import axios from "axios";
-import { store } from "@/store/store";
-import { API_BASE_URL } from "@/lib/config";
+import { createApiClient } from "@/lib/apiClient";
 import { withSubjectPayload, withSubjectQuery } from "@/lib/subjectScope";
 
-const api = axios.create({
-  baseURL: API_BASE_URL,
-});
-
-// Request interceptor to add auth token
-api.interceptors.request.use((config) => {
-  const token = store.getState().auth.token;
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+const api = createApiClient();
 
 // fetch all trackers
 export const fetchAllTrackers = async (schoolId: number, subjectId?: number) => {

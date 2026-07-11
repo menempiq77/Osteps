@@ -1,20 +1,10 @@
 // src/services/classEnrollmentApi.ts
-import axios from "axios";
-import { store } from "@/store/store";
-import { API_BASE_URL } from "@/lib/config";
+import { createApiClient, createPublicApiClient } from "@/lib/apiClient";
 
-const api = axios.create({ baseURL: API_BASE_URL });
-
-api.interceptors.request.use((config) => {
-  const token = store.getState().auth.token;
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+const api = createApiClient();
 
 // Public (no auth) client for the student signup page.
-const publicApi = axios.create({ baseURL: API_BASE_URL });
+const publicApi = createPublicApiClient();
 
 export interface EnrollmentRequest {
   id: number;

@@ -1,11 +1,7 @@
 // src/services/termsApi.ts
 import { API_BASE_URL } from '@/lib/config';
-import { store } from '@/store/store';
+import { getAuthHeader } from "@/lib/apiClient";
 
-const getAuthHeader = (): Record<string, string> => {
-  const token = store.getState().auth.token;
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
 
 export const fetchTerm = async (classId: number) => {
   const response = await fetch(`${API_BASE_URL}/get-term/${classId}`, {
